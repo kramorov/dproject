@@ -1,0 +1,58 @@
+python -Xutf8 manage.py dumpdata cable_glands --indent 4 --format=json  -o cable_glands.json
+python -Xutf8 manage.py dumpdata electric_actuators --indent 4 --format=json  -o electric_actuators.json
+python -Xutf8 manage.py dumpdata producers --indent 4 --format=json  -o producers.json
+python -Xutf8 manage.py dumpdata params --indent 4 --format=json  -o params.json
+python -Xutf8 manage.py dumpdata ett --indent 4 --format=json  -o ett.json
+
+python manage.py makemigrations
+python manage.py migrate
+python manage.py showmigrations
+
+python manage.py startapp clients
+
+pip install django-admin-interface
+pip install django-nested-admin
+pip install django-extensions
+pip install django-rest-framework-generator
+python manage.py generate_serializers app
+python manage.py generate_serializers --with-views
+pip install drf-generators
+https://github.com/Brobin/drf-generators?tab=readme-ov-file#installation
+python manage.py generate api --format function --force --depth=2
+python manage.py generate client_request --format apiview --force --depth=4
+Option	Action
+--serializers	Generate only Serializers for your app.
+--views	Generate only Views for your app.
+--urls	Generate only urls for your app.
+--force	Overwrite existing files without the warning prompt.
+-f, --format	Format to use when generating views and urls. Valid options: viewset, apiview, function, modelviewset. Default: viewset.
+-d, --depth	Serialization depth for related models. Default: 0
+
+npx tsc
+npm install --save-dev @vue/compiler-sfc
+
+
+npm install vuex
+
+pip freeze > requirements.txt
+pip freeze --local > requirements.txt
+
+Для работы с requirements.txt есть Python библиотека pipreqs
+
+Установка: pip install pipreqs
+
+Чтобы сгенерировать файл requirements.txt используйте pipreqs /path/to/project/folder
+Если requirements.txt уже есть и необходимо его перезаписать, то используйте флаг —force
+Если нужно просто посмотреть на используемые библиотеки без создания, флаг —print
+
+{
+  "input_string": "ЗК500*16-ФП-Х-К0/8-К48/РР/Н/С0"
+}
+{
+  "input_string": "ЗК1000*16-СП-Х-К0-12-К50/ЭПДА1/Н/С0"
+}
+{
+  "input_string": "ЗК1000*16-СП-Х-К0-12-К50/ЭПДА1/Н/С0"
+}
+
+django напиши модель "Запрос клиента": поля "Клиент", "Контактное лицо"; модель "Строки запроса": поле "Название". Строки запроса должны автоматически нумероваться. Строки запроса относятся к модели "Запрос клиента"

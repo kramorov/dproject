@@ -1,0 +1,37 @@
+{% extends "admin/change_form.html" %}
+
+{% block content %}
+    <h1>'Custom form'</h1>
+
+    <div class="module aligned">
+        <div class="form-row field-actual_model">
+            <fieldset class="module aligned">
+{#                <legend>{{ object.__class__._meta.verbose_name }}</legend>#}
+
+                <div class="module-row">
+                    <label for="id_name" class="required">Name</label>
+                    <div class="form-widget">
+                        {{ form.name }}
+                    </div>
+                </div>
+
+               <div class="module-row">
+                    <label for="id_actual_model">id_actual_model Actual Model</label>
+                    <div class="form-widget">
+                        <div class="related-widget-wrapper">
+                            <!-- Стандартное поле для выбора Actual Model -->
+                            {{ form.actual_model }}
+
+                            {% if show_update_name_button %}
+                                <!-- Кнопка рядом с полем actual_model -->
+                                <a href="{% url 'admin:update_name' object.pk %}" class="button" style="margin-left: 10px;">Change Model Name</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+    </div>
+
+    {{ block.super }}
+{% endblock %}

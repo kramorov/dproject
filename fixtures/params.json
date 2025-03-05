@@ -1,0 +1,1554 @@
+[
+{
+    "model": "params.powersupplies",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "220/50",
+        "voltage_value": 220,
+        "voltage_type": "AC",
+        "text_description": "220В/50Гц/1ф"
+    }
+},
+{
+    "model": "params.powersupplies",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "380/50",
+        "voltage_value": 380,
+        "voltage_type": "AC",
+        "text_description": "380В/50Гц/3ф"
+    }
+},
+{
+    "model": "params.powersupplies",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "24DC",
+        "voltage_value": 24,
+        "voltage_type": "DC",
+        "text_description": "24В пост. Ток"
+    }
+},
+{
+    "model": "params.exdoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "NONE",
+        "exd_full_code": "Общепромышленное",
+        "text_description": "Общепромышленное исполнение"
+    }
+},
+{
+    "model": "params.exdoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "1 Exd IIC T5 Gb X",
+        "exd_full_code": "1 Exd IIC T5 Gb X",
+        "text_description": "1 Exd IIC T5 Gb X"
+    }
+},
+{
+    "model": "params.exdoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "Ex tc IIIC T95°C  Dc",
+        "exd_full_code": "Ex tc IIIC T95°C  Dc",
+        "text_description": "Ex tc IIIC T95°C  Dc"
+    }
+},
+{
+    "model": "params.exdoption",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "1Ex db IIC Gb",
+        "exd_full_code": "1Ex db IIC Gb",
+        "text_description": "1Ex db IIC Gb"
+    }
+},
+{
+    "model": "params.exdoption",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "1Ex e IIC Gb",
+        "exd_full_code": "1Ex e IIC Gb",
+        "text_description": "1Ex e IIC Gb"
+    }
+},
+{
+    "model": "params.exdoption",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "Ex tb IIIC Db",
+        "exd_full_code": "Ex tb IIIC Db",
+        "text_description": "Ex tb IIIC Db"
+    }
+},
+{
+    "model": "params.exdoption",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "2Ex nR IIC Gc",
+        "exd_full_code": "2Ex nR IIC Gc",
+        "text_description": "2Ex nR IIC Gc"
+    }
+},
+{
+    "model": "params.ipoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "IP54",
+        "ip_rank": 54,
+        "text_description": "IP54"
+    }
+},
+{
+    "model": "params.ipoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "IP65",
+        "ip_rank": 65,
+        "text_description": "IP65"
+    }
+},
+{
+    "model": "params.ipoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "IP67",
+        "ip_rank": 67,
+        "text_description": "IP67"
+    }
+},
+{
+    "model": "params.ipoption",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "IP68",
+        "ip_rank": 68,
+        "text_description": "IP68 *(до 2м. в течение не более 60 мин.)"
+    }
+},
+{
+    "model": "params.ipoption",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "IP66",
+        "ip_rank": 66,
+        "text_description": "IP66"
+    }
+},
+{
+    "model": "params.ipoption",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "IP69",
+        "ip_rank": 69,
+        "text_description": "IP69"
+    }
+},
+{
+    "model": "params.bodycoatingoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "STD",
+        "text_description": "Стандарт, аналог AUMA KN"
+    }
+},
+{
+    "model": "params.bodycoatingoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "KS",
+        "text_description": "Аналог AUMA KS (агрессивная среда)"
+    }
+},
+{
+    "model": "params.bodycoatingoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "KX",
+        "text_description": "Аналог AUMA KX (экстремально агрессивная среда)"
+    }
+},
+{
+    "model": "params.blinkeroption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "NONE",
+        "text_description": "Нет"
+    }
+},
+{
+    "model": "params.blinkeroption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "blinker_int",
+        "text_description": "Блинкер на блоке управления"
+    }
+},
+{
+    "model": "params.switchesparameters",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "NONE",
+        "text_description": "нет"
+    }
+},
+{
+    "model": "params.switchesparameters",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "SPDT",
+        "text_description": "одиночные (стандарт)"
+    }
+},
+{
+    "model": "params.switchesparameters",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "DPDT",
+        "text_description": "сдвоенные"
+    }
+},
+{
+    "model": "params.envtempparameters",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "STD",
+        "text_description": "Стандарт (от -20 °C до +70 °C)",
+        "min_temp": -20,
+        "max_temp": 70
+    }
+},
+{
+    "model": "params.envtempparameters",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "LT",
+        "text_description": "LT (от -40 °C до +70 °C)",
+        "min_temp": -40,
+        "max_temp": 70
+    }
+},
+{
+    "model": "params.envtempparameters",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "VLT",
+        "text_description": "VLT (от -60 °C до +70 °C)",
+        "min_temp": -60,
+        "max_temp": 70
+    }
+},
+{
+    "model": "params.digitalprotocolssupportoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "NONE",
+        "text_description": "без цифровых протоколов"
+    }
+},
+{
+    "model": "params.digitalprotocolssupportoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "MB",
+        "text_description": "ModBus"
+    }
+},
+{
+    "model": "params.digitalprotocolssupportoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "PB",
+        "text_description": "ProfiBus"
+    }
+},
+{
+    "model": "params.digitalprotocolssupportoption",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "HART",
+        "text_description": "HART"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "NONE",
+        "encoding": "",
+        "text_description": "нет"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "POTE",
+        "encoding": "",
+        "text_description": "Потенциометр, омическая обратная свзяь 0-1кОм"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "TR",
+        "encoding": "",
+        "text_description": "Трансмиттер, обратная связь 4-20мА"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "POSI",
+        "encoding": "",
+        "text_description": "Позиционер, упр.сигнал 4-20мА, обр.связь 4-20мА"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "INT_O",
+        "encoding": "INT/O",
+        "text_description": "С блоком управления типа INT/O (Открыть-Закрыть)"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "INT_L",
+        "encoding": "INT/L",
+        "text_description": "С интеллектуальным блоком управления типа INT/L"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "INT_N",
+        "encoding": "INT/N",
+        "text_description": "С интеллектуальным блоком управления типа INT/N"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "TR10",
+        "encoding": "",
+        "text_description": "Трансмиттер, обратная связь 0-10В"
+    }
+},
+{
+    "model": "params.controlunitinstalledoption",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "POSI10",
+        "encoding": "",
+        "text_description": "Позиционер, упр.сигнал 0-10В, обр.связь 0-10В"
+    }
+},
+{
+    "model": "params.actuatorgearboxoutputtype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "Q",
+        "text_description": "Четвертьоборотный"
+    }
+},
+{
+    "model": "params.actuatorgearboxoutputtype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "M",
+        "text_description": "Многоборотный"
+    }
+},
+{
+    "model": "params.actuatorgearboxoutputtype",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "L",
+        "text_description": "Линейный"
+    }
+},
+{
+    "model": "params.actuatorgearboxoutputtype",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "NO",
+        "text_description": "нет"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "Q",
+        "electric_actuator_type": "Q",
+        "gearbox_type": "NO",
+        "pneumatic_actuator_type": "NO",
+        "text_description": "Четвертьоборотный электропривод"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "M",
+        "electric_actuator_type": "Q",
+        "gearbox_type": "Q",
+        "pneumatic_actuator_type": "NO",
+        "text_description": "Многооборотный электропривод с четвертьоборотным редуктором"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "Q",
+        "electric_actuator_type": "NO",
+        "gearbox_type": "NO",
+        "pneumatic_actuator_type": "Q",
+        "text_description": "Четвертьоборотный пневмопривод"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "M",
+        "electric_actuator_type": "M",
+        "gearbox_type": "Q",
+        "pneumatic_actuator_type": "NO",
+        "text_description": "Многооборотный электропривод"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "M",
+        "electric_actuator_type": "M",
+        "gearbox_type": "M",
+        "pneumatic_actuator_type": "Q",
+        "text_description": "Многооборотный электропривод с многооборотным редуктором"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "L",
+        "electric_actuator_type": "L",
+        "gearbox_type": "NO",
+        "pneumatic_actuator_type": "NO",
+        "text_description": "Линейный электропривод"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "L",
+        "electric_actuator_type": "M",
+        "gearbox_type": "L",
+        "pneumatic_actuator_type": "NO",
+        "text_description": "Многооборотный электропривод с линейным модулем"
+    }
+},
+{
+    "model": "params.actuatorgearboxcombinationtypes",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "L",
+        "electric_actuator_type": "NO",
+        "gearbox_type": "NO",
+        "pneumatic_actuator_type": "L",
+        "text_description": "Линейный пневмопривод"
+    }
+},
+{
+    "model": "params.valvetypes",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "КШ",
+        "actuator_gearbox_combinations": "Q",
+        "text_description": "Кран шаровый"
+    }
+},
+{
+    "model": "params.valvetypes",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "ЗД",
+        "actuator_gearbox_combinations": "Q",
+        "text_description": "Затвор дисковый"
+    }
+},
+{
+    "model": "params.valvetypes",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "ЗК",
+        "actuator_gearbox_combinations": "M|L",
+        "text_description": "Задвижка клиновая"
+    }
+},
+{
+    "model": "params.valvetypes",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "ЗШ",
+        "actuator_gearbox_combinations": "M|L",
+        "text_description": "Задвижка шиберная"
+    }
+},
+{
+    "model": "params.valvetypes",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "КК",
+        "actuator_gearbox_combinations": "L",
+        "text_description": "Клапан"
+    }
+},
+{
+    "model": "params.handwheelinstalledoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "HEX",
+        "encoding": "",
+        "text_description": "Ручной дублер в виде шестигранника"
+    }
+},
+{
+    "model": "params.handwheelinstalledoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "HW opt",
+        "encoding": "HW",
+        "text_description": "Ручной дублер в виде штурвала"
+    }
+},
+{
+    "model": "params.handwheelinstalledoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "HW",
+        "encoding": "",
+        "text_description": "Ручной дублер в виде штурвала"
+    }
+},
+{
+    "model": "params.operatingmodeoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "S2 - 15мин",
+        "text_description": "S2 - 15 минут (открыть=закрыть)"
+    }
+},
+{
+    "model": "params.operatingmodeoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "S4 - 25%",
+        "text_description": "S4 - 25% (регурирование)"
+    }
+},
+{
+    "model": "params.operatingmodeoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "S2-15мин/S4-25%",
+        "text_description": "S2 - 15 минут (открыть=закрыть),S4 - 25% (регурирование)"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "F03"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "F05"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "F07"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "F10"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "F12"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "F14"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "F16"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "ГОСТ А"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "ГОСТ Б"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "ГОСТ В"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "ГОСТ Г"
+    }
+},
+{
+    "model": "params.mountingplatetypes",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "ГОСТ Д"
+    }
+},
+{
+    "model": "params.stemshapes",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "SQ",
+        "text_description": "Квадрат"
+    }
+},
+{
+    "model": "params.stemshapes",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "D",
+        "text_description": "Вал со шпонкой"
+    }
+},
+{
+    "model": "params.stemshapes",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "DD",
+        "text_description": "Double D (DD)"
+    }
+},
+{
+    "model": "params.stemshapes",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "LH",
+        "text_description": "Левая резьба"
+    }
+},
+{
+    "model": "params.stemshapes",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "*",
+        "text_description": "По заказу, макс.диам."
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "SQ09",
+        "stem_type": 1,
+        "stem_diameter": "9",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "Квадрат 09x09"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "SQ11",
+        "stem_type": 1,
+        "stem_diameter": "11",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "Квадрат 11x11"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "SQ14",
+        "stem_type": 1,
+        "stem_diameter": "14",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "Квадрат 14x14"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "SQ17",
+        "stem_type": 1,
+        "stem_diameter": "17",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "Квадрат 17x17"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "SQ19",
+        "stem_type": 1,
+        "stem_diameter": "19",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "Квадрат 19x19"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "SQ27",
+        "stem_type": 1,
+        "stem_diameter": "27",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "Квадрат 27x27"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "D20x6",
+        "stem_type": 2,
+        "stem_diameter": "20",
+        "chunk_x": "6",
+        "chunk_y": "6",
+        "chunk_z": "0",
+        "thread_pitch": null,
+        "text_description": "Вал со шпонкой 20x6"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "D30x8",
+        "stem_type": 2,
+        "stem_diameter": "30",
+        "chunk_x": "8",
+        "chunk_y": "8",
+        "chunk_z": "0",
+        "thread_pitch": null,
+        "text_description": "Вал со шпонкой 30x8"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "D32x10",
+        "stem_type": 2,
+        "stem_diameter": "32",
+        "chunk_x": "10",
+        "chunk_y": "10",
+        "chunk_z": "0",
+        "thread_pitch": null,
+        "text_description": "Вал со шпонкой 32x10"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "D36x10",
+        "stem_type": 2,
+        "stem_diameter": "36",
+        "chunk_x": "10",
+        "chunk_y": "10",
+        "chunk_z": "0",
+        "thread_pitch": null,
+        "text_description": "Вал со шпонкой 36x10"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "D40x12",
+        "stem_type": 2,
+        "stem_diameter": "40",
+        "chunk_x": "12",
+        "chunk_y": "12",
+        "chunk_z": "0",
+        "thread_pitch": null,
+        "text_description": "Вал со шпонкой D40x12"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "*28",
+        "stem_type": 5,
+        "stem_diameter": "28",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "вал макс. 28 мм"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 13,
+    "fields": {
+        "symbolic_code": "*40",
+        "stem_type": 5,
+        "stem_diameter": "40",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "вал макс. 40 мм"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 14,
+    "fields": {
+        "symbolic_code": "*55",
+        "stem_type": 5,
+        "stem_diameter": "55",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "вал макс. 55 мм"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 15,
+    "fields": {
+        "symbolic_code": "Tr20x4LH",
+        "stem_type": 4,
+        "stem_diameter": "20",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "4",
+        "text_description": "Tr20x4LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 16,
+    "fields": {
+        "symbolic_code": "Tr28x5LH",
+        "stem_type": 4,
+        "stem_diameter": "28",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "5",
+        "text_description": "Tr28x5LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 17,
+    "fields": {
+        "symbolic_code": "Tr32x6LH",
+        "stem_type": 4,
+        "stem_diameter": "32",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "6",
+        "text_description": "Tr32x6LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 18,
+    "fields": {
+        "symbolic_code": "Tr40x6LH",
+        "stem_type": 4,
+        "stem_diameter": "40",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "6",
+        "text_description": "Tr40x6LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 19,
+    "fields": {
+        "symbolic_code": "Tr50x8LH",
+        "stem_type": 4,
+        "stem_diameter": "50",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "8",
+        "text_description": "Tr50x8LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 20,
+    "fields": {
+        "symbolic_code": "Tr60x8LH",
+        "stem_type": 4,
+        "stem_diameter": "60",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "8",
+        "text_description": "Tr60x8LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 21,
+    "fields": {
+        "symbolic_code": "Tr70x10LH",
+        "stem_type": 4,
+        "stem_diameter": "70",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "10",
+        "text_description": "Tr70x10LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 22,
+    "fields": {
+        "symbolic_code": "Tr80x10LH",
+        "stem_type": 4,
+        "stem_diameter": "80",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "10",
+        "text_description": "Tr80x10LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 23,
+    "fields": {
+        "symbolic_code": "Tr100x24LH",
+        "stem_type": 4,
+        "stem_diameter": "100",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": "24",
+        "text_description": "Tr100x24LH"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 24,
+    "fields": {
+        "symbolic_code": "SQ22",
+        "stem_type": 1,
+        "stem_diameter": "22",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "Квадрат 22*22"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 25,
+    "fields": {
+        "symbolic_code": "*45",
+        "stem_type": 5,
+        "stem_diameter": "45",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "вал макс. 45 мм"
+    }
+},
+{
+    "model": "params.stemsize",
+    "pk": 26,
+    "fields": {
+        "symbolic_code": "SQ36",
+        "stem_type": 1,
+        "stem_diameter": "36",
+        "chunk_x": null,
+        "chunk_y": null,
+        "chunk_z": null,
+        "thread_pitch": null,
+        "text_description": "SQ36"
+    }
+},
+{
+    "model": "params.threadtypes",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "NPT",
+        "text_description": "NPT"
+    }
+},
+{
+    "model": "params.threadtypes",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "G",
+        "text_description": "G"
+    }
+},
+{
+    "model": "params.threadtypes",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "M",
+        "text_description": "M"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "inch",
+        "measure_type": "length",
+        "symbolic_description": "\"",
+        "text_description": "дюйм"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "mm",
+        "measure_type": "length",
+        "symbolic_description": "мм",
+        "text_description": "миллиметр"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "sm",
+        "measure_type": "length",
+        "symbolic_description": "см",
+        "text_description": "сантиметр"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "m",
+        "measure_type": "length",
+        "symbolic_description": "м",
+        "text_description": "метр"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "kg",
+        "measure_type": "weight",
+        "symbolic_description": "кг",
+        "text_description": "килограмм"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "g",
+        "measure_type": "weight",
+        "symbolic_description": "г",
+        "text_description": "грамм"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "nm",
+        "measure_type": "torque",
+        "symbolic_description": "Нм",
+        "text_description": "Ньютон на метр"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "n",
+        "measure_type": "torque",
+        "symbolic_description": "Н",
+        "text_description": "Ньютон"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "bar",
+        "measure_type": "pressure",
+        "symbolic_description": "бар",
+        "text_description": "бар"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "mpa",
+        "measure_type": "pressure",
+        "symbolic_description": "МПа",
+        "text_description": "Мегапаскаль"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "kgsm",
+        "measure_type": "pressure",
+        "symbolic_description": "кг/см2",
+        "text_description": "Килограмм на см2"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "sm2",
+        "measure_type": "square",
+        "symbolic_description": "см2",
+        "text_description": "Кв.сантиметр"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 13,
+    "fields": {
+        "symbolic_code": "m2",
+        "measure_type": "square",
+        "symbolic_description": "м2",
+        "text_description": "Кв.метр"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 14,
+    "fields": {
+        "symbolic_code": "sqi",
+        "measure_type": "square",
+        "symbolic_description": "in2",
+        "text_description": "Кв.дюйм"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 15,
+    "fields": {
+        "symbolic_code": "m3",
+        "measure_type": "volume",
+        "symbolic_description": "м3",
+        "text_description": "метр куб."
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 16,
+    "fields": {
+        "symbolic_code": "rpm",
+        "measure_type": "speed",
+        "symbolic_description": "об/мин",
+        "text_description": "Оборотов в минуту"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 17,
+    "fields": {
+        "symbolic_code": "grc",
+        "measure_type": "temperature",
+        "symbolic_description": "°C",
+        "text_description": "Градусы Цельсия"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 18,
+    "fields": {
+        "symbolic_code": "grf",
+        "measure_type": "temperature",
+        "symbolic_description": "°F",
+        "text_description": "Градусы Фаренгейт"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 19,
+    "fields": {
+        "symbolic_code": "mhz",
+        "measure_type": "Частота",
+        "symbolic_description": "МГц",
+        "text_description": "Мегагерц"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 20,
+    "fields": {
+        "symbolic_code": "watt",
+        "measure_type": "power",
+        "symbolic_description": "Вт",
+        "text_description": "Ватт"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 21,
+    "fields": {
+        "symbolic_code": "kwatt",
+        "measure_type": "power",
+        "symbolic_description": "кВт",
+        "text_description": "Киловатт"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 22,
+    "fields": {
+        "symbolic_code": "sec",
+        "measure_type": "time",
+        "symbolic_description": "с",
+        "text_description": "Секунд"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 23,
+    "fields": {
+        "symbolic_code": "min",
+        "measure_type": "time",
+        "symbolic_description": "мин",
+        "text_description": "Минут"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 24,
+    "fields": {
+        "symbolic_code": "hour",
+        "measure_type": "time",
+        "symbolic_description": "час",
+        "text_description": "Час"
+    }
+},
+{
+    "model": "params.measureunits",
+    "pk": 25,
+    "fields": {
+        "symbolic_code": "A",
+        "measure_type": "power",
+        "symbolic_description": "A",
+        "text_description": "Ампер"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "NPT_1_4",
+        "thread_type": 1,
+        "thread_diameter": "0.25",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "NPT 1/4"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "NPT_1_2",
+        "thread_type": 1,
+        "thread_diameter": "0.50",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "NPT 1/2"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "NPT_3_4",
+        "thread_type": 1,
+        "thread_diameter": "0.75",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "NPT 3/4"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "NPT_1",
+        "thread_type": 1,
+        "thread_diameter": "1.00",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "NPT 1"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "NPT_1_1_4",
+        "thread_type": 1,
+        "thread_diameter": "1.25",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "NPT 11/4"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "NPT_1_1_2",
+        "thread_type": 1,
+        "thread_diameter": "1.50",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "NPT 11/2"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "NPT_2",
+        "thread_type": 1,
+        "thread_diameter": "2.00",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "NPT 2"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "G_1_4",
+        "thread_type": 2,
+        "thread_diameter": "0.25",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "G 1/4"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "G_1_2",
+        "thread_type": 2,
+        "thread_diameter": "0.50",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "G 1/2"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "G_3_4",
+        "thread_type": 2,
+        "thread_diameter": "0.75",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "G 3/4"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "G_1",
+        "thread_type": 2,
+        "thread_diameter": "1.00",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "G 1"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "G_1_1_4",
+        "thread_type": 2,
+        "thread_diameter": "1.25",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "G 11/4"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 13,
+    "fields": {
+        "symbolic_code": "G_1_1_2",
+        "thread_type": 2,
+        "thread_diameter": "1.50",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "G 11/2"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 14,
+    "fields": {
+        "symbolic_code": "G_2",
+        "thread_type": 2,
+        "thread_diameter": "2.00",
+        "thread_pitch": null,
+        "measure_units": null,
+        "text_description": "G 2"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 15,
+    "fields": {
+        "symbolic_code": "M_20_1.5",
+        "thread_type": 3,
+        "thread_diameter": "20.00",
+        "thread_pitch": "0.20",
+        "measure_units": null,
+        "text_description": "M20x1.5"
+    }
+},
+{
+    "model": "params.threadsize",
+    "pk": 16,
+    "fields": {
+        "symbolic_code": "M_25_1.5",
+        "thread_type": 3,
+        "thread_diameter": "25.00",
+        "thread_pitch": "0.20",
+        "measure_units": null,
+        "text_description": "M25x1.5"
+    }
+},
+{
+    "model": "params.certificatetype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "ТРТС012",
+        "text_description": "ТР ТС 012"
+    }
+},
+{
+    "model": "params.certificatetype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "ТРТС010",
+        "text_description": "ТР ТС 010"
+    }
+},
+{
+    "model": "params.certificate",
+    "pk": 1,
+    "fields": {
+        "certificate_type": 1,
+        "text_description": "ЕАЭС RU C-RU AM02.B.00881.23",
+        "valid_from": "2023-12-20",
+        "valid_until": "2028-12-19",
+        "content_type": 29,
+        "object_id": 1
+    }
+}
+]
