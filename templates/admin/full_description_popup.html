@@ -1,0 +1,13 @@
+{% extends 'admin/base_site.html' %}
+
+{% block content %}
+    <div class="container">
+        <h2>Полное описание для {{ object.name }}</h2>
+        <div>
+            {% for item in full_description %}
+                <p><strong>{{ item.param_text }}:</strong> {{ item.param_value }}</p>
+            {% endfor %}
+        </div>
+        <button onclick="window.close()">Закрыть</button>
+    </div>
+{% endblock %}

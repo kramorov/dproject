@@ -1,0 +1,43 @@
+<!-- text_processor/templates/text_processor/index.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Главная страница</title>
+</head>
+<body>
+    <h1>Введите текст</h1>
+    <textarea id="input-text" rows="4" cols="50"></textarea><br><br>
+    <button onclick="sendRequest()">Отправить</button>
+
+    <h2>Ответ:</h2>
+    <ul id="response-list"></ul>
+
+    <script>
+        function sendRequest() {
+            const inputText = document.getElementById("input-text").value;
+            fetch('http://127.0.0.1:8000/data/text/action/process_text/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ input_text: inputText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const responseList = document.getElementById("response-list");
+                responseList.innerHTML = ''; // Очистить предыдущий результат
+                data.forEach(line => {
+                    const listItem = document.createElement("li");
+                    listItem.textContent = line;
+                    responseList.appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error("Error:", error);
+            });
+        }
+    </script>
+</body>
+</html>
