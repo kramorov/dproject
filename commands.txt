@@ -10,6 +10,8 @@ python manage.py showmigrations
 
 python manage.py startapp clients
 
+git commit -m commit-2025-03-05-01
+
 pip install django-admin-interface
 pip install django-nested-admin
 pip install django-extensions

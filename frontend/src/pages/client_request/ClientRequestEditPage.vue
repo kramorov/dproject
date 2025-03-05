@@ -86,9 +86,9 @@
 
 <script>
 import { ref, onMounted } from 'vue';
-import { useHttp } from '../../composables/useHttp.js'
+import { useHttp } from '@/composables/useHttp.js'
 import axios from "axios";
-import {API_URL} from "../../config/api.js";
+import {API_URL} from "@/config/api.js";
 
 export default {
   name: 'ClientRequestEditPage',

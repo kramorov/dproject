@@ -175,8 +175,10 @@ class ClientRequestAPIListView(APIView):
 class ClientRequestItemAPIView(APIView):
 
     def get(self, request):
-        print(request)
+
+
         try:
+            request_type = request.query_params.get('by_id')
             request_id = request.query_params.get('request_id')
             item = ClientRequestItem.objects.get(pk=request_id)
             serializer = ClientRequestItemSerializer(item)
