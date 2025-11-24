@@ -1,0 +1,166 @@
+<!-- templates/admin/media_library/replace_file.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans "Замена файла" %}</h1>
+
+    {% if messages %}
+    <ul class="messagelist">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="module">
+        <h2>{% trans "Текущий файл" %}</h2>
+        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff;">
+            <p><strong>{% trans "Название" %}:</strong> {{ media_item.title }}</p>
+            <p><strong>{% trans "Текущий файл" %}:</strong> {{ media_item.filename }}</p>
+            <p><strong>{% trans "Размер" %}:</strong> {{ media_item.file_size_display }}</p>
+            <p><strong>{% trans "Тип файла" %}:</strong> {{ media_item.file_extension|upper }}</p>
+            <p><strong>{% trans "Категория" %}:</strong> {{ media_item.category.name }}</p>
+            <p><strong>{% trans "MIME-тип" %}:</strong> {{ media_item.mime_type }}</p>
+            <p><strong>{% trans "Дата создания" %}:</strong> {{ media_item.created_at|date:"d.m.Y H:i" }}</p>
+
+            {% if media_item.is_image %}
+            <div style="margin: 15px 0;">
+                <strong>{% trans "Превью" %}:</strong><br>
+                {% if media_item.preview_file %}
+                    <img src="{{ media_item.preview_file.url }}"
+                         style="max-width: 300px; max-height: 300px; border: 1px solid #ddd; margin-top: 5px; border-radius: 3px;"
+                         alt="{% trans 'Превью' %} {{ media_item.title }}">
+                {% else %}
+                    <img src="{{ media_item.media_file.url }}"
+                         style="max-width: 300px; max-height: 300px; border: 1px solid #ddd; margin-top: 5px; border-radius: 3px;"
+                         alt="{% trans 'Оригинал' %} {{ media_item.title }}">
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="module">
+        <h2>{% trans "Новый файл" %}</h2>
+        <form method="post" enctype="multipart/form-data" id="replace-file-form">
+            {% csrf_token %}
+            
+            <div style="margin: 15px 0;">
+                <label for="new_file"><strong>{% trans "Выберите новый файл" %}:</strong></label><br>
+                <input type="file" name="new_file" id="new_file" required
+                       style="margin: 10px 0; padding: 8px; border: 2px dashed #ddd; border-radius: 5px; width: 100%; max-width: 400px;"
+                       onchange="validateFile(this)">
+                <p style="color: #666; font-size: 0.9em; margin: 5px 0;">
+                    {% trans "Максимальный размер: 100 МБ" %}
+                </p>
+                <div id="file-info" style="display: none; margin: 10px 0; padding: 10px; background: #e7f3ff; border-radius: 3px;">
+                    <strong>{% trans "Информация о выбранном файле" %}:</strong>
+                    <div id="file-details"></div>
+                </div>
+            </div>
+
+            <div style="margin: 15px 0; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+                <strong>⚠️ {% trans "Внимание" %}:</strong>
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>{% trans "Текущий файл будет удален без возможности восстановления" %}</li>
+                    <li>{% trans "Превью (если есть) будет пересоздано автоматически" %}</li>
+                    <li>{% trans "Все остальные данные (название, описание, теги, категория) будут сохранены" %}</li>
+                    <li>{% trans "MIME-тип будет автоматически определен из нового файла" %}</li>
+                </ul>
+            </div>
+
+            <div class="submit-row" style="margin-top: 20px;">
+                <input type="submit" value="{% trans 'Заменить файл' %}" class="default"
+                       style="background: #ff6b35; border: none; padding: 10px 20px; font-weight: bold;"
+                       id="submit-btn">
+                <a href="{% url 'admin:media_library_medialibraryitem_change' media_item.pk %}" 
+                   class="button" 
+                   style="background: #6c757d; color: white; text-decoration: none; padding: 10px 15px; border-radius: 3px; margin-left: 10px;">
+                    {% trans 'Отмена' %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function validateFile(input) {
+    const fileInfo = document.getElementById('file-info');
+    const fileDetails = document.getElementById('file-details');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (input.files.length > 0) {
+        const file = input.files[0];
+        const maxSize = 100 * 1024 * 1024; // 100MB
+        
+        // Показываем информацию о файле
+        fileDetails.innerHTML = `
+            <div><strong>{% trans "Имя файла" %}:</strong> ${file.name}</div>
+            <div><strong>{% trans "Размер" %}:</strong> ${formatFileSize(file.size)}</div>
+            <div><strong>{% trans "Тип" %}:</strong> ${file.type || '{% trans "Не определен" %}'}</div>
+        `;
+        fileInfo.style.display = 'block';
+        
+        // Проверяем размер файла
+        if (file.size > maxSize) {
+            fileDetails.innerHTML += `<div style="color: #dc3545; font-weight: bold;">
+                ❌ {% trans "Файл слишком большой (максимум 100 МБ)" %}
+            </div>`;
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.5';
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+        }
+    } else {
+        fileInfo.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Б';
+    const k = 1024;
+    const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Инициализация - блокируем кнопку при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('submit-btn').style.opacity = '0.5';
+});
+</script>
+
+<style>
+#replace-file-form input[type="file"]:hover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.submit-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.module {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: white;
+}
+
+.module h2 {
+    background: #f8f9fa;
+    margin: 0;
+    padding: 10px 15px;
+    border-bottom: 1px solid #ddd;
+    font-size: 1.1em;
+}
+</style>
+{% endblock %}

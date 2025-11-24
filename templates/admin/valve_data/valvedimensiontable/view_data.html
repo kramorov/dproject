@@ -1,0 +1,180 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+    <div id="content-main">
+        <h1>{{ title }}</h1>
+        {# БЛОК ОТЛАДКИ ЭКСПОРТА - УДАЛИТЬ ПОСЛЕ ПРОВЕРКИ #}
+        <div style="background: #ffeb3b; padding: 10px; margin: 10px 0; border: 2px solid #ff9800;">
+            <h3>🔧 ОТЛАДКА ЭКСПОРТА:</h3>
+            <p><strong>export_mode:</strong> {{ export_mode|yesno:"ДА,нет" }}</p>
+            <p><strong>Тип export_mode:</strong> {{ export_mode }} (значение)</p>
+            <p><strong>Количество матриц:</strong> {{ matrices|length }}</p>
+            <p><strong>Количество изображений:</strong> {{ images|length }}</p>
+
+            {% if matrices %}
+                <div style="margin-top: 10px;">
+                    <h4>Структура матриц:</h4>
+                    {% for matrix in matrices %}
+                        <div style="margin: 5px 0; padding: 5px; background: white;">
+                            <p><strong>Матрица {{ forloop.counter }}:</strong> PN={{ matrix.pn }},
+                                строк={{ matrix.matrix|length }}</p>
+                            {% if matrix.matrix %}
+                                <p><strong>Первая строка (заголовки):</strong> {{ matrix.matrix.0 }}</p>
+                                {% if matrix.matrix.1 %}
+                                    <p><strong>Вторая строка (данные):</strong> {{ matrix.matrix.1 }}</p>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        {# КОНЕЦ БЛОКА ОТЛАДКИ #}
+        <div class="module">
+            <h2>Основная информация</h2>
+            <table>
+                <tr>
+                    <th>Таблица:</th>
+                    <td>{{ table_info.name|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <th>Код таблицы:</th>
+                    <td>{{ table_info.code|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <th>Описание:</th>
+                    <td>{{ table_info.description|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <th>Бренд:</th>
+                    <td>{{ table_info.valve_brand|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <th>Тип арматуры:</th>
+                    <td>{{ table_info.valve_variety|default:"-" }}</td>
+                </tr>
+            </table>
+        </div>
+
+        {% if images %}
+            <div class="module">
+                <h2>Чертежи</h2>
+                <div class="form-row">
+                    {% for image in images %}
+                        <div class="field-box">
+                            <h4>{{ image.drawing_title }}</h4>
+                            <p>{{ image.drawing_description|default:"-" }}</p>
+                            {% if image.drawing_object and image.drawing_object.media_file %}
+                                <div style="margin: 10px 0;">
+                                    <img src="{{ image.drawing_object.media_file.url }}"
+                                         style="max-width: 300px; max-height: 200px;"
+                                         alt="{{ image.drawing_title }}">
+                                </div>
+                            {% endif %}
+                            {% if image.matching_dns %}
+                                <p><small>Применимо для DN: {{ image.matching_dns|join:", " }}</small></p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% for matrix_data in matrices %}
+            <div class="module">
+                <h2>Таблица данных для PN: {{ matrix_data.pn }}</h2>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                        <tr style="background-color: #f5f5f5;">
+                            {# Обычный режим - ИСПРАВЛЕНА СТРУКТУРА #}
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">PN</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Код параметра</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Описание параметра
+                            </th>
+                            {# Динамические заголовки DN #}
+                            {% for row in matrix_data.matrix %}
+                                {% if forloop.first %}
+                                    {# Пропускаем первые 2 колонки (legend, parameter_variety_name) #}
+                                    {% for header in row %}
+                                        {% if forloop.counter > 2 %}
+                                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">
+                                                DN{{ header }}</th>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for row in matrix_data.matrix %}
+                            {% if not forloop.first %} {# Пропускаем первую строку - это заголовки #}
+                                <tr>
+                                    {# PN берем из matrix_data.pn #}
+                                    <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ matrix_data.pn }}</td>
+                                    {# Код параметра - первая колонка #}
+                                    <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ row.0|default:"" }}</td>
+                                    {# Описание параметра - вторая колонка #}
+                                    <td style="border: 1px solid #ddd; padding: 6px;">{{ row.1|default:"" }}</td>
+                                    {# Значения DN - начиная с третьей колонки #}
+                                    {% for value in row %}
+                                        {% if forloop.counter > 2 %}
+                                            <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ value|default:"н/д" }}</td>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tr>
+                            {% endif %}
+                        {% empty %}
+                            <tr>
+                                <td colspan="100" style="text-align: center; padding: 20px;">
+                                    Нет данных для отображения
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% empty %}
+            <div class="module">
+                <h2>Нет данных для отображения</h2>
+                <p>Для выбранных параметров не найдено данных в таблице ВГХ.</p>
+            </div>
+        {% endfor %}
+
+    </div>
+
+    <style>
+        .module {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            background: white;
+        }
+
+        .module h2 {
+            margin: 0;
+            padding: 8px;
+            font-size: 14px;
+            background: #79aec8;
+            color: white;
+        }
+
+        .field-box {
+            float: left;
+            width: 300px;
+            margin-right: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+
+        .form-row:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+    </style>
+
+{% endblock %}

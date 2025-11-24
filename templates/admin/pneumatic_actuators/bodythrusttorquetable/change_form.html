@@ -1,0 +1,20 @@
+{#{% extends "admin/change_form.html" %}#}
+{#{% load i18n admin_urls %}#}
+{##}
+{#{% block object-tools-items %}#}
+{#  {{ block.super }}#}
+{#  {% if show_export_button %}#}
+{#    <li>#}
+{#      <a href="{{ export_url }}" class="viewsitelink">#}
+{#        📊 {% trans "Экспорт 111 данных" %}#}
+{#      </a>#}
+{#    </li>#}
+{#  {% endif %}#}
+{#  {% if show_import_button %}#}
+{#    <li>#}
+{#      <a href="{{ import_url }}" class="addlink">#}
+{#        📥 {% trans "Импорт данных" %}#}
+{#      </a>#}
+{#    </li>#}
+{#  {% endif %}#}
+{#{% endblock %}#}

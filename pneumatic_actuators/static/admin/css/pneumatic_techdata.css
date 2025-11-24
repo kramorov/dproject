@@ -1,0 +1,17 @@
+/* Кастомные стили для админки таблиц техданных */
+.field-code {
+    background-color: #f8f9fa;
+}
+
+.field-description textarea {
+    height: 80px;
+}
+
+/* Стили для inline чертежей */
+.inline-related .field-drawing {
+    min-width: 300px;
+}
+
+.inline-related .field-sorting_order input {
+    width: 80px;
+}

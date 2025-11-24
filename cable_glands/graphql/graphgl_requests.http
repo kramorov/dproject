@@ -1,0 +1,83 @@
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=PyCharm
+
+###
+Получение всех кабельных вводов с фильтрацией:
+query {
+  allCableGlandItems(first: 10) {
+    edges {
+      node {
+        id
+        name
+        modelLine {
+          symbolicCode
+          brand {
+            name
+          }
+        }
+        fullDescription {
+          paramName
+          paramText
+          paramValue
+        }
+      }
+    }
+  }
+}
+
+Фильтрация кабельных вводов по параметрам:
+query {
+  filteredCableGlandItems(
+    cableGlandTypeId: "1",
+    ipIds: ["1", "2"],
+    forArmoredCable: true,
+    cableDiameterOuterMin: 10,
+    cableDiameterOuterMax: 20
+  ) {
+    id
+    name
+    modelLine {
+      symbolicCode
+    }
+    fullDescription {
+      paramName
+      paramText
+      paramValue
+    }
+  }
+}
+
+Создание новой модельной линейки:
+mutation {
+  createCableGlandModelLine(input: {
+    symbolicCode: "NEW-LINE",
+    brandId: "1",
+    cableGlandTypeId: "1",
+    ipIds: ["1", "2"],
+    exdIds: ["3"],
+    forArmoredCable: true,
+    textDescription: "New model line description"
+  }) {
+    cableGlandModelLine {
+      id
+      symbolicCode
+    }
+  }
+}
+
+Обновление кабельного ввода:
+mutation {
+  updateCableGlandItem(id: "1", input: {
+    name: "Updated cable gland",
+    cableDiameterOuterMin: 12,
+    cableDiameterOuterMax: 18
+  }) {
+    cableGlandItem {
+      id
+      name
+      cableDiameterOuterMin
+      cableDiameterOuterMax
+    }
+  }
+}

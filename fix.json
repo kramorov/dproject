@@ -1,0 +1,376 @@
+[
+{
+    "model": "cable_glands.cableglanditemtype",
+    "pk": 1,
+    "fields": {
+        "name": "Кабельный ввод",
+        "text_description": "Кабельный ввод"
+    }
+},
+{
+    "model": "cable_glands.cableglanditemtype",
+    "pk": 2,
+    "fields": {
+        "name": "Адаптер",
+        "text_description": "Адаптер"
+    }
+},
+{
+    "model": "cable_glands.cableglanditemtype",
+    "pk": 3,
+    "fields": {
+        "name": "Заглушка",
+        "text_description": "Заглушка"
+    }
+},
+{
+    "model": "cable_glands.cableglanditemtype",
+    "pk": 4,
+    "fields": {
+        "name": "Кольцо заземления",
+        "text_description": "Кольцо заземления"
+    }
+},
+{
+    "model": "cable_glands.cableglandbodymaterial",
+    "pk": 1,
+    "fields": {
+        "name": "Никелированная латунь",
+        "text_description": "Никелированная латунь, устойчивая к парам сероводорода, соляной кислоты и морского тумана"
+    }
+},
+{
+    "model": "cable_glands.cableglandbodymaterial",
+    "pk": 2,
+    "fields": {
+        "name": "Нержавеющая сталь 304",
+        "text_description": "Нержавеющая сталь марки 08Х18Н10 по ГОСТ 5632-2014 (AISI 304)"
+    }
+},
+{
+    "model": "cable_glands.cableglandbodymaterial",
+    "pk": 3,
+    "fields": {
+        "name": "Нержавеющая сталь 316",
+        "text_description": "Нержавеющая сталь AISI316"
+    }
+},
+{
+    "model": "cable_glands.cableglandbodymaterial",
+    "pk": 4,
+    "fields": {
+        "name": "Алюминий",
+        "text_description": "Коррозионностойкий алюминиевый сплав"
+    }
+},
+{
+    "model": "cable_glands.cableglandbodymaterial",
+    "pk": 5,
+    "fields": {
+        "name": "Латунь",
+        "text_description": "Латунь"
+    }
+},
+{
+    "model": "cable_glands.cableglandbodymaterial",
+    "pk": 6,
+    "fields": {
+        "name": "Пластик",
+        "text_description": "Особо Ударопрочный пластик"
+    }
+},
+{
+    "model": "cable_glands.cableglandmodelline",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "КОВ",
+        "brand": 3,
+        "cable_gland_type": 1,
+        "for_armored_cable": true,
+        "for_metal_sleeve_cable": false,
+        "for_pipelines_cable": false,
+        "thread_external": false,
+        "thread_internal": false,
+        "temp_min": -60,
+        "temp_max": 130,
+        "gost": "ГОСТ 31610.0-2014 (IEC 60079-0:2011), ГОСТ IEC 60079-1-2013, ГОСТ Р МЭК 60079-7-2012, ГОСТ 3160.15-2014 /IEC 60079-15:2010, ГОСТ IEC 60079-31-2013, ГОСТ 24754-2013, ГОСТ 12.2.007.0-75, ТР ТС 012/2011",
+        "text_description": "Взрывозащищенные кабельные вводы КОВ (FECA, FECAS) для бронированного кабеля с двойным уплотнением для всех типов брони/оплетки",
+        "ip": [
+            3,
+            4,
+            5,
+            6
+        ],
+        "exd": [
+            4,
+            5,
+            6,
+            7
+        ]
+    }
+},
+{
+    "model": "cable_glands.cableglandmodelline",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "КНВ",
+        "brand": 3,
+        "cable_gland_type": 1,
+        "for_armored_cable": false,
+        "for_metal_sleeve_cable": false,
+        "for_pipelines_cable": false,
+        "thread_external": false,
+        "thread_internal": false,
+        "temp_min": -60,
+        "temp_max": 130,
+        "gost": "ГОСТ 31610.0-2014 (IEC 60079-0:2011), ГОСТ IEC 60079-1-2013, ГОСТ Р МЭК 60079-7-2012, ГОСТ 3160.15-2014 /IEC 60079-15:2010, ГОСТ IEC 60079-31-2013, ГОСТ 24754-2013, ГОСТ 12.2.007.0-75, ТР ТС 012/2011",
+        "text_description": "Взрывозащищенные кабельные вводы КНВ (FEC) для небронированного кабеля",
+        "ip": [
+            3,
+            4,
+            5,
+            6
+        ],
+        "exd": [
+            4,
+            5,
+            6,
+            7
+        ]
+    }
+},
+{
+    "model": "cable_glands.cableglandmodelline",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "КНВМ",
+        "brand": 3,
+        "cable_gland_type": 1,
+        "for_armored_cable": false,
+        "for_metal_sleeve_cable": true,
+        "for_pipelines_cable": true,
+        "thread_external": false,
+        "thread_internal": false,
+        "temp_min": -60,
+        "temp_max": 130,
+        "gost": "ГОСТ 31610.0-2014 (IEC 60079-0:2011), ГОСТ IEC 60079-1-2013, ГОСТ Р МЭК 60079-7-2012, ГОСТ 3160.15-2014 /IEC 60079-15:2010, ГОСТ IEC 60079-31-2013, ГОСТ 24754-2013, ГОСТ 12.2.007.0-75, ТР ТС 012/2011",
+        "text_description": "Взрывозащищенные кабельные вводы серии КНВМ (FETG) для небронированного кабеля в металлорукавах.",
+        "ip": [
+            3,
+            4,
+            5,
+            6
+        ],
+        "exd": [
+            4,
+            5,
+            6,
+            7
+        ]
+    }
+},
+{
+    "model": "cable_glands.cableglandmodelline",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "АВ",
+        "brand": 3,
+        "cable_gland_type": 2,
+        "for_armored_cable": null,
+        "for_metal_sleeve_cable": null,
+        "for_pipelines_cable": null,
+        "thread_external": false,
+        "thread_internal": false,
+        "temp_min": -60,
+        "temp_max": 250,
+        "gost": "СООТВЕТСТВИЕ СТАНДАРТАМ ГОСТ 31610.0-2014 (IEC 60079-0:2011), ГОСТ IEC 60079-1-2013, ГОСТ Р МЭК 60079-7-2012, ГОСТ 3160.15-2014 /IEC 60079-15:2010, ГОСТ IEC 60079-31-2013, ГОСТ 24754-2013, ГОСТ 12.2.007.0-75, ТР ТС 012/2011",
+        "text_description": "Взрывозащищенные переходники серии АВ.",
+        "ip": [
+            3,
+            4,
+            5,
+            6
+        ],
+        "exd": [
+            4,
+            5,
+            6,
+            7
+        ]
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 1,
+    "fields": {
+        "name": "АВ-3NH-2NВ-Н/ПРОМ",
+        "model_line": 4,
+        "cable_gland_body_material": 2,
+        "exd_same_as_model_line": false,
+        "thread_a": 4,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": [
+            1
+        ]
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 2,
+    "fields": {
+        "name": "АВ-3NH-2NB-H",
+        "model_line": 4,
+        "cable_gland_body_material": 2,
+        "exd_same_as_model_line": true,
+        "thread_a": 4,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": []
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 3,
+    "fields": {
+        "name": "АВ-3NH-2NB-HK",
+        "model_line": 4,
+        "cable_gland_body_material": 1,
+        "exd_same_as_model_line": true,
+        "thread_a": 4,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": []
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 5,
+    "fields": {
+        "name": "АВ-3NH-2NB-HK/ПРОМ",
+        "model_line": 4,
+        "cable_gland_body_material": 1,
+        "exd_same_as_model_line": false,
+        "thread_a": 4,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": [
+            1
+        ]
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 6,
+    "fields": {
+        "name": "АВ-5NH-2NB-H",
+        "model_line": 4,
+        "cable_gland_body_material": 2,
+        "exd_same_as_model_line": true,
+        "thread_a": 6,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": []
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 7,
+    "fields": {
+        "name": "АВ-5NH-2NB-HK",
+        "model_line": 4,
+        "cable_gland_body_material": 1,
+        "exd_same_as_model_line": true,
+        "thread_a": 6,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": []
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 8,
+    "fields": {
+        "name": "АВ-5NH-2NB-HK/ПРОМ",
+        "model_line": 4,
+        "cable_gland_body_material": 1,
+        "exd_same_as_model_line": false,
+        "thread_a": 6,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": [
+            1
+        ]
+    }
+},
+{
+    "model": "cable_glands.cableglanditem",
+    "pk": 9,
+    "fields": {
+        "name": "АВ-5NH-2NВ-Н/ПРОМ",
+        "model_line": 4,
+        "cable_gland_body_material": 2,
+        "exd_same_as_model_line": false,
+        "thread_a": 6,
+        "thread_b": 3,
+        "temp_min": -60,
+        "temp_max": 250,
+        "cable_diameter_inner_min": null,
+        "cable_diameter_inner_max": null,
+        "cable_diameter_outer_min": null,
+        "cable_diameter_outer_max": null,
+        "dn_metal_sleeve": null,
+        "parent": null,
+        "exd": []
+    }
+}
+]

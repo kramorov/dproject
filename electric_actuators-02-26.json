@@ -1,0 +1,3496 @@
+[
+{
+    "model": "electric_actuators.cableglandholesset",
+    "pk": 1,
+    "fields": {
+        "name": "",
+        "cg1": 4,
+        "cg2": 3,
+        "cg3": 3,
+        "cg4": null,
+        "text_description": "1*NPT 1\", 2*NPT 3/4 (AR21 07-10)"
+    }
+},
+{
+    "model": "electric_actuators.cableglandholesset",
+    "pk": 2,
+    "fields": {
+        "name": "",
+        "cg1": 6,
+        "cg2": 4,
+        "cg3": 4,
+        "cg4": null,
+        "text_description": "1*NPT 11/2\", 2*NPT 1\" (AR21 20-100)"
+    }
+},
+{
+    "model": "electric_actuators.cableglandholesset",
+    "pk": 3,
+    "fields": {
+        "name": "2хNPT 3/4\"",
+        "cg1": 3,
+        "cg2": 3,
+        "cg3": null,
+        "cg4": null,
+        "text_description": "2хNPT 3/4\""
+    }
+},
+{
+    "model": "electric_actuators.modelline",
+    "pk": 1,
+    "fields": {
+        "name": "AR01E",
+        "brand": 1,
+        "default_output_type": 1,
+        "default_ip": 3,
+        "default_body_coating": 1,
+        "default_exd": 1,
+        "default_blinker": 1,
+        "default_end_switches": 2,
+        "default_way_switches": 1,
+        "default_torque_switches": 1,
+        "default_temperature": 1,
+        "default_control_unit_installed": 1,
+        "default_hand_wheel": 1,
+        "default_mechanical_indicator": null,
+        "default_operating_mode": 3,
+        "allowed_ip": [
+            3,
+            4
+        ],
+        "allowed_body_coating": [
+            1,
+            2,
+            3
+        ],
+        "allowed_exd": [
+            1,
+            3
+        ],
+        "allowed_end_switches": [
+            2
+        ],
+        "allowed_way_switches": [
+            1
+        ],
+        "allowed_torque_switches": [
+            1
+        ],
+        "allowed_temperature": [
+            1,
+            2,
+            3
+        ],
+        "allowed_control_unit_installed": [
+            1,
+            2,
+            3,
+            4,
+            8,
+            9
+        ],
+        "allowed_hand_wheel": [
+            1,
+            2
+        ],
+        "allowed_mechanical_indicator": [],
+        "allowed_operating_mode": [
+            1,
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelline",
+    "pk": 2,
+    "fields": {
+        "name": "AR11E",
+        "brand": 1,
+        "default_output_type": 1,
+        "default_ip": 3,
+        "default_body_coating": 1,
+        "default_exd": 1,
+        "default_blinker": 1,
+        "default_end_switches": 2,
+        "default_way_switches": 1,
+        "default_torque_switches": 2,
+        "default_temperature": 1,
+        "default_control_unit_installed": 1,
+        "default_hand_wheel": 3,
+        "default_mechanical_indicator": null,
+        "default_operating_mode": 3,
+        "allowed_ip": [],
+        "allowed_body_coating": [
+            1,
+            2,
+            3
+        ],
+        "allowed_exd": [
+            1,
+            2
+        ],
+        "allowed_end_switches": [
+            1,
+            2,
+            3
+        ],
+        "allowed_way_switches": [
+            1,
+            2
+        ],
+        "allowed_torque_switches": [
+            1,
+            2,
+            3
+        ],
+        "allowed_temperature": [
+            1,
+            2,
+            3
+        ],
+        "allowed_control_unit_installed": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+        ],
+        "allowed_hand_wheel": [
+            3
+        ],
+        "allowed_mechanical_indicator": [],
+        "allowed_operating_mode": [
+            1,
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelline",
+    "pk": 3,
+    "fields": {
+        "name": "AR21E",
+        "brand": 1,
+        "default_output_type": 2,
+        "default_ip": 3,
+        "default_body_coating": 1,
+        "default_exd": 2,
+        "default_blinker": 1,
+        "default_end_switches": 2,
+        "default_way_switches": 1,
+        "default_torque_switches": 2,
+        "default_temperature": 1,
+        "default_control_unit_installed": 1,
+        "default_hand_wheel": 3,
+        "default_mechanical_indicator": null,
+        "default_operating_mode": 3,
+        "allowed_ip": [
+            3,
+            4
+        ],
+        "allowed_body_coating": [
+            1,
+            2,
+            3
+        ],
+        "allowed_exd": [
+            2
+        ],
+        "allowed_end_switches": [
+            1,
+            2,
+            3
+        ],
+        "allowed_way_switches": [],
+        "allowed_torque_switches": [
+            1,
+            2,
+            3
+        ],
+        "allowed_temperature": [
+            1,
+            2,
+            3
+        ],
+        "allowed_control_unit_installed": [
+            1,
+            5,
+            6,
+            7
+        ],
+        "allowed_hand_wheel": [
+            3
+        ],
+        "allowed_mechanical_indicator": [],
+        "allowed_operating_mode": [
+            1,
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelline",
+    "pk": 4,
+    "fields": {
+        "name": "AR11EL",
+        "brand": 1,
+        "default_output_type": 3,
+        "default_ip": 3,
+        "default_body_coating": 1,
+        "default_exd": 1,
+        "default_blinker": 1,
+        "default_end_switches": 2,
+        "default_way_switches": 1,
+        "default_torque_switches": 2,
+        "default_temperature": 1,
+        "default_control_unit_installed": 1,
+        "default_hand_wheel": 3,
+        "default_mechanical_indicator": null,
+        "default_operating_mode": 3,
+        "allowed_ip": [
+            3,
+            4
+        ],
+        "allowed_body_coating": [
+            1,
+            2,
+            3
+        ],
+        "allowed_exd": [
+            1,
+            2
+        ],
+        "allowed_end_switches": [
+            1,
+            2
+        ],
+        "allowed_way_switches": [],
+        "allowed_torque_switches": [
+            1,
+            2
+        ],
+        "allowed_temperature": [
+            1,
+            2,
+            3
+        ],
+        "allowed_control_unit_installed": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+        ],
+        "allowed_hand_wheel": [
+            3
+        ],
+        "allowed_mechanical_indicator": [],
+        "allowed_operating_mode": [
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelline",
+    "pk": 5,
+    "fields": {
+        "name": "AR19E",
+        "brand": 1,
+        "default_output_type": 2,
+        "default_ip": 3,
+        "default_body_coating": 1,
+        "default_exd": 1,
+        "default_blinker": 1,
+        "default_end_switches": 2,
+        "default_way_switches": 1,
+        "default_torque_switches": 2,
+        "default_temperature": 1,
+        "default_control_unit_installed": 1,
+        "default_hand_wheel": 3,
+        "default_mechanical_indicator": null,
+        "default_operating_mode": 3,
+        "allowed_ip": [
+            3,
+            4
+        ],
+        "allowed_body_coating": [
+            1
+        ],
+        "allowed_exd": [
+            1
+        ],
+        "allowed_end_switches": [],
+        "allowed_way_switches": [
+            1
+        ],
+        "allowed_torque_switches": [
+            2
+        ],
+        "allowed_temperature": [
+            1,
+            2
+        ],
+        "allowed_control_unit_installed": [
+            1,
+            5,
+            7
+        ],
+        "allowed_hand_wheel": [
+            3
+        ],
+        "allowed_mechanical_indicator": [],
+        "allowed_operating_mode": [
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelline",
+    "pk": 6,
+    "fields": {
+        "name": "AR06E",
+        "brand": 1,
+        "default_output_type": 1,
+        "default_ip": 3,
+        "default_body_coating": 4,
+        "default_exd": 1,
+        "default_blinker": 1,
+        "default_end_switches": 2,
+        "default_way_switches": 1,
+        "default_torque_switches": 2,
+        "default_temperature": 1,
+        "default_control_unit_installed": 1,
+        "default_hand_wheel": 1,
+        "default_mechanical_indicator": null,
+        "default_operating_mode": 3,
+        "allowed_ip": [
+            3
+        ],
+        "allowed_body_coating": [
+            4
+        ],
+        "allowed_exd": [
+            1
+        ],
+        "allowed_end_switches": [
+            2
+        ],
+        "allowed_way_switches": [
+            1
+        ],
+        "allowed_torque_switches": [
+            2
+        ],
+        "allowed_temperature": [
+            1
+        ],
+        "allowed_control_unit_installed": [
+            1,
+            5,
+            7
+        ],
+        "allowed_hand_wheel": [
+            1
+        ],
+        "allowed_mechanical_indicator": [],
+        "allowed_operating_mode": []
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 1,
+    "fields": {
+        "name": "AR21E007",
+        "model_line": 3,
+        "default_cable_glands_holes": null,
+        "stem_shape": 5,
+        "stem_size": 12,
+        "max_stem_height": null,
+        "max_stem_diameter": 28,
+        "text_description": "AR21E007",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            4
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 2,
+    "fields": {
+        "name": "AR21E010",
+        "model_line": 3,
+        "default_cable_glands_holes": null,
+        "stem_shape": 5,
+        "stem_size": 12,
+        "max_stem_height": null,
+        "max_stem_diameter": 28,
+        "text_description": "AR21E010",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            4
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 3,
+    "fields": {
+        "name": "AR21E020-50",
+        "model_line": 3,
+        "default_cable_glands_holes": null,
+        "stem_shape": 5,
+        "stem_size": 13,
+        "max_stem_height": null,
+        "max_stem_diameter": 40,
+        "text_description": "AR21E020-50",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            6
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 4,
+    "fields": {
+        "name": "AR21E060-100",
+        "model_line": 3,
+        "default_cable_glands_holes": null,
+        "stem_shape": 5,
+        "stem_size": 14,
+        "max_stem_height": null,
+        "max_stem_diameter": 55,
+        "text_description": "AR21E060-100",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            7
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 5,
+    "fields": {
+        "name": "AR01E003",
+        "model_line": 1,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 2,
+        "max_stem_height": 15,
+        "max_stem_diameter": null,
+        "text_description": "AR01E003",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 6,
+    "fields": {
+        "name": "AR01E005-008",
+        "model_line": 1,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 3,
+        "max_stem_height": 18,
+        "max_stem_diameter": null,
+        "text_description": "AR01E005-008",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 7,
+    "fields": {
+        "name": "AR01E010-015",
+        "model_line": 1,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 4,
+        "max_stem_height": 22,
+        "max_stem_diameter": null,
+        "text_description": "AR01E010-015",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 8,
+    "fields": {
+        "name": "AR01E020-040",
+        "model_line": 1,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 24,
+        "max_stem_height": 26,
+        "max_stem_diameter": null,
+        "text_description": "AR01E020-040",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            4,
+            5
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 9,
+    "fields": {
+        "name": "AR01E060-100",
+        "model_line": 1,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 6,
+        "max_stem_height": 32,
+        "max_stem_diameter": null,
+        "text_description": "AR01E060-100",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            4,
+            5
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 10,
+    "fields": {
+        "name": "AR01E160-500",
+        "model_line": 1,
+        "default_cable_glands_holes": null,
+        "stem_shape": 5,
+        "stem_size": 14,
+        "max_stem_height": 65,
+        "max_stem_diameter": 45,
+        "text_description": "AR01E160-500",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            6,
+            7
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 11,
+    "fields": {
+        "name": "AR11E005",
+        "model_line": 2,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 3,
+        "max_stem_height": null,
+        "max_stem_diameter": null,
+        "text_description": "AR11E005",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 12,
+    "fields": {
+        "name": "AR11E030",
+        "model_line": 2,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 24,
+        "max_stem_height": null,
+        "max_stem_diameter": null,
+        "text_description": "AR11E030",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            4,
+            5
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 13,
+    "fields": {
+        "name": "AR11E008-010",
+        "model_line": 2,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 3,
+        "max_stem_height": null,
+        "max_stem_diameter": null,
+        "text_description": "AR11E008-010",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 14,
+    "fields": {
+        "name": "AR11E150-600",
+        "model_line": 2,
+        "default_cable_glands_holes": null,
+        "stem_shape": 5,
+        "stem_size": 25,
+        "max_stem_height": null,
+        "max_stem_diameter": 45,
+        "text_description": "AR11E150-600",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": [
+            6,
+            7
+        ]
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 15,
+    "fields": {
+        "name": "AR11E015-020",
+        "model_line": 2,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 4,
+        "max_stem_height": null,
+        "max_stem_diameter": null,
+        "text_description": "AR11E015-020",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 16,
+    "fields": {
+        "name": "AR11E050-060",
+        "model_line": 2,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 6,
+        "max_stem_height": null,
+        "max_stem_diameter": null,
+        "text_description": "AR11E050-060",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.modelbody",
+    "pk": 17,
+    "fields": {
+        "name": "AR11E080-120",
+        "model_line": 2,
+        "default_cable_glands_holes": null,
+        "stem_shape": 1,
+        "stem_size": 26,
+        "max_stem_height": null,
+        "max_stem_diameter": null,
+        "text_description": "AR11E080-120",
+        "allowed_cable_glands_holes": [],
+        "mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 1,
+    "fields": {
+        "name": "AR21E007.S90",
+        "model_line": 3,
+        "model_body": 1,
+        "voltage": 2,
+        "weight": "32.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "90",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "15",
+        "torque_max": "70",
+        "motor_power": "0.40",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "2.23",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "8.92",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 2,
+    "fields": {
+        "name": "AR21E020.S67",
+        "model_line": 3,
+        "model_body": 3,
+        "voltage": 1,
+        "weight": "68.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "67",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "100",
+        "torque_max": "300",
+        "motor_power": "1.50",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "15.33",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "61.32",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 3,
+    "fields": {
+        "name": "AR21E010.S35",
+        "model_line": 3,
+        "model_body": 2,
+        "voltage": 1,
+        "weight": "38.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "35",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "50",
+        "torque_max": "120",
+        "motor_power": "0.80",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "6.26",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "25.04",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 4,
+    "fields": {
+        "name": "AR21E007.S45",
+        "model_line": 3,
+        "model_body": 1,
+        "voltage": 1,
+        "weight": "32.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "45",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "15",
+        "torque_max": "70",
+        "motor_power": "0.40",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "4.98",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "19.92",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 5,
+    "fields": {
+        "name": "AR21E007.S45",
+        "model_line": 3,
+        "model_body": 1,
+        "voltage": 2,
+        "weight": "32.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "45",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "15",
+        "torque_max": "70",
+        "motor_power": "0.40",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "2.23",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "8.92",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 6,
+    "fields": {
+        "name": "AR21E007.S90",
+        "model_line": 3,
+        "model_body": 1,
+        "voltage": 1,
+        "weight": "32.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "70",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "15",
+        "torque_max": "70",
+        "motor_power": "0.40",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "5.55",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "22.20",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 7,
+    "fields": {
+        "name": "AR21E010.S35",
+        "model_line": 3,
+        "model_body": 2,
+        "voltage": 2,
+        "weight": "38.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "35",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "50",
+        "torque_max": "120",
+        "motor_power": "0.60",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "2.33",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "9.32",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 8,
+    "fields": {
+        "name": "AR21E010.S70",
+        "model_line": 3,
+        "model_body": 2,
+        "voltage": 1,
+        "weight": "38.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "70",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "50",
+        "torque_max": "120",
+        "motor_power": "0.80",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "9.62",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "38.48",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 9,
+    "fields": {
+        "name": "AR21E010.S70",
+        "model_line": 3,
+        "model_body": 2,
+        "voltage": 2,
+        "weight": "38.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "70",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "50",
+        "torque_max": "120",
+        "motor_power": "0.60",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "3.56",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "14.24",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 10,
+    "fields": {
+        "name": "AR21E050.S67",
+        "model_line": 3,
+        "model_body": 3,
+        "voltage": 2,
+        "weight": "70.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "67",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "200",
+        "torque_max": "450",
+        "motor_power": "1.50",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "12.23",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "48.92",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 11,
+    "fields": {
+        "name": "AR21E020.S67",
+        "model_line": 3,
+        "model_body": 3,
+        "voltage": 2,
+        "weight": "68.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "67",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "100",
+        "torque_max": "300",
+        "motor_power": "1.10",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "6.95",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "27.80",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 12,
+    "fields": {
+        "name": "AR21E020.S34",
+        "model_line": 3,
+        "model_body": 3,
+        "voltage": 2,
+        "weight": "68.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "34",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "100",
+        "torque_max": "300",
+        "motor_power": "1.10",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "4.22",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "16.88",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 13,
+    "fields": {
+        "name": "AR21E020.S34",
+        "model_line": 3,
+        "model_body": 2,
+        "voltage": 1,
+        "weight": "68.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "34",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "100",
+        "torque_max": "300",
+        "motor_power": "1.50",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "13.21",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "52.84",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 14,
+    "fields": {
+        "name": "AR21E060.S67",
+        "model_line": 3,
+        "model_body": 4,
+        "voltage": 2,
+        "weight": "103.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "67",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": "4.00",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "16.26",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "65.04",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 15,
+    "fields": {
+        "name": "AR21E050.S34",
+        "model_line": 3,
+        "model_body": 3,
+        "voltage": 2,
+        "weight": "70.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "34",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "200",
+        "torque_max": "450",
+        "motor_power": "1.10",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "9.58",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "38.32",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 16,
+    "fields": {
+        "name": "AR21E080.S67",
+        "model_line": 3,
+        "model_body": 4,
+        "voltage": 2,
+        "weight": "103.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "34",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "600",
+        "torque_max": "800",
+        "motor_power": "4.00",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "24.31",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "97.24",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 17,
+    "fields": {
+        "name": "AR21E060.S34",
+        "model_line": 3,
+        "model_body": 4,
+        "voltage": 2,
+        "weight": "103.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "34",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": "3.00",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "13.86",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "55.44",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 18,
+    "fields": {
+        "name": "AR21E100.S34",
+        "model_line": 3,
+        "model_body": 4,
+        "voltage": 2,
+        "weight": "103.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "34",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "800",
+        "torque_max": "1000",
+        "motor_power": "4.00",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "18.68",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "74.72",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 19,
+    "fields": {
+        "name": "AR21E080.S34",
+        "model_line": 3,
+        "model_body": 4,
+        "voltage": 2,
+        "weight": "103.00",
+        "time_to_open": null,
+        "time_to_open_measure_unit": null,
+        "rotation_speed": "34",
+        "rotation_speed_measure_unit": 16,
+        "torque_min": "600",
+        "torque_max": "800",
+        "motor_power": "3.00",
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "17.87",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": "71.48",
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 20,
+    "fields": {
+        "name": "AR01E005",
+        "model_line": 1,
+        "model_body": 6,
+        "voltage": 1,
+        "weight": "3.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "25",
+        "torque_max": "50",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.23",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 21,
+    "fields": {
+        "name": "AR01E003",
+        "model_line": 1,
+        "model_body": 5,
+        "voltage": 1,
+        "weight": "2.10",
+        "time_to_open": "20",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "15",
+        "torque_max": "30",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.24",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 22,
+    "fields": {
+        "name": "AR01E008",
+        "model_line": 1,
+        "model_body": 6,
+        "voltage": 1,
+        "weight": "3.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "40",
+        "torque_max": "80",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.24",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 23,
+    "fields": {
+        "name": "AR01E010",
+        "model_line": 1,
+        "model_body": 7,
+        "voltage": 1,
+        "weight": "4.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "50",
+        "torque_max": "100",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.41",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 24,
+    "fields": {
+        "name": "AR01E020",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 1,
+        "weight": "13.00",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "100",
+        "torque_max": "200",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.44",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 25,
+    "fields": {
+        "name": "AR01E030",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 1,
+        "weight": "13.40",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "150",
+        "torque_max": "300",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.48",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 26,
+    "fields": {
+        "name": "AR01E040",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 1,
+        "weight": "13.80",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "200",
+        "torque_max": "400",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.54",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 27,
+    "fields": {
+        "name": "AR01E060",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 1,
+        "weight": "14.00",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.57",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 28,
+    "fields": {
+        "name": "AR01E080",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 1,
+        "weight": "14.30",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "400",
+        "torque_max": "800",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.91",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 29,
+    "fields": {
+        "name": "AR01E100",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 1,
+        "weight": "14.50",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "500",
+        "torque_max": "1000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.99",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 30,
+    "fields": {
+        "name": "AR01E160",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 1,
+        "weight": "68.00",
+        "time_to_open": "60",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "800",
+        "torque_max": "1600",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "1.08",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 31,
+    "fields": {
+        "name": "AR01E200",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 1,
+        "weight": "68.00",
+        "time_to_open": "60",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1000",
+        "torque_max": "2000",
+        "motor_power": null,
+        "motor_power_measure_unit": 25,
+        "motor_current_rated": "1.16",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": null
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 32,
+    "fields": {
+        "name": "AR01E300",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 1,
+        "weight": "68.00",
+        "time_to_open": "120",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1500",
+        "torque_max": "3000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "1.00",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 33,
+    "fields": {
+        "name": "AR01E400",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 1,
+        "weight": "68.00",
+        "time_to_open": "200",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2000",
+        "torque_max": "4000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.93",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 34,
+    "fields": {
+        "name": "AR01E500",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 1,
+        "weight": "68.00",
+        "time_to_open": "200",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2500",
+        "torque_max": "5000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "1.00",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 35,
+    "fields": {
+        "name": "AR01E003",
+        "model_line": 1,
+        "model_body": 5,
+        "voltage": 3,
+        "weight": "2.10",
+        "time_to_open": "20",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "15",
+        "torque_max": "30",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.70",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 36,
+    "fields": {
+        "name": "AR01E005",
+        "model_line": 1,
+        "model_body": 6,
+        "voltage": 3,
+        "weight": "3.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "25",
+        "torque_max": "50",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "1.61",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 37,
+    "fields": {
+        "name": "AR01E008",
+        "model_line": 1,
+        "model_body": 6,
+        "voltage": 3,
+        "weight": "3.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "40",
+        "torque_max": "80",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "2.05",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 38,
+    "fields": {
+        "name": "AR01E010",
+        "model_line": 1,
+        "model_body": 7,
+        "voltage": 3,
+        "weight": "4.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "50",
+        "torque_max": "100",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "1.72",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 39,
+    "fields": {
+        "name": "AR01E020",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 3,
+        "weight": "13.00",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "100",
+        "torque_max": "200",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "5.30",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 40,
+    "fields": {
+        "name": "AR01E030",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 3,
+        "weight": "13.40",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "150",
+        "torque_max": "300",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "5.60",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 41,
+    "fields": {
+        "name": "AR01E040",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 3,
+        "weight": "13.80",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "200",
+        "torque_max": "400",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "5.80",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 42,
+    "fields": {
+        "name": "AR01E060",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 3,
+        "weight": "14.00",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "6.10",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 43,
+    "fields": {
+        "name": "AR01E080",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 3,
+        "weight": "14.30",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "400",
+        "torque_max": "800",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "11.50",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 44,
+    "fields": {
+        "name": "AR01E100",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 3,
+        "weight": "14.50",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "500",
+        "torque_max": "1000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "15.50",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 45,
+    "fields": {
+        "name": "AR01E160",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 3,
+        "weight": "68.00",
+        "time_to_open": "60",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "800",
+        "torque_max": "1600",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "15.50",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 46,
+    "fields": {
+        "name": "AR01E200",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 3,
+        "weight": "68.00",
+        "time_to_open": "60",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1000",
+        "torque_max": "2000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "15.50",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 47,
+    "fields": {
+        "name": "AR01E300",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 3,
+        "weight": "68.00",
+        "time_to_open": "120",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1500",
+        "torque_max": "3000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "15.50",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 48,
+    "fields": {
+        "name": "AR01E400",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 2,
+        "weight": "68.00",
+        "time_to_open": "200",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2000",
+        "torque_max": "4000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.38",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 49,
+    "fields": {
+        "name": "AR01E500",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 2,
+        "weight": "68.00",
+        "time_to_open": "200",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2500",
+        "torque_max": "5000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.42",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 51,
+    "fields": {
+        "name": "AR01E005",
+        "model_line": 1,
+        "model_body": 6,
+        "voltage": 2,
+        "weight": "3.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "25",
+        "torque_max": "50",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.11",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 52,
+    "fields": {
+        "name": "AR01E008",
+        "model_line": 1,
+        "model_body": 6,
+        "voltage": 2,
+        "weight": "3.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "40",
+        "torque_max": "80",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.24",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 53,
+    "fields": {
+        "name": "AR01E010",
+        "model_line": 1,
+        "model_body": 7,
+        "voltage": 2,
+        "weight": "4.60",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "50",
+        "torque_max": "100",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.14",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 54,
+    "fields": {
+        "name": "AR01E020",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 2,
+        "weight": "13.00",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "100",
+        "torque_max": "200",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.21",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 55,
+    "fields": {
+        "name": "AR01E030",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 2,
+        "weight": "13.40",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "150",
+        "torque_max": "300",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.26",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 56,
+    "fields": {
+        "name": "AR01E040",
+        "model_line": 1,
+        "model_body": 8,
+        "voltage": 2,
+        "weight": "13.80",
+        "time_to_open": "30",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "200",
+        "torque_max": "400",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.28",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 57,
+    "fields": {
+        "name": "AR01E060",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 2,
+        "weight": "14.00",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.30",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 58,
+    "fields": {
+        "name": "AR01E080",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 2,
+        "weight": "14.30",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "400",
+        "torque_max": "800",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.32",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 59,
+    "fields": {
+        "name": "AR01E100",
+        "model_line": 1,
+        "model_body": 9,
+        "voltage": 2,
+        "weight": "14.50",
+        "time_to_open": "40",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "500",
+        "torque_max": "1000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.42",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 60,
+    "fields": {
+        "name": "AR01E160",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 2,
+        "weight": "68.00",
+        "time_to_open": "60",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "800",
+        "torque_max": "1600",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.35",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 61,
+    "fields": {
+        "name": "AR01E200",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 2,
+        "weight": "68.00",
+        "time_to_open": "60",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1000",
+        "torque_max": "2000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.38",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 62,
+    "fields": {
+        "name": "AR01E300",
+        "model_line": 1,
+        "model_body": 10,
+        "voltage": 2,
+        "weight": "68.00",
+        "time_to_open": "120",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1500",
+        "torque_max": "3000",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.40",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 63,
+    "fields": {
+        "name": "AR11E005",
+        "model_line": 2,
+        "model_body": 11,
+        "voltage": 1,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "25",
+        "torque_max": "50",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.49",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 64,
+    "fields": {
+        "name": "AR11E008",
+        "model_line": 2,
+        "model_body": 13,
+        "voltage": 1,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "40",
+        "torque_max": "80",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.51",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 65,
+    "fields": {
+        "name": "AR11E010",
+        "model_line": 2,
+        "model_body": 13,
+        "voltage": 1,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "50",
+        "torque_max": "100",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.54",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 66,
+    "fields": {
+        "name": "AR11E015",
+        "model_line": 2,
+        "model_body": 15,
+        "voltage": 1,
+        "weight": "17.30",
+        "time_to_open": "25",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "75",
+        "torque_max": "150",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.71",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 67,
+    "fields": {
+        "name": "AR11E030",
+        "model_line": 2,
+        "model_body": 12,
+        "voltage": 1,
+        "weight": "22.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "150",
+        "torque_max": "300",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.39",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 68,
+    "fields": {
+        "name": "AR11E020",
+        "model_line": 2,
+        "model_body": 15,
+        "voltage": 1,
+        "weight": "17.30",
+        "time_to_open": "25",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "100",
+        "torque_max": "200",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.86",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 69,
+    "fields": {
+        "name": "AR11E050",
+        "model_line": 2,
+        "model_body": 16,
+        "voltage": 1,
+        "weight": "23.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "250",
+        "torque_max": "500",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.87",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 70,
+    "fields": {
+        "name": "AR11E060",
+        "model_line": 2,
+        "model_body": 16,
+        "voltage": 1,
+        "weight": "23.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.95",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 71,
+    "fields": {
+        "name": "AR11E080",
+        "model_line": 2,
+        "model_body": 17,
+        "voltage": 1,
+        "weight": "29.00",
+        "time_to_open": "37",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "400",
+        "torque_max": "800",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.66",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 72,
+    "fields": {
+        "name": "AR11E120",
+        "model_line": 2,
+        "model_body": 17,
+        "voltage": 1,
+        "weight": "29.00",
+        "time_to_open": "37",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "600",
+        "torque_max": "1200",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.98",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 73,
+    "fields": {
+        "name": "AR11E150",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 1,
+        "weight": "77.00",
+        "time_to_open": "93",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "750",
+        "torque_max": "1500",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.95",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 74,
+    "fields": {
+        "name": "AR11E200",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 1,
+        "weight": "83.00",
+        "time_to_open": "112",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1000",
+        "torque_max": "2000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.76",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 75,
+    "fields": {
+        "name": "AR11E300",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 1,
+        "weight": "83.00",
+        "time_to_open": "112",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1500",
+        "torque_max": "3000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.98",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 76,
+    "fields": {
+        "name": "AR11E400",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 1,
+        "weight": "83.00",
+        "time_to_open": "185",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2000",
+        "torque_max": "4000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.72",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 77,
+    "fields": {
+        "name": "AR11E500",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 1,
+        "weight": "83.00",
+        "time_to_open": "185",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2500",
+        "torque_max": "5000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.75",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 78,
+    "fields": {
+        "name": "AR11E600",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 1,
+        "weight": "83.00",
+        "time_to_open": "185",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "3000",
+        "torque_max": "6000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "2.31",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 79,
+    "fields": {
+        "name": "AR11E005",
+        "model_line": 2,
+        "model_body": 11,
+        "voltage": 2,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "25",
+        "torque_max": "50",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "0.25",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 80,
+    "fields": {
+        "name": "AR11E008",
+        "model_line": 2,
+        "model_body": 13,
+        "voltage": 2,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "40",
+        "torque_max": "80",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.25",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 81,
+    "fields": {
+        "name": "AR11E010",
+        "model_line": 2,
+        "model_body": 13,
+        "voltage": 2,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "50",
+        "torque_max": "100",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.28",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 82,
+    "fields": {
+        "name": "AR11E015",
+        "model_line": 2,
+        "model_body": 15,
+        "voltage": 2,
+        "weight": "17.30",
+        "time_to_open": "25",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "75",
+        "torque_max": "150",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.32",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 83,
+    "fields": {
+        "name": "AR11E020",
+        "model_line": 2,
+        "model_body": 15,
+        "voltage": 2,
+        "weight": "17.30",
+        "time_to_open": "25",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "100",
+        "torque_max": "200",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.35",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 84,
+    "fields": {
+        "name": "AR11E030",
+        "model_line": 2,
+        "model_body": 12,
+        "voltage": 2,
+        "weight": "22.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "150",
+        "torque_max": "300",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.39",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 85,
+    "fields": {
+        "name": "AR11E050",
+        "model_line": 2,
+        "model_body": 16,
+        "voltage": 2,
+        "weight": "23.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "250",
+        "torque_max": "500",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.58",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 86,
+    "fields": {
+        "name": "AR11E060",
+        "model_line": 2,
+        "model_body": 16,
+        "voltage": 2,
+        "weight": "23.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.59",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 87,
+    "fields": {
+        "name": "AR11E080",
+        "model_line": 2,
+        "model_body": 17,
+        "voltage": 2,
+        "weight": "29.00",
+        "time_to_open": "37",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "400",
+        "torque_max": "800",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.94",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 88,
+    "fields": {
+        "name": "AR11E120",
+        "model_line": 2,
+        "model_body": 17,
+        "voltage": 2,
+        "weight": "29.00",
+        "time_to_open": "37",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "600",
+        "torque_max": "1200",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.07",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 89,
+    "fields": {
+        "name": "AR11E150",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 2,
+        "weight": "77.00",
+        "time_to_open": "93",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "750",
+        "torque_max": "1500",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.56",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 90,
+    "fields": {
+        "name": "AR11E200",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 2,
+        "weight": "83.00",
+        "time_to_open": "112",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1000",
+        "torque_max": "2000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.86",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 91,
+    "fields": {
+        "name": "AR11E300",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 2,
+        "weight": "83.00",
+        "time_to_open": "112",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1500",
+        "torque_max": "3000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.93",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 92,
+    "fields": {
+        "name": "AR11E400",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 2,
+        "weight": "83.00",
+        "time_to_open": "185",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2000",
+        "torque_max": "4000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "0.94",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 93,
+    "fields": {
+        "name": "AR11E500",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 2,
+        "weight": "83.00",
+        "time_to_open": "185",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2500",
+        "torque_max": "5000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.01",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 94,
+    "fields": {
+        "name": "AR11E600",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 2,
+        "weight": "83.00",
+        "time_to_open": "185",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "3000",
+        "torque_max": "6000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "1.07",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 95,
+    "fields": {
+        "name": "AR11E005",
+        "model_line": 2,
+        "model_body": 11,
+        "voltage": 3,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "25",
+        "torque_max": "50",
+        "motor_power": null,
+        "motor_power_measure_unit": null,
+        "motor_current_rated": "3.86",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 96,
+    "fields": {
+        "name": "AR11E008",
+        "model_line": 2,
+        "model_body": 13,
+        "voltage": 3,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "40",
+        "torque_max": "80",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "5.59",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 97,
+    "fields": {
+        "name": "AR11E010",
+        "model_line": 2,
+        "model_body": 13,
+        "voltage": 3,
+        "weight": "7.50",
+        "time_to_open": "22",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "50",
+        "torque_max": "100",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "6.43",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 98,
+    "fields": {
+        "name": "AR11E015",
+        "model_line": 2,
+        "model_body": 15,
+        "voltage": 3,
+        "weight": "17.30",
+        "time_to_open": "25",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "75",
+        "torque_max": "150",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": null,
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 99,
+    "fields": {
+        "name": "AR11E020",
+        "model_line": 2,
+        "model_body": 15,
+        "voltage": 3,
+        "weight": "17.30",
+        "time_to_open": "25",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "100",
+        "torque_max": "200",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "7.60",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 100,
+    "fields": {
+        "name": "AR11E030",
+        "model_line": 2,
+        "model_body": 12,
+        "voltage": 3,
+        "weight": "22.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "150",
+        "torque_max": "300",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "7.60",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 101,
+    "fields": {
+        "name": "AR11E050",
+        "model_line": 2,
+        "model_body": 16,
+        "voltage": 3,
+        "weight": "23.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "250",
+        "torque_max": "500",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "12.30",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 102,
+    "fields": {
+        "name": "AR11E060",
+        "model_line": 2,
+        "model_body": 16,
+        "voltage": 3,
+        "weight": "23.00",
+        "time_to_open": "31",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "300",
+        "torque_max": "600",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "14.50",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 103,
+    "fields": {
+        "name": "AR11E080",
+        "model_line": 2,
+        "model_body": 17,
+        "voltage": 3,
+        "weight": "29.00",
+        "time_to_open": "37",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "400",
+        "torque_max": "800",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "18.30",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 104,
+    "fields": {
+        "name": "AR11E120",
+        "model_line": 2,
+        "model_body": 17,
+        "voltage": 3,
+        "weight": "29.00",
+        "time_to_open": "37",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "600",
+        "torque_max": "1200",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": null,
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 105,
+    "fields": {
+        "name": "AR11E150",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 3,
+        "weight": "77.00",
+        "time_to_open": "93",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "750",
+        "torque_max": "1500",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "13.70",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 106,
+    "fields": {
+        "name": "AR11E200",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 3,
+        "weight": "83.00",
+        "time_to_open": "112",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1000",
+        "torque_max": "2000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "18.30",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 107,
+    "fields": {
+        "name": "AR11E300",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 3,
+        "weight": "83.00",
+        "time_to_open": "112",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "1500",
+        "torque_max": "3000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "18.30",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.electricactuatordata",
+    "pk": 108,
+    "fields": {
+        "name": "AR11E400",
+        "model_line": 2,
+        "model_body": 14,
+        "voltage": 3,
+        "weight": "83.00",
+        "time_to_open": "185",
+        "time_to_open_measure_unit": 22,
+        "rotation_speed": null,
+        "rotation_speed_measure_unit": null,
+        "torque_min": "2000",
+        "torque_max": "4000",
+        "motor_power": null,
+        "motor_power_measure_unit": 21,
+        "motor_current_rated": "18.30",
+        "motor_current_rated_measure_unit": 25,
+        "motor_current_starting": null,
+        "motor_current_starting_measure_unit": 25
+    }
+},
+{
+    "model": "electric_actuators.wiringdiagram",
+    "pk": 1,
+    "fields": {
+        "name": "AR21E-210-10",
+        "applies_to_model_lines": 3,
+        "voltage": 2,
+        "cu": 1,
+        "text_description": "AR21E-007-100 380В Открыть-Закрыть",
+        "applies_to_models": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+        ]
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 1,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-02T00:00:00Z",
+        "date_updated": "2025-02-02T00:00:00Z",
+        "name": "Проект",
+        "actual_model": 4,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": 22,
+        "actual_stem_shape": 1,
+        "actual_stem_size": 2,
+        "actual_cable_glands_holes": 3,
+        "actual_wiring_diagram": 1,
+        "actual_ip": 3,
+        "actual_body_coating": 1,
+        "actual_exd": 1,
+        "actual_blinker": 1,
+        "actual_end_switches": 2,
+        "actual_way_switches": 1,
+        "actual_torque_switches": 1,
+        "actual_output_type": 1,
+        "actual_temperature": 1,
+        "actual_digital_protocol_support": 1,
+        "actual_control_unit_installed": 1,
+        "actual_mechanical_indicator": 2,
+        "actual_hand_wheel": 1,
+        "actual_operating_mode": 3,
+        "text_description": null,
+        "actual_mounting_plate": [
+            2,
+            3
+        ]
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 2,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-05T00:00:00Z",
+        "date_updated": "2025-02-05T00:00:00Z",
+        "name": "Проект",
+        "actual_model": null,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": null,
+        "actual_stem_shape": null,
+        "actual_stem_size": null,
+        "actual_cable_glands_holes": null,
+        "actual_wiring_diagram": null,
+        "actual_ip": null,
+        "actual_body_coating": null,
+        "actual_exd": null,
+        "actual_blinker": null,
+        "actual_end_switches": null,
+        "actual_way_switches": null,
+        "actual_torque_switches": null,
+        "actual_output_type": null,
+        "actual_temperature": null,
+        "actual_digital_protocol_support": null,
+        "actual_control_unit_installed": null,
+        "actual_mechanical_indicator": null,
+        "actual_hand_wheel": null,
+        "actual_operating_mode": null,
+        "text_description": null,
+        "actual_mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 3,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-05T00:00:00Z",
+        "date_updated": "2025-02-05T00:00:00Z",
+        "name": "Проект",
+        "actual_model": null,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": null,
+        "actual_stem_shape": null,
+        "actual_stem_size": null,
+        "actual_cable_glands_holes": null,
+        "actual_wiring_diagram": null,
+        "actual_ip": null,
+        "actual_body_coating": null,
+        "actual_exd": null,
+        "actual_blinker": null,
+        "actual_end_switches": null,
+        "actual_way_switches": null,
+        "actual_torque_switches": null,
+        "actual_output_type": null,
+        "actual_temperature": null,
+        "actual_digital_protocol_support": null,
+        "actual_control_unit_installed": null,
+        "actual_mechanical_indicator": null,
+        "actual_hand_wheel": null,
+        "actual_operating_mode": null,
+        "text_description": null,
+        "actual_mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 4,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-05T03:57:36.110Z",
+        "date_updated": "2025-02-05T03:57:36.110Z",
+        "name": "Проект",
+        "actual_model": null,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": null,
+        "actual_stem_shape": null,
+        "actual_stem_size": null,
+        "actual_cable_glands_holes": null,
+        "actual_wiring_diagram": null,
+        "actual_ip": null,
+        "actual_body_coating": null,
+        "actual_exd": null,
+        "actual_blinker": null,
+        "actual_end_switches": null,
+        "actual_way_switches": null,
+        "actual_torque_switches": null,
+        "actual_output_type": null,
+        "actual_temperature": null,
+        "actual_digital_protocol_support": null,
+        "actual_control_unit_installed": null,
+        "actual_mechanical_indicator": null,
+        "actual_hand_wheel": null,
+        "actual_operating_mode": null,
+        "text_description": null,
+        "actual_mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 5,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-05T04:06:27.972Z",
+        "date_updated": "2025-02-05T04:06:27.972Z",
+        "name": "Проект",
+        "actual_model": null,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": null,
+        "actual_stem_shape": null,
+        "actual_stem_size": null,
+        "actual_cable_glands_holes": null,
+        "actual_wiring_diagram": null,
+        "actual_ip": null,
+        "actual_body_coating": null,
+        "actual_exd": null,
+        "actual_blinker": null,
+        "actual_end_switches": null,
+        "actual_way_switches": null,
+        "actual_torque_switches": null,
+        "actual_output_type": null,
+        "actual_temperature": null,
+        "actual_digital_protocol_support": null,
+        "actual_control_unit_installed": null,
+        "actual_mechanical_indicator": null,
+        "actual_hand_wheel": null,
+        "actual_operating_mode": null,
+        "text_description": null,
+        "actual_mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 6,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-05T04:06:50.069Z",
+        "date_updated": "2025-02-05T04:06:50.069Z",
+        "name": "Проект",
+        "actual_model": null,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": null,
+        "actual_stem_shape": null,
+        "actual_stem_size": null,
+        "actual_cable_glands_holes": null,
+        "actual_wiring_diagram": null,
+        "actual_ip": null,
+        "actual_body_coating": null,
+        "actual_exd": null,
+        "actual_blinker": null,
+        "actual_end_switches": null,
+        "actual_way_switches": null,
+        "actual_torque_switches": null,
+        "actual_output_type": null,
+        "actual_temperature": null,
+        "actual_digital_protocol_support": null,
+        "actual_control_unit_installed": null,
+        "actual_mechanical_indicator": null,
+        "actual_hand_wheel": null,
+        "actual_operating_mode": null,
+        "text_description": null,
+        "actual_mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 7,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-05T04:16:51.763Z",
+        "date_updated": "2025-02-05T04:16:51.763Z",
+        "name": "Проект",
+        "actual_model": null,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": null,
+        "actual_stem_shape": null,
+        "actual_stem_size": null,
+        "actual_cable_glands_holes": null,
+        "actual_wiring_diagram": null,
+        "actual_ip": null,
+        "actual_body_coating": null,
+        "actual_exd": null,
+        "actual_blinker": null,
+        "actual_end_switches": null,
+        "actual_way_switches": null,
+        "actual_torque_switches": null,
+        "actual_output_type": null,
+        "actual_temperature": null,
+        "actual_digital_protocol_support": null,
+        "actual_control_unit_installed": null,
+        "actual_mechanical_indicator": null,
+        "actual_hand_wheel": null,
+        "actual_operating_mode": null,
+        "text_description": null,
+        "actual_mounting_plate": []
+    }
+},
+{
+    "model": "electric_actuators.actualactuator",
+    "pk": 8,
+    "fields": {
+        "status": "Draft",
+        "date_created": "2025-02-05T04:20:58.248Z",
+        "date_updated": "2025-02-05T04:20:58.248Z",
+        "name": "Проект",
+        "actual_model": null,
+        "actual_time_to_open": null,
+        "actual_time_to_open_measure_unit": null,
+        "actual_rotations_to_open": 45,
+        "actual_rotations_to_open_measure_unit": null,
+        "actual_stem_shape": null,
+        "actual_stem_size": null,
+        "actual_cable_glands_holes": null,
+        "actual_wiring_diagram": null,
+        "actual_ip": null,
+        "actual_body_coating": null,
+        "actual_exd": null,
+        "actual_blinker": null,
+        "actual_end_switches": null,
+        "actual_way_switches": null,
+        "actual_torque_switches": null,
+        "actual_output_type": null,
+        "actual_temperature": null,
+        "actual_digital_protocol_support": null,
+        "actual_control_unit_installed": null,
+        "actual_mechanical_indicator": null,
+        "actual_hand_wheel": null,
+        "actual_operating_mode": null,
+        "text_description": null,
+        "actual_mounting_plate": []
+    }
+}
+]

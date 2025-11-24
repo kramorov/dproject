@@ -1,0 +1,26 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="{% url 'admin:dimension_table_export_excel' original.pk %}" class="viewsitelink">
+            📊 Экспорт в Excel
+        </a>
+    </li>
+    <li>
+        <a href="{% url 'admin:dimension_table_export_template' original.pk %}" class="viewsitelink">
+            📋 Скачать шаблон
+        </a>
+    </li>
+    <li>
+        <a href="{% url 'admin:dimension_table_import' original.pk %}" class="viewsitelink">
+            ⬆️ Импорт Excel
+        </a>
+    </li>
+    <li>
+        <a href="{% url 'admin:dimension_table_view_data' original.pk %}" class="viewsitelink">
+            👁️ Просмотр данных
+        </a>
+    </li>
+{% endblock %}

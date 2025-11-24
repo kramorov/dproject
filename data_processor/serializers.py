@@ -259,12 +259,12 @@ input_string = 'ЭБ1234'  # Пример строки для проверки
 
 result = check_and_split(input_string , patterns)
 
-if result['match'] :
-    print('Совпадает!')
-    print('Фиксированная часть:' , result['fixed_part'])
-    print('Переменная часть:' , result['variable_part'])
-else :
-    print('Строка не соответствует шаблонам.')
+# if result['match'] :
+#     print('Совпадает!')
+#     print('Фиксированная часть:' , result['fixed_part'])
+#     print('Переменная часть:' , result['variable_part'])
+# else :
+#     print('Строка не соответствует шаблонам.')
 
 
 # Функция для разделения строки
@@ -347,7 +347,7 @@ class ETTSerializer(serializers.Serializer) :
         # valve_type , valve_dn , valve_pipe_dn , valve_dn_comment, time_to_open_min_std, time_to_open_max_std, time_to_open_max_fast = get_valve_type_dn(parts[0])
         armature_name , dn_value , valve_pipe_dn , valve_dn_comment , time_to_open_min_std , time_to_open_max_std , time_to_open_max_fast = get_valve_type_dn(
             parts[0])
-        valve_dn = re.sub('\D' , '' , dn_value)
+        valve_dn = re.sub(r'\D' , '' , dn_value)
         desc_table.extend([{'param_name' : 'Тип:' , 'param_value' : armature_name} ,
                            {'param_name' : 'DN:' , 'param_value' : valve_dn} ,
                            {'param_name' : 'Наружный диаметр  трубопровода:' , 'param_value' : valve_pipe_dn} ,

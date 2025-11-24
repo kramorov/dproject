@@ -1,0 +1,13 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  {% if show_import_button %}
+    <li>
+      <a href="{{ import_url }}" class="addlink">
+        📥 {% trans "Импорт данных" %}
+      </a>
+    </li>
+  {% endif %}
+{% endblock %}

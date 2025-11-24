@@ -1,23 +1,24 @@
+import uuid
 from datetime import datetime
 
 from django.db import models
 from django.contrib.contenttypes.fields import GenericRelation
 from django.utils.timezone import now
 
+# from client_request.models import ClientRequestLine, ClientRequest
 from electric_actuators.models import CableGlandHolesSet
 from producers.models import Brands, Producer
-from params.models import PowerSupplies, ExdOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
-    EnvTempParameters, IpOption, MeasureUnits, \
-    DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, HandWheelInstalledOption, \
-    OperatingModeOption, StemShapes, StemSize, MountingPlateTypes, ThreadSize, CertificateType, Certificate, \
-    MechanicalIndicatorInstalledOption, ControlUnitLocationOption, ControlUnitTypeOption, SafetyPositionOption, \
-    ValveTypes
+from params.models import PowerSupplies , ExdOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , \
+    EnvTempParameters , IpOption , MeasureUnits , \
+    DigitalProtocolsSupportOption , ControlUnitInstalledOption , ActuatorGearboxOutputType , HandWheelInstalledOption , \
+    OperatingModeOption , StemShapes , StemSize , MountingPlateTypes , ThreadSize , CertVariety , CertData , \
+    MechanicalIndicatorInstalledOption , ControlUnitLocationOption , ControlUnitTypeOption , SafetyPositionOption , \
+    ValveTypes , ClimaticConditions
 
 VALVE_DATA_STEM_TYPES = [
     ('Выдвижной', 'Выдвижной шток'),  # ('AC', 'Постоянный ток')
     ('НЕвыдвижной', 'Невыдвижной шток'),  # ('DC', 'Переменный ток')
 ]
-
 
 class AbstractValveModel(models.Model):
     valve_model_dn = models.PositiveIntegerField(blank=True, null=True, help_text='Dn арматуры')
@@ -121,6 +122,8 @@ class AbstractActuatorMixin(AbstractActuatorModelBodyMixin):
                                     on_delete=models.SET_NULL, help_text='Вид привода')
     temperature = models.ForeignKey(EnvTempParameters, related_name='%(class)s', blank=True,
                                     null=True, on_delete=models.SET_NULL, help_text='Температурное исполнение')
+    climatic_conditions =models.ForeignKey(ClimaticConditions, related_name='%(class)s', blank=True,
+                                    null=True, on_delete=models.SET_NULL, help_text='Климатическое исполнение')
 
     mechanical_indicator = \
         models.ForeignKey(MechanicalIndicatorInstalledOption, blank=True, null=True,

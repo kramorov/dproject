@@ -1,0 +1,99 @@
+[
+{
+    "model": "producers.brands",
+    "pk": 1,
+    "fields": {
+        "name": "Архимед"
+    }
+},
+{
+    "model": "producers.brands",
+    "pk": 2,
+    "fields": {
+        "name": "Artorq"
+    }
+},
+{
+    "model": "producers.brands",
+    "pk": 3,
+    "fields": {
+        "name": "Горэлтех"
+    }
+},
+{
+    "model": "producers.brands",
+    "pk": 4,
+    "fields": {
+        "name": "Peppers"
+    }
+},
+{
+    "model": "producers.brands",
+    "pk": 5,
+    "fields": {
+        "name": "Нордэкс"
+    }
+},
+{
+    "model": "producers.brands",
+    "pk": 6,
+    "fields": {
+        "name": "ABRA"
+    }
+},
+{
+    "model": "producers.brands",
+    "pk": 7,
+    "fields": {
+        "name": "RushWork"
+    }
+},
+{
+    "model": "producers.brands",
+    "pk": 8,
+    "fields": {
+        "name": "ГУСАР"
+    }
+},
+{
+    "model": "producers.producer",
+    "pk": 1,
+    "fields": {
+        "organization": "ООО \"Архимед\"",
+        "brands": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "producers.producer",
+    "pk": 2,
+    "fields": {
+        "organization": "ГУСАР",
+        "brands": [
+            8
+        ]
+    }
+},
+{
+    "model": "producers.producer",
+    "pk": 3,
+    "fields": {
+        "organization": "Абрадокс",
+        "brands": [
+            6
+        ]
+    }
+},
+{
+    "model": "producers.producer",
+    "pk": 4,
+    "fields": {
+        "organization": "ЕвроСтеп",
+        "brands": [
+            7
+        ]
+    }
+}
+]

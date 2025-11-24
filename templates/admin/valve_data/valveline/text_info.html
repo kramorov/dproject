@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #417690, #36657a);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+
+        .header-info {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            border-left: 4px solid #417690;
+            padding-left: 20px;
+        }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section h2 {
+            color: #417690;
+            margin: 0 0 20px 0;
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 8px;
+            padding: 2px 0;
+            border-bottom: 1px solid #f0f0f0;
+            align-items: start;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: #333;
+            font-size: 14px;
+        }
+
+        .compact-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .compact-table th {
+            background: #f8f9fa;  /* Более светлый фон */
+            color: #333;
+            font-weight: 600;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .compact-table td {
+            padding: 6px;
+            border-bottom: 1px solid #e8e8e8;
+            background: white;
+        }
+
+        .compact-table tr:nth-child(even) td {
+            background: #f8f9fa;
+        }
+
+        .compact-table tr:hover td {
+            background: #e3f2fd;
+        }
+
+        .color-item {
+            display: inline-flex;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin: 4px 8px 4px 0;
+            border: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+
+        .color-badge {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .text-content {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #417690;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 10px 0;
+        }
+
+        .source-comment {
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+            margin-top: 4px;
+            padding-left: 10px;
+            border-left: 2px solid #ddd;
+        }
+
+        .no-data {
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 30px;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #417690, #36657a);
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(65, 118, 144, 0.3);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(65, 118, 144, 0.4);
+        }
+
+        .temperature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .temp-item {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .temp-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .temp-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .kv-combo-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            border: 1px solid #bbdefb;
+        }
+
+        .compact-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .compact-table td {
+            text-align: center;
+            padding: 8px 4px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <div class="header-info">
+            <div><strong>Код:</strong> {{ valve_line.code|default:"Не указан" }}</div>
+            <div><strong>Производитель:</strong> {{ valve_line.valve_producer|default:"Не указан" }}</div>
+            <div><strong>Бренд:</strong> {{ valve_line.valve_brand|default:"Не указан" }}</div>
+        </div>
+        {% if show_data_source %}
+            <div style="margin-top: 15px; font-size: 13px; opacity: 0.8;">
+                <strong>Текущая модель:</strong> {{ structured_data.data_source_info.current_model }}
+                {% if structured_data.data_source_info.has_original %}
+                    • <strong>Наследует из:</strong> {{ structured_data.data_source_info.original_model }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="content">
+        <!-- Основная информация -->
+        <div class="section">
+            <h2>📋 Основная информация</h2>
+            <div class="info-list">
+                {% for item in structured_data.basic_info %}
+                    <div class="info-row">
+                        <div class="info-label">{{ item.label }}:</div>
+                        <div class="info-value">
+                            {{ item.value|default:"Не указано" }}
+                            {% if show_data_source and item.source_comment %}
+                                <div class="source-comment">{{ item.source_comment }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Технические характеристики -->
+        <div class="section">
+            <h2>⚙️ Технические характеристики</h2>
+            {% if structured_data.technical_specs %}
+                <div class="info-list">
+                    {% for spec in structured_data.technical_specs %}
+                        <div class="info-row">
+                            <div class="info-label">{{ spec.label }}:</div>
+                            <div class="info-value">
+                                {{ spec.value }}
+                                {% if show_data_source and spec.source_comment %}
+                                    <div class="source-comment">{{ spec.source_comment }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-data">Технические характеристики не указаны</div>
+            {% endif %}
+        </div>
+
+        <!-- Температурные характеристики -->
+        {% if structured_data.temperature_info %}
+            <div class="section">
+                <h2>🌡️ Температурные характеристики</h2>
+                <div class="temperature-grid">
+                    {% for temp in structured_data.temperature_info %}
+                        <div class="temp-item">
+                            <div class="temp-label">{{ temp.label }}</div>
+                            <div class="temp-value">{{ temp.value }}°C</div>
+                            {% if show_data_source and temp.source_comment %}
+                                <div style="font-size: 10px; opacity: 0.8;">{{ temp.source_comment }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Цвета корпуса -->
+        <div class="section">
+            <h2>🎨 Цвета корпуса</h2>
+            {% if structured_data.body_colors %}
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    {% for color in structured_data.body_colors %}
+                        <div class="color-item">
+                            <div class="color-badge" style="background: {{ color.hex_color }};"></div>
+                            {{ color.color_name }} ({{ color.option_type }})
+                            {% if color.additional_cost > 0 or color.lead_time_days > 0 %}
+                                <span style="margin-left: 8px; font-size: 11px; color: #666;">
+                                    {% if color.additional_cost > 0 %}+{{ color.additional_cost }}₽{% endif %}
+                                    {% if color.lead_time_days > 0 %}{% if color.additional_cost > 0 %}
+                                        +{% endif %}{{ color.lead_time_days }}д{% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-data">Цвета корпуса не указаны</div>
+            {% endif %}
+        </div>
+
+        <!-- Таблица модельных данных -->
+        {% if structured_data.model_data.has_data %}
+            <div class="section">
+                <h2>📊 Таблица модельных данных</h2>
+                {% if show_data_source and structured_data.model_data.source_comment %}
+                    <div class="source-comment"
+                         style="margin-bottom: 15px;">{{ structured_data.model_data.source_comment }}</div>
+                {% endif %}
+                <div class="table-container">
+                    <table class="compact-table">
+                        <thead>
+                        <tr>
+                            <th>Артикул</th>
+                            <th>DN</th>
+                            <th>PN</th>
+                            <th>Мом. откр</th>
+                            <th>Мом. закр</th>
+                            <th>Усилие</th>
+                            <th>Обороты</th>
+                            <th>Площадка</th>
+                            <th>Шток</th>
+                            <th>Высота</th>
+                            <th>Длина</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for model in structured_data.model_data.model_data %}
+                            <tr>
+                                <td><strong>{{ model.item_code }}</strong></td>
+                                <td>{{ model.dn }}</td>
+                                <td>{{ model.pn }}</td>
+                                <td>{{ model.torque_open }}</td>
+                                <td>{{ model.torque_close }}</td>
+                                <td>{{ model.thrust_close }}</td>
+                                <td>{{ model.rotations }}</td>
+                                <td>{{ model.mounting_plate }}</td>
+                                <td>{{ model.stem_size }}</td>
+                                <td>{{ model.stem_height }}</td>
+                                <td>{{ model.construction_length }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+        <!-- Таблица данных Kv -->
+        {% if structured_data.kv_data.has_data %}
+            <div class="section">
+                <h2>📈 Таблица данных Kv</h2>
+                {% if show_data_source and structured_data.kv_data.source_comment %}
+                    <div class="source-comment"
+                         style="margin-bottom: 15px;">{{ structured_data.kv_data.source_comment }}</div>
+                {% endif %}
+
+                <!-- Сводная информация по Kv данным -->
+                {% if structured_data.kv_summary.has_data %}
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Сводка по Kv данным:</h3>
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px;">
+                            <div><strong>Всего записей:</strong> {{ structured_data.kv_summary.total_entries }}</div>
+                            <div><strong>DN:</strong> {{ structured_data.kv_summary.dn_range|join:", " }}</div>
+                            <div><strong>PN:</strong> {{ structured_data.kv_summary.pn_range|join:", " }}</div>
+                            <div><strong>Углы:</strong> {{ structured_data.kv_summary.angle_range|join:"°, " }}°</div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Таблица Kv с углами в столбцах -->
+                <div class="table-container">
+                    <table class="compact-table">
+                        <thead>
+                        <tr>
+                            <th rowspan="2">DN / Угол</th>
+                            {% for angle in structured_data.kv_data.kv_table.angles %}
+                                <th>{{ angle }}°</th>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            {% for angle in structured_data.kv_data.kv_table.angles %}
+                                <th>Kv, м³/час</th>
+                            {% endfor %}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for dn_row in structured_data.kv_data.kv_table.dn_rows %}
+                            <tr>
+                                <td><strong>DN{{ dn_row.dn }}</strong></td>
+                                {% for angle_data in dn_row.angle_values %}
+                                    <td>
+                                        {% if angle_data.kv_value %}
+                                            <strong>{{ angle_data.kv_value|floatformat:2 }}</strong>
+                                        {% else %}
+                                            <span style="color: #ccc;">—</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Информация по PN -->
+                {% if structured_data.kv_data.kv_table.pn_info %}
+                    <div style="margin-top: 15px; font-size: 13px; color: #666;">
+                        <strong>Условное давление:</strong> PN{{ structured_data.kv_data.kv_table.pn_info }}
+                    </div>
+                {% endif %}
+
+                <!-- График кривых Kv (опционально) -->
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 14px; color: #666;">📊 Доступные комбинации DN/PN:</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        {% for combo in structured_data.kv_data.kv_table.available_combinations %}
+                            <span class="kv-combo-badge">
+                    {{ combo }}
+                </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="section">
+                <h2>📈 Таблица данных Kv</h2>
+                <div class="no-data">Данные по пропускной способности Kv не указаны</div>
+            </div>
+        {% endif %}
+
+        <!-- Описания -->
+        <div class="section">
+            <h2>📝 Описания</h2>
+            {% if structured_data.descriptions %}
+                {% for desc in structured_data.descriptions %}
+                    {% if desc.value %}
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #666; margin-bottom: 8px; font-size: 16px;">{{ desc.label }}</h3>
+                            <div class="text-content">{{ desc.value }}</div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="no-data">Описания не указаны</div>
+            {% endif %}
+        </div>
+
+        <!-- Сроки службы -->
+        <div class="section">
+            <h2>⏱️ Сроки службы</h2>
+            {% if structured_data.service_life %}
+                <div class="info-list">
+                    {% for service in structured_data.service_life %}
+                        <div class="info-row">
+                            <div class="info-label">{{ service.label }}:</div>
+                            <div class="info-value">{{ service.value }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-data">Сроки службы не указаны</div>
+            {% endif %}
+        </div>
+
+        <!-- Статусы -->
+        <div class="section">
+            <h2>📈 Статусы</h2>
+            <div class="info-list">
+                <div class="info-row">
+                    <div class="info-label">Активность:</div>
+                    <div class="info-value">
+                            <span class="status-badge {% if valve_line.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                {{ structured_data.status.active }}
+                            </span>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Проверка:</div>
+                    <div class="info-value">
+                            <span class="status-badge {% if valve_line.is_approved %}status-active{% else %}status-inactive{% endif %}">
+                                {{ structured_data.status.approved }}
+                            </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Действия -->
+    <div class="actions">
+        <button onclick="window.print()" class="button">🖨️ Печать</button>
+        <button onclick="window.close()" class="button">✖️ Закрыть</button>
+        {% if show_data_source %}
+            <a href="?show_data_source=false" class="button">📊 Скрыть источники</a>
+        {% else %}
+            <a href="?show_data_source=true" class="button">🔍 Показать источники</a>
+        {% endif %}
+        <a href="{% url 'admin:valve_data_valveline_change' valve_line.id %}" class="button">✏️ Редактировать</a>
+    </div>
+</div>
+</body>
+</html>

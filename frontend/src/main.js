@@ -5,9 +5,12 @@ import {createApp} from 'vue';
 // import store from '../src/services/store.js';
 import axiosPlugin from '../src/services/axios.js'
 import App from './App.vue';
+import { createPinia } from 'pinia' // Импортируем Pinia
 import router from './router';
 import './style.css';
-import Router from "./router";
+import { DictionaryStore } from './services/stores/dictionaryStore.ts';
+
+
 //
 // Vue.config.productionTip = false;  // Отключаем подсказки для production
 // Vue.config.devtools = true;        // Включаем Vue Devtools
@@ -19,30 +22,17 @@ import Router from "./router";
 // }).$mount('#app');
 
 const app = createApp(App);
+const pinia = createPinia() // Создаём экземпляр Pinia
+
+app.use(pinia) // Подключаем Pinia к приложению
+// Устанавливаем глобальный обработчик ошибок для stores
+// При старте приложения Заполняем хранилища при запуске
+DictionaryStore.preloadAllDictionaries().then(() => {
+  // console.log('All dictionaries loaded');
+});
+
 app.use(router);  // Подключаем роутер
 // // app.use(store);   // Подключаем Vuex store
 app.use(axiosPlugin); // Используем плагин axios
 app.mount('#app');
 
-// App.vue
-// <template>
-//   <div class="app">
-//     <Header />
-//     <div class="main-layout">
-//       <div class="sidebar">
-//         <slot name="sidebar" />
-//       </div>
-//       <div class="content">
-//         <router-view />
-//       </div>
-//     </div>
-//   </div>
-// </template>
-//
-// <script>
-// import Header from './components/Header.vue';
-//
-// export default {
-//   components: { Header },
-// };
-// </script>

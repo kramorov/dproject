@@ -16,8 +16,26 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Локальное хранилище для фалов (картинки и т.п.)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR , 'media')
+# Настройки хранилища
+FILE_STORAGE_BACKEND = 'local'  # 'local' или 'yandex_cloud'
+# Настройки для Yandex Cloud (для будущего использования)
+# YC_BUCKET_NAME = os.getenv('YC_BUCKET_NAME', '')
+# YC_ACCESS_KEY = os.getenv('YC_ACCESS_KEY', '')
+# YC_SECRET_KEY = os.getenv('YC_SECRET_KEY', '')
+# YC_ENDPOINT_URL = 'https://storage.yandexcloud.net'
+# YC_REGION = 'ru-central1'
+
+
 STATIC_URL = '/static/'  # URL для статических файлов
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')  # Директория для сбора статических файлов
+# Папки, где искать статические файлы
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR , 'static') ,
+]
+# Папка для collectstatic (может быть любой)
+STATIC_ROOT = os.path.join(BASE_DIR , 'staticfiles')  # Директория для сбора статических файлов
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -28,34 +46,43 @@ SECRET_KEY = 'django-insecure-&p1sohqzki&0xrh2w8q%2ic^7f2@)z5rj=y^33c(&ou2wsj8%7
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '*' ,  # Для теста (не для продакшена!)
+    'localhost' ,
+    '127.0.0.1' ,
+    'host.docker.internal'  # Важно!
+
+]
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # URL вашего приложения на Vite
+    "http://localhost:5173" ,  # URL вашего приложения на Vite
+    "http://localhost:3000" ,
+    "http://127.0.0.1:3000" ,
+    "http://host.docker.internal" ,
 ]
 CORS_ALLOW_METHODS = [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS",
+    "GET" ,
+    "POST" ,
+    "PUT" ,
+    "PATCH" ,
+    "DELETE" ,
+    "OPTIONS" ,
 ]
 
 CORS_ALLOW_HEADERS = [
-    "content-type",
-    "authorization",
-    "x-csrf-token",
-    "x-requested-with",
-    "accept",
-    "origin",
-    "user-agent",
-    "x-custom-header",
+    "content-type" ,
+    "authorization" ,
+    "x-csrf-token" ,
+    "x-requested-with" ,
+    "accept" ,
+    "origin" ,
+    "user-agent" ,
+    "x-custom-header" ,
 ]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = 'static/'
 # Путь к папке для хранения скомпилированных файлов Vue
 # STATICFILES_DIRS = [
 #     os.path.join(BASE_DIR, 'frontend/dist/static'),
@@ -65,149 +92,172 @@ STATIC_URL = 'static/'
 
 INSTALLED_APPS = [
     'admin_interface' ,
-    'colorfield',
-    'nested_admin',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    # 'django_extensions',
-    'rest_framework',
-    # 'drf_generators',
-    'corsheaders',
-    'params.apps.ParamsConfig',
-    'producers.apps.ProducersConfig',
-    'electric_actuators.apps.ElectricActuatorsConfig',
-    'data_processor.apps.DataProcessorConfig',
-    'cable_glands.apps.CableGlandConfig',
-    'ett.apps.EttConfig',
-    'valve_data.apps.ValveDataConfig',
-    'clients.apps.ClientsConfig',
-    'client_request.apps.ClientRequestConfig',
+    'colorfield' ,
+    'nested_admin' ,
+    'django.contrib.admin' ,
+    'django.contrib.auth' ,
+    'django.contrib.contenttypes' ,
+    'django.contrib.sessions' ,
+    'django.contrib.messages' ,
+    'django.contrib.staticfiles' ,
+    'rest_framework' ,
+    'corsheaders' ,
+    'core' ,
+    # 'django_filters',
+    'graphene_django' ,
+    'params.apps.ParamsConfig' ,
+    'options.apps.OptionsConfig' ,
+    'producers.apps.ProducersConfig' ,
+    'electric_actuators.apps.ElectricActuatorsConfig' ,
+    'data_processor.apps.DataProcessorConfig' ,
+    'cable_glands.apps.CableGlandConfig' ,
+    'ett.apps.EttConfig' ,
+    'valve_data.apps.ValveDataConfig' ,
+    'materials.apps.MaterialsConfig' ,
+    'clients.apps.ClientsConfig' ,
+    'client_requests.apps.ClientRequestsConfig' ,
+    'media_library.apps.MediaLibraryConfig' ,
+    'pneumatic_actuators.apps.PneumaticActuatorConfig' ,
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
+    'django.middleware.security.SecurityMiddleware' ,
+    'django.contrib.sessions.middleware.SessionMiddleware' ,
+    'django.middleware.common.CommonMiddleware' ,
+    'django.middleware.csrf.CsrfViewMiddleware' ,
+    'django.contrib.auth.middleware.AuthenticationMiddleware' ,
+    'django.contrib.messages.middleware.MessageMiddleware' ,
+    'django.middleware.locale.LocaleMiddleware' ,
+    'django.middleware.clickjacking.XFrameOptionsMiddleware' ,
+    'corsheaders.middleware.CorsMiddleware' ,
+    'django.middleware.common.CommonMiddleware' ,
 ]
+
+# Настройки медиабиблиотеки
+MEDIA_LIBRARY = {
+    'MAX_FILE_SIZE': 100 * 1024 * 1024,  # 100MB
+    'ALLOWED_EXTENSIONS': [
+        # Изображения
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg',
+        # Документы
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+        'txt', 'rtf', 'csv',
+        # Видео
+        'mp4', 'avi', 'mov', 'mkv', 'webm',
+        # Аудио
+        'mp3', 'wav', 'ogg',
+        # Архивы
+        'zip', 'rar', '7z',
+    ],
+    'AUTO_TAG_SEPARATORS': ['_', '-', '.', ',', ';', '—', '–', ' '],
+    'PREVIEW_SIZE': (300, 300),  # Размер превью
+    'PREVIEW_QUALITY': 85,  # Качество превью (0-100)
+}
 
 ROOT_URLCONF = 'djangoProject1.urls'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 15
+    'DEFAULT_PAGINATION_CLASS' : 'rest_framework.pagination.PageNumberPagination' ,
+    'PAGE_SIZE' : 15
 }
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
+        'BACKEND' : 'django.template.backends.django.DjangoTemplates' ,
+        'DIRS' : [BASE_DIR / 'templates']
         ,
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
+        'APP_DIRS' : True ,
+        'OPTIONS' : {
+            'context_processors' : [
+                'django.template.context_processors.debug' ,
+                'django.template.context_processors.request' ,
+                'django.contrib.auth.context_processors.auth' ,
+                'django.contrib.messages.context_processors.messages' ,
+            ] ,
+        } ,
+    } ,
 ]
 
 WSGI_APPLICATION = 'djangoProject1.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    'default' : {
+        'ENGINE' : 'django.db.backends.sqlite3' ,
+        'NAME' : BASE_DIR / 'db.sqlite3' ,
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
+        'NAME' : 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator' ,
+    } ,
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
+        'NAME' : 'django.contrib.auth.password_validation.MinimumLengthValidator' ,
+    } ,
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
+        'NAME' : 'django.contrib.auth.password_validation.CommonPasswordValidator' ,
+    } ,
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+        'NAME' : 'django.contrib.auth.password_validation.NumericPasswordValidator' ,
+    } ,
 ]
 
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': False,  # Не отключать существующие логгеры
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
-            'level': 'CRITICAL',  # Логировать все сообщения уровня DEBUG и выше
-            'class': 'logging.StreamHandler',  # Вывод в консоль
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
-        # 'file': {
-        #     'level': 'DEBUG',
-        #     'class': 'logging.FileHandler',
-        #     'filename': 'debug.log',  # Логи будут записываться в файл debug.log
-        # },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'django_debug.log',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],  # Использовать обработчик 'console'
-            'level': 'INFO',  # Логировать все сообщения уровня DEBUG и выше
-            'propagate': True,  # Передавать логи родителям (например, в root logger)
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
         },
-        'django' : {
-            'handlers' : ['console'] ,
-            'level' : 'CRITICAL' ,
-            'propagate' : True ,
-        } ,
-        'django.request' : {
-            'handlers' : ['console'] ,
-            'level' : 'ERROR' ,
-            'propagate' : True ,
-        } ,
-        'django.db.backends' : {
-            'handlers' : ['console'] ,
-            'level' : 'DEBUG' ,
-            'propagate' : True ,
-        } ,
-    },
-    'django.db.migrations': {
-        'handlers': ['console'],
-        'level': 'WARNING',  # Подавляем миграции
-        'propagate': False,  # Не передаем в другие логеры
-    },
-    'watchdog': {
-        'handlers': ['console'],
-        'level': 'WARNING',  # Устанавливаем уровень логирования для watchdog
-        'propagate': False,  # Останавливаем распространение
-    },
-    'django.middleware': {
-        'handlers': ['console'],
-        'level': 'WARNING',  # Подавляем сообщения от middleware (например, corsheaders)
-        'propagate': False,
+        'valve_data': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения
+            'propagate': False,
+        },
+        'storage_manager': {
+                    'handlers': ['console', 'file'],
+                    'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения
+                    'propagate': False,
+                },
     },
 }
 
+GRAPHENE = {
+    'SCHEMA' : 'djangoProject1.graphql.schema.schema' ,
+    # 'MIDDLEWARE': 'graphql_jwt.middleware.JSONWebTokenMiddleware',  # Отключите аутентификацию на время тестов
+}
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
@@ -218,8 +268,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
-
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field

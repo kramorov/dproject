@@ -4,11 +4,12 @@ from collections import namedtuple
 from electric_actuators.models import ModelLine, ElectricActuatorData, ActualActuator
 from params.models import IpOption, ExdOption, PowerSupplies, DigitalProtocolsSupportOption, ControlUnitInstalledOption, \
     EnvTempParameters
+from typing import Type
 
-SearchResult = namedtuple('SearchResult', ['record', 'text_description'])
+SearchResult = namedtuple('SearchResult', ['record', 'description'])
 
 
-def find_record_by_fields(model: Model, search_criteria: dict, return_field: str):
+def find_record_by_fields(model: Type[Model], search_criteria: dict, return_field: str):
     """
     Универсальная функция для поиска записи в базе данных по указанным полям и значениям,
     с возвратом указанного поля.
@@ -23,12 +24,12 @@ def find_record_by_fields(model: Model, search_criteria: dict, return_field: str
     """
     try:
         record = model.objects.get(**search_criteria)
-        text_description = getattr(record, return_field, 'Ошибка!')
-        if not text_description:
-            text_description = 'Н/Д'
-        return SearchResult(record=record, text_description=text_description)
+        description = getattr(record, return_field, 'Ошибка!')
+        if not description:
+            description = 'Н/Д'
+        return SearchResult(record=record, description=description)
     except model.DoesNotExist:
-        return SearchResult(record=float('nan'), text_description='Ошибка!')
+        return SearchResult(record=float('nan'), description='Ошибка!')
 
 
 def process_model_name(model_string):
@@ -59,15 +60,15 @@ def process_model_name(model_string):
     model = lines[0]
     model_line = model.split('E')[0] + 'E'
     model_line_result = find_record_by_fields(ModelLine, {'name': model_line}, 'name')
-    if model_line_result.text_description == 'Ошибка!':
+    if model_line_result.description == 'Ошибка!':
         model_line = 'Серия приводов с названием = ' + model_line + ' не найдена.'
         result_table.extend([
             {"parameter_name": "Ошибка", "parameter_value": model_line}
         ])
         return result_table
     else:
-        model_line = model_line_result.text_description
-    dp_list = list(DigitalProtocolsSupportOption.objects.values_list('symbolic_code', flat=True))
+        model_line = model_line_result.description
+    dp_list = list(DigitalProtocolsSupportOption.objects.values_list('name', flat=True))
     cu_list = list(ControlUnitInstalledOption.objects.values_list('encoding', flat=True))
     for i in range(1, len(lines)):
         cur_str = lines[i]
@@ -83,49 +84,49 @@ def process_model_name(model_string):
             continue
         if 'LT' in cur_str:
             lt = cur_str
-            lt_result = find_record_by_fields(EnvTempParameters, {'symbolic_code': cur_str}, 'text_description')
-            lt = lt_result.text_description
+            lt_result = find_record_by_fields(EnvTempParameters, {'name': cur_str}, 'description')
+            lt = lt_result.description
             continue
         if ('380' in cur_str) or ('220' in cur_str) or ('24/DC' in cur_str):
             voltage = cur_str
             continue
         if 'IP' in cur_str:
-            ip_result = find_record_by_fields(IpOption, {'symbolic_code': cur_str}, 'text_description')
-            if ip_result.text_description == 'Ошибка!':
+            ip_result = find_record_by_fields(IpOption, {'name': cur_str}, 'description')
+            if ip_result.description == 'Ошибка!':
                 ip = 'Запись с параметром =' + cur_str + ' не найдена.'
             else:
-                ip = ip_result.text_description
+                ip = ip_result.description
         if cur_str in cu_list:
-            cu_result = find_record_by_fields(ControlUnitInstalledOption, {'encoding': cur_str}, 'text_description')
-            cu = cu_result.text_description
+            cu_result = find_record_by_fields(ControlUnitInstalledOption, {'encoding': cur_str}, 'description')
+            cu = cu_result.description
             continue
         if cur_str in dp_list:
-            dp_result = find_record_by_fields(DigitalProtocolsSupportOption, {'symbolic_code': cur_str},
-                                              'text_description')
-            dp = dp_result.text_description
+            dp_result = find_record_by_fields(DigitalProtocolsSupportOption, {'name': cur_str},
+                                              'description')
+            dp = dp_result.description
             continue
     if len(model_suffix) > 0:
         model = model + '.' + model_suffix
-    voltage_result = find_record_by_fields(PowerSupplies, {'symbolic_code': voltage}, 'text_description')
-    if voltage_result.text_description == 'Ошибка!':
+    voltage_result = find_record_by_fields(PowerSupplies, {'name': voltage}, 'description')
+    if voltage_result.description == 'Ошибка!':
         voltage = 'Модель привода с напряжением = ' + voltage + ' не найдена.'
         result_table.extend([
             {"parameter_name": "Ошибка", "parameter_value": voltage}
         ])
         return result_table
     else:
-        voltage = voltage_result.text_description
+        voltage = voltage_result.description
 
     model_result = find_record_by_fields(ElectricActuatorData, {'name': model, 'voltage': voltage_result.record},
                                          'name')
-    if model_result.text_description == 'Ошибка!':
+    if model_result.description == 'Ошибка!':
         model = 'Модель привода с названием = ' + model + ' не найдена.'
         result_table.extend([
             {"parameter_name": "Ошибка", "parameter_value": model}
         ])
         return result_table
     else:
-        model = model_result.text_description
+        model = model_result.description
     if len(dp) > 0 and cu_result.record.encoding != 'INT/N':
         result_table.extend([
             {"parameter_name": "Ошибка", "parameter_value": 'Поддержка цифровых протоколов возможна только с блоком '
@@ -136,7 +137,7 @@ def process_model_name(model_string):
     actual_actuator = ActualActuator.objects.create(actual_model=model_result.record)
     actual_actuator.init()
     if len(ex) == 0:
-        exd_no_result = find_record_by_fields(ExdOption, {'symbolic_code': 'NONE'},
+        exd_no_result = find_record_by_fields(ExdOption, {'name': 'NONE'},
                                               'exd_full_code')
         ex = model_line_result.record.default_exd.exd_full_code
     else:

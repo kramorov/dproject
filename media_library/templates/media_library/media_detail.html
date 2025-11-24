@@ -1,0 +1,76 @@
+<!-- media_library/templates/media_library/media_detail.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ object.title }} - Медиабиблиотека</title>
+    <style>
+        .media-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .media-preview { text-align: center; margin: 20px 0; }
+        .media-info { background: #f8f9fa; padding: 15px; border-radius: 5px; }
+        .actions { margin: 20px 0; }
+        .btn { display: inline-block; padding: 10px 15px; margin: 5px;
+               background: #007bff; color: white; text-decoration: none;
+               border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="media-container">
+        <h1>{{ object.title }}</h1>
+
+        {% if object.description %}
+            <p>{{ object.description }}</p>
+        {% endif %}
+
+        <div class="media-preview">
+            {% if object.is_image %}
+                <img src="{{ object.media_file.url }}" alt="{{ object.title }}"
+                     style="max-width: 100%; max-height: 80vh; border-radius: 8px;">
+            {% elif object.is_video %}
+                <video controls style="max-width: 100%; max-height: 80vh;">
+                    <source src="{{ object.media_file.url }}" type="{{ object.mime_type }}">
+                    Ваш браузер не поддерживает видео.
+                </video>
+            {% else %}
+                <div style="font-size: 48px; color: #6c757d;">
+                    {% if object.is_document %}📄{% else %}📁{% endif %}
+                </div>
+                <p>Файл: {{ object.filename }}</p>
+            {% endif %}
+        </div>
+
+        <div class="actions">
+            <a href="{% url 'media_library:download_media' object.pk %}" class="btn">
+                📥 Скачать ({{ object.file_size_display }})
+            </a>
+            {% if object.is_image or object.is_video or object.is_document %}
+                <a href="{% url 'media_library:view_media' object.pk %}" class="btn">
+                    👁️ Просмотреть в браузере
+                </a>
+            {% endif %}
+        </div>
+
+        <div class="media-info">
+            <h3>Информация о файле:</h3>
+            <p><strong>Категория:</strong> {{ object.category.name }} {{ object.category.icon }}</p>
+            <p><strong>Тип файла:</strong> {{ object.file_extension|upper }} ({{ object.mime_type }})</p>
+            <p><strong>Размер:</strong> {{ object.file_size_display }}</p>
+            <p><strong>Дата загрузки:</strong> {{ object.created_at|date:"d.m.Y H:i" }}</p>
+
+            {% if object.tags.all %}
+                <p><strong>Теги:</strong>
+                    {% for tag in object.tags.all %}
+                        <span style="background: #e9ecef; padding: 2px 8px;
+                                   border-radius: 12px; font-size: 12px; margin: 2px;">
+                            {{ tag.name }}
+                        </span>
+                    {% endfor %}
+                </p>
+            {% endif %}
+
+            {% if object.created_by %}
+                <p><strong>Загрузил:</strong> {{ object.created_by.get_full_name|default:object.created_by.username }}</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

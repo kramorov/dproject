@@ -1,0 +1,110 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
+<script src="{% static 'admin/js/jquery.init.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    {{ block.super }}  {# Это отобразит основную форму Django admin #}
+    
+    {# НАША ФОРМА ИМПОРТА - ПОСЛЕ ОСНОВНОЙ ФОРМЫ #}
+    {% if original and original.pk %}
+    <div class="module" style="margin-top: 20px; background: #f8f8f8; padding: 20px; border: 1px solid #ddd;">
+        <h2>{% trans "Импорт данных ВГХ" %}</h2>
+        
+        <div style="margin: 15px 0;">
+            <form id="dimension-import-form" method="post" enctype="multipart/form-data" 
+                  action="{% url 'admin:dimension_table_import' original.pk %}">
+                {% csrf_token %}
+                <div style="margin-bottom: 15px;">
+                    <label for="excel_file" style="font-weight: bold; display: block; margin-bottom: 5px;">
+                        {% trans "Выберите Excel файл:" %}
+                    </label>
+                    <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" required 
+                           style="padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <button type="submit" class="button" 
+                            style="background: #417690; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; font-size: 14px;">
+                        📊 {% trans "Импортировать из Excel" %}
+                    </button>
+                    <a href="{% url 'admin:dimension_table_export_template' original.pk %}" class="button" 
+                       style="background: #999; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; margin-left: 10px; display: inline-block; font-size: 14px;">
+                        📥 {% trans "Скачать шаблон" %}
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div style="background: #fff; padding: 15px; border: 1px solid #ccc; border-radius: 3px;">
+            <h3>{% trans "Требования к файлу:" %}</h3>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>{% trans "Первая колонка - названия параметров" %}</li>
+                <li>{% trans "Последующие колонки - значения DN (например: DN50, DN65, DN80)" %}</li>
+                <li>{% trans "Поддерживаемые форматы: .xlsx, .xls" %}</li>
+                <li>{% trans "Существующие данные будут перезаписаны" %}</li>
+            </ul>
+        </div>
+    </div>
+    {% else %}
+    <div class="module" style="margin-top: 20px; background: #fff3cd; padding: 20px; border: 1px solid #ffeaa7;">
+        <h2>{% trans "Импорт данных ВГХ" %}</h2>
+        <p>{% trans "Функции импорта будут доступны после сохранения таблицы." %}</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function($) {
+    $(document).ready(function() {
+        console.log("=== DEBUG: Page loaded ===");
+        
+        const importForm = document.getElementById('dimension-import-form');
+        if (importForm) {
+            console.log("=== DEBUG: Import form found ===");
+            console.log("Import form action:", importForm.action);
+            console.log("Import form parent:", importForm.parentElement);
+            
+            // Проверяем, что форма НЕ внутри основной формы
+            const mainForm = document.getElementById('valvemodeldimensiondatatable_form');
+            if (mainForm && mainForm.contains(importForm)) {
+                console.log("ERROR: Import form is INSIDE main form!");
+            } else {
+                console.log("SUCCESS: Import form is OUTSIDE main form!");
+            }
+            
+            // Обработка формы импорта
+            $('#dimension-import-form').on('submit', function(e) {
+                console.log("=== DEBUG: Import form submitted ===");
+                console.log("Submitting to:", this.action);
+                
+                var fileInput = $('#excel_file')[0];
+                if (!fileInput.files.length) {
+                    alert('{% trans "Пожалуйста, выберите файл" %}');
+                    e.preventDefault();
+                    return;
+                }
+                
+                var submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true).text('{% trans "Импорт..." %}');
+            });
+        } else {
+            console.log("=== DEBUG: Import form NOT found ===");
+        }
+        
+        $('#excel_file').on('change', function() {
+            var fileName = $(this).val().split('\\').pop();
+            if (fileName) {
+                $(this).next('.file-info').remove();
+                $(this).after('<span class="file-info" style="margin-left: 10px; color: #666;">' + fileName + '</span>');
+            }
+        });
+    });
+})(django.jQuery);
+</script>
+{% endblock %}

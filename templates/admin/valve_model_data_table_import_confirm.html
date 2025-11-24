@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans "Подтверждение удаления моделей арматуры" %}</h1>
+    
+    <div class="module">
+        <p><strong>{% trans "Внимание!" %}</strong> {% trans "Следующие комбинации DN/PN будут удалены:" %}</p>
+        
+        <ul>
+            {% for dn, pn in combinations_to_delete %}
+            <li>DN: {{ dn }}, PN: {{ pn }}</li>
+            {% endfor %}
+        </ul>
+        
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="confirm_delete" value="1">
+            <div class="submit-row">
+                <input type="submit" value="{% trans 'Подтвердить и продолжить импорт' %}" class="default">
+                <a href="../" class="button">{% trans 'Отмена' %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans "Импорт данных Kvs из Excel" %}</h1>
+    
+    <div class="module">
+        <h2>{% trans "Шаблон:" %} {{ valve_model.name }}</h2>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <fieldset class="module aligned">
+                {% for field in form %}
+                <div class="form-row">
+                    {{ field.errors }}
+                    <div class="flex-container">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <div class="help">{{ field.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </fieldset>
+            
+            <div class="submit-row">
+                <input type="submit" value="{% trans 'Импортировать' %}" class="default">
+                <a href="{% url 'admin:valve_data_valvemodelkvdatatable_change' valve_model.pk %}" class="button cancel-link">
+                    {% trans 'Отмена' %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

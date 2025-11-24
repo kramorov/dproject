@@ -1,0 +1,20 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block after_field_sets %}
+{% if show_export_buttons %}
+<div class="submit-row">
+    <!-- Используем правильные имена URL -->
+    <a href="{% url 'admin:valve_model_kv_data_table_export_kv_data' original.pk %}" class="button">
+        {% trans "Экспорт данных Kvs" %}
+    </a>
+    <a href="{% url 'admin:valve_model_kv_data_table_export_kv_template' original.pk %}" class="button">
+        {% trans "Экспорт шаблона таблицы Kvs" %}
+    </a>
+    <a href="{% url 'admin:valve_model_kv_data_table_import_kv_data' original.pk %}" class="button">
+        {% trans "Импорт данных Kvs из Excel" %}
+    </a>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

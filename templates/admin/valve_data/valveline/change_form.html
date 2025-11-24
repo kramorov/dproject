@@ -1,0 +1,33 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="{% url 'admin:valve_line_text_info' original.pk %}" target="_blank" class="historylink">
+            📄 {% trans "Текстовая информация" %}
+        </a>
+    </li>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Скрыть иконки для конкретных полей по их классам
+            var fieldsToHide = [
+                'valve_producer', 'valve_brand', 'valve_variety', 'valve_function',
+                'valve_actuation', 'valve_sealing_class', 'body_material',
+                'body_material_specified', 'shut_element_material',
+                'shut_element_material_specified', 'sealing_element_material',
+                'sealing_element_material_specified', 'option_variety', 'port_qty',
+                'construction_variety', 'allowed_dn_table', 'valve_model_data_table',
+                'valve_model_kv_data_table', 'pipe_connection',
+                'warranty_period_min_variety', 'warranty_period_max_variety'
+            ];
+
+            fieldsToHide.forEach(function (fieldName) {
+                var links = document.querySelectorAll('.field-' + fieldName + ' .related-widget-wrapper-link');
+                links.forEach(function (link) {
+                    link.style.display = 'none';
+                });
+            });
+        });
+    </script>
+{% endblock %}

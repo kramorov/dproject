@@ -1,39 +1,46 @@
 <template>
-  <div>
+  <div class="w3-container w3-light-grey w3-padding">
     <!-- Блок 1: Список запросов клиентов -->
     <div>
-<!--      <AppActionButton type="Добавить запрос" @click="addItem(item.id)" />-->
-      <button
-        :disabled="!selectedItem"
-        @click="openEditForm"
-        class="w3-button w3-teal w3-margin-right">
-        Изменить запрос
+      <button @click="openRequestForm(null)"
+              class="w3-button w3-teal w3-margin-bottom">
+        <i class="fa fa-plus"></i> Создать новый запрос
       </button>
       <ul class="w3-ul">
         <li
-          v-for="request in request_list_items"
-          :key="request.id"
-          class="w3-bar"
-          :class="{ 'w3-light-gray': selectedItem?.id === request.id }"
-          @click="selectItem(request)"
-          @dblclick="openEditForm(request)"
+            v-for="request in request_list_items"
+            :key="request.id"
+            class="w3-bar"
+            :class="{ 'w3-light-blue': selectedItem?.id === request.id }"
+            @click="selectItem(request)"
+            @dblclick="openRequestForm(request)"
         >
           <div class="w3-card-2 w3-padding">
             <!-- Таблица для отображения данных -->
             <table class="w3-table w3-bordered w3-small">
-              <tbody>
-                <!-- Первая строка -->
-                <tr>
-                  <td>{{ request.request_type }}</td>
-                  <td>{{ request.symbolic_code }}</td>
-                  <td>Дата: {{ request.formatted_request_date_str }}</td>
-                </tr>
-                <!-- Вторая строка -->
-                <tr>
-                  <td>{{ request.request_from_client_company }}</td>
-                  <td>{{ request.request_responsible_person }}</td>
-                  <td colspan="3">Обновлено: {{ request.formatted_updated_at_str }}</td>
-                </tr>
+              <tbody >
+              <!-- Первая строка -->
+              <tr>
+                <td>{{request.request_status.text_description}}</td>
+                <td>{{request.request_type.symbolic_code}}</td>
+                <td>{{request.symbolic_code}}</td>
+                <td>Дата: {{request.request_date}}</td>
+                <td>
+                  <EditButtonComponent
+                      :item="request"
+                      label="Редактировать"
+                      @edit="openRequestForm"
+                  />
+                </td>
+              </tr>
+              <!-- Вторая строка -->
+              <tr>
+                <td>{{request.request_from_client_company.symbolic_code}}</td>
+                <td>{{request.request_responsible_person.symbolic_code}}</td>
+                <td colspan="3">Обновлено:
+                  {{request.updated_at ? new Date(request.updated_at).toISOString().split('T')[0] : ''}}
+                </td>
+              </tr>
               </tbody>
             </table>
           </div>
@@ -42,198 +49,124 @@
     </div>
 
     <!-- Блок 2: Список строк для выбранного запроса -->
-    <div v-if="selectedItem" class="w3-margin-top">
-      <h3>Строки для запроса: {{ selectedItem.symbolic_code }}</h3>
-      <ul class="w3-ul">
-        <li
-          v-for="line in request_lines"
-          :key="line.id"
-          class="w3-bar w3-card-2 w3-padding"
-        >
-          <div>
-            ->{{ line.id }} - № {{ line.item_no }} - Номер строки в запросе: {{ line.request_line_number}} - ОЛ: {{ line.request_line_ol }}
-          </div>
-        </li>
-      </ul>
-    </div>
-
-     Форма редактирования
-    <ClientRequestEditPage
-      v-if="isEditFormVisible"
-      :request_ptr="selectedItem"
-      @close="closeEditForm"
+    <ClientRequestLinesComponent
+        v-if="showRequestLinesForSelectedItem"
+        :request_id="selectedItem_id"
+        :key="selectedItem?.value?.id"
+        label="Список строк запроса:"
+        @close="showRequestLinesForSelectedItem = false"
+    />
+    <client-request-form
+        v-model:showForm="showRequestForm"
+        :request_id="request_to_edit_id"
+        @data-updated="handleFormSubmit"
+        @cancel="closeRequestForm"
     />
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import {ref, computed, onMounted, nextTick} from 'vue';
 import axios from "axios";
-import { API_URL } from "../../config/api.js";
-// import EditRequestItem from "../client_request/EditRequestItem.vue";
-import ClientRequestEditPage from "../client_request/ClientRequestEditPage.vue";
+import {API_URL} from "@/config/api.js";
 import AppActionButton from "../../components/AppActionButton.vue"
+import ClientRequestForm from './ClientRequestForm.vue'
+import EditButtonComponent from "@/pages/client_request/components/EditButtonComponent.vue";
+import {DictionaryStore} from "@/services/stores/dictionaryStore.ts";
+import ClientRequestLinesComponent from "@/pages/client_request/components/ClientRequestLinesListComponent.vue";
 
 export default {
   name: 'ClientRequest',
-  components: {ClientRequestEditPage, AppActionButton },
+  components: {EditButtonComponent, AppActionButton, ClientRequestForm, ClientRequestLinesComponent},
   setup() {
     // Реактивные переменные
     const request_list_items = ref([]);
-    const request_lines = ref([]); // Строки для выбранного запроса
-    const pagination = ref({ next: null, previous: null }); // Пагинация
-    const currentRequest = ref({
-      id: null,
-      symbolic_code: '',
-      request_type: '',
-      request_from_client_company: '',
-      request_responsible_person: '',
-      formatted_request_date_str: '',
-      formatted_created_at_str: '',
-      formatted_updated_at_str: ''
-    });
-    const isFormVisible = ref(false);
-    const isEditing = ref(false);
+    const pagination = ref({next: null, previous: null}); // Пагинация
+    const request_to_edit_id = ref(false);
+    const selectedItem_id = ref(false);
+    const isEditMode = ref(false);
+    const showRequestForm = ref(false)
+    const showRequestLinesForSelectedItem = ref(false)
     const selectedItem = ref(null); // Выбранный элемент
     const isEditFormVisible = ref(false); // Видимость формы редактирования
 
-    // Вычисляемое свойство
-    const formTitle = computed(() => {
-      return isEditing.value ? 'Редактировать запрос' : 'Добавить запрос';
-    });
-
     // Методы
-        // Метод для выбора элемента
+    const openRequestForm = (request = null) => {
+      if (request !== null) {
+        request_to_edit_id.value = request.id
+        // isEditMode.value = true
+      } else {
+        // Режим создания
+        request_to_edit_id.value = null
+        // isEditMode.value = false
+      }
+      showRequestForm.value = true
+    }
+    const closeRequestForm = () => {showRequestForm.value = false}
+    const handleFormSubmit = async (formData) => {
+      closeRequestForm()
+      await fetchRequestList()
+    }
+
+    // Метод для выбора элемента
     const selectItem = (request) => {
+      // console.log('selectItem', request.id)
       if (selectedItem.value?.id === request.id) {
         // Если элемент уже выбран, снимаем выбор
-        console.log('SET selectedItem.value to NULL',selectedItem.value)
         selectedItem.value = null;
-        console.log('NOW selectedItem.value',selectedItem.value)
+        showRequestLinesForSelectedItem.value = false;
+        selectedItem_id.value=null
       } else {
         // Иначе выбираем элемент
         selectedItem.value = request;
-        console.log('NEW selectedItem.value',selectedItem.value)
-        fetchRequestLines();
+        showRequestLinesForSelectedItem.value = true;
+        selectedItem_id.value = request.id
       }
     };
-
-
-    // Метод для открытия формы редактирования
-    const openEditForm = (request) => {
-      // selectedItem.value = request.id;
-      isEditFormVisible.value = true;
-      console.log("openEditForm", selectedItem.value.id)
-      // console.log(request_list_items)
-    };
-
-    // Метод для закрытия формы редактирования
-    const closeEditForm = () => {
-      isEditFormVisible.value = false;
-      selectedItem.value = null; // Сброс выбранного элемента
-    };
-    const showCreateForm = () => {
-      isEditing.value = false;
-      currentRequest.value = {
-        id: null,
-        symbolic_code: '',
-        request_type: null,
-        request_date: ''
-      };
-      isFormVisible.value = true;
-    };
-
-    const editRequest = (request) => {
-      isEditing.value = true;
-      currentRequest.value = { ...request };
-      isFormVisible.value = true;
-    };
-
-    const hideForm = () => {
-      isFormVisible.value = false;
-    };
-
-    const saveRequest = () => {
-      // Здесь должен быть вызов API для сохранения или обновления запроса
-      if (isEditing.value) {
-        // Обновить запрос
-      } else {
-        // Создать новый запрос
-      }
-      hideForm();
-      fetchRequestList();
-    };
-
-    const deleteRequest = (id) => {
-      // Здесь должен быть вызов API для удаления запроса
-      fetchRequestList();
-    };
-
     const fetchRequestList = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/client_requests/clientrequestlist/`);
-        request_list_items.value = response.data.results;
-        // console.log('Ответ сервера:', response);
-        // console.log('Данные:', response.data.results);
+        request_list_items.value = await DictionaryStore.getDictionaryAsAList('ClientRequests', 1);
       } catch (error) {
-        console.error('Ошибка при получении данных:', error);
       }
-    };
-        // Загрузка строк для выбранного запроса
-    const fetchRequestLines = async (url = `${API_URL}/api/client_requests/client-request-lines-list/`) => {
-      if (!selectedItem.value) return;
-
-      try {
-        const response = await axios.get(url, {
-          // params: {selectedItem.value.id }, // Фильтр по выбранному запросу
-          params: { request_id: selectedItem.value.id }, // Фильтр по выбранному запросу
-        });
-        request_lines.value = response.data;
-        // console.log(response.data)
-        // console.log(response.data.results)
-        // console.log(request_lines)
-        pagination.value = {
-          next: response.data.next,
-          previous: response.data.previous,
-        };
-      } catch (error) {
-        console.error('Ошибка при загрузке строк запроса:', error);
-      }
-    };
-
-    const fetchRequestTypes = () => {
-      // Здесь должен быть вызов API для получения списка типов запросов
     };
 
     // Хук жизненного цикла
     onMounted(() => {
       fetchRequestList();
-      fetchRequestTypes();
     });
 
     // Возвращаем все переменные и методы, чтобы они были доступны в шаблоне
     return {
       request_list_items,
-      currentRequest,
-      isFormVisible,
-      isEditing,
+      showRequestForm,
+      isEditMode,
+      request_to_edit_id,
+      openRequestForm,
+      closeRequestForm,
+      handleFormSubmit,
       selectedItem,
-      isEditFormVisible,
-      formTitle,
       selectItem,
-      request_lines,
       pagination,
-      openEditForm,
-      closeEditForm,
-      showCreateForm,
-      editRequest,
-      hideForm,
-      saveRequest,
-      deleteRequest,
       fetchRequestList,
-      fetchRequestLines,
-      fetchRequestTypes
+      selectedItem_id,
+      showRequestLinesForSelectedItem
     };
   }
 };
 </script>
+
+<style scoped>
+/* Добавьте это временно для тестирования */
+.modal-class { /* или какой класс использует ваше модальное окно */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+</style>

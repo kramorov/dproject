@@ -9,7 +9,7 @@ from producers.models import Brands, Producer
 from params.models import PowerSupplies, ExdOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
     EnvTempParameters, IpOption, MeasureUnits, \
     DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, HandWheelInstalledOption, \
-    OperatingModeOption, StemShapes, StemSize, MountingPlateTypes, ThreadSize, CertificateType, Certificate, \
+    OperatingModeOption, StemShapes, StemSize, MountingPlateTypes, ThreadSize, CertVariety, CertData, \
     MechanicalIndicatorInstalledOption
 
 
@@ -164,7 +164,7 @@ class ModelLine(models.Model):
                                help_text='Возможные для выбора режимы работы двигателя для серии (можно выбрать '
                                          'несколько)')
 
-    certificates = GenericRelation(Certificate)
+    certificates = GenericRelation(CertData)
 
     def __str__(self):
         return self.name

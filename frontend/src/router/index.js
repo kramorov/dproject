@@ -34,7 +34,7 @@ const routes = [
   { path: '/drive-data', component: () => import('../pages/electric_actuators/DriveDataMainPage.vue') },
   { path: '/ett-decode', component: () => import('../components/ett/EttDecodePage.vue') },
   { path: '/actuator-edit', component: () => import('../components/ActuatorEdit1.vue') },
-  { path: '/client-requests', component: () => import('../pages/client_request/ClientRequest.vue') },
+  { path: '/client-requests', component: () => import('../pages/client_request/ClientRequestMainPage.vue') },
   // { path: '/cable-input-data', component: CableGlandEdit },
 ]
 const router = createRouter({

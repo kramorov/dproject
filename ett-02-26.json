@@ -1,0 +1,2401 @@
+[
+{
+    "model": "ett.ettdocument",
+    "pk": 1,
+    "fields": {
+        "name": "ЗК V4 Роснефть",
+        "full_name": "ЗАДВИЖКИ КЛИНОВЫЕ № П4-06.03 ЕТТ-00 ВЕРСИЯ 482",
+        "ett_code": "П4-06.03 ЕТТ-0082 v4",
+        "owner_name": "Роснефть",
+        "applies_to": [
+            3
+        ]
+    }
+},
+{
+    "model": "ett.ettdocument",
+    "pk": 2,
+    "fields": {
+        "name": "ЗК V3 Роснефть",
+        "full_name": "ЗАДВИЖКИ КЛИНОВЫЕ № П4-06.03 ЕТТ-00 ВЕРСИЯ 3.00",
+        "ett_code": "П4-06.03 ЕТТ-0082",
+        "owner_name": "Роснефть",
+        "applies_to": [
+            3
+        ]
+    }
+},
+{
+    "model": "ett.mtrtype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "ЗК",
+        "text_description": "Задвижка клиновая с затвором класса герметичности А по ГОСТ 9544",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.mtrtype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "ЗКа",
+        "text_description": "Задвижка клиновая с затвором класса герметичности АА по ГОСТ 9544",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.mtrtype",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "ЗКв",
+        "text_description": "Задвижка клиновая с затвором класса герметичности В по ГОСТ 9544",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.mtrtype",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "ЗКс",
+        "text_description": "Задвижка клиновая с затвором класса герметичности С по ГОСТ 9544",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.mtrtype",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "ЗКт",
+        "text_description": "Задвижка клиновая с затвором класса герметичности А по ГОСТ 9544 для рабочей среды высокотемпературный органический теплоноситель",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.mtrtype",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "ЗКу",
+        "text_description": "Задвижка клиновая с затвором класса герметичности А по ГОСТ 9544 для вакуума с абсолютным давлением от 0,095 МПа до 0,001 МПа",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "16",
+        "valve_pn_value": 16,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "80",
+        "valve_pn_value": 80,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "63",
+        "valve_pn_value": 63,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "25",
+        "valve_pn_value": 25,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "40",
+        "valve_pn_value": 40,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "100",
+        "valve_pn_value": 100,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "125",
+        "valve_pn_value": 125,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "160",
+        "valve_pn_value": 160,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "200",
+        "valve_pn_value": 200,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "250",
+        "valve_pn_value": 250,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.pntype",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "320",
+        "valve_pn_value": 320,
+        "pn_measure_unit": 11
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "10",
+        "valve_dn_value": 10,
+        "pipe_dn_value": 16,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "15",
+        "valve_dn_value": 15,
+        "pipe_dn_value": 18,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "25",
+        "valve_dn_value": 25,
+        "pipe_dn_value": 32,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "20",
+        "valve_dn_value": 20,
+        "pipe_dn_value": 25,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "32",
+        "valve_dn_value": 32,
+        "pipe_dn_value": 38,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "40",
+        "valve_dn_value": 40,
+        "pipe_dn_value": 45,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "50",
+        "valve_dn_value": 50,
+        "pipe_dn_value": 57,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "65",
+        "valve_dn_value": 65,
+        "pipe_dn_value": 76,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "80",
+        "valve_dn_value": 80,
+        "pipe_dn_value": 89,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "100а",
+        "valve_dn_value": 100,
+        "pipe_dn_value": 108,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "100",
+        "valve_dn_value": 100,
+        "pipe_dn_value": 114,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "125",
+        "valve_dn_value": 125,
+        "pipe_dn_value": 133,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 13,
+    "fields": {
+        "symbolic_code": "150",
+        "valve_dn_value": 150,
+        "pipe_dn_value": 159,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 14,
+    "fields": {
+        "symbolic_code": "150а",
+        "valve_dn_value": 150,
+        "pipe_dn_value": 168,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 15,
+    "fields": {
+        "symbolic_code": "200",
+        "valve_dn_value": 200,
+        "pipe_dn_value": 219,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 16,
+    "fields": {
+        "symbolic_code": "250",
+        "valve_dn_value": 250,
+        "pipe_dn_value": 273,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 17,
+    "fields": {
+        "symbolic_code": "300",
+        "valve_dn_value": 300,
+        "pipe_dn_value": 325,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 18,
+    "fields": {
+        "symbolic_code": "400",
+        "valve_dn_value": 400,
+        "pipe_dn_value": 426,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 19,
+    "fields": {
+        "symbolic_code": "350",
+        "valve_dn_value": 350,
+        "pipe_dn_value": 377,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 20,
+    "fields": {
+        "symbolic_code": "450",
+        "valve_dn_value": 450,
+        "pipe_dn_value": 457,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 21,
+    "fields": {
+        "symbolic_code": "500",
+        "valve_dn_value": 500,
+        "pipe_dn_value": 530,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 22,
+    "fields": {
+        "symbolic_code": "600",
+        "valve_dn_value": 600,
+        "pipe_dn_value": 630,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 23,
+    "fields": {
+        "symbolic_code": "700",
+        "valve_dn_value": 700,
+        "pipe_dn_value": 720,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 24,
+    "fields": {
+        "symbolic_code": "800",
+        "valve_dn_value": 800,
+        "pipe_dn_value": 820,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 25,
+    "fields": {
+        "symbolic_code": "900",
+        "valve_dn_value": 900,
+        "pipe_dn_value": 920,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 26,
+    "fields": {
+        "symbolic_code": "1000",
+        "valve_dn_value": 1000,
+        "pipe_dn_value": 1020,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 27,
+    "fields": {
+        "symbolic_code": "1200",
+        "valve_dn_value": 1200,
+        "pipe_dn_value": 1220,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.dntype",
+    "pk": 28,
+    "fields": {
+        "symbolic_code": "1400",
+        "valve_dn_value": 1400,
+        "pipe_dn_value": 1420,
+        "comment": "",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "РР",
+        "actuator_type": "Ручной",
+        "actuator_speed": "Стандарт",
+        "text_description": "Ручной с редуктором (в соответствии с Таблицей 17 настоящих Единых технических требований)",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "РМ",
+        "actuator_type": "Ручной",
+        "actuator_speed": "Стандарт",
+        "text_description": "Ручной с маховиком (в соответствии с Таблицей 17 настоящих Единых технических требований)",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "УШ",
+        "actuator_type": "Ручной",
+        "actuator_speed": "Стандарт",
+        "text_description": "Ручной с маховиком и УФ с глубиной установки ЗК",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "ЭГ",
+        "actuator_type": "Электро-гидро",
+        "actuator_speed": "Стандарт",
+        "text_description": "Стандартный ЭГП со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 39 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "ЭБП",
+        "actuator_type": "Электро",
+        "actuator_speed": "Быстродействующий",
+        "text_description": "Быстродействующий ЭП для СПАЗ, со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 33 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "ЭП",
+        "actuator_type": "Электро",
+        "actuator_speed": "Стандарт",
+        "text_description": "Стандартный ЭП со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 33 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "ЭПK",
+        "actuator_type": "Электро",
+        "actuator_speed": "Стандарт",
+        "text_description": "Стандартный ЭП со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 33 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "ПГ",
+        "actuator_type": "Пневмо-гидро",
+        "actuator_speed": "Стандарт",
+        "text_description": "Стандартный ПГП со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 42 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "ЭГK",
+        "actuator_type": "Электро-гидро",
+        "actuator_speed": "Стандарт",
+        "text_description": "Стандартный ЭГП со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 39 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "ПБП",
+        "actuator_type": "Ручной",
+        "actuator_speed": "Быстродействующий",
+        "text_description": "Быстродействующий ПП для СПАЗ, со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 36 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "ПП",
+        "actuator_type": "Пневмо",
+        "actuator_speed": "Стандарт",
+        "text_description": "Стандартный ПП со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 36 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "ЭБГ",
+        "actuator_type": "Электро-гидро",
+        "actuator_speed": "Быстродействующий",
+        "text_description": "Быстродействующий ЭГП для СПАЗ, со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 39 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettactuatortype",
+    "pk": 13,
+    "fields": {
+        "symbolic_code": "ПБГ",
+        "actuator_type": "Пневмо-гидро",
+        "actuator_speed": "Быстродействующий",
+        "text_description": "Быстродействующий ПГП для СПАЗ, со временем перекрытия арматуры, приведенным в Таблице 20, и с обозначением модификации в соответствии с Таблицей 42 настоящих Единых технических требований",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "ЗК 10-80 STD",
+        "dn_from": 9,
+        "dn_up_to": 80,
+        "time_to_open_min": 0,
+        "time_to_open_max": 60,
+        "actuator_speed": "Стандарт",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ СТАНДАРТНОГО ИСПОЛНЕНИЯ, С: Не более 60",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "ЗК 10-80 FAST",
+        "dn_from": 9,
+        "dn_up_to": 80,
+        "time_to_open_min": 0,
+        "time_to_open_max": 15,
+        "actuator_speed": "Быстродействующий",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ БЫСТРОДЕЙСТВУЮЩЕГО ИСПОЛНЕНИЯ, С: Не более 15",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "ЗК 80-150 FAST",
+        "dn_from": 80,
+        "dn_up_to": 150,
+        "time_to_open_min": 0,
+        "time_to_open_max": 22,
+        "actuator_speed": "Быстродействующий",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ БЫСТРОДЕЙСТВУЮЩЕГО ИСПОЛНЕНИЯ, С: Не более 22",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "ЗК 80-150 STD",
+        "dn_from": 80,
+        "dn_up_to": 150,
+        "time_to_open_min": 0,
+        "time_to_open_max": 100,
+        "actuator_speed": "Стандарт",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ СТАНДАРТНОГО ИСПОЛНЕНИЯ, С: Не более 100",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "ЗК 150-300 STD",
+        "dn_from": 150,
+        "dn_up_to": 300,
+        "time_to_open_min": 100,
+        "time_to_open_max": 180,
+        "actuator_speed": "Стандарт",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ СТАНДАРТНОГО ИСПОЛНЕНИЯ, С: 100…180",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "ЗК 150-300 FAST",
+        "dn_from": 150,
+        "dn_up_to": 300,
+        "time_to_open_min": 0,
+        "time_to_open_max": 35,
+        "actuator_speed": "Быстродействующий",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ БЫСТРОДЕЙСТВУЮЩЕГО ИСПОЛНЕНИЯ, С: Не более 35",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "ЗК 300-500 FAST",
+        "dn_from": 300,
+        "dn_up_to": 500,
+        "time_to_open_min": 0,
+        "time_to_open_max": 40,
+        "actuator_speed": "Быстродействующий",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ БЫСТРОДЕЙСТВУЮЩЕГО ИСПОЛНЕНИЯ, С: Не более 40",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "ЗК 300-500 STD",
+        "dn_from": 300,
+        "dn_up_to": 500,
+        "time_to_open_min": 120,
+        "time_to_open_max": 240,
+        "actuator_speed": "Стандарт",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ СТАНДАРТНОГО ИСПОЛНЕНИЯ, С: 120…240",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "ЗК 500-800 STD",
+        "dn_from": 500,
+        "dn_up_to": 800,
+        "time_to_open_min": 180,
+        "time_to_open_max": 320,
+        "actuator_speed": "Стандарт",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ СТАНДАРТНОГО ИСПОЛНЕНИЯ, С: 180…320",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "ЗК 500-800 FAST",
+        "dn_from": 500,
+        "dn_up_to": 800,
+        "time_to_open_min": 0,
+        "time_to_open_max": 45,
+        "actuator_speed": "Быстродействующий",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ БЫСТРОДЕЙСТВУЮЩЕГО ИСПОЛНЕНИЯ, С: Не более 45",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "ЗК 800-1200 FAST",
+        "dn_from": 800,
+        "dn_up_to": 1200,
+        "time_to_open_min": 0,
+        "time_to_open_max": 55,
+        "actuator_speed": "Быстродействующий",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ БЫСТРОДЕЙСТВУЮЩЕГО ИСПОЛНЕНИЯ, С: Не более 55",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "ЗК 800-1200 STD",
+        "dn_from": 800,
+        "dn_up_to": 1200,
+        "time_to_open_min": 300,
+        "time_to_open_max": 420,
+        "actuator_speed": "Стандарт",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ СТАНДАРТНОГО ИСПОЛНЕНИЯ, С: 300…420",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 13,
+    "fields": {
+        "symbolic_code": "ЗК 1200-1400 STD",
+        "dn_from": 1200,
+        "dn_up_to": 1400,
+        "time_to_open_min": 300,
+        "time_to_open_max": 420,
+        "actuator_speed": "Стандарт",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ СТАНДАРТНОГО ИСПОЛНЕНИЯ, С: 300…420",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettopentime",
+    "pk": 14,
+    "fields": {
+        "symbolic_code": "ЗК 1200-1400 FAST",
+        "dn_from": 1200,
+        "dn_up_to": 1400,
+        "time_to_open_min": 0,
+        "time_to_open_max": 60,
+        "actuator_speed": "Быстродействующий",
+        "text_description": "ВРЕМЯ ПЕРЕМЕЩЕНИЯ ЗАПИРАЮЩЕГО ОРГАНА (ЗАТВОРА) ЗК С ПРИВОДОМ БЫСТРОДЕЙСТВУЮЩЕГО ИСПОЛНЕНИЯ, С: Не более 60",
+        "source_table_number": "Таблица 20",
+        "source_table_name": "Рекомендуемое время перемещения запирающего органа (затвора) ЗК из положения «открыто/закрыто» (полный ход в одну сторону)",
+        "mtr_type": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettclimaticoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "У",
+        "work_temp_min": -45,
+        "work_temp_max": 40,
+        "extremal_temp_min": -50,
+        "extremal_temp_max": 45,
+        "text_description": "Климатическое исполнение У - для умеренного климат",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettclimaticoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "Х",
+        "work_temp_min": -60,
+        "work_temp_max": 40,
+        "extremal_temp_min": -70,
+        "extremal_temp_max": 45,
+        "text_description": "Климатическое исполнение ХЛ - для холодного климата",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "А",
+        "work_temp_max": 100,
+        "text_description": "до плюс 100оС. Показатель температуры рабочей среды (стенки) до 100 ºС должен предусматривать возможность кратковременного нагрева до 150 ºС наружных поверхностей острым паром для целей очистки.",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "Н",
+        "work_temp_max": 200,
+        "text_description": "до плюс 200оС",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "Л",
+        "work_temp_max": 425,
+        "text_description": "до плюс 425оС",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "К",
+        "work_temp_max": 250,
+        "text_description": "до плюс 250оС. Показатель температуры рабочей среды (стенки) до 250 ºС должен предусматривать возможность кратковременного нагрева до 350 ºС наружных поверхностей острым паром для целей очистки.",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "Ф",
+        "work_temp_max": 900,
+        "text_description": "до плюс 900оС",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "Т",
+        "work_temp_max": 650,
+        "text_description": "до плюс 650оС",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "В",
+        "work_temp_max": 565,
+        "text_description": "до плюс 565оС",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettmediummaxtempoption",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "О",
+        "work_temp_max": 475,
+        "text_description": "до плюс 475оС",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettseismicoption",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "С0",
+        "text_description": "Не сейсмостойкое",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettseismicoption",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "С",
+        "text_description": "Сейсмостойкое",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettseismicoption",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "ПС",
+        "text_description": "Повышенной сейсмостойкости",
+        "source_table_number": "Таблица 29",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettstatussignal",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "24 В с.к.",
+        "text_description": "24 В сухой контакт",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettstatussignal",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "230 В с.к.",
+        "text_description": "230 В сухой контакт",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettstatussignal",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "Modbus RTU",
+        "text_description": "Modbus RTU",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1,
+            2
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolsignal",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "24 В",
+        "text_description": "тип управляющего сигнала 24 В",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolsignal",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "230 В",
+        "text_description": "тип управляющего сигнала 230 В",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolsignal",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "4-20 мА + HART",
+        "text_description": "тип управляющего сигнала/протокол передачи4-20 мА + HART",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolsignal",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "Modbus RTU",
+        "text_description": "тип управляющего сигнала/протокол передачи Modbus RTU",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettfeedbacksignal",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "Не требуется",
+        "text_description": "Не требуется",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettfeedbacksignal",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "4-20 мА + HART",
+        "text_description": "4-20 мА + HART",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettfeedbacksignal",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "Modbus RTU",
+        "text_description": "Modbus RTU",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolunitheater",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "Да",
+        "param_name": "Наличие встроенного электрообогрева блока управления",
+        "text_description": "ЭП оснащен встроенным электрообогревом блока управления",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolunitheater",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "Нет",
+        "param_name": "Наличие встроенного электрообогрева блока управления",
+        "text_description": "ЭП без встроенного электрообогрева блока управления",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolunittype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "БО",
+        "param_name": "Наличие блока управления и его расположение",
+        "text_description": "Блок управления отсутствует",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolunittype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "НЭ",
+        "param_name": "Наличие блока управления и его расположение",
+        "text_description": "Установлен на электроприводе",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolunittype",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "ВБ",
+        "param_name": "Наличие блока управления и его расположение",
+        "text_description": "Выносной блок",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolunitdisplaytype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "Д",
+        "param_name": "Наличие графического дисплея",
+        "text_description": "С дисплеем",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcontrolunitdisplaytype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "БД",
+        "param_name": "Наличие графического дисплея",
+        "text_description": "Без дисплея",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcableglandtype",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "Б",
+        "text_description": "Для бронированного кабеля",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcableglandtype",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "НБ",
+        "text_description": "Для небронированного кабеля с фитингом под металлорукав",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка обозначений модификаций, входящих в комбинации условного обозначения ЭП для ЗК",
+        "ett_doc": [
+            1
+        ]
+    }
+},
+{
+    "model": "ett.ettcableglandtype",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "Т",
+        "text_description": "С возможностью закрепления трубы.",
+        "source_table_number": "Таблица 34",
+        "source_table_name": "Расшифровка условного обозначения ЗК",
+        "ett_doc": []
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "А",
+        "exd_choice": 8,
+        "ip_choice": 1,
+        "power_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "Б",
+        "exd_choice": 8,
+        "ip_choice": 2,
+        "power_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "В",
+        "exd_choice": 8,
+        "ip_choice": 1,
+        "power_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "Е",
+        "exd_choice": 1,
+        "ip_choice": 2,
+        "power_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "Д",
+        "exd_choice": 1,
+        "ip_choice": 1,
+        "power_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "Г",
+        "exd_choice": 8,
+        "ip_choice": 2,
+        "power_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "М",
+        "exd_choice": 2,
+        "ip_choice": 2,
+        "power_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "Л",
+        "exd_choice": 2,
+        "ip_choice": 1,
+        "power_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "К",
+        "exd_choice": 2,
+        "ip_choice": 2,
+        "power_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "И",
+        "exd_choice": 2,
+        "ip_choice": 1,
+        "power_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "З",
+        "exd_choice": 1,
+        "ip_choice": 2,
+        "power_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettelectricoptionscombination",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "Ж",
+        "exd_choice": 1,
+        "ip_choice": 1,
+        "power_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК - ЭЛЕКТРОТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "А",
+        "status_signal_choice": 1,
+        "control_signal_choice": 1,
+        "feedback_signal_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "В",
+        "status_signal_choice": 1,
+        "control_signal_choice": 1,
+        "feedback_signal_choice": 3,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "П",
+        "status_signal_choice": 1,
+        "control_signal_choice": 1,
+        "feedback_signal_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "Г",
+        "status_signal_choice": 2,
+        "control_signal_choice": 2,
+        "feedback_signal_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "2",
+        "status_signal_choice": 2,
+        "control_signal_choice": 3,
+        "feedback_signal_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "1",
+        "status_signal_choice": 1,
+        "control_signal_choice": 3,
+        "feedback_signal_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "С",
+        "status_signal_choice": 3,
+        "control_signal_choice": 4,
+        "feedback_signal_choice": 3,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "Р",
+        "status_signal_choice": 2,
+        "control_signal_choice": 2,
+        "feedback_signal_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "4",
+        "status_signal_choice": 2,
+        "control_signal_choice": 3,
+        "feedback_signal_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettcontroloptionscombination",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "3",
+        "status_signal_choice": 1,
+        "control_signal_choice": 3,
+        "feedback_signal_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 1,
+    "fields": {
+        "symbolic_code": "1",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 1,
+        "cg23_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 2,
+    "fields": {
+        "symbolic_code": "2",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 2,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 3,
+    "fields": {
+        "symbolic_code": "3",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 1,
+        "cg23_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 4,
+    "fields": {
+        "symbolic_code": "4",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 2,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 5,
+    "fields": {
+        "symbolic_code": "7",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 3,
+        "display_choice": 2,
+        "cg1_choice": 1,
+        "cg23_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 6,
+    "fields": {
+        "symbolic_code": "8",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 3,
+        "display_choice": 2,
+        "cg1_choice": 2,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 7,
+    "fields": {
+        "symbolic_code": "А",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 1,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 8,
+    "fields": {
+        "symbolic_code": "Б",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 1,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 9,
+    "fields": {
+        "symbolic_code": "В",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 3,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 10,
+    "fields": {
+        "symbolic_code": "Г",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 3,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 11,
+    "fields": {
+        "symbolic_code": "Д",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 3,
+        "cg23_choice": 3,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 12,
+    "fields": {
+        "symbolic_code": "Е",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 3,
+        "cg23_choice": 3,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 13,
+    "fields": {
+        "symbolic_code": "Ж",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 1,
+        "cg23_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 14,
+    "fields": {
+        "symbolic_code": "И",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 1,
+        "cg23_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 15,
+    "fields": {
+        "symbolic_code": "К",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 1,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 16,
+    "fields": {
+        "symbolic_code": "Л",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 1,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 17,
+    "fields": {
+        "symbolic_code": "М",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 3,
+        "display_choice": 1,
+        "cg1_choice": 2,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 18,
+    "fields": {
+        "symbolic_code": "Н",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 2,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 19,
+    "fields": {
+        "symbolic_code": "О",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 3,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 20,
+    "fields": {
+        "symbolic_code": "П",
+        "cu_heater_choice": 1,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 3,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 21,
+    "fields": {
+        "symbolic_code": "Р",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 1,
+        "cg1_choice": 3,
+        "cg23_choice": 3,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 22,
+    "fields": {
+        "symbolic_code": "С",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 2,
+        "display_choice": 2,
+        "cg1_choice": 3,
+        "cg23_choice": 3,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 23,
+    "fields": {
+        "symbolic_code": "Т",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 1,
+        "display_choice": 2,
+        "cg1_choice": 1,
+        "cg23_choice": 1,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 24,
+    "fields": {
+        "symbolic_code": "Ц",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 1,
+        "display_choice": 2,
+        "cg1_choice": 2,
+        "cg23_choice": 2,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+},
+{
+    "model": "ett.ettotheroptionscombination",
+    "pk": 25,
+    "fields": {
+        "symbolic_code": "Ш",
+        "cu_heater_choice": 2,
+        "cu_location_choice": 1,
+        "display_choice": 2,
+        "cg1_choice": 3,
+        "cg23_choice": 3,
+        "text_description": "",
+        "ett_doc": 1,
+        "source_table_number": "Таблица 35",
+        "source_table_name": "Комбинации обозначений ЭП для ЗК"
+    }
+}
+]

@@ -1,0 +1,32 @@
+/* Кастомные стили для админки связей чертежей */
+.field-display_order input {
+    width: 80px;
+}
+
+.field-description textarea {
+    height: 80px;
+    min-height: 80px;
+}
+
+/* Стили для фильтра ManyToMany */
+.selector {
+    width: 100%;
+}
+
+.selector select {
+    height: 200px;
+}
+
+/* Подсветка важных полей */
+.field-tech_data_table,
+.field-drawing {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+/* Стили для сворачиваемых блоков */
+.collapse .field-description {
+    margin-top: 10px;
+}

@@ -1,0 +1,66 @@
+/* hide_icons.css - Скрываем кнопки редактирования в админке Django */
+
+/* Скрываем иконки добавления (плюсики) в inline-формах */
+.add-related, .add-another {
+    display: none !important;
+}
+
+/* Скрываем иконки изменения (карандашики) в inline-формах */
+.change-related, .related-lookup {
+    display: none !important;
+}
+
+/*!* Скрываем ссылки "Добавить другой" под полями выбора *!*/
+/*.related-widget-wrapper-link {*/
+/*    display: none !important;*/
+/*}*/
+
+/*!* Скрываем иконки добавления в заголовках inline-блоков *!*/
+/*.inline-group .add-row a {*/
+/*    display: none !important;*/
+/*}*/
+
+/*!* Скрываем кнопки добавления в tabular inline *!*/
+/*.add-row td a {*/
+/*    display: none !important;*/
+/*}*/
+
+/* Скрываем иконки в полях ForeignKey */
+.related-widget-wrapper .add-related,
+.related-widget-wrapper .change-related {
+    display: none !important;
+}
+
+/* Скрываем ссылки "Добавить" в выпадающих списках */
+.selector-add {
+    display: none !important;
+}
+
+/* Скрываем иконки изменения в выпадающих списках */
+.selector-change {
+    display: none !important;
+}
+
+/* Скрываем кнопки добавления в stacked inline */
+.add-row .add-related,
+.add-row .change-related {
+    display: none !important;
+}
+
+/*!* Дополнительно: скрываем текстовые ссылки если они есть *!*/
+/*a[href*="add/"],*/
+/*a[href*="change/"] {*/
+/*    display: none !important;*/
+/*}*/
+
+/*!* Скрываем иконки в полях ManyToMany *!*/
+/*.selector .selector-add,*/
+/*.selector .selector-remove {*/
+/*    display: none !important;*/
+/*}*/
+
+/*!* Скрываем кнопки добавления в filter_horizontal/filter_vertical *!*/
+/*.selector-available .selector-add,*/
+/*.selector-chosen .selector-remove {*/
+/*    display: none !important;*/
+/*}*/

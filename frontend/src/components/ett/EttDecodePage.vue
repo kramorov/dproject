@@ -20,20 +20,22 @@
 
         <!-- Таблица параметров -->
         <div class="w3-container">
-          <table class="w3-table w3-bordered">
-            <thead>
-              <tr>
-                <th>Параметр</th>
-                <th>Значение</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(param, index) in desc_table" :key="index">
-                <td>{{ param.param_name }}</td>
-                <td>{{ param.param_value }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="w3-responsive">
+            <table class="w3-table w3-striped w3-border w3-text-black">
+              <thead>
+                <tr>
+                  <th>Параметр</th>
+                  <th>Значение</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(param, index) in desc_table" :key="index">
+                  <td>{{ param.param_name }}</td>
+                  <td>{{ param.param_value }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

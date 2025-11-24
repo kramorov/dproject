@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+    
+    <div class="module">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <table>
+                {{ form.as_table }}
+            </table>
+            
+            <div class="submit-row">
+                <input type="submit" value="{% trans 'Импортировать' %}" class="default">
+                <a href="{% url 'admin:pneumatic_actuators_pneumaticactuatorbodytable_changelist' %}" class="button">
+                    {% trans 'Отмена' %}
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="module">
+        <h2>Формат файла</h2>
+        <ul>
+            <li>Первая строка - коды давлений (объединены по 3 столбца)</li>
+            <li>Вторая строка - типы параметров (BTO, RTO, ETO)</li>
+            <li>Третья строка - коды пружин</li>
+            <li>Четвертая и последующие строки - данные</li>
+            <li>Первый столбец - код корпуса</li>
+        </ul>
+        
+        <p><strong>Пример структуры:</strong></p>
+        <pre>
+| Код корпуса | ... | P25 | P25 | P25 | spring | spring | spring | ...
+|             | ... | BTO | RTO | ETO | BTO    | RTO    | ETO    | ...
+|             | ... | DA  | DA  | DA  | 5      | 5      | 5      | ...
+| PA-001      | ... | 100 | 80  | 90  | 50     | 40     | 45     | ...
+        </pre>
+        
+        <!-- ИСПРАВЛЕНИЕ: убрана ссылка на экспорт или используем существующий URL -->
+        <p><em>Для получения шаблона экспортируйте данные из существующей таблицы</em></p>
+    </div>
+</div>
+{% endblock %}
