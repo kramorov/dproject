@@ -6,3 +6,4 @@ from .pa_techdata_admin import *
 from .pa_techdata_drawing_admin import *
 from .pa_torque_admin import *
 from .pa_model_line_item_admin import *
+from .pa_selected_admin import *

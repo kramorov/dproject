@@ -1,0 +1,18 @@
+/* Кастомные стили для админки серий пневмоприводов */
+.field-allowed_ip ul,
+.field-allowed_body_coating ul,
+.field-allowed_exd ul,
+.field-allowed_temperature ul {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 5px;
+}
+
+.selector {
+    width: 100%;
+}
+
+.selector select {
+    height: 150px;
+}

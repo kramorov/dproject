@@ -37,7 +37,7 @@ urlpatterns = [
     # path('api/valve-data/', include('valve_data.urls')),
     # path('api/clients/', include('clients.urls')),
     # path('api/client_requests/', include('client_requests.urls')),
-
+    path('api/pneumatic_actuators/', include('pneumatic_actuators.urls')),
     # GraphQL
     path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),
 ]

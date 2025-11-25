@@ -1,0 +1,11 @@
+/* Стили для лучшего отображения атрибутов */
+.field-attribute, .field-predefined_value, .field-custom_value {
+    margin-bottom: 10px;
+}
+
+.inline-related .form-row {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}

@@ -1,0 +1,38 @@
+/* Кастомные стили для админки моментов/усилий */
+.field-bto input,
+.field-rto input,
+.field-eto input {
+    width: 120px;
+    text-align: right;
+}
+
+/* Подсветка полей для приводов DA */
+.da-actuator .field-bto,
+.da-actuator .field-rto,
+.da-actuator .field-eto {
+    background-color: #e8f5e8;
+}
+
+/* Стили для inline */
+.inline-related .field-pressure,
+.inline-related .field-spring_qty {
+    min-width: 150px;
+}
+
+.inline-related .field-bto,
+.inline-related .field-rto,
+.inline-related .field-eto {
+    min-width: 100px;
+}
+
+/* Стили для списка */
+.column-bto_display,
+.column-rto_display,
+.column-eto_display {
+    text-align: right;
+    font-family: monospace;
+}
+
+.column-is_da_actuator {
+    text-align: center;
+}

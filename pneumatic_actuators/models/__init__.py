@@ -4,6 +4,7 @@ from .pa_params import *
 from .pa_techdata import *
 from .pa_techdata_drawing_item import *
 from .pa_torque import *
+from .pa_actuator_selected import *
 
 __all__ = [
     # все модели, которые должны быть доступны извне
@@ -18,7 +19,7 @@ __all__ = [
     'BodyThrustTorqueTable' ,
     'PneumaticCloseTimeParameter',
     'PneumaticWeightParameter',
-    # '',
+    'PneumaticActuatorSelected',
     # '',
     # '',
 ]
