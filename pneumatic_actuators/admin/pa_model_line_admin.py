@@ -14,7 +14,7 @@ class PneumaticTemperatureOptionInline(admin.TabularInline) :
     """Inline для температурных опций"""
     model = PneumaticTemperatureOption
     extra = 0
-    ordering = ['is_default' , 'sorting_order']
+    ordering = ['sorting_order']
     fields = ['encoding' , 'work_temp_min' , 'work_temp_max' , 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Температурная опция")
     verbose_name_plural = _("Температурные опции")

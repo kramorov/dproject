@@ -2,7 +2,7 @@ import graphene
 from graphql import GraphQLError
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
-from graphene_file_upload.scalars import Upload  # ← ДОБАВЬТЕ ЭТОТ ИМПОРТ
+from graphene_file_upload.scalars import Upload
 
 from ..models import MediaCategory , MediaTag , MediaLibraryItem
 from .types import MediaCategoryType , MediaTagType , MediaLibraryItemType

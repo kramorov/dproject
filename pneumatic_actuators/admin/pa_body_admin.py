@@ -17,7 +17,6 @@ from pneumatic_actuators.models.pa_body import (
     PneumaticActuatorBody , PneumaticCloseTimeParameter , PneumaticWeightParameter
 )
 
-
 class PneumaticWeightParameterInline(admin.TabularInline):
     model = PneumaticWeightParameter
     extra = 0

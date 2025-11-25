@@ -14,7 +14,9 @@ from pneumatic_actuators.models import PneumaticActuatorBody
 from pneumatic_actuators.models.pa_params import PneumaticActuatorVariety, PneumaticActuatorConstructionVariety
 
 from producers.models import Brands
+import logging
 
+logger = logging.getLogger(__name__)
 
 class PneumaticActuatorModelLine(models.Model) :
     """
@@ -355,8 +357,8 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
     class Meta :
         ordering = ['sorting_order']
-        verbose_name = _('Серия моделей пневмоприводов')
-        verbose_name_plural = _('Серии моделей пневмоприводов')
+        verbose_name = _('Модель пневмопривода')
+        verbose_name_plural = _('Модели пневмоприводов в серии')
 
     def __str__(self) :
         return self.name
@@ -492,20 +494,20 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
     # ==================== ФУНКЦИЯ КОПИРОВАНИЯ ====================
 
-    def create_copy(self) :
+    def create_copy(self):
         """Создать копию элемента с добавлением ' Копия' к name и code"""
         # Создаем копию объекта
         copy_obj = PneumaticActuatorModelLineItem()
 
         # Копируем все поля кроме первичного ключа
-        for field in self._meta.fields :
-            if field.name not in ['id' , 'pk'] :
-                setattr(copy_obj , field.name , getattr(self , field.name))
+        for field in self._meta.fields:
+            if field.name not in ['id', 'pk']:
+                setattr(copy_obj, field.name, getattr(self, field.name))
 
         # Добавляем " Копия" к name и code
-        if copy_obj.name :
+        if copy_obj.name:
             copy_obj.name = f"{copy_obj.name} Копия"
-        if copy_obj.code :
+        if copy_obj.code:
             copy_obj.code = f"{copy_obj.code} Копия"
 
         # Сохраняем копию
@@ -516,164 +518,285 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
         return copy_obj
 
-    def _copy_related_options(self , copy_obj) :
+    def _copy_related_options(self, copy_obj):
         """Копировать связанные опции для скопированного объекта"""
-        # Копируем температурные опции
-        for temp_opt in self.temperature_options.all() :
-            temp_opt.pk = None
-            temp_opt.model_line_item = copy_obj
-            temp_opt.save()
+        # Список всех through-моделей для копирования
+        through_models = [
+            ('safety_position_option_model_line_item', None),
+            ('springs_qty_option_model_line_item', None),
+        ]
 
-        # Копируем IP опции
-        for ip_opt in self.ip_options.all() :
-            ip_opt.pk = None
-            ip_opt.model_line_item = copy_obj
-            ip_opt.save()
+        for relation_name, fk_field_name in through_models:
+            if hasattr(self, relation_name):
+                related_objects = getattr(self, relation_name).all()
+                for obj in related_objects:
+                    obj.pk = None
 
-        # Копируем Exd опции
-        for exd_opt in self.exd_options.all() :
-            exd_opt.pk = None
-            exd_opt.model_line_item = copy_obj
-            exd_opt.save()
+                    # Определяем поле для связи
+                    if fk_field_name:
+                        setattr(obj, fk_field_name, copy_obj)
+                    else:
+                        # Если поле не указано, используем стандартное имя
+                        setattr(obj, 'model_line_item', copy_obj)
 
-        # Копируем опции покрытия
-        for coating_opt in self.body_coating_options.all() :
-            coating_opt.pk = None
-            coating_opt.model_line_item = copy_obj
-            coating_opt.save()
+                    # Добавляем суффикс к encoding для уникальности
+                    if hasattr(obj, 'encoding') and obj.encoding:
+                        obj.encoding = f"{obj.encoding}_copy"
 
-    # ==================== МЕТОД ДЛЯ АДМИНКИ ====================
+                    obj.save()
 
-    def copy_item_action(self) :
-        """Метод для вызова из админки"""
-        from django.urls import reverse
-        from django.utils.html import format_html
-        return format_html(
-            '<a class="button" href="{}">Копировать</a>' ,
-            reverse('admin:copy_model_line_item' , args=[self.pk])
-        )
-
-    def _create_safety_position_options(self) :
-        """Создать опции положения безопасности"""
+    def _create_safety_position_options(self):
+        """Создать опции положения безопасности, если их еще нет"""
         from .pa_options import PneumaticSafetyPositionOption
         from params.models import SafetyPositionOption
 
+        logger.debug(f"Проверка опций безопасности для модели: {self.name} (id={self.id})")
+        if self.pneumatic_actuator_variety.code=='DA':
+            logger.debug(f"Для модели: {self.name} (id={self.id}) опции безопасности не создаем, так как модель DA")
+            return False
+        # Проверяем, есть ли уже опции для этой модели
+        existing_options = PneumaticSafetyPositionOption.objects.filter(model_line_item=self)
+        if existing_options.exists():
+            logger.debug(
+                f"Опции безопасности уже существуют для модели {self.name}: {existing_options.count()} записей")
+            return False
+
+        logger.info(f"Создание опций безопасности для модели: {self.name}")
+
         # Получаем опции безопасности
-        nc_option = SafetyPositionOption.objects.filter(code='NC').first()
-        no_option = SafetyPositionOption.objects.filter(code='NO').first()
+        nc_option = SafetyPositionOption.objects.filter(code='nc').first()
+        no_option = SafetyPositionOption.objects.filter(code='no').first()
 
-        if not nc_option or not no_option :
-            return
+        if not nc_option:
+            logger.error("Не найдена опция безопасности NC в базе данных")
+            return False
+        if not no_option:
+            logger.error("Не найдена опция безопасности NO в базе данных")
+            return False
 
-        # Создаем опцию NC как дефолтную
-        PneumaticSafetyPositionOption.objects.create(
-            model_line_item=self ,
-            safety_position=nc_option ,
-            encoding='NC' ,
-            description='Нормально закрытый' ,
-            is_default=True ,
-            sorting_order=0 ,
-            is_active=True
-        )
+        try:
+            # Создаем опцию NC как дефолтную
+            nc_safety_option = PneumaticSafetyPositionOption.objects.create(
+                model_line_item=self,
+                safety_position=nc_option,
+                encoding='',
+                description='Нормально закрытый',
+                is_default=True,
+                sorting_order=0,
+                is_active=True
+            )
+            logger.debug(f"Создана опция безопасности NC: {nc_safety_option}")
 
-        # Создаем опцию NO
-        PneumaticSafetyPositionOption.objects.create(
-            model_line_item=self ,
-            safety_position=no_option ,
-            encoding='NO' ,
-            description='Нормально открытый' ,
-            is_default=False ,
-            sorting_order=1 ,
-            is_active=True
-        )
+            # Создаем опцию NO
+            no_safety_option = PneumaticSafetyPositionOption.objects.create(
+                model_line_item=self,
+                safety_position=no_option,
+                encoding='NO',
+                description='Нормально открытый',
+                is_default=False,
+                sorting_order=1,
+                is_active=True
+            )
+            logger.debug(f"Создана опция безопасности NO: {no_safety_option}")
 
-    def _create_springs_qty_options(self) :
-        """Создать опции количества пружин на основе BodyThrustTorqueTable"""
+            logger.info(f"Успешно созданы 2 опции безопасности для модели {self.name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Ошибка при создании опций безопасности для модели {self.name}: {str(e)}", exc_info=True)
+            return False
+
+    def _create_springs_qty_options(self):
+        """Создать опции количества пружин, если их еще нет"""
         from .pa_options import PneumaticSpringsQtyOption
         from .pa_params import PneumaticActuatorSpringsQty
 
-        if not self.body :
-            return
+        logger.debug(f"Проверка опций количества пружин для модели: {self.name} (id={self.id})")
+
+        # Проверяем, есть ли уже опции для этой модели
+        existing_options = PneumaticSpringsQtyOption.objects.filter(model_line_item=self)
+        if existing_options.exists():
+            logger.debug(
+                f"Опции количества пружин уже существуют для модели {self.name}: {existing_options.count()} записей")
+            return False
+
+        logger.info(f"Создание опций количества пружин для модели: {self.name}")
+
+        if not self.body:
+            logger.warning(f"Не указан корпус для модели {self.name}, невозможно создать опции пружин")
+            return False
 
         # Определяем тип привода
         is_da = (self.pneumatic_actuator_variety and
                  self.pneumatic_actuator_variety.code == 'DA')
 
-        if is_da :
-            # Для DA приводов - только опция с кодом DA
-            da_spring = PneumaticActuatorSpringsQty.objects.filter(code='DA').first()
-            if da_spring :
-                PneumaticSpringsQtyOption.objects.create(
-                    model_line_item=self ,
-                    springs_qty=da_spring ,
-                    encoding='DA' ,
-                    description='Двойного действия' ,
-                    is_default=True ,
-                    sorting_order=0 ,
-                    is_active=True
-                )
-        else :
-            # Для SR приводов - все пружины из BodyThrustTorqueTable для этого body
-            from pneumatic_actuators.models.pa_torque import BodyThrustTorqueTable
+        logger.debug(
+            f"Тип привода для модели {self.name}: {'DA' if is_da else 'SR'}, корпус: {self.body.name if self.body else 'не указан'}")
 
-            # Получаем уникальные spring_qty для этого body
-            spring_qtys = BodyThrustTorqueTable.objects.filter(
-                body=self.body
-            ).exclude(
-                spring_qty__isnull=True
-            ).values_list(
-                'spring_qty' , flat=True
-            ).distinct()
-
-            # Создаем опции для каждой пружины
-            default_set = False
-            for i , spring_qty_id in enumerate(spring_qtys) :
-                try :
-                    spring_qty = PneumaticActuatorSpringsQty.objects.get(pk=spring_qty_id)
-
-                    # Определяем дефолтную опцию
-                    is_default = False
-                    if not default_set :
-                        # Первая опция становится дефолтной
-                        is_default = True
-                        default_set = True
-                    elif spring_qty.code == '12' :
-                        # Опция с кодом 12 становится дефолтной если есть
-                        is_default = True
-
-                    PneumaticSpringsQtyOption.objects.create(
-                        model_line_item=self ,
-                        springs_qty=spring_qty ,
-                        encoding=spring_qty.code ,
-                        description=spring_qty.name ,
-                        is_default=is_default ,
-                        sorting_order=i ,
+        try:
+            if is_da:
+                # Для DA приводов - только опция с кодом DA
+                da_spring = PneumaticActuatorSpringsQty.objects.filter(code='DA').first()
+                if da_spring:
+                    da_option = PneumaticSpringsQtyOption.objects.create(
+                        model_line_item=self,
+                        springs_qty=da_spring,
+                        encoding='DA',
+                        description='Двойного действия',
+                        is_default=True,
+                        sorting_order=0,
                         is_active=True
                     )
-                except PneumaticActuatorSpringsQty.DoesNotExist :
-                    continue
+                    logger.debug(f"Создана опция пружин DA: {da_option}")
+                    logger.info(f"Успешно создана 1 опция пружин DA для модели {self.name}")
+                    return True
+                else:
+                    logger.error("Не найдена опция пружин DA в базе данных")
+                    return False
+            else:
+                # Для SR приводов - все пружины из BodyThrustTorqueTable для этого body
+                from pneumatic_actuators.models.pa_torque import BodyThrustTorqueTable
 
-            # Если не нашли подходящих пружин, создаем базовую опцию
-            if not default_set :
-                default_spring = PneumaticActuatorSpringsQty.objects.filter(code='12').first()
-                if default_spring :
-                    PneumaticSpringsQtyOption.objects.create(
-                        model_line_item=self ,
-                        springs_qty=default_spring ,
-                        encoding='12' ,
-                        description=default_spring.name ,
-                        is_default=True ,
-                        sorting_order=0 ,
-                        is_active=True
-                    )
+                # Получаем уникальные spring_qty для этого body
+                spring_qtys = BodyThrustTorqueTable.objects.filter(
+                    body=self.body
+                ).exclude(
+                    spring_qty__isnull=True
+                ).exclude(
+                    spring_qty__code='DA'  # Исключаем пружины с кодом 'DA'
+                ).values_list(
+                    'spring_qty', flat=True
+                ).distinct()
 
-    copy_item_action.short_description = "Копировать элемент"
+                logger.debug(f"Найдено уникальных spring_qty для корпуса {self.body.name}: {list(spring_qtys)}")
+
+                created_count = 0
+                default_set = False
+
+                for i, spring_qty_id in enumerate(spring_qtys):
+                    try:
+                        spring_qty = PneumaticActuatorSpringsQty.objects.get(pk=spring_qty_id)
+                        logger.debug(f"Обработка пружины: {spring_qty.name} (id={spring_qty_id})")
+
+                        # Определяем дефолтную опцию
+                        is_default = False
+                        if spring_qty.code == '12':
+                            # Опция с кодом 12 становится дефолтной если есть
+                            is_default = True
+                            default_set = True
+                            logger.debug(f"Установлена пружина {spring_qty.name} как дефолтная (код 12)")
+
+                        spring_option = PneumaticSpringsQtyOption.objects.create(
+                            model_line_item=self,
+                            springs_qty=spring_qty,
+                            encoding=spring_qty.code,
+                            description=spring_qty.name,
+                            is_default=is_default,
+                            sorting_order=i,
+                            is_active=True
+                        )
+                        created_count += 1
+                        logger.debug(f"Создана опция пружин: {spring_option}")
+
+                    except PneumaticActuatorSpringsQty.DoesNotExist:
+                        logger.warning(f"Пружина с id={spring_qty_id} не найдена в базе данных")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Ошибка при создании опции пружины {spring_qty_id}: {str(e)}")
+                        continue
+
+                # Если не нашли подходящих пружин, создаем базовую опцию
+                if created_count == 0:
+                    logger.warning(f"Не найдено подходящих пружин для корпуса {self.body.name}, создаем базовую опцию")
+                    default_spring = PneumaticActuatorSpringsQty.objects.filter(code='12').first()
+                    if default_spring:
+                        default_option = PneumaticSpringsQtyOption.objects.create(
+                            model_line_item=self,
+                            springs_qty=default_spring,
+                            encoding='12',
+                            description=default_spring.name,
+                            is_default=True,
+                            sorting_order=0,
+                            is_active=True
+                        )
+                        created_count = 1
+                        logger.debug(f"Создана базовая опция пружин: {default_option}")
+
+                logger.info(f"Успешно создано {created_count} опций пружин для модели {self.name}")
+                return created_count > 0
+
+        except Exception as e:
+            logger.error(f"Ошибка при создании опций пружин для модели {self.name}: {str(e)}", exc_info=True)
+            return False
+
+    # Добавляем метод для ручной проверки и создания опций
+    def ensure_options_exist(self):
+        """Гарантировать существование опций (для вызова вручную)"""
+        logger.info(f"Ручной вызов ensure_options_exist для модели: {self.name} (id={self.id})")
+
+        from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
+        safety_exists = PneumaticSafetyPositionOption.objects.filter(model_line_item=self).exists()
+        from pneumatic_actuators.models.pa_options import PneumaticSpringsQtyOption
+        springs_exists = PneumaticSpringsQtyOption.objects.filter(model_line_item=self).exists()
+
+        logger.info(f"Текущее состояние опций - безопасность: {safety_exists}, пружины: {springs_exists}")
+
+        if not safety_exists:
+            logger.info("Создание отсутствующих опций безопасности...")
+            self._create_safety_position_options()
+
+        if not springs_exists:
+            logger.info("Создание отсутствующих опций пружин...")
+            self._create_springs_qty_options()
+
+        logger.info(f"Завершение ensure_options_exist для модели: {self.name}")
 
 # ==================== СИГНАЛ ДЛЯ АВТОМАТИЧЕСКОГО СОЗДАНИЯ ОПЦИЙ ====================
 
 @receiver(post_save, sender=PneumaticActuatorModelLineItem)
 def create_model_line_item_options(sender, instance, created, **kwargs):
-    """Создать опции безопасности и количества пружин после создания элемента"""
-    if created:
-        instance._create_safety_position_options()
-        instance._create_springs_qty_options()
+    """Создать опции безопасности и количества пружин после создания/обновления элемента"""
+    logger.info(
+        f"Сигнал post_save для PneumaticActuatorModelLineItem: id={instance.id}, name='{instance.name}', created={created}")
+
+    try:
+        from .pa_options import PneumaticSafetyPositionOption, PneumaticSpringsQtyOption
+
+        # Проверяем существующие опции
+        safety_options_exist = PneumaticSafetyPositionOption.objects.filter(model_line_item=instance).exists()
+        springs_options_exist = PneumaticSpringsQtyOption.objects.filter(model_line_item=instance).exists()
+
+        logger.info(
+            f"Текущее состояние опций для модели {instance.name}: безопасность={safety_options_exist}, пружины={springs_options_exist}")
+
+        # Создаем опции, если их нет (независимо от created)
+        if not safety_options_exist:
+            logger.info(f"Создание отсутствующих опций безопасности для модели: {instance.name}")
+            safety_created = instance._create_safety_position_options()
+            if safety_created:
+                logger.info(f"Успешно созданы опции положения безопасности для модели: {instance.name}")
+            else:
+                logger.warning(f"Не удалось создать опции положения безопасности для модели: {instance.name}")
+        else:
+            logger.debug(f"Опции безопасности уже существуют для модели: {instance.name}")
+
+        if not springs_options_exist:
+            logger.info(f"Создание отсутствующих опций количества пружин для модели: {instance.name}")
+            springs_created = instance._create_springs_qty_options()
+            if springs_created:
+                logger.info(f"Успешно созданы опции количества пружин для модели: {instance.name}")
+            else:
+                logger.warning(f"Не удалось создать опции количества пружин для модели: {instance.name}")
+        else:
+            logger.debug(f"Опции количества пружин уже существуют для модели: {instance.name}")
+
+        # Дополнительная проверка для новых моделей
+        if created and (safety_options_exist or springs_options_exist):
+            logger.info(
+                f"Модель создана, но некоторые опции уже существуют: безопасность={safety_options_exist}, пружины={springs_options_exist}")
+
+        logger.info(f"Завершение обработки опций для модели: {instance.name}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при создании/проверке опций для модели {instance.name}: {str(e)}", exc_info=True)
+

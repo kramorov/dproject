@@ -1,5 +1,7 @@
 import graphene
-from graphene_django.filter import DjangoFilterConnectionField
+# from graphene_django.filter import DjangoFilterConnectionField
+# from graphene_django import DjangoObjectType
+# from graphene_django.filters import DjangoFilterConnectionField
 from django.db.models import Q
 from ..models import MediaCategory , MediaTag , MediaLibraryItem
 from .types import MediaCategoryType , MediaTagType , MediaLibraryItemType
