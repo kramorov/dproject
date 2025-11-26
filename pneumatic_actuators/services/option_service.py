@@ -2,6 +2,7 @@ from typing import Dict , List , Optional
 from django.db import models
 
 
+
 class OptionService :
     """Сервис для работы с опциями пневмоприводов"""
 
@@ -15,16 +16,47 @@ class OptionService :
         # )
         from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLineItem
         from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption, PneumaticSpringsQtyOption
+        from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption , PneumaticIpOption, PneumaticExdOption , PneumaticBodyCoatingOption
         try :
             model = PneumaticActuatorModelLineItem.objects.get(id=model_id)
+
+            # Существующие опции
             safety_options = PneumaticSafetyPositionOption.objects.filter(
                 model_line_item=model ,
                 is_active=True
             ).select_related('safety_position')
+
             springs_options = PneumaticSpringsQtyOption.objects.filter(
                 model_line_item=model ,
                 is_active=True
             ).select_related('springs_qty')
+
+            # НОВЫЕ ОПЦИИ через model_line
+            temperature_options = []
+            ip_options = []
+            exd_options = []
+            body_coating_options = []
+
+            if model.model_line :
+                temperature_options = PneumaticTemperatureOption.objects.filter(
+                    model_line=model.model_line ,
+                    is_active=True
+                )
+
+                ip_options = PneumaticIpOption.objects.filter(
+                    model_line=model.model_line ,
+                    is_active=True
+                )
+
+                exd_options = PneumaticExdOption.objects.filter(
+                    model_line=model.model_line ,
+                    is_active=True
+                )
+
+                body_coating_options = PneumaticBodyCoatingOption.objects.filter(
+                    model_line=model.model_line ,
+                    is_active=True
+                )
 
             return {
                 'safety_positions' : [
@@ -44,10 +76,51 @@ class OptionService :
                         'description' : opt.description ,
                         'is_default' : opt.is_default
                     } for opt in springs_options
+                ] ,
+                # НОВЫЕ ОПЦИИ
+                'temperature_options' : [
+                    {
+                        'id' : opt.id ,
+                        'encoding' : opt.encoding ,
+                        'name': str(opt),  # используем __str__ метод
+                        'description' : opt.description ,
+                        'is_default' : opt.is_default
+                    } for opt in temperature_options
+                ] ,
+                'ip_options' : [
+                    {
+                        'id' : opt.id ,
+                        'encoding' : opt.encoding ,
+                        'name': str(opt),  # используем __str__ метод
+                        'description' : opt.description ,
+                        'is_default' : opt.is_default
+                    } for opt in ip_options
+                ] ,
+                'exd_options' : [
+                    {
+                        'id' : opt.id ,
+                        'encoding' : opt.encoding ,
+                        'name': str(opt),  # используем __str__ метод
+                        'description' : opt.description ,
+                        'is_default' : opt.is_default
+                    } for opt in exd_options
+                ] ,
+                'body_coating_options' : [
+                    {
+                        'id' : opt.id ,
+                        'encoding' : opt.encoding ,
+                        'name': str(opt),  # используем __str__ метод
+                        'description' : opt.description ,
+                        'is_default' : opt.is_default
+                    } for opt in body_coating_options
                 ]
             }
         except PneumaticActuatorModelLineItem.DoesNotExist :
-            return {'safety_positions' : [] , 'springs_qty' : []}
+            return {
+                'safety_positions' : [] , 'springs_qty' : [] ,
+                'temperature_options' : [] , 'ip_options' : [] ,
+                'exd_options' : [] , 'body_coating_options' : []
+            }
 
     @staticmethod
     def generate_actuator_data(model_id: int , safety_option_id: int = None , springs_option_id: int = None) -> Dict :

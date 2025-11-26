@@ -13,7 +13,24 @@
     </facet>
   </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/16" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/17" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/47" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/4a" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/5c" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/70" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/89" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/aa" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/b9/dd" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library/medialibraryitem/fe" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library_previews/medialibraryitem/05" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library_previews/medialibraryitem/b1/88" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library_previews/medialibraryitem/bf" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library_previews/medialibraryitem/c5" />
+      <excludeFolder url="file://$MODULE_DIR$/media/media_library_previews/medialibraryitem/de" />
+    </content>
     <orderEntry type="jdk" jdkName="Python 3.13 (djangoProject1)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

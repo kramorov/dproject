@@ -1,3 +1,8 @@
+Из дома:
+git add .
+git commit -m "добавлено опции из model_line в  selected_actuator"
+git push -u dproject main
+
 python -Xutf8 manage.py dumpdata cable_glands --indent 4 --format=json  -o cable_glands.json
 python -Xutf8 manage.py dumpdata electric_actuators --indent 4 --format=json  -o electric_actuators.json
 python -Xutf8 manage.py dumpdata producers --indent 4 --format=json  -o producers.json

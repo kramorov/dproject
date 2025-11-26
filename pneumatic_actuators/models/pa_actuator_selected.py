@@ -18,10 +18,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class PneumaticActuatorSelected(models.Model) :
     """
-    Выбранный из списка моделей привод
-    с выбранными опциями.
+    Выбранный из списка моделей привод с выбранными опциями.
     """
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,
@@ -35,11 +35,12 @@ class PneumaticActuatorSelected(models.Model) :
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
                                     help_text=_('Активно свойство или нет'))
 
-    selected_model = models.ForeignKey(PneumaticActuatorModelLineItem , null=True,
-                              related_name='selected_pneumatic_actuator_model_line_item' ,
-                              on_delete=models.SET_NULL,  # Сохранит привод, но установит selected_model в NULL
-                              verbose_name=_('Модель'),
-                              help_text=_('Модель пневмопривода'))
+    selected_model = models.ForeignKey(PneumaticActuatorModelLineItem ,
+                                       related_name='selected_pneumatic_actuator_model_line_item' ,
+                                       on_delete=models.CASCADE ,
+                                       verbose_name=_('Модель') ,
+                                       help_text=_('Модель пневмопривода'))
+
     # Выбранные опции
     selected_safety_position = models.ForeignKey(
         'PneumaticSafetyPositionOption' ,
@@ -57,6 +58,39 @@ class PneumaticActuatorSelected(models.Model) :
         help_text=_('Выбранное количество пружин привода')
     )
 
+    # НОВЫЕ ОПЦИИ через model_line
+    selected_temperature = models.ForeignKey(
+        'PneumaticTemperatureOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Температурная опция") ,
+        help_text=_('Выбранная температурная опция')
+    )
+
+    selected_ip = models.ForeignKey(
+        'PneumaticIpOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Степень защиты IP") ,
+        help_text=_('Выбранная степень защиты IP')
+    )
+
+    selected_exd = models.ForeignKey(
+        'PneumaticExdOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Взрывозащита") ,
+        help_text=_('Выбранная опция взрывозащиты')
+    )
+
+    selected_body_coating = models.ForeignKey(
+        'PneumaticBodyCoatingOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Покрытие корпуса") ,
+        help_text=_('Выбранное покрытие корпуса')
+    )
+
     class Meta :
         ordering = ['sorting_order']
         verbose_name = _('Выбранный пневмопривод')
@@ -70,7 +104,6 @@ class PneumaticActuatorSelected(models.Model) :
         from pneumatic_actuators.services.option_service import OptionService
 
         if self.selected_model :
-
             generated_data = OptionService.generate_actuator_data(
                 model_id=self.selected_model.id ,
                 safety_option_id=self.selected_safety_position.id if self.selected_safety_position else None ,
@@ -83,7 +116,78 @@ class PneumaticActuatorSelected(models.Model) :
 
         super().save(*args , **kwargs)
 
+    # Свойства для доступа к доступным опциям
+    @property
+    def selected_model_display(self) :
+        return str(self.selected_model) if self.selected_model else "-"
 
+    @property
+    def safety_position_display(self) :
+        return str(self.selected_safety_position) if self.selected_safety_position else "-"
+
+    @property
+    def springs_qty_display(self) :
+        return str(self.selected_springs_qty) if self.selected_springs_qty else "-"
+
+    @property
+    def temperature_display(self) :
+        return str(self.selected_temperature) if self.selected_temperature else "-"
+
+    @property
+    def ip_display(self) :
+        return str(self.selected_ip) if self.selected_ip else "-"
+
+    @property
+    def exd_display(self) :
+        return str(self.selected_exd) if self.selected_exd else "-"
+
+    @property
+    def body_coating_display(self) :
+        return str(self.selected_body_coating) if self.selected_body_coating else "-"
+
+    @property
+    def available_temperature_options(self) :
+        """Доступные температурные опции через model_line"""
+        from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
+        if not self.selected_model or not self.selected_model.model_line :
+            return PneumaticTemperatureOption.objects.none()
+        return PneumaticTemperatureOption.objects.filter(
+            model_line=self.selected_model.model_line ,
+            is_active=True
+        ).select_related('temperature_option')
+
+    @property
+    def available_ip_options(self) :
+        """Доступные IP опции через model_line"""
+        from pneumatic_actuators.models.pa_options import PneumaticIpOption
+        if not self.selected_model or not self.selected_model.model_line :
+            return PneumaticIpOption.objects.none()
+        return PneumaticIpOption.objects.filter(
+            model_line=self.selected_model.model_line ,
+            is_active=True
+        ).select_related('ip_option')
+
+    @property
+    def available_exd_options(self) :
+        """Доступные Exd опции через model_line"""
+        from pneumatic_actuators.models.pa_options import PneumaticExdOption
+        if not self.selected_model or not self.selected_model.model_line :
+            return PneumaticExdOption.objects.none()
+        return PneumaticExdOption.objects.filter(
+            model_line=self.selected_model.model_line ,
+            is_active=True
+        ).select_related('exd_option')
+
+    @property
+    def available_body_coating_options(self) :
+        """Доступные опции покрытия корпуса через model_line"""
+        from pneumatic_actuators.models.pa_options import PneumaticBodyCoatingOption
+        if not self.selected_model or not self.selected_model.model_line :
+            return PneumaticBodyCoatingOption.objects.none()
+        return PneumaticBodyCoatingOption.objects.filter(
+            model_line=self.selected_model.model_line ,
+            is_active=True
+        ).select_related('body_coating_option')
 
     @property
     def available_safety_positions(self) :
