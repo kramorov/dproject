@@ -1,3 +1,11 @@
+С работы:
+Скачавание:
+git pull main main
+git merge av-be-master (если надо)
+
+Отправка:
+git push main av-be-master:main
+
 Из дома:
 git add .
 git commit -m "добавлено опции из model_line в  selected_actuator"
