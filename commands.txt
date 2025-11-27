@@ -11,6 +11,14 @@ git add .
 git commit -m "добавлено опции из model_line в  selected_actuator"
 git push -u dproject main
 
+# Установи UTF-8 кодировку
+git config --global core.quotepath false
+git config --global i18n.logOutputEncoding utf-8
+git config --global i18n.commitEncoding utf-8
+
+# Проверь настройки
+git config --list | grep encoding
+
 python -Xutf8 manage.py dumpdata cable_glands --indent 4 --format=json  -o cable_glands.json
 python -Xutf8 manage.py dumpdata electric_actuators --indent 4 --format=json  -o electric_actuators.json
 python -Xutf8 manage.py dumpdata producers --indent 4 --format=json  -o producers.json
