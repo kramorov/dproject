@@ -20,6 +20,6 @@ __all__ = [
     'PneumaticCloseTimeParameter',
     'PneumaticWeightParameter',
     'PneumaticActuatorSelected',
-    # '',
+    'PneumaticActuatorModelLineItem',
     # '',
 ]

@@ -2,6 +2,7 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from typing import List, Optional, Tuple, Any, Dict, Union
 from django.db.models.signals import pre_save , post_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
@@ -222,6 +223,136 @@ class PneumaticActuatorBody(models.Model) :
 
         return copy
 
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для описания корпуса"""
+        data = {
+            'basic_info' : {
+                'name' : self.name ,
+                'code' : self.code ,
+                'description' : self.description
+            } ,
+            'technical_specs' : {} ,
+            'connections' : {}
+        }
+
+        # Технические характеристики
+        if self.piston_diameter :
+            data['technical_specs']['piston_diameter'] = f"{self.piston_diameter} мм"
+        if self.turn_angle :
+            data['technical_specs']['turn_angle'] = self.turn_angle
+        if self.turn_tuning_limit :
+            data['technical_specs']['turn_tuning_limit'] = self.turn_tuning_limit
+        if self.weight_spring :
+            data['technical_specs']['weight_spring'] = f"{self.weight_spring} кг"
+        if self.min_pressure_bar :
+            data['technical_specs']['min_pressure'] = f"{self.min_pressure_bar} бар"
+        if self.max_pressure_bar :
+            data['technical_specs']['max_pressure'] = f"{self.max_pressure_bar} бар"
+        if self.air_usage_open :
+            data['technical_specs']['air_usage_open'] = f"{self.air_usage_open} л"
+        if self.air_usage_close :
+            data['technical_specs']['air_usage_close'] = f"{self.air_usage_close} л"
+
+        # Информация о штоке
+        stem_info = {}
+        if self.stem_shape :
+            stem_info['shape'] = str(self.stem_shape)
+        if self.stem_size :
+            stem_info['size'] = str(self.stem_size)
+        if self.max_stem_height :
+            stem_info['max_height'] = f"{self.max_stem_height} мм"
+        if self.max_stem_diameter :
+            stem_info['max_diameter'] = f"{self.max_stem_diameter} мм"
+
+        if stem_info :
+            data['technical_specs']['stem'] = stem_info
+
+        # Подключения
+        if self.thread_in :
+            data['connections']['thread_in'] = str(self.thread_in)
+        if self.thread_out :
+            data['connections']['thread_out'] = str(self.thread_out)
+
+        pneumatic_connections = self.pneumatic_connection.all()
+        if pneumatic_connections :
+            data['connections']['pneumatic_connections'] = [str(conn) for conn in pneumatic_connections]
+
+        # Монтажные площадки
+        mounting_plates = self.mounting_plate.all()
+        if mounting_plates :
+            data['connections']['mounting_plates'] = [str(plate) for plate in mounting_plates]
+
+        return data
+
+    def get_text_description(self) -> str :
+        """Сгенерировать текстовое описание корпуса из структурированных данных"""
+        data = self.get_description_data()
+        desc_parts = []
+
+        # Базовая информация
+        basic_info = data['basic_info']
+        if basic_info['name'] :
+            desc_parts.append(f"Модель корпуса: {basic_info['name']}")
+        if basic_info['code'] :
+            desc_parts.append(f"Код: {basic_info['code']}")
+        if basic_info['description'] :
+            desc_parts.append(f"Описание: {basic_info['description']}")
+
+        # Технические характеристики
+        tech_specs = data['technical_specs']
+        if tech_specs :
+            desc_parts.append("\nТехнические характеристики:")
+
+            for spec_name , spec_value in tech_specs.items() :
+                if spec_name != 'stem' :  # Шток обрабатываем отдельно
+                    display_name = {
+                        'piston_diameter' : 'Диаметр поршня' ,
+                        'turn_angle' : 'Угол поворота' ,
+                        'turn_tuning_limit' : 'Ограничитель поворота' ,
+                        'weight_spring' : 'Вес пружины' ,
+                        'min_pressure' : 'Минимальное давление' ,
+                        'max_pressure' : 'Максимальное давление' ,
+                        'air_usage_open' : 'Расход воздуха (открытие)' ,
+                        'air_usage_close' : 'Расход воздуха (закрытие)'
+                    }.get(spec_name , spec_name)
+                    desc_parts.append(f"  {display_name}: {spec_value}")
+
+            # Информация о штоке
+            if 'stem' in tech_specs :
+                stem_parts = []
+                stem_data = tech_specs['stem']
+                if 'shape' in stem_data :
+                    stem_parts.append(f"форма: {stem_data['shape']}")
+                if 'size' in stem_data :
+                    stem_parts.append(f"размер: {stem_data['size']}")
+                if 'max_height' in stem_data :
+                    stem_parts.append(f"макс. высота: {stem_data['max_height']}")
+                if 'max_diameter' in stem_data :
+                    stem_parts.append(f"макс. диаметр: {stem_data['max_diameter']}")
+
+                if stem_parts :
+                    desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
+
+        # Подключения
+        connections = data['connections']
+        if connections :
+            desc_parts.append("\nПодключения:")
+
+            if 'thread_in' in connections :
+                desc_parts.append(f"  Пневмовход: {connections['thread_in']}")
+            if 'thread_out' in connections :
+                desc_parts.append(f"  Пневмовыход: {connections['thread_out']}")
+            if 'pneumatic_connections' in connections :
+                desc_parts.append(f"  Типы пневмоподключений: {', '.join(connections['pneumatic_connections'])}")
+            if 'mounting_plates' in connections :
+                desc_parts.append(f"  Монтажные площадки: {', '.join(connections['mounting_plates'])}")
+
+        return "\n".join(desc_parts)
+
+    @property
+    def full_description(self) -> str :
+        """Полное описание корпуса (property)"""
+        return self.get_text_description()
 
 class PneumaticWeightParameter(models.Model) :
     """Вес пневмопривода зависит от корпуса и количества пружин

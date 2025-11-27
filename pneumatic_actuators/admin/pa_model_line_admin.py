@@ -100,8 +100,8 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
     fieldsets = (
         (_('Основная информация') , {
             'fields' : (
-                'name' , 'code' , 'description' , 'brand' ,
-                'pneumatic_actuator_construction_variety'
+                ('name' , 'code' , 'brand' ,
+                'pneumatic_actuator_construction_variety'), 'model_item_code_template', 'description'
             )
         }) ,
         (_('Основные параметры') , {

@@ -35,6 +35,9 @@ class PneumaticActuatorModelLine(models.Model) :
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
                                     help_text=_('Активно свойство или нет'))
+    model_item_code_template = models.CharField(max_length=500 ,blank=True , null=True ,
+                            verbose_name=_("Шаблон артикула") ,
+                            help_text=_('Шаблон артикула для конкретной модели серии'))
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='pneumatic_model_line_brand' ,
                               on_delete=models.SET_NULL ,
