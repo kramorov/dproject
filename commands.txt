@@ -2,9 +2,15 @@
 Скачавание:
 git pull main main
 git merge av-be-master (если надо)
+git checkout -- db.sqlite3 (отмена локальных изменений)
 
+git pull main main
 Отправка:
 git push main av-be-master:main
+
+git stash
+git stash pop
+
 
 Из дома:
 git add .

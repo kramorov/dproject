@@ -1,0 +1,14 @@
+/* Скрываем поле положения безопасности по умолчанию */
+.field-selected_safety_position {
+    display: none !important;
+}
+
+/* Дополнительно можно скрыть другие поля которые могут быть без опций */
+.field-selected_springs_qty,
+.field-selected_temperature,
+.field-selected_ip,
+.field-selected_exd,
+.field-selected_body_coating {
+    /* Эти поля будут показываться/скрываться через JS */
+    /* Не скрываем их по умолчанию, чтобы не было мигания */
+}
