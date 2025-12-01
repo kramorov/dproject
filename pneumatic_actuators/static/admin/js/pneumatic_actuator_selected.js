@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const modelSelector = document.querySelector('.pneumatic-model-selector');
     const optionSelectors = document.querySelectorAll('.pneumatic-option-selector');
-    // console.log("=== PNEUMATIC ACTUATOR JS LOADED ===");
+    console.log("=== PNEUMATIC ACTUATOR SELECTED JS LOADED ===");
     // alert("JS is working!");  // Убери потом эту строку
     if (modelSelector) {
         modelSelector.addEventListener('change', function() {

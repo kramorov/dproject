@@ -112,7 +112,11 @@ class PneumaticActuatorSelected(models.Model):
             'calculated_parameters': {  # НОВОЕ ПОЛЕ ДЛЯ РАСЧЕТНЫХ ПАРАМЕТРОВ
                 'weight': float(self.calculated_weight) if self.calculated_weight else None
             },
-            'torque_thrust_table': None
+            'torque_thrust_table': {
+                'structured': [],
+                'headers': [],
+                'raw': None
+            }
         }
 
         # Базовые свойства из модели
@@ -173,103 +177,32 @@ class PneumaticActuatorSelected(models.Model):
             data['body_specs'] = self.selected_model.body.get_description_data()
 
         # Таблица моментов/усилий
+        # Таблица моментов/усилий
         if self.selected_model and self.selected_model.body:
             try:
-                from pneumatic_actuators.models import BodyThrustTorqueTable
-
-                # Определяем spring_qty на основе выбранных опций
-                # Исправляем получение spring_qty
                 if self.selected_springs_qty:
-                    # Получаем связанный объект PneumaticActuatorSpringsQty
-                    # self.selected_springs_qty - это PneumaticSpringsQtyOption
-                    # self.selected_springs_qty.springs_qty - это PneumaticActuatorSpringsQty
                     spring_qty = self.selected_springs_qty.springs_qty
-                    print(f"🔧 Spring QTY object: {spring_qty}")
-                    print(f"🔧 Spring QTY type: {type(spring_qty)}")
-                    print(f"🔧 Spring QTY id: {spring_qty.id if spring_qty else 'None'}")
                 else:
                     spring_qty = None
-                    print("🔧 Spring QTY: None")
-                # Проверяем что получили правильный тип
-                from pneumatic_actuators.models import PneumaticActuatorSpringsQty
-                if spring_qty and not isinstance(spring_qty, PneumaticActuatorSpringsQty):
-                    print(f"🔧 ❌ ERROR: Wrong type! Got {type(spring_qty)}, expected PneumaticActuatorSpringsQty")
-                    spring_qty = None  # или обработайте ошибку
-                else:
-                    print(f"🔧 ✅ Correct type: PneumaticActuatorSpringsQty")
-                pass
-                # Определяем тип привода (NC/NO) на основе safety_position
-                ncno = 'NC'  # по умолчанию нормально закрытый
-                if self.selected_safety_position:
-                    safety_code = getattr(self.selected_safety_position.safety_position, 'encoding', '')
-                    if safety_code == 'NO':
-                        ncno = 'NO'
-                print(f"self.selected_safety_position {self.selected_safety_position}")
-                # Получаем данные из таблицы с фильтрацией по конкретной пружине
-                print(f"We are about to get torque_data: ")
+
+                ncno = self.selected_safety_position.safety_position.code if self.selected_safety_position else 'NC'
+
+                # Получаем структурированные данные
+                from pneumatic_actuators.models import BodyThrustTorqueTable
                 torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
                     body_list=[self.selected_model.body],
-                    spring_qty=spring_qty,  # передаем конкретную пружину
-                    ncno=ncno
+                    spring_qty_list=[spring_qty] if spring_qty else None,
+                    ncno=ncno,
+                    format='structured'  # или 'matrix' для табличного вывода
                 )
-                print(f"We got torque_data: {torque_data}")
-                # Форматируем данные для описания
-                if self.selected_model and self.selected_model.body:
-                    try:
-                        from pneumatic_actuators.models import BodyThrustTorqueTable
 
-                        # Определяем spring_qty на основе выбранных опций
-                        spring_qty = self.selected_springs_qty
-
-                        # Определяем тип привода (NC/NO) на основе safety_position
-                        ncno = 'NC'  # по умолчанию нормально закрытый
-                        if self.selected_safety_position:
-                            safety_code = getattr(self.selected_safety_position, 'encoding', '')
-                            if safety_code == 'NO':
-                                ncno = 'NO'
-
-                        # Получаем данные из таблицы с фильтрацией по конкретной пружине
-                        torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
-                            body_list=[self.selected_model.body],
-                            spring_qty=spring_qty,  # передаем конкретную пружину
-                            ncno=ncno
-                        )
-                        #
-                        # # ПЕРЕДАЕМ САМУ ТАБЛИЦУ
-                        # if torque_data and torque_data.get('data'):
-                        #     data['torque_thrust_table'] = {
-                        #         'headers': torque_data.get('headers', []),
-                        #         'data': torque_data.get('data', []),
-                        #         'pressures': torque_data.get('pressures', []),
-                        #         'body': self.selected_model.body.name,
-                        #         'spring_qty': spring_qty.springs_qty if spring_qty else 'DA',
-                        #         'ncno': ncno
-                        #     }
-                        # else:
-                        #     data['torque_thrust_table'] = {
-                        #         'headers': [],
-                        #         'data': [],
-                        #         'pressures': [],
-                        #         'body': self.selected_model.body.name,
-                        #         'message': "Данные не найдены"
-                        #     }
-
-                    except Exception as e:
-                        # data['torque_thrust_table'] = {
-                        #     'headers': [],
-                        #     'data': [],
-                        #     'pressures': [],
-                        #     'error': str(e)
-                        # }
-                        pass
+                data['torque_thrust_table'] = torque_data
 
             except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error(f"Error getting torque/thrust table data: {e}")
                 data['torque_thrust_table'] = {
-                    'error': 'Ошибка при получении данных по моментам/усилиям',
-                    'details': str(e)
+                    'error': str(e),
+                    'format': 'error'
                 }
         return data
 
@@ -370,7 +303,39 @@ class PneumaticActuatorSelected(models.Model):
             calc_params = data.get('calculated_parameters', {})
             if calc_params.get('weight'):
                 desc_parts.append(f"Вес: {calc_params['weight']} кг")
+            # Таблица моментов/усилий
+            if 'torque_thrust_table' in data:
+                table_data = data['torque_thrust_table']
 
+                if table_data.get('format') == 'structured':
+                    desc_parts.append("\n" + "=" * 60)
+                    desc_parts.append("ТАБЛИЦА МОМЕНТОВ/УСИЛИЙ")
+                    desc_parts.append("=" * 60)
+
+                    for item in table_data['data']:
+                        desc_parts.append(f"\nКорпус: {item['body']['name']} ({item['body']['code']})")
+                        desc_parts.append(f"Пружины: {item['spring_qty']['name']} ({item['spring_qty']['code']})")
+                        desc_parts.append("-" * 40)
+
+                        for pressure_code, pressure_data in item['pressures'].items():
+                            pressure_name = pressure_data['pressure']['name']
+                            torque_values = pressure_data['torque_values']
+
+                            if torque_values:
+                                value_str = ", ".join([
+                                    f"{v['display_name']}: {v['value']}"
+                                    for v in torque_values.values()
+                                ])
+                                desc_parts.append(f"  {pressure_name}: {value_str}")
+
+                        desc_parts.append("")
+
+                elif table_data.get('format') == 'matrix':
+                    # Форматирование матричных данных
+                    headers = table_data.get('headers', [[], []])
+                    if headers and headers[0]:
+                        desc_parts.append("\nТаблица в матричном формате:")
+                        # ... код для форматирования таблицы ...
         return "\n".join(desc_parts)
 
     @property

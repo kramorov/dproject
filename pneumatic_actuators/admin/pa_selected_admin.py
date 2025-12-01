@@ -45,7 +45,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     )
 
     class Media :
-        js = ('admin/js/pneumatic_admin.js' ,)  # новый файл
+        js = ('admin/js/pneumatic_actuator_selected.js' ,)  # новый файл
         css = {
             'all': ('admin/css/pneumatic_admin.css',)  # добавьте эту строку
         }
