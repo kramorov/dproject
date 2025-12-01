@@ -1,7 +1,6 @@
 # pneumatic_actuators/models/pa_torque.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from datetime import datetime
 from django.db.models import Q
 from django.db import transaction
 from django.http import HttpResponse
@@ -9,9 +8,11 @@ from django.http import HttpResponse
 from datetime import datetime
 import logging
 
+from pneumatic_actuators.models import PneumaticActuatorSpringsQty
 from pneumatic_actuators.models.pa_body import PneumaticActuatorBody
-from pneumatic_actuators.models.pa_params import PneumaticActuatorSpringsQty
 from params.models import PneumaticAirSupplyPressure
+from pneumatic_actuators.models.py_options_constants import SPRINGS_DA_DEFAULT_CODE , SAFETY_POSITION_NC_DEFAULT_CODE , \
+    ACTUATOR_VARIETY_RP_DEFAULT_CODE , ACTUATOR_VARIETY_SY_DEFAULT_CODE , SAFETY_POSITION_NO_DEFAULT_CODE
 
 logger = logging.getLogger(__name__)
 
@@ -105,63 +106,55 @@ class BodyThrustTorqueTable(models.Model):
 
         return queryset
 
-    @classmethod
-    def _get_torque_fields_for_construction(cls, construction_variety_code, spring_code, ncno='NO'):
-        """
-        Определяет, какие поля моментов нужны для данного типа конструкции
-        Возвращает список кортежей (field_name, display_name)
-        """
-        # Для DA приводов - только BTO
-        if spring_code == 'DA':
-            return [('bto', 'BTO' if ncno == 'NC' else 'BTC')]
+    # @classmethod
+    # def _get_torque_fields_for_construction(cls, construction_variety_code, spring_code, ncno='NO'):
+    #     """
+    #     Определяет, какие поля моментов нужны для данного типа конструкции
+    #     Возвращает список кортежей (field_name, display_name)
+    #     """
+    #
+    #     # Для DA приводов - только BTO
+    #     if spring_code == SPRINGS_DA_DEFAULT_CODE:
+    #         return [('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC')]
+    #
+    #     # Для SR приводов (пружинных)
+    #     if construction_variety_code == ACTUATOR_VARIETY_RP_DEFAULT_CODE:  # шестерня-рейка
+    #         return [
+    #             ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
+    #             ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
+    #         ]
+    #     elif construction_variety_code == ACTUATOR_VARIETY_SY_DEFAULT_CODE:  # кулисный
+    #         return [
+    #             ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
+    #             ('rto', 'RTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'RTC'),
+    #             ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
+    #         ]
+    #     else:
+    #         # По умолчанию все три
+    #         return [
+    #             ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
+    #             ('rto', 'RTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'RTC'),
+    #             ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
+    #         ]
 
-        # Для SR приводов (пружинных)
-        if construction_variety_code == 'rack_pinion':  # шестерня-рейка
-            return [
-                ('bto', 'BTO' if ncno == 'NC' else 'BTC'),
-                ('eto', 'ETO' if ncno == 'NC' else 'ETC')
-            ]
-        elif construction_variety_code == 'scotch_yoke':  # кулисный
-            return [
-                ('bto', 'BTO' if ncno == 'NC' else 'BTC'),
-                ('rto', 'RTO' if ncno == 'NC' else 'RTC'),
-                ('eto', 'ETO' if ncno == 'NC' else 'ETC')
-            ]
-        else:
-            # По умолчанию все три
-            return [
-                ('bto', 'BTO' if ncno == 'NC' else 'BTC'),
-                ('rto', 'RTO' if ncno == 'NC' else 'RTC'),
-                ('eto', 'ETO' if ncno == 'NC' else 'ETC')
-            ]
+    # @classmethod
+    # def _spring_sort_key(cls, spring_code):
+    #     """Ключ сортировки для пружин"""
+    #     if spring_code == SPRINGS_DA_DEFAULT_CODE:
+    #         return 0
+    #     try:
+    #         return int(spring_code)
+    #     except ValueError:
+    #         return 999
 
-    @classmethod
-    def _spring_sort_key(cls, spring_code):
-        """Ключ сортировки для пружин"""
-        if spring_code == 'DA':
-            return 0
-        try:
-            return int(spring_code)
-        except ValueError:
-            return 999
 
-    @classmethod
-    def _get_construction_variety_code(cls, body):
-        """Получает код типа конструкции для корпуса"""
-        try:
-            if (body and body.model_line and
-                    body.model_line.pneumatic_actuator_construction_variety):
-                return body.model_line.pneumatic_actuator_construction_variety.code
-        except Exception:
-            pass
-        return None
 
     # ==================== ОСНОВНОЙ МЕТОД ====================
 
     @classmethod
     def get_torque_thrust_values(cls, body_list, pressure_list=None,
-                                 spring_qty_list=None, ncno='NO',
-                                 format='structured'):
+                                 spring_qty_list=None, ncno=SAFETY_POSITION_NO_DEFAULT_CODE, construction_variety_code=ACTUATOR_VARIETY_RP_DEFAULT_CODE,
+                                 format_string='structured'):
         """
         Основной метод получения данных таблицы моментов/усилий
 
@@ -170,7 +163,8 @@ class BodyThrustTorqueTable(models.Model):
             pressure_list: список объектов PneumaticAirSupplyPressure или их ID (опционально)
             spring_qty_list: список объектов PneumaticActuatorSpringsQty или их ID (опционально)
             ncno: 'NO' или 'NC' - тип привода
-            format: формат возвращаемых данных:
+            construction_variety_code: код конструкции - шестерня-рейка или кулисный
+            format_string: формат возвращаемых данных:
                 - 'structured' (default) - структурированные данные с метаданными
                 - 'matrix' - матричный формат для таблиц
                 - 'raw' - сырые QuerySet данные
@@ -180,374 +174,465 @@ class BodyThrustTorqueTable(models.Model):
         Returns:
             Dict или QuerySet в зависимости от формата
         """
-        logger = logging.getLogger(__name__)
-
-        try:
-            # Преобразуем ID в объекты если нужно
-            if body_list and all(isinstance(x, (int, str)) for x in body_list):
-                body_list = PneumaticActuatorBody.objects.filter(id__in=body_list)
-
-            # Базовый запрос
-            queryset = cls._get_base_queryset(body_list, pressure_list, spring_qty_list)
-
-            # Выбор формата ответа
-            if format == 'raw':
-                return queryset
-
-            elif format == 'matrix':
-                return cls._format_as_matrix(queryset, ncno)
-
-            elif format in ['api', 'structured']:
-                return cls._format_structured(queryset, ncno)
-
-            else:
-                raise ValueError(f"Unknown format: {format}")
-
-        except Exception as e:
-            logger.error(f"Error in get_torque_thrust_values: {e}", exc_info=True)
-            return {
-                'error': str(e),
-                'format': format,
-                'data': [],
-                'metadata': {}
-            }
-
+        # logger = logging.getLogger(__name__)
+        # logger.debug("format_string:",{format_string})
+        # try:
+        #     # Преобразуем ID в объекты если нужно
+        #     if body_list and all(isinstance(x, (int, str)) for x in body_list):
+        #         body_list = PneumaticActuatorBody.objects.filter(id__in=body_list)
+        #
+        #     # Базовый запрос
+        #     queryset = cls._get_base_queryset(body_list, pressure_list, spring_qty_list)
+        #
+        #     # Выбор формата ответа
+        #     if format_string == 'raw':
+        #         return queryset
+        #
+        #     elif format_string == 'matrix':
+        #         print("Building matrix")
+        #         return cls._format_as_matrix(queryset, ncno, construction_variety_code)
+        #
+        #     elif format_string in ['api', 'structured']:
+        #         return cls._format_structured(queryset, ncno, construction_variety_code)
+        #
+        #     else:
+        #         raise ValueError(f"Unknown format: {format}")
+        #
+        # except Exception as e:
+        #     logger.error(f"Error in get_torque_thrust_values: {e}", exc_info=True)
+        #     return {
+        #         'error': str(e),
+        #         'format': format,
+        #         'data': [],
+        #         'metadata': {}
+        #     }
+        pass
     # ==================== ФОРМАТЫ ВЫВОДА ====================
 
     @classmethod
-    def _format_structured(cls, queryset, ncno='NO'):
-        """
-        Структурированный формат с метаданными
-        Идеально подходит для API и дальнейшей обработки
-        """
-        logger = logging.getLogger(__name__)
-
-        try:
-            # Получаем все данные с prefetch
-            all_data = queryset.select_related(
-                'body', 'pressure', 'spring_qty',
-                'body__model_line__pneumatic_actuator_construction_variety'
-            ).order_by('body__sorting_order', 'spring_qty__sorting_order', 'pressure__sorting_order')
-
-            if not all_data:
-                return {
-                    'format': 'structured',
-                    'data': [],
-                    'metadata': {},
-                    'ncno': ncno,
-                    'count': 0
-                }
-
-            # Группируем данные по корпусу и пружинам
-            grouped = {}
-            for item in all_data:
-                if not item.body or not item.spring_qty or not item.pressure:
-                    logger.warning(f"Skipping item with missing relations: {item.id}")
-                    continue
-
-                key = f"{item.body_id}_{item.spring_qty_id}"
-
-                if key not in grouped:
-                    construction_variety = cls._get_construction_variety_code(item.body)
-
-                    grouped[key] = {
-                        'body': {
-                            'id': item.body.id,
-                            'code': item.body.code,
-                            'name': item.body.name,
-                            'construction_variety': construction_variety,
-                            'construction_variety_name': (
-                                item.body.model_line.pneumatic_actuator_construction_variety.name
-                                if construction_variety and item.body.model_line and
-                                   hasattr(item.body.model_line, 'pneumatic_actuator_construction_variety')
-                                else None
-                            )
-                        },
-                        'spring_qty': {
-                            'id': item.spring_qty.id,
-                            'code': item.spring_qty.code,
-                            'name': item.spring_qty.name
-                        },
-                        'pressures': {}
-                    }
-
-                # Определяем, какие поля нужны для этого типа привода
-                construction_variety = grouped[key]['body']['construction_variety']
-                spring_code = grouped[key]['spring_qty']['code']
-
-                torque_fields = cls._get_torque_fields_for_construction(
-                    construction_variety,
-                    spring_code,
-                    ncno
-                )
-
-                # Формируем значения моментов для этого давления
-                torque_values = {}
-                for field_name, display_name in torque_fields:
-                    value = getattr(item, field_name, None)
-                    if value is not None:
-                        try:
-                            torque_values[field_name] = {
-                                'value': float(value),
-                                'display_name': display_name,
-                                'field': field_name
-                            }
-                        except (TypeError, ValueError) as e:
-                            logger.warning(f"Error converting value for {field_name}: {e}")
-                            torque_values[field_name] = {
-                                'value': None,
-                                'display_name': display_name,
-                                'field': field_name
-                            }
-
-                grouped[key]['pressures'][item.pressure.code] = {
-                    'pressure': {
-                        'id': item.pressure.id,
-                        'code': item.pressure.code,
-                        'name': str(item.pressure),
-                        'sorting_order': getattr(item.pressure, 'sorting_order', 0)
-                    },
-                    'torque_values': torque_values
-                }
-
-            # Преобразуем в список и сортируем
-            result = list(grouped.values())
-            result.sort(key=lambda x: (
-                x.get('body', {}).get('code', ''),
-                cls._spring_sort_key(x.get('spring_qty', {}).get('code', ''))
-            ))
-
-            # Формируем метаданные для рендеринга
-            metadata = cls._build_metadata(result, ncno)
-
-            return {
-                'format': 'structured',
-                'data': result,
-                'metadata': metadata,
-                'ncno': ncno,
-                'count': len(result)
-            }
-
-        except Exception as e:
-            logger.error(f"Error in _format_structured: {e}", exc_info=True)
-            return {
-                'format': 'structured',
-                'error': str(e),
-                'data': [],
-                'metadata': {},
-                'ncno': ncno,
-                'count': 0
-            }
-
-    @classmethod
-    def _build_metadata(cls, data, ncno='NO'):
-        """Строит метаданные для рендеринга таблицы"""
-        if not data:
-            return {
-                'headers': [[], []],
-                'column_templates': [],
-                'pressures': [],
-                'columns_per_pressure': 0
-            }
-
-        try:
-            # Собираем все уникальные давления
-            pressure_codes = set()
-            for item in data:
-                if isinstance(item, dict) and 'pressures' in item:
-                    pressure_codes.update(item['pressures'].keys())
-
-            # Сортируем давления по sorting_order
-            pressures_sorted = []
-            seen_codes = set()
-
-            for item in data:
-                if not isinstance(item, dict) or 'pressures' not in item:
-                    continue
-
-                for pressure_code, pressure_data in item['pressures'].items():
-                    if pressure_code not in seen_codes:
-                        seen_codes.add(pressure_code)
-                        pressure_info = pressure_data.get('pressure', {})
-                        pressures_sorted.append({
-                            'code': pressure_code,
-                            'id': pressure_info.get('id'),
-                            'name': pressure_info.get('name', pressure_code),
-                            'sorting_order': pressure_info.get('sorting_order', 0)
-                        })
-
-            pressures_sorted.sort(key=lambda x: x.get('sorting_order', 0))
-
-            # Определяем шаблоны колонок на основе первой записи
-            first_item = data[0] if data else {}
-
-            if isinstance(first_item, dict):
-                body_info = first_item.get('body', {})
-                spring_info = first_item.get('spring_qty', {})
-
-                construction_variety = body_info.get('construction_variety')
-                spring_code = spring_info.get('code', '')
-            else:
-                construction_variety = None
-                spring_code = ''
-
-            column_templates = cls._get_column_templates(construction_variety, spring_code, ncno)
-
-            # Генерируем заголовки
-            pressure_codes_list = [p.get('code', '') for p in pressures_sorted]
-            headers = cls._generate_headers(pressure_codes_list, column_templates)
-
-            return {
-                'headers': headers,
-                'column_templates': column_templates,
-                'pressures': pressures_sorted,
-                'columns_per_pressure': len(column_templates)
-            }
-
-        except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error in _build_metadata: {e}", exc_info=True)
-            return {
-                'headers': [[], []],
-                'column_templates': [],
-                'pressures': [],
-                'columns_per_pressure': 0,
-                'error': str(e)
-            }
-
-    @classmethod
-    def _get_column_templates(cls, construction_variety, spring_code, ncno='NO'):
-        """Шаблоны колонок для заголовков"""
-        fields = cls._get_torque_fields_for_construction(construction_variety, spring_code, ncno)
-
-        return [
-            {
-                'field': field_name,
-                'display_name': display_name,
-                'width': 1
-            }
-            for field_name, display_name in fields
-        ]
-
-    @classmethod
-    def _generate_headers(cls, pressure_codes, column_templates):
-        """Генерирует заголовки таблицы"""
-        if not pressure_codes or not column_templates:
-            return [[], []]
-
-        try:
-            # Первая строка заголовков
-            header_row1 = ['Корпус', 'Пружины']
-            # Вторая строка заголовков
-            header_row2 = ['Код', 'Код']
-
-            for pressure_code in pressure_codes:
-                if not isinstance(pressure_code, str):
-                    pressure_code = str(pressure_code)
-
-                # Для каждого давления добавляем нужное количество колонок
-                for i, template in enumerate(column_templates):
-                    if not isinstance(template, dict):
-                        continue
-
-                    # Первая строка: название давления только для первой колонки
-                    if i == 0:
-                        header_row1.append(pressure_code)
-                    else:
-                        header_row1.append('')
-
-                    # Вторая строка: название типа момента
-                    display_name = template.get('display_name', '')
-                    header_row2.append(display_name)
-
-            return [header_row1, header_row2]
-
-        except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error in _generate_headers: {e}")
-            return [[], []]
-
-    @classmethod
-    def _format_as_matrix(cls, queryset, ncno='NO'):
-        """
-        Матричный формат для табличного отображения
-        Каждая строка - словарь с плоской структурой
-        """
-        # Сначала получаем структурированные данные
-        structured = cls._format_structured(queryset, ncno)
-
-        if 'error' in structured:
-            return structured
-
-        # Проверяем, что есть данные
-        if not structured.get('data'):
-            return {
-                'format': 'matrix',
-                'data': [],
-                'headers': [[], []],
-                'metadata': {},
-                'ncno': ncno,
-                'count': 0
-            }
-
-        matrix_data = []
-
-        for item in structured['data']:
-            # Здесь item - это уже словарь из structured формата
-            # Проверяем структуру
-            if not isinstance(item, dict):
-                continue
-
-            # Базовые поля
-            row = {
-                'body_id': item.get('body', {}).get('id'),
-                'body_code': item.get('body', {}).get('code'),
-                'body_name': item.get('body', {}).get('name'),
-                'spring_qty_id': item.get('spring_qty', {}).get('id'),
-                'spring_qty_code': item.get('spring_qty', {}).get('code'),
-                'spring_qty_name': item.get('spring_qty', {}).get('name'),
-                'construction_variety': item.get('body', {}).get('construction_variety')
-            }
-
-            # Добавляем значения для каждого давления
-            pressures = item.get('pressures', {})
-
-            for pressure_meta in structured.get('metadata', {}).get('pressures', []):
-                pressure_code = pressure_meta.get('code')
-
-                if pressure_code in pressures:
-                    pressure_data = pressures[pressure_code]
-                    torque_values = pressure_data.get('torque_values', {})
-
-                    for field_name, value_data in torque_values.items():
-                        if isinstance(value_data, dict):
-                            col_key = f"pressure_{pressure_code}_{field_name}"
-                            row[col_key] = value_data.get('value')
-
-                            # Также можно добавить поле с отображаемым именем
-                            display_key = f"pressure_{pressure_code}_{field_name}_display"
-                            row[display_key] = value_data.get('display_name')
-                else:
-                    # Заполняем None для отсутствующих данных
-                    column_templates = structured.get('metadata', {}).get('column_templates', [])
-                    for template in column_templates:
-                        if isinstance(template, dict):
-                            field_name = template.get('field')
-                            if field_name:
-                                col_key = f"pressure_{pressure_code}_{field_name}"
-                                row[col_key] = None
-
-            matrix_data.append(row)
-
+    def _empty_optimized_response(cls) :
+        """Пустой ответ в оптимизированном формате"""
         return {
-            'format': 'matrix',
-            'data': matrix_data,
-            'headers': structured.get('metadata', {}).get('headers', [[], []]),
-            'metadata': structured.get('metadata', {}),
-            'ncno': ncno,
-            'count': len(matrix_data)
+            'format' : 'optimized' ,
+            'body' : None ,
+            'data' : {'by_spring' : {}} ,
+            'table_config' : {
+                'visible_fields' : [] ,
+                'pressure_order' : [] ,
+                'spring_order' : [] ,
+                'field_descriptions' : {} ,
+                'pressure_info' : {} ,
+                'spring_info' : {} ,
+                'format' : {
+                    'torque' : {'unit' : 'Нм' , 'precision' : 1} ,
+                    'pressure' : {'spring' : 'SPRING' , 'default_template' : '{value} бар'}
+                }
+            } ,
+            'ncno' : 'nc' ,
+            'construction_variety' : 'RP' ,
+            'count' : 0
         }
 
+    @classmethod
+    def _error_optimized_response(cls , error , ncno='nc') :
+        """Ответ с ошибкой в оптимизированном формате"""
+        return {
+            'format' : 'optimized' ,
+            'error' : str(error) ,
+            'body' : None ,
+            'data' : {'by_spring' : {}} ,
+            'table_config' : {
+                'visible_fields' : [] ,
+                'pressure_order' : [] ,
+                'spring_order' : [] ,
+                'field_descriptions' : {} ,
+                'pressure_info' : {} ,
+                'spring_info' : {} ,
+                'format' : {
+                    'torque' : {'unit' : 'Нм' , 'precision' : 1} ,
+                    'pressure' : {'spring' : 'SPRING' , 'default_template' : '{value} бар'}
+                }
+            } ,
+            'ncno' : ncno ,
+            'construction_variety' : 'RP' ,
+            'count' : 0
+        }
+
+    @classmethod
+    def _spring_sort_key(cls , spring_code) :
+        """Ключ для сортировки кодов пружин"""
+        try :
+            # Пытаемся преобразовать в число
+            return int(spring_code)
+        except (ValueError , TypeError) :
+            # Если не число, оставляем как строку
+            return spring_code
+
+    @classmethod
+    def _get_torque_fields_for_construction(cls , construction_variety_code , spring_code , ncno) :
+        """
+        Определяет, какие поля моментов нужны для данного типа конструкции.
+        Это упрощенный пример - адаптируйте под вашу логику.
+        """
+        # Базовая логика - адаптируйте под ваши нужды
+        if construction_variety_code == 'DA' :
+            # Для приводов DA обычно BTO и ETO
+            return [
+                ('bto' , 'BTO (Break to Open)') ,
+                ('eto' , 'ETO (End to Open)')
+            ]
+        elif construction_variety_code == 'SR' :
+            # Для приводов SR может быть RTO
+            return [
+                ('bto' , 'BTO (Break to Open)') ,
+                ('eto' , 'ETO (End to Open)') ,
+                ('rto' , 'RTO (Return to Open)')
+            ]
+        else :
+            # По умолчанию общий момент
+            return [('to' , 'TO (Torque)')]
+
+    @classmethod
+    def _format_structured_simple(cls , queryset , ncno='nc' , construction_variety_code='RP') :
+        """
+        Упрощенная версия для одного корпуса
+        """
+        try :
+            all_data = queryset.select_related('body' , 'pressure' , 'spring_qty').order_by(
+                'spring_qty__sorting_order' , 'pressure__sorting_order'
+            )
+
+            if not all_data :
+                return cls._empty_optimized_response()
+
+            # Получаем информацию о корпусе из первого элемента
+            first_item = all_data[0]
+            body = {
+                'id' : first_item.body.id ,
+                'code' : first_item.body.code ,
+                'name' : first_item.body.name ,
+            }
+
+            # Инициализируем структуры
+            by_spring = {}
+            visible_fields = set()
+            pressure_info = {}
+            spring_info = {}
+            available_pressures = set()
+            available_springs = set()
+
+            for item in all_data :
+                if not item.body or not item.spring_qty or not item.pressure :
+                    continue
+
+                spring_code = item.spring_qty.code
+
+                # Инициализируем данные для пружин
+                if spring_code not in by_spring :
+                    by_spring[spring_code] = {
+                        'pressures' : {} ,
+                        'meta' : {
+                            'id' : item.spring_qty.id ,
+                            'code' : spring_code ,
+                            'name' : item.spring_qty.name
+                        }
+                    }
+                    spring_info[spring_code] = {
+                        'id' : item.spring_qty.id ,
+                        'name' : item.spring_qty.name ,
+                        'sorting_order' : getattr(item.spring_qty , 'sorting_order' , 0)
+                    }
+                    available_springs.add(spring_code)
+
+                # Определяем поля моментов
+                torque_fields = cls._get_torque_fields_for_construction(
+                    construction_variety_code , spring_code , ncno
+                )
+
+                # Формируем значения для данного давления
+                pressure_code = item.pressure.code
+                pressure_values = {}
+
+                for field_name , display_name in torque_fields :
+                    value = getattr(item , field_name , None)
+                    if value is not None :
+                        try :
+                            pressure_values[field_name] = float(value)
+                            visible_fields.add(field_name)
+                        except (TypeError , ValueError) :
+                            pressure_values[field_name] = None
+
+                by_spring[spring_code]['pressures'][pressure_code] = pressure_values
+
+                # Сохраняем информацию о давлении
+                if pressure_code not in pressure_info :
+                    pressure_info[pressure_code] = {
+                        'id' : item.pressure.id ,
+                        'code' : pressure_code ,
+                        'name' : str(item.pressure) ,
+                        'sorting_order' : getattr(item.pressure , 'sorting_order' , 0)
+                    }
+                    available_pressures.add(pressure_code)
+
+            # Сортируем
+            sorted_springs = sorted(
+                available_springs ,
+                key=lambda x : spring_info[x].get('sorting_order' , cls._spring_sort_key(x))
+            )
+
+            sorted_pressures = sorted(
+                available_pressures ,
+                key=lambda x : pressure_info[x].get('sorting_order' , 0)
+            )
+
+            # Стандартный порядок полей
+            field_order = ['bto' , 'eto' , 'rto' , 'to']
+            sorted_fields = [f for f in field_order if f in visible_fields]
+
+            # Сортируем by_spring
+            sorted_by_spring = {}
+            for spring_code in sorted_springs :
+                spring_data = by_spring[spring_code]
+                # Сортируем давления внутри пружины
+                sorted_pressures_data = {}
+                for pressure_code in sorted_pressures :
+                    if pressure_code in spring_data['pressures'] :
+                        sorted_pressures_data[pressure_code] = spring_data['pressures'][pressure_code]
+                spring_data['pressures'] = sorted_pressures_data
+                sorted_by_spring[spring_code] = spring_data
+
+            return {
+                'format' : 'optimized' ,
+                'body' : body ,
+                'data' : {
+                    'by_spring' : sorted_by_spring
+                } ,
+                'table_config' : {
+                    'visible_fields' : sorted_fields ,
+                    'pressure_order' : sorted_pressures ,
+                    'spring_order' : sorted_springs ,
+                    'field_descriptions' : {
+                        'bto' : 'BTO (Break to Open)' ,
+                        'eto' : 'ETO (End to Open)' ,
+                        'rto' : 'RTO (Return to Open)' ,
+                        'to' : 'TO (Torque)'
+                    } ,
+                    'pressure_info' : pressure_info ,
+                    'spring_info' : spring_info ,
+                    'format' : {
+                        'torque' : {
+                            'unit' : 'Нм' ,
+                            'precision' : 1 ,
+                            'template' : '{value:.1f} {unit}'
+                        } ,
+                        'pressure' : {
+                            'spring' : 'SPRING' ,
+                            'default_template' : '{value} бар'
+                        }
+                    }
+                } ,
+                'ncno' : ncno ,
+                'construction_variety' : construction_variety_code ,
+                'count' : len(sorted_by_spring)
+            }
+
+        except Exception as e :
+            logger.error(f"Error in _format_structured_simple: {e}")
+            return cls._error_optimized_response(e , ncno)
+
+    # Вспомогательные методы для работы с данными
+
+    @classmethod
+    def get_torque_value(cls , formatted_data , spring_code , pressure_code , field='bto') :
+        """
+        Быстро получить значение момента из отформатированных данных
+
+        Args:
+            formatted_data: Данные в оптимизированном формате
+            spring_code: Код пружин (например, '12')
+            pressure_code: Код давления (например, '5.5')
+            field: Поле момента ('bto', 'eto', 'rto', 'to')
+
+        Returns:
+            Значение момента или None
+        """
+        if not formatted_data or 'data' not in formatted_data :
+            return None
+
+        by_spring = formatted_data['data'].get('by_spring' , {})
+        if spring_code not in by_spring :
+            return None
+
+        pressures = by_spring[spring_code].get('pressures' , {})
+        if pressure_code not in pressures :
+            return None
+
+        return pressures[pressure_code].get(field)
+
+    @classmethod
+    def compare_with_reference(cls , formatted_data , spring_code , pressure_code ,
+                               field , reference_value , tolerance_percent=10) :
+        """
+        Сравнить значение с контрольным
+
+        Returns:
+            Dict с результатами сравнения
+        """
+        actual = cls.get_torque_value(formatted_data , spring_code , pressure_code , field)
+
+        if actual is None :
+            return {
+                'status' : 'error' ,
+                'message' : f'Нет данных для пружин {spring_code}, давление {pressure_code}, поле {field}'
+            }
+
+        tolerance = reference_value * (tolerance_percent / 100)
+        difference = actual - reference_value
+        percentage = (difference / reference_value) * 100 if reference_value != 0 else 0
+
+        return {
+            'status' : 'success' ,
+            'actual' : actual ,
+            'reference' : reference_value ,
+            'difference' : difference ,
+            'percentage' : percentage ,
+            'is_within_tolerance' : abs(difference) <= tolerance ,
+            'tolerance_percent' : tolerance_percent ,
+            'tolerance_value' : tolerance
+        }
+
+    @classmethod
+    def generate_table_data(cls , formatted_data) :
+        """
+        Генерирует данные для таблицы в формате, удобном для фронтенда
+
+        Returns:
+            {
+                'headers': [...],
+                'rows': [...],
+                'body': {...}
+            }
+        """
+        if not formatted_data or 'data' not in formatted_data :
+            return {'headers' : [] , 'rows' : [] , 'body' : None}
+
+        body = formatted_data.get('body')
+        table_config = formatted_data.get('table_config' , {})
+        by_spring = formatted_data['data'].get('by_spring' , {})
+
+        # Формируем заголовки
+        headers = [{'key' : 'spring_qty' , 'label' : 'Пружины' , 'type' : 'string'}]
+
+        pressure_order = table_config.get('pressure_order' , [])
+        field_order = table_config.get('visible_fields' , [])
+        field_descriptions = table_config.get('field_descriptions' , {})
+        pressure_info = table_config.get('pressure_info' , {})
+
+        for pressure_code in pressure_order :
+            pressure_data = pressure_info.get(pressure_code , {})
+            pressure_name = pressure_data.get('name' , pressure_code)
+
+            for field in field_order :
+                field_label = field_descriptions.get(field , field.upper())
+                headers.append({
+                    'key' : f'{pressure_code}:{field}' ,
+                    'label' : f'{pressure_name} {field_label}' ,
+                    'type' : 'number' ,
+                    'pressure_code' : pressure_code ,
+                    'field' : field ,
+                    'unit' : table_config.get('format' , {}).get('torque' , {}).get('unit' , 'Нм')
+                })
+
+        # Формируем строки
+        rows = []
+        spring_order = table_config.get('spring_order' , sorted(by_spring.keys()))
+
+        for spring_code in spring_order :
+            if spring_code not in by_spring :
+                continue
+
+            row = {'spring_qty' : spring_code}
+            spring_data = by_spring[spring_code]
+
+            for pressure_code in pressure_order :
+                if pressure_code in spring_data['pressures'] :
+                    pressure_values = spring_data['pressures'][pressure_code]
+                    for field in field_order :
+                        value = pressure_values.get(field)
+                        row[f'{pressure_code}:{field}'] = value
+                else :
+                    # Если нет данных для этого давления, заполняем None
+                    for field in field_order :
+                        row[f'{pressure_code}:{field}'] = None
+
+            rows.append(row)
+
+        return {
+            'headers' : headers ,
+            'rows' : rows ,
+            'body' : body ,
+            'table_config' : table_config
+        }
+
+    @classmethod
+    def format_for_markdown(cls , formatted_data , include_metadata=True) :
+        """
+        Форматирует данные для вывода в Markdown
+
+        Returns:
+            Строка в формате Markdown
+        """
+        table_data = cls.generate_table_data(formatted_data)
+
+        if not table_data['headers'] :
+            return "Нет данных для отображения"
+
+        # Заголовок таблицы
+        body = formatted_data.get('body' , {})
+        markdown_lines = []
+
+        if body and body.get('name') :
+            markdown_lines.append(f"## {body.get('name')} ({body.get('code')})")
+            markdown_lines.append("")
+
+        # Заголовки таблицы
+        headers = table_data['headers']
+        header_labels = [h['label'] for h in headers]
+        markdown_lines.append("| " + " | ".join(header_labels) + " |")
+
+        # Разделитель
+        separator = "|" + "|".join(["---"] * len(headers)) + "|"
+        markdown_lines.append(separator)
+
+        # Данные
+        for row in table_data['rows'] :
+            row_values = []
+            for header in headers :
+                key = header['key']
+                value = row.get(key)
+
+                if value is None :
+                    row_values.append("-")
+                elif isinstance(value , (int , float)) :
+                    # Форматируем числа
+                    precision = formatted_data.get('table_config' , {}).get('format' , {}).get('torque' , {}).get(
+                        'precision' , 1)
+                    row_values.append(f"{value:.{precision}f}")
+                else :
+                    row_values.append(str(value))
+
+            markdown_lines.append("| " + " | ".join(row_values) + " |")
+
+        # Метаданные
+        if include_metadata :
+            markdown_lines.append("")
+            markdown_lines.append("**Метаданные:**")
+            markdown_lines.append(
+                f"- Единицы измерения: {formatted_data.get('table_config' , {}).get('format' , {}).get('torque' , {}).get('unit' , 'Нм')}")
+            markdown_lines.append(f"- Тип привода: {formatted_data.get('construction_variety' , 'N/A')}")
+            markdown_lines.append(f"- Безопасное положение: {formatted_data.get('ncno' , 'N/A')}")
+
+        return "\n".join(markdown_lines)
     # ==================== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ====================
 
     @classmethod
@@ -565,9 +650,9 @@ class BodyThrustTorqueTable(models.Model):
             pass
 
         # Для DA приводов
-        if pneumatic_actuator_variety.code == 'DA':
+        if pneumatic_actuator_variety.code == SPRINGS_DA_DEFAULT_CODE:
             queryset = queryset.filter(
-                spring_qty__code='DA',
+                spring_qty__code=SPRINGS_DA_DEFAULT_CODE,
                 bto__gte=thrust_or_torque - tolerance,
                 bto__lte=thrust_or_torque + tolerance
             )

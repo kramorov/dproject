@@ -16,6 +16,8 @@ git stash pop
 git add .
 git commit -m "добавлено опции из model_line в  selected_actuator"
 git push -u dproject main
+git pull dproject main
+
 
 # Установи UTF-8 кодировку
 git config --global core.quotepath false

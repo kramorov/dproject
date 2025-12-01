@@ -12,3 +12,97 @@
     /* Эти поля будут показываться/скрываться через JS */
     /* Не скрываем их по умолчанию, чтобы не было мигания */
 }
+/* Стили для админки пневмоприводов */
+
+.description-preview {
+    margin: 15px 0;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.description-preview h4 {
+    margin-top: 0;
+    color: #666;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.description-preview pre {
+    font-family: 'Arial', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 10px 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #eee;
+}
+
+.generate-description-btn {
+    background: #417690;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.generate-description-btn:hover {
+    background: #205067;
+}
+
+.generate-description-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.description-status {
+    min-height: 30px;
+    padding: 5px;
+}
+
+.description-status .loading {
+    color: #ff9800;
+    font-weight: bold;
+}
+
+.description-status .success {
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.description-status .error {
+    color: #f44336;
+    font-weight: bold;
+}
+
+/* Стили для полей выбора */
+.pneumatic-model-selector,
+.pneumatic-option-selector {
+    width: 100%;
+    max-width: 300px;
+}
+
+/* Индикатор изменений */
+.field-changed {
+    background-color: #fff8e1 !important;
+    border-left: 3px solid #ffc107 !important;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .description-preview pre {
+        font-size: 11px;
+    }
+
+    .generate-description-btn {
+        width: 100%;
+        padding: 12px;
+    }
+}

@@ -10,10 +10,12 @@ from django.core.exceptions import ValidationError
 import re
 
 import logging
-
+from django.utils.html import format_html
 logger = logging.getLogger(__name__)
 
 from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE , \
+    ACTUATOR_VARIETY_RP_DEFAULT_CODE
 
 
 class PneumaticActuatorSelected(models.Model):
@@ -96,6 +98,24 @@ class PneumaticActuatorSelected(models.Model):
     def __str__(self):
         return self.name
 
+    def get_description_preview(self) :
+        """Краткий предпросмотр описания"""
+        if not self.description :
+            return "Нет описания"
+
+        # Первые 100 символов
+        preview = self.description[:100]
+        if len(self.description) > 100 :
+            preview += "..."
+
+        return format_html(
+            '<span title="{}">{}</span>' ,
+            self.description.replace('"' , '&quot;') ,
+            preview
+        )
+
+    get_description_preview.short_description = "Описание"
+
     def get_description_data(self) -> Dict[str, Any]:
         """Получить структурированные данные для описания"""
         import logging
@@ -177,7 +197,6 @@ class PneumaticActuatorSelected(models.Model):
             data['body_specs'] = self.selected_model.body.get_description_data()
 
         # Таблица моментов/усилий
-        # Таблица моментов/усилий
         if self.selected_model and self.selected_model.body:
             try:
                 if self.selected_springs_qty:
@@ -185,19 +204,20 @@ class PneumaticActuatorSelected(models.Model):
                 else:
                     spring_qty = None
 
-                ncno = self.selected_safety_position.safety_position.code if self.selected_safety_position else 'NC'
-
+                ncno = self.selected_safety_position.safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
+                construction_variety_code = self.selected_model.pneumatic_actuator_construction_variety.code if self.selected_model else ACTUATOR_VARIETY_RP_DEFAULT_CODE
                 # Получаем структурированные данные
                 from pneumatic_actuators.models import BodyThrustTorqueTable
                 torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
                     body_list=[self.selected_model.body],
                     spring_qty_list=[spring_qty] if spring_qty else None,
                     ncno=ncno,
-                    format='structured'  # или 'matrix' для табличного вывода
+                    construction_variety_code=construction_variety_code,
+                    format_string='matrix'  # или 'matrix' для табличного вывода
                 )
 
                 data['torque_thrust_table'] = torque_data
-
+                print(f"data['torque_thrust_table'] {data['torque_thrust_table']}")
             except Exception as e:
                 logger.error(f"Error getting torque/thrust table data: {e}")
                 data['torque_thrust_table'] = {
@@ -307,8 +327,10 @@ class PneumaticActuatorSelected(models.Model):
             if 'torque_thrust_table' in data:
                 table_data = data['torque_thrust_table']
 
+                print(f"table_data.get('format') {table_data.get('format')}")
+                desc_parts.append("\n" + "=" * 60)
                 if table_data.get('format') == 'structured':
-                    desc_parts.append("\n" + "=" * 60)
+
                     desc_parts.append("ТАБЛИЦА МОМЕНТОВ/УСИЛИЙ")
                     desc_parts.append("=" * 60)
 
@@ -330,12 +352,143 @@ class PneumaticActuatorSelected(models.Model):
 
                         desc_parts.append("")
 
-                elif table_data.get('format') == 'matrix':
-                    # Форматирование матричных данных
-                    headers = table_data.get('headers', [[], []])
-                    if headers and headers[0]:
-                        desc_parts.append("\nТаблица в матричном формате:")
-                        # ... код для форматирования таблицы ...
+
+                elif table_data.get('format') == 'matrix' :
+
+                    # Компактный матричный формат
+
+                    headers = table_data.get('headers' , [[] , []])
+
+                    data_matrix = table_data.get('data' , [])
+
+                    if headers and headers[0] and data_matrix :
+
+                        desc_parts.append("\n" + "═" * 100)
+
+                        desc_parts.append("ТАБЛИЦА МОМЕНТОВ/УСИЛИЙ")
+
+                        desc_parts.append("═" * 100)
+
+                        # Заголовки таблицы
+
+                        main_headers = headers[0] if len(headers) > 0 else []
+
+                        sub_headers = headers[1] if len(headers) > 1 else []
+
+                        if main_headers :
+
+                            # Главные заголовки
+
+                            header_line = "│ "
+
+                            separator_line = "├"
+
+                            for i , header in enumerate(main_headers) :
+
+                                # Определяем ширину колонки
+
+                                col_width = 15  # стандартная ширина
+
+                                # Ищем максимальную длину в колонке
+
+                                max_len = len(str(header))
+
+                                for row in data_matrix :
+
+                                    if i < len(row) :
+                                        max_len = max(max_len , len(str(row[i])))
+
+                                if sub_headers and i < len(sub_headers) :
+                                    max_len = max(max_len , len(str(sub_headers[i])))
+
+                                col_width = max(col_width , max_len + 2)
+
+                                # Форматируем заголовок
+
+                                if header :
+
+                                    header_line += f"{header:^{col_width}} │ "
+
+                                else :
+
+                                    header_line += f"{'':^{col_width}} │ "
+
+                                separator_line += "─" * col_width + "─┼"
+
+                            desc_parts.append(header_line.rstrip())
+
+                            # Подзаголовки (если есть)
+
+                            if sub_headers :
+
+                                sub_header_line = "│ "
+
+                                for i , sub_header in enumerate(sub_headers) :
+
+                                    col_width = 15
+
+                                    max_len = len(str(sub_header))
+
+                                    for row in data_matrix :
+
+                                        if i < len(row) :
+                                            max_len = max(max_len , len(str(row[i])))
+
+                                    col_width = max(col_width , max_len + 2)
+
+                                    sub_header_line += f"{sub_header:^{col_width}} │ "
+
+                                desc_parts.append(sub_header_line.rstrip())
+
+                            desc_parts.append(separator_line.rstrip('┼') + "┤")
+
+                            # Данные таблицы
+
+                            for row_idx , row in enumerate(data_matrix) :
+
+                                row_line = "│ "
+
+                                for col_idx , cell in enumerate(row) :
+
+                                    if col_idx >= len(main_headers) :
+                                        continue
+
+                                    # Определяем ширину колонки
+
+                                    col_width = 15
+
+                                    max_len = len(str(main_headers[col_idx]))
+
+                                    for data_row in data_matrix :
+
+                                        if col_idx < len(data_row) :
+                                            max_len = max(max_len , len(str(data_row[col_idx])))
+
+                                    if sub_headers and col_idx < len(sub_headers) :
+                                        max_len = max(max_len , len(str(sub_headers[col_idx])))
+
+                                    col_width = max(col_width , max_len + 2)
+
+                                    # Форматируем ячейку
+
+                                    cell_str = str(cell) if cell is not None else ""
+
+                                    # Определяем выравнивание
+
+                                    align = '<'  # по умолчанию влево
+
+                                    # Для числовых значений выравниваем вправо
+                                    if isinstance(cell , (int , float)) and not isinstance(cell , bool) :
+                                        align = '>'
+                                        # Форматируем числа
+                                        if isinstance(cell , float) :
+                                            cell_str = f"{cell:.2f}"
+                                    row_line += f"{cell_str:{align}{col_width}} │ "
+                                desc_parts.append(row_line.rstrip())
+
+                            # Нижняя граница таблицы
+                            desc_parts.append("└" + "─" * (len(header_line) - 4) + "┘")
+
         return "\n".join(desc_parts)
 
     @property
