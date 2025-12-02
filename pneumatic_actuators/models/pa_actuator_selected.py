@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple, Any, Dict, Union
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 import re
+from tabulate import tabulate
 
 import logging
 from django.utils.html import format_html
@@ -17,6 +18,24 @@ from pneumatic_actuators.models import PneumaticActuatorModelLineItem
 from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE , \
     ACTUATOR_VARIETY_RP_DEFAULT_CODE
 
+import subprocess
+import sys
+
+# print("=== DEBUG INTERPRETER ===")
+# print(f"Executable: {sys.executable}")
+# print(f"Python path: {sys.path[:3]}")
+# print("=========================")
+#
+# # Проверим, есть ли tabulate
+# try:
+#     from tabulate import tabulate
+# except ImportError:
+#     # Установим прямо из кода
+#     print("Устанавливаем tabulate...")
+#     subprocess.check_call([sys.executable, "-m", "pip", "install", "tabulate"])
+#     from tabulate import tabulate
+#
+# print(f"Tabulate успешно загружен из: {tabulate.__file__}")
 
 class PneumaticActuatorSelected(models.Model):
     """
@@ -98,23 +117,23 @@ class PneumaticActuatorSelected(models.Model):
     def __str__(self):
         return self.name
 
-    def get_description_preview(self) :
-        """Краткий предпросмотр описания"""
-        if not self.description :
-            return "Нет описания"
-
-        # Первые 100 символов
-        preview = self.description[:100]
-        if len(self.description) > 100 :
-            preview += "..."
-
-        return format_html(
-            '<span title="{}">{}</span>' ,
-            self.description.replace('"' , '&quot;') ,
-            preview
-        )
-
-    get_description_preview.short_description = "Описание"
+    # def get_description_preview(self) :
+    #     """Краткий предпросмотр описания"""
+    #     if not self.description :
+    #         return "Нет описания"
+    #
+    #     # Первые 100 символов
+    #     preview = self.description[:100]
+    #     if len(self.description) > 100 :
+    #         preview += "..."
+    #
+    #     return format_html(
+    #         '<span title="{}">{}</span>' ,
+    #         self.description.replace('"' , '&quot;') ,
+    #         preview
+    #     )
+    #
+    # get_description_preview.short_description = "Описание"
 
     def get_description_data(self) -> Dict[str, Any]:
         """Получить структурированные данные для описания"""
@@ -124,7 +143,7 @@ class PneumaticActuatorSelected(models.Model):
         print(f"print get_description_data")
         data = {
             'model': {
-                'name': self.selected_model.name if self.selected_model else None
+                'name': self.code if self.code else None
             },
             'basic_properties': {},
             'selected_options': {},
@@ -132,11 +151,7 @@ class PneumaticActuatorSelected(models.Model):
             'calculated_parameters': {  # НОВОЕ ПОЛЕ ДЛЯ РАСЧЕТНЫХ ПАРАМЕТРОВ
                 'weight': float(self.calculated_weight) if self.calculated_weight else None
             },
-            'torque_thrust_table': {
-                'structured': [],
-                'headers': [],
-                'raw': None
-            }
+            'torque_thrust_table': None
         }
 
         # Базовые свойства из модели
@@ -204,16 +219,16 @@ class PneumaticActuatorSelected(models.Model):
                 else:
                     spring_qty = None
 
-                ncno = self.selected_safety_position.safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
+                ncno_code = self.selected_safety_position.safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
                 construction_variety_code = self.selected_model.pneumatic_actuator_construction_variety.code if self.selected_model else ACTUATOR_VARIETY_RP_DEFAULT_CODE
+                da_sr_code = self.selected_model.pneumatic_actuator_variety.code if self.selected_model else None
                 # Получаем структурированные данные
                 from pneumatic_actuators.models import BodyThrustTorqueTable
                 torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
-                    body_list=[self.selected_model.body],
+                    current_body=self.selected_model.body,
                     spring_qty_list=[spring_qty] if spring_qty else None,
-                    ncno=ncno,
-                    construction_variety_code=construction_variety_code,
-                    format_string='matrix'  # или 'matrix' для табличного вывода
+                    ncno_code=ncno_code,
+                    construction_variety_code=construction_variety_code, da_sr_code=da_sr_code
                 )
 
                 data['torque_thrust_table'] = torque_data
@@ -225,9 +240,101 @@ class PneumaticActuatorSelected(models.Model):
                     'format': 'error'
                 }
         return data
+    def _generate_short_description(self) -> str:
+        """Сгенерировать краткое описание привода из структурированных данных
+        записывается в поле description
+        Основное предполагаемое использование - подставновка в КП в название номенклатуры.
+        """
+        data = self.get_description_data()
+        desc_parts = []
 
-    def _generate_description(self) -> str:
+        # Модель
+        if data['model']['name']:
+            short_description=f"{data['model']['name']}-"
+        else:
+            return "Модель: не выбрана" # Смысла продолжать нет. Удалить строку. Пока оставим для отладки
+        # Базовые свойства
+        short_description+=f"{data['basic_properties']['default_output_type']} пневмопривод;" #Четвертьоборотный
+        short_description += f"{data['basic_properties']['pneumatic_actuator_variety']};" # SR
+        # short_description += f"Ручной дублер {data['basic_properties']['default_hand_wheel']};"  # Ручной дублер
+        # Выбранные опции
+        short_description += f"{data['selected_options']['safety_position']['description']};"  # NC /NO
+        short_description += f"Темп.исп. {data['selected_options']['temperature']['name']};"  # LT/VLT
+        short_description += f"{data['selected_options']['ip']['name']};"  # ip
+        short_description += f"{data['selected_options']['exd']['name']};"  # exd
+        short_description += f"{data['selected_options']['body_coating']['name']};"  # exd
+        # Технические характеристики корпуса
+        short_description += f"Мин/Макс давл.{data['body_specs']['technical_specs']['min_pressure']}/{data['body_specs']['technical_specs']['max_pressure']};"  # min_pressure
+        short_description += f"Расход откр/закр,л:{data['body_specs']['technical_specs']['air_usage_open']}/{data['body_specs']['technical_specs']['air_usage_close']};"  # Расход откр/закр
+
+        # Информация о штоке
+        short_description += f"Шток:{data['body_specs']['mounting_specs']['stem']['shape']}/{data['body_specs']['mounting_specs']['stem']['size']};"  # Шток
+        short_description += f"Площадка:{data['body_specs']['mounting_specs']['mounting_plates']};"  # Монтажные площадки
+        short_description += f"Вес:{data['calculated_parameters']['weight']} кг;"  # Вес
+        # Таблица моментов/усилий
+        if 'torque_thrust_table' in data:
+            desc_parts = []
+            table_data = data['torque_thrust_table']
+
+            if isinstance(table_data, dict):
+                table_config = table_data.get('table_config', {})
+                data_by_spring = table_data.get('data', {}).get('by_spring', {})
+
+                if data_by_spring:
+                    visible_fields = table_config.get('visible_fields', [])
+                    pressure_order = table_config.get('pressure_order', [])
+                    spring_order = table_config.get('spring_order', [])
+                    torque_format = table_config.get('format', {}).get('torque', {})
+
+                    # Создаем заголовки
+                    headers = ["Пружины"]
+                    for pressure_code in pressure_order:
+                        for field in visible_fields:
+                            headers.append(f"{pressure_code}\n{field.upper()}")
+
+                    # Создаем строки таблицы
+                    table_rows = []
+                    for spring_code in spring_order:
+                        if spring_code in data_by_spring:
+                            row = [spring_code]
+                            spring_data = data_by_spring[spring_code]
+                            pressures_data = spring_data.get('pressures', {})
+
+                            for pressure_code in pressure_order:
+                                if pressure_code in pressures_data:
+                                    pressure_values = pressures_data[pressure_code]
+                                    for field in visible_fields:
+                                        value = pressure_values.get(field)
+                                        if value is not None:
+                                            precision = torque_format.get('precision', 1)
+                                            row.append(f"{value:.{precision}f}")
+                                        else:
+                                            row.append("—")
+                                else:
+                                    for _ in visible_fields:
+                                        row.append("—")
+
+                            table_rows.append(row)
+
+                    # Формируем таблицу
+                    desc_parts.append("\nТаблица моментов:")
+                    desc_parts.append(tabulate(
+                        table_rows,
+                        headers=headers,
+                        tablefmt="grid",
+                        stralign="center",
+                        numalign="center"
+                    ))
+
+                    desc_parts.append(f"\nПримечание: значения в {torque_format.get('unit', 'Нм')}")
+        # short_description+="\n"
+        short_description+="\n".join(desc_parts)
+        return short_description
+
+    def _generate_tech_description(self) -> str:
         """Сгенерировать описание привода из структурированных данных"""
+        import re  # Добавляем импорт
+
         data = self.get_description_data()
         desc_parts = []
 
@@ -248,7 +355,7 @@ class PneumaticActuatorSelected(models.Model):
                     'default_hand_wheel': 'Ручной дублер'
                 }.get(prop_name, prop_name)
                 desc_parts.append(f"{display_name}: {prop_value}")
-
+        # print(f"# Базовые свойства {desc_parts}")
         # Выбранные опции
         for option_type, option_data in data['selected_options'].items():
             display_name = {
@@ -261,38 +368,35 @@ class PneumaticActuatorSelected(models.Model):
             }.get(option_type, option_type)
 
             desc_parts.append(f"{display_name}: {option_data['name']}")
-            if option_data.get('description'):
-                desc_parts.append(f"Описание {display_name.lower()}: {option_data['description']}")
+        # print(f"# Выбранные опции {desc_parts}")
         # Характеристики корпуса
         if data.get('body_specs'):
             body_data = data['body_specs']
 
-            # Базовая информация о корпусе
-            if body_data['basic_info']['name']:
-                desc_parts.append(f"Корпус: {body_data['basic_info']['name']}")
-
             # Технические характеристики корпуса
             tech_specs = body_data.get('technical_specs', {})
             if tech_specs:
-                desc_parts.append("\nХарактеристики корпуса:")
+                desc_parts.append("Характеристики корпуса:")
 
                 for spec_name, spec_value in tech_specs.items():
-                    if spec_name != 'stem':  # Шток обрабатываем отдельно
-                        display_name = {
-                            'piston_diameter': 'Диаметр поршня',
-                            'turn_angle': 'Угол поворота',
-                            'turn_tuning_limit': 'Ограничитель поворота',
-                            'weight_spring': 'Вес пружины',
-                            'min_pressure': 'Минимальное давление',
-                            'max_pressure': 'Максимальное давление',
-                            'air_usage_open': 'Расход воздуха (открытие)',
-                            'air_usage_close': 'Расход воздуха (закрытие)'
-                        }.get(spec_name, spec_name)
-                        desc_parts.append(f"  {display_name}: {spec_value}")
-
-                # Информация о штоке
-                if 'stem' in tech_specs:
-                    stem_data = tech_specs['stem']
+                    display_name = {
+                        'piston_diameter': 'Диаметр поршня',
+                        'turn_angle': 'Угол поворота',
+                        'turn_tuning_limit': 'Ограничитель поворота',
+                        'weight_spring': 'Вес пружины',
+                        'min_pressure': 'Минимальное давление',
+                        'max_pressure': 'Максимальное давление',
+                        'air_usage_open': 'Расход воздуха (открытие)',
+                        'air_usage_close': 'Расход воздуха (закрытие)'
+                    }.get(spec_name, spec_name)
+                    desc_parts.append(f"  {display_name}: {spec_value}")
+            # print(f"# tech_specs {desc_parts}")
+            # Информация о штоке
+            mounting_specs = body_data.get('mounting_specs', {})
+            if mounting_specs:
+                desc_parts.append("Присоединение к арматуре:")
+                if 'stem' in mounting_specs:
+                    stem_data = mounting_specs['stem']
                     stem_parts = []
                     if 'shape' in stem_data:
                         stem_parts.append(f"форма: {stem_data['shape']}")
@@ -302,194 +406,97 @@ class PneumaticActuatorSelected(models.Model):
                         stem_parts.append(f"макс. высота: {stem_data['max_height']}")
                     if 'max_diameter' in stem_data:
                         stem_parts.append(f"макс. диаметр: {stem_data['max_diameter']}")
-
                     if stem_parts:
                         desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
 
+                if 'mounting_plates' in mounting_specs:
+                    desc_parts.append(f"  Монтажные площадки: {', '.join(mounting_specs['mounting_plates'])}")
+            # print(f"# mounting_specs {desc_parts}")
             # Подключения корпуса
-            connections = body_data.get('connections', {})
-            if connections:
-                desc_parts.append("\nПодключения корпуса:")
-
-                if 'thread_in' in connections:
-                    desc_parts.append(f"  Пневмовход: {connections['thread_in']}")
-                if 'thread_out' in connections:
-                    desc_parts.append(f"  Пневмовыход: {connections['thread_out']}")
-                if 'pneumatic_connections' in connections:
-                    desc_parts.append(f"  Типы пневмоподключений: {', '.join(connections['pneumatic_connections'])}")
-                if 'mounting_plates' in connections:
-                    desc_parts.append(f"  Монтажные площадки: {', '.join(connections['mounting_plates'])}")
-            # НОВОЕ: Расчетные параметры
-            calc_params = data.get('calculated_parameters', {})
-            if calc_params.get('weight'):
-                desc_parts.append(f"Вес: {calc_params['weight']} кг")
-            # Таблица моментов/усилий
-            if 'torque_thrust_table' in data:
-                table_data = data['torque_thrust_table']
-
-                print(f"table_data.get('format') {table_data.get('format')}")
-                desc_parts.append("\n" + "=" * 60)
-                if table_data.get('format') == 'structured':
-
-                    desc_parts.append("ТАБЛИЦА МОМЕНТОВ/УСИЛИЙ")
-                    desc_parts.append("=" * 60)
-
-                    for item in table_data['data']:
-                        desc_parts.append(f"\nКорпус: {item['body']['name']} ({item['body']['code']})")
-                        desc_parts.append(f"Пружины: {item['spring_qty']['name']} ({item['spring_qty']['code']})")
-                        desc_parts.append("-" * 40)
-
-                        for pressure_code, pressure_data in item['pressures'].items():
-                            pressure_name = pressure_data['pressure']['name']
-                            torque_values = pressure_data['torque_values']
-
-                            if torque_values:
-                                value_str = ", ".join([
-                                    f"{v['display_name']}: {v['value']}"
-                                    for v in torque_values.values()
-                                ])
-                                desc_parts.append(f"  {pressure_name}: {value_str}")
-
-                        desc_parts.append("")
-
-
-                elif table_data.get('format') == 'matrix' :
-
-                    # Компактный матричный формат
-
-                    headers = table_data.get('headers' , [[] , []])
-
-                    data_matrix = table_data.get('data' , [])
-
-                    if headers and headers[0] and data_matrix :
-
-                        desc_parts.append("\n" + "═" * 100)
-
-                        desc_parts.append("ТАБЛИЦА МОМЕНТОВ/УСИЛИЙ")
-
-                        desc_parts.append("═" * 100)
-
-                        # Заголовки таблицы
-
-                        main_headers = headers[0] if len(headers) > 0 else []
-
-                        sub_headers = headers[1] if len(headers) > 1 else []
-
-                        if main_headers :
-
-                            # Главные заголовки
-
-                            header_line = "│ "
-
-                            separator_line = "├"
-
-                            for i , header in enumerate(main_headers) :
-
-                                # Определяем ширину колонки
-
-                                col_width = 15  # стандартная ширина
-
-                                # Ищем максимальную длину в колонке
-
-                                max_len = len(str(header))
-
-                                for row in data_matrix :
-
-                                    if i < len(row) :
-                                        max_len = max(max_len , len(str(row[i])))
-
-                                if sub_headers and i < len(sub_headers) :
-                                    max_len = max(max_len , len(str(sub_headers[i])))
-
-                                col_width = max(col_width , max_len + 2)
-
-                                # Форматируем заголовок
-
-                                if header :
-
-                                    header_line += f"{header:^{col_width}} │ "
-
-                                else :
-
-                                    header_line += f"{'':^{col_width}} │ "
-
-                                separator_line += "─" * col_width + "─┼"
-
-                            desc_parts.append(header_line.rstrip())
-
-                            # Подзаголовки (если есть)
-
-                            if sub_headers :
-
-                                sub_header_line = "│ "
-
-                                for i , sub_header in enumerate(sub_headers) :
-
-                                    col_width = 15
-
-                                    max_len = len(str(sub_header))
-
-                                    for row in data_matrix :
-
-                                        if i < len(row) :
-                                            max_len = max(max_len , len(str(row[i])))
-
-                                    col_width = max(col_width , max_len + 2)
-
-                                    sub_header_line += f"{sub_header:^{col_width}} │ "
-
-                                desc_parts.append(sub_header_line.rstrip())
-
-                            desc_parts.append(separator_line.rstrip('┼') + "┤")
-
-                            # Данные таблицы
-
-                            for row_idx , row in enumerate(data_matrix) :
-
-                                row_line = "│ "
-
-                                for col_idx , cell in enumerate(row) :
-
-                                    if col_idx >= len(main_headers) :
-                                        continue
-
-                                    # Определяем ширину колонки
-
-                                    col_width = 15
-
-                                    max_len = len(str(main_headers[col_idx]))
-
-                                    for data_row in data_matrix :
-
-                                        if col_idx < len(data_row) :
-                                            max_len = max(max_len , len(str(data_row[col_idx])))
-
-                                    if sub_headers and col_idx < len(sub_headers) :
-                                        max_len = max(max_len , len(str(sub_headers[col_idx])))
-
-                                    col_width = max(col_width , max_len + 2)
-
-                                    # Форматируем ячейку
-
-                                    cell_str = str(cell) if cell is not None else ""
-
-                                    # Определяем выравнивание
-
-                                    align = '<'  # по умолчанию влево
-
-                                    # Для числовых значений выравниваем вправо
-                                    if isinstance(cell , (int , float)) and not isinstance(cell , bool) :
-                                        align = '>'
-                                        # Форматируем числа
-                                        if isinstance(cell , float) :
-                                            cell_str = f"{cell:.2f}"
-                                    row_line += f"{cell_str:{align}{col_width}} │ "
-                                desc_parts.append(row_line.rstrip())
-
-                            # Нижняя граница таблицы
-                            desc_parts.append("└" + "─" * (len(header_line) - 4) + "┘")
-
-        return "\n".join(desc_parts)
+            pipe_connections_specs = body_data.get('pipe_connections_specs', {})
+            if pipe_connections_specs:
+                desc_parts.append("Подключения корпуса:")  # Убрали \n
+
+                if 'thread_in' in pipe_connections_specs:
+                    desc_parts.append(f"  Пневмовход: {pipe_connections_specs['thread_in']}")
+                if 'thread_out' in pipe_connections_specs:
+                    desc_parts.append(f"  Пневмовыход: {pipe_connections_specs['thread_out']}")
+                if 'pneumatic_connections' in pipe_connections_specs:
+                    desc_parts.append(f"  Типы пневмоподключений: {', '.join(pipe_connections_specs['pneumatic_connections'])}")
+
+
+        # Расчетные параметры
+        calc_params = data.get('calculated_parameters', {})
+        if calc_params.get('weight'):
+            desc_parts.append(f"Вес: {calc_params['weight']} кг")
+
+        # Таблица моментов/усилий - УБРАЛИ ОДНУ ИЗ ДУБЛИРУЮЩИХ СТРОК
+        if 'torque_thrust_table' in data:
+            table_data = data['torque_thrust_table']
+
+            if isinstance(table_data, dict):
+                table_config = table_data.get('table_config', {})
+                data_by_spring = table_data.get('data', {}).get('by_spring', {})
+
+                if data_by_spring:
+                    visible_fields = table_config.get('visible_fields', [])
+                    pressure_order = table_config.get('pressure_order', [])
+                    spring_order = table_config.get('spring_order', [])
+                    torque_format = table_config.get('format', {}).get('torque', {})
+
+                    desc_parts.append("Таблица моментов:")  # Убрали \n
+
+                    # Начинаем HTML таблицу
+                    desc_parts.append('<table border="1" style="border-collapse: collapse; margin: 10px 0;">')
+                    desc_parts.append('<thead><tr><th rowspan="2">Пружины</th>')
+
+                    # Первая строка заголовка - давления
+                    for pressure_code in pressure_order:
+                        col_span = len(visible_fields)
+                        desc_parts.append(f'<th colspan="{col_span}">{pressure_code}</th>')
+                    desc_parts.append('</tr>')
+
+                    # Вторая строка заголовка - поля
+                    desc_parts.append('<tr>')
+                    for _ in pressure_order:
+                        for field in visible_fields:
+                            desc_parts.append(f'<th>{field.upper()}</th>')
+                    desc_parts.append('</tr></thead>')
+
+                    # Тело таблицы
+                    desc_parts.append('<tbody>')
+                    for spring_code in spring_order:
+                        if spring_code in data_by_spring:
+                            desc_parts.append(f'<tr><td>{spring_code}</td>')
+                            spring_data = data_by_spring[spring_code]
+                            pressures_data = spring_data.get('pressures', {})
+
+                            for pressure_code in pressure_order:
+                                if pressure_code in pressures_data:
+                                    pressure_values = pressures_data[pressure_code]
+                                    for field in visible_fields:
+                                        value = pressure_values.get(field)
+                                        if value is not None:
+                                            precision = torque_format.get('precision', 1)
+                                            desc_parts.append(f'<td>{value:.{precision}f}</td>')
+                                        else:
+                                            desc_parts.append('<td>—</td>')
+                                else:
+                                    for _ in visible_fields:
+                                        desc_parts.append('<td>—</td>')
+
+                            desc_parts.append('</tr>')
+                    desc_parts.append('</tbody></table>')
+
+                    desc_parts.append(f"Примечание: значения в {torque_format.get('unit', 'Нм')}")  # Убрали \n
+
+        # Собираем и чистим текст
+        full_text = "\n".join(desc_parts)
+
+        # Убираем множественные пустые строки (2 и более подряд)
+        cleaned_text = re.sub(r'\n{2,}', '\n', full_text)
+
+        return cleaned_text
 
     @property
     def generated_model_item_code(self) -> str:
@@ -597,7 +604,7 @@ class PneumaticActuatorSelected(models.Model):
         if self.selected_model:
             self.name = self.generated_model_item_code
             self.code = self.generated_model_item_code
-            self.description = self._generate_description()
+            self.description = self._generate_short_description()
         super().save(*args, **kwargs)
         super().save(*args, **kwargs)
 

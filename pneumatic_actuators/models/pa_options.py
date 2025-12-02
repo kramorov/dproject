@@ -52,9 +52,8 @@ class PneumaticIpOption(BaseIpThroughOption):
         return 'model_line'
 
     def __str__(self):
-        return f"{self.model_line.name} - {self.ip_option.name}"
-
-
+        name_str = f"{self.ip_option.name} (Стандарт)" if self.default_option else f"{self.ip_option.name} (Опц.исполнение)"
+        return name_str
 
 class PneumaticExdOption(BaseExdThroughOption):
     """Опции взрывозащиты для пневмоприводов"""
@@ -76,7 +75,8 @@ class PneumaticExdOption(BaseExdThroughOption):
         return 'model_line'
 
     def __str__(self):
-        return f"{self.model_line.name} - {self.exd_option.name}"
+        name_str= f"{self.exd_option.name} (Стандарт)" if self.default_option else f"{self.exd_option.name} (Опц.исполнение)"
+        return name_str
 
 class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
@@ -97,7 +97,8 @@ class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line'
     def __str__(self):
-        return f"{self.model_line.name} - {self.body_coating_option.name}"
+        name_str = f"{self.body_coating_option.name} (Стандарт)" if self.default_option else f"{self.body_coating_option.name} (Опц.исполнение)"
+        return name_str
 
 class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
@@ -118,7 +119,7 @@ class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line_item'
     def __str__(self):
-        return f"{self.model_line_item.name} - {self.safety_position.name}"
+        return f"{self.safety_position.name}"
 
 class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
@@ -139,25 +140,4 @@ class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line_item'
     def __str__(self):
-        return f"{self.model_line_item.name} - {self.springs_qty.name}"
-# class PneumaticActuatorBodyPneumaticConnectionOption(BasePneumaticConnectionThroughOption):
-#     """Опции взрывозащиты для пневмоприводов"""
-#     body = models.ForeignKey(
-#         'PneumaticActuatorBody',
-#         on_delete=models.CASCADE,
-#         related_name='body_pneumatic_connection_options',
-#         verbose_name=_("Тип пневмоподключения")
-#     )
-#
-#     class Meta:
-#         verbose_name = _("Тип пневмоподключения")
-#         verbose_name_plural = _("Типы пневмоподключений")
-#         ordering = ['pneumatic_connection__sorting_order', 'sorting_order']
-#         unique_together = ['body', 'pneumatic_connection']
-#
-#     @classmethod
-#     def _get_parent_field_name(cls) -> Optional[str] :
-#         return 'body'
-#
-#     def __str__(self):
-#         return f"{self.body.name} - {self.pneumatic_connection.name}"
+        return f"{self.springs_qty.name}"

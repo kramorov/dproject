@@ -232,7 +232,8 @@ class PneumaticActuatorBody(models.Model) :
                 'description' : self.description
             } ,
             'technical_specs' : {} ,
-            'connections' : {}
+            'mounting_specs': {},
+            'pipe_connections_specs': {}
         }
 
         # Технические характеристики
@@ -265,22 +266,22 @@ class PneumaticActuatorBody(models.Model) :
             stem_info['max_diameter'] = f"{self.max_stem_diameter} мм"
 
         if stem_info :
-            data['technical_specs']['stem'] = stem_info
+            data['mounting_specs']['stem'] = stem_info
 
         # Подключения
         if self.thread_in :
-            data['connections']['thread_in'] = str(self.thread_in)
+            data['pipe_connections_specs']['thread_in'] = str(self.thread_in)
         if self.thread_out :
-            data['connections']['thread_out'] = str(self.thread_out)
+            data['pipe_connections_specs']['thread_out'] = str(self.thread_out)
 
         pneumatic_connections = self.pneumatic_connection.all()
         if pneumatic_connections :
-            data['connections']['pneumatic_connections'] = [str(conn) for conn in pneumatic_connections]
+            data['pipe_connections_specs']['pneumatic_connections'] = [str(conn) for conn in pneumatic_connections]
 
         # Монтажные площадки
         mounting_plates = self.mounting_plate.all()
         if mounting_plates :
-            data['connections']['mounting_plates'] = [str(plate) for plate in mounting_plates]
+            data['mounting_specs']['mounting_plates'] = [str(plate) for plate in mounting_plates]
 
         return data
 
@@ -302,23 +303,23 @@ class PneumaticActuatorBody(models.Model) :
         tech_specs = data['technical_specs']
         if tech_specs :
             desc_parts.append("\nТехнические характеристики:")
-
             for spec_name , spec_value in tech_specs.items() :
-                if spec_name != 'stem' :  # Шток обрабатываем отдельно
-                    display_name = {
-                        'piston_diameter' : 'Диаметр поршня' ,
-                        'turn_angle' : 'Угол поворота' ,
-                        'turn_tuning_limit' : 'Ограничитель поворота' ,
-                        'weight_spring' : 'Вес пружины' ,
-                        'min_pressure' : 'Минимальное давление' ,
-                        'max_pressure' : 'Максимальное давление' ,
-                        'air_usage_open' : 'Расход воздуха (открытие)' ,
-                        'air_usage_close' : 'Расход воздуха (закрытие)'
-                    }.get(spec_name , spec_name)
-                    desc_parts.append(f"  {display_name}: {spec_value}")
+                display_name = {
+                    'piston_diameter' : 'Диаметр поршня' ,
+                    'turn_angle' : 'Угол поворота' ,
+                    'turn_tuning_limit' : 'Ограничитель поворота' ,
+                    'weight_spring' : 'Вес пружины' ,
+                    'min_pressure' : 'Минимальное давление' ,
+                    'max_pressure' : 'Максимальное давление' ,
+                    'air_usage_open' : 'Расход воздуха (открытие)' ,
+                    'air_usage_close' : 'Расход воздуха (закрытие)'
+                }.get(spec_name , spec_name)
+                desc_parts.append(f"  {display_name}: {spec_value}")
 
-            # Информация о штоке
-            if 'stem' in tech_specs :
+        # Информация о штоке
+        mounting_specs = data['mounting_specs']
+        if mounting_specs:
+            if 'stem' in mounting_specs :
                 stem_parts = []
                 stem_data = tech_specs['stem']
                 if 'shape' in stem_data :
@@ -332,20 +333,21 @@ class PneumaticActuatorBody(models.Model) :
 
                 if stem_parts :
                     desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
+            if 'mounting_plates' in mounting_specs:
+                desc_parts.append(f"  Монтажные площадки: {', '.join(mounting_specs['mounting_plates'])}")
 
         # Подключения
-        connections = data['connections']
-        if connections :
+        pipe_connections_specs = data['pipe_connections_specs']
+        if pipe_connections_specs :
             desc_parts.append("\nПодключения:")
 
-            if 'thread_in' in connections :
-                desc_parts.append(f"  Пневмовход: {connections['thread_in']}")
-            if 'thread_out' in connections :
-                desc_parts.append(f"  Пневмовыход: {connections['thread_out']}")
-            if 'pneumatic_connections' in connections :
-                desc_parts.append(f"  Типы пневмоподключений: {', '.join(connections['pneumatic_connections'])}")
-            if 'mounting_plates' in connections :
-                desc_parts.append(f"  Монтажные площадки: {', '.join(connections['mounting_plates'])}")
+            if 'thread_in' in pipe_connections_specs :
+                desc_parts.append(f"  Пневмовход: {pipe_connections_specs['thread_in']}")
+            if 'thread_out' in pipe_connections_specs :
+                desc_parts.append(f"  Пневмовыход: {pipe_connections_specs['thread_out']}")
+            if 'pneumatic_connections' in pipe_connections_specs :
+                desc_parts.append(f"  Типы пневмоподключений: {', '.join(pipe_connections_specs['pneumatic_connections'])}")
+
 
         return "\n".join(desc_parts)
 

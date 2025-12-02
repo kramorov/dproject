@@ -11,8 +11,9 @@ import logging
 from pneumatic_actuators.models import PneumaticActuatorSpringsQty
 from pneumatic_actuators.models.pa_body import PneumaticActuatorBody
 from params.models import PneumaticAirSupplyPressure
-from pneumatic_actuators.models.py_options_constants import SPRINGS_DA_DEFAULT_CODE , SAFETY_POSITION_NC_DEFAULT_CODE , \
-    ACTUATOR_VARIETY_RP_DEFAULT_CODE , ACTUATOR_VARIETY_SY_DEFAULT_CODE , SAFETY_POSITION_NO_DEFAULT_CODE
+from pneumatic_actuators.models.py_options_constants import SPRINGS_DA_DEFAULT_CODE, SAFETY_POSITION_NC_DEFAULT_CODE, \
+    ACTUATOR_VARIETY_RP_DEFAULT_CODE, ACTUATOR_VARIETY_SY_DEFAULT_CODE, SAFETY_POSITION_NO_DEFAULT_CODE, \
+    SPRINGS_SR_DEFAULT_CODE
 
 logger = logging.getLogger(__name__)
 
@@ -94,9 +95,9 @@ class BodyThrustTorqueTable(models.Model):
         # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
     @classmethod
-    def _get_base_queryset(cls, body_list, pressure_list=None, spring_qty_list=None):
+    def _get_base_queryset(cls, current_body, pressure_list=None, spring_qty_list=None):
         """Базовый QuerySet для всех форматов"""
-        queryset = cls.objects.filter(body__in=body_list)
+        queryset = cls.objects.filter(body__in=[current_body])
 
         if pressure_list:
             queryset = queryset.filter(pressure__in=pressure_list)
@@ -106,36 +107,7 @@ class BodyThrustTorqueTable(models.Model):
 
         return queryset
 
-    # @classmethod
-    # def _get_torque_fields_for_construction(cls, construction_variety_code, spring_code, ncno='NO'):
-    #     """
-    #     Определяет, какие поля моментов нужны для данного типа конструкции
-    #     Возвращает список кортежей (field_name, display_name)
-    #     """
-    #
-    #     # Для DA приводов - только BTO
-    #     if spring_code == SPRINGS_DA_DEFAULT_CODE:
-    #         return [('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC')]
-    #
-    #     # Для SR приводов (пружинных)
-    #     if construction_variety_code == ACTUATOR_VARIETY_RP_DEFAULT_CODE:  # шестерня-рейка
-    #         return [
-    #             ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
-    #             ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
-    #         ]
-    #     elif construction_variety_code == ACTUATOR_VARIETY_SY_DEFAULT_CODE:  # кулисный
-    #         return [
-    #             ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
-    #             ('rto', 'RTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'RTC'),
-    #             ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
-    #         ]
-    #     else:
-    #         # По умолчанию все три
-    #         return [
-    #             ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
-    #             ('rto', 'RTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'RTC'),
-    #             ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
-    #         ]
+
 
     # @classmethod
     # def _spring_sort_key(cls, spring_code):
@@ -152,61 +124,41 @@ class BodyThrustTorqueTable(models.Model):
     # ==================== ОСНОВНОЙ МЕТОД ====================
 
     @classmethod
-    def get_torque_thrust_values(cls, body_list, pressure_list=None,
-                                 spring_qty_list=None, ncno=SAFETY_POSITION_NO_DEFAULT_CODE, construction_variety_code=ACTUATOR_VARIETY_RP_DEFAULT_CODE,
-                                 format_string='structured'):
+    def get_torque_thrust_values(cls, current_body, pressure_list=None,
+                                 spring_qty_list=None, ncno_code=SAFETY_POSITION_NO_DEFAULT_CODE,
+                                 construction_variety_code=ACTUATOR_VARIETY_RP_DEFAULT_CODE, da_sr_code=SPRINGS_SR_DEFAULT_CODE):
         """
         Основной метод получения данных таблицы моментов/усилий
 
         Args:
-            body_list: список объектов PneumaticActuatorBody или их ID
+            current_body: список объектов PneumaticActuatorBody или их ID
             pressure_list: список объектов PneumaticAirSupplyPressure или их ID (опционально)
             spring_qty_list: список объектов PneumaticActuatorSpringsQty или их ID (опционально)
-            ncno: 'NO' или 'NC' - тип привода
+            ncno_code: 'NO' или 'NC' - тип привода
             construction_variety_code: код конструкции - шестерня-рейка или кулисный
-            format_string: формат возвращаемых данных:
-                - 'structured' (default) - структурированные данные с метаданными
-                - 'matrix' - матричный формат для таблиц
-                - 'raw' - сырые QuerySet данные
-                - 'api' - оптимизировано для REST/GraphQL (аналогично structured)
-                - 'legacy' - старый формат для обратной совместимости
 
         Returns:
-            Dict или QuerySet в зависимости от формата
+            Dict или  в зависимости от формата
         """
-        # logger = logging.getLogger(__name__)
-        # logger.debug("format_string:",{format_string})
-        # try:
-        #     # Преобразуем ID в объекты если нужно
-        #     if body_list and all(isinstance(x, (int, str)) for x in body_list):
-        #         body_list = PneumaticActuatorBody.objects.filter(id__in=body_list)
-        #
-        #     # Базовый запрос
-        #     queryset = cls._get_base_queryset(body_list, pressure_list, spring_qty_list)
-        #
-        #     # Выбор формата ответа
-        #     if format_string == 'raw':
-        #         return queryset
-        #
-        #     elif format_string == 'matrix':
-        #         print("Building matrix")
-        #         return cls._format_as_matrix(queryset, ncno, construction_variety_code)
-        #
-        #     elif format_string in ['api', 'structured']:
-        #         return cls._format_structured(queryset, ncno, construction_variety_code)
-        #
-        #     else:
-        #         raise ValueError(f"Unknown format: {format}")
-        #
-        # except Exception as e:
-        #     logger.error(f"Error in get_torque_thrust_values: {e}", exc_info=True)
-        #     return {
-        #         'error': str(e),
-        #         'format': format,
-        #         'data': [],
-        #         'metadata': {}
-        #     }
-        pass
+        logger = logging.getLogger(__name__)
+        print(f"get_torque_thrust_values {current_body}")
+        try:
+
+            # Базовый запрос
+            queryset = cls._get_base_queryset(current_body, pressure_list, spring_qty_list)
+            structured_data = cls._format_structured_simple(queryset, ncno=ncno_code,
+                                                            construction_variety_code=construction_variety_code,
+                                                            da_sr_code=da_sr_code)
+            print(f"structured_data {structured_data}")
+            return structured_data
+        except Exception as e:
+            logger.error(f"Error in get_torque_thrust_values: {e}", exc_info=True)
+            return {
+                'error': str(e),
+                'format': format,
+                'data': [],
+                'metadata': {}
+            }
     # ==================== ФОРМАТЫ ВЫВОДА ====================
 
     @classmethod
@@ -269,31 +221,38 @@ class BodyThrustTorqueTable(models.Model):
             return spring_code
 
     @classmethod
-    def _get_torque_fields_for_construction(cls , construction_variety_code , spring_code , ncno) :
+    def _get_torque_fields_for_construction(cls, construction_variety_code, spring_code, ncno='NO'):
         """
-        Определяет, какие поля моментов нужны для данного типа конструкции.
-        Это упрощенный пример - адаптируйте под вашу логику.
+        Определяет, какие поля моментов нужны для данного типа конструкции
+        Возвращает список кортежей (field_name, display_name)
         """
-        # Базовая логика - адаптируйте под ваши нужды
-        if construction_variety_code == 'DA' :
-            # Для приводов DA обычно BTO и ETO
+
+        # Для DA приводов - только BTO
+        if spring_code == SPRINGS_DA_DEFAULT_CODE:
+            return [('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC')]
+
+        # Для SR приводов (пружинных)
+        if construction_variety_code == ACTUATOR_VARIETY_RP_DEFAULT_CODE:  # шестерня-рейка
             return [
-                ('bto' , 'BTO (Break to Open)') ,
-                ('eto' , 'ETO (End to Open)')
+                ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
+                ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
             ]
-        elif construction_variety_code == 'SR' :
-            # Для приводов SR может быть RTO
+        elif construction_variety_code == ACTUATOR_VARIETY_SY_DEFAULT_CODE:  # кулисный
             return [
-                ('bto' , 'BTO (Break to Open)') ,
-                ('eto' , 'ETO (End to Open)') ,
-                ('rto' , 'RTO (Return to Open)')
+                ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
+                ('rto', 'RTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'RTC'),
+                ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
             ]
-        else :
-            # По умолчанию общий момент
-            return [('to' , 'TO (Torque)')]
+        else:
+            # По умолчанию все три
+            return [
+                ('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC'),
+                ('rto', 'RTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'RTC'),
+                ('eto', 'ETO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'ETC')
+            ]
 
     @classmethod
-    def _format_structured_simple(cls , queryset , ncno='nc' , construction_variety_code='RP') :
+    def _format_structured_simple(cls , queryset , ncno='nc' , construction_variety_code='RP', da_sr_code=SPRINGS_SR_DEFAULT_CODE) :
         """
         Упрощенная версия для одного корпуса
         """
@@ -320,6 +279,9 @@ class BodyThrustTorqueTable(models.Model):
             spring_info = {}
             available_pressures = set()
             available_springs = set()
+            # Определяем поля моментов
+            torque_fields = cls._get_torque_fields_for_construction(
+                construction_variety_code, da_sr_code, ncno)
 
             for item in all_data :
                 if not item.body or not item.spring_qty or not item.pressure :
@@ -344,10 +306,7 @@ class BodyThrustTorqueTable(models.Model):
                     }
                     available_springs.add(spring_code)
 
-                # Определяем поля моментов
-                torque_fields = cls._get_torque_fields_for_construction(
-                    construction_variety_code , spring_code , ncno
-                )
+
 
                 # Формируем значения для данного давления
                 pressure_code = item.pressure.code
@@ -681,34 +640,6 @@ class BodyThrustTorqueTable(models.Model):
 
         return pressures
 
-    # # 1. Для API/веб-интерфейса - структурированные данные
-    # structured_data = BodyThrustTorqueTable.get_torque_thrust_values(
-    #     body_list=[body1, body2],
-    #     spring_qty_list=[spring_qty],
-    #     ncno='NC',
-    #     format='structured'
-    # )
-    #
-    # # 2. Для табличного вывода
-    # table_data = BodyThrustTorqueTable.get_torque_thrust_values(
-    #     body_list=[body1],
-    #     format='matrix'
-    # )
-    #
-    # # 3. Для поиска и фильтрации
-    # raw_data = BodyThrustTorqueTable.get_torque_thrust_values(
-    #     body_list=bodies,
-    #     format='raw'
-    # ).filter(
-    #     pressure__code='spring',
-    #     bto__gte=1000
-    # )
-    #
-    # # 4. Для обратной совместимости
-    # legacy_data = BodyThrustTorqueTable.get_torque_thrust_values(
-    #     body_list=bodies,
-    #     format='legacy'
-    # )
     @staticmethod
     def export_table_template(pressure_min=2.5, pressure_max=8.0, springs_min=5, springs_max=12, output_path=None):
         """

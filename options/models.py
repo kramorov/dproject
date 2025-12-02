@@ -236,9 +236,12 @@ class BaseTemperatureThroughOption(BaseThroughOption):
     def get_display_name(self):
         """Отображаемое имя с кодировкой или без"""
         if self.encoding and self.encoding.strip():
-            return f"{self.encoding} ({self.work_temp_min}...{self.work_temp_max}°C)"
+            name_str =  f"{self.encoding} ({self.work_temp_min}...{self.work_temp_max}°C)"
         else:
-            return f"{self.work_temp_min}...{self.work_temp_max}°C"
+            name_str =  f"{self.work_temp_min}...{self.work_temp_max}°C"
+        display_name = f"{name_str} (Стандарт)" if self.default_option else f"{name_str} (Опц.исполнение)"
+        return display_name
+
 
     def get_option_info(self, option_instance: Optional['BaseTemperatureThroughOption'] = None) -> Dict[str, Any]:
         """Полная информация об опции с температурными данными"""

@@ -40,7 +40,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     fieldsets = (
         ('Основная информация' , {
             'fields' : (
-                ('selected_model' , 'name' , 'code') ,
+                ('selected_model' , 'name' , 'code') ,'generate_description_btn'
             )
         }) ,
         ('Опции привода' , {
@@ -49,44 +49,45 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
                 ('selected_ip' , 'selected_exd' , 'selected_body_coating') ,
             ) ,
         }) ,
-        ('Сгенерированное описание' , {
-            'fields' : ('description_preview' , 'generate_description_btn') ,
-            'classes' : ('collapse' , 'wide') ,
-            'description' : 'Описание будет сгенерировано автоматически на основе выбранных параметров'
-        }) ,
+        # ('Сгенерированное описание' , {
+        #     'fields' : ('description_preview' , 'generate_description_btn') ,
+        #     'classes' : ('collapse' , 'wide') ,
+        #     'description' : 'Описание будет сгенерировано автоматически на основе выбранных параметров'
+        # }) ,
         ('Ручное описание (перезапишет сгенерированное)' , {
             'fields' : ('description' ,) ,
         })
     )
 
-    readonly_fields = ['description_preview' , 'generate_description_btn']
+    # readonly_fields = ['description_preview' , 'generate_description_btn']
+    readonly_fields = ['generate_description_btn']
 
     # Кастомная форма
-    class PneumaticActuatorSelectedForm(forms.ModelForm) :
-        class Meta :
-            model = PneumaticActuatorSelected
-            fields = '__all__'
-            widgets = {
-                'description' : forms.Textarea(attrs={
-                    'rows' : 60 ,
-                    'cols' : 140 ,
-                    'style' : 'width: 100%; font-family: "Consolas", monospace; '
-                              'font-size: 13px; line-height: 1.4;' ,
-                    'class' : 'full-description-textarea'
-                }) ,
-            }
-
-        def __init__(self , *args , **kwargs) :
-            super().__init__(*args , **kwargs)
-
-            # Логика для DA моделей
-            if self.instance and self.instance.selected_model :
-                is_da = (self.instance.selected_model.pneumatic_actuator_variety and
-                         self.instance.selected_model.pneumatic_actuator_variety.code == 'DA')
-                if is_da :
-                    self.fields['selected_safety_position'].required = False
-
-    form = PneumaticActuatorSelectedForm
+    # class PneumaticActuatorSelectedForm(forms.ModelForm) :
+    #     class Meta :
+    #         model = PneumaticActuatorSelected
+    #         fields = '__all__'
+    #         widgets = {
+    #             'description' : forms.Textarea(attrs={
+    #                 'rows' : 60 ,
+    #                 'cols' : 140 ,
+    #                 'style' : 'width: 100%; font-family: "Consolas", monospace; '
+    #                           'font-size: 13px; line-height: 1.4;' ,
+    #                 'class' : 'full-description-textarea'
+    #             }) ,
+    #         }
+    #
+    #     def __init__(self , *args , **kwargs) :
+    #         super().__init__(*args , **kwargs)
+    #
+    #         # Логика для DA моделей
+    #         if self.instance and self.instance.selected_model :
+    #             is_da = (self.instance.selected_model.pneumatic_actuator_variety and
+    #                      self.instance.selected_model.pneumatic_actuator_variety.code == 'DA')
+    #             if is_da :
+    #                 self.fields['selected_safety_position'].required = False
+    #
+    # form = PneumaticActuatorSelectedForm
 
     class Media :
         js = ('admin/js/pneumatic_actuator_selected.js' ,)
@@ -117,13 +118,13 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
             description = self._generate_description_for_instance(instance)
 
             # Обновляем описание в базе
-            instance.description = description
-            instance.save()
+            # instance.description = description
+            # instance.save()
 
             return JsonResponse({
                 'success' : True ,
                 'description' : description ,
-                'message' : 'Описание успешно сгенерировано и сохранено'
+                'message' : 'Описание успешно сгенерировано'
             })
         except Exception as e :
             return JsonResponse({
@@ -153,7 +154,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     def _generate_description_for_instance(self , instance) :
         """Генерация описания для конкретного экземпляра"""
         # Используем ваш существующий метод
-        return instance._generate_description()
+        return instance._generate_tech_description()
 
     def description_preview(self , obj) :
         """Поле для предпросмотра описания"""
@@ -178,26 +179,22 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
 
     description_preview.short_description = "Предпросмотр описания"
 
-    def generate_description_btn(self , obj) :
+    def generate_description_btn(self, obj):
         """Кнопка для генерации описания"""
-        if not obj or not obj.pk :
+        if not obj or not obj.pk:
             return "Сначала сохраните объект"
+
+        # Получаем CSRF токен
+        request = None
+        # Нужно получить request из контекста
 
         return format_html(
             '<button type="button" class="button generate-description-btn" '
-            'data-object-id="{}" data-csrf-token="{}">'
+            'data-object-id="{}">'  # Убрали data-csrf-token
             '🔄 Сгенерировать описание'
             '</button>'
-            '<div class="description-status" style="margin-top: 10px;"></div>'
-            '<script>'
-            'document.addEventListener("DOMContentLoaded", function() {{'
-            '    initDescriptionGenerator();'
-            '}});'
-            '</script>' ,
-            obj.pk ,
-            # Получаем CSRF токен из контекста
-            # В реальном коде нужно передать его через контекст или получить иначе
-            '{{ csrf_token }}'
+            '<div class="description-status" style="margin-top: 10px;"></div>',
+            obj.pk
         )
 
     generate_description_btn.short_description = "Действия"
