@@ -7,7 +7,7 @@ from django.dispatch import receiver
 from typing import List, Optional, Tuple, Any, Dict, Union
 from django.core.exceptions import ValidationError
 
-
+from cert_doc.models import AbstractCertRelation
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , ExdOption , EnvTempParameters , HandWheelInstalledOption
 from pneumatic_actuators.models import PneumaticActuatorBody
@@ -803,3 +803,18 @@ def create_model_line_item_options(sender, instance, created, **kwargs):
     except Exception as e:
         logger.error(f"Ошибка при создании/проверке опций для модели {instance.name}: {str(e)}", exc_info=True)
 
+class PneumaticActuatorModelLineCertRelation(AbstractCertRelation) :
+    """
+    Связь сертификатов с сериями пневмоприводов.
+    """
+    model_line = models.ForeignKey(
+        PneumaticActuatorModelLine,  # Замените на реальный путь к модели Project
+        on_delete=models.CASCADE ,
+        verbose_name=_("Проект") ,
+        related_name='cert_relations'
+    )
+
+    class Meta(AbstractCertRelation.Meta) :
+        verbose_name = _("Связь сертификата с серией пневмоприводов")
+        verbose_name_plural = _("Связи сертификатов с сериями пневмоприводов")
+        unique_together = ['cert_data' , 'model_line']

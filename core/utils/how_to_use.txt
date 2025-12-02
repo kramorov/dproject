@@ -1,0 +1,46 @@
+pre-commit hook:
+#!/bin/bash
+# .git/hooks/pre-commit
+python manage.py generate_ts_interfaces
+git add frontend/src/types/auto-generated/
+
+Интеграция с package.json:
+{
+  "scripts": {
+    "generate:types": "python manage.py generate_ts_interfaces",
+    "generate:types:watch": "python manage.py generate_ts_interfaces --watch",
+    "dev": "npm run generate:types && vite",
+    "build": "npm run generate:types && vite build",
+    "type-check": "npm run generate:types && tsc --noEmit"
+  }
+}
+
+5. Пример использования:
+# Установка
+# Просто скопируйте файлы в ваш проект
+
+# Базовая генерация
+python manage.py generate_ts_interfaces
+
+# Для конкретных приложений
+python manage.py generate_ts_interfaces --apps certificates products users
+
+# С указанием выходной директории
+python manage.py generate_ts_interfaces --output frontend/src/types/generated
+
+# Режим отслеживания
+python manage.py generate_ts_interfaces --watch
+
+# Очистка и генерация
+python manage.py generate_ts_interfaces --clear
+
+6. settings.py конфигурация (опционально):
+# settings.py
+TYPESCRIPT_GENERATOR = {
+    'OUTPUT_DIR': os.path.join(BASE_DIR, 'frontend/src/types/generated'),
+    'INCLUDE_APPS': ['certificates', 'products', 'users'],
+    'EXCLUDE_APPS': ['auth', 'admin', 'sessions'],
+    'BASE_INTERFACES': True,  # Генерировать базовые интерфейсы
+    'FORM_INTERFACES': True,  # Генерировать интерфейсы для форм
+    'ENUMS': True,  # Генерировать enums из choices
+}

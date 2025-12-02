@@ -141,7 +141,7 @@ class BodyThrustTorqueTable(models.Model):
             Dict или  в зависимости от формата
         """
         logger = logging.getLogger(__name__)
-        print(f"get_torque_thrust_values {current_body}")
+        # print(f"get_torque_thrust_values {current_body}")
         try:
 
             # Базовый запрос

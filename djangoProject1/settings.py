@@ -105,6 +105,7 @@ INSTALLED_APPS = [
     'core' ,
     # 'django_filters',
     'graphene_django' ,
+    'cert_doc.apps.CertDocConfig',
     'params.apps.ParamsConfig' ,
     'options.apps.OptionsConfig' ,
     'producers.apps.ProducersConfig' ,
