@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from .mixins import StructuredDataMixin , TimestampMixin , SoftDeleteMixin
 
 
-class BaseModel(StructuredDataMixin , TimestampMixin , SoftDeleteMixin , models.Model) :
+class BaseAbstractModel(StructuredDataMixin , TimestampMixin , SoftDeleteMixin , models.Model) :
     """
     Абстрактная базовая модель для всех моделей проекта
     """

@@ -12,7 +12,7 @@ from django.apps import apps
 from django.db.models import Model
 
 # Импортируем все из модулей для удобного доступа
-from .base import BaseModel
+from .base import BaseAbstractModel
 from .mixins import (
     StructuredDataMixin ,
     TimestampMixin ,
@@ -22,7 +22,7 @@ from .mixins import (
 # Экспортируем всё что нужно наружу
 __all__ = [
     # Базовые модели
-    'BaseModel' ,
+    'BaseAbstractModel',
 
     # Миксины
     'StructuredDataMixin' ,
@@ -96,7 +96,7 @@ def get_all_base_models() :
     """
     Получить все модели, которые наследуются от BaseModel.
     """
-    return get_all_models_with_mixin(BaseModel)
+    return get_all_models_with_mixin(BaseAbstractModel)
 
 
 def get_models_for_admin() :

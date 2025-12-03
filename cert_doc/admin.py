@@ -114,8 +114,8 @@ class CertDataAdmin(BaseAdmin) :
     Админка для сертификатов
     """
     list_display = [
+        'name',
         'code' ,
-        'name' ,
         'cert_variety_link' ,
         'validity_status' ,
         'brand_link' ,
@@ -137,8 +137,6 @@ class CertDataAdmin(BaseAdmin) :
     search_fields = [
         'code' ,
         'name' ,
-        'description' ,
-        'issued_by' ,
         'cert_variety__name' ,
         'cert_variety__code' ,
         'brand__name' ,
@@ -147,47 +145,34 @@ class CertDataAdmin(BaseAdmin) :
     filter_horizontal = []
 
     readonly_fields = BaseAdmin.readonly_fields + [
-        'relations_list' ,
+        # 'relations_list' ,
         'validity_check' ,
-        'download_links' ,
+        # 'download_links' ,
     ]
 
     fieldsets = (
         ('Основная информация' , {
-            'fields' : (
-                'name' ,
-                'code' ,
-                'description' ,
-                'cert_variety' ,
+            'fields' : (('name' ,'code' ,'cert_variety' ,),
+                        ('valid_from' , 'valid_until','brand'),
+                        'issued_by',
+                        'public_url',
+                        'media_item',
+                        'description' ,
+
             )
         }) ,
-        ('Детали сертификата' , {
-            'fields' : (
-                'issued_by' ,
-                'valid_from' ,
-                'valid_until' ,
-            ) ,
-            'classes' : ('wide' ,) ,
-        }) ,
-        ('Привязки' , {
-            'fields' : (
-                'brand' ,
-                'public_url' ,
-                'media_item' ,
-            )
-        }) ,
-        ('Связанные объекты' , {
-            'fields' : ('relations_list' ,) ,
-            'classes' : ('collapse' ,) ,
-        }) ,
+
+        # ('Связанные объекты' , {
+        #     'fields' : ('relations_list' ,) ,
+        #     'classes' : ('collapse' ,) ,
+        # }) ,
         ('Системная информация' , {
             'fields' : ('sorting_order' , 'is_active') ,
-            'classes' : ('collapse' ,) ,
         }) ,
-        ('Предпросмотр данных' , {
-            'fields' : ('data_preview' , 'json_preview') ,
-            'classes' : ('collapse' , 'wide') ,
-        }) ,
+        # ('Предпросмотр данных' , {
+        #     'fields' : ('data_preview' , 'json_preview') ,
+        #     'classes' : ('collapse' , 'wide') ,
+        # }) ,
     )
 
     actions = [
@@ -201,13 +186,19 @@ class CertDataAdmin(BaseAdmin) :
     def get_queryset(self , request) :
         """Оптимизируем запросы"""
         queryset = super().get_queryset(request)
+        # return queryset.select_related(
+        #     'cert_variety' ,
+        #     'brand' ,
+        #     'media_item'
+        # ).prefetch_related(
+        #     'productcertrelation_relations' ,
+        #     'projectcertrelation_relations' ,
+        # )
+
         return queryset.select_related(
-            'cert_variety' ,
-            'brand' ,
+            'cert_variety',
+            'brand',
             'media_item'
-        ).prefetch_related(
-            'productcertrelation_relations' ,
-            'projectcertrelation_relations' ,
         )
 
     # Кастомные методы для list_display
@@ -413,63 +404,63 @@ class CertDataAdmin(BaseAdmin) :
 
     download_links.short_description = "Ссылки для скачивания"
 
-    def relations_list(self , obj) :
-        """Список связанных объектов"""
-        if not obj.pk :
-            return "Сначала сохраните объект"
-
-        html = ['<div style="max-height: 300px; overflow-y: auto;">']
-
-        # Продукты
-        product_relations = obj.productcertrelation_relations.all()
-        if product_relations.exists() :
-            html.append('<h4 style="margin: 15px 0 5px 0;">📦 Связанные продукты:</h4>')
-            html.append('<ul style="margin-left: 20px;">')
-            for rel in product_relations[:10] :  # Ограничиваем показ
-                product_name = str(rel.product) if rel.product else "Неизвестный продукт"
-                html.append(
-                    f'<li>'
-                    f'<a href="{reverse("admin:cert_doc_productcertrelation_change" , args=[rel.id])}">'
-                    f'{product_name}'
-                    f'</a>'
-                    f'{" <span style=\"color: #4CAF50;\">(основной)</span>" if rel.is_primary else ""}'
-                    f'</li>'
-                )
-            if product_relations.count() > 10 :
-                html.append(f'<li>... и еще {product_relations.count() - 10}</li>')
-            html.append('</ul>')
-
-        # Проекты
-        project_relations = obj.projectcertrelation_relations.all()
-        if project_relations.exists() :
-            html.append('<h4 style="margin: 15px 0 5px 0;">🏗️ Связанные проекты:</h4>')
-            html.append('<ul style="margin-left: 20px;">')
-            for rel in project_relations[:10] :
-                project_name = str(rel.project) if rel.project else "Неизвестный проект"
-                html.append(
-                    f'<li>'
-                    f'<a href="{reverse("admin:cert_doc_projectcertrelation_change" , args=[rel.id])}">'
-                    f'{project_name}'
-                    f'</a>'
-                    f'</li>'
-                )
-            if project_relations.count() > 10 :
-                html.append(f'<li>... и еще {project_relations.count() - 10}</li>')
-            html.append('</ul>')
-
-        if not product_relations.exists() and not project_relations.exists() :
-            html.append(
-                '<div style="color: #999; padding: 15px; background: #f5f5f5; '
-                'border-radius: 5px; text-align: center;">'
-                'Нет связанных объектов'
-                '</div>'
-            )
-
-        html.append('</div>')
-
-        return format_html(''.join(html))
-
-    relations_list.short_description = "Связанные объекты"
+    # def relations_list(self , obj) :
+    #     """Список связанных объектов"""
+    #     if not obj.pk :
+    #         return "Сначала сохраните объект"
+    #
+    #     html = ['<div style="max-height: 300px; overflow-y: auto;">']
+    #
+    #     # Продукты
+    #     product_relations = obj.productcertrelation_relations.all()
+    #     if product_relations.exists() :
+    #         html.append('<h4 style="margin: 15px 0 5px 0;">📦 Связанные продукты:</h4>')
+    #         html.append('<ul style="margin-left: 20px;">')
+    #         for rel in product_relations[:10] :  # Ограничиваем показ
+    #             product_name = str(rel.product) if rel.product else "Неизвестный продукт"
+    #             html.append(
+    #                 f'<li>'
+    #                 f'<a href="{reverse("admin:cert_doc_productcertrelation_change" , args=[rel.id])}">'
+    #                 f'{product_name}'
+    #                 f'</a>'
+    #                 f'{" <span style=\"color: #4CAF50;\">(основной)</span>" if rel.is_primary else ""}'
+    #                 f'</li>'
+    #             )
+    #         if product_relations.count() > 10 :
+    #             html.append(f'<li>... и еще {product_relations.count() - 10}</li>')
+    #         html.append('</ul>')
+    #
+    #     # Проекты
+    #     project_relations = obj.projectcertrelation_relations.all()
+    #     if project_relations.exists() :
+    #         html.append('<h4 style="margin: 15px 0 5px 0;">🏗️ Связанные проекты:</h4>')
+    #         html.append('<ul style="margin-left: 20px;">')
+    #         for rel in project_relations[:10] :
+    #             project_name = str(rel.project) if rel.project else "Неизвестный проект"
+    #             html.append(
+    #                 f'<li>'
+    #                 f'<a href="{reverse("admin:cert_doc_projectcertrelation_change" , args=[rel.id])}">'
+    #                 f'{project_name}'
+    #                 f'</a>'
+    #                 f'</li>'
+    #             )
+    #         if project_relations.count() > 10 :
+    #             html.append(f'<li>... и еще {project_relations.count() - 10}</li>')
+    #         html.append('</ul>')
+    #
+    #     if not product_relations.exists() and not project_relations.exists() :
+    #         html.append(
+    #             '<div style="color: #999; padding: 15px; background: #f5f5f5; '
+    #             'border-radius: 5px; text-align: center;">'
+    #             'Нет связанных объектов'
+    #             '</div>'
+    #         )
+    #
+    #     html.append('</div>')
+    #
+    #     return format_html(''.join(html))
+    #
+    # relations_list.short_description = "Связанные объекты"
 
     # Действия
 

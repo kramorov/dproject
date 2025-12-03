@@ -9,4 +9,5 @@ class CoreConfig(AppConfig) :
 
     def ready(self) :
         # Импортируем сигналы
-        import core.signals
+        # import core.signals
+        pass
