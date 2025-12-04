@@ -1,3 +1,4 @@
+#djangoProject1/urls.py
 """djangoProject12 URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -23,10 +24,12 @@ from .graphql_api.schema import schema  # Импорт вашей GraphQL-схе
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.conf.urls.static import static
+from core.views import UniversalAPIView
+
 urlpatterns = [
     path('api/get-url/<str:name>/', GetUrlByNameAPIView.as_view(), name='get_url_by_name'),
     path('admin/', admin.site.urls),
-    path('api/', include('core.urls')),  # Подключаем универсальный API
+    path('api/core/', include('core.urls')),  # Универсальный API - ТОЛЬКО ЭТОТ
     # path('api/params/', include('params.urls')),  # Включаем URL-ы из приложения params
     # path('api/producers/', include('producers.urls')),  # Включаем URL-ы из приложения producers
     # path('api/electric_actuators/', include('electric_actuators.urls')),  # Включаем URL-ы из приложения electric_actuators

@@ -4,6 +4,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from typing import List, Optional, Tuple, Any, Dict, Union
 from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel , StructuredDataMixin
 from producers.models import Brands
@@ -280,10 +281,9 @@ class CertData(BaseAbstractModel , StructuredDataMixin) :
         }
 
 
-class AbstractCertRelation(models.Model) :
+class AbstractCertRelation(StructuredDataMixin , models.Model) :  # Добавляем миксин!
     """
     Абстрактная through-модель для связей сертификатов с другими объектами.
-    Наследуйте эту модель для создания конкретных связей
     """
     cert_data = models.ForeignKey(
         CertData ,
@@ -292,121 +292,115 @@ class AbstractCertRelation(models.Model) :
         related_name='%(class)s_relations'
     )
     sorting_order = models.IntegerField(
-        default=0,
+        default=0 ,
         verbose_name=_("Порядок сортировки")
     )
     is_active = models.BooleanField(
-        default=True,
+        default=True ,
         verbose_name=_("Активно")
     )
+
     class Meta :
         abstract = True
         ordering = ['sorting_order']
 
+    def __str__(self) :
+        related_obj = self.get_related_object()
+        return f"{self.cert_data} → {related_obj}" if related_obj else str(self.cert_data)
 
-      # СТАНДАРТНЫЕ МЕТОДЫ ДЛЯ ВСЕХ THROUGH МОДЕЛЕЙ
+    def get_related_object(self) :
+        """
+        Должен быть переопределен в дочерних классах.
+        Возвращает объект, с которым связан сертификат.
+        """
+        raise NotImplementedError(
+            f"Модель {self.__class__.__name__} должна реализовать get_related_object()"
+        )
 
-    def get_compact_data(self) :
-        """Минимальные данные для списков"""
-        return self.cert_data.get_compact_data()
+    # ==================== StructuredDataMixin методы ====================
 
-    def get_display_data(self , view_type='detail') :
-        """Данные для отображения"""
-        return self.cert_data.get_display_data(view_type)
+    def get_compact_data(self) -> Dict[str , Any] :
+        """
+        Минимальные данные для списков и таблиц
+        Включаем данные сертификата + информацию о связи
+        """
+        cert_data = self.cert_data.get_compact_data()
 
-    def get_full_data(self , include=None) :
-        """Полные данные для форм и API"""
-        return self.cert_data.get_full_data(include)
+        # Добавляем информацию о связи
+        cert_data.update({
+            'relation_id' : self.id ,
+            'relation_sorting_order' : self.sorting_order ,
+            'relation_is_active' : self.is_active ,
+            'relation_model' : self._get_model_name() ,
+            'relation_app' : self._get_app_label() ,
+        })
 
-    # Вспомогательные методы
-    # def _get_metadata(self) :
-    #     """Метаданные для форм"""
-    #     return {
-    #         'field_schema' : [
-    #             {
-    #                 'name' : 'cert_data_id' ,
-    #                 'type' : 'select' ,
-    #                 'required' : True ,
-    #                 'label' : _('Сертификат') ,
-    #                 'help_text' : _('Выберите сертификат')
-    #             } ,
-    #             {
-    #                 'name' : 'is_primary' ,
-    #                 'type' : 'boolean' ,
-    #                 'required' : False ,
-    #                 'label' : _('Основной сертификат') ,
-    #                 'help_text' : _('Отметьте если это основной сертификат')
-    #             } ,
-    #             # ... другие поля
-    #         ]
-    #     }
+        # Добавляем информацию о связанном объекте
+        related_obj = self.get_related_object()
+        if related_obj :
+            cert_data['related_object'] = related_obj.get_compact_data()
 
-# Пример конкретной through-модели для продуктов
-# class ProductCertRelation(AbstractCertRelation) :
-#     """
-#     Связь сертификатов с продуктами.
-#     """
-#     product = models.ForeignKey(
-#         'products.Product' ,  # Замените на реальный путь к модели Product
-#         on_delete=models.CASCADE ,
-#         verbose_name=_("Продукт") ,
-#         related_name='cert_relations'
-#     )
-#
-#     # Можно добавить специфичные для продуктов поля
-#     is_for_production = models.BooleanField(
-#         default=True ,
-#         verbose_name=_("Для производства") ,
-#         help_text=_("Используется в производстве данного продукта")
-#     )
-#
-#     class Meta(AbstractCertRelation.Meta) :
-#         verbose_name = _("Связь сертификата с продуктом")
-#         verbose_name_plural = _("Связи сертификатов с продуктами")
-#         unique_together = ['cert_data' , 'product']
-#
-#     def get_display_data(self , view_type='detail') :
-#         """Расширяем данные для продуктов"""
-#         data = super().get_display_data(view_type)
-#
-#         if view_type == 'detail' and 'fields' in data :
-#             data['fields']['production_use'] = {
-#                 'label' : _('Использование в производстве') ,
-#                 'value' : _('Да') if self.is_for_production else _('Нет') ,
-#                 'type' : 'boolean' ,
-#                 'icon' : '🏭' if self.is_for_production else '📦' ,
-#                 'priority' : 7
-#             }
-#
-#         return data
+        return cert_data
 
+    def get_display_data(self , view_type: str = 'detail') -> Dict[str , Any] :
+        """
+        Данные для отображения в UI
+        Берем данные сертификата и добавляем контекст связи
+        """
+        cert_display = self.cert_data.get_display_data(view_type)
 
-# Пример конкретной through-модели для проектов
-# class ProjectCertRelation(AbstractCertRelation) :
-#     """
-#     Связь сертификатов с проектами.
-#     """
-#     project = models.ForeignKey(
-#         'projects.Project' ,  # Замените на реальный путь к модели Project
-#         on_delete=models.CASCADE ,
-#         verbose_name=_("Проект") ,
-#         related_name='cert_relations'
-#     )
-#
-#     # Специфичные для проектов поля
-#     requirement_type = models.CharField(
-#         max_length=50 ,
-#         choices=[
-#             ('mandatory' , _('Обязательный')) ,
-#             ('recommended' , _('Рекомендуемый')) ,
-#             ('optional' , _('Опциональный')) ,
-#         ] ,
-#         default='mandatory' ,
-#         verbose_name=_("Тип требования") ,
-#         help_text=_("Тип требования к сертификату в проекте")
-#     )
-#
-#     class Meta(AbstractCertRelation.Meta) :
-#         verbose_name = _("Связь сертификата с проектом")
-#         verbose_name_plural = _("Связи сертификатов с проектами")
-#         unique_together = ['cert_data' , 'project']
+        # Добавляем информацию о связи в зависимости от типа отображения
+        if view_type == self.CARD :
+            if 'badges' not in cert_display :
+                cert_display['badges'] = []
+
+            cert_display['badges'].append({
+                'text' : f'Приоритет: {self.sorting_order}' ,
+                'type' : 'info'
+            })
+
+            if not self.is_active :
+                cert_display['badges'].append({
+                    'text' : 'Связь неактивна' ,
+                    'type' : 'warning'
+                })
+
+        elif 'fields' in cert_display :
+            # Для детального отображения
+            cert_display['fields']['relation_info'] = {
+                'label' : _('Информация о связи') ,
+                'value' : {
+                    'sorting_order' : self.sorting_order ,
+                    'is_active' : 'Активна' if self.is_active else 'Неактивна' ,
+                } ,
+                'type' : 'relation_info' ,
+                'icon' : '🔗' ,
+                'priority' : 95
+            }
+
+        return cert_display
+
+    def get_full_data(self , include: Optional[List[str]] = None) -> Dict[str , Any] :
+        """
+        Полные данные для форм и API
+        """
+        if include is None :
+            include = ['form' , 'metadata' , 'related']
+
+        cert_full = self.cert_data.get_full_data(include)
+
+        # Добавляем информацию о связи
+        cert_full['relation'] = {
+            'id' : self.id ,
+            'sorting_order' : self.sorting_order ,
+            'is_active' : self.is_active ,
+        }
+
+        # Добавляем данные связанного объекта
+        related_obj = self.get_related_object()
+        if related_obj :
+            cert_full['related_object'] = related_obj.get_compact_data()
+            if 'display' in include :
+                cert_full['related_object_display'] = related_obj.get_display_data('badge')
+
+        return cert_full

@@ -151,7 +151,8 @@ class PneumaticActuatorSelected(models.Model):
             'calculated_parameters': {  # НОВОЕ ПОЛЕ ДЛЯ РАСЧЕТНЫХ ПАРАМЕТРОВ
                 'weight': float(self.calculated_weight) if self.calculated_weight else None
             },
-            'torque_thrust_table': None
+            'torque_thrust_table': None,
+            'cert_data' : None
         }
 
         # Базовые свойства из модели
@@ -239,6 +240,7 @@ class PneumaticActuatorSelected(models.Model):
                     'error': str(e),
                     'format': 'error'
                 }
+
         return data
     def _generate_short_description(self) -> str:
         """Сгенерировать краткое описание привода из структурированных данных

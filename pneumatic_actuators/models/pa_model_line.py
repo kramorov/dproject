@@ -4,21 +4,23 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.db.models.signals import pre_save , post_save
 from django.dispatch import receiver
-from typing import List, Optional, Tuple, Any, Dict, Union
+from typing import List , Optional , Tuple , Any , Dict , Union
 from django.core.exceptions import ValidationError
 
 from cert_doc.models import AbstractCertRelation
+from core.models import StructuredDataMixin
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , ExdOption , EnvTempParameters , HandWheelInstalledOption
 from pneumatic_actuators.models import PneumaticActuatorBody
-from pneumatic_actuators.models.pa_params import PneumaticActuatorVariety, PneumaticActuatorConstructionVariety
+from pneumatic_actuators.models.pa_params import PneumaticActuatorVariety , PneumaticActuatorConstructionVariety
 
 from producers.models import Brands
 import logging
 
 logger = logging.getLogger(__name__)
 
-class PneumaticActuatorModelLine(models.Model) :
+
+class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
     """
     Серия пневмоприводов - DA и SR -
     Объединяет в себе общие для всех моделей серии свойства
@@ -35,9 +37,9 @@ class PneumaticActuatorModelLine(models.Model) :
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
                                     help_text=_('Активно свойство или нет'))
-    model_item_code_template = models.CharField(max_length=500 ,blank=True , null=True ,
-                            verbose_name=_("Шаблон артикула") ,
-                            help_text=_('Шаблон артикула для конкретной модели серии'))
+    model_item_code_template = models.CharField(max_length=500 , blank=True , null=True ,
+                                                verbose_name=_("Шаблон артикула") ,
+                                                help_text=_('Шаблон артикула для конкретной модели серии'))
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='pneumatic_model_line_brand' ,
                               on_delete=models.SET_NULL ,
@@ -70,31 +72,348 @@ class PneumaticActuatorModelLine(models.Model) :
     def __str__(self) :
         return self.name
 
-    # ==================== МЕТОДЫ ДЛЯ РАБОТЫ С ОПЦИЯМИ ====================
-    @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
-        """Автоматически определить имя поля родительского объекта"""
-        # Ищем поле, которое ссылается на основную модель (не на справочники опций)
-        parent_fields = []
-        for field in cls._meta.fields :
-            if isinstance(field , models.ForeignKey) :
-                # Исключаем поля, которые ссылаются на справочники опций
-                if (field.related_model and
-                        field.related_model._meta.app_label == 'params' and
-                        field.related_model._meta.model_name in ['ipoption' , 'exdoption' , 'bodycoatingoption']) :
-                    continue
-                # Исключаем поле id
-                if field.name != 'id' :
-                    parent_fields.append(field.name)
+    # ==================== StructuredDataMixin методы ====================
+    def _get_metadata(self) -> Dict[str , Any] :
+        """
+        Метаданные для форм
+        """
+        return {
+            'field_schema' : [
+                {
+                    'name' : 'name' ,
+                    'type' : 'text' ,
+                    'required' : True ,
+                    'label' : _('Название серии') ,
+                    'help_text' : _('Название серии пневмоприводов') ,
+                    'max_length' : 200 ,
+                    'widget' : 'text_input'
+                } ,
+                {
+                    'name' : 'code' ,
+                    'type' : 'text' ,
+                    'required' : False ,
+                    'label' : _('Код серии') ,
+                    'help_text' : _('Код модели корпуса привода') ,
+                    'max_length' : 50 ,
+                    'widget' : 'text_input'
+                } ,
+                {
+                    'name' : 'description' ,
+                    'type' : 'text' ,
+                    'required' : False ,
+                    'label' : _('Описание') ,
+                    'help_text' : _('Текстовое описание модели корпуса привода') ,
+                    'widget' : 'textarea' ,
+                    'rows' : 4
+                } ,
+                {
+                    'name' : 'model_item_code_template' ,
+                    'type' : 'text' ,
+                    'required' : False ,
+                    'label' : _('Шаблон артикула') ,
+                    'help_text' : _('Шаблон артикула для конкретной модели серии') ,
+                    'max_length' : 500 ,
+                    'widget' : 'text_input'
+                } ,
+                {
+                    'name' : 'brand_id' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Бренд') ,
+                    'help_text' : _('Бренд производителя') ,
+                    'model' : 'brands.Brand'
+                } ,
+                # ... добавь остальные поля
+            ] ,
+            'validation_rules' : {
+                'name' : {
+                    'required' : True ,
+                    'min_length' : 2 ,
+                    'max_length' : 200
+                } ,
+                'code' : {
+                    'pattern' : r'^[A-Z0-9_-]*$' ,
+                    'message' : _('Код должен содержать только буквы, цифры, дефисы и подчеркивания')
+                }
+            }
+        }
 
-        # Возвращаем первое подходящее поле (обычно это model_line)
-        return parent_fields[0] if parent_fields else None
+    def get_compact_data(self) -> Dict[str , Any] :
+        """
+        Минимальные данные для списков и таблиц
+        """
+        data = super().get_compact_data()
+
+        data.update({
+            'brand' : self.brand.get_compact_data() if self.brand else None ,
+            'construction_variety' :
+                self.pneumatic_actuator_construction_variety.get_compact_data()
+                if self.pneumatic_actuator_construction_variety else None ,
+            'default_output_type' :
+                self.default_output_type.get_compact_data()
+                if self.default_output_type else None ,
+            # 'default_hand_wheel' :
+            #     self.default_hand_wheel.get_compact_data()
+            #     if self.default_hand_wheel else None ,
+            'model_item_code_template' : self.model_item_code_template ,
+            'sorting_order' : self.sorting_order ,
+        })
+
+        # Сертификаты берем прямо через связь
+        if hasattr(self , 'cert_data_model_line') :
+            data['cert_data_list'] = [
+                {
+                    'cert_data' : relation.cert_data.get_compact_data() ,
+                    'relation_sorting_order' : relation.sorting_order ,
+                    'relation_is_active' : relation.is_active ,
+                }
+                for relation in self.cert_data_model_line.filter(is_active=True)
+                if relation.cert_data.is_active
+            ]
+        return data
+
+    def get_display_data(self , view_type: str = 'detail') -> Dict[str , Any] :
+        """
+        Данные для отображения в UI
+        """
+        # Базовые поля - используем метод из миксина
+        fields = self._get_base_display_fields()
+
+        # Обновляем лейблы и приоритеты для нашей модели
+        if 'name' in fields :
+            fields['name']['label'] = _('Название серии')
+            fields['name']['icon'] = '🏭'
+            fields['name']['priority'] = 1
+
+        if 'code' in fields :
+            fields['code']['label'] = _('Код серии')
+            fields['code']['icon'] = '🔢'
+            fields['code']['priority'] = 2
+
+        # Добавляем связанные объекты через _format_foreign_key
+        fields.update({
+            'brand' : self._format_foreign_key(
+                self.brand ,
+                label=_('Бренд') ,
+                icon='🏷️' ,
+                priority=3 ,
+                include_data='compact'  # Используем compact данные для consistency
+            ) ,
+            'construction_type' : self._format_foreign_key(
+                self.pneumatic_actuator_construction_variety ,
+                label=_('Тип конструкции') ,
+                icon='⚙️' ,
+                priority=4 ,
+                include_data='compact'
+            ) ,
+            'default_output_type' : self._format_foreign_key(
+                self.default_output_type ,
+                label=_('Тип работы по умолчанию') ,
+                icon='🔄' ,
+                priority=5 ,
+                include_data='compact'
+            ) ,
+            'default_hand_wheel' : self._format_foreign_key(
+                self.default_hand_wheel ,
+                label=_('Ручной дублер по умолчанию') ,
+                icon='🎮' ,
+                priority=6 ,
+                include_data='compact'
+            ) ,
+            'model_item_code_template' : self._format_field(
+                self.model_item_code_template ,
+                'text' ,
+                label=_('Шаблон артикула') ,
+                icon='📝' ,
+                priority=7
+            ) ,
+        })
+
+        # Добавляем description (уже есть в base, но переопределяем)
+        fields['description'] = self._format_field(
+            self.description ,
+            'text' ,
+            label=_('Описание') ,
+            icon='📄' ,
+            priority=8 ,
+            multiline=True
+        )
+
+        # Получаем данные сертификатов ПРЯМО ЗДЕСЬ
+        certificates = []
+        if hasattr(self , 'cert_relations') :
+            cert_relations = self.cert_relations.filter(
+                is_active=True ,
+                cert_data__is_active=True
+            ).select_related('cert_data').order_by('sorting_order')
+
+            for relation in cert_relations :
+                cert = relation.cert_data
+                # Для разных типов отображения используем разные данные
+                if view_type == self.CARD :
+                    cert_display = cert.get_display_data('badge')
+                elif view_type == self.BADGE :
+                    cert_display = cert.get_display_data('badge')
+                else :
+                    cert_display = cert.get_display_data()
+
+                certificates.append({
+                    'id' : cert.id ,
+                    'display' : cert_display ,
+                    'compact' : cert.get_compact_data() ,
+                    'relation' : {
+                        'sorting_order' : relation.sorting_order ,
+                        'is_active' : relation.is_active ,
+                    }
+                })
+
+        if certificates :
+            fields['certificates'] = {
+                'label' : _('Сертификаты') ,
+                'value' : certificates ,
+                'type' : 'relation_list' ,
+                'icon' : '📋' ,
+                'priority' : 50 ,
+                'count' : len(certificates)
+            }
+
+        if view_type == self.CARD :
+            # Получаем badge данные для связанных объектов
+            brand_badge = self.brand.get_display_data('badge') if self.brand else None
+            construction_badge = (
+                self.pneumatic_actuator_construction_variety.get_display_data('badge')
+                if self.pneumatic_actuator_construction_variety else None
+            )
+            output_type_badge = (
+                self.default_output_type.get_display_data('badge')
+                if self.default_output_type else None
+            )
+
+            return {
+                'title' : self.name ,
+                'subtitle' : self.code or '' ,
+                'description' : self.description[:100] + '...' if self.description else '' ,
+                'badges' : [
+                    {'text' : self.code , 'type' : 'code'} if self.code else None ,
+                    brand_badge if brand_badge else None ,
+                    {'text' : 'Активна' , 'type' : 'success'} if self.is_active
+                    else {'text' : 'Неактивна' , 'type' : 'secondary'} ,
+                    {'text' : f'{len(certificates)} серт.' , 'type' : 'info'} if certificates else None ,
+                ] ,
+                'details' : [
+                    {'label' : 'Конструкция' , 'value' : construction_badge.get('text' , '')}
+                    if construction_badge else None ,
+                    {'label' : 'Тип работы' , 'value' : output_type_badge.get('text' , '')}
+                    if output_type_badge else None ,
+                ]
+            }
+
+        elif view_type == self.LIST :
+            # Простые данные для списка
+            return {
+                'id' : self.id ,
+                'name' : self.name ,
+                'code' : self.code ,
+                'brand' : self.brand.name if self.brand else '' ,
+                'construction_type' : str(self.pneumatic_actuator_construction_variety)
+                if self.pneumatic_actuator_construction_variety else '' ,
+                'certificates_count' : len(certificates) ,
+                'is_active' : self.is_active ,
+            }
+
+        elif view_type == self.BADGE :
+            return {
+                'text' : self.name ,
+                'code' : self.code ,
+                'type' : 'model_line' ,
+                'color' : 'blue' if self.is_active else 'gray' ,
+                'brand' : self.brand.get_display_data('badge') if self.brand else None ,
+                'certificates_count' : len(certificates) ,
+            }
+
+        # По умолчанию DETAIL
+        return {
+            'title' : f'{self.name} ({self.code})' if self.code else self.name ,
+            'fields' : fields ,
+            'actions' : self._get_actions()
+        }
+
+    def get_full_data(self , include: Optional[List[str]] = None) -> Dict[str , Any] :
+        """
+        Полные данные для форм и API
+        """
+        if include is None :
+            include = ['form' , 'metadata' , 'related' , 'certificates']
+
+        data = {
+            'id' : self.id ,
+            'model' : self._get_model_name() ,
+            'app' : self._get_app_label() ,
+            'is_active' : self.is_active ,
+            'sorting_order' : self.sorting_order ,
+            'display' : self.get_display_data() ,
+        }
+
+        if 'form' in include :
+            data['form'] = {
+                'name' : self.name ,
+                'code' : self.code ,
+                'description' : self.description ,
+                'model_item_code_template' : self.model_item_code_template ,
+                'brand_id' : self.brand.id if self.brand else None ,
+                'default_output_type_id' : self.default_output_type.id
+                if self.default_output_type else None ,
+                'pneumatic_actuator_construction_variety_id' :
+                    self.pneumatic_actuator_construction_variety.id
+                    if self.pneumatic_actuator_construction_variety else None ,
+                'default_hand_wheel_id' : self.default_hand_wheel.id
+                if self.default_hand_wheel else None ,
+                'sorting_order' : self.sorting_order ,
+                'is_active' : self.is_active ,
+            }
+
+        if 'metadata' in include :
+            data['metadata'] = self._get_metadata()
+
+        if 'related' in include :
+            data['related'] = {
+                'brand' : self.brand.get_full_data(['form']) if self.brand else None ,
+                'construction_variety' : (
+                    self.pneumatic_actuator_construction_variety.get_full_data(['form'])
+                    if self.pneumatic_actuator_construction_variety else None
+                ) ,
+                'default_output_type' : (
+                    self.default_output_type.get_full_data(['form'])
+                    if self.default_output_type else None
+                ) ,
+            }
+
+        if 'certificates' in include and hasattr(self , 'cert_relations') :
+            cert_relations = self.cert_relations.filter(
+                is_active=True ,
+                cert_data__is_active=True
+            ).select_related('cert_data').order_by('sorting_order')
+
+            data['certificates'] = []
+            for relation in cert_relations :
+                cert = relation.cert_data
+                data['certificates'].append({
+                    'certificate' : cert.get_full_data(['form' , 'metadata']) ,
+                    'relation' : {
+                        'id' : relation.id ,
+                        'sorting_order' : relation.sorting_order ,
+                        'is_active' : relation.is_active ,
+                    }
+                })
+
+        return data
+
     def ensure_all_default_options_exist(self) :
         """Создать все необходимые опции по умолчанию"""
         """Создать все необходимые опции по умолчанию с трассировкой"""
-        import traceback
-        print(">>> ensure_all_default_options_exist CALLED")
-        print(f">>> For object: {self} (PK: {self.pk})")
+        # import traceback
+        # print(">>> ensure_all_default_options_exist CALLED")
+        # print(f">>> For object: {self} (PK: {self.pk})")
 
         from .pa_options import (
             PneumaticTemperatureOption ,
@@ -119,7 +438,7 @@ class PneumaticActuatorModelLine(models.Model) :
                 import traceback
                 traceback.print_exc()
 
-        print(">>> ensure_all_default_options_exist COMPLETED")
+        # print(">>> ensure_all_default_options_exist COMPLETED")
         # for option_class in option_classes :
         #     option_class.ensure_default_exists(self)
 
@@ -211,8 +530,6 @@ class PneumaticActuatorModelLine(models.Model) :
             return default_coating.body_coating_option.name
         return "Не указано"
 
-
-
     def get_option_info(self) :
         """Полная информация о всех опциях серии"""
         return {
@@ -236,28 +553,28 @@ class PneumaticActuatorModelLine(models.Model) :
 
     def save(self , *args , **kwargs) :
         """Сохранение с трассировкой для диагностики"""
-        import traceback
-        print("=" * 50)
-        print("SAVE METHOD CALLED")
-        print(f"Object: {self}")
-        print(f"PK: {self.pk}")
-        print(f"Args: {args}")
-        print(f"Kwargs: {kwargs}")
-
-        # Выводим значения всех полей
-        print("FIELD VALUES:")
+        # import traceback
+        # print("=" * 50)
+        # print("SAVE METHOD CALLED")
+        # print(f"Object: {self}")
+        # print(f"PK: {self.pk}")
+        # print(f"Args: {args}")
+        # print(f"Kwargs: {kwargs}")
+        #
+        # # Выводим значения всех полей
+        # print("FIELD VALUES:")
         for field in self._meta.fields :
             field_name = field.name
             field_value = getattr(self , field_name , None)
-            print(f"  {field_name}: {field_value} (type: {type(field_value)})")
+            # print(f"  {field_name}: {field_value} (type: {type(field_value)})")
 
         # Выводим трассировку
-        print("TRACEBACK:")
-        for line in traceback.format_stack() :
-            if "django" not in line and "lib" not in line :  # Фильтруем стандартные вызовы
-                print(line.strip())
-
-        print("=" * 50)
+        # print("TRACEBACK:")
+        # for line in traceback.format_stack() :
+        #     if "django" not in line and "lib" not in line :  # Фильтруем стандартные вызовы
+        #         print(line.strip())
+        #
+        # print("=" * 50)
 
         # Вызываем оригинальный save
         is_new = self.pk is None
@@ -265,38 +582,14 @@ class PneumaticActuatorModelLine(models.Model) :
 
         # После создания новой серии создаем опции по умолчанию
         if is_new :
-            print("CREATING DEFAULT OPTIONS FOR NEW OBJECT")
+            # print("CREATING DEFAULT OPTIONS FOR NEW OBJECT")
             self.ensure_all_default_options_exist()
 
-    def get_brand_name(self):
-        """Название бренда"""
-        return self.brand.name if self.brand else ""
-
-    def get_construction_type(self):
-        """Тип конструкции"""
-        return str(self.pneumatic_actuator_construction_variety) if self.pneumatic_actuator_construction_variety else ""
-
     # Упрощенные методы для работы с опциями
-    def _get_options_manager(self, relation_name):
+    def _get_options_manager(self , relation_name) :
         """Получить менеджер опций для доступа к методам BaseThroughOption"""
-        options = getattr(self, relation_name, None)
+        options = getattr(self , relation_name , None)
         return options.first() if options and options.exists() else None
-
-    # Общие свойства для всех типов опций
-    @property
-    def has_optional_options(self) :
-        """Есть ли опционные исполнения (кроме стандартных)"""
-        option_relations = [
-            self.temperature_options_list ,
-            self.ip_options_list ,
-            self.exd_options_list ,
-            self.body_coating_options_list
-        ]
-
-        for options in option_relations :
-            if options.count() > 1 :
-                return True
-        return False
 
     # Удобные свойства для шаблонов и API
     @property
@@ -307,20 +600,22 @@ class PneumaticActuatorModelLine(models.Model) :
             return default_temp.get_display_name()
         return "Не указано"
 
-    @property
-    def default_ip_display(self):
-        """Отображаемое имя стандартной IP опции"""
-        manager = self._get_options_manager('ip_options')
-        if manager and manager.default_option:
-            return manager.default_option.get_display_name()
-        return "Не указано"
+    # @property
+    # def default_ip_display(self):
+    #     """Отображаемое имя стандартной IP опции"""
+    #     manager = self._get_options_manager('ip_options')
+    #     if manager and manager.default_option:
+    #         return manager.default_option.get_display_name()
+    #     return "Не указано"
 
-@receiver(post_save, sender=PneumaticActuatorModelLine)
-def create_default_options(sender, instance, created, **kwargs):
+
+@receiver(post_save , sender=PneumaticActuatorModelLine)
+def create_default_options(sender , instance , created , **kwargs) :
     """Резервное создание опций по умолчанию (на случай если save не сработал)"""
-    if created:
+    if created :
         # Вызываем метод модели для создания опций
         instance.ensure_all_default_options_exist()
+
 
 # ======================================  Модель в серии ==================================
 class PneumaticActuatorModelLineItem(models.Model) :
@@ -366,26 +661,6 @@ class PneumaticActuatorModelLineItem(models.Model) :
     def __str__(self) :
         return self.name
 
-    # ==================== МЕТОДЫ ДЛЯ РАБОТЫ С ОПЦИЯМИ ====================
-    @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
-        """Автоматически определить имя поля родительского объекта"""
-        # Ищем поле, которое ссылается на основную модель (не на справочники опций)
-        parent_fields = []
-        for field in cls._meta.fields :
-            if isinstance(field , models.ForeignKey) :
-                # Исключаем поля, которые ссылаются на справочники опций
-                if (field.related_model and
-                        field.related_model._meta.app_label == 'params' and
-                        field.related_model._meta.model_name in ['ipoption' , 'exdoption' , 'bodycoatingoption']) :
-                    continue
-                # Исключаем поле id
-                if field.name != 'id' :
-                    parent_fields.append(field.name)
-
-        # Возвращаем первое подходящее поле (обычно это model_line)
-        return parent_fields[0] if parent_fields else None
-
     # ==================== ГЕТТЕРЫ С ПРИОРИТЕТОМ ИЗ MODEL_LINE ИЛИ BODY ====================
 
     @property
@@ -407,66 +682,6 @@ class PneumaticActuatorModelLineItem(models.Model) :
     def default_output_type(self) :
         """Тип работы по умолчанию из model_line"""
         return self.model_line.default_output_type if self.model_line else None
-
-    # ==================== МЕТОДЫ ДЛЯ РАБОТЫ С ОПЦИЯМИ (С ПРИОРИТЕТОМ) ====================
-
-    def get_default_temperature_option(self) :
-        """Получить стандартную температурную опцию из model_line"""
-        return self.model_line.get_default_temperature_option() if self.model_line else None
-
-    def get_default_ip_option(self) :
-        """Получить стандартную IP опцию из model_line"""
-        return self.model_line.get_default_ip_option() if self.model_line else None
-
-    def get_default_exd_option(self) :
-        """Получить стандартную Exd опцию из model_line"""
-        return self.model_line.get_default_exd_option() if self.model_line else None
-
-    def get_default_body_coating_option(self) :
-        """Получить стандартную опцию покрытия корпуса из model_line"""
-        return self.model_line.get_default_body_coating_option() if self.model_line else None
-
-    # ==================== СВОЙСТВА ДЛЯ ШАБЛОНОВ И API (С ПРИОРИТЕТОМ) ====================
-
-    @property
-    def temperature_options_list(self) :
-        """Список всех температурных опций из model_line"""
-        return self.model_line.temperature_options_list if self.model_line else None
-
-    @property
-    def ip_options_list(self) :
-        """Список всех IP опций из model_line"""
-        return self.model_line.ip_options_list if self.model_line else None
-
-    @property
-    def exd_options_list(self) :
-        """Список всех Exd опций из model_line"""
-        return self.model_line.exd_options_list if self.model_line else None
-
-    @property
-    def body_coating_options_list(self) :
-        """Список всех опций покрытия корпуса из model_line"""
-        return self.model_line.body_coating_options_list if self.model_line else None
-
-    @property
-    def default_temperature(self) :
-        """Стандартная температурная опция из model_line"""
-        return self.model_line.default_temperature if self.model_line else None
-
-    @property
-    def default_ip(self) :
-        """Стандартная IP опция из model_line"""
-        return self.model_line.default_ip if self.model_line else None
-
-    @property
-    def default_exd(self) :
-        """Стандартная Exd опция из model_line"""
-        return self.model_line.default_exd if self.model_line else None
-
-    @property
-    def default_body_coating(self) :
-        """Стандартная опция покрытия корпуса из model_line"""
-        return self.model_line.default_body_coating if self.model_line else None
 
     # ==================== ОТОБРАЖАЕМЫЕ СВОЙСТВА (С ПРИОРИТЕТОМ) ====================
 
@@ -490,27 +705,22 @@ class PneumaticActuatorModelLineItem(models.Model) :
         """Отображаемый диапазон стандартной температуры из model_line"""
         return self.model_line.temperature_range_display if self.model_line else "Не указано"
 
-    @property
-    def default_ip_display(self) :
-        """Отображаемое имя стандартной IP опции из model_line"""
-        return self.model_line.default_ip_display if self.model_line else "Не указано"
-
     # ==================== ФУНКЦИЯ КОПИРОВАНИЯ ====================
 
-    def create_copy(self):
+    def create_copy(self) :
         """Создать копию элемента с добавлением ' Копия' к name и code"""
         # Создаем копию объекта
         copy_obj = PneumaticActuatorModelLineItem()
 
         # Копируем все поля кроме первичного ключа
-        for field in self._meta.fields:
-            if field.name not in ['id', 'pk']:
-                setattr(copy_obj, field.name, getattr(self, field.name))
+        for field in self._meta.fields :
+            if field.name not in ['id' , 'pk'] :
+                setattr(copy_obj , field.name , getattr(self , field.name))
 
         # Добавляем " Копия" к name и code
-        if copy_obj.name:
+        if copy_obj.name :
             copy_obj.name = f"{copy_obj.name} Копия"
-        if copy_obj.code:
+        if copy_obj.code :
             copy_obj.code = f"{copy_obj.code} Копия"
 
         # Сохраняем копию
@@ -521,45 +731,46 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
         return copy_obj
 
-    def _copy_related_options(self, copy_obj):
+    def _copy_related_options(self , copy_obj) :
         """Копировать связанные опции для скопированного объекта"""
         # Список всех through-моделей для копирования
         through_models = [
-            ('safety_position_option_model_line_item', None),
-            ('springs_qty_option_model_line_item', None),
+            ('safety_position_option_model_line_item' , None) ,
+            ('springs_qty_option_model_line_item' , None) ,
         ]
 
-        for relation_name, fk_field_name in through_models:
-            if hasattr(self, relation_name):
-                related_objects = getattr(self, relation_name).all()
-                for obj in related_objects:
+        for relation_name , fk_field_name in through_models :
+            if hasattr(self , relation_name) :
+                related_objects = getattr(self , relation_name).all()
+                for obj in related_objects :
                     obj.pk = None
 
-                    # Определяем поле для связи
-                    if fk_field_name:
-                        setattr(obj, fk_field_name, copy_obj)
-                    else:
-                        # Если поле не указано, используем стандартное имя
-                        setattr(obj, 'model_line_item', copy_obj)
+                    # Автоматически находим поле ForeignKey к модели
+                    for field in obj._meta.fields :
+                        if isinstance(field , models.ForeignKey) :
+                            # Проверяем, ссылается ли поле на нужную модель
+                            if field.related_model == PneumaticActuatorModelLineItem :
+                                setattr(obj , field.name , copy_obj)
+                                break
 
                     # Добавляем суффикс к encoding для уникальности
-                    if hasattr(obj, 'encoding') and obj.encoding:
+                    if hasattr(obj , 'encoding') and obj.encoding :
                         obj.encoding = f"{obj.encoding}_copy"
 
                     obj.save()
 
-    def _create_safety_position_options(self):
+    def _create_safety_position_options(self) :
         """Создать опции положения безопасности, если их еще нет"""
         from .pa_options import PneumaticSafetyPositionOption
         from params.models import SafetyPositionOption
 
         logger.debug(f"Проверка опций безопасности для модели: {self.name} (id={self.id})")
-        if self.pneumatic_actuator_variety.code=='DA':
+        if self.pneumatic_actuator_variety.code == 'DA' :
             logger.debug(f"Для модели: {self.name} (id={self.id}) опции безопасности не создаем, так как модель DA")
             return False
         # Проверяем, есть ли уже опции для этой модели
         existing_options = PneumaticSafetyPositionOption.objects.filter(model_line_item=self)
-        if existing_options.exists():
+        if existing_options.exists() :
             logger.debug(
                 f"Опции безопасности уже существуют для модели {self.name}: {existing_options.count()} записей")
             return False
@@ -570,34 +781,34 @@ class PneumaticActuatorModelLineItem(models.Model) :
         nc_option = SafetyPositionOption.objects.filter(code='nc').first()
         no_option = SafetyPositionOption.objects.filter(code='no').first()
 
-        if not nc_option:
+        if not nc_option :
             logger.error("Не найдена опция безопасности NC в базе данных")
             return False
-        if not no_option:
+        if not no_option :
             logger.error("Не найдена опция безопасности NO в базе данных")
             return False
 
-        try:
+        try :
             # Создаем опцию NC как дефолтную
             nc_safety_option = PneumaticSafetyPositionOption.objects.create(
-                model_line_item=self,
-                safety_position=nc_option,
-                encoding='',
-                description='Нормально закрытый',
-                is_default=True,
-                sorting_order=0,
+                model_line_item=self ,
+                safety_position=nc_option ,
+                encoding='' ,
+                description='Нормально закрытый' ,
+                is_default=True ,
+                sorting_order=0 ,
                 is_active=True
             )
             logger.debug(f"Создана опция безопасности NC: {nc_safety_option}")
 
             # Создаем опцию NO
             no_safety_option = PneumaticSafetyPositionOption.objects.create(
-                model_line_item=self,
-                safety_position=no_option,
-                encoding='NO',
-                description='Нормально открытый',
-                is_default=False,
-                sorting_order=1,
+                model_line_item=self ,
+                safety_position=no_option ,
+                encoding='NO' ,
+                description='Нормально открытый' ,
+                is_default=False ,
+                sorting_order=1 ,
                 is_active=True
             )
             logger.debug(f"Создана опция безопасности NO: {no_safety_option}")
@@ -605,11 +816,11 @@ class PneumaticActuatorModelLineItem(models.Model) :
             logger.info(f"Успешно созданы 2 опции безопасности для модели {self.name}")
             return True
 
-        except Exception as e:
-            logger.error(f"Ошибка при создании опций безопасности для модели {self.name}: {str(e)}", exc_info=True)
+        except Exception as e :
+            logger.error(f"Ошибка при создании опций безопасности для модели {self.name}: {str(e)}" , exc_info=True)
             return False
 
-    def _create_springs_qty_options(self):
+    def _create_springs_qty_options(self) :
         """Создать опции количества пружин, если их еще нет"""
         from .pa_options import PneumaticSpringsQtyOption
         from .pa_params import PneumaticActuatorSpringsQty
@@ -618,14 +829,14 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
         # Проверяем, есть ли уже опции для этой модели
         existing_options = PneumaticSpringsQtyOption.objects.filter(model_line_item=self)
-        if existing_options.exists():
+        if existing_options.exists() :
             logger.debug(
                 f"Опции количества пружин уже существуют для модели {self.name}: {existing_options.count()} записей")
             return False
 
         logger.info(f"Создание опций количества пружин для модели: {self.name}")
 
-        if not self.body:
+        if not self.body :
             logger.warning(f"Не указан корпус для модели {self.name}, невозможно создать опции пружин")
             return False
 
@@ -636,27 +847,27 @@ class PneumaticActuatorModelLineItem(models.Model) :
         logger.debug(
             f"Тип привода для модели {self.name}: {'DA' if is_da else 'SR'}, корпус: {self.body.name if self.body else 'не указан'}")
 
-        try:
-            if is_da:
+        try :
+            if is_da :
                 # Для DA приводов - только опция с кодом DA
                 da_spring = PneumaticActuatorSpringsQty.objects.filter(code='DA').first()
-                if da_spring:
+                if da_spring :
                     da_option = PneumaticSpringsQtyOption.objects.create(
-                        model_line_item=self,
-                        springs_qty=da_spring,
-                        encoding='DA',
-                        description='Двойного действия',
-                        is_default=True,
-                        sorting_order=0,
+                        model_line_item=self ,
+                        springs_qty=da_spring ,
+                        encoding='DA' ,
+                        description='Двойного действия' ,
+                        is_default=True ,
+                        sorting_order=0 ,
                         is_active=True
                     )
                     logger.debug(f"Создана опция пружин DA: {da_option}")
                     logger.info(f"Успешно создана 1 опция пружин DA для модели {self.name}")
                     return True
-                else:
+                else :
                     logger.error("Не найдена опция пружин DA в базе данных")
                     return False
-            else:
+            else :
                 # Для SR приводов - все пружины из BodyThrustTorqueTable для этого body
                 from pneumatic_actuators.models.pa_torque import BodyThrustTorqueTable
 
@@ -668,7 +879,7 @@ class PneumaticActuatorModelLineItem(models.Model) :
                 ).exclude(
                     spring_qty__code='DA'  # Исключаем пружины с кодом 'DA'
                 ).values_list(
-                    'spring_qty', flat=True
+                    'spring_qty' , flat=True
                 ).distinct()
 
                 logger.debug(f"Найдено уникальных spring_qty для корпуса {self.body.name}: {list(spring_qtys)}")
@@ -676,50 +887,50 @@ class PneumaticActuatorModelLineItem(models.Model) :
                 created_count = 0
                 default_set = False
 
-                for i, spring_qty_id in enumerate(spring_qtys):
-                    try:
+                for i , spring_qty_id in enumerate(spring_qtys) :
+                    try :
                         spring_qty = PneumaticActuatorSpringsQty.objects.get(pk=spring_qty_id)
                         logger.debug(f"Обработка пружины: {spring_qty.name} (id={spring_qty_id})")
 
                         # Определяем дефолтную опцию
                         is_default = False
-                        if spring_qty.code == '12':
+                        if spring_qty.code == '12' :
                             # Опция с кодом 12 становится дефолтной если есть
                             is_default = True
                             default_set = True
                             logger.debug(f"Установлена пружина {spring_qty.name} как дефолтная (код 12)")
 
                         spring_option = PneumaticSpringsQtyOption.objects.create(
-                            model_line_item=self,
-                            springs_qty=spring_qty,
-                            encoding=spring_qty.code,
-                            description=spring_qty.name,
-                            is_default=is_default,
-                            sorting_order=i,
+                            model_line_item=self ,
+                            springs_qty=spring_qty ,
+                            encoding=spring_qty.code ,
+                            description=spring_qty.name ,
+                            is_default=is_default ,
+                            sorting_order=i ,
                             is_active=True
                         )
                         created_count += 1
                         logger.debug(f"Создана опция пружин: {spring_option}")
 
-                    except PneumaticActuatorSpringsQty.DoesNotExist:
+                    except PneumaticActuatorSpringsQty.DoesNotExist :
                         logger.warning(f"Пружина с id={spring_qty_id} не найдена в базе данных")
                         continue
-                    except Exception as e:
+                    except Exception as e :
                         logger.error(f"Ошибка при создании опции пружины {spring_qty_id}: {str(e)}")
                         continue
 
                 # Если не нашли подходящих пружин, создаем базовую опцию
-                if created_count == 0:
+                if created_count == 0 :
                     logger.warning(f"Не найдено подходящих пружин для корпуса {self.body.name}, создаем базовую опцию")
                     default_spring = PneumaticActuatorSpringsQty.objects.filter(code='12').first()
-                    if default_spring:
+                    if default_spring :
                         default_option = PneumaticSpringsQtyOption.objects.create(
-                            model_line_item=self,
-                            springs_qty=default_spring,
-                            encoding='12',
-                            description=default_spring.name,
-                            is_default=True,
-                            sorting_order=0,
+                            model_line_item=self ,
+                            springs_qty=default_spring ,
+                            encoding='12' ,
+                            description=default_spring.name ,
+                            is_default=True ,
+                            sorting_order=0 ,
                             is_active=True
                         )
                         created_count = 1
@@ -728,12 +939,12 @@ class PneumaticActuatorModelLineItem(models.Model) :
                 logger.info(f"Успешно создано {created_count} опций пружин для модели {self.name}")
                 return created_count > 0
 
-        except Exception as e:
-            logger.error(f"Ошибка при создании опций пружин для модели {self.name}: {str(e)}", exc_info=True)
+        except Exception as e :
+            logger.error(f"Ошибка при создании опций пружин для модели {self.name}: {str(e)}" , exc_info=True)
             return False
 
     # Добавляем метод для ручной проверки и создания опций
-    def ensure_options_exist(self):
+    def ensure_options_exist(self) :
         """Гарантировать существование опций (для вызова вручную)"""
         logger.info(f"Ручной вызов ensure_options_exist для модели: {self.name} (id={self.id})")
 
@@ -744,26 +955,27 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
         logger.info(f"Текущее состояние опций - безопасность: {safety_exists}, пружины: {springs_exists}")
 
-        if not safety_exists:
+        if not safety_exists :
             logger.info("Создание отсутствующих опций безопасности...")
             self._create_safety_position_options()
 
-        if not springs_exists:
+        if not springs_exists :
             logger.info("Создание отсутствующих опций пружин...")
             self._create_springs_qty_options()
 
         logger.info(f"Завершение ensure_options_exist для модели: {self.name}")
 
+
 # ==================== СИГНАЛ ДЛЯ АВТОМАТИЧЕСКОГО СОЗДАНИЯ ОПЦИЙ ====================
 
-@receiver(post_save, sender=PneumaticActuatorModelLineItem)
-def create_model_line_item_options(sender, instance, created, **kwargs):
+@receiver(post_save , sender=PneumaticActuatorModelLineItem)
+def create_model_line_item_options(sender , instance , created , **kwargs) :
     """Создать опции безопасности и количества пружин после создания/обновления элемента"""
     logger.info(
         f"Сигнал post_save для PneumaticActuatorModelLineItem: id={instance.id}, name='{instance.name}', created={created}")
 
-    try:
-        from .pa_options import PneumaticSafetyPositionOption, PneumaticSpringsQtyOption
+    try :
+        from .pa_options import PneumaticSafetyPositionOption , PneumaticSpringsQtyOption
 
         # Проверяем существующие опции
         safety_options_exist = PneumaticSafetyPositionOption.objects.filter(model_line_item=instance).exists()
@@ -773,48 +985,52 @@ def create_model_line_item_options(sender, instance, created, **kwargs):
             f"Текущее состояние опций для модели {instance.name}: безопасность={safety_options_exist}, пружины={springs_options_exist}")
 
         # Создаем опции, если их нет (независимо от created)
-        if not safety_options_exist:
+        if not safety_options_exist :
             logger.info(f"Создание отсутствующих опций безопасности для модели: {instance.name}")
             safety_created = instance._create_safety_position_options()
-            if safety_created:
+            if safety_created :
                 logger.info(f"Успешно созданы опции положения безопасности для модели: {instance.name}")
-            else:
+            else :
                 logger.warning(f"Не удалось создать опции положения безопасности для модели: {instance.name}")
-        else:
+        else :
             logger.debug(f"Опции безопасности уже существуют для модели: {instance.name}")
 
-        if not springs_options_exist:
+        if not springs_options_exist :
             logger.info(f"Создание отсутствующих опций количества пружин для модели: {instance.name}")
             springs_created = instance._create_springs_qty_options()
-            if springs_created:
+            if springs_created :
                 logger.info(f"Успешно созданы опции количества пружин для модели: {instance.name}")
-            else:
+            else :
                 logger.warning(f"Не удалось создать опции количества пружин для модели: {instance.name}")
-        else:
+        else :
             logger.debug(f"Опции количества пружин уже существуют для модели: {instance.name}")
 
         # Дополнительная проверка для новых моделей
-        if created and (safety_options_exist or springs_options_exist):
+        if created and (safety_options_exist or springs_options_exist) :
             logger.info(
                 f"Модель создана, но некоторые опции уже существуют: безопасность={safety_options_exist}, пружины={springs_options_exist}")
 
         logger.info(f"Завершение обработки опций для модели: {instance.name}")
 
-    except Exception as e:
-        logger.error(f"Ошибка при создании/проверке опций для модели {instance.name}: {str(e)}", exc_info=True)
+    except Exception as e :
+        logger.error(f"Ошибка при создании/проверке опций для модели {instance.name}: {str(e)}" , exc_info=True)
+
 
 class PneumaticActuatorModelLineCertRelation(AbstractCertRelation) :
     """
     Связь сертификатов с сериями пневмоприводов.
     """
     model_line = models.ForeignKey(
-        PneumaticActuatorModelLine,  # Замените на реальный путь к модели Project
+        PneumaticActuatorModelLine ,  # Замените на реальный путь к модели Project
         on_delete=models.CASCADE ,
         verbose_name=_("Проект") ,
-        related_name='cert_relations'
+        related_name='cert_data_model_line'
     )
 
     class Meta(AbstractCertRelation.Meta) :
         verbose_name = _("Связь сертификата с серией пневмоприводов")
         verbose_name_plural = _("Связи сертификатов с сериями пневмоприводов")
         unique_together = ['cert_data' , 'model_line']
+
+    def get_related_object(self) :
+        return self.model_line

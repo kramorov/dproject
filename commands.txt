@@ -18,6 +18,15 @@ git commit -m "добавлено опции из model_line в  selected_actuat
 git push -u dproject main
 git pull dproject main
 
+python manage.py shell
+
+>>> from app.models import PneumaticActuatorModelLine
+>>> model_line = PneumaticActuatorModelLine.objects.first()
+>>> for relation in model_line.cert_relations.all():
+...     print(f"Cert: {relation.cert_data.name}")
+...     print(f"Related object: {relation.get_related_object()}")
+...     print(f"Sorting: {relation.sorting_order}")
+
 
 # Установи UTF-8 кодировку
 git config --global core.quotepath false

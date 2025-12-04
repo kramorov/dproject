@@ -1,13 +1,22 @@
 # pneumatic_actuators/admin/pa_model_line_admin.py
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLine
+from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLine , PneumaticActuatorModelLineCertRelation
 from pneumatic_actuators.models.pa_options import (
     PneumaticTemperatureOption ,
     PneumaticIpOption ,
     PneumaticExdOption ,
     PneumaticBodyCoatingOption
 )
+
+class CertDataInline(admin.TabularInline) :
+    """Inline для температурных опций"""
+    model = PneumaticActuatorModelLineCertRelation
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['cert_data','is_active' , 'sorting_order']
+    verbose_name = _("Сертификат")
+    verbose_name_plural = _("Сертификаты")
 
 
 class PneumaticTemperatureOptionInline(admin.TabularInline) :
@@ -94,7 +103,8 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
         PneumaticTemperatureOptionInline ,
         PneumaticIpOptionInline ,
         PneumaticExdOptionInline ,
-        PneumaticBodyCoatingOptionInline
+        PneumaticBodyCoatingOptionInline,
+        CertDataInline
     ]
 
     fieldsets = (
