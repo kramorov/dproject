@@ -247,6 +247,11 @@ LOGGING = {
             'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения
             'propagate': False,
         },
+        'core': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения
+            'propagate': False,
+        },
         'storage_manager': {
                     'handlers': ['console', 'file'],
                     'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения

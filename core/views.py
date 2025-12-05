@@ -5,7 +5,9 @@ from django.apps import apps
 from django.db.models import Q
 from .serializers import get_model_serializer , get_model_field_info , get_app_models
 
+import logging
 
+logger = logging.getLogger(__name__)
 class UniversalAPIView(APIView) :
     """
     Универсальная вьюха для работы с любыми моделями.
@@ -28,8 +30,36 @@ class UniversalAPIView(APIView) :
     GET /api/core/?model=pneumatic_actuators.PneumaticActuatorModelLine&action=form-structure
     GET /api/core/?app=pneumatic_actuators
     """
-
     def get(self , request) :
+
+
+        # Логируем ВСЕ параметры
+        logger.info(f"=== REQUEST PARAMS ===")
+        for key , value in request.query_params.items() :
+            logger.info(f"Key-Value:  {key}: {value}")
+
+        model_param = request.query_params.get('model')
+        logger.info(f"model param raw: '{model_param}'")
+
+        if model_param :
+            logger.info(f"model param type: {type(model_param)}")
+            logger.info(f"'.' in model_param: {'.' in model_param}")
+
+            if '.' in model_param :
+                try :
+                    app_name , model_name = model_param.split('.')
+                    logger.info(f"Split: app='{app_name}', model='{model_name}'")
+
+                    # Пробуем получить модель
+                    model = apps.get_model(app_name , model_name)
+                    logger.info(f"✅ Model found: {model}")
+                    logger.info(f"Objects count: {model.objects.count()}")
+
+                except Exception as e :
+                    logger.error(f"❌ Error: {str(e)}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+
         model_name = request.query_params.get('model')
         app_name = request.query_params.get('app')
         action = request.query_params.get('action')
@@ -38,6 +68,35 @@ class UniversalAPIView(APIView) :
         obj_id = request.query_params.get('id')
         depth = int(request.query_params.get('depth' , 0))
 
+        logger.info(f"=== PROCESSING REQUEST ===")
+        logger.info(f"model_name: {model_name}")
+        logger.info(f"app_name: {app_name}")
+        logger.info(f"obj_id: {obj_id}")
+        logger.info(f"data_format: {data_format}")
+        logger.info(f"view_type: {view_type}")
+        logger.info(f"action: {action}")
+
+
+        if not model_name and not app_name :
+            return Response(
+                {
+                    "success" : False ,
+                    "error" : "Вы не указали model_name и app_name" ,
+                    "available_endpoints" : {
+                        "get_model" : "/api/core/?model=app_name.ModelName" ,
+                        "get_object" : "/api/core/?model=app_name.ModelName&id=1" ,
+                        "list_models" : "/api/core/?app=app_name" ,
+                        "model_meta" : "/api/core/?model=app_name.ModelName&action=model-meta" ,
+                        "form_structure" : "/api/core/?model=app_name.ModelName&action=form-structure"
+                    } ,
+                    "examples" : {
+                        "list_brands" : "/api/core/?model=producers.Brand" ,
+                        "get_model_line" : "/api/core/?model=pneumatic_actuators.PneumaticActuatorModelLine&id=1" ,
+                        "app_models" : "/api/core/?app=pneumatic_actuators"
+                    }
+                } ,
+                status=status.HTTP_400_BAD_REQUEST ,
+            )
         # Если запрошен список моделей приложения
         if app_name and not model_name :
             models_list = get_app_models(app_name)
@@ -66,6 +125,35 @@ class UniversalAPIView(APIView) :
                 {"error" : f"Model {model_name} not found. Error: {str(e)}"} ,
                 status=status.HTTP_404_NOT_FOUND ,
             )
+        if model.__name__ == 'PneumaticActuatorModelLine' and not obj_id :
+            queryset = model.objects.all()
+            data = []
+            for obj in queryset :
+                try :
+                    data.append(obj.get_compact_data())
+                except Exception as e :
+                    data.append({'id' : obj.id , 'error' : str(e)})
+
+            return Response({
+                'test' : True ,
+                'count' : len(data) ,
+                'data' : data ,
+            })
+
+        logger.info(f"Model class: {model.__name__}")
+        logger.info(f"Model has get_compact_data: {hasattr(model() , 'get_compact_data')}")
+
+        # Если нет obj_id (список)
+        if not obj_id :
+            logger.info(f"Processing LIST request")
+            logger.info(f"data_format: {data_format}")
+
+            if data_format == 'compact' and hasattr(model() , 'get_compact_data') :
+                logger.info(f"Using get_compact_data() for list")
+                # ... твой код
+            else :
+                logger.info(f"Using serializer for list")
+
 
         # Если запрошена мета-информация модели
         if action == 'model-meta' :
@@ -146,7 +234,13 @@ class UniversalAPIView(APIView) :
 
             except model.DoesNotExist :
                 return Response(
-                    {"success" : False , "error" : "Object not found"} ,
+                    {
+                        "success" : False ,
+                        "error" : f"Object with id={obj_id} not found" ,
+                        "model" : model_name ,
+                        "app" : app_name ,
+                        "available_ids" : list(model.objects.values_list('id' , flat=True)[:10])  # покажем первые 10 ID
+                    } ,
                     status=status.HTTP_404_NOT_FOUND ,
                 )
 
@@ -225,3 +319,53 @@ class UniversalAPIView(APIView) :
                 'format'] = 'serializer' if data_format == 'serializer' else f'serializer (requested: {data_format})'
 
         return Response(response_data)
+
+
+class DebugAPIView(APIView) :
+    """Endpoint для диагностики"""
+
+    def get(self , request) :
+        from django.apps import apps
+
+        response = {
+            'request_params' : dict(request.query_params) ,
+            'installed_apps' : [] ,
+            'available_models' : {} ,
+        }
+
+        # Все установленные приложения
+        for app_config in apps.get_app_configs() :
+            response['installed_apps'].append({
+                'name' : app_config.name ,
+                'label' : app_config.label ,
+                'models' : [m.__name__ for m in app_config.get_models()]
+            })
+
+            # Модели для каждого приложения
+            response['available_models'][app_config.name] = [
+                m.__name__ for m in app_config.get_models()
+            ]
+
+        # Если есть параметр model, пробуем его получить
+        model_param = request.query_params.get('model')
+        if model_param :
+            response['model_param'] = model_param
+            response['has_dot'] = '.' in model_param
+
+            if '.' in model_param :
+                try :
+                    app_name , model_name = model_param.split('.')
+                    response['split'] = {'app' : app_name , 'model' : model_name}
+
+                    model = apps.get_model(app_name , model_name)
+                    response['model_found'] = True
+                    response['model_info'] = {
+                        'name' : model.__name__ ,
+                        'db_table' : model._meta.db_table ,
+                        'objects_count' : model.objects.count() ,
+                    }
+
+                except Exception as e :
+                    response['model_error'] = str(e)
+
+        return Response(response)

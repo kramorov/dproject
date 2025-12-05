@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/get-url/<str:name>/', GetUrlByNameAPIView.as_view(), name='get_url_by_name'),
     path('admin/', admin.site.urls),
     path('api/core/', include('core.urls')),  # Универсальный API - ТОЛЬКО ЭТОТ
+path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой маршрут
     # path('api/params/', include('params.urls')),  # Включаем URL-ы из приложения params
     # path('api/producers/', include('producers.urls')),  # Включаем URL-ы из приложения producers
     # path('api/electric_actuators/', include('electric_actuators.urls')),  # Включаем URL-ы из приложения electric_actuators
