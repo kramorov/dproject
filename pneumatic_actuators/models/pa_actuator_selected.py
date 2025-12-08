@@ -17,27 +17,10 @@ logger = logging.getLogger(__name__)
 from pneumatic_actuators.models import PneumaticActuatorModelLineItem
 from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE , \
     ACTUATOR_VARIETY_RP_DEFAULT_CODE
+# Добавляем импорт абстрактного класса
+from core.models import StructuredDataMixin
 
-import subprocess
-import sys
-
-# print("=== DEBUG INTERPRETER ===")
-# print(f"Executable: {sys.executable}")
-# print(f"Python path: {sys.path[:3]}")
-# print("=========================")
-#
-# # Проверим, есть ли tabulate
-# try:
-#     from tabulate import tabulate
-# except ImportError:
-#     # Установим прямо из кода
-#     print("Устанавливаем tabulate...")
-#     subprocess.check_call([sys.executable, "-m", "pip", "install", "tabulate"])
-#     from tabulate import tabulate
-#
-# print(f"Tabulate успешно загружен из: {tabulate.__file__}")
-
-class PneumaticActuatorSelected(models.Model):
+class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     """
     Выбранный из списка моделей привод с выбранными опциями.
     """
@@ -117,6 +100,460 @@ class PneumaticActuatorSelected(models.Model):
     def __str__(self):
         return self.name
 
+        # ==================== StructuredDataMixin методы ====================
+
+    # GET /api/core/?model=pneumatic_actuators.PneumaticActuatorSelected&id=4&fmt=compact
+    # GET /api/core/?model=pneumatic_actuators.PneumaticActuatorSelected&id=4&fmt=display&view=card
+    # /api/core/?model=pneumatic_actuators.PneumaticActuatorSelected&id=4&fmt=full&include=
+    def get_compact_data(self) -> Dict[str , Any] :
+        from django.utils.translation import gettext_lazy as _
+        """
+        Минимальные данные для списков и таблиц
+        """
+        print(f"=== DEBUG get_compact_data called ===")
+        print(f"Object: {self.id} - {self.name}")
+        # Безопасный доступ к метаданным
+        model_name = self._get_model_name()
+        app_label = self._get_app_label()
+
+        # Основные данные
+        data = {
+            'id' : self.id ,
+            'name' : self.name ,
+            'code' : self.code ,
+            'is_active' : self.is_active ,
+            'model' : model_name ,
+            'app' : app_label ,
+            'sorting_order' : self.sorting_order ,
+        }
+
+        # Добавляем данные модели, если есть
+        if self.selected_model :
+            if hasattr(self.selected_model , 'get_compact_data') :
+                data['selected_model'] = self.selected_model.get_compact_data()
+            else :
+                data['selected_model'] = {
+                    'id' : self.selected_model.id ,
+                    'name' : str(self.selected_model) ,
+                }
+
+        # Добавляем информацию об опциях
+        option_fields = [
+            'selected_safety_position' ,
+            'selected_springs_qty' ,
+            'selected_temperature' ,
+            'selected_ip' ,
+            'selected_exd' ,
+            'selected_body_coating'
+        ]
+
+        for field_name in option_fields :
+            field = getattr(self , field_name)
+            if field :
+                if hasattr(field , 'get_compact_data') :
+                    data[field_name] = field.get_compact_data()
+                else :
+                    data[field_name] = {
+                        'id' : field.id ,
+                        'name' : str(field) ,
+                    }
+
+        return data
+
+    def get_display_data(self , view_type: str = 'detail') -> Dict[str , Any] :
+        from django.utils.translation import gettext_lazy as _
+        """
+        Данные для отображения в UI.
+        Используем существующую _generate_tech_description для конвертации
+        в новый формат
+        """
+        print(f"=== DEBUG get_display_data called ===")
+        print(f"View type: {view_type}")
+        # Используем базовые поля из миксина
+        fields = self._get_base_display_fields()
+
+        # Обновляем лейблы для специфичных полей
+        fields.update({
+            'code' : self._format_field(
+                self.code ,
+                'code' ,
+                label=_('Артикул') ,
+                icon='🏷️' ,
+                priority=2
+            ) ,
+            'sorting_order' : self._format_field(
+                self.sorting_order ,
+                'number' ,
+                label=_('Порядок сортировки') ,
+                icon='🔢' ,
+                priority=3
+            ) ,
+        })
+
+        # Добавляем связанную модель
+        if self.selected_model :
+            fields['selected_model'] = self._format_foreign_key(
+                self.selected_model ,
+                label=_('Модель') ,
+                icon='⚙️' ,
+                priority=4 ,
+                include_data='compact'
+            )
+
+        # Добавляем опции
+        option_configs = [
+            ('selected_safety_position' , _('Положение безопасности') , '🔄' , 5) ,
+            ('selected_springs_qty' , _('Количество пружин') , '🔗' , 6) ,
+            ('selected_temperature' , _('Температурная опция') , '🌡️' , 7) ,
+            ('selected_ip' , _('Степень защиты IP') , '🛡️' , 8) ,
+            ('selected_exd' , _('Взрывозащита') , '⚡' , 9) ,
+            ('selected_body_coating' , _('Покрытие корпуса') , '🎨' , 10) ,
+        ]
+
+        for field_name , label , icon , priority in option_configs :
+            field_value = getattr(self , field_name)
+            if field_value :
+                fields[field_name] = self._format_foreign_key(
+                    field_value ,
+                    label=label ,
+                    icon=icon ,
+                    priority=priority ,
+                    include_data='compact'
+                )
+
+        # Добавляем техническое описание из существующего метода
+        tech_description = self._generate_tech_description_for_display()
+        fields['technical_description'] = self._format_field(
+            tech_description ,
+            'html' ,
+            label=_('Техническое описание') ,
+            icon='📋' ,
+            priority=20 ,
+            multiline=True
+        )
+
+        # Добавляем рассчитанный вес
+        weight = self.calculated_weight
+        if weight :
+            fields['weight'] = self._format_field(
+                float(weight) ,
+                'number' ,
+                label=_('Вес') ,
+                icon='⚖️' ,
+                priority=15 ,
+                unit='кг'
+            )
+
+        # Для разных типов отображения
+        if view_type == self.CARD :
+            return {
+                'title' : self.name ,
+                'subtitle' : self.code or '' ,
+                'description' : self.description[:150] + '...' if self.description else '' ,
+                'badges' : [
+                    {'text' : self.code , 'type' : 'code'} if self.code else None ,
+                    {'text' : 'Активен' , 'type' : 'success'} if self.is_active
+                    else {'text' : 'Неактивен' , 'type' : 'secondary'} ,
+                    {'text' : f'Вес: {weight} кг' , 'type' : 'info'} if weight else None ,
+                ] ,
+                'details' : [
+                    {'label' : 'Модель' , 'value' : str(self.selected_model)} if self.selected_model else None ,
+                    {'label' : 'Сортировка' , 'value' : self.sorting_order} ,
+                ]
+            }
+
+        elif view_type == self.LIST :
+            # Создаем строку с опциями для отображения в списке
+            options_str = []
+            for field_name , label , _ , _ in option_configs :
+                field_value = getattr(self , field_name)
+                if field_value :
+                    options_str.append(str(field_value))
+
+            return {
+                'id' : self.id ,
+                'name' : self.name ,
+                'code' : self.code ,
+                'model' : str(self.selected_model) if self.selected_model else '' ,
+                'options' : ', '.join(options_str) if options_str else '' ,
+                'weight' : float(weight) if weight else None ,
+                'is_active' : self.is_active ,
+                'sorting_order' : self.sorting_order ,
+            }
+
+        elif view_type == self.BADGE :
+            return {
+                'text' : self.name ,
+                'code' : self.code ,
+                'type' : 'pneumatic_actuator' ,
+                'color' : 'blue' if self.is_active else 'gray' ,
+                'subtitle' : f'Модель: {self.selected_model.code if self.selected_model else ""}'
+            }
+
+        # По умолчанию DETAIL
+        return {
+            'title' : self.name ,
+            'subtitle' : f'Артикул: {self.code}' if self.code else '' ,
+            'fields' : fields ,
+            'actions' : self._get_actions()
+        }
+
+    def get_full_data(self , include: Optional[List[str]] = None) -> Dict[str , Any] :
+        """
+        Полные данные для форм и API
+        """
+        if include is None :
+            include = ['form' , 'metadata' , 'related' , 'description_data']
+
+        # Базовые данные
+        data = {
+            'id' : self.id ,
+            'model' : self._get_model_name() ,
+            'app' : self._get_app_label() ,
+            'is_active' : self.is_active ,
+            'sorting_order' : self.sorting_order ,
+            'display' : self.get_display_data() ,
+            'compact' : self.get_compact_data() ,
+        }
+
+        if 'form' in include :
+            data['form'] = self._get_form_data()
+
+        if 'metadata' in include :
+            data['metadata'] = self._get_metadata()
+
+        if 'related' in include :
+            data['related'] = self._get_related_data()
+
+        if 'description_data' in include :
+            # Используем существующий метод, но в новом формате
+            data['description_data'] = self._get_structured_description_data()
+
+        return data
+
+    # ==================== Вспомогательные методы ====================
+
+    def _get_form_data(self) -> Dict[str , Any] :
+        """Данные для форм"""
+        return {
+            'name' : self.name ,
+            'code' : self.code ,
+            'description' : self.description ,
+            'sorting_order' : self.sorting_order ,
+            'is_active' : self.is_active ,
+            'selected_model_id' : self.selected_model.id if self.selected_model else None ,
+            'selected_safety_position_id' : self.selected_safety_position.id if self.selected_safety_position else None ,
+            'selected_springs_qty_id' : self.selected_springs_qty.id if self.selected_springs_qty else None ,
+            'selected_temperature_id' : self.selected_temperature.id if self.selected_temperature else None ,
+            'selected_ip_id' : self.selected_ip.id if self.selected_ip else None ,
+            'selected_exd_id' : self.selected_exd.id if self.selected_exd else None ,
+            'selected_body_coating_id' : self.selected_body_coating.id if self.selected_body_coating else None ,
+        }
+
+    def _get_metadata(self) -> Dict[str , Any] :
+        """Метаданные для форм"""
+        return {
+            'field_schema' : [
+                {
+                    'name' : 'name' ,
+                    'type' : 'text' ,
+                    'required' : True ,
+                    'label' : _('Название привода') ,
+                    'help_text' : _('Название привода') ,
+                    'max_length' : 200 ,
+                    'widget' : 'text_input'
+                } ,
+                {
+                    'name' : 'code' ,
+                    'type' : 'text' ,
+                    'required' : False ,
+                    'label' : _('Код/Артикул') ,
+                    'help_text' : _('Код привода') ,
+                    'max_length' : 50 ,
+                    'widget' : 'text_input'
+                } ,
+                {
+                    'name' : 'description' ,
+                    'type' : 'text' ,
+                    'required' : False ,
+                    'label' : _('Описание') ,
+                    'help_text' : _('Описание привода') ,
+                    'widget' : 'textarea' ,
+                    'rows' : 4
+                } ,
+                {
+                    'name' : 'selected_model' ,
+                    'type' : 'foreign_key' ,
+                    'required' : True ,
+                    'label' : _('Модель') ,
+                    'help_text' : _('Модель пневмопривода') ,
+                    'model' : 'pneumatic_actuators.PneumaticActuatorModelLineItem' ,
+                    'widget' : 'select'
+                } ,
+                {
+                    'name' : 'selected_safety_position' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Положение безопасности') ,
+                    'help_text' : _('Выбранное положение безопасности') ,
+                    'model' : 'pneumatic_actuators.PneumaticSafetyPositionOption' ,
+                    'widget' : 'select'
+                } ,
+                {
+                    'name' : 'selected_springs_qty' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Количество пружин') ,
+                    'help_text' : _('Выбранное количество пружин') ,
+                    'model' : 'pneumatic_actuators.PneumaticSpringsQtyOption' ,
+                    'widget' : 'select'
+                } ,
+                {
+                    'name' : 'selected_temperature' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Температурная опция') ,
+                    'help_text' : _('Выбранная температурная опция') ,
+                    'model' : 'pneumatic_actuators.PneumaticTemperatureOption' ,
+                    'widget' : 'select'
+                } ,
+                {
+                    'name' : 'selected_ip' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Степень защиты IP') ,
+                    'help_text' : _('Выбранная степень защиты IP') ,
+                    'model' : 'pneumatic_actuators.PneumaticIpOption' ,
+                    'widget' : 'select'
+                } ,
+                {
+                    'name' : 'selected_exd' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Взрывозащита') ,
+                    'help_text' : _('Выбранная опция взрывозащиты') ,
+                    'model' : 'pneumatic_actuators.PneumaticExdOption' ,
+                    'widget' : 'select'
+                } ,
+                {
+                    'name' : 'selected_body_coating' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Покрытие корпуса') ,
+                    'help_text' : _('Выбранное покрытие корпуса') ,
+                    'model' : 'pneumatic_actuators.PneumaticBodyCoatingOption' ,
+                    'widget' : 'select'
+                } ,
+                {
+                    'name' : 'sorting_order' ,
+                    'type' : 'number' ,
+                    'required' : False ,
+                    'label' : _('Порядок сортировки') ,
+                    'help_text' : _('Порядок сортировки в списке') ,
+                    'min_value' : -100 ,
+                    'max_value' : 100 ,
+                    'default' : 0
+                } ,
+                {
+                    'name' : 'is_active' ,
+                    'type' : 'boolean' ,
+                    'required' : False ,
+                    'label' : _('Активно') ,
+                    'help_text' : _('Активно свойство или нет') ,
+                    'default' : True
+                }
+            ] ,
+            'validation_rules' : {
+                'name' : {
+                    'required' : True ,
+                    'min_length' : 2 ,
+                    'max_length' : 200
+                } ,
+                'code' : {
+                    'max_length' : 50
+                }
+            }
+        }
+
+    def _get_related_data(self) -> Dict[str , Any] :
+        """Связанные данные"""
+        related_data = {}
+
+        # Данные модели
+        if self.selected_model and hasattr(self.selected_model , 'get_compact_data') :
+            related_data['selected_model'] = self.selected_model.get_compact_data()
+
+        # Данные опций
+        option_fields = [
+            'selected_safety_position' ,
+            'selected_springs_qty' ,
+            'selected_temperature' ,
+            'selected_ip' ,
+            'selected_exd' ,
+            'selected_body_coating'
+        ]
+
+        for field_name in option_fields :
+            field = getattr(self , field_name)
+            if field and hasattr(field , 'get_compact_data') :
+                related_data[field_name] = field.get_compact_data()
+
+        # Доступные опции
+        related_data['available_options'] = self.get_available_options()
+
+        return related_data
+
+    def _get_structured_description_data(self) -> Dict[str , Any] :
+        """
+        Структурированные данные описания
+        Конвертируем существующий get_description_data в новый формат
+        """
+        # Используем существующий метод
+        existing_data = self.get_description_data()
+
+        # Конвертируем в новый формат
+        structured_data = {
+            'basic_info' : {
+                'model' : existing_data.get('model' , {}) ,
+                'basic_properties' : existing_data.get('basic_properties' , {}) ,
+                'selected_options' : existing_data.get('selected_options' , {}) ,
+            } ,
+            'technical_specs' : {
+                'body_specs' : existing_data.get('body_specs' , {}) ,
+                'calculated_parameters' : existing_data.get('calculated_parameters' , {}) ,
+                'torque_thrust_table' : existing_data.get('torque_thrust_table') ,
+            } ,
+            'formatted' : {
+                'short' : self._generate_short_description() ,
+                'technical' : self._generate_tech_description_for_display() ,
+                'html' : self._generate_html_description() ,
+            }
+        }
+
+        return structured_data
+
+    def _generate_tech_description_for_display(self) -> str :
+        """
+        Генерация технического описания для отображения в UI
+        Адаптация существующего метода для нового формата
+        """
+        # Можно использовать существующий метод с небольшими изменениями
+        return self._generate_tech_description()
+
+    def _generate_html_description(self) -> str :
+        """
+        Генерация HTML описания
+        """
+        # Простая реализация - можно расширить
+        desc_parts = []
+
+        if self.description :
+            desc_parts.append(f'<p>{self.description}</p>')
+
+        if self.selected_model and self.selected_model.description :
+            desc_parts.append(f'<p><strong>Описание модели:</strong> {self.selected_model.description}</p>')
+
+        return '\n'.join(desc_parts)
     # def get_description_preview(self) :
     #     """Краткий предпросмотр описания"""
     #     if not self.description :
@@ -510,9 +947,6 @@ class PneumaticActuatorSelected(models.Model):
         if not template:
             return self._generate_fallback_code()
 
-        return self._render_template(template)
-
-    def _render_template(self, template: str) -> str:
         """Простой рендеринг шаблона - заменяем переменные значениями"""
         result = template
 

@@ -18,21 +18,26 @@ class UniversalAPIView(APIView) :
     - app: имя приложения (для получения списка моделей)
     - action: form-structure, model-meta
     - id: получить один объект
-    - format: serializer (default), compact, display, full
-    - view: list, card, detail, badge (только для format=display)
+    - fmt: serializer (default), compact, display, full
+    - view: list, card, detail, badge (только для fmt=display)
     - depth: глубина вложенности сериализатора
     - include: список включений для full формата (form,metadata,related,certificates)
     - filter_field=value: фильтрация по полям
 
     Примеры запросов:
-    GET /api/core/?model=pneumatic_actuators.PneumaticActuatorModelLine&id=1&format=compact
-    GET /api/core/?model=pneumatic_actuators.PneumaticActuatorModelLine&format=display&view=card
+    GET /api/core/?model=pneumatic_actuators.PneumaticActuatorModelLine&id=1&fmt=compact
+    GET /api/core/?model=pneumatic_actuators.PneumaticActuatorModelLine&fmt=display&view=card
     GET /api/core/?model=pneumatic_actuators.PneumaticActuatorModelLine&action=form-structure
     GET /api/core/?app=pneumatic_actuators
     """
     def get(self , request) :
-
-
+        import sys
+        print("=" * 80 , file=sys.stderr)
+        print(f"🔥 UniversalAPIView ВЫЗВАН!" , file=sys.stderr)
+        print(f"🔥 Path: {request.path}" , file=sys.stderr)
+        print(f"🔥 Full path: {request.get_full_path()}" , file=sys.stderr)
+        print(f"🔥 GET: {dict(request.GET)}" , file=sys.stderr)
+        sys.stderr.flush()
         # Логируем ВСЕ параметры
         logger.info(f"=== REQUEST PARAMS ===")
         for key , value in request.query_params.items() :
@@ -52,18 +57,18 @@ class UniversalAPIView(APIView) :
 
                     # Пробуем получить модель
                     model = apps.get_model(app_name , model_name)
-                    logger.info(f"✅ Model found: {model}")
+                    logger.info(f"Model found: {model}")
                     logger.info(f"Objects count: {model.objects.count()}")
 
                 except Exception as e :
-                    logger.error(f"❌ Error: {str(e)}")
+                    logger.error(f"Error: {str(e)}")
                     import traceback
                     logger.error(traceback.format_exc())
 
         model_name = request.query_params.get('model')
         app_name = request.query_params.get('app')
         action = request.query_params.get('action')
-        data_format = request.query_params.get('format' , 'serializer')
+        data_format = request.query_params.get('fmt' , 'serializer')
         view_type = request.query_params.get('view' , 'detail')
         obj_id = request.query_params.get('id')
         depth = int(request.query_params.get('depth' , 0))
@@ -142,7 +147,88 @@ class UniversalAPIView(APIView) :
 
         logger.info(f"Model class: {model.__name__}")
         logger.info(f"Model has get_compact_data: {hasattr(model() , 'get_compact_data')}")
+        # Если запрошен один объект
+        if obj_id :
+            try :
+                obj = model.objects.get(pk=obj_id)
 
+                logger.info(f"=== OBJECT FOUND ===")
+                logger.info(f"Object ID: {obj_id}")
+                logger.info(f"Object class: {obj.__class__.__name__}")
+                logger.info(f"Has get_compact_data: {hasattr(obj , 'get_compact_data')}")
+                logger.info(f"Has get_display_data: {hasattr(obj , 'get_display_data')}")
+                logger.info(f"Has get_full_data: {hasattr(obj , 'get_full_data')}")
+
+                response_data = {
+                    'success' : True ,
+                    'model' : model.__name__ ,
+                    'app' : app_name ,
+                    'id' : obj_id ,
+                }
+
+                # Используем методы из StructuredDataMixin если они есть
+                if hasattr(obj , 'get_compact_data') :
+                    try :
+                        if data_format == 'compact' :
+                            logger.info("Calling get_compact_data()")
+                            response_data['data'] = obj.get_compact_data()
+                            response_data['format'] = 'compact'
+
+                        elif data_format == 'display' :
+                            logger.info(f"Calling get_display_data(view_type={view_type})")
+                            response_data['data'] = obj.get_display_data(view_type)
+                            response_data['format'] = 'display'
+                            response_data['view'] = view_type
+
+                        elif data_format == 'full' :
+                            include = request.query_params.get('include' , 'form,metadata,related').split(',')
+                            logger.info(f"Calling get_full_data(include={include})")
+                            response_data['data'] = obj.get_full_data(include)
+                            response_data['format'] = 'full'
+                            response_data['include'] = include
+
+                        else :  # serializer (default)
+                            serializer_class = get_model_serializer(model , depth=depth)
+                            serializer = serializer_class(obj)
+                            response_data['data'] = serializer.data
+                            response_data['format'] = 'serializer'
+
+                    except Exception as e :
+                        logger.error(f"Error calling StructuredDataMixin method: {str(e)}" , exc_info=True)
+                        # Fallback к сериализатору при ошибке
+                        serializer_class = get_model_serializer(model , depth=depth)
+                        serializer = serializer_class(obj)
+                        response_data['data'] = serializer.data
+                        response_data['format'] = 'serializer'
+                        response_data['error'] = f"StructuredDataMixin error: {str(e)}"
+
+                else :
+                    # Fallback к стандартному сериализатору
+                    serializer_class = get_model_serializer(model , depth=depth)
+                    serializer = serializer_class(obj)
+                    response_data['data'] = serializer.data
+                    response_data['format'] = 'serializer'
+
+                # Добавляем URL если есть методы
+                if hasattr(obj , 'get_absolute_url') :
+                    response_data['urls'] = {
+                        'absolute' : obj.get_absolute_url() ,
+                        'admin' : obj.get_admin_url() if hasattr(obj , 'get_admin_url') else None ,
+                    }
+
+                return Response(response_data)
+
+            except model.DoesNotExist :
+                return Response(
+                    {
+                        "success" : False ,
+                        "error" : f"Object with id={obj_id} not found" ,
+                        "model" : model_name ,
+                        "app" : app_name ,
+                        "available_ids" : list(model.objects.values_list('id' , flat=True)[:10])
+                    } ,
+                    status=status.HTTP_404_NOT_FOUND ,
+                )
         # Если нет obj_id (список)
         if not obj_id :
             logger.info(f"Processing LIST request")
@@ -185,6 +271,7 @@ class UniversalAPIView(APIView) :
         if obj_id :
             try :
                 obj = model.objects.get(pk=obj_id)
+                logger.info(f"Processing object {obj_id} with format={data_format}")
 
                 response_data = {
                     'success' : True ,
@@ -319,6 +406,7 @@ class UniversalAPIView(APIView) :
                 'format'] = 'serializer' if data_format == 'serializer' else f'serializer (requested: {data_format})'
 
         return Response(response_data)
+
 
 
 class DebugAPIView(APIView) :

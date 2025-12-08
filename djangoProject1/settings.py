@@ -124,14 +124,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware' ,
     'django.contrib.sessions.middleware.SessionMiddleware' ,
-    'django.middleware.common.CommonMiddleware' ,
+    'corsheaders.middleware.CorsMiddleware' ,
+    # 'django.middleware.common.CommonMiddleware' ,
     'django.middleware.csrf.CsrfViewMiddleware' ,
     'django.contrib.auth.middleware.AuthenticationMiddleware' ,
     'django.contrib.messages.middleware.MessageMiddleware' ,
     'django.middleware.locale.LocaleMiddleware' ,
     'django.middleware.clickjacking.XFrameOptionsMiddleware' ,
-    'corsheaders.middleware.CorsMiddleware' ,
-    'django.middleware.common.CommonMiddleware' ,
 ]
 
 # Настройки медиабиблиотеки
@@ -244,19 +243,25 @@ LOGGING = {
         },
         'valve_data': {
             'handlers': ['console', 'file'],
-            'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения
+            'level': 'DEBUG',
             'propagate': False,
         },
         'core': {
             'handlers': ['console', 'file'],
-            'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения
+            'level': 'DEBUG',
             'propagate': False,
         },
         'storage_manager': {
-                    'handlers': ['console', 'file'],
-                    'level': 'DEBUG',  # ВКЛЮЧАЕМ DEBUG для нашего приложения
-                    'propagate': False,
-                },
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        # ДОБАВЬТЕ ЭТОТ ЛОГГЕР
+        'pneumatic_actuators': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
 
