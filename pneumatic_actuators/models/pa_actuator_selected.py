@@ -152,7 +152,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'selected_temperature' ,
             'selected_ip' ,
             'selected_exd' ,
-            'selected_body_coating'
+            'selected_body_coating',
+            'selected_hand_wheel'
         ]
 
         for field_name in option_fields :
@@ -216,6 +217,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             ('selected_ip' , _('Степень защиты IP') , '🛡️' , 8) ,
             ('selected_exd' , _('Взрывозащита') , '⚡' , 9) ,
             ('selected_body_coating' , _('Покрытие корпуса') , '🎨' , 10) ,
+            ('selected_hand_wheel' , _('Тип установленного ручного дублера') , '🎨' , 11) ,
         ]
 
         for field_name , label , icon , priority in option_configs :
@@ -356,7 +358,9 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'selected_ip_id' : self.selected_ip.id if self.selected_ip else None ,
             'selected_exd_id' : self.selected_exd.id if self.selected_exd else None ,
             'selected_body_coating_id' : self.selected_body_coating.id if self.selected_body_coating else None ,
+            'selected_hand_wheel' : self.selected_hand_wheel.id if self.selected_hand_wheel else None ,
         }
+
 
     def _get_metadata(self) -> Dict[str , Any] :
         """Метаданные для форм"""
@@ -435,6 +439,15 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     'widget' : 'select'
                 } ,
                 {
+                    'name' : 'selected_hand_wheel' ,
+                    'type' : 'foreign_key' ,
+                    'required' : False ,
+                    'label' : _('Ручной дублер') ,
+                    'help_text' : _('Тип установленного ручного дублера') ,
+                    'model' : 'pneumatic_actuators.PneumaticHandWheelOption' ,
+                    'widget' : 'select'
+                } ,
+                {
                     'name' : 'selected_exd' ,
                     'type' : 'foreign_key' ,
                     'required' : False ,
@@ -498,7 +511,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'selected_temperature' ,
             'selected_ip' ,
             'selected_exd' ,
-            'selected_body_coating'
+            'selected_body_coating',
+            'selected_hand_wheel' ,
         ]
 
         for field_name in option_fields :
@@ -612,16 +626,18 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             if self.selected_model.pneumatic_actuator_construction_variety:
                 data['basic_properties'][
                     'pneumatic_actuator_construction_variety'] = self.selected_model.pneumatic_actuator_construction_variety.name
-            if self.selected_model.default_hand_wheel:
-                data['basic_properties']['default_hand_wheel'] = self.selected_model.default_hand_wheel.name
+            # if self.selected_model.default_hand_wheel:
+            #     data['basic_properties']['selected_hand_wheel'] = self.selected_model.selected_hand_wheel.name
 
         # Опции через model_line_item
+        # print(f"\n=== DEBUG: Checking model_line_item options ===")
+        # print(f"Has selected_safety_position: {hasattr(self , 'selected_safety_position')}")
         if self.selected_safety_position:
             data['selected_options']['safety_position'] = {
                 'name': self.selected_safety_position.safety_position.name,
                 'description': self.selected_safety_position.description
             }
-
+        # print(f"Has selected_springs_qty: {hasattr(self , 'selected_springs_qty')}")
         if self.selected_springs_qty:
             data['selected_options']['springs_qty'] = {
                 'name': self.selected_springs_qty.springs_qty.name,
@@ -652,7 +668,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'name': str(self.selected_body_coating),
                 'description': self.selected_body_coating.description
             }
-        if self.selected_body_coating:
+        if self.selected_hand_wheel:
             data['selected_options']['hand_wheel'] = {
                 'name': str(self.selected_hand_wheel),
                 'description': self.selected_hand_wheel.description
@@ -698,6 +714,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         Основное предполагаемое использование - подставновка в КП в название номенклатуры.
         """
         data = self.get_description_data()
+        print(data)
         desc_parts = []
 
         # Модель
@@ -715,6 +732,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         short_description += f"{data['selected_options']['ip']['name']};"  # ip
         short_description += f"{data['selected_options']['exd']['name']};"  # exd
         short_description += f"{data['selected_options']['body_coating']['name']};"  # exd
+        short_description += f"{data['selected_options']['hand_wheel']['name']};"
         # Технические характеристики корпуса
         short_description += f"Мин/Макс давл.{data['body_specs']['technical_specs']['min_pressure']}/{data['body_specs']['technical_specs']['max_pressure']};"  # min_pressure
         short_description += f"Расход откр/закр,л:{data['body_specs']['technical_specs']['air_usage_open']}/{data['body_specs']['technical_specs']['air_usage_close']};"  # Расход откр/закр
@@ -804,7 +822,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     'pneumatic_actuator_variety': 'Тип привода',
                     'default_output_type': 'Тип работы',
                     'pneumatic_actuator_construction_variety': 'Тип конструкции',
-                    'default_hand_wheel': 'Ручной дублер'
+                    # 'default_hand_wheel': 'Ручной дублер'
                 }.get(prop_name, prop_name)
                 desc_parts.append(f"{display_name}: {prop_value}")
         # print(f"# Базовые свойства {desc_parts}")
@@ -974,6 +992,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         result = result.replace('{ip}', self._get_value('selected_ip__encoding'))
         result = result.replace('{exd}', self._get_value('selected_exd__encoding'))
 
+
         # Очистка лишних точек (две точки подряд -> одна точка)
         result = re.sub(r'\.{2,}', '.', result)
         # Удаляем точку в начале и конце
@@ -1043,14 +1062,9 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             raise e
 
         # Устанавливаем значения по умолчанию для None опций
-        self._ensure_default_options()
+        # self._ensure_default_options()
+        self._set_default_options()
 
-        # ДОПОЛНИТЕЛЬНО: Автоматически очищаем safety_position для DA моделей
-        if self.selected_model and self.selected_safety_position:
-            is_da_model = (self.selected_model.pneumatic_actuator_variety and
-                           self.selected_model.pneumatic_actuator_variety.code == 'DA')
-            if is_da_model:
-                self.selected_safety_position = None
         # Автозаполнение
         if self.selected_model:
             self.name = self.generated_model_item_code
@@ -1064,80 +1078,104 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         if self.selected_model:
             model_line = self.selected_model.model_line
 
+
             # Устанавливаем опции по умолчанию из связанной модели
-            if not self.selected_temperature and hasattr(model_line, 'default_temperature'):
-                self.selected_temperature = model_line.default_temperature
-
-            if not self.selected_ip and hasattr(model_line, 'default_ip'):
-                self.selected_ip = model_line.default_ip
-
-            if not self.selected_body_coating and hasattr(model_line, 'default_body_coating'):
-                self.selected_body_coating = model_line.default_body_coating
-
-            if not self.selected_body_coating and hasattr(model_line, 'default_body_coating'):
-                self.selected_body_coating = model_line.default_body_coating
-
-    def _ensure_default_options(self):
-        """Обеспечивает, что обязательные опции имеют значения по умолчанию"""
-        if self.selected_model:
-            model_line = self.selected_model.model_line
-
-            # Если опции все еще None, пытаемся найти подходящие значения по умолчанию
             if not self.selected_temperature:
-                try:
-                    from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
-                    # Ищем опции, связанные с выбранной моделью
-                    default_temp = PneumaticTemperatureOption.objects.filter(
-                        model_line_item=self.selected_model,
-                        is_active=True
-                    ).first()
-                    if not default_temp:
-                        # Если нет связанных опций, берем первую активную
-                        default_temp = PneumaticTemperatureOption.objects.filter(
-                            is_active=True
-                        ).first()
-                    if default_temp:
-                        self.selected_temperature = default_temp
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Error setting default temperature: {e}")
+                from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
+                self.selected_temperature = PneumaticTemperatureOption.get_or_create_default(model_line)
 
             if not self.selected_ip:
-                try:
-                    from pneumatic_actuators.models.pa_options import PneumaticIpOption
-                    default_ip = PneumaticIpOption.objects.filter(
-                        model_line_item=self.selected_model,
-                        is_active=True
-                    ).first()
-                    if not default_ip:
-                        default_ip = PneumaticIpOption.objects.filter(
-                            is_active=True
-                        ).first()
-                    if default_ip:
-                        self.selected_ip = default_ip
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Error setting default IP: {e}")
+                from pneumatic_actuators.models.pa_options import PneumaticIpOption
+                self.selected_ip = PneumaticIpOption.get_or_create_default(model_line)
+
+            if not self.selected_exd:
+                from pneumatic_actuators.models.pa_options import PneumaticExdOption
+                self.selected_exd =PneumaticExdOption.get_or_create_default(model_line)
 
             if not self.selected_body_coating:
-                try:
-                    from pneumatic_actuators.models.pa_options import PneumaticBodyCoatingOption
-                    default_coating = PneumaticBodyCoatingOption.objects.filter(
-                        model_line_item=self.selected_model,
-                        is_active=True
-                    ).first()
-                    if not default_coating:
-                        default_coating = PneumaticBodyCoatingOption.objects.filter(
-                            is_active=True
-                        ).first()
-                    if default_coating:
-                        self.selected_body_coating = default_coating
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Error setting default coating: {e}")
+                from pneumatic_actuators.models.pa_options import PneumaticBodyCoatingOption
+                self.selected_body_coating = PneumaticBodyCoatingOption.get_or_create_default(model_line)
+
+            if not self.selected_hand_wheel:
+                from pneumatic_actuators.models.pa_options import PneumaticHandWheelOption
+                self.selected_hand_wheel = PneumaticHandWheelOption.get_or_create_default(model_line)
+
+        # Опции через model_line_item
+        if self.selected_model :
+            model_line_item = self.selected_model
+            if not self.selected_safety_position :
+                from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
+                self.selected_safety_position = PneumaticSafetyPositionOption.get_or_create_default(model_line_item)
+            if not self.selected_springs_qty :
+                from pneumatic_actuators.models.pa_options import PneumaticSpringsQtyOption
+                self.selected_springs_qty = PneumaticSpringsQtyOption.get_or_create_default(model_line_item)
+        # ДОПОЛНИТЕЛЬНО: Автоматически очищаем safety_position для DA моделей
+        if self.selected_model and self.selected_safety_position :
+            is_da_model = (self.selected_model.pneumatic_actuator_variety and
+                           self.selected_model.pneumatic_actuator_variety.code == 'DA')
+            if is_da_model :
+                self.selected_safety_position = PneumaticSafetyPositionOption.get_or_create_default(model_line_item)
+    # def _ensure_default_options(self):
+    #     """Обеспечивает, что обязательные опции имеют значения по умолчанию"""
+    #     if self.selected_model:
+    #         model_line = self.selected_model.model_line
+    #
+    #         # Если опции все еще None, пытаемся найти подходящие значения по умолчанию
+    #         if not self.selected_temperature:
+    #             try:
+    #                 from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
+    #                 # Ищем опции, связанные с выбранной моделью
+    #                 default_temp = PneumaticTemperatureOption.objects.filter(
+    #                     model_line_item=self.selected_model,
+    #                     is_active=True
+    #                 ).first()
+    #                 if not default_temp:
+    #                     # Если нет связанных опций, берем первую активную
+    #                     default_temp = PneumaticTemperatureOption.objects.filter(
+    #                         is_active=True
+    #                     ).first()
+    #                 if default_temp:
+    #                     self.selected_temperature = default_temp
+    #             except Exception as e:
+    #                 import logging
+    #                 logger = logging.getLogger(__name__)
+    #                 logger.error(f"Error setting default temperature: {e}")
+    #
+    #         if not self.selected_ip:
+    #             try:
+    #                 from pneumatic_actuators.models.pa_options import PneumaticIpOption
+    #                 default_ip = PneumaticIpOption.objects.filter(
+    #                     model_line_item=self.selected_model,
+    #                     is_active=True
+    #                 ).first()
+    #                 if not default_ip:
+    #                     default_ip = PneumaticIpOption.objects.filter(
+    #                         is_active=True
+    #                     ).first()
+    #                 if default_ip:
+    #                     self.selected_ip = default_ip
+    #             except Exception as e:
+    #                 import logging
+    #                 logger = logging.getLogger(__name__)
+    #                 logger.error(f"Error setting default IP: {e}")
+    #
+    #         if not self.selected_body_coating:
+    #             try:
+    #                 from pneumatic_actuators.models.pa_options import PneumaticBodyCoatingOption
+    #                 default_coating = PneumaticBodyCoatingOption.objects.filter(
+    #                     model_line_item=self.selected_model,
+    #                     is_active=True
+    #                 ).first()
+    #                 if not default_coating:
+    #                     default_coating = PneumaticBodyCoatingOption.objects.filter(
+    #                         is_active=True
+    #                     ).first()
+    #                 if default_coating:
+    #                     self.selected_body_coating = default_coating
+    #             except Exception as e:
+    #                 import logging
+    #                 logger = logging.getLogger(__name__)
+    #                 logger.error(f"Error setting default coating: {e}")
 
     def clean(self):
         """Валидация выбранных опций"""
@@ -1194,7 +1232,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'selected_temperature': ('PneumaticTemperatureOption', 'температурная опция'),
                 'selected_ip': ('PneumaticIpOption', 'степень защиты IP'),
                 'selected_exd': ('PneumaticExdOption', 'взрывозащита'),
-                'selected_body_coating': ('PneumaticBodyCoatingOption', 'покрытие корпуса')
+                'selected_body_coating': ('PneumaticBodyCoatingOption', 'покрытие корпуса'),
+                'selected_hand_wheel' : ('PneumaticHandWheelOption' , 'ручной дублер')
             }
 
             for field_name, (model_class_name, field_label) in option_checks.items():
@@ -1208,7 +1247,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
                         # Для этих опций используем model_line вместо model_line_item
                         if field_name in ['selected_temperature', 'selected_ip', 'selected_exd',
-                                          'selected_body_coating']:
+                                          'selected_body_coating','selected_hand_wheel']:
                             valid_option = option_model.objects.filter(
                                 model_line=self.selected_model.model_line,
                                 id=field_value.id,

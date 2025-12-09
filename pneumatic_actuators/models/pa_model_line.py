@@ -12,6 +12,7 @@ from core.models import StructuredDataMixin
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , ExdOption , EnvTempParameters , HandWheelInstalledOption
 from pneumatic_actuators.models import PneumaticActuatorBody
+from pneumatic_actuators.models.pa_options import PneumaticHandWheelOption
 from pneumatic_actuators.models.pa_params import PneumaticActuatorVariety , PneumaticActuatorConstructionVariety
 
 from producers.models import Brands
@@ -419,14 +420,16 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
             PneumaticTemperatureOption ,
             PneumaticIpOption ,
             PneumaticExdOption ,
-            PneumaticBodyCoatingOption
+            PneumaticBodyCoatingOption,
+            PneumaticHandWheelOption
         )
 
         option_classes = [
             PneumaticTemperatureOption ,
             PneumaticIpOption ,
             PneumaticExdOption ,
-            PneumaticBodyCoatingOption
+            PneumaticBodyCoatingOption,
+            PneumaticHandWheelOption
         ]
         for option_class in option_classes :
             print(f">>> Processing {option_class.__name__}")
@@ -461,6 +464,11 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
         """Получить стандартную опцию покрытия корпуса"""
         from .pa_options import PneumaticBodyCoatingOption
         return PneumaticBodyCoatingOption.get_or_create_default(self)
+
+    def get_default_hand_wheel_option(self) :
+        """Получить стандартную опцию покрытия корпуса"""
+        from .pa_options import PneumaticHandWheelOption
+        return PneumaticHandWheelOption.get_or_create_default(self)
 
     # ==================== СВОЙСТВА ДЛЯ ШАБЛОНОВ И API ====================
 
@@ -546,6 +554,10 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                 'options' : [opt.get_option_info() for opt in self.exd_options_list]
             } ,
             'body_coating' : {
+                'default' : self.default_body_coating.get_option_info() if self.default_body_coating else None ,
+                'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
+            },
+            'hand_wheel' : {
                 'default' : self.default_body_coating.get_option_info() if self.default_body_coating else None ,
                 'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
             }
@@ -778,13 +790,20 @@ class PneumaticActuatorModelLineItem(models.Model) :
         logger.info(f"Создание опций безопасности для модели: {self.name}")
 
         # Получаем опции безопасности
-        nc_option = SafetyPositionOption.objects.filter(code='nc').first()
-        no_option = SafetyPositionOption.objects.filter(code='no').first()
+        from pneumatic_actuators.models import SAFETY_POSITION_NC_DEFAULT_CODE
+        nc_option = SafetyPositionOption.objects.filter(code=SAFETY_POSITION_NC_DEFAULT_CODE).first()
+        from pneumatic_actuators.models import SAFETY_POSITION_NO_DEFAULT_CODE
+        no_option = SafetyPositionOption.objects.filter(code=SAFETY_POSITION_NO_DEFAULT_CODE).first()
+        from pneumatic_actuators.models import SAFETY_POSITION_FL_DEFAULT_CODE
+        fl_option = SafetyPositionOption.objects.filter(code=SAFETY_POSITION_FL_DEFAULT_CODE).first()
 
         if not nc_option :
             logger.error("Не найдена опция безопасности NC в базе данных")
             return False
         if not no_option :
+            logger.error("Не найдена опция безопасности NO в базе данных")
+            return False
+        if not fl_option :
             logger.error("Не найдена опция безопасности NO в базе данных")
             return False
 
@@ -945,76 +964,51 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
     # Добавляем метод для ручной проверки и создания опций
     def ensure_options_exist(self) :
-        """Гарантировать существование опций (для вызова вручную)"""
+        """Гарантировать существование опций через get_or_create_default"""
         logger.info(f"Ручной вызов ensure_options_exist для модели: {self.name} (id={self.id})")
 
-        from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
-        safety_exists = PneumaticSafetyPositionOption.objects.filter(model_line_item=self).exists()
-        from pneumatic_actuators.models.pa_options import PneumaticSpringsQtyOption
-        springs_exists = PneumaticSpringsQtyOption.objects.filter(model_line_item=self).exists()
+        from pneumatic_actuators.models.pa_options import (
+            PneumaticSafetyPositionOption ,
+            PneumaticSpringsQtyOption
+        )
 
-        logger.info(f"Текущее состояние опций - безопасность: {safety_exists}, пружины: {springs_exists}")
+        # Используем get_or_create_default для получения/создания дефолтных опций
+        safety_default = PneumaticSafetyPositionOption.get_or_create_default(self)
+        springs_default = PneumaticSpringsQtyOption.get_or_create_default(self)
 
-        if not safety_exists :
-            logger.info("Создание отсутствующих опций безопасности...")
-            self._create_safety_position_options()
-
-        if not springs_exists :
-            logger.info("Создание отсутствующих опций пружин...")
-            self._create_springs_qty_options()
+        logger.info(
+            f"Опции безопасности: {'создана' if safety_default else 'не создана'}, "
+            f"Пружины: {'создана' if springs_default else 'не создана'}"
+        )
 
         logger.info(f"Завершение ensure_options_exist для модели: {self.name}")
+        return safety_default or springs_default
 
 
 # ==================== СИГНАЛ ДЛЯ АВТОМАТИЧЕСКОГО СОЗДАНИЯ ОПЦИЙ ====================
 
 @receiver(post_save , sender=PneumaticActuatorModelLineItem)
 def create_model_line_item_options(sender , instance , created , **kwargs) :
-    """Создать опции безопасности и количества пружин после создания/обновления элемента"""
+    """Создать дефолтные опции после создания элемента"""
     logger.info(
         f"Сигнал post_save для PneumaticActuatorModelLineItem: id={instance.id}, name='{instance.name}', created={created}")
 
-    try :
-        from .pa_options import PneumaticSafetyPositionOption , PneumaticSpringsQtyOption
+    # Создаем дефолтные опции только если они нужны
+    from .pa_options import PneumaticSafetyPositionOption , PneumaticSpringsQtyOption
 
-        # Проверяем существующие опции
-        safety_options_exist = PneumaticSafetyPositionOption.objects.filter(model_line_item=instance).exists()
-        springs_options_exist = PneumaticSpringsQtyOption.objects.filter(model_line_item=instance).exists()
+    # Проверяем, есть ли уже опции
+    safety_exists = PneumaticSafetyPositionOption.objects.filter(model_line_item=instance).exists()
+    springs_exists = PneumaticSpringsQtyOption.objects.filter(model_line_item=instance).exists()
 
-        logger.info(
-            f"Текущее состояние опций для модели {instance.name}: безопасность={safety_options_exist}, пружины={springs_options_exist}")
+    # Создаем только дефолтные опции, если их нет
+    if not safety_exists :
+        default_safety = PneumaticSafetyPositionOption.get_or_create_default(instance)
+        logger.info(f"Создана дефолтная опция безопасности: {default_safety}")
 
-        # Создаем опции, если их нет (независимо от created)
-        if not safety_options_exist :
-            logger.info(f"Создание отсутствующих опций безопасности для модели: {instance.name}")
-            safety_created = instance._create_safety_position_options()
-            if safety_created :
-                logger.info(f"Успешно созданы опции положения безопасности для модели: {instance.name}")
-            else :
-                logger.warning(f"Не удалось создать опции положения безопасности для модели: {instance.name}")
-        else :
-            logger.debug(f"Опции безопасности уже существуют для модели: {instance.name}")
-
-        if not springs_options_exist :
-            logger.info(f"Создание отсутствующих опций количества пружин для модели: {instance.name}")
-            springs_created = instance._create_springs_qty_options()
-            if springs_created :
-                logger.info(f"Успешно созданы опции количества пружин для модели: {instance.name}")
-            else :
-                logger.warning(f"Не удалось создать опции количества пружин для модели: {instance.name}")
-        else :
-            logger.debug(f"Опции количества пружин уже существуют для модели: {instance.name}")
-
-        # Дополнительная проверка для новых моделей
-        if created and (safety_options_exist or springs_options_exist) :
-            logger.info(
-                f"Модель создана, но некоторые опции уже существуют: безопасность={safety_options_exist}, пружины={springs_options_exist}")
-
-        logger.info(f"Завершение обработки опций для модели: {instance.name}")
-
-    except Exception as e :
-        logger.error(f"Ошибка при создании/проверке опций для модели {instance.name}: {str(e)}" , exc_info=True)
-
+    if not springs_exists :
+        default_springs = PneumaticSpringsQtyOption.get_or_create_default(instance)
+        logger.info(f"Создана дефолтная опция пружин: {default_springs}")
+#
 
 class PneumaticActuatorModelLineCertRelation(AbstractCertRelation) :
     """
