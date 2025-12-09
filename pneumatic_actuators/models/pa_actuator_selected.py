@@ -92,6 +92,14 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_('Выбранное покрытие корпуса')
     )
 
+    selected_hand_wheel = models.ForeignKey(
+        'PneumaticHandWheelOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Встроенный дублер"),
+        help_text=_('Встроенный ручной дублер')
+    )
+
     class Meta:
         ordering = ['sorting_order']
         verbose_name = _('Выбранный пневмопривод')
@@ -644,6 +652,11 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'name': str(self.selected_body_coating),
                 'description': self.selected_body_coating.description
             }
+        if self.selected_body_coating:
+            data['selected_options']['hand_wheel'] = {
+                'name': str(self.selected_hand_wheel),
+                'description': self.selected_hand_wheel.description
+            }
 
         # Характеристики корпуса
         if self.selected_model and self.selected_model.body:
@@ -803,7 +816,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'temperature': 'Температурный диапазон',
                 'ip': 'Степень защиты IP',
                 'exd': 'Взрывозащита',
-                'body_coating': 'Покрытие корпуса'
+                'body_coating': 'Покрытие корпуса',
+                'hand_wheel': 'Встроенный ручной дублер'
             }.get(option_type, option_type)
 
             desc_parts.append(f"{display_name}: {option_data['name']}")
@@ -1013,6 +1027,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 self.selected_ip = None
                 self.selected_exd = None
                 self.selected_body_coating = None
+                self.selected_hand_wheel = None
         else:
             # Если это новая запись или нет оригинала - устанавливаем опции по умолчанию
             self._set_default_options()
@@ -1055,6 +1070,9 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
             if not self.selected_ip and hasattr(model_line, 'default_ip'):
                 self.selected_ip = model_line.default_ip
+
+            if not self.selected_body_coating and hasattr(model_line, 'default_body_coating'):
+                self.selected_body_coating = model_line.default_body_coating
 
             if not self.selected_body_coating and hasattr(model_line, 'default_body_coating'):
                 self.selected_body_coating = model_line.default_body_coating

@@ -474,3 +474,41 @@ class BaseSpringsQtyThroughOption(BaseThroughOption):
     class Meta:
         abstract = True
         ordering = ['sorting_order']
+
+class BaseHandWheelThroughOption(BaseThroughOption) :
+    """Базовая модель для сквозных опций IP"""
+    hand_wheel_option = models.ForeignKey(
+        'params.HandWheelInstalledOption' ,
+        on_delete=models.CASCADE ,
+        verbose_name=_("Ручной дублер"),
+        help_text=_("Тип установленного ручного дублера")
+    )
+
+    class Meta :
+        abstract = True
+        ordering = ['sorting_order']
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную IP опцию (IP54)"""
+        from django.apps import apps
+
+        HandWheelInstalledOption = apps.get_model('params' , 'HandWheelInstalledOption')  # Ленивая загрузка
+
+        try :
+            no_hand_wheel_option = HandWheelInstalledOption.objects.get(code='none')
+        except HandWheelInstalledOption.DoesNotExist :
+            no_hand_wheel_option = HandWheelInstalledOption.objects.filter(is_active=True).first()
+
+        if no_hand_wheel_option :
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field : parent_obj} ,
+                hand_wheel_option=no_hand_wheel_option ,
+                encoding='' ,
+                description=no_hand_wheel_option.description ,
+                is_default=True ,
+                sorting_order=0 ,
+                is_active=True
+            )
+        return None

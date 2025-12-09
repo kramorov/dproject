@@ -3,10 +3,10 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLine , PneumaticActuatorModelLineCertRelation
 from pneumatic_actuators.models.pa_options import (
-    PneumaticTemperatureOption ,
-    PneumaticIpOption ,
-    PneumaticExdOption ,
-    PneumaticBodyCoatingOption
+    PneumaticTemperatureOption,
+    PneumaticIpOption,
+    PneumaticExdOption,
+    PneumaticBodyCoatingOption, PneumaticHandWheelOption
 )
 
 class CertDataInline(admin.TabularInline) :
@@ -38,6 +38,14 @@ class PneumaticIpOptionInline(admin.TabularInline) :
     verbose_name = _("IP опция")
     verbose_name_plural = _("IP опции")
 
+class PneumaticHandWheelOptionInline(admin.TabularInline) :
+    """Inline для PneumaticHandWheelOption опций"""
+    model = PneumaticHandWheelOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['hand_wheel_option' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Опция ручного дублера")
+    verbose_name_plural = _("Опции ручного дублера")
 
 class PneumaticExdOptionInline(admin.TabularInline) :
     """Inline для Exd опций"""
@@ -104,6 +112,7 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
         PneumaticIpOptionInline ,
         PneumaticExdOptionInline ,
         PneumaticBodyCoatingOptionInline,
+        PneumaticHandWheelOptionInline,
         CertDataInline
     ]
 

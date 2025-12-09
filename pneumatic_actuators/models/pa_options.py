@@ -3,10 +3,37 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 
-from options.models import BaseTemperatureThroughOption , BaseExdThroughOption , BaseBodyCoatingThroughOption , \
-    BaseIpThroughOption , BasePneumaticConnectionThroughOption , BaseSafetyPositionThroughOption , \
-    BaseSpringsQtyThroughOption
+from options.models import BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption, \
+    BaseIpThroughOption, BasePneumaticConnectionThroughOption, BaseSafetyPositionThroughOption, \
+    BaseSpringsQtyThroughOption, BaseHandWheelThroughOption
 
+
+class PneumaticHandWheelOption(BaseHandWheelThroughOption):
+    """Температурные опции для пневмоприводов"""
+    model_line = models.ForeignKey(
+        'PneumaticActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='hand_wheel_options',
+        verbose_name=_("Серия пневмоприводов")
+    )
+
+    class Meta:
+        verbose_name = _("Тип установленного ручного дублера")
+        verbose_name_plural = _("Типы установленного ручного дублерапневмоприводов")
+        ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
+        unique_together = ['model_line', 'encoding']
+
+    @classmethod
+    def _get_parent_field_name(cls) -> Optional[str] :
+        """Явно указываем имя родительского поля"""
+        return 'model_line'
+
+    @property
+    def get_display_name(self):
+        return self.hand_wheel_option.name
+
+    def __str__(self):
+        return self.hand_wheel_option.name
 
 class PneumaticTemperatureOption(BaseTemperatureThroughOption):
     """Температурные опции для пневмоприводов"""
