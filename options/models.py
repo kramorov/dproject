@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from typing import List, Optional, Tuple, Any, Dict, Union
 
-from pneumatic_actuators.models import PneumaticActuatorSpringsQty
+# from pneumatic_actuators.models import PneumaticActuatorSpringsQty
 
 
 class BaseThroughOption(models.Model) :
@@ -466,7 +466,7 @@ class BaseSpringsQtyThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций положения безопасности НО/НЗ/оставаться..."""
     # from .pa_params import PneumaticActuatorSpringsQty
     springs_qty = models.ForeignKey(
-        PneumaticActuatorSpringsQty,
+        'pneumatic_actuators.PneumaticActuatorSpringsQty',
         on_delete=models.CASCADE,
         verbose_name=_("Количество пружин") ,
         help_text=_('Количество пружин'))

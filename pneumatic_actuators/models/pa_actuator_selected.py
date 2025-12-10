@@ -1064,13 +1064,13 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         # Устанавливаем значения по умолчанию для None опций
         # self._ensure_default_options()
         self._set_default_options()
-
+        super().save(*args, **kwargs)
         # Автозаполнение
         if self.selected_model:
             self.name = self.generated_model_item_code
             self.code = self.generated_model_item_code
             self.description = self._generate_short_description()
-        super().save(*args, **kwargs)
+
         super().save(*args, **kwargs)
 
     def _set_default_options(self):
@@ -1307,15 +1307,15 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             PneumaticTemperatureOption, PneumaticIpOption,
             PneumaticExdOption, PneumaticBodyCoatingOption
         )
-        #
-        # print(f"=== DEBUG get_available_options ===")
-        # print(f"Selected actuator ID: {self.id}")
-        # print(f"Selected model: {self.selected_model}")
-        # print(f"Selected model ID: {self.selected_model.id if self.selected_model else 'None'}")
-        # print(f"Selected model name: {self.selected_model.name if self.selected_model else 'None'}")
+
+        print(f"=== DEBUG get_available_options ===")
+        print(f"Selected actuator ID: {self.id}")
+        print(f"Selected model: {self.selected_model}")
+        print(f"Selected model ID: {self.selected_model.id if self.selected_model else 'None'}")
+        print(f"Selected model name: {self.selected_model.name if self.selected_model else 'None'}")
 
         if not self.selected_model:
-            # print("=== DEBUG: No selected model - returning empty options")
+            print("=== DEBUG: No selected model - returning empty options")
             return self._get_empty_options()
 
         try:
@@ -1330,17 +1330,17 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 is_active=True
             ).select_related('springs_qty')
             #
-            # print(f"Safety options SQL: {safety_options.query}")
-            # print(f"Springs options SQL: {springs_options.query}")
-            # print(f"Safety options count: {safety_options.count()}")
-            # print(f"Springs options count: {springs_options.count()}")
+            print(f"Safety options SQL: {safety_options.query}")
+            print(f"Springs options SQL: {springs_options.query}")
+            print(f"Safety options count: {safety_options.count()}")
+            print(f"Springs options count: {springs_options.count()}")
 
-            # # Выводим найденные опции
-            # for i , opt in enumerate(safety_options) :
-            #     print(f"Safety option {i + 1}: {opt.id} - {opt.safety_position.name} - encoding: '{opt.encoding}'")
-            #
-            # for i , opt in enumerate(springs_options) :
-            #     print(f"Springs option {i + 1}: {opt.id} - {opt.springs_qty.name} - encoding: '{opt.encoding}'")
+            # Выводим найденные опции
+            for i , opt in enumerate(safety_options) :
+                print(f"Safety option {i + 1}: {opt.id} - {opt.safety_position.name} - encoding: '{opt.encoding}'")
+
+            for i , opt in enumerate(springs_options) :
+                print(f"Springs option {i + 1}: {opt.id} - {opt.springs_qty.name} - encoding: '{opt.encoding}'")
 
             # Опции через model_line
             temperature_options = []
