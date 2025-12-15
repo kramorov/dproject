@@ -36,7 +36,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
-    selected_model = models.ForeignKey(PneumaticActuatorModelLineItem,
+    selected_model_line_item = models.ForeignKey(PneumaticActuatorModelLineItem,
                                        related_name='selected_pneumatic_actuator_model_line_item',
                                        on_delete=models.CASCADE,
                                        verbose_name=_('Модель'),
@@ -136,13 +136,13 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         }
 
         # Добавляем данные модели, если есть
-        if self.selected_model :
-            if hasattr(self.selected_model , 'get_compact_data') :
-                data['selected_model'] = self.selected_model.get_compact_data()
+        if self.selected_model_line_item :
+            if hasattr(self.selected_model_line_item , 'get_compact_data') :
+                data['selected_model'] = self.selected_model_line_item.get_compact_data()
             else :
                 data['selected_model'] = {
-                    'id' : self.selected_model.id ,
-                    'name' : str(self.selected_model) ,
+                    'id' : self.selected_model_line_item.id ,
+                    'name' : str(self.selected_model_line_item) ,
                 }
 
         # Добавляем информацию об опциях
@@ -200,9 +200,9 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         })
 
         # Добавляем связанную модель
-        if self.selected_model :
+        if self.selected_model_line_item :
             fields['selected_model'] = self._format_foreign_key(
-                self.selected_model ,
+                self.selected_model_line_item ,
                 label=_('Модель') ,
                 icon='⚙️' ,
                 priority=4 ,
@@ -267,7 +267,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     {'text' : f'Вес: {weight} кг' , 'type' : 'info'} if weight else None ,
                 ] ,
                 'details' : [
-                    {'label' : 'Модель' , 'value' : str(self.selected_model)} if self.selected_model else None ,
+                    {'label' : 'Модель' , 'value' : str(self.selected_model_line_item)} if self.selected_model_line_item else None ,
                     {'label' : 'Сортировка' , 'value' : self.sorting_order} ,
                 ]
             }
@@ -284,7 +284,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'id' : self.id ,
                 'name' : self.name ,
                 'code' : self.code ,
-                'model' : str(self.selected_model) if self.selected_model else '' ,
+                'model' : str(self.selected_model_line_item) if self.selected_model_line_item else '' ,
                 'options' : ', '.join(options_str) if options_str else '' ,
                 'weight' : float(weight) if weight else None ,
                 'is_active' : self.is_active ,
@@ -297,7 +297,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'code' : self.code ,
                 'type' : 'pneumatic_actuator' ,
                 'color' : 'blue' if self.is_active else 'gray' ,
-                'subtitle' : f'Модель: {self.selected_model.code if self.selected_model else ""}'
+                'subtitle' : f'Модель: {self.selected_model_line_item.code if self.selected_model_line_item else ""}'
             }
 
         # По умолчанию DETAIL
@@ -351,7 +351,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'description' : self.description ,
             'sorting_order' : self.sorting_order ,
             'is_active' : self.is_active ,
-            'selected_model_id' : self.selected_model.id if self.selected_model else None ,
+            'selected_model_id' : self.selected_model_line_item.id if self.selected_model_line_item else None ,
             'selected_safety_position_id' : self.selected_safety_position.id if self.selected_safety_position else None ,
             'selected_springs_qty_id' : self.selected_springs_qty.id if self.selected_springs_qty else None ,
             'selected_temperature_id' : self.selected_temperature.id if self.selected_temperature else None ,
@@ -501,8 +501,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         related_data = {}
 
         # Данные модели
-        if self.selected_model and hasattr(self.selected_model , 'get_compact_data') :
-            related_data['selected_model'] = self.selected_model.get_compact_data()
+        if self.selected_model_line_item and hasattr(self.selected_model_line_item , 'get_compact_data') :
+            related_data['selected_model'] = self.selected_model_line_item.get_compact_data()
 
         # Данные опций
         option_fields = [
@@ -572,8 +572,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         if self.description :
             desc_parts.append(f'<p>{self.description}</p>')
 
-        if self.selected_model and self.selected_model.description :
-            desc_parts.append(f'<p><strong>Описание модели:</strong> {self.selected_model.description}</p>')
+        if self.selected_model_line_item and self.selected_model_line_item.description :
+            desc_parts.append(f'<p><strong>Описание модели:</strong> {self.selected_model_line_item.description}</p>')
 
         return '\n'.join(desc_parts)
     # def get_description_preview(self) :
@@ -615,17 +615,17 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         }
 
         # Базовые свойства из модели
-        if self.selected_model:
-            if self.selected_model.brand:
-                data['basic_properties']['brand'] = self.selected_model.brand.name
-            if self.selected_model.pneumatic_actuator_variety:
+        if self.selected_model_line_item:
+            if self.selected_model_line_item.brand:
+                data['basic_properties']['brand'] = self.selected_model_line_item.brand.name
+            if self.selected_model_line_item.pneumatic_actuator_variety:
                 data['basic_properties'][
-                    'pneumatic_actuator_variety'] = self.selected_model.pneumatic_actuator_variety.name
-            if self.selected_model.default_output_type:
-                data['basic_properties']['default_output_type'] = self.selected_model.default_output_type.name
-            if self.selected_model.pneumatic_actuator_construction_variety:
+                    'pneumatic_actuator_variety'] = self.selected_model_line_item.pneumatic_actuator_variety.name
+            if self.selected_model_line_item.default_output_type:
+                data['basic_properties']['default_output_type'] = self.selected_model_line_item.default_output_type.name
+            if self.selected_model_line_item.pneumatic_actuator_construction_variety:
                 data['basic_properties'][
-                    'pneumatic_actuator_construction_variety'] = self.selected_model.pneumatic_actuator_construction_variety.name
+                    'pneumatic_actuator_construction_variety'] = self.selected_model_line_item.pneumatic_actuator_construction_variety.name
             # if self.selected_model.default_hand_wheel:
             #     data['basic_properties']['selected_hand_wheel'] = self.selected_model.selected_hand_wheel.name
 
@@ -675,11 +675,11 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             }
 
         # Характеристики корпуса
-        if self.selected_model and self.selected_model.body:
-            data['body_specs'] = self.selected_model.body.get_description_data()
+        if self.selected_model_line_item and self.selected_model_line_item.body:
+            data['body_specs'] = self.selected_model_line_item.body.get_description_data()
 
         # Таблица моментов/усилий
-        if self.selected_model and self.selected_model.body:
+        if self.selected_model_line_item and self.selected_model_line_item.body:
             try:
                 if self.selected_springs_qty:
                     spring_qty = self.selected_springs_qty.springs_qty
@@ -687,12 +687,12 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     spring_qty = None
 
                 ncno_code = self.selected_safety_position.safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
-                construction_variety_code = self.selected_model.pneumatic_actuator_construction_variety.code if self.selected_model else ACTUATOR_VARIETY_RP_DEFAULT_CODE
-                da_sr_code = self.selected_model.pneumatic_actuator_variety.code if self.selected_model else None
+                construction_variety_code = self.selected_model_line_item.pneumatic_actuator_construction_variety.code if self.selected_model_line_item else ACTUATOR_VARIETY_RP_DEFAULT_CODE
+                da_sr_code = self.selected_model_line_item.pneumatic_actuator_variety.code if self.selected_model_line_item else None
                 # Получаем структурированные данные
                 from pneumatic_actuators.models import BodyThrustTorqueTable
                 torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
-                    current_body=self.selected_model.body,
+                    current_body=self.selected_model_line_item.body,
                     spring_qty_list=[spring_qty] if spring_qty else None,
                     ncno_code=ncno_code,
                     construction_variety_code=construction_variety_code, da_sr_code=da_sr_code
@@ -972,10 +972,10 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     @property
     def generated_model_item_code(self) -> str:
         """Сгенерировать артикул по шаблону из model_line"""
-        if not self.selected_model or not self.selected_model.model_line:
+        if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
             return self.code or ""
 
-        template = self.selected_model.model_line.model_item_code_template
+        template = self.selected_model_line_item.model_line.model_item_code_template
         if not template:
             return self._generate_fallback_code()
 
@@ -1028,93 +1028,108 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         return '.'.join(filter(None, parts))
 
     def save(self, *args, **kwargs):
-        # Получаем оригинальный объект из базы данных, если он существует
+        from django.core.exceptions import ValidationError
+
+        # Словарь опций для обработки
+        option_config = {
+            'selected_safety_position': 'pneumatic_actuators.models.pa_options.PneumaticSafetyPositionOption',
+            'selected_springs_qty': 'pneumatic_actuators.models.pa_options.PneumaticSpringsQtyOption',
+            'selected_temperature': 'pneumatic_actuators.models.pa_options.PneumaticTemperatureOption',
+            'selected_ip': 'pneumatic_actuators.models.pa_options.PneumaticIpOption',
+            'selected_exd': 'pneumatic_actuators.models.pa_options.PneumaticExdOption',
+            'selected_body_coating': 'pneumatic_actuators.models.pa_options.PneumaticBodyCoatingOption',
+            'selected_hand_wheel': 'pneumatic_actuators.models.PneumaticHandWheelOption',
+        }
+
+        # Получаем оригинальный объект
         original = None
         if self.pk:
             try:
-                original = PneumaticActuatorSelected.objects.get(pk=self.pk)
-            except PneumaticActuatorSelected.DoesNotExist:
-                original = None
+                original = self.__class__._default_manager.get(pk=self.pk)
+            except self.__class__.DoesNotExist:
+                pass
 
         # Проверяем, изменилась ли модель привода
-        if original and original.selected_model and self.selected_model:
-            if original.selected_model.model_line != self.selected_model.model_line:
-                # Если изменилась модель - обнуляем все опции
-                self.selected_safety_position = None
-                self.selected_springs_qty = None
-                self.selected_temperature = None
-                self.selected_ip = None
-                self.selected_exd = None
-                self.selected_body_coating = None
-                self.selected_hand_wheel = None
-        else:
-            # Если это новая запись или нет оригинала - устанавливаем опции по умолчанию
-            self._set_default_options()
+        if original and original.selected_model_line_item and self.selected_model_line_item:
+            if original.selected_model_line_item != self.selected_model_line_item:
+                # Импортируем модели опций
+                for field_name, model_path in option_config.items():
+                    module_name, class_name = model_path.rsplit('.', 1)
+                    module = __import__(module_name, fromlist=[class_name])
+                    option_model = getattr(module, class_name)
 
-        # ВАЖНО: Вызываем clean() для валидации перед сохранением
+                    current_option = getattr(self, field_name)
+                    if current_option:
+                        # Проверяем допустимость опции
+                        if not option_model.is_option_allowed_for_parent(
+                                parent_obj=self.selected_model_line_item,
+                                option_to_check=current_option
+                        ):
+                            # Устанавливаем дефолтную
+                            default_option = option_model.get_default_or_any_allowed(
+                                self.selected_model_line_item
+                            )
+                            setattr(self, field_name, default_option)
+
+        # Устанавливаем дефолтные значения для пустых опций
+        self._ensure_default_options()
+
+        # Валидация
         try:
             self.clean()
         except ValidationError as e:
-            # Логируем ошибки валидации
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"=== MODEL SAVE VALIDATION ERROR: {e}")
-            raise e
+            logger.error(f"Validation error in save(): {e}")
+            raise
 
-        # Устанавливаем значения по умолчанию для None опций
-        # self._ensure_default_options()
-        self._set_default_options()
-        super().save(*args, **kwargs)
-        # Автозаполнение
-        if self.selected_model:
-            self.name = self.generated_model_item_code
-            self.code = self.generated_model_item_code
-            self.description = self._generate_short_description()
+        # Автозаполнение полей
+        if self.selected_model_line_item:
+            if hasattr(self, 'generated_model_item_code'):
+                self.name = self.generated_model_item_code
+                self.code = self.generated_model_item_code
+            if hasattr(self, '_generate_short_description'):
+                self.description = self._generate_short_description()
 
+        # Сохраняем
         super().save(*args, **kwargs)
 
     def _set_default_options(self):
-        """Устанавливает опции по умолчанию для новой записи"""
-        if self.selected_model:
-            model_line = self.selected_model.model_line
+        """Установить значения по умолчанию для всех None опций"""
+        if not self.selected_model_line_item:
+            return
 
+        from pneumatic_actuators.models.pa_options import (
+            PneumaticTemperatureOption,
+            PneumaticSafetyPositionOption,
+            PneumaticSpringsQtyOption,
+            PneumaticIpOption,
+            PneumaticExdOption,
+            PneumaticBodyCoatingOption
+        )
+        from pneumatic_actuators.models import PneumaticHandWheelOption
 
-            # Устанавливаем опции по умолчанию из связанной модели
-            if not self.selected_temperature:
-                from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
-                self.selected_temperature = PneumaticTemperatureOption.get_or_create_default(model_line)
+        # Опции, которые должны иметь дефолтные значения
+        option_configs = [
+            ('selected_safety_position', PneumaticSafetyPositionOption),
+            ('selected_springs_qty', PneumaticSpringsQtyOption),
+            ('selected_temperature', PneumaticTemperatureOption),
+            ('selected_ip', PneumaticIpOption),
+            ('selected_exd', PneumaticExdOption),
+            ('selected_body_coating', PneumaticBodyCoatingOption),
+            ('selected_hand_wheel', PneumaticHandWheelOption),
+        ]
 
-            if not self.selected_ip:
-                from pneumatic_actuators.models.pa_options import PneumaticIpOption
-                self.selected_ip = PneumaticIpOption.get_or_create_default(model_line)
+        for field_name, option_model in option_configs:
+            current_value = getattr(self, field_name)
+            if not current_value:
+                # Получаем дефолтную опцию для этой модели
+                default_option = option_model.get_default_or_any_allowed(
+                    self.selected_model_line_item
+                )
+                if default_option:
+                    setattr(self, field_name, default_option)
 
-            if not self.selected_exd:
-                from pneumatic_actuators.models.pa_options import PneumaticExdOption
-                self.selected_exd =PneumaticExdOption.get_or_create_default(model_line)
-
-            if not self.selected_body_coating:
-                from pneumatic_actuators.models.pa_options import PneumaticBodyCoatingOption
-                self.selected_body_coating = PneumaticBodyCoatingOption.get_or_create_default(model_line)
-
-            if not self.selected_hand_wheel:
-                from pneumatic_actuators.models.pa_options import PneumaticHandWheelOption
-                self.selected_hand_wheel = PneumaticHandWheelOption.get_or_create_default(model_line)
-
-        # Опции через model_line_item
-        if self.selected_model :
-            model_line_item = self.selected_model
-            if not self.selected_safety_position :
-                from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
-                self.selected_safety_position = PneumaticSafetyPositionOption.get_or_create_default(model_line_item)
-            if not self.selected_springs_qty :
-                from pneumatic_actuators.models.pa_options import PneumaticSpringsQtyOption
-                self.selected_springs_qty = PneumaticSpringsQtyOption.get_or_create_default(model_line_item)
-        # ДОПОЛНИТЕЛЬНО: Автоматически очищаем safety_position для DA моделей
-        if self.selected_model and self.selected_safety_position :
-            is_da_model = (self.selected_model.pneumatic_actuator_variety and
-                           self.selected_model.pneumatic_actuator_variety.code == 'DA')
-            if is_da_model :
-                self.selected_safety_position = PneumaticSafetyPositionOption.get_or_create_default(model_line_item)
     # def _ensure_default_options(self):
     #     """Обеспечивает, что обязательные опции имеют значения по умолчанию"""
     #     if self.selected_model:
@@ -1183,17 +1198,17 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         logger = logging.getLogger(__name__)
         logger.info("=== MODEL CLEAN DEBUG: Starting validation")
 
-        if self.selected_model:
+        if self.selected_model_line_item:
             # Определяем тип модели
-            is_da_model = (self.selected_model.pneumatic_actuator_variety and
-                           self.selected_model.pneumatic_actuator_variety.code == 'DA')
+            is_da_model = (self.selected_model_line_item.pneumatic_actuator_variety and
+                           self.selected_model_line_item.pneumatic_actuator_variety.code == 'DA')
 
             # Проверяем safety_position только если оно выбрано И модель не DA
             if self.selected_safety_position:
                 if not is_da_model:
                     from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
                     valid_safety = PneumaticSafetyPositionOption.objects.filter(
-                        model_line_item=self.selected_model,
+                        model_line_item=self.selected_model_line_item,
                         id=self.selected_safety_position.id,
                         is_active=True
                     ).exists()
@@ -1216,7 +1231,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             if self.selected_springs_qty:
                 from pneumatic_actuators.models.pa_options import PneumaticSpringsQtyOption
                 valid_springs = PneumaticSpringsQtyOption.objects.filter(
-                    model_line_item=self.selected_model,
+                    model_line_item=self.selected_model_line_item,
                     id=self.selected_springs_qty.id,
                     is_active=True
                 ).exists()
@@ -1249,13 +1264,13 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                         if field_name in ['selected_temperature', 'selected_ip', 'selected_exd',
                                           'selected_body_coating','selected_hand_wheel']:
                             valid_option = option_model.objects.filter(
-                                model_line=self.selected_model.model_line,
+                                model_line=self.selected_model_line_item.model_line,
                                 id=field_value.id,
                                 is_active=True
                             ).exists()
                         else:
                             valid_option = option_model.objects.filter(
-                                model_line_item=self.selected_model,
+                                model_line_item=self.selected_model_line_item,
                                 id=field_value.id,
                                 is_active=True
                             ).exists()
@@ -1274,7 +1289,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     # Свойства для доступа к доступным опциям
     @property
     def selected_model_display(self):
-        return str(self.selected_model) if self.selected_model else "-"
+        return str(self.selected_model_line_item) if self.selected_model_line_item else "-"
 
     @property
     def safety_position_display(self):
@@ -1310,23 +1325,23 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
         print(f"=== DEBUG get_available_options ===")
         print(f"Selected actuator ID: {self.id}")
-        print(f"Selected model: {self.selected_model}")
-        print(f"Selected model ID: {self.selected_model.id if self.selected_model else 'None'}")
-        print(f"Selected model name: {self.selected_model.name if self.selected_model else 'None'}")
+        print(f"Selected model: {self.selected_model_line_item}")
+        print(f"Selected model ID: {self.selected_model_line_item.id if self.selected_model_line_item else 'None'}")
+        print(f"Selected model name: {self.selected_model_line_item.name if self.selected_model_line_item else 'None'}")
 
-        if not self.selected_model:
+        if not self.selected_model_line_item:
             print("=== DEBUG: No selected model - returning empty options")
             return self._get_empty_options()
 
         try:
             # Опции через model_line_item
             safety_options = PneumaticSafetyPositionOption.objects.filter(
-                model_line_item=self.selected_model,
+                model_line_item=self.selected_model_line_item,
                 is_active=True
             ).select_related('safety_position')
 
             springs_options = PneumaticSpringsQtyOption.objects.filter(
-                model_line_item=self.selected_model,
+                model_line_item=self.selected_model_line_item,
                 is_active=True
             ).select_related('springs_qty')
             #
@@ -1348,11 +1363,11 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             exd_options = []
             body_coating_options = []
 
-            if self.selected_model.model_line:
+            if self.selected_model_line_item.model_line:
                 # print(f"Model line: {self.selected_model.model_line}")
 
                 temperature_options = PneumaticTemperatureOption.objects.filter(
-                    model_line=self.selected_model.model_line,
+                    model_line=self.selected_model_line_item.model_line,
                     is_active=True
                 )
                 # ДИАГНОСТИКА temperature_options
@@ -1361,17 +1376,17 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     print(f"🔧   id={opt.id}, encoding={opt.encoding}")
 
                 ip_options = PneumaticIpOption.objects.filter(
-                    model_line=self.selected_model.model_line,
+                    model_line=self.selected_model_line_item.model_line,
                     is_active=True
                 )
 
                 exd_options = PneumaticExdOption.objects.filter(
-                    model_line=self.selected_model.model_line,
+                    model_line=self.selected_model_line_item.model_line,
                     is_active=True
                 )
 
                 body_coating_options = PneumaticBodyCoatingOption.objects.filter(
-                    model_line=self.selected_model.model_line,
+                    model_line=self.selected_model_line_item.model_line,
                     is_active=True
                 )
 
@@ -1462,15 +1477,15 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     def get_weight(self) -> Optional[Decimal]:
         """Рассчитать вес привода"""
         from pneumatic_actuators.models import PneumaticWeightParameter
-        if not self.selected_model or not self.selected_model.body:
+        if not self.selected_model_line_item or not self.selected_model_line_item.body:
             return None
 
-        body = self.selected_model.body
+        body = self.selected_model_line_item.body
 
         try:
             # Для приводов DA
-            if (self.selected_model.pneumatic_actuator_variety and
-                    self.selected_model.pneumatic_actuator_variety.code == 'DA'):
+            if (self.selected_model_line_item.pneumatic_actuator_variety and
+                    self.selected_model_line_item.pneumatic_actuator_variety.code == 'DA'):
                 da_weight = PneumaticWeightParameter.objects.filter(
                     body=body,
                     spring_qty__code='DA'

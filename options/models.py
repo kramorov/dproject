@@ -44,6 +44,9 @@ class BaseThroughOption(models.Model) :
     def ensure_default_exists(cls , parent_obj) -> bool :
         """
         Гарантировать наличие дефолтной опции для родительского объекта
+        Для этого проверяем, есть ли дефолтная опция у родительского объекта.
+        Если нет - то делаем дефолтной первую попавшуюся, или просто создаем.
+
         Возвращает True если была создана новая опция
         """
         parent_field = cls._get_parent_field_name()
@@ -90,6 +93,43 @@ class BaseThroughOption(models.Model) :
         return cls.objects.filter(
             **{parent_field : parent_obj , 'is_default' : True , 'is_active' : True}
         ).first()
+
+    @classmethod
+    def get_default_or_any_allowed(cls, parent_obj):
+        """
+        Получить дефолтную опцию  у родительского объекта
+
+        Args:
+            parent_obj: PneumaticActuatorModelLineItem как правило
+
+        Returns:
+            Дефолтная опция или None
+        """
+        parent_field = cls._get_parent_field_name()
+        if not parent_field:
+            return None
+
+        # ВАЖНО: НЕ создаем опцию, если ее нет - просто возвращаем существующую дефолтную
+        # Оключаем ensure_default_exists, чтобы не создавалась новая
+        # cls.ensure_default_exists(parent_obj)
+
+        # Ищем дефолтную опцию у родительского объекта
+        default_option = cls.objects.filter(
+            **{parent_field: parent_obj, 'is_default': True, 'is_active': True}
+        ).first()
+
+        # Если дефолтной нет, берем первую активную
+        if not default_option:
+            default_option = cls.objects.filter(
+                **{parent_field: parent_obj, 'is_active': True}
+            ).first()
+
+            if default_option:
+                # Делаем ее дефолтной
+                default_option.is_default = True
+                default_option.save()
+
+        return default_option
 
     @classmethod
     def _create_basic_default_option(cls , parent_obj) -> bool :
@@ -167,6 +207,99 @@ class BaseThroughOption(models.Model) :
         return self.__class__.objects.filter(
             **{parent_field : parent , 'is_default' : True , 'is_active' : True}).first()
 
+    def is_option_allowed(self, option_to_check) -> bool:
+        """
+        Проверяет, входит ли переданная опция в список допустимых опций для этого родительского объекта.
+
+        Args:
+            option_to_check: Экземпляр опции для проверки
+                             (может быть id, экземпляр модели или None)
+
+        Returns:
+            bool: True если опция допустима, False если нет
+        """
+        if option_to_check is None:
+            return True  # None всегда допустим (опциональная опция)
+
+        # Получаем родительский объект текущего экземпляра
+        current_parent = self._get_parent_object()
+        if not current_parent:
+            return False
+
+        # Определяем id опции для проверки
+        if isinstance(option_to_check, models.Model):
+            # Если передан экземпляр модели, проверяем его класс
+            if not isinstance(option_to_check, self.__class__):
+                return False
+            option_id_to_check = option_to_check.id
+        elif isinstance(option_to_check, (int, str)):
+            try:
+                option_id_to_check = int(option_to_check)
+            except (ValueError, TypeError):
+                return False
+        else:
+            return False
+
+        # Получаем родительский объект проверяемой опции
+        try:
+            # Получаем проверяемую опцию из БД
+            option_instance = self.__class__.objects.filter(
+                id=option_id_to_check,
+                is_active=True
+            ).first()
+
+            if not option_instance:
+                return False
+
+            # Получаем родительский объект проверяемой опции
+            checked_parent = option_instance._get_parent_object()
+            if not checked_parent:
+                return False
+
+            # Проверяем, что родительские объекты совпадают
+            return current_parent.id == checked_parent.id
+
+        except self.__class__.DoesNotExist:
+            return False
+
+    @classmethod
+    def is_option_allowed_for_parent(cls, parent_obj, option_to_check) -> bool:
+        """
+        Проверяет, входит ли переданная опция в список допустимых опций
+        для указанного родительского объекта.
+        """
+        if option_to_check is None:
+            return True  # None всегда допустим
+
+        if parent_obj is None:
+            return False
+
+        # Получаем имя поля, связывающего с родителем
+        parent_field_name = cls._get_parent_field_name()
+        if not parent_field_name:
+            return False
+
+        # Формируем фильтр для поиска опции
+        filter_kwargs = {
+            'is_active': True,
+            parent_field_name: parent_obj
+        }
+
+        # В зависимости от типа option_to_check
+        if isinstance(option_to_check, models.Model):
+            if not isinstance(option_to_check, cls):
+                return False
+            filter_kwargs['id'] = option_to_check.id
+        elif isinstance(option_to_check, (int, str)):
+            try:
+                filter_kwargs['id'] = int(option_to_check)
+            except (ValueError, TypeError):
+                return False
+        else:
+            return False
+
+        # Проверяем, существует ли такая опция у родителя
+        return cls.objects.filter(**filter_kwargs).exists()
     # ==================== ВАЛИДАЦИЯ ====================
 
     def validate_unique_default(self) -> None :
