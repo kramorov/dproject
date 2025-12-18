@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import path  # Импортируем path
-from .models import CableGlandItem, CableGlandModelLine, CableGlandBodyMaterial, CableGlandItemType
+from .models import CableGlandItem, CableGlandModelLine, CableGlandBodyMaterial, CableGlandItemType, MetalSleeve
 # from producers.models import Producer
 import logging
 
@@ -137,9 +137,12 @@ class CableGlandItemAdmin(admin.ModelAdmin):
 
 
 class CableGlandItemTypeAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'text_description']
+    list_display = ['id', 'name', 'description']
     search_fields = ['name']
 
+class MetalSleeveAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'description']
+    search_fields = ['name']
 
 class CableGlandBodyMaterialAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'text_description']
@@ -212,3 +215,4 @@ admin.site.register(CableGlandItem, CableGlandItemAdmin)
 admin.site.register(CableGlandItemType, CableGlandItemTypeAdmin)
 admin.site.register(CableGlandBodyMaterial, CableGlandBodyMaterialAdmin)
 admin.site.register(CableGlandModelLine, CableGlandModelLineAdmin)
+admin.site.register(MetalSleeve, MetalSleeveAdmin)

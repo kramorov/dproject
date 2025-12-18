@@ -31,7 +31,7 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                             verbose_name=_("Название") ,
                             help_text=_('Название серии'))
     code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
-                            help_text=_("Код модели корпуса привода"))
+                            help_text=_("Код серии приводов"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание модели корпуса привода'))
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
@@ -94,7 +94,7 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                     'type' : 'text' ,
                     'required' : False ,
                     'label' : _('Код серии') ,
-                    'help_text' : _('Код модели корпуса привода') ,
+                    'help_text' : _('Код серии приводов') ,
                     'max_length' : 50 ,
                     'widget' : 'text_input'
                 } ,
@@ -124,7 +124,30 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                     'help_text' : _('Бренд производителя') ,
                     'model' : 'brands.Brand'
                 } ,
-                # ... добавь остальные поля
+                {
+                    'name': 'default_output_type',
+                    'type': 'foreign_key',
+                    'required': False,
+                    'label': _('Тип работы '),
+                    'help_text': _('Тип работы серии приводов'),
+                    'model': 'params.ActuatorGearboxOutputType'
+                },
+                {
+                    'name': 'pneumatic_actuator_construction_variety',
+                    'type': 'foreign_key',
+                    'required': False,
+                    'label': _('Кулисный/шестерня-рейка'),
+                    'help_text': _('Тип конструкции привода - кулисный или шестерня-рейка'),
+                    'model': 'pneumatic_actuators.PneumaticActuatorConstructionVariety'
+                },
+                {
+                    'name': 'default_hand_wheel',
+                    'type': 'foreign_key',
+                    'required': False,
+                    'label': _('Ручной дублер'),
+                    'help_text': _('Стандартно установленный ручной дублер для серии'),
+                    'model': 'params.HandWheelInstalledOption'
+                },
             ] ,
             'validation_rules' : {
                 'name' : {
