@@ -1,11 +1,13 @@
 # models.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from typing import List, Optional, Tuple, Any, Dict, Union
 
+from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin
 from producers.models import Producer, Brands
 
-from params.models import ThreadSize, IpOption, ExdOption
+from params.models import ThreadSize , IpOption , ExdOption , ThreadSizeThroughOption
 
 """
 ModelLine - серия. В/з, ИП, сертификаты - все сюда
@@ -89,6 +91,7 @@ class MetalSleeve( models.Model):
         return self.name
 
 
+
 class CableGlandModelLine(StructuredDataMixin, models.Model):
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,
@@ -150,6 +153,32 @@ class CableGlandModelLine(StructuredDataMixin, models.Model):
     def __str__(self):
         return self.symbolic_code
 
+class CableGlandBody(StructuredDataMixin, models.Model):
+    name = models.CharField(max_length=200 ,
+                            verbose_name=_("Название") ,
+                            help_text=_('Название модели корпуса кабельного ввода'))
+    code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
+                            help_text=_("Код модели корпуса кабельного ввода"))
+    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+                                   help_text=_('Текстовое описание модели корпуса КВ'))
+    sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+                                    help_text=_('Активно свойство или нет'))
+    model_line = models.ForeignKey(CableGlandModelLine , blank=True , null=True , on_delete=models.SET_NULL , verbose_name=_("Серия") ,
+                              related_name='cg_body_model_line' , help_text=_('Серия модели корпуса кабельного ввода'))
+    metal_sleeve = models.ManyToManyField(MetalSleeve , blank=True ,
+                                            related_name='metal_sleeve_cg_model_body' ,
+                                            verbose_name=_("Металлорукав") ,
+                                            help_text=_('Металлорукава, подходящие для этого корпуса'))
+
+    @property
+    def metal_sleeve_display(self) :
+        """Отображает металлорукава через разделитель /"""
+        metal_sleeves = self.metal_sleeve.all()
+        if metal_sleeves :
+            return " / ".join([str(metal_sleeve) for metal_sleeve in metal_sleeves])
+        return "-"
 
 class CableGlandItem(models.Model):
     name = models.CharField(max_length=255,
@@ -276,3 +305,45 @@ class CableGlandItem(models.Model):
 
     def __str__(self):
         return self.name
+
+class CableGlandThreadOption(ThreadSizeThroughOption):
+    """Опции типов и размеров резьб для корпуса кабельного ввода"""
+    cable_gland_body = models.ForeignKey(
+        CableGlandBody,
+        on_delete=models.CASCADE,
+        related_name='cg_thread_body',
+        verbose_name=_("Корпус кабельного ввода")
+    )
+
+    class Meta:
+        verbose_name = _("Резьба модели корпуса кабельного ввода")
+        verbose_name_plural = _("Типы резьбы модели корпуса кабельного ввода")
+        ordering = ['sorting_order']
+        unique_together = ['cable_gland_body', 'thread_size']
+
+    def __str__(self) :
+        return f"{self.thread_size.name}"
+
+    @classmethod
+    def _get_parent_field_name(cls) -> Optional[str] :
+        return 'cable_gland_body'
+
+
+class CableGlandModelLineCertRelation(AbstractCertRelation) :
+    """
+    Связь сертификатов с сериями пневмоприводов.
+    """
+    model_line = models.ForeignKey(
+        CableGlandModelLine ,  # Замените на реальный путь к модели Project
+        on_delete=models.CASCADE ,
+        verbose_name=_("Серия кабельных вводов") ,
+        related_name='cert_data_cg_model_line'
+    )
+
+    class Meta(AbstractCertRelation.Meta) :
+        verbose_name = _("Связь сертификата с серией кабельных вводов")
+        verbose_name_plural = _("Связи сертификатов с сериями кабельных вводов")
+        unique_together = ['cert_data' , 'model_line']
+
+    def get_related_object(self) :
+        return self.model_line

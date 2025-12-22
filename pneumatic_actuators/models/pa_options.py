@@ -242,5 +242,4 @@ class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line_item'
-    def __str__(self):
-        return f"{self.springs_qty.name}"
+

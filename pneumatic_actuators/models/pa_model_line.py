@@ -1040,7 +1040,7 @@ class PneumaticActuatorModelLineCertRelation(AbstractCertRelation) :
     model_line = models.ForeignKey(
         PneumaticActuatorModelLine ,  # Замените на реальный путь к модели Project
         on_delete=models.CASCADE ,
-        verbose_name=_("Проект") ,
+        verbose_name=_("Серия пневмоприводов") ,
         related_name='cert_data_model_line'
     )
 

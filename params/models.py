@@ -5,6 +5,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin
+from options.models import BaseThroughOption
+
 
 # PowerSupplies, ExdOption, IpOption, BodyCoatingOption,BlinkerOption,SwitchesParameters, EnvTempParameters, \
 # DigitalProtocolsSupportOption, ControlUnitInstalledOption,ActuatorType, ValveTypes, GearBoxTypes, \
@@ -921,6 +923,17 @@ class ThreadSize(models.Model):
     def __str__(self):
         return self.name
 
+class ThreadSizeThroughOption(BaseThroughOption):
+    """Базовая модель для сквозных опций резьбы..."""
+    thread_size = models.ForeignKey(
+        ThreadSize,
+        on_delete=models.CASCADE,
+        verbose_name=_("Размер и тип резьбы") ,
+        help_text=_('Размер и тип резьбы'))
+
+    class Meta:
+        abstract = True
+        ordering = ['sorting_order']
 
 class CertVariety(models.Model):
     name = models.CharField(max_length=100, blank=True, null=True,
