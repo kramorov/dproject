@@ -24,7 +24,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
         'body_coating_display' , 'sorting_order' , 'is_active'
     ]
     list_filter = [
-        'is_active' , 'selected_model' ,
+        'is_active' , 'selected_model_line_item' ,
         'selected_safety_position__safety_position' ,
         'selected_springs_qty__springs_qty' ,
         'selected_temperature' ,
@@ -212,7 +212,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
 
     # Методы для отображения в списке
     def selected_model_display(self , obj) :
-        return obj.selected_model.name if obj.selected_model else "-"
+        return obj.selected_model_line_item.name if obj.selected_model_line_item else "-"
 
     selected_model_display.short_description = "Модель"
 

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 from django.http import HttpResponse
+from django.contrib import messages
 from django.shortcuts import render
 from django.urls import path  # Импортируем path
 from .models import CableGlandItem, CableGlandModelLine, CableGlandBodyMaterial, CableGlandItemType, MetalSleeve
@@ -57,20 +58,7 @@ class CableGlandItemAdmin(admin.ModelAdmin):
     filter_horizontal = ('exd',)  # Это добавит горизонтальные чекбоксы для поля "ip"
     search_fields = ('name', 'model_line__symbolic_code')
     actions = [copy_cable_gland_data]  # Добавляем действие для копирования
-    # fields = (
-    #     'name',
-    #     'model_line',
-    #     'thread_a',
-    #     'thread_b',
-    #     'temp_min',
-    #     'temp_max',
-    #     'cable_diameter_inner_min',
-    #     'cable_diameter_inner_max',
-    #     'cable_diameter_outer_min',
-    #     'cable_diameter_outer_max',
-    #     'dn_metal_sleeve',
-    #     'parent'
-    # )
+
     def show_full_description_popup(self, request, pk):
         logger.debug('Это отладочное сообщение show_full_description_popup (CableGlandItemAdmin)')
         obj = self.get_object(request, pk)
@@ -141,8 +129,20 @@ class CableGlandItemTypeAdmin(admin.ModelAdmin):
     search_fields = ['name']
 
 class MetalSleeveAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'description']
+    list_display = ['id', 'name', 'code', 'sorting_order','description']
+    list_editable = ['sorting_order', 'name', 'code']
+    ordering = ['sorting_order', 'name']
     search_fields = ['name']
+    # Добавьте в list_display кнопку действий
+    actions = ['copy_selected']
+
+    def copy_selected(self, request, queryset):
+        """Копирование выбранных моделей"""
+        for original in queryset:
+            original.create_copy()
+
+        count = queryset.count()
+        messages.success(request, f'Успешно скопировано {count} моделей')
 
 class CableGlandBodyMaterialAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'text_description']

@@ -62,6 +62,28 @@ class MetalSleeve( models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
+    class Meta:
+        verbose_name = _("Тип и диаметр металлорукава")
+        verbose_name_plural = _("Типы и диаметры металлорукавов")
+        ordering = ['sorting_order']
+
+    def create_copy(self , name_suffix=None , code_suffix=None) :
+        """Создает копию модели со всеми связанными данными"""
+        if name_suffix is None :
+            name_suffix = _(" (Копия)")
+        if code_suffix is None :
+            code_suffix = _(" (Копия)")
+        # Создаем новый объект с теми же данными
+        copy = MetalSleeve(
+            name=f"{self.name}{name_suffix}" if self.name else "Копия",
+            code=f"{self.code}{code_suffix}" if self.code else "Копия",
+            description=self.description,
+            sorting_order=self.sorting_order,
+            is_active=self.is_active,
+
+        )
+        copy.save()
+        return copy
 
     def __str__(self):
         return self.name
@@ -81,23 +103,27 @@ class CableGlandModelLine(StructuredDataMixin, models.Model):
                                     help_text=_('Активно свойство или нет'))
 
     symbolic_code = models.CharField(max_length=20)
-    brand = models.ForeignKey(Brands, blank=True, null=True, on_delete=models.SET_NULL,
+    brand = models.ForeignKey(Brands, blank=True, null=True, on_delete=models.SET_NULL, verbose_name=_("Бренд") ,
                               related_name='cable_gland_brand', help_text=_('Бренд (производитель) кабельных вводов'))
     cable_gland_type = models.ForeignKey(CableGlandItemType, blank=True, null=True, on_delete=models.SET_NULL,
+                                         verbose_name=_("Тип"),
                                          related_name='cable_gland_type', help_text=_('Тип КВ'))
     ip = models.ManyToManyField(IpOption, blank=True, default=1, related_name='cable_gland_model_line_ip',
+                                verbose_name=_("IP"),
                                 help_text=_('Степень защиты IP (можно выбрать несколько)'))
-    exd = models.ManyToManyField(ExdOption, blank=True, default=1,
+    exd = models.ManyToManyField(ExdOption, blank=True, default=1, verbose_name=_("Взрывозащита") ,
                                  related_name='cable_gland_model_line_exd', help_text=_('Тип взрывозащиты'))
-    for_armored_cable = models.BooleanField(blank=True, null=True, help_text=_('Для бронированного кабеля'))
-    for_metal_sleeve_cable = models.BooleanField(blank=True, null=True, help_text=_('Для кабеля в металлорукаве'))
-    for_pipelines_cable = models.BooleanField(blank=True, null=True, help_text=_('Для кабеля в трубопроводе'))
-    thread_external = models.BooleanField(blank=True, null=True, help_text=_('Наружная резьба для внешнего присоединения'))
-    thread_internal = models.BooleanField(blank=True, null=True,
+    for_armored_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Бронированный кабель") ,help_text=_('Для бронированного кабеля'))
+    for_metal_sleeve_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Металлорукав") ,help_text=_('Для кабеля в металлорукаве'))
+    for_pipelines_cable = models.BooleanField(blank=True, null=True,  verbose_name=_("Трубопровод"), help_text=_('Для кабеля в трубопроводе'))
+    thread_external = models.BooleanField(blank=True, null=True,  verbose_name=_("Наружная резьба"), help_text=_('Наружная резьба для внешнего присоединения'))
+    thread_internal = models.BooleanField(blank=True, null=True, verbose_name=_("Внутренняя резьба"),
                                           help_text=_('Внутренняя резьба для внешнего присоединения'))
-    temp_min = models.SmallIntegerField(blank=True, null=True, help_text=_('Минимальная температура окружающей среды'))
-    temp_max = models.SmallIntegerField(blank=True, null=True, help_text=_('Максимальная температура окружающей среды'))
-    gost = models.CharField(max_length=1000, blank=True, null=True,
+    temp_min = models.SmallIntegerField(blank=True, null=True, verbose_name=_("Темп.мин"),
+                                        help_text=_('Минимальная температура окружающей среды'))
+    temp_max = models.SmallIntegerField(blank=True, null=True, verbose_name=_("Темп.макс"),
+                                        help_text=_('Максимальная температура окружающей среды'))
+    gost = models.CharField(max_length=1000, blank=True, null=True, verbose_name=_("ГОСТ"),
                             help_text=_('Соответвие ГОСТ, ТУ, другим стандартам - перечень'))
     text_description = models.CharField(max_length=500, blank=True, null=True, help_text='Описание серии')
 
@@ -116,13 +142,28 @@ class CableGlandModelLine(StructuredDataMixin, models.Model):
              'param_text': 'Соответствие ГОСТ, ТУ, другим стандартам', 'param_value': self.gost},
         ])
         return result_table
+    class Meta:
+        verbose_name = _("Серия кабельных вводов")
+        verbose_name_plural = _("Серии кабельных вводов")
+        ordering = ['sorting_order']
 
     def __str__(self):
         return self.symbolic_code
 
 
 class CableGlandItem(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255,
+                            verbose_name=_("Название"),
+                            help_text=_('Название модели кабельного ввода'))
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код модели кабельного ввода"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Текстовое описание модели кабельного ввода'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+
     model_line = models.ForeignKey(CableGlandModelLine, blank=True, null=True, on_delete=models.SET_NULL,
                                    related_name='cable_gland_model_line', help_text='Серия кабельных вводов/адаптеров')
     cable_gland_body_material = models.ForeignKey(CableGlandBodyMaterial, blank=True, null=True, \
@@ -159,6 +200,10 @@ class CableGlandItem(models.Model):
         related_name='children',
         help_text='Состав комплекта'
     )
+    class Meta:
+        verbose_name = _("Модель кабельного ввода")
+        verbose_name_plural = _("Модели кабельных вводов")
+        ordering = ['sorting_order']
 
     def get_full_description(self):
         # Нумерация в БД по умолчанию:
