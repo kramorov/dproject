@@ -59,18 +59,18 @@ class CableGlandModelLine(StructuredDataMixin, models.Model):
 
     def get_full_description(self):
         result_table = []
-        result_table.extend([
-            {'param_name': 'description',
-             'param_text': 'Описание', 'param_value': '' + self.description + ' Производитель:' + self.brand.name},
-            {'param_name': 'ip',
-             'param_text': 'Исполнение IP', 'param_value': \
-                 ' / '.join([ip.code for ip in sorted(self.ip.all(), key=lambda ip: ip.code)])},
-            {'param_name': 'exd',
-             'param_text': 'Взрывозащита', 'param_value': ' / '.join(
-                [exd.description for exd in sorted(self.exd.all(), key=lambda exd: exd.description)])},
-            {'param_name': 'gost',
-             'param_text': 'Соответствие ГОСТ, ТУ, другим стандартам', 'param_value': self.gost},
-        ])
+        # result_table.extend([
+        #     {'param_name': 'description',
+        #      'param_text': 'Описание', 'param_value': '' + self.description + ' Производитель:' + self.brand.name},
+        #     {'param_name': 'ip',
+        #      'param_text': 'Исполнение IP', 'param_value': \
+        #          ' / '.join([ip.code for ip in sorted(self.ip.all(), key=lambda ip: ip.code)])},
+        #     {'param_name': 'exd',
+        #      'param_text': 'Взрывозащита', 'param_value': ' / '.join(
+        #         [exd.description for exd in sorted(self.exd.all(), key=lambda exd: exd.description)])},
+        #     {'param_name': 'gost',
+        #      'param_text': 'Соответствие ГОСТ, ТУ, другим стандартам', 'param_value': self.gost},
+        # ])
         return result_table
 
     class Meta:

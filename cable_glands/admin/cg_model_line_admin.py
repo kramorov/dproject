@@ -20,22 +20,29 @@ class CableGlandModelLineAdminForm(forms.ModelForm):
     class Meta:
         model = CableGlandModelLine
         fields = '__all__'
+        # widgets = {
+        #     'ip': forms.SelectMultiple(),
+        #     'exd': forms.SelectMultiple(),
+        # }
         widgets = {
-            'ip': forms.SelectMultiple(),
-            'exd': forms.SelectMultiple(),
+            'for_armored_cable' : forms.CheckboxInput() ,
+            'for_metal_sleeve_cable' : forms.CheckboxInput() ,
+            'for_pipelines_cable' : forms.CheckboxInput() ,
+            'thread_external' : forms.CheckboxInput() ,
+            'thread_internal' : forms.CheckboxInput() ,
         }
-    def save(self, commit=True):
-        # Сохраняем объект без ManyToMany полей
-        instance = super().save(commit=False)
-
-        if commit:
-            # Сохраняем объект, чтобы получить ID
-            instance.save()
-
-            # Теперь можем сохранить связи ManyToMany
-            self.save_m2m()
-
-        return instance
+    # def save(self, commit=True):
+    #     # Сохраняем объект без ManyToMany полей
+    #     instance = super().save(commit=False)
+    #
+    #     if commit:
+    #         # Сохраняем объект, чтобы получить ID
+    #         instance.save()
+    #
+    #         # Теперь можем сохранить связи ManyToMany
+    #         self.save_m2m()
+    #
+    #     return instance
 
 @admin.register(CableGlandModelLine)
 class CableGlandModelLineAdmin(admin.ModelAdmin):
