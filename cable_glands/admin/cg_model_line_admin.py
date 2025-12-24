@@ -31,18 +31,18 @@ class CableGlandModelLineAdminForm(forms.ModelForm):
             'thread_external' : forms.CheckboxInput() ,
             'thread_internal' : forms.CheckboxInput() ,
         }
-    # def save(self, commit=True):
-    #     # Сохраняем объект без ManyToMany полей
-    #     instance = super().save(commit=False)
-    #
-    #     if commit:
-    #         # Сохраняем объект, чтобы получить ID
-    #         instance.save()
-    #
-    #         # Теперь можем сохранить связи ManyToMany
-    #         self.save_m2m()
-    #
-    #     return instance
+    def save(self, commit=True):
+        # Сохраняем объект без ManyToMany полей
+        instance = super().save(commit=False)
+
+        if commit:
+            # Сохраняем объект, чтобы получить ID
+            instance.save()
+
+            # Теперь можем сохранить связи ManyToMany
+            self.save_m2m()
+
+        return instance
 
 @admin.register(CableGlandModelLine)
 class CableGlandModelLineAdmin(admin.ModelAdmin):
