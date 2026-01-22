@@ -975,6 +975,11 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
             return self.code or ""
 
+        # Проверьте, что self.selected_model_line_item здесь еще объект
+        print(f"=== DEBUG generated_model_item_code ===")
+        print(f"self.selected_model_line_item: {self.selected_model_line_item}")
+        print(f"type: {type(self.selected_model_line_item)}")
+
         template = self.selected_model_line_item.model_line.model_item_code_template
         if not template:
             return self._generate_fallback_code()
@@ -1072,7 +1077,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                             setattr(self, field_name, default_option)
 
         # Устанавливаем дефолтные значения для пустых опций
-        self._ensure_default_options()
+        self._set_default_options()
 
         # Валидация
         try:
@@ -1094,41 +1099,90 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         # Сохраняем
         super().save(*args, **kwargs)
 
-    def _set_default_options(self):
+    def _set_default_options(self) :
         """Установить значения по умолчанию для всех None опций"""
-        if not self.selected_model_line_item:
+        if not hasattr(self , 'selected_model_line_item') or not self.selected_model_line_item :
             return
 
+        print(f"=== DEBUG _set_default_options ===")
+
         from pneumatic_actuators.models.pa_options import (
-            PneumaticTemperatureOption,
-            PneumaticSafetyPositionOption,
-            PneumaticSpringsQtyOption,
-            PneumaticIpOption,
-            PneumaticExdOption,
+            PneumaticTemperatureOption ,
+            PneumaticSafetyPositionOption ,
+            PneumaticSpringsQtyOption ,
+            PneumaticIpOption ,
+            PneumaticExdOption ,
             PneumaticBodyCoatingOption
         )
         from pneumatic_actuators.models import PneumaticHandWheelOption
 
-        # Опции, которые должны иметь дефолтные значения
+        # Все опции, которые должны иметь дефолтные значения
         option_configs = [
-            ('selected_safety_position', PneumaticSafetyPositionOption),
-            ('selected_springs_qty', PneumaticSpringsQtyOption),
-            ('selected_temperature', PneumaticTemperatureOption),
-            ('selected_ip', PneumaticIpOption),
-            ('selected_exd', PneumaticExdOption),
-            ('selected_body_coating', PneumaticBodyCoatingOption),
-            ('selected_hand_wheel', PneumaticHandWheelOption),
+            ('selected_safety_position' , PneumaticSafetyPositionOption , 'model_line_item') ,
+            ('selected_springs_qty' , PneumaticSpringsQtyOption , 'model_line_item') ,
+            ('selected_temperature' , PneumaticTemperatureOption , 'model_line') ,
+            ('selected_ip' , PneumaticIpOption , 'model_line') ,
+            ('selected_exd' , PneumaticExdOption , 'model_line') ,
+            ('selected_body_coating' , PneumaticBodyCoatingOption , 'model_line') ,
+            ('selected_hand_wheel' , PneumaticHandWheelOption , 'model_line') ,
         ]
 
-        for field_name, option_model in option_configs:
-            current_value = getattr(self, field_name)
-            if not current_value:
-                # Получаем дефолтную опцию для этой модели
-                default_option = option_model.get_default_or_any_allowed(
-                    self.selected_model_line_item
-                )
-                if default_option:
-                    setattr(self, field_name, default_option)
+        missing_defaults = []  # Список опций без дефолтных значений
+
+        for field_name , option_model , parent_type in option_configs :
+            current_value = getattr(self , field_name)
+            print(f"  Checking {field_name}: {current_value}")
+
+            if not current_value :
+                print(f"    Field is empty, getting default option...")
+
+                # Определяем правильный parent объект
+                if parent_type == 'model_line' :
+                    parent_obj = self.selected_model_line_item.model_line
+                    if not parent_obj :
+                        print(f"    No model_line for {field_name}")
+                        missing_defaults.append(f"{field_name} (отсутствует model_line)")
+                        continue
+                else :  # 'model_line_item'
+                    parent_obj = self.selected_model_line_item
+
+                try :
+                    # Получаем дефолтную опцию для этой модели
+                    default_option = option_model.get_default_or_any_allowed(parent_obj)
+                    print(f"    Default option: {default_option}")
+
+                    if default_option :
+                        setattr(self , field_name , default_option)
+                        print(f"    ✓ Установлена дефолтная опция: {default_option}")
+                    else :
+                        # Нет дефолтной опции
+                        error_msg = f"{field_name} (нет дефолтной опции для {parent_obj})"
+                        missing_defaults.append(error_msg)
+                        print(f"    ✗ {error_msg}")
+
+                except Exception as e :
+                    error_msg = f"{field_name} (ошибка: {str(e)})"
+                    missing_defaults.append(error_msg)
+                    print(f"    ERROR: {error_msg}")
+                    import traceback
+                    traceback.print_exc()
+
+        # Проверяем, есть ли опции без дефолтных значений
+        if missing_defaults :
+            error_message = "Отсутствуют дефолтные опции:\n" + "\n".join(f"- {msg}" for msg in missing_defaults)
+            print(f"=== ВНИМАНИЕ: {error_message}")
+
+            # Если в режиме DEBUG или тестирования, можно вывести предупреждение
+            # В продакшене возможно нужно логировать, но не прерывать выполнение
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Missing default options for {self.selected_model_line_item}: {missing_defaults}")
+
+            # Или можно выбрасывать исключение (если это критично)
+            # from django.core.exceptions import ValidationError
+            # raise ValidationError({
+            #     'selected_model_line_item': error_message
+            # })
 
     # def _ensure_default_options(self):
     #     """Обеспечивает, что обязательные опции имеют значения по умолчанию"""
@@ -1205,27 +1259,27 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
             # Проверяем safety_position только если оно выбрано И модель не DA
             if self.selected_safety_position:
-                if not is_da_model:
-                    from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
-                    valid_safety = PneumaticSafetyPositionOption.objects.filter(
-                        model_line_item=self.selected_model_line_item,
-                        id=self.selected_safety_position.id,
-                        is_active=True
-                    ).exists()
-                    logger.info(
-                        f"=== MODEL CLEAN DEBUG: safety_position valid={valid_safety}, is_da_model={is_da_model}")
-                    if not valid_safety:
-                        from django.core.exceptions import ValidationError
-                        raise ValidationError({
-                            'selected_safety_position': 'Выбранное положение безопасности не доступно для этой модели'
-                        })
-                else:
-                    # Для DA моделей safety_position должно быть None
-                    logger.info(f"=== MODEL CLEAN DEBUG: DA model with safety_position - will be cleared")
+                # if not is_da_model:
+                from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
+                valid_safety = PneumaticSafetyPositionOption.objects.filter(
+                    model_line_item=self.selected_model_line_item,
+                    id=self.selected_safety_position.id,
+                    is_active=True
+                ).exists()
+                logger.info(
+                    f"=== MODEL CLEAN DEBUG: safety_position valid={valid_safety}, is_da_model={is_da_model}")
+                if not valid_safety:
                     from django.core.exceptions import ValidationError
                     raise ValidationError({
-                        'selected_safety_position': 'Положение безопасности не доступно для приводов двойного действия (DA)'
+                        'selected_safety_position': 'Выбранное положение безопасности не доступно для этой модели'
                     })
+                # else:
+                #     # Для DA моделей safety_position должно быть None
+                #     logger.info(f"=== MODEL CLEAN DEBUG: DA model with safety_position - will be cleared")
+                #     from django.core.exceptions import ValidationError
+                #     raise ValidationError({
+                #         'selected_safety_position': 'Положение безопасности не доступно для приводов двойного действия (DA)'
+                #     })
 
             # Проверяем springs_qty
             if self.selected_springs_qty:

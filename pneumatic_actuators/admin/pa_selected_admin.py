@@ -25,22 +25,22 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     ]
     list_filter = [
         'is_active' , 'selected_model_line_item' ,
-        'selected_safety_position__safety_position' ,
-        'selected_springs_qty__springs_qty' ,
+        'selected_safety_position' ,
+        'selected_springs_qty' ,
         'selected_temperature' ,
-        'selected_ip__ip_option' ,
-        'selected_exd__exd_option' ,
-        'selected_body_coating__body_coating_option'
+        'selected_ip' ,
+        'selected_exd' ,
+        'selected_body_coating'
     ]
     search_fields = ['name' , 'code' , 'description']
 
     # Автодополнение (если нужно раскомментировать)
-    # autocomplete_fields = ['selected_model', 'selected_safety_position', 'selected_springs_qty']
+    autocomplete_fields = ['selected_model_line_item']
 
     fieldsets = (
         ('Основная информация' , {
             'fields' : (
-                ('selected_model' , 'name' , 'code') ,'generate_description_btn'
+                ('selected_model_line_item' , 'name' , 'code') ,'generate_description_btn'
             )
         }) ,
         ('Опции привода' , {
@@ -201,13 +201,13 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
 
     def get_queryset(self , request) :
         return super().get_queryset(request).select_related(
-            'selected_model' ,
-            'selected_safety_position__safety_position' ,
-            'selected_springs_qty__springs_qty' ,
-            'selected_temperature__model_line' ,
-            'selected_ip__model_line' ,
-            'selected_exd__model_line' ,
-            'selected_body_coating__model_line'
+            'selected_model_line_item' ,
+            'selected_safety_position' ,
+            'selected_springs_qty' ,
+            'selected_temperature' ,
+            'selected_ip' ,
+            'selected_exd' ,
+            'selected_body_coating'
         )
 
     # Методы для отображения в списке
