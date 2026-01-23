@@ -3,6 +3,7 @@ from django import forms
 from django.utils.html import format_html
 from django.urls import path
 from django.http import JsonResponse
+from django.db import models  # Добавьте этот импорт
 from django.db.models import Prefetch
 import json
 
@@ -17,8 +18,15 @@ from pneumatic_actuators.models.pa_options import (
 
 @admin.register(PneumaticActuatorSelected)
 class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
+    # Это отключит required для ВСЕХ CharField полей в форме
+    formfield_overrides = {
+        models.CharField: {
+            'required': False,
+        },
+    }
+
     list_display = [
-        'name' , 'code' , 'selected_model_display' ,
+        'id','name' , 'code' , 'selected_model_display' ,
         'safety_position_display' , 'springs_qty_display' ,
         'temperature_display' , 'ip_display' , 'exd_display' ,
         'body_coating_display' , 'sorting_order' , 'is_active'
@@ -49,11 +57,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
                 ('selected_ip' , 'selected_exd' , 'selected_body_coating', 'selected_hand_wheel') ,
             ) ,
         }) ,
-        # ('Сгенерированное описание' , {
-        #     'fields' : ('description_preview' , 'generate_description_btn') ,
-        #     'classes' : ('collapse' , 'wide') ,
-        #     'description' : 'Описание будет сгенерировано автоматически на основе выбранных параметров'
-        # }) ,
+
         ('Ручное описание (перезапишет сгенерированное)' , {
             'fields' : ('description' ,) ,
         })
@@ -62,34 +66,8 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     # readonly_fields = ['description_preview' , 'generate_description_btn']
     readonly_fields = ['generate_description_btn']
 
-    # Кастомная форма
-    # class PneumaticActuatorSelectedForm(forms.ModelForm) :
-    #     class Meta :
-    #         model = PneumaticActuatorSelected
-    #         fields = '__all__'
-    #         widgets = {
-    #             'description' : forms.Textarea(attrs={
-    #                 'rows' : 60 ,
-    #                 'cols' : 140 ,
-    #                 'style' : 'width: 100%; font-family: "Consolas", monospace; '
-    #                           'font-size: 13px; line-height: 1.4;' ,
-    #                 'class' : 'full-description-textarea'
-    #             }) ,
-    #         }
-    #
-    #     def __init__(self , *args , **kwargs) :
-    #         super().__init__(*args , **kwargs)
-    #
-    #         # Логика для DA моделей
-    #         if self.instance and self.instance.selected_model :
-    #             is_da = (self.instance.selected_model.pneumatic_actuator_variety and
-    #                      self.instance.selected_model.pneumatic_actuator_variety.code == 'DA')
-    #             if is_da :
-    #                 self.fields['selected_safety_position'].required = False
-    #
-    # form = PneumaticActuatorSelectedForm
-
     class Media :
+
         js = ('admin/js/pneumatic_actuator_selected.js' ,)
         css = {
             'all' : ('admin/css/pneumatic_admin.css' ,)

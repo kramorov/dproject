@@ -1,60 +1,199 @@
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("=== PNEUMATIC ACTUATOR SELECTED JS LOADED В4===");
+    console.log("=== PNEUMATIC ACTUATOR SELECTED JS LOADED В10===");
 
-    // Функция для обновления опций при выборе модели
-    const modelSelector = document.querySelector('.pneumatic-model-selector');
-    const optionSelectors = document.querySelectorAll('.pneumatic-option-selector');
-
-    if (modelSelector) {
-        modelSelector.addEventListener('change', function () {
-            const modelId = this.value;
-            updateOptions(modelId);
-        });
-
-        // Инициализация при загрузке
-        if (modelSelector.value) {
-            updateOptions(modelSelector.value);
+    // Показываем все скрытые контейнеры полей опций
+    const hiddenFieldContainers = document.querySelectorAll('[class*="field-selected_"]');
+    hiddenFieldContainers.forEach(container => {
+        const style = window.getComputedStyle(container);
+        if (style.display === 'none') {
+            console.log(`Showing hidden field container:`, container.className);
+            container.style.display = 'flex';
         }
+    });
+
+    // Также показываем любые другие скрытые элементы с data-context
+    const hiddenContextFields = document.querySelectorAll('[data-context]');
+    hiddenContextFields.forEach(field => {
+        let parent = field.parentElement;
+        while (parent) {
+            const style = window.getComputedStyle(parent);
+            if (style.display === 'none') {
+                parent.style.display = '';
+            }
+            parent = parent.parentElement;
+        }
+    });
+
+    // 1. Находим селектор модели
+    const modelSelector = document.querySelector('select[name="selected_model_line_item"]');
+    console.log("Model selector found:", !!modelSelector);
+    if (modelSelector) {
+        console.log("Model selector value:", modelSelector.value);
     }
 
-    // Инициализация генератора описаний
-    initDescriptionGenerator();
+    // 2. Находим ВСЕ селекторы опций (кроме модели)
+    const allSelects = document.querySelectorAll('select');
+    const optionSelectors = Array.from(allSelects).filter(select =>
+        select.name !== 'selected_model_line_item' &&
+        select.name.startsWith('selected_')
+    );
 
+    console.log("Found option selectors:", optionSelectors.length);
+    optionSelectors.forEach((select, i) => {
+        console.log(`  ${i}: name="${select.name}", id="${select.id}", current value="${select.value}"`);
+    });
+
+    // 3. Карта соответствия имен полей и ключей из API
+    const fieldToApiKeyMap = {
+        'selected_safety_position': 'safety_positions',
+        'selected_springs_qty': 'springs_qty',
+        'selected_temperature': 'temperature_options',
+        'selected_ip': 'ip_options',
+        'selected_exd': 'exd_options',
+        'selected_body_coating': 'body_coating_options',
+        'selected_hand_wheel': 'hand_wheel_options' // если есть в API
+    };
+
+    // 4. Функция обновления опций
     function updateOptions(modelId) {
+        console.log("=== updateOptions called with modelId:", modelId);
+
         if (!modelId) {
-            // Сброс опций если модель не выбрана
+            console.warn("No model ID provided, clearing options");
             optionSelectors.forEach(select => {
                 select.innerHTML = '<option value="">---------</option>';
+                // Если используется Select2
+                if (typeof jQuery !== 'undefined' && $(select).hasClass('select2-hidden-accessible')) {
+                    $(select).trigger('change.select2');
+                }
             });
             return;
         }
 
-        // URL для получения опций
-        const url = `/admin/pneumatic_actuators/get_options/?model_id=${modelId}`;
+        const url = `/api/pneumatic_actuators/options/?model_id=${modelId}`;
+        console.log("Fetching options from:", url);
 
         fetch(url)
-            .then(response => response.json())
+            .then(response => {
+                console.log("Response status:", response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log("API response received, keys:", Object.keys(data));
+
+                // Проверяем наличие данных для каждого поля
+                for (const [fieldName, apiKey] of Object.entries(fieldToApiKeyMap)) {
+                    console.log(`${fieldName} -> ${apiKey}:`, data[apiKey] ? data[apiKey].length + ' items' : 'not found');
+                }
+
+                // Обновляем каждый селектор опций
                 optionSelectors.forEach(select => {
-                    const optionType = select.dataset.optionType;
-                    const options = data[optionType] || [];
+                    const fieldName = select.name;
+                    const apiKey = fieldToApiKeyMap[fieldName];
+
+                    if (!apiKey) {
+                        console.warn(`No API key mapping for field: ${fieldName}`);
+                        return;
+                    }
+
+                    const options = data[apiKey] || [];
+                    console.log(`Processing ${fieldName} (${apiKey}): ${options.length} options found`);
 
                     // Сохраняем текущее значение
                     const currentValue = select.value;
+                    console.log(`  Current value: ${currentValue}`);
 
-                    // Обновляем options
-                    select.innerHTML = '<option value="">---------</option>';
+                    // Очищаем селектор (кроме первого пустого option если есть)
+                    const hasEmptyOption = select.options.length > 0 && select.options[0].value === "";
+                    select.innerHTML = hasEmptyOption ? '<option value="">---------</option>' : '';
+
+                    if (options.length === 0) {
+                        console.warn(`  No options available for ${fieldName}`);
+                        if (!hasEmptyOption) {
+                            select.innerHTML = '<option value="">---------</option>';
+                        }
+                        return;
+                    }
+
+                    // Фильтруем дубликаты по ID
+                    const seenIds = new Set();
+                    const uniqueOptions = [];
+
                     options.forEach(option => {
-                        const newOption = new Option(option.name, option.id, false, option.id == currentValue);
+                        if (option.id && !seenIds.has(option.id)) {
+                            seenIds.add(option.id);
+                            uniqueOptions.push(option);
+                        }
+                    });
+
+                    console.log(`  After deduplication: ${uniqueOptions.length} unique options`);
+
+                    // Добавляем опции
+                    uniqueOptions.forEach(option => {
+                        const displayText = option.name || option.encoding || `ID: ${option.id}`;
+
+                        // ВАЖНО: сравниваем как числа, так как ID - числа
+                        const isSelected = parseInt(option.id) === parseInt(currentValue);
+
+                        if (isSelected) {
+                            console.log(`    Will select: ${option.id} (${displayText}) - matches current ${currentValue}`);
+                        }
+
+                        const newOption = new Option(displayText, option.id, false, isSelected);
                         select.add(newOption);
                     });
+
+                    // Если текущее значение не найдено в новых опциях, сбрасываем
+                    if (currentValue) {
+                        const currentInt = parseInt(currentValue);
+                        const valueExists = Array.from(seenIds).some(id => id === currentInt);
+
+                        if (!valueExists) {
+                            console.warn(`  Value ${currentValue} not found in new options. Available:`, Array.from(seenIds));
+                            // Только предупреждение, не сбрасываем!
+                        } else {
+                            console.log(`  Value ${currentValue} exists in new options`);
+                        }
+                    }
+
+                    // Обновляем Select2 если используется
+                    if (typeof jQuery !== 'undefined' && $(select).hasClass('select2-hidden-accessible')) {
+                        $(select).trigger('change.select2');
+                    }
+
+                    console.log(`  ${fieldName} updated with ${uniqueOptions.length} options`);
                 });
+
+                console.log("=== All options updated successfully ===");
             })
             .catch(error => {
-                console.error('Error loading options:', error);
+                console.error('Error fetching options:', error);
+                // Не показываем alert, чтобы не мешать пользователю
             });
     }
 
+    // 5. Инициализация при загрузке страницы
+    if (modelSelector && modelSelector.value) {
+        console.log("Initializing with model ID:", modelSelector.value);
+        // Ждем полной загрузки DOM и возможной инициализации Select2
+        setTimeout(() => {
+            updateOptions(modelSelector.value);
+        }, 800);
+    }
+
+    // 6. Обработчик изменения модели
+    if (modelSelector) {
+        modelSelector.addEventListener('change', function () {
+            const newModelId = this.value;
+            console.log("=== Model changed to ID:", newModelId);
+            updateOptions(newModelId);
+        });
+    }
+
+    // 7. Инициализация генератора описаний (без изменений)
     function initDescriptionGenerator() {
         const generateBtn = document.querySelector('.generate-description-btn');
         if (!generateBtn) {
@@ -135,32 +274,32 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Функция для открытия описания в новом окне
+    // 8. Функция для открытия описания в новом окне (без изменений)
     function openDescriptionInNewWindow(descriptionText) {
-    console.log('Открытие нового окна с описанием');
+        console.log('Открытие нового окна с описанием');
 
-    // Очищаем текст перед обработкой
-    const cleanedText = descriptionText
-        .replace(/\n{3,}/g, '\n\n')  // Заменяем 3+ переноса на 2
-        .replace(/\n{2}/g, '\n');    // Заменяем 2 переноса на 1
+        // Очищаем текст перед обработкой
+        const cleanedText = descriptionText
+            .replace(/\n{3,}/g, '\n\n')  // Заменяем 3+ переноса на 2
+            .replace(/\n{2}/g, '\n');    // Заменяем 2 переноса на 1
 
-    // Функция для экранирования HTML (но НЕ для таблиц)
-    function escapeHtml(text) {
-        // Разделяем текст на части: HTML таблицы и обычный текст
-        const parts = text.split(/(<table[\s\S]*?<\/table>)/);
+        // Функция для экранирования HTML (но НЕ для таблиц)
+        function escapeHtml(text) {
+            // Разделяем текст на части: HTML таблицы и обычный текст
+            const parts = text.split(/(<table[\s\S]*?<\/table>)/);
 
-        return parts.map(part => {
-            if (part.startsWith('<table') && part.endsWith('</table>')) {
-                // Это HTML таблица - не экранируем
-                return part;
-            } else {
-                // Это обычный текст - экранируем и заменяем переносы строк
-                const div = document.createElement('div');
-                div.textContent = part;
-                return div.innerHTML.replace(/\n/g, '<br>');
-            }
-        }).join('');
-    }
+            return parts.map(part => {
+                if (part.startsWith('<table') && part.endsWith('</table>')) {
+                    // Это HTML таблица - не экранируем
+                    return part;
+                } else {
+                    // Это обычный текст - экранируем и заменяем переносы строк
+                    const div = document.createElement('div');
+                    div.textContent = part;
+                    return div.innerHTML.replace(/\n/g, '<br>');
+                }
+            }).join('');
+        }
 
         // Размеры окна
         const width = 1000;
@@ -434,6 +573,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('Новое окно открыто успешно');
     }
 
+    // 9. Функция для получения CSRF токена (без изменений)
     function getCsrfToken() {
         // Получаем CSRF токен из cookie
         const name = 'csrftoken';
@@ -451,7 +591,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return cookieValue;
     }
 
-    // Автоматическая генерация при изменении опций (опционально)
+    // 10. Автоматическая генерация при изменении опций (опционально)
     const autoGenerateCheckbox = document.getElementById('id_auto_generate');
     if (autoGenerateCheckbox && autoGenerateCheckbox.checked) {
         const optionFields = document.querySelectorAll('select[name^="selected_"]');
@@ -470,4 +610,9 @@ document.addEventListener('DOMContentLoaded', function () {
             generateBtn.click();
         }
     }
+
+    // 11. Инициализируем генератор описаний
+    initDescriptionGenerator();
+
+    console.log("=== JS initialization complete ===");
 });

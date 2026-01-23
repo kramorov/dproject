@@ -19,7 +19,7 @@ class PneumaticHandWheelOption(BaseHandWheelThroughOption):
 
     class Meta:
         verbose_name = _("Тип установленного ручного дублера")
-        verbose_name_plural = _("Типы установленного ручного дублерапневмоприводов")
+        verbose_name_plural = _("Типы установленного ручного дублера пневмоприводов")
         ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
         unique_together = ['model_line', 'encoding']
 
@@ -33,7 +33,7 @@ class PneumaticHandWheelOption(BaseHandWheelThroughOption):
         return self.hand_wheel_option.name
 
     def __str__(self):
-        return self.hand_wheel_option.name
+        return f"{self.hand_wheel_option.name} (Стандарт)" if self.is_default else f"{self.hand_wheel_option.name} (Опция)"
 
 class PneumaticTemperatureOption(BaseTemperatureThroughOption):
     """Температурные опции для пневмоприводов"""
@@ -79,8 +79,7 @@ class PneumaticIpOption(BaseIpThroughOption):
         return 'model_line'
 
     def __str__(self):
-        name_str = f"{self.ip_option.name} (Стандарт)" if self.default_option else f"{self.ip_option.name} (Опц.исполнение)"
-        return name_str
+        return f"{self.ip_option.name} (Стандарт)" if self.is_default else f"{self.ip_option.name} (Опция)"
 
 class PneumaticExdOption(BaseExdThroughOption):
     """Опции взрывозащиты для пневмоприводов"""
@@ -102,8 +101,7 @@ class PneumaticExdOption(BaseExdThroughOption):
         return 'model_line'
 
     def __str__(self):
-        name_str= f"{self.exd_option.name} (Стандарт)" if self.default_option else f"{self.exd_option.name} (Опц.исполнение)"
-        return name_str
+        return f"{self.exd_option.name} (Стандарт)" if self.is_default else f"{self.exd_option.name} (Опция)"
 
 class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
@@ -124,8 +122,8 @@ class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line'
     def __str__(self):
-        name_str = f"{self.body_coating_option.name} (Стандарт)" if self.default_option else f"{self.body_coating_option.name} (Опц.исполнение)"
-        return name_str
+        # ИСПРАВЛЕНО: используем is_default вместо default_option
+        return f"{self.body_coating_option.name} (Стандарт)" if self.is_default else f"{self.body_coating_option.name} (Опция)"
 
 class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
@@ -141,43 +139,6 @@ class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
         verbose_name_plural = _("Положения безопасности моделей пневмоприводов")
         ordering = ['sorting_order']
         unique_together = ['model_line_item', 'safety_position']
-
-    # @classmethod
-    # def get_or_create_default(cls , parent_obj) :
-    #     """
-    #     Получить дефолтную опцию положения безопасности у родительского объекта
-    #
-    #     Args:
-    #         parent_obj: PneumaticActuatorModelLineItem
-    #
-    #     Returns:
-    #         Дефолтная опция или None
-    #     """
-    #     parent_field = cls._get_parent_field_name()
-    #     if not parent_field :
-    #         return None
-    #
-    #     # ВАЖНО: НЕ создаем опцию, если ее нет - просто возвращаем существующую дефолтную
-    #     # Гарантируем, что дефолтная опция существует через ensure_default_exists
-    #     # cls.ensure_default_exists(parent_obj)
-    #
-    #     # Ищем дефолтную опцию у родительского объекта
-    #     default_option = cls.objects.filter(
-    #         **{parent_field : parent_obj , 'is_default' : True , 'is_active' : True}
-    #     ).first()
-    #
-    #     # Если дефолтной нет, берем первую активную
-    #     if not default_option :
-    #         default_option = cls.objects.filter(
-    #             **{parent_field : parent_obj , 'is_active' : True}
-    #         ).first()
-    #
-    #         if default_option :
-    #             # Делаем ее дефолтной
-    #             default_option.is_default = True
-    #             default_option.save()
-    #
-    #     return default_option
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
@@ -199,43 +160,6 @@ class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
         verbose_name_plural = _("Количество пружин моделей пневмоприводов")
         ordering = ['sorting_order']
         unique_together = ['model_line_item', 'springs_qty']
-
-    # @classmethod
-    # def get_or_create_default(cls , parent_obj) :
-    #     """
-    #     Получить дефолтную опцию количества пружин у родительского объекта
-    #
-    #     Args:
-    #         parent_obj: PneumaticActuatorModelLineItem
-    #
-    #     Returns:
-    #         Дефолтная опция или None
-    #     """
-    #     parent_field = cls._get_parent_field_name()
-    #     if not parent_field :
-    #         return None
-    #
-    #     # ВАЖНО: НЕ создаем опцию, если ее нет - просто возвращаем существующую дефолтную
-    #     # Гарантируем, что дефолтная опция существует через ensure_default_exists
-    #     # cls.ensure_default_exists(parent_obj)
-    #
-    #     # Ищем дефолтную опцию у родительского объекта
-    #     default_option = cls.objects.filter(
-    #         **{parent_field : parent_obj , 'is_default' : True , 'is_active' : True}
-    #     ).first()
-    #
-    #     # Если дефолтной нет, берем первую активную
-    #     if not default_option :
-    #         default_option = cls.objects.filter(
-    #             **{parent_field : parent_obj , 'is_active' : True}
-    #         ).first()
-    #
-    #         if default_option :
-    #             # Делаем ее дефолтной
-    #             default_option.is_default = True
-    #             default_option.save()
-    #
-    #     return default_option
 
     def __str__(self) :
         return f"{self.springs_qty.name}"

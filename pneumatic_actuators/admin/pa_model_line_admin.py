@@ -126,9 +126,6 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
         (_('Основные параметры') , {
             'fields' : ('default_output_type' ,)
         }) ,
-        (_('Ручной дублер') , {
-            'fields' : ('default_hand_wheel' ,)
-        }) ,
         (_('Настройки') , {
             'fields' : ('sorting_order' , 'is_active')
         }) ,
@@ -139,16 +136,15 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
         return super().get_queryset(request).select_related(
             'brand' ,
             'default_output_type' ,
-            'pneumatic_actuator_construction_variety' ,
-            'default_hand_wheel'
+            'pneumatic_actuator_construction_variety'
         ).prefetch_related(
             'temperature_options' ,
             'ip_options' ,
             'exd_options' ,
             'body_coating_options' ,
-            'ip_options__ip_option' ,
-            'exd_options__exd_option' ,
-            'body_coating_options__body_coating_option'
+            'hand_wheel_option',
+            'ip_options' ,
+            'exd_options' ,
         )
 
     def temperature_range_display(self , obj) :

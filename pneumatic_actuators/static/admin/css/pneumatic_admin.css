@@ -1,6 +1,7 @@
-/* Скрываем поле положения безопасности по умолчанию */
+/* Показываем поле положения безопасности */
 .field-selected_safety_position {
-    display: none !important;
+    display: flex !important;  /* или block, в зависимости от layout */
+    visibility: visible !important;
 }
 
 /* Дополнительно можно скрыть другие поля которые могут быть без опций */

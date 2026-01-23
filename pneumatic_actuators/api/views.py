@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 class OptionAPIView(View):
     def get(self, request):
+        print(f"OptionAPIView - get called. REquest:{request}")
         from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLineItem
         model_id = request.GET.get('model_id')
         if not model_id:
@@ -16,8 +17,9 @@ class OptionAPIView(View):
         try:
             from pneumatic_actuators.models import PneumaticActuatorSelected
             model = PneumaticActuatorModelLineItem.objects.get(id=int(model_id))
+            print(f"Trying to get model id=:{int(model_id)}")
 
-            temp_actuator = PneumaticActuatorSelected(selected_model=model)
+            temp_actuator = PneumaticActuatorSelected(selected_model_line_item=model)
             options = temp_actuator.get_available_options()
 
             return JsonResponse(options)

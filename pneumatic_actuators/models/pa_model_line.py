@@ -58,13 +58,6 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                           verbose_name='' ,
                           help_text=_('Тип конструкции привода - кулисный или шестерня-рейка'))
 
-    # Убираем прямые связи с опциями, используем through-модели
-    default_hand_wheel = \
-        models.ForeignKey(HandWheelInstalledOption , blank=True , null=True ,
-                          related_name='pneumatic_model_line_default_hand_wheel' ,
-                          on_delete=models.SET_NULL ,
-                          help_text=_('Стандартно установленный ручной дублер для серии'))
-
     class Meta :
         ordering = ['sorting_order']
         verbose_name = _('Серия моделей пневмоприводов')
@@ -140,14 +133,7 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                     'help_text': _('Тип конструкции привода - кулисный или шестерня-рейка'),
                     'model': 'pneumatic_actuators.PneumaticActuatorConstructionVariety'
                 },
-                {
-                    'name': 'default_hand_wheel',
-                    'type': 'foreign_key',
-                    'required': False,
-                    'label': _('Ручной дублер'),
-                    'help_text': _('Стандартно установленный ручной дублер для серии'),
-                    'model': 'params.HandWheelInstalledOption'
-                },
+
             ] ,
             'validation_rules' : {
                 'name' : {
@@ -176,9 +162,6 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
             'default_output_type' :
                 self.default_output_type.get_compact_data()
                 if self.default_output_type else None ,
-            # 'default_hand_wheel' :
-            #     self.default_hand_wheel.get_compact_data()
-            #     if self.default_hand_wheel else None ,
             'model_item_code_template' : self.model_item_code_template ,
             'sorting_order' : self.sorting_order ,
         })
@@ -235,13 +218,6 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                 label=_('Тип работы по умолчанию') ,
                 icon='🔄' ,
                 priority=5 ,
-                include_data='compact'
-            ) ,
-            'default_hand_wheel' : self._format_foreign_key(
-                self.default_hand_wheel ,
-                label=_('Ручной дублер по умолчанию') ,
-                icon='🎮' ,
-                priority=6 ,
                 include_data='compact'
             ) ,
             'model_item_code_template' : self._format_field(
@@ -390,8 +366,6 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
                 'pneumatic_actuator_construction_variety_id' :
                     self.pneumatic_actuator_construction_variety.id
                     if self.pneumatic_actuator_construction_variety else None ,
-                'default_hand_wheel_id' : self.default_hand_wheel.id
-                if self.default_hand_wheel else None ,
                 'sorting_order' : self.sorting_order ,
                 'is_active' : self.is_active ,
             }
@@ -487,11 +461,6 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
         """Получить стандартную опцию покрытия корпуса"""
         from .pa_options import PneumaticBodyCoatingOption
         return PneumaticBodyCoatingOption.get_or_create_default(self)
-
-    def get_default_hand_wheel_option(self) :
-        """Получить стандартную опцию покрытия корпуса"""
-        from .pa_options import PneumaticHandWheelOption
-        return PneumaticHandWheelOption.get_or_create_default(self)
 
     # ==================== СВОЙСТВА ДЛЯ ШАБЛОНОВ И API ====================
 
@@ -707,11 +676,6 @@ class PneumaticActuatorModelLineItem(models.Model) :
     def pneumatic_actuator_construction_variety(self) :
         """Тип конструкции из model_line"""
         return self.model_line.pneumatic_actuator_construction_variety if self.model_line else None
-
-    @property
-    def default_hand_wheel(self) :
-        """Ручной дублер по умолчанию из model_line"""
-        return self.model_line.default_hand_wheel if self.model_line else None
 
     @property
     def default_output_type(self) :
