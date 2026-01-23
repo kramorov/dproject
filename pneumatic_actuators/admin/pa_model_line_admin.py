@@ -142,7 +142,7 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
             'ip_options' ,
             'exd_options' ,
             'body_coating_options' ,
-            'hand_wheel_option',
+            'hand_wheel_options',
             'ip_options' ,
             'exd_options' ,
         )

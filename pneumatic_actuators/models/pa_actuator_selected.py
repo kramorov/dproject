@@ -1007,7 +1007,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
         """Простой рендеринг шаблона - заменяем переменные значениями"""
         result = template
-
+        print(f"template: {result}")
         # Простая замена переменных
         result = result.replace('{model_code}', self._get_value('selected_model_line_item__name'))
         result = result.replace('{springs_qty}', self._get_value('selected_springs_qty__encoding'))
@@ -1018,11 +1018,13 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         result = result.replace('{ip}', self._get_value('selected_ip__encoding'))
         result = result.replace('{exd}', self._get_value('selected_exd__encoding'))
 
-
+        print(f"До очистки: {result}")
         # Очистка лишних точек (две точки подряд -> одна точка)
         result = re.sub(r'\.{2,}', '.', result)
+        print(f"две точки подряд -> одна точка: {result}")
         # Удаляем точку в начале и конце
-        result = result.strip('.')
+        result = re.sub(r'\.\s+', ' ', result)  # Заменяет точку и любые пробельные символы после нее
+        print(f"удалили точки в начале и конце: {result}")
         result = re.sub(' (DA)', '', result)
         # if not self.is_da_model():
         #     result = result + str('('+self._get_value('selected_springs_qty__encoding')+')')
