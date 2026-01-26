@@ -4,7 +4,12 @@ from django.utils.html import format_html
 from django.urls import path
 from django.http import JsonResponse
 from django.db import models  # Добавьте этот импорт
-from django.db.models import Prefetch
+from django.shortcuts import get_object_or_404
+from django.urls import path
+from django.contrib import messages
+from django.http import HttpResponseRedirect
+from django.utils.html import format_html
+
 import json
 
 from pneumatic_actuators.models.pa_actuator_selected import PneumaticActuatorSelected
@@ -26,7 +31,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     }
 
     list_display = [
-        'id','name' , 'code' , 'selected_model_display' ,
+        'name' , 'code' , 'selected_model_display' ,
         'safety_position_display' , 'springs_qty_display' ,
         'temperature_display' , 'ip_display' , 'exd_display' ,
         'body_coating_display' , 'sorting_order' , 'is_active'
@@ -86,8 +91,84 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
                 self.admin_site.admin_view(self.get_options_view) ,
                 name='pneumatic_actuator_get_options'
             ) ,
+            path(
+                '<path:object_id>/duplicate/',
+                self.admin_site.admin_view(self.duplicate_object_view),
+                name='pneumatic_actuator_duplicate'
+            ),
         ]
         return custom_urls + urls
+
+    def duplicate_object_view(self, request, object_id):
+        """View для дублирования объекта"""
+        try:
+            original = get_object_or_404(PneumaticActuatorSelected, id=object_id)
+            new_instance = original.create_duplicate()
+
+            messages.success(
+                request,
+                f'Объект успешно продублирован. Новый объект: {new_instance.name}'
+            )
+
+            return HttpResponseRedirect(
+                '/admin/pneumatic_actuators/pneumaticactuatorselected/'
+            )
+
+        except Exception as e:
+            messages.error(
+                request,
+                f'Ошибка при дублировании: {str(e)}'
+            )
+            return HttpResponseRedirect(
+                '/admin/pneumatic_actuators/pneumaticactuatorselected/'
+            )
+    # Добавляем action для массового дублирования в списке
+    actions = ['duplicate_selected_objects']
+
+    def duplicate_selected_objects(self, request, queryset):
+        """Дублирование выбранных объектов"""
+        success_count = 0
+        error_count = 0
+
+        for original in queryset:
+            try:
+                original.create_duplicate()
+                success_count += 1
+            except Exception as e:
+                error_count += 1
+                messages.error(
+                    request,
+                    f"Ошибка при дублировании '{original.name}': {str(e)}"
+                )
+
+        if success_count > 0:
+            self.message_user(
+                request,
+                f"Успешно продублировано объектов: {success_count}",
+                messages.SUCCESS
+            )
+
+    duplicate_selected_objects.short_description = "Дублировать выбранные объекты"
+
+    # Добавляем кнопку дублирования в список
+    # def get_list_display(self, request):
+    #     list_display = list(super().get_list_display(request))
+    #     # Добавляем кнопку дублирования в конец списка
+    #     list_display.append('duplicate_button')
+    #     return list_display
+
+    def duplicate_button(self, obj):
+        """Кнопка дублирования для списка"""
+        return format_html(
+            '<a href="{}" class="button" style="padding: 2px 6px; font-size: 11px;" '
+            'title="Создать дубликат">'
+            '📋'
+            '</a>',
+            f'{obj.id}/duplicate/'
+        )
+
+    duplicate_button.short_description = "Копия"
+    duplicate_button.allow_tags = True
 
     def generate_description_view(self , request , object_id) :
         """View для генерации описания"""

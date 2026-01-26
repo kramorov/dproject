@@ -64,9 +64,9 @@ class CableGlandModelLineNode(DjangoObjectType):
     class Meta:
         model = CableGlandModelLine
         # interfaces = (graphene.relay.Node,)
-        fields = ["id","symbolic_code","brand","cable_gland_type","ip","exd",
+        fields = ["id","code","brand","cable_gland_type","ip","exd",
                   "for_armored_cable","for_metal_sleeve_cable","for_pipelines_cable",
-                  "thread_external","thread_internal","temp_min","temp_max","gost","text_description"]
+                  "thread_external","thread_internal","temp_min","temp_max","gost","description"]
 
     def resolve_flat_ip(self , info) :
         return self.ip.all()

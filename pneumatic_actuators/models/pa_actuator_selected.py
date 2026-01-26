@@ -2,8 +2,7 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.db.models.signals import pre_save, post_save
-from django.dispatch import receiver
+
 from typing import List, Optional, Tuple, Any, Dict, Union
 from decimal import Decimal
 from django.core.exceptions import ValidationError
@@ -99,28 +98,80 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Встроенный дублер"),
         help_text=_('Встроенный ручной дублер')
     )
+    is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
+
+    # ОБЩАЯ КОНФИГУРАЦИЯ ДЛЯ ВСЕХ ВАЛИДАЦИЙ
+    _OPTION_CONFIG = {
+        'selected_safety_position': {
+            'model_class': 'PneumaticSafetyPositionOption',
+            'label': 'положение безопасности',
+            'parent_field': 'model_line_item',  # Для связи с моделью
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticSafetyPositionOption'
+        },
+        'selected_springs_qty': {
+            'model_class': 'PneumaticSpringsQtyOption',
+            'label': 'количество пружин',
+            'parent_field': 'model_line_item',
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticSpringsQtyOption'
+        },
+        'selected_temperature': {
+            'model_class': 'PneumaticTemperatureOption',
+            'label': 'температурная опция',
+            'parent_field': 'model_line',  # Здесь model_line, а не model_line_item
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticTemperatureOption'
+        },
+        'selected_ip': {
+            'model_class': 'PneumaticIpOption',
+            'label': 'степень защиты IP',
+            'parent_field': 'model_line',
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticIpOption'
+        },
+        'selected_exd': {
+            'model_class': 'PneumaticExdOption',
+            'label': 'взрывозащита',
+            'parent_field': 'model_line',
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticExdOption'
+        },
+        'selected_body_coating': {
+            'model_class': 'PneumaticBodyCoatingOption',
+            'label': 'покрытие корпуса',
+            'parent_field': 'model_line',
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyCoatingOption'
+        },
+        'selected_hand_wheel': {
+            'model_class': 'PneumaticHandWheelOption',
+            'label': 'ручной дублер',
+            'parent_field': 'model_line',
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticHandWheelOption'
+        }
+    }
+
+    @classmethod
+    def get_option_fields(cls):
+        """Возвращает список всех полей опций"""
+        return list(cls._OPTION_CONFIG.keys())
 
     class Meta:
         ordering = ['sorting_order']
         verbose_name = _('Модель пневмопривода')
         verbose_name_plural = _('Модели пневмоприводов')
-        constraints = [
-            models.UniqueConstraint(
-                fields=[
-                    'name',
-                    'selected_model_line_item',
-                    'selected_safety_position',
-                    'selected_springs_qty',
-                    'selected_temperature',
-                    'selected_ip',
-                    'selected_exd',
-                    'selected_body_coating',
-                    'selected_hand_wheel'
-                ],
-                name='unique_actuator_configuration',  # Понятное имя
-                # condition=models.Q(is_active=True),  # Если нужно только для активных
-            )
-        ]
+        # constraints = [
+        #     models.UniqueConstraint(
+        #         fields=[
+        #             'name',
+        #             'selected_model_line_item',
+        #             'selected_safety_position',
+        #             'selected_springs_qty',
+        #             'selected_temperature',
+        #             'selected_ip',
+        #             'selected_exd',
+        #             'selected_body_coating',
+        #             'selected_hand_wheel'
+        #         ],
+        #         name='unique_actuator_configuration',  # Понятное имя
+        #         # condition=models.Q(is_active=True),  # Если нужно только для активных
+        #     )
+        # ]
 
     def __str__(self):
         return self.name
@@ -131,7 +182,6 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     # GET /api/core/?model=pneumatic_actuators.PneumaticActuatorSelected&id=4&fmt=display&view=card
     # /api/core/?model=pneumatic_actuators.PneumaticActuatorSelected&id=4&fmt=full&include=
     def get_compact_data(self) -> Dict[str , Any] :
-        from django.utils.translation import gettext_lazy as _
         """
         Минимальные данные для списков и таблиц
         """
@@ -1058,19 +1108,52 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         # Фильтруем пустые значения и соединяем
         return '.'.join(filter(None, parts))
 
+    def _adjust_for_duplicate(self):
+        """Настройка для дублирующей конфигурации"""
+        if not self.name:
+            return
+
+        import re
+        from datetime import datetime
+
+        # Определяем следующий номер для копии
+        base_name_for_search = re.sub(r'\s*\(copy\s*#\d+\)$', '', self.name, flags=re.IGNORECASE).strip()
+
+        # Ищем все существующие копии с таким же базовым именем
+        from django.db.models import Q
+        existing_copies = self.__class__.objects.filter(
+            Q(name=self.name) |
+            Q(name__iregex=r'^' + re.escape(base_name_for_search) + r'\s*\(copy\s*#\d+\)$')
+        )
+
+        # Определяем максимальный номер копии
+        max_number = 0
+        for copy in existing_copies:
+            match = re.search(r'\(copy\s*#(\d+)\)$', copy.name, re.IGNORECASE)
+            if match:
+                num = int(match.group(1))
+                max_number = max(max_number, num)
+            elif copy.name == self.name:
+                # Если есть точное совпадение, это тоже считается копией
+                max_number = max(max_number, 1)
+
+        new_number = max_number + 1
+
+        # Форматируем номер с ведущими нулями (01, 02, ...)
+        formatted_number = f"{new_number:02d}"
+
+        # Обновляем имя: добавляем (copy#XX) к существующему имени
+        self.name = f"{self.name} (copy#{formatted_number})"
+
+        # Обновляем код: добавляем (copy#XX) к существующему коду
+        if self.code:
+            # Убираем возможные предыдущие суффиксы copy
+            clean_code = re.sub(r'\s*\(copy\s*#\d+\)$', '', self.code, flags=re.IGNORECASE)
+            self.code = f"{clean_code} (copy#{formatted_number})"
+
+
     def save(self, *args, **kwargs):
         from django.core.exceptions import ValidationError
-
-        # Словарь опций для обработки
-        option_config = {
-            'selected_safety_position': 'pneumatic_actuators.models.pa_options.PneumaticSafetyPositionOption',
-            'selected_springs_qty': 'pneumatic_actuators.models.pa_options.PneumaticSpringsQtyOption',
-            'selected_temperature': 'pneumatic_actuators.models.pa_options.PneumaticTemperatureOption',
-            'selected_ip': 'pneumatic_actuators.models.pa_options.PneumaticIpOption',
-            'selected_exd': 'pneumatic_actuators.models.pa_options.PneumaticExdOption',
-            'selected_body_coating': 'pneumatic_actuators.models.pa_options.PneumaticBodyCoatingOption',
-            'selected_hand_wheel': 'pneumatic_actuators.models.PneumaticHandWheelOption',
-        }
 
         # Получаем оригинальный объект
         original = None
@@ -1081,220 +1164,198 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 pass
 
         # Проверяем, изменилась ли модель привода
-        if original and original.selected_model_line_item and self.selected_model_line_item:
-            if original.selected_model_line_item != self.selected_model_line_item:
-                # Импортируем модели опций
-                for field_name, model_path in option_config.items():
-                    module_name, class_name = model_path.rsplit('.', 1)
-                    module = __import__(module_name, fromlist=[class_name])
-                    option_model = getattr(module, class_name)
+        model_changed = (original and original.selected_model_line_item and
+                         self.selected_model_line_item and
+                         original.selected_model_line_item != self.selected_model_line_item)
 
-                    current_option = getattr(self, field_name)
-                    if current_option:
-                        # Проверяем допустимость опции
-                        if not option_model.is_option_allowed_for_parent(
-                                parent_obj=self.selected_model_line_item,
-                                option_to_check=current_option
-                        ):
-                            # Устанавливаем дефолтную
-                            default_option = option_model.get_default_or_any_allowed(
-                                self.selected_model_line_item
-                            )
-                            setattr(self, field_name, default_option)
+        # ЕДИНАЯ ВАЛИДАЦИЯ И КОРРЕКТИРОВКА ОПЦИЙ
+        self._ensure_valid_options()
 
-        # Устанавливаем дефолтные значения для пустых опций
-        self._set_default_options()
+        # Остальная логика без изменений
+        duplicate_message = self._check_for_duplicates()
+        if duplicate_message:
+            self.is_unique = False
+            self._adjust_for_duplicate()
+            logger.warning(f"Создается дубликат: {duplicate_message}")
+        else:
+            self.is_unique = True
 
-        # Валидация
+        # Валидация полей
         try:
             self.clean()
         except ValidationError as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Validation error in save(): {e}")
             raise
 
         # Автозаполнение полей
-        if self.selected_model_line_item:
-            if hasattr(self, 'generated_model_item_code'):
-                if len(self.name) > 0:
-                    self.name = self.generated_model_item_code
-                self.code = self.generated_model_item_code
-            if hasattr(self, '_generate_short_description'):
-                self.description = self._generate_short_description()
+        self._auto_fill_fields()
 
         # Сохраняем
         super().save(*args, **kwargs)
 
-    def _set_default_options(self) :
-        """Установить значения по умолчанию для всех None опций"""
-        if not hasattr(self , 'selected_model_line_item') or not self.selected_model_line_item :
+    def _ensure_valid_options(self):
+        """
+        Гарантирует, что все опции валидны для текущей модели
+        (заменяет и _set_default_options и _adjust_options_for_new_model)
+        """
+        if not self.selected_model_line_item:
             return
 
-        print(f"=== DEBUG _set_default_options ===")
+        # Сначала устанавливаем дефолты для пустых полей
+        for field_name, config in self._OPTION_CONFIG.items():
+            if not getattr(self, field_name):
+                self._set_default_option(field_name, config)
 
-        from pneumatic_actuators.models.pa_options import (
-            PneumaticTemperatureOption ,
-            PneumaticSafetyPositionOption ,
-            PneumaticSpringsQtyOption ,
-            PneumaticIpOption ,
-            PneumaticExdOption ,
-            PneumaticBodyCoatingOption
-        )
-        from pneumatic_actuators.models import PneumaticHandWheelOption
+        # Затем проверяем валидность всех заполненных полей
+        for field_name, config in self._OPTION_CONFIG.items():
+            current_value = getattr(self, field_name)
+            if current_value:
+                self._validate_option(field_name, current_value, config)
 
-        # Все опции, которые должны иметь дефолтные значения
-        option_configs = [
-            ('selected_safety_position' , PneumaticSafetyPositionOption , 'model_line_item') ,
-            ('selected_springs_qty' , PneumaticSpringsQtyOption , 'model_line_item') ,
-            ('selected_temperature' , PneumaticTemperatureOption , 'model_line') ,
-            ('selected_ip' , PneumaticIpOption , 'model_line') ,
-            ('selected_exd' , PneumaticExdOption , 'model_line') ,
-            ('selected_body_coating' , PneumaticBodyCoatingOption , 'model_line') ,
-            ('selected_hand_wheel' , PneumaticHandWheelOption , 'model_line') ,
-        ]
+    def _set_default_option(self, field_name, config):
+        """Установить дефолтную опцию для пустого поля"""
+        try:
+            module_name, class_name = config['model_path'].rsplit('.', 1)
+            module = __import__(module_name, fromlist=[class_name])
+            option_model = getattr(module, class_name)
 
-        missing_defaults = []  # Список опций без дефолтных значений
+            parent_obj = self._get_parent_for_option(config)
+            if not parent_obj:
+                return
 
-        for field_name , option_model , parent_type in option_configs :
-            current_value = getattr(self , field_name)
-            print(f"  Checking {field_name}: {current_value}")
+            default_option = option_model.get_default_or_any_allowed(parent_obj)
+            if default_option:
+                setattr(self, field_name, default_option)
 
-            if not current_value :
-                print(f"    Field is empty, getting default option...")
+        except Exception as e:
+            logger.error(f"Error setting default for {field_name}: {e}")
 
-                # Определяем правильный parent объект
-                if parent_type == 'model_line' :
-                    parent_obj = self.selected_model_line_item.model_line
-                    if not parent_obj :
-                        print(f"    No model_line for {field_name}")
-                        missing_defaults.append(f"{field_name} (отсутствует model_line)")
-                        continue
-                else :  # 'model_line_item'
-                    parent_obj = self.selected_model_line_item
+    def _validate_option(self, field_name, current_value, config):
+        """Проверить валидность опции"""
+        try:
+            module_name, class_name = config['model_path'].rsplit('.', 1)
+            module = __import__(module_name, fromlist=[class_name])
+            option_model = getattr(module, class_name)
 
-                try :
-                    # Получаем дефолтную опцию для этой модели
-                    default_option = option_model.get_default_or_any_allowed(parent_obj)
-                    print(f"    Default option: {default_option}")
+            parent_obj = self._get_parent_for_option(config)
+            if not parent_obj:
+                return
 
-                    if default_option :
-                        setattr(self , field_name , default_option)
-                        print(f"    ✓ Установлена дефолтная опция: {default_option}")
-                    else :
-                        # Нет дефолтной опции
-                        error_msg = f"{field_name} (нет дефолтной опции для {parent_obj})"
-                        missing_defaults.append(error_msg)
-                        print(f"    ✗ {error_msg}")
-
-                except Exception as e :
-                    error_msg = f"{field_name} (ошибка: {str(e)})"
-                    missing_defaults.append(error_msg)
-                    print(f"    ERROR: {error_msg}")
-                    import traceback
-                    traceback.print_exc()
-
-        # Проверяем, есть ли опции без дефолтных значений
-        if missing_defaults :
-            error_message = "Отсутствуют дефолтные опции:\n" + "\n".join(f"- {msg}" for msg in missing_defaults)
-            print(f"=== ВНИМАНИЕ: {error_message}")
-
-            # Если в режиме DEBUG или тестирования, можно вывести предупреждение
-            # В продакшене возможно нужно логировать, но не прерывать выполнение
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Missing default options for {self.selected_model_line_item}: {missing_defaults}")
-
-
-    def clean(self):
-        """Валидация выбранных опций"""
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info("=== MODEL CLEAN DEBUG: Starting validation")
-
-        if self.selected_model_line_item:
-
-
-            # Проверяем safety_position только если оно выбрано И модель не DA
-            if self.selected_safety_position:
-                # if not is_da_model:
-                from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
-                valid_safety = PneumaticSafetyPositionOption.objects.filter(
-                    model_line_item=self.selected_model_line_item,
-                    id=self.selected_safety_position.id,
-                    is_active=True
-                ).exists()
-                logger.info(
-                    f"=== MODEL CLEAN DEBUG: safety_position valid={valid_safety}")
-                if not valid_safety:
-                    from django.core.exceptions import ValidationError
-                    raise ValidationError({
-                        'selected_safety_position': 'Выбранное положение безопасности не доступно для этой модели'
-                    })
-                # else:
-                #     # Для DA моделей safety_position должно быть None
-                #     logger.info(f"=== MODEL CLEAN DEBUG: DA model with safety_position - will be cleared")
-                #     from django.core.exceptions import ValidationError
-                #     raise ValidationError({
-                #         'selected_safety_position': 'Положение безопасности не доступно для приводов двойного действия (DA)'
-                #     })
-
-            # Проверяем springs_qty
-            if self.selected_springs_qty:
-                from pneumatic_actuators.models.pa_options import PneumaticSpringsQtyOption
-                valid_springs = PneumaticSpringsQtyOption.objects.filter(
-                    model_line_item=self.selected_model_line_item,
-                    id=self.selected_springs_qty.id,
-                    is_active=True
-                ).exists()
-                logger.info(f"=== MODEL CLEAN DEBUG: springs_qty valid={valid_springs}")
-                if not valid_springs:
-                    from django.core.exceptions import ValidationError
-                    raise ValidationError({
-                        'selected_springs_qty': 'Выбранное количество пружин не доступно для этой модели'
-                    })
-
-            # ИСПРАВЛЕННАЯ ПРОВЕРКА ОСТАЛЬНЫХ ОПЦИЙ
-            option_checks = {
-                'selected_temperature': ('PneumaticTemperatureOption', 'температурная опция'),
-                'selected_ip': ('PneumaticIpOption', 'степень защиты IP'),
-                'selected_exd': ('PneumaticExdOption', 'взрывозащита'),
-                'selected_body_coating': ('PneumaticBodyCoatingOption', 'покрытие корпуса'),
-                'selected_hand_wheel' : ('PneumaticHandWheelOption' , 'ручной дублер')
+            # Проверка существования опции для родителя
+            filter_kwargs = {
+                'id': current_value.id,
+                f"{config['parent_field']}": parent_obj,
+                'is_active': True
             }
 
-            for field_name, (model_class_name, field_label) in option_checks.items():
+            if not option_model.objects.filter(**filter_kwargs).exists():
+                # Заменяем на дефолтную
+                default_option = option_model.get_default_or_any_allowed(parent_obj)
+                if default_option:
+                    setattr(self, field_name, default_option)
+
+        except Exception as e:
+            logger.error(f"Error validating {field_name}: {e}")
+
+    def _get_parent_for_option(self, config):
+        """Получить родительский объект для опции"""
+        if config['parent_field'] == 'model_line':
+            return getattr(self.selected_model_line_item, 'model_line', None)
+        else:
+            return self.selected_model_line_item
+
+    def _check_for_duplicates(self):
+        """Проверка на дубликаты в базе данных"""
+        if not self.pk:  # Только для новых записей
+            # Собираем фильтры для всех полей опций
+            filters = {}
+
+            # Используем общую конфигурацию
+            for field_name in self.get_option_fields():
                 field_value = getattr(self, field_name)
-                if field_value:
-                    try:
-                        # Импортируем модель по имени
-                        option_model = getattr(
-                            __import__('pneumatic_actuators.models.pa_options', fromlist=[model_class_name]),
-                            model_class_name)
+                if field_value:  # Только если значение установлено
+                    filters[field_name] = field_value
+                else:
+                    # Для NULL значений используем __isnull
+                    filters[f'{field_name}__isnull'] = True
 
-                        # Для этих опций используем model_line вместо model_line_item
-                        if field_name in ['selected_temperature', 'selected_ip', 'selected_exd',
-                                          'selected_body_coating','selected_hand_wheel']:
-                            valid_option = option_model.objects.filter(
-                                model_line=self.selected_model_line_item.model_line,
-                                id=field_value.id,
-                                is_active=True
-                            ).exists()
+            # Если есть хотя бы одно поле для фильтрации
+            if filters:
+                # Ищем дубликаты
+                from pneumatic_actuators.models  import PneumaticActuatorSelected
+                duplicates = PneumaticActuatorSelected.objects.filter(**filters)
+
+                # Исключаем самого себя если это обновление
+                if self.pk:
+                    duplicates = duplicates.exclude(pk=self.pk)
+
+                if duplicates.exists():
+                    duplicate = duplicates.first()
+                    return f"Найдена похожая конфигурация: {duplicate} (ID: {duplicate.id})"
+
+        return None
+
+    def _auto_fill_fields(self):
+        """Автозаполнение полей name, code, description"""
+        if self.selected_model_line_item:
+            if hasattr(self, 'generated_model_item_code'):
+                if not self.name or len(self.name) == 0:
+                    self.name = self.generated_model_item_code
+                if not self.code or len(self.code) == 0:
+                    self.code = self.generated_model_item_code
+            if hasattr(self, '_generate_short_description') and not self.description:
+                self.description = self._generate_short_description()
+
+    def clean(self):
+        """Мягкая валидация выбранных опций"""
+        logger.info("=== MODEL CLEAN DEBUG: Starting validation")
+
+        if not self.selected_model_line_item:
+            return  # Если модель не выбрана, пропускаем валидацию опций
+
+        # Используем общую конфигурацию для всех проверок
+        for field_name, config in self._OPTION_CONFIG.items():
+            field_value = getattr(self, field_name)
+            if field_value:
+                try:
+                    # Импортируем модель опции
+                    option_model = getattr(
+                        __import__('pneumatic_actuators.models.pa_options', fromlist=[config['model_class']]),
+                        config['model_class']
+                    )
+
+                    # Определяем параметры фильтрации
+                    filter_kwargs = {
+                        'id': field_value.id,
+                        'is_active': True
+                    }
+
+                    # Для разных типов опций разные parent_field
+                    if config['parent_field'] == 'model_line':
+                        # Для temperature, ip, exd, body_coating, hand_wheel
+                        if hasattr(self.selected_model_line_item, 'model_line'):
+                            filter_kwargs['model_line'] = self.selected_model_line_item.model_line
                         else:
-                            valid_option = option_model.objects.filter(
-                                model_line_item=self.selected_model_line_item,
-                                id=field_value.id,
-                                is_active=True
-                            ).exists()
+                            logger.warning(f"Cannot validate {field_name}: model_line not available")
+                            continue
+                    else:
+                        # Для safety_position и springs_qty
+                        filter_kwargs['model_line_item'] = self.selected_model_line_item
 
-                        logger.info(f"=== MODEL CLEAN DEBUG: {field_name} valid={valid_option}")
-                        if not valid_option:
-                            from django.core.exceptions import ValidationError
-                            raise ValidationError({
-                                field_name: f'Выбранная {field_label} не доступна для этой модели'
-                            })
-                    except Exception as e:
-                        logger.error(f"Error validating {field_name}: {e}")
+                    # Проверяем валидность
+                    valid_option = option_model.objects.filter(**filter_kwargs).exists()
+                    logger.info(f"=== MODEL CLEAN DEBUG: {field_name} valid={valid_option}")
+
+                    if not valid_option:
+                        logger.warning(
+                            f'Выбранная {config["label"]} не доступна для модели {self.selected_model_line_item}. '
+                            f'Будет сброшена при сохранении.'
+                        )
+                        # Мягкая валидация: только предупреждение
+                        # setattr(self, field_name, None)  # Раскомментировать для сброса
+
+                except Exception as e:
+                    logger.error(f"Error validating {field_name}: {e}")
 
         logger.info("=== MODEL CLEAN DEBUG: Validation completed")
 
@@ -1562,3 +1623,43 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     def calculated_weight(self) -> Optional[Decimal]:
         """Рассчитанный вес (property)"""
         return self.get_weight()
+
+    def create_duplicate(self):
+        """Создать дубликат текущего объекта"""
+        from datetime import datetime
+
+        # Создаем новый объект с пустыми name и code
+        duplicate = self.__class__(
+            # Копируем ForeignKey поля
+            selected_model_line_item=self.selected_model_line_item,
+            selected_safety_position=self.selected_safety_position,
+            selected_springs_qty=self.selected_springs_qty,
+            selected_temperature=self.selected_temperature,
+            selected_ip=self.selected_ip,
+            selected_exd=self.selected_exd,
+            selected_body_coating=self.selected_body_coating,
+            selected_hand_wheel=self.selected_hand_wheel,
+
+            # Копируем остальные поля
+            sorting_order=self.sorting_order,
+            is_active=self.is_active,
+            is_unique=False,
+
+            # Пустые поля - будут сгенерированы автоматически в save()
+            name='',  # Будет сгенерировано автоматически
+            code='',  # Будет сгенерировано автоматически
+
+            # Добавляем пометку о дублировании в описание
+            description=self.description
+        )
+
+        # Сохраняем - автоматически сгенерируются name и code
+        duplicate.save()
+
+        # Теперь добавляем суффикс к уже сгенерированному имени и коду
+        if duplicate.name:
+            # Используем существующий метод _adjust_for_duplicate
+            duplicate._adjust_for_duplicate()
+            duplicate.save()
+
+        return duplicate
