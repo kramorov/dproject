@@ -923,6 +923,118 @@ class ThreadSize(models.Model):
     def __str__(self):
         return self.name
 
+
+class ThreadSizeSet(models.Model):
+    """
+    Набор резьбовых соединений
+    """
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("Название набора"),
+        help_text=_("Название набора резьбовых соединений")
+    )
+
+    code = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name=_("Код набора"),
+        help_text=_("Код набора резьбовых соединений")
+    )
+
+    description = models.TextField(
+        blank=True,
+        verbose_name=_("Описание"),
+        help_text=_('Текстовое описание набора резьбовых соединений')
+    )
+
+    sorting_order = models.IntegerField(
+        default=0,
+        verbose_name=_("Порядок сортировки"),
+        help_text=_('Порядок сортировки в списке')
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("Активно"),
+        help_text=_('Активно свойство или нет')
+    )
+
+    class Meta:
+        verbose_name = _('Набор резьбовых соединений')
+        verbose_name_plural = _('Наборы резьбовых соединений')
+        ordering = ['sorting_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+    def get_thread_items(self):
+        """Получить все элементы набора"""
+        return self.thread_items.all().order_by('position')
+
+    @property
+    def total_items_count(self):
+        """Общее количество элементов в наборе"""
+        return self.thread_items.count()
+
+
+class ThreadSizeSetItem(models.Model):
+    """
+    Элемент набора резьбовых соединений.
+    Каждый элемент указывается отдельно, даже если одинаковые.
+    """
+    thread_set = models.ForeignKey(
+        ThreadSizeSet,
+        on_delete=models.CASCADE,
+        related_name='thread_items',
+        verbose_name=_("Набор резьбовых соединений")
+    )
+
+    thread_size = models.ForeignKey(
+        ThreadSize,
+        on_delete=models.CASCADE,
+        verbose_name=_("Резьбовое соединение")
+    )
+
+    position = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Позиция в наборе"),
+        help_text=_("Порядковый номер в наборе")
+    )
+
+    # Не храним quantity отдельно, так как количество указано в имени thread_size
+    # Каждая копия добавляется как отдельный элемент
+
+    class Meta:
+        verbose_name = _('Элемент набора резьб')
+        verbose_name_plural = _('Элементы наборов резьб')
+        ordering = ['thread_set', 'position']
+        unique_together = ['thread_set', 'position']
+
+    def __str__(self):
+        # Отображаем название с количеством из thread_size
+        thread_size_name = self.thread_size.name if self.thread_size else "Не указано"
+        return f"{self.thread_set.name} - {thread_size_name} (поз. {self.position})"
+
+    @property
+    def display_name_with_quantity(self):
+        """Отображаемое имя с количеством из названия ThreadSize"""
+        if self.thread_size:
+            return self.thread_size.name  # Например: "2xNPT 1/2"
+        return ""
+
+class ThreadSizeSetThroughOption(BaseThroughOption):
+    """Базовая модель для сквозных опций наборов резьбы..."""
+    thread_size_set = models.ForeignKey(
+        ThreadSizeSet,
+        on_delete=models.CASCADE,
+        verbose_name=_("Набор резьб") ,
+        help_text=_('Набор резьб'))
+
+    class Meta:
+        abstract = True
+        ordering = ['sorting_order']
+
 class ThreadSizeThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций резьбы..."""
     thread_size = models.ForeignKey(

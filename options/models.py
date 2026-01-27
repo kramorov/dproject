@@ -4,8 +4,6 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from typing import List, Optional, Tuple, Any, Dict, Union
 
-# from pneumatic_actuators.models import PneumaticActuatorSpringsQty
-
 
 class BaseThroughOption(models.Model) :
     """Базовый абстрактный класс для всех сквозных опций"""
@@ -590,6 +588,110 @@ class BaseSafetyPositionThroughOption(BaseThroughOption):
         on_delete=models.CASCADE,
         verbose_name=_("Положение безопасности") ,
         help_text=_('Положения безопасности'))
+
+    class Meta:
+        abstract = True
+        ordering = ['sorting_order']
+
+class BaseTurnAngleThroughOption(BaseThroughOption):
+    """
+    Универсальная through-модель для опций угла поворота однооборотного привода
+    Наследует от BaseThroughOption и добавляет поля угол поворота, диапазон регулировок
+    """
+
+    turn_angle = models.IntegerField(
+        default=90,
+        verbose_name=_('Поворот, °'),
+        help_text=_('Угол поворота, °')
+    )
+
+    turn_angle_deviation_limit = models.IntegerField(
+        default=0,
+        verbose_name=_('Угол ±, °'),
+        help_text=_('Предел регулировки угла поворота, °')
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['is_default', 'sorting_order']  # Сначала стандартные опции
+
+    @classmethod
+    def create_default_option(cls, parent_obj):
+        """Создать стандартную температурную опцию"""
+        parent_field = cls._get_parent_field_name()
+        return cls.objects.create(
+            **{parent_field: parent_obj},
+            turn_angle=90,
+            turn_angle_deviation_limit=4,
+            encoding='',  # Пустая кодировка для стандартного исполнения
+            description='Угол поворота 90° ±4°',
+            is_default=True,
+            sorting_order=0,
+            is_active=True
+        )
+
+    def get_display_name(self):
+        """Отображаемое имя с кодировкой или без"""
+        if self.encoding and self.encoding.strip():
+            name_str =  f"{self.encoding} (Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°)"
+        else:
+            name_str =  f"Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°"
+        display_name = f"{name_str} (Стандарт)" if self.default_option else f"{name_str} (Опц.исполнение)"
+        return display_name
+
+
+    def get_option_info(self, option_instance: Optional['BaseTemperatureThroughOption'] = None) -> Dict[str, Any]:
+        """Полная информация об опции угла поворота"""
+        # Вызываем родительский метод
+        info = super().get_option_info(option_instance)
+
+        # Определяем, с каким экземпляром работаем
+        current_instance = option_instance or self
+
+        # Добавляем инфо о угле поворота
+        info.update({
+            'turn_angle': current_instance.turn_angle,
+            'turn_angle_deviation_limit': current_instance.turn_angle_deviation_limit,
+            'turn_angle_text': f"Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°",
+        })
+        return info
+
+    def validate_unique_encoding(self) -> None:
+        """Валидация уникальности encoding опций угла поворота"""
+        if self.encoding and self.encoding.strip():
+            parent = self._get_parent_object()
+            if parent:
+                parent_field = self._get_parent_field_name()
+                if parent_field:
+                    existing_encoding = self.__class__.objects.filter(
+                        **{parent_field: parent, 'encoding': self.encoding}
+                    ).exclude(pk=self.pk if self.pk else None)
+                    if existing_encoding.exists():
+                        raise ValidationError('Опция угла поворота с такой кодировкой уже существует')
+
+    def clean(self):
+        """Дополнительная валидация для топций угла поворота"""
+        # Сначала вызываем базовую валидацию
+        super().clean()
+
+        # Валидация опций угла поворота
+        if self.turn_angle and self.turn_angle_deviation_limit:
+            if self.turn_angle_deviation_limit >= self.turn_angle:
+                raise ValidationError({
+                    'turn_angle_deviation_limit': _('Отклонение угла поворота должно быть быть меньше самого угла')
+                })
+
+    def __str__(self):
+        return self.get_display_name()
+
+
+class BasePowerSupplyThroughOption(BaseThroughOption):
+    """Базовая модель для сквозных опций напряжения питания"""
+    power_supply = models.ForeignKey(
+        'params.PowerSupplies',
+        on_delete=models.CASCADE,
+        verbose_name=_("Напряжение:") ,
+        help_text=_('Напряжение питания, В'))
 
     class Meta:
         abstract = True

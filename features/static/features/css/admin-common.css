@@ -1,0 +1,163 @@
+/* features/static/features/css/admin-common.css */
+
+/* Общие стили для всех админок features */
+.features-admin {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Стили для бейджей */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.4em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+/* Стили для кнопок */
+.features-admin .button {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 6px 12px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.features-admin .button:hover {
+    background: #f8f9fa;
+    border-color: #999;
+}
+
+.features-admin .button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Стили для таблиц */
+.features-admin table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.features-admin table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+}
+
+.features-admin table td {
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    vertical-align: top;
+}
+
+/* Стили для полей ввода */
+.features-admin input[type="text"],
+.features-admin input[type="number"],
+.features-admin select,
+.features-admin textarea {
+    width: 100%;
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.5;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.features-admin input[type="text"]:focus,
+.features-admin input[type="number"]:focus,
+.features-admin select:focus,
+.features-admin textarea:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.features-admin .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.features-admin .slide-in {
+    animation: slideIn 0.3s ease-in-out;
+}
+
+/* Стили для иерархии */
+.hierarchy-level-0 { padding-left: 0; }
+.hierarchy-level-1 { padding-left: 20px; }
+.hierarchy-level-2 { padding-left: 40px; }
+.hierarchy-level-3 { padding-left: 60px; }
+.hierarchy-level-4 { padding-left: 80px; }
+.hierarchy-level-5 { padding-left: 100px; }
+
+.hierarchy-item {
+    margin: 5px 0;
+    padding: 8px 12px;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.hierarchy-item:hover {
+    background: #f8f9fa;
+    border-left-color: #007bff;
+}
+
+/* Стили для обязательных полей */
+.required-field label::after {
+    content: " *";
+    color: #dc3545;
+}
+
+/* Стили для статусов */
+.status-approved {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-draft {
+    color: #6c757d;
+}
+
+.status-warning {
+    color: #ffc107;
+}
+
+.status-error {
+    color: #dc3545;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .features-admin .grid-2 {
+        grid-template-columns: 1fr !important;
+    }
+
+    .features-admin .grid-3 {
+        grid-template-columns: 1fr !important;
+    }
+
+    .features-admin table {
+        font-size: 12px;
+    }
+}

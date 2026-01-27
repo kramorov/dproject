@@ -2,14 +2,14 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from .models import PowerSupplies , ExdOption , IpOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , \
-    EnvTempParameters , DigitalProtocolsSupportOption , ControlUnitInstalledOption , ActuatorGearboxOutputType , \
-    ValveTypes , HandWheelInstalledOption , OperatingModeOption , ActuatorGearBoxCombinationTypes , MountingPlateTypes , \
-    StemShapes , StemSize , ThreadTypes , MeasureUnits , ThreadSize , CertVariety , CertData , \
-    MechanicalIndicatorInstalledOption , SafetyPositionOption , ControlUnitTypeOption , ControlUnitLocationOption , \
-    ClimaticConditions , ClimaticEquipmentPlacementClassifier , ClimaticZoneClassifier , PnVariety , DnVariety , \
-    BodyColor , OptionVariety , ValveFunctionVariety , CoatingVariety , SealingClass , WarrantyTimePeriodVariety , \
-    ValveActuationVariety , PneumaticAirSupplyPressure , PneumaticConnection
+from .models import PowerSupplies, ExdOption, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
+    EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
+    ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
+    StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize, CertVariety, CertData, \
+    MechanicalIndicatorInstalledOption, SafetyPositionOption, ControlUnitTypeOption, ControlUnitLocationOption, \
+    ClimaticConditions, ClimaticEquipmentPlacementClassifier, ClimaticZoneClassifier, PnVariety, DnVariety, \
+    BodyColor, OptionVariety, ValveFunctionVariety, CoatingVariety, SealingClass, WarrantyTimePeriodVariety, \
+    ValveActuationVariety, PneumaticAirSupplyPressure, PneumaticConnection, ThreadSizeSetItem, ThreadSizeSet
 
 
 class MeasureUnitsAdmin(admin.ModelAdmin):
@@ -284,6 +284,106 @@ class PneumaticAirSupplyPressureAdmin(admin.ModelAdmin) :
     readonly_fields = ('get_pressure_display' ,)
 
 
+# Inline для элементов набора
+class ThreadSizeSetItemInline(admin.TabularInline):
+    model = ThreadSizeSetItem
+    extra = 1  # Показывать 1 пустую форму
+    max_num = 50  # Максимальное количество элементов
+    ordering = ['position']
+
+    fields = ['position', 'thread_size', 'thread_size_display']
+    readonly_fields = ['thread_size_display']
+
+    def thread_size_display(self, obj):
+        """Отображение названия резьбы с количеством"""
+        if obj.thread_size:
+            # Предполагаем, что в ThreadSize.name уже хранится "2xNPT 1/2"
+            return obj.thread_size.name
+        return "-"
+
+    thread_size_display.short_description = "Название (с количеством)"
+
+
+@admin.register(ThreadSizeSet)
+class ThreadSizeSetAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'code', 'items_count_preview',
+        'thread_sizes_list', 'sorting_order', 'is_active'
+    ]
+
+    list_filter = ['is_active']
+    search_fields = ['name', 'code', 'description']
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'code', 'description')
+        }),
+        ('Настройки', {
+            'fields': ('sorting_order', 'is_active')
+        }),
+    )
+
+    inlines = [ThreadSizeSetItemInline]
+
+    def items_count_preview(self, obj):
+        """Количество элементов в наборе"""
+        count = obj.thread_items.count()
+        return format_html(
+            '<span class="badge" style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 10px;">'
+            '{} шт.</span>',
+            count
+        )
+
+    items_count_preview.short_description = "Кол-во"
+
+    def thread_sizes_list(self, obj):
+        """Список всех резьб в наборе"""
+        items = obj.get_thread_items()
+        if items.exists():
+            item_list = []
+            for item in items:
+                if item.thread_size:
+                    item_list.append(item.thread_size.name)
+                else:
+                    item_list.append("Не указано")
+
+            # Показываем только первые 5 элементов
+            preview = ", ".join(item_list[:5])
+            if len(item_list) > 5:
+                preview += f" ... (+{len(item_list) - 5})"
+
+            return preview
+        return "-"
+
+    thread_sizes_list.short_description = "Резьбы в наборе"
+
+    class Media:
+        css = {
+            'all': ('admin/css/thread_size_set.css',)
+        }
+
+
+@admin.register(ThreadSizeSetItem)
+class ThreadSizeSetItemAdmin(admin.ModelAdmin):
+    list_display = [
+        'thread_set', 'position', 'thread_size_display'
+    ]
+
+    list_filter = ['thread_set']
+    search_fields = ['thread_set__name', 'thread_size__name']
+
+    def thread_size_display(self, obj):
+        """Отображение названия резьбы с количеством"""
+        if obj.thread_size:
+            return obj.thread_size.name
+        return "-"
+
+    thread_size_display.short_description = "Резьба (с количеством)"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'thread_set', 'thread_size'
+        )
 admin.site.register(PowerSupplies, PowerSuppliesAdmin)
 admin.site.register(ExdOption, ExdOptionAdmin)
 admin.site.register(MechanicalIndicatorInstalledOption, MechanicalIndicatorInstalledOptionAdmin)
