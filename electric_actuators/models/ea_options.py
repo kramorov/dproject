@@ -41,7 +41,7 @@ class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
-        related_name='hand_wheel_options',
+        related_name='turn_angle_options',
         verbose_name=_("Серия электроприводов")
     )
 

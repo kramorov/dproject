@@ -43,6 +43,7 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     # path('api/client_requests/', include('client_requests.urls')),
     path('api/pneumatic_actuators/', include('pneumatic_actuators.urls')),
     path('api/electric_actuators/', include('electric_actuators.urls')),
+    path('api/features/', include('features.urls')),
     # GraphQL
     path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),
 ]

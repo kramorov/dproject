@@ -194,3 +194,217 @@ def search_objects(request):
             'success': False,
             'error': str(e)
         })
+
+
+@login_required
+@require_GET
+def get_equipment_type_tree(request) :
+    """Получить дерево типов оборудования"""
+    try :
+        # Параметры запроса
+        show_inactive = request.GET.get('show_inactive' , 'false').lower() == 'true'
+        include_counts = request.GET.get('include_counts' , 'true').lower() == 'true'
+
+        # Строим базовый queryset
+        queryset = EquipmentType.objects.all()
+
+        if not show_inactive :
+            queryset = queryset.filter(is_active=True)
+
+        # Предзагружаем связи для оптимизации
+        queryset = queryset.select_related('parent').order_by('level' , 'sorting_order' , 'name')
+
+        if include_counts :
+            # Добавляем аннотации для подсчета
+            queryset = queryset.annotate(
+                children_count=Count('children' , distinct=True) ,
+                # Можно добавить другие подсчеты при необходимости
+                # features_count=Count('features', distinct=True),
+                # templates_count=Count('featuretemplates', distinct=True),
+            )
+
+        # Преобразуем в древовидную структуру
+        equipment_types = list(queryset)
+
+        # Создаем словарь для быстрого доступа по ID
+        type_dict = {}
+        for eq_type in equipment_types :
+            type_dict[eq_type.id] = {
+                'id' : eq_type.id ,
+                'name' : eq_type.name ,
+                'code' : eq_type.code ,
+                'level' : eq_type.level ,
+                'parent_id' : eq_type.parent_id ,
+                'icon' : eq_type.icon ,
+                'is_active' : eq_type.is_active ,
+                'sorting_order' : eq_type.sorting_order ,
+                'description' : eq_type.description ,
+                'children' : []
+            }
+
+            if include_counts and hasattr(eq_type , 'children_count') :
+                type_dict[eq_type.id]['children_count'] = eq_type.children_count
+
+        # Строим дерево
+        tree = []
+        for eq_type in equipment_types :
+            node = type_dict[eq_type.id]
+
+            if eq_type.parent_id :
+                # Добавляем к родителю
+                if eq_type.parent_id in type_dict :
+                    type_dict[eq_type.parent_id]['children'].append(node)
+                else :
+                    # Родитель не в выборке (например, неактивен) - добавляем в корень
+                    tree.append(node)
+            else :
+                # Корневой элемент
+                tree.append(node)
+
+        # Функция для рекурсивной сортировки детей
+        def sort_tree_nodes(nodes) :
+            """Рекурсивно сортирует узлы дерева"""
+            nodes.sort(key=lambda x : (
+                x.get('sorting_order' , 0) ,
+                x.get('name' , '')
+            ))
+            for node in nodes :
+                if node['children'] :
+                    sort_tree_nodes(node['children'])
+
+        # Сортируем дерево
+        sort_tree_nodes(tree)
+
+        # Формируем полные пути для каждого узла
+        def add_full_paths(nodes , parent_path="") :
+            """Добавляет полные пути к узлам дерева"""
+            for node in nodes :
+                current_path = f"{parent_path} → {node['name']}" if parent_path else node['name']
+                node['full_path'] = current_path
+                node['display_name'] = f"{'  ' * node['level']}{node['name']}" if node['level'] > 0 else node['name']
+
+                if node['children'] :
+                    add_full_paths(node['children'] , current_path)
+
+        add_full_paths(tree)
+
+        # Дополнительная статистика
+        stats = {
+            'total' : len(equipment_types) ,
+            'active' : sum(1 for t in equipment_types if t.is_active) ,
+            'max_level' : max((t.level for t in equipment_types) , default=0) ,
+            'root_count' : len(tree) ,
+        }
+
+        return JsonResponse({
+            'success' : True ,
+            'tree' : tree ,
+            'stats' : stats ,
+            'options' : {
+                'show_inactive' : show_inactive ,
+                'include_counts' : include_counts ,
+            }
+        })
+
+    except Exception as e :
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_equipment_type_tree: {e}")
+
+        return JsonResponse({
+            'success' : False ,
+            'error' : str(e) ,
+            'message' : 'Ошибка при получении дерева типов оборудования'
+        } , status=500)
+
+
+# Альтернативная версия - плоский список с отступами (для select элементов)
+@login_required
+@require_GET
+def get_equipment_type_flat_list(request) :
+    """Получить плоский список типов оборудования с отступами (для select)"""
+    try :
+        show_inactive = request.GET.get('show_inactive' , 'false').lower() == 'true'
+
+        queryset = EquipmentType.objects.all()
+
+        if not show_inactive :
+            queryset = queryset.filter(is_active=True)
+
+        queryset = queryset.select_related('parent').order_by('level' , 'sorting_order' , 'name')
+
+        equipment_types = list(queryset)
+
+        # Формируем плоский список с отступами
+        flat_list = []
+        for eq_type in equipment_types :
+            indent = "&nbsp;&nbsp;&nbsp;&nbsp;" * eq_type.level
+            display_name = f"{indent}{eq_type.name}"
+
+            if not eq_type.is_active :
+                display_name = f"<span style='color: #999;'>{display_name} (неактивен)</span>"
+
+            flat_list.append({
+                'id' : eq_type.id ,
+                'name' : eq_type.name ,
+                'display_name' : display_name ,
+                'level' : eq_type.level ,
+                'parent_id' : eq_type.parent_id ,
+                'is_active' : eq_type.is_active ,
+                'full_path' : eq_type.get_full_path() if hasattr(eq_type , 'get_full_path') else eq_type.name ,
+            })
+
+        return JsonResponse({
+            'success' : True ,
+            'list' : flat_list ,
+            'count' : len(flat_list)
+        })
+
+    except Exception as e :
+        return JsonResponse({
+            'success' : False ,
+            'error' : str(e)
+        } , status=500)
+
+
+# Для админки - быстрый поиск типов оборудования
+@login_required
+@require_GET
+def search_equipment_types(request) :
+    """Поиск типов оборудования для автокомплита"""
+    search_term = request.GET.get('q' , '').strip()
+
+    if len(search_term) < 2 :
+        return JsonResponse({
+            'success' : True ,
+            'results' : []
+        })
+
+    try :
+        # Ищем по имени, коду и полному пути
+        types = EquipmentType.objects.filter(
+            models.Q(name__icontains=search_term) |
+            models.Q(code__icontains=search_term) |
+            models.Q(description__icontains=search_term)
+        ).select_related('parent')[:20]
+
+        results = []
+        for eq_type in types :
+            results.append({
+                'id' : eq_type.id ,
+                'text' : f"{eq_type.name} ({eq_type.code})" if eq_type.code else eq_type.name ,
+                'full_path' : eq_type.get_full_path() if hasattr(eq_type , 'get_full_path') else eq_type.name ,
+                'level' : eq_type.level ,
+                'is_active' : eq_type.is_active ,
+            })
+
+        return JsonResponse({
+            'success' : True ,
+            'results' : results
+        })
+
+    except Exception as e :
+        return JsonResponse({
+            'success' : False ,
+            'error' : str(e)
+        } , status=500)

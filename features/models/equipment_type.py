@@ -39,6 +39,49 @@ class EquipmentType(BaseAbstractModel):
         verbose_name_plural = _("Типы оборудования")
         ordering = ['level', 'sorting_order', 'name']
 
+    def get_descendants_ids(self) :
+        """Получить ID всех потомков (включая вложенные)"""
+        from django.db.models import Q
+        from django.db import connection
+
+        # Способ 1: Рекурсивный SQL запрос (если база поддерживает)
+        if connection.vendor == 'postgresql' :
+            # Для PostgreSQL с рекурсивными CTE
+            from django.db import connection
+            with connection.cursor() as cursor :
+                cursor.execute("""
+                    WITH RECURSIVE descendants AS (
+                        SELECT id, parent_id
+                        FROM features_equipmenttype
+                        WHERE id = %s
+                        UNION ALL
+                        SELECT child.id, child.parent_id
+                        FROM features_equipmenttype child
+                        INNER JOIN descendants parent ON child.parent_id = parent.id
+                    )
+                    SELECT id FROM descendants WHERE id != %s
+                """ , [self.id , self.id])
+                return [row[0] for row in cursor.fetchall()]
+
+        # Способ 2: Рекурсивный Python (универсальный, но медленнее для больших деревьев)
+        def get_children_ids(parent_id) :
+            children = EquipmentType.objects.filter(parent_id=parent_id).values_list('id' , flat=True)
+            result = list(children)
+            for child_id in children :
+                result.extend(get_children_ids(child_id))
+            return result
+
+        return get_children_ids(self.id)
+
+    def get_descendants(self) :
+        """Получить всех потомков (включая вложенные)"""
+        ids = self.get_descendants_ids()
+        return EquipmentType.objects.filter(id__in=ids) if ids else EquipmentType.objects.none()
+
+    def get_all_children_ids(self) :
+        """Алиас для совместимости (если где-то используется это название)"""
+        return self.get_descendants_ids()
+
     def save(self, *args, **kwargs):
         """Автоматически вычисляем уровень при сохранении"""
         if self.parent:

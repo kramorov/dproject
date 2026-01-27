@@ -4,8 +4,11 @@ from features import views
 
 urlpatterns = [
     # AJAX эндпоинты для EquipmentType
-    path('equipment-type/get_level/', views.get_equipment_type_level, name='equipment_type_level'),
-    path('equipment-type/get_tree/', views.get_equipment_type_tree, name='equipment_type_tree'),
+    path('equipment-type/get_level/' , views.get_equipment_type_level , name='equipment_type_level') ,
+    path('equipment-type/get_tree/' , views.get_equipment_type_tree , name='equipment_type_tree') ,
+    path('equipment-type/get_flat_list/' , views.get_equipment_type_flat_list , name='equipment_type_flat_list') ,
+    path('equipment-type/search/' , views.search_equipment_types , name='search_equipment_types') ,
+
     path('equipment-type/get_active_ids/', views.get_active_equipment_type_ids, name='active_equipment_type_ids'),
 
     # AJAX эндпоинты для FeatureVariety

@@ -119,6 +119,7 @@ INSTALLED_APPS = [
     'client_requests.apps.ClientRequestsConfig' ,
     'media_library.apps.MediaLibraryConfig' ,
     'pneumatic_actuators.apps.PneumaticActuatorConfig' ,
+    'features.apps.FeaturesConfig'
 ]
 
 MIDDLEWARE = [
