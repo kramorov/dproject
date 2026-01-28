@@ -1,6 +1,8 @@
 #electric_actuators/models/ea_model_body.py
 from django.db import models
-
+"""
+    DEPRICATED ALMOST
+"""
 # from electric_actuators.models import ModelLine , CableGlandHolesSet
 from params.models import StemShapes, StemSize, MountingPlateTypes
 

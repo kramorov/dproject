@@ -1,0 +1,422 @@
+# electric_actuators/models/ea_body.py
+from django.db import models
+
+# from electric_actuators.models import ModelLine , CableGlandHolesSet
+from params.models import StemShapes, StemSize, MountingPlateTypes
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from typing import List, Optional, Tuple, Any, Dict, Union
+from django.db.models.signals import pre_save , post_save
+from django.dispatch import receiver
+from django.core.exceptions import ValidationError
+
+from params.models import MountingPlateTypes , StemShapes , StemSize , ThreadTypes , PneumaticConnection , ThreadSize
+
+
+# from pneumatic_actuators.models import PneumaticActuatorTechDataTable
+
+class ElectricActuatorBodyTable(models.Model) :
+    """
+    Таблица для групповой обработки значений - импорта и экспорта
+    """
+    name = models.CharField(max_length=100 , blank=True , null=True ,
+                            verbose_name=_("Название") ,
+                            help_text=_("Название таблицы корпусов")
+                            )
+    code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
+                            help_text=_("Код таблицы корпусов"))
+    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+                                   help_text=_('Текстовое описание таблицы корпусов'))
+    sorting_order = models.IntegerField(default=0 , verbose_name=_("Порядок сортировки") ,
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+                                    help_text=_('Активно свойство или нет'))
+
+    class Meta :
+        ordering = ['sorting_order']
+        verbose_name = _('Таблица корпусов')
+        verbose_name_plural = _('Таблица корпусов для их логического объединения для групповой обработки')
+
+    def __str__(self) :
+        return self.name
+
+    @property
+    def related_bodies_display(self) :
+        """Отображает связанные корпуса"""
+        bodies = self.model_body_body_table.all()
+        if bodies :
+            return ", ".join([f"{body.name}" for body in bodies])
+        return _("Нет связанных моделей корпусов")
+
+    related_bodies_display.fget.short_description = _('Связанные модели корпуса')
+
+
+
+
+# class ModelBody(models.Model):
+#     name = models.CharField(max_length=200, verbose_name='Текстовое название типа корпуса')
+#     model_line = models.ForeignKey('ModelLine', on_delete=models.PROTECT,
+#                                    related_name='model_body_model_line', help_text='Серия приводов')
+#     default_cable_glands_holes = \
+#         models.ForeignKey('CableGlandHolesSet', null=True, blank=True,
+#                           related_name='model_body_default_cable_glands_holes',
+#                           on_delete=models.SET_NULL,
+#                           help_text='Стандартные отверстия под кабельные вводы')
+#     allowed_cable_glands_holes = \
+#         models.ManyToManyField('CableGlandHolesSet', blank=True,
+#                                related_name='model_body_allowed_cable_glands_holes',
+#                                help_text='Возможные для выбора варианты отверстий под кабельные вводы для корпуса ('
+#                                          'можно выбрать несколько)')
+#     mounting_plate = models.ManyToManyField(MountingPlateTypes, blank=True,
+#                                             related_name='model_body_cable_mounting_plate',
+#                                             help_text='Монтажная площадка')
+#     stem_shape = models.ForeignKey(StemShapes, on_delete=models.SET_NULL, null=True, blank=True,
+#                                    related_name='model_body_stem_shape', help_text='Тип отверстия под шток арматуры')
+#     stem_size = models.ForeignKey(StemSize, on_delete=models.SET_NULL, null=True, blank=True,
+#                                   related_name='model_body_stem_size', help_text='Размер отверстия под шток арматуры')
+#     max_stem_height = models.PositiveIntegerField(blank=True, null=True,
+#                                                   help_text='Глубина отверстия под шток арматуры')
+#     max_stem_diameter = models.PositiveIntegerField(blank=True, null=True, help_text='Максимальный диаметр отверстия '
+#                                                                                      'под шток арматуры')
+#     text_description = models.CharField(max_length=500, blank=True, null=True, help_text='Описание типа корпуса')
+#
+#     def __str__(self):
+#         return self.name
+class ElectricActuatorBody(models.Model) :
+    """
+    Корпус привода электроприводв
+    Для каждого корпуса уникальны
+        размеры
+        площадка
+        квадрат
+        отверстия под КВ
+    общей является принадлежность к какой-то серии электроприводов - в серии описываются
+    общие для всех моделей параметры
+    это model_line
+    """
+    name = models.CharField(max_length=100 , blank=True , null=True ,
+                            verbose_name=_("Название") ,
+                            help_text=_("Название модели корпуса привода")
+                            )
+    code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
+                            help_text=_("Код модели корпуса привода"))
+    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+                                   help_text=_('Текстовое описание модели корпуса привода'))
+    sorting_order = models.IntegerField(default=0 , verbose_name=_("Порядок сортировки") ,
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+                                    help_text=_('Активно свойство или нет'))
+    body_table = models.ForeignKey(ElectricActuatorBodyTable , on_delete=models.PROTECT ,
+                                   verbose_name=_("Таблица") ,
+                                   related_name='model_body_body_table' ,
+                                   help_text=_(
+                                       'Таблица корпусов для их логического объединения для групповой обработки'))
+    mounting_plate = models.ManyToManyField(MountingPlateTypes , blank=True ,
+                                            related_name='model_body_mounting_plate_electric_model_line' ,
+                                            verbose_name=_("Монт.площадка") ,
+                                            help_text=_('Монтажная площадка'))
+    stem_shape = models.ForeignKey(StemShapes , on_delete=models.SET_NULL , null=True , blank=True ,
+                                   related_name='model_body_stem_shape_electric_model_line' ,
+                                   verbose_name=_("Тип штока") ,
+                                   help_text=_('Тип отверстия под шток арматуры'))
+    stem_size = models.ForeignKey(StemSize , on_delete=models.SET_NULL , null=True , blank=True ,
+                                  related_name='model_body_stem_size_electric_model_line' ,
+                                  verbose_name=_("Размер штока") ,
+                                  help_text=_('Размер отверстия под шток арматуры'))
+    max_stem_height = models.PositiveIntegerField(blank=True , null=True ,
+                                                  verbose_name=_("Высота штока") ,
+                                                  help_text=_('Глубина отверстия под шток арматуры'))
+    max_stem_diameter = models.PositiveIntegerField(blank=True , null=True ,
+                                                    verbose_name=_("Макс шток") ,
+                                                    help_text=_('Максимальный диаметр отверстия '
+                                                                'под шток арматуры'))
+
+    turn_angle = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Угол поворота") ,
+                                  help_text=_("Угол поворота"))
+    turn_tuning_limit = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Ограничитель") ,
+                                         help_text=_("Настройка ограничителя на ±1° (об.)"))
+    weight_spring = models.DecimalField(max_digits=4 , decimal_places=2 ,
+                                        default=0 , blank=True , null=True ,
+                                        verbose_name=_("Вес пружины") ,
+                                        help_text=_(
+                                            'Вес 1 пружины, кг'))
+
+    thread_in = models.ForeignKey(ThreadSize , on_delete=models.SET_NULL , null=True , blank=True ,
+                                  related_name='model_body_thread_in' ,
+                                  verbose_name=_("Пневмовход") ,
+                                  help_text=_('Резьба входного отверстия для пневмоподключения'))
+    thread_out = models.ForeignKey(ThreadSize , on_delete=models.SET_NULL , null=True , blank=True ,
+                                   related_name='model_body_thread_out' ,
+                                   verbose_name=_("Пневмовыход") ,
+                                   help_text=_('Резьба выходного отверстия для пневмоподключения'))
+    pneumatic_connection = models.ManyToManyField(
+        PneumaticConnection ,
+        blank=True ,
+        related_name='model_body_pneumatic_connection' ,
+        verbose_name=_("Пневмоподключения") ,
+        help_text=_('Возможные типы пневмоподключений'))
+
+    class Meta :
+        ordering = ['sorting_order']
+        verbose_name = _('Модель корпуса пневмопривода')
+        verbose_name_plural = _('Модели корпусов пневмоприводов')
+
+    def __str__(self) :
+        return self.name
+
+    @property
+    def mounting_plate_display(self) :
+        """Отображает монтажные площадки через разделитель /"""
+        plates = self.mounting_plate.all()
+        if plates :
+            return " / ".join([str(plate) for plate in plates])
+        return "-"
+
+    mounting_plate_display.fget.short_description = _('Площадка')
+
+    @property
+    def stem_info_display(self) :
+        """Отображает информацию о штоке"""
+        info = []
+        if self.stem_shape :
+            info.append(str(self.stem_shape))
+        if self.stem_size :
+            info.append(str(self.stem_size))
+        if self.max_stem_height :
+            info.append(f"высота: {self.max_stem_height}мм")
+        if self.max_stem_diameter :
+            info.append(f"∅: {self.max_stem_diameter}мм")
+        return " | ".join(info) if info else "-"
+
+    stem_info_display.fget.short_description = _('Шток')
+
+    def create_copy(self , name_suffix=None , code_suffix=None) :
+        """Создает копию модели со всеми связанными данными"""
+        if name_suffix is None :
+            name_suffix = _(" (Копия)")
+        if code_suffix is None :
+            code_suffix = _(" (Копия)")
+
+        # Сохраняем исходные отношения
+        mounting_plates = list(self.mounting_plate.all())
+        pneumatic_connections = list(self.pneumatic_connection.all())
+
+        # Создаем новый объект с теми же данными
+        copy = PneumaticActuatorBody(
+            name=f"{self.name}{name_suffix}" if self.name else "Копия" ,
+            code=f"{self.code}{code_suffix}" if self.code else "Копия" ,
+            description=self.description ,
+            sorting_order=self.sorting_order ,
+            is_active=self.is_active ,
+            body_table=self.body_table ,
+            stem_shape=self.stem_shape ,
+            stem_size=self.stem_size ,
+            max_stem_height=self.max_stem_height ,
+            max_stem_diameter=self.max_stem_diameter ,
+            min_pressure_bar=self.min_pressure_bar ,
+            max_pressure_bar=self.max_pressure_bar ,
+            air_usage_open=self.air_usage_open ,
+            air_usage_close=self.air_usage_close ,
+            piston_diameter=self.piston_diameter ,
+            turn_angle=self.turn_angle ,
+            turn_tuning_limit=self.turn_tuning_limit ,
+            weight_spring=self.weight_spring ,
+            thread_in=self.thread_in ,
+            thread_out=self.thread_out ,
+        )
+        copy.save()
+
+        # Копируем ManyToMany поля
+        copy.mounting_plate.set(mounting_plates)
+        copy.pneumatic_connection.set(pneumatic_connections)
+
+        return copy
+
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для описания корпуса"""
+        data = {
+            'basic_info' : {
+                'name' : self.name ,
+                'code' : self.code ,
+                'description' : self.description
+            } ,
+            'technical_specs' : {} ,
+            'mounting_specs': {},
+            'pipe_connections_specs': {}
+        }
+
+        # Технические характеристики
+        if self.piston_diameter :
+            data['technical_specs']['piston_diameter'] = f"{self.piston_diameter} мм"
+        if self.turn_angle :
+            data['technical_specs']['turn_angle'] = self.turn_angle
+        if self.turn_tuning_limit :
+            data['technical_specs']['turn_tuning_limit'] = self.turn_tuning_limit
+        if self.weight_spring :
+            data['technical_specs']['weight_spring'] = f"{self.weight_spring} кг"
+        if self.min_pressure_bar :
+            data['technical_specs']['min_pressure'] = f"{self.min_pressure_bar} бар"
+        if self.max_pressure_bar :
+            data['technical_specs']['max_pressure'] = f"{self.max_pressure_bar} бар"
+        if self.air_usage_open :
+            data['technical_specs']['air_usage_open'] = f"{self.air_usage_open} л"
+        if self.air_usage_close :
+            data['technical_specs']['air_usage_close'] = f"{self.air_usage_close} л"
+
+        # Информация о штоке
+        stem_info = {}
+        if self.stem_shape :
+            stem_info['shape'] = str(self.stem_shape)
+        if self.stem_size :
+            stem_info['size'] = str(self.stem_size)
+        if self.max_stem_height :
+            stem_info['max_height'] = f"{self.max_stem_height} мм"
+        if self.max_stem_diameter :
+            stem_info['max_diameter'] = f"{self.max_stem_diameter} мм"
+
+        if stem_info :
+            data['mounting_specs']['stem'] = stem_info
+
+        # Подключения
+        if self.thread_in :
+            data['pipe_connections_specs']['thread_in'] = str(self.thread_in)
+        if self.thread_out :
+            data['pipe_connections_specs']['thread_out'] = str(self.thread_out)
+
+        pneumatic_connections = self.pneumatic_connection.all()
+        if pneumatic_connections :
+            data['pipe_connections_specs']['pneumatic_connections'] = [str(conn) for conn in pneumatic_connections]
+
+        # Монтажные площадки
+        mounting_plates = self.mounting_plate.all()
+        if mounting_plates :
+            data['mounting_specs']['mounting_plates'] = [str(plate) for plate in mounting_plates]
+
+        return data
+
+    def get_text_description(self) -> str :
+        """Сгенерировать текстовое описание корпуса из структурированных данных"""
+        data = self.get_description_data()
+        desc_parts = []
+
+        # Базовая информация
+        basic_info = data['basic_info']
+        if basic_info['name'] :
+            desc_parts.append(f"Модель корпуса: {basic_info['name']}")
+        if basic_info['code'] :
+            desc_parts.append(f"Код: {basic_info['code']}")
+        if basic_info['description'] :
+            desc_parts.append(f"Описание: {basic_info['description']}")
+
+        # Технические характеристики
+        tech_specs = data['technical_specs']
+        if tech_specs :
+            desc_parts.append("\nТехнические характеристики:")
+            for spec_name , spec_value in tech_specs.items() :
+                display_name = {
+                    'piston_diameter' : 'Диаметр поршня' ,
+                    'turn_angle' : 'Угол поворота' ,
+                    'turn_tuning_limit' : 'Ограничитель поворота' ,
+                    'weight_spring' : 'Вес пружины' ,
+                    'min_pressure' : 'Минимальное давление' ,
+                    'max_pressure' : 'Максимальное давление' ,
+                    'air_usage_open' : 'Расход воздуха (открытие)' ,
+                    'air_usage_close' : 'Расход воздуха (закрытие)'
+                }.get(spec_name , spec_name)
+                desc_parts.append(f"  {display_name}: {spec_value}")
+
+        # Информация о штоке
+        mounting_specs = data['mounting_specs']
+        if mounting_specs:
+            if 'stem' in mounting_specs :
+                stem_parts = []
+                stem_data = tech_specs['stem']
+                if 'shape' in stem_data :
+                    stem_parts.append(f"форма: {stem_data['shape']}")
+                if 'size' in stem_data :
+                    stem_parts.append(f"размер: {stem_data['size']}")
+                if 'max_height' in stem_data :
+                    stem_parts.append(f"макс. высота: {stem_data['max_height']}")
+                if 'max_diameter' in stem_data :
+                    stem_parts.append(f"макс. диаметр: {stem_data['max_diameter']}")
+
+                if stem_parts :
+                    desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
+            if 'mounting_plates' in mounting_specs:
+                desc_parts.append(f"  Монтажные площадки: {', '.join(mounting_specs['mounting_plates'])}")
+
+        # Подключения
+        pipe_connections_specs = data['pipe_connections_specs']
+        if pipe_connections_specs :
+            desc_parts.append("\nПодключения:")
+
+            if 'thread_in' in pipe_connections_specs :
+                desc_parts.append(f"  Пневмовход: {pipe_connections_specs['thread_in']}")
+            if 'thread_out' in pipe_connections_specs :
+                desc_parts.append(f"  Пневмовыход: {pipe_connections_specs['thread_out']}")
+            if 'pneumatic_connections' in pipe_connections_specs :
+                desc_parts.append(f"  Типы пневмоподключений: {', '.join(pipe_connections_specs['pneumatic_connections'])}")
+
+
+        return "\n".join(desc_parts)
+
+    @property
+    def full_description(self) -> str :
+        """Полное описание корпуса (property)"""
+        return self.get_text_description()
+
+class PneumaticWeightParameter(models.Model) :
+    """Вес пневмопривода зависит от корпуса и количества пружин
+        Здесь мы прописываем этот вес в зависимости от количества пружин
+        spring_qty - количество прудин или DA"""
+    body = models.ForeignKey(PneumaticActuatorBody , on_delete=models.CASCADE ,
+                             related_name='pa_weight_parameter' ,
+                             verbose_name=_("Модель") ,
+                             help_text=_("Модель корпуса привода"))
+    spring_qty = models.ForeignKey('pneumatic_actuators.PneumaticActuatorSpringsQty' , on_delete=models.SET_NULL ,
+                                   null=True , blank=True ,  # ← ДОБАВЬТЕ ЭТО
+                                   related_name='pa_weight_parameter' ,
+                                   verbose_name=_("Пружин / DA") ,
+                                   help_text=_("Количество пружин или DA"))
+    weight = models.DecimalField(max_digits=10 , decimal_places=2 ,
+                                 default=0.0 , verbose_name=_("Вес, кг") ,
+                                 help_text=_("Вес корпуса привода с кол-вом пружин или DA"))
+
+    class Meta :
+        verbose_name = _("Вес пневмопривода")
+        verbose_name_plural = _("Вес пневмоприводов")
+        ordering = ['spring_qty']
+        unique_together = ['body' , 'spring_qty']
+
+    def __str__(self) :
+        return f"Вес {self.body.name} - {self.spring_qty.name}"
+
+
+class PneumaticCloseTimeParameter(models.Model) :
+    """Время открытия пневмопривода зависит от размера корпуса и количества пружин
+        Здесь мы прописываем этот вес в зависимости от количества пружин
+        spring_qty - количество прудин или DA"""
+    body = models.ForeignKey(PneumaticActuatorBody , on_delete=models.CASCADE ,
+                             related_name='pa_close_time_parameter' ,
+                             verbose_name=_("Модель") ,
+                             help_text=_("Модель корпуса привода"))
+    spring_qty = models.ForeignKey('pneumatic_actuators.PneumaticActuatorSpringsQty' , on_delete=models.SET_NULL ,
+                                   null=True , blank=True ,  # ← ДОБАВЬТЕ ЭТО
+                                   related_name='pa_close_time_parameter' ,
+                                   verbose_name=_("Пружин / DA") ,
+                                   help_text=_("Количество пружин или DA"))
+    time_close = models.DecimalField(max_digits=4 , decimal_places=2 ,
+                                     default=0.0 , verbose_name=_("Закрытие, сек") ,
+                                     help_text=_("Время закрытия пневмопривода с кол-вом пружин или DA, секунд"))
+    time_open = models.DecimalField(max_digits=4 , decimal_places=2 ,
+                                    default=0.0 , verbose_name=_("Открытие, сек") ,
+                                    help_text=_("Время открытия пневмопривода с кол-вом пружин или DA, секунд"))
+
+    class Meta :
+        verbose_name = _("Время открытия/закрытия пневмопривода")
+        verbose_name_plural = _("Время открытия/закрытия пневмоприводов")
+        ordering = ['spring_qty']
+        unique_together = ['body' , 'spring_qty']
+
+    def __str__(self) :
+        return f"Время откр/закр {self.spring_qty.name}:{self.time_open}/{self.time_close} сек"
