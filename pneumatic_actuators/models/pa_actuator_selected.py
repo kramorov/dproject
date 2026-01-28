@@ -1170,7 +1170,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
         # ЕДИНАЯ ВАЛИДАЦИЯ И КОРРЕКТИРОВКА ОПЦИЙ
         self._ensure_valid_options()
-
+        # self.name = self.generated_model_item_code()
+        # self.code = self.generated_model_item_code()
         # Остальная логика без изменений
         duplicate_message = self._check_for_duplicates()
         if duplicate_message:
@@ -1188,9 +1189,12 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             raise
 
         # Автозаполнение полей
-        self._auto_fill_fields()
+        # self._auto_fill_fields()
+        self.name = self.generated_model_item_code
+        self.code = self.generated_model_item_code
+        self.description = self._generate_short_description()
 
-        # Сохраняем
+         # Сохраняем
         super().save(*args, **kwargs)
 
     def _ensure_valid_options(self):
