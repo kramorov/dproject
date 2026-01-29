@@ -8,33 +8,25 @@ from options.models import BaseTemperatureThroughOption, BaseExdThroughOption, B
     BaseSpringsQtyThroughOption, BaseHandWheelThroughOption, BaseTurnAngleThroughOption, BasePowerSupplyThroughOption
 from params.models import PowerSupplies
 
-# MID, BAT, PowerSupplies, Angle>90, POSI/POTE, MB, HR,
-# class ElectricPowerSupplyOption(BaseHandWheelThroughOption):
-#     """Напряжение питания для электроприводов"""
-#     model_line_item = models.ForeignKey(
-#         'ElectricActuatorModelLineItem',
-#         on_delete=models.CASCADE,
-#         related_name='hand_wheel_options',
-#         verbose_name=_("Серия электроприводов")
-#     )
-#
-#     class Meta:
-#         verbose_name = _("Напряжение питания")
-#         verbose_name_plural = _("Типы напряжение питания электроприводов")
-#         ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
-#         unique_together = ['model_line', 'encoding']
-#
-#     @classmethod
-#     def _get_parent_field_name(cls) -> Optional[str] :
-#         """Явно указываем имя родительского поля"""
-#         return 'model_line'
-#
-#     @property
-#     def get_display_name(self):
-#         return self.hand_wheel_option.name
-#
-#     def __str__(self):
-#         return f"{self.hand_wheel_option.name} (Стандарт)" if self.is_default else f"{self.hand_wheel_option.name} (Опция)"
+"""
+Опции корпуса:
+    резьба КВ и их количество
+    End_switches type (mechanical, electronic) qty (SPDT/DPDT)
+    Torque switch - type (mechanical, electronic) qty (SPDT/DPDT)
+Опции model_line:
+    ElectricTurnAngleOption угол поворота (90-180-270), точность регулировки +-
+    ElectricHandWheelOption - вид ручного дублера
+    ElectricTemperatureOption - LT
+    ElectricIpOption - IP
+    ElectricExdOption - Ex
+    ElectricBodyCoatingOption - Опции покрытия корпуса для электроприводов
+    QC быстросъемное соединение
+    MID	Опция 3х позиционный (по доп.концевикам) - Путевые выключатели SwitchesParameters
+    PowerSupply 
+    Control Unit (POSI, TR, INT...)
+    Блинкер BlinkerOption
+    
+"""
 
 class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
     """Температурные опции для электроприводов"""
@@ -110,7 +102,7 @@ class ElectricTemperatureOption(BaseTemperatureThroughOption):
     def __str__(self):
         return self.get_display_name()  # ← ИСПОЛЬЗОВАТЬ БАЗОВЫЙ МЕТОД
 
-# class ElectricPowerSupplyOption(BasePowerSupplyThroughOption):
+# class ElectricBlinkerOption(BasePowerSupplyThroughOption):
 #     """Опции напряжения питания для электроприводов"""
 #     model_line = models.ForeignKey(
 #         'ElectricActuatorModelLine',

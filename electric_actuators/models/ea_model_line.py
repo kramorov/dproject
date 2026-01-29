@@ -19,6 +19,20 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     """
     Серия электроприводов - объединяет в себе общие для всех моделей серии свойства
     и доступные опции
+    Опции корпуса:
+
+        резьба КВ и их количество
+        End_switches type (mechanical, electronic) qty (SPDT/DPDT)
+        Torque switch - type (mechanical, electronic) qty (SPDT/DPDT)
+    Опции model_line:
+        угол поворота (90-180-270)
+        LT
+        IP
+        Ex
+        QC быстросъемное соединение
+        MID	Опция 3х позиционный (по доп.концевикам) - Путевые выключатели
+        PowerSupply
+        Control Unit (POSI, TR, INT...)
     """
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,

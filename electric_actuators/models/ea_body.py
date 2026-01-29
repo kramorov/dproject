@@ -91,8 +91,19 @@ class ElectricActuatorBody(models.Model) :
         квадрат
         отверстия под КВ
     общей является принадлежность к какой-то серии электроприводов - в серии описываются
-    общие для всех моделей параметры
-    это model_line
+    общие для всех моделей параметры это model_line
+    Опции корпуса:
+        резьба КВ и их количество
+        SPDT/DPDT
+    Опции model_line:
+        угол поворота (90-180-270)
+        LT
+        IP
+        Ex
+        QC быстросъемное соединение
+        MID	Опция 3х позиционный (по доп.концевикам)
+        PowerSupply
+        Control Unit (POSI, TR, INT...)
     """
     name = models.CharField(max_length=100 , blank=True , null=True ,
                             verbose_name=_("Название") ,
@@ -130,31 +141,18 @@ class ElectricActuatorBody(models.Model) :
                                                     verbose_name=_("Макс шток") ,
                                                     help_text=_('Максимальный диаметр отверстия '
                                                                 'под шток арматуры'))
+    # Это уберем в опции
+    # turn_angle = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Угол поворота") ,
+    #                               help_text=_("Угол поворота"))
+    # turn_tuning_limit = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Ограничитель") ,
+    #                                      help_text=_("Настройка ограничителя на ±1° (об.)"))
 
-    turn_angle = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Угол поворота") ,
-                                  help_text=_("Угол поворота"))
-    turn_tuning_limit = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Ограничитель") ,
-                                         help_text=_("Настройка ограничителя на ±1° (об.)"))
-    weight_spring = models.DecimalField(max_digits=4 , decimal_places=2 ,
+    # В get_weight добавить расчет веса инт блока
+    weight_body = models.DecimalField(max_digits=4 , decimal_places=2 ,
                                         default=0 , blank=True , null=True ,
-                                        verbose_name=_("Вес пружины") ,
+                                        verbose_name=_("Вес:") ,
                                         help_text=_(
-                                            'Вес 1 пружины, кг'))
-
-    thread_in = models.ForeignKey(ThreadSize , on_delete=models.SET_NULL , null=True , blank=True ,
-                                  related_name='model_body_thread_in' ,
-                                  verbose_name=_("Пневмовход") ,
-                                  help_text=_('Резьба входного отверстия для пневмоподключения'))
-    thread_out = models.ForeignKey(ThreadSize , on_delete=models.SET_NULL , null=True , blank=True ,
-                                   related_name='model_body_thread_out' ,
-                                   verbose_name=_("Пневмовыход") ,
-                                   help_text=_('Резьба выходного отверстия для пневмоподключения'))
-    pneumatic_connection = models.ManyToManyField(
-        PneumaticConnection ,
-        blank=True ,
-        related_name='model_body_pneumatic_connection' ,
-        verbose_name=_("Пневмоподключения") ,
-        help_text=_('Возможные типы пневмоподключений'))
+                                            'Вес корпуса, кг'))
 
     class Meta :
         ordering = ['sorting_order']

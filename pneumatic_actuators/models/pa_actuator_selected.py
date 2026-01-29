@@ -1053,6 +1053,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
         template = self.selected_model_line_item.model_line.model_item_code_template
         if not template:
+            print(f"Template for {self.selected_model_line_item.model_line} not found. Generating from fallback")
             return self._generate_fallback_code()
 
         """Простой рендеринг шаблона - заменяем переменные значениями"""
@@ -1060,6 +1061,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         print(f"template: {result}")
         # Простая замена переменных
         result = result.replace('{model_code}', self._get_value('selected_model_line_item__name'))
+        # if
         result = result.replace('{springs_qty}', self._get_value('selected_springs_qty__encoding'))
         result = result.replace('{temperature}', self._get_value('selected_temperature__encoding'))
         result = result.replace('{safety_position}', self._get_value('selected_safety_position__encoding'))
@@ -1075,7 +1077,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         # Удаляем точку в начале и конце
         result = re.sub(r'\.\s+', ' ', result)  # Заменяет точку и любые пробельные символы после нее
         print(f"удалили точки в начале и конце: {result}")
-        result = re.sub(' (DA)', '', result)
+        result = re.sub(r'\s*\(DA\)', '', result)  # Удалит (DA) с любым количеством пробелов перед ним
+        print(f"удалили (DA): {result}")
         # if not self.is_da_model():
         #     result = result + str('('+self._get_value('selected_springs_qty__encoding')+')')
 

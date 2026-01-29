@@ -747,3 +747,43 @@ class BaseHandWheelThroughOption(BaseThroughOption) :
                 is_active=True
             )
         return None
+
+
+
+class BaseBlinkerThroughOption(BaseThroughOption):
+    """Базовая модель для сквозных опций Blinker"""
+    blinker_option = models.ForeignKey(
+        'params.BlinkerOption',
+        on_delete=models.CASCADE,
+        verbose_name=_("Блинкер"),
+        help_text=_("Тип установленного блинкера")
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['sorting_order']
+
+    @classmethod
+    def create_default_option(cls, parent_obj):
+        """Создать стандартную Blinker)"""
+        from django.apps import apps
+
+        BlinkerOption = apps.get_model('params', 'BlinkerOption')  # Ленивая загрузка
+
+        try:
+            no_blinker_option = BlinkerOption.objects.get(code='none')
+        except BlinkerOption.DoesNotExist:
+            no_blinker_option = BlinkerOption.objects.filter(is_active=True).first()
+
+        if no_blinker_option:
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field: parent_obj},
+                blinker_option=no_blinker_option,
+                encoding='',
+                description=no_blinker_option.description,
+                is_default=True,
+                sorting_order=0,
+                is_active=True
+            )
+        return None
