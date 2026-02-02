@@ -1,36 +1,18 @@
-#electric_actuators/models/ea_options.py
+# electric_actuators/models/ea_options.py - ИСПРАВЛЕННЫЙ:
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from typing import List, Optional, Tuple, Any, Dict, Union
 
-from options.models import BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption, \
-    BaseIpThroughOption, BaseSafetyPositionThroughOption, \
-    BaseSpringsQtyThroughOption, BaseHandWheelThroughOption, BaseTurnAngleThroughOption, BasePowerSupplyThroughOption, \
-    BaseBlinkerThroughOption, BaseControlUnitInstalledThroughOption, BaseWaySwitchesThroughOption
-from params.models import PowerSupplies
+from options.models import (
+    BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption,
+    BaseIpThroughOption, BaseHandWheelThroughOption, BaseTurnAngleThroughOption,
+    BasePowerSupplyThroughOption, BaseBlinkerThroughOption, BaseControlUnitInstalledThroughOption,
+    BaseWaySwitchesThroughOption, BaseOperatingModeThroughOption, BaseMechanicalIndicatorThroughOption
+)
 
-"""
-Опции корпуса:
-    резьба КВ и их количество
-    End_switches type (mechanical, electronic) qty (SPDT/DPDT)
-    Torque switch - type (mechanical, electronic) qty (SPDT/DPDT)
-Опции model_line:
-    ElectricTurnAngleOption угол поворота (90-180-270), точность регулировки +-
-    ElectricHandWheelOption - вид ручного дублера
-    ElectricTemperatureOption - LT
-    ElectricIpOption - IP
-    ElectricExdOption - Ex
-    ElectricBodyCoatingOption - Опции покрытия корпуса для электроприводов
-    QC быстросъемное соединение
-    ElectricWaySwitchesOption MID	Опция 3х позиционный (по доп.концевикам) - Путевые выключатели SwitchesParameters
-    ElectricPowerSupplyOption PowerSupply 
-    ElectricControlUnitInstalledOption  Control Unit (POSI, TR, INT...)
-    ElectricBlinkerOption  Блинкер BlinkerOption
-    
-"""
 
 class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
-    """Температурные опции для электроприводов"""
+    """Угол поворота для электроприводов"""
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -41,20 +23,16 @@ class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
     class Meta:
         verbose_name = _('Угол поворота ЭП')
         verbose_name_plural = _("Углы поворота электроприводов")
-        ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
+        ordering = ['is_default', 'sorting_order']
         unique_together = ['model_line', 'encoding']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
-        """Явно указываем имя родительского поля"""
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    @property
-    def get_display_name(self):
-        return self.get_display_name()
 
 class ElectricHandWheelOption(BaseHandWheelThroughOption):
-    """Температурные опции для электроприводов"""
+    """Ручной дублер для электроприводов"""
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -65,20 +43,13 @@ class ElectricHandWheelOption(BaseHandWheelThroughOption):
     class Meta:
         verbose_name = _("Тип установленного ручного дублера")
         verbose_name_plural = _("Типы установленного ручного дублера электроприводов")
-        ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
+        ordering = ['is_default', 'sorting_order']
         unique_together = ['model_line', 'encoding']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
-        """Явно указываем имя родительского поля"""
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    @property
-    def get_display_name(self):
-        return self.hand_wheel_option.name
-
-    def __str__(self):
-        return f"{self.hand_wheel_option.name} (Стандарт)" if self.is_default else f"{self.hand_wheel_option.name} (Опция)"
 
 class ElectricTemperatureOption(BaseTemperatureThroughOption):
     """Температурные опции для электроприводов"""
@@ -92,19 +63,16 @@ class ElectricTemperatureOption(BaseTemperatureThroughOption):
     class Meta:
         verbose_name = _("Температурная опция электропривода")
         verbose_name_plural = _("Температурные опции электроприводов")
-        ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
+        ordering = ['is_default', 'sorting_order']
         unique_together = ['model_line', 'encoding']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
-        """Явно указываем имя родительского поля"""
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    def __str__(self):
-        return self.get_display_name()  # ← ИСПОЛЬЗОВАТЬ БАЗОВЫЙ МЕТОД
 
 class ElectricBlinkerOption(BaseBlinkerThroughOption):
-    """Опции напряжения питания для электроприводов"""
+    """Опции блинкера для электроприводов"""
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -119,11 +87,9 @@ class ElectricBlinkerOption(BaseBlinkerThroughOption):
         unique_together = ['model_line', 'blinker_option']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    def __str__(self):
-        return f"{self.blinker_option.name} (Стандарт)" if self.is_default else f"{self.blinker_option.name} (Опция)"
 
 class ElectricPowerSupplyOption(BasePowerSupplyThroughOption):
     """Опции напряжения питания для электроприводов"""
@@ -141,11 +107,9 @@ class ElectricPowerSupplyOption(BasePowerSupplyThroughOption):
         unique_together = ['model_line', 'power_supply']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    def __str__(self):
-        return f"{self.power_supply.name}"
 
 class ElectricIpOption(BaseIpThroughOption):
     """Опции IP для электроприводов"""
@@ -163,11 +127,9 @@ class ElectricIpOption(BaseIpThroughOption):
         unique_together = ['model_line', 'ip_option']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    def __str__(self):
-        return f"{self.ip_option.name} (Стандарт)" if self.is_default else f"{self.ip_option.name} (Опция)"
 
 class ElectricExdOption(BaseExdThroughOption):
     """Опции взрывозащиты для электроприводов"""
@@ -185,14 +147,12 @@ class ElectricExdOption(BaseExdThroughOption):
         unique_together = ['model_line', 'exd_option']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    def __str__(self):
-        return f"{self.exd_option.name} (Стандарт)" if self.is_default else f"{self.exd_option.name} (Опция)"
 
 class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
-    """Опции взрывозащиты для электроприводов"""
+    """Опции путевых выключателей для электроприводов"""
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -202,16 +162,14 @@ class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
 
     class Meta:
         verbose_name = _("Опция путевые выключатели электропривода")
-        verbose_name_plural = _("Опции взрывозащиты электроприводов")
+        verbose_name_plural = _("Опции путевых выключателей электроприводов")
         ordering = ['sorting_order']
         unique_together = ['model_line', 'way_switches_option']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls):
         return 'model_line'
 
-    def __str__(self):
-        return f"{self.way_switches_option.name} (Стандарт)" if self.is_default else f"{self.way_switches_option.name} (Опция)"
 
 class ElectricBodyCoatingOption(BaseBodyCoatingThroughOption):
     """Опции покрытия корпуса для электроприводов"""
@@ -229,14 +187,12 @@ class ElectricBodyCoatingOption(BaseBodyCoatingThroughOption):
         unique_together = ['model_line', 'body_coating_option']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls):
         return 'model_line'
-    def __str__(self):
-        # ИСПРАВЛЕНО: используем is_default вместо default_option
-        return f"{self.body_coating_option.name} (Стандарт)" if self.is_default else f"{self.body_coating_option.name} (Опция)"
+
 
 class ElectricControlUnitInstalledOption(BaseControlUnitInstalledThroughOption):
-    """Опции покрытия корпуса для электроприводов"""
+    """Опции блока управления для электроприводов"""
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -251,32 +207,45 @@ class ElectricControlUnitInstalledOption(BaseControlUnitInstalledThroughOption):
         unique_together = ['model_line', 'control_unit_option']
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls):
         return 'model_line'
-    def __str__(self):
-        # ИСПРАВЛЕНО: используем is_default вместо default_option
-        return f"{self.control_unit_option.name} (Стандарт)" if self.is_default else f"{self.control_unit_option.name} (Опция)"
-
-# class ElectricSafetyPositionOption(BaseSafetyPositionThroughOption):
-#     """Опции покрытия корпуса для электроприводов"""
-#     model_line_item = models.ForeignKey(
-#         'ElectricActuatorModelLineItem',
-#         on_delete=models.CASCADE,
-#         related_name='safety_position_option_model_line_item',
-#         verbose_name=_("Положение безопасности")
-#     )
-#
-#     class Meta:
-#         verbose_name = _("Положение безопасности модели электропривода")
-#         verbose_name_plural = _("Положения безопасности моделей электроприводов")
-#         ordering = ['sorting_order']
-#         unique_together = ['model_line_item', 'safety_position']
-#
-#     @classmethod
-#     def _get_parent_field_name(cls) -> Optional[str] :
-#         return 'model_line_item'
-#     def __str__(self):
-#         return f"{self.safety_position.name}"
 
 
+class ElectricOperatingModeOption(BaseOperatingModeThroughOption):
+    """Опции режима работы двигателя для электроприводов"""
+    model_line = models.ForeignKey(
+        'ElectricActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='operating_mode_options',
+        verbose_name=_("Серия электроприводов")
+    )
 
+    class Meta:
+        verbose_name = _("Опция режима работы двигателя электропривода")
+        verbose_name_plural = _("Опции режима работы двигателя электроприводов")
+        ordering = ['sorting_order']
+        unique_together = ['model_line', 'operating_mode_option']
+
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line'
+
+
+class ElectricMechanicalIndicatorOption(BaseMechanicalIndicatorThroughOption):
+    """Опции механического индикатора для электроприводов"""
+    model_line = models.ForeignKey(
+        'ElectricActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='mechanical_indicator_options',
+        verbose_name=_("Серия электроприводов")
+    )
+
+    class Meta:
+        verbose_name = _("Опция механического индикатора электропривода")
+        verbose_name_plural = _("Опции механического индикатора электроприводов")
+        ordering = ['sorting_order']
+        unique_together = ['model_line', 'mechanical_indicator_option']
+
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line'

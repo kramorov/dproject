@@ -201,9 +201,9 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
                 'default_output_type'), 'model_item_code_template', 'description'
             )
         }) ,
-        (_('Основные параметры') , {
-            'fields' : ('default_output_type' ,)
-        }) ,
+        # (_('Основные параметры') , {
+        #     'fields' : ('default_output_type' ,)
+        # }) ,
         (_('Настройки') , {
             'fields' : ('sorting_order' , 'is_active')
         }) ,

@@ -464,6 +464,18 @@ class BaseBodyCoatingThroughOption(BaseThroughOption) :
                 is_active=True
             )
         return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для покрытия корпуса"""
+        if self.body_coating_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.body_coating_option.name})"
+            return self.body_coating_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
+
 class BaseExdThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций Exd"""
     exd_option = models.ForeignKey(
@@ -500,6 +512,17 @@ class BaseExdThroughOption(BaseThroughOption) :
                 is_active=True
             )
         return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для взрывозащиты"""
+        if self.exd_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.exd_option.name})"
+            return self.exd_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
 
 class BaseIpThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций IP"""
@@ -543,6 +566,17 @@ class BaseIpThroughOption(BaseThroughOption) :
     def ip_rank(self) :
         """Ранг IP защиты"""
         return getattr(self.ip_option , 'ip_rank' , 0) if self.ip_option else 0
+
+    def get_display_name(self) :
+        """Отображаемое имя для IP защиты"""
+        if self.ip_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.ip_option.name})"
+            return self.ip_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
 
 class BasePneumaticConnectionThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций пневматического подключения"""
@@ -698,29 +732,46 @@ class BasePowerSupplyThroughOption(BaseThroughOption):
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls, parent_obj):
-        """Создать стандартную power_supply_option)"""
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную опцию питания"""
         from django.apps import apps
 
-        PowerSupplyOption = apps.get_model('params', 'PowerSupplies')  # Ленивая загрузка
+        PowerSupplies = apps.get_model('params' , 'PowerSupplies')
 
-        try:
-            no_power_supply_option = PowerSupplyOption.objects.get(code='none')
-        except PowerSupplyOption.DoesNotExist:
-            no_power_supply_option = PowerSupplyOption.objects.filter(is_active=True).first()
+        try :
+            # Ищем стандартное напряжение (например, 230VAC)
+            default_power = PowerSupplies.objects.filter(
+                voltage='230VAC' ,  # или другой стандарт
+                is_active=True
+            ).first()
+            if not default_power :
+                default_power = PowerSupplies.objects.filter(is_active=True).first()
+        except Exception :
+            default_power = PowerSupplies.objects.filter(is_active=True).first()
 
-        if no_power_supply_option:
+        if default_power :
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field: parent_obj},
-                blinker_option=no_power_supply_option,
-                encoding='',
-                description=no_power_supply_option.description,
-                is_default=True,
-                sorting_order=0,
+                **{parent_field : parent_obj} ,
+                power_supply=default_power ,
+                encoding=default_power.code if default_power.code else '' ,
+                description=default_power.description ,
+                is_default=True ,
+                sorting_order=0 ,
                 is_active=True
             )
         return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для напряжения питания"""
+        if self.power_supply :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.power_supply.name})"
+            return self.power_supply.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
 
 class BaseSpringsQtyThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций положения безопасности НО/НЗ/оставаться..."""
@@ -773,7 +824,19 @@ class BaseHandWheelThroughOption(BaseThroughOption) :
             )
         return None
 
+    def get_display_name(self) :
+        """Отображаемое имя для ручного дублера"""
+        if self.hand_wheel_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.hand_wheel_option.name})"
+            return self.hand_wheel_option.name
+        return "Не указано"
 
+    def __str__(self) :
+        name = self.get_display_name()
+        if self.is_default :
+            return f"{name} (Стандарт)"
+        return name
 
 class BaseBlinkerThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций Blinker"""
@@ -813,10 +876,21 @@ class BaseBlinkerThroughOption(BaseThroughOption):
             )
         return None
 
+    def get_display_name(self) :
+        """Отображаемое имя для блинкера"""
+        if self.blinker_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.blinker_option.name})"
+            return self.blinker_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
+
 class BaseControlUnitInstalledThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций ControlUnitInstalledOption"""
     control_unit_option = models.ForeignKey(
-        'params.PowerSupplies',
+        'params.ControlUnitInstalledOption',
         on_delete=models.CASCADE,
         verbose_name=_("Блок управления"),
         help_text=_("Тип блока управления")
@@ -826,6 +900,41 @@ class BaseControlUnitInstalledThroughOption(BaseThroughOption):
         abstract = True
         ordering = ['sorting_order']
 
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную опцию блока управления"""
+        from django.apps import apps
+
+        ControlUnitInstalledOption = apps.get_model('params' , 'ControlUnitInstalledOption')
+
+        try :
+            no_control_unit_option = ControlUnitInstalledOption.objects.get(code='none')
+        except ControlUnitInstalledOption.DoesNotExist :
+            no_control_unit_option = ControlUnitInstalledOption.objects.filter(is_active=True).first()
+
+        if no_control_unit_option :
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field : parent_obj} ,
+                control_unit_option=no_control_unit_option ,
+                encoding='' ,
+                description=no_control_unit_option.description ,
+                is_default=True ,
+                sorting_order=0 ,
+                is_active=True
+            )
+        return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для блока управления"""
+        if self.control_unit_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.control_unit_option.name})"
+            return self.control_unit_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
 
 class BaseWaySwitchesThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций ControlUnitInstalledOption"""
@@ -864,3 +973,133 @@ class BaseWaySwitchesThroughOption(BaseThroughOption):
                 is_active=True
             )
         return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для путевых выключателей"""
+        if self.way_switches_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.way_switches_option.name})"
+            return self.way_switches_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
+
+
+class BaseOperatingModeThroughOption(BaseThroughOption) :
+    """Базовая модель для сквозных опций режима работы двигателя"""
+    operating_mode_option = models.ForeignKey(
+        'params.OperatingModeOption' ,
+        on_delete=models.CASCADE ,
+        verbose_name=_("Режим работы") ,
+        help_text=_("Режим работы двигателя")
+    )
+
+    class Meta :
+        abstract = True
+        ordering = ['sorting_order']
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную опцию режима работы"""
+        from django.apps import apps
+
+        OperatingModeOption = apps.get_model('params' , 'OperatingModeOption')
+
+        # Ищем стандартный режим работы
+        try :
+            # Обычно стандартный режим - S2 15min или S4 25%
+            default_mode = OperatingModeOption.objects.filter(
+                code='S2_15min' ,  # или другой стандартный код
+                is_active=True
+            ).first()
+            if not default_mode :
+                default_mode = OperatingModeOption.objects.filter(is_active=True).first()
+        except Exception :
+            default_mode = OperatingModeOption.objects.filter(is_active=True).first()
+
+        if default_mode :
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field : parent_obj} ,
+                operating_mode_option=default_mode ,
+                encoding=default_mode.code if default_mode.code else '' ,
+                description=default_mode.description ,
+                is_default=True ,
+                sorting_order=0 ,
+                is_active=True
+            )
+        return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для режима работы"""
+        if self.operating_mode_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.operating_mode_option.name})"
+            return self.operating_mode_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        name = self.get_display_name()
+        if self.is_default :
+            return f"{name} (Стандарт)"
+        return name
+
+
+class BaseMechanicalIndicatorThroughOption(BaseThroughOption) :
+    """Базовая модель для сквозных опций механического индикатора"""
+    mechanical_indicator_option = models.ForeignKey(
+        'params.MechanicalIndicatorInstalledOption' ,
+        on_delete=models.CASCADE ,
+        verbose_name=_("Механический индикатор") ,
+        help_text=_("Тип механического индикатора")
+    )
+
+    class Meta :
+        abstract = True
+        ordering = ['sorting_order']
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную опцию механического индикатора"""
+        from django.apps import apps
+
+        MechanicalIndicatorInstalledOption = apps.get_model('params' , 'MechanicalIndicatorInstalledOption')
+
+        # Ищем стандартный вариант - обычно "нет индикатора" или "стандартный"
+        try :
+            default_indicator = MechanicalIndicatorInstalledOption.objects.filter(
+                code='none' ,  # или 'standard', 'std'
+                is_active=True
+            ).first()
+            if not default_indicator :
+                default_indicator = MechanicalIndicatorInstalledOption.objects.filter(is_active=True).first()
+        except Exception :
+            default_indicator = MechanicalIndicatorInstalledOption.objects.filter(is_active=True).first()
+
+        if default_indicator :
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field : parent_obj} ,
+                mechanical_indicator_option=default_indicator ,
+                encoding=default_indicator.code if default_indicator.code else '' ,
+                description=default_indicator.description ,
+                is_default=True ,
+                sorting_order=0 ,
+                is_active=True
+            )
+        return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для механического индикатора"""
+        if self.mechanical_indicator_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.mechanical_indicator_option.name})"
+            return self.mechanical_indicator_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        name = self.get_display_name()
+        if self.is_default :
+            return f"{name} (Стандарт)"
+        return name
