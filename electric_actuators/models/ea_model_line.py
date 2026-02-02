@@ -25,14 +25,17 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         End_switches type (mechanical, electronic) qty (SPDT/DPDT)
         Torque switch - type (mechanical, electronic) qty (SPDT/DPDT)
     Опции model_line:
-        угол поворота (90-180-270)
-        LT
-        IP
-        Ex
+        ElectricTurnAngleOption угол поворота (90-180-270), точность регулировки +-
+        ElectricHandWheelOption - вид ручного дублера
+        ElectricTemperatureOption - LT
+        ElectricIpOption - IP
+        ElectricExdOption - Ex
+        ElectricBodyCoatingOption - Опции покрытия корпуса для электроприводов
         QC быстросъемное соединение
-        MID	Опция 3х позиционный (по доп.концевикам) - Путевые выключатели
-        PowerSupply
-        Control Unit (POSI, TR, INT...)
+        ElectricWaySwitchesOption MID	Опция 3х позиционный (по доп.концевикам) - Путевые выключатели SwitchesParameters
+        ElectricPowerSupplyOption PowerSupply
+        ElectricControlUnitInstalledOption  Control Unit (POSI, TR, INT...)
+        ElectricBlinkerOption  Блинкер BlinkerOption
     """
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,

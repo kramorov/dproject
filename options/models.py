@@ -697,6 +697,31 @@ class BasePowerSupplyThroughOption(BaseThroughOption):
         abstract = True
         ordering = ['sorting_order']
 
+    @classmethod
+    def create_default_option(cls, parent_obj):
+        """Создать стандартную power_supply_option)"""
+        from django.apps import apps
+
+        PowerSupplyOption = apps.get_model('params', 'PowerSupplies')  # Ленивая загрузка
+
+        try:
+            no_power_supply_option = PowerSupplyOption.objects.get(code='none')
+        except PowerSupplyOption.DoesNotExist:
+            no_power_supply_option = PowerSupplyOption.objects.filter(is_active=True).first()
+
+        if no_power_supply_option:
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field: parent_obj},
+                blinker_option=no_power_supply_option,
+                encoding='',
+                description=no_power_supply_option.description,
+                is_default=True,
+                sorting_order=0,
+                is_active=True
+            )
+        return None
+
 class BaseSpringsQtyThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций положения безопасности НО/НЗ/оставаться..."""
     # from .pa_params import PneumaticActuatorSpringsQty
@@ -782,6 +807,58 @@ class BaseBlinkerThroughOption(BaseThroughOption):
                 blinker_option=no_blinker_option,
                 encoding='',
                 description=no_blinker_option.description,
+                is_default=True,
+                sorting_order=0,
+                is_active=True
+            )
+        return None
+
+class BaseControlUnitInstalledThroughOption(BaseThroughOption):
+    """Базовая модель для сквозных опций ControlUnitInstalledOption"""
+    control_unit_option = models.ForeignKey(
+        'params.PowerSupplies',
+        on_delete=models.CASCADE,
+        verbose_name=_("Блок управления"),
+        help_text=_("Тип блока управления")
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['sorting_order']
+
+
+class BaseWaySwitchesThroughOption(BaseThroughOption):
+    """Базовая модель для сквозных опций ControlUnitInstalledOption"""
+    way_switches_option = models.ForeignKey(
+        'params.SwitchesParameters',
+        on_delete=models.CASCADE,
+        verbose_name=_("Путевые выключатели"),
+        help_text=_("Путевые выключатели")
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['sorting_order']
+
+    @classmethod
+    def create_default_option(cls, parent_obj):
+        """Создать стандартную Blinker)"""
+        from django.apps import apps
+
+        SwitchesParameters = apps.get_model('params', 'SwitchesParameters')  # Ленивая загрузка
+
+        try:
+            no_way_switches_option = SwitchesParameters.objects.get(code='none')
+        except SwitchesParameters.DoesNotExist:
+            no_way_switches_option = SwitchesParameters.objects.filter(is_active=True).first()
+
+        if no_way_switches_option:
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field: parent_obj},
+                blinker_option=no_way_switches_option,
+                encoding='',
+                description=no_way_switches_option.description,
                 is_default=True,
                 sorting_order=0,
                 is_active=True
