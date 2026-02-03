@@ -2,10 +2,14 @@
 
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from electric_actuators.models import ModelLine, ElectricTemperatureOption, ElectricIpOption, ElectricHandWheelOption, \
-    ElectricExdOption, ElectricBodyCoatingOption, ElectricActuatorModelLine, ElectricTurnAngleOption, \
-    ElectricBlinkerOption, ElectricPowerSupplyOption, ElectricWaySwitchesOption, ElectricControlUnitInstalledOption
+from electric_actuators.models import ModelLine , ElectricTemperatureOption , ElectricIpOption , \
+    ElectricHandWheelOption , \
+    ElectricExdOption , ElectricBodyCoatingOption , ElectricActuatorModelLine , ElectricTurnAngleOption , \
+    ElectricBlinkerOption , ElectricPowerSupplyOption , ElectricWaySwitchesOption , ElectricControlUnitInstalledOption , \
+    ElectricMechanicalIndicatorOption , ElectricOperatingModeOption
+import logging
 
+logger = logging.getLogger(__name__)
 
 def copy_electric_actuator_data(modeladmin, request, queryset):
     for obj in queryset:
@@ -49,6 +53,23 @@ class ModelLineAdmin(admin.ModelAdmin):
     )
 
     actions = [copy_electric_actuator_data]  # Добавляем действие для копирования
+class ElectricOperatingModeOptionInline(admin.TabularInline):
+    """Inline для режима работы"""
+    model = ElectricOperatingModeOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['operating_mode_option', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    verbose_name = _("Режим работы")
+    verbose_name_plural = _("Опции режима работы")
+
+class ElectricMechanicalIndicatorOptionInline(admin.TabularInline):
+    """Inline для механического индикатора"""
+    model = ElectricMechanicalIndicatorOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['mechanical_indicator_option', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    verbose_name = _("Механический индикатор")
+    verbose_name_plural = _("Опции механического индикатора")
 
 class ElectricControlUnitInstalledOptionInline(admin.TabularInline) :
     """Inline для напряжения питания"""
@@ -74,7 +95,7 @@ class ElectricPowerSupplyOptionInline(admin.TabularInline) :
     model = ElectricPowerSupplyOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['encoding' ,  'is_default' , 'is_active' , 'sorting_order']
+    fields = ['power_supply','encoding' ,  'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Напряжение")
     verbose_name_plural = _("Опции напряжения питания")
 
@@ -93,7 +114,7 @@ class ElectricTurnAngleOptionInline(admin.TabularInline) :
     model = ElectricTurnAngleOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['encoding' ,  'is_default' , 'is_active' , 'sorting_order']
+    fields = ['encoding' , 'turn_angle', 'turn_angle_deviation_limit', 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Угол поворота")
     verbose_name_plural = _("Опции угла поворота")
 
@@ -180,48 +201,58 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
     # autocomplete_fields = [
     #     'brand' ,
     #     'default_output_type' ,
-    #     'pneumatic_actuator_construction_variety' ,
-    #     'default_hand_wheel'
     # ]
 
     # Inline для всех типов опций
-    inlines = [ElectricPowerSupplyOptionInline, ElectricTurnAngleOptionInline,
+    inlines = [
         ElectricTemperatureOptionInline ,
         ElectricIpOptionInline ,
         ElectricExdOptionInline ,
-        ElectricHandWheelOptionInline,
-        ElectricBodyCoatingOptionInline,
-        ElectricWaySwitchesOptionInline, ElectricBlinkerOptionInline
+        ElectricHandWheelOptionInline ,
+        ElectricBodyCoatingOptionInline ,
+        ElectricTurnAngleOptionInline ,
+        ElectricBlinkerOptionInline ,
+        ElectricWaySwitchesOptionInline ,
+        ElectricPowerSupplyOptionInline ,
+        ElectricControlUnitInstalledOptionInline ,
+        ElectricOperatingModeOptionInline ,  # ДОБАВИТЬ
+        ElectricMechanicalIndicatorOptionInline  # ДОБАВИТЬ
     ]
 
     fieldsets = (
         (_('Основная информация') , {
             'fields' : (
-                ('name' , 'code' , 'brand' ,
-                'default_output_type'), 'model_item_code_template', 'description'
+                ('name' , 'code' , 'brand' , 'default_output_type') ,
+                'model_item_code_template' ,
+                'description'
             )
         }) ,
         (_('Основные параметры') , {
-            'fields' : ('allowed_operating_mode' ,)
+            'fields' : ('allowed_operating_mode' ,)  # ← Это ManyToManyField
         }) ,
         (_('Настройки') , {
             'fields' : ('sorting_order' , 'is_active')
         }) ,
     )
 
-    def get_queryset(self , request) :
+    def get_queryset(self, request):
         """Оптимизация запросов с учетом through-моделей"""
         return super().get_queryset(request).select_related(
-            'brand' ,
-            'default_output_type' ,
+            'brand',
+            'default_output_type',
         ).prefetch_related(
-            'temperature_options' ,
-            'ip_options' ,
-            'exd_options' ,
-            'body_coating_options' ,
+            'temperature_options',
+            'ip_options',
+            'exd_options',
+            'body_coating_options',
             'hand_wheel_options',
-            'ip_options' ,
-            'exd_options' ,
+            'turn_angle_options',
+            'blinker_options',
+            'way_switches_options',
+            'power_supply_options',
+            'control_unit_options',
+            'operating_mode_options',          # ДОБАВИТЬ
+            'mechanical_indicator_options'     # ДОБАВИТЬ
         )
 
     def temperature_range_display(self , obj) :
@@ -249,34 +280,34 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
     body_coating_display.short_description = _('Покрытие')
 
     def save_model(self , request , obj , form , change) :
-        """Сохранение модели с созданием опций по умолчанию"""
+        """Сохраняем модель БЕЗ создания опций"""
         super().save_model(request , obj , form , change)
-
-        # Если это новая модель, создаем опции по умолчанию
-        if not change :
-            obj.ensure_all_default_options_exist()
+        # НЕ создаем опции здесь
 
     def save_formset(self , request , form , formset , change) :
-        """Упрощенное сохранение с проверкой после записи"""
-        if formset.model in [ElectricTurnAngleOption , ElectricHandWheelOption ,ElectricTemperatureOption,
-                             ElectricBlinkerOption , ElectricPowerSupplyOption, ElectricIpOption,
-                             ElectricExdOption, ElectricWaySwitchesOption, ElectricBodyCoatingOption,
-                             ElectricControlUnitInstalledOption] :
+        """Сохраняем inline формы и создаем недостающие опции ПОСЛЕ"""
+        super().save_formset(request , form , formset , change)
 
-            # 1. Сначала сохраняем все объекты
-            instances = formset.save(commit=False)
-            for instance in instances :
-                instance.save()
-
-            for instance in formset.deleted_objects :
-                instance.delete()
-
-            # 2. Проверяем после сохранения
+        # После сохранения inline форм проверяем, все ли опции созданы
+        if not change and formset.model in [  # только при создании
+            ElectricTemperatureOption , ElectricIpOption ,  # ... все
+        ] :
             parent_obj = form.instance
-            self._check_default_options_after_save(request , formset.model , parent_obj)
 
-        else :
-            super().save_formset(request , form , formset , change)
+            # Проверяем, создана ли хоть одна опция этого типа
+            parent_field = formset.model._get_parent_field_name()
+            if parent_field :
+                existing_count = formset.model.objects.filter(
+                    **{parent_field : parent_obj}
+                ).count()
+
+                # Если пользователь не создал ни одной опции этого типа
+                if existing_count == 0 :
+                    # Создаем стандартную
+                    try :
+                        formset.model.ensure_default_exists(parent_obj)
+                    except Exception as e :
+                        logger.error(f"Ошибка создания опции {formset.model.__name__}: {e}")
 
     def _check_default_options_after_save(self , request , option_model , parent_obj) :
         """Проверка стандартных опций после сохранения"""

@@ -491,9 +491,34 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         return ElectricBlinkerOption.get_or_create_default(self)
 
     def get_default_way_switches_option(self) :
-        """Получить стандартную опцию блинкера"""
+        """Получить стандартную опцию путевых выключателей"""
         from .ea_options import ElectricWaySwitchesOption
         return ElectricWaySwitchesOption.get_or_create_default(self)
+
+    def get_default_control_unit_option(self) :
+        """Получить стандартную опцию блока управления"""
+        from .ea_options import ElectricControlUnitInstalledOption
+        return ElectricControlUnitInstalledOption.get_or_create_default(self)
+
+    def get_default_turn_angle_option(self) :
+        """Получить стандартную опцию угла поворота"""
+        from .ea_options import ElectricTurnAngleOption
+        return ElectricTurnAngleOption.get_or_create_default(self)
+
+    def get_default_power_supply_option(self) :
+        """Получить стандартную опцию питания"""
+        from .ea_options import ElectricPowerSupplyOption
+        return ElectricPowerSupplyOption.get_or_create_default(self)
+
+    def get_default_operating_mode_option(self) :
+        """Получить стандартную опцию режима работы"""
+        from .ea_options import ElectricOperatingModeOption
+        return ElectricOperatingModeOption.get_or_create_default(self)
+
+    def get_default_mechanical_indicator_option(self) :
+        """Получить стандартную опцию механического индикатора"""
+        from .ea_options import ElectricMechanicalIndicatorOption
+        return ElectricMechanicalIndicatorOption.get_or_create_default(self)
 
     # ==================== ОТОБРАЖАЕМЫЕ СВОЙСТВА ====================
 
@@ -529,42 +554,102 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
             return default_temp.get_display_name()
         return "Не указано"
 
-    def get_option_info(self) :
+    @property
+    def way_switches_options_list(self) :
+        """Список всех опций путевых выключателей"""
+        return self.way_switches_options.all()
+
+    @property
+    def power_supply_options_list(self) :
+        """Список всех опций питания"""
+        return self.power_supply_options.all()
+
+    @property
+    def control_unit_options_list(self) :
+        """Список всех опций блока управления"""
+        return self.control_unit_options.all()
+
+    @property
+    def turn_angle_options_list(self) :
+        """Список всех опций угла поворота"""
+        return self.turn_angle_options.all()
+
+    @property
+    def operating_mode_options_list(self) :
+        """Список всех опций режима работы"""
+        return self.operating_mode_options.all()
+
+    @property
+    def mechanical_indicator_options_list(self) :
+        """Список всех опций механического индикатора"""
+        return self.mechanical_indicator_options.all()
+
+    def get_option_info(self):
         """Полная информация о всех опциях серии"""
-        return {
-            'temperature' : {
-                'default' : self.get_default_temperature_option().get_option_info()
-                if self.get_default_temperature_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.temperature_options_list]
-            } ,
-            'ip' : {
-                'default' : self.get_default_ip_option().get_option_info()
-                if self.get_default_ip_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.ip_options_list]
-            } ,
-            'exd' : {
-                'default' : self.get_default_exd_option().get_option_info()
-                if self.get_default_exd_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.exd_options_list]
-            } ,
-            'body_coating' : {
-                'default' : self.get_default_body_coating_option().get_option_info()
-                if self.get_default_body_coating_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
-            } ,
-            'blinker' : {
-                'default' : self.get_default_blinker_option().get_option_info()
-                if self.get_default_blinker_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.blinker_options_list]
+        option_info = {
+            'temperature': {
+                'default': self.get_default_temperature_option().get_option_info()
+                if self.get_default_temperature_option() else None,
+                'options': [opt.get_option_info() for opt in self.temperature_options_list]
+            },
+            'ip': {
+                'default': self.get_default_ip_option().get_option_info()
+                if self.get_default_ip_option() else None,
+                'options': [opt.get_option_info() for opt in self.ip_options_list]
+            },
+            'exd': {
+                'default': self.get_default_exd_option().get_option_info()
+                if self.get_default_exd_option() else None,
+                'options': [opt.get_option_info() for opt in self.exd_options_list]
+            },
+            'body_coating': {
+                'default': self.get_default_body_coating_option().get_option_info()
+                if self.get_default_body_coating_option() else None,
+                'options': [opt.get_option_info() for opt in self.body_coating_options_list]
+            },
+            'blinker': {
+                'default': self.get_default_blinker_option().get_option_info()
+                if self.get_default_blinker_option() else None,
+                'options': [opt.get_option_info() for opt in self.blinker_options_list]
+            },
+            'way_switches': {
+                'default': self.get_default_way_switches_option().get_option_info()
+                if self.get_default_way_switches_option() else None,
+                'options': [opt.get_option_info() for opt in self.way_switches_options_list]
+            },
+            'power_supply': {
+                'default': self.get_default_power_supply_option().get_option_info()
+                if self.get_default_power_supply_option() else None,
+                'options': [opt.get_option_info() for opt in self.power_supply_options_list]
+            },
+            'control_unit': {
+                'default': self.get_default_control_unit_option().get_option_info()
+                if self.get_default_control_unit_option() else None,
+                'options': [opt.get_option_info() for opt in self.control_unit_options_list]
+            },
+            'hand_wheel': {
+                'default': self.get_default_hand_wheel_option().get_option_info()
+                if self.get_default_hand_wheel_option() else None,
+                'options': [opt.get_option_info() for opt in self.hand_wheel_options_list]
+            },
+            'turn_angle': {
+                'default': self.get_default_turn_angle_option().get_option_info()
+                if self.get_default_turn_angle_option() else None,
+                'options': [opt.get_option_info() for opt in self.turn_angle_options_list]
+            },
+            'operating_mode': {
+                'default': self.get_default_operating_mode_option().get_option_info()
+                if self.get_default_operating_mode_option() else None,
+                'options': [opt.get_option_info() for opt in self.operating_mode_options_list]
+            },
+            'mechanical_indicator': {
+                'default': self.get_default_mechanical_indicator_option().get_option_info()
+                if self.get_default_mechanical_indicator_option() else None,
+                'options': [opt.get_option_info() for opt in self.mechanical_indicator_options_list]
             }
         }
+        return option_info
 
-
-@receiver(post_save , sender=ElectricActuatorModelLine)
-def create_default_electric_options(sender , instance , created , **kwargs) :
-    """Резервное создание опций по умолчанию"""
-    if created :
-        instance.ensure_all_default_options_exist()
 
 
 # ==================== МОДЕЛЬ ДЛЯ СВЯЗИ СЕРТИФИКАТОВ ====================

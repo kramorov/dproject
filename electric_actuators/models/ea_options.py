@@ -7,7 +7,9 @@ from options.models import (
     BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption,
     BaseIpThroughOption, BaseHandWheelThroughOption, BaseTurnAngleThroughOption,
     BasePowerSupplyThroughOption, BaseBlinkerThroughOption, BaseControlUnitInstalledThroughOption,
-    BaseWaySwitchesThroughOption, BaseOperatingModeThroughOption, BaseMechanicalIndicatorThroughOption
+    BaseWaySwitchesThroughOption,
+    BaseOperatingModeThroughOption,
+    BaseMechanicalIndicatorThroughOption
 )
 
 

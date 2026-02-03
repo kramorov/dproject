@@ -326,8 +326,8 @@ class BaseThroughOption(models.Model) :
         self.full_clean()
         super().save(*args , **kwargs)
 
-    def __str__(self) :
-        return self.encoding or "Option"
+    def __str__(self):
+        return str(self.encoding) if self.encoding else _("Опция")
 
 class BaseTemperatureThroughOption(BaseThroughOption):
     """
@@ -364,14 +364,15 @@ class BaseTemperatureThroughOption(BaseThroughOption):
             is_active=True
         )
 
-    def get_display_name(self):
-        """Отображаемое имя с кодировкой или без"""
-        if self.encoding and self.encoding.strip():
-            name_str =  f"{self.encoding} ({self.work_temp_min}...{self.work_temp_max}°C)"
-        else:
-            name_str =  f"{self.work_temp_min}...{self.work_temp_max}°C"
-        display_name = f"{name_str} (Стандарт)" if self.default_option else f"{name_str} (Опц.исполнение)"
-        return display_name
+    def get_display_name(self) :
+        if self.encoding and self.encoding.strip() :
+            name_str = f"{self.encoding} ({self.work_temp_min}...{self.work_temp_max}°C)"
+        else :
+            name_str = f"{self.work_temp_min}...{self.work_temp_max}°C"
+
+        # Исправлено: используем self.is_default вместо self.default_option
+        is_default = getattr(self , 'is_default' , False)
+        return f"{name_str} (Стандарт)" if is_default else f"{name_str} (Опция)"
 
 
     def get_option_info(self, option_instance: Optional['BaseTemperatureThroughOption'] = None) -> Dict[str, Any]:
@@ -664,14 +665,14 @@ class BaseTurnAngleThroughOption(BaseThroughOption):
             is_active=True
         )
 
-    def get_display_name(self):
-        """Отображаемое имя с кодировкой или без"""
-        if self.encoding and self.encoding.strip():
-            name_str =  f"{self.encoding} (Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°)"
-        else:
-            name_str =  f"Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°"
-        display_name = f"{name_str} (Стандарт)" if self.default_option else f"{name_str} (Опц.исполнение)"
-        return display_name
+    def get_display_name(self) :
+        if self.encoding and self.encoding.strip() :
+            name_str = f"{self.encoding} (Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°)"
+        else :
+            name_str = f"Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°"
+
+        is_default = getattr(self , 'is_default' , False)
+        return f"{name_str} (Стандарт)" if is_default else f"{name_str} (Опция)"
 
 
     def get_option_info(self, option_instance: Optional['BaseTemperatureThroughOption'] = None) -> Dict[str, Any]:
