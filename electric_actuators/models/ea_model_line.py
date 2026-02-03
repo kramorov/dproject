@@ -60,14 +60,21 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='electric_model_line_brand' ,
                               on_delete=models.SET_NULL ,
-                              help_text='Бренд производителя')
+                              verbose_name=_('Бренд'),
+                              help_text=_('Бренд производителя'))
     default_output_type = \
         models.ForeignKey(ActuatorGearboxOutputType , blank=True , null=True ,
                           related_name='electric_model_line_default_output_type' ,
                           on_delete=models.SET_NULL ,
+                          verbose_name=_('Тип привода'),
                           help_text=_('Тип работы серии приводов'))
 
-
+    allowed_operating_mode = \
+        models.ManyToManyField(OperatingModeOption, blank=True, default=1,
+                               related_name='electric_actuator_model_line_allowed_operating_mode',
+                               verbose_name=_('Режим работы'),
+                               help_text=_('Возможные для выбора режимы работы двигателя для серии (можно выбрать '
+                                         'несколько)'))
     class Meta :
         ordering = ['sorting_order']
         verbose_name = _('Серия моделей электроприводов')
@@ -387,7 +394,7 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
             ElectricExdOption ,
             ElectricBodyCoatingOption ,
             ElectricBlinkerOption ,
-            ElectricSwitchesOption ,
+            ElectricWaySwitchesOption ,
             ElectricPowerSupplyOption ,
             ElectricControlUnitInstalledOption ,
             ElectricHandWheelOption ,
@@ -402,7 +409,7 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
             ElectricExdOption ,
             ElectricBodyCoatingOption ,
             ElectricBlinkerOption ,
-            ElectricSwitchesOption ,
+            ElectricWaySwitchesOption ,
             ElectricPowerSupplyOption ,
             ElectricControlUnitInstalledOption ,
             ElectricHandWheelOption ,
@@ -482,6 +489,11 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         """Получить стандартную опцию блинкера"""
         from .ea_options import ElectricBlinkerOption
         return ElectricBlinkerOption.get_or_create_default(self)
+
+    def get_default_way_switches_option(self) :
+        """Получить стандартную опцию блинкера"""
+        from .ea_options import ElectricWaySwitchesOption
+        return ElectricWaySwitchesOption.get_or_create_default(self)
 
     # ==================== ОТОБРАЖАЕМЫЕ СВОЙСТВА ====================
 
