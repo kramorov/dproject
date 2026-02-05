@@ -395,11 +395,11 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
             ElectricBodyCoatingOption ,
             ElectricBlinkerOption ,
             ElectricWaySwitchesOption ,
-            ElectricPowerSupplyOption ,
+            # ElectricPowerSupplyOption ,
             ElectricControlUnitInstalledOption ,
             ElectricHandWheelOption ,
             ElectricMechanicalIndicatorOption ,
-            ElectricOperatingModeOption ,
+            # ElectricOperatingModeOption ,
             ElectricTurnAngleOption
         )
 
@@ -410,11 +410,11 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
             ElectricBodyCoatingOption ,
             ElectricBlinkerOption ,
             ElectricWaySwitchesOption ,
-            ElectricPowerSupplyOption ,
+            # ElectricPowerSupplyOption ,
             ElectricControlUnitInstalledOption ,
             ElectricHandWheelOption ,
             ElectricMechanicalIndicatorOption ,
-            ElectricOperatingModeOption ,
+            # ElectricOperatingModeOption ,
             ElectricTurnAngleOption
         ]
 

@@ -4,6 +4,9 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from typing import List, Optional, Tuple, Any, Dict, Union
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BaseThroughOption(models.Model) :
     """Базовый абстрактный класс для всех сквозных опций"""
@@ -326,8 +329,31 @@ class BaseThroughOption(models.Model) :
         self.full_clean()
         super().save(*args , **kwargs)
 
+    # def __str__(self):
+    #     return str(self.encoding) if self.encoding else _("Опция")
     def __str__(self):
-        return str(self.encoding) if self.encoding else _("Опция")
+        """Безопасный __str__ с логированием"""
+        print("BaseThroughOption.__str__  called")
+        try:
+            result = str(self.encoding) if self.encoding else _("Опция")
+            logger.debug(f"BaseThroughOption.__str__ для {self.__class__.__name__}: {result}")
+
+            # Проверяем, что результат - строка
+            if result is None:
+                logger.error(
+                    f"BaseThroughOption.__str__ ВОЗВРАЩАЕТ None! Класс: {self.__class__.__name__}, ID: {self.id}")
+                return "Опция"
+
+            if not isinstance(result, str):
+                logger.error(
+                    f"BaseThroughOption.__str__ ВОЗВРАЩАЕТ {type(result)}! Класс: {self.__class__.__name__}, ID: {self.id}")
+                return "Опция"
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Ошибка в BaseThroughOption.__str__: {e}", exc_info=True)
+            return "Опция"
 
 class BaseTemperatureThroughOption(BaseThroughOption):
     """
@@ -568,15 +594,40 @@ class BaseIpThroughOption(BaseThroughOption) :
         """Ранг IP защиты"""
         return getattr(self.ip_option , 'ip_rank' , 0) if self.ip_option else 0
 
-    def get_display_name(self) :
-        """Отображаемое имя для IP защиты"""
-        if self.ip_option :
-            if self.encoding and self.encoding.strip() :
-                return f"{self.encoding} ({self.ip_option.name})"
-            return self.ip_option.name
-        return "Не указано"
+    def get_display_name(self):
+        """Простая безопасная версия"""
+        # Сначала проверяем encoding
+        if self.encoding and self.encoding.strip():
+            encoding_part = self.encoding
+        else:
+            encoding_part = None
 
-    def __str__(self) :
+        # Пытаемся получить имя ip_option без исключений
+        ip_name = None
+        try:
+            # Проверяем через безопасный доступ
+            if hasattr(self, 'ip_option_id') and self.ip_option_id:
+                # Объект существует в БД
+                if not hasattr(self, '_ip_option_cache'):
+                    # Не загружен, но мы можем не загружать для __str__
+                    ip_name = f"[IP#{self.ip_option_id}]"
+                elif self.ip_option:
+                    ip_name = getattr(self.ip_option, 'name', None)
+        except Exception:
+            pass
+
+        # Формируем результат
+        if encoding_part and ip_name:
+            return f"{encoding_part} ({ip_name})"
+        elif encoding_part:
+            return encoding_part
+        elif ip_name:
+            return ip_name
+
+        return "IP опция"
+
+    def __str__(self):
+        """Всегда возвращаем строку"""
         return self.get_display_name()
 
 class BasePneumaticConnectionThroughOption(BaseThroughOption):
@@ -952,7 +1003,7 @@ class BaseWaySwitchesThroughOption(BaseThroughOption):
 
     @classmethod
     def create_default_option(cls, parent_obj):
-        """Создать стандартную Blinker)"""
+        """Создать стандартную WaySwitches)"""
         from django.apps import apps
 
         SwitchesParameters = apps.get_model('params', 'SwitchesParameters')  # Ленивая загрузка
@@ -966,7 +1017,7 @@ class BaseWaySwitchesThroughOption(BaseThroughOption):
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
                 **{parent_field: parent_obj},
-                blinker_option=no_way_switches_option,
+                way_switches_option=no_way_switches_option,
                 encoding='',
                 description=no_way_switches_option.description,
                 is_default=True,
@@ -1032,19 +1083,49 @@ class BaseOperatingModeThroughOption(BaseThroughOption) :
             )
         return None
 
-    def get_display_name(self) :
-        """Отображаемое имя для режима работы"""
-        if self.operating_mode_option :
-            if self.encoding and self.encoding.strip() :
-                return f"{self.encoding} ({self.operating_mode_option.name})"
-            return self.operating_mode_option.name
-        return "Не указано"
+    def get_display_name(self):
+        """Безопасная версия для механического индикатора"""
+        # Безопасно проверяем наличие mechanical_indicator_option
+        try:
+            # Проверяем через ID чтобы избежать RelatedObjectDoesNotExist
+            if hasattr(self, 'mechanical_indicator_option_id') and self.mechanical_indicator_option_id:
+                # Если есть ID, но объект не загружен
+                if not hasattr(self, '_mechanical_indicator_option_cache'):
+                    # Пытаемся получить объект
+                    from django.apps import apps
+                    MechanicalIndicatorInstalledOption = apps.get_model('params', 'MechanicalIndicatorInstalledOption')
+                    try:
+                        self.mechanical_indicator_option = MechanicalIndicatorInstalledOption.objects.get(
+                            pk=self.mechanical_indicator_option_id
+                        )
+                    except MechanicalIndicatorInstalledOption.DoesNotExist:
+                        pass
+
+            # Теперь безопасно проверяем
+            if hasattr(self, 'mechanical_indicator_option') and self.mechanical_indicator_option:
+                option_name = getattr(self.mechanical_indicator_option, 'name', None)
+                if option_name:
+                    if self.encoding and self.encoding.strip():
+                        return f"{self.encoding} ({option_name})"
+                    return option_name
+        except Exception:
+            # Если произошла ошибка, продолжаем
+            pass
+
+        # Fallback - если нет связанного объекта или ошибка
+        if self.encoding and self.encoding.strip():
+            return f"{self.encoding} (Механический индикатор)"
+
+        return "Механический индикатор"
 
     def __str__(self) :
         name = self.get_display_name()
         if self.is_default :
             return f"{name} (Стандарт)"
         return name
+
+
+
 
 
 class BaseMechanicalIndicatorThroughOption(BaseThroughOption) :

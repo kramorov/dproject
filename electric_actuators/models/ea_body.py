@@ -13,7 +13,6 @@ from django.core.exceptions import ValidationError
 from params.models import MountingPlateTypes , StemShapes , StemSize , ThreadTypes , PneumaticConnection , ThreadSize
 
 
-# from pneumatic_actuators.models import PneumaticActuatorTechDataTable
 
 class ElectricActuatorBodyTable(models.Model) :
     """
@@ -147,6 +146,9 @@ class ElectricActuatorBody(models.Model) :
     # turn_tuning_limit = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Ограничитель") ,
     #                                      help_text=_("Настройка ограничителя на ±1° (об.)"))
 
+    # Для фильтрации
+    model_line = models.ForeignKey('ElectricActuatorModelLine', on_delete=models.PROTECT,
+                                   related_name='ea_body_model_line', help_text='Серия приводов')
     # В get_weight добавить расчет веса инт блока
     weight_body = models.DecimalField(max_digits=4 , decimal_places=2 ,
                                         default=0 , blank=True , null=True ,
@@ -156,8 +158,8 @@ class ElectricActuatorBody(models.Model) :
 
     class Meta :
         ordering = ['sorting_order']
-        verbose_name = _('Модель корпуса пневмопривода')
-        verbose_name_plural = _('Модели корпусов пневмоприводов')
+        verbose_name = _('Модель корпуса электропривода')
+        verbose_name_plural = _('Модели корпусов электроприводов')
 
     def __str__(self) :
         return self.name
@@ -200,35 +202,36 @@ class ElectricActuatorBody(models.Model) :
         pneumatic_connections = list(self.pneumatic_connection.all())
 
         # Создаем новый объект с теми же данными
-        copy = PneumaticActuatorBody(
-            name=f"{self.name}{name_suffix}" if self.name else "Копия" ,
-            code=f"{self.code}{code_suffix}" if self.code else "Копия" ,
-            description=self.description ,
-            sorting_order=self.sorting_order ,
-            is_active=self.is_active ,
-            body_table=self.body_table ,
-            stem_shape=self.stem_shape ,
-            stem_size=self.stem_size ,
-            max_stem_height=self.max_stem_height ,
-            max_stem_diameter=self.max_stem_diameter ,
-            min_pressure_bar=self.min_pressure_bar ,
-            max_pressure_bar=self.max_pressure_bar ,
-            air_usage_open=self.air_usage_open ,
-            air_usage_close=self.air_usage_close ,
-            piston_diameter=self.piston_diameter ,
-            turn_angle=self.turn_angle ,
-            turn_tuning_limit=self.turn_tuning_limit ,
-            weight_spring=self.weight_spring ,
-            thread_in=self.thread_in ,
-            thread_out=self.thread_out ,
-        )
-        copy.save()
-
-        # Копируем ManyToMany поля
-        copy.mounting_plate.set(mounting_plates)
-        copy.pneumatic_connection.set(pneumatic_connections)
-
-        return copy
+        # copy = PneumaticActuatorBody(
+        #     name=f"{self.name}{name_suffix}" if self.name else "Копия" ,
+        #     code=f"{self.code}{code_suffix}" if self.code else "Копия" ,
+        #     description=self.description ,
+        #     sorting_order=self.sorting_order ,
+        #     is_active=self.is_active ,
+        #     body_table=self.body_table ,
+        #     stem_shape=self.stem_shape ,
+        #     stem_size=self.stem_size ,
+        #     max_stem_height=self.max_stem_height ,
+        #     max_stem_diameter=self.max_stem_diameter ,
+        #     min_pressure_bar=self.min_pressure_bar ,
+        #     max_pressure_bar=self.max_pressure_bar ,
+        #     air_usage_open=self.air_usage_open ,
+        #     air_usage_close=self.air_usage_close ,
+        #     piston_diameter=self.piston_diameter ,
+        #     turn_angle=self.turn_angle ,
+        #     turn_tuning_limit=self.turn_tuning_limit ,
+        #     weight_spring=self.weight_spring ,
+        #     thread_in=self.thread_in ,
+        #     thread_out=self.thread_out ,
+        # )
+        # copy.save()
+        #
+        # # Копируем ManyToMany поля
+        # copy.mounting_plate.set(mounting_plates)
+        # copy.pneumatic_connection.set(pneumatic_connections)
+        #
+        # return copy
+        return None
 
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для описания корпуса"""
@@ -363,58 +366,3 @@ class ElectricActuatorBody(models.Model) :
         """Полное описание корпуса (property)"""
         return self.get_text_description()
 
-class PneumaticWeightParameter(models.Model) :
-    """Вес пневмопривода зависит от корпуса и количества пружин
-        Здесь мы прописываем этот вес в зависимости от количества пружин
-        spring_qty - количество прудин или DA"""
-    body = models.ForeignKey(PneumaticActuatorBody , on_delete=models.CASCADE ,
-                             related_name='pa_weight_parameter' ,
-                             verbose_name=_("Модель") ,
-                             help_text=_("Модель корпуса привода"))
-    spring_qty = models.ForeignKey('pneumatic_actuators.PneumaticActuatorSpringsQty' , on_delete=models.SET_NULL ,
-                                   null=True , blank=True ,  # ← ДОБАВЬТЕ ЭТО
-                                   related_name='pa_weight_parameter' ,
-                                   verbose_name=_("Пружин / DA") ,
-                                   help_text=_("Количество пружин или DA"))
-    weight = models.DecimalField(max_digits=10 , decimal_places=2 ,
-                                 default=0.0 , verbose_name=_("Вес, кг") ,
-                                 help_text=_("Вес корпуса привода с кол-вом пружин или DA"))
-
-    class Meta :
-        verbose_name = _("Вес пневмопривода")
-        verbose_name_plural = _("Вес пневмоприводов")
-        ordering = ['spring_qty']
-        unique_together = ['body' , 'spring_qty']
-
-    def __str__(self) :
-        return f"Вес {self.body.name} - {self.spring_qty.name}"
-
-
-class PneumaticCloseTimeParameter(models.Model) :
-    """Время открытия пневмопривода зависит от размера корпуса и количества пружин
-        Здесь мы прописываем этот вес в зависимости от количества пружин
-        spring_qty - количество прудин или DA"""
-    body = models.ForeignKey(PneumaticActuatorBody , on_delete=models.CASCADE ,
-                             related_name='pa_close_time_parameter' ,
-                             verbose_name=_("Модель") ,
-                             help_text=_("Модель корпуса привода"))
-    spring_qty = models.ForeignKey('pneumatic_actuators.PneumaticActuatorSpringsQty' , on_delete=models.SET_NULL ,
-                                   null=True , blank=True ,  # ← ДОБАВЬТЕ ЭТО
-                                   related_name='pa_close_time_parameter' ,
-                                   verbose_name=_("Пружин / DA") ,
-                                   help_text=_("Количество пружин или DA"))
-    time_close = models.DecimalField(max_digits=4 , decimal_places=2 ,
-                                     default=0.0 , verbose_name=_("Закрытие, сек") ,
-                                     help_text=_("Время закрытия пневмопривода с кол-вом пружин или DA, секунд"))
-    time_open = models.DecimalField(max_digits=4 , decimal_places=2 ,
-                                    default=0.0 , verbose_name=_("Открытие, сек") ,
-                                    help_text=_("Время открытия пневмопривода с кол-вом пружин или DA, секунд"))
-
-    class Meta :
-        verbose_name = _("Время открытия/закрытия пневмопривода")
-        verbose_name_plural = _("Время открытия/закрытия пневмоприводов")
-        ordering = ['spring_qty']
-        unique_together = ['body' , 'spring_qty']
-
-    def __str__(self) :
-        return f"Время откр/закр {self.spring_qty.name}:{self.time_open}/{self.time_close} сек"

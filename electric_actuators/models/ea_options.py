@@ -9,7 +9,7 @@ from options.models import (
     BasePowerSupplyThroughOption, BaseBlinkerThroughOption, BaseControlUnitInstalledThroughOption,
     BaseWaySwitchesThroughOption,
     BaseOperatingModeThroughOption,
-    BaseMechanicalIndicatorThroughOption
+    BaseMechanicalIndicatorThroughOption, BaseThroughOption
 )
 
 
@@ -251,3 +251,62 @@ class ElectricMechanicalIndicatorOption(BaseMechanicalIndicatorThroughOption):
     @classmethod
     def _get_parent_field_name(cls):
         return 'model_line'
+
+
+class CableGlandHolesSetThroughOption(BaseThroughOption):
+    """Модель для сквозных опций CableGlandHolesSet"""
+    cg_set = models.ForeignKey(
+        'CableGlandHolesSet',
+        on_delete=models.CASCADE,
+        verbose_name=_("Отверстия под КВ"),
+        help_text=_("Отверстия под кабельные вводы")
+    )
+
+    model_line = models.ForeignKey(
+        'ElectricActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='cg_set_options',
+        verbose_name=_("Серия электроприводов")
+    )
+
+    class Meta:
+        verbose_name = _("Опция кабельных вводов")
+        verbose_name_plural = _("Опции кабельных вводов")
+        ordering = ['sorting_order']
+        unique_together = ['model_line', 'cg_set']
+
+    # @classmethod
+    # def create_default_option(cls, parent_obj):
+    #     """Создать стандартную CableGlandHolesSet)"""
+    #     from django.apps import apps
+    #
+    #     SwitchesParameters = apps.get_model('params', 'SwitchesParameters')  # Ленивая загрузка
+    #
+    #     try:
+    #         no_way_switches_option = SwitchesParameters.objects.get(code='none')
+    #     except SwitchesParameters.DoesNotExist:
+    #         no_way_switches_option = SwitchesParameters.objects.filter(is_active=True).first()
+    #
+    #     if no_way_switches_option:
+    #         parent_field = cls._get_parent_field_name()
+    #         return cls.objects.create(
+    #             **{parent_field: parent_obj},
+    #             way_switches_option=no_way_switches_option,
+    #             encoding='',
+    #             description=no_way_switches_option.description,
+    #             is_default=True,
+    #             sorting_order=0,
+    #             is_active=True
+    #         )
+    #     return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для путевых выключателей"""
+        if self.cg_set :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.cg_set.name})"
+            return self.cg_set.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()

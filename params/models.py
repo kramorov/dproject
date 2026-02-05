@@ -385,14 +385,19 @@ class MechanicalIndicatorInstalledOption(models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
-
+    # encoding = models.CharField(max_length=10, verbose_name=_('Кодировка'),
+    #                             help_text=_('Кодировка установленного механического индикатора положения'))
     class Meta:
         verbose_name = _('Вид механического индикатора')
         verbose_name_plural = _('Виды механических индикаторов')
         ordering = ['sorting_order']
 
     def __str__(self):
-        return self.name
+        """Безопасный __str__"""
+        if self.name:
+            return self.name
+        else:
+            return "Новый индикатор"
 
 
 class ControlUnitInstalledOption(models.Model):
