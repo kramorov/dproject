@@ -26,7 +26,7 @@ class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
         verbose_name = _('Угол поворота ЭП')
         verbose_name_plural = _("Углы поворота электроприводов")
         ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'encoding']
+        # unique_together = ['model_line', 'encoding']
 
     @classmethod
     def _get_parent_field_name(cls):
@@ -46,7 +46,7 @@ class ElectricHandWheelOption(BaseHandWheelThroughOption):
         verbose_name = _("Тип установленного ручного дублера")
         verbose_name_plural = _("Типы установленного ручного дублера электроприводов")
         ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'encoding']
+        unique_together = ['model_line', 'hand_wheel_option', 'encoding']
 
     @classmethod
     def _get_parent_field_name(cls):
@@ -66,7 +66,7 @@ class ElectricTemperatureOption(BaseTemperatureThroughOption):
         verbose_name = _("Температурная опция электропривода")
         verbose_name_plural = _("Температурные опции электроприводов")
         ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'encoding']
+        # unique_together = ['model_line', '','encoding']
 
     @classmethod
     def _get_parent_field_name(cls):

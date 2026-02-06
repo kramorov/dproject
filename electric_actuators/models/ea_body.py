@@ -133,10 +133,12 @@ class ElectricActuatorBody(models.Model) :
                                   related_name='model_body_stem_size_electric_model_line' ,
                                   verbose_name=_("Размер штока") ,
                                   help_text=_('Размер отверстия под шток арматуры'))
-    max_stem_height = models.PositiveIntegerField(blank=True , null=True ,
+    max_stem_height = models.DecimalField(max_digits=6 , decimal_places=2 ,
+                                        default=0 , blank=True , null=True ,
                                                   verbose_name=_("Высота штока") ,
                                                   help_text=_('Глубина отверстия под шток арматуры'))
-    max_stem_diameter = models.PositiveIntegerField(blank=True , null=True ,
+    max_stem_diameter = models.DecimalField(max_digits=6 , decimal_places=2 ,
+                                        default=0 , blank=True , null=True ,
                                                     verbose_name=_("Макс шток") ,
                                                     help_text=_('Максимальный диаметр отверстия '
                                                                 'под шток арматуры'))
@@ -150,7 +152,7 @@ class ElectricActuatorBody(models.Model) :
     model_line = models.ForeignKey('ElectricActuatorModelLine', on_delete=models.PROTECT,
                                    related_name='ea_body_model_line', help_text='Серия приводов')
     # В get_weight добавить расчет веса инт блока
-    weight_body = models.DecimalField(max_digits=4 , decimal_places=2 ,
+    weight_body = models.DecimalField(max_digits=6 , decimal_places=2 ,
                                         default=0 , blank=True , null=True ,
                                         verbose_name=_("Вес:") ,
                                         help_text=_(
@@ -233,136 +235,136 @@ class ElectricActuatorBody(models.Model) :
         # return copy
         return None
 
-    def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для описания корпуса"""
-        data = {
-            'basic_info' : {
-                'name' : self.name ,
-                'code' : self.code ,
-                'description' : self.description
-            } ,
-            'technical_specs' : {} ,
-            'mounting_specs': {},
-            'pipe_connections_specs': {}
-        }
-
-        # Технические характеристики
-        if self.piston_diameter :
-            data['technical_specs']['piston_diameter'] = f"{self.piston_diameter} мм"
-        if self.turn_angle :
-            data['technical_specs']['turn_angle'] = self.turn_angle
-        if self.turn_tuning_limit :
-            data['technical_specs']['turn_tuning_limit'] = self.turn_tuning_limit
-        if self.weight_spring :
-            data['technical_specs']['weight_spring'] = f"{self.weight_spring} кг"
-        if self.min_pressure_bar :
-            data['technical_specs']['min_pressure'] = f"{self.min_pressure_bar} бар"
-        if self.max_pressure_bar :
-            data['technical_specs']['max_pressure'] = f"{self.max_pressure_bar} бар"
-        if self.air_usage_open :
-            data['technical_specs']['air_usage_open'] = f"{self.air_usage_open} л"
-        if self.air_usage_close :
-            data['technical_specs']['air_usage_close'] = f"{self.air_usage_close} л"
-
-        # Информация о штоке
-        stem_info = {}
-        if self.stem_shape :
-            stem_info['shape'] = str(self.stem_shape)
-        if self.stem_size :
-            stem_info['size'] = str(self.stem_size)
-        if self.max_stem_height :
-            stem_info['max_height'] = f"{self.max_stem_height} мм"
-        if self.max_stem_diameter :
-            stem_info['max_diameter'] = f"{self.max_stem_diameter} мм"
-
-        if stem_info :
-            data['mounting_specs']['stem'] = stem_info
-
-        # Подключения
-        if self.thread_in :
-            data['pipe_connections_specs']['thread_in'] = str(self.thread_in)
-        if self.thread_out :
-            data['pipe_connections_specs']['thread_out'] = str(self.thread_out)
-
-        pneumatic_connections = self.pneumatic_connection.all()
-        if pneumatic_connections :
-            data['pipe_connections_specs']['pneumatic_connections'] = [str(conn) for conn in pneumatic_connections]
-
-        # Монтажные площадки
-        mounting_plates = self.mounting_plate.all()
-        if mounting_plates :
-            data['mounting_specs']['mounting_plates'] = [str(plate) for plate in mounting_plates]
-
-        return data
-
-    def get_text_description(self) -> str :
-        """Сгенерировать текстовое описание корпуса из структурированных данных"""
-        data = self.get_description_data()
-        desc_parts = []
-
-        # Базовая информация
-        basic_info = data['basic_info']
-        if basic_info['name'] :
-            desc_parts.append(f"Модель корпуса: {basic_info['name']}")
-        if basic_info['code'] :
-            desc_parts.append(f"Код: {basic_info['code']}")
-        if basic_info['description'] :
-            desc_parts.append(f"Описание: {basic_info['description']}")
-
-        # Технические характеристики
-        tech_specs = data['technical_specs']
-        if tech_specs :
-            desc_parts.append("\nТехнические характеристики:")
-            for spec_name , spec_value in tech_specs.items() :
-                display_name = {
-                    'piston_diameter' : 'Диаметр поршня' ,
-                    'turn_angle' : 'Угол поворота' ,
-                    'turn_tuning_limit' : 'Ограничитель поворота' ,
-                    'weight_spring' : 'Вес пружины' ,
-                    'min_pressure' : 'Минимальное давление' ,
-                    'max_pressure' : 'Максимальное давление' ,
-                    'air_usage_open' : 'Расход воздуха (открытие)' ,
-                    'air_usage_close' : 'Расход воздуха (закрытие)'
-                }.get(spec_name , spec_name)
-                desc_parts.append(f"  {display_name}: {spec_value}")
-
-        # Информация о штоке
-        mounting_specs = data['mounting_specs']
-        if mounting_specs:
-            if 'stem' in mounting_specs :
-                stem_parts = []
-                stem_data = tech_specs['stem']
-                if 'shape' in stem_data :
-                    stem_parts.append(f"форма: {stem_data['shape']}")
-                if 'size' in stem_data :
-                    stem_parts.append(f"размер: {stem_data['size']}")
-                if 'max_height' in stem_data :
-                    stem_parts.append(f"макс. высота: {stem_data['max_height']}")
-                if 'max_diameter' in stem_data :
-                    stem_parts.append(f"макс. диаметр: {stem_data['max_diameter']}")
-
-                if stem_parts :
-                    desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
-            if 'mounting_plates' in mounting_specs:
-                desc_parts.append(f"  Монтажные площадки: {', '.join(mounting_specs['mounting_plates'])}")
-
-        # Подключения
-        pipe_connections_specs = data['pipe_connections_specs']
-        if pipe_connections_specs :
-            desc_parts.append("\nПодключения:")
-
-            if 'thread_in' in pipe_connections_specs :
-                desc_parts.append(f"  Пневмовход: {pipe_connections_specs['thread_in']}")
-            if 'thread_out' in pipe_connections_specs :
-                desc_parts.append(f"  Пневмовыход: {pipe_connections_specs['thread_out']}")
-            if 'pneumatic_connections' in pipe_connections_specs :
-                desc_parts.append(f"  Типы пневмоподключений: {', '.join(pipe_connections_specs['pneumatic_connections'])}")
-
-
-        return "\n".join(desc_parts)
-
-    @property
-    def full_description(self) -> str :
-        """Полное описание корпуса (property)"""
-        return self.get_text_description()
+    # def get_description_data(self) -> Dict[str , Any] :
+    #     """Получить структурированные данные для описания корпуса"""
+    #     data = {
+    #         'basic_info' : {
+    #             'name' : self.name ,
+    #             'code' : self.code ,
+    #             'description' : self.description
+    #         } ,
+    #         'technical_specs' : {} ,
+    #         'mounting_specs': {},
+    #         'pipe_connections_specs': {}
+    #     }
+    #
+    #     # Технические характеристики
+    #     if self.piston_diameter :
+    #         data['technical_specs']['piston_diameter'] = f"{self.piston_diameter} мм"
+    #     if self.turn_angle :
+    #         data['technical_specs']['turn_angle'] = self.turn_angle
+    #     if self.turn_tuning_limit :
+    #         data['technical_specs']['turn_tuning_limit'] = self.turn_tuning_limit
+    #     if self.weight_spring :
+    #         data['technical_specs']['weight_spring'] = f"{self.weight_spring} кг"
+    #     if self.min_pressure_bar :
+    #         data['technical_specs']['min_pressure'] = f"{self.min_pressure_bar} бар"
+    #     if self.max_pressure_bar :
+    #         data['technical_specs']['max_pressure'] = f"{self.max_pressure_bar} бар"
+    #     if self.air_usage_open :
+    #         data['technical_specs']['air_usage_open'] = f"{self.air_usage_open} л"
+    #     if self.air_usage_close :
+    #         data['technical_specs']['air_usage_close'] = f"{self.air_usage_close} л"
+    #
+    #     # Информация о штоке
+    #     stem_info = {}
+    #     if self.stem_shape :
+    #         stem_info['shape'] = str(self.stem_shape)
+    #     if self.stem_size :
+    #         stem_info['size'] = str(self.stem_size)
+    #     if self.max_stem_height :
+    #         stem_info['max_height'] = f"{self.max_stem_height} мм"
+    #     if self.max_stem_diameter :
+    #         stem_info['max_diameter'] = f"{self.max_stem_diameter} мм"
+    #
+    #     if stem_info :
+    #         data['mounting_specs']['stem'] = stem_info
+    #
+    #     # Подключения
+    #     if self.thread_in :
+    #         data['pipe_connections_specs']['thread_in'] = str(self.thread_in)
+    #     if self.thread_out :
+    #         data['pipe_connections_specs']['thread_out'] = str(self.thread_out)
+    #
+    #     pneumatic_connections = self.pneumatic_connection.all()
+    #     if pneumatic_connections :
+    #         data['pipe_connections_specs']['pneumatic_connections'] = [str(conn) for conn in pneumatic_connections]
+    #
+    #     # Монтажные площадки
+    #     mounting_plates = self.mounting_plate.all()
+    #     if mounting_plates :
+    #         data['mounting_specs']['mounting_plates'] = [str(plate) for plate in mounting_plates]
+    #
+    #     return data
+    #
+    # def get_text_description(self) -> str :
+    #     """Сгенерировать текстовое описание корпуса из структурированных данных"""
+    #     data = self.get_description_data()
+    #     desc_parts = []
+    #
+    #     # Базовая информация
+    #     basic_info = data['basic_info']
+    #     if basic_info['name'] :
+    #         desc_parts.append(f"Модель корпуса: {basic_info['name']}")
+    #     if basic_info['code'] :
+    #         desc_parts.append(f"Код: {basic_info['code']}")
+    #     if basic_info['description'] :
+    #         desc_parts.append(f"Описание: {basic_info['description']}")
+    #
+    #     # Технические характеристики
+    #     tech_specs = data['technical_specs']
+    #     if tech_specs :
+    #         desc_parts.append("\nТехнические характеристики:")
+    #         for spec_name , spec_value in tech_specs.items() :
+    #             display_name = {
+    #                 'piston_diameter' : 'Диаметр поршня' ,
+    #                 'turn_angle' : 'Угол поворота' ,
+    #                 'turn_tuning_limit' : 'Ограничитель поворота' ,
+    #                 'weight_spring' : 'Вес пружины' ,
+    #                 'min_pressure' : 'Минимальное давление' ,
+    #                 'max_pressure' : 'Максимальное давление' ,
+    #                 'air_usage_open' : 'Расход воздуха (открытие)' ,
+    #                 'air_usage_close' : 'Расход воздуха (закрытие)'
+    #             }.get(spec_name , spec_name)
+    #             desc_parts.append(f"  {display_name}: {spec_value}")
+    #
+    #     # Информация о штоке
+    #     mounting_specs = data['mounting_specs']
+    #     if mounting_specs:
+    #         if 'stem' in mounting_specs :
+    #             stem_parts = []
+    #             stem_data = tech_specs['stem']
+    #             if 'shape' in stem_data :
+    #                 stem_parts.append(f"форма: {stem_data['shape']}")
+    #             if 'size' in stem_data :
+    #                 stem_parts.append(f"размер: {stem_data['size']}")
+    #             if 'max_height' in stem_data :
+    #                 stem_parts.append(f"макс. высота: {stem_data['max_height']}")
+    #             if 'max_diameter' in stem_data :
+    #                 stem_parts.append(f"макс. диаметр: {stem_data['max_diameter']}")
+    #
+    #             if stem_parts :
+    #                 desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
+    #         if 'mounting_plates' in mounting_specs:
+    #             desc_parts.append(f"  Монтажные площадки: {', '.join(mounting_specs['mounting_plates'])}")
+    #
+    #     # Подключения
+    #     pipe_connections_specs = data['pipe_connections_specs']
+    #     if pipe_connections_specs :
+    #         desc_parts.append("\nПодключения:")
+    #
+    #         if 'thread_in' in pipe_connections_specs :
+    #             desc_parts.append(f"  Пневмовход: {pipe_connections_specs['thread_in']}")
+    #         if 'thread_out' in pipe_connections_specs :
+    #             desc_parts.append(f"  Пневмовыход: {pipe_connections_specs['thread_out']}")
+    #         if 'pneumatic_connections' in pipe_connections_specs :
+    #             desc_parts.append(f"  Типы пневмоподключений: {', '.join(pipe_connections_specs['pneumatic_connections'])}")
+    #
+    #
+    #     return "\n".join(desc_parts)
+    #
+    # @property
+    # def full_description(self) -> str :
+    #     """Полное описание корпуса (property)"""
+    #     return self.get_text_description()
 

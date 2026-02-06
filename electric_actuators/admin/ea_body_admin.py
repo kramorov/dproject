@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from electric_actuators.models import ElectricActuatorBody
+from electric_actuators.models import ElectricActuatorBody, ElectricActuatorBodyTable, ElectricExdOption
 
 
 def copy_electric_actuator_data(modeladmin, request, queryset):
@@ -15,14 +15,30 @@ def copy_electric_actuator_data(modeladmin, request, queryset):
 
 copy_electric_actuator_data.short_description = "Копировать выбранные записи"
 
+@admin.register(ElectricActuatorBodyTable)
+class ElectricActuatorBodyTableAdmin(admin.ModelAdmin):
+    ordering = ['name']
+    # Показать важные поля в списке объектов модели
+    list_display = ('name', 'code', 'sorting_order', 'is_active')
+    # Поля для редактирования в админке
+    fieldsets = (
+        ('Основные параметры', {
+            'fields': (('name', 'code' ),('sorting_order', 'is_active'),)
+        }),
+        ('Описание', {
+            'fields': ('description',  )
+        }),
+    )
+
 @admin.register(ElectricActuatorBody)
-class ModelBodyAdmin(admin.ModelAdmin):
+class ElectricActuatorBodyAdmin(admin.ModelAdmin):
     ordering = ['name']
     # Показать важные поля в списке объектов модели
     list_display = ('name', 'code', 'sorting_order', 'is_active')
 
     # Добавить фильтры для фильтрации по определенным полям
     list_filter = ('model_line', 'mounting_plate', 'stem_shape', 'stem_size')
+    list_editable = ('code', 'sorting_order', 'is_active')
 
     # Возможность поиска по полям
     search_fields = ('name', 'code', 'model_line__name')
@@ -31,11 +47,11 @@ class ModelBodyAdmin(admin.ModelAdmin):
     # Поля для редактирования в админке
     fieldsets = (
         ('Основные параметры', {
-            'fields': (('name', 'model_line', 'code' ),('sorting_order', 'is_active'),)
+            'fields': (('name', 'sorting_order', 'is_active', 'code' ),('model_line','body_table')),
         }),
         ('Опции и характеристики', {
-            'fields': ( ('mounting_plate', 'stem_shape',
-                       'stem_size'),( 'max_stem_height','max_stem_diameter') )
+            'fields': ( ('mounting_plate',), ('stem_shape',
+                       'stem_size'),( 'max_stem_height','max_stem_diameter'),'weight_body' )
         }),
     )
 
@@ -53,3 +69,17 @@ class ModelBodyAdmin(admin.ModelAdmin):
     inlines = []  # Если есть инлайны для отображения других связанных объектов
     actions = [copy_electric_actuator_data]  # Добавляем действие для копирования
 
+
+
+
+@admin.register(ElectricExdOption)
+class ElectricExdOptionAdmin(admin.ModelAdmin):
+    # Показать важные поля в списке объектов модели
+    list_display = ('model_line','encoding',  'exd_option')
+
+    # Поля для редактирования в админке
+    fieldsets = (
+        ('Основные параметры', {
+            'fields': ('model_line','encoding',  'exd_option'),
+        }),
+    )

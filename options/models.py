@@ -307,18 +307,43 @@ class BaseThroughOption(models.Model) :
         """Пустая валидация - проверку делаем после сохранения"""
         pass
 
-    def validate_unique_encoding(self) -> None :
-        """Валидация уникальности encoding (оставляем, так как она безопасна)"""
-        if self.encoding and self.encoding.strip() :
-            parent = self._get_parent_object()
-            if parent :
-                parent_field = self._get_parent_field_name()
-                if parent_field :
-                    existing_encoding = self.__class__.objects.filter(
-                        **{parent_field : parent , 'encoding' : self.encoding}
-                    ).exclude(pk=self.pk if self.pk else None)
-                    if existing_encoding.exists() :
-                        raise ValidationError('Опция с такой кодировкой уже существует')
+    def validate_unique_encoding(self):
+        """
+        Проверка уникальности кодирования - только для сохраненных объектов
+        """
+        if not self.encoding:
+            return
+
+        # Если объект еще не сохранен, пропускаем проверку
+        if self._state.adding:
+            return
+
+        # Получаем родительское поле
+        parent_field_name = self._get_parent_field_name()
+
+        if not parent_field_name:
+            return
+
+        parent = getattr(self, parent_field_name, None)
+
+        if parent is not None and hasattr(parent, 'pk') and parent.pk is not None:
+            try:
+                query = {parent_field_name: parent, 'encoding': self.encoding}
+                existing_encoding = self.__class__.objects.filter(
+                    **query
+                ).exclude(pk=self.pk)
+
+                if existing_encoding.exists():
+                    raise ValidationError({
+                        'encoding': _(
+                            'Кодирование "%(encoding)s" уже существует. '
+                            'Пожалуйста, выберите другое значение.'
+                        ) % {'encoding': self.encoding}
+                    })
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Ошибка при проверке уникальности кодирования: {e}")
 
     def clean(self) -> None :
         """Только базовая валидация"""
