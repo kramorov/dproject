@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class BaseThroughOption(models.Model) :
+class BaseThroughOptionNoDefault(models.Model) :
     """Базовый абстрактный класс для всех сквозных опций"""
     encoding = models.CharField(
         max_length=50 ,
@@ -29,6 +29,197 @@ class BaseThroughOption(models.Model) :
         default=True ,
         verbose_name=_("Активно")
     )
+
+    class Meta :
+        abstract = True
+        ordering = ['sorting_order']
+ # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+
+    def _get_parent_object(self) -> Optional[models.Model] :
+        """Получить родительский объект"""
+        parent_field = self._get_parent_field_name()
+        return getattr(self , parent_field , None) if parent_field else None
+
+    @classmethod
+    def _get_parent_field_name(cls) -> Optional[str] :
+        """Автоматически определить имя поля родительского объекта"""
+        for field in cls._meta.fields :
+            if isinstance(field , models.ForeignKey) and field.name != 'id' :
+                return field.name
+        return None
+
+    def get_option_info(self , option_instance: Optional['BaseThroughOption'] = None) -> Dict[str , Any] :
+        """Полная информация об опции"""
+        current_instance = option_instance or self
+        return {
+            'id' : current_instance.id ,
+            'encoding' : current_instance.encoding ,
+            'description' : current_instance.description ,
+            'display_name' : str(current_instance) ,
+            'is_default' : current_instance.is_default ,
+            'is_active' : current_instance.is_active ,
+            'sorting_order' : current_instance.sorting_order ,
+            'has_encoding' : bool(current_instance.encoding and current_instance.encoding.strip()) ,
+        }
+
+    # ==================== СВОЙСТВА ====================
+
+    @property
+    def options_list(self) -> List[models.Model] :
+        """Все доступные опции для родительского объекта"""
+        parent = self._get_parent_object()
+        if not parent :
+            return []
+        parent_field = self._get_parent_field_name()
+        if not parent_field :
+            return []
+        return list(self.__class__.objects.filter(**{parent_field : parent , 'is_active' : True}))
+    def is_option_allowed(self, option_to_check) -> bool:
+        """
+        Проверяет, входит ли переданная опция в список допустимых опций для этого родительского объекта.
+
+        Args:
+            option_to_check: Экземпляр опции для проверки
+                             (может быть id, экземпляр модели или None)
+
+        Returns:
+            bool: True если опция допустима, False если нет
+        """
+        if option_to_check is None:
+            return True  # None всегда допустим (опциональная опция)
+
+        # Получаем родительский объект текущего экземпляра
+        current_parent = self._get_parent_object()
+        if not current_parent:
+            return False
+
+        # Определяем id опции для проверки
+        if isinstance(option_to_check, models.Model):
+            # Если передан экземпляр модели, проверяем его класс
+            if not isinstance(option_to_check, self.__class__):
+                return False
+            option_id_to_check = option_to_check.id
+        elif isinstance(option_to_check, (int, str)):
+            try:
+                option_id_to_check = int(option_to_check)
+            except (ValueError, TypeError):
+                return False
+        else:
+            return False
+
+        # Получаем родительский объект проверяемой опции
+        try:
+            # Получаем проверяемую опцию из БД
+            option_instance = self.__class__.objects.filter(
+                id=option_id_to_check,
+                is_active=True
+            ).first()
+
+            if not option_instance:
+                return False
+
+            # Получаем родительский объект проверяемой опции
+            checked_parent = option_instance._get_parent_object()
+            if not checked_parent:
+                return False
+
+            # Проверяем, что родительские объекты совпадают
+            return current_parent.id == checked_parent.id
+
+        except self.__class__.DoesNotExist:
+            return False
+
+    @classmethod
+    def is_option_allowed_for_parent(cls, parent_obj, option_to_check) -> bool:
+        """
+        Проверяет, входит ли переданная опция в список допустимых опций
+        для указанного родительского объекта.
+        """
+        if option_to_check is None:
+            return True  # None всегда допустим
+
+        if parent_obj is None:
+            return False
+
+        # Получаем имя поля, связывающего с родителем
+        parent_field_name = cls._get_parent_field_name()
+        if not parent_field_name:
+            return False
+
+        # Формируем фильтр для поиска опции
+        filter_kwargs = {
+            'is_active': True,
+            parent_field_name: parent_obj
+        }
+
+        # В зависимости от типа option_to_check
+        if isinstance(option_to_check, models.Model):
+            if not isinstance(option_to_check, cls):
+                return False
+            filter_kwargs['id'] = option_to_check.id
+        elif isinstance(option_to_check, (int, str)):
+            try:
+                filter_kwargs['id'] = int(option_to_check)
+            except (ValueError, TypeError):
+                return False
+        else:
+            return False
+
+        # Проверяем, существует ли такая опция у родителя
+        return cls.objects.filter(**filter_kwargs).exists()
+    def validate_unique_encoding(self):
+        """
+        Проверка уникальности кодирования - только для сохраненных объектов
+        """
+        if not self.encoding:
+            return
+
+        # Если объект еще не сохранен, пропускаем проверку
+        if self._state.adding:
+            return
+
+        # Получаем родительское поле
+        parent_field_name = self._get_parent_field_name()
+
+        if not parent_field_name:
+            return
+
+        parent = getattr(self, parent_field_name, None)
+
+        if parent is not None and hasattr(parent, 'pk') and parent.pk is not None:
+            try:
+                query = {parent_field_name: parent, 'encoding': self.encoding}
+                existing_encoding = self.__class__.objects.filter(
+                    **query
+                ).exclude(pk=self.pk)
+
+                if existing_encoding.exists():
+                    raise ValidationError({
+                        'encoding': _(
+                            'Кодирование "%(encoding)s" уже существует. '
+                            'Пожалуйста, выберите другое значение.'
+                        ) % {'encoding': self.encoding}
+                    })
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Ошибка при проверке уникальности кодирования: {e}")
+
+    def clean(self) -> None :
+        """Только базовая валидация"""
+        self.validate_unique_encoding()  # Оставляем только безопасные проверки
+
+    def save(self , *args , **kwargs) :
+        """Простое сохранение"""
+        self.full_clean()
+        super().save(*args , **kwargs)
+    def __str__(self):
+        return str(self.encoding) if self.encoding else _("Опция без имени")
+
+
+class BaseThroughOption(BaseThroughOptionNoDefault) :
+    """Базовый абстрактный класс для всех сквозных опций"""
+
     is_default = models.BooleanField(
         default=False ,
         verbose_name=_("Стандартная опция") ,
@@ -152,50 +343,6 @@ class BaseThroughOption(models.Model) :
         except Exception :
             return False
 
-
-
-    # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
-
-    def _get_parent_object(self) -> Optional[models.Model] :
-        """Получить родительский объект"""
-        parent_field = self._get_parent_field_name()
-        return getattr(self , parent_field , None) if parent_field else None
-
-    @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
-        """Автоматически определить имя поля родительского объекта"""
-        for field in cls._meta.fields :
-            if isinstance(field , models.ForeignKey) and field.name != 'id' :
-                return field.name
-        return None
-
-    def get_option_info(self , option_instance: Optional['BaseThroughOption'] = None) -> Dict[str , Any] :
-        """Полная информация об опции"""
-        current_instance = option_instance or self
-        return {
-            'id' : current_instance.id ,
-            'encoding' : current_instance.encoding ,
-            'description' : current_instance.description ,
-            'display_name' : str(current_instance) ,
-            'is_default' : current_instance.is_default ,
-            'is_active' : current_instance.is_active ,
-            'sorting_order' : current_instance.sorting_order ,
-            'has_encoding' : bool(current_instance.encoding and current_instance.encoding.strip()) ,
-        }
-
-    # ==================== СВОЙСТВА ====================
-
-    @property
-    def options_list(self) -> List[models.Model] :
-        """Все доступные опции для родительского объекта"""
-        parent = self._get_parent_object()
-        if not parent :
-            return []
-        parent_field = self._get_parent_field_name()
-        if not parent_field :
-            return []
-        return list(self.__class__.objects.filter(**{parent_field : parent , 'is_active' : True}))
-
     @property
     def default_option(self) -> Optional[models.Model] :
         """Стандартная опция для родительского объекта"""
@@ -208,154 +355,15 @@ class BaseThroughOption(models.Model) :
         return self.__class__.objects.filter(
             **{parent_field : parent , 'is_default' : True , 'is_active' : True}).first()
 
-    def is_option_allowed(self, option_to_check) -> bool:
-        """
-        Проверяет, входит ли переданная опция в список допустимых опций для этого родительского объекта.
 
-        Args:
-            option_to_check: Экземпляр опции для проверки
-                             (может быть id, экземпляр модели или None)
-
-        Returns:
-            bool: True если опция допустима, False если нет
-        """
-        if option_to_check is None:
-            return True  # None всегда допустим (опциональная опция)
-
-        # Получаем родительский объект текущего экземпляра
-        current_parent = self._get_parent_object()
-        if not current_parent:
-            return False
-
-        # Определяем id опции для проверки
-        if isinstance(option_to_check, models.Model):
-            # Если передан экземпляр модели, проверяем его класс
-            if not isinstance(option_to_check, self.__class__):
-                return False
-            option_id_to_check = option_to_check.id
-        elif isinstance(option_to_check, (int, str)):
-            try:
-                option_id_to_check = int(option_to_check)
-            except (ValueError, TypeError):
-                return False
-        else:
-            return False
-
-        # Получаем родительский объект проверяемой опции
-        try:
-            # Получаем проверяемую опцию из БД
-            option_instance = self.__class__.objects.filter(
-                id=option_id_to_check,
-                is_active=True
-            ).first()
-
-            if not option_instance:
-                return False
-
-            # Получаем родительский объект проверяемой опции
-            checked_parent = option_instance._get_parent_object()
-            if not checked_parent:
-                return False
-
-            # Проверяем, что родительские объекты совпадают
-            return current_parent.id == checked_parent.id
-
-        except self.__class__.DoesNotExist:
-            return False
-
-    @classmethod
-    def is_option_allowed_for_parent(cls, parent_obj, option_to_check) -> bool:
-        """
-        Проверяет, входит ли переданная опция в список допустимых опций
-        для указанного родительского объекта.
-        """
-        if option_to_check is None:
-            return True  # None всегда допустим
-
-        if parent_obj is None:
-            return False
-
-        # Получаем имя поля, связывающего с родителем
-        parent_field_name = cls._get_parent_field_name()
-        if not parent_field_name:
-            return False
-
-        # Формируем фильтр для поиска опции
-        filter_kwargs = {
-            'is_active': True,
-            parent_field_name: parent_obj
-        }
-
-        # В зависимости от типа option_to_check
-        if isinstance(option_to_check, models.Model):
-            if not isinstance(option_to_check, cls):
-                return False
-            filter_kwargs['id'] = option_to_check.id
-        elif isinstance(option_to_check, (int, str)):
-            try:
-                filter_kwargs['id'] = int(option_to_check)
-            except (ValueError, TypeError):
-                return False
-        else:
-            return False
-
-        # Проверяем, существует ли такая опция у родителя
-        return cls.objects.filter(**filter_kwargs).exists()
     # ==================== ВАЛИДАЦИЯ ====================
 
     def validate_unique_default(self) -> None :
         """Пустая валидация - проверку делаем после сохранения"""
         pass
 
-    def validate_unique_encoding(self):
-        """
-        Проверка уникальности кодирования - только для сохраненных объектов
-        """
-        if not self.encoding:
-            return
 
-        # Если объект еще не сохранен, пропускаем проверку
-        if self._state.adding:
-            return
 
-        # Получаем родительское поле
-        parent_field_name = self._get_parent_field_name()
-
-        if not parent_field_name:
-            return
-
-        parent = getattr(self, parent_field_name, None)
-
-        if parent is not None and hasattr(parent, 'pk') and parent.pk is not None:
-            try:
-                query = {parent_field_name: parent, 'encoding': self.encoding}
-                existing_encoding = self.__class__.objects.filter(
-                    **query
-                ).exclude(pk=self.pk)
-
-                if existing_encoding.exists():
-                    raise ValidationError({
-                        'encoding': _(
-                            'Кодирование "%(encoding)s" уже существует. '
-                            'Пожалуйста, выберите другое значение.'
-                        ) % {'encoding': self.encoding}
-                    })
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Ошибка при проверке уникальности кодирования: {e}")
-
-    def clean(self) -> None :
-        """Только базовая валидация"""
-        self.validate_unique_encoding()  # Оставляем только безопасные проверки
-
-    def save(self , *args , **kwargs) :
-        """Простое сохранение"""
-        self.full_clean()
-        super().save(*args , **kwargs)
-
-    # def __str__(self):
-    #     return str(self.encoding) if self.encoding else _("Опция")
     def __str__(self):
         """Безопасный __str__ с логированием"""
         print("BaseThroughOption.__str__  called")

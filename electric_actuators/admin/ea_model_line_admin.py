@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from electric_actuators.models import ModelLine , ElectricTemperatureOption , ElectricIpOption , \
     ElectricHandWheelOption , \
     ElectricExdOption , ElectricBodyCoatingOption , ElectricActuatorModelLine , ElectricTurnAngleOption , \
-    ElectricBlinkerOption , ElectricPowerSupplyOption , ElectricWaySwitchesOption , ElectricControlUnitInstalledOption , \
+    ElectricBlinkerOption , ElectricWaySwitchesOption , ElectricControlUnitInstalledOption , \
     ElectricMechanicalIndicatorOption , ElectricOperatingModeOption
 import logging
 from django.shortcuts import redirect
@@ -85,7 +85,6 @@ def copy_related_options(original_obj, new_obj):
         ('body_coating_options', 'encoding'),
         ('blinker_options', 'encoding'),
         ('way_switches_options', 'encoding'),
-        ('power_supply_options', 'encoding'),
         ('control_unit_options', 'encoding'),
         ('hand_wheel_options', 'encoding'),
         ('mechanical_indicator_options', 'encoding'),
@@ -310,31 +309,6 @@ class ElectricWaySwitchesOptionInline(admin.TabularInline) :
 
         formset.model.__str__ = safe_str
         return formset
-#
-# class ElectricPowerSupplyOptionInline(admin.TabularInline) :
-#     """Inline для напряжения питания"""
-#     model = ElectricPowerSupplyOption
-#     extra = 0
-#     ordering = ['sorting_order']
-#     fields = ['power_supply','encoding' ,  'is_default' , 'is_active' , 'sorting_order']
-#     verbose_name = _("Напряжение")
-#     verbose_name_plural = _("Опции напряжения питания")
-#
-#     def get_formset(self, request, obj=None, **kwargs):
-#         formset = super().get_formset(request, obj, **kwargs)
-#
-#         # Патчим метод __str__ для формы
-#         original_str = formset.model.__str__
-#
-#         def safe_str(instance):
-#             try:
-#                 return original_str(instance)
-#             except Exception as e:
-#                 logger.debug(f"Ошибка в __str__: {e}")
-#                 return "Новая опция"
-#
-#         formset.model.__str__ = safe_str
-#         return formset
 
 class ElectricBlinkerOptionInline(admin.TabularInline) :
     """Inline для температурных опций"""
@@ -539,7 +513,6 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         ElectricTurnAngleOptionInline ,
         ElectricBlinkerOptionInline ,
         ElectricWaySwitchesOptionInline ,
-    #     ElectricPowerSupplyOptionInline ,
         ElectricControlUnitInstalledOptionInline ,
         # ElectricOperatingModeOptionInline ,  # ДОБАВИТЬ
         ElectricMechanicalIndicatorOptionInline  # ДОБАВИТЬ
@@ -577,7 +550,6 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
             'turn_angle_options',
             'blinker_options',
             'way_switches_options',
-            # 'power_supply_options',
             'control_unit_options',
             # 'operating_mode_options',          # ДОБАВИТЬ
             'mechanical_indicator_options'     # ДОБАВИТЬ

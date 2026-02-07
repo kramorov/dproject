@@ -39,9 +39,13 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         ElectricBodyCoatingOption - Опции покрытия корпуса для электроприводов
         QC быстросъемное соединение
         ElectricWaySwitchesOption MID	Опция 3х позиционный (по доп.концевикам) - Путевые выключатели SwitchesParameters
-        ElectricPowerSupplyOption PowerSupply
         ElectricControlUnitInstalledOption  Control Unit (POSI, TR, INT...)
         ElectricBlinkerOption  Блинкер BlinkerOption
+    Опции model_line_item:
+        ElectricPowerSupplyOption PowerSupply (time to close, rotation_speed,
+        torque_min, torque_max,
+        Current_rated, current_max, motor_power
+        torque_switches
     """
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,
@@ -519,6 +523,10 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         """Получить стандартную опцию механического индикатора"""
         from .ea_options import ElectricMechanicalIndicatorOption
         return ElectricMechanicalIndicatorOption.get_or_create_default(self)
+    def get_default_hand_wheel_option(self) :
+        """Получить стандартную опцию ручного дублера"""
+        from .ea_options import ElectricHandWheelOption
+        return ElectricHandWheelOption.get_or_create_default(self)
 
     # ==================== ОТОБРАЖАЕМЫЕ СВОЙСТВА ====================
 
@@ -583,6 +591,11 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     def mechanical_indicator_options_list(self) :
         """Список всех опций механического индикатора"""
         return self.mechanical_indicator_options.all()
+
+    @property
+    def hand_wheel_options_list(self) :
+        """Список всех опций ручного дулера"""
+        return self.hand_wheel_options.all()
 
     def get_option_info(self):
         """Полная информация о всех опциях серии"""

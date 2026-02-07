@@ -93,26 +93,6 @@ class ElectricBlinkerOption(BaseBlinkerThroughOption):
         return 'model_line'
 
 
-class ElectricPowerSupplyOption(BasePowerSupplyThroughOption):
-    """Опции напряжения питания для электроприводов"""
-    model_line = models.ForeignKey(
-        'ElectricActuatorModelLine',
-        on_delete=models.CASCADE,
-        related_name='power_supply_options',
-        verbose_name=_("Серия электроприводов")
-    )
-
-    class Meta:
-        verbose_name = _("Опция напряжения питания")
-        verbose_name_plural = _("Опции напряжения питания электроприводов")
-        ordering = ['sorting_order']
-        unique_together = ['model_line', 'power_supply']
-
-    @classmethod
-    def _get_parent_field_name(cls):
-        return 'model_line'
-
-
 class ElectricIpOption(BaseIpThroughOption):
     """Опции IP для электроприводов"""
     model_line = models.ForeignKey(
