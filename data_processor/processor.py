@@ -1,7 +1,7 @@
 from django.db.models import Model
 from collections import namedtuple
 
-from electric_actuators.models import ModelLine, ElectricActuatorData, ActualActuator
+from electric_actuators.models import ElectricActuatorData , ActualActuator , ElectricActuatorModelLine
 from params.models import IpOption, ExdOption, PowerSupplies, DigitalProtocolsSupportOption, ControlUnitInstalledOption, \
     EnvTempParameters
 from typing import Type
@@ -59,7 +59,7 @@ def process_model_name(model_string):
     lines = model_string_upper.split('.')
     model = lines[0]
     model_line = model.split('E')[0] + 'E'
-    model_line_result = find_record_by_fields(ModelLine, {'name': model_line}, 'name')
+    model_line_result = find_record_by_fields(ElectricActuatorModelLine, {'name': model_line}, 'name')
     if model_line_result.description == 'Ошибка!':
         model_line = 'Серия приводов с названием = ' + model_line + ' не найдена.'
         result_table.extend([

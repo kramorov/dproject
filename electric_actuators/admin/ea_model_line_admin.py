@@ -2,11 +2,11 @@
 from django.db import models
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from electric_actuators.models import ModelLine , ElectricTemperatureOption , ElectricIpOption , \
+from electric_actuators.models import ElectricTemperatureOption , ElectricIpOption , \
     ElectricHandWheelOption , \
     ElectricExdOption , ElectricBodyCoatingOption , ElectricActuatorModelLine , ElectricTurnAngleOption , \
     ElectricBlinkerOption , ElectricWaySwitchesOption , ElectricControlUnitInstalledOption , \
-    ElectricMechanicalIndicatorOption , ElectricOperatingModeOption
+    ElectricMechanicalIndicatorOption , ElectricOperatingModeOption , ModelLine
 import logging
 from django.shortcuts import redirect
 from django.contrib import messages
@@ -182,35 +182,35 @@ def get_parent_field_name(option_instance, parent_class):
     return None
 
 
-# @admin.register(ModelLine)
-# class ModelLineAdmin(admin.ModelAdmin):
-#     ordering = ['name']
-#     # Показать важные поля в списке объектов модели
-#     list_display = ('name', 'default_output_type', 'brand')
-#
-#     fieldsets = (
-#         ('Общая информация', {
-#             'fields': (
-#                 ('name', 'default_output_type', 'brand',), 'default_blinker')
-#         }),
-#         ('Опции', {
-#             'fields': (
-#                 ('default_ip', 'allowed_ip'), ('default_exd', 'allowed_exd'),
-#                 ('default_body_coating', 'allowed_body_coating'),
-#                 ('default_temperature', 'allowed_temperature'),
-#                 ('default_control_unit_installed', 'allowed_control_unit_installed'),)
-#         }),
-#         ('Конечные, путевые выключатели и датчики момента', {
-#             'fields': (
-#                 ('default_end_switches', 'allowed_end_switches'), ('default_way_switches', 'allowed_way_switches'),
-#                 ('default_torque_switches', 'allowed_torque_switches'))
-#         }),
-#         ('Прочее', {
-#             'fields': (
-#                 ('default_hand_wheel', 'allowed_hand_wheel'), ('default_operating_mode', 'allowed_operating_mode'),
-#                 )
-#         }),
-#     )
+@admin.register(ModelLine)
+class ModelLineAdmin(admin.ModelAdmin):
+    ordering = ['name']
+    # Показать важные поля в списке объектов модели
+    list_display = ('name', 'default_output_type', 'brand')
+
+    fieldsets = (
+        ('Общая информация', {
+            'fields': (
+                ('name', 'default_output_type', 'brand',), 'default_blinker')
+        }),
+        ('Опции', {
+            'fields': (
+                ('default_ip', 'allowed_ip'), ('default_exd', 'allowed_exd'),
+                ('default_body_coating', 'allowed_body_coating'),
+                ('default_temperature', 'allowed_temperature'),
+                ('default_control_unit_installed', 'allowed_control_unit_installed'),)
+        }),
+        ('Конечные, путевые выключатели и датчики момента', {
+            'fields': (
+                ('default_end_switches', 'allowed_end_switches'), ('default_way_switches', 'allowed_way_switches'),
+                ('default_torque_switches', 'allowed_torque_switches'))
+        }),
+        ('Прочее', {
+            'fields': (
+                ('default_hand_wheel', 'allowed_hand_wheel'), ('default_operating_mode', 'allowed_operating_mode'),
+                )
+        }),
+    )
 
 
 class ElectricOperatingModeOptionInline(admin.TabularInline):

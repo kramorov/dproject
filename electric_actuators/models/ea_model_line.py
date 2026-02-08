@@ -1,11 +1,9 @@
 #electric_actuators/models/ea_model_line.py
 from django.db import models
-from django.contrib.contenttypes.fields import GenericRelation
 from django.utils.translation import gettext_lazy as _
 from typing import List , Optional , Tuple , Any , Dict , Union
 from django.core.exceptions import ValidationError
-from django.db.models.signals import pre_save, post_save
-from django.dispatch import receiver
+
 import logging
 
 
@@ -13,9 +11,8 @@ from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin
 
 from producers.models import Brands
-from params.models import ExdOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
-    EnvTempParameters, IpOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, HandWheelInstalledOption, \
-    OperatingModeOption, CertData, \
+from params.models import ActuatorGearboxOutputType , OperatingModeOption , IpOption , BodyCoatingOption , ExdOption , \
+    BlinkerOption , SwitchesParameters , EnvTempParameters , ControlUnitInstalledOption , HandWheelInstalledOption , \
     MechanicalIndicatorInstalledOption
 
 logger = logging.getLogger(__name__)
@@ -509,11 +506,6 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         from .ea_options import ElectricTurnAngleOption
         return ElectricTurnAngleOption.get_or_create_default(self)
 
-    def get_default_power_supply_option(self) :
-        """Получить стандартную опцию питания"""
-        from .ea_options import ElectricPowerSupplyOption
-        return ElectricPowerSupplyOption.get_or_create_default(self)
-
     def get_default_operating_mode_option(self) :
         """Получить стандартную опцию режима работы"""
         from .ea_options import ElectricOperatingModeOption
@@ -566,11 +558,6 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     def way_switches_options_list(self) :
         """Список всех опций путевых выключателей"""
         return self.way_switches_options.all()
-
-    @property
-    def power_supply_options_list(self) :
-        """Список всех опций питания"""
-        return self.power_supply_options.all()
 
     @property
     def control_unit_options_list(self) :
@@ -630,11 +617,7 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
                 if self.get_default_way_switches_option() else None,
                 'options': [opt.get_option_info() for opt in self.way_switches_options_list]
             },
-            'power_supply': {
-                'default': self.get_default_power_supply_option().get_option_info()
-                if self.get_default_power_supply_option() else None,
-                'options': [opt.get_option_info() for opt in self.power_supply_options_list]
-            },
+
             'control_unit': {
                 'default': self.get_default_control_unit_option().get_option_info()
                 if self.get_default_control_unit_option() else None,
@@ -818,7 +801,7 @@ class ModelLine(models.Model):
                                help_text='Возможные для выбора режимы работы двигателя для серии (можно выбрать '
                                          'несколько)')
 
-    certificates = GenericRelation(CertData)
+    # certificates = GenericRelation(CertData)
 
     def __str__(self):
         return self.name

@@ -804,60 +804,6 @@ class BaseTurnAngleThroughOption(BaseThroughOption):
         return self.get_display_name()
 
 
-class BasePowerSupplyThroughOption(BaseThroughOption):
-    """Базовая модель для сквозных опций напряжения питания"""
-    power_supply = models.ForeignKey(
-        'params.PowerSupplies',
-        on_delete=models.CASCADE,
-        verbose_name=_("Напряжение:") ,
-        help_text=_('Напряжение питания, В'))
-
-    class Meta:
-        abstract = True
-        ordering = ['sorting_order']
-
-    @classmethod
-    def create_default_option(cls , parent_obj) :
-        """Создать стандартную опцию питания"""
-        from django.apps import apps
-
-        PowerSupplies = apps.get_model('params' , 'PowerSupplies')
-
-        try :
-            # Ищем стандартное напряжение (например, 230VAC)
-            default_power = PowerSupplies.objects.filter(
-                voltage='230VAC' ,  # или другой стандарт
-                is_active=True
-            ).first()
-            if not default_power :
-                default_power = PowerSupplies.objects.filter(is_active=True).first()
-        except Exception :
-            default_power = PowerSupplies.objects.filter(is_active=True).first()
-
-        if default_power :
-            parent_field = cls._get_parent_field_name()
-            return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                power_supply=default_power ,
-                encoding=default_power.code if default_power.code else '' ,
-                description=default_power.description ,
-                is_default=True ,
-                sorting_order=0 ,
-                is_active=True
-            )
-        return None
-
-    def get_display_name(self) :
-        """Отображаемое имя для напряжения питания"""
-        if self.power_supply :
-            if self.encoding and self.encoding.strip() :
-                return f"{self.encoding} ({self.power_supply.name})"
-            return self.power_supply.name
-        return "Не указано"
-
-    def __str__(self) :
-        return self.get_display_name()
-
 class BaseSpringsQtyThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций положения безопасности НО/НЗ/оставаться..."""
     # from .pa_params import PneumaticActuatorSpringsQty

@@ -51,9 +51,9 @@ class ActualActuator(models.Model) :
     #                                               on_delete=models.SET_NULL , null=True , blank=True ,
     #                                               help_text='Отверстия под кабельные вводы')
 
-    actual_wiring_diagram = models.ForeignKey('WiringDiagram' , related_name='actual_wiring_diagram' ,
-                                              on_delete=models.SET_NULL , null=True , blank=True ,
-                                              help_text='Схема подключения')
+    # actual_wiring_diagram = models.ForeignKey('WiringDiagram' , related_name='actual_wiring_diagram' ,
+    #                                           on_delete=models.SET_NULL , null=True , blank=True ,
+    #                                           help_text='Схема подключения')
     actual_ip = models.ForeignKey(IpOption , related_name='actual_ip' , blank=True , null=True ,
                                   on_delete=models.SET_NULL , help_text='Степень IP')
     actual_body_coating = models.ForeignKey(BodyCoatingOption , related_name='actual_body_coating' , blank=True ,

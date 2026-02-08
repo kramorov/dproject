@@ -1,0 +1,51 @@
+/*electric_actuators/static/admin/css/ea_selected_admin.css*/
+/* Стили для админки выбранных электроприводов */
+.option-field {
+    width: 100%;
+}
+
+.field-selected_model_line_item select {
+    background-color: #f8f9fa;
+    border: 2px solid #007bff;
+}
+
+/* Бейджи для статусов */
+.badge-active {
+    background-color: #28a745;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.badge-inactive {
+    background-color: #dc3545;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.badge-unique {
+    background-color: #17a2b8;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+/* Иконки для опций */
+.option-icon {
+    display: inline-block;
+    margin-right: 5px;
+    font-size: 14px;
+}
+
+/* Группировка полей */
+.fieldset-mechanical-options {
+    border-left: 3px solid #6f42c1;
+}
+
+.fieldset-electrical-options {
+    border-left: 3px solid #20c997;
+}

@@ -25,13 +25,13 @@ def copy_electric_power_supply_option(modeladmin , request , queryset) :
                     setattr(copy_obj , field.name , getattr(obj , field.name))
 
             # Добавляем "(Копия)" к названию и кодировке
-            if hasattr(copy_obj , 'name') and copy_obj.name :
-                copy_obj.name = f"{copy_obj.name} (Копия)"
-
             if hasattr(copy_obj , 'encoding') and copy_obj.encoding :
-                copy_obj.encoding = f"{copy_obj.encoding} (Копия)"
-            elif hasattr(copy_obj , 'encoding') :
-                copy_obj.encoding = "copy"
+                copy_obj.name = f"{copy_obj.encoding} (Копия)"
+
+            # if hasattr(copy_obj , 'encoding') and copy_obj.encoding :
+            #     copy_obj.encoding = f"{copy_obj.encoding} (Копия)"
+            # elif hasattr(copy_obj , 'encoding') :
+            #     copy_obj.encoding = "copy"
 
             copy_obj.save()
             copied_count += 1
@@ -64,12 +64,8 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin) :
     """Админка для опций напряжения питания модели в серии электроприводов"""
 
     list_display = (
-        'model_line_item_display' ,
-        'power_supply_display' ,
-        'encoding_display' ,
-        'torque_range' ,
-        'time_to_open' ,
-        'rotation_speed' ,
+        'display_name' ,
+        'display_params',
         'is_active' ,
         'sorting_order' ,
     )
@@ -112,71 +108,10 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin) :
                 'motor_power' ,
             )
         }) ,
-        (_('Механические параметры') , {
-            'fields' : (
-                ('torque_min' , 'torque_max') ,
-                ('time_to_open' , 'rotation_speed') ,
-            )
-        }) ,
+
     )
-
-    raw_id_fields = ['model_line_item' , 'power_supply']
-
     # Автодополнение для ForeignKey полей
     # autocomplete_fields = ['power_supply']
-
-    # Методы для отображения в списке
-    def model_line_item_display(self , obj) :
-        """Отображение модели в серии"""
-        if obj.model_line_item :
-            return format_html(
-                '<strong>{}</strong><br><small>Серия: {}</small>' ,
-                obj.model_line_item.name ,
-                obj.model_line_item.model_line.name if obj.model_line_item.model_line else '-'
-            )
-        return "-"
-
-    model_line_item_display.short_description = _('Модель')
-    model_line_item_display.admin_order_field = 'model_line_item__name'
-
-    def power_supply_display(self , obj) :
-        """Отображение напряжения питания"""
-        if obj.power_supply :
-            return format_html(
-                '{}<br><small>{}</small>' ,
-                obj.power_supply.name ,
-                obj.power_supply.voltage if hasattr(obj.power_supply , 'voltage') else ''
-            )
-        return "-"
-
-    power_supply_display.short_description = _('Напряжение питания')
-    power_supply_display.admin_order_field = 'power_supply__name'
-
-    def encoding_display(self , obj) :
-        """Отображение кодировки с подсветкой"""
-        if obj.encoding :
-            if obj.is_default :
-                return format_html(
-                    '<span style="background-color: #d4edda; padding: 2px 6px; border-radius: 3px;">'
-                    '{} (стандарт)</span>' ,
-                    obj.encoding
-                )
-            return obj.encoding
-        return "-"
-
-    encoding_display.short_description = _('Кодировка')
-
-    def torque_range(self , obj) :
-        """Отображение диапазона усилия"""
-        if obj.torque_min and obj.torque_max :
-            return f"{obj.torque_min}...{obj.torque_max} Нм"
-        elif obj.torque_min :
-            return f"от {obj.torque_min} Нм"
-        elif obj.torque_max :
-            return f"до {obj.torque_max} Нм"
-        return "-"
-
-    torque_range.short_description = _('Усилие, Нм')
 
     # Оптимизация запросов
     def get_queryset(self , request) :
@@ -185,7 +120,15 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin) :
             'model_line_item__model_line' ,
             'power_supply'
         )
+    def display_name(self, obj) :
+        if obj.model_line_item and obj.power_supply:
+            return f'{obj.model_line_item.name}.{obj.power_supply.encoding}'
+        return "Не указано имя модели или напряжение"
 
+    def display_params(self, obj) :
+        if obj.model_line_item and obj.power_supply:
+            return f'Iном={obj.motor_current_rated} / Istart={obj.motor_current_starting} / P={obj.motor_power}'
+        return "Не указано имя модели или напряжение"
     # Проверка уникальности дефолтных опций
     def save_model(self , request , obj , form , change) :
         super().save_model(request , obj , form , change)

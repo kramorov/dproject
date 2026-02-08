@@ -39,6 +39,26 @@ class ElectricActuatorModelLineItem(models.Model) :
                           related_name='electric_model_line_item_body' ,
                           on_delete=models.SET_NULL ,
                           help_text=_('Корпус модели'))
+    time_to_open = models.DecimalField(max_digits=6 , decimal_places=2 , blank=True , null=True ,
+                                       default=0 ,
+                                       verbose_name=_('Откр, с') ,
+                                       help_text=_('Время открытия, сек'))
+    time_to_close = models.DecimalField(max_digits=6 , decimal_places=2 , blank=True , null=True ,
+                                        default=0 ,
+                                        verbose_name=_('Закр, с') ,
+                                        help_text=_('Время закрытия, с'))
+    rotation_speed = models.DecimalField(max_digits=3 , decimal_places=0 , blank=True , null=True ,
+                                         default=0 ,
+                                         verbose_name=_('Об/мин') ,
+                                         help_text=_('Скорость, об/мин'))
+    torque_min = models.DecimalField(max_digits=5 , decimal_places=0 ,
+                                     default=0 ,
+                                     verbose_name=_('Мин.усилие') ,
+                                     help_text=_('Минимальное усилие'))
+    torque_max = models.DecimalField(max_digits=5 , decimal_places=0 ,
+                                     default=0 ,
+                                     verbose_name=_('Макс.усилие') ,
+                                     help_text=_('Максимальное усилие'))
 
     class Meta :
         ordering = ['sorting_order']

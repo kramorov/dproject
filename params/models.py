@@ -23,6 +23,12 @@ class PowerSupplies(models.Model):
     code = models.CharField(max_length=50, blank=True, null=True,
                             help_text=_("Код типа напряжения"),
                             verbose_name=_("Код"))
+    encoding = models.CharField(
+        max_length=20 ,
+        blank=True ,
+        verbose_name=_("Кодировка") ,
+        help_text=_("Код опции для подстановки в артикул")
+    )
     description = models.TextField(blank=True, verbose_name=_("Описание"))
     sorting_order = models.IntegerField(default=0,
                                         verbose_name=_("Порядок сортировки"),

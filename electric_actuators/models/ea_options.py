@@ -4,14 +4,27 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from options.models import (
-    BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption,
-    BaseIpThroughOption, BaseHandWheelThroughOption, BaseTurnAngleThroughOption,
-    BasePowerSupplyThroughOption, BaseBlinkerThroughOption, BaseControlUnitInstalledThroughOption,
-    BaseWaySwitchesThroughOption,
-    BaseOperatingModeThroughOption,
-    BaseMechanicalIndicatorThroughOption, BaseThroughOption
+    BaseTemperatureThroughOption , BaseExdThroughOption , BaseBodyCoatingThroughOption ,
+    BaseIpThroughOption , BaseHandWheelThroughOption , BaseTurnAngleThroughOption ,
+    BaseBlinkerThroughOption , BaseControlUnitInstalledThroughOption ,
+    BaseWaySwitchesThroughOption ,
+    BaseOperatingModeThroughOption ,
+    BaseMechanicalIndicatorThroughOption , BaseThroughOption , BaseSafetyPositionThroughOption
 )
+class ElectricSafetyPositionOption(BaseSafetyPositionThroughOption):
+    """Опции покрытия корпуса для пневмоприводов"""
+    model_line_item = models.ForeignKey(
+        'ElectricActuatorModelLineItem',
+        on_delete=models.CASCADE,
+        related_name='ea_safety_position_option_model_line_item',
+        verbose_name=_("Положение безопасности")
+    )
 
+    class Meta:
+        verbose_name = _("Положение безопасности модели электропривода")
+        verbose_name_plural = _("Положения безопасности моделей лектроприводов")
+        ordering = ['sorting_order']
+        unique_together = ['model_line_item', 'safety_position']
 
 class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
     """Угол поворота для электроприводов"""

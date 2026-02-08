@@ -98,7 +98,6 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
     search_fields = [
         'name' ,
         'code' ,
-        'description' ,
         'model_line__name' ,
         'model_line__code' ,
         'body__name'
@@ -108,34 +107,21 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
     list_select_related = [ 'model_line' , 'body']
 
     # ========== ПОЛЯ В ФОРМЕ РЕДАКТИРОВАНИЯ ==========
+
     fieldsets = (
         (_('Основная информация') , {
-            'fields' : (
-                'name' ,
-                'code' ,
-                'description' ,
-            ) ,
+            'fields' : (('name' ,'code' ,) ,('model_line' , 'body') ,
+             ('sorting_order' , 'is_active') ),
             'classes' : ('wide' ,)
         }) ,
-        (_('Связи') , {
+
+        (_('Механические параметры') , {
             'fields' : (
-                ('model_line' , 'body') ,
-            ) ,
-            'classes' : ('wide' ,)
-        }) ,
-        (_('Настройки отображения') , {
-            'fields' : (
-                ('sorting_order' , 'is_active') ,
-            ) ,
-            'classes' : ('collapse' , 'wide')
-        }) ,
-        (_('Системная информация') , {
-            'fields' : () ,
-            'classes' : ('collapse' ,) ,
-            'description' : _('Автоматически заполняемые поля')
+                ('torque_min' , 'torque_max') ,
+                ('time_to_open' , 'rotation_speed') ,
+            )
         }) ,
     )
-
     # ========== АВТОДОПОЛНЕНИЕ И ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР ==========
     autocomplete_fields = ['model_line' , 'body']
 
@@ -147,6 +133,7 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
 
 
     # ========== МЕТОДЫ ДЛЯ ОТОБРАЖЕНИЯ В СПИСКЕ ==========
+
 
     def model_line_display(self , obj) :
         """Отображение серии с брендом"""

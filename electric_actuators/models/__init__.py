@@ -8,6 +8,7 @@ from .ea_options import *
 from .ea_body import *
 from .ea_model_line_item_options import *
 from .ea_model_line_item import *
+from .ea_actuator_selected import *
 
 __all__ = [
     # все модели, которые должны быть доступны извне
@@ -17,7 +18,7 @@ __all__ = [
     'ModelBody',
     'CableGlandHolesSet',
     'ActualActuator',
-    'WiringDiagram',
+    # 'WiringDiagram',
     'ElectricHandWheelOption',
     'ElectricTemperatureOption',
     'ElectricIpOption',
@@ -31,6 +32,7 @@ __all__ = [
     'ElectricMechanicalIndicatorOption',
     'ElectricOperatingModeOption',
     'ElectricActuatorBody',
-    'ElectricActuatorModelLineItem'
+    'ElectricActuatorModelLineItem',
+    'ElectricActuatorSelected'
 
 ]
