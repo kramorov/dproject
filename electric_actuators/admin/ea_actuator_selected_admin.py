@@ -41,8 +41,6 @@ class ElectricActuatorSelectedForm(forms.ModelForm) :
 
     def _filter_options_by_model_line(self , model_line_item) :
         """Фильтрует опции по выбранной модели"""
-
-        # Получаем связанную серию (model_line)
         model_line = model_line_item.model_line
 
         # Фильтруем каждое поле опций
@@ -50,31 +48,27 @@ class ElectricActuatorSelectedForm(forms.ModelForm) :
             if option_field in self.fields :
                 parent_field = config['parent_field']
 
-                # Импортируем модель опции
                 try :
+                    # Динамический импорт модели
+                    import importlib
                     module_path , class_name = config['model_path'].rsplit('.' , 1)
-                    module = __import__(module_path , fromlist=[class_name])
+                    module = importlib.import_module(module_path)
                     model_class = getattr(module , class_name)
 
                     # Строим фильтр
-                    filter_kwargs = {f"{parent_field}" : model_line}
-
-                    # Если это температура, возможно нужен другой фильтр
-                    if option_field == 'selected_temperature' :
-                        # Для температуры может быть прямая связь с model_line
-                        filter_kwargs = {"model_line" : model_line}
+                    filter_kwargs = {parent_field : model_line}
 
                     # Получаем доступные опции
                     available_options = model_class.objects.filter(**filter_kwargs , is_active=True)
 
                     # Устанавливаем queryset для поля
                     self.fields[option_field].queryset = available_options
-
-                    # Устанавливаем пустое значение
                     self.fields[option_field].empty_label = "--- Выберите опцию ---"
 
                 except Exception as e :
                     logger.error(f"Ошибка фильтрации опций {option_field}: {e}")
+                    # Пропускаем, оставляем оригинальный queryset
+                    continue
 
 
 # ============================= INLINE ДЛЯ СВЯЗАННЫХ ДАННЫХ =============================
@@ -86,14 +80,8 @@ class ElectricActuatorMountingPlateInline(admin.TabularInline) :
     verbose_name = _("Монтажная площадка")
     verbose_name_plural = _("Монтажные площадки")
 
-    # Автодополнение для ForeignKey
-    # autocomplete_fields = ['mountingplatetypes']
-
     def get_formset(self , request , obj=None , **kwargs) :
-        formset = super().get_formset(request , obj , **kwargs)
-
-        # Лимитируем выбор, если нужно
-        return formset
+        return super().get_formset(request , obj , **kwargs)
 
 
 # ============================= ОСНОВНАЯ АДМИНКА =============================
@@ -141,7 +129,7 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
         'selected_exd' ,
         'selected_body_coating' ,
         'selected_hand_wheel' ,
-        'selected_safety_position' ,
+        # 'selected_safety_position',  # Убрать, если нет в модели
     ]
 
     # ========== ПОЛЯ В ФОРМЕ РЕДАКТИРОВАНИЯ ==========
@@ -187,15 +175,6 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
         }) ,
     )
 
-    # ========== АВТОДОПОЛНЕНИЕ ==========
-    # autocomplete_fields = [
-    #     'selected_model_line_item' ,
-    #     'actual_stem_shape' ,
-    #     'actual_stem_size' ,
-    #     'actual_cable_glands_holes' ,
-    #     'selected_safety_position' ,
-    # ]
-
     # Используем raw_id_fields для опций, которые фильтруются в форме
     raw_id_fields = [
         'selected_temperature' ,
@@ -210,33 +189,9 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
 
     # ========== ДЕЙСТВИЯ ==========
     actions = [
-        'set_as_unique' ,
-        'set_as_not_unique' ,
         'apply_default_options' ,
         'generate_names_and_codes' ,
     ]
-
-    def set_as_unique(self , request , queryset) :
-        """Пометить как уникальную конфигурацию"""
-        updated = queryset.update(is_unique=True)
-        self.message_user(
-            request ,
-            f"{updated} конфигураций помечены как уникальные." ,
-            messages.SUCCESS
-        )
-
-    set_as_unique.short_description = _("Пометить как уникальные")
-
-    def set_as_not_unique(self , request , queryset) :
-        """Пометить как не уникальную конфигурацию"""
-        updated = queryset.update(is_unique=False)
-        self.message_user(
-            request ,
-            f"{updated} конфигураций помечены как не уникальные." ,
-            messages.SUCCESS
-        )
-
-    set_as_not_unique.short_description = _("Пометить как не уникальные")
 
     def apply_default_options(self , request , queryset) :
         """Применить дефолтные опции из выбранной модели"""
@@ -247,7 +202,6 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
             try :
                 with transaction.atomic() :
                     if selected_actuator.selected_model_line_item :
-                        # Применяем дефолтные опции
                         selected_actuator.apply_default_options()
                         selected_actuator.save()
                         success_count += 1
@@ -255,10 +209,20 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
                     else :
                         error_count += 1
                         logger.warning(f"Нет выбранной модели для: {selected_actuator.name}")
+                        self.message_user(
+                            request ,
+                            f"Нет выбранной модели для {selected_actuator.name}" ,
+                            messages.WARNING
+                        )
 
             except Exception as e :
                 error_count += 1
                 logger.error(f"Ошибка применения опций для {selected_actuator}: {e}")
+                self.message_user(
+                    request ,
+                    f"Ошибка для {selected_actuator.name}: {str(e)[:100]}" ,
+                    messages.ERROR
+                )
 
         if success_count > 0 :
             messages.success(request , f"Применены дефолтные опции для {success_count} конфигураций.")
@@ -270,18 +234,27 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
     def generate_names_and_codes(self , request , queryset) :
         """Сгенерировать названия и коды"""
         success_count = 0
+        error_count = 0
 
         for selected_actuator in queryset :
             try :
-                # Вызываем метод модели для генерации
                 selected_actuator.generate_name_and_code()
                 selected_actuator.save()
                 success_count += 1
                 logger.info(f"Сгенерировано имя и код для: {selected_actuator.name}")
             except Exception as e :
+                error_count += 1
                 logger.error(f"Ошибка генерации для {selected_actuator}: {e}")
+                self.message_user(
+                    request ,
+                    f"Ошибка для {selected_actuator.name}: {str(e)[:100]}" ,
+                    messages.ERROR
+                )
 
-        messages.success(request , f"Сгенерированы имена и коды для {success_count} конфигураций.")
+        if success_count > 0 :
+            messages.success(request , f"Сгенерированы имена и коды для {success_count} конфигураций.")
+        if error_count > 0 :
+            messages.warning(request , f"Не удалось сгенерировать для {error_count} конфигураций.")
 
     generate_names_and_codes.short_description = _("Сгенерировать названия и коды")
 
@@ -310,7 +283,6 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
         """Компактное отображение выбранных опций"""
         options = []
 
-        # Список опций для отображения
         option_fields = [
             ('selected_temperature' , '🌡️') ,
             ('selected_ip' , '🛡️') ,
@@ -365,73 +337,95 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
     def save_model(self , request , obj , form , change) :
         """Сохранение модели с автоматическим заполнением дефолтных значений"""
 
-        # Если создается новый объект и выбрана модель
-        if not change and obj.selected_model_line_item :
-            # Применяем дефолтные опции
-            obj.apply_default_options()
+        apply_defaults = request.POST.get('apply_defaults') == '1'
+        generate_name_code = request.POST.get('generate_name_code') == '1'
 
-            # Генерируем имя и код, если они пустые
-            if not obj.name :
+        # ДЕБАГ: выводим все POST данные
+        print("=" * 50)
+        print("DEBUG save_model called")
+        print(f"change: {change}")
+        print(f"apply_defaults: {apply_defaults}")
+        print(f"generate_name_code: {generate_name_code}")
+        print(f"POST data: {dict(request.POST)}")
+        print(f"selected_model_line_item: {obj.selected_model_line_item}")
+        print("=" * 50)
+
+        # Новая запись
+        if not change :
+            print("DEBUG: New record creation")
+            if obj.selected_model_line_item :
+                try :
+                    print("DEBUG: Auto-applying default options")
+                    obj.apply_default_options()
+                    print(f"DEBUG: Default options applied")
+
+                    if not obj.name :
+                        print("DEBUG: Auto-generating name and code")
+                        obj.generate_name_and_code()
+                        print(f"DEBUG: Generated name: {obj.name}, code: {obj.code}")
+
+                except Exception as e :
+                    print(f"DEBUG ERROR: {e}")
+                    logger.error(f"Ошибка при создании новой записи: {e}")
+                    messages.error(request , f"Ошибка: {str(e)[:100]}")
+
+        # Существующая запись с кнопкой "Применить дефолтные опции"
+        elif change and apply_defaults :
+            print(f"DEBUG: Applying defaults for existing record {obj.id}")
+            if obj.selected_model_line_item :
+                try :
+                    obj.apply_default_options()
+                    messages.success(request , _("Дефолтные опции успешно применены."))
+                    print(f"DEBUG: Default options applied")
+                except Exception as e :
+                    print(f"DEBUG ERROR: {e}")
+                    logger.error(f"Ошибка применения дефолтных опций: {e}")
+                    messages.error(request , f"Ошибка применения дефолтных опций: {str(e)[:100]}")
+            else :
+                messages.error(request , _("Не выбрана модель для применения опций"))
+
+        # Существующая запись с кнопкой "Сгенерировать имя и код"
+        elif change and generate_name_code :
+            print(f"DEBUG: Generating name/code for existing record {obj.id}")
+            try :
                 obj.generate_name_and_code()
+                messages.success(request , _("Имя и код успешно сгенерированы."))
+                print(f"DEBUG: Generated name: {obj.name}, code: {obj.code}")
+            except Exception as e :
+                print(f"DEBUG ERROR: {e}")
+                logger.error(f"Ошибка генерации имени и кода: {e}")
+                messages.error(request , f"Ошибка генерации имени и кода: {str(e)[:100]}")
 
-        # Сохраняем модель
         super().save_model(request , obj , form , change)
 
-        # Логируем действие
-        action = "обновлена" if change else "создана"
-        logger.info(
-            f"Конфигурация электропривода {action}: "
-            f"ID={obj.id}, Модель={obj.selected_model_line_item}, "
-            f"Уникальная={obj.is_unique}"
-        )
+        print(f"DEBUG: Model saved, ID={obj.id}")
 
     def get_form(self , request , obj=None , **kwargs) :
         """Получение формы с динамической фильтрацией"""
         form = super().get_form(request , obj , **kwargs)
 
-        # Для существующего объекта фильтруем опции
-        if obj and obj.selected_model_line_item :
-            # Динамически фильтруем queryset для полей опций
+        if obj and obj.selected_model_line_item and obj.selected_model_line_item.model_line :
             model_line = obj.selected_model_line_item.model_line
+
+            import importlib
 
             for option_field , config in ElectricActuatorSelected._OPTION_CONFIG.items() :
                 if option_field in form.base_fields :
                     try :
                         module_path , class_name = config['model_path'].rsplit('.' , 1)
-                        module = __import__(module_path , fromlist=[class_name])
+                        module = importlib.import_module(module_path)
                         model_class = getattr(module , class_name)
 
-                        # Фильтруем по model_line
-                        filter_kwargs = {f"{config['parent_field']}" : model_line}
+                        filter_kwargs = {config['parent_field'] : model_line}
                         queryset = model_class.objects.filter(**filter_kwargs , is_active=True)
 
                         form.base_fields[option_field].queryset = queryset
 
                     except Exception as e :
                         logger.error(f"Ошибка фильтрации поля {option_field}: {e}")
+                        continue
 
         return form
-
-    def response_change(self , request , obj) :
-        """Обработка после изменения"""
-
-        # Показываем сообщение, если были применены дефолтные опции
-        if 'apply_defaults' in request.POST :
-            messages.success(request , _("Дефолтные опции успешно применены."))
-
-        return super().response_change(request , obj)
-
-    # ========== КАСТОМНЫЕ ВЬЮХИ ==========
-
-    def change_view(self , request , object_id , form_url='' , extra_context=None) :
-        """Кастомный вид редактирования"""
-        extra_context = extra_context or {}
-        extra_context['title'] = _("Редактирование конфигурации электропривода")
-
-        # Добавляем кнопку для применения дефолтных опций
-        extra_context['show_apply_defaults'] = True
-
-        return super().change_view(request , object_id , form_url , extra_context)
 
     def add_view(self , request , form_url='' , extra_context=None) :
         """Кастомный вид добавления"""
@@ -441,15 +435,11 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
             "После выбора модели будут автоматически применены дефолтные опции "
             "и сгенерированы название и код."
         )
-
         return super().add_view(request , form_url , extra_context)
-
-    # ========== ПРОИЗВОДИТЕЛЬНОСТЬ ==========
 
     def get_queryset(self , request) :
         """Оптимизированный запрос"""
         qs = super().get_queryset(request)
-
         return qs.select_related(
             'selected_model_line_item' ,
             'selected_model_line_item__model_line' ,
@@ -473,8 +463,10 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
         js = (
             'admin/js/vendor/jquery/jquery.js' ,
             'admin/js/jquery.init.js' ,
-            'admin/js/electric_selected_admin.js' ,  # Кастомный JS файл
+            'admin/js/electric_selected_admin.js' ,
         )
         css = {
-            'all' : ('admin/css/electric_selected_admin.css' ,)
+            'all' : (
+                'admin/css/electric_selected_admin.css' ,
+            )
         }

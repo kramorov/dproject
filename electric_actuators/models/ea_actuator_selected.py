@@ -161,7 +161,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
     class Meta:
         ordering = ['sorting_order']
         verbose_name = _('Модель электропривода selected')
-        verbose_name_plural = _('Модели электропривода')
+        verbose_name_plural = _('Модели электропривода selected')
         # constraints = [
         #     models.UniqueConstraint(
         #         fields=[
@@ -183,12 +183,17 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
     def __str__(self):
         return self.name
 
-        def apply_default_options(self) :
-            """Применить дефолтные опции из выбранной модели"""
-            if not self.selected_model_line_item :
-                return
+    def apply_default_options(self) :
+        """Применить дефолтные опции из выбранной модели"""
+        print(f"DEBUG MODEL: apply_default_options called for {self}")
 
+        if not self.selected_model_line_item:
+            print("DEBUG MODEL: No model selected")
+            return
+
+        try :
             model_line = self.selected_model_line_item.model_line
+            print(f"DEBUG MODEL: Model line: {model_line}")
 
             # Для каждой опции ищем дефолтное значение
             for option_field , config in self._OPTION_CONFIG.items() :
@@ -210,33 +215,40 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
                     except Exception as e :
                         logger.error(f"Ошибка применения дефолтной опции {option_field}: {e}")
+            print("DEBUG MODEL: Default options applied successfully")
+        except Exception as e:
+            print(f"DEBUG MODEL ERROR: {e}")
+        raise
 
-        def generate_name_and_code(self) :
-            """Сгенерировать название и код на основе выбранных опций"""
-            if not self.selected_model_line_item :
-                return
+    def generate_name_and_code(self) :
+        """Сгенерировать название и код"""
+        print(f"DEBUG MODEL: generate_name_and_code called for {self}")
 
-            base_name = self.selected_model_line_item.name
-            base_code = self.selected_model_line_item.code or ""
+        if not self.selected_model_line_item:
+            print("DEBUG MODEL: No model selected for generation")
+            return
 
-            # Собираем части имени и кода из выбранных опций
-            name_parts = [base_name]
-            code_parts = [base_code] if base_code else []
+        base_name = self.selected_model_line_item.name
+        base_code = self.selected_model_line_item.code or ""
 
-            # Добавляем опции в имя и код
-            for option_field in self.get_option_fields() :
-                option = getattr(self , option_field)
-                if option :
-                    name_parts.append(str(option))
-                    if hasattr(option , 'encoding') and option.encoding :
-                        code_parts.append(option.encoding)
+        # Собираем части имени и кода из выбранных опций
+        name_parts = [base_name]
+        code_parts = [base_code] if base_code else []
 
-            self.name = " - ".join(name_parts)
-            self.code = "".join(code_parts) if code_parts else None
+        # Добавляем опции в имя и код
+        for option_field in self.get_option_fields() :
+            option = getattr(self , option_field)
+            if option :
+                name_parts.append(str(option))
+                if hasattr(option , 'encoding') and option.encoding :
+                    code_parts.append(option.encoding)
 
-            # Если код слишком длинный, обрезаем
-            if self.code and len(self.code) > 50 :
-                self.code = self.code[:50]
+        self.name = " - ".join(name_parts)
+        self.code = "".join(code_parts) if code_parts else None
+
+        # Если код слишком длинный, обрезаем
+        if self.code and len(self.code) > 50 :
+            self.code = self.code[:50]
         # ==================== StructuredDataMixin методы ====================
 
     # GET /api/core/?model=pneumatic_actuators.PneumaticActuatorSelected&id=4&fmt=compact

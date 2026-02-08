@@ -1,4 +1,179 @@
-/*electric_actuators/static/admin/css/ea_selected_admin.css*/
+/* electric_actuators/static/electric_actuators/css/admin/electric_selected_admin.css */
+
+/* Стили для кастомных кнопок */
+.custom-action-btn {
+    font-weight: bold;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    padding: 8px 15px;
+    margin-right: 10px;
+    margin-bottom: 5px;
+}
+
+.custom-action-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+#apply-defaults-btn {
+    background-color: #20c997;
+    color: white;
+}
+
+#apply-defaults-btn:hover {
+    background-color: #1ea085;
+}
+
+#generate-name-code-btn {
+    background-color: #17a2b8;
+    color: white;
+}
+
+#generate-name-code-btn:hover {
+    background-color: #148ea1;
+}
+
+#toggle-unique-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+#toggle-unique-btn:hover {
+    background-color: #5a6268;
+}
+
+/* Контейнер для кнопок */
+.custom-buttons-container {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+.custom-buttons-container h3 {
+    margin-top: 0;
+    color: #495057;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Стили для полей опций */
+.option-field {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 6px 12px;
+    width: 100%;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.option-field:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Иконки для полей */
+.fieldBox {
+    position: relative;
+}
+
+.fieldBox:before {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .custom-buttons-container {
+        padding: 10px;
+    }
+
+    .custom-action-btn {
+        display: block;
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    .submit-row {
+        text-align: center;
+    }
+}
+
+/* Анимация загрузки */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
+    margin: 0 auto 15px;
+}
+
+/* Стили для сообщений */
+.messagelist {
+    margin: 0 0 20px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.messagelist li {
+    padding: 10px 15px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.messagelist li.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.messagelist li.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Улучшение отображения полей с иконками */
+.field-selected_temperature,
+.field-selected_ip,
+.field-selected_exd,
+.field-selected_body_coating,
+.field-selected_hand_wheel,
+.field-selected_safety_position {
+    position: relative;
+}
+
+.field-selected_temperature:before {
+    content: "🌡️";
+    position: absolute;
+    left: 10px;
+    top: 35px;
+    z-index: 1;
+}
+
+.field-selected_ip:before {
+    content: "🛡️";
+    position: absolute;
+    left: 10px;
+    top: 35px;
+    z-index: 1;
+}
 /* Стили для админки выбранных электроприводов */
 .option-field {
     width: 100%;
