@@ -6,53 +6,68 @@ from django.contrib import messages
 from django.utils.html import format_html
 
 from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
-from params.admin import PowerSuppliesAdmin  # если нужно автодополнение
 
 
-def copy_electric_power_supply_option(modeladmin , request , queryset) :
-    """Копировать выбранные опции питания с добавлением '(Копия)'"""
+def copy_electric_power_supply_option(modeladmin, request, queryset):
+    """Копировать выбранные опции питания с использованием create_copy() метода"""
+    from django.contrib import messages
+
     copied_count = 0
     errors = []
+    copied_items = []
 
-    for obj in queryset :
-        try :
-            # Создаем копию объекта
-            copy_obj = ElectricPowerSupplyOption()
+    for obj in queryset:
+        try:
+            # Проверяем, есть ли у объекта метод create_copy
+            if not hasattr(obj, 'create_copy') or not callable(getattr(obj, 'create_copy')):
+                errors.append(f"{obj}: Объект не имеет метода create_copy()")
+                continue
 
-            # Копируем все поля кроме id
-            for field in obj._meta.fields :
-                if field.name not in ['id' , 'pk'] :
-                    setattr(copy_obj , field.name , getattr(obj , field.name))
+            # Используем метод create_copy из модели
+            copy_obj = obj.create_copy()
 
-            # Добавляем "(Копия)" к названию и кодировке
-            if hasattr(copy_obj , 'encoding') and copy_obj.encoding :
-                copy_obj.name = f"{copy_obj.encoding} (Копия)"
+            # Добавляем "(Копия)" к полям если нужно
+            if hasattr(copy_obj, 'name') and copy_obj.name:
+                original_name = copy_obj.name
+                copy_obj.name = f"{original_name} (Копия)"
+                copy_obj.save()
+                copied_items.append(f"{original_name} → {copy_obj.name}")
+            else:
+                copied_items.append(f"ID: {obj.id} → ID: {copy_obj.id}")
 
-            # if hasattr(copy_obj , 'encoding') and copy_obj.encoding :
-            #     copy_obj.encoding = f"{copy_obj.encoding} (Копия)"
-            # elif hasattr(copy_obj , 'encoding') :
-            #     copy_obj.encoding = "copy"
-
-            copy_obj.save()
             copied_count += 1
 
-        except Exception as e :
-            errors.append(f"{obj}: {str(e)}")
+        except Exception as e:
+            error_msg = f"{obj}: {str(e)}"
+            errors.append(error_msg)
 
-    # Показываем результат
-    if copied_count > 0 :
-        modeladmin.message_user(
-            request ,
-            f"Успешно скопировано {copied_count} опций питания" ,
-            messages.SUCCESS
-        )
+    # Формируем детальное сообщение
+    if copied_count > 0:
+        message = f"Успешно скопировано {copied_count} опций питания:\n"
+        for i, item in enumerate(copied_items[:5]):  # Показываем первые 5
+            message += f"\n{i + 1}. {item}"
 
-    if errors :
+        if len(copied_items) > 5:
+            message += f"\n... и ещё {len(copied_items) - 5} опций"
+
+        modeladmin.message_user(request, message, messages.SUCCESS)
+
+    if errors:
+        error_message = f"Ошибки при копировании {len(errors)} опций:"
+        for i, error in enumerate(errors[:3]):
+            error_message += f"\n{i + 1}. {error}"
+
+        if len(errors) > 3:
+            error_message += f"\n... и ещё {len(errors) - 3} ошибок"
+
+        modeladmin.message_user(request, error_message, messages.WARNING)
+
+    # Итоговое сообщение
+    if copied_count > 0 or errors:
         modeladmin.message_user(
-            request ,
-            f"Ошибки при копировании: {', '.join(errors[:5])}" +
-            ("..." if len(errors) > 5 else "") ,
-            messages.ERROR
+            request,
+            f"Итог: {copied_count} успешно, {len(errors)} с ошибками",
+            messages.INFO
         )
 
 
@@ -60,58 +75,90 @@ copy_electric_power_supply_option.short_description = "📋 Копировать
 
 
 @admin.register(ElectricPowerSupplyOption)
-class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin) :
-    """Админка для опций напряжения питания модели в серии электроприводов"""
+class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
+    list_display = ('model_line_item', 'power_supply', 'get_time_open',
+                    'get_time_close', 'get_torque_range', 'display_control_units')
+    list_filter = ('model_line_item', 'power_supply', 'control_unit_option', 'is_active')
+    search_fields = ('model_line_item__name', 'power_supply__name', 'encoding')
+    ordering = ('model_line_item', 'sorting_order')
 
-    list_display = (
-        'display_name' ,
-        'display_params',
-        'is_active' ,
-        'sorting_order' ,
-    )
+    # Горизонтальный выбор для ManyToMany
+    filter_horizontal = ('control_unit_option',)
 
-    list_editable = (
-        'is_active' ,
-        'sorting_order' ,
-    )
-
-    list_filter = (
-        'is_active' ,
-        'power_supply' ,
-        'model_line_item__model_line' ,
-    )
-
-    # search_fields = (
-    #     'encoding' ,
-    #     'description' ,
-    #     'model_line_item__name' ,
-    #     'model_line_item__code' ,
-    #     'model_line_item__model_line__name' ,
-    #     'power_supply__name' ,
-    #     'power_supply__code' ,
-    # )
-
-    ordering = ('model_line_item' , 'sorting_order')
-
-    actions = [copy_electric_power_supply_option]
-
+    # Используем TabbedInline для группировки полей по вкладкам
     fieldsets = (
-        (_('Основная информация') , {
-            'fields' : (
-                ('model_line_item' , 'power_supply', 'encoding' ,) ,
-                ('is_active' , 'sorting_order') ,
+        (None, {
+            'fields': (
+                'model_line_item',
+                'power_supply',
+                'control_unit_option',
+                'is_active',
+                'sorting_order'
             )
-        }) ,
-        (_('Электрические параметры') , {
-            'fields' : (
-                ('motor_current_rated' , 'motor_current_starting') ,
-                'motor_power' ,
+        }),
+        (_('Кодирование'), {
+            'fields': ('encoding',),
+            'classes': ('collapse',)
+        }),
+        (_('Характеристики двигателя'), {
+            'fields': (
+                'motor_current_rated',
+                'motor_current_starting',
+                'motor_power'
             )
-        }) ,
-
+        }),
+        (_('Характеристики работы'), {
+            'fields': (
+                'time_to_open',
+                'time_to_close',
+                'torque_min',
+                'torque_max'
+            )
+        }),
+        (_('Описание'), {
+            'fields': ('description',),
+            'classes': ('collapse',)
+        }),
     )
-    # Автодополнение для ForeignKey полей
-    # autocomplete_fields = ['power_supply']
+
+    # Добавляем кастомные методы для отображения в списке
+    def get_time_open(self, obj):
+        return f"{obj.time_to_open} с" if obj.time_to_open else "-"
+
+    get_time_open.short_description = _('Время открытия')
+    get_time_open.admin_order_field = 'time_to_open'
+
+    def get_time_close(self, obj):
+        return f"{obj.time_to_close} с" if obj.time_to_close else "-"
+
+    get_time_close.short_description = _('Время закрытия')
+    get_time_close.admin_order_field = 'time_to_close'
+
+    def get_torque_range(self, obj):
+        if obj.torque_min and obj.torque_max:
+            return f"{obj.torque_min}-{obj.torque_max} Нм"
+        elif obj.torque_min:
+            return f"от {obj.torque_min} Нм"
+        elif obj.torque_max:
+            return f"до {obj.torque_max} Нм"
+        return "-"
+
+    get_torque_range.short_description = _('Диапазон усилия')
+
+    def display_control_units(self, obj):
+        count = obj.control_unit_option.count()
+        if count > 0:
+            return f"{count} шт."
+        return "-"
+
+    display_control_units.short_description = _('Блоки упр.')
+
+    # Настройка формы для редактирования
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "control_unit_option":
+            # Можно добавить фильтрацию если нужно
+            kwargs["queryset"] = db_field.related_model.objects.filter(is_active=True)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     # Оптимизация запросов
     def get_queryset(self , request) :
@@ -132,62 +179,3 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin) :
     # Проверка уникальности дефолтных опций
     def save_model(self , request , obj , form , change) :
         super().save_model(request , obj , form , change)
-
-
-
-    # Фильтр по серии
-    # def get_list_filter(self , request) :
-    #     list_filter = list(self.list_filter)
-    #
-    #     return tuple(list_filter)
-
-    # # Кнопка быстрого копирования на странице редактирования
-    # def change_view(self , request , object_id , form_url='' , extra_context=None) :
-    #     extra_context = extra_context or {}
-    #     extra_context['show_copy_button'] = True
-    #     return super().change_view(request , object_id , form_url , extra_context)
-    #
-    # def response_change(self , request , obj) :
-    #     if "_copy_this" in request.POST :
-    #         # Копируем текущий объект
-    #         try :
-    #             new_obj = ElectricPowerSupplyOption()
-    #
-    #             for field in obj._meta.fields :
-    #                 if field.name not in ['id' , 'pk'] :
-    #                     setattr(new_obj , field.name , getattr(obj , field.name))
-    #
-    #             if hasattr(new_obj , 'encoding') and new_obj.encoding :
-    #                 new_obj.encoding = f"{new_obj.encoding}_copy"
-    #             elif hasattr(new_obj , 'encoding') :
-    #                 new_obj.encoding = "copy"
-    #
-    #             if hasattr(new_obj , 'is_default') :
-    #                 new_obj.is_default = False
-    #
-    #             if hasattr(new_obj , 'sorting_order') :
-    #                 new_obj.sorting_order = (obj.sorting_order or 0) + 1000
-    #
-    #             new_obj.save()
-    #
-    #             self.message_user(
-    #                 request ,
-    #                 f"Опция питания успешно скопирована (новая запись: {new_obj.pk})" ,
-    #                 messages.SUCCESS
-    #             )
-    #
-    #             # Перенаправляем на редактирование копии
-    #             from django.urls import reverse
-    #             from django.http import HttpResponseRedirect
-    #             return HttpResponseRedirect(
-    #                 reverse('admin:electric_actuators_electricpowersupplyoption_change' , args=[new_obj.pk])
-    #             )
-    #
-    #         except Exception as e :
-    #             self.message_user(
-    #                 request ,
-    #                 f"Ошибка при копировании: {str(e)}" ,
-    #                 messages.ERROR
-    #             )
-    #
-    #     return super().response_change(request , obj)

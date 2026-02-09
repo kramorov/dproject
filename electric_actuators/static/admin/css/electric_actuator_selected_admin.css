@@ -1,0 +1,93 @@
+/* static/admin/css/electric_admin.css */
+
+/* Общие стили для всех кнопок генерации */
+#generate-description-btn,
+.generate-description-btn,
+button[name="generate_description"] {
+    background-color: #4CAF50 !important;
+    color: white !important;
+    padding: 8px 16px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 13px !important;
+    transition: background-color 0.3s !important;
+}
+
+#generate-description-btn:hover,
+.generate-description-btn:hover,
+button[name="generate_description"]:hover {
+    background-color: #45a049 !important;
+}
+
+#generate-description-btn:disabled,
+.generate-description-btn:disabled,
+button[name="generate_description"]:disabled {
+    background-color: #cccccc !important;
+    cursor: not-allowed !important;
+}
+
+/* Кнопка предпросмотра */
+#preview-description-btn,
+.preview-description-btn {
+    background-color: #2196F3 !important;
+    color: white !important;
+    padding: 8px 16px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 13px !important;
+    margin-left: 10px !important;
+    transition: background-color 0.3s !important;
+}
+
+#preview-description-btn:hover,
+.preview-description-btn:hover {
+    background-color: #1976D2 !important;
+}
+
+/* Статус генерации */
+#description-status,
+.description-status {
+    margin-top: 10px !important;
+    padding: 8px !important;
+    border-radius: 4px !important;
+    font-size: 13px !important;
+}
+
+/* Цвета статусов */
+#description-status .loading,
+.description-status .loading {
+    color: #2196F3 !important;
+}
+
+#description-status .success,
+.description-status .success {
+    color: #4CAF50 !important;
+}
+
+#description-status .error,
+.description-status .error {
+    color: #f44336 !important;
+}
+
+/* Стили для кнопки дублирования в списке */
+.button[href*="/duplicate/"] {
+    background: #ff9800 !important;
+    border-color: #ff9800 !important;
+}
+
+.button[href*="/duplicate/"]:hover {
+    background: #f57c00 !important;
+    border-color: #f57c00 !important;
+}
+
+/* Информационное сообщение для новых объектов */
+.info-message {
+    padding: 10px !important;
+    background-color: #f8f9fa !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    margin: 10px 0 !important;
+    color: #666 !important;
+}

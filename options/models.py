@@ -8,72 +8,75 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class BaseThroughOptionNoDefault(models.Model) :
+
+class BaseThroughOptionNoDefault(models.Model):
     """Базовый абстрактный класс для всех сквозных опций"""
     encoding = models.CharField(
-        max_length=50 ,
-        blank=True ,
-        verbose_name=_("Кодировка") ,
+        max_length=50,
+        blank=True,
+        verbose_name=_("Кодировка"),
         help_text=_("Код опции для подстановки в артикул")
     )
     description = models.TextField(
-        blank=True ,
-        verbose_name=_("Описание") ,
+        blank=True,
+        verbose_name=_("Описание"),
         help_text=_("Дополнительное описание этой опции")
     )
     sorting_order = models.IntegerField(
-        default=0 ,
+        default=0,
         verbose_name=_("Порядок сортировки")
     )
     is_active = models.BooleanField(
-        default=True ,
+        default=True,
         verbose_name=_("Активно")
     )
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
- # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
-    def _get_parent_object(self) -> Optional[models.Model] :
+    # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+
+    def _get_parent_object(self) -> Optional[models.Model]:
         """Получить родительский объект"""
         parent_field = self._get_parent_field_name()
-        return getattr(self , parent_field , None) if parent_field else None
+        return getattr(self, parent_field, None) if parent_field else None
 
     @classmethod
-    def _get_parent_field_name(cls) -> Optional[str] :
+    def _get_parent_field_name(cls) -> Optional[str]:
         """Автоматически определить имя поля родительского объекта"""
-        for field in cls._meta.fields :
-            if isinstance(field , models.ForeignKey) and field.name != 'id' :
+        for field in cls._meta.fields:
+            if isinstance(field, models.ForeignKey) and field.name != 'id':
                 return field.name
         return None
 
-    def get_option_info(self , option_instance: Optional['BaseThroughOption'] = None) -> Dict[str , Any] :
+    def get_option_info(self, option_instance: Optional['BaseThroughOption'] = None) -> Dict[str, Any]:
         """Полная информация об опции"""
         current_instance = option_instance or self
         return {
-            'id' : current_instance.id ,
-            'encoding' : current_instance.encoding ,
-            'description' : current_instance.description ,
-            'display_name' : str(current_instance) ,
-            'is_default' : current_instance.is_default ,
-            'is_active' : current_instance.is_active ,
-            'sorting_order' : current_instance.sorting_order ,
-            'has_encoding' : bool(current_instance.encoding and current_instance.encoding.strip()) ,
+            'id': current_instance.id,
+            'encoding': current_instance.encoding,
+            'description': current_instance.description,
+            'display_name': str(current_instance),
+            'is_default': current_instance.is_default,
+            'is_active': current_instance.is_active,
+            'sorting_order': current_instance.sorting_order,
+            'has_encoding': bool(current_instance.encoding and current_instance.encoding.strip()),
         }
 
     # ==================== СВОЙСТВА ====================
 
     @property
-    def options_list(self) -> List[models.Model] :
+    def options_list(self) -> List[models.Model]:
         """Все доступные опции для родительского объекта"""
         parent = self._get_parent_object()
-        if not parent :
+        if not parent:
             return []
         parent_field = self._get_parent_field_name()
-        if not parent_field :
+        if not parent_field:
             return []
-        return list(self.__class__.objects.filter(**{parent_field : parent , 'is_active' : True}))
+        return list(self.__class__.objects.filter(**{parent_field: parent, 'is_active': True}))
+
     def is_option_allowed(self, option_to_check) -> bool:
         """
         Проверяет, входит ли переданная опция в список допустимых опций для этого родительского объекта.
@@ -167,6 +170,7 @@ class BaseThroughOptionNoDefault(models.Model) :
 
         # Проверяем, существует ли такая опция у родителя
         return cls.objects.filter(**filter_kwargs).exists()
+
     def validate_unique_encoding(self):
         """
         Проверка уникальности кодирования - только для сохраненных объектов
@@ -205,35 +209,36 @@ class BaseThroughOptionNoDefault(models.Model) :
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Ошибка при проверке уникальности кодирования: {e}")
 
-    def clean(self) -> None :
+    def clean(self) -> None:
         """Только базовая валидация"""
         self.validate_unique_encoding()  # Оставляем только безопасные проверки
 
-    def save(self , *args , **kwargs) :
+    def save(self, *args, **kwargs):
         """Простое сохранение"""
         self.full_clean()
-        super().save(*args , **kwargs)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return str(self.encoding) if self.encoding else _("Опция без имени")
 
 
-class BaseThroughOption(BaseThroughOptionNoDefault) :
+class BaseThroughOption(BaseThroughOptionNoDefault):
     """Базовый абстрактный класс для всех сквозных опций"""
 
     is_default = models.BooleanField(
-        default=False ,
-        verbose_name=_("Стандартная опция") ,
+        default=False,
+        verbose_name=_("Стандартная опция"),
         help_text=_("Является ли эта опция стандартной для серии")
     )
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
 
     # ==================== МЕТОДЫ ДЛЯ ОПЦИЙ ПО УМОЛЧАНИЮ ====================
 
     @classmethod
-    def ensure_default_exists(cls , parent_obj) -> bool :
+    def ensure_default_exists(cls, parent_obj) -> bool:
         """
         Гарантировать наличие дефолтной опции для родительского объекта
         Для этого проверяем, есть ли дефолтная опция у родительского объекта.
@@ -242,40 +247,40 @@ class BaseThroughOption(BaseThroughOptionNoDefault) :
         Возвращает True если была создана новая опция
         """
         parent_field = cls._get_parent_field_name()
-        if not parent_field :
+        if not parent_field:
             return False
 
         # Проверяем, есть ли уже дефолтная опция
         existing_default = cls.objects.filter(
-            **{parent_field : parent_obj , 'is_default' : True , 'is_active' : True}
+            **{parent_field: parent_obj, 'is_default': True, 'is_active': True}
         ).first()
 
-        if existing_default :
+        if existing_default:
             return False  # Дефолтная опция уже существует
 
         # Если есть опции, но нет дефолтной - делаем первую активную опцию дефолтной
         first_active_option = cls.objects.filter(
-            **{parent_field : parent_obj , 'is_active' : True}
+            **{parent_field: parent_obj, 'is_active': True}
         ).first()
 
-        if first_active_option :
+        if first_active_option:
             first_active_option.is_default = True
             first_active_option.save()
             return False
 
         # Если нет опций вообще - создаем дефолтную
-        if hasattr(cls , 'create_default_option') :
+        if hasattr(cls, 'create_default_option'):
             cls.create_default_option(parent_obj)
             return True
-        else :
+        else:
             # Базовая реализация если нет специфичного метода
             return cls._create_basic_default_option(parent_obj)
 
     @classmethod
-    def get_or_create_default(cls , parent_obj) :
+    def get_or_create_default(cls, parent_obj):
         """Получить или создать дефолтную опцию"""
         parent_field = cls._get_parent_field_name()
-        if not parent_field :
+        if not parent_field:
             return None
 
         # Сначала гарантируем наличие дефолтной опции
@@ -283,7 +288,7 @@ class BaseThroughOption(BaseThroughOptionNoDefault) :
 
         # Возвращаем дефолтную опцию
         return cls.objects.filter(
-            **{parent_field : parent_obj , 'is_default' : True , 'is_active' : True}
+            **{parent_field: parent_obj, 'is_default': True, 'is_active': True}
         ).first()
 
     @classmethod
@@ -324,45 +329,42 @@ class BaseThroughOption(BaseThroughOptionNoDefault) :
         return default_option
 
     @classmethod
-    def _create_basic_default_option(cls , parent_obj) -> bool :
+    def _create_basic_default_option(cls, parent_obj) -> bool:
         """Базовая реализация создания опции по умолчанию"""
         parent_field = cls._get_parent_field_name()
-        if not parent_field :
+        if not parent_field:
             return False
 
-        try :
+        try:
             cls.objects.create(
-                **{parent_field : parent_obj} ,
-                encoding='STD' ,
-                description='Стандартная опция' ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                encoding='STD',
+                description='Стандартная опция',
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
             return True
-        except Exception :
+        except Exception:
             return False
 
     @property
-    def default_option(self) -> Optional[models.Model] :
+    def default_option(self) -> Optional[models.Model]:
         """Стандартная опция для родительского объекта"""
         parent = self._get_parent_object()
-        if not parent :
+        if not parent:
             return None
         parent_field = self._get_parent_field_name()
-        if not parent_field :
+        if not parent_field:
             return None
         return self.__class__.objects.filter(
-            **{parent_field : parent , 'is_default' : True , 'is_active' : True}).first()
-
+            **{parent_field: parent, 'is_default': True, 'is_active': True}).first()
 
     # ==================== ВАЛИДАЦИЯ ====================
 
-    def validate_unique_default(self) -> None :
+    def validate_unique_default(self) -> None:
         """Пустая валидация - проверку делаем после сохранения"""
         pass
-
-
 
     def __str__(self):
         """Безопасный __str__ с логированием"""
@@ -387,6 +389,7 @@ class BaseThroughOption(BaseThroughOptionNoDefault) :
         except Exception as e:
             logger.error(f"Ошибка в BaseThroughOption.__str__: {e}", exc_info=True)
             return "Опция"
+
 
 class BaseTemperatureThroughOption(BaseThroughOption):
     """
@@ -423,16 +426,15 @@ class BaseTemperatureThroughOption(BaseThroughOption):
             is_active=True
         )
 
-    def get_display_name(self) :
-        if self.encoding and self.encoding.strip() :
+    def get_display_name(self):
+        if self.encoding and self.encoding.strip():
             name_str = f"{self.encoding} ({self.work_temp_min}...{self.work_temp_max}°C)"
-        else :
+        else:
             name_str = f"{self.work_temp_min}...{self.work_temp_max}°C"
 
         # Исправлено: используем self.is_default вместо self.default_option
-        is_default = getattr(self , 'is_default' , False)
+        is_default = getattr(self, 'is_default', False)
         return f"{name_str} (Стандарт)" if is_default else f"{name_str} (Опция)"
-
 
     def get_option_info(self, option_instance: Optional['BaseTemperatureThroughOption'] = None) -> Dict[str, Any]:
         """Полная информация об опции с температурными данными"""
@@ -478,197 +480,205 @@ class BaseTemperatureThroughOption(BaseThroughOption):
     def __str__(self):
         return self.get_display_name()
 
-class BaseBodyCoatingThroughOption(BaseThroughOption) :
+
+class BaseBodyCoatingThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций покрытия корпуса"""
     body_coating_option = models.ForeignKey(
-        'params.BodyCoatingOption' ,
-        on_delete=models.CASCADE ,
+        'params.BodyCoatingOption',
+        on_delete=models.CASCADE,
         verbose_name=_("Опция покрытия корпуса"))
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную опцию покрытия корпуса"""
         from django.apps import apps
 
-        BodyCoatingOption = apps.get_model('params' , 'BodyCoatingOption')  # Ленивая загрузка
+        BodyCoatingOption = apps.get_model('params', 'BodyCoatingOption')  # Ленивая загрузка
         # Инициализируем переменную
         std_coating = None
         # Последовательно ищем подходящее покрытие
-        possible_codes = ['STD' , 'STANDARD' , 'DEFAULT']
+        possible_codes = ['STD', 'STANDARD', 'DEFAULT']
 
-        for code in possible_codes :
+        for code in possible_codes:
             std_coating = BodyCoatingOption.objects.filter(
-                code=code ,
+                code=code,
                 is_active=True
             ).first()
-            if std_coating :
+            if std_coating:
                 break
 
         # Если не нашли по кодам, берем первое активное
-        if not std_coating :
+        if not std_coating:
             std_coating = BodyCoatingOption.objects.filter(is_active=True).first()
 
-        if std_coating :
+        if std_coating:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                body_coating_option=std_coating ,
-                encoding=std_coating.code ,
-                description='Стандартное покрытие корпуса' ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                body_coating_option=std_coating,
+                encoding=std_coating.code,
+                description='Стандартное покрытие корпуса',
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
 
-    def get_display_name(self) :
+    def get_display_name(self):
         """Отображаемое имя для покрытия корпуса"""
-        if self.body_coating_option :
-            if self.encoding and self.encoding.strip() :
+        if self.body_coating_option:
+            if self.encoding and self.encoding.strip():
                 return f"{self.encoding} ({self.body_coating_option.name})"
             return self.body_coating_option.name
         return "Не указано"
 
-    def __str__(self) :
+    def __str__(self):
         return self.get_display_name()
 
-class BaseExdThroughOption(BaseThroughOption) :
+
+class BaseExdThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций Exd"""
     exd_option = models.ForeignKey(
-        'params.ExdOption' ,
-        on_delete=models.CASCADE ,
+        'params.ExdOption',
+        on_delete=models.CASCADE,
         verbose_name=_("Опция взрывозащиты")
     )
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную Exd опцию (STD)"""
         from django.apps import apps
 
-        ExdOption = apps.get_model('params' , 'ExdOption')  # Ленивая загрузка
+        ExdOption = apps.get_model('params', 'ExdOption')  # Ленивая загрузка
 
-        try :
+        try:
             std_option = ExdOption.objects.get(code='STD')
-        except ExdOption.DoesNotExist :
+        except ExdOption.DoesNotExist:
             std_option = ExdOption.objects.filter(is_active=True).first()
 
-        if std_option :
+        if std_option:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                exd_option=std_option ,
-                encoding='STD' ,
-                description='Стандартное исполнение взрывозащиты' ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                exd_option=std_option,
+                encoding='STD',
+                description='Стандартное исполнение взрывозащиты',
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
 
-    def get_display_name(self) :
+    def get_display_name(self):
         """Отображаемое имя для взрывозащиты"""
-        if self.exd_option :
-            if self.encoding and self.encoding.strip() :
+        if self.exd_option:
+            if self.encoding and self.encoding.strip():
                 return f"{self.encoding} ({self.exd_option.name})"
             return self.exd_option.name
         return "Не указано"
 
-    def __str__(self) :
+    def __str__(self):
         return self.get_display_name()
 
-class BaseIpThroughOption(BaseThroughOption) :
+
+class BaseIpThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций IP"""
     ip_option = models.ForeignKey(
-        'params.IpOption' ,
-        on_delete=models.CASCADE ,
+        'params.IpOption',
+        on_delete=models.CASCADE,
         verbose_name=_("Опция IP")
     )
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную IP опцию (IP54)"""
         from django.apps import apps
 
-        IpOption = apps.get_model('params' , 'IpOption')  # Ленивая загрузка
+        IpOption = apps.get_model('params', 'IpOption')  # Ленивая загрузка
 
-        try :
+        try:
             ip54_option = IpOption.objects.get(code='IP54')
-        except IpOption.DoesNotExist :
+        except IpOption.DoesNotExist:
             ip54_option = IpOption.objects.filter(is_active=True).first()
 
-        if ip54_option :
+        if ip54_option:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                ip_option=ip54_option ,
-                encoding='IP54' ,
-                description='Стандартная степень защиты IP54' ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                ip_option=ip54_option,
+                encoding='IP54',
+                description='Стандартная степень защиты IP54',
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
 
     # Специфичные методы для IP опций
     @property
-    def ip_rank(self) :
+    def ip_rank(self):
         """Ранг IP защиты"""
-        return getattr(self.ip_option , 'ip_rank' , 0) if self.ip_option else 0
+        return getattr(self.ip_option, 'ip_rank', 0) if self.ip_option else 0
 
     def get_display_name(self):
-        """Простая безопасная версия"""
-        # Сначала проверяем encoding
-        if self.encoding and self.encoding.strip():
-            encoding_part = self.encoding
-        else:
-            encoding_part = None
+        is_default = getattr(self, 'is_default', False)
+        return f"{self.ip_option} (Стандарт)" if is_default else f"{self.ip_option} (Опция)"
 
-        # Пытаемся получить имя ip_option без исключений
-        ip_name = None
-        try:
-            # Проверяем через безопасный доступ
-            if hasattr(self, 'ip_option_id') and self.ip_option_id:
-                # Объект существует в БД
-                if not hasattr(self, '_ip_option_cache'):
-                    # Не загружен, но мы можем не загружать для __str__
-                    ip_name = f"[IP#{self.ip_option_id}]"
-                elif self.ip_option:
-                    ip_name = getattr(self.ip_option, 'name', None)
-        except Exception:
-            pass
-
-        # Формируем результат
-        if encoding_part and ip_name:
-            return f"{encoding_part} ({ip_name})"
-        elif encoding_part:
-            return encoding_part
-        elif ip_name:
-            return ip_name
-
-        return "IP опция"
+    # def get_display_name(self):
+    #     """Простая безопасная версия"""
+    #     # Сначала проверяем encoding
+    #     if self.encoding and self.encoding.strip():
+    #         encoding_part = self.encoding
+    #     else:
+    #         encoding_part = None
+    #
+    #     # Пытаемся получить имя ip_option без исключений
+    #     ip_name = None
+    #     try:
+    #         # Проверяем через безопасный доступ
+    #         if hasattr(self, 'ip_option_id') and self.ip_option_id:
+    #             # Объект существует в БД
+    #             if not hasattr(self, '_ip_option_cache'):
+    #                 # Не загружен, но мы можем не загружать для __str__
+    #                 ip_name = f"[IP#{self.ip_option_id}]"
+    #             elif self.ip_option:
+    #                 ip_name = getattr(self.ip_option, 'name', None)
+    #     except Exception:
+    #         pass
+    #
+    #     # Формируем результат
+    #     if encoding_part and ip_name:
+    #         return f"{encoding_part} ({ip_name})"
+    #     elif encoding_part:
+    #         return encoding_part
+    #     elif ip_name:
+    #         return ip_name
+    #
+    #     return "IP опция"
 
     def __str__(self):
         """Всегда возвращаем строку"""
         return self.get_display_name()
+
 
 class BasePneumaticConnectionThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций пневматического подключения"""
     pneumatic_connection = models.ForeignKey(
         'params.PneumaticConnection',
         on_delete=models.CASCADE,
-        verbose_name=_("Пневмоподключения") ,
+        verbose_name=_("Пневмоподключения"),
         help_text=_('Возможные типы пневмоподключений'))
 
     class Meta:
@@ -676,41 +686,43 @@ class BasePneumaticConnectionThroughOption(BaseThroughOption):
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную IP опцию (IP54)"""
         from django.apps import apps
 
-        PneumaticConnection = apps.get_model('params' , 'PneumaticConnection')  # Ленивая загрузка
+        PneumaticConnection = apps.get_model('params', 'PneumaticConnection')  # Ленивая загрузка
 
-        try :
+        try:
             pipe_option = PneumaticConnection.objects.get(code='pipe')
-        except PneumaticConnection.DoesNotExist :
+        except PneumaticConnection.DoesNotExist:
             pipe_option = PneumaticConnection.objects.filter(is_active=True).first()
 
-        if pipe_option :
+        if pipe_option:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                pneumatic_connection=pipe_option ,
-                encoding='pipe' ,
-                description='Подключение трубкой через фитинг' ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                pneumatic_connection=pipe_option,
+                encoding='pipe',
+                description='Подключение трубкой через фитинг',
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
+
 
 class BaseSafetyPositionThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций положения безопасности НО/НЗ/оставаться..."""
     safety_position = models.ForeignKey(
         'params.SafetyPositionOption',
         on_delete=models.CASCADE,
-        verbose_name=_("Положение безопасности") ,
+        verbose_name=_("Положение безопасности"),
         help_text=_('Положения безопасности'))
 
     class Meta:
         abstract = True
         ordering = ['sorting_order']
+
 
 class BaseTurnAngleThroughOption(BaseThroughOption):
     """
@@ -749,15 +761,14 @@ class BaseTurnAngleThroughOption(BaseThroughOption):
             is_active=True
         )
 
-    def get_display_name(self) :
-        if self.encoding and self.encoding.strip() :
+    def get_display_name(self):
+        if self.encoding and self.encoding.strip():
             name_str = f"{self.encoding} (Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°)"
-        else :
+        else:
             name_str = f"Угол поворота {self.turn_angle}° ±{self.turn_angle_deviation_limit}°"
 
-        is_default = getattr(self , 'is_default' , False)
+        is_default = getattr(self, 'is_default', False)
         return f"{name_str} (Стандарт)" if is_default else f"{name_str} (Опция)"
-
 
     def get_option_info(self, option_instance: Optional['BaseTemperatureThroughOption'] = None) -> Dict[str, Any]:
         """Полная информация об опции угла поворота"""
@@ -810,64 +821,66 @@ class BaseSpringsQtyThroughOption(BaseThroughOption):
     springs_qty = models.ForeignKey(
         'pneumatic_actuators.PneumaticActuatorSpringsQty',
         on_delete=models.CASCADE,
-        verbose_name=_("Количество пружин") ,
+        verbose_name=_("Количество пружин"),
         help_text=_('Количество пружин'))
 
     class Meta:
         abstract = True
         ordering = ['sorting_order']
 
-class BaseHandWheelThroughOption(BaseThroughOption) :
+
+class BaseHandWheelThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций IP"""
     hand_wheel_option = models.ForeignKey(
-        'params.HandWheelInstalledOption' ,
-        on_delete=models.CASCADE ,
+        'params.HandWheelInstalledOption',
+        on_delete=models.CASCADE,
         verbose_name=_("Ручной дублер"),
         help_text=_("Тип установленного ручного дублера")
     )
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную IP опцию (IP54)"""
         from django.apps import apps
 
-        HandWheelInstalledOption = apps.get_model('params' , 'HandWheelInstalledOption')  # Ленивая загрузка
+        HandWheelInstalledOption = apps.get_model('params', 'HandWheelInstalledOption')  # Ленивая загрузка
 
-        try :
+        try:
             no_hand_wheel_option = HandWheelInstalledOption.objects.get(code='none')
-        except HandWheelInstalledOption.DoesNotExist :
+        except HandWheelInstalledOption.DoesNotExist:
             no_hand_wheel_option = HandWheelInstalledOption.objects.filter(is_active=True).first()
 
-        if no_hand_wheel_option :
+        if no_hand_wheel_option:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                hand_wheel_option=no_hand_wheel_option ,
-                encoding='' ,
-                description=no_hand_wheel_option.description ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                hand_wheel_option=no_hand_wheel_option,
+                encoding='',
+                description=no_hand_wheel_option.description,
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
 
-    def get_display_name(self) :
+    def get_display_name(self):
         """Отображаемое имя для ручного дублера"""
-        if self.hand_wheel_option :
-            if self.encoding and self.encoding.strip() :
+        if self.hand_wheel_option:
+            if self.encoding and self.encoding.strip():
                 return f"{self.encoding} ({self.hand_wheel_option.name})"
             return self.hand_wheel_option.name
         return "Не указано"
 
-    def __str__(self) :
+    def __str__(self):
         name = self.get_display_name()
-        if self.is_default :
+        if self.is_default:
             return f"{name} (Стандарт)"
         return name
+
 
 class BaseBlinkerThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций Blinker"""
@@ -907,16 +920,17 @@ class BaseBlinkerThroughOption(BaseThroughOption):
             )
         return None
 
-    def get_display_name(self) :
+    def get_display_name(self):
         """Отображаемое имя для блинкера"""
-        if self.blinker_option :
-            if self.encoding and self.encoding.strip() :
+        if self.blinker_option:
+            if self.encoding and self.encoding.strip():
                 return f"{self.encoding} ({self.blinker_option.name})"
             return self.blinker_option.name
         return "Не указано"
 
-    def __str__(self) :
+    def __str__(self):
         return self.get_display_name()
+
 
 class BaseControlUnitInstalledThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций ControlUnitInstalledOption"""
@@ -932,40 +946,41 @@ class BaseControlUnitInstalledThroughOption(BaseThroughOption):
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную опцию блока управления"""
         from django.apps import apps
 
-        ControlUnitInstalledOption = apps.get_model('params' , 'ControlUnitInstalledOption')
+        ControlUnitInstalledOption = apps.get_model('params', 'ControlUnitInstalledOption')
 
-        try :
+        try:
             no_control_unit_option = ControlUnitInstalledOption.objects.get(code='none')
-        except ControlUnitInstalledOption.DoesNotExist :
+        except ControlUnitInstalledOption.DoesNotExist:
             no_control_unit_option = ControlUnitInstalledOption.objects.filter(is_active=True).first()
 
-        if no_control_unit_option :
+        if no_control_unit_option:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                control_unit_option=no_control_unit_option ,
-                encoding='' ,
-                description=no_control_unit_option.description ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                control_unit_option=no_control_unit_option,
+                encoding='',
+                description=no_control_unit_option.description,
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
 
-    def get_display_name(self) :
+    def get_display_name(self):
         """Отображаемое имя для блока управления"""
-        if self.control_unit_option :
-            if self.encoding and self.encoding.strip() :
+        if self.control_unit_option:
+            if self.encoding and self.encoding.strip():
                 return f"{self.encoding} ({self.control_unit_option.name})"
             return self.control_unit_option.name
         return "Не указано"
 
-    def __str__(self) :
+    def __str__(self):
         return self.get_display_name()
+
 
 class BaseWaySwitchesThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций ControlUnitInstalledOption"""
@@ -1005,59 +1020,59 @@ class BaseWaySwitchesThroughOption(BaseThroughOption):
             )
         return None
 
-    def get_display_name(self) :
+    def get_display_name(self):
         """Отображаемое имя для путевых выключателей"""
-        if self.way_switches_option :
-            if self.encoding and self.encoding.strip() :
+        if self.way_switches_option:
+            if self.encoding and self.encoding.strip():
                 return f"{self.encoding} ({self.way_switches_option.name})"
             return self.way_switches_option.name
         return "Не указано"
 
-    def __str__(self) :
+    def __str__(self):
         return self.get_display_name()
 
 
-class BaseOperatingModeThroughOption(BaseThroughOption) :
+class BaseOperatingModeThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций режима работы двигателя"""
     operating_mode_option = models.ForeignKey(
-        'params.OperatingModeOption' ,
-        on_delete=models.CASCADE ,
-        verbose_name=_("Режим работы") ,
+        'params.OperatingModeOption',
+        on_delete=models.CASCADE,
+        verbose_name=_("Режим работы"),
         help_text=_("Режим работы двигателя")
     )
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную опцию режима работы"""
         from django.apps import apps
 
-        OperatingModeOption = apps.get_model('params' , 'OperatingModeOption')
+        OperatingModeOption = apps.get_model('params', 'OperatingModeOption')
 
         # Ищем стандартный режим работы
-        try :
+        try:
             # Обычно стандартный режим - S2 15min или S4 25%
             default_mode = OperatingModeOption.objects.filter(
-                code='S2_15min' ,  # или другой стандартный код
+                code='S2_15min',  # или другой стандартный код
                 is_active=True
             ).first()
-            if not default_mode :
+            if not default_mode:
                 default_mode = OperatingModeOption.objects.filter(is_active=True).first()
-        except Exception :
+        except Exception:
             default_mode = OperatingModeOption.objects.filter(is_active=True).first()
 
-        if default_mode :
+        if default_mode:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                operating_mode_option=default_mode ,
-                encoding=default_mode.code if default_mode.code else '' ,
-                description=default_mode.description ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                operating_mode_option=default_mode,
+                encoding=default_mode.code if default_mode.code else '',
+                description=default_mode.description,
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
@@ -1097,70 +1112,67 @@ class BaseOperatingModeThroughOption(BaseThroughOption) :
 
         return "Механический индикатор"
 
-    def __str__(self) :
+    def __str__(self):
         name = self.get_display_name()
-        if self.is_default :
+        if self.is_default:
             return f"{name} (Стандарт)"
         return name
 
 
-
-
-
-class BaseMechanicalIndicatorThroughOption(BaseThroughOption) :
+class BaseMechanicalIndicatorThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций механического индикатора"""
     mechanical_indicator_option = models.ForeignKey(
-        'params.MechanicalIndicatorInstalledOption' ,
-        on_delete=models.CASCADE ,
-        verbose_name=_("Механический индикатор") ,
+        'params.MechanicalIndicatorInstalledOption',
+        on_delete=models.CASCADE,
+        verbose_name=_("Механический индикатор"),
         help_text=_("Тип механического индикатора")
     )
 
-    class Meta :
+    class Meta:
         abstract = True
         ordering = ['sorting_order']
 
     @classmethod
-    def create_default_option(cls , parent_obj) :
+    def create_default_option(cls, parent_obj):
         """Создать стандартную опцию механического индикатора"""
         from django.apps import apps
 
-        MechanicalIndicatorInstalledOption = apps.get_model('params' , 'MechanicalIndicatorInstalledOption')
+        MechanicalIndicatorInstalledOption = apps.get_model('params', 'MechanicalIndicatorInstalledOption')
 
         # Ищем стандартный вариант - обычно "нет индикатора" или "стандартный"
-        try :
+        try:
             default_indicator = MechanicalIndicatorInstalledOption.objects.filter(
-                code='none' ,  # или 'standard', 'std'
+                code='none',  # или 'standard', 'std'
                 is_active=True
             ).first()
-            if not default_indicator :
+            if not default_indicator:
                 default_indicator = MechanicalIndicatorInstalledOption.objects.filter(is_active=True).first()
-        except Exception :
+        except Exception:
             default_indicator = MechanicalIndicatorInstalledOption.objects.filter(is_active=True).first()
 
-        if default_indicator :
+        if default_indicator:
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                mechanical_indicator_option=default_indicator ,
-                encoding=default_indicator.code if default_indicator.code else '' ,
-                description=default_indicator.description ,
-                is_default=True ,
-                sorting_order=0 ,
+                **{parent_field: parent_obj},
+                mechanical_indicator_option=default_indicator,
+                encoding=default_indicator.code if default_indicator.code else '',
+                description=default_indicator.description,
+                is_default=True,
+                sorting_order=0,
                 is_active=True
             )
         return None
 
-    def get_display_name(self) :
+    def get_display_name(self):
         """Отображаемое имя для механического индикатора"""
-        if self.mechanical_indicator_option :
-            if self.encoding and self.encoding.strip() :
+        if self.mechanical_indicator_option:
+            if self.encoding and self.encoding.strip():
                 return f"{self.encoding} ({self.mechanical_indicator_option.name})"
             return self.mechanical_indicator_option.name
         return "Не указано"
 
-    def __str__(self) :
+    def __str__(self):
         name = self.get_display_name()
-        if self.is_default :
+        if self.is_default:
             return f"{name} (Стандарт)"
         return name
