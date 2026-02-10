@@ -23,16 +23,109 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 3. Карта соответствия полей и ключей API
     const fieldToApiKeyMap = {
-    'selected_temperature': 'temperature_options',
-    'selected_ip': 'ip_options',
-    'selected_exd': 'exd_options',
-    'selected_body_coating': 'body_coating_options',
-    'selected_hand_wheel': 'hand_wheel_options',
-    'selected_power_supply': 'power_supply_options'  // ДОБАВЛЕНО
-};
+        'selected_temperature': 'temperature_options',
+        'selected_ip': 'ip_options',
+        'selected_exd': 'exd_options',
+        'selected_body_coating': 'body_coating_options',
+        'selected_hand_wheel': 'hand_wheel_options',
+        'selected_power_supply': 'power_supply_options',
+        'selected_control_unit_option': 'control_unit_option_options'
+    };
 
-    // 4. Функция обновления опций
-    function updateOptions(modelId) {
+    // 4. Функция для получения доступных опций блоков управления
+    async function getAvailableControlsForPowerSupply(powerSupplyId) {
+        console.log("Getting available controls for power supply:", powerSupplyId);
+
+        if (!powerSupplyId) {
+            return [];
+        }
+
+        try {
+            // Используем новый endpoint
+            const response = await fetch(
+                `/admin/electric_actuators/electricactuatorselected/get_available_control_options/?power_supply_id=${powerSupplyId}`
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Control unit options data:", data);
+
+            return data.options || [];
+        } catch (error) {
+            console.error('Error fetching control unit options:', error);
+            return [];
+        }
+    }
+
+    // 5. Функция фильтрации блоков управления
+    async function filterControlUnits(powerSupplyId, forceSelectFirst = false) {
+        console.log("=== filterControlUnits ===");
+        console.log("Power supply ID:", powerSupplyId);
+
+        const controlSelector = document.querySelector('select[name="selected_control_unit_option"]');
+        if (!controlSelector) {
+            console.log("Control selector not found");
+            return;
+        }
+
+        const currentValue = controlSelector.value;
+        console.log("Current control option:", currentValue);
+
+        if (!powerSupplyId) {
+            // Если напряжение не выбрано, очищаем опции
+            console.log("No power supply selected, clearing control unit options");
+            controlSelector.innerHTML = '<option value="">---------</option>';
+            return;
+        }
+
+        // Получаем опции через новый API
+        const options = await getAvailableControlsForPowerSupply(powerSupplyId);
+        console.log("Available control unit options:", options);
+
+        // Сохраняем текущее значение
+        const currentOption = options.find(opt =>
+            parseInt(opt.id) === parseInt(currentValue)
+        );
+
+        // Очищаем и заполняем заново
+        controlSelector.innerHTML = '<option value="">---------</option>';
+
+        let defaultOptionId = null;
+
+        options.forEach(option => {
+            const isSelected = currentOption && option.id === currentOption.id;
+            const displayText = option.control_unit_name
+                ? `${option.control_unit_name} (${option.encoding || 'без кода'})`
+                : option.name || option.encoding || `ID: ${option.id}`;
+
+            const opt = new Option(displayText, option.id, false, isSelected);
+            controlSelector.add(opt);
+
+            // Запоминаем дефолтную опцию
+            if (option.is_default && !defaultOptionId) {
+                defaultOptionId = option.id;
+            }
+        });
+
+        // Автовыбор дефолтной или первой опции если нужно
+        if (forceSelectFirst && !controlSelector.value && options.length > 0) {
+            if (defaultOptionId) {
+                controlSelector.value = defaultOptionId;
+                console.log("Auto-selected default option:", defaultOptionId);
+            } else {
+                controlSelector.value = options[0].id;
+                console.log("Auto-selected first option:", options[0].id);
+            }
+        }
+
+        console.log("Final control value:", controlSelector.value);
+    }
+
+    // 6. Функция обновления всех опций
+    async function updateOptions(modelId) {
         console.log("=== updateOptions called ===");
         console.log("Model ID:", modelId);
 
@@ -47,125 +140,166 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = `/admin/electric_actuators/electricactuatorselected/get_options/?model_id=${modelId}`;
         console.log("Fetching from:", url);
 
-        fetch(url)
-            .then(response => {
-                console.log("Response status:", response.status);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+        try {
+            const response = await fetch(url);
+            console.log("Response status:", response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("API response keys:", Object.keys(data));
+
+            // Обновляем каждый селектор
+            optionSelectors.forEach(select => {
+                const fieldName = select.name;
+                const apiKey = fieldToApiKeyMap[fieldName];
+
+                if (!apiKey) {
+                    console.warn(`No API key for: ${fieldName}`);
+                    return;
                 }
-                return response.json();
-            })
-            .then(data => {
-                console.log("API response keys:", Object.keys(data));
 
-                // Обновляем каждый селектор
-                optionSelectors.forEach(select => {
-                    const fieldName = select.name;
-                    const apiKey = fieldToApiKeyMap[fieldName];
+                const options = data[apiKey] || [];
+                const currentValue = select.value;
 
-                    if (!apiKey) {
-                        console.warn(`No API key for: ${fieldName}`);
-                        return;
+                console.log(`  ${fieldName}: ${options.length} options, current: ${currentValue}`);
+
+                // Сохраняем выбранное значение
+                let selectedOption = null;
+                if (currentValue) {
+                    selectedOption = options.find(opt =>
+                        parseInt(opt.id) === parseInt(currentValue)
+                    );
+                }
+
+                // Очищаем и добавляем опции
+                select.innerHTML = '<option value="">---------</option>';
+
+                options.forEach(option => {
+                    const isSelected = selectedOption && option.id === selectedOption.id;
+                    let displayText;
+
+                    if (fieldName === 'selected_control_unit_option') {
+                        // Специальный формат для опций блоков управления
+                        displayText = option.control_unit_name
+                            ? `${option.control_unit_name} (${option.encoding || 'без кода'})`
+                            : option.name || option.encoding || `ID: ${option.id}`;
+                    } else {
+                        displayText = option.name || option.encoding || `ID: ${option.id}`;
                     }
 
-                    const options = data[apiKey] || [];
-                    const currentValue = select.value;
-
-                    console.log(`  ${fieldName}: ${options.length} options, current: ${currentValue}`);
-
-                    // Сохраняем выбранное значение
-                    let selectedOption = null;
-                    if (currentValue) {
-                        selectedOption = options.find(opt =>
-                            parseInt(opt.id) === parseInt(currentValue)
-                        );
-                    }
-
-                    // Очищаем и добавляем опции
-                    select.innerHTML = '<option value="">---------</option>';
-
-                    options.forEach(option => {
-                        const isSelected = selectedOption && option.id === selectedOption.id;
-                        const displayText = option.name || option.encoding || `ID: ${option.id}`;
-                        const opt = new Option(displayText, option.id, false, isSelected);
-                        select.add(opt);
-                    });
-
-                    // Если выбранное значение было в старых опциях, но не в новых,
-                    // оставляем его (пользователь мог вручную выбрать)
-                    if (currentValue && !selectedOption) {
-                        console.log(`  Value ${currentValue} not found in new options, keeping it`);
-                    }
+                    const opt = new Option(displayText, option.id, false, isSelected);
+                    select.add(opt);
                 });
 
-                console.log("=== Options updated ===");
-            })
-            .catch(error => {
-                console.error('Error loading options:', error);
-                // Можно показать уведомление, но не alert
-                showNotification('Ошибка загрузки опций', 'error');
+                // Если выбранное значение было в старых опциях, но не в новых,
+                // оставляем его (пользователь мог вручную выбрать)
+                if (currentValue && !selectedOption) {
+                    console.log(`  Value ${currentValue} not found in new options, keeping it`);
+                    const oldOption = new Option(`[СТАРОЕ] ID: ${currentValue}`, currentValue, true, true);
+                    select.add(oldOption);
+                }
             });
+
+            console.log("=== Options updated ===");
+
+            // Если выбрано напряжение, дополнительно фильтруем блоки управления
+            const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
+            if (powerSupplySelector && powerSupplySelector.value) {
+                console.log("Options updated: filtering controls for power supply");
+                await filterControlUnits(powerSupplySelector.value);
+            }
+
+        } catch (error) {
+            console.error('Error loading options:', error);
+            showNotification('Ошибка загрузки опций', 'error');
+        }
     }
 
-    // 5. Инициализация при загрузке
+    // 7. Инициализация при загрузке
     if (modelSelector && modelSelector.value) {
         console.log("Initial load with model:", modelSelector.value);
-        setTimeout(() => {
-            updateOptions(modelSelector.value);
+        setTimeout(async () => {
+            await updateOptions(modelSelector.value);
         }, 500);
     }
 
-    // 6. Обработчик изменения модели
+    // 8. Обработчик изменения модели
     if (modelSelector) {
-        modelSelector.addEventListener('change', function () {
+        modelSelector.addEventListener('change', async function () {
             console.log("Model changed to:", this.value);
-            updateOptions(this.value);
+
+            // Сбрасываем напряжение и блок управления при смене модели
+            const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
+            const controlSelector = document.querySelector('select[name="selected_control_unit_option"]');
+
+            if (powerSupplySelector) powerSupplySelector.value = '';
+            if (controlSelector) controlSelector.innerHTML = '<option value="">---------</option>';
+
+            await updateOptions(this.value);
         });
     }
 
-    // 7. Функция для добавления кнопки генерации описания
+    // 9. Обработчик изменения напряжения
+    const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
+    if (powerSupplySelector) {
+        if (!powerSupplySelector.hasAttribute('data-control-filter-added')) {
+            powerSupplySelector.setAttribute('data-control-filter-added', 'true');
+            powerSupplySelector.addEventListener('change', async function () {
+                console.log("Power supply changed to:", this.value);
+
+                // Сбрасываем блок управления при смене напряжения
+                const controlSelector = document.querySelector('select[name="selected_control_unit_option"]');
+                if (controlSelector) controlSelector.innerHTML = '<option value="">---------</option>';
+
+                await filterControlUnits(this.value, true); // forceSelectFirst = true
+            });
+        }
+    }
+
+    // 10. Обработчик изменения блока управления
+    const controlUnitSelector = document.querySelector('select[name="selected_control_unit_option"]');
+    if (controlUnitSelector) {
+        controlUnitSelector.addEventListener('change', function () {
+            console.log("Control unit option changed to:", this.value);
+        });
+    }
+
+    // 11. Функция для добавления кнопки генерации описания
     function addGenerateDescriptionButton() {
         console.log("=== Adding generate description button ===");
 
-        // Проверяем, есть ли уже кнопка
         if (document.querySelector('#generate-description-btn')) {
             console.log("Button already exists");
             return;
         }
 
-        // Получаем object_id из URL
         const url = window.location.pathname;
         console.log("Current URL:", url);
 
-        // Паттерны URL:
-        // /admin/electric_actuators/electricactuatorselected/123/change/
-        // /admin/electric_actuators/electricactuatorselected/add/
         const match = url.match(/electricactuatorselected\/(\d+)\/change\//);
         const objectId = match ? match[1] : null;
 
         console.log("Extracted object ID:", objectId);
 
-        // Находим поле описания
         const descriptionField = document.querySelector('#id_description');
         if (!descriptionField) {
             console.log("Description field not found");
             return;
         }
 
-        // Находим контейнер поля описания
         const fieldContainer = descriptionField.closest('.field-description');
         if (!fieldContainer) {
             console.log("Field container not found");
             return;
         }
 
-        // Создаем контейнер для кнопки
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'form-row';
         buttonContainer.style.marginBottom = '15px';
 
         if (objectId) {
-            // Кнопка для существующего объекта
             buttonContainer.innerHTML = `
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">
@@ -206,7 +340,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
         } else {
-            // Сообщение для нового объекта
             buttonContainer.innerHTML = `
                 <div style="padding: 10px; 
                             background-color: #f8f9fa; 
@@ -219,15 +352,13 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
         }
 
-        // Вставляем кнопку перед полем описания
         fieldContainer.parentNode.insertBefore(buttonContainer, fieldContainer);
 
-        // Инициализируем обработчики кнопок
         initGenerateButton();
         initPreviewButton();
     }
 
-    // 8. Функция инициализации кнопки генерации
+    // 12. Функция инициализации кнопки генерации
     function initGenerateButton() {
         const generateBtn = document.querySelector('#generate-description-btn');
         if (!generateBtn) return;
@@ -241,7 +372,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Показываем индикатор
             const statusDiv = document.querySelector('#description-status');
             if (statusDiv) {
                 statusDiv.style.display = 'block';
@@ -252,10 +382,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const originalText = generateBtn.innerHTML;
             generateBtn.innerHTML = '⏳ Генерация...';
 
-            // Получаем CSRF токен
             const csrfToken = getCsrfToken();
 
-            // Отправляем запрос
             fetch(`/admin/electric_actuators/electricactuatorselected/${objectId}/generate-description/`, {
                 method: 'POST',
                 headers: {
@@ -275,24 +403,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log("Generate response:", data);
 
                 if (data.success) {
-                    // Обновляем поле описания
                     const descriptionField = document.querySelector('#id_description');
                     if (descriptionField) {
                         descriptionField.value = data.description;
                     }
 
-                    // Показываем успех
                     if (statusDiv) {
                         statusDiv.innerHTML = '<span style="color: #4CAF50;">✅ Описание сгенерировано!</span>';
                     }
 
-                    // Автоматически показываем предпросмотр
                     setTimeout(() => {
                         previewDescription(objectId, data.description);
                     }, 1000);
 
                 } else {
-                    // Показываем ошибку
                     if (statusDiv) {
                         statusDiv.innerHTML = `<span style="color: #f44336;">❌ ${data.message || 'Ошибка'}</span>`;
                     }
@@ -310,7 +434,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 generateBtn.disabled = false;
                 generateBtn.innerHTML = originalText;
 
-                // Скрываем статус через 5 секунд
                 if (statusDiv) {
                     setTimeout(() => {
                         statusDiv.style.display = 'none';
@@ -320,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 9. Функция инициализации кнопки предпросмотра
+    // 13. Функция инициализации кнопки предпросмотра
     function initPreviewButton() {
         const previewBtn = document.querySelector('#preview-description-btn');
         if (!previewBtn) return;
@@ -331,17 +454,73 @@ document.addEventListener('DOMContentLoaded', function () {
             const description = descriptionField ? descriptionField.value : '';
 
             if (description.trim()) {
-                // Используем существующее описание
                 previewDescription(objectId, description);
             } else {
-                // Сначала генерируем, потом показываем
                 showNotification('Сначала сгенерируйте описание', 'info');
                 document.querySelector('#generate-description-btn').click();
             }
         });
     }
 
-    // 10. Функция предпросмотра описания
+    // 14. Вспомогательные функции
+    function getCsrfToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        return token ? token.value : '';
+    }
+
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            z-index: 9999;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease;
+        `;
+
+        const colors = {
+            'info': '#2196F3',
+            'success': '#4CAF50',
+            'warning': '#ff9800',
+            'error': '#f44336'
+        };
+
+        notification.style.backgroundColor = colors[type] || colors.info;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
+
+        if (!document.querySelector('#notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'notification-styles';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
     function previewDescription(objectId, descriptionText) {
         console.log("Preview description for:", objectId);
 
@@ -350,12 +529,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // Очищаем текст
         const cleanedText = descriptionText
             .replace(/\n{3,}/g, '\n\n')
             .replace(/\n{2}/g, '\n');
 
-        // Экранируем HTML
         function escapeHtml(text) {
             const parts = text.split(/(<table[\s\S]*?<\/table>)/);
             return parts.map(part => {
@@ -369,7 +546,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }).join('');
         }
 
-        // Открываем в новом окне
         const width = 1000;
         const height = 700;
         const left = (screen.width - width) / 2;
@@ -492,77 +668,24 @@ document.addEventListener('DOMContentLoaded', function () {
         newWindow.document.close();
     }
 
-    // 11. Вспомогательные функции
-    function getCsrfToken() {
-        const token = document.querySelector('[name=csrfmiddlewaretoken]');
-        return token ? token.value : '';
-    }
-
-    function showNotification(message, type = 'info') {
-        // Создаем уведомление
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 4px;
-            color: white;
-            z-index: 9999;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            animation: slideIn 0.3s ease;
-        `;
-
-        const colors = {
-            'info': '#2196F3',
-            'success': '#4CAF50',
-            'warning': '#ff9800',
-            'error': '#f44336'
-        };
-
-        notification.style.backgroundColor = colors[type] || colors.info;
-        notification.textContent = message;
-
-        document.body.appendChild(notification);
-
-        // Удаляем через 5 секунд
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 5000);
-
-        // Добавляем стили анимации
-        if (!document.querySelector('#notification-styles')) {
-            const style = document.createElement('style');
-            style.id = 'notification-styles';
-            style.textContent = `
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-
-    // 12. Добавляем кнопку с задержкой (после полной загрузки формы)
+    // 15. Добавляем кнопку с задержкой
     setTimeout(() => {
         addGenerateDescriptionButton();
     }, 1000);
 
-    // 13. Также добавляем кнопку при изменении DOM (на случай динамической загрузки)
+    // 16. Observer для динамической загрузки
     const observer = new MutationObserver(() => {
         if (!document.querySelector('#generate-description-btn')) {
             addGenerateDescriptionButton();
+        }
+
+        const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
+        if (powerSupplySelector && !powerSupplySelector.hasAttribute('data-control-filter-added')) {
+            powerSupplySelector.setAttribute('data-control-filter-added', 'true');
+            powerSupplySelector.addEventListener('change', async function () {
+                console.log("Power supply changed (dynamic):", this.value);
+                await filterControlUnits(this.value, true);
+            });
         }
     });
 

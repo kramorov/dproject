@@ -15,12 +15,9 @@ from django.utils.html import format_html
 
 from electric_actuators.models import ElectricActuatorModelLineItem, CableGlandHolesSet, ElectricSafetyPositionOption
 from params.models import MountingPlateTypes, StemShapes, StemSize
-from pneumatic_actuators.models.pa_options import PneumaticSafetyPositionOption
 
 logger = logging.getLogger(__name__)
 
-# from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE , \
-#     ACTUATOR_VARIETY_RP_DEFAULT_CODE
 # Добавляем импорт абстрактного класса
 from core.models import StructuredDataMixin
 
@@ -114,6 +111,14 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_('Встроенный ручной дублер')
     )
 
+    selected_turn_angle_option = models.ForeignKey(
+        'ElectricTurnAngleOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Угол поворота"),
+        help_text=_('Угол поворота')
+    )
+
     selected_power_supply = models.ForeignKey(
         'ElectricPowerSupplyOption',
         on_delete=models.SET_NULL,
@@ -121,6 +126,15 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Напряжение"),
         help_text=_('Напряжение питания')
     )
+
+    selected_control_unit_option = models.ForeignKey(
+        'ElectricControlUnitOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Блок управления"),
+        help_text=_("Выбранный блок управления с кодировкой")
+    )
+
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
 
     # ОБЩАЯ КОНФИГУРАЦИЯ ДЛЯ ВСЕХ ВАЛИДАЦИЙ
@@ -155,6 +169,12 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'parent_field': 'model_line',
             'model_path': 'electric_actuators.models.ea_options.ElectricBodyCoatingOption'
         },
+        'selected_turn_angle_option': {
+            'model_class': 'ElectricTurnAngleOption',
+            'label': 'угол поворота',
+            'parent_field': 'model_line',
+            'model_path': 'electric_actuators.models.ea_options.ElectricTurnAngleOption'
+        },
         'selected_hand_wheel': {
             'model_class': 'ElectricHandWheelOption',
             'label': 'ручной дублер',
@@ -167,7 +187,29 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'parent_field': 'model_line_item',
             'model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricPowerSupplyOption'
         },
+        # ДОБАВЛЯЕМ КОНФИГ ДЛЯ НОВОГО ПОЛЯ
+        'selected_control_unit_option': {
+            'model_class': 'ElectricControlUnitOption',
+            'label': 'опция блока управления',
+            'parent_field': 'power_supply_option',  # Фильтр по выбранному напряжению
+            'model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricControlUnitOption',
+            'dynamic_filter': True  # Флаг что фильтр динамический
+        },
     }
+
+    @property
+    def selected_control_unit_installed(self):
+        """Получить выбранный блок управления"""
+        if self.selected_control_unit_option:
+            return self.selected_control_unit_option.control_unit
+        return None
+
+    @property
+    def selected_control_encoding(self):
+        """Получить кодировку выбранного блока управления"""
+        if self.selected_control_unit_option:
+            return self.selected_control_unit_option.encoding
+        return ""
 
     @classmethod
     def get_option_fields(cls):
@@ -178,23 +220,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         ordering = ['sorting_order']
         verbose_name = _('Модель электропривода selected')
         verbose_name_plural = _('Модели электропривода selected')
-        # constraints = [
-        #     models.UniqueConstraint(
-        #         fields=[
-        #             'name',
-        #             'selected_model_line_item',
-        #             'selected_safety_position',
-        #             'selected_springs_qty',
-        #             'selected_temperature',
-        #             'selected_ip',
-        #             'selected_exd',
-        #             'selected_body_coating',
-        #             'selected_hand_wheel'
-        #         ],
-        #         name='unique_actuator_configuration',  # Понятное имя
-        #         # condition=models.Q(is_active=True),  # Если нужно только для активных
-        #     )
-        # ]
 
     def __str__(self):
         return self.name
@@ -216,7 +241,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             self._get_value('selected_model__code'),
             self._get_value('selected_temperature__encoding'),
             self._get_value('selected_ip__encoding'),
-            self._get_value('selected_power_supply__encoding'),
+            self._get_value('selected_ip__encoding'),
+            self._get_value('selected_control_unit_installed__encoding'),
             # self._get_value('selected_safety_position__encoding'),
             # self._get_value('selected_hand_wheel__encoding'),
             # self._get_value('selected_body_coating__encoding'),
@@ -248,6 +274,13 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         result = result.replace('{model_code}', self._get_value('selected_model_line_item__name'))
         result = result.replace('{temperature}', self._get_value('selected_temperature__encoding'))
         result = result.replace('{ip}', self._get_value('selected_ip__encoding'))
+        if self.selected_control_unit_option:
+            selected_control_unit_option_encoding = self.selected_control_unit_option.encoding
+            print(f"selected_control_unit_option_encoding: {selected_control_unit_option_encoding}")
+            # Кодировка уже хранится в through-модели
+            result = result.replace('{control_unit}', selected_control_unit_option_encoding)
+
+        # self._get_value('selected_control_unit_installed__encoding'),
         # result = result.replace('{hand_wheel}', self._get_value('selected_hand_wheel__encoding'))
         # result = result.replace('{coating}', self._get_value('selected_body_coating__encoding'))
 
@@ -275,15 +308,12 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         try:
             result = {}
             print(f"DEBUG get_available_options: Processing options from _OPTION_CONFIG")
-            print(f"DEBUG get_available_options: _OPTION_CONFIG keys: {list(self._OPTION_CONFIG.keys())}")
 
             # Получаем информацию о model_line для отладки
             model_line_info = None
             if hasattr(self.selected_model_line_item, 'model_line'):
                 model_line_info = self.selected_model_line_item.model_line
                 print(f"DEBUG get_available_options: Model line: {model_line_info}")
-                print(
-                    f"DEBUG get_available_options: Model line id: {model_line_info.id if model_line_info else 'None'}")
 
             # Для каждой опции из _OPTION_CONFIG
             for field_name, config in self._OPTION_CONFIG.items():
@@ -303,12 +333,27 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                     result_key = f"{field_name}_options".replace('selected_', '')
                     print(f"DEBUG get_available_options: Result key: {result_key}")
 
-                    # Строим фильтр в зависимости от parent_field
-                    filter_kwargs = {'is_active': True}
+                    # Особый случай: опция блока управления зависит от выбранного напряжения
+                    if field_name == 'selected_control_unit_option':
+                        if not self.selected_power_supply:
+                            print("DEBUG get_available_options: No power supply selected for control unit options")
+                            result[result_key] = []
+                            continue
 
-                    if config['parent_field'] == 'model_line':
+                        # Фильтруем по выбранному напряжению
+                        filter_kwargs = {
+                            'power_supply_option': self.selected_power_supply,
+                            'is_active': True
+                        }
+                        print(
+                            f"DEBUG get_available_options: Filter by power_supply_option: {self.selected_power_supply.id}")
+
+                    elif config['parent_field'] == 'model_line':
                         if model_line_info:
-                            filter_kwargs['model_line'] = model_line_info
+                            filter_kwargs = {
+                                config['parent_field']: model_line_info,
+                                'is_active': True
+                            }
                             print(f"DEBUG get_available_options: Filter by model_line: {model_line_info.id}")
                         else:
                             print(f"DEBUG get_available_options: No model_line, skipping")
@@ -316,7 +361,10 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                             continue
 
                     elif config['parent_field'] == 'model_line_item':
-                        filter_kwargs['model_line_item'] = self.selected_model_line_item
+                        filter_kwargs = {
+                            config['parent_field']: self.selected_model_line_item,
+                            'is_active': True
+                        }
                         print(
                             f"DEBUG get_available_options: Filter by model_line_item: {self.selected_model_line_item.id}")
 
@@ -324,7 +372,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                         # Для других связей
                         parent_value = getattr(self.selected_model_line_item, config['parent_field'], None)
                         if parent_value:
-                            filter_kwargs[config['parent_field']] = parent_value
+                            filter_kwargs = {config['parent_field']: parent_value, 'is_active': True}
                             print(f"DEBUG get_available_options: Filter by {config['parent_field']}: {parent_value}")
                         else:
                             print(f"DEBUG get_available_options: No {config['parent_field']}, skipping")
@@ -340,14 +388,22 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                     # Формируем список опций
                     options_list = []
                     for opt in options:
-                        options_list.append({
+                        option_data = {
                             'id': opt.id,
-                            'encoding': opt.encoding,
+                            'encoding': opt.encoding or '',
                             'name': str(opt),
-                            'description': opt.description,
-                            'is_default': getattr(opt, 'is_default', False),  # Безопасное получение
-                            'parent_field': config['parent_field']  # Добавляем для отладки
-                        })
+                            'description': opt.description or '',
+                            'is_default': getattr(opt, 'is_default', False),
+                            'parent_field': config['parent_field']
+                        }
+
+                        # Для опций блока управления добавляем дополнительную информацию
+                        if field_name == 'selected_control_unit_option':
+                            if hasattr(opt, 'control_unit'):
+                                option_data['control_unit_name'] = str(opt.control_unit)
+                                option_data['control_unit_id'] = opt.control_unit.id
+
+                        options_list.append(option_data)
 
                     result[result_key] = options_list
 
@@ -367,6 +423,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                     result[result_key] = []
                 except Exception as e:
                     print(f"ERROR get_available_options: Unexpected error for {field_name}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     result_key = f"{field_name}_options".replace('selected_', '')
                     result[result_key] = []
 
@@ -472,7 +530,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             return
 
         import re
-        from datetime import datetime
 
         # Определяем следующий номер для копии
         base_name_for_search = re.sub(r'\s*\(copy\s*#\d+\)$', '', self.name, flags=re.IGNORECASE).strip()

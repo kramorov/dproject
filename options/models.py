@@ -711,17 +711,18 @@ class BasePneumaticConnectionThroughOption(BaseThroughOption):
         return None
 
 
-class BaseSafetyPositionThroughOption(BaseThroughOption):
-    """Базовая модель для сквозных опций положения безопасности НО/НЗ/оставаться..."""
-    safety_position = models.ForeignKey(
-        'params.SafetyPositionOption',
-        on_delete=models.CASCADE,
-        verbose_name=_("Положение безопасности"),
-        help_text=_('Положения безопасности'))
-
-    class Meta:
-        abstract = True
-        ordering = ['sorting_order']
+# class BaseSafetyPositionThroughOption(BaseThroughOption):
+#     """Базовая модель для сквозных опций положения безопасности НО/НЗ/оставаться..."""
+#
+#     safety_position = models.ForeignKey(
+#         'params.SafetyPositionOption',
+#         on_delete=models.CASCADE,
+#         verbose_name=_("Положение безопасности"),
+#         help_text=_('Положения безопасности'))
+#
+#     class Meta:
+#         abstract = True
+#         ordering = ['sorting_order']
 
 
 class BaseTurnAngleThroughOption(BaseThroughOption):

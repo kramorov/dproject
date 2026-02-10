@@ -1,4 +1,4 @@
-// static/admin/js/electric_actuator_selected_admin.js
+// static/admin/js/electric_actuator_selected.js
 
 document.addEventListener('DOMContentLoaded', function () {
     console.log("=== ELECTRIC ACTUATOR SELECTED JS LOADED ===");
@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("Model selector value:", modelSelector.value);
     }
 
-    // 2. Находим селекторы опций (включая selected_control_unit_installed)
+    // 2. Находим селекторы опций
     const optionSelectors = Array.from(document.querySelectorAll('select')).filter(select =>
         select.name !== 'selected_model_line_item' &&
         select.name.startsWith('selected_')
@@ -23,122 +23,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 3. Карта соответствия полей и ключей API
     const fieldToApiKeyMap = {
-        'selected_temperature': 'temperature_options',
-        'selected_ip': 'ip_options',
-        'selected_exd': 'exd_options',
-        'selected_body_coating': 'body_coating_options',
-        'selected_hand_wheel': 'hand_wheel_options',
-        'selected_power_supply': 'power_supply_options',
-    };
+    'selected_temperature': 'temperature_options',
+    'selected_ip': 'ip_options',
+    'selected_exd': 'exd_options',
+    'selected_body_coating': 'body_coating_options',
+    'selected_hand_wheel': 'hand_wheel_options',
+    'selected_power_supply': 'power_supply_options'  // ДОБАВЛЕНО
+};
 
-    // 4. Функция для получения доступных блоков управления для напряжения
-    async function getAvailableControlsForPowerSupply(powerSupplyId) {
-        console.log("Getting available controls for power supply:", powerSupplyId);
-
-        if (!powerSupplyId) {
-            return [];
-        }
-
-        try {
-            const response = await fetch(
-                `/admin/electric_actuators/electricactuatorselected/get_available_controls/?power_supply_id=${powerSupplyId}`
-            );
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log("Available controls data:", data);
-
-            return data.available_controls || [];
-        } catch (error) {
-            console.error('Error fetching available controls:', error);
-            return [];
-        }
-    }
-
-    // 5. Функция фильтрации блоков управления
-    async function filterControlUnits(powerSupplyId, forceSelectFirst = false) {
-        console.log("=== filterControlUnits ===");
-        console.log("Power supply ID:", powerSupplyId);
-        console.log("Force select first:", forceSelectFirst);
-
-        const controlSelector = document.querySelector('select[name="selected_control_unit_installed"]');
-        if (!controlSelector) {
-            console.log("Control selector not found");
-            return;
-        }
-
-        // Сохраняем текущее значение
-        const currentValue = controlSelector.value;
-        console.log("Current control value:", currentValue);
-
-        if (!powerSupplyId) {
-            // Если напряжение не выбрано, показываем все активные блоки
-            console.log("No power supply selected, showing all controls");
-
-            controlSelector.querySelectorAll('option').forEach(option => {
-                option.style.display = '';
-            });
-            return;
-        }
-
-        // Получаем доступные блоки управления
-        const availableControlIds = await getAvailableControlsForPowerSupply(powerSupplyId);
-        console.log("Available control IDs:", availableControlIds);
-
-        // Фильтруем опции в селекторе
-        const allOptions = controlSelector.querySelectorAll('option');
-        let hasAvailableOptions = false;
-        let firstAvailableId = null;
-
-        allOptions.forEach(option => {
-            if (option.value === '') {
-                // Пропускаем пустую опцию
-                option.style.display = '';
-                return;
-            }
-
-            const isAvailable = availableControlIds.includes(parseInt(option.value));
-            option.style.display = isAvailable ? '' : 'none';
-
-            if (isAvailable) {
-                hasAvailableOptions = true;
-                if (!firstAvailableId && option.value) {
-                    firstAvailableId = option.value;
-                }
-            }
-        });
-
-        // Если текущее значение не доступно, сбрасываем его
-        if (currentValue && !availableControlIds.includes(parseInt(currentValue))) {
-            controlSelector.value = '';
-            console.log("Current value not available, resetting");
-        }
-
-        // Если forceSelectFirst и есть доступные опции, выбираем первую
-        if (forceSelectFirst && firstAvailableId && !controlSelector.value) {
-            controlSelector.value = firstAvailableId;
-            console.log("Auto-selected first available control:", firstAvailableId);
-        }
-
-        console.log("Has available options:", hasAvailableOptions);
-        console.log("Final control value:", controlSelector.value);
-    }
-
-    // 6. Функция обновления опций
-    async function updateOptions(modelId) {
+    // 4. Функция обновления опций
+    function updateOptions(modelId) {
         console.log("=== updateOptions called ===");
         console.log("Model ID:", modelId);
 
         if (!modelId) {
             console.warn("No model ID, clearing options");
             optionSelectors.forEach(select => {
-                // Не очищаем selected_control_unit_installed
-                if (select.name !== 'selected_control_unit_installed') {
-                    select.innerHTML = '<option value="">---------</option>';
-                }
+                select.innerHTML = '<option value="">---------</option>';
             });
             return;
         }
@@ -146,133 +47,83 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = `/admin/electric_actuators/electricactuatorselected/get_options/?model_id=${modelId}`;
         console.log("Fetching from:", url);
 
-        try {
-            const response = await fetch(url);
-            console.log("Response status:", response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log("API response keys:", Object.keys(data));
-
-            // Обновляем каждый селектор
-            optionSelectors.forEach(select => {
-                const fieldName = select.name;
-
-                // Для selected_control_unit_installed НЕ обновляем через API get_options
-                if (fieldName === 'selected_control_unit_installed') {
-                    console.log("Skipping control unit field for API update");
-                    return;
+        fetch(url)
+            .then(response => {
+                console.log("Response status:", response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
+                return response.json();
+            })
+            .then(data => {
+                console.log("API response keys:", Object.keys(data));
 
-                const apiKey = fieldToApiKeyMap[fieldName];
+                // Обновляем каждый селектор
+                optionSelectors.forEach(select => {
+                    const fieldName = select.name;
+                    const apiKey = fieldToApiKeyMap[fieldName];
 
-                if (!apiKey) {
-                    console.warn(`No API key for: ${fieldName}`);
-                    return;
-                }
+                    if (!apiKey) {
+                        console.warn(`No API key for: ${fieldName}`);
+                        return;
+                    }
 
-                const options = data[apiKey] || [];
-                const currentValue = select.value;
+                    const options = data[apiKey] || [];
+                    const currentValue = select.value;
 
-                console.log(`  ${fieldName}: ${options.length} options, current: ${currentValue}`);
+                    console.log(`  ${fieldName}: ${options.length} options, current: ${currentValue}`);
 
-                // Сохраняем выбранное значение
-                let selectedOption = null;
-                if (currentValue) {
-                    selectedOption = options.find(opt =>
-                        parseInt(opt.id) === parseInt(currentValue)
-                    );
-                }
+                    // Сохраняем выбранное значение
+                    let selectedOption = null;
+                    if (currentValue) {
+                        selectedOption = options.find(opt =>
+                            parseInt(opt.id) === parseInt(currentValue)
+                        );
+                    }
 
-                // Очищаем и добавляем опции
-                select.innerHTML = '<option value="">---------</option>';
+                    // Очищаем и добавляем опции
+                    select.innerHTML = '<option value="">---------</option>';
 
-                options.forEach(option => {
-                    const isSelected = selectedOption && option.id === selectedOption.id;
-                    const displayText = option.name || option.encoding || `ID: ${option.id}`;
-                    const opt = new Option(displayText, option.id, false, isSelected);
-                    select.add(opt);
+                    options.forEach(option => {
+                        const isSelected = selectedOption && option.id === selectedOption.id;
+                        const displayText = option.name || option.encoding || `ID: ${option.id}`;
+                        const opt = new Option(displayText, option.id, false, isSelected);
+                        select.add(opt);
+                    });
+
+                    // Если выбранное значение было в старых опциях, но не в новых,
+                    // оставляем его (пользователь мог вручную выбрать)
+                    if (currentValue && !selectedOption) {
+                        console.log(`  Value ${currentValue} not found in new options, keeping it`);
+                    }
                 });
 
-                // Если выбранное значение было в старых опциях, но не в новых,
-                // оставляем его (пользователь мог вручную выбрать)
-                if (currentValue && !selectedOption) {
-                    console.log(`  Value ${currentValue} not found in new options, keeping it`);
-                    // Добавляем старое значение обратно
-                    const oldOption = new Option(`[СТАРОЕ] ${currentValue}`, currentValue, true, true);
-                    select.add(oldOption);
-                }
+                console.log("=== Options updated ===");
+            })
+            .catch(error => {
+                console.error('Error loading options:', error);
+                // Можно показать уведомление, но не alert
+                showNotification('Ошибка загрузки опций', 'error');
             });
-
-            console.log("=== Options updated ===");
-
-            // После обновления опций, если выбрано напряжение - фильтруем блоки управления
-            const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
-            if (powerSupplySelector && powerSupplySelector.value) {
-                console.log("Options updated: filtering controls for power supply");
-                await filterControlUnits(powerSupplySelector.value);
-            }
-
-        } catch (error) {
-            console.error('Error loading options:', error);
-            showNotification('Ошибка загрузки опций', 'error');
-        }
     }
 
-    // 7. Инициализация при загрузке
+    // 5. Инициализация при загрузке
     if (modelSelector && modelSelector.value) {
         console.log("Initial load with model:", modelSelector.value);
-        setTimeout(async () => {
-            await updateOptions(modelSelector.value);
-
-            // При инициализации также фильтруем блоки управления если выбрано напряжение
-            const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
-            if (powerSupplySelector && powerSupplySelector.value) {
-                console.log("Initial load: filtering controls for power supply");
-                await filterControlUnits(powerSupplySelector.value);
-            }
+        setTimeout(() => {
+            updateOptions(modelSelector.value);
         }, 500);
     }
 
-    // 8. Обработчик изменения модели
+    // 6. Обработчик изменения модели
     if (modelSelector) {
-        modelSelector.addEventListener('change', async function () {
+        modelSelector.addEventListener('change', function () {
             console.log("Model changed to:", this.value);
-            await updateOptions(this.value);
-
-            // При смене модели сбрасываем блок управления
-            const controlSelector = document.querySelector('select[name="selected_control_unit_installed"]');
-            if (controlSelector) {
-                controlSelector.value = '';
-                console.log("Control unit reset due to model change");
-            }
+            updateOptions(this.value);
         });
     }
 
-    // 9. Обработчик изменения напряжения
-    const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
-    if (powerSupplySelector) {
-        // Добавляем обработчик, если его еще нет
-        if (!powerSupplySelector.hasAttribute('data-control-filter-added')) {
-            powerSupplySelector.setAttribute('data-control-filter-added', 'true');
-            powerSupplySelector.addEventListener('change', async function () {
-                console.log("Power supply changed to:", this.value);
-                await filterControlUnits(this.value, true); // forceSelectFirst = true
-            });
-        }
-    }
-
-    // 10. Обработчик изменения блока управления (для логирования)
-    const controlUnitSelector = document.querySelector('select[name="selected_control_unit_installed"]');
-    if (controlUnitSelector) {
-        controlUnitSelector.addEventListener('change', function () {
-            console.log("Control unit changed to:", this.value);
-        });
-    }
-
-    // 11. Функция для добавления кнопки генерации описания
+    // 7. Функция для добавления кнопки генерации описания
     function addGenerateDescriptionButton() {
         console.log("=== Adding generate description button ===");
 
@@ -376,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function () {
         initPreviewButton();
     }
 
-    // 12. Функция инициализации кнопки генерации
+    // 8. Функция инициализации кнопки генерации
     function initGenerateButton() {
         const generateBtn = document.querySelector('#generate-description-btn');
         if (!generateBtn) return;
@@ -469,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 13. Функция инициализации кнопки предпросмотра
+    // 9. Функция инициализации кнопки предпросмотра
     function initPreviewButton() {
         const previewBtn = document.querySelector('#preview-description-btn');
         if (!previewBtn) return;
@@ -490,68 +341,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 14. Вспомогательные функции
-    function getCsrfToken() {
-        const token = document.querySelector('[name=csrfmiddlewaretoken]');
-        return token ? token.value : '';
-    }
-
-    function showNotification(message, type = 'info') {
-        // Создаем уведомление
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 4px;
-            color: white;
-            z-index: 9999;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            animation: slideIn 0.3s ease;
-        `;
-
-        const colors = {
-            'info': '#2196F3',
-            'success': '#4CAF50',
-            'warning': '#ff9800',
-            'error': '#f44336'
-        };
-
-        notification.style.backgroundColor = colors[type] || colors.info;
-        notification.textContent = message;
-
-        document.body.appendChild(notification);
-
-        // Удаляем через 5 секунд
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 5000);
-
-        // Добавляем стили анимации
-        if (!document.querySelector('#notification-styles')) {
-            const style = document.createElement('style');
-            style.id = 'notification-styles';
-            style.textContent = `
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-
+    // 10. Функция предпросмотра описания
     function previewDescription(objectId, descriptionText) {
         console.log("Preview description for:", objectId);
 
@@ -702,25 +492,77 @@ document.addEventListener('DOMContentLoaded', function () {
         newWindow.document.close();
     }
 
-    // 15. Добавляем кнопку с задержкой (после полной загрузки формы)
+    // 11. Вспомогательные функции
+    function getCsrfToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        return token ? token.value : '';
+    }
+
+    function showNotification(message, type = 'info') {
+        // Создаем уведомление
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            z-index: 9999;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease;
+        `;
+
+        const colors = {
+            'info': '#2196F3',
+            'success': '#4CAF50',
+            'warning': '#ff9800',
+            'error': '#f44336'
+        };
+
+        notification.style.backgroundColor = colors[type] || colors.info;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        // Удаляем через 5 секунд
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
+
+        // Добавляем стили анимации
+        if (!document.querySelector('#notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'notification-styles';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    // 12. Добавляем кнопку с задержкой (после полной загрузки формы)
     setTimeout(() => {
         addGenerateDescriptionButton();
     }, 1000);
 
-    // 16. Также добавляем кнопку при изменении DOM (на случай динамической загрузки)
+    // 13. Также добавляем кнопку при изменении DOM (на случай динамической загрузки)
     const observer = new MutationObserver(() => {
         if (!document.querySelector('#generate-description-btn')) {
             addGenerateDescriptionButton();
-        }
-
-        // Проверяем, что обработчики добавлены для селекторов
-        const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
-        if (powerSupplySelector && !powerSupplySelector.hasAttribute('data-control-filter-added')) {
-            powerSupplySelector.setAttribute('data-control-filter-added', 'true');
-            powerSupplySelector.addEventListener('change', async function () {
-                console.log("Power supply changed (dynamic):", this.value);
-                await filterControlUnits(this.value, true);
-            });
         }
     });
 

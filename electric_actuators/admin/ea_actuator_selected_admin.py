@@ -21,31 +21,48 @@ from electric_actuators.models.ea_options import (
 
 @admin.register(ElectricActuatorSelected)
 class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'selected_model_display', 'is_active']
-    list_filter = ['is_active', 'selected_model_line_item']
-    search_fields = ['name', 'code', 'description']
+    list_display = [
+        'name',
+        'code',
+        'selected_model_display',
+        'is_active',
 
-    autocomplete_fields = ['selected_model_line_item']
+    ]
 
-    # Простые fieldsets без лишних полей
+    list_filter = [
+        'is_active',
+        'selected_model_line_item',
+    ]
+
+    search_fields = [
+        'name',
+        'code',
+        'description',
+
+    ]
+
+    # autocomplete_fields = [
+    #     'selected_model_line_item',
+    #     'selected_control_unit_installed',  # ДОБАВЛЕНО
+    # ]
+
+    filter_horizontal = ('actual_mounting_plate',)
+
     fieldsets = (
         (None, {
-            'fields': ('selected_model_line_item', ('name', 'code'))
+            'fields': (('selected_model_line_item', 'selected_power_supply'), ('name', 'code'))
         }),
         ('Опции', {
             'fields': (
-                ('selected_temperature',
-                'selected_ip'),
-                ('selected_exd',
-                'selected_body_coating'),
-                'selected_hand_wheel', 'selected_power_supply',
+                ('selected_temperature', 'selected_ip'),
+                ('selected_exd', 'selected_body_coating'),
+                ('selected_hand_wheel', 'selected_control_unit_option'),
             )
         }),
         ('Конструкция', {
             'fields': (
                 'actual_mounting_plate',
-                'actual_stem_shape',
-                'actual_stem_size',
+                ('actual_stem_shape', 'actual_stem_size'),
                 'actual_cable_glands_holes',
             )
         }),
@@ -55,7 +72,7 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
     )
 
     class Media:
-        js = ('admin/js/electric_actuator_selected_admin.js',)
+        js = ('admin/js/electric_actuator_selected_admin.js',)  # ИСПРАВЛЕНО имя файла
 
     def get_urls(self):
         urls = super().get_urls()
@@ -70,8 +87,98 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.get_options_view),
                 name='electric_actuator_get_options'
             ),
+            path(
+                'get_available_control_options/',  # УБЕДИТЕСЬ ЧТО ИМЯ ПРАВИЛЬНОЕ
+                self.admin_site.admin_view(self.get_available_control_options_view),
+                name='electric_actuator_get_available_control_options'
+            ),
         ]
         return custom_urls + urls
+
+    def get_available_control_options_view(self, request):
+        """API для получения доступных опций блоков управления для выбранного напряжения"""
+        power_supply_id = request.GET.get('power_supply_id')
+        print(f"=== get_available_control_options_view called ===")
+        print(f"Power supply ID: {power_supply_id}")
+
+        if not power_supply_id:
+            print("No power supply ID provided")
+            return JsonResponse({'options': []})
+
+        try:
+            from electric_actuators.models.ea_model_line_item_options import ElectricControlUnitOption
+
+            # Получаем опции блоков управления
+            options = ElectricControlUnitOption.objects.filter(
+                power_supply_option_id=power_supply_id,
+                is_active=True
+            ).select_related('control_unit').order_by('sorting_order')
+
+            options_list = []
+            for option in options:
+                options_list.append({
+                    'id': option.id,
+                    'control_unit_id': option.control_unit.id,
+                    'control_unit_name': str(option.control_unit),
+                    'encoding': option.encoding or '',
+                    'is_default': option.is_default,
+                    'description': option.description or '',
+                })
+
+            print(f"Found {len(options_list)} control unit options")
+
+            return JsonResponse({
+                'success': True,
+                'options': options_list
+            })
+
+        except Exception as e:
+            print(f"ERROR in get_available_control_options_view: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+                'options': []
+            }, status=500)
+
+    def get_available_controls_view(self, request):
+        """API для получения доступных блоков управления для выбранного напряжения"""
+        power_supply_id = request.GET.get('power_supply_id')
+        print(f"=== get_available_controls_view called ===")
+        print(f"Power supply ID: {power_supply_id}")
+
+        if not power_supply_id:
+            print("No power supply ID provided")
+            return JsonResponse({'available_controls': []})
+
+        try:
+            from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
+
+            # Получаем опцию напряжения
+            power_supply_option = ElectricPowerSupplyOption.objects.get(id=power_supply_id)
+            print(f"Found power supply option: {power_supply_option}")
+
+            # Получаем доступные блоки управления через ManyToMany
+            available_controls = power_supply_option.control_unit_option.filter(
+                is_active=True
+            ).values_list('id', flat=True)
+
+            available_controls_list = list(available_controls)
+            print(f"Available controls IDs: {available_controls_list}")
+
+            return JsonResponse({
+                'available_controls': available_controls_list
+            })
+
+        except ElectricPowerSupplyOption.DoesNotExist:
+            print(f"Power supply option with id {power_supply_id} not found")
+            return JsonResponse({'error': 'Power supply option not found'}, status=404)
+        except Exception as e:
+            print(f"ERROR in get_available_controls_view: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'error': str(e)}, status=500)
 
     def generate_description_view(self, request, object_id):
         """View для генерации описания"""
@@ -115,6 +222,17 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
             temp_instance = self.model(
                 selected_model_line_item=model_item
             )
+
+            # Если есть power_supply_id в запросе, устанавливаем его
+            power_supply_id = request.GET.get('power_supply_id')
+            if power_supply_id:
+                from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
+                try:
+                    power_supply = ElectricPowerSupplyOption.objects.get(id=power_supply_id)
+                    temp_instance.selected_power_supply = power_supply
+                    print(f"Set power supply: {power_supply}")
+                except ElectricPowerSupplyOption.DoesNotExist:
+                    print(f"Power supply with id {power_supply_id} not found")
 
             # Получаем опции через стандартный метод
             options = temp_instance.get_available_options()

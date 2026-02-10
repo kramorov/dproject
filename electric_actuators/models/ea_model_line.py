@@ -42,7 +42,8 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         ElectricPowerSupplyOption PowerSupply (time to close, rotation_speed,
         torque_min, torque_max,
         Current_rated, current_max, motor_power
-        torque_switches
+        torque_switches - или есть или нет
+        way_switches - MID опция
     """
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,

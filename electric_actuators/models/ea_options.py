@@ -11,39 +11,7 @@ from options.models import (
     BaseOperatingModeThroughOption ,
     BaseMechanicalIndicatorThroughOption , BaseThroughOption , BaseSafetyPositionThroughOption
 )
-class ElectricSafetyPositionOption(BaseSafetyPositionThroughOption):
-    """Опции покрытия корпуса для пневмоприводов"""
-    model_line_item = models.ForeignKey(
-        'ElectricActuatorModelLineItem',
-        on_delete=models.CASCADE,
-        related_name='ea_safety_position_option_model_line_item',
-        verbose_name=_("Положение безопасности")
-    )
 
-    class Meta:
-        verbose_name = _("Положение безопасности модели электропривода")
-        verbose_name_plural = _("Положения безопасности моделей лектроприводов")
-        ordering = ['sorting_order']
-        unique_together = ['model_line_item', 'safety_position']
-
-class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
-    """Угол поворота для электроприводов"""
-    model_line = models.ForeignKey(
-        'ElectricActuatorModelLine',
-        on_delete=models.CASCADE,
-        related_name='turn_angle_options',
-        verbose_name=_("Серия электроприводов")
-    )
-
-    class Meta:
-        verbose_name = _('Угол поворота ЭП')
-        verbose_name_plural = _("Углы поворота электроприводов")
-        ordering = ['is_default', 'sorting_order']
-        # unique_together = ['model_line', 'encoding']
-
-    @classmethod
-    def _get_parent_field_name(cls):
-        return 'model_line'
 
 
 class ElectricHandWheelOption(BaseHandWheelThroughOption):
@@ -145,25 +113,6 @@ class ElectricExdOption(BaseExdThroughOption):
     def _get_parent_field_name(cls):
         return 'model_line'
 
-
-class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
-    """Опции путевых выключателей для электроприводов"""
-    model_line = models.ForeignKey(
-        'ElectricActuatorModelLine',
-        on_delete=models.CASCADE,
-        related_name='way_switches_options',
-        verbose_name=_("Серия электроприводов")
-    )
-
-    class Meta:
-        verbose_name = _("Опция путевые выключатели электропривода")
-        verbose_name_plural = _("Опции путевых выключателей электроприводов")
-        ordering = ['sorting_order']
-        unique_together = ['model_line', 'way_switches_option']
-
-    @classmethod
-    def _get_parent_field_name(cls):
-        return 'model_line'
 
 
 class ElectricBodyCoatingOption(BaseBodyCoatingThroughOption):
@@ -268,31 +217,6 @@ class CableGlandHolesSetThroughOption(BaseThroughOption):
         ordering = ['sorting_order']
         unique_together = ['model_line', 'cg_set']
 
-    # @classmethod
-    # def create_default_option(cls, parent_obj):
-    #     """Создать стандартную CableGlandHolesSet)"""
-    #     from django.apps import apps
-    #
-    #     SwitchesParameters = apps.get_model('params', 'SwitchesParameters')  # Ленивая загрузка
-    #
-    #     try:
-    #         no_way_switches_option = SwitchesParameters.objects.get(code='none')
-    #     except SwitchesParameters.DoesNotExist:
-    #         no_way_switches_option = SwitchesParameters.objects.filter(is_active=True).first()
-    #
-    #     if no_way_switches_option:
-    #         parent_field = cls._get_parent_field_name()
-    #         return cls.objects.create(
-    #             **{parent_field: parent_obj},
-    #             way_switches_option=no_way_switches_option,
-    #             encoding='',
-    #             description=no_way_switches_option.description,
-    #             is_default=True,
-    #             sorting_order=0,
-    #             is_active=True
-    #         )
-    #     return None
-
     def get_display_name(self) :
         """Отображаемое имя для путевых выключателей"""
         if self.cg_set :
@@ -303,3 +227,43 @@ class CableGlandHolesSetThroughOption(BaseThroughOption):
 
     def __str__(self) :
         return self.get_display_name()
+
+
+    class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
+        """Угол поворота для электроприводов"""
+        model_line = models.ForeignKey(
+            'ElectricActuatorModelLine',
+            on_delete=models.CASCADE,
+            related_name='turn_angle_options',
+            verbose_name=_("Серия электроприводов")
+        )
+
+        class Meta:
+            verbose_name = _('Угол поворота ЭП')
+            verbose_name_plural = _("Углы поворота электроприводов")
+            ordering = ['is_default', 'sorting_order']
+            # unique_together = ['model_line', 'encoding']
+
+        @classmethod
+        def _get_parent_field_name(cls):
+            return 'model_line'
+
+    class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
+        """Опции путевых выключателей для электроприводов
+            привязан к ModelLineItem"""
+        model_line_item = models.ForeignKey(
+            'ElectricActuatorModelLineItem',
+            on_delete=models.CASCADE,
+            related_name='way_switches_options',
+            verbose_name=_("Серия электроприводов")
+        )
+
+        class Meta:
+            verbose_name = _("Опция путевые выключатели электропривода")
+            verbose_name_plural = _("Опции путевых выключателей электроприводов")
+            ordering = ['sorting_order']
+            unique_together = ['model_line', 'way_switches_option']
+
+        @classmethod
+        def _get_parent_field_name(cls):
+            return 'model_line'

@@ -5,7 +5,36 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.utils.html import format_html
 
-from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
+from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption, ElectricControlUnitOption
+
+
+class ElectricControlUnitOptionInline(admin.TabularInline):
+    """Inline для опций блоков управления"""
+    model = ElectricControlUnitOption
+    extra = 0
+    ordering = ['sorting_order']
+
+    fields = [
+        'control_unit',
+        'encoding',
+        'is_default',
+        'is_active',
+        'sorting_order'
+    ]
+
+    verbose_name = _("Опция блока управления")
+    verbose_name_plural = _("Опции блоков управления")
+
+    # Автодополнение для поиска блоков управления
+    # autocomplete_fields = ['control_unit']
+
+    # Можно добавить кастомные виджеты для полей
+    # def formfield_for_dbfield(self, db_field, request, **kwargs):
+    #     if db_field.name == 'encoding':
+    #         kwargs['widget'] = admin.widgets.AdminTextInputWidget(attrs={'size': '10'})
+    #     elif db_field.name == 'power_consumption':
+    #         kwargs['widget'] = admin.widgets.AdminTextInputWidget(attrs={'size': '8'})
+    #     return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 def copy_electric_power_supply_option(modeladmin, request, queryset):
@@ -76,43 +105,28 @@ copy_electric_power_supply_option.short_description = "📋 Копировать
 
 @admin.register(ElectricPowerSupplyOption)
 class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
-    list_display = ('model_line_item', 'power_supply', 'get_time_open',
-                    'get_time_close', 'get_torque_range', 'display_control_units')
-    list_filter = ('model_line_item', 'power_supply', 'control_unit_option', 'is_active')
+    list_display = ('display_name','display_params',)
+    list_filter = ('model_line_item', 'power_supply', 'is_active')
     search_fields = ('model_line_item__name', 'power_supply__name', 'encoding')
     ordering = ('model_line_item', 'sorting_order')
 
-    # Горизонтальный выбор для ManyToMany
-    filter_horizontal = ('control_unit_option',)
-
-    # Используем TabbedInline для группировки полей по вкладкам
     fieldsets = (
         (None, {
             'fields': (
-                'model_line_item',
-                'power_supply',
-                'control_unit_option',
-                'is_active',
-                'sorting_order'
+                ('model_line_item','power_supply','encoding'),
+                ('is_active',
+                'sorting_order'),
             )
         }),
-        (_('Кодирование'), {
-            'fields': ('encoding',),
-            'classes': ('collapse',)
-        }),
-        (_('Характеристики двигателя'), {
+        (_('Характеристики'), {
             'fields': (
-                'motor_current_rated',
+                ('motor_current_rated',
                 'motor_current_starting',
-                'motor_power'
-            )
-        }),
-        (_('Характеристики работы'), {
-            'fields': (
-                'time_to_open',
-                'time_to_close',
-                'torque_min',
-                'torque_max'
+                'motor_power'),
+                ('time_to_open',
+                'time_to_close'),
+                ('torque_min',
+                'torque_max')
             )
         }),
         (_('Описание'), {
@@ -120,45 +134,9 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-
+    inlines = [ElectricControlUnitOptionInline]
     # Добавляем кастомные методы для отображения в списке
-    def get_time_open(self, obj):
-        return f"{obj.time_to_open} с" if obj.time_to_open else "-"
 
-    get_time_open.short_description = _('Время открытия')
-    get_time_open.admin_order_field = 'time_to_open'
-
-    def get_time_close(self, obj):
-        return f"{obj.time_to_close} с" if obj.time_to_close else "-"
-
-    get_time_close.short_description = _('Время закрытия')
-    get_time_close.admin_order_field = 'time_to_close'
-
-    def get_torque_range(self, obj):
-        if obj.torque_min and obj.torque_max:
-            return f"{obj.torque_min}-{obj.torque_max} Нм"
-        elif obj.torque_min:
-            return f"от {obj.torque_min} Нм"
-        elif obj.torque_max:
-            return f"до {obj.torque_max} Нм"
-        return "-"
-
-    get_torque_range.short_description = _('Диапазон усилия')
-
-    def display_control_units(self, obj):
-        count = obj.control_unit_option.count()
-        if count > 0:
-            return f"{count} шт."
-        return "-"
-
-    display_control_units.short_description = _('Блоки упр.')
-
-    # Настройка формы для редактирования
-    def formfield_for_manytomany(self, db_field, request, **kwargs):
-        if db_field.name == "control_unit_option":
-            # Можно добавить фильтрацию если нужно
-            kwargs["queryset"] = db_field.related_model.objects.filter(is_active=True)
-        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     # Оптимизация запросов
     def get_queryset(self , request) :
@@ -172,10 +150,48 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
             return f'{obj.model_line_item.name}.{obj.power_supply.encoding}'
         return "Не указано имя модели или напряжение"
 
+    display_name.short_description = 'Модель'
+
     def display_params(self, obj) :
         if obj.model_line_item and obj.power_supply:
             return f'Iном={obj.motor_current_rated} / Istart={obj.motor_current_starting} / P={obj.motor_power}'
         return "Не указано имя модели или напряжение"
+
+    display_params.short_description = 'Токи и мощность'
+
     # Проверка уникальности дефолтных опций
     def save_model(self , request , obj , form , change) :
         super().save_model(request , obj , form , change)
+
+        # Добавляем метод для предотвращения дублирования дефолтных опций:
+        def save_formset(self, request, form, formset, change):
+            """Сохранение formset с валидацией"""
+            if formset.model == ElectricControlUnitOption:
+                instances = formset.save(commit=False)
+
+                # Проверяем, что только одна опция помечена как дефолтная
+                default_instances = [i for i in instances if i.is_default]
+
+                if len(default_instances) > 1:
+                    form.instance._default_validation_error = True
+                    messages.error(
+                        request,
+                        'Только одна опция блока управления может быть помечена как "По умолчанию"'
+                    )
+                    return
+
+                # Сохраняем все инстансы
+                for instance in instances:
+                    instance.save()
+                formset.save_m2m()
+            else:
+                super().save_formset(request, form, formset, change)
+
+        # Добавляем валидацию при сохранении:
+        def save_model(self, request, obj, form, change):
+            # Проверяем, была ли ошибка валидации в formset
+            if hasattr(obj, '_default_validation_error'):
+                delattr(obj, '_default_validation_error')
+                return  # Не сохраняем, если была ошибка
+
+            super().save_model(request, obj, form, change)
