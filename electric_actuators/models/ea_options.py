@@ -229,41 +229,41 @@ class CableGlandHolesSetThroughOption(BaseThroughOption):
         return self.get_display_name()
 
 
-    class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
-        """Угол поворота для электроприводов"""
-        model_line = models.ForeignKey(
-            'ElectricActuatorModelLine',
-            on_delete=models.CASCADE,
-            related_name='turn_angle_options',
-            verbose_name=_("Серия электроприводов")
-        )
+class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
+    """Угол поворота для электроприводов"""
+    model_line = models.ForeignKey(
+        'ElectricActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='turn_angle_options',
+        verbose_name=_("Серия электроприводов")
+    )
 
-        class Meta:
-            verbose_name = _('Угол поворота ЭП')
-            verbose_name_plural = _("Углы поворота электроприводов")
-            ordering = ['is_default', 'sorting_order']
-            # unique_together = ['model_line', 'encoding']
+    class Meta:
+        verbose_name = _('Угол поворота ЭП')
+        verbose_name_plural = _("Углы поворота электроприводов")
+        ordering = ['is_default', 'sorting_order']
+        # unique_together = ['model_line', 'encoding']
 
-        @classmethod
-        def _get_parent_field_name(cls):
-            return 'model_line'
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line'
 
-    class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
-        """Опции путевых выключателей для электроприводов
-            привязан к ModelLineItem"""
-        model_line_item = models.ForeignKey(
-            'ElectricActuatorModelLineItem',
-            on_delete=models.CASCADE,
-            related_name='way_switches_options',
-            verbose_name=_("Серия электроприводов")
-        )
+class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
+    """Опции путевых выключателей для электроприводов
+        привязан к ModelLineItem"""
+    model_line_item = models.ForeignKey(
+        'ElectricActuatorModelLineItem',
+        on_delete=models.CASCADE,
+        related_name='way_switches_options',
+        verbose_name=_("Серия электроприводов")
+    )
 
-        class Meta:
-            verbose_name = _("Опция путевые выключатели электропривода")
-            verbose_name_plural = _("Опции путевых выключателей электроприводов")
-            ordering = ['sorting_order']
-            unique_together = ['model_line', 'way_switches_option']
+    class Meta:
+        verbose_name = _("Опция путевые выключатели электропривода")
+        verbose_name_plural = _("Опции путевых выключателей электроприводов")
+        ordering = ['sorting_order']
+        # unique_together = ['model_line_item', 'way_switches_option']
 
-        @classmethod
-        def _get_parent_field_name(cls):
-            return 'model_line'
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line'

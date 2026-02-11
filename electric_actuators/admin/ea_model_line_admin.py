@@ -285,30 +285,7 @@ class ElectricControlUnitInstalledOptionInline(admin.TabularInline) :
 
         formset.model.__str__ = safe_str
         return formset
-class ElectricWaySwitchesOptionInline(admin.TabularInline) :
-    """Inline для напряжения питания"""
-    model = ElectricWaySwitchesOption
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['way_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
-    verbose_name = _("Путевые выключатели")
-    verbose_name_plural = _("Опции путевых выключателей")
 
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-
-        # Патчим метод __str__ для формы
-        original_str = formset.model.__str__
-
-        def safe_str(instance):
-            try:
-                return original_str(instance)
-            except Exception as e:
-                logger.debug(f"Ошибка в __str__: {e}")
-                return "Новая опция"
-
-        formset.model.__str__ = safe_str
-        return formset
 
 class ElectricBlinkerOptionInline(admin.TabularInline) :
     """Inline для температурных опций"""
@@ -512,8 +489,8 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         ElectricBodyCoatingOptionInline ,
         ElectricTurnAngleOptionInline ,
         ElectricBlinkerOptionInline ,
-        ElectricWaySwitchesOptionInline ,
-        ElectricControlUnitInstalledOptionInline ,
+        # ElectricWaySwitchesOptionInline ,
+        # ElectricControlUnitInstalledOptionInline ,
         # ElectricOperatingModeOptionInline ,  # ДОБАВИТЬ
         ElectricMechanicalIndicatorOptionInline  # ДОБАВИТЬ
     ]

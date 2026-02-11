@@ -51,7 +51,7 @@ class ElectricSafetyPositionOption(BaseThroughOption):
         verbose_name = _("Положение безопасности модели электропривода")
         verbose_name_plural = _("Положения безопасности моделей лектроприводов")
         ordering = ['sorting_order']
-        unique_together = ['power_supply_option', 'safety_position']
+        # unique_together = ['power_supply_option', 'safety_position']
 
 class ElectricControlUnitOption(BaseThroughOption):
     """Through-модель для блоков управления с encoding и дефолтами"""
@@ -59,13 +59,15 @@ class ElectricControlUnitOption(BaseThroughOption):
     power_supply_option = models.ForeignKey(
         'ElectricPowerSupplyOption',
         on_delete=models.CASCADE,
-        related_name='control_unit_options',
-        verbose_name=_("Опция напряжения питания")
+        related_name='ea_model_lene_item_options_power_supply_options',
+        verbose_name=_("Опция напряжения питания"),
+        help_text=_("Опция напряжения питания")
     )
 
     control_unit = models.ForeignKey(
         'params.ControlUnitInstalledOption',
         on_delete=models.CASCADE,
+        related_name='ea_model_lene_item_options_control_unit_options',
         verbose_name=_("Блок управления"),
         help_text=_("Тип блока управления")
     )
@@ -97,7 +99,7 @@ class ElectricControlUnitOption(BaseThroughOption):
         verbose_name = _("Опция блока управления для напряжения")
         verbose_name_plural = _("Опции блоков управления для напряжений")
         ordering = ['sorting_order']
-        unique_together = ['power_supply_option', 'control_unit']
+        # unique_together = ['power_supply_option', 'control_unit']
 
     def __str__(self):
         return f"{self.power_supply_option} -> {self.control_unit}"
@@ -271,9 +273,5 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
 
         new_option = self.__class__(**copy_kwargs)
         new_option.save()
-
-        # Копируем ManyToMany связи
-        if self.control_unit_option.exists():
-            new_option.control_unit_option.set(self.control_unit_option.all())
 
         return new_option

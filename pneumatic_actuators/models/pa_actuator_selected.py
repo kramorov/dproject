@@ -809,6 +809,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         short_description += f" Расход откр/закр,л:{data['body_specs']['technical_specs']['air_usage_open']}/{data['body_specs']['technical_specs']['air_usage_close']};"  # Расход откр/закр
 
         # Информация о штоке
+        print(f"Информация о штоке {data['body_specs']['mounting_specs']}")
         short_description += f" Шток:{data['body_specs']['mounting_specs']['stem']['shape']}/{data['body_specs']['mounting_specs']['stem']['size']};"  # Шток
         short_description += f" Площадка:{data['body_specs']['mounting_specs']['mounting_plates']};"  # Монтажные площадки
         short_description += f" Вес:{data['calculated_parameters']['weight']} кг;"  # Вес

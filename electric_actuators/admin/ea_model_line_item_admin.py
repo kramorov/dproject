@@ -6,6 +6,7 @@ from django.db import transaction
 
 import logging
 
+from electric_actuators.models import ElectricWaySwitchesOption
 from electric_actuators.models.ea_model_line_item import (
     ElectricActuatorModelLineItem ,
 
@@ -72,6 +73,30 @@ copy_model_line_items_action.short_description = _("Копировать выб�
 #
 
 # ============================= ОСНОВНАЯ АДМИНКА =============================
+class ElectricWaySwitchesOptionInline(admin.TabularInline) :
+    """Inline для напряжения питания"""
+    model = ElectricWaySwitchesOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['way_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Путевые выключатели")
+    verbose_name_plural = _("Опции путевых выключателей")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+
+        # Патчим метод __str__ для формы
+        original_str = formset.model.__str__
+
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__: {e}")
+                return "Новая опция"
+
+        formset.model.__str__ = safe_str
+        return formset
 
 @admin.register(ElectricActuatorModelLineItem)
 class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
