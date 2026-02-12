@@ -41,13 +41,6 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
 
     ]
 
-    # autocomplete_fields = [
-    #     'selected_model_line_item',
-    #     'selected_control_unit_installed',  # ДОБАВЛЕНО
-    # ]
-
-    filter_horizontal = ('actual_mounting_plate',)
-
     fieldsets = (
         (None, {
             'fields': (('selected_model_line_item', 'selected_power_supply'), ('name', 'code'))
@@ -59,10 +52,9 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
                 ('selected_hand_wheel', 'selected_control_unit_option'),
             )
         }),
-        ('Конструкция', {
+        ('Монтажная площадка и кабельные вводы под заказ', {
             'fields': (
-                'actual_mounting_plate',
-                ('actual_stem_shape', 'actual_stem_size'),
+                ('actual_mounting_plate','actual_stem_shape', 'actual_stem_size'),
                 'actual_cable_glands_holes',
             )
         }),

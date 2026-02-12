@@ -44,7 +44,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                                                  verbose_name=_('Модель'),
                                                  help_text=_('Модель электропривода'))
 
-    actual_mounting_plate = models.ManyToManyField(MountingPlateTypes, blank=True,
+    actual_mounting_plate = models.ForeignKey(MountingPlateTypes, on_delete=models.SET_NULL, null=True, blank=True,
                                                    related_name='selected_mounting_plate',
                                                    help_text='Монтажная площадка')
     actual_stem_shape = models.ForeignKey(StemShapes, on_delete=models.SET_NULL, null=True, blank=True,

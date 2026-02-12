@@ -1,0 +1,108 @@
+{# templates/admin/exchangerate_add_rates.html #}
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div id="content-main">
+    <form action="" method="post">
+        {% csrf_token %}
+        
+        <div class="module" style="padding: 15px;">
+            <h2>{% trans "Добавить курсы валют" %}</h2>
+            
+            <div style="margin: 20px 0;">
+                <label for="target_date" style="font-weight: bold; margin-right: 10px;">
+                    {% trans "Дата:" %}
+                </label>
+                <input type="date" 
+                       name="target_date" 
+                       id="target_date" 
+                       value="{{ today|date:'Y-m-d' }}"
+                       required
+                       style="padding: 5px; font-size: 14px;">
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <label style="font-weight: bold; display: block; margin-bottom: 10px;">
+                    {% trans "Валюты:" %}
+                </label>
+                
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    {% for currency in currencies %}
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" 
+                               name="currencies" 
+                               value="{{ currency }}"
+                               checked>
+                        <span style="font-weight: 500;">{{ currency }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                
+                <div style="margin-top: 10px;">
+                    <button type="button" 
+                            onclick="toggleCheckboxes(true)"
+                            style="margin-right: 10px; padding: 2px 10px;">
+                        {% trans "Выбрать все" %}
+                    </button>
+                    <button type="button" 
+                            onclick="toggleCheckboxes(false)"
+                            style="padding: 2px 10px;">
+                        {% trans "Снять все" %}
+                    </button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+
+                
+                <input type="submit" 
+                       name="apply" 
+                       value="{% trans 'Добавить курсы' %}"
+                       class="default"
+                       style="padding: 8px 20px;">
+                
+                <a href="{% url 'admin:price_exchangerate_changelist' %}" 
+                   class="button cancel-link"
+                   style="margin-left: 15px; padding: 8px 20px;">
+                    {% trans "Отмена" %}
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleCheckboxes(checked) {
+    const checkboxes = document.querySelectorAll('input[name="currencies"]');
+    checkboxes.forEach(cb => cb.checked = checked);
+}
+
+// Установить сегодняшнюю дату по умолчанию
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('target_date');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = today;
+    }
+});
+</script>
+
+<style>
+.module {
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.cancel-link {
+    background: #dc3545;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+}
+.cancel-link:hover {
+    background: #c82333;
+    color: white;
+}
+</style>
+{% endblock %}

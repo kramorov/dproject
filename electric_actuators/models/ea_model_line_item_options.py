@@ -160,8 +160,8 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
                                             'Альтернативное время закрытия, с - 0 если совпадает с базовой моделью'))
     torque_min = models.DecimalField(max_digits=5, decimal_places=0,
                                      default=0,
-                                     verbose_name=_('Альтернативное Мин.усилие - 0 если совпадает с базовой моделью'),
-                                     help_text=_('Минимальное усилие'))
+                                     verbose_name=_('Мин. усилие'),
+                                     help_text=_('Альтернативное Мин.усилие - 0 если совпадает с базовой моделью'))
     torque_max = models.DecimalField(max_digits=5, decimal_places=0,
                                      default=0,
                                      verbose_name=_('Макс.усилие'),

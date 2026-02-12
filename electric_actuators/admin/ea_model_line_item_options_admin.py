@@ -123,10 +123,15 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
                 ('motor_current_rated',
                 'motor_current_starting',
                 'motor_power'),
+            )
+        }),
+        (_('Нестандартные характеристики для этой модели с этим напряжением'), {
+            'fields': (
+
                 ('time_to_open',
-                'time_to_close'),
+                 'time_to_close'),
                 ('torque_min',
-                'torque_max')
+                 'torque_max')
             )
         }),
         (_('Описание'), {

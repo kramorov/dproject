@@ -103,8 +103,9 @@ INSTALLED_APPS = [
     'rest_framework' ,
     'corsheaders' ,
     'core' ,
-    # 'django_filters',
     'graphene_django' ,
+    'import_export',
+    'rangefilter',
     'cert_doc.apps.CertDocConfig',
     'params.apps.ParamsConfig' ,
     'options.apps.OptionsConfig' ,
@@ -119,7 +120,8 @@ INSTALLED_APPS = [
     'client_requests.apps.ClientRequestsConfig' ,
     'media_library.apps.MediaLibraryConfig' ,
     'pneumatic_actuators.apps.PneumaticActuatorConfig' ,
-    'features.apps.FeaturesConfig'
+    'features.apps.FeaturesConfig',
+    'price.apps.PriceConfig'
 ]
 
 MIDDLEWARE = [
@@ -285,3 +287,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+import sys
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')

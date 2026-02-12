@@ -1,0 +1,25 @@
+# templates/admin/price/exchangerate/change_list.html
+{#{% extends "admin/import_export/change_list_import_export.html" %}#}
+{##}
+{#{% block object-tools-items %}#}
+{#    {{ block.super }}#}
+{#    <li>#}
+{#        <a href="{% url 'admin:price_exchangerate_changelist' %}?action=add_rates_for_date" #}
+{#           class="addlink"#}
+{#           style="background: #28a745;">#}
+{#            {% trans "Добавить курсы на дату" %}#}
+{#        </a>#}
+{#    </li>#}
+{#{% endblock %}#}
+
+ templates/admin/price/exchangerate/change_list.html 
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="{{ add_rates_url }}" class="addlink">
+            Добавить курсы на дату
+        </a>
+    </li>
+{% endblock %}
