@@ -69,4 +69,42 @@ class ExchangeRate(StructuredDataMixin, models.Model):
         """Курс за 1 единицу валюты"""
         return self.rate / self.nominal
 
+    @classmethod
+    def get_or_fetch_rate(cls, currency: str, target_date: date) -> Optional['ExchangeRate']:
+        """
+        Получить курс из БД или загрузить с ЦБ если нет
+        """
+        from price.services.cbr_exchange import CBRExchangeService
+
+        try:
+            # Пробуем получить из БД
+            return cls.objects.get(currency=currency, date=target_date)
+        except cls.DoesNotExist:
+            try:
+                # Загружаем курсы с ЦБ на эту дату
+                rates = CBRExchangeService.fetch_and_save_rates(target_date)
+                if currency in rates:
+                    return cls.objects.get(currency=currency, date=target_date)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Ошибка загрузки курса {currency} на {target_date}: {e}")
+
+            return None
+
+    @classmethod
+    def get_or_fetch_rates_for_date(cls, target_date: date) -> Dict[str, Decimal]:
+        """
+        Получить все курсы на дату, загрузить если нет
+        """
+        from price.services.cbr_exchange import CBRExchangeService
+
+        rates = {}
+        for currency_code, _ in cls.CURRENCY_CHOICES:
+            rate_obj = cls.get_or_fetch_rate(currency_code, target_date)
+            if rate_obj:
+                rates[currency_code] = rate_obj.rate_per_one
+
+        return rates
+
 

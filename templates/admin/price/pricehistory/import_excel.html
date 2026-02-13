@@ -1,0 +1,150 @@
+{# templates/admin/price/pricehistory/import_excel.html #}
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+        &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+        &rsaquo; <a href="{% url 'admin:price_pricehistory_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; {{ title }}
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div id="content-main">
+        <div class="module"
+             style="padding: 25px; margin: 20px 0; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2 style="margin-top: 0; color: #79aec8; border-bottom: 2px solid #79aec8; padding-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 24px;">📥</span> Импорт цен из Excel
+            </h2>
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin: 25px 0;">
+                    <!-- Левая колонка -->
+                    <div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #2c3e50;">
+                                Валюта:
+                            </label>
+                            <select name="currency" required
+                                    style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
+                                <option value="">-- Выберите валюту --</option>
+                                {% for curr in currencies %}
+                                    <option value="{{ curr.id }}">{{ curr.name }} ({{ curr.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #2c3e50;">
+                                Тип цены:
+                            </label>
+                            <select name="price_type" required
+                                    style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
+                                <option value="">-- Выберите тип цены --</option>
+                                {% for pt in price_types %}
+                                    <option value="{{ pt.id }}">{{ pt.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #2c3e50;">
+                                Обновление:
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="update_existing">
+                                <span>Обновлять существующие записи</span>
+                            </label>
+                            <div style="color: #666; font-size: 12px; margin-top: 5px;">
+                                <i>Поиск по name + code + дата + валюта + тип цены</i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Правая колонка -->
+                    <div style="margin-bottom: 20px;">
+                        <label for="id_price_date"
+                               style="font-weight: 600; display: block; margin-bottom: 8px; color: #2c3e50;">
+                            Дата цен (необязательно):
+                        </label>
+                        <input type="date"
+                               id="id_price_date"
+                               name="price_date"
+                               value="{{ today|date:'Y-m-d' }}"
+                               style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
+                        <div style="color: #666; font-size: 12px; margin-top: 5px;">
+                            <i>Если не указана - будет использована текущая дата</i>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #2c3e50;">
+                            Excel файл:
+                        </label>
+                        <input type="file"
+                               name="excel_file"
+                               accept=".xlsx,.xls"
+                               required
+                               style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
+                    </div>
+                </div>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 4px; margin: 25px 0; border-left: 4px solid #79aec8;">
+            <h4 style="margin-top: 0; color: #2c3e50; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">📋</span> Формат файла:
+            </h4>
+            <p style="margin-bottom: 10px;">Файл должен содержать колонки:</p>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <th style="text-align: left; padding: 8px; background: #e9ecef;">Колонка</th>
+                    <th style="text-align: left; padding: 8px; background: #e9ecef;">Описание</th>
+                    <th style="text-align: left; padding: 8px; background: #e9ecef;">Обязательно</th>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>name</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">Наименование товара</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">✅ Да</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>price</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">Цена (число)</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">✅ Да</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>code</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">Код/артикул</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">❌ Нет</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>description</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">Описание</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">❌ Нет</td>
+                </tr>
+            </table>
+            <p style="margin-top: 15px; color: #666;">
+                <i>Все цены будут импортированы с выбранной валютой и типом цены на указанную дату.</i>
+            </p>
+        </div>
+
+        <div style="margin-top: 30px; display: flex; gap: 15px;">
+            <button type="submit"
+                    class="default"
+                    style="background: #28a745; color: white; border: none; padding: 12px 30px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">⬆️</span> Импортировать
+            </button>
+
+            <a href="{% url 'admin:price_pricehistory_changelist' %}"
+               class="button cancel-link"
+               style="background: #6c757d; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
+                <span style="font-size: 18px;">✕</span> Отмена
+            </a>
+        </div>
+        </form>
+    </div>
+    </div>
+{% endblock %}

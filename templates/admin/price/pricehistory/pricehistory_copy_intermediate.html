@@ -1,0 +1,119 @@
+{# templates/admin/price/pricehistory/pricehistory_copy_intermediate.html #}
+{% extends "admin/base_site.html" %}
+{% load i18n l10n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:price_pricehistory_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form action="" method="post">
+        {% csrf_token %}
+        
+        <div class="module" style="padding: 20px; margin: 20px 0; background: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h2 style="margin-top: 0; color: #79aec8; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                {% trans "Копирование цен на другую дату" %}
+            </h2>
+            
+            <div style="margin: 25px 0;">
+                <label for="new_date" style="font-weight: bold; display: block; margin-bottom: 10px; font-size: 14px;">
+                    {% trans "Новая дата:" %}
+                </label>
+                <input type="date" 
+                       name="new_date" 
+                       id="new_date" 
+                       value="{{ today|date:'Y-m-d' }}"
+                       required
+                       style="width: 250px; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <div style="color: #666; margin-top: 8px; font-size: 12px;">
+                    <i>{% trans "Цены будут скопированы с новой датой. Оригиналы останутся без изменений." %}</i>
+                </div>
+            </div>
+            
+            <div style="margin: 30px 0 20px;">
+                <h3 style="font-size: 15px; margin-bottom: 15px; color: #666;">
+                    {% trans "Будут скопированы следующие записи:" %}
+                </h3>
+                
+                <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #ddd;">
+                    <thead>
+                        <tr style="background: #f8f8f8; border-bottom: 2px solid #79aec8;">
+                            <th style="padding: 12px; text-align: left;">{% trans "Название" %}</th>
+                            <th style="padding: 12px; text-align: left;">{% trans "Код" %}</th>
+                            <th style="padding: 12px; text-align: left;">{% trans "Цена" %}</th>
+                            <th style="padding: 12px; text-align: left;">{% trans "Валюта" %}</th>
+                            <th style="padding: 12px; text-align: left;">{% trans "Тип цены" %}</th>
+                            <th style="padding: 12px; text-align: left;">{% trans "Текущая дата" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for obj in queryset %}
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px 12px;">{{ obj.name }}</td>
+                            <td style="padding: 10px 12px;">{{ obj.code|default:'—' }}</td>
+                            <td style="padding: 10px 12px; font-weight: bold;">{{ obj.price }}</td>
+                            <td style="padding: 10px 12px;">{{ obj.currency.symbol|default:obj.currency.code }}</td>
+                            <td style="padding: 10px 12px;">{{ obj.price_variety.name }}</td>
+                            <td style="padding: 10px 12px;">{{ obj.price_date|date:'d.m.Y'|default:'—' }}</td>
+                        </tr>
+                        <input type="hidden" name="_selected_action" value="{{ obj.pk|unlocalize }}">
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <p style="margin-top: 15px; color: #666; font-size: 13px;">
+                    <strong>{% trans "Всего записей:" %}</strong> {{ queryset|length }}
+                </p>
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                <input type="hidden" name="action" value="copy_price">
+                <input type="hidden" name="post" value="yes">
+                
+                <input type="submit" 
+                       name="apply" 
+                       value="{% trans 'Копировать' %}"
+                       class="default"
+                       style="background: #79aec8; color: white; border: none; padding: 12px 30px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 15px;">
+                
+                <a href="{% url 'admin:price_pricehistory_changelist' %}" 
+                   class="button cancel-link"
+                   style="background: #ba2121; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block; font-size: 14px;">
+                    {% trans "Отмена" %}
+                </a>
+            </div>
+        </div>
+        
+        {% block admin_change_form_document_ready %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Устанавливаем сегодняшнюю дату по умолчанию
+                var dateInput = document.getElementById('new_date');
+                if (dateInput && !dateInput.value) {
+                    var today = new Date().toISOString().split('T')[0];
+                    dateInput.value = today;
+                }
+                
+                // Валидация даты
+                dateInput.addEventListener('change', function() {
+                    if (this.value) {
+                        var selectedDate = new Date(this.value);
+                        var today = new Date();
+                        if (selectedDate > today) {
+                            alert('{% trans "Дата не может быть в будущем" %}');
+                            this.value = today.toISOString().split('T')[0];
+                        }
+                    }
+                });
+            });
+        </script>
+        {% endblock %}
+    </form>
+</div>
+{% endblock %}

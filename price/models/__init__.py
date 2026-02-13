@@ -5,5 +5,6 @@ __all__ = [
     # все модели, которые должны быть доступны извне
     'Currency',
     'PriceHistory',
-    'PriceVariety'
+    'PriceVariety',
+    'ExchangeRate'
 ]

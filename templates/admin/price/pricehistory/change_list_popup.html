@@ -1,0 +1,101 @@
+{# templates/admin/price/pricehistory/change_list_popup.html #}
+{% extends "admin/change_list.html" %}
+{% load i18n static %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="import-excel/" class="addlink" style="background: #28a745; display: flex; align-items: center; gap: 5px;">
+            <span style="font-size: 16px;">📥</span> Импорт из Excel
+        </a>
+    </li>
+{% endblock %}
+
+{% block result_list %}
+    {{ block.super }}
+    
+    <!-- Модальное окно для детальной информации -->
+    <div id="priceModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+        <div style="background:white; margin:5% auto; padding:0; width:80%; max-width:900px; height:80%; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.2); display:flex; flex-direction:column;">
+            <div style="padding:15px 20px; background:#f8f8f8; border-bottom:1px solid #ddd; border-radius:8px 8px 0 0; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:#79aec8;">🔍 Детальная информация</h3>
+                <span id="closeModal" style="font-size:28px; font-weight:bold; cursor:pointer; color:#666;">&times;</span>
+            </div>
+            <div style="flex-grow:1; position:relative;">
+                <iframe id="modalIframe" src="" style="width:100%; height:100%; border:none; border-radius:0 0 8px 8px;"></iframe>
+            </div>
+            <div style="padding:10px 20px; background:#f8f8f8; border-top:1px solid #ddd; border-radius:0 0 8px 8px; text-align:right;">
+                <button id="closeModalBtn" class="button" style="background: #79aec8; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer;">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <style>
+        /* Стили для кнопок */
+        .object-tools .addlink {
+            background: #28a745 !important;
+        }
+        .object-tools .addlink:hover {
+            background: #218838 !important;
+        }
+        
+        /* Стили для кнопки подробнее */
+        .details-button {
+            transition: background 0.2s;
+        }
+        .details-button:hover {
+            background: #609ab6 !important;
+        }
+        
+        /* Убираем курсор-указатель со всей строки */
+        #result_list tbody tr {
+            cursor: default;
+        }
+        #result_list tbody tr:hover {
+            background: inherit !important;
+        }
+    </style>
+    
+    <script>
+        django.jQuery(document).ready(function() {
+            var $ = django.jQuery;
+            var $modal = $('#priceModal');
+            var $iframe = $('#modalIframe');
+            
+            // Клик по кнопке "Подробнее"
+            $(document).on('click', '.details-button', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                var url = $(this).data('url');
+                $iframe.attr('src', url + '?_popup=1');
+                $modal.show();
+            });
+            
+            // Закрытие модалки
+            function closeModal() {
+                $modal.hide();
+                $iframe.attr('src', '');
+            }
+            
+            $('#closeModal, #closeModalBtn').on('click', closeModal);
+            
+            $(window).on('click', function(e) {
+                if (e.target.id === 'priceModal') {
+                    closeModal();
+                }
+            });
+            
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape' && $modal.is(':visible')) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+{% endblock %}

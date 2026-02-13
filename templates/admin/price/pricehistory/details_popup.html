@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ price.name }} - детали</title>
+    <style>
+        /* Основные шрифты */
+        body, table, th, td, input, button {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+        }
+
+        /* Шапка с кнопкой импорта */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #79aec8;
+        }
+        
+        .header h2 {
+            margin: 0;
+            color: #79aec8;
+        }
+        
+        .import-btn {
+            background: #28a745;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .import-btn:hover {
+            background: #218838;
+            color: white;
+        }
+
+        /* Для чисел - моноширинный */
+        .number, .price-value, .rate-value {
+            font-family: 'Courier New', 'Courier', monospace;
+            font-size: 14px;
+        }
+
+        /* Таблица */
+        .currency-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Заголовки */
+        .currency-table th {
+            text-align: left;
+            padding: 12px 10px;
+            background: #2c3e50;
+            color: white;
+            font-weight: 500;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-right: 1px solid #3d5567;
+        }
+
+        .currency-table th:last-child {
+            border-right: none;
+        }
+
+        /* Ячейки */
+        .currency-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+            vertical-align: middle;
+        }
+
+        /* Чередование строк */
+        .currency-table tbody tr:nth-child(even) td {
+            background: #fafafa;
+        }
+
+        /* Наведение */
+        .currency-table tbody tr:hover td {
+            background: #f0f7ff !important;
+            transition: background 0.2s;
+        }
+
+        /* Исходная строка */
+        .original-row td {
+            background-color: #fff9e6 !important;
+            border-bottom: 1px solid #ffd966;
+        }
+
+        .original-row:hover td {
+            background: #fff2cc !important;
+        }
+
+        /* Ячейка валюты */
+        .currency-cell {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .currency-code {
+            font-size: 14px;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        /* Цвета валют */
+        .rub .currency-code {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .usd .currency-code {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        .eur .currency-code {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+
+        .cny .currency-code {
+            background: #fff3e0;
+            color: #bf360c;
+        }
+
+        /* Бейдж оригинал */
+        .original-badge {
+            background: #ffd966;
+            color: #000;
+            font-size: 9px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Цены */
+        .price-cell {
+            text-align: right;
+        }
+
+        .price-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Курсы */
+        .rate-cell {
+            color: #555;
+            font-size: 13px;
+        }
+
+        .rate-value {
+            color: #666;
+        }
+
+        /* Пустые значения */
+        .null-value {
+            color: #aaa;
+            font-style: italic;
+        }
+
+        /* Символ валюты */
+        .currency-symbol {
+            margin-left: 2px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>🔍 {{ price.name }}</h2>
+        <a href="{% url 'admin:price_history_import_excel' %}" class="import-btn" target="_blank">
+            <span style="font-size: 16px;">📥</span> Импорт цен из Excel
+        </a>
+    </div>
+
+    <table class="currency-table">
+        <thead>
+        <tr>
+            <th>Валюта</th>
+            <th>Цена на {{ converted.original.date }}</th>
+            <th>Курс на {{ converted.original.date }}</th>
+            <th>Цена на сегодня ({% now "d.m.Y" %})</th>
+            <th>Курс на сегодня</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in converted.converted %}
+            <tr class="{% if item.is_original %}original-row{% endif %}">
+                <td class="currency-cell {{ item.currency|lower }}">
+                    <span class="currency-code">{{ item.currency }}</span>
+                    {% if item.is_original %}
+                        <span class="original-badge">оригинал</span>
+                    {% endif %}
+                </td>
+
+                <!-- Цена на дату записи -->
+                <td class="price-cell {% if item.price_on_date %}number{% endif %}">
+                    {% if item.price_on_date %}
+                        <span class="price-value">{{ item.price_on_date|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="null-value">—</span>
+                    {% endif %}
+                </td>
+
+                <!-- Курс на дату записи -->
+                <td class="rate-cell">
+                    {% if item.rate_price_date %}
+                        <span class="rate-value">1 {{ item.currency }} = {{ item.rate_price_date|floatformat:2 }} ₽</span>
+                    {% elif item.currency == 'RUB' %}
+                        <span class="rate-value">1,00 ₽</span>
+                    {% else %}
+                        <span class="null-value">—</span>
+                    {% endif %}
+                </td>
+
+                <!-- Цена на сегодня -->
+                <td class="price-cell {% if item.price_today %}number{% endif %}">
+                    {% if item.price_today %}
+                        <span class="price-value">{{ item.price_today|floatformat:2 }}</span>
+                        {% if item.currency == 'RUB' %}<span class="currency-symbol">₽</span>{% endif %}
+                    {% else %}
+                        <span class="null-value">—</span>
+                    {% endif %}
+                </td>
+
+                <!-- Курс на сегодня -->
+                <td class="rate-cell">
+                    {% if item.currency == 'RUB' %}
+                        <span class="rate-value">1,00 ₽</span>
+                    {% elif item.rate_today %}
+                        <span class="rate-value">1 {{ item.currency }} = {{ item.rate_today|floatformat:2 }} ₽</span>
+                    {% else %}
+                        <span class="null-value">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
