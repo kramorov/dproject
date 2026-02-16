@@ -4,8 +4,6 @@ from django.db import models
     DEPRICATED ALMOST
 """
 # from electric_actuators.models import ModelLine , CableGlandHolesSet
-from params.models import StemShapes, StemSize, MountingPlateTypes
-
 
 class ModelBody(models.Model):
     name = models.CharField(max_length=200, verbose_name='Текстовое название типа корпуса')
@@ -21,12 +19,12 @@ class ModelBody(models.Model):
                                related_name='model_body_allowed_cable_glands_holes',
                                help_text='Возможные для выбора варианты отверстий под кабельные вводы для корпуса ('
                                          'можно выбрать несколько)')
-    mounting_plate = models.ManyToManyField(MountingPlateTypes, blank=True,
+    mounting_plate = models.ManyToManyField('params.MountingPlateTypes', blank=True,
                                             related_name='model_body_cable_mounting_plate',
                                             help_text='Монтажная площадка')
-    stem_shape = models.ForeignKey(StemShapes, on_delete=models.SET_NULL, null=True, blank=True,
+    stem_shape = models.ForeignKey('params.StemShapes', on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='model_body_stem_shape', help_text='Тип отверстия под шток арматуры')
-    stem_size = models.ForeignKey(StemSize, on_delete=models.SET_NULL, null=True, blank=True,
+    stem_size = models.ForeignKey('params.StemSize', on_delete=models.SET_NULL, null=True, blank=True,
                                   related_name='model_body_stem_size', help_text='Размер отверстия под шток арматуры')
     max_stem_height = models.PositiveIntegerField(blank=True, null=True,
                                                   help_text='Глубина отверстия под шток арматуры')

@@ -1,9 +1,11 @@
 #electric_actuators/admin/ea_body_admin.py
 
 from django.contrib import admin
-
-from electric_actuators.models import ElectricActuatorBody, ElectricActuatorBodyTable, ElectricExdOption
-
+from django.utils.translation import gettext_lazy as _
+from electric_actuators.models import ElectricActuatorBody , ElectricActuatorBodyTable , ElectricExdOption , \
+    CableGlandHolesSetBodyOption
+import logging
+logger = logging.getLogger(__name__)
 
 def copy_electric_actuator_data(modeladmin, request, queryset):
     for obj in queryset:
@@ -14,6 +16,30 @@ def copy_electric_actuator_data(modeladmin, request, queryset):
 
 
 copy_electric_actuator_data.short_description = "Копировать выбранные записи"
+class CableGlandHolesSetBodyOptionInline(admin.TabularInline) :
+    """Inline для напряжения питания"""
+    model = CableGlandHolesSetBodyOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['cg_set', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Кабельные вводы")
+    verbose_name_plural = _("Опции кабельных вводов")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+
+        # Патчим метод __str__ для формы
+        original_str = formset.model.__str__
+
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__: {e}")
+                return "Новая опция"
+
+        formset.model.__str__ = safe_str
+        return formset
 
 @admin.register(ElectricActuatorBodyTable)
 class ElectricActuatorBodyTableAdmin(admin.ModelAdmin):
@@ -66,11 +92,8 @@ class ElectricActuatorBodyAdmin(admin.ModelAdmin):
     #     }),
     # )
     # Возможность выбора отображаемых полей для инлайн-редактирования
-    inlines = []  # Если есть инлайны для отображения других связанных объектов
+    inlines = [CableGlandHolesSetBodyOptionInline]  # Если есть инлайны для отображения других связанных объектов
     actions = [copy_electric_actuator_data]  # Добавляем действие для копирования
-
-
-
 
 @admin.register(ElectricExdOption)
 class ElectricExdOptionAdmin(admin.ModelAdmin):

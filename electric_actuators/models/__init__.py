@@ -33,6 +33,8 @@ __all__ = [
     'ElectricOperatingModeOption',
     'ElectricActuatorBody',
     'ElectricActuatorModelLineItem',
-    'ElectricActuatorSelected'
+    'ElectricActuatorSelected',
+    'CableGlandHolesSetBodyOption',
+    'ElectricActuatorBodyTable'
 
 ]

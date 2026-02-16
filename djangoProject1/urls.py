@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.template.defaulttags import url
 from django.urls import path, include
-from data_processor.views import StringProcessorView
+
 from .views import GetUrlByNameAPIView
 from graphene_django.views import GraphQLView
 from .graphql_api.schema import schema  # Импорт вашей GraphQL-схемы

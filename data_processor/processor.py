@@ -1,7 +1,7 @@
 from django.db.models import Model
 from collections import namedtuple
 
-from electric_actuators.models import ElectricActuatorData , ActualActuator , ElectricActuatorModelLine
+from electric_actuators.models import ElectricActuatorData ,  ElectricActuatorModelLine
 from params.models import IpOption, ExdOption, PowerSupplies, DigitalProtocolsSupportOption, ControlUnitInstalledOption, \
     EnvTempParameters
 from typing import Type
@@ -134,8 +134,8 @@ def process_model_name(model_string):
         ])
         return result_table
     # Заполняем данными реальную модель привода
-    actual_actuator = ActualActuator.objects.create(actual_model=model_result.record)
-    actual_actuator.init()
+    # actual_actuator = ActualActuator.objects.create(actual_model=model_result.record)
+    # actual_actuator.init()
     if len(ex) == 0:
         exd_no_result = find_record_by_fields(ExdOption, {'name': 'NONE'},
                                               'exd_full_code')

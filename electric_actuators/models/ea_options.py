@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-
+from typing import List, Optional, Tuple, Any, Dict, Union
 from options.models import (
     BaseTemperatureThroughOption , BaseExdThroughOption , BaseBodyCoatingThroughOption ,
     BaseIpThroughOption , BaseHandWheelThroughOption , BaseTurnAngleThroughOption ,
@@ -92,6 +92,7 @@ class ElectricIpOption(BaseIpThroughOption):
     @classmethod
     def _get_parent_field_name(cls):
         return 'model_line'
+
 
 
 class ElectricExdOption(BaseExdThroughOption):
@@ -195,39 +196,19 @@ class ElectricMechanicalIndicatorOption(BaseMechanicalIndicatorThroughOption):
         return 'model_line'
 
 
-class CableGlandHolesSetThroughOption(BaseThroughOption):
+class CableGlandHolesSetBodyOption(BaseThroughOption):
     """Модель для сквозных опций CableGlandHolesSet"""
-    cg_set = models.ForeignKey(
-        'CableGlandHolesSet',
-        on_delete=models.CASCADE,
-        verbose_name=_("Отверстия под КВ"),
-        help_text=_("Отверстия под кабельные вводы")
-    )
 
-    model_line = models.ForeignKey(
-        'ElectricActuatorModelLine',
+    model_body = models.ForeignKey(
+        'ElectricActuatorBody',
         on_delete=models.CASCADE,
         related_name='cg_set_options',
-        verbose_name=_("Серия электроприводов")
+        verbose_name=_("Модель корпуса")
     )
 
-    class Meta:
-        verbose_name = _("Опция кабельных вводов")
-        verbose_name_plural = _("Опции кабельных вводов")
-        ordering = ['sorting_order']
-        unique_together = ['model_line', 'cg_set']
-
-    def get_display_name(self) :
-        """Отображаемое имя для путевых выключателей"""
-        if self.cg_set :
-            if self.encoding and self.encoding.strip() :
-                return f"{self.encoding} ({self.cg_set.name})"
-            return self.cg_set.name
-        return "Не указано"
-
-    def __str__(self) :
-        return self.get_display_name()
-
+    @classmethod
+    def _get_parent_field_name(cls) :
+        return 'model_body'
 
 class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
     """Угол поворота для электроприводов"""

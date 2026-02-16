@@ -1,4 +1,4 @@
-#electric_actuators/models/ea_model_line.py
+# electric_actuators/models/ea_model_line.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List , Optional , Tuple , Any , Dict , Union
@@ -6,14 +6,10 @@ from django.core.exceptions import ValidationError
 
 import logging
 
-
 from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin
 
 from producers.models import Brands
-from params.models import ActuatorGearboxOutputType , OperatingModeOption , IpOption , BodyCoatingOption , ExdOption , \
-    BlinkerOption , SwitchesParameters , EnvTempParameters , ControlUnitInstalledOption , HandWheelInstalledOption , \
-    MechanicalIndicatorInstalledOption
 
 logger = logging.getLogger(__name__)
 
@@ -62,21 +58,22 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='electric_model_line_brand' ,
                               on_delete=models.SET_NULL ,
-                              verbose_name=_('Бренд'),
+                              verbose_name=_('Бренд') ,
                               help_text=_('Бренд производителя'))
     default_output_type = \
-        models.ForeignKey(ActuatorGearboxOutputType , blank=True , null=True ,
+        models.ForeignKey('params.ActuatorGearboxOutputType' , blank=True , null=True ,
                           related_name='electric_model_line_default_output_type' ,
                           on_delete=models.SET_NULL ,
-                          verbose_name=_('Тип привода'),
+                          verbose_name=_('Тип привода') ,
                           help_text=_('Тип работы серии приводов'))
 
     allowed_operating_mode = \
-        models.ManyToManyField(OperatingModeOption, blank=True, default=1,
-                               related_name='electric_actuator_model_line_allowed_operating_mode',
-                               verbose_name=_('Режим работы'),
+        models.ManyToManyField('params.OperatingModeOption' , blank=True , default=1 ,
+                               related_name='electric_actuator_model_line_allowed_operating_mode' ,
+                               verbose_name=_('Режим работы') ,
                                help_text=_('Возможные для выбора режимы работы двигателя для серии (можно выбрать '
-                                         'несколько)'))
+                                           'несколько)'))
+
     class Meta :
         ordering = ['sorting_order']
         verbose_name = _('Серия моделей электроприводов')
@@ -85,14 +82,15 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     def __str__(self) :
         return self.name
 
-    def get_description_data(self) -> Dict[str, Any]:
+    def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для описания"""
         logger.debug(f"EA logger get_description_data")
         print(f"EA model line  print get_description_data")
         data = {
-            'name': {'display_name':'Название серии', 'value':self.code if self.code else None},
-            'default_output_type': {'display_name':'Тип привода', 'value':self.default_output_type.name if self.default_output_type else None},
-            'brand': {'display_name':'Бренд', 'value':self.brand.name  if self.brand else None}
+            'name' : {'display_name' : 'Название серии' , 'value' : self.code if self.code else None} ,
+            'default_output_type' : {'display_name' : 'Тип привода' ,
+                                     'value' : self.default_output_type.name if self.default_output_type else None} ,
+            'brand' : {'display_name' : 'Бренд' , 'value' : self.brand.name if self.brand else None}
         }
         # print(data)
         return data
@@ -528,6 +526,7 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         """Получить стандартную опцию механического индикатора"""
         from .ea_options import ElectricMechanicalIndicatorOption
         return ElectricMechanicalIndicatorOption.get_or_create_default(self)
+
     def get_default_hand_wheel_option(self) :
         """Получить стандартную опцию ручного дублера"""
         from .ea_options import ElectricHandWheelOption
@@ -568,11 +567,6 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         return "Не указано"
 
     @property
-    def way_switches_options_list(self) :
-        """Список всех опций путевых выключателей"""
-        return self.way_switches_options.all()
-
-    @property
     def control_unit_options_list(self) :
         """Список всех опций блока управления"""
         return self.control_unit_options.all()
@@ -597,68 +591,62 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         """Список всех опций ручного дулера"""
         return self.hand_wheel_options.all()
 
-    def get_option_info(self):
+    def get_option_info(self) :
         """Полная информация о всех опциях серии"""
         option_info = {
-            'temperature': {
-                'default': self.get_default_temperature_option().get_option_info()
-                if self.get_default_temperature_option() else None,
-                'options': [opt.get_option_info() for opt in self.temperature_options_list]
-            },
-            'ip': {
-                'default': self.get_default_ip_option().get_option_info()
-                if self.get_default_ip_option() else None,
-                'options': [opt.get_option_info() for opt in self.ip_options_list]
-            },
-            'exd': {
-                'default': self.get_default_exd_option().get_option_info()
-                if self.get_default_exd_option() else None,
-                'options': [opt.get_option_info() for opt in self.exd_options_list]
-            },
-            'body_coating': {
-                'default': self.get_default_body_coating_option().get_option_info()
-                if self.get_default_body_coating_option() else None,
-                'options': [opt.get_option_info() for opt in self.body_coating_options_list]
-            },
-            'blinker': {
-                'default': self.get_default_blinker_option().get_option_info()
-                if self.get_default_blinker_option() else None,
-                'options': [opt.get_option_info() for opt in self.blinker_options_list]
-            },
-            'way_switches': {
-                'default': self.get_default_way_switches_option().get_option_info()
-                if self.get_default_way_switches_option() else None,
-                'options': [opt.get_option_info() for opt in self.way_switches_options_list]
-            },
+            'temperature' : {
+                'default' : self.get_default_temperature_option().get_option_info()
+                if self.get_default_temperature_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.temperature_options_list]
+            } ,
+            'ip' : {
+                'default' : self.get_default_ip_option().get_option_info()
+                if self.get_default_ip_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.ip_options_list]
+            } ,
+            'exd' : {
+                'default' : self.get_default_exd_option().get_option_info()
+                if self.get_default_exd_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.exd_options_list]
+            } ,
+            'body_coating' : {
+                'default' : self.get_default_body_coating_option().get_option_info()
+                if self.get_default_body_coating_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
+            } ,
+            'blinker' : {
+                'default' : self.get_default_blinker_option().get_option_info()
+                if self.get_default_blinker_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.blinker_options_list]
+            } ,
 
-            'control_unit': {
-                'default': self.get_default_control_unit_option().get_option_info()
-                if self.get_default_control_unit_option() else None,
-                'options': [opt.get_option_info() for opt in self.control_unit_options_list]
-            },
-            'hand_wheel': {
-                'default': self.get_default_hand_wheel_option().get_option_info()
-                if self.get_default_hand_wheel_option() else None,
-                'options': [opt.get_option_info() for opt in self.hand_wheel_options_list]
-            },
-            'turn_angle': {
-                'default': self.get_default_turn_angle_option().get_option_info()
-                if self.get_default_turn_angle_option() else None,
-                'options': [opt.get_option_info() for opt in self.turn_angle_options_list]
-            },
-            'operating_mode': {
-                'default': self.get_default_operating_mode_option().get_option_info()
-                if self.get_default_operating_mode_option() else None,
-                'options': [opt.get_option_info() for opt in self.operating_mode_options_list]
-            },
-            'mechanical_indicator': {
-                'default': self.get_default_mechanical_indicator_option().get_option_info()
-                if self.get_default_mechanical_indicator_option() else None,
-                'options': [opt.get_option_info() for opt in self.mechanical_indicator_options_list]
+            'control_unit' : {
+                'default' : self.get_default_control_unit_option().get_option_info()
+                if self.get_default_control_unit_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.control_unit_options_list]
+            } ,
+            'hand_wheel' : {
+                'default' : self.get_default_hand_wheel_option().get_option_info()
+                if self.get_default_hand_wheel_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.hand_wheel_options_list]
+            } ,
+            'turn_angle' : {
+                'default' : self.get_default_turn_angle_option().get_option_info()
+                if self.get_default_turn_angle_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.turn_angle_options_list]
+            } ,
+            'operating_mode' : {
+                'default' : self.get_default_operating_mode_option().get_option_info()
+                if self.get_default_operating_mode_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.operating_mode_options_list]
+            } ,
+            'mechanical_indicator' : {
+                'default' : self.get_default_mechanical_indicator_option().get_option_info()
+                if self.get_default_mechanical_indicator_option() else None ,
+                'options' : [opt.get_option_info() for opt in self.mechanical_indicator_options_list]
             }
         }
         return option_info
-
 
 
 # ==================== МОДЕЛЬ ДЛЯ СВЯЗИ СЕРТИФИКАТОВ ====================
@@ -681,141 +669,142 @@ class ElectricActuatorModelLineCertRelation(AbstractCertRelation) :
 
     def get_related_object(self) :
         return self.model_line
-class ModelLine(models.Model):
-    name = models.CharField(max_length=20, help_text='Название серии')
+
+
+class ModelLine(models.Model) :
+    name = models.CharField(max_length=20 , help_text='Название серии')
     brand = \
-        models.ForeignKey(Brands, blank=True, null=True,
-                          related_name='model_line_brand',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey(Brands , blank=True , null=True ,
+                          related_name='model_line_brand' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Бренд производителя')
     default_output_type = \
-        models.ForeignKey(ActuatorGearboxOutputType, blank=True, null=True,
-                          related_name='default_output_type',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.ActuatorGearboxOutputType' , blank=True , null=True ,
+                          related_name='default_output_type' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Тип работы серии приводов')
 
     default_ip = \
-        models.ForeignKey(IpOption, blank=True, null=True,
-                          related_name='default_ip_option',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.IpOption' , blank=True , null=True ,
+                          related_name='default_ip_option' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартное исполнение степени защиты IP для серии')
     allowed_ip = \
-        models.ManyToManyField(IpOption, blank=True, default=1,
-                               related_name='ea_model_line_allowed_ip',
+        models.ManyToManyField('params.IpOption' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_ip' ,
                                help_text='Возможные для выбора степени защиты IP для серии (можно выбрать '
                                          'несколько)')
 
     default_body_coating = \
-        models.ForeignKey(BodyCoatingOption, blank=True, null=True,
-                          related_name='default_body_coating',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.BodyCoatingOption' , blank=True , null=True ,
+                          related_name='default_body_coating' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартное исполнение покрытия корпуса для серии')
     allowed_body_coating = \
-        models.ManyToManyField(BodyCoatingOption, blank=True, default=1,
-                               related_name='ea_model_line_allowed_body_coating',
+        models.ManyToManyField('params.BodyCoatingOption' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_body_coating' ,
                                help_text='Возможные для выбора покрытия корпуса для серии (можно выбрать несколько)')
 
     default_exd = \
-        models.ForeignKey(ExdOption, blank=True, null=True,
-                          related_name='default_exd_option',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.ExdOption' , blank=True , null=True ,
+                          related_name='default_exd_option' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартное исполнение степени взрывозащиты для серии')
     allowed_exd = \
-        models.ManyToManyField(ExdOption, blank=True, default=1,
-                               related_name='ea_model_line_allowed_exd',
+        models.ManyToManyField('params.ExdOption' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_exd' ,
                                help_text='Возможные для выбора степени взрывозащиты для серии (можно '
                                          'выбрать несколько)')
 
     default_blinker = \
-        models.ForeignKey(BlinkerOption, blank=True, null=True,
-                          related_name='default_blinker_option',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.BlinkerOption' , blank=True , null=True ,
+                          related_name='default_blinker_option' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартное исполнение блинкера для серии')
 
     default_end_switches = \
-        models.ForeignKey(SwitchesParameters, blank=True, null=True,
-                          related_name='default_end_switches',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
+                          related_name='default_end_switches' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартное исполнение путевых выключателей для серии')
     allowed_end_switches = \
-        models.ManyToManyField(SwitchesParameters, blank=True, default=1,
-                               related_name='ea_model_line_allowed_end_switches',
+        models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_end_switches' ,
                                help_text='Возможные для выбора исполнения путевых выключателей для '
                                          'серии (можно выбрать несколько)')
     default_way_switches = \
-        models.ForeignKey(SwitchesParameters, blank=True, null=True,
-                          related_name='default_way_switches',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
+                          related_name='default_way_switches' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартное исполнение конечных выключателей для серии')
     allowed_way_switches = \
-        models.ManyToManyField(SwitchesParameters, blank=True, default=1,
-                               related_name='ea_model_line_allowed_way_switches',
+        models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_way_switches' ,
                                help_text='Возможные для выбора исполнения конечных выключателей '
                                          'для серии (можно выбрать несколько)')
-    default_torque_switches = models.ForeignKey(SwitchesParameters, blank=True, null=True,
-                                                related_name='default_torque_switches',
-                                                on_delete=models.SET_NULL,
+    default_torque_switches = models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
+                                                related_name='default_torque_switches' ,
+                                                on_delete=models.SET_NULL ,
                                                 help_text='Стандартное исполнение ограничителей момента для серии')
-    allowed_torque_switches = models.ManyToManyField(SwitchesParameters, blank=True, default=1,
-                                                     related_name='ea_model_line_allowed_torque_switches',
+    allowed_torque_switches = models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
+                                                     related_name='ea_model_line_allowed_torque_switches' ,
                                                      help_text='Возможные для выбора исполнения ограничителей момента '
                                                                'для серии (можно выбрать несколько)')
 
-    default_temperature = models.ForeignKey(EnvTempParameters, blank=True, null=True,
-                                            related_name='default_temperature',
-                                            on_delete=models.SET_NULL,
+    default_temperature = models.ForeignKey('params.EnvTempParameters' , blank=True , null=True ,
+                                            related_name='default_temperature' ,
+                                            on_delete=models.SET_NULL ,
                                             help_text='Стандартное температурное исполнения для серии')
     allowed_temperature = \
-        models.ManyToManyField(EnvTempParameters, blank=True, default=1,
-                               related_name='ea_model_line_allowed_temperature',
+        models.ManyToManyField('params.EnvTempParameters' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_temperature' ,
                                help_text='Возможные для выбора температурные исполнения для серии ('
                                          'можно выбрать несколько)')
 
     default_control_unit_installed = \
-        models.ForeignKey(ControlUnitInstalledOption, blank=True, null=True,
-                          related_name='default_control_unit_installed',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.ControlUnitInstalledOption' , blank=True , null=True ,
+                          related_name='default_control_unit_installed' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартно установленный блок управления для серии')
     allowed_control_unit_installed = \
-        models.ManyToManyField(ControlUnitInstalledOption, blank=True, default=1,
-                               related_name='ea_model_line_allowed_control_unit_installed',
+        models.ManyToManyField('params.ControlUnitInstalledOption' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_control_unit_installed' ,
                                help_text='Возможные для выбора блоки управления для серии (можно выбрать несколько)')
 
     default_hand_wheel = \
-        models.ForeignKey(HandWheelInstalledOption, blank=True, null=True,
-                          related_name='default_hand_wheel',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.HandWheelInstalledOption' , blank=True , null=True ,
+                          related_name='default_hand_wheel' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартно установленный ручной дублер для серии')
 
     allowed_hand_wheel = \
-        models.ManyToManyField(HandWheelInstalledOption, blank=True, default=1,
-                               related_name='ea_model_line_allowed_hand_wheel',
+        models.ManyToManyField('params.HandWheelInstalledOption' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_hand_wheel' ,
                                help_text='Возможные для выбора ручные дублеры для серии (можно выбрать несколько)')
 
     default_mechanical_indicator = \
-        models.ForeignKey(MechanicalIndicatorInstalledOption, blank=True, null=True,
-                          related_name='default_mechanical_indicator',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.MechanicalIndicatorInstalledOption' , blank=True , null=True ,
+                          related_name='default_mechanical_indicator' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартно установленный механический индикатор для серии')
 
     allowed_mechanical_indicator = \
-        models.ManyToManyField(MechanicalIndicatorInstalledOption, blank=True, default=1,
-                               related_name='ea_model_line_allowed_mechanical_indicator',
+        models.ManyToManyField('params.MechanicalIndicatorInstalledOption' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_mechanical_indicator' ,
                                help_text='Возможные для выбора варианты установки механического индикатора для серии '
                                          '(можно выбрать несколько)')
     default_operating_mode = \
-        models.ForeignKey(OperatingModeOption, blank=True, null=True,
-                          related_name='default_operating_mode',
-                          on_delete=models.SET_NULL,
+        models.ForeignKey('params.OperatingModeOption' , blank=True , null=True ,
+                          related_name='default_operating_mode' ,
+                          on_delete=models.SET_NULL ,
                           help_text='Стандартный режим работы двигателя для серии')
     allowed_operating_mode = \
-        models.ManyToManyField(OperatingModeOption, blank=True, default=1,
-                               related_name='ea_model_line_allowed_operating_mode',
+        models.ManyToManyField('params.OperatingModeOption' , blank=True , default=1 ,
+                               related_name='ea_model_line_allowed_operating_mode' ,
                                help_text='Возможные для выбора режимы работы двигателя для серии (можно выбрать '
                                          'несколько)')
 
     # certificates = GenericRelation(CertData)
 
-    def __str__(self):
+    def __str__(self) :
         return self.name
-

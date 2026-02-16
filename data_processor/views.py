@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from .processor import process_model_name
+# from .processor import process_model_name
 
 from .serializers import TextInputSerializer, ETTSerializer
 
@@ -37,21 +37,21 @@ class ETTView(APIView):
             return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class StringProcessorView(APIView):
-    """API View to process strings."""
-
-    @action(detail=False, methods=['post'])
-    def post(self, request, *args, **kwargs):
-        input_text = request.data.get('text', '')
-        return Response({"result": input_text}, status=status.HTTP_200_OK)
-        if not isinstance(input_text, str):
-            return Response({"error": "Invalid input. Expected a string."}, status=status.HTTP_400_BAD_REQUEST)
-        result_table = process_model_name(input_text)
-        # lines = input_text.split('.')
-        # # lines = [line.strip() for line in lines if line.strip()]  # Удалим пустые строки
-        # result_table = [{"original": input_text, "split": substring.strip()} for substring in lines if substring.strip()]
-        return Response({"result": result_table}, status=status.HTTP_200_OK)
-        # return Response({"result": lines}, status=status.HTTP_200_OK)
+# class StringProcessorView(APIView):
+#     """API View to process strings."""
+#
+#     @action(detail=False, methods=['post'])
+#     def post(self, request, *args, **kwargs):
+#         input_text = request.data.get('text', '')
+#         return Response({"result": input_text}, status=status.HTTP_200_OK)
+#         if not isinstance(input_text, str):
+#             return Response({"error": "Invalid input. Expected a string."}, status=status.HTTP_400_BAD_REQUEST)
+#         result_table = process_model_name(input_text)
+#         # lines = input_text.split('.')
+#         # # lines = [line.strip() for line in lines if line.strip()]  # Удалим пустые строки
+#         # result_table = [{"original": input_text, "split": substring.strip()} for substring in lines if substring.strip()]
+#         return Response({"result": result_table}, status=status.HTTP_200_OK)
+#         # return Response({"result": lines}, status=status.HTTP_200_OK)
 
 class TextInputViewSet(viewsets.ViewSet):
 

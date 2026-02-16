@@ -126,7 +126,13 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Напряжение"),
         help_text=_('Напряжение питания')
     )
-
+    selected_cable_glands_holes = models.ForeignKey(
+        'CableGlandHolesSetBodyOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Кабельные вводы") ,
+        help_text=_('Отверстия под кабельные вводы')
+    )
     selected_control_unit_option = models.ForeignKey(
         'ElectricControlUnitOption',
         on_delete=models.SET_NULL,
@@ -702,11 +708,14 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         if self.actual_cable_glands_holes:
             data['cable_glands_holes']['value'] = power_supply_data['actual_cable_glands_holes']['value']
 
+        if self.selected_ip:
+            data['ip_data']= self.selected_ip.get_description_data()
+
+        if self.selected_exd:
+            data['exd_data']= self.selected_exd.get_description_data()
         """
         selected_safety_position
         selected_temperature
-        selected_ip
-        selected_exd
         selected_body_coating
         selected_hand_wheel
         selected_turn_angle_option

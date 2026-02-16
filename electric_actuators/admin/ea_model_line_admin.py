@@ -84,7 +84,7 @@ def copy_related_options(original_obj, new_obj):
         ('exd_options', 'encoding'),
         ('body_coating_options', 'encoding'),
         ('blinker_options', 'encoding'),
-        ('way_switches_options', 'encoding'),
+        # ('way_switches_options', 'encoding'),
         ('control_unit_options', 'encoding'),
         ('hand_wheel_options', 'encoding'),
         ('mechanical_indicator_options', 'encoding'),
@@ -526,7 +526,7 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
             'hand_wheel_options',
             'turn_angle_options',
             'blinker_options',
-            'way_switches_options',
+            # 'way_switches_options',
             'control_unit_options',
             # 'operating_mode_options',          # ДОБАВИТЬ
             'mechanical_indicator_options'     # ДОБАВИТЬ

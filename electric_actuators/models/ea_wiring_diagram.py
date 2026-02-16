@@ -1,8 +1,8 @@
 #electric_actuators/models/ea_wiring_diagram.py
 from django.db import models
-from electric_actuators.models import ElectricActuatorData , ElectricActuatorModelLine
+# from electric_actuators.models import ElectricActuatorData , ElectricActuatorModelLine
 
-from params.models import PowerSupplies, ControlUnitInstalledOption
+# from params.models import PowerSupplies, ControlUnitInstalledOption
 
 
 #

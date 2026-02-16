@@ -14,7 +14,54 @@ import logging
 from params.models import PowerSupplies
 
 logger = logging.getLogger(__name__)
-
+#
+# class ElectricSafetyPositionOption(BaseThroughOption):
+#     """Опции покрытия корпуса для пневмоприводов
+#        может делаться не на все напряжения и не на все модели - привязываем к напряжению, которое привязывается к
+#        model_line_item - подобно ControlUnit"""
+#     power_supply_option = models.ForeignKey(
+#         'ElectricPowerSupplyOption',
+#         on_delete=models.CASCADE,
+#         related_name='control_unit_options',
+#         verbose_name=_("Опция напряжения питания")
+#     )
+#     safety_position = models.ForeignKey(
+#         'params.SafetyPositionOption',
+#         on_delete=models.CASCADE,
+#         verbose_name=_("Положение безопасности"),
+#         help_text=_('Положения безопасности'))
+#
+#     encoding = models.CharField(
+#         max_length=50,
+#         verbose_name=_("Кодировка"),
+#         help_text=_("Код для генерации артикула"),
+#         blank=True,  # ДОБАВЛЯЕМ - разрешаем пустые значения
+#         null=True,  # ДОБАВЛЯЕМ - разрешаем NULL в базе
+#         default=''  # ДОБАВЛЯЕМ - значение по умолчанию пустая строка
+#     )
+#
+#     is_default = models.BooleanField(
+#         default=False,
+#         verbose_name=_("По умолчанию"),
+#         help_text=_("Выбирать этот блок управления по умолчанию")
+#     )
+#
+#     class Meta:
+#         verbose_name = _("Положение безопасности модели электропривода")
+#         verbose_name_plural = _("Положения безопасности моделей лектроприводов")
+#         ordering = ['sorting_order']
+#         # unique_together = ['power_supply_option', 'safety_position']
+#
+#     def get_description_data(self) -> Dict[str, Any]:
+#         """Получить структурированные данные для описания"""
+#         # logger.debug(f"EA logger get_description_data")
+#         # print(f"EA model line item print get_description_data")
+#         data = {
+#             'power_supply_option': {'display_name':'Опция напряжения', 'value':self.power_supply_option if self.power_supply_option else None},
+#             'safety_position': {'display_name':'Положение безопасности', 'value':self.safety_position if self.safety_position else None},
+#             'is_default': {'display_name':'Стандарт', 'value':self.is_default},
+#         }
+#         return data
 
 class ElectricSafetyPositionOption(BaseThroughOption):
     """Опции покрытия корпуса для пневмоприводов
