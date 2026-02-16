@@ -45,8 +45,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                                                  help_text=_('Модель электропривода'))
 
     actual_mounting_plate = models.ForeignKey(MountingPlateTypes, on_delete=models.SET_NULL, null=True, blank=True,
-                                                   related_name='selected_mounting_plate',
-                                                   help_text='Монтажная площадка')
+                                              related_name='selected_mounting_plate',
+                                              help_text='Монтажная площадка')
     actual_stem_shape = models.ForeignKey(StemShapes, on_delete=models.SET_NULL, null=True, blank=True,
                                           related_name='selected_stem_shape',
                                           help_text='Тип отверстия под шток арматуры')
@@ -223,6 +223,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
     def __str__(self):
         return self.name
+
     def _get_value(self, field_path: str) -> str:
         """Простое получение значения поля"""
         try:
@@ -234,6 +235,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             return str(current_obj) if current_obj else ""
         except Exception:
             return ""
+
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация
             AR19E001.S24.LT.IP67.INT/N.220/50.Ex """
@@ -251,6 +253,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         ]
         # Фильтруем пустые значения и соединяем
         return '.'.join(filter(None, parts))
+
     def generated_model_item_code(self):
         """Сгенерировать артикул по шаблону из model_line"""
         if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
@@ -270,7 +273,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         result = template
         print(f"template: {result}")
         # Простая замена переменных  AR19E001.S24.LT.IP67.INT/N.220/50.Ex
-        #{model_code}{temperature}{ip}{voltage}{exd}
+        # {model_code}{temperature}{ip}{voltage}{exd}
         result = result.replace('{model_code}', self._get_value('selected_model_line_item__name'))
         result = result.replace('{temperature}', self._get_value('selected_temperature__encoding'))
         result = result.replace('{ip}', self._get_value('selected_ip__encoding'))
@@ -607,18 +610,118 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
         return duplicate
 
+    def _generate_short_description(self) -> Dict[str, Any]:
+        """Получить структурированные данные для описания
+        model_line_data = {
+            'name': {'display_name':'Название серии', 'value':self.code if self.code else None},
+            'default_output_type': {'display_name':'Тип привода', 'value':self.default_output_type.name if self.default_output_type else None},
+            'brand': {'display_name':'Бренд', 'value':self.brand.name  if self.brand else None}
+        }
+        model_line_item_data = {
+            'time_to_open': {'display_name':'Время открытия', 'value':self.time_to_open if self.time_to_open else None},
+            'time_to_close': {'display_name':'Время закрытия', 'value':self.time_to_close if self.time_to_close else None},
+            'rotation_speed': {'display_name':'Скорость вращения, об/мин', 'value':self.rotation_speed if self.rotation_speed else None},
+            'torque_min': {'display_name':'Вращающий момент мин, Нм', 'value':self.torque_min if self.torque_min else None},
+            'torque_max': {'display_name':'Вращающий момент макс, Нм', 'value':self.torque_max if self.torque_max else None}
+        }
+        body_data = {
+            'mounting_plate': {'display_name':'Монтажные площадки', 'value':self.mounting_plate_display},
+            'stem_shape': {'display_name':'Форма отверстия под шток', 'value':self.stem_shape if self.stem_shape else None},
+            'stem_size': {'display_name':'Размер отверстия под шток', 'value':self.stem_size if self.stem_size else None},
+            'max_stem_height': {'display_name':'Максимальная высота штока', 'value':self.max_stem_height if self.max_stem_height else None},
+            'max_stem_diameter': {'display_name':'Максимально возможный диаметр штока', 'value':self.max_stem_diameter if self.max_stem_diameter else None},
+            'weight_body': {'display_name':'Вес корпуса', 'value':self.weight_body if self.weight_body else None},
+        }
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"EA logger get_description_data")
+        print(f"EA  print get_description_data")
+        model_line_data = self.selected_model_line_item.model_line.get_description_data()
+        model_line_item_data = self.selected_model_line_item.get_description_data()
+        body_data = self.selected_model_line_item.body.get_description_data()
+        if self.selected_power_supply:
+            power_supply_data=self.selected_power_supply.get_description_data()
+        data = {
+            'model': {'display_name': 'Артикул модели:',
+                      'name': self.code if self.code else None
+                      },
+            'brand': {
+                'display_name': model_line_data.get('display_name', 'Бренд'),
+                'value': model_line_data.get('value', '')
+            },
+            'mounting_plate': {'display_name': 'Монтажные площадки', 'value': body_data['mounting_plate']['value'],
+                               'is_default':True},
+            'stem_shape': {'display_name': 'Форма отверстия под шток',
+                           'value': body_data['stem_shape']['value'],
+                               'is_default':True},
+            'stem_size': {'display_name': 'Размер отверстия под шток',
+                          'value': body_data['stem_size']['value'],
+                               'is_default':True},
+            'max_stem_height': {'display_name': 'Максимальная высота штока',
+                                'value': None, # type: ignore  # будет заполнено позже
+                               'is_default':True},
+            'max_stem_diameter': {'display_name': 'Максимально возможный диаметр штока',
+                                  'value': body_data['stem_size']['value'],
+                               'is_default':True},
+            'power_supply': {'display_name': 'Напряжение питания, В',
+                             'value': None},
+            'motor_current_rated': {'display_name': 'Ток номинальный, А', 'value': None},
+            'motor_current_starting': {'display_name': 'Пусковой ток, А', 'value': None},
+            'motor_power': {'display_name': 'Мощность электродвигателя, кВт', 'value': None},
+            'time_to_open': model_line_item_data['time_to_open'],
+            'time_to_close': model_line_item_data['time_to_close'],
+            'torque_min': model_line_item_data['torque_min'],
+            'torque_max': model_line_item_data['torque_max'],
+        }
+        if self.actual_mounting_plate:
+            data['mounting_plate']['value'] =self.actual_mounting_plate
+            data['mounting_plate']['is_default'] = False
+        if self.actual_stem_shape:
+            data['stem_shape']['value'] = self.actual_stem_shape
+            data['stem_shape']['is_default'] = False
+        if self.actual_stem_size:
+            data['stem_size']['value'] =body_data['stem_size']['value']
+            data['stem_size']['is_default'] = False
+        if self.selected_power_supply:
+            data['power_supply']['value'] = power_supply_data['power_supply']['value']
+
+            if ( power_supply_data['time_to_open']['value'] >0 or power_supply_data['time_to_close']['value'] >0):
+                data['time_to_open']['value'] = power_supply_data['time_to_open']['value']
+                data['time_to_close']['value'] = power_supply_data['time_to_close']['value']
+                if data['time_to_close']['value']==0:
+                    data['time_to_close']['value'] = data['time_to_open']['value']
+                if data['time_to_open']['value'] == 0:
+                    data['time_to_open']['value'] = data['time_to_close']['value']
+
+            if (power_supply_data['torque_min']['value'] > 0 or power_supply_data['torque_max']['value'] > 0):
+                data['torque_min']['value'] = power_supply_data['torque_min']['value']
+                data['torque_max']['value'] = power_supply_data['torque_max']['value']
+
+        # Добавить обработку cable_glands_holes если они есть в INT блоке
+        if self.actual_cable_glands_holes:
+            data['cable_glands_holes']['value'] = power_supply_data['actual_cable_glands_holes']['value']
+
+        """
+        selected_safety_position
+        selected_temperature
+        selected_ip
+        selected_exd
+        selected_body_coating
+        selected_hand_wheel
+        selected_turn_angle_option
+        selected_power_supply
+        selected_control_unit_option
+        """
+
+        return data
+
     def generate_description_view(self, request, object_id):
         """View для генерации описания"""
+        self._generate_short_description()
+        description = 'Empty'
         try:
-            instance = self.get_object(request, object_id)
-
-            # Если у модели есть метод для генерации описания
-            if hasattr(instance, '_generate_tech_description'):
-                description = instance._generate_tech_description()
-            elif hasattr(instance, 'generate_description'):
-                description = instance.generate_description()
-            else:
-                description = "Метод генерации описания не реализован"
+            instance = ElectricActuatorSelected.objects.get(pk=object_id)
 
             return JsonResponse({
                 'success': True,

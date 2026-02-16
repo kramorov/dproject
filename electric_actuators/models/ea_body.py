@@ -142,11 +142,7 @@ class ElectricActuatorBody(models.Model) :
                                                     verbose_name=_("Макс шток") ,
                                                     help_text=_('Максимальный диаметр отверстия '
                                                                 'под шток арматуры'))
-    # Это уберем в опции
-    # turn_angle = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Угол поворота") ,
-    #                               help_text=_("Угол поворота"))
-    # turn_tuning_limit = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Ограничитель") ,
-    #                                      help_text=_("Настройка ограничителя на ±1° (об.)"))
+
 
     # Для фильтрации
     model_line = models.ForeignKey('ElectricActuatorModelLine', on_delete=models.PROTECT,
@@ -198,104 +194,21 @@ class ElectricActuatorBody(models.Model) :
             name_suffix = _(" (Копия)")
         if code_suffix is None :
             code_suffix = _(" (Копия)")
-
-        # Сохраняем исходные отношения
-        mounting_plates = list(self.mounting_plate.all())
-        pneumatic_connections = list(self.pneumatic_connection.all())
-
-        # Создаем новый объект с теми же данными
-        # copy = PneumaticActuatorBody(
-        #     name=f"{self.name}{name_suffix}" if self.name else "Копия" ,
-        #     code=f"{self.code}{code_suffix}" if self.code else "Копия" ,
-        #     description=self.description ,
-        #     sorting_order=self.sorting_order ,
-        #     is_active=self.is_active ,
-        #     body_table=self.body_table ,
-        #     stem_shape=self.stem_shape ,
-        #     stem_size=self.stem_size ,
-        #     max_stem_height=self.max_stem_height ,
-        #     max_stem_diameter=self.max_stem_diameter ,
-        #     min_pressure_bar=self.min_pressure_bar ,
-        #     max_pressure_bar=self.max_pressure_bar ,
-        #     air_usage_open=self.air_usage_open ,
-        #     air_usage_close=self.air_usage_close ,
-        #     piston_diameter=self.piston_diameter ,
-        #     turn_angle=self.turn_angle ,
-        #     turn_tuning_limit=self.turn_tuning_limit ,
-        #     weight_spring=self.weight_spring ,
-        #     thread_in=self.thread_in ,
-        #     thread_out=self.thread_out ,
-        # )
-        # copy.save()
-        #
-        # # Копируем ManyToMany поля
-        # copy.mounting_plate.set(mounting_plates)
-        # copy.pneumatic_connection.set(pneumatic_connections)
-        #
-        # return copy
         return None
 
-    # def get_description_data(self) -> Dict[str , Any] :
-    #     """Получить структурированные данные для описания корпуса"""
-    #     data = {
-    #         'basic_info' : {
-    #             'name' : self.name ,
-    #             'code' : self.code ,
-    #             'description' : self.description
-    #         } ,
-    #         'technical_specs' : {} ,
-    #         'mounting_specs': {},
-    #         'pipe_connections_specs': {}
-    #     }
-    #
-    #     # Технические характеристики
-    #     if self.piston_diameter :
-    #         data['technical_specs']['piston_diameter'] = f"{self.piston_diameter} мм"
-    #     if self.turn_angle :
-    #         data['technical_specs']['turn_angle'] = self.turn_angle
-    #     if self.turn_tuning_limit :
-    #         data['technical_specs']['turn_tuning_limit'] = self.turn_tuning_limit
-    #     if self.weight_spring :
-    #         data['technical_specs']['weight_spring'] = f"{self.weight_spring} кг"
-    #     if self.min_pressure_bar :
-    #         data['technical_specs']['min_pressure'] = f"{self.min_pressure_bar} бар"
-    #     if self.max_pressure_bar :
-    #         data['technical_specs']['max_pressure'] = f"{self.max_pressure_bar} бар"
-    #     if self.air_usage_open :
-    #         data['technical_specs']['air_usage_open'] = f"{self.air_usage_open} л"
-    #     if self.air_usage_close :
-    #         data['technical_specs']['air_usage_close'] = f"{self.air_usage_close} л"
-    #
-    #     # Информация о штоке
-    #     stem_info = {}
-    #     if self.stem_shape :
-    #         stem_info['shape'] = str(self.stem_shape)
-    #     if self.stem_size :
-    #         stem_info['size'] = str(self.stem_size)
-    #     if self.max_stem_height :
-    #         stem_info['max_height'] = f"{self.max_stem_height} мм"
-    #     if self.max_stem_diameter :
-    #         stem_info['max_diameter'] = f"{self.max_stem_diameter} мм"
-    #
-    #     if stem_info :
-    #         data['mounting_specs']['stem'] = stem_info
-    #
-    #     # Подключения
-    #     if self.thread_in :
-    #         data['pipe_connections_specs']['thread_in'] = str(self.thread_in)
-    #     if self.thread_out :
-    #         data['pipe_connections_specs']['thread_out'] = str(self.thread_out)
-    #
-    #     pneumatic_connections = self.pneumatic_connection.all()
-    #     if pneumatic_connections :
-    #         data['pipe_connections_specs']['pneumatic_connections'] = [str(conn) for conn in pneumatic_connections]
-    #
-    #     # Монтажные площадки
-    #     mounting_plates = self.mounting_plate.all()
-    #     if mounting_plates :
-    #         data['mounting_specs']['mounting_plates'] = [str(plate) for plate in mounting_plates]
-    #
-    #     return data
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для описания корпуса"""
+        print(f"EA BODY model line item print get_description_data")
+        data = {
+            'mounting_plate': {'display_name':'Монтажные площадки', 'value':self.mounting_plate_display},
+            'stem_shape': {'display_name':'Форма отверстия под шток', 'value':self.stem_shape if self.stem_shape else None},
+            'stem_size': {'display_name':'Размер отверстия под шток', 'value':self.stem_size if self.stem_size else None},
+            'max_stem_height': {'display_name':'Максимальная высота штока', 'value':self.max_stem_height if self.max_stem_height else None},
+            'max_stem_diameter': {'display_name':'Максимально возможный диаметр штока', 'value':self.max_stem_diameter if self.max_stem_diameter else None},
+            'weight_body': {'display_name':'Вес корпуса', 'value':self.weight_body if self.weight_body else None},
+        }
+        # print(data)
+        return data
     #
     # def get_text_description(self) -> str :
     #     """Сгенерировать текстовое описание корпуса из структурированных данных"""

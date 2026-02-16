@@ -85,6 +85,18 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     def __str__(self) :
         return self.name
 
+    def get_description_data(self) -> Dict[str, Any]:
+        """Получить структурированные данные для описания"""
+        logger.debug(f"EA logger get_description_data")
+        print(f"EA model line  print get_description_data")
+        data = {
+            'name': {'display_name':'Название серии', 'value':self.code if self.code else None},
+            'default_output_type': {'display_name':'Тип привода', 'value':self.default_output_type.name if self.default_output_type else None},
+            'brand': {'display_name':'Бренд', 'value':self.brand.name  if self.brand else None}
+        }
+        # print(data)
+        return data
+
     def _get_metadata(self) -> Dict[str , Any] :
         """
         Метаданные для форм

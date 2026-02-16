@@ -53,6 +53,16 @@ class ElectricSafetyPositionOption(BaseThroughOption):
         ordering = ['sorting_order']
         # unique_together = ['power_supply_option', 'safety_position']
 
+    def get_description_data(self) -> Dict[str, Any]:
+        """Получить структурированные данные для описания"""
+        # logger.debug(f"EA logger get_description_data")
+        # print(f"EA model line item print get_description_data")
+        data = {
+            'power_supply_option': {'display_name':'Опция напряжения', 'value':self.power_supply_option if self.power_supply_option else None},
+            'safety_position': {'display_name':'Положение безопасности', 'value':self.safety_position if self.safety_position else None},
+            'is_default': {'display_name':'Стандарт', 'value':self.is_default},
+        }
+        return data
 class ElectricControlUnitOption(BaseThroughOption):
     """Through-модель для блоков управления с encoding и дефолтами"""
 
@@ -173,6 +183,22 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
         verbose_name_plural = _("Опции напряжения питания для модели в серии электроприводов")
         ordering = ['sorting_order']
         # unique_together = ['model_line' , 'encoding']
+
+    def get_description_data(self) -> Dict[str, Any]:
+        """Получить структурированные данные для описания """
+        # logger.debug(f"EA logger get_description_data")
+        # print(f"EA model line item print get_description_data")
+        data = {
+            'power_supply': {'display_name':'Напряжение питания, В', 'value':self.power_supply if self.power_supply else None},
+            'motor_current_rated': {'display_name':'Ток номинальный, А', 'value':self.motor_current_rated},
+            'motor_current_starting': {'display_name':'Пусковой ток, А', 'value':self.motor_current_starting},
+            'motor_power': {'display_name': 'Мощность электродвигателя, кВт', 'value': self.motor_power},
+            'time_to_open': {'display_name': 'Время открытия', 'value': self.time_to_open},
+            'time_to_close': {'display_name': 'Время закрытия', 'value': self.time_to_close},
+            'torque_min': {'display_name': 'Вращающий момент мин, Нм', 'value': self.time_to_close},
+            'torque_max': {'display_name': 'Вращающий момент макс, Нм', 'value': self.time_to_close},
+        }
+        return data
 
     @property
     def available_control_units(self):

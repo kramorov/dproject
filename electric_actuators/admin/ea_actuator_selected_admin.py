@@ -174,25 +174,53 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
 
     def generate_description_view(self, request, object_id):
         """View для генерации описания"""
+        import traceback
+        import logging
+        logger = logging.getLogger(__name__)
+
         try:
+            logger.info(f"Generate description called for object_id: {object_id}")
+
+            # Получаем объект
             instance = self.get_object(request, object_id)
+            logger.info(f"Instance found: {instance}")
+
+            if not instance:
+                logger.error(f"Object with id {object_id} not found")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Объект не найден',
+                    'message': 'Объект не найден'
+                }, status=404)
+
+            # Проверяем наличие метода
+            logger.info(f"Checking methods for instance: {dir(instance)}")
 
             # Генерируем описание
             if hasattr(instance, '_generate_short_description'):
+                logger.info("Calling _generate_short_description")
                 description = instance._generate_short_description()
             else:
+                logger.warning("Method _generate_short_description not found")
                 description = f"Описание для {instance.name}"
+
+            logger.info(f"Description generated, length: {len(description)}")
 
             return JsonResponse({
                 'success': True,
                 'description': description,
                 'message': 'Описание успешно сгенерировано'
             })
+
         except Exception as e:
+            logger.error(f"Error in generate_description_view: {e}")
+            logger.error(traceback.format_exc())
+
             return JsonResponse({
                 'success': False,
                 'error': str(e),
-                'message': 'Ошибка при генерации описания'
+                'message': f'Ошибка при генерации описания: {str(e)}',
+                'traceback': traceback.format_exc()  # Только для разработки
             }, status=500)
 
     def get_options_view(self, request):
