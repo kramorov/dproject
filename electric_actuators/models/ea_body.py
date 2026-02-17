@@ -201,8 +201,8 @@ class ElectricActuatorBody(models.Model) :
         print(f"EA BODY model line item print get_description_data")
         data = {
             'mounting_plate': {'display_name':'Монтажные площадки', 'value':self.mounting_plate_display},
-            'stem_shape': {'display_name':'Форма отверстия под шток', 'value':self.stem_shape if self.stem_shape else None},
-            'stem_size': {'display_name':'Размер отверстия под шток', 'value':self.stem_size if self.stem_size else None},
+            'stem_shape': {'display_name':'Форма отверстия под шток', 'value':self.stem_shape.name if self.stem_shape else None},
+            'stem_size': {'display_name':'Размер отверстия под шток', 'value':self.stem_size.name if self.stem_size else None},
             'max_stem_height': {'display_name':'Максимальная высота штока', 'value':self.max_stem_height if self.max_stem_height else None},
             'max_stem_diameter': {'display_name':'Максимально возможный диаметр штока', 'value':self.max_stem_diameter if self.max_stem_diameter else None},
             'weight_body': {'display_name':'Вес корпуса', 'value':self.weight_body if self.weight_body else None},

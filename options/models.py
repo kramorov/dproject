@@ -521,10 +521,10 @@ class CableGlandHolesSetThroughOption(BaseThroughOption) :
         """Получить структурированные данные для набора кабельных вводов"""
         data = {
             'cg_set' : {'display_name' : 'Кабельные вводы' , 'value' : self.cg_set.name} ,
-            'cg1' : {'display_name' : 'Отверстие под КВ1' , 'value' : self.cg_set.cg1 if self.cg_set.cg1 else None} ,
-            'cg2' : {'display_name' : 'Отверстие под КВ2' , 'value' : self.cg_set.cg1 if self.cg_set.cg1 else None} ,
-            'cg3': {'display_name': 'Отверстие под КВ3', 'value': self.cg_set.cg1 if self.cg_set.cg1 else None},
-            'cg4': {'display_name': 'Отверстие под КВ4', 'value': self.cg_set.cg1 if self.cg_set.cg1 else None},
+            'cg1' : {'display_name' : 'Отверстие под КВ1' , 'value' : self.cg_set.cg1.name if self.cg_set.cg1 else None} ,
+            'cg2' : {'display_name' : 'Отверстие под КВ2' , 'value' : self.cg_set.cg2.name if self.cg_set.cg2 else None} ,
+            'cg3': {'display_name': 'Отверстие под КВ3', 'value': self.cg_set.cg3.name if self.cg_set.cg3 else None},
+            'cg4': {'display_name': 'Отверстие под КВ4', 'value': self.cg_set.cg4.name if self.cg_set.cg4 else None},
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -545,7 +545,7 @@ class BaseBodyCoatingThroughOption(BaseThroughOption) :
         """Получить структурированные данные для покрытия корпуса"""
         # print(f"EA IP OPTION print get_description_data")
         data = {
-            'body_coating_option' : {'display_name' : 'Покрытие корпуса' , 'value' : self.body_coating_option.name} ,
+            'body_coating_option' : {'display_name' : 'Покрытие корпуса' , 'value' : self.body_coating_option.name if self.body_coating_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         # print(data)
@@ -615,7 +615,7 @@ class BaseExdThroughOption(BaseThroughOption) :
         """Получить структурированные данные для взрывозащиты"""
         # print(f"EA IP OPTION print get_description_data")
         data = {
-            'exd_option' : {'display_name' : 'Тип взрывозащиты' , 'value' : self.exd_option.name} ,
+            'exd_option' : {'display_name' : 'Тип взрывозащиты' , 'value' : self.exd_option.name if self.exd_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         # print(data)
@@ -674,7 +674,7 @@ class BaseIpThroughOption(BaseThroughOption) :
         """Получить структурированные данные для IP корпуса"""
         # print(f"EA IP OPTION print get_description_data")
         data = {
-            'ip_option' : {'display_name' : 'Вид защиты IP' , 'value' : self.ip_option.name} ,
+            'ip_option' : {'display_name' : 'Вид защиты IP' , 'value' : self.ip_option.name if self.ip_option else None} ,
             'ip_rank' : {'display_name' : 'Степень IP' , 'value' : self.ip_rank if self.ip_rank else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
@@ -807,7 +807,7 @@ class BaseSafetyPositionThroughOption(BaseThroughOption) :
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для набора кабельных вводов"""
         data = {
-            'safety_position' : {'display_name' : 'Положения функции безопасности' , 'value' : self.safety_position.description} ,
+            'safety_position' : {'display_name' : 'Положения функции безопасности' , 'value' : self.safety_position.description if self.safety_position else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -851,7 +851,7 @@ class BaseTurnAngleThroughOption(BaseThroughOption) :
         """Получить структурированные данные для угла поворота"""
         data = {
             'turn_angle' : {'display_name' : 'Угол поворота, °' , 'value' : self.turn_angle} ,
-            'turn_angle_deviation_limit': {'display_name': 'Предел регулировки угла поворота, °', 'value': self.turn_angle},
+            'turn_angle_deviation_limit': {'display_name': 'Предел регулировки угла поворота, °', 'value': self.turn_angle_deviation_limit},
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -940,7 +940,7 @@ class BaseHandWheelThroughOption(BaseThroughOption) :
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для набора кабельных вводов"""
         data = {
-            'hand_wheel_option' : {'display_name' : 'Тип установленного на корпусе ручного дублера' , 'value' : self.hand_wheel_option} ,
+            'hand_wheel_option' : {'display_name' : 'Тип установленного на корпусе ручного дублера' , 'value' : self.hand_wheel_option.name if self.hand_wheel_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -1025,7 +1025,7 @@ class BaseBlinkerThroughOption(BaseThroughOption) :
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для блинкера"""
         data = {
-            'blinker_option' : {'display_name' : 'Тип установленного блинкера' , 'value' : self.blinker_option} ,
+            'blinker_option' : {'display_name' : 'Тип установленного блинкера' , 'value' : self.blinker_option.name if self.blinker_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -1058,7 +1058,7 @@ class BaseControlUnitInstalledThroughOption(BaseThroughOption) :
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для блока управления"""
         data = {
-            'control_unit_option' : {'display_name' : 'Тип установленного блока управления' , 'value' : self.control_unit_option} ,
+            'control_unit_option' : {'display_name' : 'Тип установленного блока управления' , 'value' : self.control_unit_option.name if self.control_unit_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -1116,7 +1116,7 @@ class BaseWaySwitchesThroughOption(BaseThroughOption) :
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для путевых выключателей"""
         data = {
-            'way_switches_option' : {'display_name' : 'Путевые выключатели' , 'value' : self.way_switches_option} ,
+            'way_switches_option' : {'display_name' : 'Путевые выключатели' , 'value' : self.way_switches_option.name if self.way_switches_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -1175,7 +1175,7 @@ class BaseOperatingModeThroughOption(BaseThroughOption) :
         """Получить структурированные данные для режима работы двигателя"""
         data = {
             'operating_mode_option' : {'display_name' : 'Режим работы двигателя' ,
-                                       'value' : self.operating_mode_option.name} ,
+                                       'value' : self.operating_mode_option.name if self.operating_mode_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -1271,7 +1271,7 @@ class BaseMechanicalIndicatorThroughOption(BaseThroughOption) :
         """Получить структурированные данные для механического индикатора"""
         data = {
             'mechanical_indicator_option' : {'display_name' : 'Механической индикатор положения' ,
-                                       'value' : self.mechanical_indicator_option.name} ,
+                                       'value' : self.mechanical_indicator_option.name if self.mechanical_indicator_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data

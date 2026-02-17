@@ -642,7 +642,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         import logging
         logger = logging.getLogger(__name__)
         logger.debug(f"EA logger get_description_data")
-        print(f"EA  print get_description_data")
+        print(f"EA  print _generate_short_description")
         model_line_data = self.selected_model_line_item.model_line.get_description_data()
         model_line_item_data = self.selected_model_line_item.get_description_data()
         body_data = self.selected_model_line_item.body.get_description_data()
@@ -663,7 +663,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'mounting_plate': {'display_name': 'Монтажные площадки', 'value': body_data['mounting_plate']['value'],
                                'is_default': True},
             'stem_shape': {'display_name': 'Форма отверстия под шток',
-                           'value': body_data['stem_shape']['value'],
+                           'value': None,
                            'is_default': True},
             'stem_size': {'display_name': 'Размер отверстия под шток',
                           'value': body_data['stem_size']['value'],
@@ -672,7 +672,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                                 'value': None,  # type: ignore  # будет заполнено позже
                                 'is_default': True},
             'max_stem_diameter': {'display_name': 'Максимально возможный диаметр штока',
-                                  'value': body_data['stem_size']['value'],
+                                  'value': None,
                                   'is_default': True},
             'power_supply': {'display_name': 'Напряжение питания, В',
                              'value': None},
@@ -688,7 +688,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             data['mounting_plate']['value'] = self.actual_mounting_plate.name
             data['mounting_plate']['is_default'] = False
         if self.actual_stem_shape:
-            data['stem_shape']['value'] = self.actual_stem_shape.name
+            print(f'actual_stem_shape {self.actual_stem_shape} name {self.actual_stem_shape.name}')
+            data['stem_shape']['value'] = str(self.actual_stem_shape.name)
             data['stem_shape']['is_default'] = False
         if self.actual_stem_size:
             data['stem_size']['value'] = self.actual_stem_size.name
@@ -740,7 +741,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
         if self.selected_control_unit_option:
             data['selected_control_unit_option'] = self.selected_control_unit_option.get_description_data()
-
+        print(f'data={data}')
         return data
 
     def save(self, *args, **kwargs):

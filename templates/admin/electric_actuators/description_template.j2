@@ -1,0 +1,101 @@
+{# Шаблон для описания электропривода - работает и для HTML, и для Word #}
+{# Используйте стандартные теги Jinja2 для всех форматов #}
+
+{% macro format_value(value, unit='') -%}
+    {{ value }}{% if unit %} {{ unit }}{% endif %}
+{%- endmacro %}
+
+{% macro format_type(is_default) -%}
+    {%- if is_default -%}✓ Стандарт{%- else -%}⟳ Опция{%- endif -%}
+{%- endmacro %}
+
+# ОПИСАНИЕ ЭЛЕКТРОПРИВОДА
+
+## Модель
+- **{{ model.display_name | default('Модель') }}**: {{ model.name | default('—') }}
+- **Код**: {{ code | default('—') }}
+- **Бренд**: {{ brand.value | default('—') }}
+
+---
+
+## Основные параметры
+
+| Параметр | Значение | Тип |
+|----------|----------|-----|
+{% for param in basic_params %}
+| {{ param.display_name }} | {{ format_value(param.value, param.unit) }} | {{ format_type(param.is_default) }} |
+{% endfor %}
+
+---
+
+## Электрические параметры
+
+| Параметр | Значение | Тип |
+|----------|----------|-----|
+{% for param in electrical_params %}
+| {{ param.display_name }} | {{ format_value(param.value, param.unit) }} | {{ format_type(param.is_default) }} |
+{% endfor %}
+
+---
+
+## Механические параметры
+
+| Параметр | Значение | Тип |
+|----------|----------|-----|
+{% for param in mechanical_params %}
+| {{ param.display_name }} | {{ format_value(param.value, param.unit) }} | {{ format_type(param.is_default) }} |
+{% endfor %}
+
+---
+
+## Дополнительные опции
+
+{% if ip_data %}
+### IP защита
+- **{{ ip_data.ip_option.display_name }}**: {{ ip_data.ip_option.value }}
+- **Степень защиты**: IP{{ ip_data.ip_rank.value }}
+- **Тип**: {{ format_type(ip_data.is_default.value) }}
+{% endif %}
+
+{% if exd_data %}
+### Взрывозащита
+- **{{ exd_data.exd_option.display_name }}**: {{ exd_data.exd_option.value }}
+- **Тип**: {{ format_type(exd_data.is_default.value) }}
+{% endif %}
+
+{% if selected_temperature %}
+### Температурный режим
+- **Диапазон**: {{ selected_temperature.temperature_range.value }}
+- **Минимальная температура**: {{ selected_temperature.work_temp_min.value }}°C
+- **Максимальная температура**: {{ selected_temperature.work_temp_max.value }}°C
+- **Тип**: {{ format_type(selected_temperature.is_default.value) }}
+{% endif %}
+
+{% if selected_body_coating %}
+### Покрытие корпуса
+- **{{ selected_body_coating.body_coating_option.display_name }}**: {{ selected_body_coating.body_coating_option.value }}
+- **Тип**: {{ format_type(selected_body_coating.is_default.value) }}
+{% endif %}
+
+{% if selected_hand_wheel %}
+### Ручной дублер
+- **{{ selected_hand_wheel.hand_wheel_option.display_name }}**: {{ selected_hand_wheel.hand_wheel_option.value }}
+- **Тип**: {{ format_type(selected_hand_wheel.is_default.value) }}
+{% endif %}
+
+{% if selected_turn_angle_option %}
+### Угол поворота
+- **Угол**: {{ selected_turn_angle_option.turn_angle.value }}°
+- **Предел регулировки**: ±{{ selected_turn_angle_option.turn_angle_deviation_limit.value }}°
+- **Тип**: {{ format_type(selected_turn_angle_option.is_default.value) }}
+{% endif %}
+
+{% if selected_control_unit_option %}
+### Блок управления
+- **{{ selected_control_unit_option.control_unit.display_name }}**: {{ selected_control_unit_option.control_unit.value }}
+- **Тип**: {{ format_type(selected_control_unit_option.is_default.value) }}
+{% endif %}
+
+---
+
+*Сгенерировано: {{ generated_at }}*
