@@ -160,7 +160,16 @@ class ElectricControlUnitOption(BaseThroughOption):
 
     def __str__(self):
         return f"{self.power_supply_option} -> {self.control_unit}"
+    def get_description_data(self) -> Dict[str, Any]:
 
+        """Получить структурированные данные для описания """
+        # logger.debug(f"EA logger get_description_data")
+        # print(f"EA model line item print get_description_data")
+        data = {
+            'control_unit': {'display_name':'Тип установленного блока управления', 'value':self.control_unit if self.control_unit else None},
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
     def clean(self):
         """Валидация перед сохранением"""
         # Убедимся что encoding уникален в рамках power_supply_option

@@ -127,10 +127,10 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_('Напряжение питания')
     )
     selected_cable_glands_holes = models.ForeignKey(
-        'CableGlandHolesSetBodyOption' ,
-        on_delete=models.SET_NULL ,
-        null=True , blank=True ,
-        verbose_name=_("Кабельные вводы") ,
+        'CableGlandHolesSetBodyOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Кабельные вводы"),
         help_text=_('Отверстия под кабельные вводы')
     )
     selected_control_unit_option = models.ForeignKey(
@@ -308,44 +308,44 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
     def get_available_options(self):
         """Получить все доступные опции для выбранной модели"""
-        print(f"DEBUG get_available_options: Called for {self.id if self.id else 'new'}")
+        # print(f"DEBUG get_available_options: Called for {self.id if self.id else 'new'}")
 
         if not self.selected_model_line_item:
-            print("DEBUG get_available_options: No selected_model_line_item")
+            # print("DEBUG get_available_options: No selected_model_line_item")
             return self._get_empty_options()
 
         try:
             result = {}
-            print(f"DEBUG get_available_options: Processing options from _OPTION_CONFIG")
+            # print(f"DEBUG get_available_options: Processing options from _OPTION_CONFIG")
 
             # Получаем информацию о model_line для отладки
             model_line_info = None
             if hasattr(self.selected_model_line_item, 'model_line'):
                 model_line_info = self.selected_model_line_item.model_line
-                print(f"DEBUG get_available_options: Model line: {model_line_info}")
+                # print(f"DEBUG get_available_options: Model line: {model_line_info}")
 
             # Для каждой опции из _OPTION_CONFIG
             for field_name, config in self._OPTION_CONFIG.items():
-                print(f"\nDEBUG get_available_options: Processing {field_name}")
-                print(f"DEBUG get_available_options: Config: {config}")
+                # print(f"\nDEBUG get_available_options: Processing {field_name}")
+                # print(f"DEBUG get_available_options: Config: {config}")
 
                 try:
                     # Динамически импортируем модель
                     module_path, class_name = config['model_path'].rsplit('.', 1)
-                    print(f"DEBUG get_available_options: Importing {class_name} from {module_path}")
+                    # print(f"DEBUG get_available_options: Importing {class_name} from {module_path}")
 
                     module = __import__(module_path, fromlist=[class_name])
                     model_class = getattr(module, class_name)
-                    print(f"DEBUG get_available_options: Model class loaded: {model_class}")
+                    # print(f"DEBUG get_available_options: Model class loaded: {model_class}")
 
                     # Определяем ключ для результата
                     result_key = f"{field_name}_options".replace('selected_', '')
-                    print(f"DEBUG get_available_options: Result key: {result_key}")
+                    # print(f"DEBUG get_available_options: Result key: {result_key}")
 
                     # Особый случай: опция блока управления зависит от выбранного напряжения
                     if field_name == 'selected_control_unit_option':
                         if not self.selected_power_supply:
-                            print("DEBUG get_available_options: No power supply selected for control unit options")
+                            # print("DEBUG get_available_options: No power supply selected for control unit options")
                             result[result_key] = []
                             continue
 
@@ -354,8 +354,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                             'power_supply_option': self.selected_power_supply,
                             'is_active': True
                         }
-                        print(
-                            f"DEBUG get_available_options: Filter by power_supply_option: {self.selected_power_supply.id}")
+                        # print(
+                        # f"DEBUG get_available_options: Filter by power_supply_option: {self.selected_power_supply.id}")
 
                     elif config['parent_field'] == 'model_line':
                         if model_line_info:
@@ -363,9 +363,9 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                                 config['parent_field']: model_line_info,
                                 'is_active': True
                             }
-                            print(f"DEBUG get_available_options: Filter by model_line: {model_line_info.id}")
+                            # print(f"DEBUG get_available_options: Filter by model_line: {model_line_info.id}")
                         else:
-                            print(f"DEBUG get_available_options: No model_line, skipping")
+                            # print(f"DEBUG get_available_options: No model_line, skipping")
                             result[result_key] = []
                             continue
 
@@ -374,25 +374,25 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                             config['parent_field']: self.selected_model_line_item,
                             'is_active': True
                         }
-                        print(
-                            f"DEBUG get_available_options: Filter by model_line_item: {self.selected_model_line_item.id}")
+                        # print(
+                        # f"DEBUG get_available_options: Filter by model_line_item: {self.selected_model_line_item.id}")
 
                     else:
                         # Для других связей
                         parent_value = getattr(self.selected_model_line_item, config['parent_field'], None)
                         if parent_value:
                             filter_kwargs = {config['parent_field']: parent_value, 'is_active': True}
-                            print(f"DEBUG get_available_options: Filter by {config['parent_field']}: {parent_value}")
+                            # print(f"DEBUG get_available_options: Filter by {config['parent_field']}: {parent_value}")
                         else:
-                            print(f"DEBUG get_available_options: No {config['parent_field']}, skipping")
+                            # print(f"DEBUG get_available_options: No {config['parent_field']}, skipping")
                             result[result_key] = []
                             continue
 
                     # Получаем опции
-                    print(f"DEBUG get_available_options: Filter kwargs: {filter_kwargs}")
+                    # print(f"DEBUG get_available_options: Filter kwargs: {filter_kwargs}")
                     options = model_class.objects.filter(**filter_kwargs)
                     count = options.count()
-                    print(f"DEBUG get_available_options: Found {count} options")
+                    # print(f"DEBUG get_available_options: Found {count} options")
 
                     # Формируем список опций
                     options_list = []
@@ -418,7 +418,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
                     # Логируем первые 3 опции для отладки
                     if count > 0:
-                        print(f"DEBUG get_available_options: First 3 options:")
+                        # print(f"DEBUG get_available_options: First 3 options:")
                         for i, opt in enumerate(options_list[:3]):
                             print(f"  {i + 1}. {opt['name']} (id: {opt['id']}, encoding: {opt['encoding']})")
 
@@ -437,7 +437,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                     result_key = f"{field_name}_options".replace('selected_', '')
                     result[result_key] = []
 
-            print(f"\nDEBUG get_available_options: Final result keys: {list(result.keys())}")
+            # print(f"\nDEBUG get_available_options: Final result keys: {list(result.keys())}")
             for key, value in result.items():
                 print(f"  {key}: {len(value)} items")
 
@@ -457,7 +457,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         for field_name in self._OPTION_CONFIG.keys():
             result_key = f"{field_name}_options".replace('selected_', '')
             result[result_key] = []
-            print(f"DEBUG _get_empty_options: Added empty list for {result_key}")
+            # print(f"DEBUG _get_empty_options: Added empty list for {result_key}")
 
         return result
 
@@ -646,8 +646,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         model_line_data = self.selected_model_line_item.model_line.get_description_data()
         model_line_item_data = self.selected_model_line_item.get_description_data()
         body_data = self.selected_model_line_item.body.get_description_data()
-        if self.selected_power_supply:
-            power_supply_data=self.selected_power_supply.get_description_data()
+
         data = {
             'model': {'display_name': 'Артикул модели:',
                       'name': self.code if self.code else None
@@ -656,20 +655,25 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                 'display_name': model_line_data.get('display_name', 'Бренд'),
                 'value': model_line_data.get('value', '')
             },
+            'cable_glands_holes': {
+                'display_name': 'Кабельные вводы',
+                'value': None,
+                'is_default': True
+            },
             'mounting_plate': {'display_name': 'Монтажные площадки', 'value': body_data['mounting_plate']['value'],
-                               'is_default':True},
+                               'is_default': True},
             'stem_shape': {'display_name': 'Форма отверстия под шток',
                            'value': body_data['stem_shape']['value'],
-                               'is_default':True},
+                           'is_default': True},
             'stem_size': {'display_name': 'Размер отверстия под шток',
                           'value': body_data['stem_size']['value'],
-                               'is_default':True},
+                          'is_default': True},
             'max_stem_height': {'display_name': 'Максимальная высота штока',
-                                'value': None, # type: ignore  # будет заполнено позже
-                               'is_default':True},
+                                'value': None,  # type: ignore  # будет заполнено позже
+                                'is_default': True},
             'max_stem_diameter': {'display_name': 'Максимально возможный диаметр штока',
                                   'value': body_data['stem_size']['value'],
-                               'is_default':True},
+                                  'is_default': True},
             'power_supply': {'display_name': 'Напряжение питания, В',
                              'value': None},
             'motor_current_rated': {'display_name': 'Ток номинальный, А', 'value': None},
@@ -681,68 +685,63 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'torque_max': model_line_item_data['torque_max'],
         }
         if self.actual_mounting_plate:
-            data['mounting_plate']['value'] =self.actual_mounting_plate
+            data['mounting_plate']['value'] = self.actual_mounting_plate.name
             data['mounting_plate']['is_default'] = False
         if self.actual_stem_shape:
-            data['stem_shape']['value'] = self.actual_stem_shape
+            data['stem_shape']['value'] = self.actual_stem_shape.name
             data['stem_shape']['is_default'] = False
         if self.actual_stem_size:
-            data['stem_size']['value'] =body_data['stem_size']['value']
+            data['stem_size']['value'] = self.actual_stem_size.name
             data['stem_size']['is_default'] = False
         if self.selected_power_supply:
+            power_supply_data = self.selected_power_supply.get_description_data()
             data['power_supply']['value'] = power_supply_data['power_supply']['value']
 
-            if ( power_supply_data['time_to_open']['value'] >0 or power_supply_data['time_to_close']['value'] >0):
+            if power_supply_data['time_to_open']['value'] > 0 or power_supply_data['time_to_close']['value'] > 0:
                 data['time_to_open']['value'] = power_supply_data['time_to_open']['value']
                 data['time_to_close']['value'] = power_supply_data['time_to_close']['value']
-                if data['time_to_close']['value']==0:
+                if data['time_to_close']['value'] == 0:
                     data['time_to_close']['value'] = data['time_to_open']['value']
                 if data['time_to_open']['value'] == 0:
                     data['time_to_open']['value'] = data['time_to_close']['value']
 
-            if (power_supply_data['torque_min']['value'] > 0 or power_supply_data['torque_max']['value'] > 0):
+            if power_supply_data['torque_min']['value'] > 0 or power_supply_data['torque_max']['value'] > 0:
                 data['torque_min']['value'] = power_supply_data['torque_min']['value']
                 data['torque_max']['value'] = power_supply_data['torque_max']['value']
 
         # Добавить обработку cable_glands_holes если они есть в INT блоке
+        print(f'cable_glands_holes {data['cable_glands_holes']['value']}')
+
         if self.actual_cable_glands_holes:
-            data['cable_glands_holes']['value'] = power_supply_data['actual_cable_glands_holes']['value']
+            data['cable_glands_holes']['value'] = self.actual_cable_glands_holes.get_description_data()
+
+        print(data['cable_glands_holes']['value'])
 
         if self.selected_ip:
-            data['ip_data']= self.selected_ip.get_description_data()
+            data['ip_data'] = self.selected_ip.get_description_data()
 
         if self.selected_exd:
-            data['exd_data']= self.selected_exd.get_description_data()
-        """
-        selected_safety_position
-        selected_temperature
-        selected_body_coating
-        selected_hand_wheel
-        selected_turn_angle_option
-        selected_power_supply
-        selected_control_unit_option
-        """
+            data['exd_data'] = self.selected_exd.get_description_data()
+
+        if self.selected_safety_position:
+            data['selected_safety_position'] = self.selected_safety_position.get_description_data()
+
+        if self.selected_temperature:
+            data['selected_temperature'] = self.selected_temperature.get_description_data()
+
+        if self.selected_body_coating:
+            data['selected_body_coating'] = self.selected_body_coating.get_description_data()
+
+        if self.selected_hand_wheel:
+            data['selected_hand_wheel'] = self.selected_hand_wheel.get_description_data()
+
+        if self.selected_turn_angle_option:
+            data['selected_turn_angle_option'] = self.selected_turn_angle_option.get_description_data()
+
+        if self.selected_control_unit_option:
+            data['selected_control_unit_option'] = self.selected_control_unit_option.get_description_data()
 
         return data
-
-    def generate_description_view(self, request, object_id):
-        """View для генерации описания"""
-        self._generate_short_description()
-        description = 'Empty'
-        try:
-            instance = ElectricActuatorSelected.objects.get(pk=object_id)
-
-            return JsonResponse({
-                'success': True,
-                'description': description,
-                'message': 'Описание успешно сгенерировано'
-            })
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e),
-                'message': 'Ошибка при генерации описания'
-            }, status=500)
 
     def save(self, *args, **kwargs):
         print(f"\n=== DEBUG save() called ===")

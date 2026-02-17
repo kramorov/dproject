@@ -95,6 +95,7 @@ class ElectricIpOption(BaseIpThroughOption):
 
 
 
+
 class ElectricExdOption(BaseExdThroughOption):
     """Опции взрывозащиты для электроприводов"""
     model_line = models.ForeignKey(

@@ -453,6 +453,15 @@ class BaseTemperatureThroughOption(BaseThroughOption) :
             'temperature_range' : f"{current_instance.work_temp_min}...{current_instance.work_temp_max}°C" ,
         })
         return info
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для рабочих температур"""
+        data = {
+            'work_temp_min' : {'display_name' : 'Минимальная рабочая температура, °С' , 'value' : self.work_temp_min} ,
+            'work_temp_max' : {'display_name' : 'Максимальная рабочая температура, °С' , 'value' : self.work_temp_max} ,
+            'temperature_range': {'display_name': 'Вид защиты IP', 'value': f"{self.work_temp_min}...{self.work_temp_max}°C"},
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 
     def validate_unique_encoding(self) -> None :
         """Валидация уникальности encoding для температурных опций"""
@@ -508,6 +517,18 @@ class CableGlandHolesSetThroughOption(BaseThroughOption) :
     def __str__(self) :
         return self.get_display_name()
 
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для набора кабельных вводов"""
+        data = {
+            'cg_set' : {'display_name' : 'Кабельные вводы' , 'value' : self.cg_set.name} ,
+            'cg1' : {'display_name' : 'Отверстие под КВ1' , 'value' : self.cg_set.cg1 if self.cg_set.cg1 else None} ,
+            'cg2' : {'display_name' : 'Отверстие под КВ2' , 'value' : self.cg_set.cg1 if self.cg_set.cg1 else None} ,
+            'cg3': {'display_name': 'Отверстие под КВ3', 'value': self.cg_set.cg1 if self.cg_set.cg1 else None},
+            'cg4': {'display_name': 'Отверстие под КВ4', 'value': self.cg_set.cg1 if self.cg_set.cg1 else None},
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
+
 
 class BaseBodyCoatingThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций покрытия корпуса"""
@@ -521,7 +542,7 @@ class BaseBodyCoatingThroughOption(BaseThroughOption) :
         ordering = ['sorting_order']
 
     def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для описания корпуса"""
+        """Получить структурированные данные для покрытия корпуса"""
         # print(f"EA IP OPTION print get_description_data")
         data = {
             'body_coating_option' : {'display_name' : 'Покрытие корпуса' , 'value' : self.body_coating_option.name} ,
@@ -591,7 +612,7 @@ class BaseExdThroughOption(BaseThroughOption) :
         ordering = ['sorting_order']
 
     def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для описания корпуса"""
+        """Получить структурированные данные для взрывозащиты"""
         # print(f"EA IP OPTION print get_description_data")
         data = {
             'exd_option' : {'display_name' : 'Тип взрывозащиты' , 'value' : self.exd_option.name} ,
@@ -650,14 +671,14 @@ class BaseIpThroughOption(BaseThroughOption) :
         ordering = ['sorting_order']
 
     def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для описания корпуса"""
+        """Получить структурированные данные для IP корпуса"""
         # print(f"EA IP OPTION print get_description_data")
         data = {
             'ip_option' : {'display_name' : 'Вид защиты IP' , 'value' : self.ip_option.name} ,
             'ip_rank' : {'display_name' : 'Степень IP' , 'value' : self.ip_rank if self.ip_rank else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
-        # print(data)
+        print(data)
         return data
 
     @classmethod
@@ -783,7 +804,13 @@ class BaseSafetyPositionThroughOption(BaseThroughOption) :
         abstract = True
         ordering = ['sorting_order']
 
-
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для набора кабельных вводов"""
+        data = {
+            'safety_position' : {'display_name' : 'Положения функции безопасности' , 'value' : self.safety_position.description} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 class BaseTurnAngleThroughOption(BaseThroughOption) :
     """
     Универсальная through-модель для опций угла поворота однооборотного привода
@@ -820,6 +847,14 @@ class BaseTurnAngleThroughOption(BaseThroughOption) :
             sorting_order=0 ,
             is_active=True
         )
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для угла поворота"""
+        data = {
+            'turn_angle' : {'display_name' : 'Угол поворота, °' , 'value' : self.turn_angle} ,
+            'turn_angle_deviation_limit': {'display_name': 'Предел регулировки угла поворота, °', 'value': self.turn_angle},
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 
     def get_display_name(self) :
         if self.encoding and self.encoding.strip() :
@@ -890,7 +925,7 @@ class BaseSpringsQtyThroughOption(BaseThroughOption) :
 
 
 class BaseHandWheelThroughOption(BaseThroughOption) :
-    """Базовая модель для сквозных опций IP"""
+    """Базовая модель для опции ручного дублера"""
     hand_wheel_option = models.ForeignKey(
         'params.HandWheelInstalledOption' ,
         on_delete=models.CASCADE ,
@@ -901,6 +936,14 @@ class BaseHandWheelThroughOption(BaseThroughOption) :
     class Meta :
         abstract = True
         ordering = ['sorting_order']
+
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для набора кабельных вводов"""
+        data = {
+            'hand_wheel_option' : {'display_name' : 'Тип установленного на корпусе ручного дублера' , 'value' : self.hand_wheel_option} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 
     @classmethod
     def create_default_option(cls , parent_obj) :
@@ -979,6 +1022,13 @@ class BaseBlinkerThroughOption(BaseThroughOption) :
                 is_active=True
             )
         return None
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для блинкера"""
+        data = {
+            'blinker_option' : {'display_name' : 'Тип установленного блинкера' , 'value' : self.blinker_option} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 
     def get_display_name(self) :
         """Отображаемое имя для блинкера"""
@@ -993,7 +1043,7 @@ class BaseBlinkerThroughOption(BaseThroughOption) :
 
 
 class BaseControlUnitInstalledThroughOption(BaseThroughOption) :
-    """Базовая модель для сквозных опций ControlUnitInstalledOption"""
+    """Базовая модель для сквозных опций для блока управления"""
     control_unit_option = models.ForeignKey(
         'params.ControlUnitInstalledOption' ,
         on_delete=models.CASCADE ,
@@ -1004,6 +1054,14 @@ class BaseControlUnitInstalledThroughOption(BaseThroughOption) :
     class Meta :
         abstract = True
         ordering = ['sorting_order']
+
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для блока управления"""
+        data = {
+            'control_unit_option' : {'display_name' : 'Тип установленного блока управления' , 'value' : self.control_unit_option} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 
     @classmethod
     def create_default_option(cls , parent_obj) :
@@ -1043,7 +1101,7 @@ class BaseControlUnitInstalledThroughOption(BaseThroughOption) :
 
 
 class BaseWaySwitchesThroughOption(BaseThroughOption) :
-    """Базовая модель для сквозных опций ControlUnitInstalledOption"""
+    """Базовая модель для сквозных опций путевых выключателей"""
     way_switches_option = models.ForeignKey(
         'params.SwitchesParameters' ,
         on_delete=models.CASCADE ,
@@ -1054,6 +1112,14 @@ class BaseWaySwitchesThroughOption(BaseThroughOption) :
     class Meta :
         abstract = True
         ordering = ['sorting_order']
+
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для путевых выключателей"""
+        data = {
+            'way_switches_option' : {'display_name' : 'Путевые выключатели' , 'value' : self.way_switches_option} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 
     @classmethod
     def create_default_option(cls , parent_obj) :
@@ -1106,14 +1172,12 @@ class BaseOperatingModeThroughOption(BaseThroughOption) :
         ordering = ['sorting_order']
 
     def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для описания корпуса"""
-        # print(f"EA IP OPTION print get_description_data")
+        """Получить структурированные данные для режима работы двигателя"""
         data = {
             'operating_mode_option' : {'display_name' : 'Режим работы двигателя' ,
                                        'value' : self.operating_mode_option.name} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
-        # print(data)
         return data
 
     @classmethod
@@ -1203,6 +1267,14 @@ class BaseMechanicalIndicatorThroughOption(BaseThroughOption) :
         abstract = True
         ordering = ['sorting_order']
 
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для механического индикатора"""
+        data = {
+            'mechanical_indicator_option' : {'display_name' : 'Механической индикатор положения' ,
+                                       'value' : self.mechanical_indicator_option.name} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
     @classmethod
     def create_default_option(cls , parent_obj) :
         """Создать стандартную опцию механического индикатора"""
