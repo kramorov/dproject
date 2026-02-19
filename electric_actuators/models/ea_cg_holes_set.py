@@ -24,11 +24,11 @@ class CableGlandHolesSet(models.Model):
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для набора кабельных вводов"""
         data = {
-            'cg_set' : {'display_name' : 'Кабельные вводы' , 'value' : self.name} ,
+            'cg_set' : {'display_name' : 'Кабельные вводы' , 'value' : self.text_description} ,
             'cg1' : {'display_name' : 'Отверстие под КВ1' , 'value' : self.cg1.name if self.cg1 else None} ,
             'cg2' : {'display_name' : 'Отверстие под КВ2' , 'value' : self.cg2.name if self.cg2 else None} ,
-            'cg3': {'display_name': 'Отверстие под КВ3', 'value': self.cg3.name if self.cg3 else None},
-            'cg4': {'display_name': 'Отверстие под КВ4', 'value': self.cg4.name if self.cg4 else None},
+            'cg3': {'display_name': 'Отверстие под КВ3', 'value': self.cg3.name if self.cg3 else 'не предусмотрен'},
+            'cg4': {'display_name': 'Отверстие под КВ4', 'value': self.cg4.name if self.cg4 else 'не предусмотрен'},
         }
         return data
 

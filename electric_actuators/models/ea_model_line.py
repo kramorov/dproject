@@ -82,6 +82,14 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     def __str__(self) :
         return self.name
 
+    @property
+    def operating_mode_display(self) :
+        """Отображает монтажные площадки через разделитель /"""
+        plates = self.allowed_operating_mode.all()
+        if plates :
+            return " / ".join([str(plate) for plate in plates])
+        return "-"
+
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для описания"""
         logger.debug(f"EA logger get_description_data")
@@ -90,7 +98,8 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
             'name' : {'display_name' : 'Название серии' , 'value' : self.code if self.code else None} ,
             'default_output_type' : {'display_name' : 'Тип привода' ,
                                      'value' : self.default_output_type.name if self.default_output_type else None} ,
-            'brand' : {'display_name' : 'Бренд' , 'value' : self.brand.name if self.brand else None}
+            'brand' : {'display_name' : 'Бренд' , 'value' : self.brand.name if self.brand else None},
+            'operating_mode' : {'display_name' : 'Режим работы привода' , 'value' : self.operating_mode_display if self.brand else None}
         }
         # print(data)
         return data

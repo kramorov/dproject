@@ -649,12 +649,16 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         body_data = self.selected_model_line_item.body.get_description_data()
 
         data = {
-            'model': {'display_name': 'Артикул модели:',
-                      'name': self.code if self.code else None
+            'model_name': {'display_name': 'Модель:',
+                      'value': self.name if self.name else None
                       },
+            'model_code' : {'display_name' : 'Код модели:' ,
+                       'value' : self.code if self.code else None
+                       } ,
             'brand': model_line_data['brand'],
             'default_output_type': model_line_data['default_output_type'],
-                'cable_glands_holes': {
+            'operating_mode' : model_line_data['operating_mode'] ,
+            'cable_glands_holes': {
                 'display_name': 'Кабельные вводы',
                 'value': None,
                 'is_default': True
@@ -700,10 +704,10 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             if power_supply_data['time_to_open']['value'] > 0 or power_supply_data['time_to_close']['value'] > 0:
                 data['time_to_open']['value'] = power_supply_data['time_to_open']['value']
                 data['time_to_close']['value'] = power_supply_data['time_to_close']['value']
-                if data['time_to_close']['value'] == 0:
-                    data['time_to_close']['value'] = data['time_to_open']['value']
-                if data['time_to_open']['value'] == 0:
-                    data['time_to_open']['value'] = data['time_to_close']['value']
+            if data['time_to_close']['value'] == 0 or not data['time_to_close']['value']:
+                data['time_to_close']['value'] = data['time_to_open']['value']
+            if data['time_to_open']['value'] == 0 or not data['time_to_open']['value']:
+                data['time_to_open']['value'] = data['time_to_close']['value']
 
             if power_supply_data['torque_min']['value'] > 0 or power_supply_data['torque_max']['value'] > 0:
                 data['torque_min']['value'] = power_supply_data['torque_min']['value']
@@ -713,9 +717,9 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         print(f'cable_glands_holes {data['cable_glands_holes']['value']}')
 
         if self.actual_cable_glands_holes:
-            data['cable_glands_holes']['value'] = self.actual_cable_glands_holes.get_description_data()
+            data['cable_glands_holes'] = self.actual_cable_glands_holes.get_description_data()
 
-        print(data['cable_glands_holes']['value'])
+        print(data['cable_glands_holes'])
 
         if self.selected_ip:
             data['ip_data'] = self.selected_ip.get_description_data()

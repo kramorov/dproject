@@ -74,8 +74,8 @@ class ElectricActuatorModelLineItem(models.Model) :
         logger.debug(f"EA logger get_description_data")
         print(f"EA model line item print get_description_data")
         data = {
-            'time_to_open': {'display_name':'Время открытия', 'value':self.time_to_open if self.time_to_open else None},
-            'time_to_close': {'display_name':'Время закрытия', 'value':self.time_to_close if self.time_to_close else None},
+            'time_to_open': {'display_name':'Время открытия, с', 'value':self.time_to_open if self.time_to_open else None},
+            'time_to_close': {'display_name':'Время закрытия, с', 'value':self.time_to_close if self.time_to_close else None},
             'rotation_speed': {'display_name':'Скорость вращения, об/мин', 'value':self.rotation_speed if self.rotation_speed else None},
             'torque_min': {'display_name':'Вращающий момент мин, Нм', 'value':self.torque_min if self.torque_min else None},
             'torque_max': {'display_name':'Вращающий момент макс, Нм', 'value':self.torque_max if self.torque_max else None}

@@ -458,7 +458,7 @@ class BaseTemperatureThroughOption(BaseThroughOption) :
         data = {
             'work_temp_min' : {'display_name' : 'Минимальная рабочая температура, °С' , 'value' : self.work_temp_min} ,
             'work_temp_max' : {'display_name' : 'Максимальная рабочая температура, °С' , 'value' : self.work_temp_max} ,
-            'temperature_range': {'display_name': 'Вид защиты IP', 'value': f"{self.work_temp_min}...{self.work_temp_max}°C"},
+            'temperature_range': {'display_name': 'Допустимый диапазон рабочих температур', 'value': f"{self.work_temp_min}...{self.work_temp_max}°C"},
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -851,7 +851,7 @@ class BaseTurnAngleThroughOption(BaseThroughOption) :
         """Получить структурированные данные для угла поворота"""
         data = {
             'turn_angle' : {'display_name' : 'Угол поворота, °' , 'value' : self.turn_angle} ,
-            'turn_angle_deviation_limit': {'display_name': 'Предел регулировки угла поворота, °', 'value': self.turn_angle_deviation_limit},
+            'turn_angle_deviation_limit': {'display_name': 'Предел регулировки угла поворота, ±°', 'value': self.turn_angle_deviation_limit},
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data
@@ -938,7 +938,7 @@ class BaseHandWheelThroughOption(BaseThroughOption) :
         ordering = ['sorting_order']
 
     def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для набора кабельных вводов"""
+        """Получить структурированные данные для установленного на корпусе ручного дублера"""
         data = {
             'hand_wheel_option' : {'display_name' : 'Тип установленного на корпусе ручного дублера' , 'value' : self.hand_wheel_option.name if self.hand_wheel_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,

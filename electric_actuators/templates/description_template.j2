@@ -7,161 +7,83 @@
     {% elif item is not mapping and item is not none %}
         {{ item }}
     {% else %}
-        —
+        н/д
     {% endif %}
 {%- endmacro %}
 
 {% macro format_type(item) -%}
-    {%- if item.is_default is defined and item.is_default -%}
-        ✓ Стандарт
-    {%- elif item.is_default is defined and not item.is_default -%}
-        ⟳ Опция
+    {%- if item.is_default is defined -%}
+        {%- if item.is_default.value -%}
+            <span style="background-color: #d4edda;">**✓ Стандарт**</span>
+        {%- else -%}
+            <span style="background-color: #fff3cd;">**⟳ Опция**</span>
+        {%- endif -%}
     {%- else -%}
-        —
+        не указано
     {%- endif -%}
 {%- endmacro %}
 
 {# Макрос для вывода опции в строке таблицы с раздельными столбцами #}
-{% macro option_row(display_name, value, is_default) %}
-    {% if display_name and value %}
-        | {{ display_name }} | {{ value }} | {% if is_default %}✓ Стандарт{% endif %} | {% if not is_default %}⟳ Опция{% endif %} |
-    {% endif %}
+{% macro option_row_for_item_with_default(item) %}
+{% if item.display_name and item.value %}
+**{{ item.display_name }}**: {{ item.value }} - {{format_type(item)}}<br>
+{% endif %}
 {% endmacro %}
-{% macro option_row(display_name, value, is_default) %}
-    {% if display_name and value %}
-| {{ display_name }} | {{ value }} | {% if is_default %}✓ Стандарт{% else %}____-____{% endif %} | {% if not is_default %}⟳ Опция{% else %}___-___{% endif %} |
-    {% endif %}
-{% endmacro %}
-# ОПИСАНИЕ ЭЛЕКТРОПРИВОДА
-
-## Модель: {{ model.name | default('—') }} **{{ brand.display_name | default('—') }}**: {{ brand.value | default('—') }}
--
-- **{{ default_output_type.display_name | default('—') }}**: {{ default_output_type.value | default('—') }}
-
-{% if ip_data is defined and ip_data %}
-### IP защита
-{{ option_row(
-    ip_data.ip_option.display_name,
-    ip_data.ip_option.value,
-    ip_data.is_default.value
-) }}
+{#{% macro option_row(display_name, value, is_default) %}#}
+{#    {% if display_name and value %}#}
+{#| {{ display_name }} | {{ value }} | {% if is_default %}✓ Стандарт{% else %}____-____{% endif %} | {% if not is_default %}⟳ Опция{% else %}___-___{% endif %} |#}
+{#    {% endif %}#}
+{#{% endmacro %}#}
+# Техническое описание модели электропривода **{{ model_name.value | default('—') }}** {{ brand.display_name | default('—') }}: **{{ brand.value | default('—') }}**
+##Описание конструкции привода
+{{ model_code.display_name | default('Код') }}:**{{ model_code.value | default('н/д') }}**<br>
+{# Общепромышленный неполноповоротный привод S2-15min Запорный режим работы#}
+{{ default_output_type.display_name | default('default_output_type') }}: **{{ default_output_type.value | default('н/д') }}**<br>
+{% if selected_turn_angle_option is defined and selected_turn_angle_option is not none %}
+{{ selected_turn_angle_option.turn_angle.display_name | default('selected_turn_angle_option.turn_angle') }}: **{{ selected_turn_angle_option.turn_angle.value | default('н/д')}}**
+{{ selected_turn_angle_option.turn_angle_deviation_limit.display_name | default('selected_turn_angle_option.turn_angle_deviation_limit') }}: **{{ selected_turn_angle_option.turn_angle_deviation_limit.value | default('н/д')}}**  {{ format_type(selected_turn_angle_option)}}<br>
 {% endif %}
-
-
-{% if exd_data is defined and exd_data %}
-### Взрывозащита
-{% if exd_data.exd_option is defined %}
-- **{{ exd_data.exd_option.display_name | default('Тип взрывозащиты') }}**: {{ exd_data.exd_option.value }}
-{% endif %}
-- **Тип**: {% if exd_data.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
-{% endif %}
-
-{% if selected_temperature is defined and selected_temperature %}
-### Температурный режим
-{% if selected_temperature.temperature_range is defined %}
-- **Диапазон**: {{ selected_temperature.temperature_range.value }}
-{% endif %}
-{% if selected_temperature.work_temp_min is defined %}
-- **Минимальная температура**: {{ selected_temperature.work_temp_min.value }}°C
-{% endif %}
-{% if selected_temperature.work_temp_max is defined %}
-- **Максимальная температура**: {{ selected_temperature.work_temp_max.value }}°C
-{% endif %}
-- **Тип**: {% if selected_temperature.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
-{% endif %}
+{{ operating_mode.display_name | default('operating_mode') }}: **{{ operating_mode.value | default('н/д') }}**<br>
+{# IP защита #}
+{{ ip_data.ip_option.display_name | default('exd_data.exd_option') }}: **{{ ip_data.ip_option.value | default('н/д')}}**  {{ format_type(ip_data)}}<br>
+{# Взрывозащита #}
+{{ exd_data.exd_option.display_name | default('exd_data.exd_option') }}: **{{ exd_data.exd_option.value | default('н/д') }}**  {{ format_type(exd_data)}}<br>
+{# Температурный режим #}
+{{ selected_temperature.temperature_range.display_name | default('selected_temperature.temperature_range')}}: **{{ selected_temperature.temperature_range.value | default('н/д') }}**  {{ format_type(selected_temperature)}}<br>
+{# Покрытие корпуса #}
+{{ selected_body_coating.body_coating_option.display_name | default('selected_body_coating.body_coating_option') }}: **{{ selected_body_coating.body_coating_option.value | default('н/д')}}**  {{ format_type(selected_body_coating)}}<br>
+{# Покрытие корпуса #}
+{{ selected_hand_wheel.hand_wheel_option.display_name | default('selected_hand_wheel.hand_wheel_option') }}: **{{ selected_hand_wheel.hand_wheel_option.value | default('н/д')}}**  {{ format_type(selected_hand_wheel)}}<br>
 ---
-
-## Основные параметры
-
-| Параметр | Значение | Тип |
-|----------|----------|-----|
-{% for key, item in [
-    ('max_stem_height', max_stem_height),
-    ('max_stem_diameter', max_stem_diameter),
-    ('mounting_plate', mounting_plate),
-    ('stem_shape', stem_shape),
-    ('stem_size', stem_size)
-] %}
-    {% if item is defined and item is not none %}
-| {{ item.display_name | default(key | replace('_', ' ') | title) }} | {{ format_value(item) }} | {{ format_type(item) }} |
-    {% endif %}
-{% endfor %}
-
+## Развиваемые усилия / моменты, время срабатывания
+{{ torque_min.display_name | default('torque_min')}}: **{{ torque_min.value | default('н/д') }}** <br>
+{{ torque_max.display_name | default('torque_max')}}: **{{ torque_max.value | default('н/д') }}** <br>
+{{ time_to_open.display_name | default('time_to_open')}}: **{{ time_to_open.value | default('н/д') }}** (поворот на {{ selected_turn_angle_option.turn_angle.value }}°)<br>
+{{ time_to_close.display_name | default('time_to_close')}}: **{{ time_to_close.value | default('н/д') }}** (поворот на {{ selected_turn_angle_option.turn_angle.value }}°)<br>
 ---
-
+## Монтажные, присоединительные размеры
+{{ mounting_plate.display_name | default('mounting_plate')}}: **{{ mounting_plate.value | default('н/д') }}**  {{ format_type(mounting_plate)}}<br>
+{{ stem_shape.display_name | default('stem_shape')}}: **{{ stem_shape.value | default('н/д') }}**  {{ format_type(stem_shape)}}<br>
+{{ stem_size.display_name | default('stem_size')}}: **{{ stem_size.value | default('н/д') }}**  {{ format_type(stem_size)}}<br>
+{{ max_stem_height.display_name | default('max_stem_height')}}: **{{ max_stem_height.value | default('н/д') }}** <br>
+{{ max_stem_diameter.display_name | default('max_stem_diameter')}}: **{{ max_stem_diameter.value | default('н/д') }}** <br>
+{{ cable_glands_holes.cg_set.display_name | default('cable_glands_holes.cg_set')}}: **{{ cable_glands_holes.cg_set.value | default('н/д') }}** <br>
+{{ cable_glands_holes.cg1.display_name | default('cable_glands_holes.cg1')}}: **{{ cable_glands_holes.cg1.value | default('н/д') }}** <br>
+{{ cable_glands_holes.cg2.display_name | default('cable_glands_holes.cg2')}}: **{{ cable_glands_holes.cg2.value | default('н/д') }}** <br>
+{{ cable_glands_holes.cg3.display_name | default('cable_glands_holes.cg3')}}: **{{ cable_glands_holes.cg3.value | default('н/д') }}** <br>
+{{ cable_glands_holes.cg4.display_name | default('cable_glands_holes.cg4')}}: **{{ cable_glands_holes.cg4.value | default('н/д') }}** <br>
+---
 ## Электрические параметры
-
-| Параметр | Значение | Тип |
-|----------|----------|-----|
-{% for key, item in [
-    ('power_supply', power_supply),
-    ('motor_current_rated', motor_current_rated),
-    ('motor_current_starting', motor_current_starting),
-    ('motor_power', motor_power)
-] %}
-    {% if item is defined and item is not none %}
-| {{ item.display_name | default(key | replace('_', ' ') | title) }} | {{ format_value(item) }} | {{ format_type(item) }} |
-    {% endif %}
-{% endfor %}
-
+{{ power_supply.display_name | default('power_supply')}}: **{{ power_supply.value | default('н/д') }}**<br>
+{{ motor_power.display_name | default('motor_power')}}: **{{ motor_power.value | default('н/д') }}**<br>
+{{ motor_current_rated.display_name | default('motor_current_rated')}}: **{{ motor_current_rated.value | default('н/д') }}**<br>
+{{ motor_current_starting.display_name | default('motor_current_starting')}}: **{{ motor_current_starting.value | default('н/д') }}**<br>
 ---
-
-## Механические параметры
-
-| Параметр | Значение | Тип |
-|----------|----------|-----|
-{% for key, item in [
-    ('time_to_open', time_to_open),
-    ('time_to_close', time_to_close),
-    ('torque_min', torque_min),
-    ('torque_max', torque_max),
-    ('cable_glands_holes', cable_glands_holes)
-] %}
-    {% if item is defined and item is not none %}
-| {{ item.display_name | default(key | replace('_', ' ') | title) }} | {{ format_value(item) }} | {{ format_type(item) }} |
-    {% endif %}
-{% endfor %}
-
----
-
-## Дополнительные опции
-
-
-{% if selected_body_coating is defined and selected_body_coating %}
-### Покрытие корпуса
-{% if selected_body_coating.body_coating_option is defined %}
-- **{{ selected_body_coating.body_coating_option.display_name | default('Покрытие корпуса') }}**: {{ selected_body_coating.body_coating_option.value }}
-{% endif %}
-- **Тип**: {% if selected_body_coating.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
-{% endif %}
-
-{% if selected_hand_wheel is defined and selected_hand_wheel %}
-### Ручной дублер
-{% if selected_hand_wheel.hand_wheel_option is defined %}
-- **{{ selected_hand_wheel.hand_wheel_option.display_name | default('Тип ручного дублера') }}**: {{ selected_hand_wheel.hand_wheel_option.value }}
-{% endif %}
-- **Тип**: {% if selected_hand_wheel.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
-{% endif %}
-
-{% if selected_turn_angle_option is defined and selected_turn_angle_option %}
-### Угол поворота
-{% if selected_turn_angle_option.turn_angle is defined %}
-- **Угол**: {{ selected_turn_angle_option.turn_angle.value }}°
-{% endif %}
-{% if selected_turn_angle_option.turn_angle_deviation_limit is defined %}
-- **Предел регулировки**: ±{{ selected_turn_angle_option.turn_angle_deviation_limit.value }}°
-{% endif %}
-- **Тип**: {% if selected_turn_angle_option.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
-{% endif %}
-
+{# Блок управления#}
 {% if selected_control_unit_option is defined and selected_control_unit_option %}
-### Блок управления
-{% if selected_control_unit_option.control_unit is defined %}
-- **{{ selected_control_unit_option.control_unit.display_name | default('Тип блока управления') }}**: {{ selected_control_unit_option.control_unit.value }}
-{% endif %}
-- **Тип**: {% if selected_control_unit_option.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
-{% endif %}
-
+## Блок управления
+{{ selected_control_unit_option.control_unit.display_name | default('selected_control_unit_option.control_unit')}}:
+    **{{ selected_control_unit_option.control_unit.value | default('н/д') }}**  {{ format_type(selected_control_unit_option)}}<br>
 ---
-
-*Сгенерировано: {{ generated_at }}*
+{% endif %}
+{# *Сгенерировано: {{ generated_at }}* #}

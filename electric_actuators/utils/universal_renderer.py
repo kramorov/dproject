@@ -558,103 +558,103 @@ class UniversalTemplateRenderer:
         )
         response['Content-Disposition'] = f'attachment; filename="description_{instance_id}.docx"'
 
-    def render_docx(self, template_name, data):
-        """
-        Рендерит Word документ из .docx шаблона через docxtpl
-        template_name: имя .docx файла (например 'description_template.docx')
-        data: данные из _generate_short_description()
-
-        Returns:
-            bytes: бинарные данные Word документа
-        """
-        from docxtpl import DocxTemplate
-
-        # Путь к .docx шаблону
-        template_path = self.template_dir / template_name
-
-        if not template_path.exists():
-            raise FileNotFoundError(f"Word шаблон не найден: {template_path}")
-
-        doc = DocxTemplate(str(template_path))
-
-        # Подготавливаем данные для docxtpl
-        docx_data = self._prepare_for_docx(data)
-
-        # Добавляем дату генерации
-        docx_data['generated_at'] = datetime.now().strftime('%d.%m.%Y %H:%M')
-
-        logger.info(f"DOCX rendering with keys: {list(docx_data.keys())}")
-
-        doc.render(docx_data)
-
-        output = io.BytesIO()
-        doc.save(output)
-        output.seek(0)
-
-        return output.getvalue()
-
-    def docx_to_html(self, docx_bytes):
-        """
-        Конвертирует Word документ в HTML используя mammoth
-
-        Args:
-            docx_bytes: бинарные данные Word документа
-
-        Returns:
-            str: HTML строка
-        """
-        import mammoth
-
-        result = mammoth.convert_to_html(io.BytesIO(docx_bytes))
-        return result.value
-
-    def response_html(self, request, instance_id):
-        """HTTP ответ с HTML (через Word -> HTML)"""
-        from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
-
-        instance = ElectricActuatorSelected.objects.get(id=instance_id)
-        raw_data = instance._generate_short_description()
-
-        # 1. Сначала генерируем Word документ
-        docx_bytes = self.render_docx('description_template.docx', raw_data)
-
-        # 2. Конвертируем Word в HTML
-        html_content = self.docx_to_html(docx_bytes)
-
-        return HttpResponse(html_content)
-
-    def response_json_html(self, request, instance_id):
-        """JSON ответ с HTML для AJAX"""
-        from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
-
-        instance = ElectricActuatorSelected.objects.get(id=instance_id)
-        raw_data = instance._generate_short_description()
-
-        # 1. Сначала генерируем Word документ
-        docx_bytes = self.render_docx('description_template.docx', raw_data)
-
-        # 2. Конвертируем Word в HTML
-        html_content = self.docx_to_html(docx_bytes)
-
-        return JsonResponse({
-            'success': True,
-            'html': html_content,
-            'data': raw_data
-        })
-
-    def response_docx(self, request, instance_id):
-        """HTTP ответ с Word документом (прямая загрузка)"""
-        from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
-
-        instance = ElectricActuatorSelected.objects.get(id=instance_id)
-        raw_data = instance._generate_short_description()
-
-        docx_bytes = self.render_docx('description_template.docx', raw_data)
-
-        response = HttpResponse(
-            docx_bytes,
-            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        )
-        response['Content-Disposition'] = f'attachment; filename="description_{instance_id}.docx"'
-
-        return response
+    # def render_docx(self, template_name, data):
+    #     """
+    #     Рендерит Word документ из .docx шаблона через docxtpl
+    #     template_name: имя .docx файла (например 'description_template.docx')
+    #     data: данные из _generate_short_description()
+    #
+    #     Returns:
+    #         bytes: бинарные данные Word документа
+    #     """
+    #     from docxtpl import DocxTemplate
+    #
+    #     # Путь к .docx шаблону
+    #     template_path = self.template_dir / template_name
+    #
+    #     if not template_path.exists():
+    #         raise FileNotFoundError(f"Word шаблон не найден: {template_path}")
+    #
+    #     doc = DocxTemplate(str(template_path))
+    #
+    #     # Подготавливаем данные для docxtpl
+    #     docx_data = self._prepare_for_docx(data)
+    #
+    #     # Добавляем дату генерации
+    #     docx_data['generated_at'] = datetime.now().strftime('%d.%m.%Y %H:%M')
+    #
+    #     logger.info(f"DOCX rendering with keys: {list(docx_data.keys())}")
+    #
+    #     doc.render(docx_data)
+    #
+    #     output = io.BytesIO()
+    #     doc.save(output)
+    #     output.seek(0)
+    #
+    #     return output.getvalue()
+    #
+    # def docx_to_html(self, docx_bytes):
+    #     """
+    #     Конвертирует Word документ в HTML используя mammoth
+    #
+    #     Args:
+    #         docx_bytes: бинарные данные Word документа
+    #
+    #     Returns:
+    #         str: HTML строка
+    #     """
+    #     import mammoth
+    #
+    #     result = mammoth.convert_to_html(io.BytesIO(docx_bytes))
+    #     return result.value
+    #
+    # def response_html(self, request, instance_id):
+    #     """HTTP ответ с HTML (через Word -> HTML)"""
+    #     from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
+    #
+    #     instance = ElectricActuatorSelected.objects.get(id=instance_id)
+    #     raw_data = instance._generate_short_description()
+    #
+    #     # 1. Сначала генерируем Word документ
+    #     docx_bytes = self.render_docx('description_template.docx', raw_data)
+    #
+    #     # 2. Конвертируем Word в HTML
+    #     html_content = self.docx_to_html(docx_bytes)
+    #
+    #     return HttpResponse(html_content)
+    #
+    # def response_json_html(self, request, instance_id):
+    #     """JSON ответ с HTML для AJAX"""
+    #     from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
+    #
+    #     instance = ElectricActuatorSelected.objects.get(id=instance_id)
+    #     raw_data = instance._generate_short_description()
+    #
+    #     # 1. Сначала генерируем Word документ
+    #     docx_bytes = self.render_docx('description_template.docx', raw_data)
+    #
+    #     # 2. Конвертируем Word в HTML
+    #     html_content = self.docx_to_html(docx_bytes)
+    #
+    #     return JsonResponse({
+    #         'success': True,
+    #         'html': html_content,
+    #         'data': raw_data
+    #     })
+    #
+    # def response_docx(self, request, instance_id):
+    #     """HTTP ответ с Word документом (прямая загрузка)"""
+    #     from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
+    #
+    #     instance = ElectricActuatorSelected.objects.get(id=instance_id)
+    #     raw_data = instance._generate_short_description()
+    #
+    #     docx_bytes = self.render_docx('description_template.docx', raw_data)
+    #
+    #     response = HttpResponse(
+    #         docx_bytes,
+    #         content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    #     )
+    #     response['Content-Disposition'] = f'attachment; filename="description_{instance_id}.docx"'
+    #
+    #     return response
