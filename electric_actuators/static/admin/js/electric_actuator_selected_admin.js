@@ -1,7 +1,7 @@
 // static/admin/js/electric_actuator_selected.js
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("=== ELECTRIC ACTUATOR SELECTED JS LOADED ===");
+    console.log("=== ELECTRIC ACTUATOR SELECTED JS LOADED V2 ==");
 
     // 1. Находим селектор модели
     const modelSelector = document.querySelector('select[name="selected_model_line_item"]');
@@ -41,7 +41,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            // Используем новый endpoint
             const response = await fetch(
                 `/admin/electric_actuators/electricactuatorselected/get_available_control_options/?power_supply_id=${powerSupplyId}`
             );
@@ -75,22 +74,18 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("Current control option:", currentValue);
 
         if (!powerSupplyId) {
-            // Если напряжение не выбрано, очищаем опции
             console.log("No power supply selected, clearing control unit options");
             controlSelector.innerHTML = '<option value="">---------</option>';
             return;
         }
 
-        // Получаем опции через новый API
         const options = await getAvailableControlsForPowerSupply(powerSupplyId);
         console.log("Available control unit options:", options);
 
-        // Сохраняем текущее значение
         const currentOption = options.find(opt =>
             parseInt(opt.id) === parseInt(currentValue)
         );
 
-        // Очищаем и заполняем заново
         controlSelector.innerHTML = '<option value="">---------</option>';
 
         let defaultOptionId = null;
@@ -104,13 +99,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const opt = new Option(displayText, option.id, false, isSelected);
             controlSelector.add(opt);
 
-            // Запоминаем дефолтную опцию
             if (option.is_default && !defaultOptionId) {
                 defaultOptionId = option.id;
             }
         });
 
-        // Автовыбор дефолтной или первой опции если нужно
         if (forceSelectFirst && !controlSelector.value && options.length > 0) {
             if (defaultOptionId) {
                 controlSelector.value = defaultOptionId;
@@ -150,7 +143,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
             console.log("API response keys:", Object.keys(data));
 
-            // Обновляем каждый селектор
             optionSelectors.forEach(select => {
                 const fieldName = select.name;
                 const apiKey = fieldToApiKeyMap[fieldName];
@@ -165,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 console.log(`  ${fieldName}: ${options.length} options, current: ${currentValue}`);
 
-                // Сохраняем выбранное значение
                 let selectedOption = null;
                 if (currentValue) {
                     selectedOption = options.find(opt =>
@@ -173,7 +164,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     );
                 }
 
-                // Очищаем и добавляем опции
                 select.innerHTML = '<option value="">---------</option>';
 
                 options.forEach(option => {
@@ -181,7 +171,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     let displayText;
 
                     if (fieldName === 'selected_control_unit_option') {
-                        // Специальный формат для опций блоков управления
                         displayText = option.control_unit_name
                             ? `${option.control_unit_name} (${option.encoding || 'без кода'})`
                             : option.name || option.encoding || `ID: ${option.id}`;
@@ -193,8 +182,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     select.add(opt);
                 });
 
-                // Если выбранное значение было в старых опциях, но не в новых,
-                // оставляем его (пользователь мог вручную выбрать)
                 if (currentValue && !selectedOption) {
                     console.log(`  Value ${currentValue} not found in new options, keeping it`);
                     const oldOption = new Option(`[СТАРОЕ] ID: ${currentValue}`, currentValue, true, true);
@@ -204,7 +191,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             console.log("=== Options updated ===");
 
-            // Если выбрано напряжение, дополнительно фильтруем блоки управления
             const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
             if (powerSupplySelector && powerSupplySelector.value) {
                 console.log("Options updated: filtering controls for power supply");
@@ -230,7 +216,6 @@ document.addEventListener('DOMContentLoaded', function () {
         modelSelector.addEventListener('change', async function () {
             console.log("Model changed to:", this.value);
 
-            // Сбрасываем напряжение и блок управления при смене модели
             const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');
             const controlSelector = document.querySelector('select[name="selected_control_unit_option"]');
 
@@ -249,11 +234,10 @@ document.addEventListener('DOMContentLoaded', function () {
             powerSupplySelector.addEventListener('change', async function () {
                 console.log("Power supply changed to:", this.value);
 
-                // Сбрасываем блок управления при смене напряжения
                 const controlSelector = document.querySelector('select[name="selected_control_unit_option"]');
                 if (controlSelector) controlSelector.innerHTML = '<option value="">---------</option>';
 
-                await filterControlUnits(this.value, true); // forceSelectFirst = true
+                await filterControlUnits(this.value, true);
             });
         }
     }
@@ -266,12 +250,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 11. Функция для добавления кнопки генерации описания
-    function addGenerateDescriptionButton() {
-        console.log("=== Adding generate description button ===");
+    // 11. Функция для добавления кнопок описания
+    function addDescriptionButtons() {
+        console.log("=== Adding description buttons ===");
 
-        if (document.querySelector('#generate-description-btn')) {
-            console.log("Button already exists");
+        if (document.querySelector('#description-buttons-container')) {
+            console.log("Description buttons already exist");
             return;
         }
 
@@ -296,6 +280,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const buttonContainer = document.createElement('div');
+        buttonContainer.id = 'description-buttons-container';
         buttonContainer.className = 'form-row';
         buttonContainer.style.marginBottom = '15px';
 
@@ -305,33 +290,72 @@ document.addEventListener('DOMContentLoaded', function () {
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">
                         Действия с описанием:
                     </label>
-                    <button type="button" 
-                            id="generate-description-btn" 
-                            class="button"
-                            data-object-id="${objectId}"
-                            style="background-color: #4CAF50; 
-                                   color: white; 
-                                   padding: 8px 16px; 
-                                   border: none; 
-                                   border-radius: 4px; 
-                                   cursor: pointer;
-                                   font-size: 13px;">
-                        🔄 Сгенерировать описание
-                    </button>
-                    <button type="button" 
-                            id="preview-description-btn" 
-                            class="button"
-                            data-object-id="${objectId}"
-                            style="background-color: #2196F3; 
-                                   color: white; 
-                                   padding: 8px 16px; 
-                                   border: none; 
-                                   border-radius: 4px; 
-                                   cursor: pointer;
-                                   font-size: 13px; 
-                                   margin-left: 10px;">
-                        👁️ Предпросмотр
-                    </button>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" 
+                                id="generate-description-btn" 
+                                class="button"
+                                data-object-id="${objectId}"
+                                style="background-color: #4CAF50; 
+                                       color: white; 
+                                       padding: 8px 16px; 
+                                       border: none; 
+                                       border-radius: 4px; 
+                                       cursor: pointer;
+                                       font-size: 13px;
+                                       display: inline-flex;
+                                       align-items: center;
+                                       gap: 5px;">
+                            🔄 Сгенерировать описание
+                        </button>
+                        <button type="button" 
+                                id="preview-description-btn" 
+                                class="button"
+                                data-object-id="${objectId}"
+                                style="background-color: #2196F3; 
+                                       color: white; 
+                                       padding: 8px 16px; 
+                                       border: none; 
+                                       border-radius: 4px; 
+                                       cursor: pointer;
+                                       font-size: 13px;
+                                       display: inline-flex;
+                                       align-items: center;
+                                       gap: 5px;">
+                            👁️ Предпросмотр
+                        </button>
+                        <button type="button" 
+                                id="show-description-btn" 
+                                class="button"
+                                data-object-id="${objectId}"
+                                style="background-color: #9C27B0; 
+                                       color: white; 
+                                       padding: 8px 16px; 
+                                       border: none; 
+                                       border-radius: 4px; 
+                                       cursor: pointer;
+                                       font-size: 13px;
+                                       display: inline-flex;
+                                       align-items: center;
+                                       gap: 5px;">
+                            📄 Показать описание
+                        </button>
+                        <a href="/api/electric_actuators/description/${objectId}/docx/" 
+                           class="button"
+                           target="_blank"
+                           style="background-color: #FF9800; 
+                                  color: white; 
+                                  padding: 8px 16px; 
+                                  border: none; 
+                                  border-radius: 4px; 
+                                  cursor: pointer;
+                                  font-size: 13px;
+                                  text-decoration: none;
+                                  display: inline-flex;
+                                  align-items: center;
+                                  gap: 5px;">
+                            📥 Скачать Word
+                        </a>
+                    </div>
                     <div id="description-status" 
                          style="margin-top: 10px; 
                                 padding: 8px; 
@@ -346,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             border: 1px solid #ddd; 
                             border-radius: 4px;">
                     <span style="color: #666;">
-                        ⚠️ Сначала сохраните объект, чтобы сгенерировать описание
+                        ⚠️ Сначала сохраните объект, чтобы работать с описанием
                     </span>
                 </div>
             `;
@@ -356,6 +380,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         initGenerateButton();
         initPreviewButton();
+        initShowDescriptionButton();
     }
 
     // 12. Функция инициализации кнопки генерации
@@ -363,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const generateBtn = document.querySelector('#generate-description-btn');
         if (!generateBtn) return;
 
-        generateBtn.addEventListener('click', function() {
+        generateBtn.addEventListener('click', function () {
             const objectId = this.dataset.objectId;
             console.log("Generate description for:", objectId);
 
@@ -384,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const csrfToken = getCsrfToken();
 
-            fetch(`/admin/electric_actuators/electricactuatorselected/${objectId}/generate-description/`, {
+            fetch(`/api/electric_actuators/description/${objectId}/html/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -393,53 +418,53 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({})
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log("Generate response:", data);
-
-                if (data.success) {
-                    const descriptionField = document.querySelector('#id_description');
-                    if (descriptionField) {
-                        descriptionField.value = data.description;
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
                     }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Generate response:", data);
+
+                    if (data.success) {
+                        const descriptionField = document.querySelector('#id_description');
+                        if (descriptionField) {
+                            descriptionField.value = data.description;
+                        }
+
+                        if (statusDiv) {
+                            statusDiv.innerHTML = '<span style="color: #4CAF50;">✅ Описание сгенерировано!</span>';
+                        }
+
+                        setTimeout(() => {
+                            previewDescription(objectId, data.description);
+                        }, 1000);
+
+                    } else {
+                        if (statusDiv) {
+                            statusDiv.innerHTML = `<span style="color: #f44336;">❌ ${data.message || 'Ошибка'}</span>`;
+                        }
+                        showNotification(data.message || 'Ошибка генерации', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Generate error:', error);
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<span style="color: #f44336;">❌ Ошибка сети</span>';
+                    }
+                    showNotification('Ошибка сети при генерации', 'error');
+                })
+                .finally(() => {
+                    generateBtn.disabled = false;
+                    generateBtn.innerHTML = originalText;
 
                     if (statusDiv) {
-                        statusDiv.innerHTML = '<span style="color: #4CAF50;">✅ Описание сгенерировано!</span>';
+                        setTimeout(() => {
+                            statusDiv.style.display = 'none';
+                        }, 5000);
                     }
-
-                    setTimeout(() => {
-                        previewDescription(objectId, data.description);
-                    }, 1000);
-
-                } else {
-                    if (statusDiv) {
-                        statusDiv.innerHTML = `<span style="color: #f44336;">❌ ${data.message || 'Ошибка'}</span>`;
-                    }
-                    showNotification(data.message || 'Ошибка генерации', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Generate error:', error);
-                if (statusDiv) {
-                    statusDiv.innerHTML = '<span style="color: #f44336;">❌ Ошибка сети</span>';
-                }
-                showNotification('Ошибка сети при генерации', 'error');
-            })
-            .finally(() => {
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = originalText;
-
-                if (statusDiv) {
-                    setTimeout(() => {
-                        statusDiv.style.display = 'none';
-                    }, 5000);
-                }
-            });
+                });
         });
     }
 
@@ -448,7 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const previewBtn = document.querySelector('#preview-description-btn');
         if (!previewBtn) return;
 
-        previewBtn.addEventListener('click', function() {
+        previewBtn.addEventListener('click', function () {
             const objectId = this.dataset.objectId;
             const descriptionField = document.querySelector('#id_description');
             const description = descriptionField ? descriptionField.value : '';
@@ -462,7 +487,141 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 14. Вспомогательные функции
+    // 14. Функция инициализации кнопки показа описания (модальное окно)
+    function initShowDescriptionButton() {
+        const showBtn = document.querySelector('#show-description-btn');
+        if (!showBtn) return;
+
+        showBtn.addEventListener('click', function () {
+            const objectId = this.dataset.objectId;
+            console.log("Show description for:", objectId);
+
+            if (!objectId) {
+                showNotification('ID объекта не найден', 'error');
+                return;
+            }
+
+            fetch(`/api/electric_actuators/description/${objectId}/html/`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Show description response:", data);
+
+                    if (data.success) {
+                        showModal(data.html, objectId);
+                    } else {
+                        showNotification(data.message || 'Ошибка загрузки', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Show description error:', error);
+                    showNotification(error.message || 'Ошибка сети при загрузке описания', 'error');
+                });
+        });
+    }
+
+    // 15. Функция показа модального окна
+    function showModal(html, instanceId) {
+        // Удаляем существующее модальное окно если есть
+        const existingModal = document.querySelector('.description-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'description-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        const downloadUrl = `/api/electric_actuators/description/${instanceId}/docx/`;
+        modal.innerHTML = `
+            <div class="modal-content" style="
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow-y: auto;
+                width: 90%;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            ">
+                <div class="modal-header" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid #3498db;
+                ">
+                    <h2 style="margin: 0; color: #2c3e50;">Детальное описание</h2>
+                    <div>
+                        <a href="/api/electric_actuators/description/${instanceId}/docx/"  
+                           class="button" 
+                           target="_blank"
+                           style="
+                                background-color: #FF9800;
+                                color: white;
+                                padding: 8px 16px;
+                                border: none;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 13px;
+                                text-decoration: none;
+                                margin-right: 10px;
+                           ">📥 Скачать Word</a>
+                        <button class="close-modal button" style="
+                            background-color: #dc3545;
+                            color: white;
+                            padding: 8px 16px;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 13px;
+                        ">✖ Закрыть</button>
+                    </div>
+                </div>
+                <div class="modal-body" style="
+                    max-height: calc(80vh - 100px);
+                    overflow-y: auto;
+                    padding-right: 10px;
+                ">
+                    ${html}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('.close-modal').addEventListener('click', function () {
+            modal.remove();
+        });
+
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    // 16. Вспомогательные функции
     function getCsrfToken() {
         const token = document.querySelector('[name=csrfmiddlewaretoken]');
         return token ? token.value : '';
@@ -660,7 +819,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             alert('Ошибка копирования: ' + err);
                         });
                     }
-                </script>
+                <\/script>
             </body>
             </html>
         `);
@@ -668,15 +827,15 @@ document.addEventListener('DOMContentLoaded', function () {
         newWindow.document.close();
     }
 
-    // 15. Добавляем кнопку с задержкой
+    // 17. Добавляем кнопки с задержкой
     setTimeout(() => {
-        addGenerateDescriptionButton();
+        addDescriptionButtons();
     }, 1000);
 
-    // 16. Observer для динамической загрузки
+    // 18. Observer для динамической загрузки
     const observer = new MutationObserver(() => {
-        if (!document.querySelector('#generate-description-btn')) {
-            addGenerateDescriptionButton();
+        if (!document.querySelector('#description-buttons-container')) {
+            addDescriptionButtons();
         }
 
         const powerSupplySelector = document.querySelector('select[name="selected_power_supply"]');

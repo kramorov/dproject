@@ -1,4 +1,5 @@
 # electric_actuators/models/ea_actuator_selected.py
+from datetime import datetime
 
 from django.db import models
 from django.http import JsonResponse
@@ -651,11 +652,9 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'model': {'display_name': 'Артикул модели:',
                       'name': self.code if self.code else None
                       },
-            'brand': {
-                'display_name': model_line_data.get('display_name', 'Бренд'),
-                'value': model_line_data.get('value', '')
-            },
-            'cable_glands_holes': {
+            'brand': model_line_data['brand'],
+            'default_output_type': model_line_data['default_output_type'],
+                'cable_glands_holes': {
                 'display_name': 'Кабельные вводы',
                 'value': None,
                 'is_default': True
@@ -741,6 +740,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
         if self.selected_control_unit_option:
             data['selected_control_unit_option'] = self.selected_control_unit_option.get_description_data()
+        data['generated_at'] = datetime.now().strftime('%d.%m.%Y %H:%M')
         print(f'data={data}')
         return data
 

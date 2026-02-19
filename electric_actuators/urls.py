@@ -6,12 +6,12 @@ renderer = UniversalTemplateRenderer()
 urlpatterns = [
     path('options/', EAOptionAPIView.as_view(), name='get_options'),
 path(
-        'api/description/<int:instance_id>/html/',
+        'description/<int:instance_id>/html/',
         renderer.response_json_html,
         name='description_json_html'
     ),
     path(
-        'api/description/<int:instance_id>/docx/',
+        'description/<int:instance_id>/docx/',
         renderer.response_docx,
         name='description_docx'
     ),

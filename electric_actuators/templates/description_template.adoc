@@ -1,0 +1,190 @@
+= ОПИСАНИЕ ЭЛЕКТРОПРИВОДА
+:doctype: article
+:lang: ru
+:encoding: utf-8
+:experimental:
+:table-caption!:
+:figure-caption!:
+:example-caption!:
+:icons: font
+:source-highlighter: highlightjs
+
+ifdef::basebackend-html[]
+:linkcss:
+endif::[]
+
+ifdef::basebackend-docbook[]
+:docinfo: shared
+endif::[]
+
+== Модель
+
+* *Артикул модели:* {model.name}
+* *Код:* {code}
+* *Бренд:* {brand.value}
+* *Тип привода:* {default_output_type.value}
+
+ifdef::ip_data[]
+=== IP защита
+[cols="3,2,1,1", options="header"]
+|===
+| Параметр | Значение | Стандарт | Опция
+| {ip_data.ip_option.display_name} | {ip_data.ip_option.value}
+| ifdef::ip_data.is_default.value[{ip_data.is_default.value}] ifeval::["{ip_data.is_default.value}" == "true"]
+| ✓ Стандарт
+| ifeval::["{ip_data.is_default.value}" != "true"]
+| ⟳ Опция
+|===
+endif::[]
+
+ifdef::exd_data[]
+=== Взрывозащита
+[cols="3,2,1,1", options="header"]
+|===
+| Параметр | Значение | Стандарт | Опция
+| {exd_data.exd_option.display_name} | {exd_data.exd_option.value}
+| ifdef::exd_data.is_default.value[{exd_data.is_default.value}] ifeval::["{exd_data.is_default.value}" == "true"]
+| ✓ Стандарт
+| ifeval::["{exd_data.is_default.value}" != "true"]
+| ⟳ Опция
+|===
+endif::[]
+
+ifdef::selected_temperature[]
+=== Температурный режим
+[cols="3,2,1,1", options="header"]
+|===
+| Параметр | Значение | Стандарт | Опция
+| Диапазон | {selected_temperature.temperature_range.value} |
+|
+| Минимальная температура | {selected_temperature.work_temp_min.value}°C |
+|
+| Максимальная температура | {selected_temperature.work_temp_max.value}°C |
+|
+| Тип |
+| ifdef::selected_temperature.is_default.value[{selected_temperature.is_default.value}] ifeval::["{selected_temperature.is_default.value}" == "true"]
+| ✓ Стандарт
+| ifeval::["{selected_temperature.is_default.value}" != "true"]
+| ⟳ Опция
+|===
+endif::[]
+
+== Основные параметры
+[cols="3,2,2", options="header"]
+|===
+| Параметр | Значение | Тип
+ifdef::max_stem_height[]
+| {max_stem_height.display_name} | {max_stem_height.value} {max_stem_height.unit} | ifdef::max_stem_height.is_default[{max_stem_height.is_default}] ifeval::["{max_stem_height.is_default}" == "true"] ✓ Стандарт ifeval::["{max_stem_height.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::max_stem_diameter[]
+| {max_stem_diameter.display_name} | {max_stem_diameter.value} {max_stem_diameter.unit} | ifdef::max_stem_diameter.is_default[{max_stem_diameter.is_default}] ifeval::["{max_stem_diameter.is_default}" == "true"] ✓ Стандарт ifeval::["{max_stem_diameter.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::mounting_plate[]
+| {mounting_plate.display_name} | {mounting_plate.value} | ifdef::mounting_plate.is_default[{mounting_plate.is_default}] ifeval::["{mounting_plate.is_default}" == "true"] ✓ Стандарт ifeval::["{mounting_plate.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::stem_shape[]
+| {stem_shape.display_name} | {stem_shape.value} | ifdef::stem_shape.is_default[{stem_shape.is_default}] ifeval::["{stem_shape.is_default}" == "true"] ✓ Стандарт ifeval::["{stem_shape.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::stem_size[]
+| {stem_size.display_name} | {stem_size.value} | ifdef::stem_size.is_default[{stem_size.is_default}] ifeval::["{stem_size.is_default}" == "true"] ✓ Стандарт ifeval::["{stem_size.is_default}" != "true"] ⟳ Опция
+endif::[]
+|===
+
+== Электрические параметры
+[cols="3,2,2", options="header"]
+|===
+| Параметр | Значение | Тип
+ifdef::power_supply[]
+| {power_supply.display_name} | {power_supply.value} {power_supply.unit} | ifdef::power_supply.is_default[{power_supply.is_default}] ifeval::["{power_supply.is_default}" == "true"] ✓ Стандарт ifeval::["{power_supply.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::motor_current_rated[]
+| {motor_current_rated.display_name} | {motor_current_rated.value} {motor_current_rated.unit} | ifdef::motor_current_rated.is_default[{motor_current_rated.is_default}] ifeval::["{motor_current_rated.is_default}" == "true"] ✓ Стандарт ifeval::["{motor_current_rated.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::motor_current_starting[]
+| {motor_current_starting.display_name} | {motor_current_starting.value} {motor_current_starting.unit} | ifdef::motor_current_starting.is_default[{motor_current_starting.is_default}] ifeval::["{motor_current_starting.is_default}" == "true"] ✓ Стандарт ifeval::["{motor_current_starting.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::motor_power[]
+| {motor_power.display_name} | {motor_power.value} {motor_power.unit} | ifdef::motor_power.is_default[{motor_power.is_default}] ifeval::["{motor_power.is_default}" == "true"] ✓ Стандарт ifeval::["{motor_power.is_default}" != "true"] ⟳ Опция
+endif::[]
+|===
+
+== Механические параметры
+[cols="3,2,2", options="header"]
+|===
+| Параметр | Значение | Тип
+ifdef::time_to_open[]
+| {time_to_open.display_name} | {time_to_open.value} {time_to_open.unit} | ifdef::time_to_open.is_default[{time_to_open.is_default}] ifeval::["{time_to_open.is_default}" == "true"] ✓ Стандарт ifeval::["{time_to_open.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::time_to_close[]
+| {time_to_close.display_name} | {time_to_close.value} {time_to_close.unit} | ifdef::time_to_close.is_default[{time_to_close.is_default}] ifeval::["{time_to_close.is_default}" == "true"] ✓ Стандарт ifeval::["{time_to_close.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::torque_min[]
+| {torque_min.display_name} | {torque_min.value} {torque_min.unit} | ifdef::torque_min.is_default[{torque_min.is_default}] ifeval::["{torque_min.is_default}" == "true"] ✓ Стандарт ifeval::["{torque_min.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::torque_max[]
+| {torque_max.display_name} | {torque_max.value} {torque_max.unit} | ifdef::torque_max.is_default[{torque_max.is_default}] ifeval::["{torque_max.is_default}" == "true"] ✓ Стандарт ifeval::["{torque_max.is_default}" != "true"] ⟳ Опция
+endif::[]
+ifdef::cable_glands_holes[]
+| {cable_glands_holes.display_name} | {cable_glands_holes.value} | ifdef::cable_glands_holes.is_default[{cable_glands_holes.is_default}] ifeval::["{cable_glands_holes.is_default}" == "true"] ✓ Стандарт ifeval::["{cable_glands_holes.is_default}" != "true"] ⟳ Опция
+endif::[]
+|===
+
+ifdef::selected_body_coating[]
+=== Покрытие корпуса
+[cols="3,2,1,1", options="header"]
+|===
+| Параметр | Значение | Стандарт | Опция
+| {selected_body_coating.body_coating_option.display_name} | {selected_body_coating.body_coating_option.value}
+| ifdef::selected_body_coating.is_default.value[{selected_body_coating.is_default.value}] ifeval::["{selected_body_coating.is_default.value}" == "true"]
+| ✓ Стандарт
+| ifeval::["{selected_body_coating.is_default.value}" != "true"]
+| ⟳ Опция
+|===
+endif::[]
+
+ifdef::selected_hand_wheel[]
+=== Ручной дублер
+[cols="3,2,1,1", options="header"]
+|===
+| Параметр | Значение | Стандарт | Опция
+| {selected_hand_wheel.hand_wheel_option.display_name} | {selected_hand_wheel.hand_wheel_option.value}
+| ifdef::selected_hand_wheel.is_default.value[{selected_hand_wheel.is_default.value}] ifeval::["{selected_hand_wheel.is_default.value}" == "true"]
+| ✓ Стандарт
+| ifeval::["{selected_hand_wheel.is_default.value}" != "true"]
+| ⟳ Опция
+|===
+endif::[]
+
+ifdef::selected_turn_angle_option[]
+=== Угол поворота
+[cols="3,2,1,1", options="header"]
+|===
+| Параметр | Значение | Стандарт | Опция
+| Угол | {selected_turn_angle_option.turn_angle.value}° |
+|
+| Предел регулировки | ±{selected_turn_angle_option.turn_angle_deviation_limit.value}° |
+|
+| Тип |
+| ifdef::selected_turn_angle_option.is_default.value[{selected_turn_angle_option.is_default.value}] ifeval::["{selected_turn_angle_option.is_default.value}" == "true"]
+| ✓ Стандарт
+| ifeval::["{selected_turn_angle_option.is_default.value}" != "true"]
+| ⟳ Опция
+|===
+endif::[]
+
+ifdef::selected_control_unit_option[]
+=== Блок управления
+[cols="3,2,1,1", options="header"]
+|===
+| Параметр | Значение | Стандарт | Опция
+| {selected_control_unit_option.control_unit.display_name} | {selected_control_unit_option.control_unit.value}
+| ifdef::selected_control_unit_option.is_default.value[{selected_control_unit_option.is_default.value}] ifeval::["{selected_control_unit_option.is_default.value}" == "true"]
+| ✓ Стандарт
+| ifeval::["{selected_control_unit_option.is_default.value}" != "true"]
+| ⟳ Опция
+|===
+endif::[]
+
+---
+
+*Сгенерировано: {generated_at}*

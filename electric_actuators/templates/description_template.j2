@@ -1,0 +1,167 @@
+{# Шаблон для описания электропривода - работает с сырыми данными #}
+
+{% macro format_value(item) -%}
+    {% if item is mapping and item.value is not none %}
+        {{ item.value }}
+        {%- if item.unit %} {{ item.unit }}{% endif -%}
+    {% elif item is not mapping and item is not none %}
+        {{ item }}
+    {% else %}
+        —
+    {% endif %}
+{%- endmacro %}
+
+{% macro format_type(item) -%}
+    {%- if item.is_default is defined and item.is_default -%}
+        ✓ Стандарт
+    {%- elif item.is_default is defined and not item.is_default -%}
+        ⟳ Опция
+    {%- else -%}
+        —
+    {%- endif -%}
+{%- endmacro %}
+
+{# Макрос для вывода опции в строке таблицы с раздельными столбцами #}
+{% macro option_row(display_name, value, is_default) %}
+    {% if display_name and value %}
+        | {{ display_name }} | {{ value }} | {% if is_default %}✓ Стандарт{% endif %} | {% if not is_default %}⟳ Опция{% endif %} |
+    {% endif %}
+{% endmacro %}
+{% macro option_row(display_name, value, is_default) %}
+    {% if display_name and value %}
+| {{ display_name }} | {{ value }} | {% if is_default %}✓ Стандарт{% else %}____-____{% endif %} | {% if not is_default %}⟳ Опция{% else %}___-___{% endif %} |
+    {% endif %}
+{% endmacro %}
+# ОПИСАНИЕ ЭЛЕКТРОПРИВОДА
+
+## Модель: {{ model.name | default('—') }} **{{ brand.display_name | default('—') }}**: {{ brand.value | default('—') }}
+-
+- **{{ default_output_type.display_name | default('—') }}**: {{ default_output_type.value | default('—') }}
+
+{% if ip_data is defined and ip_data %}
+### IP защита
+{{ option_row(
+    ip_data.ip_option.display_name,
+    ip_data.ip_option.value,
+    ip_data.is_default.value
+) }}
+{% endif %}
+
+
+{% if exd_data is defined and exd_data %}
+### Взрывозащита
+{% if exd_data.exd_option is defined %}
+- **{{ exd_data.exd_option.display_name | default('Тип взрывозащиты') }}**: {{ exd_data.exd_option.value }}
+{% endif %}
+- **Тип**: {% if exd_data.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
+{% endif %}
+
+{% if selected_temperature is defined and selected_temperature %}
+### Температурный режим
+{% if selected_temperature.temperature_range is defined %}
+- **Диапазон**: {{ selected_temperature.temperature_range.value }}
+{% endif %}
+{% if selected_temperature.work_temp_min is defined %}
+- **Минимальная температура**: {{ selected_temperature.work_temp_min.value }}°C
+{% endif %}
+{% if selected_temperature.work_temp_max is defined %}
+- **Максимальная температура**: {{ selected_temperature.work_temp_max.value }}°C
+{% endif %}
+- **Тип**: {% if selected_temperature.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
+{% endif %}
+---
+
+## Основные параметры
+
+| Параметр | Значение | Тип |
+|----------|----------|-----|
+{% for key, item in [
+    ('max_stem_height', max_stem_height),
+    ('max_stem_diameter', max_stem_diameter),
+    ('mounting_plate', mounting_plate),
+    ('stem_shape', stem_shape),
+    ('stem_size', stem_size)
+] %}
+    {% if item is defined and item is not none %}
+| {{ item.display_name | default(key | replace('_', ' ') | title) }} | {{ format_value(item) }} | {{ format_type(item) }} |
+    {% endif %}
+{% endfor %}
+
+---
+
+## Электрические параметры
+
+| Параметр | Значение | Тип |
+|----------|----------|-----|
+{% for key, item in [
+    ('power_supply', power_supply),
+    ('motor_current_rated', motor_current_rated),
+    ('motor_current_starting', motor_current_starting),
+    ('motor_power', motor_power)
+] %}
+    {% if item is defined and item is not none %}
+| {{ item.display_name | default(key | replace('_', ' ') | title) }} | {{ format_value(item) }} | {{ format_type(item) }} |
+    {% endif %}
+{% endfor %}
+
+---
+
+## Механические параметры
+
+| Параметр | Значение | Тип |
+|----------|----------|-----|
+{% for key, item in [
+    ('time_to_open', time_to_open),
+    ('time_to_close', time_to_close),
+    ('torque_min', torque_min),
+    ('torque_max', torque_max),
+    ('cable_glands_holes', cable_glands_holes)
+] %}
+    {% if item is defined and item is not none %}
+| {{ item.display_name | default(key | replace('_', ' ') | title) }} | {{ format_value(item) }} | {{ format_type(item) }} |
+    {% endif %}
+{% endfor %}
+
+---
+
+## Дополнительные опции
+
+
+{% if selected_body_coating is defined and selected_body_coating %}
+### Покрытие корпуса
+{% if selected_body_coating.body_coating_option is defined %}
+- **{{ selected_body_coating.body_coating_option.display_name | default('Покрытие корпуса') }}**: {{ selected_body_coating.body_coating_option.value }}
+{% endif %}
+- **Тип**: {% if selected_body_coating.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
+{% endif %}
+
+{% if selected_hand_wheel is defined and selected_hand_wheel %}
+### Ручной дублер
+{% if selected_hand_wheel.hand_wheel_option is defined %}
+- **{{ selected_hand_wheel.hand_wheel_option.display_name | default('Тип ручного дублера') }}**: {{ selected_hand_wheel.hand_wheel_option.value }}
+{% endif %}
+- **Тип**: {% if selected_hand_wheel.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
+{% endif %}
+
+{% if selected_turn_angle_option is defined and selected_turn_angle_option %}
+### Угол поворота
+{% if selected_turn_angle_option.turn_angle is defined %}
+- **Угол**: {{ selected_turn_angle_option.turn_angle.value }}°
+{% endif %}
+{% if selected_turn_angle_option.turn_angle_deviation_limit is defined %}
+- **Предел регулировки**: ±{{ selected_turn_angle_option.turn_angle_deviation_limit.value }}°
+{% endif %}
+- **Тип**: {% if selected_turn_angle_option.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
+{% endif %}
+
+{% if selected_control_unit_option is defined and selected_control_unit_option %}
+### Блок управления
+{% if selected_control_unit_option.control_unit is defined %}
+- **{{ selected_control_unit_option.control_unit.display_name | default('Тип блока управления') }}**: {{ selected_control_unit_option.control_unit.value }}
+{% endif %}
+- **Тип**: {% if selected_control_unit_option.is_default.value %}✓ Стандарт{% else %}⟳ Опция{% endif %}
+{% endif %}
+
+---
+
+*Сгенерировано: {{ generated_at }}*
