@@ -29,6 +29,21 @@
 **{{ item.display_name }}**: {{ item.value }} - {{format_type(item)}}<br>
 {% endif %}
 {% endmacro %}
+{% macro color_square(size, hex_color) %}
+{% set clean_hex = hex_color | string | replace('#', '') %}
+<span style="
+        display: inline-block;
+        width: {{ size }}px;
+        height: {{ size }}px;
+        background-color: #{{ clean_hex }};
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-right: 5px;
+        vertical-align: middle;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    " title="#{{ clean_hex }}"></span>
+    <span style="font-family: monospace; color: #666;">#{{ clean_hex }}</span>
+{% endmacro %}
 {#{% macro option_row(display_name, value, is_default) %}#}
 {#    {% if display_name and value %}#}
 {#| {{ display_name }} | {{ value }} | {% if is_default %}✓ Стандарт{% else %}____-____{% endif %} | {% if not is_default %}⟳ Опция{% else %}___-___{% endif %} |#}
@@ -52,8 +67,20 @@
 {{ selected_temperature.temperature_range.display_name | default('selected_temperature.temperature_range')}}: **{{ selected_temperature.temperature_range.value | default('н/д') }}**  {{ format_type(selected_temperature)}}<br>
 {# Покрытие корпуса #}
 {{ selected_body_coating.body_coating_option.display_name | default('selected_body_coating.body_coating_option') }}: **{{ selected_body_coating.body_coating_option.value | default('н/д')}}**  {{ format_type(selected_body_coating)}}<br>
-{# Покрытие корпуса #}
+{# защита от коррозии: KS подходит для установки во временно или постоянно агрессивных средах, общая толщина слоя 140 мкм #}
+{# цвет: верхнее покрытие стандартным цветом для защиты от коррозии (синий схожий с RAL5010)  #}
+Цвет корпуса: верхнее покрытие стандартным цветом для защиты от коррозии :{{  color_square(20, '#FF0000')  }}
+{# РУчной дублер #}
 {{ selected_hand_wheel.hand_wheel_option.display_name | default('selected_hand_wheel.hand_wheel_option') }}: **{{ selected_hand_wheel.hand_wheel_option.value | default('н/д')}}**  {{ format_type(selected_hand_wheel)}}<br>
+моментные выключатели: **одинарный выключатель (1НЗ и 1НО) для каждого направления, гальванически не изолированы**<br>
+концевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>
+концевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>
+индикация положения: **механический указатель положения**<br>
+блинкер: **блинкер для индикации работы**<br>
+обогреватель: **в блоке выключателей 110 В-250 В перем./пост.тока**<br>
+кабельные вводы под небронированный кабель: **кол-во 3 (1-М20*1,5,1-М25*1,5,1-М32*1,5)**<br>
+защита электродвигателя: **термовыключатель (НЗ)**<br>
+{{ weight_body.display_name | default('weight_body') }}: **{{ weight_body.value | default('н/д') }}**<br>
 ---
 ## Развиваемые усилия / моменты, время срабатывания
 {{ torque_min.display_name | default('torque_min')}}: **{{ torque_min.value | default('н/д') }}** <br>
@@ -78,6 +105,7 @@
 {{ motor_power.display_name | default('motor_power')}}: **{{ motor_power.value | default('н/д') }}**<br>
 {{ motor_current_rated.display_name | default('motor_current_rated')}}: **{{ motor_current_rated.value | default('н/д') }}**<br>
 {{ motor_current_starting.display_name | default('motor_current_starting')}}: **{{ motor_current_starting.value | default('н/д') }}**<br>
+Изоляция обмоток электродвигателя: **класс изоляции F, тропическое исполнение (IEC 85)**
 ---
 {# Блок управления#}
 {% if selected_control_unit_option is defined and selected_control_unit_option %}

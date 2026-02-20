@@ -677,6 +677,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'max_stem_diameter': {'display_name': 'Максимально возможный диаметр штока',
                                   'value': None,
                                   'is_default': True},
+            'weight_body': body_data['weight_body'],
             'power_supply': {'display_name': 'Напряжение питания, В',
                              'value': None},
             'motor_current_rated': {'display_name': 'Ток номинальный, А', 'value': None},
@@ -689,14 +690,14 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         }
         if self.actual_mounting_plate:
             data['mounting_plate']['value'] = self.actual_mounting_plate.name
-            data['mounting_plate']['is_default'] = False
+            data['mounting_plate']['is_default'] = None
         if self.actual_stem_shape:
             print(f'actual_stem_shape {self.actual_stem_shape} name {self.actual_stem_shape.name}')
             data['stem_shape']['value'] = str(self.actual_stem_shape.name)
-            data['stem_shape']['is_default'] = False
+            data['stem_shape']['is_default'] = None
         if self.actual_stem_size:
             data['stem_size']['value'] = self.actual_stem_size.name
-            data['stem_size']['is_default'] = False
+            data['stem_size']['is_default'] = None
         if self.selected_power_supply:
             power_supply_data = self.selected_power_supply.get_description_data()
             data['power_supply']['value'] = power_supply_data['power_supply']['value']
