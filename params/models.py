@@ -421,7 +421,11 @@ class ControlUnitInstalledOption(models.Model):
                                     help_text=_('Активно свойство или нет'))
     encoding = models.CharField(max_length=10, verbose_name=_('Кодировка'),
                                 help_text=_('Кодировка поддерживаемого цифрового протокола'))
-
+    feature_list = models.JSONField(
+        default=list, blank=True, null=True,
+        verbose_name="Параметры блока управления",
+        help_text="Список параметров в формате [{'display_name': '...', 'value': '...'}]"
+    )
 
     class Meta:
         verbose_name = _('Вид блока управления')

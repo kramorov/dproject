@@ -142,6 +142,14 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_("Выбранный блок управления с кодировкой")
     )
 
+    selected_mechanical_indicator_option = models.ForeignKey(
+        'params.MechanicalIndicatorInstalledOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Механический индикатор"),
+        help_text=_("Выбранный механический индикатор с кодировкой")
+    )
+
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
 
     # ОБЩАЯ КОНФИГУРАЦИЯ ДЛЯ ВСЕХ ВАЛИДАЦИЙ
@@ -187,6 +195,12 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'label': 'ручной дублер',
             'parent_field': 'model_line',
             'model_path': 'electric_actuators.models.ea_options.ElectricHandWheelOption'
+        },
+        'selected_mechanical_indicator_option': {
+            'model_class': 'ElectricMechanicalIndicatorOption',
+            'label': 'механический индикатор',
+            'parent_field': 'model_line',
+            'model_path': 'electric_actuators.models.ea_options.ElectricMechanicalIndicatorOption'
         },
         'selected_power_supply': {
             'model_class': 'ElectricPowerSupplyOption',

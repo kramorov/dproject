@@ -1,7 +1,7 @@
 // static/admin/js/electric_actuator_selected.js
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("=== ELECTRIC ACTUATOR SELECTED JS LOADED V2 ==");
+    console.log("=== ELECTRIC ACTUATOR SELECTED JS LOADED V3 ==");
 
     // 1. Находим селектор модели
     const modelSelector = document.querySelector('select[name="selected_model_line_item"]');
@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'selected_exd': 'exd_options',
         'selected_body_coating': 'body_coating_options',
         'selected_hand_wheel': 'hand_wheel_options',
+        'selected_mechanical_indicator':'selected_mechanical_indicator_options',
         'selected_power_supply': 'power_supply_options',
         'selected_control_unit_option': 'control_unit_option_options'
     };

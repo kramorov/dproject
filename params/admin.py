@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django import forms
+import json
+
 
 from .models import PowerSupplies, ExdOption, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
     EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
@@ -177,10 +180,127 @@ class DigitalProtocolsSupportOptionAdmin(admin.ModelAdmin):
     list_editable = ['name', 'code', 'sorting_order', 'is_active']
 
 
+class ControlUnitInstalledOptionForm(forms.ModelForm):
+    """Форма для редактирования JSON поля"""
+
+    feature_list_display = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'rows': 10,
+            'class': 'vLargeTextField json-editor',
+            'style': 'font-family: monospace;'
+        }),
+        label="Параметры блока управления",
+        help_text="Редактируйте JSON напрямую или используйте таблицу ниже"
+    )
+
+    class Meta:
+        model = ControlUnitInstalledOption
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Преобразуем JSON в отформатированную строку для отображения
+        if self.instance and self.instance.feature_list:
+            try:
+                self.fields['feature_list_display'].initial = json.dumps(
+                    self.instance.feature_list,
+                    ensure_ascii=False,
+                    indent=2
+                )
+            except:
+                self.fields['feature_list_display'].initial = json.dumps(
+                    [],
+                    ensure_ascii=False,
+                    indent=2
+                )
+        else:
+            self.fields['feature_list_display'].initial = json.dumps(
+                [],
+                ensure_ascii=False,
+                indent=2
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # Парсим JSON из текстового поля
+        json_str = cleaned_data.get('feature_list_display', '[]')
+        if json_str:
+            try:
+                parsed_json = json.loads(json_str)
+                # Валидация структуры
+                if not isinstance(parsed_json, list):
+                    raise forms.ValidationError("Должен быть массив (список)")
+
+                for item in parsed_json:
+                    if not isinstance(item, dict):
+                        raise forms.ValidationError("Каждый элемент должен быть объектом")
+                    if 'value' not in item:
+                        raise forms.ValidationError("У каждого элемента должно быть поле 'value'")
+
+                cleaned_data['feature_list'] = parsed_json
+            except json.JSONDecodeError as e:
+                raise forms.ValidationError(f"Ошибка в JSON: {e}")
+        else:
+            cleaned_data['feature_list'] = []
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        """Сохраняем форму, включая JSON поле"""
+        instance = super().save(commit=False)
+
+        # Убеждаемся, что feature_list установлен из cleaned_data
+        if 'feature_list' in self.cleaned_data:
+            instance.feature_list = self.cleaned_data['feature_list']
+
+        if commit:
+            instance.save()
+            self.save_m2m()  # для ManyToMany полей если есть
+
+        return instance
+
+
+@admin.register(ControlUnitInstalledOption)
 class ControlUnitInstalledOptionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name',  'code', 'sorting_order', 'is_active']
-    list_editable = ['name', 'code', 'sorting_order', 'is_active']
+    form = ControlUnitInstalledOptionForm
+
+    list_display = ['name', 'code', 'encoding', 'sorting_order', 'is_active']
+    list_editable = ['code', 'encoding', 'sorting_order', 'is_active']
+    list_filter = ['is_active', 'encoding']
+    search_fields = ['name', 'code', 'encoding']
     ordering = ['sorting_order']
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'code', 'encoding', 'description')
+        }),
+        ('Параметры блока управления', {
+            'fields': ('feature_list_display',),
+            'description': '''
+                <div style="background: #f8f9fa; padding: 10px; margin: 10px 0;">
+                    <strong>Формат JSON:</strong>
+                    <pre style="background: #fff; padding: 10px; border: 1px solid #ddd;">
+[
+  {"display_name": "Питание от питания привода", "value": "нет"},
+  {"display_name": "Питание отдельное", "value": "да"},
+  {"display_name": "Селектор Местное/Удаленное", "value": "нет"}
+]
+                    </pre>
+                </div>
+            ''',
+        }),
+        ('Настройки', {
+            'fields': ('sorting_order', 'is_active')
+        }),
+    )
+    class Media:
+        css = {
+            'all': ('admin/css/json-editor.css',)
+        }
+        js = ('admin/js/json-editor.js',)
 
 class ActuatorGearboxOutputTypeAdmin(admin.ModelAdmin):
     list_display = ['id', 'name',  'code', 'sorting_order', 'is_active']
@@ -393,7 +513,7 @@ admin.site.register(BlinkerOption, BlinkerOptionAdmin)
 admin.site.register(SwitchesParameters, SwitchesParametersAdmin)
 admin.site.register(EnvTempParameters, EnvTempParametersAdmin)
 admin.site.register(DigitalProtocolsSupportOption, DigitalProtocolsSupportOptionAdmin)
-admin.site.register(ControlUnitInstalledOption, ControlUnitInstalledOptionAdmin)
+# admin.site.register(ControlUnitInstalledOption, ControlUnitInstalledOptionAdmin)
 admin.site.register(ActuatorGearboxOutputType, ActuatorGearboxOutputTypeAdmin)
 admin.site.register(ValveTypes, ValveTypesAdmin)
 admin.site.register(HandWheelInstalledOption, HandWheelInstalledOptionAdmin)

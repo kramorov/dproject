@@ -167,35 +167,115 @@ class FeatureVarietyAdmin(admin.ModelAdmin):
     validation_container.short_description = "Валидация"
 
     def application_preview(self, obj):
-        """Предпросмотр применения"""
+        """Предпросмотр применения характеристики в шаблонах"""
         if not obj.pk:
             return "Сначала сохраните объект"
 
         html = '<div id="application-preview">'
-        html += f'<h4>Эта характеристика используется в:</h4>'
+        html += f'<h4 style="margin-top: 0; color: #2c3e50;">📋 Эта характеристика используется в шаблонах:</h4>'
 
-        # Шаблоны характеристик
         from features.models.feature_template import FeatureTemplate
-        templates = FeatureTemplate.objects.filter(
-            features_data__contains=[{'type_id': obj.id}]
-        )[:5]
 
-        if templates.exists():
-            html += '<p><strong>Шаблоны характеристик:</strong></p>'
-            html += '<ul style="list-style-type: none; padding-left: 0;">'
-            for template in templates:
+        # Получаем все шаблоны
+        all_templates = FeatureTemplate.objects.select_related('equipment_type').filter(is_active=True)
+
+        templates_with_feature = []
+
+        # Фильтруем в Python, а не в БД
+        for template in all_templates:
+            if template.features_data:
+                for feature in template.features_data:
+                    if isinstance(feature, dict) and feature.get('type_id') == obj.id:
+                        templates_with_feature.append(template)
+                        break
+
+        if templates_with_feature:
+            html += '<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">'
+            html += '''
+                <thead>
+                    <tr>
+                        <th style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; text-align: left;">
+                            Шаблон
+                        </th>
+                        <th style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; text-align: left;">
+                            Тип оборудования
+                        </th>
+                        <th style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; text-align: center;">
+                            По умолчанию
+                        </th>
+                        <th style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; text-align: center;">
+                            Всего хар-к
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+            '''
+
+            for template in templates_with_feature:
                 url = reverse('admin:features_featuretemplate_change', args=[template.id])
-                html += f'<li style="margin: 5px 0;">'
-                html += f'<a href="{url}">{template.name}</a>'
-                html += f' <span style="color: #666;">({template.code})</span>'
-                html += '</li>'
-            html += '</ul>'
-            if templates.count() > 5:
-                html += f'<p><small>... и еще {templates.count() - 5} шаблонов</small></p>'
+
+                # Находим значение по умолчанию для этой характеристики в шаблоне
+                default_value = ''
+                for feature in template.features_data:
+                    if isinstance(feature, dict) and feature.get('type_id') == obj.id:
+                        default_value = feature.get('default_value', '')
+                        break
+
+                html += f'''
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">
+                        <a href="{url}" style="text-decoration: none; font-weight: 600;">{template.name}</a>
+                        <br><small style="color: #666;">{template.code}</small>
+                    </td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">
+                        {template.equipment_type.name}
+                    </td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+                        {'✅' if template.is_default else '—'}
+                    </td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+                        {template.get_features_count()}
+                    </td>
+                </tr>
+                '''
+
+                # Добавляем информацию о значении по умолчанию
+                if default_value:
+                    html += f'''
+                    <tr>
+                        <td colspan="4" style="padding: 5px 8px 15px 25px; border: 1px solid #ddd; color: #666; font-style: italic;">
+                            ⚙️ Значение по умолчанию: <strong>{default_value}</strong>
+                        </td>
+                    </tr>
+                    '''
+
+            html += '''
+                </tbody>
+            </table>
+            '''
+
+            if len(templates_with_feature) > 5:
+                html += f'<p style="color: #666; margin-top: 10px;">' \
+                        f'<small>Показано 5 из {len(templates_with_feature)} шаблонов</small></p>'
+
         else:
-            html += '<p>Эта характеристика еще не используется в шаблонах.</p>'
+            html += '<div style="padding: 20px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">'
+            html += '<p style="margin: 0; color: #6c757d;">📭 Эта характеристика еще не используется ни в одном шаблоне.</p>'
+            html += '</div>'
 
         html += '</div>'
+
+        # Добавляем кнопку для быстрого создания шаблона
+        if not templates_with_feature:
+            create_url = reverse('admin:features_featuretemplate_add')
+            html += f'''
+            <div style="margin-top: 20px;">
+                <a href="{create_url}" class="button" style="background: #28a745; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px;">
+                    ➕ Создать шаблон с этой характеристикой
+                </a>
+            </div>
+            '''
+
         return format_html(html)
 
     application_preview.short_description = "Применение характеристики"

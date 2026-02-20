@@ -118,8 +118,10 @@ class ElectricControlUnitOption(BaseThroughOption):
         # logger.debug(f"EA logger get_description_data")
         # print(f"EA model line item print get_description_data")
         data = {
-            'control_unit': {'display_name':'Тип установленного блока управления', 'value':self.control_unit.name if self.control_unit else None},
+            'control_unit': {'display_name':'Тип установленного блока управления', 'value':self.control_unit.name if self.control_unit else None,
+                             'description':self.control_unit.description if self.control_unit.description  else None, 'feature_list':self.control_unit.feature_list if self.control_unit.feature_list  else []},
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+            'is_installed': False if self.control_unit.name =='none' else True
         }
         return data
     def clean(self):

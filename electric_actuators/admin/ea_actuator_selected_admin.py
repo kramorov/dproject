@@ -49,7 +49,7 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin):
             'fields': (
                 ('selected_temperature', 'selected_ip'),
                 ('selected_exd', 'selected_body_coating'),
-                ('selected_hand_wheel', 'selected_control_unit_option'),
+                ('selected_hand_wheel', 'selected_control_unit_option', 'selected_mechanical_indicator_option'),
             )
         }),
         ('Монтажная площадка и кабельные вводы под заказ', {

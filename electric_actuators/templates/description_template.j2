@@ -69,7 +69,14 @@
 {{ selected_body_coating.body_coating_option.display_name | default('selected_body_coating.body_coating_option') }}: **{{ selected_body_coating.body_coating_option.value | default('н/д')}}**  {{ format_type(selected_body_coating)}}<br>
 {# защита от коррозии: KS подходит для установки во временно или постоянно агрессивных средах, общая толщина слоя 140 мкм #}
 {# цвет: верхнее покрытие стандартным цветом для защиты от коррозии (синий схожий с RAL5010)  #}
-Цвет корпуса: верхнее покрытие стандартным цветом для защиты от коррозии :{{  color_square(20, '#FF0000')  }}
+Цвет корпуса: {{  color_square(20, '#004f7c')  }} (RAL 5010 Генцианово-синий)<br>
+{% if selected_control_unit_option.is_installed %}
+    {% if selected_control_unit_option is defined and selected_control_unit_option %}
+{{ selected_control_unit_option.control_unit.display_name | default('Тип установленного блока управления') }}: **{{ selected_control_unit_option.control_unit.value | default('н/д') }}** {{ format_type(selected_control_unit_option)}}<br>
+    {% else %}
+Блок управления: **не установлен**<br>
+    {% endif %}
+{% endif %}
 {# РУчной дублер #}
 {{ selected_hand_wheel.hand_wheel_option.display_name | default('selected_hand_wheel.hand_wheel_option') }}: **{{ selected_hand_wheel.hand_wheel_option.value | default('н/д')}}**  {{ format_type(selected_hand_wheel)}}<br>
 моментные выключатели: **одинарный выключатель (1НЗ и 1НО) для каждого направления, гальванически не изолированы**<br>
@@ -108,10 +115,27 @@
 Изоляция обмоток электродвигателя: **класс изоляции F, тропическое исполнение (IEC 85)**
 ---
 {# Блок управления#}
-{% if selected_control_unit_option is defined and selected_control_unit_option %}
 ## Блок управления
-{{ selected_control_unit_option.control_unit.display_name | default('selected_control_unit_option.control_unit')}}:
-    **{{ selected_control_unit_option.control_unit.value | default('н/д') }}**  {{ format_type(selected_control_unit_option)}}<br>
----
+{{ selected_control_unit_option.control_unit.display_name | default('selected_control_unit_option.control_unit') }}:**{{ selected_control_unit_option.control_unit.value | default('н/д') }}**
+{{ format_type(selected_control_unit_option) }}<br>
+{% if selected_control_unit_option.is_installed %}
+    {# Описание блока управления#}
+    Описание: **{{ selected_control_unit_option.control_unit.description | default('н/д') }}**
+    {# Параметры блока управления#}
+    {% if selected_control_unit_option.control_unit.feature_list %}
+        {# ### Местный блок управления#}
+
+        {% for feature in selected_control_unit_option.control_unit.feature_list %}
+            {% if feature.is_header %}
+                {% if feature.display_name %}**{{ feature.display_name }}**
+                    {% else %}
+<br>
+                {% endif %}
+            {% else %}
+{{ feature.display_name }}: **{{ feature.value }}**<br>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
 {% endif %}
+---
 {# *Сгенерировано: {{ generated_at }}* #}

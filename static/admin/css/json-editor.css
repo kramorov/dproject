@@ -1,0 +1,23 @@
+/* static/admin/css/json-editor.css */
+
+.json-editor {
+    font-family: 'Courier New', monospace !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    background: #f8f9fa !important;
+}
+
+.json-editor:focus {
+    background: #fff !important;
+    border-color: #79aec8 !important;
+}
+
+#json-status {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.button {
+    margin-right: 5px !important;
+}
