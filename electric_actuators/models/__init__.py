@@ -17,7 +17,7 @@ __all__ = [
     'ElectricActuatorData',
     'ModelBody',
     'CableGlandHolesSet',
-    'ActualActuator',
+    # 'ActualActuator',
     # 'WiringDiagram',
     'ElectricHandWheelOption',
     'ElectricTemperatureOption',
@@ -35,6 +35,7 @@ __all__ = [
     'ElectricActuatorModelLineItem',
     'ElectricActuatorSelected',
     'CableGlandHolesSetBodyOption',
-    'ElectricActuatorBodyTable'
+    'ElectricActuatorBodyTable',
+    'ElectricBodyColorOption'
 
 ]

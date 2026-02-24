@@ -1381,6 +1381,9 @@ class BodyColor(models.Model):
                                 help_text=_("Например: #FF0000 для красного"))
     ral_code = models.CharField(max_length=20, blank=True, verbose_name=_("RAL код"),
                                 help_text=_("Например: RAL 3000"))
+    ral_name_ru = models.CharField(max_length=100 , blank=True, verbose_name=_("Название на русском"), help_text=_("Название цвета на русском"))
+    ral_name_en = models.CharField(max_length=100 , blank=True , verbose_name=_("Name (eng") ,
+                                   help_text=_("Color name in english"))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
@@ -1392,6 +1395,17 @@ class BodyColor(models.Model):
     def __str__(self) :
         if self.ral_code :
             return f"{self.name} RAL({self.ral_code})"
+        return self.name
+    @property
+    def get_ral_name_ru(self) :
+        if self.ral_name_ru :
+            return f"{self.ral_name_ru} RAL({self.ral_code})"
+        return self.name
+
+    @property
+    def get_ral_name_en(self) :
+        if self.ral_name_en :
+            return f"{self.ral_name_en} RAL({self.ral_code})"
         return self.name
 
     def get_color_display(self) :

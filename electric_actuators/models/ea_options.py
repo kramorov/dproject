@@ -9,7 +9,7 @@ from options.models import (
     BaseBlinkerThroughOption , BaseControlUnitInstalledThroughOption ,
     BaseWaySwitchesThroughOption ,
     BaseOperatingModeThroughOption ,
-    BaseMechanicalIndicatorThroughOption , BaseThroughOption , BaseSafetyPositionThroughOption
+    BaseMechanicalIndicatorThroughOption , BaseThroughOption , BaseSafetyPositionThroughOption , BaseColorThroughOption
 )
 
 
@@ -115,7 +115,24 @@ class ElectricExdOption(BaseExdThroughOption):
     def _get_parent_field_name(cls):
         return 'model_line'
 
+class ElectricBodyColorOption(BaseColorThroughOption):
+    """Опции взрывозащиты для электроприводов"""
+    model_line = models.ForeignKey(
+        'ElectricActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='body_color_options',
+        verbose_name=_("Серия электроприводов")
+    )
 
+    class Meta:
+        verbose_name = _("Опция цвета корпуса электропривода")
+        verbose_name_plural = _("Опции цвета корпуса электроприводов")
+        ordering = ['sorting_order']
+        unique_together = ['model_line', 'color_option']
+
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line'
 
 class ElectricBodyCoatingOption(BaseBodyCoatingThroughOption):
     """Опции покрытия корпуса для электроприводов"""

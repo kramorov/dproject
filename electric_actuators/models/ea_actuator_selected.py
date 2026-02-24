@@ -149,6 +149,21 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Механический индикатор"),
         help_text=_("Выбранный механический индикатор с кодировкой")
     )
+    selected_blinker_option = models.ForeignKey(
+        'params.BlinkerOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Блинкер") ,
+        help_text=_("Тип установленного блинкера")
+    )
+
+    selected_body_color_option = models.ForeignKey(
+        'params.BodyColor' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Цвет") ,
+        help_text=_("Цвет корпуса")
+    )
 
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
 
@@ -202,6 +217,18 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'parent_field': 'model_line',
             'model_path': 'electric_actuators.models.ea_options.ElectricMechanicalIndicatorOption'
         },
+        'selected_blinker_option' : {
+            'model_class' : 'ElectricBlinkerOption' ,
+            'label' : 'Блинкер' ,
+            'parent_field' : 'model_line' ,
+            'model_path' : 'electric_actuators.models.ea_options.ElectricBlinkerOption'
+        } ,
+        'selected_body_color_option' : {
+            'model_class' : 'ElectricBodyColorOption' ,
+            'label' : 'Цвет корпуса' ,
+            'parent_field' : 'model_line' ,
+            'model_path' : 'electric_actuators.models.ea_options.ElectricBodyColorOption'
+        } ,
         'selected_power_supply': {
             'model_class': 'ElectricPowerSupplyOption',
             'label': 'напряжение питания',
@@ -592,6 +619,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
     def create_duplicate(self):
         """Создать дубликат текущего объекта"""
+        #TODO добавить остальные поля в копирование
         duplicate = self.__class__(
             # Копируем ForeignKey поля
             selected_model_line_item=self.selected_model_line_item,
@@ -600,6 +628,9 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             selected_exd=self.selected_exd,
             selected_body_coating=self.selected_body_coating,
             selected_hand_wheel=self.selected_hand_wheel,
+            selected_blinker_option=self.selected_blinker_option,
+            selected_body_color_option=self.selected_body_color_option ,
+            # selected_body_coating=self.selected_body_coating ,
 
             # Копируем конструктивные особенности
             actual_mounting_plate=self.actual_mounting_plate.all(),
@@ -771,6 +802,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         print(f"selected_ip: {self.selected_ip}")
         print(f"selected_exd: {self.selected_exd}")
         print(f"selected_power_supply: {self.selected_power_supply}")
+        print(f"selected_mechanical_indicator_option: {self.selected_mechanical_indicator_option}")
         try:
             # Получаем оригинальный объект
             original = None

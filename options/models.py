@@ -657,6 +657,61 @@ class BaseExdThroughOption(BaseThroughOption) :
     def __str__(self) :
         return self.get_display_name()
 
+class BaseColorThroughOption(BaseThroughOption) :
+    """Базовая модель для сквозных опций Exd"""
+    color_option = models.ForeignKey(
+        'params.BodyColor' ,
+        on_delete=models.CASCADE ,
+        verbose_name=_("Опция цвета")
+    )
+
+    class Meta :
+        abstract = True
+        ordering = ['sorting_order']
+
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для цвета"""
+        data = {
+            'color_option' : {'display_name' : 'Цвет корпуса' , 'value' : self.color_option.get_ral_name_ru if self.color_option else None} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную Exd опцию (STD)"""
+        from django.apps import apps
+
+        ExdOption = apps.get_model('params' , 'ExdOption')  # Ленивая загрузка
+
+        try :
+            std_option = ExdOption.objects.get(code='STD')
+        except ExdOption.DoesNotExist :
+            std_option = ExdOption.objects.filter(is_active=True).first()
+
+        if std_option :
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field : parent_obj} ,
+                exd_option=std_option ,
+                encoding='STD' ,
+                description='Стандартное исполнение взрывозащиты' ,
+                is_default=True ,
+                sorting_order=0 ,
+                is_active=True
+            )
+        return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для взрывозащиты"""
+        if self.exd_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.exd_option.name})"
+            return self.exd_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
 
 class BaseIpThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций IP"""
@@ -715,38 +770,6 @@ class BaseIpThroughOption(BaseThroughOption) :
     def get_display_name(self) :
         is_default = getattr(self , 'is_default' , False)
         return f"{self.ip_option} (Стандарт)" if is_default else f"{self.ip_option} (Опция)"
-
-    # def get_display_name(self):
-    #     """Простая безопасная версия"""
-    #     # Сначала проверяем encoding
-    #     if self.encoding and self.encoding.strip():
-    #         encoding_part = self.encoding
-    #     else:
-    #         encoding_part = None
-    #
-    #     # Пытаемся получить имя ip_option без исключений
-    #     ip_name = None
-    #     try:
-    #         # Проверяем через безопасный доступ
-    #         if hasattr(self, 'ip_option_id') and self.ip_option_id:
-    #             # Объект существует в БД
-    #             if not hasattr(self, '_ip_option_cache'):
-    #                 # Не загружен, но мы можем не загружать для __str__
-    #                 ip_name = f"[IP#{self.ip_option_id}]"
-    #             elif self.ip_option:
-    #                 ip_name = getattr(self.ip_option, 'name', None)
-    #     except Exception:
-    #         pass
-    #
-    #     # Формируем результат
-    #     if encoding_part and ip_name:
-    #         return f"{encoding_part} ({ip_name})"
-    #     elif encoding_part:
-    #         return encoding_part
-    #     elif ip_name:
-    #         return ip_name
-    #
-    #     return "IP опция"
 
     def __str__(self) :
         """Всегда возвращаем строку"""

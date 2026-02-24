@@ -6,7 +6,7 @@ from electric_actuators.models import ElectricTemperatureOption , ElectricIpOpti
     ElectricHandWheelOption , \
     ElectricExdOption , ElectricBodyCoatingOption , ElectricActuatorModelLine , ElectricTurnAngleOption , \
     ElectricBlinkerOption , ElectricWaySwitchesOption , ElectricControlUnitInstalledOption , \
-    ElectricMechanicalIndicatorOption , ElectricOperatingModeOption , ModelLine
+    ElectricMechanicalIndicatorOption , ElectricOperatingModeOption , ModelLine , ElectricBodyColorOption
 import logging
 from django.shortcuts import redirect
 from django.contrib import messages
@@ -385,6 +385,15 @@ class ElectricIpOptionInline(admin.TabularInline) :
 
         formset.model.__str__ = safe_str
         return formset
+class ElectricBodyColorOptionInline(admin.TabularInline) :
+    """Inline для ElectricHandWheelOption опций"""
+    model = ElectricBodyColorOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['color_option' ,  'encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Опция цвета корпуса")
+    verbose_name_plural = _("Опции цвета корпуса")
+
 class ElectricHandWheelOptionInline(admin.TabularInline) :
     """Inline для PneumaticHandWheelOption опций"""
     model = ElectricHandWheelOption
@@ -492,7 +501,8 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         # ElectricWaySwitchesOptionInline ,
         # ElectricControlUnitInstalledOptionInline ,
         # ElectricOperatingModeOptionInline ,  # ДОБАВИТЬ
-        ElectricMechanicalIndicatorOptionInline  # ДОБАВИТЬ
+        ElectricMechanicalIndicatorOptionInline,
+        ElectricBodyColorOptionInline
     ]
     filter_horizontal = ('allowed_operating_mode',)  # ← добавить
     fieldsets = (
@@ -528,8 +538,8 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
             'blinker_options',
             # 'way_switches_options',
             'control_unit_options',
-            # 'operating_mode_options',          # ДОБАВИТЬ
-            'mechanical_indicator_options'     # ДОБАВИТЬ
+            # 'operating_mode_options',
+            'mechanical_indicator_options'
         )
 
     def temperature_range_display(self , obj) :
