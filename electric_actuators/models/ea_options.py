@@ -9,7 +9,8 @@ from options.models import (
     BaseBlinkerThroughOption , BaseControlUnitInstalledThroughOption ,
     BaseWaySwitchesThroughOption ,
     BaseOperatingModeThroughOption ,
-    BaseMechanicalIndicatorThroughOption , BaseThroughOption , BaseSafetyPositionThroughOption , BaseColorThroughOption
+    BaseMechanicalIndicatorThroughOption , BaseThroughOption , BaseSafetyPositionThroughOption ,
+    BaseColorThroughOption , BaseEndSwitchesThroughOption , BaseTorqueSwitchesThroughOption
 )
 
 
@@ -254,7 +255,8 @@ class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
         'ElectricActuatorModelLineItem',
         on_delete=models.CASCADE,
         related_name='way_switches_options',
-        verbose_name=_("Серия электроприводов")
+        help_text=_("Модель в серии электроприводов"),
+        verbose_name=_('Модель')
     )
 
     class Meta:
@@ -265,4 +267,44 @@ class ElectricWaySwitchesOption(BaseWaySwitchesThroughOption):
 
     @classmethod
     def _get_parent_field_name(cls):
-        return 'model_line'
+        return 'model_line_item'
+
+class ElectricEndSwitchesOption(BaseEndSwitchesThroughOption):
+    """Опции концевых выключателей для электроприводов, привязан к ModelLineItem"""
+    model_line_item = models.ForeignKey(
+        'ElectricActuatorModelLineItem',
+        on_delete=models.CASCADE,
+        related_name='end_switches_options',
+        help_text=_("Модель в серии электроприводов"),
+        verbose_name=_('Модель')
+    )
+
+    class Meta:
+        verbose_name = _("Опция конечные выключатели электропривода")
+        verbose_name_plural = _("Опции конечных выключателей электроприводов")
+        ordering = ['sorting_order']
+        # unique_together = ['model_line_item', 'way_switches_option']
+
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line_item'
+
+class ElectricTorqueSwitchesOption(BaseTorqueSwitchesThroughOption):
+    """Опции моментных выключателей для электроприводов, привязан к ModelLineItem"""
+    model_line_item = models.ForeignKey(
+        'ElectricActuatorModelLineItem',
+        on_delete=models.CASCADE,
+        related_name='torque_switches_options',
+        help_text=_("Модель в серии электроприводов"),
+        verbose_name=_('Модель')
+    )
+
+    class Meta:
+        verbose_name = _("Опция моментные выключатели электропривода")
+        verbose_name_plural = _("Опции моментных выключателей электроприводов")
+        ordering = ['sorting_order']
+        # unique_together = ['model_line_item', 'way_switches_option']
+
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line_item'

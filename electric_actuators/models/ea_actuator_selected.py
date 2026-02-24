@@ -164,17 +164,60 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Цвет") ,
         help_text=_("Цвет корпуса")
     )
+    selected_end_switches_option = models.ForeignKey(
+        'ElectricEndSwitchesOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        related_name='end_switches_model_line_item' ,
+        verbose_name=_("Конечные выключатели") ,
+        help_text=_("Конечные выключатели")
+    )
 
+    selected_way_switches_option = models.ForeignKey(
+        'ElectricWaySwitchesOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        related_name='way_switches_model_line_item',
+        verbose_name=_("Путевые выключатели") ,
+        help_text=_("Путевые выключатели")
+    )
+
+    selected_torque_switches_option = models.ForeignKey(
+        'ElectricTorqueSwitchesOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        related_name='torque_switches_model_line_item' ,
+        verbose_name=_("Моментные выключатели") ,
+        help_text=_("Моментные выключатели")
+    )
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
 
     # ОБЩАЯ КОНФИГУРАЦИЯ ДЛЯ ВСЕХ ВАЛИДАЦИЙ
     _OPTION_CONFIG = {
         # 'selected_safety_position': {
-        #     'model_class': 'ElectricTemperatureOption',
+        #     'model_class': 'ElectricSafetyPositionOption',
         #     'label': 'положение безопасности',
         #     'parent_field': 'model_line_item',  # Для связи с моделью
-        #     'model_path': 'electric_actuators.models.ea_options.ElectricTemperatureOption'
+        #     'model_path': 'electric_actuators.models.ea_options.ElectricSafetyPositionOption'
         # },
+        'selected_end_switches_option' : {
+            'model_class' : 'ElectricEndSwitchesOption' ,
+            'label' : 'Конечные выключатели' ,
+            'parent_field' : 'model_line_item' ,  # Здесь model_line_item
+            'model_path' : 'electric_actuators.models.ea_options.ElectricEndSwitchesOption'
+        } ,
+        'selected_way_switches_option' : {
+            'model_class' : 'ElectricWaySwitchesOption' ,
+            'label' : 'Путевые выключатели' ,
+            'parent_field' : 'model_line_item' ,  # Здесь model_line_item
+            'model_path' : 'electric_actuators.models.ea_options.ElectricWaySwitchesOption'
+        } ,
+        'selected_torque_switches_option' : {
+            'model_class' : 'ElectricTorqueSwitchesOption' ,
+            'label' : 'Моментные выключатели' ,
+            'parent_field' : 'model_line_item' ,  # Здесь model_line_item
+            'model_path' : 'electric_actuators.models.ea_options.ElectricTorqueSwitchesOption'
+        } ,
         'selected_temperature': {
             'model_class': 'ElectricTemperatureOption',
             'label': 'температурная опция',
@@ -619,7 +662,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
     def create_duplicate(self):
         """Создать дубликат текущего объекта"""
-        #TODO добавить остальные поля в копирование
+        #TODO добавить остальные поля в копирование selected_way_switches_option
         duplicate = self.__class__(
             # Копируем ForeignKey поля
             selected_model_line_item=self.selected_model_line_item,
@@ -630,6 +673,9 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             selected_hand_wheel=self.selected_hand_wheel,
             selected_blinker_option=self.selected_blinker_option,
             selected_body_color_option=self.selected_body_color_option ,
+            selected_end_switches_option=self.selected_end_switches_option ,
+            selected_way_switches_option=self.selected_way_switches_option ,
+            selected_torque_switches_option=self.selected_torque_switches_option ,
             # selected_body_coating=self.selected_body_coating ,
 
             # Копируем конструктивные особенности
@@ -793,6 +839,12 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
         if self.selected_turn_angle_option:
             data['selected_turn_angle_option'] = self.selected_turn_angle_option.get_description_data()
+        if self.selected_end_switches_option:
+            data['selected_end_switches_option'] = self.selected_end_switches_option.get_description_data()
+        if self.selected_way_switches_option:
+            data['selected_way_switches_option'] = self.selected_way_switches_option.get_description_data()
+        if self.selected_way_switches_option:
+            data['selected_torque_switches_option'] = self.selected_torque_switches_option.get_description_data()
 
         if self.selected_control_unit_option:
             data['selected_control_unit_option'] = self.selected_control_unit_option.get_description_data()

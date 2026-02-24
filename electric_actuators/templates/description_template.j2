@@ -76,10 +76,14 @@
 {% endif %}
 {# РУчной дублер #}
 {{ selected_hand_wheel.hand_wheel_option.display_name | default('selected_hand_wheel.hand_wheel_option') }}: **{{ selected_hand_wheel.hand_wheel_option.value | default('н/д')}}**  {{ format_type(selected_hand_wheel)}}<br>
-моментные выключатели: **одинарный выключатель (1НЗ и 1НО) для каждого направления, гальванически не изолированы**<br>
-концевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>
-концевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>
-индикация положения: **механический указатель положения**<br>
+{#моментные выключатели: **одинарный выключатель (1НЗ и 1НО) для каждого направления, гальванически не изолированы**<br>#}
+{#путевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>#}
+{{ selected_end_switches_option.end_switches_option.display_name | default('Концевые выключатели') }}: **{{  selected_end_switches_option.end_switches_option.value | default('н/д') }}** {{ format_type(selected_end_switches_option)}}<br>
+{{ selected_way_switches_option.way_switches_option.display_name | default('Путевые выключатели') }}: **{{  selected_way_switches_option.way_switches_option.value | default('н/д') }}** {{ format_type(selected_way_switches_option)}}<br>
+{{ selected_torque_switches_option.torque_switches_option.display_name | default('Моментные выключатели') }}: **{{  selected_torque_switches_option.torque_switches_option.value | default('н/д') }}** {{ format_type(selected_torque_switches_option)}}<br>
+
+{#концевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>#}
+{#индикация положения: **механический указатель положения**<br>#}
 {{ selected_blinker_option.blinker_option.display_name | default('Блинкер') }}: **{{ selected_blinker_option.blinker_option.value | default('н/д') }}** {{ format_type(selected_blinker_option)}}<br>
 обогреватель: **в блоке выключателей 110 В-250 В перем./пост.тока**<br>
 кабельные вводы под небронированный кабель: **кол-во 3 (1-М20*1,5,1-М25*1,5,1-М32*1,5)**<br>

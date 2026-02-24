@@ -1182,6 +1182,119 @@ class BaseWaySwitchesThroughOption(BaseThroughOption) :
     def __str__(self) :
         return self.get_display_name()
 
+class BaseEndSwitchesThroughOption(BaseThroughOption) :
+    """Базовая модель для сквозных опций путевых выключателей"""
+    end_switches_option = models.ForeignKey(
+        'params.SwitchesParameters' ,
+        on_delete=models.CASCADE ,
+        verbose_name=_("Концевые выключатели") ,
+        help_text=_("Концевые выключатели")
+    )
+
+    class Meta :
+        abstract = True
+        ordering = ['sorting_order']
+
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для конечных выключателей"""
+        data = {
+            'end_switches_option' : {'display_name' : 'Концевые выключатели' , 'value' : self.end_switches_option.name if self.end_switches_option else None} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную WaySwitches)"""
+        from django.apps import apps
+
+        SwitchesParameters = apps.get_model('params' , 'SwitchesParameters')  # Ленивая загрузка
+
+        try :
+            no_end_switches_option = SwitchesParameters.objects.get(code='none')
+        except SwitchesParameters.DoesNotExist :
+            no_end_switches_option = SwitchesParameters.objects.filter(is_active=True).first()
+
+        if no_end_switches_option :
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field : parent_obj} ,
+                end_switches_option=no_end_switches_option ,
+                encoding='' ,
+                description=no_end_switches_option.description ,
+                is_default=True ,
+                sorting_order=0 ,
+                is_active=True
+            )
+        return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для путевых выключателей"""
+        if self.end_switches_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.end_switches_option.name})"
+            return self.end_switches_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
+
+class BaseTorqueSwitchesThroughOption(BaseThroughOption) :
+    """Базовая модель для сквозных опций путевых выключателей"""
+    torque_switches_option = models.ForeignKey(
+        'params.SwitchesParameters' ,
+        on_delete=models.CASCADE ,
+        verbose_name=_("Моментные выключатели") ,
+        help_text=_("Моментные выключатели")
+    )
+
+    class Meta :
+        abstract = True
+        ordering = ['sorting_order']
+
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для конечных выключателей"""
+        data = {
+            'torque_switches_option' : {'display_name' : 'Моментные выключатели' , 'value' : self.torque_switches_option.name if self.torque_switches_option else None} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную WaySwitches)"""
+        from django.apps import apps
+
+        SwitchesParameters = apps.get_model('params' , 'SwitchesParameters')  # Ленивая загрузка
+
+        try :
+            no_torque_switches_option = SwitchesParameters.objects.get(code='none')
+        except SwitchesParameters.DoesNotExist :
+            no_torque_switches_option = SwitchesParameters.objects.filter(is_active=True).first()
+
+        if no_torque_switches_option :
+            parent_field = cls._get_parent_field_name()
+            return cls.objects.create(
+                **{parent_field : parent_obj} ,
+                torque_switches_option=no_torque_switches_option ,
+                encoding='' ,
+                description=no_torque_switches_option.description ,
+                is_default=True ,
+                sorting_order=0 ,
+                is_active=True
+            )
+        return None
+
+    def get_display_name(self) :
+        """Отображаемое имя для путевых выключателей"""
+        if self.torque_switches_option :
+            if self.encoding and self.encoding.strip() :
+                return f"{self.encoding} ({self.torque_switches_option.name})"
+            return self.torque_switches_option.name
+        return "Не указано"
+
+    def __str__(self) :
+        return self.get_display_name()
 
 class BaseOperatingModeThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций режима работы двигателя"""

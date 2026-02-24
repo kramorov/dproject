@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 3. Карта соответствия полей и ключей API
     const fieldToApiKeyMap = {
+        'selected_safety_position': 'temperature_options',
         'selected_temperature': 'temperature_options',
         'selected_ip': 'ip_options',
         'selected_exd': 'exd_options',
@@ -34,6 +35,9 @@ document.addEventListener('DOMContentLoaded', function () {
         'selected_power_supply': 'power_supply_options',
         'selected_control_unit_option': 'control_unit_option_options',
         'selected_body_color_option': 'body_color_option_options',
+        'selected_end_switches_option': 'end_switches_option_options',
+        'selected_way_switches_option': 'way_switches_option_options',
+        'selected_torque_switches_option': 'torque_switches_option_options',
     };
 
     // 4. Функция для получения доступных опций блоков управления

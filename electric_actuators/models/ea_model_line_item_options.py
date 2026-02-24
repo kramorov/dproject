@@ -48,7 +48,7 @@ class ElectricSafetyPositionOption(BaseThroughOption):
 
     class Meta:
         verbose_name = _("Положение безопасности модели электропривода")
-        verbose_name_plural = _("Положения безопасности моделей лектроприводов")
+        verbose_name_plural = _("Положения безопасности моделей электроприводов")
         ordering = ['sorting_order']
         # unique_together = ['power_supply_option', 'safety_position']
 
@@ -61,7 +61,9 @@ class ElectricSafetyPositionOption(BaseThroughOption):
             'safety_position': {'display_name':'Положение безопасности', 'value':self.safety_position.name if self.safety_position else None},
             'is_default': {'display_name':'Стандарт', 'value':self.is_default},
         }
+
         return data
+
 class ElectricControlUnitOption(BaseThroughOption):
     """Through-модель для блоков управления с encoding и дефолтами"""
 

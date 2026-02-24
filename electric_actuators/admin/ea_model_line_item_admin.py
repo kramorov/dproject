@@ -6,7 +6,8 @@ from django.db import transaction
 
 import logging
 
-from electric_actuators.models import ElectricWaySwitchesOption
+from electric_actuators.models import ElectricWaySwitchesOption , ElectricEndSwitchesOption , \
+    ElectricTorqueSwitchesOption
 from electric_actuators.models.ea_model_line_item import (
     ElectricActuatorModelLineItem ,
 
@@ -98,6 +99,55 @@ class ElectricWaySwitchesOptionInline(admin.TabularInline) :
         formset.model.__str__ = safe_str
         return formset
 
+class ElectricEndSwitchesOptionInline(admin.TabularInline) :
+    """Inline для напряжения питания"""
+    model = ElectricEndSwitchesOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['end_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Конечные выключатели")
+    verbose_name_plural = _("Опции конечных выключателей")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+
+        # Патчим метод __str__ для формы
+        original_str = formset.model.__str__
+
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__: {e}")
+                return "Новая опция"
+
+        formset.model.__str__ = safe_str
+        return formset
+class ElectricTorqueSwitchesOptionInline(admin.TabularInline) :
+    """Inline для напряжения питания"""
+    model = ElectricTorqueSwitchesOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['torque_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Моментные выключатели")
+    verbose_name_plural = _("Опции моментных выключателей")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+
+        # Патчим метод __str__ для формы
+        original_str = formset.model.__str__
+
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__: {e}")
+                return "Новая опция"
+
+        formset.model.__str__ = safe_str
+        return formset
+
 @admin.register(ElectricActuatorModelLineItem)
 class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
     """Админка для моделей в серии электроприводов"""
@@ -147,6 +197,8 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
             )
         }) ,
     )
+
+    inlines = [ElectricEndSwitchesOptionInline,ElectricWaySwitchesOptionInline,ElectricTorqueSwitchesOptionInline]
     # ========== АВТОДОПОЛНЕНИЕ И ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР ==========
     autocomplete_fields = ['model_line' , 'body']
 
