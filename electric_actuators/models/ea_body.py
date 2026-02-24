@@ -203,9 +203,9 @@ class ElectricActuatorBody(models.Model) :
             'mounting_plate': {'display_name':'Монтажные площадки', 'value':self.mounting_plate_display},
             'stem_shape': {'display_name':'Форма отверстия под шток', 'value':self.stem_shape.name if self.stem_shape else None},
             'stem_size': {'display_name':'Размер отверстия под шток', 'value':self.stem_size.name if self.stem_size else None},
-            'max_stem_height': {'display_name':'Максимальная высота штока', 'value':self.max_stem_height if self.max_stem_height else None},
-            'max_stem_diameter': {'display_name':'Максимально возможный диаметр штока', 'value':self.max_stem_diameter if self.max_stem_diameter else None},
-            'weight_body': {'display_name':'Вес корпуса', 'value':self.weight_body if self.weight_body else None},
+            'max_stem_height': {'display_name':'Максимальная высота штока, мм', 'value':self.max_stem_height if self.max_stem_height else None},
+            'max_stem_diameter': {'display_name':'Максимально возможный диаметр штока, мм', 'value':self.max_stem_diameter if self.max_stem_diameter else None},
+            'weight_body': {'display_name':'Вес корпуса, кг', 'value':self.weight_body if self.weight_body else None},
         }
         # print(data)
         return data

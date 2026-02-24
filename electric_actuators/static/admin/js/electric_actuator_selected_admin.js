@@ -27,12 +27,13 @@ document.addEventListener('DOMContentLoaded', function () {
         'selected_ip': 'ip_options',
         'selected_exd': 'exd_options',
         'selected_body_coating': 'body_coating_options',
+        'selected_turn_angle_option': 'turn_angle_option_options',
         'selected_hand_wheel': 'hand_wheel_options',
-        'selected_mechanical_indicator': 'selected_mechanical_indicator_options',
-        'selected_blinker_option': 'selected_blinker_options',
+        'selected_mechanical_indicator_option': 'mechanical_indicator_option_options',
+        'selected_blinker_option': 'blinker_option_options',
         'selected_power_supply': 'power_supply_options',
         'selected_control_unit_option': 'control_unit_option_options',
-        'selected_body_color_option': 'body_color_options',
+        'selected_body_color_option': 'body_color_option_options',
     };
 
     // 4. Функция для получения доступных опций блоков управления

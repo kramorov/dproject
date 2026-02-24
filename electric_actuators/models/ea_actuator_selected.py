@@ -143,14 +143,14 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
     )
 
     selected_mechanical_indicator_option = models.ForeignKey(
-        'params.MechanicalIndicatorInstalledOption',
+        'ElectricMechanicalIndicatorOption',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         verbose_name=_("Механический индикатор"),
         help_text=_("Выбранный механический индикатор с кодировкой")
     )
     selected_blinker_option = models.ForeignKey(
-        'params.BlinkerOption' ,
+        'ElectricBlinkerOption' ,
         on_delete=models.SET_NULL ,
         null=True , blank=True ,
         verbose_name=_("Блинкер") ,
@@ -158,7 +158,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
     )
 
     selected_body_color_option = models.ForeignKey(
-        'params.BodyColor' ,
+        'ElectricBodyColorOption' ,
         on_delete=models.SET_NULL ,
         null=True , blank=True ,
         verbose_name=_("Цвет") ,
@@ -782,8 +782,14 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         if self.selected_body_coating:
             data['selected_body_coating'] = self.selected_body_coating.get_description_data()
 
+        if self.selected_body_color_option:
+            data['selected_body_color_option'] = self.selected_body_color_option.get_description_data()
+
         if self.selected_hand_wheel:
             data['selected_hand_wheel'] = self.selected_hand_wheel.get_description_data()
+
+        if self.selected_blinker_option:
+            data['selected_blinker_option'] = self.selected_blinker_option.get_description_data()
 
         if self.selected_turn_angle_option:
             data['selected_turn_angle_option'] = self.selected_turn_angle_option.get_description_data()

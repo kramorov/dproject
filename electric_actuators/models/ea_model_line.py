@@ -479,6 +479,8 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         """Список всех опций покрытия корпуса"""
         return self.body_coating_options.all()
 
+
+
     @property
     def blinker_options_list(self) :
         """Список всех опций блинкера"""
@@ -541,6 +543,10 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
         from .ea_options import ElectricHandWheelOption
         return ElectricHandWheelOption.get_or_create_default(self)
 
+    def get_default_body_color_option(self) :
+        """Получить стандартную опцию ручного дублера"""
+        from .ea_options import ElectricBodyColorOption
+        return ElectricBodyColorOption.get_or_create_default(self)
     # ==================== ОТОБРАЖАЕМЫЕ СВОЙСТВА ====================
 
     @property
@@ -597,8 +603,13 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
 
     @property
     def hand_wheel_options_list(self) :
-        """Список всех опций ручного дулера"""
+        """Список всех опций ручного дублера"""
         return self.hand_wheel_options.all()
+
+    @property
+    def body_color_options_list(self):
+        """Список всех опций ручного дублера"""
+        return self.body_color_options.all()
 
     def get_option_info(self) :
         """Полная информация о всех опциях серии"""
@@ -623,6 +634,11 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
                 if self.get_default_body_coating_option() else None ,
                 'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
             } ,
+            'body_color': {
+                'default': self.get_default_body_color_option().get_option_info()
+                if self.get_default_body_color_option() else None,
+                'options': [opt.get_option_info() for opt in self.body_color_options_list]
+            },
             'blinker' : {
                 'default' : self.get_default_blinker_option().get_option_info()
                 if self.get_default_blinker_option() else None ,

@@ -669,45 +669,47 @@ class BaseColorThroughOption(BaseThroughOption) :
         abstract = True
         ordering = ['sorting_order']
 
-    def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для цвета"""
-        data = {
-            'color_option' : {'display_name' : 'Цвет корпуса' , 'value' : self.color_option.get_ral_name_ru if self.color_option else None} ,
-            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
-        }
-        return data
+
 
     @classmethod
     def create_default_option(cls , parent_obj) :
         """Создать стандартную Exd опцию (STD)"""
         from django.apps import apps
 
-        ExdOption = apps.get_model('params' , 'ExdOption')  # Ленивая загрузка
+        BodyColorOption = apps.get_model('params' , 'BodyColor')  # Ленивая загрузка
 
         try :
-            std_option = ExdOption.objects.get(code='STD')
-        except ExdOption.DoesNotExist :
-            std_option = ExdOption.objects.filter(is_active=True).first()
+            std_option = BodyColorOption.objects.get(code='STD')
+        except BodyColorOption.DoesNotExist :
+            std_option = BodyColorOption.objects.filter(is_active=True).first()
 
         if std_option :
             parent_field = cls._get_parent_field_name()
             return cls.objects.create(
                 **{parent_field : parent_obj} ,
-                exd_option=std_option ,
+                color_option=std_option ,
                 encoding='STD' ,
-                description='Стандартное исполнение взрывозащиты' ,
+                description='Стандартный цвет корпуса' ,
                 is_default=True ,
                 sorting_order=0 ,
                 is_active=True
             )
         return None
+    def get_description_data(self) -> Dict[str , Any] :
+        """Получить структурированные данные для цвета"""
+        data = {
+            'color_option' : {'display_name' : 'Цвет корпуса' , 'value' : self.color_option.get_ral_name_ru if self.color_option else None,
+                              'hex_value':self.color_option.hex_code if self.color_option else None} ,
+            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
+        }
+        return data
 
     def get_display_name(self) :
         """Отображаемое имя для взрывозащиты"""
-        if self.exd_option :
+        if self.color_option :
             if self.encoding and self.encoding.strip() :
-                return f"{self.encoding} ({self.exd_option.name})"
-            return self.exd_option.name
+                return f"{self.encoding} ({self.color_option.name})"
+            return self.color_option.name
         return "Не указано"
 
     def __str__(self) :
@@ -1048,7 +1050,7 @@ class BaseBlinkerThroughOption(BaseThroughOption) :
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для блинкера"""
         data = {
-            'blinker_option' : {'display_name' : 'Тип установленного блинкера' , 'value' : self.blinker_option.name if self.blinker_option else None} ,
+            'blinker_option' : {'display_name' : 'Блинкер (мигающий индикатор работы привода)' , 'value' : self.blinker_option.name if self.blinker_option else None} ,
             'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
         }
         return data

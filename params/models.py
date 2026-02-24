@@ -1399,13 +1399,13 @@ class BodyColor(models.Model):
     @property
     def get_ral_name_ru(self) :
         if self.ral_name_ru :
-            return f"{self.ral_name_ru} RAL({self.ral_code})"
+            return f"{self.ral_name_ru} (RAL{self.ral_code})"
         return self.name
 
     @property
     def get_ral_name_en(self) :
         if self.ral_name_en :
-            return f"{self.ral_name_en} RAL({self.ral_code})"
+            return f"{self.ral_name_en} (RAL{self.ral_code})"
         return self.name
 
     def get_color_display(self) :
@@ -1413,7 +1413,13 @@ class BodyColor(models.Model):
         if self.hex_code :
             return f'<span style="display: inline-block; width: 20px; height: 20px; background-color: {self.hex_code}; border: 1px solid #ccc; margin-right: 5px;"></span>{self.name}'
         return self.name
-
+    #
+    # def get_description_data(self) -> Dict[str , Any] :
+    #     """Получить структурированные данные для цвета"""
+    #     data = {
+    #         'color_option' : {'display_name' : 'Цвет корпуса' , 'value' : self.color_option.get_ral_name_ru if self.color_option else None} ,
+    #     }
+    #     return data
 
 class ValveFunctionVariety(models.Model):
     """ Тип арматуры - регулирующая, запорная"""

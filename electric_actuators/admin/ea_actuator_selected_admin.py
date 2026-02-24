@@ -42,25 +42,29 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
     ]
 
     fieldsets = (
-        (None , {
-            'fields' : (('selected_model_line_item' , 'selected_power_supply') , ('name' , 'code'))
-        }) ,
-        ('Опции' , {
-            'fields' : (
-                ('selected_temperature' , 'selected_ip') ,
-                ('selected_exd' , 'selected_body_coating') ,
-                (('selected_hand_wheel' , 'selected_control_unit_option') ,
-                 ('selected_mechanical_indicator_option' , 'selected_blinker_option') , 'selected_body_color_option') ,
+        (None, {
+            'fields': (
+                ('selected_model_line_item', 'selected_power_supply'),
+                ('name', 'code')
             )
-        }) ,
-        ('Монтажная площадка и кабельные вводы под заказ' , {
-            'fields' : (
-                ('actual_mounting_plate' , 'actual_stem_shape' , 'actual_stem_size') ,
-                'actual_cable_glands_holes' ,
+        }),
+        ('Опции', {
+            'fields': (
+                ('selected_temperature', 'selected_ip'),
+                ('selected_exd', 'selected_body_coating'),
+                ('selected_hand_wheel', 'selected_control_unit_option'),
+                ('selected_mechanical_indicator_option', 'selected_blinker_option'),
+                'selected_body_color_option',
             )
-        }) ,
-        ('Описание' , {
-            'fields' : ('description' ,)
+        }),
+        ('Монтажная площадка и кабельные вводы под заказ', {
+            'fields': (
+                ('actual_mounting_plate', 'actual_stem_shape', 'actual_stem_size'),
+                'actual_cable_glands_holes',
+            )
+        }),
+        ('Описание', {
+            'fields': ('description',)  # обратите внимание на запятую
         })
     )
 

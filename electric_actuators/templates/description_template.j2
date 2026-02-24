@@ -41,8 +41,7 @@
         margin-right: 5px;
         vertical-align: middle;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    " title="#{{ clean_hex }}"></span>
-    <span style="font-family: monospace; color: #666;">#{{ clean_hex }}</span>
+      " title="#{{ clean_hex }}"></span>
 {% endmacro %}
 {#{% macro option_row(display_name, value, is_default) %}#}
 {#    {% if display_name and value %}#}
@@ -69,12 +68,10 @@
 {{ selected_body_coating.body_coating_option.display_name | default('selected_body_coating.body_coating_option') }}: **{{ selected_body_coating.body_coating_option.value | default('н/д')}}**  {{ format_type(selected_body_coating)}}<br>
 {# защита от коррозии: KS подходит для установки во временно или постоянно агрессивных средах, общая толщина слоя 140 мкм #}
 {# цвет: верхнее покрытие стандартным цветом для защиты от коррозии (синий схожий с RAL5010)  #}
-Цвет корпуса: {{  color_square(20, '#004f7c')  }} (RAL 5010 Генцианово-синий)<br>
+{{ selected_body_color_option.color_option.display_name | default('Цвет корпуса') }}: {% if selected_body_color_option.color_option.hex_value %} {{  color_square(20, selected_body_color_option.color_option.hex_value)  }} {% endif %} **{{ selected_body_color_option.color_option.value | default('н/д') }}** {{ format_type(selected_body_color_option)}}<br>
 {% if selected_control_unit_option.is_installed %}
     {% if selected_control_unit_option is defined and selected_control_unit_option %}
 {{ selected_control_unit_option.control_unit.display_name | default('Тип установленного блока управления') }}: **{{ selected_control_unit_option.control_unit.value | default('н/д') }}** {{ format_type(selected_control_unit_option)}}<br>
-    {% else %}
-Блок управления: **не установлен**<br>
     {% endif %}
 {% endif %}
 {# РУчной дублер #}
@@ -83,7 +80,7 @@
 концевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>
 концевые выключатели: **одинарные выключатели (1НЗ и 1НО) для каждого конечного положения, гальванически не изолированы**<br>
 индикация положения: **механический указатель положения**<br>
-блинкер: **блинкер для индикации работы**<br>
+{{ selected_blinker_option.blinker_option.display_name | default('Блинкер') }}: **{{ selected_blinker_option.blinker_option.value | default('н/д') }}** {{ format_type(selected_blinker_option)}}<br>
 обогреватель: **в блоке выключателей 110 В-250 В перем./пост.тока**<br>
 кабельные вводы под небронированный кабель: **кол-во 3 (1-М20*1,5,1-М25*1,5,1-М32*1,5)**<br>
 защита электродвигателя: **термовыключатель (НЗ)**<br>
