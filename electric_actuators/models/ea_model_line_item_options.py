@@ -129,15 +129,16 @@ class ElectricControlUnitOption(BaseThroughOption):
     def clean(self):
         """Валидация перед сохранением"""
         # Убедимся что encoding уникален в рамках power_supply_option
-        if self.encoding and self.power_supply_option:
-            exists = ElectricControlUnitOption.objects.filter(
-                power_supply_option=self.power_supply_option,
-                encoding=self.encoding
-            ).exclude(pk=self.pk).exists()
-            if exists:
-                raise ValidationError({
-                    'encoding': _('Кодировка должна быть уникальной для данного напряжения')
-                })
+        # if self.encoding and self.power_supply_option:
+        #     exists = ElectricControlUnitOption.objects.filter(
+        #         power_supply_option=self.power_supply_option,
+        #         encoding=self.encoding
+        #     ).exclude(pk=self.pk).exists()
+        #     if exists:
+        #         raise ValidationError({
+        #             'encoding': _('Кодировка должна быть уникальной для данного напряжения')
+        #         })
+        return
 
 class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
     """Опции напряжения питания для модели в серии электроприводов"""
@@ -259,11 +260,18 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        """Сохранение с установкой encoding и валидацией"""
+        """Сохранение с установкой encoding и валидацией
 
-        # Автоматически устанавливаем encoding из имени power_supply
-        if self.power_supply and self.model_line_item and self.encoding:
-            self.encoding = str(self.power_supply.encoding)
+        Параметры:
+            preserve_encoding (bool): Если True - сохраняет текущий encoding без изменений
+                                       Если False или не указан - автоматически устанавливает из power_supply
+        """
+        # Извлекаем наш кастомный параметр из kwargs
+        preserve_encoding = kwargs.pop('preserve_encoding', False)
+        if not preserve_encoding :
+            # Автоматически устанавливаем encoding из имени power_supply
+            if self.power_supply and self.model_line_item and self.encoding:
+                self.encoding = str(self.power_supply.encoding)
 
         # Если encoding слишком длинный, обрезаем его
         if self.encoding and len(self.encoding) > 50:
@@ -287,29 +295,125 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
             return f"{self.model_line_item.name}.{self.power_supply.encoding}"
         return super().__str__()
 
-    def create_copy(self, new_model_line_item=None):
-        """Создать копию этой опции"""
-        # Создаем новый объект
-        copy_kwargs = {
-            'model_line_item': new_model_line_item if new_model_line_item else self.model_line_item,
-            'power_supply': self.power_supply,
-            'encoding': self.encoding,
-            'motor_current_rated': self.motor_current_rated,
-            'motor_current_starting': self.motor_current_starting,
-            'motor_power': self.motor_power,
-            'time_to_open': self.time_to_open,
-            'time_to_close': self.time_to_close,
-            'torque_min': self.torque_min,
-            'torque_max': self.torque_max,
-            'description': self.description,
-            'is_active': self.is_active,
-            'sorting_order': self.sorting_order,
-        }
+    def create_copy(self) :
+        """Создать копию элемента с добавлением ' Копия' к name и code"""
+        import logging
+        logger = logging.getLogger(__name__)
 
-        # Удаляем None значения чтобы не перезаписать дефолты
-        copy_kwargs = {k: v for k, v in copy_kwargs.items() if v is not None}
+        logger.info(f"=" * 50)
+        logger.info(f"НАЧАЛО КОПИРОВАНИЯ ОПЦИИ ПИТАНИЯ ID: {self.id}")
+        logger.info(f"Исходный объект: {self.display_name() if hasattr(self , 'display_name') else self}")
 
-        new_option = self.__class__(**copy_kwargs)
-        new_option.save()
+        # Создаем копию объекта
+        copy_obj = ElectricPowerSupplyOption()
+        logger.info(f"Создан пустой объект-копия")
 
-        return new_option
+        # Копируем все поля кроме первичного ключа
+        for field in self._meta.fields :
+            if field.name not in ['id' , 'pk'] :
+                old_value = getattr(self , field.name)
+                setattr(copy_obj , field.name , old_value)
+                logger.debug(f"  Поле {field.name}: '{old_value}' скопировано")
+
+        # Обрабатываем encoding
+        if copy_obj.encoding :
+            if not copy_obj.encoding.endswith('_copy') :
+                old_encoding = copy_obj.encoding
+                copy_obj.encoding = f"{copy_obj.encoding}_copy"
+                logger.info(f"  Encoding изменен: '{old_encoding}' -> '{copy_obj.encoding}'")
+        else :
+            copy_obj.encoding = f"copy_{self.id}"
+            logger.info(f"  Encoding установлен: '{copy_obj.encoding}'")
+
+        # Сохраняем копию
+        copy_obj.save(preserve_encoding=True)
+        logger.info(f"Копия сохранена с ID: {copy_obj.id}")
+        logger.info(f"  model_line_item ID в копии: {copy_obj.model_line_item_id}")
+
+        # Копируем связанные опции
+        logger.info(f"НАЧАЛО КОПИРОВАНИЯ СВЯЗАННЫХ ОПЦИЙ")
+        result = self._copy_related_options(copy_obj)
+        logger.info(f"Скопировано связанных опций: {result.get('copied_objects' , 0)}")
+
+        logger.info(f"КОПИРОВАНИЕ ЗАВЕРШЕНО. Итоговый объект ID: {copy_obj.id}")
+        logger.info(f"=" * 50)
+
+        return copy_obj
+
+    def _copy_related_options(self , copy_obj) :
+        """
+        Копировать связанные опции (ElectricControlUnitOption) для скопированной опции питания
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"  _copy_related_options: target copy_obj ID = {copy_obj.id}")
+        logger.info(f"  _copy_related_options: исходная опция питания ID = {self.id}")
+
+        # Правильный related_name из модели ElectricControlUnitOption
+        related_name = 'ea_model_lene_item_options_power_supply_options'
+
+        try :
+            # Проверяем, есть ли связанные объекты
+            if not hasattr(self , related_name) :
+                logger.error(f"  У объекта нет атрибута {related_name}")
+                # Покажем все доступные атрибуты для отладки
+                attrs = [attr for attr in dir(self) if not attr.startswith('_') and 'power' in attr.lower()]
+                logger.info(f"  Доступные атрибуты с 'power': {attrs}")
+                return {'total_relations' : 0 , 'copied_objects' : 0}
+
+            related_manager = getattr(self , related_name)
+            related_qs = related_manager.all()
+
+            logger.info(f"  Найдено блоков управления: {related_qs.count()}")
+
+            # Выведем их для отладки
+            for obj in related_qs :
+                logger.info(f"    - ID: {obj.id}, encoding: {obj.encoding}")
+
+            if not related_qs.exists() :
+                logger.info(f"  Нет связанных блоков управления для копирования")
+                return {'total_relations' : 0 , 'copied_objects' : 0}
+
+            copied_count = 0
+            for original_obj in related_qs :
+                try :
+                    logger.info(
+                        f"    Копирование блока управления ID: {original_obj.id}, encoding: {original_obj.encoding}")
+
+                    # Создаем копию
+                    new_obj = ElectricControlUnitOption()
+
+                    # Копируем все поля кроме первичного ключа
+                    for field in original_obj._meta.fields :
+                        if field.name not in ['id' , 'pk'] :
+                            # Если это ForeignKey на опцию питания, заменяем на copy_obj
+                            if (isinstance(field , models.ForeignKey) and
+                                    field.related_model == ElectricPowerSupplyOption) :
+                                setattr(new_obj , field.name , copy_obj)
+                                logger.info(f"      Поле {field.name} установлено на copy_obj ID: {copy_obj.id}")
+                            else :
+                                setattr(new_obj , field.name , getattr(original_obj , field.name))
+
+                    # Добавляем суффикс к encoding для уникальности (если нужно)
+                    # if new_obj.encoding and not new_obj.encoding.endswith('_copy') :
+                    #     new_obj.encoding = f"{new_obj.encoding}_copy"
+
+                    # Сохраняем
+                    new_obj.save()
+                    copied_count += 1
+                    logger.info(f"      СОЗДАН НОВЫЙ БЛОК УПРАВЛЕНИЯ ID: {new_obj.id}")
+
+                except Exception as e :
+                    logger.error(f"    Ошибка при копировании блока управления {original_obj.id}: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+
+            logger.info(f"Копирование завершено. Скопировано блоков управления: {copied_count}")
+            return {'total_relations' : 1 , 'copied_objects' : copied_count}
+
+        except Exception as e :
+            logger.error(f"  Ошибка при получении связанных блоков управления: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return {'total_relations' : 0 , 'copied_objects' : 0}

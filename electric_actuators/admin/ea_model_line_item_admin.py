@@ -161,7 +161,7 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
         'sorting_order' ,
     ]
 
-    list_editable = ['sorting_order']
+    list_editable = ['code' ,'sorting_order']
     list_display_links = ['name']
 
     list_filter = [

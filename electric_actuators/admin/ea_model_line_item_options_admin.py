@@ -3,10 +3,41 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
+from django.db import transaction
 from django.utils.html import format_html
 from typing import List, Optional, Tuple, Any, Dict, Union
 from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption, ElectricControlUnitOption
+import logging
+logger = logging.getLogger(__name__)
 
+# def copy_power_option_action(modeladmin , request , queryset) :
+#     """Копировать выбранные модели электроприводов"""
+#     success_count = 0
+#     error_count = 0
+#
+#     for original_item in queryset :
+#         try :
+#             with transaction.atomic() :
+#                 # Используем метод create_copy модели
+#                 copy_item = original_item.create_copy()
+#                 success_count += 1
+#                 logger.info(f"Скопирована опция: {original_item.display_name} -> {copy_item.display_name}")
+#
+#         except Exception as e :
+#             error_count += 1
+#             logger.error(f"Ошибка копирования {original_item}: {e}" , exc_info=True)
+#             messages.error(
+#                 request ,
+#                 f"Ошибка при копировании '{original_item.display_name}': {str(e)[:100]}"
+#             )
+#
+#     if success_count > 0 :
+#         messages.success(request , f"Успешно скопировано {success_count} моделей.")
+#     if error_count > 0 :
+#         messages.warning(request , f"Не удалось скопировать {error_count} моделей.")
+#
+#
+# copy_power_option_action.short_description = _("Копировать выбранные опции")
 
 class ElectricControlUnitOptionInline(admin.TabularInline):
     """Inline для опций блоков управления"""
@@ -105,10 +136,11 @@ copy_electric_power_supply_option.short_description = "📋 Копировать
 
 @admin.register(ElectricPowerSupplyOption)
 class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
-    list_display = ('display_name','display_params',)
-    list_filter = ('model_line_item', 'power_supply', 'is_active')
+    list_display = ('display_name', 'id', 'encoding', 'display_params','sorting_order','is_active')
+    list_filter = ('model_line_item__model_line','model_line_item', 'power_supply', 'is_active')
+    list_editable = ['sorting_order', 'is_active']
     search_fields = ('model_line_item__name', 'power_supply__name', 'encoding')
-    ordering = ('model_line_item', 'sorting_order')
+    ordering = ('sorting_order', 'model_line_item', )
 
     fieldsets = (
         (None, {
@@ -141,7 +173,10 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
     )
     inlines = [ElectricControlUnitOptionInline]
     # Добавляем кастомные методы для отображения в списке
+    actions = [
+        copy_electric_power_supply_option
 
+    ]
 
 
     # Оптимизация запросов

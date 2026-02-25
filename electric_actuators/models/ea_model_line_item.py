@@ -220,8 +220,8 @@ class ElectricActuatorModelLineItem(models.Model) :
                     # Добавляем суффикс к encoding для уникальности (если есть)
                     if hasattr(new_obj, 'encoding') and new_obj.encoding:
                         old_encoding = new_obj.encoding
-                        new_obj.encoding = f"{new_obj.encoding}_copy"
-                        logger.debug(f"    Encoding изменен: '{old_encoding}' -> '{new_obj.encoding}'")
+                        new_obj.encoding = f"{new_obj.encoding}"
+                        # logger.debug(f"    Encoding изменен: '{old_encoding}' -> '{new_obj.encoding}'")
 
                     # Сохраняем копию
                     new_obj.save()
