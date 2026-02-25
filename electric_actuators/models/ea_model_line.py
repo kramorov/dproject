@@ -47,14 +47,14 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
     code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
                             help_text=_("Код серии приводов"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
-                                   help_text=_('Текстовое описание модели корпуса привода'))
+                                   help_text=_('Текстовое описание серии электроприводов'))
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
                                     help_text=_('Активно свойство или нет'))
     model_item_code_template = models.CharField(max_length=500 , blank=True , null=True ,
                                                 verbose_name=_("Шаблон артикула") ,
-                                                help_text=_('Шаблон артикула для конкретной модели серии'))
+                                                help_text=_('Шаблон артикула для конкретной модели в серии'))
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='electric_model_line_brand' ,
                               on_delete=models.SET_NULL ,
@@ -73,6 +73,9 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
                                verbose_name=_('Режим работы') ,
                                help_text=_('Возможные для выбора режимы работы двигателя для серии (можно выбрать '
                                            'несколько)'))
+    motor_thermal_protection = models.CharField(max_length=200, blank=True , null=True ,
+                            verbose_name=_("Теплозащита"),
+                            help_text=_('Тепловая защита двигателя'))
 
     class Meta :
         ordering = ['sorting_order']
@@ -99,7 +102,9 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
             'default_output_type' : {'display_name' : 'Тип привода' ,
                                      'value' : self.default_output_type.name if self.default_output_type else None} ,
             'brand' : {'display_name' : 'Бренд' , 'value' : self.brand.name if self.brand else None},
-            'operating_mode' : {'display_name' : 'Режим работы привода' , 'value' : self.operating_mode_display if self.brand else None}
+            'operating_mode' : {'display_name' : 'Режим работы привода' , 'value' : self.operating_mode_display if self.operating_mode_display else None},
+            'motor_thermal_protection': {'display_name': 'Тепловая защита двигателя',
+                               'value': self.motor_thermal_protection if self.motor_thermal_protection else None}
         }
         # print(data)
         return data

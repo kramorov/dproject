@@ -749,6 +749,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'brand': model_line_data['brand'],
             'default_output_type': model_line_data['default_output_type'],
             'operating_mode' : model_line_data['operating_mode'] ,
+            'motor_thermal_protection': model_line_data['motor_thermal_protection'],
             'cable_glands_holes': {
                 'display_name': 'Кабельные вводы',
                 'value': None,

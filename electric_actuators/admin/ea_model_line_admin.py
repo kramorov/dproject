@@ -84,7 +84,9 @@ def copy_related_options(original_obj, new_obj):
         ('exd_options', 'encoding'),
         ('body_coating_options', 'encoding'),
         ('blinker_options', 'encoding'),
+        # ('end_switches_options', 'encoding'),
         # ('way_switches_options', 'encoding'),
+        # ('torque_switches_options', 'encoding'),
         ('control_unit_options', 'encoding'),
         ('hand_wheel_options', 'encoding'),
         ('mechanical_indicator_options', 'encoding'),
@@ -509,7 +511,7 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         (_('Основная информация') , {
             'fields' : (
                 ('name' , 'code' , 'brand' , 'default_output_type') ,
-                'model_item_code_template' ,
+                'model_item_code_template' ,'motor_thermal_protection',
                 'description'
             )
         }) ,
