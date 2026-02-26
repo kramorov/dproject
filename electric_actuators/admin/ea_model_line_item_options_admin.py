@@ -141,7 +141,10 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
     list_editable = ['sorting_order', 'is_active']
     search_fields = ('model_line_item__name', 'power_supply__name', 'encoding')
     ordering = ('sorting_order', 'model_line_item', )
-
+    readonly_fields = (
+        'get_model_line_item_time_to_open',  # Добавляем в readonly поля
+        'get_model_line_item_time_to_close',
+    )
     fieldsets = (
         (None, {
             'fields': (
@@ -160,8 +163,8 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
         (_('Нестандартные характеристики для этой модели с этим напряжением'), {
             'fields': (
 
-                ('time_to_open',
-                 'time_to_close'),
+                ('time_to_open','get_model_line_item_time_to_open',
+                 'time_to_close','get_model_line_item_time_to_close',),
                 ('torque_min',
                  'torque_max')
             )
@@ -177,7 +180,22 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
         copy_electric_power_supply_option
 
     ]
+    def get_model_line_item_time_to_open(self, obj):
+        """Получить time_to_open из серии"""
+        if obj.model_line_item:
+            # print(f'model_line_item={obj.model_line_item}, time_to_open={obj.model_line_item.time_to_open}')
+            return obj.model_line_item.time_to_open
+        return "—"
 
+    get_model_line_item_time_to_open.short_description = _('Время открытия (из серии)')
+
+    def get_model_line_item_time_to_close(self, obj):
+        """Получить time_to_close с указанием источника"""
+        if obj.model_line_item:
+            return obj.model_line_item.time_to_close
+        return "—"
+
+    get_model_line_item_time_to_close.short_description = _('Время закрытия (из серии)')
 
     # Оптимизация запросов
     def get_queryset(self , request) :
