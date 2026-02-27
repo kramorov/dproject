@@ -136,9 +136,10 @@ copy_electric_power_supply_option.short_description = "📋 Копировать
 
 @admin.register(ElectricPowerSupplyOption)
 class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
-    list_display = ('display_name', 'id', 'encoding', 'display_params','sorting_order','is_active')
-    list_filter = ('model_line_item__model_line','model_line_item', 'power_supply', 'is_active')
-    list_editable = ['sorting_order', 'is_active']
+    # list_display = ('id', 'display_name', 'encoding', 'display_params','sorting_order','is_active')
+    list_display = ('id', 'display_name', 'encoding', 'power_supply', 'model_line_item','motor_current_rated','motor_current_starting','motor_power', 'sorting_order', )
+    list_filter = ('model_line_item__model_line','model_line_item', 'model_line_item__body', 'power_supply', 'is_active')
+    list_editable = ['power_supply', 'model_line_item','motor_current_rated','motor_current_starting','motor_power','sorting_order']
     search_fields = ('model_line_item__name', 'power_supply__name', 'encoding')
     ordering = ('sorting_order', 'model_line_item', )
     readonly_fields = (
