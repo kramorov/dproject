@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'selected_end_switches_option': 'end_switches_option_options',
         'selected_way_switches_option': 'way_switches_option_options',
         'selected_torque_switches_option': 'torque_switches_option_options',
+        'selected_cable_glands_holes':'cg_set_options_through',
     };
 
     // 4. Функция для получения доступных опций блоков управления

@@ -52,7 +52,7 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
             'fields': (
                 ('selected_temperature', 'selected_exd', 'selected_ip',),
                 # ('selected_safety_position',),
-                ('selected_hand_wheel', 'selected_control_unit_option'),
+                ('selected_hand_wheel', 'selected_control_unit_option','selected_cable_glands_holes'),
                 ('selected_mechanical_indicator_option', 'selected_blinker_option'),
                 ('selected_body_color_option','selected_body_coating'),
                 ('selected_end_switches_option' , 'selected_way_switches_option' ,'selected_torque_switches_option' ,  ) ,

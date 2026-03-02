@@ -22,7 +22,7 @@ class ElectricSafetyPositionOption(BaseThroughOption):
     power_supply_option = models.ForeignKey(
         'ElectricPowerSupplyOption',
         on_delete=models.CASCADE,
-        related_name='control_unit_options',
+        related_name='safety_position_power_supply_option',
         verbose_name=_("Опция напряжения питания")
     )
     safety_position = models.ForeignKey(

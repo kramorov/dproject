@@ -96,13 +96,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_('Выбранная опция взрывозащиты')
     )
 
-    selected_body_coating = models.ForeignKey(
-        'ElectricBodyCoatingOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Покрытие корпуса"),
-        help_text=_('Выбранное покрытие корпуса')
-    )
+
 
     selected_hand_wheel = models.ForeignKey(
         'ElectricHandWheelOption',
@@ -127,13 +121,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Напряжение"),
         help_text=_('Напряжение питания')
     )
-    selected_cable_glands_holes = models.ForeignKey(
-        'CableGlandHolesSetBodyOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Кабельные вводы"),
-        help_text=_('Отверстия под кабельные вводы')
-    )
+
     selected_control_unit_option = models.ForeignKey(
         'ElectricControlUnitOption',
         on_delete=models.SET_NULL,
@@ -156,13 +144,27 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Блинкер") ,
         help_text=_("Тип установленного блинкера")
     )
-
+    selected_body_coating = models.ForeignKey(
+        'ElectricBodyCoatingOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Покрытие корпуса") ,
+        help_text=_('Выбранное покрытие корпуса')
+    )
     selected_body_color_option = models.ForeignKey(
         'ElectricBodyColorOption' ,
         on_delete=models.SET_NULL ,
         null=True , blank=True ,
         verbose_name=_("Цвет") ,
         help_text=_("Цвет корпуса")
+    )
+
+    selected_cable_glands_holes = models.ForeignKey(
+        'CableGlandHolesSetBodyOption' ,
+        on_delete=models.SET_NULL ,
+        null=True , blank=True ,
+        verbose_name=_("Кабельные вводы") ,
+        help_text=_('Отверстия под кабельные вводы')
     )
     selected_end_switches_option = models.ForeignKey(
         'ElectricEndSwitchesOption' ,
@@ -242,6 +244,12 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'parent_field': 'model_line',
             'model_path': 'electric_actuators.models.ea_options.ElectricBodyCoatingOption'
         },
+        'selected_cable_glands_holes' : {
+            'model_class' : 'CableGlandHolesSetBodyOption' ,
+            'label' : 'кабельные вводы' ,
+            'parent_field' : 'model_body' ,
+            'model_path' : 'electric_actuators.models.ea_options.CableGlandHolesSetBodyOption'
+        } ,
         'selected_turn_angle_option': {
             'model_class': 'ElectricTurnAngleOption',
             'label': 'угол поворота',
@@ -424,11 +432,11 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
                     module = __import__(module_path, fromlist=[class_name])
                     model_class = getattr(module, class_name)
-                    # print(f"DEBUG get_available_options: Model class loaded: {model_class}")
+                    print(f"DEBUG get_available_options: Model class loaded: {model_class}")
 
                     # Определяем ключ для результата
                     result_key = f"{field_name}_options".replace('selected_', '')
-                    # print(f"DEBUG get_available_options: Result key: {result_key}")
+                    print(f"DEBUG get_available_options: Result key: {result_key}")
 
                     # Особый случай: опция блока управления зависит от выбранного напряжения
                     if field_name == 'selected_control_unit_option':
@@ -444,6 +452,20 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                         }
                         # print(
                         # f"DEBUG get_available_options: Filter by power_supply_option: {self.selected_power_supply.id}")
+                    # Особый случай 2 : model_body через model_line_item
+                    elif field_name == 'selected_cable_glands_holes' :
+                        if not self.selected_model_line_item :
+                            print("DEBUG get_available_options: selected_model_line_item for selected_cable_glands_holes")
+                            result[result_key] = []
+                            continue
+
+                        # Фильтруем по выбранному напряжению
+                        filter_kwargs = {
+                            config['parent_field']: self.selected_model_line_item.body,
+                            'is_active' : True
+                        }
+                        print(
+                        f"DEBUG get_available_options: Filter by selected_model_line_item.body: {self.selected_model_line_item.body}")
 
                     elif config['parent_field'] == 'model_line':
                         if model_line_info:
@@ -467,20 +489,22 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
                     else:
                         # Для других связей
+                        print(
+                        f"DEBUG get_available_options Для других связей")
                         parent_value = getattr(self.selected_model_line_item, config['parent_field'], None)
                         if parent_value:
                             filter_kwargs = {config['parent_field']: parent_value, 'is_active': True}
-                            # print(f"DEBUG get_available_options: Filter by {config['parent_field']}: {parent_value}")
+                            print(f"DEBUG get_available_options: Filter by {config['parent_field']}: {parent_value}")
                         else:
-                            # print(f"DEBUG get_available_options: No {config['parent_field']}, skipping")
+                            print(f"DEBUG get_available_options: No {config['parent_field']}, skipping")
                             result[result_key] = []
                             continue
 
                     # Получаем опции
-                    # print(f"DEBUG get_available_options: Filter kwargs: {filter_kwargs}")
+                    print(f"DEBUG get_available_options: Filter kwargs: {filter_kwargs}")
                     options = model_class.objects.filter(**filter_kwargs)
                     count = options.count()
-                    # print(f"DEBUG get_available_options: Found {count} options")
+                    print(f"DEBUG get_available_options: Found {count} options")
 
                     # Формируем список опций
                     options_list = []
