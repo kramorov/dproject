@@ -372,7 +372,10 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             selected_control_unit_option_encoding = self.selected_control_unit_option.encoding
             print(f"selected_control_unit_option_encoding: {selected_control_unit_option_encoding}")
             # Кодировка уже хранится в through-модели
-            result = result.replace('{control_unit}', selected_control_unit_option_encoding)
+            if selected_control_unit_option_encoding:
+                result = result.replace('{control_unit}', selected_control_unit_option_encoding)
+            else:
+                result = result.replace('{control_unit}', "")
 
         # self._get_value('selected_control_unit_installed__encoding'),
         # result = result.replace('{hand_wheel}', self._get_value('selected_hand_wheel__encoding'))
