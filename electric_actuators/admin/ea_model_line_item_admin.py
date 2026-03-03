@@ -185,7 +185,7 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
 
     fieldsets = (
         (_('Основная информация') , {
-            'fields' : (('name' ,'code' ,) ,('model_line' , 'body') ,
+            'fields' : (('name' ,'code' ) ,('model_line' , 'body',) ,
              ('sorting_order' , 'is_active') ),
             'classes' : ('wide' ,)
         }) ,

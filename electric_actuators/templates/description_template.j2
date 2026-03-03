@@ -86,14 +86,15 @@
 {#индикация положения: **механический указатель положения**<br>#}
 {{ selected_blinker_option.blinker_option.display_name | default('Блинкер') }}: **{{ selected_blinker_option.blinker_option.value | default('н/д') }}** {{ format_type(selected_blinker_option)}}<br>
 обогреватель: **в блоке выключателей 110 В-250 В перем./пост.тока**<br>
-кабельные вводы под небронированный кабель: **кол-во 3 (1-М20*1,5,1-М25*1,5,1-М32*1,5)**<br>
-защита электродвигателя: **термовыключатель (НЗ)**<br>
+{#кабельные вводы под небронированный кабель: **кол-во 3 (1-М20*1,5,1-М25*1,5,1-М32*1,5)**<br>#}
+{#защита электродвигателя: **термовыключатель (НЗ)**<br>#}
 {{ motor_thermal_protection.display_name | default('Тепловая защита двигателя') }}: **{{ motor_thermal_protection.value | default('н/д') }}**<br>
 {{ weight_body.display_name | default('weight_body') }}: **{{ weight_body.value | default('н/д') }}**<br>
 ---
 ## Развиваемые усилия / моменты, время срабатывания
 {{ torque_min.display_name | default('torque_min')}}: **{{ torque_min.value | default('н/д') }}** <br>
 {{ torque_max.display_name | default('torque_max')}}: **{{ torque_max.value | default('н/д') }}** <br>
+{{ rotation_speed.display_name | default('Скорость, об/мин')}}: **{{ rotation_speed.value | default('н/д') }}** <br>
 {{ time_to_open.display_name | default('time_to_open')}}: **{{ time_to_open.value | default('н/д') }}** (поворот на {{ selected_turn_angle_option.turn_angle.value }}°)<br>
 {{ time_to_close.display_name | default('time_to_close')}}: **{{ time_to_close.value | default('н/д') }}** (поворот на {{ selected_turn_angle_option.turn_angle.value }}°)<br>
 ---

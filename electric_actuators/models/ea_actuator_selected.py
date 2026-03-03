@@ -32,6 +32,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                             help_text=_('Название привода - формируется автоматически'))
     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код привода - формируется автоматически"))
+    ext_code = models.CharField(max_length=500, blank=True, null=True, verbose_name=_("Код ext"),
+                            help_text=_("Расширенный код привода - формируется автоматически"))
     description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание привода - формируется автоматически'))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
@@ -340,6 +342,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             AR19E001.S24.LT.IP67.INT/N.220/50.Ex """
         parts = [
             self._get_value('selected_model__code'),
+            self._get_value('selected_model_line_item__rotation_speed'),
             self._get_value('selected_temperature__encoding'),
             self._get_value('selected_ip__encoding'),
             self._get_value('selected_ip__encoding'),
@@ -358,47 +361,29 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
             return self.code or ""
 
-        # Проверьте, что self.selected_model_line_item здесь еще объект
-        print(f"=== DEBUG generated_model_item_code ===")
-        print(f"self.selected_model_line_item: {self.selected_model_line_item}")
-        print(f"type: {type(self.selected_model_line_item)}")
-
         template = self.selected_model_line_item.model_line.model_item_code_template
         if not template:
-            print(f"Template for {self.selected_model_line_item.model_line} not found. Generating from fallback")
             return self._generate_fallback_code()
 
-        """Простой рендеринг шаблона - заменяем переменные значениями"""
+        # Замена переменных
+        replacements = {
+            '{model_code}': self._get_value('selected_model_line_item__name'),
+            '{rotation_speed}': self._get_value('selected_model_line_item__rotation_speed'),
+            '{temperature}': self._get_value('selected_temperature__encoding'),
+            '{ip}': self._get_value('selected_ip__encoding'),
+            '{voltage}': self._get_value('selected_power_supply__encoding'),
+            '{exd}': self._get_value('selected_exd__encoding'),
+            '{control_unit}':self._get_value('selected_control_unit_option__encoding'),
+        }
+
+        # Заменяем все плейсхолдеры
         result = template
-        print(f"template: {result}")
-        # Простая замена переменных  AR19E001.S24.LT.IP67.INT/N.220/50.Ex
-        # {model_code}{temperature}{ip}{voltage}{exd}
-        result = result.replace('{model_code}', self._get_value('selected_model_line_item__name'))
-        result = result.replace('{temperature}', self._get_value('selected_temperature__encoding'))
-        result = result.replace('{ip}', self._get_value('selected_ip__encoding'))
-        if self.selected_control_unit_option:
-            selected_control_unit_option_encoding = self.selected_control_unit_option.encoding
-            print(f"selected_control_unit_option_encoding: {selected_control_unit_option_encoding}")
-            # Кодировка уже хранится в through-модели
-            if selected_control_unit_option_encoding:
-                result = result.replace('{control_unit}', selected_control_unit_option_encoding)
-            else:
-                result = result.replace('{control_unit}', "")
+        for placeholder, value in replacements.items():
+            result = result.replace(placeholder, str(value) if value else '')
 
-        # self._get_value('selected_control_unit_installed__encoding'),
-        # result = result.replace('{hand_wheel}', self._get_value('selected_hand_wheel__encoding'))
-        # result = result.replace('{coating}', self._get_value('selected_body_coating__encoding'))
-
-        result = result.replace('{voltage}', self._get_value('selected_power_supply__encoding'))
-        result = result.replace('{exd}', self._get_value('selected_exd__encoding'))
-
-        print(f"До очистки: {result}")
-        # Очистка лишних точек (две точки подряд -> одна точка)
-        result = re.sub(r'\.{2,}', '.', result)
-        print(f"две точки подряд -> одна точка: {result}")
-        # Удаляем точку в начале и конце
-        result = re.sub(r'\.\s+', ' ', result)  # Заменяет точку и любые пробельные символы после нее
-        print(f"удалили точки в начале и конце: {result}")
+        # Разделяем по точке, фильтруем пустые части, соединяем обратно
+        parts = [p for p in result.split('.') if p.strip()]
+        result = '.'.join(parts)
 
         return result
 
@@ -422,8 +407,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
             # Для каждой опции из _OPTION_CONFIG
             for field_name, config in self._OPTION_CONFIG.items():
-                # print(f"\nDEBUG get_available_options: Processing {field_name}")
-                # print(f"DEBUG get_available_options: Config: {config}")
+                print(f"\nDEBUG get_available_options: Processing {field_name}")
+                print(f"DEBUG get_available_options: Config: {config}")
 
                 try:
                     # Динамически импортируем модель
@@ -760,8 +745,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         """
         import logging
         logger = logging.getLogger(__name__)
-        logger.debug(f"EA logger get_description_data")
-        print(f"EA  print _generate_short_description")
+        # logger.debug(f"EA logger get_description_data")
+        # print(f"EA  print _generate_short_description")
         model_line_data = self.selected_model_line_item.model_line.get_description_data()
         model_line_item_data = self.selected_model_line_item.get_description_data()
         body_data = self.selected_model_line_item.body.get_description_data()
@@ -806,6 +791,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'time_to_close': model_line_item_data['time_to_close'],
             'torque_min': model_line_item_data['torque_min'],
             'torque_max': model_line_item_data['torque_max'],
+            'rotation_speed': model_line_item_data['rotation_speed'],
         }
         if self.actual_mounting_plate:
             data['mounting_plate']['value'] = self.actual_mounting_plate.name
@@ -820,7 +806,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         if self.selected_power_supply:
             power_supply_data = self.selected_power_supply.get_description_data()
             data['power_supply']['value'] = power_supply_data['power_supply']['value']
-
+            print(f' power_supply_data={power_supply_data}')
             if power_supply_data['time_to_open']['value'] > 0 or power_supply_data['time_to_close']['value'] > 0:
                 data['time_to_open']['value'] = power_supply_data['time_to_open']['value']
                 data['time_to_close']['value'] = power_supply_data['time_to_close']['value']
@@ -834,12 +820,14 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                 data['torque_max']['value'] = power_supply_data['torque_max']['value']
 
         # Добавить обработку cable_glands_holes если они есть в INT блоке
-        print(f'cable_glands_holes {data['cable_glands_holes']['value']}')
 
-        if self.actual_cable_glands_holes:
-            data['cable_glands_holes'] = self.actual_cable_glands_holes.get_description_data()
+        if self.selected_cable_glands_holes:
+            if self.actual_cable_glands_holes:
+                data['cable_glands_holes'] = self.actual_cable_glands_holes.get_description_data()
+            else:
+                data['cable_glands_holes'] = self.selected_cable_glands_holes.get_description_data()
 
-        print(data['cable_glands_holes'])
+        print(f'cable_glands_holes {data['cable_glands_holes']}')
 
         if self.selected_ip:
             data['ip_data'] = self.selected_ip.get_description_data()
@@ -882,13 +870,13 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
     def save(self, *args, **kwargs):
         print(f"\n=== DEBUG save() called ===")
-        print(f"Object ID: {self.id}")
-        print(f"selected_model_line_item: {self.selected_model_line_item}")
-        print(f"selected_temperature: {self.selected_temperature}")
-        print(f"selected_ip: {self.selected_ip}")
-        print(f"selected_exd: {self.selected_exd}")
-        print(f"selected_power_supply: {self.selected_power_supply}")
-        print(f"selected_mechanical_indicator_option: {self.selected_mechanical_indicator_option}")
+        # print(f"Object ID: {self.id}")
+        # print(f"selected_model_line_item: {self.selected_model_line_item}")
+        # print(f"selected_temperature: {self.selected_temperature}")
+        # print(f"selected_ip: {self.selected_ip}")
+        # print(f"selected_exd: {self.selected_exd}")
+        # print(f"selected_power_supply: {self.selected_power_supply}")
+        # print(f"selected_mechanical_indicator_option: {self.selected_mechanical_indicator_option}")
         try:
             # Получаем оригинальный объект
             original = None
@@ -946,18 +934,25 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
     def apply_default_options(self):
         """Применить дефолтные опции из выбранной модели"""
         if not self.selected_model_line_item:
+            print("DEBUG: No selected_model_line_item")
             return
 
         try:
             model_line = self.selected_model_line_item.model_line
-            if not model_line:
-                return
+            model_line_item = self.selected_model_line_item
+            model_body = model_line_item.body if model_line_item else None
 
-            print(f"DEBUG: Applying default options for model line: {model_line}")
+            print(f"DEBUG: Applying default options")
+            print(f"DEBUG: model_line = {model_line}")
+            print(f"DEBUG: model_line_item = {model_line_item}")
+            print(f"DEBUG: model_body = {model_body}")
 
             # Для каждой опции ищем дефолтное значение
             for option_field, config in self._OPTION_CONFIG.items():
-                current_value = getattr(self, option_field)
+                current_value = getattr(self, option_field, None)
+                print(f"\nDEBUG: Processing {option_field}")
+                print(f"DEBUG: Current value = {current_value}")
+
                 if not current_value:  # Если опция не выбрана
                     try:
                         # Динамически импортируем модель опции
@@ -965,31 +960,125 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                         module = __import__(module_path, fromlist=[class_name])
                         model_class = getattr(module, class_name)
 
-                        # Ищем дефолтную опцию
+                        # Определяем parent объект в зависимости от parent_field
+                        parent_field = config.get('parent_field', 'model_line')
+                        parent_obj = None
+
+                        if parent_field == 'model_line':
+                            parent_obj = model_line
+                        elif parent_field == 'model_line_item':
+                            parent_obj = model_line_item
+                        elif parent_field == 'model_body':
+                            parent_obj = model_body
+                        elif parent_field == 'power_supply_option':
+                            # Для control_unit нужна дополнительная логика
+                            if self.selected_power_supply:
+                                parent_obj = self.selected_power_supply
+                                print(f"DEBUG: Using selected_power_supply as parent: {parent_obj}")
+                            else:
+                                print(f"DEBUG: No selected_power_supply for control_unit")
+                                continue
+
+                        if not parent_obj:
+                            print(f"DEBUG: No parent object for {option_field} (parent_field={parent_field})")
+                            continue
+
+                        print(f"DEBUG: parent_obj = {parent_obj}")
+
+                        # Формируем фильтр
                         filter_kwargs = {
-                            config['parent_field']: model_line,
-                            'is_default': True,
+                            parent_field: parent_obj,
                             'is_active': True
                         }
 
+                        print(f"DEBUG: filter_kwargs = {filter_kwargs}")
+
+                        # Сначала ищем дефолтную опцию
+                        filter_kwargs['is_default'] = True
                         default_option = model_class.objects.filter(**filter_kwargs).first()
 
                         if default_option:
                             setattr(self, option_field, default_option)
-                            print(f"DEBUG: Set default {option_field} = {default_option}")
+                            print(f"DEBUG: ✅ Set default {option_field} = {default_option} id={default_option.id}")
                         else:
                             # Если дефолтной нет, берем первую активную
                             filter_kwargs.pop('is_default')
                             first_option = model_class.objects.filter(**filter_kwargs).first()
                             if first_option:
                                 setattr(self, option_field, first_option)
-                                print(f"DEBUG: Set first active {option_field} = {first_option}")
+                                print(f"DEBUG: ⚠️ Set first active {option_field} = {first_option}")
+                            else:
+                                print(f"DEBUG: ❌ No options found for {option_field} with filter {filter_kwargs}")
+
+                                # Попробуем найти любую опцию для отладки
+                                all_options = model_class.objects.filter(is_active=True)[:5]
+                                print(f"DEBUG: Available options in DB: {[(o.id, str(o)) for o in all_options]}")
+
+                                # Проверим, есть ли вообще такие опции в БД
+                                total_count = model_class.objects.count()
+                                print(f"DEBUG: Total {option_field} in DB: {total_count}")
 
                     except Exception as e:
-                        print(f"DEBUG: Error setting default for {option_field}: {e}")
+                        print(f"DEBUG: ❌ Error setting default for {option_field}: {e}")
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    print(f"DEBUG: {option_field} already has value, skipping")
 
-            print("DEBUG: Default options applied")
+            print("\nDEBUG: ✅ Default options applied successfully")
 
         except Exception as e:
-            print(f"DEBUG: Error in apply_default_options: {e}")
+            print(f"DEBUG: ❌ Error in apply_default_options: {e}")
+            import traceback
+            traceback.print_exc()
             logger.error(f"Error in apply_default_options: {e}")
+
+    def check_available_options(self):
+        """Проверяет, какие опции доступны для выбранной модели (для отладки)"""
+        if not self.selected_model_line_item:
+            print("No model selected")
+            return
+
+        model_line = self.selected_model_line_item.model_line
+        model_line_item = self.selected_model_line_item
+
+        print("\n=== AVAILABLE OPTIONS CHECK ===")
+
+        for option_field, config in self._OPTION_CONFIG.items():
+            try:
+                module_path, class_name = config['model_path'].rsplit('.', 1)
+                module = __import__(module_path, fromlist=[class_name])
+                model_class = getattr(module, class_name)
+
+                parent_field = config.get('parent_field', 'model_line')
+
+                if parent_field == 'model_line':
+                    parent = model_line
+                elif parent_field == 'model_line_item':
+                    parent = model_line_item
+                else:
+                    parent = None
+
+                if parent:
+                    # Считаем опции
+                    total = model_class.objects.filter(**{parent_field: parent}).count()
+                    active = model_class.objects.filter(**{parent_field: parent, 'is_active': True}).count()
+                    default = model_class.objects.filter(
+                        **{parent_field: parent, 'is_default': True, 'is_active': True}).count()
+
+                    print(f"\n{option_field} ({class_name}):")
+                    print(f"  parent_field: {parent_field} = {parent}")
+                    print(f"  total: {total}, active: {active}, default: {default}")
+
+                    if default > 0:
+                        default_option = model_class.objects.filter(
+                            **{parent_field: parent, 'is_default': True, 'is_active': True}
+                        ).first()
+                        print(f"  default option: {default_option}")
+
+                    if total == 0:
+                        # Проверим все опции в БД без фильтра
+                        all_options = model_class.objects.all()[:5]
+                        print(f"  all options in DB (first 5): {[(o.id, str(o)) for o in all_options]}")
+            except Exception as e:
+                print(f"Error checking {option_field}: {e}")

@@ -45,7 +45,7 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
         (None, {
             'fields': (
                 ('selected_model_line_item', 'selected_power_supply'),
-                ('name', 'code')
+                ('name', 'code','ext_code')
             )
         }),
         ('Опции', {
