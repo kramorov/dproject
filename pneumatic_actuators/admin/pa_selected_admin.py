@@ -45,7 +45,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
         'selected_exd' ,
         'selected_body_coating'
     ]
-    search_fields = ['name' , 'code' , 'description']
+    search_fields = ['name' , 'code' ]
 
     # Автодополнение (если нужно раскомментировать)
     autocomplete_fields = ['selected_model_line_item']

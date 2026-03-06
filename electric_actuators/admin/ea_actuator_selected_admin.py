@@ -31,16 +31,15 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
 
     list_filter = [
         'is_active' ,
+        'selected_model_line_item__model_line',
         'selected_model_line_item' ,
     ]
 
     search_fields = [
         'name' ,
-        'code' ,
-        'description' ,
-
     ]
-
+    # Автодополнение (если нужно раскомментировать)
+    autocomplete_fields = ['selected_model_line_item']
     fieldsets = (
         (None, {
             'fields': (

@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         options.forEach(option => {
             const isSelected = currentOption && option.id === currentOption.id;
             const displayText = option.control_unit_name
-                ? `${option.control_unit_name} (${option.encoding || 'без кода'})`
+                ? `${option.control_unit_name}`
                 : option.name || option.encoding || `ID: ${option.id}`;
 
             const opt = new Option(displayText, option.id, false, isSelected);

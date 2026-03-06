@@ -340,80 +340,137 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
 
         return copy_obj
 
-    def _copy_related_options(self , copy_obj) :
+    def _copy_related_options(self, copy_obj):
         """
-        Копировать связанные опции (ElectricControlUnitOption) для скопированной опции питания
+        Автоматически копировать все связанные опции для скопированного объекта
+        и выводить их в лог. Для опций, у которых есть собственный метод create_copy,
+        вызываем его вместо прямого копирования.
         """
         import logging
         logger = logging.getLogger(__name__)
 
-        logger.info(f"  _copy_related_options: target copy_obj ID = {copy_obj.id}")
-        logger.info(f"  _copy_related_options: исходная опция питания ID = {self.id}")
+        logger.info(
+            f"Начинаем копирование связанных опций для {self.name} (ID: {self.id}) -> {copy_obj.name} (ID: {copy_obj.id})")
 
-        # Правильный related_name из модели ElectricControlUnitOption
-        related_name = 'ea_model_lene_item_options_power_supply_options'
+        # Получаем все обратные связи (related objects) для текущей модели
+        related_objects = []
 
-        try :
-            # Проверяем, есть ли связанные объекты
-            if not hasattr(self , related_name) :
-                logger.error(f"  У объекта нет атрибута {related_name}")
-                # Покажем все доступные атрибуты для отладки
-                attrs = [attr for attr in dir(self) if not attr.startswith('_') and 'power' in attr.lower()]
-                logger.info(f"  Доступные атрибуты с 'power': {attrs}")
-                return {'total_relations' : 0 , 'copied_objects' : 0}
+        # Специальные модели, у которых есть собственный метод create_copy
+        models_with_own_copy = [
+            'ElectricPowerSupplyOption',  # У этой модели есть свой create_copy
+            # Добавьте другие модели по мере необходимости
+        ]
 
-            related_manager = getattr(self , related_name)
-            related_qs = related_manager.all()
+        # Проходим по всем полям модели, которые являются обратными связями
+        for related_field in self._meta.get_fields():
+            # Проверяем, что это обратная связь (ForeignKey или ManyToMany с одной стороны)
+            if (hasattr(related_field, 'related_model') and
+                    related_field.related_model and
+                    hasattr(related_field, 'field') and
+                    related_field.field):
 
-            logger.info(f"  Найдено блоков управления: {related_qs.count()}")
+                # Проверяем, что связанная модель имеет ForeignKey на нашу модель
+                fk_fields = []
+                for fk_field in related_field.related_model._meta.fields:
+                    if isinstance(fk_field,
+                                  models.ForeignKey) and fk_field.related_model == ElectricActuatorModelLineItem:
+                        fk_fields.append(fk_field.name)
 
-            # Выведем их для отладки
-            for obj in related_qs :
-                logger.info(f"    - ID: {obj.id}, encoding: {obj.encoding}")
+                if fk_fields:
+                    try:
+                        # Получаем все связанные объекты через эту обратную связь
+                        related_manager = getattr(self, related_field.name)
 
-            if not related_qs.exists() :
-                logger.info(f"  Нет связанных блоков управления для копирования")
-                return {'total_relations' : 0 , 'copied_objects' : 0}
+                        # Проверяем, что это менеджер (queryset)
+                        if hasattr(related_manager, 'all'):
+                            related_qs = related_manager.all()
+                            if related_qs.exists():
+                                related_count = related_qs.count()
+                                model_name = related_field.related_model.__name__
+                                logger.info(
+                                    f"  Найдена связь: {related_field.name} -> {model_name} ({related_count} записей)")
 
-            copied_count = 0
-            for original_obj in related_qs :
-                try :
-                    logger.info(
-                        f"    Копирование блока управления ID: {original_obj.id}, encoding: {original_obj.encoding}")
+                                # Сохраняем для копирования
+                                related_objects.append({
+                                    'manager': related_manager,
+                                    'model': related_field.related_model,
+                                    'model_name': model_name,
+                                    'name': related_field.name,
+                                    'fk_fields': fk_fields,
+                                    'queryset': related_qs
+                                })
+                    except Exception as e:
+                        logger.warning(f"  Ошибка при получении {related_field.name}: {e}")
 
-                    # Создаем копию
-                    new_obj = ElectricControlUnitOption()
+        logger.info(f"Всего найдено связанных моделей: {len(related_objects)}")
 
-                    # Копируем все поля кроме первичного ключа
-                    for field in original_obj._meta.fields :
-                        if field.name not in ['id' , 'pk'] :
-                            # Если это ForeignKey на опцию питания, заменяем на copy_obj
-                            if (isinstance(field , models.ForeignKey) and
-                                    field.related_model == ElectricPowerSupplyOption) :
-                                setattr(new_obj , field.name , copy_obj)
-                                logger.info(f"      Поле {field.name} установлено на copy_obj ID: {copy_obj.id}")
-                            else :
-                                setattr(new_obj , field.name , getattr(original_obj , field.name))
+        # Копируем каждый связанный объект
+        copied_count = 0
+        total_relations = 0
 
-                    # Добавляем суффикс к encoding для уникальности (если нужно)
-                    # if new_obj.encoding and not new_obj.encoding.endswith('_copy') :
-                    #     new_obj.encoding = f"{new_obj.encoding}_copy"
+        for rel_info in related_objects:
+            logger.info(f"Копирование {rel_info['name']} ({rel_info['model_name']})...")
+            total_relations += 1
 
-                    # Сохраняем
-                    new_obj.save()
+            for original_obj in rel_info['queryset']:
+                try:
+                    # Проверяем, есть ли у модели свой метод create_copy
+                    if rel_info['model_name'] in models_with_own_copy and hasattr(original_obj, 'create_copy'):
+                        logger.info(f"    Используем собственный метод create_copy для {rel_info['model_name']}")
+                        # Вызываем create_copy у самого объекта
+                        new_obj = original_obj.create_copy()
+                        logger.info(f"    Создана копия с ID: {new_obj.id} через собственный метод")
+                    else:
+                        # Стандартное копирование для остальных моделей
+                        logger.info(f"    Используем стандартное копирование для {rel_info['model_name']}")
+                        new_obj = self._copy_single_object(original_obj, copy_obj, rel_info['fk_fields'])
+
                     copied_count += 1
-                    logger.info(f"      СОЗДАН НОВЫЙ БЛОК УПРАВЛЕНИЯ ID: {new_obj.id}")
 
-                except Exception as e :
-                    logger.error(f"    Ошибка при копировании блока управления {original_obj.id}: {e}")
+                except Exception as e:
+                    logger.error(f"    Ошибка при копировании {original_obj.id}: {e}")
                     import traceback
                     logger.error(traceback.format_exc())
 
-            logger.info(f"Копирование завершено. Скопировано блоков управления: {copied_count}")
-            return {'total_relations' : 1 , 'copied_objects' : copied_count}
+        logger.info(f"Копирование завершено. Скопировано объектов: {copied_count}")
 
-        except Exception as e :
-            logger.error(f"  Ошибка при получении связанных блоков управления: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return {'total_relations' : 0 , 'copied_objects' : 0}
+        # Возвращаем статистику для возможного использования
+        return {
+            'total_relations': total_relations,
+            'copied_objects': copied_count
+        }
+
+    def _copy_single_object(self, original_obj, copy_obj, fk_fields):
+        """
+        Вспомогательный метод для копирования одного объекта
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Создаем копию
+        new_obj = original_obj.__class__()
+
+        # Копируем все поля кроме первичного ключа
+        for field in original_obj._meta.fields:
+            if field.name not in ['id', 'pk']:
+                # Если это ForeignKey на нашу модель, заменяем на copy_obj
+                if isinstance(field,
+                              models.ForeignKey) and field.related_model == ElectricActuatorModelLineItem:
+                    setattr(new_obj, field.name, copy_obj)
+                    logger.debug(f"    Поле {field.name} заменено на новый объект")
+                else:
+                    setattr(new_obj, field.name, getattr(original_obj, field.name))
+
+        # Добавляем суффикс к encoding для уникальности (если есть)
+        if hasattr(new_obj, 'encoding') and new_obj.encoding:
+            # Проверяем, не добавили ли уже суффикс
+            if not new_obj.encoding.endswith('_copy'):
+                old_encoding = new_obj.encoding
+                new_obj.encoding = f"{new_obj.encoding}_copy"
+                logger.debug(f"    Encoding изменен: '{old_encoding}' -> '{new_obj.encoding}'")
+
+        # Сохраняем копию
+        new_obj.save()
+        logger.debug(f"    Скопирован объект {original_obj.id} -> {new_obj.id}")
+
+        return new_obj

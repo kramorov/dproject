@@ -9,6 +9,12 @@ git checkout -- db.sqlite3 (отмена локальных изменений)
 git pull main main
 Отправка:
 git push main av-be-master:main
+МАТЕРИАЛИЗОВАННОЕ ПРЕДСТАВЛЕНИЕ
+
+Копирование опций напряжения (блоки управления не работает)
+проверить AR11 030-120
+
+
 
 git stash
 git stash pop

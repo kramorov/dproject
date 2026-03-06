@@ -805,7 +805,10 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             data['stem_size']['is_default'] = None
         if self.selected_power_supply:
             power_supply_data = self.selected_power_supply.get_description_data()
-            data['power_supply']['value'] = power_supply_data['power_supply']['value']
+            data['power_supply'] = power_supply_data['power_supply']
+            data['motor_current_rated'] = power_supply_data['motor_current_rated']
+            data['motor_current_starting'] = power_supply_data['motor_current_starting']
+            data['motor_power'] = power_supply_data['motor_power']
             print(f' power_supply_data={power_supply_data}')
             if power_supply_data['time_to_open']['value'] > 0 or power_supply_data['time_to_close']['value'] > 0:
                 data['time_to_open']['value'] = power_supply_data['time_to_open']['value']
