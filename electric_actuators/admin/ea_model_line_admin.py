@@ -573,30 +573,40 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         super().save_model(request , obj , form , change)
         # НЕ создаем опции здесь
 
-    def save_formset(self , request , form , formset , change) :
+    def save_formset(self, request, form, formset, change):
         """Сохраняем inline формы и создаем недостающие опции ПОСЛЕ"""
-        super().save_formset(request , form , formset , change)
 
-        # После сохранения inline форм проверяем, все ли опции созданы
-        if not change and formset.model in [  # только при создании
-            ElectricTemperatureOption , ElectricIpOption ,  # ... все
-        ] :
+        super().save_formset(request, form, formset, change)
+
+        if not change:
             parent_obj = form.instance
 
-            # Проверяем, создана ли хоть одна опция этого типа
-            parent_field = formset.model._get_parent_field_name()
-            if parent_field :
-                existing_count = formset.model.objects.filter(
-                    **{parent_field : parent_obj}
-                ).count()
+            # Проверяем, что parent_obj сохранен
+            if parent_obj and parent_obj.pk:
+                option_models = [
+                    ElectricTemperatureOption,
+                    ElectricIpOption,
+                    ElectricExdOption,
+                    # ... другие
+                ]
 
-                # Если пользователь не создал ни одной опции этого типа
-                if existing_count == 0 :
-                    # Создаем стандартную
-                    try :
-                        formset.model.ensure_default_exists(parent_obj)
-                    except Exception as e :
-                        logger.error(f"Ошибка создания опции {formset.model.__name__}: {e}")
+                for model_class in option_models:
+                    parent_field = getattr(model_class, '_get_parent_field_name', lambda: None)()
+                    if parent_field:
+                        existing_count = model_class.objects.filter(
+                            **{parent_field: parent_obj}
+                        ).count()
+
+                        if existing_count == 0:
+                            try:
+                                if hasattr(model_class, 'ensure_default_exists'):
+                                    model_class.ensure_default_exists(parent_obj)
+                            except Exception as e:
+                                # Если ошибка связана с отсутствием parent, игнорируем
+                                if "must be saved" in str(e) or "doesn't have a primary key" in str(e):
+                                    logger.debug(f"Parent not saved yet, skipping {model_class.__name__}")
+                                else:
+                                    logger.error(f"Ошибка создания опции {model_class.__name__}: {e}")
 
     def _check_default_options_after_save(self , request , option_model , parent_obj) :
         """Проверка стандартных опций после сохранения"""
