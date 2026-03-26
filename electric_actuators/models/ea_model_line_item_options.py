@@ -70,7 +70,7 @@ class ElectricControlUnitOption(BaseThroughOption):
     power_supply_option = models.ForeignKey(
         'ElectricPowerSupplyOption',
         on_delete=models.CASCADE,
-        related_name='ea_model_lene_item_options_power_supply_options',
+        related_name='ea_model_line_item_options_power_supply_options',
         verbose_name=_("Опция напряжения питания"),
         help_text=_("Опция напряжения питания")
     )
@@ -213,6 +213,8 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
         }
         return data
 
+
+
     @property
     def available_control_units(self):
         """Доступные блоки управления для этого напряжения"""
@@ -289,24 +291,45 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
             return f"{self.power_supply.name}"
         return super().__str__()
 
+    @property
     def display_name(self):
         """Строковое представление для отображения в списке"""
         if self.model_line_item and self.power_supply:
             return f"{self.model_line_item.name}.{self.power_supply.encoding}"
         return super().__str__()
 
+    # Явно указываем through-модели для копирования
+    COPY_THROUGH_MODELS = [
+        'ea_model_line_item_options_power_supply_options' ,  # ElectricControlUnitOption
+    ]
+
     def create_copy(self) :
-        """Создать копию элемента с добавлением ' Копия' к name и code"""
-        import logging
-        logger = logging.getLogger(__name__)
-
+        """Создать копию элемента с копированием through-моделей"""
         logger.info(f"=" * 50)
-        logger.info(f"НАЧАЛО КОПИРОВАНИЯ ОПЦИИ ПИТАНИЯ ID: {self.id}")
-        logger.info(f"Исходный объект: {self.display_name() if hasattr(self , 'display_name') else self}")
+        logger.info(f"НАЧАЛО КОПИРОВАНИЯ {self.__class__.__name__} ID: {self.id}")
+        logger.info(f"Исходный объект: {self.display_name}")
 
-        # Создаем копию объекта
-        copy_obj = ElectricPowerSupplyOption()
-        logger.info(f"Создан пустой объект-копия")
+        # Копируем основной объект
+        copy_obj = self._copy_self()
+
+        # Копируем through-модели
+        total_copied = 0
+        for through_field in self.COPY_THROUGH_MODELS :
+            copied_count = self._copy_through_relations(through_field , copy_obj)
+            total_copied += copied_count
+
+        logger.info(f"КОПИРОВАНИЕ ЗАВЕРШЕНО. ID копии: {copy_obj.id}, скопировано through-моделей: {total_copied}")
+        logger.info(f"=" * 50)
+
+        return copy_obj
+
+    def _copy_self(self) :
+        """Копирование основного объекта"""
+        logger.debug(f"Начало копирования основного объекта {self.__class__.__name__} ID: {self.id}")
+
+        # Создаем пустую копию
+        copy_obj = self.__class__()
+        logger.debug(f"Создан пустой объект-копия")
 
         # Копируем все поля кроме первичного ключа
         for field in self._meta.fields :
@@ -316,161 +339,144 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
                 logger.debug(f"  Поле {field.name}: '{old_value}' скопировано")
 
         # Обрабатываем encoding
-        if copy_obj.encoding :
-            if not copy_obj.encoding.endswith('_copy') :
-                old_encoding = copy_obj.encoding
-                copy_obj.encoding = f"{copy_obj.encoding}_copy"
-                logger.info(f"  Encoding изменен: '{old_encoding}' -> '{copy_obj.encoding}'")
-        else :
-            copy_obj.encoding = f"copy_{self.id}"
-            logger.info(f"  Encoding установлен: '{copy_obj.encoding}'")
+        if hasattr(copy_obj , 'encoding') :
+            if copy_obj.encoding :
+                if not copy_obj.encoding.endswith('_copy') :
+                    old_encoding = copy_obj.encoding
+                    copy_obj.encoding = f"{copy_obj.encoding}_copy"
+                    logger.info(f"Encoding изменен: '{old_encoding}' -> '{copy_obj.encoding}'")
+            else :
+                copy_obj.encoding = f"copy_{self.id}"
+                logger.info(f"Encoding установлен: '{copy_obj.encoding}'")
 
         # Сохраняем копию
         copy_obj.save(preserve_encoding=True)
-        logger.info(f"Копия сохранена с ID: {copy_obj.id}")
-        logger.info(f"  model_line_item ID в копии: {copy_obj.model_line_item_id}")
-
-        # Копируем связанные опции
-        logger.info(f"НАЧАЛО КОПИРОВАНИЯ СВЯЗАННЫХ ОПЦИЙ")
-        result = self._copy_related_options(copy_obj)
-        logger.info(f"Скопировано связанных опций: {result.get('copied_objects' , 0)}")
-
-        logger.info(f"КОПИРОВАНИЕ ЗАВЕРШЕНО. Итоговый объект ID: {copy_obj.id}")
-        logger.info(f"=" * 50)
+        logger.info(f"Основной объект скопирован. ID оригинала: {self.id} -> ID копии: {copy_obj.id}")
 
         return copy_obj
 
-    def _copy_related_options(self, copy_obj):
+    def _copy_through_relations(self , through_field , parent_copy) :
         """
-        Автоматически копировать все связанные опции для скопированного объекта
-        и выводить их в лог. Для опций, у которых есть собственный метод create_copy,
-        вызываем его вместо прямого копирования.
+        Копирование through-моделей
+
+        Args:
+            through_field: имя related_name through-модели
+            parent_copy: копия родительского объекта
+
+        Returns:
+            int: количество скопированных through-объектов
         """
-        import logging
-        logger = logging.getLogger(__name__)
+        logger.info(f"Начинаем копирование through-модели '{through_field}'")
 
-        logger.info(
-            f"Начинаем копирование связанных опций для {self.name} (ID: {self.id}) -> {copy_obj.name} (ID: {copy_obj.id})")
+        # Получаем менеджер through-модели
+        through_manager = getattr(self , through_field , None)
 
-        # Получаем все обратные связи (related objects) для текущей модели
-        related_objects = []
+        # Проверяем существование менеджера
+        if not through_manager :
+            logger.warning(f"Поле '{through_field}' не найдено в объекте {self.__class__.__name__}")
+            return 0
 
-        # Специальные модели, у которых есть собственный метод create_copy
-        models_with_own_copy = [
-            'ElectricPowerSupplyOption',  # У этой модели есть свой create_copy
-            # Добавьте другие модели по мере необходимости
-        ]
+        # Проверяем, что это менеджер связанных объектов
+        if not hasattr(through_manager , 'all') :
+            logger.warning(f"Поле '{through_field}' не является менеджером связанных объектов")
+            return 0
 
-        # Проходим по всем полям модели, которые являются обратными связями
-        for related_field in self._meta.get_fields():
-            # Проверяем, что это обратная связь (ForeignKey или ManyToMany с одной стороны)
-            if (hasattr(related_field, 'related_model') and
-                    related_field.related_model and
-                    hasattr(related_field, 'field') and
-                    related_field.field):
+        # Получаем queryset through-объектов
+        through_objects = through_manager.all()
+        objects_count = through_objects.count()
 
-                # Проверяем, что связанная модель имеет ForeignKey на нашу модель
-                fk_fields = []
-                for fk_field in related_field.related_model._meta.fields:
-                    if isinstance(fk_field,
-                                  models.ForeignKey) and fk_field.related_model == ElectricActuatorModelLineItem:
-                        fk_fields.append(fk_field.name)
+        if objects_count == 0 :
+            logger.info(f"Нет through-объектов для копирования в '{through_field}'")
+            return 0
 
-                if fk_fields:
-                    try:
-                        # Получаем все связанные объекты через эту обратную связь
-                        related_manager = getattr(self, related_field.name)
+        logger.info(f"Найдено {objects_count} through-объектов для копирования")
 
-                        # Проверяем, что это менеджер (queryset)
-                        if hasattr(related_manager, 'all'):
-                            related_qs = related_manager.all()
-                            if related_qs.exists():
-                                related_count = related_qs.count()
-                                model_name = related_field.related_model.__name__
-                                logger.info(
-                                    f"  Найдена связь: {related_field.name} -> {model_name} ({related_count} записей)")
-
-                                # Сохраняем для копирования
-                                related_objects.append({
-                                    'manager': related_manager,
-                                    'model': related_field.related_model,
-                                    'model_name': model_name,
-                                    'name': related_field.name,
-                                    'fk_fields': fk_fields,
-                                    'queryset': related_qs
-                                })
-                    except Exception as e:
-                        logger.warning(f"  Ошибка при получении {related_field.name}: {e}")
-
-        logger.info(f"Всего найдено связанных моделей: {len(related_objects)}")
-
-        # Копируем каждый связанный объект
+        # Копируем каждый through-объект
         copied_count = 0
-        total_relations = 0
+        errors_count = 0
 
-        for rel_info in related_objects:
-            logger.info(f"Копирование {rel_info['name']} ({rel_info['model_name']})...")
-            total_relations += 1
+        for idx , original_through in enumerate(through_objects , 1) :
+            try :
+                logger.debug(
+                    f"  [{idx}/{objects_count}] Копирование through-объекта {original_through.__class__.__name__} ID: {original_through.id}")
 
-            for original_obj in rel_info['queryset']:
-                try:
-                    # Проверяем, есть ли у модели свой метод create_copy
-                    if rel_info['model_name'] in models_with_own_copy and hasattr(original_obj, 'create_copy'):
-                        logger.info(f"    Используем собственный метод create_copy для {rel_info['model_name']}")
-                        # Вызываем create_copy у самого объекта
-                        new_obj = original_obj.create_copy()
-                        logger.info(f"    Создана копия с ID: {new_obj.id} через собственный метод")
-                    else:
-                        # Стандартное копирование для остальных моделей
-                        logger.info(f"    Используем стандартное копирование для {rel_info['model_name']}")
-                        new_obj = self._copy_single_object(original_obj, copy_obj, rel_info['fk_fields'])
+                # Копируем through-объект
+                new_through = self._copy_through_object(original_through , parent_copy)
 
-                    copied_count += 1
+                logger.info(f"    Скопирован through-объект: ID {original_through.id} -> {new_through.id}")
+                copied_count += 1
 
-                except Exception as e:
-                    logger.error(f"    Ошибка при копировании {original_obj.id}: {e}")
-                    import traceback
-                    logger.error(traceback.format_exc())
+            except Exception as e :
+                errors_count += 1
+                logger.error(f"    ОШИБКА при копировании through-объекта ID {original_through.id}: {e}")
+                import traceback
+                logger.error(f"    Traceback: {traceback.format_exc()}")
 
-        logger.info(f"Копирование завершено. Скопировано объектов: {copied_count}")
+        # Логируем итоги
+        logger.info(
+            f"Завершено копирование through-модели '{through_field}': скопировано {copied_count}/{objects_count}, ошибок: {errors_count}")
 
-        # Возвращаем статистику для возможного использования
-        return {
-            'total_relations': total_relations,
-            'copied_objects': copied_count
-        }
+        return copied_count
 
-    def _copy_single_object(self, original_obj, copy_obj, fk_fields):
+    def _copy_through_object(self , original_through , parent_copy) :
         """
-        Вспомогательный метод для копирования одного объекта
+        Копирование одного through-объекта
+
+        Args:
+            original_through: исходный through-объект
+            parent_copy: копия родительского объекта
+
+        Returns:
+            Model: скопированный through-объект
         """
-        import logging
-        logger = logging.getLogger(__name__)
+        logger.debug(f"    Копирование through-объекта {original_through.__class__.__name__}")
 
-        # Создаем копию
-        new_obj = original_obj.__class__()
+        # Создаем новый through-объект
+        new_through = original_through.__class__()
 
-        # Копируем все поля кроме первичного ключа
-        for field in original_obj._meta.fields:
-            if field.name not in ['id', 'pk']:
-                # Если это ForeignKey на нашу модель, заменяем на copy_obj
-                if isinstance(field,
-                              models.ForeignKey) and field.related_model == ElectricActuatorModelLineItem:
-                    setattr(new_obj, field.name, copy_obj)
-                    logger.debug(f"    Поле {field.name} заменено на новый объект")
-                else:
-                    setattr(new_obj, field.name, getattr(original_obj, field.name))
+        # Копируем все поля
+        for field in original_through._meta.fields :
+            # Пропускаем первичный ключ
+            if field.name in ['id' , 'pk'] :
+                continue
 
-        # Добавляем суффикс к encoding для уникальности (если есть)
-        if hasattr(new_obj, 'encoding') and new_obj.encoding:
-            # Проверяем, не добавили ли уже суффикс
-            if not new_obj.encoding.endswith('_copy'):
-                old_encoding = new_obj.encoding
-                new_obj.encoding = f"{new_obj.encoding}_copy"
-                logger.debug(f"    Encoding изменен: '{old_encoding}' -> '{new_obj.encoding}'")
+            # Получаем значение поля
+            value = getattr(original_through , field.name)
 
-        # Сохраняем копию
-        new_obj.save()
-        logger.debug(f"    Скопирован объект {original_obj.id} -> {new_obj.id}")
+            # Обрабатываем ForeignKey поля
+            if isinstance(field , models.ForeignKey) :
+                # Если это ForeignKey на родительскую модель (ElectricPowerSupplyOption)
+                if field.related_model == self.__class__ :
+                    setattr(new_through , field.name , parent_copy)
+                    logger.debug(f"      Поле {field.name}: FK на родителя заменен на копию ID {parent_copy.id}")
 
-        return new_obj
+                # Если это ForeignKey на другую модель (ControlUnitInstalledOption)
+                elif hasattr(value , 'create_copy') :
+                    # Создаем копию связанного объекта
+                    logger.debug(f"      Поле {field.name}: создаем копию {value.__class__.__name__}")
+                    copied_value = value.create_copy()
+                    setattr(new_through , field.name , copied_value)
+                    logger.debug(f"      Поле {field.name}: FK заменен на скопированный объект ID {copied_value.id}")
+
+                # Если это ForeignKey на другую модель без create_copy
+                else :
+                    setattr(new_through , field.name , value)
+                    logger.debug(f"      Поле {field.name}: скопировано значение FK ID {value.id if value else None}")
+
+            # Обрабатываем обычные поля
+            else :
+                setattr(new_through , field.name , value)
+                logger.debug(f"      Поле {field.name}: скопировано значение '{value}'")
+
+        # Обрабатываем encoding для through-объекта
+        if hasattr(new_through , 'encoding') and new_through.encoding :
+            if not new_through.encoding.endswith('_copy') :
+                old_encoding = new_through.encoding
+                new_through.encoding = f"{new_through.encoding}_copy"
+                logger.debug(f"      Encoding изменен: '{old_encoding}' -> '{new_through.encoding}'")
+
+        # Сохраняем through-объект
+        new_through.save()
+        logger.debug(f"      Through-объект сохранен с ID {new_through.id}")
+
+        return new_through

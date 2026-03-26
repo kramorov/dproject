@@ -53,13 +53,16 @@ class ElectricActuatorModelLineItem(models.Model) :
                                          help_text=_('Скорость, об/мин'))
     torque_min = models.DecimalField(max_digits=5 , decimal_places=0 ,
                                      default=0 ,
-                                     verbose_name=_('Мин.усилие') ,
-                                     help_text=_('Минимальное усилие'))
+                                     verbose_name=_('Мин.момент') ,
+                                     help_text=_('Минимальное момент, Нм'))
     torque_max = models.DecimalField(max_digits=5 , decimal_places=0 ,
                                      default=0 ,
-                                     verbose_name=_('Макс.усилие') ,
-                                     help_text=_('Максимальное усилие'))
-
+                                     verbose_name=_('Макс.момент') ,
+                                     help_text=_('Максимальное момент, Нм'))
+    torque_work = models.DecimalField(max_digits=5 , decimal_places=0 ,
+                                     default=0 ,
+                                     verbose_name=_('Раб.момент') ,
+                                     help_text=_('Рабочий момент, Нм'))
     class Meta :
         ordering = ['sorting_order']
         verbose_name = _('Модель электропривода')

@@ -209,6 +209,7 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
         if obj.model_line_item and obj.power_supply:
             return f'{obj.model_line_item.name}.{obj.power_supply.encoding}'
         return "Не указано имя модели или напряжение"
+        # return obj.display_name
 
     display_name.short_description = 'Модель'
 

@@ -153,6 +153,7 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
     """Админка для моделей в серии электроприводов"""
 
     # ========== НАСТРОЙКИ ОТОБРАЖЕНИЯ СПИСКА ==========
+    ordering = ['sorting_order' ,'name']
     list_display = [
         'name' ,
         'code' ,
@@ -192,7 +193,7 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
 
         (_('Механические параметры') , {
             'fields' : (
-                ('torque_min' , 'torque_max') ,
+                ('torque_min' , 'torque_work', 'torque_max') ,
                 ('time_to_open' , 'rotation_speed') ,
             )
         }) ,

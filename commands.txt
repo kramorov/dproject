@@ -35,6 +35,20 @@ python manage.py shell
 ...     print(f"Related object: {relation.get_related_object()}")
 ...     print(f"Sorting: {relation.sorting_order}")
 
+# Однострочник для копирования в COPY_RELATED_FIELDS
+# Получаем список всех ManyToOne связей
+from electric_actuators.models import ElectricPowerSupplyOption
+
+related_names = [
+    field.name
+    for field in ElectricPowerSupplyOption._meta.get_fields()
+    if field.many_to_one
+]
+
+print("COPY_RELATED_FIELDS = [")
+for name in related_names :
+    print(f"    '{name}',")
+print("]")
 
 # Установи UTF-8 кодировку
 git config --global core.quotepath false
