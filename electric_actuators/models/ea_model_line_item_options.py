@@ -469,11 +469,11 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
                 logger.debug(f"      Поле {field.name}: скопировано значение '{value}'")
 
         # Обрабатываем encoding для through-объекта
-        if hasattr(new_through , 'encoding') and new_through.encoding :
-            if not new_through.encoding.endswith('_copy') :
-                old_encoding = new_through.encoding
-                new_through.encoding = f"{new_through.encoding}_copy"
-                logger.debug(f"      Encoding изменен: '{old_encoding}' -> '{new_through.encoding}'")
+        # if hasattr(new_through , 'encoding') and new_through.encoding :
+        #     if not new_through.encoding.endswith('_copy') :
+        #         old_encoding = new_through.encoding
+        #         new_through.encoding = f"{new_through.encoding}_copy"
+        #         logger.debug(f"      Encoding изменен: '{old_encoding}' -> '{new_through.encoding}'")
 
         # Сохраняем through-объект
         new_through.save()
