@@ -858,8 +858,13 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
         if self.selected_turn_angle_option:
             data['selected_turn_angle_option'] = self.selected_turn_angle_option.get_description_data()
+
         if self.selected_end_switches_option:
+
             data['selected_end_switches_option'] = self.selected_end_switches_option.get_description_data()
+            print(f'Found selected_end_switches_option: {data['selected_end_switches_option']}')
+        else:
+            print('selected_end_switches_option NOT FOUND')
         if self.selected_way_switches_option:
             data['selected_way_switches_option'] = self.selected_way_switches_option.get_description_data()
         if self.selected_way_switches_option:
