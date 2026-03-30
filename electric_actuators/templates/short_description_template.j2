@@ -1,0 +1,70 @@
+{# Шаблон для описания электропривода - работает с сырыми данными #}
+
+{% macro format_value(item) -%}
+    {% if item is mapping and item.value is not none %}
+        {{ item.value }}
+        {%- if item.unit %} {{ item.unit }}{% endif -%}
+    {% elif item is not mapping and item is not none %}
+        {{ item }}
+    {% else %}
+        н/д
+    {% endif %}
+{%- endmacro %}
+
+{% macro format_type(item) -%}
+    {%- if item.is_default is defined -%}
+        {%- if item.is_default.value -%}
+            <span style="background-color: #d4edda;">**✓ Стандарт**</span>
+        {%- else -%}
+            <span style="background-color: #fff3cd;">**⟳ Опция**</span>
+        {%- endif -%}
+    {%- else -%}
+        не указано
+    {%- endif -%}
+{%- endmacro %}
+
+{# Макрос для вывода опции в строке таблицы с раздельными столбцами #}
+{% macro option_row_for_item_with_default(item) %}
+    {% if item.display_name and item.value %}
+        **{{ item.display_name }}**: {{ item.value }} - {{ format_type(item) }}<br>
+    {% endif %}
+{% endmacro %}
+{{ model_code.value | default('н/д') }} (Электропривод {{ default_output_type.value | default('н/д') }};
+{% if selected_turn_angle_option is defined and selected_turn_angle_option is not none %}
+    {{ selected_turn_angle_option.turn_angle.display_name | default('selected_turn_angle_option.turn_angle') }}:
+    {{ selected_turn_angle_option.turn_angle.value | default('н/д') }} ±°{{ selected_turn_angle_option.turn_angle_deviation_limit.value | default('н/д') }}
+{% endif %}
+Напряжение, В: {{ power_supply.value | default('н/д') }};
+IP: {{ ip_data.ip_option.value | default('н/д') }};
+Исп: {{ exd_data.exd_option.value | default('н/д') }};
+Темп: {{ selected_temperature.temperature_range.value | default('н/д') }};
+Время открытия/закрытия: {{ time_to_open.value | default('н/д') }} / {{ time_to_close.value | default('н/д') }} с;
+Режим работы: {{ operating_mode.value | default('н/д') }};
+{% if selected_control_unit_option is defined and selected_control_unit_option %}
+    {{ 'Блок управления'}}:
+    {{ selected_control_unit_option.control_unit.value | default('н/д') }};
+{% else %}
+Блок управления: Нет;
+{% endif %}
+{# РУчной дублер #}
+Ручной дублер: {{ selected_hand_wheel.hand_wheel_option.value | default('н/д') }};
+Конц.выкл:{{ selected_end_switches_option.end_switches_option.value | default('н/д') }};
+Путевые выкл: {{ selected_way_switches_option.way_switches_option.value | default('н/д') }};
+Моментные выкл: {{ selected_torque_switches_option.torque_switches_option.value | default('н/д') }};
+Блинкер: {{ selected_blinker_option.blinker_option.value | default('н/д') }};
+обогреватель: в блоке выключателей 110 В-250 В перем./пост.тока;
+Тепловая защита двигателя: {{ motor_thermal_protection.value | default('н/д') }};
+Покрытие: {{ selected_body_coating.body_coating_option.value | default('н/д') }};
+Цвет корпуса:{{ selected_body_color_option.color_option.value | default('н/д') }};
+Вес: {{ weight_body.value | default('н/д') }} кг;
+Момент(мин/макс: {{ torque_min.value | default('н/д') }}-{{ torque_max.value | default('н/д') }};
+Скорость: {{ rotation_speed.value | default('н/д') }}об/мин;
+Монт.площ: {{ mounting_plate.value | default('н/д') }};
+Шток: {{ stem_size.value | default('н/д') }};
+Макс.высота штока,мм: {{ max_stem_height.value | default('н/д') }};
+Макс.диаметр штока,мм:  {{ max_stem_diameter.value | default('н/д') }};
+Отверстия под КВ: {{ cable_glands_holes.cg_set.value | default('н/д') }}
+Мощность:{{ motor_power.value | default('н/д') }}кВт;
+Ток ном:{{ motor_current_rated.value | default('н/д') }}А;
+Ток старт:{{ motor_current_starting.value | default('н/д') }}А;
+Обмотки: класс изоляции F, тропическое исполнение (IEC 85)

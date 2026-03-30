@@ -59,10 +59,10 @@ class UniversalTemplateRenderer:
 
     def prepare_data(self, raw_data):
         """
-        Подготавливает данные из _generate_short_description для шаблона
+        Подготавливает данные из _generate_data_for_description для шаблона
 
         Args:
-            raw_data: словарь из _generate_short_description()
+            raw_data: словарь из _generate_data_for_description()
 
         Returns:
             dict: подготовленные данные для шаблона
@@ -522,7 +522,7 @@ class UniversalTemplateRenderer:
         from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
 
         instance = ElectricActuatorSelected.objects.get(id=instance_id)
-        raw_data = instance._generate_short_description()
+        raw_data = instance._generate_data_for_description()
         html = self.render_html(self.ea_description_template_file_name, raw_data, convert_markdown=False)
 
         return HttpResponse(html)
@@ -532,7 +532,7 @@ class UniversalTemplateRenderer:
         from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
 
         instance = ElectricActuatorSelected.objects.get(id=instance_id)
-        raw_data = instance._generate_short_description()
+        raw_data = instance._generate_data_for_description()
 
         html = self.render_html(self.ea_description_template_file_name, raw_data, convert_markdown=True)  # <-- Включено!
 
@@ -547,7 +547,7 @@ class UniversalTemplateRenderer:
         from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
 
         instance = ElectricActuatorSelected.objects.get(id=instance_id)
-        raw_data = instance._generate_short_description()
+        raw_data = instance._generate_data_for_description()
         data = self.prepare_data(raw_data)
 
         docx_bytes = self.render_docx('description_template.j2', data)
@@ -562,7 +562,7 @@ class UniversalTemplateRenderer:
     #     """
     #     Рендерит Word документ из .docx шаблона через docxtpl
     #     template_name: имя .docx файла (например 'description_template.docx')
-    #     data: данные из _generate_short_description()
+    #     data: данные из _generate_data_for_description()
     #
     #     Returns:
     #         bytes: бинарные данные Word документа
@@ -613,7 +613,7 @@ class UniversalTemplateRenderer:
     #     from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
     #
     #     instance = ElectricActuatorSelected.objects.get(id=instance_id)
-    #     raw_data = instance._generate_short_description()
+    #     raw_data = instance._generate_data_for_description()
     #
     #     # 1. Сначала генерируем Word документ
     #     docx_bytes = self.render_docx('description_template.docx', raw_data)
@@ -628,7 +628,7 @@ class UniversalTemplateRenderer:
     #     from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
     #
     #     instance = ElectricActuatorSelected.objects.get(id=instance_id)
-    #     raw_data = instance._generate_short_description()
+    #     raw_data = instance._generate_data_for_description()
     #
     #     # 1. Сначала генерируем Word документ
     #     docx_bytes = self.render_docx('description_template.docx', raw_data)
@@ -647,7 +647,7 @@ class UniversalTemplateRenderer:
     #     from electric_actuators.models.ea_actuator_selected import ElectricActuatorSelected
     #
     #     instance = ElectricActuatorSelected.objects.get(id=instance_id)
-    #     raw_data = instance._generate_short_description()
+    #     raw_data = instance._generate_data_for_description()
     #
     #     docx_bytes = self.render_docx('description_template.docx', raw_data)
     #

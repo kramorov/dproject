@@ -688,7 +688,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             selected_end_switches_option=self.selected_end_switches_option ,
             selected_way_switches_option=self.selected_way_switches_option ,
             selected_torque_switches_option=self.selected_torque_switches_option ,
-            # selected_body_coating=self.selected_body_coating ,
 
             # Копируем конструктивные особенности
             actual_mounting_plate=self.actual_mounting_plate.all(),
@@ -720,7 +719,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
         return duplicate
 
-    def _generate_short_description(self) -> Dict[str, Any]:
+    def _generate_data_for_description(self) -> Dict[str, Any]:
         """Получить структурированные данные для описания
         model_line_data = {
             'name': {'display_name':'Название серии', 'value':self.code if self.code else None},
@@ -876,6 +875,90 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         print(f'data={data}')
         return data
 
+    def _get_jinja_env(self):
+        """Создает и возвращает окружение Jinja2"""
+        from jinja2 import Environment, FileSystemLoader
+        from pathlib import Path
+
+        template_dir = Path(__file__).parent.parent / 'templates'
+
+        jinja_env = Environment(
+            loader=FileSystemLoader(template_dir),
+            trim_blocks=True,
+            lstrip_blocks=True,
+            autoescape=False
+        )
+
+        # Регистрируем пользовательские фильтры
+        def format_currency(value, currency='₽'):
+            """Форматирует валюту"""
+            try:
+                return f"{float(value):,.2f} {currency}".replace(',', ' ')
+            except:
+                return value
+
+        def default_if_none(value, default='—'):
+            """Заменяет None на значение по умолчанию"""
+            return value if value is not None else default
+
+        def format_bool(value, true_text='Да', false_text='Нет'):
+            """Форматирует булево значение"""
+            return true_text if value else false_text
+
+        jinja_env.filters['currency'] = format_currency
+        jinja_env.filters['default'] = default_if_none
+        jinja_env.filters['bool'] = format_bool
+
+        return jinja_env
+
+    def render_short_description(self, template_name, data, as_html=False):
+        """
+        Рендерит описание из шаблона
+
+        Args:
+            template_name: имя файла шаблона
+            data: подготовленные данные
+            as_html: возвращать ли HTML (если False - возвращает чистый текст)
+
+        Returns:
+            str: текст или HTML строка
+        """
+        from jinja2 import Environment, FileSystemLoader
+        from pathlib import Path
+        import re
+
+        # Определяем путь к директории с шаблонами
+        template_dir = Path(__file__).parent.parent / 'templates'
+
+        # Создаем окружение Jinja2
+        jinja_env = Environment(
+            loader=FileSystemLoader(template_dir),
+            trim_blocks=True,
+            lstrip_blocks=True,
+            autoescape=False
+        )
+
+        # Получаем шаблон
+        template = jinja_env.get_template(template_name)
+
+        # Рендерим шаблон с данными
+        rendered = template.render(**data)
+
+        if as_html:
+            return rendered
+        else:
+            # Удаляем HTML теги и лишние пробелы
+            # Удаляем все HTML теги
+            text = re.sub(r'<[^>]+>', ' ', rendered)
+            # Заменяем множественные пробелы на один
+            text = re.sub(r'\s+', ' ', text)
+            # Удаляем пробелы в начале и конце
+            text = text.strip()
+            return text
+
+    # def _generate_short_description(self) -> Dict[str, Any]:
+    #     data = self._generate_data_for_description()
+    #     return data
     def save(self, *args, **kwargs):
         print(f"\n=== DEBUG save() called ===")
         # print(f"Object ID: {self.id}")
@@ -922,9 +1005,21 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             self.clean()
 
             # Автозаполнение полей
-            if not self.description:
-                self.description = self._generate_short_description() if hasattr(self,
-                                                                                 '_generate_short_description') else ""
+            try:
+                # Получаем данные для описания
+                data = self._generate_data_for_description()
+
+                # Используем render_short_description для генерации HTML
+                # Выбираем шаблон по умолчанию
+                template_name = 'short_description_template.j2'
+
+                # Генерируем описание без конвертации Markdown (чистый текст)
+                self.description = self.render_short_description(
+                    template_name,
+                    data,
+                )
+            except Exception as e:
+                logger.error(f"Error generating description: {e}")
 
             # Сохраняем
             print(f"Final code before save: {self.code}")

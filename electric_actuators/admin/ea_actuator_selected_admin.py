@@ -204,7 +204,7 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
             # Генерируем описание
             if hasattr(instance , '_generate_short_description') :
                 logger.info("Calling _generate_short_description")
-                description = instance._generate_short_description()
+                description = instance._generate_data_for_description()
             else :
                 logger.warning("Method _generate_short_description not found")
                 description = f"Описание для {instance.name}"
