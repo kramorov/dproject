@@ -515,9 +515,9 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
                 'description'
             )
         }) ,
-        # (_('Основные параметры') , {
-        #     'fields' : ('allowed_operating_mode' ,)  # ← Это ManyToManyField
-        # }) ,
+        (_('Режим работы') , {
+            'fields' : ('allowed_operating_mode' ,)  # ← Это ManyToManyField
+        }) ,
         (_('Настройки') , {
             'fields' : ('sorting_order' , 'is_active')
         }) ,
