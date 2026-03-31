@@ -116,12 +116,12 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
         help_text=_('Максимальная рабочая температура, °С') ,
         verbose_name=_('Т раб.макс, °С'))
 
-    pressure_min = models.IntegerField(
-        null=True, blank=True, default=40,
+    pressure_min = models.DecimalField(decimal_places=2, max_digits=6,
+        null=True, blank=True, default=0,
         help_text=_('Минимальное рабочее давление, бар'),
         verbose_name=_('P раб.мин, бар'))
 
-    pressure_max = models.IntegerField(
+    pressure_max = models.DecimalField(decimal_places=2, max_digits=6,
         null=True, blank=True, default=40,
         help_text=_('Максимальное рабочее давление, бар'),
         verbose_name=_('P раб.макс, бар'))
@@ -187,9 +187,9 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
 
         # Создаем новый объект
         new_copy = PneumaticFittingModelLine(**new_data)
-
-        if save_copy:
-            new_copy.save()
+        #
+        # if save_copy:
+        #     new_copy.save()
 
         return new_copy
 
@@ -201,7 +201,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
                                         help_text=_('Минимальная температура окружающей среды'))
     temp_max = models.SmallIntegerField(blank=True, null=True, verbose_name=_("Темп.макс"),
                                         help_text=_('Максимальная температура окружающей среды'))
-    name = models.CharField(max_length=100,
+    name = models.CharField(max_length=300,
                             verbose_name=_("Название"),
                             help_text=_('Текстовое название фитинга'))
     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
@@ -285,15 +285,20 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
         """Отображаемый диапазон рабочих температур"""
         return f'{self.fitting_model_line.pressure_min}..{self.fitting_model_line.pressure_max}'
 
-    def generated_model_name(self):
+    def generated_model_name_description(self, name_or_description):
         """Сгенерировать название фитинга по шаблону из model_line"""
         if not self.fitting_model_line:
             return self.name or ""
-
-        template = self.fitting_model_line.name_template
-        if not template:
-            print('Ошибка при формировании названия фитинга - в model_line нет шаблона')
-            return self.name or ""
+        if name_or_description=='name':
+            template = self.fitting_model_line.name_template
+            if not template:
+                print('Ошибка при формировании названия фитинга - в model_line нет шаблона')
+                return self.name or ""
+        else:
+            template = self.fitting_model_line.description_template
+            if not template:
+                print('Ошибка при формировании описания фитинга - в model_line нет шаблона')
+                return self.description or ""
 
         # Замена переменных
         replacements = {
@@ -315,7 +320,23 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
     def __str__(self):
         return self.name
 
-    # Добавьте этот метод в класс PneumaticFitting (строки ~70-110)
+    def save(self , *args , **kwargs) :
+        from django.core.exceptions import ValidationError
+
+        # Получаем оригинальный объект
+        original = None
+        if self.pk :
+            try :
+                original = self.__class__._default_manager.get(pk=self.pk)
+            except self.__class__.DoesNotExist :
+                pass
+
+        # Автозаполнение полей name description
+        self.name = self.generated_model_name_description('name')
+        self.description = self.generated_model_name_description('description')
+
+        # Сохраняем
+        super().save(*args , **kwargs)
 
     def copy(self, save_copy: bool = False, copy_relations: bool = False) -> 'PneumaticFitting':
         """
