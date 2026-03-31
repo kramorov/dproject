@@ -121,7 +121,8 @@ INSTALLED_APPS = [
     'media_library.apps.MediaLibraryConfig' ,
     'pneumatic_actuators.apps.PneumaticActuatorConfig' ,
     'features.apps.FeaturesConfig',
-    'price.apps.PriceConfig'
+    'price.apps.PriceConfig',
+    'pneumatic_fittings.apps.FittingsConfig'
 ]
 
 MIDDLEWARE = [

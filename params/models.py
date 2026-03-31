@@ -7,41 +7,7 @@ from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin
 from options.models import BaseThroughOption
 
-# valve_producer = models.ForeignKey(Producer, related_name='valve_line_valve_producer', blank=True, null=True,
-#                                        on_delete=models.SET_NULL,
-#                                        help_text=_('Производитель семейства серий арматуры'),
-#                                        verbose_name=_("Производитель"))
-#     valve_brand = models.ForeignKey(Brands, related_name='valve_line_valve_brand', blank=True, null=True,
-#                                     on_delete=models.SET_NULL,
-#                                     help_text=_('Бренд семейства серий арматуры'),
-#                                     verbose_name=_("Бренд"))
-#     valve_variety = models.ForeignKey(ValveVariety, related_name='valve_line_valve_variety', blank=True, null=True,
-#                                       on_delete=models.SET_NULL,
-#                                       help_text=_('Тип арматуры семейства арматуры производителя'),
-#                                       verbose_name=_("Тип"))
-# body_material = models.ForeignKey(MaterialGeneral, related_name='valve_line_body_material', blank=True,
-#                                       null=True,
-#                                       on_delete=models.SET_NULL,
-#                                       help_text=_('Тип материала корпуса'),
-#                                       verbose_name=_('Тип материала корпуса'))
-#     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
-#                                                 blank=True, null=True,
-#                                                 on_delete=models.SET_NULL,
-#                                                 help_text=_('Материал корпуса арматуры'),
-#                                                 verbose_name=_('Материал корпуса'))
-# work_temp_min = models.IntegerField(
-#     null=True , blank=True ,
-#     help_text=_('Минимальная рабочая температура, °С') ,
-#     verbose_name=_('Т раб мин, °С')
-# )
-# work_temp_max = models.IntegerField(
-#     null=True , blank=True ,
-#     help_text=_('Максимальная рабочая температура, °С') ,
-#     verbose_name=_('Т раб макс, °С')
-# )
-# PowerSupplies, ExdOption, IpOption, BodyCoatingOption,BlinkerOption,SwitchesParameters, EnvTempParameters, \
-# DigitalProtocolsSupportOption, ControlUnitInstalledOption,ActuatorType, ValveTypes, GearBoxTypes, \
-# HandWheelInstalledOption, OperatingModeOption
+
 
 class PowerSupplies(models.Model):
     VOLTAGE_TYPES = [
@@ -903,6 +869,26 @@ class ThreadTypes(models.Model):
     def __str__(self):
         return self.name
 
+class ThreadInnerOuter(models.Model):
+    name = models.CharField(max_length=30, blank=True, null=True,
+                            verbose_name=_("Название"),
+                            help_text=_("Название расположения резьбы - внутренняя или наружная")
+                            )
+    code = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код типа резьбы"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Текстовое описание расположения резьбы - внутренняя или наружная'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+    class Meta:
+        verbose_name = _('Расположения резьбы')
+        verbose_name_plural = _('Расположения резьбы')
+        ordering = ['sorting_order']
+
+    def __str__(self):
+        return self.name
 
 class MeasureUnits(models.Model):
     MEASURE_TYPES = [

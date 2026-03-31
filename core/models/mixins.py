@@ -28,6 +28,18 @@ class StructuredDataMixin :
     DETAIL = DisplayView.DETAIL
     BADGE = DisplayView.BADGE
 
+    def _get_value(self, field_path: str) -> str:
+        """Простое получение значения поля"""
+        try:
+            current_obj = self
+            for field_name in field_path.split('__'):
+                current_obj = getattr(current_obj, field_name, None)
+                if current_obj is None:
+                    return ""
+            return str(current_obj) if current_obj else ""
+        except Exception:
+            return ""
+
     def get_compact_data(self) -> Dict[str , Any] :
         """
         Минимальные данные для списков и таблиц.

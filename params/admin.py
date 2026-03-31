@@ -12,7 +12,8 @@ from .models import PowerSupplies, ExdOption, IpOption, BodyCoatingOption, Blink
     MechanicalIndicatorInstalledOption, SafetyPositionOption, ControlUnitTypeOption, ControlUnitLocationOption, \
     ClimaticConditions, ClimaticEquipmentPlacementClassifier, ClimaticZoneClassifier, PnVariety, DnVariety, \
     BodyColor, OptionVariety, ValveFunctionVariety, CoatingVariety, SealingClass, WarrantyTimePeriodVariety, \
-    ValveActuationVariety, PneumaticAirSupplyPressure, PneumaticConnection, ThreadSizeSetItem, ThreadSizeSet
+    ValveActuationVariety, PneumaticAirSupplyPressure, PneumaticConnection, ThreadSizeSetItem, ThreadSizeSet, \
+    ThreadInnerOuter
 
 
 class MeasureUnitsAdmin(admin.ModelAdmin):
@@ -544,3 +545,4 @@ admin.site.register(WarrantyTimePeriodVariety)
 admin.site.register(SealingClass, SealingClassAdmin)
 admin.site.register(ValveActuationVariety, ValveActuationVarietyAdmin)
 admin.site.register(PneumaticConnection)
+admin.site.register(ThreadInnerOuter)
