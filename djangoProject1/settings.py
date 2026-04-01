@@ -122,7 +122,8 @@ INSTALLED_APPS = [
     'pneumatic_actuators.apps.PneumaticActuatorConfig' ,
     'features.apps.FeaturesConfig',
     'price.apps.PriceConfig',
-    'pneumatic_fittings.apps.FittingsConfig'
+    'pneumatic_fittings.apps.FittingsConfig',
+    'solenoid_valves.apps.SolenoidValvesConfig'
 ]
 
 MIDDLEWARE = [
