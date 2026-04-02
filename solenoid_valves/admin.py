@@ -155,10 +155,10 @@ from django.contrib import admin
 
 from core.models.mixins import AdminStructuredDataMixinCopyMixin
 from .models import (
-    ValveDesign,
-    ValveOperationVariety,
-    ValveFunction,
-    ValveActuationVariety
+    ValveDesign ,
+    ValveOperationVariety ,
+    ValveFunction ,
+    ValveActuationVariety , ManualOverride , ValvePilotVariety
 )
 
 @admin.register(ValveDesign)
@@ -205,3 +205,19 @@ class ValveActuationVarietyAdmin(AdminStructuredDataMixinCopyMixin,admin.ModelAd
     search_fields = ('name', 'code')
     # prepopulated_fields = {'code': ('name',)} # Автогенерация кода из названия
     actions = ['copy_objects']  # Явно добавляем action
+
+@admin.register(ManualOverride)
+class ManualOverrideAdmin(admin.ModelAdmin) :
+    list_display = ('name' , 'mechanism' , 'has_fixation' , 'code' , 'sorting_order' , 'is_active')
+    list_editable = ('sorting_order' , 'is_active' , 'has_fixation')
+    list_filter = ('mechanism' , 'has_fixation' , 'is_active')
+    search_fields = ('name' , 'code')
+    # prepopulated_fields = {'code' : ('name' ,)}
+
+@admin.register(ValvePilotVariety)
+class ValvePilotTypeAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
+    list_display = ('name', 'category', 'code', 'sorting_order', 'is_active')
+    list_filter = ('category', 'is_active')
+    # prepopulated_fields = {'code': ('name',)}
+    actions = ['copy_selected_objects']
+

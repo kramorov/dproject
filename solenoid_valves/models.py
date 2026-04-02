@@ -1,19 +1,52 @@
 #solenoid_valves/models.py
 
 from django.db import models
+import math
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin
-from materials.models import MaterialGeneral
+from materials.models import MaterialGeneral , MaterialSpecified
 from params.models import ThreadSize, ThreadInnerOuter
 from producers.models import Brands, Producer
 
 '''
-Соленоидные клапаны:
+1. ModelLine (Общие свойства серии)
+Это «ДНК» клапана. Если что-то из этого изменится, это будет уже другая серия.
+ValveDesign (Золотниковый / Мембранный).
+ValveOperationVariety (Прямого / Пилотного действия).
+Medium (Рабочая среда: Воздух / Газ / Масло).
+ProtectionClass (IP65, IP67) и Ex-Protection (Взрывозащита).
+InsulationClass (Класс изоляции катушки: H, F).
+ElectricalSafety (Стандарты IEC/EN).
+MaterialBody (Материал корпуса: Алюминий / Нержавейка) — обычно вся серия делается из одного металла.
+MaterialSeals (Материал уплотнений: NBR / FKM / Viton) — базовый вариант для серии.
+2. SolenoidValve (Характеристики конкретного артикула)
+Это то, что определяет финальный «Part Number» и цену.
+ValveFunction (3/2, 5/2, 5/3).
+ValveActuationVariety (Моно / Бистабильный).
+ManualOverride (Тип ручного дублера).
+Connections (Резьбы: 1/8", 1/4", 1/2", NAMUR).
+FlowCharacteristics:
+DN (Проходное сечение, мм).
+Kv (м³/ч) и FlowRate (л/мин) — они меняются в зависимости от размера портов.
+PressureRange:
+pressure_min (Важно: у 3/2 и 5/2 в одной серии может быть разный порог срабатывания пилота).
+pressure_max.
+TemperatureRange: (Напр. исполнение для -60°C часто идет как отдельный артикул с особыми уплотнениями).
+ElectricalParams:
+Voltage (12V, 24V, 220V).
+PowerConsumption (Пусковая/рабочая мощность).
+Weight (Масса).
+Что я бы уточнил (Советы):
+Уплотнения: Если в одной серии можно заказать клапан либо с NBR (-20°C), либо с Viton (+120°C), то поле MaterialSeals должно быть и в ModelLine (как список доступных), и в SolenoidValve (как конкретный выбор).
+Kv и л/мин: В Django-модели SolenoidValve лучше хранить Kv как числовое поле (для расчетов), а л/мин можно сделать property, который вычисляется автоматически по нашей функции.
+Порты NAMUR: В соленоидных клапанах часто важно, крепится он «на трубах» или «на приводе» (NAMUR стандарт). Стоит добавить булево поле is_namur.
+
+Распределительные клапаны:
 ModelLine:
-Моно-/бистабильные золотниковые клапаны с одним/двумя соленоидами
-непрямого действия / пилотные
-Перепад давления 2-8 бар, макс: 10 бар [1 бар = 100 кПа]
+ValveDesign Золотниковые / мембранные
+ValveOperationVariety непрямого действия / пилотные
+pressure_min, pressure_max Перепад давления 2-8 бар, макс: 10 бар [1 бар = 100 кПа]
 IP
 Exd
 Рабочая среда*
@@ -24,8 +57,9 @@ SolenoidValve:
 Материал корпуса
 Материал соленоида
 Материал уплотнения
-Золотниковые 3/2, 5/2, 5/3 ходовые
-Корпус оснащён ручным дублёром - виды
+ManualOverride ручной дублер Корпус оснащён ручным дублёром - виды
+ValveFunction 3/2, 5/2, 5/3 ходовые
+ValveActuationVariety Моно-/бистабильные золотниковые клапаны с одним/двумя соленоидами
 Отверстия под КВ - кол-во резьба
 Отверстия под пневмоприсоединение
 
@@ -44,6 +78,53 @@ Kv м3/ч л/мин
 '''
 from django.db import models
 
+class ManualOverride(StructuredDataMixin, models.Model):
+    """Справочник типов ручного дублирования соленоидного клапана"""
+
+    class MechanismType(models.TextChoices):
+        PUSH = 'push', _('Нажимной (Push)')
+        TWIST = 'twist', _('Поворотный (Twist/Lock)')
+        SCREW = 'screw', _('Под отвертку (Slot)')
+        LEVER = 'lever', _('Рычажный (Lever)')
+        NONE = 'none', _('Отсутствует')
+
+    name = models.CharField(
+        max_length=100,
+        verbose_name=_("Название"),
+        help_text=_("Напр: С фиксацией, Кнопка без фиксации")
+    )
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name=_("Код")
+    )
+
+    mechanism = models.CharField(
+        max_length=20,
+        choices=MechanismType.choices,
+        default=MechanismType.PUSH,
+        verbose_name=_("Тип механизма")
+    )
+
+    has_fixation = models.BooleanField(
+        default=False,
+        verbose_name=_("С фиксацией"),
+        help_text=_("Удерживает ли дублер клапан в рабочем состоянии без участия оператора")
+    )
+
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок"))
+
+    class Meta:
+        ordering = ['sorting_order', 'name']
+        verbose_name = _('Ручной дублер')
+        verbose_name_plural = _('Ручные дублеры')
+
+    def __str__(self):
+        fix_status = _("с фиксацией") if self.has_fixation else _("без фиксации")
+        return f"{self.name} ({fix_status})"
 
 class ValveActuationVariety(StructuredDataMixin, models.Model) :
     """Справочник типов управления: Моностабильный (1 катушка), Бистабильный (2 катушки)"""
@@ -179,319 +260,358 @@ class ValveFunction(StructuredDataMixin, models.Model) :
     def __str__(self) :
         return self.name
 
-#
-# class SolenoidValve(models.Model) :
-#     title = models.CharField("Наименование модели" , max_length=200)
-#     design = models.ForeignKey(ValveDesign , on_delete=models.PROTECT , verbose_name="Конструкция")
-#     operation = models.ForeignKey(ValveOperationVariety , on_delete=models.PROTECT , verbose_name="Тип действия")
+class ValvePilotVariety(StructuredDataMixin, models.Model):
+    """Справочник типов управляющего сигнала (пилота)"""
 
-#
-#
-# class PneumaticFittingVariety(StructuredDataMixin, models.Model):
-#     """
-#     Разновидности конструкций фитингов
-#     """
-#     name = models.CharField(max_length=200,
-#                             verbose_name=_("Название"),
-#                             help_text=_('Название разновидности конструкции'))
-#     code = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("Код"),
-#                             help_text=_("Код разновидности конструкции привода"))
-#     description = models.TextField(blank=True, verbose_name=_("Описание"),
-#                                    help_text=_('Текстовое описание разновидности конструкции фитинга'))
-#     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
-#                                         help_text=_('Порядок сортировки в списке'))
-#     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
-#                                     help_text=_('Активно свойство или нет'))
-#
-#     class Meta:
-#         ordering = ['sorting_order']
-#         verbose_name = _('Название разновидности конструкции фитинга')
-#         verbose_name_plural = _('Названия разновидностей конструкции фитинга')
-#
-#     def __str__(self):
-#         return self.name
-#
-# class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
-#     """
-#     Серия пневматических фитингов
-#     """
-#
-#     name = models.CharField(max_length=100,
-#                             verbose_name=_("Название"),
-#                             help_text=_('Текстовое название фитинга'))
-#     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
-#                             help_text=_("Код фитинга"))
-#     description = models.TextField(blank=True, verbose_name=_("Описание"),
-#                                    help_text=_('Текстовое описание разновидности серии фитингов'))
-#     name_template = models.CharField(max_length=300,
-#                             verbose_name=_("Шаблон названия"),
-#                             help_text=_('Шаблон для текстового названия фитинга'))
-#     description_template = models.TextField(blank=True, verbose_name=_("Шаблон описания"),
-#                                    help_text=_('Шаблон для описания фитинга'))
-#     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
-#                                         help_text=_('Порядок сортировки в списке'))
-#     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
-#                                     help_text=_('Активно свойство или нет'))
-#     producer = models.ForeignKey(Producer, related_name='pneumatic_fitting_model_line_producer', blank=True, null=True,
-#                                  on_delete=models.SET_NULL,
-#                                  help_text=_('Производитель фитингов'),
-#                                  verbose_name=_("Производитель"))
-#     brand = models.ForeignKey(Brands, related_name='pneumatic_fitting_model_line_brand', blank=True, null=True,
-#                               on_delete=models.SET_NULL,
-#                               help_text=_('Бренд фитингов'),
-#                               verbose_name=_("Бренд"))
-#     fitting_variety = models.ForeignKey(PneumaticFittingVariety, related_name='pneumatic_fitting_model_line_variety', blank=True,
-#                                         null=True,
-#                                         on_delete=models.SET_NULL,
-#                                         help_text=_('Тип фитинга'),
-#                                         verbose_name=_("Тип"))
-#
-#     body_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_body_material', blank=True,
-#                                       null=True,
-#                                       on_delete=models.SET_NULL,
-#                                       help_text=_('Корпус'),
-#                                       verbose_name=_('Тип материала корпуса'))
-#     pipe_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_pipe_material', blank=True,
-#                                       null=True,
-#                                       on_delete=models.SET_NULL,
-#                                       help_text=_('Трубка'),
-#                                       verbose_name=_('Тип материала трубки'))
-#
-#     #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
-#     #                                                 blank=True, null=True,
-#     #                                                 on_delete=models.SET_NULL,
-#     #                                                 help_text=_('Материал корпуса арматуры'),
-#     #                                                 verbose_name=_('Материал корпуса'))
-#     work_temp_min = models.IntegerField(
-#         null=True , blank=True , default=-40,
-#         help_text=_('Минимальная рабочая температура, °С') ,
-#         verbose_name=_('Т раб.мин, °С')
-#     )
-#     work_temp_max = models.IntegerField(
-#         null=True , blank=True , default=120,
-#         help_text=_('Максимальная рабочая температура, °С') ,
-#         verbose_name=_('Т раб.макс, °С'))
-#
-#     pressure_min = models.DecimalField(decimal_places=2, max_digits=6,
-#         null=True, blank=True, default=0,
-#         help_text=_('Минимальное рабочее давление, бар'),
-#         verbose_name=_('P раб.мин, бар'))
-#
-#     pressure_max = models.DecimalField(decimal_places=2, max_digits=6,
-#         null=True, blank=True, default=40,
-#         help_text=_('Максимальное рабочее давление, бар'),
-#         verbose_name=_('P раб.макс, бар'))
-#     class Meta:
-#         ordering = ['sorting_order', 'code']
-#         verbose_name = _('Серия пневматических фитингов')
-#         verbose_name_plural = _('Серии пневматических фитингов')
-#
-#     def __str__(self):
-#         return self.name
-#
-#     @property
-#     def temperature_range_display(self):
-#         """Отображаемый диапазон рабочих температур"""
-#         return f'{self.work_temp_min}..{self.work_temp_max}'
-#
-#     @property
-#     def pressure_range_display(self):
-#         """Отображаемый диапазон рабочих температур"""
-#         return f'{self.pressure_min}..{self.pressure_max}'
-#
-#     def copy(self, save_copy: bool = False, copy_relations: bool = False) -> 'PneumaticFittingModelLine':
-#         """
-#         Создает копию объекта PneumaticFittingModelLine
-#
-#         Args:
-#             save_copy: Сохранить копию в БД (если False - возвращает несохраненный объект)
-#             copy_relations: Скопировать связанные объекты (ManyToMany и обратные связи)
-#
-#         Returns:
-#             Новый объект PneumaticFittingModelLine (сохраненный или нет)
-#
-#         Example:
-#             # В админке или shell
-#             original = PneumaticFitting.objects.get(id=1)
-#             copy_obj = original.copy(save_copy=True)
-#             copy_obj.name = f"Копия {original.name}"
-#             copy_obj.save()
-#         """
-#         # Получаем все поля текущего объекта
-#         all_fields = self._meta.fields
-#
-#         # Создаем словарь для нового объекта, исключая первичный ключ
-#         new_data = {}
-#         for field in all_fields:
-#             if field.name != self._meta.pk.name:
-#                 value = getattr(self, field.name)
-#
-#                 # Для ForeignKey полей (кроме null=True, blank=True)
-#                 if isinstance(field, models.ForeignKey):
-#                     # Если поле не пустое, копируем ссылку
-#                     if value is not None:
-#                         new_data[field.name] = value
-#                     else:
-#                         new_data[field.name] = None
-#                 else:
-#                     new_data[field.name] = value
-#
-#         # Изменяем уникальные/специальные поля для копии
-#         new_data['name'] = f"{self.name} (копия)"
-#         new_data['code'] = f"{self.code}_copy"
-#         new_data['sorting_order'] = self.sorting_order + 1
-#
-#         # Создаем новый объект
-#         new_copy = PneumaticFittingModelLine(**new_data)
-#         #
-#         # if save_copy:
-#         #     new_copy.save()
-#
-#         return new_copy
-#
-# class PneumaticFitting(StructuredDataMixin, models.Model):
-#     """
-#     Пневматические фитинги
-#     """
-#     temp_min = models.SmallIntegerField(blank=True, null=True, verbose_name=_("Темп.мин"),
-#                                         help_text=_('Минимальная температура окружающей среды'))
-#     temp_max = models.SmallIntegerField(blank=True, null=True, verbose_name=_("Темп.макс"),
-#                                         help_text=_('Максимальная температура окружающей среды'))
-#     name = models.CharField(max_length=300,
-#                             verbose_name=_("Название"),
-#                             help_text=_('Текстовое название фитинга'))
-#     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
-#                             help_text=_("Код фитинга"))
-#     description = models.TextField(blank=True, verbose_name=_("Описание"),
-#                                    help_text=_('Текстовое описание разновидности конструкции фитинга'))
-#     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
-#                                         help_text=_('Порядок сортировки в списке'))
-#     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
-#                                     help_text=_('Активно свойство или нет'))
-#     producer = models.ForeignKey(Producer, related_name='pneumatic_fitting_producer', blank=True, null=True,
-#                                  on_delete=models.SET_NULL,
-#                                  help_text=_('Производитель фитингов'),
-#                                  verbose_name=_("Производитель"))
-#     brand = models.ForeignKey(Brands, related_name='pneumatic_fitting_brand', blank=True, null=True,
-#                               on_delete=models.SET_NULL,
-#                               help_text=_('Бренд фитингов'),
-#                               verbose_name=_("Бренд"))
-#
-#     fitting_model_line= models.ForeignKey(PneumaticFittingModelLine, related_name='pneumatic_fitting_model_line', blank=True,
-#                                         null=True,
-#                                         on_delete=models.SET_NULL,
-#                                         help_text=_('Серия фитинга'),
-#                                         verbose_name=_("Серия"))
-#     fitting_variety = models.ForeignKey(PneumaticFittingVariety, related_name='pneumatic_fitting_variety', blank=True,
-#                                         null=True,
-#                                         on_delete=models.SET_NULL,
-#                                         help_text=_('Тип фитинга'),
-#                                         verbose_name=_("Тип"))
-#
-#     body_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_body_material', blank=True,
-#                                       null=True,
-#                                       on_delete=models.SET_NULL,
-#                                       help_text=_('Корпус'),
-#                                       verbose_name=_('Тип материала корпуса'))
-#     pipe_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_pipe_material', blank=True,
-#                                       null=True,
-#                                       on_delete=models.SET_NULL,
-#                                       help_text=_('Трубка'),
-#                                       verbose_name=_('Тип материала трубки'))
-#     pipe_diameter = (models.IntegerField(blank=True,
-#                                       null=True,
-#                                       help_text=_('Диаметр'),
-#                                       verbose_name=_('Диаметр трубки, мм')))
-#     thread = models.ForeignKey(ThreadSize, on_delete=models.SET_NULL, null=True, blank=True,
-#                                related_name='pneumatic_fitting_thread',
-#                                verbose_name=_("Резьба"),
-#                                help_text=_('Резьба фитинга'))
-#
-#     thread_inner_outer = models.ForeignKey(ThreadInnerOuter, on_delete=models.SET_NULL, null=True, blank=True,
-#                                related_name='pneumatic_fitting_thread_in_out',
-#                                verbose_name=_("Резьба наружная или внутренняя"),
-#                                help_text=_('Резьба наружная или внутренняя'))
-#
-#     #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
-#     #                                                 blank=True, null=True,
-#     #                                                 on_delete=models.SET_NULL,
-#     #                                                 help_text=_('Материал корпуса арматуры'),
-#     #                                                 verbose_name=_('Материал корпуса'))
-#     # work_temp_min = models.IntegerField(
-#     #     null=True , blank=True ,
-#     #     help_text=_('Минимальная рабочая температура, °С') ,
-#     #     verbose_name=_('Т раб мин, °С')
-#     # )
-#     # work_temp_max = models.IntegerField(
-#     #     null=True , blank=True ,
-#     #     help_text=_('Максимальная рабочая температура, °С') ,
-#     #     verbose_name=_('Т раб макс, °С')
-#     class Meta:
-#         ordering = ['sorting_order', 'code']
-#         verbose_name = _('Пневматический фитинг')
-#         verbose_name_plural = _('Пневматические фитинги')
-#
-#     @property
-#     def temperature_range_display(self):
-#         """Отображаемый диапазон рабочих температур"""
-#         return f'{self.fitting_model_line.work_temp_min}..{self.fitting_model_line.work_temp_max}'
-#
-#     @property
-#     def pressure_range_display(self):
-#         """Отображаемый диапазон рабочих температур"""
-#         return f'{self.fitting_model_line.pressure_min}..{self.fitting_model_line.pressure_max}'
-#
-#     def generated_model_name_description(self, name_or_description):
-#         """Сгенерировать название фитинга по шаблону из model_line"""
-#         if not self.fitting_model_line:
-#             return self.name or ""
-#         if name_or_description=='name':
-#             template = self.fitting_model_line.name_template
-#             if not template:
-#                 print('Ошибка при формировании названия фитинга - в model_line нет шаблона')
-#                 return self.name or ""
-#         else:
-#             template = self.fitting_model_line.description_template
-#             if not template:
-#                 print('Ошибка при формировании описания фитинга - в model_line нет шаблона')
-#                 return self.description or ""
-#
-#         # Замена переменных
-#         replacements = {
-#             '{model_code}': self._get_value('code'),
-#             '{temperature_range}': self._get_value('temperature_range_display'),
-#             '{pressure_range}': self._get_value('pressure_range_display'),
-#             '{pipe_diameter}': self._get_value('pipe_diameter'),
-#             '{thread}': self._get_value('thread'),
-#             '{thread_inner_outer}': self._get_value('thread_inner_outer'),
-#         }
-#
-#         # Заменяем все плейсхолдеры
-#         result = template
-#         for placeholder, value in replacements.items():
-#             result = result.replace(placeholder, str(value) if value else '')
-#
-#         return result
-#
-#     def __str__(self):
-#         return self.name
-#
-#     def save(self , *args , **kwargs) :
-#         from django.core.exceptions import ValidationError
-#
-#         # Получаем оригинальный объект
-#         original = None
-#         if self.pk :
-#             try :
-#                 original = self.__class__._default_manager.get(pk=self.pk)
-#             except self.__class__.DoesNotExist :
-#                 pass
-#
-#         # Автозаполнение полей name description
-#         self.name = self.generated_model_name_description('name')
-#         self.description = self.generated_model_name_description('description')
-#
-#         # Сохраняем
-#         super().save(*args , **kwargs)
-#
+    class SignalCategory(models.TextChoices):
+        ELECTRIC = 'electric', _('Электрический (Соленоид)')
+        PNEUMATIC = 'pneumatic', _('Пневматический (Воздух)')
+        MECHANICAL = 'mechanical', _('Механический (Ролик/Рычаг)')
+        MANUAL = 'manual', _('Ручной (Кнопка/Педаль)')
+
+    name = models.CharField(
+        max_length=100,
+        verbose_name=_("Название"),
+        help_text=_("Напр: Электромагнитный, Пневмопривод")
+    )
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name=_("Код")
+    )
+
+    category = models.CharField(
+        max_length=20,
+        choices=SignalCategory.choices,
+        default=SignalCategory.ELECTRIC,
+        verbose_name=_("Категория сигнала")
+    )
+
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок"))
+
+    class Meta:
+        ordering = ['sorting_order', 'name']
+        verbose_name = _('Тип управления (Пилот)')
+        verbose_name_plural = _('Типы управления (Пилот)')
+
+    def __str__(self):
+        return self.name
+
+'''
+ModelLine:
+ValveDesign Золотниковые / мембранные
+ValveOperationVariety непрямого действия / пилотные
+pressure_min, pressure_max Перепад давления 2-8 бар, макс: 10 бар [1 бар = 100 кПа]
+IP
+Exd
+Рабочая среда*
+Класс изоляции катушки H
+Электробезопасность IEC 335
+'''
+class DirectionalValveModelLine(StructuredDataMixin, models.Model):
+    """
+    Серия распределительных клапанов
+    """
+
+    name = models.CharField(max_length=200,
+                            verbose_name=_("Название"),
+                            help_text=_('Текстовое название фитинга'))
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код фитинга"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Текстовое описание разновидности серии фитингов'))
+    name_template = models.CharField(max_length=300,
+                            verbose_name=_("Шаблон названия"),
+                            help_text=_('Шаблон для текстового названия фитинга'))
+    description_template = models.TextField(blank=True, verbose_name=_("Шаблон описания"),
+                                   help_text=_('Шаблон для описания фитинга'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+    producer = models.ForeignKey(Producer, related_name='pneumatic_fitting_model_line_producer', blank=True, null=True,
+                                 on_delete=models.SET_NULL,
+                                 help_text=_('Производитель фитингов'),
+                                 verbose_name=_("Производитель"))
+    brand = models.ForeignKey(Brands, related_name='pneumatic_fitting_model_line_brand', blank=True, null=True,
+                              on_delete=models.SET_NULL,
+                              help_text=_('Бренд фитингов'),
+                              verbose_name=_("Бренд"))
+    construction = models.ForeignKey(ValveDesign, related_name='direction_valve_model_line_construction', blank=True,
+                                        null=True,
+                                        on_delete=models.SET_NULL,
+                                        help_text=_('Конструкция'),
+                                        verbose_name=_("Тип конструкции клапана"))
+    operation  = models.ForeignKey(ValveOperationVariety ,
+                                             related_name='direction_valve_model_line_construction_operation' ,
+                                             blank=True ,
+                                             null=True ,
+                                             on_delete=models.SET_NULL ,
+                                             help_text=_('Принцип действия') ,
+                                             verbose_name=_("Принцип действия клапана"))
+    function  = models.ForeignKey(ValveFunction ,
+                                  related_name='direction_valve_model_line_construction_function' ,
+                                  blank=True ,
+                                  null=True ,
+                                  on_delete=models.SET_NULL ,
+                                  help_text=_('Схема (Функция)') ,
+                                  verbose_name=_("Схема (Функция) клапана"))
+
+    actuation  = models.ForeignKey(ValveActuationVariety ,
+                                 related_name='direction_valve_model_line_construction_actuation' ,
+                                 blank=True ,
+                                 null=True ,
+                                 on_delete=models.SET_NULL ,
+                                 help_text=_('Управление') ,
+                                 verbose_name=_("Вариант управления"))
+    manual_override  = models.ForeignKey(ManualOverride ,
+                                  related_name='direction_valve_model_line_construction_manual_override' ,
+                                  blank=True ,
+                                  null=True ,
+                                  on_delete=models.SET_NULL ,
+                                  help_text=_('Ручной дублер') ,
+                                  verbose_name=_("Ручной дублер"))
+
+    body_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_body_material', blank=True,
+                                      null=True,
+                                      on_delete=models.SET_NULL,
+                                      help_text=_('Корпус'),
+                                      verbose_name=_('Тип материала корпуса'))
+    pipe_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_pipe_material', blank=True,
+                                      null=True,
+                                      on_delete=models.SET_NULL,
+                                      help_text=_('Трубка'),
+                                      verbose_name=_('Тип материала трубки'))
+
+    #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
+    #                                                 blank=True, null=True,
+    #                                                 on_delete=models.SET_NULL,
+    #                                                 help_text=_('Материал корпуса арматуры'),
+    #                                                 verbose_name=_('Материал корпуса'))
+    work_temp_min = models.IntegerField(
+        null=True , blank=True , default=-40,
+        help_text=_('Минимальная рабочая температура, °С') ,
+        verbose_name=_('Т раб.мин, °С')
+    )
+    work_temp_max = models.IntegerField(
+        null=True , blank=True , default=120,
+        help_text=_('Максимальная рабочая температура, °С') ,
+        verbose_name=_('Т раб.макс, °С'))
+
+    pressure_min = models.DecimalField(decimal_places=2, max_digits=6,
+        null=True, blank=True, default=0,
+        help_text=_('Минимальное рабочее давление, бар'),
+        verbose_name=_('P раб.мин, бар'))
+
+    pressure_max = models.DecimalField(decimal_places=2, max_digits=6,
+        null=True, blank=True, default=40,
+        help_text=_('Максимальное рабочее давление, бар'),
+        verbose_name=_('P раб.макс, бар'))
+    class Meta:
+        ordering = ['sorting_order', 'code']
+        verbose_name = _('Серия пневматических фитингов')
+        verbose_name_plural = _('Серии пневматических фитингов')
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def temperature_range_display(self):
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.work_temp_min}..{self.work_temp_max}'
+
+    @property
+    def pressure_range_display(self):
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.pressure_min}..{self.pressure_max}'
+
+
+
+
+
+class DirectionValve(StructuredDataMixin, models.Model) :
+    name = models.CharField(max_length=200 ,
+                            verbose_name=_("Название") ,
+                            help_text=_('Текстовое название клапана'))
+    code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
+                            help_text=_("Код клапана"))
+    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+                                   help_text=_('Текстовое описание разновидности клапана'))
+    sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+                                    help_text=_('Активно свойство или нет'))
+    model_line = models.ForeignKey(DirectionalValveModelLine , related_name='direction_valve_model_line' , blank=True ,
+                                 null=True ,
+                                 on_delete=models.SET_NULL ,
+                                 help_text=_('Серия клапана') ,
+                                 verbose_name=_("Серия"))
+    producer = models.ForeignKey(Producer , related_name='direction_valve_producer' , blank=True ,
+                                 null=True ,
+                                 on_delete=models.SET_NULL ,
+                                 help_text=_('Производитель клапана') ,
+                                 verbose_name=_("Производитель"))
+    brand = models.ForeignKey(Brands , related_name='direction_valve_brand' , blank=True , null=True ,
+                              on_delete=models.SET_NULL ,
+                              help_text=_('Бренд клапанов') ,
+                              verbose_name=_("Бренд"))
+    temp_min = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.мин") ,
+                                        help_text=_('Минимальная температура окружающей среды'))
+    temp_max = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.макс") ,
+                                        help_text=_('Максимальная температура окружающей среды'))
+
+    body_material = models.ForeignKey(MaterialGeneral , related_name='pneumatic_fitting_body_material' , blank=True ,
+                                      null=True ,
+                                      on_delete=models.SET_NULL ,
+                                      help_text=_('Корпус') ,
+                                      verbose_name=_('Тип материала корпуса'))
+    solenoid_material = models.ForeignKey(MaterialGeneral , related_name='direction_valve_pipe_material' , blank=True ,
+                                      null=True ,
+                                      on_delete=models.SET_NULL ,
+                                      help_text=_('Трубка') ,
+                                      verbose_name=_('Тип материала трубки'))
+
+    thread = models.ForeignKey(ThreadSize , on_delete=models.SET_NULL , null=True , blank=True ,
+                               related_name='direction_valve__thread' ,
+                               verbose_name=_("Резьба") ,
+                               help_text=_('Резьба фитинга'))
+
+    body_material_specified = models.ForeignKey(MaterialSpecified , related_name='valve_line_body_material' ,
+                                                blank=True , null=True ,
+                                                on_delete=models.SET_NULL ,
+                                                help_text=_('Материал корпуса арматуры') ,
+                                                verbose_name=_('Материал корпуса'))
+    work_temp_min = models.IntegerField(
+        null=True , blank=True ,
+        help_text=_('Минимальная рабочая температура, °С') ,
+        verbose_name=_('Т раб мин, °С')
+    )
+    work_temp_max = models.IntegerField(
+        null=True , blank=True ,
+        help_text=_('Максимальная рабочая температура, °С') ,
+        verbose_name=_('Т раб макс, °С')
+
+    class Meta :
+        ordering = ['sorting_order' , 'code']
+        verbose_name = _('Пневматический фитинг')
+        verbose_name_plural = _('Пневматические фитинги')
+
+    @property
+    def temperature_range_display(self) :
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.work_temp_min}..{self.work_temp_max}'
+
+    @property
+    def pressure_range_display(self) :
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.model_line.pressure_min}..{self.model_line.pressure_max}'
+
+    def generated_model_name_description(self , name_or_description) :
+        """Сгенерировать название фитинга по шаблону из model_line"""
+        if not self.model_line :
+            return self.name or ""
+        if name_or_description == 'name' :
+            template = self.model_line.name_template
+            if not template :
+                print('Ошибка при формировании названия фитинга - в model_line нет шаблона')
+                return self.name or ""
+        else :
+            template = self.model_line.description_template
+            if not template :
+                print('Ошибка при формировании описания фитинга - в model_line нет шаблона')
+                return self.description or ""
+
+        # Замена переменных
+        replacements = {
+            '{model_code}' : self._get_value('code') ,
+            '{temperature_range}' : self._get_value('temperature_range_display') ,
+            '{pressure_range}' : self._get_value('pressure_range_display') ,
+            '{pipe_diameter}' : self._get_value('pipe_diameter') ,
+            '{thread}' : self._get_value('thread') ,
+            '{thread_inner_outer}' : self._get_value('thread_inner_outer') ,
+        }
+
+        # Заменяем все плейсхолдеры
+        result = template
+        for placeholder , value in replacements.items() :
+            result = result.replace(placeholder , str(value) if value else '')
+
+        return result
+
+    def __str__(self) :
+        return self.name
+
+    def save(self , *args , **kwargs) :
+        from django.core.exceptions import ValidationError
+
+        # Получаем оригинальный объект
+        original = None
+        if self.pk :
+            try :
+                original = self.__class__._default_manager.get(pk=self.pk)
+            except self.__class__.DoesNotExist :
+                pass
+
+        # Автозаполнение полей name description
+        self.name = self.generated_model_name_description('name')
+        self.description = self.generated_model_name_description('description')
+
+        # Сохраняем
+        super().save(*args , **kwargs)
+
+    def calculate_flow_rate(self, kv , p1_bar , p2_bar=None , medium='air' , temp_c=20) :
+        """
+        Расчет объемного расхода Q через коэффициент Kv.
+
+        :param kv: Коэффициент пропускной способности (м3/ч)
+        :param p1_bar: Давление на входе (абсолютное, бар)
+        :param p2_bar: Давление на выходе (абсолютное, бар).
+                       Если None, берем стандартный перепад для пневматики (p1-1)
+        :param medium: 'air' (воздух) или 'water' (вода)
+        :param temp_c: Температура среды (°C)
+        :return: Расход Q (л/мин для воздуха, м3/ч для воды)
+        Пример использования для воздуха (6 бар на входе, 5 на выходе):
+            print(calculate_flow_rate(kv=0.5, p1_bar=6, medium='air'))
+            Давление: В расчетах всегда используйте абсолютное давление (манометрическое + 1 бар), иначе при 0 бар на выходе (выхлоп в атмосферу) формула выдаст ошибку или 0.
+            Для воздуха: Результат обычно выдается в Nl/min (нормальные литры в минуту). Именно это значение пишут в каталогах рядом с
+            .
+            Для воды: Результат обычно в м³/ч. Если нужны л/мин, просто умножьте на 16.67.
+        """
+        # Переводим в абсолютное давление (приблизительно +1 бар к манометрическому)
+        # Если на входе 6 бар по манометру, то p1_abs = 7
+        p1 = p1_bar + 1.013
+
+        if p2_bar is None :
+            p2 = p1 - 1.0  # Стандартный перепад в 1 бар для тестов
+        else :
+            p2 = p2_bar + 1.013
+
+        delta_p = p1 - p2
+        if delta_p <= 0 :
+            return 0
+
+        if medium == 'water' :
+            # Формула для воды: Q = Kv * sqrt(delta_p)
+            # Результат в м3/ч
+            return kv * math.sqrt(delta_p)
+
+        elif medium == 'air' :
+            # Упрощенная инженерная формула для воздуха (нормальные л/мин)
+            # T_abs = Температура в Кельвинах
+            t_abs = temp_c + 273.15
+
+            # Проверка на критический перепад (p2 < 0.528 * p1)
+            # Если перепад большой, расход "запирается" на скорости звука
+            if p2 < 0.528 * p1 :
+                # Критическое течение
+                q_nm3h = 243 * kv * p1 * math.sqrt(1 / t_abs)
+            else :
+                # Докритическое течение
+                q_nm3h = 484 * kv * math.sqrt(delta_p * p2 / t_abs)
+
+            # Перевод из м3/ч в л/мин: (Q * 1000) / 60
+            return (q_nm3h * 1000) / 60
 
