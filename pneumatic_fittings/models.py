@@ -126,7 +126,7 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
         help_text=_('Максимальное рабочее давление, бар'),
         verbose_name=_('P раб.макс, бар'))
     class Meta:
-        ordering = ['sorting_order', 'code']
+        ordering = ['brand', 'code']
         verbose_name = _('Серия пневматических фитингов')
         verbose_name_plural = _('Серии пневматических фитингов')
 
@@ -271,7 +271,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
     #     help_text=_('Максимальная рабочая температура, °С') ,
     #     verbose_name=_('Т раб макс, °С')
     class Meta:
-        ordering = ['sorting_order', 'code']
+        ordering = ['pipe_diameter', 'thread']
         verbose_name = _('Пневматический фитинг')
         verbose_name_plural = _('Пневматические фитинги')
 

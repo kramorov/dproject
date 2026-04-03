@@ -42,7 +42,7 @@ class PneumaticFittingAdmin(admin.ModelAdmin) :
     ]
     list_editable = ['code' , 'brand' , 'fitting_model_line','sorting_order' , 'is_active']
     list_filter = [
-        'brand' , 'fitting_variety' ,
+        'brand' , 'fitting_model_line__code','fitting_variety' ,
         'body_material' , 'pipe_material' , 'pipe_diameter' , 'thread' , 'thread_inner_outer'
     ]
     search_fields = ['name' , 'code' , 'description']
@@ -51,7 +51,7 @@ class PneumaticFittingAdmin(admin.ModelAdmin) :
 
     fieldsets = (
         (_('Основная информация') , {
-            'fields' : ('name' , ('code' , 'fitting_variety' ,) ,
+            'fields' : ('name' , ('code' , 'fitting_variety' , 'fitting_model_line',) ,
                         ('producer' , 'brand' , 'body_material' ,) ,
                         ('pipe_material' , 'pipe_diameter') , ('thread' , 'thread_inner_outer') ,
                         ('description' , 'sorting_order' , 'is_active'))

@@ -5,8 +5,8 @@ import math
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin
-from materials.models import MaterialGeneral , MaterialSpecified
-from params.models import ThreadSize, ThreadInnerOuter
+from materials.models import MaterialGeneral, MaterialSpecified, WorkingMedium
+from params.models import ThreadSize, ThreadInnerOuter, SealingClass, PowerSupplies, PneumaticConnection
 from producers.models import Brands, Producer
 
 '''
@@ -314,6 +314,14 @@ Exd
 class DirectionalValveModelLine(StructuredDataMixin, models.Model):
     """
     Серия распределительных клапанов
+    1. Это «ДНК» клапана. Если что-то из этого изменится, это будет уже другая серия. (Общие свойства серии) Это «ДНК» клапана. Если что-то из этого изменится, это будет уже другая серия.
+        construction - ValveDesign (Золотниковый / Мембранный).
+        operation - ValveOperationVariety (Прямого / Пилотного действия).
+        working_medium - WorkingMedium (Рабочая среда: Воздух / Газ / Масло).
+        ip protectionClass (IP65, IP67)
+        exd Ex-Protection (Взрывозащита).
+        solenoid_insulation_class (Класс изоляции катушки: H, F).
+        ElectricalSafety (Стандарты IEC/EN).
     """
 
     name = models.CharField(max_length=200,
@@ -321,6 +329,7 @@ class DirectionalValveModelLine(StructuredDataMixin, models.Model):
                             help_text=_('Текстовое название фитинга'))
     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код фитинга"))
+
     description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание разновидности серии фитингов'))
     name_template = models.CharField(max_length=300,
@@ -332,107 +341,115 @@ class DirectionalValveModelLine(StructuredDataMixin, models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
-    producer = models.ForeignKey(Producer, related_name='pneumatic_fitting_model_line_producer', blank=True, null=True,
+    producer = models.ForeignKey(Producer, related_name='direction_valve_model_line_producer', blank=True, null=True,
                                  on_delete=models.SET_NULL,
                                  help_text=_('Производитель фитингов'),
                                  verbose_name=_("Производитель"))
-    brand = models.ForeignKey(Brands, related_name='pneumatic_fitting_model_line_brand', blank=True, null=True,
+    brand = models.ForeignKey(Brands, related_name='direction_valve_model_line_brand', blank=True, null=True,
                               on_delete=models.SET_NULL,
                               help_text=_('Бренд фитингов'),
                               verbose_name=_("Бренд"))
+
+    working_medium = models.ForeignKey(WorkingMedium, related_name='direction_valve_model_line_working_medium', blank=True, null=True,
+                              on_delete=models.SET_NULL, verbose_name=_("Среда"),
+                                      help_text=_("Рабочая среда"))
+    solenoid_insulation_class = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Класс изоляции"),
+                                                 help_text=_("Класс изоляции катушки: H, F"))
+    exd = models.ForeignKey('params.ExdOption', blank=True, null=True,
+                          related_name='direction_valve_exd',
+                          on_delete=models.SET_NULL, verbose_name=_("Exd"),
+                          help_text=_('Степень взрывозащиты для серии'))
+    ip = models.ForeignKey('params.IpOption', blank=True, null=True, default=65,
+                               on_delete=models.SET_NULL, related_name='direction_valve_ip',verbose_name=_("IP"),
+                               help_text=_('Степень IP для серии'))
     construction = models.ForeignKey(ValveDesign, related_name='direction_valve_model_line_construction', blank=True,
-                                        null=True,
-                                        on_delete=models.SET_NULL,
-                                        help_text=_('Конструкция'),
-                                        verbose_name=_("Тип конструкции клапана"))
-    operation  = models.ForeignKey(ValveOperationVariety ,
-                                             related_name='direction_valve_model_line_construction_operation' ,
-                                             blank=True ,
-                                             null=True ,
-                                             on_delete=models.SET_NULL ,
-                                             help_text=_('Принцип действия') ,
-                                             verbose_name=_("Принцип действия клапана"))
-    function  = models.ForeignKey(ValveFunction ,
-                                  related_name='direction_valve_model_line_construction_function' ,
-                                  blank=True ,
-                                  null=True ,
-                                  on_delete=models.SET_NULL ,
-                                  help_text=_('Схема (Функция)') ,
-                                  verbose_name=_("Схема (Функция) клапана"))
-
-    actuation  = models.ForeignKey(ValveActuationVariety ,
-                                 related_name='direction_valve_model_line_construction_actuation' ,
-                                 blank=True ,
-                                 null=True ,
-                                 on_delete=models.SET_NULL ,
-                                 help_text=_('Управление') ,
-                                 verbose_name=_("Вариант управления"))
-    manual_override  = models.ForeignKey(ManualOverride ,
-                                  related_name='direction_valve_model_line_construction_manual_override' ,
-                                  blank=True ,
-                                  null=True ,
-                                  on_delete=models.SET_NULL ,
-                                  help_text=_('Ручной дублер') ,
-                                  verbose_name=_("Ручной дублер"))
-
-    body_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_body_material', blank=True,
-                                      null=True,
-                                      on_delete=models.SET_NULL,
-                                      help_text=_('Корпус'),
-                                      verbose_name=_('Тип материала корпуса'))
-    pipe_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_pipe_material', blank=True,
-                                      null=True,
-                                      on_delete=models.SET_NULL,
-                                      help_text=_('Трубка'),
-                                      verbose_name=_('Тип материала трубки'))
-
-    #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
-    #                                                 blank=True, null=True,
-    #                                                 on_delete=models.SET_NULL,
-    #                                                 help_text=_('Материал корпуса арматуры'),
-    #                                                 verbose_name=_('Материал корпуса'))
-    work_temp_min = models.IntegerField(
-        null=True , blank=True , default=-40,
-        help_text=_('Минимальная рабочая температура, °С') ,
-        verbose_name=_('Т раб.мин, °С')
-    )
-    work_temp_max = models.IntegerField(
-        null=True , blank=True , default=120,
-        help_text=_('Максимальная рабочая температура, °С') ,
-        verbose_name=_('Т раб.макс, °С'))
-
-    pressure_min = models.DecimalField(decimal_places=2, max_digits=6,
-        null=True, blank=True, default=0,
-        help_text=_('Минимальное рабочее давление, бар'),
-        verbose_name=_('P раб.мин, бар'))
-
-    pressure_max = models.DecimalField(decimal_places=2, max_digits=6,
-        null=True, blank=True, default=40,
-        help_text=_('Максимальное рабочее давление, бар'),
-        verbose_name=_('P раб.макс, бар'))
+                                     null=True,
+                                     on_delete=models.SET_NULL,
+                                     help_text=_('Конструкция'),
+                                     verbose_name=_("Тип конструкции клапана"))
+    operation = models.ForeignKey(ValveOperationVariety,
+                                  related_name='direction_valve_model_line_construction_operation',
+                                  blank=True,
+                                  null=True,
+                                  on_delete=models.SET_NULL,
+                                  help_text=_('Принцип действия'),
+                                  verbose_name=_("Принцип действия клапана"))
     class Meta:
         ordering = ['sorting_order', 'code']
-        verbose_name = _('Серия пневматических фитингов')
+        verbose_name = _('Серия распределительных клапанов')
         verbose_name_plural = _('Серии пневматических фитингов')
 
     def __str__(self):
         return self.name
 
-    @property
-    def temperature_range_display(self):
-        """Отображаемый диапазон рабочих температур"""
-        return f'{self.work_temp_min}..{self.work_temp_max}'
-
-    @property
-    def pressure_range_display(self):
-        """Отображаемый диапазон рабочих температур"""
-        return f'{self.pressure_min}..{self.pressure_max}'
-
-
-
-
+class DirectionValveBody(StructuredDataMixin, models.Model) :
+    ''' DirectionValveBody - Корпус клапана
+        brand - для фильтрации
+        weight (Масса).
+    '''
+    brand = models.ForeignKey(Brands, related_name='direction_valve_body_brand', blank=True, null=True,
+                              on_delete=models.SET_NULL,
+                              help_text=_('Бренд клапанов'),
+                              verbose_name=_("Бренд"))
+    weight = models.DecimalField(max_digits=5, decimal_places=2, blank=True,
+                             null=True, help_text=_('Вес'),
+                             verbose_name=_("Вес, кг"))
+    pneumatic_connection_thread = models.ForeignKey(ThreadSize, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='direction_valve_body_thread',
+                                   verbose_name=_("Пневмовыход"),
+                                   help_text=_('Резьба выходного отверстия для пневмоподключения'))
+    pneumatic_connection = models.ForeignKey(
+        PneumaticConnection,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='direction_valve_body_pneumatic_connection',
+        verbose_name=_("Пневмоподключения"),
+        help_text=_('Возможные типы пневмоподключений'))
 
 class DirectionValve(StructuredDataMixin, models.Model) :
+    '''
+    DirectionValve (Характеристики конкретного артикула)  Это то, что определяет финальный «Part Number» и цену.
+        function - ValveFunction (3/2, 5/2, 5/3).
+        actuation - ValveActuationVariety (Моно / Бистабильный).
+        manual_override - ManualOverride (Тип ручного дублера).
+        pneumatic_connection - ThreadSize (Резьбы: 1/8", 1/4", 1/2", NAMUR).
+        DN (Проходное сечение, мм).
+        kv Kv (м³/ч) и FlowRate (л/мин) — они меняются в зависимости от размера портов.
+        pressure_min,pressure_max (Важно: у 3/2 и 5/2 в одной серии может быть разный порог срабатывания пилота).
+        work_temp_min, work_temp_maxTemperatureRange: (Напр. исполнение для -60°C часто идет как отдельный артикул с особыми уплотнениями).
+        power_supply Voltage (12V, 24V, 220V).
+        power_consumption_start, power_consumption_hot PowerConsumption (Пусковая/рабочая мощность).
+        body - корпус (вес, КВ, пневмоприсоединения), туда же привяжется чертеж.
+        Что я бы уточнил (Советы):
+        Уплотнения: Если в одной серии можно заказать клапан либо с NBR (-20°C), либо с Viton (+120°C), то поле MaterialSeals должно быть и в ModelLine (как список доступных), и в SolenoidValve (как конкретный выбор).
+        Kv и л/мин: В Django-модели SolenoidValve лучше хранить Kv как числовое поле (для расчетов), а л/мин можно сделать property, который вычисляется автоматически по нашей функции.
+        Порты NAMUR: В соленоидных клапанах часто важно, крепится он «на трубах» или «на приводе» (NAMUR стандарт). Стоит добавить булево поле is_namur.
+
+    '''
+    body = \
+        models.ForeignKey(DirectionValveBody, blank=True, null=True,
+                          related_name='direction_valve_body',
+                          on_delete=models.SET_NULL,
+                          help_text=_('Корпус'),
+                                 verbose_name=_("Корпус модели клапана"))
+    power_consumption_start = models.DecimalField(max_digits=5, decimal_places=2,blank=True,
+                                 null=True,help_text=_('Мощность хол, Вт'),
+                                 verbose_name=_("Мощность номинальная, Вт"))
+    power_consumption_hot = models.DecimalField(max_digits=5, decimal_places=2, blank=True,
+                                                  null=True, help_text=_('Мощность ном, Вт'),
+                                                  verbose_name=_("Мощность номинальная, Вт"))
+    kv = models.DecimalField(max_digits=5, decimal_places=2, blank=True,
+                                                null=True, help_text=_('Kv, м3/ч'),
+                                                verbose_name=_("Kv, м3/ч"))
+    dn = models.DecimalField(max_digits=5, decimal_places=2, blank=True,
+                             null=True, help_text=_('Dn'),
+                             verbose_name=_("Диаметр, мм"))
+    power_supply = models.ForeignKey(PowerSupplies,
+                                 related_name='direction_valve_power_supply',
+                                 blank=True,
+                                 null=True,
+                                 on_delete=models.SET_NULL,
+                                 help_text=_('Напряжение'),
+                                 verbose_name=_("Напряжение питания"))
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,
                             help_text=_('Текстовое название клапана'))
@@ -458,41 +475,85 @@ class DirectionValve(StructuredDataMixin, models.Model) :
                               on_delete=models.SET_NULL ,
                               help_text=_('Бренд клапанов') ,
                               verbose_name=_("Бренд"))
-    temp_min = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.мин") ,
-                                        help_text=_('Минимальная температура окружающей среды'))
-    temp_max = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.макс") ,
-                                        help_text=_('Максимальная температура окружающей среды'))
 
-    body_material = models.ForeignKey(MaterialGeneral , related_name='pneumatic_fitting_body_material' , blank=True ,
-                                      null=True ,
-                                      on_delete=models.SET_NULL ,
-                                      help_text=_('Корпус') ,
+    function = models.ForeignKey(ValveFunction,
+                                 related_name='direction_valve_function',
+                                 blank=True,
+                                 null=True,
+                                 on_delete=models.SET_NULL,
+                                 help_text=_('Схема (Функция)'),
+                                 verbose_name=_("Схема (Функция) клапана"))
+
+    actuation = models.ForeignKey(ValveActuationVariety,
+                                  related_name='direction_valve_actuation',
+                                  blank=True,
+                                  null=True,
+                                  on_delete=models.SET_NULL,
+                                  help_text=_('Управление'),
+                                  verbose_name=_("Вариант управления"))
+    manual_override = models.ForeignKey(ManualOverride,
+                                        related_name='direction_valve_manual_override',
+                                        blank=True,
+                                        null=True,
+                                        on_delete=models.SET_NULL,
+                                        help_text=_('Ручной дублер'),
+                                        verbose_name=_("Ручной дублер"))
+
+
+    work_temp_min = models.IntegerField(
+        null=True, blank=True, default=-40,
+        help_text=_('Минимальная рабочая температура, °С'),
+        verbose_name=_('Т раб.мин, °С')
+    )
+    work_temp_max = models.IntegerField(
+        null=True, blank=True, default=120,
+        help_text=_('Максимальная рабочая температура, °С'),
+        verbose_name=_('Т раб.макс, °С'))
+
+    pressure_min = models.DecimalField(decimal_places=2, max_digits=6,
+                                       null=True, blank=True, default=0,
+                                       help_text=_('Минимальное рабочее давление, бар'),
+                                       verbose_name=_('P раб.мин, бар'))
+
+    pressure_max = models.DecimalField(decimal_places=2, max_digits=6,
+                                       null=True, blank=True, default=40,
+                                       help_text=_('Максимальное рабочее давление, бар'),
+                                       verbose_name=_('P раб.макс, бар'))
+    body_material = models.ForeignKey(MaterialGeneral, related_name='direction_valve_body_material',
+                                      blank=True,
+                                      null=True,
+                                      on_delete=models.SET_NULL,
+                                      help_text=_('Корпус'),
                                       verbose_name=_('Тип материала корпуса'))
-    solenoid_material = models.ForeignKey(MaterialGeneral , related_name='direction_valve_pipe_material' , blank=True ,
+    sealing_material = models.ForeignKey(SealingClass, related_name='direction_valve_sealing_material',
+                                         blank=True,
+                                         null=True,
+                                         on_delete=models.SET_NULL,
+                                         help_text=_('Трубка'),
+                                         verbose_name=_('Тип материала трубки'))
+
+    #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
+    #                                                 blank=True, null=True,
+    #                                                 on_delete=models.SET_NULL,
+    #                                                 help_text=_('Материал корпуса арматуры'),
+    #                                                 verbose_name=_('Материал корпуса'))
+
+    solenoid_body_material = models.ForeignKey(MaterialGeneral , related_name='direction_valve_solenoid_body_material' , blank=True ,
                                       null=True ,
                                       on_delete=models.SET_NULL ,
                                       help_text=_('Трубка') ,
                                       verbose_name=_('Тип материала трубки'))
 
-    thread = models.ForeignKey(ThreadSize , on_delete=models.SET_NULL , null=True , blank=True ,
-                               related_name='direction_valve__thread' ,
+    pneumatic_connection = models.ForeignKey(ThreadSize , on_delete=models.SET_NULL , null=True , blank=True ,
+                               related_name='direction_valve_thread' ,
                                verbose_name=_("Резьба") ,
                                help_text=_('Резьба фитинга'))
 
-    body_material_specified = models.ForeignKey(MaterialSpecified , related_name='valve_line_body_material' ,
+    body_material_specified = models.ForeignKey(MaterialSpecified , related_name='direction_valve_body_material_specified' ,
                                                 blank=True , null=True ,
                                                 on_delete=models.SET_NULL ,
                                                 help_text=_('Материал корпуса арматуры') ,
                                                 verbose_name=_('Материал корпуса'))
-    work_temp_min = models.IntegerField(
-        null=True , blank=True ,
-        help_text=_('Минимальная рабочая температура, °С') ,
-        verbose_name=_('Т раб мин, °С')
-    )
-    work_temp_max = models.IntegerField(
-        null=True , blank=True ,
-        help_text=_('Максимальная рабочая температура, °С') ,
-        verbose_name=_('Т раб макс, °С')
 
     class Meta :
         ordering = ['sorting_order' , 'code']
@@ -507,7 +568,7 @@ class DirectionValve(StructuredDataMixin, models.Model) :
     @property
     def pressure_range_display(self) :
         """Отображаемый диапазон рабочих температур"""
-        return f'{self.model_line.pressure_min}..{self.model_line.pressure_max}'
+        return f'{self.pressure_min}..{self.pressure_max}'
 
     def generated_model_name_description(self , name_or_description) :
         """Сгенерировать название фитинга по шаблону из model_line"""
