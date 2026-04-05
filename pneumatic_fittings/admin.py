@@ -56,6 +56,9 @@ class PneumaticFittingAdmin(admin.ModelAdmin) :
                         ('pipe_material' , 'pipe_diameter') , ('thread' , 'thread_inner_outer') ,
                         ('description' , 'sorting_order' , 'is_active'))
         }) ,
+        (_('Для глушителей') , {
+            'fields' : ('flow_rate','noise_level' , 'operating_pressure' ) ,
+        }) ,
     )
 
     def get_queryset(self , request) :

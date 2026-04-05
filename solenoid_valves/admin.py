@@ -2,164 +2,18 @@
 from django.contrib import admin
 from django import forms
 from django.utils.translation import gettext_lazy as _
-
-#
-# @admin.register(PneumaticFittingVariety)
-# class PneumaticFittingVarietyAdmin(admin.ModelAdmin) :
-#     list_display = ['name' , 'code' , 'sorting_order' , 'is_active']
-#     list_editable = ['sorting_order' , 'is_active']
-#     list_filter = ['is_active']
-#     search_fields = ['name' , 'code' , 'description']
-#     fieldsets = (
-#         (_('Основная информация') , {
-#             'fields' : ('name' , 'code' , 'description')
-#         }) ,
-#         (_('Настройки отображения') , {
-#             'fields' : ('sorting_order' , 'is_active')
-#         }) ,
-#     )
-#
-#
-# class PneumaticFittingForm(forms.ModelForm) :
-#     class Meta :
-#         model = PneumaticFitting
-#         fields = '__all__'
-#         widgets = {
-#             'name' : forms.TextInput(
-#                 attrs={'size' : 80 , 'style' : 'width: 80%' , 'placeholder' : 'Введите название фитинга'}) ,
-#             'code' : forms.TextInput(attrs={'size' : 30 , 'style' : 'width: 50%'}) ,
-#             'description' : forms.Textarea(attrs={'rows' : 6 , 'cols' : 80 , 'style' : 'width: 90%'}) ,
-#         }
-#
-#
-# @admin.register(PneumaticFitting)
-# class PneumaticFittingAdmin(admin.ModelAdmin) :
-#     form = PneumaticFittingForm
-#     list_display = [
-#         'name' , 'code' , 'brand' , 'fitting_model_line', 'fitting_variety' ,
-#         'pipe_diameter' , 'thread' , 'thread_inner_outer' , 'sorting_order' , 'is_active'
-#     ]
-#     list_editable = ['code' , 'brand' , 'fitting_model_line','sorting_order' , 'is_active']
-#     list_filter = [
-#         'brand' , 'fitting_variety' ,
-#         'body_material' , 'pipe_material' , 'pipe_diameter' , 'thread' , 'thread_inner_outer'
-#     ]
-#     search_fields = ['name' , 'code' , 'description']
-#
-#     # autocomplete_fields = ['producer', 'brand', 'fitting_variety', 'body_material', 'pipe_material', 'thread']
-#
-#     fieldsets = (
-#         (_('Основная информация') , {
-#             'fields' : ('name' , ('code' , 'fitting_variety' ,) ,
-#                         ('producer' , 'brand' , 'body_material' ,) ,
-#                         ('pipe_material' , 'pipe_diameter') , ('thread' , 'thread_inner_outer') ,
-#                         ('description' , 'sorting_order' , 'is_active'))
-#         }) ,
-#     )
-#
-#     def get_queryset(self , request) :
-#         return super().get_queryset(request).select_related(
-#             'producer' , 'brand' , 'fitting_variety' ,
-#             'body_material' , 'pipe_material' , 'thread'
-#         )
-#
-#     actions = ['copy_selected_fittings']
-#
-#     def copy_selected_fittings(self , request , queryset) :
-#         """Action для копирования выбранных фитингов"""
-#         copied_count = 0
-#         for fitting in queryset :
-#             # Создаем копию без сохранения, чтобы пользователь мог изменить
-#             copy_obj = fitting.copy(save_copy=False)
-#             # copy_obj.name = f"Копия {fitting.name}"
-#
-#             # Сохраняем копию
-#             copy_obj.save()
-#             copied_count += 1
-#
-#         self.message_user(
-#             request ,
-#             f'Успешно скопировано {copied_count} фитинг(ов)'
-#         )
-#
-#     copy_selected_fittings.short_description = "Копировать выбранные фитинги"
-#
-#
-# class PneumaticFittingModelLineForm(forms.ModelForm) :
-#     class Meta :
-#         model = PneumaticFitting
-#         fields = '__all__'
-#         widgets = {
-#             'name' : forms.TextInput(attrs={
-#                 'size' : 80 ,
-#                 'style' : 'width: 80%' ,
-#                 'placeholder' : 'Введите текст названия фитинга'
-#             }) ,
-#             'name_template' : forms.Textarea(attrs={
-#                 'rows' : 3 ,  # количество строк
-#                 'cols' : 80 ,
-#                 'style' : 'width: 90%; height: 80px;' ,  # можно задать высоту
-#                 'placeholder' : 'Введите шаблон для текстового названия фитинга'
-#             }) ,
-#             'description_template' : forms.Textarea(attrs={
-#                 'rows' : 3 ,  # количество строк
-#                 'cols' : 80 ,
-#                 'style' : 'width: 90%; height: 80px;' ,  # можно задать высоту
-#                 'placeholder' : 'Введите шаблон для описания фитинга'
-#             }) ,
-#             'description' : forms.Textarea(attrs={
-#                 'rows' : 3 ,
-#                 'cols' : 80 ,
-#                 'style' : 'width: 90%' ,
-#                 'placeholder' : 'Введите описание'
-#             }) ,
-#         }
-#
-#
-# @admin.register(PneumaticFittingModelLine)
-# class PneumaticFittingModelLineAdmin(admin.ModelAdmin) :
-#     form = PneumaticFittingModelLineForm
-#     list_display = [
-#         'name' , 'code' , 'brand' , 'fitting_variety' ,
-#         'pipe_material' , 'body_material' , 'sorting_order' , 'is_active'
-#     ]
-#     list_editable = ['sorting_order' , 'is_active']
-#     list_filter = [
-#         'brand' , 'fitting_variety' ,
-#         'body_material' , 'pipe_material' ,
-#     ]
-#
-#     fieldsets = (
-#         (_('Основная информация') , {
-#             'fields' : ('name' , ('code' , 'fitting_variety' ,) ,
-#                         ('producer' , 'brand' ,) ,
-#                         ('pipe_material' , 'body_material' ,) ,
-#                         ('work_temp_min' , 'work_temp_max') ,
-#                         ('pressure_min' , 'pressure_max') ,
-#                         'name_template' ,
-#                         'description_template' ,
-#                         'description' , ('sorting_order' , 'is_active'))
-#         }) ,
-#     )
-#
-#     def get_queryset(self , request) :
-#         return super().get_queryset(request).select_related(
-#             'producer' , 'brand' , 'fitting_variety' ,
-#             'body_material' , 'pipe_material'
-#         )
-#
-#     actions = ['copy_selected_fitting_model_line']
-#
-
-from django.contrib import admin
+import logging
+logger = logging.getLogger(__name__)
 
 from core.models.mixins import AdminStructuredDataMixinCopyMixin
 from .models import (
     ValveDesign ,
     ValveOperationVariety ,
     ValveFunction ,
-    ValveActuationVariety , ManualOverride , ValvePilotVariety
+    ValveActuationVariety , ManualOverride , ValvePilotVariety , DirectionValve , DirectionalValveModelLine ,
+    DirectionValveBody
 )
+from electric_actuators.models import CableGlandHolesSet
 
 @admin.register(ValveDesign)
 class ValveDesignAdmin(AdminStructuredDataMixinCopyMixin,admin.ModelAdmin):
@@ -221,3 +75,356 @@ class ValvePilotTypeAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     # prepopulated_fields = {'code': ('name',)}
     actions = ['copy_selected_objects']
 
+
+# ==================== FORMS ====================
+
+class DirectionalValveModelLineForm(forms.ModelForm) :
+    """Форма для серии распределительных клапанов"""
+
+    class Meta :
+        model = DirectionalValveModelLine
+        fields = '__all__'
+        widgets = {
+            'name' : forms.TextInput(attrs={
+                'size' : 80 ,
+                'style' : 'width: 80%' ,
+                'placeholder' : 'Введите название серии'
+            }) ,
+            'code' : forms.TextInput(attrs={
+                'size' : 30 ,
+                'style' : 'width: 50%'
+            }) ,
+            'name_template' : forms.Textarea(attrs={
+                'rows' : 2 ,
+                'cols' : 80 ,
+                'style' : 'width: 90%' ,
+                'placeholder' : 'Шаблон для генерации названия (например: "Клапан {function} {size}")'
+            }) ,
+            'description_template' : forms.Textarea(attrs={
+                'rows' : 3 ,
+                'cols' : 80 ,
+                'style' : 'width: 90%' ,
+                'placeholder' : 'Шаблон для генерации описания'
+            }) ,
+            'description' : forms.Textarea(attrs={
+                'rows' : 4 ,
+                'cols' : 80 ,
+                'style' : 'width: 90%'
+            }) ,
+        }
+
+
+class DirectionValveBodyForm(forms.ModelForm) :
+    """Форма для корпуса клапана"""
+
+    class Meta :
+        model = DirectionValveBody
+        fields = '__all__'
+        widgets = {
+            'name' : forms.TextInput(attrs={
+                'size' : 80 ,
+                'style' : 'width: 80%' ,
+                'placeholder' : 'Введите название корпуса'
+            }) ,
+            'code' : forms.TextInput(attrs={
+                'size' : 30 ,
+                'style' : 'width: 50%'
+            }) ,
+            'description' : forms.Textarea(attrs={
+                'rows' : 4 ,
+                'cols' : 80 ,
+                'style' : 'width: 90%'
+            }) ,
+            'weight' : forms.NumberInput(attrs={
+                'style' : 'width: 150px' ,
+                'placeholder' : 'кг' ,
+                'step' : '0.01'
+            }) ,
+        }
+
+
+class DirectionValveForm(forms.ModelForm) :
+    """Форма для распределительного клапана"""
+
+    class Meta :
+        model = DirectionValve
+        fields = '__all__'
+        widgets = {
+            'name' : forms.TextInput(attrs={
+                'size' : 80 ,
+                'style' : 'width: 80%' ,
+                'placeholder' : 'Введите название клапана'
+            }) ,
+            'code' : forms.TextInput(attrs={
+                'size' : 30 ,
+                'style' : 'width: 50%'
+            }) ,
+            'description' : forms.Textarea(attrs={
+                'rows' : 4 ,
+                'cols' : 80 ,
+                'style' : 'width: 90%'
+            }) ,
+            'kv' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'м³/ч' ,
+                'step' : '0.01'
+            }) ,
+            'dn' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'мм' ,
+                'step' : '0.01'
+            }) ,
+            'power_consumption_start' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'Вт' ,
+                'step' : '0.01'
+            }) ,
+            'power_consumption_hot' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'Вт' ,
+                'step' : '0.01'
+            }) ,
+            'pressure_min' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'бар' ,
+                'step' : '0.01'
+            }) ,
+            'pressure_max' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'бар' ,
+                'step' : '0.01'
+            }) ,
+            'work_temp_min' : forms.NumberInput(attrs={
+                'style' : 'width: 100px' ,
+                'placeholder' : '°C'
+            }) ,
+            'work_temp_max' : forms.NumberInput(attrs={
+                'style' : 'width: 100px' ,
+                'placeholder' : '°C'
+            }) ,
+            'medium_density_max' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'сСт' ,
+                'step' : '0.01'
+            }) ,
+            'weight' : forms.NumberInput(attrs={
+                'style' : 'width: 120px' ,
+                'placeholder' : 'кг' ,
+                'step' : '0.01'
+            }) ,
+        }
+
+
+# ==================== ADMIN CLASSES ====================
+
+@admin.register(DirectionalValveModelLine)
+class DirectionalValveModelLineAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) :
+    """
+    Админка для серии распределительных клапанов (DNA клапана)
+    """
+    form = DirectionalValveModelLineForm
+
+    list_display = [
+        'name' , 'code' , 'brand' , 'construction' , 'operation' ,
+        'working_medium' ,  'exd' , 'sorting_order' , 'is_active'
+    ]
+    list_editable = ['sorting_order' , 'is_active']
+    list_filter = [
+        'is_active' , 'brand' , 'construction' , 'operation' ,
+        'working_medium' , 'exd' , 'solenoid_insulation_class'
+    ]
+    search_fields = ['name' , 'code' , 'description']
+
+    fieldsets = (
+        (_('Основная информация') , {
+            'fields' : ('name' , 'code' , 'description')
+        }) ,
+        (_('Шаблоны генерации') , {
+            'fields' : ('name_template' , 'description_template') ,
+            'description' : _('Шаблоны для автоматической генерации названий и описаний конкретных клапанов')
+        }) ,
+        (_('Производитель и бренд') , {
+            'fields' : ('producer' , 'brand') ,
+            'classes' : ('collapse' ,)
+        }) ,
+        (_('Конструктивные характеристики (DNA)') , {
+            'fields' : (
+                'construction' ,
+                'operation' ,
+                'working_medium' ,
+            ) ,
+            'description' : _('Эти параметры определяют уникальность серии')
+        }) ,
+        (_('Защита и изоляция') , {
+            'fields' : (
+                'exd' ,
+                'solenoid_insulation_class' ,
+            ) ,
+        }) ,
+        (_('Настройки отображения') , {
+            'fields' : ('sorting_order' , 'is_active') ,
+            'classes' : ('collapse' ,)
+        }) ,
+    )
+
+    def get_queryset(self , request) :
+        return super().get_queryset(request).select_related(
+            'producer' , 'brand' , 'construction' , 'operation' ,
+            'working_medium' , 'ip' , 'exd'
+        )
+
+
+@admin.register(DirectionValveBody)
+class DirectionValveBodyAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) :
+    """
+    Админка для корпуса клапана
+    """
+    form = DirectionValveBodyForm
+
+    list_display = [
+        'name' , 'code' , 'brand' ,  'get_valves_count' ,
+        'sorting_order' , 'is_active'
+    ]
+    list_editable = ['sorting_order' , 'is_active']
+    list_filter = [
+        'is_active' , 'brand' ,
+    ]
+    search_fields = ['name' , 'code' , 'brand__name' , 'description']
+
+    fieldsets = (
+        (_('Основная информация') , {
+            'fields' : ('name' , 'code' , 'description')
+        }) ,
+        (_('Производитель и бренд') , {
+            'fields' : ('brand' ,) ,
+        }) ,
+        (_('Настройки отображения') , {
+            'fields' : ('sorting_order' , 'is_active') ,
+            'classes' : ('collapse' ,)
+        }) ,
+    )
+
+    def get_valves_count(self , obj) :
+        """Количество клапанов, использующих этот корпус"""
+        count = obj.direction_valve_body.count()
+        return count if count > 0 else '-'
+
+    get_valves_count.short_description = _('Используется в клапанах')
+    get_valves_count.admin_order_field = 'direction_valve_body__count'
+
+
+@admin.register(DirectionValve)
+class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) :
+    """
+    Админка для распределительного клапана (конкретный артикул)
+    """
+    form = DirectionValveForm
+
+    list_display = [
+        'name' , 'code' , 'model_line' , 'function' , 'actuation' ,
+        'dn' , 'kv' , 'power_supply' , 'pressure_min' , 'pressure_max' ,
+        'medium_density_max' , 'weight' , 'sorting_order' , 'is_active'
+    ]
+    list_editable = ['sorting_order' , 'is_active']
+    list_filter = [
+        'is_active' , 'model_line' , 'function' , 'actuation' ,
+        'manual_override' , 'power_supply' , 'brand' , 'ip' ,
+        'body_material' , 'sealing_material' , 'solenoid_body_material'
+    ]
+    search_fields = ['name' , 'code' , 'description' , 'model_line__name']
+    # autocomplete_fields = [
+    #     'model_line' , 'body' , 'function' , 'actuation' ,
+    #     'manual_override' , 'power_supply' , 'producer' ,
+    #     'brand' , 'body_material' , 'sealing_material' ,
+    #     'solenoid_body_material' , 'body_material_specified' ,
+    #     'ip' , 'pneumatic_connection' , 'pneumatic_connection_thread'
+    # ]
+
+    fieldsets = (
+        (_('Основная информация') , {
+            'fields' : ('name' , 'code' , 'description' , 'model_line')
+        }) ,
+        (_('Производитель и бренд') , {
+            'fields' : ('producer' , 'brand') ,
+            'classes' : ('collapse' ,)
+        }) ,
+        (_('Функциональные характеристики') , {
+            'fields' : (
+                ('function' , 'actuation') ,
+                'manual_override' ,
+                ('dn' , 'kv') ,
+                'ip' ,
+            ) ,
+        }) ,
+        (_('Корпус') , {
+            'fields' : (
+                'body' ,
+                'weight' ,
+                ('pneumatic_connection' , 'pneumatic_connection_thread','cable_glands_holes') ,
+            ) ,
+        }) ,
+        (_('Материалы') , {
+            'fields' : (
+                ('body_material' , 'body_material_specified') ,
+                ('sealing_material' , 'solenoid_body_material') ,
+            ) ,
+        }) ,
+        (_('Рабочие параметры') , {
+            'fields' : (
+                ('pressure_min' , 'pressure_max') ,
+                ('work_temp_min' , 'work_temp_max') ,
+                'medium_density_max' ,
+            ) ,
+        }) ,
+        (_('Электрические характеристики') , {
+            'fields' : (
+                'power_supply' ,
+                ('power_consumption_start' , 'power_consumption_hot') ,
+            ) ,
+        }) ,
+        (_('Настройки отображения') , {
+            'fields' : ('sorting_order' , 'is_active') ,
+            'classes' : ('collapse' ,)
+        }) ,
+    )
+
+    def get_queryset(self , request) :
+        return super().get_queryset(request).select_related(
+            'model_line' , 'body' , 'function' , 'actuation' ,
+            'manual_override' , 'power_supply' , 'producer' , 'brand' ,
+            'body_material' , 'sealing_material' , 'solenoid_body_material' ,
+            'body_material_specified' , 'ip' , 'pneumatic_connection' ,
+            'pneumatic_connection_thread'
+        )
+
+    def save_model(self , request , obj , form , change) :
+        """При сохранении автоматически генерируем name из шаблона, если не задано"""
+        if not obj.name and obj.model_line and obj.model_line.name_template :
+            try :
+                # Формируем словарь с данными для шаблона
+                context = {
+                    'function' : obj.function.name if obj.function else '' ,
+                    'actuation' : obj.actuation.name if obj.actuation else '' ,
+                    'dn' : obj.dn or '' ,
+                    'pressure' : obj.pressure_max or '' ,
+                    'code' : obj.code or '' ,
+                }
+                obj.name = obj.model_line.name_template.format(**context)
+            except KeyError as e :
+                logger.warning(f"Ошибка форматирования шаблона: {e}")
+                obj.name = f"{obj.model_line.name} {obj.function} {obj.dn}мм"
+
+        if not obj.description and obj.model_line and obj.model_line.description_template :
+            try :
+                context = {
+                    'function' : obj.function.name if obj.function else '' ,
+                    'actuation' : obj.actuation.name if obj.actuation else '' ,
+                    'dn' : obj.dn or '' ,
+                    'pressure' : obj.pressure_max or '' ,
+                    'code' : obj.code or '' ,
+                }
+                obj.description = obj.model_line.description_template.format(**context)
+            except KeyError as e :
+                logger.warning(f"Ошибка форматирования шаблона описания: {e}")
+
+        super().save_model(request , obj , form , change)

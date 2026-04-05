@@ -270,6 +270,34 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
     #     null=True , blank=True ,
     #     help_text=_('Максимальная рабочая температура, °С') ,
     #     verbose_name=_('Т раб макс, °С')
+    # ==================== ПОЛЯ ДЛЯ ГЛУШИТЕЛЕЙ ====================
+
+    # Пропускная способность (л/мин или м³/ч)
+    flow_rate = models.DecimalField(
+        max_digits=10 ,
+        decimal_places=2 ,
+        blank=True , null=True ,
+        verbose_name=_("Пропускная способность") ,
+        help_text=_('Пропускная способность глушителя (л/мин)')
+    )
+
+    # Уровень шума (дБ)
+    noise_level = models.DecimalField(
+        max_digits=5 ,
+        decimal_places=1 ,
+        blank=True , null=True ,
+        verbose_name=_("Уровень шума") ,
+        help_text=_('Уровень шума глушителя (дБ)')
+    )
+
+    # Рабочее давление (бар)
+    operating_pressure = models.DecimalField(
+        max_digits=8 ,
+        decimal_places=2 ,
+        blank=True , null=True ,
+        verbose_name=_("Рабочее давление") ,
+        help_text=_('Максимальное рабочее давление (бар)')
+    )
     class Meta:
         ordering = ['pipe_diameter', 'thread']
         verbose_name = _('Пневматический фитинг')
