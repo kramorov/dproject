@@ -339,7 +339,7 @@ class DirectionalValveModelLine(StructuredDataMixin , models.Model) :
 
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание серии клапанов'))
-    name_template = models.CharField(blank=True , null=True ,
+    name_template = models.TextField(blank=True , null=True ,
                                      verbose_name=_("Шаблон названия") ,
                                      help_text=_('Шаблон для текстового названия клапана'))
     description_template = models.TextField(blank=True , null=True ,
@@ -521,6 +521,9 @@ class DirectionValve(StructuredDataMixin , models.Model) :
     power_consumption_hot = models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
                                                 null=True , help_text=_('Мощность ном, Вт') ,
                                                 verbose_name=_("Мощность номинальная, Вт"))
+    power_consumption_hold = models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
+                                                null=True , help_text=_('Мощность удерж, Вт') ,
+                                                verbose_name=_("Мощность удержания, Вт"))
     work_temp_min = models.IntegerField(
         null=True , blank=True , default=-40 ,
         help_text=_('Минимальная рабочая температура, °С') ,
@@ -679,6 +682,7 @@ class DirectionValve(StructuredDataMixin , models.Model) :
             '{power_supply}': self._get_value('power_supply'),
             '{power_consumption_start}': self._get_value('power_consumption_start'),
             '{power_consumption_hot}': self._get_value('power_consumption_hot'),
+            '{power_consumption_hold}' : self._get_value('power_consumption_hold') ,
             '{medium_density_max}': self._get_value('medium_density_max'),
             '{working_medium}': self._get_value('working_medium'),
             '{manual_override}': self._get_value('manual_override'),

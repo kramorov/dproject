@@ -322,14 +322,14 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
 
     list_display = [
         'code' , 'model_line' , 'function' ,
-        'dn' , 'kv' , 'power_supply' , 'pressure_min' , 'pressure_max' ,
-        'sorting_order' , 'is_active'
+        'power_supply' , 'work_temp_min', 'work_temp_max','ip' ,
+        'body_material' , 'solenoid_body_material', 'sorting_order' ,
     ]
-    list_editable = ['sorting_order' , 'is_active']
+    list_editable = ['sorting_order','ip' ]
     list_filter = [
         'is_active' , 'model_line' , 'function' , 'actuation' ,
-        'manual_override' , 'power_supply' , 'brand' , 'ip' ,
-        'body_material' , 'sealing_material_specified' , 'solenoid_body_material'
+        'power_supply' , 'brand' , 'ip' ,
+        'body_material' , 'solenoid_body_material' , 'work_temp_min'
     ]
     search_fields = ['name' , 'code' , 'description' , 'model_line__name']
     # autocomplete_fields = [
@@ -374,7 +374,7 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
         (_('Электрические характеристики') , {
             'fields' : (
                 'power_supply' ,
-                ('power_consumption_start' , 'power_consumption_hot') ,
+                ('power_consumption_start' , 'power_consumption_hot', 'power_consumption_hold') ,
             ) ,
         }) ,
         (_('Настройки отображения') , {
