@@ -124,8 +124,8 @@ class ManualOverride(StructuredDataMixin , models.Model) :
         verbose_name_plural = _('Ручные дублеры')
 
     def __str__(self) :
-        fix_status = _("с фиксацией") if self.has_fixation else _("без фиксации")
-        return f"{self.name} ({fix_status})"
+        # fix_status = _("с фиксацией") if self.has_fixation else _("без фиксации")
+        return f"{self.name}"
 
 
 class ValveActuationVariety(StructuredDataMixin , models.Model) :
@@ -339,7 +339,7 @@ class DirectionalValveModelLine(StructuredDataMixin , models.Model) :
 
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание серии клапанов'))
-    name_template = models.CharField(max_length=300 , blank=True , null=True ,
+    name_template = models.CharField(blank=True , null=True ,
                                      verbose_name=_("Шаблон названия") ,
                                      help_text=_('Шаблон для текстового названия клапана'))
     description_template = models.TextField(blank=True , null=True ,
@@ -444,10 +444,10 @@ class DirectionValve(StructuredDataMixin , models.Model) :
 
     '''
 
-    name = models.CharField(max_length=200 ,
+    name = models.TextField(
                             verbose_name=_("Название") ,
                             help_text=_('Текстовое название клапана'))
-    code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
+    code = models.CharField(max_length=150 , blank=True , null=True , verbose_name=_("Код") ,
                             help_text=_("Код клапана"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание разновидности клапана'))
@@ -494,6 +494,7 @@ class DirectionValve(StructuredDataMixin , models.Model) :
                                         on_delete=models.SET_NULL ,
                                         help_text=_('Ручной дублер') ,
                                         verbose_name=_("Ручной дублер"))
+
     body = \
         models.ForeignKey(DirectionValveBody , blank=True , null=True ,
                           related_name='direction_valve_body' ,
@@ -516,7 +517,7 @@ class DirectionValve(StructuredDataMixin , models.Model) :
                                      verbose_name=_("Напряжение питания"))
     power_consumption_start = models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
                                                   null=True , help_text=_('Мощность хол, Вт') ,
-                                                  verbose_name=_("Мощность номинальная, Вт"))
+                                                  verbose_name=_("Мощность пусковая, Вт"))
     power_consumption_hot = models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
                                                 null=True , help_text=_('Мощность ном, Вт') ,
                                                 verbose_name=_("Мощность номинальная, Вт"))
@@ -529,6 +530,7 @@ class DirectionValve(StructuredDataMixin , models.Model) :
         null=True , blank=True , default=120 ,
         help_text=_('Максимальная рабочая температура, °С') ,
         verbose_name=_('Т раб.макс, °С'))
+
     medium_density_max= models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
                                                   null=True , help_text=_('Вязкость среды, сСт') ,
                                                   verbose_name=_("Вязкость среды, сСт (мм2/с)"))
@@ -548,26 +550,33 @@ class DirectionValve(StructuredDataMixin , models.Model) :
                                       on_delete=models.SET_NULL ,
                                       help_text=_('Корпус') ,
                                       verbose_name=_('Тип материала корпуса'))
-    sealing_material = models.ForeignKey(SealingClass , related_name='direction_valve_sealing_material' ,
+    body_material_specified = models.ForeignKey(MaterialSpecified,
+                                                related_name='direction_valve_body_material_specified',
+                                                blank=True, null=True,
+                                                on_delete=models.SET_NULL,
+                                                help_text=_('Материал корпуса арматуры'),
+                                                verbose_name=_('Материал корпуса'))
+    sealing_material_specified = models.ForeignKey(MaterialSpecified, related_name='direction_valve_sealing_material_specified' ,
                                          blank=True ,
                                          null=True ,
                                          on_delete=models.SET_NULL ,
-                                         help_text=_('Трубка') ,
-                                         verbose_name=_('Тип материала трубки'))
+                                         help_text=_('Уплотнение') ,
+                                         verbose_name=_('Материал уплотнения'))
 
     solenoid_body_material = models.ForeignKey(MaterialGeneral , related_name='direction_valve_solenoid_body_material' ,
                                                blank=True ,
                                                null=True ,
                                                on_delete=models.SET_NULL ,
-                                               help_text=_('Трубка') ,
-                                               verbose_name=_('Тип материала трубки'))
+                                               help_text=_('Тип материала соленоида') ,
+                                               verbose_name=_('Тип материала соленоида'))
+    solenoid_body_material_specified = models.ForeignKey(MaterialGeneral, related_name='direction_valve_solenoid_body_material_specified',
+                                               blank=True,
+                                               null=True,
+                                               on_delete=models.SET_NULL,
+                                               help_text=_('Материал соленоида'),
+                                               verbose_name=_('Материал соленоида'))
 
-    body_material_specified = models.ForeignKey(MaterialSpecified ,
-                                                related_name='direction_valve_body_material_specified' ,
-                                                blank=True , null=True ,
-                                                on_delete=models.SET_NULL ,
-                                                help_text=_('Материал корпуса арматуры') ,
-                                                verbose_name=_('Материал корпуса'))
+
     weight = models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
                                  null=True , help_text=_('Вес') ,
                                  verbose_name=_("Вес, кг"))
@@ -579,17 +588,42 @@ class DirectionValve(StructuredDataMixin , models.Model) :
         PneumaticConnection ,
         on_delete=models.SET_NULL , null=True , blank=True ,
         related_name='direction_valve_pneumatic_connection' ,
-        verbose_name=_("Корпус распределительного клапана") ,
-        help_text=_('Корпус распределительного клапана'))
+        verbose_name=_("Пневмоприсоединение") ,
+        help_text=_('Тип пневмоприсоединений'))
     cable_glands_holes = \
         models.ForeignKey(CableGlandHolesSet , null=True , blank=True ,
                           related_name='direction_valve_cable_glands_holes' ,
                           on_delete=models.SET_NULL ,verbose_name=_("Отверстия КВ") ,
                           help_text=_('Отверстия под кабельные вводы'))
+
     class Meta :
         ordering = ['sorting_order' , 'code']
         verbose_name = _('Распределительный клапан')
         verbose_name_plural = _('Распределительные клапаны')
+
+    @property
+    def operation(self):
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.model_line.operation}'
+
+    @property
+    def construction(self):
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.model_line.construction}'
+
+    @property
+    def solenoid_insulation_class(self):
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.model_line.solenoid_insulation_class}'
+
+    @property
+    def exd(self):
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.model_line.exd}'
+    @property
+    def working_medium(self):
+        """Отображаемый диапазон рабочих температур"""
+        return f'{self.model_line.working_medium}'
 
     @property
     def temperature_range_display(self) :
@@ -615,15 +649,42 @@ class DirectionValve(StructuredDataMixin , models.Model) :
             if not template :
                 print('Ошибка при формировании описания фитинга - в model_line нет шаблона')
                 return self.description or ""
-
+        '''
+            {model_code} Пневмораспределитель {operation} функция {function}; Тип действия: {operation}; тип пневмоприсоединения - {pneumatic_connection}; присоединение {pneumatic_connection_thread}; Kv-{kv} м3/ч; корпус {body_material}({body_material_specified}); катушка {solenoid_body_material}{solenoid_body_material_specified}; уплотнение {sealing_material_specified}; Давление {pressure_min}-{pressure_max} бар; Темп.окр.среды {work_temp_min}..{work_temp_max}°С; отверстие под кабельный ввод {cable_glands_holes},  взрывозащита {exd}; {ip}; Dn {dn} мм; Питание {power_supply}; Мощность холодного {power_consumption_start}, Вт; Мощность ном. {power_consumption_hot}, Вт; макс. плотность рабочей среды {medium_density_max} сСт (мм2/с); вес {weight}
+            '''
         # Замена переменных
         replacements = {
             '{model_code}' : self._get_value('code') ,
+            '{function}': self._get_value('function'),
+            '{operation}': self._get_value('operation'),
+            '{actuation}': self._get_value('actuation'),
+            '{construction}': self._get_value('construction'),
+            '{solenoid_insulation_class}': self._get_value('solenoid_insulation_class'),
+            '{pneumatic_connection}': self._get_value('pneumatic_connection'),
+            '{pneumatic_connection_thread}': self._get_value('pneumatic_connection_thread'),
+            '{kv}': self._get_value('kv'),
+            '{body_material}': self._get_value('body_material'),
+            '{body_material_specified}': self._get_value('body_material_specified'),
+            '{solenoid_body_material}': self._get_value('solenoid_body_material'),
+            '{solenoid_body_material_specified}': self._get_value('solenoid_body_material_specified'),
+            '{sealing_material_specified}': self._get_value('sealing_material_specified'),
+            '{pressure_min}': self._get_value('pressure_min'),
+            '{pressure_max}': self._get_value('pressure_min'),
+            '{work_temp_min}': self._get_value('pressure_min'),
+            '{work_temp_max}': self._get_value('pressure_min'),
+            '{cable_glands_holes}': self._get_value('cable_glands_holes'),
+            '{exd}': self._get_value('exd'),
+            '{ip}': self._get_value('ip'),
+            '{dn}': self._get_value('dn'),
+            '{power_supply}': self._get_value('power_supply'),
+            '{power_consumption_start}': self._get_value('power_consumption_start'),
+            '{power_consumption_hot}': self._get_value('power_consumption_hot'),
+            '{medium_density_max}': self._get_value('medium_density_max'),
+            '{working_medium}': self._get_value('working_medium'),
+            '{manual_override}': self._get_value('manual_override'),
+            '{weight}': self._get_value('weight'),
             '{temperature_range}' : self._get_value('temperature_range_display') ,
             '{pressure_range}' : self._get_value('pressure_range_display') ,
-            '{pipe_diameter}' : self._get_value('pipe_diameter') ,
-            '{thread}' : self._get_value('thread') ,
-            '{thread_inner_outer}' : self._get_value('thread_inner_outer') ,
         }
 
         # Заменяем все плейсхолдеры

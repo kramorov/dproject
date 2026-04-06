@@ -278,7 +278,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
         decimal_places=2 ,
         blank=True , null=True ,
         verbose_name=_("Пропускная способность") ,
-        help_text=_('Пропускная способность глушителя (л/мин)')
+        help_text=_('Пропускная способность глушителя (Норм.л/мин)')
     )
 
     # Уровень шума (дБ)
@@ -336,6 +336,9 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
             '{pipe_diameter}': self._get_value('pipe_diameter'),
             '{thread}': self._get_value('thread'),
             '{thread_inner_outer}': self._get_value('thread_inner_outer'),
+            '{operating_pressure}': self._get_value('operating_pressure'),
+            '{noise_level}': self._get_value('noise_level'),
+            '{flow_rate}': self._get_value('flow_rate'),
         }
 
         # Заменяем все плейсхолдеры

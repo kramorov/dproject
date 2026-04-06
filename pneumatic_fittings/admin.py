@@ -57,7 +57,7 @@ class PneumaticFittingAdmin(admin.ModelAdmin) :
                         ('description' , 'sorting_order' , 'is_active'))
         }) ,
         (_('Для глушителей') , {
-            'fields' : ('flow_rate','noise_level' , 'operating_pressure' ) ,
+            'fields' : (('flow_rate','noise_level' , 'operating_pressure' )) ,
         }) ,
     )
 

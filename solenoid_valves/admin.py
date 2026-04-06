@@ -95,13 +95,13 @@ class DirectionalValveModelLineForm(forms.ModelForm) :
                 'style' : 'width: 50%'
             }) ,
             'name_template' : forms.Textarea(attrs={
-                'rows' : 2 ,
+                'rows' : 4 ,
                 'cols' : 80 ,
                 'style' : 'width: 90%' ,
                 'placeholder' : 'Шаблон для генерации названия (например: "Клапан {function} {size}")'
             }) ,
             'description_template' : forms.Textarea(attrs={
-                'rows' : 3 ,
+                'rows' : 4 ,
                 'cols' : 80 ,
                 'style' : 'width: 90%' ,
                 'placeholder' : 'Шаблон для генерации описания'
@@ -155,15 +155,15 @@ class DirectionValveForm(forms.ModelForm) :
                 'style' : 'width: 80%' ,
                 'placeholder' : 'Введите название клапана'
             }) ,
-            'code' : forms.TextInput(attrs={
-                'size' : 30 ,
-                'style' : 'width: 50%'
-            }) ,
-            'description' : forms.Textarea(attrs={
-                'rows' : 4 ,
-                'cols' : 80 ,
-                'style' : 'width: 90%'
-            }) ,
+            # 'code' : forms.TextInput(attrs={
+            #     'size' : 20 ,
+            #     'style' : 'width: 50%'
+            # }) ,
+            # 'description' : forms.Textarea(attrs={
+            #     'rows' : 4 ,
+            #     'cols' : 80 ,
+            #     'style' : 'width: 90%'
+            # }) ,
             'kv' : forms.NumberInput(attrs={
                 'style' : 'width: 120px' ,
                 'placeholder' : 'м³/ч' ,
@@ -270,7 +270,7 @@ class DirectionalValveModelLineAdmin(AdminStructuredDataMixinCopyMixin , admin.M
     def get_queryset(self , request) :
         return super().get_queryset(request).select_related(
             'producer' , 'brand' , 'construction' , 'operation' ,
-            'working_medium' , 'ip' , 'exd'
+            'working_medium' , 'exd'
         )
 
 
@@ -321,15 +321,15 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
     form = DirectionValveForm
 
     list_display = [
-        'name' , 'code' , 'model_line' , 'function' , 'actuation' ,
+        'code' , 'model_line' , 'function' ,
         'dn' , 'kv' , 'power_supply' , 'pressure_min' , 'pressure_max' ,
-        'medium_density_max' , 'weight' , 'sorting_order' , 'is_active'
+        'sorting_order' , 'is_active'
     ]
     list_editable = ['sorting_order' , 'is_active']
     list_filter = [
         'is_active' , 'model_line' , 'function' , 'actuation' ,
         'manual_override' , 'power_supply' , 'brand' , 'ip' ,
-        'body_material' , 'sealing_material' , 'solenoid_body_material'
+        'body_material' , 'sealing_material_specified' , 'solenoid_body_material'
     ]
     search_fields = ['name' , 'code' , 'description' , 'model_line__name']
     # autocomplete_fields = [
@@ -342,18 +342,16 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
 
     fieldsets = (
         (_('Основная информация') , {
-            'fields' : ('name' , 'code' , 'description' , 'model_line')
+            'fields' : ( 'code' , 'model_line')
         }) ,
         (_('Производитель и бренд') , {
-            'fields' : ('producer' , 'brand') ,
+            'fields' : (('name' , 'description' ,), ('producer' , 'brand') ),
             'classes' : ('collapse' ,)
         }) ,
         (_('Функциональные характеристики') , {
             'fields' : (
-                ('function' , 'actuation') ,
-                'manual_override' ,
-                ('dn' , 'kv') ,
-                'ip' ,
+                ('function' , 'actuation', 'manual_override' ,) ,
+                ('dn' , 'kv', 'ip' ,) ,
             ) ,
         }) ,
         (_('Корпус') , {
@@ -361,12 +359,9 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
                 'body' ,
                 'weight' ,
                 ('pneumatic_connection' , 'pneumatic_connection_thread','cable_glands_holes') ,
-            ) ,
-        }) ,
-        (_('Материалы') , {
-            'fields' : (
-                ('body_material' , 'body_material_specified') ,
-                ('sealing_material' , 'solenoid_body_material') ,
+                ('body_material', 'body_material_specified'),
+                ('sealing_material_specified',),
+                ('solenoid_body_material', 'solenoid_body_material_specified'),
             ) ,
         }) ,
         (_('Рабочие параметры') , {
@@ -392,7 +387,7 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
         return super().get_queryset(request).select_related(
             'model_line' , 'body' , 'function' , 'actuation' ,
             'manual_override' , 'power_supply' , 'producer' , 'brand' ,
-            'body_material' , 'sealing_material' , 'solenoid_body_material' ,
+            'body_material' , 'sealing_material_specified' , 'solenoid_body_material' ,'solenoid_body_material_specified' ,
             'body_material_specified' , 'ip' , 'pneumatic_connection' ,
             'pneumatic_connection_thread'
         )
@@ -428,3 +423,23 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
                 logger.warning(f"Ошибка форматирования шаблона описания: {e}")
 
         super().save_model(request , obj , form , change)
+
+    def copy_selected_valves(self, request, queryset):
+        """Action для копирования выбранных моделей клапанов"""
+        copied_count = 0
+
+        for valve in queryset:
+            # Используем встроенный метод create_copy()
+            # Он автоматически:
+            # 1. Обработает преобразования полей (name, code, sorting_order)
+            # 2. Сохранит копию в БД
+            copy_obj = valve.create_copy(save_copy=True)
+            copied_count += 1
+
+        self.message_user(
+            request,
+            f'Успешно скопировано {copied_count} клапанов',
+        )
+
+    actions = ['copy_selected_valves']
+    copy_selected_valves.short_description = "Копировать выбранные модели клапанов"

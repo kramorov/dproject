@@ -538,6 +538,119 @@ class StructuredDataMixin :
 
         return True
 
+    # Создаем TypeVar для возвращаемого типа
+    T = TypeVar('T', bound='StructuredDataMixin')
+
+    def copy(self: T, save_copy: bool = False, copy_relations: bool = False, **kwargs) -> T:
+        """
+        Создает копию объекта
+
+        Args:
+            save_copy: Сохранить копию в БД (если False - возвращает несохраненный объект)
+            copy_relations: Скопировать связанные объекты (ManyToMany и обратные связи)
+            **kwargs: Дополнительные параметры для настройки копирования
+
+        Returns:
+            Новый объект (сохраненный или нет)
+
+        Example:
+            original = SomeModel.objects.get(id=1)
+            copy_obj = original.copy(save_copy=True)
+            copy_obj.name = f"Копия {original.name}"
+            copy_obj.save()
+        """
+        # Получаем все поля текущего объекта
+        all_fields = self._meta.fields
+
+        # Создаем словарь для нового объекта, исключая первичный ключ
+        new_data = {}
+        for field in all_fields:
+            if field.name != self._meta.pk.name:
+                value = getattr(self, field.name)
+
+                # Для ForeignKey полей
+                if isinstance(field, models.ForeignKey):
+                    if value is not None:
+                        new_data[field.name] = value
+                    else:
+                        new_data[field.name] = None
+                else:
+                    new_data[field.name] = value
+
+        # Применяем кастомные преобразования для полей из kwargs
+        for field_name, transform_func in kwargs.get('field_transforms', {}).items():
+            if field_name in new_data:
+                new_data[field_name] = transform_func(new_data[field_name], self)
+
+        # Создаем новый объект
+        new_copy = self.__class__(**new_data)
+
+        if save_copy:
+            new_copy.save()
+
+            # Копируем связанные объекты если нужно
+            if copy_relations:
+                self._copy_relations(new_copy)
+
+        return new_copy
+
+    def _copy_relations(self, new_copy: Any) -> None:
+        """
+        Копирует связанные объекты (переопределите в дочерних моделях при необходимости)
+
+        Args:
+            new_copy: Сохраненная копия объекта
+        """
+        # Базовый метод - ничего не делает
+        # Переопределите в конкретной модели для копирования связей
+        pass
+
+    def _get_copy_field_transforms(self) -> Dict[str, Callable]:
+        """
+        Возвращает словарь с функциями преобразования полей при копировании
+
+        Returns:
+            dict: {field_name: transform_function}
+
+        Example:
+            def _get_copy_field_transforms(self):
+                return {
+                    'name': lambda val, obj: f"{val} (копия)",
+                    'code': lambda val, obj: f"{val}_copy",
+                    'sorting_order': lambda val, obj: val + 1,
+                }
+        """
+        # Базовые преобразования для стандартных полей
+        transforms = {}
+
+        if hasattr(self, 'name'):
+            transforms['name'] = lambda val, obj: f"{val} (копия)"
+
+        if hasattr(self, 'code'):
+            transforms['code'] = lambda val, obj: f"{val}_copy"
+
+        if hasattr(self, 'sorting_order'):
+            transforms['sorting_order'] = lambda val, obj: val + 1
+
+        return transforms
+
+    def create_copy(self: T, save_copy: bool = True, copy_relations: bool = False) -> T:
+        """
+        Упрощенный метод для создания копии с сохранением
+
+        Args:
+            save_copy: Сохранить копию в БД
+            copy_relations: Скопировать связанные объекты
+
+        Returns:
+            Новый объект
+        """
+        transforms = self._get_copy_field_transforms()
+        return self.copy(
+            save_copy=save_copy,
+            copy_relations=copy_relations,
+            field_transforms=transforms
+        )
 
 class TimestampMixin(models.Model) :
     """
@@ -595,119 +708,7 @@ class SoftDeleteMixin(models.Model) :
 
 
 
-    # Создаем TypeVar для возвращаемого типа
-    T = TypeVar('T' , bound='StructuredDataMixin')
 
-    def copy(self: T , save_copy: bool = False , copy_relations: bool = False , **kwargs) -> T :
-        """
-        Создает копию объекта
-
-        Args:
-            save_copy: Сохранить копию в БД (если False - возвращает несохраненный объект)
-            copy_relations: Скопировать связанные объекты (ManyToMany и обратные связи)
-            **kwargs: Дополнительные параметры для настройки копирования
-
-        Returns:
-            Новый объект (сохраненный или нет)
-
-        Example:
-            original = SomeModel.objects.get(id=1)
-            copy_obj = original.copy(save_copy=True)
-            copy_obj.name = f"Копия {original.name}"
-            copy_obj.save()
-        """
-        # Получаем все поля текущего объекта
-        all_fields = self._meta.fields
-
-        # Создаем словарь для нового объекта, исключая первичный ключ
-        new_data = {}
-        for field in all_fields :
-            if field.name != self._meta.pk.name :
-                value = getattr(self , field.name)
-
-                # Для ForeignKey полей
-                if isinstance(field , models.ForeignKey) :
-                    if value is not None :
-                        new_data[field.name] = value
-                    else :
-                        new_data[field.name] = None
-                else :
-                    new_data[field.name] = value
-
-        # Применяем кастомные преобразования для полей из kwargs
-        for field_name , transform_func in kwargs.get('field_transforms' , {}).items() :
-            if field_name in new_data :
-                new_data[field_name] = transform_func(new_data[field_name] , self)
-
-        # Создаем новый объект
-        new_copy = self.__class__(**new_data)
-
-        if save_copy :
-            new_copy.save()
-
-            # Копируем связанные объекты если нужно
-            if copy_relations :
-                self._copy_relations(new_copy)
-
-        return new_copy
-
-    def _copy_relations(self , new_copy: Any) -> None :
-        """
-        Копирует связанные объекты (переопределите в дочерних моделях при необходимости)
-
-        Args:
-            new_copy: Сохраненная копия объекта
-        """
-        # Базовый метод - ничего не делает
-        # Переопределите в конкретной модели для копирования связей
-        pass
-
-    def _get_copy_field_transforms(self) -> Dict[str , Callable] :
-        """
-        Возвращает словарь с функциями преобразования полей при копировании
-
-        Returns:
-            dict: {field_name: transform_function}
-
-        Example:
-            def _get_copy_field_transforms(self):
-                return {
-                    'name': lambda val, obj: f"{val} (копия)",
-                    'code': lambda val, obj: f"{val}_copy",
-                    'sorting_order': lambda val, obj: val + 1,
-                }
-        """
-        # Базовые преобразования для стандартных полей
-        transforms = {}
-
-        if hasattr(self , 'name') :
-            transforms['name'] = lambda val , obj : f"{val} (копия)"
-
-        if hasattr(self , 'code') :
-            transforms['code'] = lambda val , obj : f"{val}_copy"
-
-        if hasattr(self , 'sorting_order') :
-            transforms['sorting_order'] = lambda val , obj : val + 1
-
-        return transforms
-
-    def create_copy(self: T , save_copy: bool = True , copy_relations: bool = False) -> T :
-        """
-        Упрощенный метод для создания копии с сохранением
-
-        Args:
-            save_copy: Сохранить копию в БД
-            copy_relations: Скопировать связанные объекты
-
-        Returns:
-            Новый объект
-        """
-        transforms = self._get_copy_field_transforms()
-        return self.copy(
-            save_copy=save_copy ,
-            copy_relations=copy_relations ,
-            field_transforms=transforms
-        )
 
 
 class AdminStructuredDataMixinCopyMixin :
