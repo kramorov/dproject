@@ -106,6 +106,7 @@ INSTALLED_APPS = [
     'graphene_django' ,
     'import_export',
     'rangefilter',
+    'django_filters',
     'cert_doc.apps.CertDocConfig',
     'params.apps.ParamsConfig' ,
     'options.apps.OptionsConfig' ,

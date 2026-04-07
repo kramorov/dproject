@@ -1,8 +1,16 @@
 # solenoid_valves/admin.py
+from django.http import HttpResponseRedirect
+from django.shortcuts import render
+from django.urls import path
+from django.contrib.admin import AdminSite
+
 from django.contrib import admin
 from django import forms
 from django.utils.translation import gettext_lazy as _
 import logging
+
+from .filters import DirectionValveFilter
+
 logger = logging.getLogger(__name__)
 
 from core.models.mixins import AdminStructuredDataMixinCopyMixin
@@ -422,6 +430,50 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
                 logger.warning(f"Ошибка форматирования шаблона описания: {e}")
 
         super().save_model(request , obj , form , change)
+
+    # Добавляем URL для расширенного поиска
+    def get_urls(self) :
+        urls = super().get_urls()
+        custom_urls = [
+            path('advanced-search/' , self.admin_site.admin_view(self.advanced_search) ,
+                 name='directionvalve_advanced_search') ,
+        ]
+        return custom_urls + urls
+
+    def advanced_search(self , request) :
+        """Страница расширенного поиска"""
+        f = DirectionValveFilter(request.GET , queryset=DirectionValve.objects.all())
+        search_performed = bool(request.GET)
+
+        context = {
+            'filter' : f ,
+            'queryset' : f.qs if search_performed else None ,
+            'search_performed' : search_performed ,
+            'title' : _('Расширенный поиск клапанов') ,
+            'opts' : self.model._meta ,
+            'has_change_permission' : self.has_change_permission(request) ,
+        }
+
+        return render(request , 'admin/solenoid_valves/directionvalve/admin_search.html' , context)
+
+    # Добавляем action для копирования с возвратом на страницу поиска
+    def copy_selected(self , request , queryset) :
+        """Копирование с возвратом на страницу поиска"""
+        copied = 0
+        for obj in queryset :
+            if hasattr(obj , 'create_copy') :
+                obj.create_copy()
+            elif hasattr(obj , 'copy') :
+                obj.copy(save_copy=True)
+            copied += 1
+
+        self.message_user(request , f'Скопировано {copied} клапанов')
+
+        # Возвращаемся на страницу поиска, если пришли оттуда
+        next_url = request.GET.get('next' , '../')
+        return HttpResponseRedirect(next_url)
+
+    copy_selected.short_description = _("Копировать выбранные клапаны")
 
     def copy_selected_valves(self, request, queryset):
         """Action для копирования выбранных моделей клапанов"""

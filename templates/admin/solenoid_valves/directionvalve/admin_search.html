@@ -1,0 +1,331 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .search-container {
+        background: #fff;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    .filter-group {
+        background: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 4px;
+    }
+    .filter-group h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 14px;
+        color: #666;
+    }
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .filter-field {
+        flex: 0 0 auto;
+    }
+    .filter-field label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #666;
+    }
+    .filter-field input, .filter-field select {
+        padding: 5px 8px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    .range-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .range-group span {
+        color: #666;
+    }
+    .search-buttons {
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    .btn-primary {
+        background: #79aec8;
+        color: white;
+    }
+    .btn-primary:hover {
+        background: #609ab6;
+    }
+    .btn-secondary {
+        background: #f0f0f0;
+        color: #333;
+    }
+    .btn-secondary:hover {
+        background: #e0e0e0;
+    }
+    .results-count {
+        font-weight: bold;
+        margin: 20px 0;
+        padding: 10px;
+        background: #e8f4e8;
+        border-radius: 4px;
+    }
+    .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        font-size: 13px;
+    }
+    .results-table th {
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+        font-weight: bold;
+    }
+    .results-table td {
+        border: 1px solid #ddd;
+        padding: 8px 10px;
+        vertical-align: top;
+    }
+    .results-table tr:hover {
+        background: #f9f9f9;
+    }
+    .actions-cell a {
+        margin-right: 8px;
+    }
+    .empty-results {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+    }
+    .badge-active {
+        background: #2bde3f;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+    }
+    .badge-inactive {
+        background: #ccc;
+        color: #666;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+    }
+    .badge-ip, .badge-exd {
+        background: #e8f4f8;
+        color: #333;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        display: inline-block;
+        margin: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>{% trans "Расширенный поиск клапанов" %}</h1>
+
+    <div class="search-container">
+        <form method="get" id="search-form">
+            <!-- Основные параметры -->
+            <div class="filter-group">
+                <h3>Основные параметры</h3>
+                <div class="search-buttons">
+                <button type="submit" class="btn btn-primary">🔍 Применить фильтры</button>
+                <a href="." class="btn btn-secondary">🗑 Сбросить все</a>
+            </div>
+                <div class="filter-row">
+                    <div class="filter-field">
+                        <label>Код:</label>
+                        {{ filter.form.code }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Серия:</label>
+                        {{ filter.form.model_line }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Бренд:</label>
+                        {{ filter.form.brand }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Функция:</label>
+                        {{ filter.form.function }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Управление:</label>
+                        {{ filter.form.actuation }}
+                    </div>
+                </div>
+                <div class="filter-row" style="margin-top: 10px;">
+                    <div class="filter-field">
+                        <label>Ручной дублер:</label>
+                        {{ filter.form.manual_override }}
+                    </div>
+                    <div class="filter-field">
+                        <label>IP защита:</label>
+                        {{ filter.form.ip }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Exd взрывозащита:</label>
+                        {{ filter.form.exd }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Статус:</label>
+                        {{ filter.form.is_active }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Температура мин (≤ °C):</label>
+                        {{ filter.form.work_temp_min }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Напряжение:</label>
+                        {{ filter.form.power_supply }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Технические характеристики (объединенная группа) -->
+            <div class="filter-group">
+                <h3>Технические характеристики</h3>
+                
+                <!-- Размеры и расход -->
+                <div class="filter-row">
+                    <div class="filter-field">
+                        <label>Kv (м³/ч):</label>
+                        <div class="range-group">
+                            {{ filter.form.kv_min }}
+                        </div>
+                    </div>
+                    <div class="filter-field">
+                        <label>Расход (л/мин):</label>
+                        <div class="range-group">
+                            {{ filter.form.flow_rate_min }}
+                        </div>
+                    </div>
+                </div>
+                    
+                
+                
+            </div>
+
+            <!-- Материалы -->
+            <div class="filter-group">
+                <h3>Материалы</h3>
+                <div class="filter-row">
+                    <div class="filter-field">
+                        <label>Материал корпуса:</label>
+                        {{ filter.form.body_material }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Материал уплотнения:</label>
+                        {{ filter.form.sealing_material_specified }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Материал соленоида:</label>
+                        {{ filter.form.solenoid_body_material }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Пневматические подключения -->
+            <div class="filter-group">
+                <h3>Пневматические подключения</h3>
+                <div class="filter-row">
+                    <div class="filter-field">
+                        <label>Тип подключения:</label>
+                        {{ filter.form.pneumatic_connection }}
+                    </div>
+                    <div class="filter-field">
+                        <label>Резьба:</label>
+                        {{ filter.form.pneumatic_connection_thread }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-buttons">
+                <button type="submit" class="btn btn-primary">🔍 Применить фильтры</button>
+                <a href="." class="btn btn-secondary">🗑 Сбросить все</a>
+            </div>
+        </form>
+    </div>
+
+    {% if search_performed %}
+        <div class="results-count">
+            📊 Найдено клапанов: {{ queryset|length }}
+        </div>
+
+        {% if queryset %}
+            <table class="results-table">
+                <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Код</th>
+                    <th>Серия</th>
+                    <th>Функция</th>
+                    <th>Управление</th>
+                    <th>IP/Exd</th>
+                    <th>Kv (м³/ч)</th>
+                    <th>Расход (л/мин)</th>
+                    <th>Давление (бар)</th>
+                    <th>Температура (°C)</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for valve in queryset %}
+                    <tr>
+                        <td>{{ valve.name|truncatechars:50 }}</td>
+                        <td>{{ valve.code|default:"-" }}</td>
+                        <td>{{ valve.model_line.name|default:"-"|truncatechars:30 }}</td>
+                        <td>{{ valve.function.name|default:"-" }}</td>
+                        <td>{{ valve.actuation.name|default:"-" }}</td>
+                        <td>
+                            {% if valve.ip %}<span class="badge-ip">IP{{ valve.ip.value }}</span>{% endif %}
+                            {% if valve.exd %}<span class="badge-exd">Exd</span>{% endif %}
+                            {% if not valve.ip and not valve.exd %}-{% endif %}
+                        </td>
+                        <td>{{ valve.kv|default:"-" }}</td>
+                        <td>{{ valve.flow_rate|floatformat:0|default:"-" }}</td>
+                        <td>{% if valve.pressure_min %}{{ valve.pressure_min }}-{{ valve.pressure_max }}{% else %}-{% endif %}</td>
+                        <td>{% if valve.work_temp_min %}{{ valve.work_temp_min }}{% else %}-{% endif %}</td>
+                        <td>
+                            {% if valve.is_active %}
+                                <span class="badge-active">Активен</span>
+                            {% else %}
+                                <span class="badge-inactive">Неактивен</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions-cell">
+                            <a href="{% url 'admin:solenoid_valves_directionvalve_change' valve.id %}">✏️ Ред.</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-results">
+                😕 Ничего не найдено. Попробуйте изменить критерии поиска.
+            </div>
+        {% endif %}
+    {% endif %}
+
+{% endblock %}
