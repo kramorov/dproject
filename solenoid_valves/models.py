@@ -366,10 +366,6 @@ class DirectionalValveModelLine(StructuredDataMixin , models.Model) :
     solenoid_insulation_class = models.CharField(max_length=50 , blank=True , null=True ,
                                                  verbose_name=_("Класс изоляции") ,
                                                  help_text=_("Класс изоляции катушки: H, F"))
-    exd = models.ForeignKey('params.ExdOption' , blank=True , null=True ,
-                            related_name='direction_valve_exd' ,
-                            on_delete=models.SET_NULL , verbose_name=_("Exd") ,
-                            help_text=_('Степень взрывозащиты для серии клапанов'))
 
     construction = models.ForeignKey(ValveDesign , related_name='direction_valve_model_line_construction' , blank=True ,
                                      null=True ,
@@ -480,6 +476,10 @@ class DirectionValve(StructuredDataMixin , models.Model) :
     ip = models.ForeignKey('params.IpOption' , blank=True , null=True , default=65 ,
                            on_delete=models.SET_NULL , related_name='direction_valve_ip' , verbose_name=_("IP") ,
                            help_text=_('Степень IP для модели клапана'))
+    exd = models.ForeignKey('params.ExdOption', blank=True, null=True,
+                            related_name='direction_valve_exd',
+                            on_delete=models.SET_NULL, verbose_name=_("Exd"),
+                            help_text=_('Степень взрывозащиты для модели клапана'))
     actuation = models.ForeignKey(ValveActuationVariety ,
                                   related_name='direction_valve_actuation' ,
                                   blank=True ,
@@ -619,10 +619,6 @@ class DirectionValve(StructuredDataMixin , models.Model) :
         """Отображаемый диапазон рабочих температур"""
         return f'{self.model_line.solenoid_insulation_class}'
 
-    @property
-    def exd(self):
-        """Отображаемый диапазон рабочих температур"""
-        return f'{self.model_line.exd}'
     @property
     def working_medium(self):
         """Отображаемый диапазон рабочих температур"""

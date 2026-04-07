@@ -226,12 +226,12 @@ class DirectionalValveModelLineAdmin(AdminStructuredDataMixinCopyMixin , admin.M
 
     list_display = [
         'name' , 'code' , 'brand' , 'construction' , 'operation' ,
-        'working_medium' ,  'exd' , 'sorting_order' , 'is_active'
+        'working_medium' ,  'sorting_order' , 'is_active'
     ]
     list_editable = ['sorting_order' , 'is_active']
     list_filter = [
         'is_active' , 'brand' , 'construction' , 'operation' ,
-        'working_medium' , 'exd' , 'solenoid_insulation_class'
+        'working_medium' , 'solenoid_insulation_class'
     ]
     search_fields = ['name' , 'code' , 'description']
 
@@ -257,7 +257,6 @@ class DirectionalValveModelLineAdmin(AdminStructuredDataMixinCopyMixin , admin.M
         }) ,
         (_('Защита и изоляция') , {
             'fields' : (
-                'exd' ,
                 'solenoid_insulation_class' ,
             ) ,
         }) ,
@@ -270,7 +269,7 @@ class DirectionalValveModelLineAdmin(AdminStructuredDataMixinCopyMixin , admin.M
     def get_queryset(self , request) :
         return super().get_queryset(request).select_related(
             'producer' , 'brand' , 'construction' , 'operation' ,
-            'working_medium' , 'exd'
+            'working_medium'
         )
 
 
@@ -320,15 +319,15 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin , admin.ModelAdmin) 
     """
     form = DirectionValveForm
 
-    list_display = [
-        'code' , 'model_line' , 'function' ,
-        'power_supply' , 'work_temp_min', 'work_temp_max','ip' ,
+    list_display = ['id',
+        'code' , 'exd', 'pneumatic_connection', 'model_line' , 'function' ,
+        'power_supply' , 'work_temp_min', 'ip' ,
         'body_material' , 'solenoid_body_material', 'sorting_order' ,
     ]
-    list_editable = ['sorting_order','ip' ]
+    list_editable = ['sorting_order','ip', 'exd', 'pneumatic_connection','code'   ]
     list_filter = [
         'is_active' , 'model_line' , 'function' , 'actuation' ,
-        'power_supply' , 'brand' , 'ip' ,
+        'power_supply' , 'brand' , 'ip' , 'exd',
         'body_material' , 'solenoid_body_material' , 'work_temp_min'
     ]
     search_fields = ['name' , 'code' , 'description' , 'model_line__name']
