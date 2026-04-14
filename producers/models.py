@@ -261,6 +261,72 @@ class Brands(StructuredDataMixin , models.Model) :  # Добавить насл�
             return self.logo.url if self.logo else None
         return None
 
+    @classmethod
+    def get_all(cls , active_only=False , limit=100 , offset=0) :
+        """Получить все бренды"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return queryset.order_by('sorting_order' , 'name')[offset :offset + limit]
+
+    @classmethod
+    def get_total_count(cls , active_only=False) :
+        """Получить общее количество брендов"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return queryset.count()
+
+    @classmethod
+    def get_by_id(cls , obj_id) :
+        """Получить бренд по ID"""
+        try :
+            return cls.objects.get(id=obj_id)
+        except cls.DoesNotExist :
+            return None
+
+    @classmethod
+    def create_from_dict(cls , data) :
+        """Создать бренд из словаря"""
+        return cls.objects.create(**data)
+
+    def update_from_dict(self , data) :
+        """Обновить бренд из словаря"""
+        for key , value in data.items() :
+            if hasattr(self , key) :
+                setattr(self , key , value)
+        self.save()
+        return self
+
+    @classmethod
+    def delete_by_id(cls , obj_id , soft=True) :
+        """Удалить бренд (мягкое или жесткое)"""
+        obj = cls.get_by_id(obj_id)
+        if obj :
+            if soft and hasattr(obj , 'is_active') :
+                obj.is_active = False
+                obj.save()
+            else :
+                obj.delete()
+            return True
+        return False
+
+    def to_dict(self , format_type='compact') :
+        """Конвертировать в словарь для API"""
+        if format_type == 'compact' :
+            return self.get_compact_data()
+        elif format_type == 'display' :
+            return self.get_display_data()
+        else :
+            return self.get_full_data()
+
+    @classmethod
+    def get_for_select(cls) :
+        """Получить список для выпадающего списка"""
+        return [
+            {'id' : b.id , 'name' : b.name , 'code' : b.code}
+            for b in cls.get_all(active_only=True)
+        ]
 
 class Producer(StructuredDataMixin , models.Model) :
     name = models.CharField(max_length=100 ,
@@ -573,6 +639,87 @@ class Producer(StructuredDataMixin , models.Model) :
             return self.brands.filter(is_active=True).count()
         return 0
 
+    @classmethod
+    def get_all(cls , active_only=False , limit=100 , offset=0) :
+        """Получить всех производителей"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return queryset.order_by('sorting_order' , 'name')[offset :offset + limit]
+
+    @classmethod
+    def get_total_count(cls , active_only=False) :
+        """Получить общее количество производителей"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return queryset.count()
+
+    @classmethod
+    def get_by_id(cls , obj_id) :
+        """Получить производителя по ID"""
+        try :
+            return cls.objects.prefetch_related('brands').get(id=obj_id)
+        except cls.DoesNotExist :
+            return None
+
+    @classmethod
+    def create_from_dict(cls , data) :
+        """Создать производителя из словаря"""
+        brands_ids = data.pop('brands_ids' , [])
+        producer = cls.objects.create(**data)
+        if brands_ids :
+            producer.brands.set(brands_ids)
+        return producer
+
+    def update_from_dict(self , data) :
+        """Обновить производителя из словаря"""
+        brands_ids = data.pop('brands_ids' , None)
+        for key , value in data.items() :
+            if hasattr(self , key) :
+                setattr(self , key , value)
+        self.save()
+        if brands_ids is not None :
+            self.brands.set(brands_ids)
+        return self
+
+    @classmethod
+    def delete_by_id(cls , obj_id , soft=True) :
+        """Удалить производителя (мягкое или жесткое)"""
+        obj = cls.get_by_id(obj_id)
+        if obj :
+            if soft and hasattr(obj , 'is_active') :
+                obj.is_active = False
+                obj.save()
+            else :
+                obj.delete()
+            return True
+        return False
+
+    def to_dict(self , format_type='compact' , include_brands=True) :
+        """Конвертировать в словарь для API"""
+        data = {}
+        if format_type == 'compact' :
+            data = self.get_compact_data()
+        elif format_type == 'display' :
+            data = self.get_display_data()
+        else :
+            data = self.get_full_data()
+
+        if include_brands :
+            data['brands'] = [
+                {'id' : b.id , 'name' : b.name , 'code' : b.code}
+                for b in self.brands.all()
+            ]
+        return data
+
+    @classmethod
+    def get_for_select(cls) :
+        """Получить список для выпадающего списка"""
+        return [
+            {'id' : p.id , 'name' : p.name , 'organization' : p.organization}
+            for p in cls.get_all(active_only=True)
+        ]
 # Особенности реализации:
 # ManyToManyField для brands - используем _format_many_to_many() с include_data='compact'
 #

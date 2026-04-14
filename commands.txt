@@ -13,7 +13,7 @@ git push main av-be-master:main
 Копирование опций напряжения (блоки управления не работает)
 проверить AR11 030-120
 
-
+streamlit run main_page.py
 
 git stash
 git stash pop
