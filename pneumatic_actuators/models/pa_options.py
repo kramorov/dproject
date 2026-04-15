@@ -28,6 +28,16 @@ class PneumaticHandWheelOption(BaseHandWheelThroughOption):
         """Явно указываем имя родительского поля"""
         return 'model_line'
 
+    @classmethod
+    def get_for_select(cls , model_line_id=None , active_only=True) :
+        """Получить опции ручного дублера"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        if model_line_id :
+            queryset = queryset.filter(model_line_id=model_line_id)
+        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
+
     @property
     def get_display_name(self):
         return self.hand_wheel_option.name
@@ -81,6 +91,16 @@ class PneumaticIpOption(BaseIpThroughOption):
     def __str__(self):
         return f"{self.ip_option.name} (Стандарт)" if self.is_default else f"{self.ip_option.name} (Опция)"
 
+    @classmethod
+    def get_for_select(cls , model_line_id=None , active_only=True) :
+        """Получить опции IP защиты"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        if model_line_id :
+            queryset = queryset.filter(model_line_id=model_line_id)
+        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
+
 class PneumaticExdOption(BaseExdThroughOption):
     """Опции взрывозащиты для пневмоприводов"""
     model_line = models.ForeignKey(
@@ -102,6 +122,16 @@ class PneumaticExdOption(BaseExdThroughOption):
 
     def __str__(self):
         return f"{self.exd_option.name} (Стандарт)" if self.is_default else f"{self.exd_option.name} (Опция)"
+
+    @classmethod
+    def get_for_select(cls , model_line_id=None , active_only=True) :
+        """Получить опции взрывозащиты"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        if model_line_id :
+            queryset = queryset.filter(model_line_id=model_line_id)
+        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
 class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
@@ -125,6 +155,16 @@ class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
         # ИСПРАВЛЕНО: используем is_default вместо default_option
         return f"{self.body_coating_option.name} (Стандарт)" if self.is_default else f"{self.body_coating_option.name} (Опция)"
 
+    @classmethod
+    def get_for_select(cls , model_line_id=None , active_only=True) :
+        """Получить опции покрытия корпуса"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        if model_line_id :
+            queryset = queryset.filter(model_line_id=model_line_id)
+        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
+
 class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
     model_line_item = models.ForeignKey(
@@ -145,6 +185,16 @@ class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
         return 'model_line_item'
     def __str__(self):
         return f"{self.safety_position.name}"
+
+    @classmethod
+    def get_for_select(cls , model_line_item_id=None , active_only=True) :
+        """Получить опции положения безопасности"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        if model_line_item_id :
+            queryset = queryset.filter(model_line_item_id=model_line_item_id)
+        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
 class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""

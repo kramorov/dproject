@@ -1,0 +1,24 @@
+#pages/pneumatic_actuators/pa_selection.txt
+Подбор пневматического привода
+
+Параметры:
+Тип арматуры
+DN  'model_path': 'params.models.DnVariety'
+Pn 'model_path': 'params.models.PnVariety'
+монтажная площадка 'model_path': 'params.models.MountingPlateTypes'
+Шток 'model_path': 'params.models.StemSize'
+Момент без запаса - - положительное число 9.2
+Коэффициент запаса - положительное число 4.2
+Момент с запасом - положительное число 9.2
+
+Требования к приводу:
+Серия моделей selected_model_line = models.ForeignKey(PneumaticActuatorModelLine,
+Модель в серии selected_model_line_item = models.ForeignKey(PneumaticActuatorModelLineItem,
+Вид пневмопривода - DA/SR  'model_path': 'pneumatic_actuators.models.pa_options.PneumaticActuatorVariety'  da_sr_code = self.selected_model_line_item.pneumatic_actuator_variety.code if self.selected_model_line_item else None
+NO/NC/ 'model_path': 'pneumatic_actuators.models.pa_options.PneumaticSafetyPositionOption'
+IP selected_ip = 'model_path': 'pneumatic_actuators.models.pa_options.PneumaticIpOption'
+Exd selected_exd = 'model_path': 'pneumatic_actuators.models.pa_options.PneumaticExdOption'
+Покрытие 'model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyCoatingOption'
+минимальная температура целое  число от минус 70 до плюс 300 по умолчанию 0
+максимальная температура целое  число от минус 70 до плюс 300 по умолчанию 0
+Ручной дублер selected_hand_wheel = 'model_path': 'pneumatic_actuators.models.pa_options.PneumaticHandWheelOption'

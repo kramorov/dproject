@@ -66,6 +66,13 @@ class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
     def __str__(self) :
         return self.name
 
+    @classmethod
+    def get_for_select(cls , active_only=True) :
+        """Получить серии моделей для выпадающего списка"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
     # ==================== StructuredDataMixin методы ====================
     def _get_metadata(self) -> Dict[str , Any] :
         """
@@ -664,6 +671,31 @@ class PneumaticActuatorModelLineItem(models.Model) :
 
     def __str__(self) :
         return self.name
+
+    @classmethod
+    def get_for_select(cls , model_line_id=None , actuator_variety_code=None , active_only=True) :
+        """
+        Получить модели для выпадающего списка с фильтрацией
+
+        Args:
+            model_line_id: ID серии моделей
+            actuator_variety_code: код вида привода (DA/SR)
+            active_only: только активные
+        """
+        queryset = cls.objects.all()
+
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+
+        if model_line_id :
+            queryset = queryset.filter(model_line_id=model_line_id)
+
+        if actuator_variety_code :
+            queryset = queryset.filter(
+                pneumatic_actuator_variety__code=actuator_variety_code
+            )
+
+        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
 
     # ==================== ГЕТТЕРЫ С ПРИОРИТЕТОМ ИЗ MODEL_LINE ИЛИ BODY ====================
 

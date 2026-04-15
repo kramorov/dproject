@@ -6,7 +6,11 @@ import streamlit as st
 from db_init import init_django
 from datetime import datetime
 
-init_django()  # Подключаем Django
+# Инициализируем Django ДО импорта моделей
+init_django()
+
+# Теперь можно импортировать модели
+from pneumatic_fittings.models import PneumaticFitting
 
 st.set_page_config(
     page_title="Pneumatic System",
@@ -31,7 +35,7 @@ MAIN_SECTIONS = {
         "title": "Пневмоприводы",
         "icon": "⚙️",
         "description": "Пневматические приводы и актуаторы",
-        "page": None,
+        "page": 'pages/pa_selection.py',
         "enabled": True,
         "order": 2
     },
@@ -89,7 +93,7 @@ SIDEBAR_SECTIONS = {
     "pneumatic_actuators": {
         "title": "Пневмоприводы",
         "icon": "⚙️",
-        "page": None,
+        "page": 'pages/pa_selection.py',
         "enabled": True,
         "order": 2
     },
