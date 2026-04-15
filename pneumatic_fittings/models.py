@@ -418,3 +418,298 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
             new_copy.save()
 
         return new_copy
+
+    @classmethod
+    def get_thread_types(cls, active_only: bool = True) -> List[Dict]:
+        """
+        Получить уникальные типы резьб (M, NPT, G, R)
+        """
+        from params.models import ThreadTypes
+
+        queryset = ThreadTypes.objects.all()
+        if active_only:
+            queryset = queryset.filter(is_active=True)
+
+        return [{'id': t.id, 'name': t.name, 'code': t.code or ''} for t in queryset]
+
+    @classmethod
+    def get_filtered_threads(cls, thread_type_id: int = None) -> List[Dict]:
+        """
+        Получить резьбы с опциональной фильтрацией по типу резьбы
+        """
+        from params.models import ThreadSize
+
+        queryset = ThreadSize.objects.filter(is_active=True)
+
+        if thread_type_id:
+            queryset = queryset.filter(thread_type_id=thread_type_id)
+
+        # Сортируем для удобства
+        queryset = queryset.order_by('thread_type', 'sorting_order')
+
+        return [{'id': t.id, 'name': t.name, 'code': t.code or ''} for t in queryset]
+    # ==================== МЕТОДЫ ДЛЯ ФИЛЬТРАЦИИ И API ====================
+
+    @classmethod
+    def get_distinct_values(cls, field_name: str, active_only: bool = True) -> List[Dict]:
+        """
+        Получить уникальные значения поля для фильтров
+
+        Args:
+            field_name: имя поля (поддерживает связанные поля через __)
+            active_only: только активные значения
+
+        Returns:
+            List[Dict]: список словарей {id, name, code}
+        """
+        from django.db.models import F
+
+        # Разбираем путь для связанных полей
+        if '__' in field_name:
+            parts = field_name.split('__')
+            base_field = parts[0]
+            related_field = parts[1]
+
+            # Получаем связанную модель
+            related_model = cls._meta.get_field(base_field).remote_field.model
+
+            queryset = related_model.objects.filter(**{f"{related_field}__isnull": False})
+            if active_only:
+                queryset = queryset.filter(is_active=True)
+
+            values = queryset.values_list('id', 'name', 'code').distinct()
+            return [{'id': v[0], 'name': v[1], 'code': v[2] or ''} for v in values]
+        else:
+            # Простое поле модели
+            queryset = cls.objects.filter(**{f"{field_name}__isnull": False})
+            values = queryset.values_list(field_name, flat=True).distinct().order_by(field_name)
+
+            if field_name in ['pipe_diameter']:
+                return [{'id': v, 'name': str(v), 'code': ''} for v in values if v is not None]
+
+            # Для ForeignKey полей
+            field = cls._meta.get_field(field_name)
+            if field.many_to_one:
+                related_model = field.remote_field.model
+                ids = queryset.values_list(field_name, flat=True).distinct()
+                result = []
+                for obj_id in ids:
+                    obj = related_model.objects.filter(id=obj_id).first()
+                    if obj:
+                        result.append({'id': obj.id, 'name': obj.name, 'code': obj.code or ''})
+                return result
+
+            return [{'id': v, 'name': str(v), 'code': ''} for v in values if v is not None]
+
+    @classmethod
+    def get_filter_options(cls) -> Dict[str, List[Dict]]:
+        """
+        Получить все доступные опции для фильтрации
+
+        Returns:
+            Dict: словарь с опциями для каждого поля фильтра
+        """
+        result = {
+            'brands': cls.get_distinct_values('brand'),
+            'model_lines': cls.get_distinct_values('fitting_model_line'),
+            'varieties': cls.get_distinct_values('fitting_variety'),
+            'body_materials': cls.get_distinct_values('body_material'),
+            'pipe_materials': cls.get_distinct_values('pipe_material'),
+            'pipe_diameters': cls.get_distinct_values('pipe_diameter'),
+            'thread_types': cls.get_thread_types(),
+            'threads': cls.get_distinct_values('thread'),
+            'thread_inner_outers': cls.get_distinct_values('thread_inner_outer'),
+        }
+
+        return result
+    @classmethod
+    def filter_by_params(cls, params: Dict) -> Dict:
+        """
+        Фильтрация по параметрам
+
+        Args:
+            params: словарь с параметрами фильтрации
+                {
+                    'temp_min': int,
+                    'code': str,
+                    'brand_id': int,
+                    'fitting_model_line_id': int,
+                    'fitting_variety_id': int,
+                    'body_material_id': int,
+                    'pipe_material_id': int,
+                    'pipe_diameter': int,
+                    'thread_id': int,
+                    'thread_inner_outer_id': int,
+                    'is_active': bool,
+                    'limit': int,
+                    'offset': int
+                }
+
+        Returns:
+            Dict: {
+                'data': List[Dict],
+                'total': int,
+                'filters_applied': Dict
+            }
+        """
+        queryset = cls.objects.select_related(
+            'brand', 'fitting_model_line', 'fitting_variety',
+            'body_material', 'pipe_material', 'thread', 'thread_inner_outer'
+        )
+
+        filters_applied = {}
+
+        # Фильтр по минимальной температуре (<=)
+        temp_min = params.get('temp_min')
+        if temp_min is not None and temp_min != '':
+            try:
+                temp_min_value = int(temp_min)
+                queryset = queryset.filter(temp_min__lte=temp_min_value)
+                filters_applied['temp_min'] = temp_min_value
+            except (ValueError, TypeError):
+                pass
+
+        # Фильтр по коду (поиск по подстроке)
+        code = params.get('code', '')
+        if code:
+            queryset = queryset.filter(code__icontains=code)
+            filters_applied['code'] = code
+
+        # Фильтр по бренду
+        brand_id = params.get('brand_id')
+        if brand_id and brand_id != 'all':
+            queryset = queryset.filter(brand_id=brand_id)
+            filters_applied['brand_id'] = brand_id
+
+        # Фильтр по серии
+        model_line_id = params.get('fitting_model_line_id')
+        if model_line_id and model_line_id != 'all':
+            queryset = queryset.filter(fitting_model_line_id=model_line_id)
+            filters_applied['fitting_model_line_id'] = model_line_id
+
+        # Фильтр по типу
+        variety_id = params.get('fitting_variety_id')
+        if variety_id and variety_id != 'all':
+            queryset = queryset.filter(fitting_variety_id=variety_id)
+            filters_applied['fitting_variety_id'] = variety_id
+
+        # Фильтр по материалу корпуса
+        body_material_id = params.get('body_material_id')
+        if body_material_id and body_material_id != 'all':
+            queryset = queryset.filter(body_material_id=body_material_id)
+            filters_applied['body_material_id'] = body_material_id
+
+        # Фильтр по материалу трубки
+        pipe_material_id = params.get('pipe_material_id')
+        if pipe_material_id and pipe_material_id != 'all':
+            queryset = queryset.filter(pipe_material_id=pipe_material_id)
+            filters_applied['pipe_material_id'] = pipe_material_id
+
+        # Фильтр по диаметру трубки
+        pipe_diameter = params.get('pipe_diameter')
+        if pipe_diameter and pipe_diameter != 'all':
+            try:
+                queryset = queryset.filter(pipe_diameter=pipe_diameter)
+                filters_applied['pipe_diameter'] = pipe_diameter
+            except (ValueError, TypeError):
+                pass
+        # Фильтр по типу резьбы (через связанное поле)
+        thread_type_id = params.get('thread_type_id')
+        if thread_type_id and thread_type_id != 'all':
+            queryset = queryset.filter(thread__thread_type_id=thread_type_id)
+            filters_applied['thread_type_id'] = thread_type_id
+        # Фильтр по резьбе
+        thread_id = params.get('thread_id')
+        if thread_id and thread_id != 'all':
+            queryset = queryset.filter(thread_id=thread_id)
+            filters_applied['thread_id'] = thread_id
+
+        # Фильтр по типу резьбы (наружная/внутренняя)
+        thread_inner_outer_id = params.get('thread_inner_outer_id')
+        if thread_inner_outer_id and thread_inner_outer_id != 'all':
+            queryset = queryset.filter(thread_inner_outer_id=thread_inner_outer_id)
+            filters_applied['thread_inner_outer_id'] = thread_inner_outer_id
+
+        # Фильтр по активности
+        is_active = params.get('is_active')
+        if is_active is not None and is_active != '':
+            if is_active in [True, 'true', 'True', 1, '1']:
+                queryset = queryset.filter(is_active=True)
+                filters_applied['is_active'] = True
+            elif is_active in [False, 'false', 'False', 0, '0']:
+                queryset = queryset.filter(is_active=False)
+                filters_applied['is_active'] = False
+
+        # Пагинация
+        total = queryset.count()
+        limit = params.get('limit', 100)
+        offset = params.get('offset', 0)
+        queryset = queryset[offset:offset + limit]
+
+        # Формируем результат
+        data = []
+        for obj in queryset:
+            data.append(obj.to_dict())
+
+        return {
+            'data': data,
+            'total': total,
+            'filters_applied': filters_applied,
+            'limit': limit,
+            'offset': offset
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Конвертировать объект в словарь для API
+
+        Returns:
+            Dict: структурированные данные фитинга
+        """
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'description': self.description,
+            'temp_min': self.temp_min,
+            'temp_max': self.temp_max,
+            'pipe_diameter': self.pipe_diameter,
+            'flow_rate': float(self.flow_rate) if self.flow_rate else None,
+            'noise_level': float(self.noise_level) if self.noise_level else None,
+            'operating_pressure': float(self.operating_pressure) if self.operating_pressure else None,
+            'is_active': self.is_active,
+            'sorting_order': self.sorting_order,
+            'brand': {
+                'id': self.brand.id,
+                'name': self.brand.name,
+                'code': self.brand.code
+            } if self.brand else None,
+            'fitting_model_line': {
+                'id': self.fitting_model_line.id,
+                'name': self.fitting_model_line.name,
+                'code': self.fitting_model_line.code
+            } if self.fitting_model_line else None,
+            'fitting_variety': {
+                'id': self.fitting_variety.id,
+                'name': self.fitting_variety.name,
+                'code': self.fitting_variety.code
+            } if self.fitting_variety else None,
+            'body_material': {
+                'id': self.body_material.id,
+                'name': self.body_material.name
+            } if self.body_material else None,
+            'pipe_material': {
+                'id': self.pipe_material.id,
+                'name': self.pipe_material.name
+            } if self.pipe_material else None,
+            'thread': {
+                'id': self.thread.id,
+                'name': self.thread.name,
+                'code': self.thread.code
+            } if self.thread else None,
+            'thread_inner_outer': {
+                'id': self.thread_inner_outer.id,
+                'name': self.thread_inner_outer.name,
+                'code': self.thread_inner_outer.code
+            } if self.thread_inner_outer else None,
+        }
