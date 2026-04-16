@@ -791,6 +791,13 @@ class MountingPlateTypes(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def get_for_select(cls , active_only=True) :
+        """Получить типы монтажной площадки для выпадающего списка"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
 
 class StemShapes(models.Model):
     name = models.CharField(max_length=100, blank=True, null=True,
@@ -846,6 +853,13 @@ class StemSize(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def get_for_select(cls , active_only=True) :
+        """Получить типоразмеры штока для выпадающего списка"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
 
 class ThreadTypes(models.Model):
     # TODO: не надо ли объединить с типами резьбы в valve_data
@@ -1156,6 +1170,14 @@ class DnVariety(models.Model):
         return self.name
 
     @classmethod
+    def get_for_select(cls , active_only=True) :
+        """Получить диаметры Dn (Ду) для выпадающего списка"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
+
+    @classmethod
     def find_dn(cls , search_value) :
         """
         Ищет DN по различным полям: name, code, diameter_metric (точные совпадения)
@@ -1274,6 +1296,14 @@ class PnVariety(models.Model):
 
     def __str__(self):
         return self.name
+
+    @classmethod
+    def get_for_select(cls , active_only=True) :
+        """Получить давления PN в бар для выпадающего списка"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
 
     @classmethod
     def find_pn(cls , search_value) :

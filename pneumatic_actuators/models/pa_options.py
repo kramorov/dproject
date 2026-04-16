@@ -29,13 +29,30 @@ class PneumaticHandWheelOption(BaseHandWheelThroughOption):
         return 'model_line'
 
     @classmethod
-    def get_for_select(cls , model_line_id=None , active_only=True) :
+    def get_for_select(cls , model_line_id: Optional[int] = None ,
+                       model_line_item_id: Optional[int] = None ,
+                       active_only: bool = True) -> List[Dict] :
         """Получить опции ручного дублера"""
         queryset = cls.objects.all()
+
         if active_only :
             queryset = queryset.filter(is_active=True)
+
         if model_line_id :
             queryset = queryset.filter(model_line_id=model_line_id)
+
+        # Если передан model_line_item_id, получаем model_line через него
+        if model_line_item_id :
+            from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+            try :
+                model_line_item = PneumaticActuatorModelLineItem.objects.select_related(
+                    'model_line'
+                ).get(id=model_line_item_id)
+                if model_line_item.model_line :
+                    queryset = queryset.filter(model_line_id=model_line_item.model_line.id)
+            except PneumaticActuatorModelLineItem.DoesNotExist :
+                pass
+
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
     @property
@@ -92,13 +109,29 @@ class PneumaticIpOption(BaseIpThroughOption):
         return f"{self.ip_option.name} (Стандарт)" if self.is_default else f"{self.ip_option.name} (Опция)"
 
     @classmethod
-    def get_for_select(cls , model_line_id=None , active_only=True) :
+    def get_for_select(cls , model_line_id: Optional[int] = None ,
+                       model_line_item_id: Optional[int] = None ,
+                       active_only: bool = True) -> List[Dict] :
         """Получить опции IP защиты"""
         queryset = cls.objects.all()
+
         if active_only :
             queryset = queryset.filter(is_active=True)
+
         if model_line_id :
             queryset = queryset.filter(model_line_id=model_line_id)
+
+        if model_line_item_id :
+            from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+            try :
+                model_line_item = PneumaticActuatorModelLineItem.objects.select_related(
+                    'model_line'
+                ).get(id=model_line_item_id)
+                if model_line_item.model_line :
+                    queryset = queryset.filter(model_line_id=model_line_item.model_line.id)
+            except PneumaticActuatorModelLineItem.DoesNotExist :
+                pass
+
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
 class PneumaticExdOption(BaseExdThroughOption):
@@ -124,13 +157,29 @@ class PneumaticExdOption(BaseExdThroughOption):
         return f"{self.exd_option.name} (Стандарт)" if self.is_default else f"{self.exd_option.name} (Опция)"
 
     @classmethod
-    def get_for_select(cls , model_line_id=None , active_only=True) :
+    def get_for_select(cls , model_line_id: Optional[int] = None ,
+                       model_line_item_id: Optional[int] = None ,
+                       active_only: bool = True) -> List[Dict] :
         """Получить опции взрывозащиты"""
         queryset = cls.objects.all()
+
         if active_only :
             queryset = queryset.filter(is_active=True)
+
         if model_line_id :
             queryset = queryset.filter(model_line_id=model_line_id)
+
+        if model_line_item_id :
+            from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+            try :
+                model_line_item = PneumaticActuatorModelLineItem.objects.select_related(
+                    'model_line'
+                ).get(id=model_line_item_id)
+                if model_line_item.model_line :
+                    queryset = queryset.filter(model_line_id=model_line_item.model_line.id)
+            except PneumaticActuatorModelLineItem.DoesNotExist :
+                pass
+
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
 class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
@@ -156,13 +205,29 @@ class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
         return f"{self.body_coating_option.name} (Стандарт)" if self.is_default else f"{self.body_coating_option.name} (Опция)"
 
     @classmethod
-    def get_for_select(cls , model_line_id=None , active_only=True) :
+    def get_for_select(cls , model_line_id: Optional[int] = None ,
+                       model_line_item_id: Optional[int] = None ,
+                       active_only: bool = True) -> List[Dict] :
         """Получить опции покрытия корпуса"""
         queryset = cls.objects.all()
+
         if active_only :
             queryset = queryset.filter(is_active=True)
+
         if model_line_id :
             queryset = queryset.filter(model_line_id=model_line_id)
+
+        if model_line_item_id :
+            from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+            try :
+                model_line_item = PneumaticActuatorModelLineItem.objects.select_related(
+                    'model_line'
+                ).get(id=model_line_item_id)
+                if model_line_item.model_line :
+                    queryset = queryset.filter(model_line_id=model_line_item.model_line.id)
+            except PneumaticActuatorModelLineItem.DoesNotExist :
+                pass
+
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
 class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
@@ -183,17 +248,64 @@ class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line_item'
+
     def __str__(self):
         return f"{self.safety_position.name}"
 
     @classmethod
-    def get_for_select(cls , model_line_item_id=None , active_only=True) :
-        """Получить опции положения безопасности"""
-        queryset = cls.objects.all()
+    def get_for_select(cls , model_line_id=None , model_line_item_id=None ,
+                       model_line_item_ids=None , active_only=True) :
+        """
+        Получить опции положения безопасности
+
+        Args:
+            model_line_id: ID серии моделей
+            model_line_item_id: ID конкретной модели
+            model_line_item_ids: список ID моделей
+            active_only: только активные
+        """
+        from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+
+        # Приоритет: model_line_item_id > model_line_item_ids > model_line_id
+
+        if model_line_item_id :
+            queryset = cls.objects.filter(model_line_item_id=model_line_item_id)
+
+        elif model_line_item_ids :
+            queryset = cls.objects.filter(model_line_item_id__in=model_line_item_ids)
+
+        elif model_line_id :
+            model_line_item_ids = PneumaticActuatorModelLineItem.objects.filter(
+                model_line_id=model_line_id
+            ).values_list('id' , flat=True)
+            queryset = cls.objects.filter(model_line_item_id__in=model_line_item_ids)
+
+        else :
+            from params.models import SafetyPositionOption
+            queryset = SafetyPositionOption.objects.all()
+
+            if active_only :
+                queryset = queryset.filter(is_active=True)
+
+            return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
+
         if active_only :
             queryset = queryset.filter(is_active=True)
-        if model_line_item_id :
-            queryset = queryset.filter(model_line_item_id=model_line_item_id)
+
+        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
+
+    @classmethod
+    def get_for_model_line(cls , model_line_id: int , active_only: bool = True) -> List[Dict] :
+        """Получить опции для всех моделей в серии"""
+        from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+
+        model_line_item_ids = PneumaticActuatorModelLineItem.objects.filter(
+            model_line_id=model_line_id
+        ).values_list('id' , flat=True)
+
+        queryset = cls.objects.filter(model_line_item_id__in=model_line_item_ids)
+        if active_only :
+            queryset = queryset.filter(is_active=True)
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
 class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
