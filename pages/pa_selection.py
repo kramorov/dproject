@@ -1,6 +1,7 @@
 #pages/pneumatic_actuators/pa_selection.py
 # Подбор пневматического привода
 
+# pages/pa_selection.py
 
 import streamlit as st
 from db_init import init_django
@@ -8,11 +9,11 @@ from decimal import Decimal
 
 init_django()
 
-from params.models import DnVariety , PnVariety , MountingPlateTypes , StemSize
-from pneumatic_actuators.models import PneumaticActuatorModelLine , PneumaticActuatorModelLineItem , \
-    PneumaticActuatorVariety
-from pneumatic_actuators.models.pa_options import (PneumaticSafetyPositionOption ,
-    PneumaticIpOption , PneumaticExdOption , PneumaticBodyCoatingOption , PneumaticHandWheelOption
+# Импортируем обработчик напрямую (без API!)
+from pneumatic_actuators.actuator_selector_handler import (
+    get_initial_data ,
+    get_filtered_model_line_items ,
+    get_actuator_options
 )
 
 st.set_page_config(page_title="Подбор пневматического привода" , layout="wide")
@@ -22,16 +23,14 @@ st.title("🔧 Подбор пневматического привода")
 def init_session_state() :
     """Инициализация session state"""
     # Параметры арматуры
-    if 'valve_type' not in st.session_state :
-        st.session_state.valve_type = None
-    if 'dn' not in st.session_state :
-        st.session_state.dn = None
-    if 'pn' not in st.session_state :
-        st.session_state.pn = None
-    if 'mounting_plate' not in st.session_state :
-        st.session_state.mounting_plate = None
-    if 'stem' not in st.session_state :
-        st.session_state.stem = None
+    if 'dn_id' not in st.session_state :
+        st.session_state.dn_id = None
+    if 'pn_id' not in st.session_state :
+        st.session_state.pn_id = None
+    if 'mounting_plate_id' not in st.session_state :
+        st.session_state.mounting_plate_id = None
+    if 'stem_id' not in st.session_state :
+        st.session_state.stem_id = None
 
     # Моменты
     if 'torque_without_safety' not in st.session_state :
@@ -48,6 +47,8 @@ def init_session_state() :
         st.session_state.model_line_item_id = None
     if 'actuator_variety_id' not in st.session_state :
         st.session_state.actuator_variety_id = None
+    if 'actuator_variety_code' not in st.session_state :
+        st.session_state.actuator_variety_code = None
     if 'safety_position_id' not in st.session_state :
         st.session_state.safety_position_id = None
     if 'ip_id' not in st.session_state :
@@ -63,31 +64,42 @@ def init_session_state() :
     if 'temp_max' not in st.session_state :
         st.session_state.temp_max = 0
 
-
-def load_model_line_items() :
-    """Загрузить модели для выбранной серии и вида привода"""
-    return PneumaticActuatorModelLineItem.get_for_select(
-        model_line_id=st.session_state.model_line_id ,
-        actuator_variety_code=st.session_state.get('actuator_variety_code')
-    )
+    # Кэш для опций
+    if 'options_cache' not in st.session_state :
+        st.session_state.options_cache = {}
 
 
-def load_safety_positions() :
-    """Загрузить положения безопасности для выбранной модели"""
-    return PneumaticSafetyPositionOption.get_for_select(
-        model_line_item_id=st.session_state.model_line_item_id
-    )
+def load_initial_data() :
+    """Загружает начальные данные (с кэшированием)"""
+    if 'initial_data' not in st.session_state :
+        st.session_state.initial_data = get_initial_data()
+    return st.session_state.initial_data
+
+
+def load_actuator_options() :
+    """Загружает опции для привода на основе выбранных model_line/model_line_item"""
+    cache_key = f"options_{st.session_state.model_line_id}_{st.session_state.model_line_item_id}"
+
+    if cache_key not in st.session_state.options_cache :
+        st.session_state.options_cache[cache_key] = get_actuator_options(
+            model_line_id=st.session_state.model_line_id ,
+            model_line_item_id=st.session_state.model_line_item_id
+        )
+
+    return st.session_state.options_cache[cache_key]
 
 
 def render_actuator_requirements() :
     """Рендер блока требований к приводу"""
     st.markdown("### 🔧 Требования к приводу")
 
+    initial_data = load_initial_data()
+
     # Серия моделей
-    model_lines = PneumaticActuatorModelLine.get_for_select()
+    model_lines = initial_data.get('model_lines' , [])
     model_line_options = {0 : "Выберите серию"}
     for ml in model_lines :
-        model_line_options[ml['id']] = f"{ml['name']} ({ml['code']})" if ml['code'] else ml['name']
+        model_line_options[ml['id']] = f"{ml['name']} ({ml['code']})" if ml.get('code') else ml['name']
 
     model_line_id = st.selectbox(
         "Серия моделей" ,
@@ -96,14 +108,17 @@ def render_actuator_requirements() :
         key="model_line_select"
     )
 
-    # При изменении серии обновляем список моделей
     if model_line_id != st.session_state.model_line_id :
         st.session_state.model_line_id = model_line_id
         st.session_state.model_line_item_id = None
+        # Очищаем кэш опций при смене серии
+        st.session_state.options_cache = {}
         st.rerun()
 
-    # Вид пневмопривода (DA/SR)
-    actuator_varieties = PneumaticActuatorVariety.get_for_select()
+    # Вид пневмопривода (загружаем из кэша или обработчика)
+    actuator_options = load_actuator_options()
+    actuator_varieties = actuator_options.get('actuator_varieties' , [])
+
     variety_options = {0 : "Выберите вид привода"}
     for av in actuator_varieties :
         variety_options[av['id']] = f"{av['name']} ({av['code']})"
@@ -115,21 +130,27 @@ def render_actuator_requirements() :
         key="actuator_variety_select"
     )
 
+    # Сохраняем код выбранного вида привода
     if actuator_variety_id != st.session_state.actuator_variety_id :
         st.session_state.actuator_variety_id = actuator_variety_id
-        # Сохраняем код для фильтрации моделей
         for av in actuator_varieties :
             if av['id'] == actuator_variety_id :
-                st.session_state.actuator_variety_code = av['code']
+                st.session_state.actuator_variety_code = av.get('code')
                 break
         st.session_state.model_line_item_id = None
+        # Очищаем кэш опций
+        st.session_state.options_cache = {}
         st.rerun()
 
     # Модель в серии (зависит от серии и вида привода)
-    model_items = load_model_line_items()
+    model_items = get_filtered_model_line_items(
+        model_line_id=st.session_state.model_line_id if st.session_state.model_line_id != 0 else None ,
+        actuator_variety_code=st.session_state.actuator_variety_code
+    )
+
     model_item_options = {0 : "Выберите модель"}
     for mi in model_items :
-        model_item_options[mi['id']] = f"{mi['name']} ({mi['code']})" if mi['code'] else mi['name']
+        model_item_options[mi['id']] = f"{mi['name']} ({mi['code']})" if mi.get('code') else mi['name']
 
     model_line_item_id = st.selectbox(
         "Модель в серии" ,
@@ -140,10 +161,15 @@ def render_actuator_requirements() :
 
     if model_line_item_id != st.session_state.model_line_item_id :
         st.session_state.model_line_item_id = model_line_item_id
+        # Очищаем кэш опций при смене модели
+        st.session_state.options_cache = {}
         st.rerun()
 
-    # NO/NC (положение безопасности)
-    safety_positions = load_safety_positions()
+    # Получаем актуальные опции (с учетом выбранной модели)
+    actuator_options = load_actuator_options()
+
+    # Положение безопасности (NO/NC)
+    safety_positions = actuator_options.get('safety_positions' , [])
     safety_options = {0 : "Выберите положение безопасности"}
     for sp in safety_positions :
         safety_options[sp['id']] = sp['name']
@@ -157,7 +183,7 @@ def render_actuator_requirements() :
     st.session_state.safety_position_id = safety_position_id if safety_position_id != 0 else None
 
     # IP защита
-    ip_options_list = PneumaticIpOption.get_for_select(model_line_id=st.session_state.model_line_id)
+    ip_options_list = actuator_options.get('ip_options' , [])
     ip_options = {0 : "Выберите IP"}
     for ip_opt in ip_options_list :
         ip_options[ip_opt['id']] = ip_opt['name']
@@ -171,7 +197,7 @@ def render_actuator_requirements() :
     st.session_state.ip_id = ip_id if ip_id != 0 else None
 
     # Exd взрывозащита
-    exd_options_list = PneumaticExdOption.get_for_select(model_line_id=st.session_state.model_line_id)
+    exd_options_list = actuator_options.get('exd_options' , [])
     exd_options = {0 : "Выберите Exd"}
     for exd_opt in exd_options_list :
         exd_options[exd_opt['id']] = exd_opt['name']
@@ -185,7 +211,7 @@ def render_actuator_requirements() :
     st.session_state.exd_id = exd_id if exd_id != 0 else None
 
     # Покрытие корпуса
-    coating_options_list = PneumaticBodyCoatingOption.get_for_select(model_line_id=st.session_state.model_line_id)
+    coating_options_list = actuator_options.get('coating_options' , [])
     coating_options = {0 : "Выберите покрытие"}
     for coat in coating_options_list :
         coating_options[coat['id']] = coat['name']
@@ -199,7 +225,7 @@ def render_actuator_requirements() :
     st.session_state.coating_id = coating_id if coating_id != 0 else None
 
     # Ручной дублер
-    hand_wheel_options_list = PneumaticHandWheelOption.get_for_select(model_line_id=st.session_state.model_line_id)
+    hand_wheel_options_list = actuator_options.get('hand_wheel_options' , [])
     hand_wheel_options = {0 : "Выберите ручной дублер"}
     for hw in hand_wheel_options_list :
         hand_wheel_options[hw['id']] = hw['name']
@@ -237,8 +263,71 @@ def render_actuator_requirements() :
         st.session_state.temp_max = temp_max
 
 
-def render_torque_block() :
-    """Рендер блока расчета момента"""
+def main() :
+    init_session_state()
+
+    # Параметры арматуры
+    st.markdown("### 📋 Параметры арматуры")
+
+    initial_data = load_initial_data()
+
+    col1 , col2 = st.columns(2)
+
+    with col1 :
+        dn_list = initial_data.get('dn_varieties' , [])
+        dn_options = {0 : "Выберите DN"}
+        for dn in dn_list :
+            dn_options[dn['id']] = dn['name']
+        dn_id = st.selectbox(
+            "DN" ,
+            options=list(dn_options.keys()) ,
+            format_func=lambda x : dn_options.get(x , "Выберите") ,
+            key="dn_select"
+        )
+        st.session_state.dn_id = dn_id if dn_id != 0 else None
+
+    with col2 :
+        pn_list = initial_data.get('pn_varieties' , [])
+        pn_options = {0 : "Выберите PN"}
+        for pn in pn_list :
+            pn_options[pn['id']] = pn['name']
+        pn_id = st.selectbox(
+            "PN" ,
+            options=list(pn_options.keys()) ,
+            format_func=lambda x : pn_options.get(x , "Выберите") ,
+            key="pn_select"
+        )
+        st.session_state.pn_id = pn_id if pn_id != 0 else None
+
+    col1 , col2 = st.columns(2)
+
+    with col1 :
+        plate_list = initial_data.get('mounting_plates' , [])
+        plate_options = {0 : "Выберите монтажную площадку"}
+        for plate in plate_list :
+            plate_options[plate['id']] = plate['name']
+        plate_id = st.selectbox(
+            "Монтажная площадка" ,
+            options=list(plate_options.keys()) ,
+            format_func=lambda x : plate_options.get(x , "Выберите") ,
+            key="plate_select"
+        )
+        st.session_state.mounting_plate_id = plate_id if plate_id != 0 else None
+
+    with col2 :
+        stem_list = initial_data.get('stem_sizes' , [])
+        stem_options = {0 : "Выберите шток"}
+        for stem in stem_list :
+            stem_options[stem['id']] = stem['name']
+        stem_id = st.selectbox(
+            "Шток" ,
+            options=list(stem_options.keys()) ,
+            format_func=lambda x : stem_options.get(x , "Выберите") ,
+            key="stem_select"
+        )
+        st.session_state.stem_id = stem_id if stem_id != 0 else None
+
+    # Моменты
     st.markdown("### ⚙️ Расчет момента")
 
     col1 , col2 , col3 = st.columns(3)
@@ -251,7 +340,6 @@ def render_torque_block() :
             format="%.1f" ,
             key="torque_without_safety_input"
         )
-
         if Decimal(str(torque_without_safety)) != st.session_state.torque_without_safety :
             st.session_state.torque_without_safety = Decimal(str(torque_without_safety))
             st.session_state.torque_with_safety = st.session_state.torque_without_safety * st.session_state.safety_factor
@@ -267,7 +355,6 @@ def render_torque_block() :
             max_value=5.0 ,
             key="safety_factor_input"
         )
-
         if Decimal(str(safety_factor)) != st.session_state.safety_factor :
             st.session_state.safety_factor = Decimal(str(safety_factor))
             st.session_state.torque_with_safety = st.session_state.torque_without_safety * st.session_state.safety_factor
@@ -281,18 +368,17 @@ def render_torque_block() :
             format="%.1f" ,
             key="torque_with_safety_input"
         )
-
         if Decimal(str(torque_with_safety)) != st.session_state.torque_with_safety :
             st.session_state.torque_with_safety = Decimal(str(torque_with_safety))
             if st.session_state.safety_factor != 0 :
                 st.session_state.torque_without_safety = st.session_state.torque_with_safety / st.session_state.safety_factor
             st.rerun()
 
+    # Требования к приводу
+    render_actuator_requirements()
 
-def render_buttons() :
-    """Рендер кнопок"""
+    # Кнопки
     st.markdown("---")
-
     col1 , col2 , col3 , col4 = st.columns(4)
 
     with col2 :
@@ -301,112 +387,23 @@ def render_buttons() :
     with col3 :
         reset_btn = st.button("🗑 Очистить фильтры" , use_container_width=True)
 
-    return search_btn , reset_btn
-
-
-def reset_filters() :
-    """Сбросить все фильтры"""
-    st.session_state.model_line_id = None
-    st.session_state.model_line_item_id = None
-    st.session_state.actuator_variety_id = None
-    st.session_state.safety_position_id = None
-    st.session_state.ip_id = None
-    st.session_state.exd_id = None
-    st.session_state.coating_id = None
-    st.session_state.hand_wheel_id = None
-    st.session_state.temp_min = 0
-    st.session_state.temp_max = 0
-    st.session_state.torque_without_safety = Decimal('0')
-    st.session_state.safety_factor = Decimal('1.3')
-    st.session_state.torque_with_safety = Decimal('0')
-
-
-def main() :
-    """Главная функция страницы"""
-    init_session_state()
-
-    # Параметры арматуры
-    st.markdown("### 📋 Параметры арматуры")
-
-    col1 , col2 = st.columns(2)
-
-    with col1 :
-        # Тип арматуры (заглушка, позже добавим реальные данные)
-        valve_type = st.selectbox(
-            "Тип арматуры" ,
-            options=["Выберите тип" , "Шаровой кран" , "Дисковый затвор" , "Задвижка"] ,
-            key="valve_type_select"
-        )
-        st.session_state.valve_type = valve_type if valve_type != "Выберите тип" else None
-
-        dn_options = {0 : "Выберите DN"}
-        for dn in DnVariety.objects.filter(is_active=True) :
-            dn_options[dn.id] = dn.name
-        dn_id = st.selectbox(
-            "DN" ,
-            options=list(dn_options.keys()) ,
-            format_func=lambda x : dn_options.get(x , "Выберите") ,
-            key="dn_select"
-        )
-        st.session_state.dn = dn_id if dn_id != 0 else None
-
-    with col2 :
-        pn_options = {0 : "Выберите PN"}
-        for pn in PnVariety.objects.filter(is_active=True) :
-            pn_options[pn.id] = pn.name
-        pn_id = st.selectbox(
-            "PN" ,
-            options=list(pn_options.keys()) ,
-            format_func=lambda x : pn_options.get(x , "Выберите") ,
-            key="pn_select"
-        )
-        st.session_state.pn = pn_id if pn_id != 0 else None
-
-        plate_options = {0 : "Выберите монтажную площадку"}
-        for plate in MountingPlateTypes.objects.filter(is_active=True) :
-            plate_options[plate.id] = plate.name
-        plate_id = st.selectbox(
-            "Монтажная площадка" ,
-            options=list(plate_options.keys()) ,
-            format_func=lambda x : plate_options.get(x , "Выберите") ,
-            key="plate_select"
-        )
-        st.session_state.mounting_plate = plate_id if plate_id != 0 else None
-
-    # Моменты
-    render_torque_block()
-
-    # Требования к приводу
-    render_actuator_requirements()
-
-    # Кнопки
-    search_btn , reset_btn = render_buttons()
-
     if reset_btn :
-        reset_filters()
+        for key in st.session_state.keys() :
+            if key not in ['torque_without_safety' , 'safety_factor' , 'torque_with_safety'] :
+                if 'id' in key :
+                    st.session_state[key] = None
+                elif 'temp' in key :
+                    st.session_state[key] = 0
+                elif 'code' in key :
+                    st.session_state[key] = None
+        st.session_state.options_cache = {}
         st.rerun()
 
     if search_btn :
         with st.spinner("Поиск подходящего привода...") :
-            # TODO: здесь будет обращение к БД для подбора привода
-            st.info("🔧 Функция подбора привода будет добавлена позже")
-            st.json({
-                "torque_without_safety" : float(st.session_state.torque_without_safety) ,
-                "safety_factor" : float(st.session_state.safety_factor) ,
-                "torque_with_safety" : float(st.session_state.torque_with_safety) ,
-                "model_line_id" : st.session_state.model_line_id ,
-                "model_line_item_id" : st.session_state.model_line_item_id ,
-                "actuator_variety_id" : st.session_state.actuator_variety_id ,
-                "safety_position_id" : st.session_state.safety_position_id ,
-                "ip_id" : st.session_state.ip_id ,
-                "exd_id" : st.session_state.exd_id ,
-                "coating_id" : st.session_state.coating_id ,
-                "hand_wheel_id" : st.session_state.hand_wheel_id ,
-                "temp_min" : st.session_state.temp_min ,
-                "temp_max" : st.session_state.temp_max ,
-            })
+            # Здесь будет поиск
+            st.info("Функция поиска будет добавлена позже")
 
 
 if __name__ == "__main__" :
     main()
-
