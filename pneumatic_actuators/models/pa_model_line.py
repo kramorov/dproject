@@ -673,13 +673,13 @@ class PneumaticActuatorModelLineItem(models.Model) :
         return self.name
 
     @classmethod
-    def get_for_select(cls , model_line_id=None , actuator_variety_code=None , active_only=True) :
+    def get_for_select(cls , model_line_id=None , actuator_variety_id=None , active_only=True) :
         """
         Получить модели для выпадающего списка с фильтрацией
 
         Args:
             model_line_id: ID серии моделей
-            actuator_variety_code: код вида привода (DA/SR)
+            actuator_variety_id: код вида привода (DA/SR)
             active_only: только активные
         """
         queryset = cls.objects.all()
@@ -690,9 +690,9 @@ class PneumaticActuatorModelLineItem(models.Model) :
         if model_line_id :
             queryset = queryset.filter(model_line_id=model_line_id)
 
-        if actuator_variety_code :
+        if actuator_variety_id :
             queryset = queryset.filter(
-                pneumatic_actuator_variety__code=actuator_variety_code
+                pneumatic_actuator_variety__id=actuator_variety_id
             )
 
         return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]

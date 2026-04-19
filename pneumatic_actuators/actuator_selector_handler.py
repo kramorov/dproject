@@ -1,16 +1,15 @@
 # pneumatic_actuators/actuator_selector_handler.py
 
 import logging
-from typing import Dict, List, Optional, Any
-
+from typing import Dict, Any, Tuple, Optional, List
 from pneumatic_actuators.models import PneumaticActuatorVariety
 
 logger = logging.getLogger(__name__)
 
 
-def get_actuator_options(model_line_id: Optional[int] = None,
-                         model_line_item_id: Optional[int] = None,
-                         actuator_variety_id: Optional[int] = None) -> Dict[str, Any]:
+def get_actuator_options(model_line_id: Optional[int] = None ,
+                         model_line_item_id: Optional[int] = None ,
+                         actuator_variety_id: Optional[int] = None) -> Dict[str , Any] :
     """
     Возвращает все доступные опции для привода на основе выбранных параметров
 
@@ -23,22 +22,22 @@ def get_actuator_options(model_line_id: Optional[int] = None,
         Dict: словарь со всеми опциями
     """
     from pneumatic_actuators.models.pa_options import (
-        PneumaticSafetyPositionOption,
-        PneumaticTemperatureOption,
-        PneumaticIpOption,
-        PneumaticExdOption,
-        PneumaticBodyCoatingOption,
+        PneumaticSafetyPositionOption ,
+        PneumaticTemperatureOption ,
+        PneumaticIpOption ,
+        PneumaticExdOption ,
+        PneumaticBodyCoatingOption ,
         PneumaticHandWheelOption
     )
 
     result = {
-        'actuator_varieties': [],
-        'safety_positions': [],
-        'temperature_options': [],
-        'ip_options': [],
-        'exd_options': [],
-        'coating_options': [],
-        'hand_wheel_options': []
+        'actuator_varieties' : [] ,
+        'safety_positions' : [] ,
+        'temperature_options' : [] ,
+        'ip_options' : [] ,
+        'exd_options' : [] ,
+        'coating_options' : [] ,
+        'hand_wheel_options' : []
     }
 
     # 1. Виды приводов (DA/SR) - не зависят от model_line
@@ -46,35 +45,37 @@ def get_actuator_options(model_line_id: Optional[int] = None,
 
     # 2. Положения безопасности - с учетом всех параметров
     result['safety_positions'] = get_safety_positions(
-        model_line_id=model_line_id,
-        model_line_item_id=model_line_item_id,
-        actuator_variety_id=actuator_variety_id,
+        model_line_id=model_line_id ,
+        model_line_item_id=model_line_item_id ,
+        actuator_variety_id=actuator_variety_id ,
         active_only=True
     )
 
-    # 3. Остальные опции - единообразный вызов
+    # 3. Температурные опции - задаются вручную, НЕ зависят от модели привода
+    # result['temperature_options'] = PneumaticTemperatureOption.get_for_select(active_only=True)
+
+    # 4. Остальные опции (IP, Exd, покрытие, ручной дублер) - зависят от model_line
     option_classes = {
-        'temperature_options': PneumaticTemperatureOption,
-        'ip_options': PneumaticIpOption,
-        'exd_options': PneumaticExdOption,
-        'coating_options': PneumaticBodyCoatingOption,
-        'hand_wheel_options': PneumaticHandWheelOption
+        'ip_options' : PneumaticIpOption ,
+        'exd_options' : PneumaticExdOption ,
+        'coating_options' : PneumaticBodyCoatingOption ,
+        'hand_wheel_options' : PneumaticHandWheelOption
     }
 
-    for key, option_class in option_classes.items():
+    for key , option_class in option_classes.items() :
         result[key] = option_class.get_for_select(
-            model_line_id=model_line_id,
-            model_line_item_id=model_line_item_id,
+            model_line_id=model_line_id ,
+            model_line_item_id=model_line_item_id ,
             active_only=True
         )
 
     return result
 
 
-def get_safety_positions(model_line_id: Optional[int] = None,
-                         model_line_item_id: Optional[int] = None,
-                         actuator_variety_id: Optional[int] = None,
-                         active_only: bool = True) -> List[Dict]:
+def get_safety_positions(model_line_id: Optional[int] = None ,
+                         model_line_item_id: Optional[int] = None ,
+                         actuator_variety_id: Optional[int] = None ,
+                         active_only: bool = True) -> List[Dict] :
     """
     Получить опции положения безопасности с учетом всех параметров
 
@@ -92,66 +93,66 @@ def get_safety_positions(model_line_id: Optional[int] = None,
     # Приоритет: model_line_item_id > model_line_id > actuator_variety_id > базовые опции
 
     # Вариант 1: конкретная модель
-    if model_line_item_id:
+    if model_line_item_id :
         logger.debug(f"Getting safety positions for model_line_item_id={model_line_item_id}")
         return PneumaticSafetyPositionOption.get_for_select(
-            model_line_item_id=model_line_item_id,
+            model_line_item_id=model_line_item_id ,
             active_only=active_only
         )
 
     # Вариант 2: серия моделей
-    if model_line_id:
+    if model_line_id :
         logger.debug(f"Getting safety positions for model_line_id={model_line_id}")
 
         # Если указан вид привода, сначала фильтруем модели
-        if actuator_variety_id:
+        if actuator_variety_id :
             logger.debug(f"Filtering by actuator_variety_id={actuator_variety_id}")
             # Получаем model_line_item_id для данной серии и вида привода
             model_line_item_ids = PneumaticActuatorModelLineItem.objects.filter(
-                model_line_id=model_line_id,
+                model_line_id=model_line_id ,
                 pneumatic_actuator_variety_id=actuator_variety_id
-            ).values_list('id', flat=True)
+            ).values_list('id' , flat=True)
 
-            if not model_line_item_ids:
+            if not model_line_item_ids :
                 logger.warning(
                     f"No model line items found for model_line_id={model_line_id}, actuator_variety_id={actuator_variety_id}")
                 return []
 
             return PneumaticSafetyPositionOption.get_for_select(
-                model_line_item_ids=list(model_line_item_ids),
+                model_line_item_ids=list(model_line_item_ids) ,
                 active_only=active_only
             )
 
         # Без фильтрации по виду привода
         return PneumaticSafetyPositionOption.get_for_select(
-            model_line_id=model_line_id,
+            model_line_id=model_line_id ,
             active_only=active_only
         )
 
     # Вариант 3: только вид привода (без серии)
-    if actuator_variety_id:
+    if actuator_variety_id :
         logger.debug(f"Getting safety positions for actuator_variety_id={actuator_variety_id}")
 
         model_line_item_ids = PneumaticActuatorModelLineItem.objects.filter(
             pneumatic_actuator_variety_id=actuator_variety_id
-        ).values_list('id', flat=True)
+        ).values_list('id' , flat=True)
 
-        if not model_line_item_ids:
+        if not model_line_item_ids :
             logger.warning(f"No model line items found for actuator_variety_id={actuator_variety_id}")
             return []
 
         return PneumaticSafetyPositionOption.get_for_select(
-            model_line_item_ids=list(model_line_item_ids),
+            model_line_item_ids=list(model_line_item_ids) ,
             active_only=active_only
         )
 
     # Вариант 4: базовые опции
     logger.debug("Getting base safety positions from params.SafetyPositionOption")
     queryset = SafetyPositionOption.objects.all()
-    if active_only:
+    if active_only :
         queryset = queryset.filter(is_active=True)
 
-    return [{'id': obj.id, 'name': obj.name, 'code': obj.code} for obj in queryset]
+    return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
 
 
 def get_filtered_model_line_items(model_line_id: Optional[int] = None,
@@ -168,19 +169,32 @@ def get_filtered_model_line_items(model_line_id: Optional[int] = None,
     """
     from pneumatic_actuators.models import PneumaticActuatorModelLineItem
 
-    # Используем правильные имена параметров
     return PneumaticActuatorModelLineItem.get_for_select(
         model_line_id=model_line_id,
-        actuator_variety_code=actuator_variety_id,  # ← изменили имя параметра
+        actuator_variety_id=actuator_variety_id,
         active_only=True
     )
+
+
+def get_valve_types(active_only: bool = True) -> List[Dict] :
+    """
+    Получить список типов арматуры для выпадающего списка
+    """
+    from params.models import ValveTypes
+
+    queryset = ValveTypes.objects.all()
+    if active_only :
+        queryset = queryset.filter(is_active=True)
+
+    return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code ,
+             'actuator_gearbox_combinations' : obj.actuator_gearbox_combinations} for obj in queryset]
 
 def get_initial_data() -> Dict[str, Any]:
     """
     Возвращает начальные данные для загрузки страницы
     """
     from pneumatic_actuators.models import PneumaticActuatorModelLine
-    from params.models import DnVariety, PnVariety, MountingPlateTypes, StemSize
+    from params.models import DnVariety, PnVariety, MountingPlateTypes, StemSize, ValveTypes
 
     return {
         'model_lines': PneumaticActuatorModelLine.get_for_select(active_only=True),
@@ -188,4 +202,138 @@ def get_initial_data() -> Dict[str, Any]:
         'pn_varieties': PnVariety.get_for_select(active_only=True),
         'mounting_plates': MountingPlateTypes.get_for_select(active_only=True),
         'stem_sizes': StemSize.get_for_select(active_only=True),
+        'valve_types': get_valve_types(active_only=True),  # <-- добавить
+    }
+
+
+def validate_selection_params(params: Dict[str , Any]) -> Tuple[bool , Optional[str] , Optional[str] , List[str]] :
+    """
+    Валидация параметров подбора привода
+
+    Args:
+        params: словарь с параметрами
+
+    Returns:
+        Tuple[bool, Optional[str], Optional[str], List[str]]:
+            - is_valid: результат валидации
+            - error_field: имя поля с ошибкой
+            - error_message: сообщение об ошибке
+            - error_fields: список всех полей с ошибками
+    """
+    errors = []
+    error_fields = []
+
+    # 1. Проверка типа арматуры
+    if not params.get('valve_type_id') or params.get('valve_type_id') == 0 :
+        errors.append("Не выбран тип арматуры")
+        error_fields.append('valve_type_id')
+
+    # 2. Проверка момента с запасом
+    torque_with_safety = params.get('torque_with_safety' , 0)
+    if not torque_with_safety or torque_with_safety <= 0 :
+        errors.append("Не указан момент с запасом (должен быть больше 0)")
+        error_fields.append('torque_with_safety')
+
+    # 3. Проверка типа привода DA/SR
+    actuator_variety_id = params.get('actuator_variety_id')
+    if not actuator_variety_id or actuator_variety_id == 0 :
+        errors.append("Не выбран тип привода (DA/SR)")
+        error_fields.append('actuator_variety_id')
+
+    # 4. Если привод SR - проверка положения безопасности
+    actuator_variety_code = params.get('actuator_variety_code')
+    safety_position_id = params.get('safety_position_id')
+
+    if actuator_variety_code == 'SR' :
+        if not safety_position_id or safety_position_id == 0 :
+            errors.append("Для привода SR обязательно выбор положения безопасности (NO/NC)")
+            error_fields.append('safety_position_id')
+
+    if errors :
+        return False , error_fields[0] if error_fields else None , errors[0] , error_fields
+
+    return True , None , None , []
+
+def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
+    """
+    Обрабатывает параметры выбранные на странице подбора привода
+
+    Args:
+        params: словарь с выбранными параметрами
+            {   'valve_type_id': int,
+                'dn_id': int,
+                'pn_id': int,
+                'mounting_plate_id': int,
+                'stem_id': int,
+                'torque_without_safety': Decimal,
+                'safety_factor': Decimal,
+                'torque_with_safety': Decimal,
+                'model_line_id': int,
+                'model_line_item_id': int,
+                'actuator_variety_id': int,
+                'safety_position_id': int,
+                'ip_id': int,
+                'exd_id': int,
+                'coating_id': int,
+                'hand_wheel_id': int,
+                'temp_min': int,
+                'temp_max': int
+            }
+
+    Returns:
+        Dict: результат обработки
+    """
+    import json
+    from datetime import datetime
+    # Валидация
+    is_valid , error_field , error_message , error_fields = validate_selection_params(params)
+
+    if not is_valid :
+        print(f"\n❌ ОШИБКА ВАЛИДАЦИИ: {error_message}")
+        print(f"Поле с ошибкой: {error_field}")
+        return {
+            'success' : False ,
+            'error' : error_message ,
+            'error_field' : error_field ,
+            'error_fields' : error_fields
+        }
+    print("\n" + "=" * 60)
+    print("🔍 ПОЛУЧЕН ЗАПРОС НА ПОДБОР ПРИВОДА")
+    print("=" * 60)
+    print(f"📅 Время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("\n📋 ПАРАМЕТРЫ АРМАТУРЫ:")
+    print(f"  - Тип арматуры ID: {params.get('valve_type_id')}")
+    print(f"  - DN ID: {params.get('dn_id')}")
+    print(f"  - PN ID: {params.get('pn_id')}")
+    print(f"  - Монтажная площадка ID: {params.get('mounting_plate_id')}")
+    print(f"  - Шток ID: {params.get('stem_id')}")
+
+    print("\n⚙️ РАСЧЕТНЫЕ ПАРАМЕТРЫ:")
+    print(f"  - Момент без запаса: {params.get('torque_without_safety')} Нм")
+    print(f"  - Коэффициент запаса: {params.get('safety_factor')}")
+    print(f"  - Момент с запасом: {params.get('torque_with_safety')} Нм")
+
+    print("\n🔧 ТРЕБОВАНИЯ К ПРИВОДУ:")
+    print(f"  - Серия моделей ID: {params.get('model_line_id')}")
+    print(f"  - Модель в серии ID: {params.get('model_line_item_id')}")
+    print(f"  - Вид привода ID: {params.get('actuator_variety_id')}")
+    print(f"  - Положение безопасности ID: {params.get('safety_position_id')}")
+    print(f"  - IP защита ID: {params.get('ip_id')}")
+    print(f"  - Exd взрывозащита ID: {params.get('exd_id')}")
+    print(f"  - Покрытие корпуса ID: {params.get('coating_id')}")
+    print(f"  - Ручной дублер ID: {params.get('hand_wheel_id')}")
+
+    print("\n🌡️ ТЕМПЕРАТУРНЫЕ ПАРАМЕТРЫ:")
+    print(f"  - Мин. температура: {params.get('temp_min')} °C")
+    print(f"  - Макс. температура: {params.get('temp_max')} °C")
+
+    print("\n" + "=" * 60)
+    print("✅ ПАРАМЕТРЫ УСПЕШНО ПОЛУЧЕНЫ")
+    print("=" * 60 + "\n")
+
+    # Здесь будет логика поиска подходящего привода
+    return {
+        'success' : True ,
+        'message' : 'Параметры получены' ,
+        'params_received' : params
     }
