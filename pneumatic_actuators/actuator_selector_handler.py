@@ -2,6 +2,8 @@
 
 import logging
 from typing import Dict, Any, Tuple, Optional, List
+
+from params.models import IpOption, ExdOption, HandWheelInstalledOption, BodyCoatingOption, StemShapes
 from pneumatic_actuators.models import PneumaticActuatorVariety
 
 logger = logging.getLogger(__name__)
@@ -55,22 +57,33 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
     # result['temperature_options'] = PneumaticTemperatureOption.get_for_select(active_only=True)
 
     # 4. Остальные опции (IP, Exd, покрытие, ручной дублер) - зависят от model_line
-    option_classes = {
-        'ip_options' : PneumaticIpOption ,
-        'exd_options' : PneumaticExdOption ,
-        'coating_options' : PneumaticBodyCoatingOption ,
-        'hand_wheel_options' : PneumaticHandWheelOption
-    }
+    # option_classes = {
+    #     'ip_options' : PneumaticIpOption ,
+    #     'exd_options' : PneumaticExdOption ,
+    #     'coating_options' : PneumaticBodyCoatingOption ,
+    #     'hand_wheel_options' : PneumaticHandWheelOption
+    # }
 
+    # for key , option_class in option_classes.items() :
+    #     result[key] = option_class.get_for_select(
+    #         model_line_id=model_line_id ,
+    #         model_line_item_id=model_line_item_id ,
+    #         active_only=True
+    #     )
+    #
+    # return result
+    option_classes = {
+        'ip_options' : IpOption ,
+        'exd_options' : ExdOption ,
+        'coating_options' : BodyCoatingOption ,
+        'hand_wheel_options' : HandWheelInstalledOption
+    }
     for key , option_class in option_classes.items() :
         result[key] = option_class.get_for_select(
-            model_line_id=model_line_id ,
-            model_line_item_id=model_line_item_id ,
             active_only=True
         )
 
     return result
-
 
 def get_safety_positions(model_line_id: Optional[int] = None ,
                          model_line_item_id: Optional[int] = None ,
@@ -175,20 +188,6 @@ def get_filtered_model_line_items(model_line_id: Optional[int] = None,
         active_only=True
     )
 
-
-def get_valve_types(active_only: bool = True) -> List[Dict] :
-    """
-    Получить список типов арматуры для выпадающего списка
-    """
-    from params.models import ValveTypes
-
-    queryset = ValveTypes.objects.all()
-    if active_only :
-        queryset = queryset.filter(is_active=True)
-
-    return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code ,
-             'actuator_gearbox_combinations' : obj.actuator_gearbox_combinations} for obj in queryset]
-
 def get_initial_data() -> Dict[str, Any]:
     """
     Возвращает начальные данные для загрузки страницы
@@ -201,8 +200,9 @@ def get_initial_data() -> Dict[str, Any]:
         'dn_varieties': DnVariety.get_for_select(active_only=True),
         'pn_varieties': PnVariety.get_for_select(active_only=True),
         'mounting_plates': MountingPlateTypes.get_for_select(active_only=True),
+        'stem_shapes': StemShapes.get_for_select(active_only=True),
         'stem_sizes': StemSize.get_for_select(active_only=True),
-        'valve_types': get_valve_types(active_only=True),  # <-- добавить
+        'valve_types': ValveTypes.get_for_select(active_only=True),  # <-- добавить
     }
 
 

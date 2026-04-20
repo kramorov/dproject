@@ -27,6 +27,8 @@ def init_session_state() :
         st.session_state.pn_id = None
     if 'mounting_plate_id' not in st.session_state :
         st.session_state.mounting_plate_id = None
+    if 'stem_shape_id' not in st.session_state :
+        st.session_state.stem_shape_id = None
     if 'stem_id' not in st.session_state :
         st.session_state.stem_id = None
     if 'valve_type_id' not in st.session_state :
@@ -238,7 +240,7 @@ def render_valve_parameters() :
         st.session_state.pn_id = pn_id if pn_id != 0 else None
 
     # Строка 2: Монтажная площадка, Шток
-    col1 , col2 = st.columns(2)
+    col1 , col2,col3 = st.columns(2)
 
     with col1 :
         plate_list = initial_data.get('mounting_plates' , [])
@@ -254,6 +256,18 @@ def render_valve_parameters() :
         st.session_state.mounting_plate_id = plate_id if plate_id != 0 else None
 
     with col2 :
+        stem_shape_list = initial_data.get('stem_shapes' , [])
+        stem_shape_options = {0 : "Выберите форму  штока"}
+        for stem_shape in stem_shape_list :
+            stem_shape_options[stem_shape['id']] = stem_shape['name']
+        stem_shape_id = st.selectbox(
+            "Монтажная площадка" ,
+            options=list(stem_shape_options.keys()) ,
+            format_func=lambda x : stem_shape_options.get(x , "Выберите") ,
+            key="stem_shape_select"
+        )
+        st.session_state.stem_shape_id = stem_shape_id if stem_shape_id != 0 else None
+    with col3 :
         stem_list = initial_data.get('stem_sizes' , [])
         stem_options = {0 : "Выберите шток"}
         for stem in stem_list :
