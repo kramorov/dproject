@@ -865,6 +865,15 @@ class StemSize(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def get_for_select(cls, active_only: bool = True) -> List[Dict]:
+        queryset = cls.objects.all()
+
+        if active_only and hasattr(cls, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+
+        return [{'id': obj.id, 'name': str(obj), 'stem_shape_id':obj.stem_type.id} for obj in queryset]
+
 class ThreadTypes(models.Model, OptionListToSelectMixin):
     # TODO: не надо ли объединить с типами резьбы в valve_data
     name = models.CharField(max_length=100, blank=True, null=True,

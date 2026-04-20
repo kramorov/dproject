@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple, Any, Dict, Union
 from options.models import BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption, \
     BaseIpThroughOption, BasePneumaticConnectionThroughOption, BaseSafetyPositionThroughOption, \
     BaseSpringsQtyThroughOption, BaseHandWheelThroughOption
+from params.models import IpOption
 
 
 class PneumaticHandWheelOption(BaseHandWheelThroughOption):
@@ -107,6 +108,84 @@ class PneumaticIpOption(BaseIpThroughOption):
 
     def __str__(self):
         return f"{self.ip_option.name} (Стандарт)" if self.is_default else f"{self.ip_option.name} (Опция)"
+
+    @classmethod
+    def get_model_line_for_IP(cls, ip_option_id: Optional[int] = None,
+                              active_only: bool = True) -> List[Dict]:
+        """
+        Получить список опций IP с рангом >= заданного.
+        Возвращает опции с их encoding и информацией о серии приводов.
+
+        Args:
+            ip_option_id: ID выбранной опции IP
+            active_only: только активные опции
+
+        Returns:
+            List[Dict]: список опций IP, у которых rank >= rank выбранной опции
+            [
+                {
+                    'id': int,  # ID опции (PneumaticIpOption)
+                    'encoding': str,  # Кодировка из through модели
+                    'is_default': bool,
+                    'sorting_order': int,
+                    'ip_rank': int,  # Ранг из IpOption
+                    'ip_option': {
+                        'id': int,
+                        'name': str,
+                        'code': str,
+                        'ip_rank': int
+                    },
+                    'model_line': {
+                        'id': int,
+                        'name': str,
+                        'code': str
+                    }
+                },
+                ...
+            ]
+        """
+        queryset = cls.objects.select_related('ip_option', 'model_line')
+
+        if active_only:
+            queryset = queryset.filter(is_active=True)
+
+        if ip_option_id:
+            try:
+                # Получаем выбранную опцию IP и её ранг
+                ip_option_needed = IpOption.objects.get(id=ip_option_id)
+                needed_rank = ip_option_needed.ip_rank
+
+                # Фильтруем опции с rank >= нужного
+                queryset = queryset.filter(ip_option__ip_rank__gte=needed_rank)
+            except IpOption.DoesNotExist:
+                return []
+
+        # Формируем результат
+        result = []
+        for obj in queryset:
+            result.append({
+                'id': obj.id,
+                'encoding': obj.encoding,  # Из BaseThroughOptionNoDefault
+                'is_default': obj.is_default if hasattr(obj, 'is_default') else False,
+                'sorting_order': obj.sorting_order,
+                'ip_rank': obj.ip_option.ip_rank,
+                'ip_option': {
+                    'id': obj.ip_option.id,
+                    'name': obj.ip_option.name,
+                    'code': obj.ip_option.code,
+                    'ip_rank': obj.ip_option.ip_rank
+                },
+                'model_line': {
+                    'id': obj.model_line.id,
+                    'name': obj.model_line.name,
+                    'code': obj.model_line.code if hasattr(obj.model_line, 'code') else ''
+                }
+            })
+
+        # Сортируем по рангу (от большего к меньшему)
+        result.sort(key=lambda x: x['ip_rank'], reverse=True)
+
+        return result
 
     @classmethod
     def get_for_select(cls , model_line_id: Optional[int] = None ,
