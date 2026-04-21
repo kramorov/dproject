@@ -1,0 +1,132 @@
+import os
+import django
+from decimal import Decimal
+
+# Настройка Django окружения для консоли
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'your_project.settings')
+django.setup()
+
+from pneumatic_actuators.models import PneumaticActuatorBody, BodyThrustTorqueTable
+from pneumatic_actuators.models.pa_options import PneumaticAirSupplyPressure, PneumaticActuatorSpringsQty
+from pneumatic_actuators.models.py_options_constants import (
+    SPRINGS_DA_DEFAULT_CODE, SPRINGS_SR_DEFAULT_CODE,
+    ACTUATOR_VARIETY_RP_DEFAULT_CODE, ACTUATOR_VARIETY_SY_DEFAULT_CODE,
+    SAFETY_POSITION_NC_DEFAULT_CODE, SAFETY_POSITION_NO_DEFAULT_CODE
+)
+
+
+def console_print_torque_table(body_id: int):
+    """
+    Вывод в консоль таблицы моментов для указанного body_id
+    """
+    print(f"\n{'='*80}")
+    print(f"ТАБЛИЦА МОМЕНТОВ ДЛЯ BODY ID: {body_id}")
+    print(f"{'='*80}\n")
+
+    # Получаем body
+    try:
+        body = PneumaticActuatorBody.objects.get(id=body_id)
+        print(f"Модель: {body.name} (code: {body.code})")
+        print(f"Серия: {body.model_line.name if body.model_line else 'N/A'}")
+
+        # Определяем тип конструкции
+        construction_variety = None
+        if body.model_line:
+            construction_variety = body.model_line.pneumatic_actuator_construction_variety
+            print(f"Тип конструкции: {construction_variety.name if construction_variety else 'N/A'} (code: {construction_variety.code if construction_variety else 'N/A'})")
+        print(f"\n{'-'*80}\n")
+
+    except PneumaticActuatorBody.DoesNotExist:
+        print(f"Body с id={body_id} не найден!")
+        return
+
+    # Получаем все записи для этого body
+    records = BodyThrustTorqueTable.objects.filter(body=body).select_related(
+        'pressure', 'spring_qty'
+    ).order_by('pressure__sorting_order', 'spring_qty__sorting_order')
+
+    if not records.exists():
+        print("Нет данных в таблице моментов для этого body")
+        return
+
+    # Группируем по давлению и пружинам
+    pressure_data = {}
+    spring_data = {}
+
+    for record in records:
+        # Данные по давлению
+        pressure_code = record.pressure.code if record.pressure else 'NO_PRESSURE'
+        pressure_name = record.pressure.name if record.pressure else 'Нет давления'
+        pressure_sort = record.pressure.sorting_order if record.pressure else 999
+
+        if pressure_code not in pressure_data:
+            pressure_data[pressure_code] = {
+                'id': record.pressure.id if record.pressure else None,
+                'name': pressure_name,
+                'code': pressure_code,
+                'sorting_order': pressure_sort,
+                'records': []
+            }
+
+        # Данные по пружинам
+        spring_code = record.spring_qty.code if record.spring_qty else 'NO_SPRING'
+        spring_name = record.spring_qty.name if record.spring_qty else 'Нет пружин'
+
+        spring_key = f"{pressure_code}_{spring_code}"
+
+        pressure_data[pressure_code]['records'].append({
+            'spring_code': spring_code,
+            'spring_name': spring_name,
+            'bto': float(record.bto) if record.bto else None,
+            'rto': float(record.rto) if record.rto else None,
+            'eto': float(record.eto) if record.eto else None,
+        })
+
+    # Сортируем давления по sorting_order
+    sorted_pressures = sorted(pressure_data.values(), key=lambda x: x['sorting_order'])
+
+    # Выводим таблицу
+    print(f"{'Body':<15} {'Давление':<15} {'Пружины':<15} {'BTO':<10} {'RTO':<10} {'ETO':<10}")
+    print(f"{'-'*70}")
+
+    for pressure in sorted_pressures:
+        for record in pressure['records']:
+            bto_str = f"{record['bto']:.1f}" if record['bto'] is not None else "N/A"
+            rto_str = f"{record['rto']:.1f}" if record['rto'] is not None else "N/A"
+            eto_str = f"{record['eto']:.1f}" if record['eto'] is not None else "N/A"
+
+            print(f"{body.code:<15} {pressure['code']:<15} {record['spring_code']:<15} {bto_str:<10} {rto_str:<10} {eto_str:<10}")
+
+    # Детальный вывод для каждого давления
+    print(f"\n{'='*80}")
+    print("ДЕТАЛЬНЫЙ ВЫВОД ПО ДАВЛЕНИЯМ")
+    print(f"{'='*80}\n")
+
+    for pressure in sorted_pressures:
+        print(f"\n📊 ДАВЛЕНИЕ: {pressure['name']} (code: {pressure['code']})")
+        print(f"{'─'*50}")
+
+        for record in pressure['records']:
+            print(f"\n  🔧 Пружины: {record['spring_name']} (code: {record['spring_code']})")
+
+            # Определяем тип привода по коду пружин
+            if record['spring_code'] == SPRINGS_DA_DEFAULT_CODE:
+                print(f"     Тип привода: Двойного действия (DA)")
+                print(f"     📈 BTO: {record['bto']:.1f} Нм" if record['bto'] else "     BTO: N/A")
+            else:
+                print(f"     Тип привода: Пружинный возврат (SR)")
+                print(f"     📈 BTO: {record['bto']:.1f} Нм" if record['bto'] else "     BTO: N/A")
+                print(f"     📊 RTO: {record['rto']:.1f} Нм" if record['rto'] else "     RTO: N/A")
+                print(f"     📉 ETO: {record['eto']:.1f} Нм" if record['eto'] else "     ETO: N/A")
+
+    # Статистика
+    print(f"\n{'='*80}")
+    print("СТАТИСТИКА")
+    print(f"{'='*80}")
+    print(f"Всего записей в таблице: {records.count()}")
+    print(f"Уникальных давлений: {len(pressure_data)}")
+
+    # Доступные давления
+    print(f"\nДоступные давления:")
+    for pressure in sorted_pressures:
+        print(f"  - {pressure['name']} (code: {pressure['code']}) - {len(pressure['records'])} записей")

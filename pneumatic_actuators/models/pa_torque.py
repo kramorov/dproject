@@ -3,6 +3,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 from django.db import transaction
+from typing import Dict, Any, Tuple, Optional, List
 from django.http import HttpResponse
 
 from datetime import datetime
@@ -14,6 +15,7 @@ from params.models import PneumaticAirSupplyPressure
 from pneumatic_actuators.models.py_options_constants import SPRINGS_DA_DEFAULT_CODE, SAFETY_POSITION_NC_DEFAULT_CODE, \
     ACTUATOR_VARIETY_RP_DEFAULT_CODE, ACTUATOR_VARIETY_SY_DEFAULT_CODE, SAFETY_POSITION_NO_DEFAULT_CODE, \
     SPRINGS_SR_DEFAULT_CODE
+from pneumatic_actuators.services.torque_selector import TorqueSelectorService
 
 logger = logging.getLogger(__name__)
 
@@ -1095,3 +1097,38 @@ class BodyThrustTorqueTable(models.Model):
 
         logger.info(f"Импорт завершен. Импортировано записей: {imported_count}, ошибок: {len(errors)}")
         return imported_count, errors
+
+    @classmethod
+    def find_suitable_actuators(cls , torque_with_sf: float , work_pressure_id: int ,
+                                actuator_variety: str , body_ids: Optional[List[int]] = None ,
+                                max_bodies: int = 3) -> List[Dict] :
+        """
+        Найти подходящие приводы по моменту и давлению
+        """
+        from pneumatic_actuators.models import PneumaticActuatorBody , PneumaticAirSupplyPressure
+        from pneumatic_actuators.services.torque_selector import TorqueSelectorService
+
+        service = TorqueSelectorService()
+
+        if actuator_variety == 'SR' :
+            results = service.find_suitable_sr_actuators(
+                table_model=cls ,
+                body_model=PneumaticActuatorBody ,
+                pressure_model=PneumaticAirSupplyPressure ,
+                torque_with_sf=torque_with_sf ,
+                work_pressure_id=work_pressure_id ,
+                body_ids=body_ids ,
+                max_bodies=max_bodies
+            )
+        else :  # DA
+            results = service.find_suitable_da_actuators(
+                table_model=cls ,
+                body_model=PneumaticActuatorBody ,
+                pressure_model=PneumaticAirSupplyPressure ,
+                torque_with_sf=torque_with_sf ,
+                work_pressure_id=work_pressure_id ,
+                body_ids=body_ids ,
+                max_bodies=max_bodies
+            )
+
+        return service.build_result_structure(results , max_bodies)
