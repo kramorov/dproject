@@ -2,18 +2,19 @@
 from django.contrib import admin
 from django import forms
 from django.utils.translation import gettext_lazy as _
-from .models import PneumaticFittingVariety , PneumaticFitting , PneumaticFittingModelLine
+from .models import PneumaticFittingVariety, PneumaticFitting, PneumaticFittingModelLine, FittingShape, \
+    FittingFixationMethod
 
 
 @admin.register(PneumaticFittingVariety)
 class PneumaticFittingVarietyAdmin(admin.ModelAdmin) :
-    list_display = ['name' , 'code' , 'sorting_order' , 'is_active']
+    list_display = ['name' , 'code' , 'fixation_method', 'shape', 'sorting_order' , 'is_active']
     list_editable = ['sorting_order' , 'is_active']
     list_filter = ['is_active']
     search_fields = ['name' , 'code' , 'description']
     fieldsets = (
         (_('Основная информация') , {
-            'fields' : ('name' , 'code' , 'description')
+            'fields' : ('name' , 'code' , 'description','fixation_method', 'shape' )
         }) ,
         (_('Настройки отображения') , {
             'fields' : ('sorting_order' , 'is_active')
@@ -172,3 +173,27 @@ class PneumaticFittingModelLineAdmin(admin.ModelAdmin) :
         )
 
     copy_selected_fitting_model_line.short_description = "Копировать выбранные фитинги"
+
+
+@admin.register(FittingShape)
+class FittingShapeAdmin(admin.ModelAdmin):
+    # Поля, которые отображаются в списке
+    list_display = ('id','name', 'code', 'is_swivel','sorting_order', 'is_active')
+    list_editable = ['name', 'code', 'is_swivel','sorting_order', 'is_active']
+    # Группировка полей внутри карточки
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'is_active', 'sorting_order')
+        }),
+        ('Описания', {
+            'fields': ('description', 'help_text_content'),
+            'classes': ('collapse',),  # Можно скрыть блок по умолчанию
+        }),
+    )
+
+
+@admin.register(FittingFixationMethod)
+class FittingFixationMethodAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
+    list_editable = ['name', 'code', 'sorting_order', 'is_active']
+    ordering = ('sorting_order', 'name')  # Сортировка по умолчанию в админке
