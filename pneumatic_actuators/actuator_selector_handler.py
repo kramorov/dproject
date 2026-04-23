@@ -5,7 +5,7 @@ from typing import Dict, Any, Tuple, Optional, List
 
 from params.models import IpOption, ExdOption, HandWheelInstalledOption, BodyCoatingOption, StemShapes, \
     PneumaticAirSupplyPressure
-from pneumatic_actuators.models import PneumaticActuatorVariety
+from pneumatic_actuators.models import BodyThrustTorqueTable, PneumaticActuatorVariety
 from pneumatic_actuators.models.pa_options import PneumaticIpOption
 
 logger = logging.getLogger(__name__)
@@ -267,34 +267,10 @@ def validate_selection_params(params: Dict[str , Any]) -> Tuple[bool , Optional[
 def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     """
     Обрабатывает параметры выбранные на странице подбора привода
-
-    Args:
-        params: словарь с выбранными параметрами
-            {   'valve_type_id': int,
-                'dn_id': int,
-                'pn_id': int,
-                'mounting_plate_id': int,
-                'stem_id': int,
-                'torque_without_safety': Decimal,
-                'safety_factor': Decimal,
-                'torque_with_safety': Decimal,
-                'model_line_id': int,
-                'model_line_item_id': int,
-                'actuator_variety_id': int,
-                'safety_position_id': int,
-                'ip_id': int,
-                'exd_id': int,
-                'coating_id': int,
-                'hand_wheel_id': int,
-                'temp_min': int,
-                'temp_max': int
-            }
-
-    Returns:
-        Dict: результат обработки
     """
     import json
     from datetime import datetime
+
     # Валидация
     is_valid , error_field , error_message , error_fields = validate_selection_params(params)
 
@@ -307,6 +283,7 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
             'error_field' : error_field ,
             'error_fields' : error_fields
         }
+
     print("\n" + "=" * 60)
     print("🔍 ПОЛУЧЕН ЗАПРОС НА ПОДБОР ПРИВОДА")
     print("=" * 60)
@@ -341,14 +318,79 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     print("\n" + "=" * 60)
     print("✅ ПАРАМЕТРЫ УСПЕШНО ПОЛУЧЕНЫ")
     print("=" * 60 + "\n")
-    model_line_for_IP_list=PneumaticIpOption.get_model_line_for_IP(params.get('ip_id'))
-    print(model_line_for_IP_list)
-    # Здесь будет логика поиска подходящего привода
-    return {
-        'success' : True ,
-        'message' : 'Параметры получены' ,
-        'params_received' : params
-    }
+
+    work_pressure_id = params.get('air_pressure_id')
+    if not work_pressure_id :
+        work_pressure_id = 13  # 6 бар по умолчанию
+
+    torque_with_safety = float(params.get('torque_with_safety' , 0))
+    actuator_variety_code = params.get('actuator_variety_code' , 'DA')
+
+    print(f"Требуемый момент с запасом: {torque_with_safety} Нм")
+    print(f"Тип привода: {actuator_variety_code}")
+
+    # Вызываем поиск подходящих приводов
+    try :
+        search_results = BodyThrustTorqueTable.find_suitable_actuators(
+            torque_with_sf=torque_with_safety ,
+            work_pressure_id=work_pressure_id ,
+            actuator_variety=actuator_variety_code ,
+            max_bodies=2
+        )
+
+        print(f"\n✅ Найдено подходящих серий: {len(search_results)}")
+
+        total_items = 0
+        for ml in search_results :
+            items_count = len(ml.get('model_line_items' , []))
+            total_items += items_count
+            print(
+                f"\n  Серия: {ml.get('model_line_name' , 'N/A')} ({ml.get('model_line_code' , 'N/A')}) - {items_count} моделей")
+
+            for item in ml.get('model_line_items' , []) :
+                print(
+                    f"\n    Модель: {item.get('model_line_item_name' , 'N/A')} ({item.get('model_line_item_code' , 'N/A')})")
+                print(f"      Корпус: {item.get('body_name' , 'N/A')} ({item.get('body_code' , 'N/A')})")
+                print(f"      Тип: {item.get('actuator_variety_code' , 'DA')}")
+                print(f"      Score: {item.get('score' , 0):.1f}")
+                print(f"      Запас по моменту: {item.get('spring_margin' , 0):.1f} Нм")
+
+                if item.get('actuator_variety_code') == 'SR' :
+                    print(f"      Пружины: {item.get('spring_qty_name' , 'N/A')}")
+                    print(
+                        f"        Моменты на пружинах: BTO={item.get('spring_bto' , 0):.1f}, ETO={item.get('spring_eto' , 0):.1f}")
+                    print(
+                        f"        Моменты по воздуху: BTO={item.get('pressure_bto' , 0):.1f}, ETO={item.get('pressure_eto' , 0):.1f}")
+                else :
+                    print(f"        Момент по воздуху (BTO): {item.get('spring_bto' , 0):.1f} Нм")
+
+        print(f"\n✅ Всего найдено моделей: {total_items}")
+
+        return {
+            'success' : True ,
+            'message' : 'Параметры получены, поиск выполнен' ,
+            'params_received' : params ,
+            'search_results' : search_results ,
+            'total_found' : total_items
+        }
+
+    except Exception as e :
+        print(f"\n❌ Ошибка при поиске: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'success' : False ,
+            'error' : f'Ошибка при поиске приводов: {str(e)}' ,
+            'params_received' : params
+        }
+    # model_line_for_IP_list=PneumaticIpOption.get_model_line_for_IP(params.get('ip_id'))
+    # print(model_line_for_IP_list)
+    # # Здесь будет логика поиска подходящего привода
+    # return {
+    #     'success' : True ,
+    #     'message' : 'Параметры получены' ,
+    #     'params_received' : params
+    # }
 
 def find_compatible_actuators_by_model_line(
         selected_params: Dict[str, Any]

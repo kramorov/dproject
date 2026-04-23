@@ -70,32 +70,6 @@ python manage.py showmigrations
 
 python manage.py startapp clients
 
-git commit -m commit-2025-03-05-01
-
-pip install django-admin-interface
-pip install django-nested-admin
-pip install django-extensions
-pip install django-rest-framework-generator
-python manage.py generate_serializers app
-python manage.py generate_serializers --with-views
-pip install drf-generators
-https://github.com/Brobin/drf-generators?tab=readme-ov-file#installation
-python manage.py generate api --format function --force --depth=2
-python manage.py generate client_request --format apiview --force --depth=4
-Option	Action
---serializers	Generate only Serializers for your app.
---views	Generate only Views for your app.
---urls	Generate only urls for your app.
---force	Overwrite existing files without the warning prompt.
--f, --format	Format to use when generating views and urls. Valid options: viewset, apiview, function, modelviewset. Default: viewset.
--d, --depth	Serialization depth for related models. Default: 0
-
-npx tsc
-npm install --save-dev @vue/compiler-sfc
-
-
-npm install vuex
-
 pip freeze > requirements.txt
 pip freeze --local > requirements.txt
 

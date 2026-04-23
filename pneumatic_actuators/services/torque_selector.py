@@ -206,7 +206,7 @@ class TorqueSelectorService :
                         'eto') :
                     continue
 
-                score_data = self.calculate_score_sr(spring , pressure , torque_with_sf)
+                score_data = self.calculate_score_sr(spring , pressure , torque_with_sf) # type: ignore
                 if score_data['is_valid'] :
                     suitable_combinations.append({
                         'spring_qty_id' : group['spring_qty_id'] ,
@@ -215,7 +215,7 @@ class TorqueSelectorService :
                         'spring_bto' : spring['bto'] ,
                         'spring_eto' : spring['eto'] ,
                         'spring_min' : score_data['spring_min'] ,
-                        'spring_margin' : score_data['spring_margin'] ,
+                        'spring_margin' : score_data['spring_margin'] ,  # ДОБАВИТЬ ЭТУ СТРОКУ
                         'pressure_bto' : pressure['bto'] ,
                         'pressure_eto' : pressure['eto'] ,
                         'pressure_min' : score_data['pressure_min'] ,
@@ -225,61 +225,67 @@ class TorqueSelectorService :
 
             if suitable_combinations :
                 suitable_combinations.sort(key=lambda x : x['score'])
+                best = suitable_combinations[0]
                 all_results.append({
                     'body_id' : body.id ,
                     'body_code' : body.code ,
                     'body_name' : body.name ,
                     'type' : 'SR' ,
+                    'score' : best['score'] ,  # ДОБАВИТЬ
+                    'spring_margin' : best['spring_margin'] ,  # ДОБАВИТЬ
                     'combinations' : suitable_combinations ,
-                    'best_combination' : suitable_combinations[0] ,
+                    'best_combination' : best ,
                     'total_combinations' : len(suitable_combinations)
                 })
 
         all_results.sort(key=lambda x : x['best_combination']['score'])
         return all_results[:max_bodies]
 
-    def find_suitable_da_actuators(self , table_model , body_model , pressure_model ,
-                                   torque_with_sf: float , work_pressure_id: int ,
-                                   body_ids: Optional[List[int]] = None ,
-                                   max_bodies: int = 3) -> List[Dict] :
+    def find_suitable_da_actuators(self, table_model, body_model, pressure_model,
+                                   torque_with_sf: float, work_pressure_id: int,
+                                   body_ids: Optional[List[int]] = None,
+                                   max_bodies: int = 3) -> List[Dict]:
         """Найти подходящие DA приводы"""
 
-        work_pressure = self.get_pressure_by_id(pressure_model , work_pressure_id)
-        if not work_pressure :
+        work_pressure = self.get_pressure_by_id(pressure_model, work_pressure_id)
+        if not work_pressure:
             return []
 
-        if body_ids :
-            bodies = body_model.objects.filter(id__in=body_ids , is_active=True)
-        else :
+        if body_ids:
+            bodies = body_model.objects.filter(id__in=body_ids, is_active=True)
+        else:
             bodies = body_model.objects.filter(is_active=True)
 
         all_results = []
 
-        for body in bodies :
-            da_records = self.get_da_data(table_model , body.id , work_pressure_id)
+        for body in bodies:
+            da_records = self.get_da_data(table_model, body.id, work_pressure_id)
 
             suitable = []
-            for da in da_records :
-                score_data = self.calculate_score_da(da , torque_with_sf)
-                if score_data['is_valid'] :
+            for da in da_records:
+                score_data = self.calculate_score_da(da, torque_with_sf)
+                if score_data['is_valid']:
                     suitable.append({
-                        'bto' : da['bto'] ,
-                        'margin' : score_data['margin'] ,
-                        'score' : score_data['total_score']
+                        'bto': da['bto'],
+                        'margin': score_data['margin'],
+                        'score': score_data['total_score']
                     })
 
-            if suitable :
-                suitable.sort(key=lambda x : x['score'])
+            if suitable:
+                suitable.sort(key=lambda x: x['score'])
+                best = suitable[0]
                 all_results.append({
-                    'body_id' : body.id ,
-                    'body_code' : body.code ,
-                    'body_name' : body.name ,
-                    'type' : 'DA' ,
-                    'best_combination' : suitable[0] ,
-                    'total_combinations' : len(suitable)
+                    'body_id': body.id,
+                    'body_code': body.code,
+                    'body_name': body.name,
+                    'type': 'DA',
+                    'score': best['score'],  # ДОБАВИТЬ
+                    'spring_margin': best['margin'],  # ДОБАВИТЬ
+                    'best_combination': best,
+                    'total_combinations': len(suitable)
                 })
 
-        all_results.sort(key=lambda x : x['best_combination']['score'])
+        all_results.sort(key=lambda x: x['best_combination']['score'])
         return all_results[:max_bodies]
 
     def build_result_structure(self , results: List[Dict] , max_bodies: int = 3) -> List[Dict] :

@@ -1104,9 +1104,14 @@ class BodyThrustTorqueTable(models.Model):
                                 max_bodies: int = 3) -> List[Dict] :
         """
         Найти подходящие приводы по моменту и давлению
+
+        Returns:
+            List[Dict]: иерархическая структура model_line -> model_line_item -> body
         """
-        from pneumatic_actuators.models import PneumaticActuatorBody , PneumaticAirSupplyPressure
+        from pneumatic_actuators.models import PneumaticActuatorBody , PneumaticAirSupplyPressure , \
+            PneumaticActuatorModelLineItem
         from pneumatic_actuators.services.torque_selector import TorqueSelectorService
+        from collections import defaultdict
 
         service = TorqueSelectorService()
 
@@ -1131,4 +1136,132 @@ class BodyThrustTorqueTable(models.Model):
                 max_bodies=max_bodies
             )
 
-        return service.build_result_structure(results , max_bodies)
+        # Собираем уникальные body_id и запоминаем тип привода для каждого
+        body_info_map = {}
+
+        for result in results :
+            body_id = result['body_id']
+            if body_id not in body_info_map :
+                body_info_map[body_id] = {
+                    'body_code' : result['body_code'] ,
+                    'body_name' : result['body_name'] ,
+                    'type' : result['type'] ,  # 'DA' или 'SR'
+                    'best' : result['best_combination'] ,
+                    'score' : result.get('score' , 0) ,
+                    'spring_margin' : result.get('spring_margin' , 0)
+                }
+
+        # Получаем все model_line_item для найденных body
+        model_line_items = PneumaticActuatorModelLineItem.objects.filter(
+            body_id__in=body_info_map.keys() ,
+            is_active=True
+        ).select_related('model_line' , 'pneumatic_actuator_variety').order_by(
+            'model_line__sorting_order' ,
+            'sorting_order'
+        )
+
+        # Группируем по model_line
+        model_lines_dict = defaultdict(lambda : {
+            'model_line_id' : None ,
+            'model_line_name' : None ,
+            'model_line_code' : None ,
+            'model_line_items' : []
+        })
+
+        for mli in model_line_items :
+            model_line = mli.model_line
+            if not model_line :
+                continue
+
+            body_id = mli.body_id
+            body_info = body_info_map.get(body_id)
+            if not body_info :
+                continue
+
+            # Определяем тип привода для этой model_line_item
+            mli_variety_code = mli.pneumatic_actuator_variety.code if mli.pneumatic_actuator_variety else None
+
+            # Фильтруем: берем только те model_line_item, которые соответствуют найденному типу
+            if body_info['type'] == 'DA' and mli_variety_code != 'DA' :
+                continue
+            if body_info['type'] == 'SR' and mli_variety_code != 'SR' :
+                continue
+
+            ml_id = model_line.id
+
+            # Заполняем информацию о model_line
+            if model_lines_dict[ml_id]['model_line_id'] is None :
+                model_lines_dict[ml_id]['model_line_id'] = ml_id
+                model_lines_dict[ml_id]['model_line_name'] = model_line.name
+                model_lines_dict[ml_id]['model_line_code'] = model_line.code
+
+            # Формируем информацию о model_line_item
+            mli_data = {
+                'model_line_item_id' : mli.id ,
+                'model_line_item_name' : mli.name ,
+                'model_line_item_code' : mli.code ,
+                'model_line_item_description' : mli.description ,
+                'model_line_item_sorting_order' : mli.sorting_order ,
+                'actuator_variety_id' : mli.pneumatic_actuator_variety.id if mli.pneumatic_actuator_variety else None ,
+                'actuator_variety_name' : mli.pneumatic_actuator_variety.name if mli.pneumatic_actuator_variety else None ,
+                'actuator_variety_code' : mli_variety_code ,
+
+                # Информация о body
+                'body_id' : body_id ,
+                'body_code' : body_info['body_code'] ,
+                'body_name' : body_info['body_name'] ,
+                'body_type' : body_info['type'] ,
+
+                # Результаты поиска
+                'score' : body_info['score'] ,
+                'spring_margin' : body_info['spring_margin'] ,
+            }
+
+            # Добавляем информацию о моментах
+            best = body_info['best']
+            if body_info['type'] == 'SR' :
+                mli_data.update({
+                    'spring_qty_id' : best.get('spring_qty_id') ,
+                    'spring_qty_code' : best.get('spring_qty_code') ,
+                    'spring_qty_name' : best.get('spring_qty_name') ,
+                    'spring_bto' : best.get('spring_bto') ,
+                    'spring_eto' : best.get('spring_eto') ,
+                    'spring_min' : best.get('spring_min') ,
+                    'pressure_bto' : best.get('pressure_bto') ,
+                    'pressure_eto' : best.get('pressure_eto') ,
+                    'pressure_min' : best.get('pressure_min') ,
+                    'pressure_margin' : best.get('pressure_margin') ,
+                })
+            else :  # DA
+                mli_data.update({
+                    'spring_qty_id' : None ,
+                    'spring_qty_code' : 'DA' ,
+                    'spring_qty_name' : 'Без пружин' ,
+                    'spring_bto' : best.get('bto') ,
+                    'spring_eto' : best.get('bto') ,
+                    'spring_min' : best.get('bto') ,
+                    'pressure_bto' : best.get('bto') ,
+                    'pressure_eto' : best.get('bto') ,
+                    'pressure_min' : best.get('bto') ,
+                    'pressure_margin' : best.get('margin' , 0) ,
+                })
+
+            model_lines_dict[ml_id]['model_line_items'].append(mli_data)
+
+        # Сортируем model_line_items внутри каждой группы
+        for ml_id in model_lines_dict :
+            model_lines_dict[ml_id]['model_line_items'].sort(key=lambda x : x.get('model_line_item_sorting_order' , 0))
+
+        # Преобразуем в список и сортируем model_line
+        result_structure = sorted(
+            [{
+                'model_line_id' : ml_data['model_line_id'] ,
+                'model_line_name' : ml_data['model_line_name'] ,
+                'model_line_code' : ml_data['model_line_code'] ,
+                'model_line_items' : ml_data['model_line_items'] ,
+                'total_items' : len(ml_data['model_line_items'])
+            } for ml_data in model_lines_dict.values()] ,
+            key=lambda x : x.get('model_line_sorting_order' , 0)
+        )
+
+        return result_structure

@@ -1,4 +1,6 @@
 # pages/pneumatic_actuators/pa_selection.py
+import random
+
 import streamlit as st
 from db_init import init_django
 from decimal import Decimal
@@ -18,6 +20,109 @@ from ui_components.selectors.ui import render_selectbox
 st.set_page_config(page_title="Подбор пневматического привода", layout="wide")
 st.title("🔧 Подбор пневматического привода")
 
+
+def fill_random_parameters() :
+    """
+    Заполняет session_state случайными значениями из доступных опций в initial_data
+    """
+    import random
+    from decimal import Decimal
+
+    # Получаем initial_data
+    initial_data = load_initial_data()
+
+    # Сохраняем состояние кнопок (они не должны меняться)
+    # Кнопки не имеют состояния, просто не трогаем их ключи
+
+    # 1. valve_type_id - default 3
+    valve_types = initial_data.get('valve_types' , [])
+    if valve_types :
+        valve_type_3 = next((vt for vt in valve_types if vt['id'] == 3) , None)
+        if valve_type_3 :
+            st.session_state.valve_type_id = 3
+            st.session_state.valve_type_select = 3
+        else :
+            random_valve = random.choice(valve_types)
+            st.session_state.valve_type_id = random_valve['id']
+            st.session_state.valve_type_select = random_valve['id']
+
+    # 2. temp_min и temp_max - только через виджеты
+    temp_min_val = random.randint(-80 , 5)
+    temp_max_val = random.randint(10 , 100)
+
+    st.session_state.temp_min = temp_min_val
+    st.session_state.temp_max = temp_max_val
+    st.session_state.temp_min_input = temp_min_val
+    st.session_state.temp_max_input = temp_max_val
+
+    # DN
+    dn_list = initial_data.get('dn_varieties' , [])
+    if dn_list :
+        random_dn = random.choice(dn_list)
+        st.session_state.dn_id = random_dn['id']
+        st.session_state.dn_select = random_dn['id']
+
+    # PN
+    pn_list = initial_data.get('pn_varieties' , [])
+    if pn_list :
+        random_pn = random.choice(pn_list)
+        st.session_state.pn_id = random_pn['id']
+        st.session_state.pn_select = random_pn['id']
+
+    # Монтажная площадка
+    plate_list = initial_data.get('mounting_plates' , [])
+    if plate_list :
+        random_plate = random.choice(plate_list)
+        st.session_state.mounting_plate_id = random_plate['id']
+        st.session_state.plate_select = random_plate['id']
+
+    # Форма штока
+    stem_shape_list = initial_data.get('stem_shapes' , [])
+    if stem_shape_list :
+        random_shape = random.choice(stem_shape_list)
+        st.session_state.stem_shape_id = random_shape['id']
+        st.session_state.stem_shape_select = random_shape['id']
+
+    # Шток
+    stem_list = initial_data.get('stem_sizes' , [])
+    if stem_list :
+        filtered_stems = stem_list
+        if st.session_state.stem_shape_id :
+            filtered_stems = [s for s in stem_list if s.get('stem_shape_id') == st.session_state.stem_shape_id]
+        if filtered_stems :
+            random_stem = random.choice(filtered_stems)
+            st.session_state.stem_id = random_stem['id']
+            st.session_state.stem_select = random_stem['id']
+
+    # Давление воздуха
+    air_pressure_list = initial_data.get('air_pressure' , [])
+    pressure_list = [p for p in air_pressure_list if p.get('code') != 'spring']
+    if pressure_list :
+        random_pressure = random.choice(pressure_list)
+        st.session_state.air_pressure_id = random_pressure['id']
+        st.session_state.air_pressure_select = random_pressure['id']
+
+    # Моменты
+    torque_without = random.randint(50 , 500)
+    safety = round(random.uniform(1.2 , 2.0) , 1)
+    torque_with_val = torque_without * safety
+
+    st.session_state.torque_without_safety = Decimal(str(torque_without))
+    st.session_state.safety_factor = Decimal(str(safety))
+    st.session_state.torque_with_safety = Decimal(str(torque_with_val))
+
+    st.session_state.torque_without_safety_input = float(torque_without)
+    st.session_state.safety_factor_input = float(safety)
+    st.session_state.torque_with_safety_input = float(torque_with_val)
+
+    # Очищаем ошибки и кэш (но не трогаем результаты поиска)
+    st.session_state.error_fields = []
+    st.session_state.options_cache = {}
+
+    # НЕ сбрасываем model_line и другие поля привода
+    # Они должны остаться как есть или быть переопределены пользователем
+
+    st.success("✅ Параметры заполнены случайными значениями!")
 
 def init_session_state():
     """Инициализация session state"""
@@ -488,9 +593,121 @@ def render_actuator_requirements():
         st.session_state.hand_wheel_id = hand_wheel_id if hand_wheel_id != 0 else None
 
 
+def render_result_card_simple(item: Dict , index: int) -> None :
+    """Компактная карточка для одного model_line_item"""
+
+    st.markdown(
+        f"**{index}. Модель:** {item.get('model_line_item_name' , 'N/A')} ")
+
+    # Супер-компактно
+    st.write(
+        f"`{item.get('model_line_item_code' , 'N/A')}` | "
+        f"{item.get('body_code' , 'N/A')} | "
+        f"{item.get('actuator_variety_code' , 'DA')} | "
+        f"Score: {item.get('score' , 0):.1f} | "
+        f"Запас: {item.get('spring_margin' , 0):.0f} Нм"
+    )
+
+    if item.get('actuator_variety_code') == 'SR' :
+        st.markdown(
+            f"**Пружины:** {item.get('spring_qty_name' , 'N/A')} | "
+            f"📈 BTO/ETO: {item.get('spring_bto' , 0):.0f}/{item.get('spring_eto' , 0):.0f} (пруж.) "
+            f"{item.get('pressure_bto' , 0):.0f}/{item.get('pressure_eto' , 0):.0f} (возд.) | "
+            f"📊 Запас: {item.get('spring_margin' , 0):.0f} Нм"
+        )
+    else :
+        st.markdown(
+            f"💨 BTO: {item.get('spring_bto' , 0):.0f} Нм | "
+            f"📊 Запас: {item.get('spring_margin' , 0):.0f} Нм"
+        )
+
+    if st.button(f"✅ Выбрать" , key=f"select_{item.get('model_line_item_id' , index)}_{index}") :
+        st.session_state.selected_model_line_item = item
+        st.success(f"✅ Выбрана модель: {item.get('model_line_item_name')}")
+
+    st.divider()
+
+
+def render_search_results_simple(search_results: List[Dict]) -> None :
+    """Отображение иерархических результатов поиска (model_line -> model_line_item)"""
+
+    if not search_results :
+        st.warning("❌ Не найдено подходящих приводов!")
+        return
+
+    st.markdown("## 📊 Результаты подбора привода")
+    st.markdown(f"Найдено **{len(search_results)}** подходящих серий:")
+    st.markdown("---")
+
+    index = 1
+    for ml in search_results :
+        st.markdown(f"### 📁 Серия: {ml.get('model_line_name' , 'N/A')} (`{ml.get('model_line_code' , 'N/A')}`)")
+
+        for item in ml.get('model_line_items' , []) :
+            # Отображение карточки для каждого model_line_item
+            st.markdown(
+                f"**{index}. Модель:** {item.get('model_line_item_name' , 'N/A')} (`{item.get('model_line_item_code' , 'N/A')}`)")
+
+            col1 , col2 , col3 = st.columns(3)
+            with col1 :
+                st.metric("Корпус" , f"{item.get('body_name' , 'N/A')} ({item.get('body_code' , 'N/A')})")
+            with col2 :
+                st.metric("Тип" , item.get('actuator_variety_code' , 'DA'))
+            with col3 :
+                st.metric("Score" , f"{item.get('score' , 0):.1f}")
+
+            # Моменты
+            if item.get('actuator_variety_code') == 'SR' :
+                st.markdown(
+                    f"**Пружины:** {item.get('spring_qty_name' , 'N/A')} | "
+                    f"📈 BTO/ETO: {item.get('spring_bto' , 0):.0f}/{item.get('spring_eto' , 0):.0f} (пруж.) "
+                    f"{item.get('pressure_bto' , 0):.0f}/{item.get('pressure_eto' , 0):.0f} (возд.) | "
+                    f"📊 Запас: {item.get('spring_margin' , 0):.0f} Нм"
+                )
+            else :
+                st.markdown(
+                    f"💨 BTO: {item.get('spring_bto' , 0):.0f} Нм | "
+                    f"📊 Запас: {item.get('spring_margin' , 0):.0f} Нм"
+                )
+
+            # Кнопка выбора
+            if st.button(f"✅ Выбрать" , key=f"select_{item.get('model_line_item_id' , index)}_{index}") :
+                st.session_state.selected_model_line_item = item
+                st.success(f"✅ Выбрана модель: {item.get('model_line_item_name')}")
+
+            st.divider()
+            index += 1
+
+        st.markdown("---")
+
+def reset_all_parameters():
+    """Сбрасывает все параметры в значения по умолчанию"""
+    for key in st.session_state.keys():
+        if key not in ['torque_without_safety', 'safety_factor', 'torque_with_safety']:
+            if 'id' in key:
+                st.session_state[key] = None
+            elif 'temp' in key:
+                st.session_state[key] = 0
+            elif 'code' in key:
+                st.session_state[key] = None
+    st.session_state.options_cache = {}
+    st.session_state.error_fields = []
+    st.success("✅ Все параметры сброшены!")
+
 def main():
     init_session_state()
 
+    title_col , btn1_col , btn2_col = st.columns([3 , 1 , 1])
+    with title_col :
+        st.title("🔧 Подбор пневматического привода")
+    with btn1_col :
+        if st.button("🎲 Случайные" , use_container_width=True) :
+            fill_random_parameters()
+            st.rerun()
+    with btn2_col :
+        if st.button("🎲 Случайные параметры" , use_container_width=True) :
+            fill_random_parameters()
+            st.rerun()
     # Параметры арматуры
     render_valve_parameters()
 
@@ -511,16 +728,7 @@ def main():
         reset_btn = st.button("🗑 Очистить фильтры", use_container_width=True)
 
     if reset_btn:
-        for key in st.session_state.keys():
-            if key not in ['torque_without_safety', 'safety_factor', 'torque_with_safety']:
-                if 'id' in key:
-                    st.session_state[key] = None
-                elif 'temp' in key:
-                    st.session_state[key] = 0
-                elif 'code' in key:
-                    st.session_state[key] = None
-        st.session_state.options_cache = {}
-        st.session_state.error_fields = []
+        reset_all_parameters()
         st.rerun()
 
     if search_btn:
@@ -552,19 +760,26 @@ def main():
             # Отправляем в хендлер
             result = process_selection_params(params)
 
-            if not result.get('success'):
+            if not result.get('success') :
                 error_msg = result.get('error')
-                error_fields = result.get('error_fields', [])
+                error_fields = result.get('error_fields' , [])
 
                 st.error(f"❌ {error_msg}")
 
-                if error_fields:
+                if error_fields :
                     st.session_state.error_fields = error_fields
                     st.rerun()
-            else:
+            else :
+                # print(result)
                 st.success("✅ Параметры успешно отправлены!")
                 st.session_state.error_fields = []
-                # Здесь будет отображение результатов поиска
+
+                # ============ ВСТАВЬТЕ ЭТОТ БЛОК ============
+                # Получаем результаты поиска
+                search_results = result.get('search_results' , [])
+
+                # Отображаем результаты
+                render_search_results_simple(search_results)
 
 
 if __name__ == "__main__":
