@@ -155,6 +155,7 @@ class PneumaticActuatorBody(models.Model) :
     def __str__(self) :
         return self.name
 
+
     @property
     def mounting_plate_display(self) :
         """Отображает монтажные площадки через разделитель /"""
@@ -396,6 +397,11 @@ class PneumaticCloseTimeParameter(models.Model) :
                                    related_name='pa_close_time_parameter' ,
                                    verbose_name=_("Пружин / DA") ,
                                    help_text=_("Количество пружин или DA"))
+    pressure = models.ForeignKey('params.PneumaticAirSupplyPressure',
+                                 on_delete=models.SET_DEFAULT,
+                                 default=13,  # ID записи с давлением 6 бар
+                                 verbose_name=_("Давление питания"),
+                                 help_text=_("Давление в пневмосистеме, бар"))
     time_close = models.DecimalField(max_digits=4 , decimal_places=2 ,
                                      default=0.0 , verbose_name=_("Закрытие, сек") ,
                                      help_text=_("Время закрытия пневмопривода с кол-вом пружин или DA, секунд"))
@@ -411,3 +417,294 @@ class PneumaticCloseTimeParameter(models.Model) :
 
     def __str__(self) :
         return f"Время откр/закр {self.spring_qty.name}:{self.time_open}/{self.time_close} сек"
+
+    @classmethod
+    def get_time_to_close(cls, body_id, spring_da, pressure=None):
+        """
+        Получить время открытия/закрытия для пневмопривода
+        """
+        from pneumatic_actuators.models import PneumaticActuatorSpringsQty
+        from params.models import PneumaticAirSupplyPressure
+        from pneumatic_actuators.services.pneumatic_calculator import PneumaticCalculator
+        from django.db import models
+
+        # Определяем тип и целевые параметры
+        is_da = False
+        target_springs_qty = None
+        target_pressure_bar = None
+
+        # Разбираем spring_da
+        if isinstance(spring_da, PneumaticActuatorSpringsQty):
+            spring_code = spring_da.code
+            is_da = (spring_code == 'DA')
+            if not is_da:
+                try:
+                    target_springs_qty = int(spring_code)
+                except (ValueError, TypeError):
+                    target_springs_qty = None
+        elif isinstance(spring_da, int):
+            try:
+                spring_obj = PneumaticActuatorSpringsQty.objects.get(id=spring_da)
+                spring_code = spring_obj.code
+                is_da = (spring_code == 'DA')
+                if not is_da:
+                    try:
+                        target_springs_qty = int(spring_code)
+                    except (ValueError, TypeError):
+                        target_springs_qty = None
+            except PneumaticActuatorSpringsQty.DoesNotExist:
+                return None
+        else:
+            spring_code = str(spring_da)
+            is_da = (spring_code == 'DA')
+            if not is_da:
+                try:
+                    target_springs_qty = int(spring_code)
+                except (ValueError, TypeError):
+                    target_springs_qty = None
+
+        # Разбираем pressure
+        pressure_id = None
+        if pressure is not None:
+            if isinstance(pressure, PneumaticAirSupplyPressure):
+                pressure_id = pressure.id
+                target_pressure_bar = float(pressure.pressure_bar)
+            elif isinstance(pressure, (int, float)):
+                target_pressure_bar = float(pressure)
+                pressure_obj = PneumaticAirSupplyPressure.objects.filter(pressure_bar=target_pressure_bar).first()
+                pressure_id = pressure_obj.id if pressure_obj else None
+            elif isinstance(pressure, str):
+                if pressure.isdigit():
+                    pressure_id = int(pressure)
+                    pressure_obj = PneumaticAirSupplyPressure.objects.filter(id=pressure_id).first()
+                    if pressure_obj:
+                        target_pressure_bar = float(pressure_obj.pressure_bar)
+                else:
+                    pressure_obj = PneumaticAirSupplyPressure.objects.filter(
+                        models.Q(name=pressure) | models.Q(code=pressure)
+                    ).first()
+                    if pressure_obj:
+                        pressure_id = pressure_obj.id
+                        target_pressure_bar = float(pressure_obj.pressure_bar)
+
+        # Формируем базовый запрос
+        queryset = cls.objects.filter(body_id=body_id)
+
+        if is_da:
+            queryset = queryset.filter(spring_qty__code='DA')
+        else:
+            queryset = queryset.exclude(spring_qty__code='DA')
+
+        # Пытаемся найти точное совпадение
+        if pressure_id:
+            exact_match = queryset.filter(pressure_id=pressure_id).select_related('spring_qty', 'pressure',
+                                                                                  'body').first()
+            if exact_match:
+                # Получаем объем цилиндра
+                volume_liters = getattr(exact_match.body, 'air_usage_open', None)
+                if volume_liters is None and exact_match.body.piston_diameter:
+                    # Если нет расхода, рассчитываем приблизительно
+                    piston_diameter_m = float(exact_match.body.piston_diameter) / 1000
+                    area_m2 = 3.14159 * (piston_diameter_m / 2) ** 2
+                    stroke_m = piston_diameter_m * 0.8
+                    volume_m3 = area_m2 * stroke_m
+                    volume_liters = volume_m3 * 1000
+
+                air_consumption = None
+                if volume_liters:
+                    air_consumption = PneumaticCalculator.calculate_air_consumption(
+                        pressure_bar=float(exact_match.pressure.pressure_bar),
+                        volume_liters=float(volume_liters),
+                        is_da=is_da
+                    )
+
+                return {
+                    'time_open': float(exact_match.time_open),
+                    'time_close': float(exact_match.time_close),
+                    'pressure_bar': float(exact_match.pressure.pressure_bar),
+                    'calculated': False,
+                    'has_calculated_values': False,
+                    'calculated_time_open': None,
+                    'calculated_time_close': None,
+                    'calculated_pressure_bar': None,
+                    'calculated_springs_qty': None,
+                    'base_pressure': None,
+                    'base_springs_qty': None,
+                    'air_consumption': air_consumption,
+                    'can_operate': True,
+                    'error': None,
+                }
+
+        # Если точного совпадения нет, берем любую запись для этого body_id и типа привода
+        base_record = queryset.select_related('spring_qty', 'pressure', 'body').first()
+
+        if not base_record:
+            return None
+
+        # Формируем базовую запись для расчета
+        # Это та запись, которую мы нашли в БД (с любым давлением и количеством пружин)
+
+        # Если нет целевого давления, берем из базовой записи
+        if target_pressure_bar is None:
+            target_pressure_bar = float(base_record.pressure.pressure_bar)
+
+        # Если нет целевого количества пружин для SR, берем из базовой записи
+        if not is_da and target_springs_qty is None:
+            if base_record.spring_qty and base_record.spring_qty.code != 'DA':
+                try:
+                    target_springs_qty = int(base_record.spring_qty.code)
+                except (ValueError, TypeError):
+                    target_springs_qty = 0
+            else:
+                target_springs_qty = 0
+
+        # Базовые значения для расчета (из найденной записи)
+        base_pressure = float(base_record.pressure.pressure_bar)
+        base_time_open = float(base_record.time_open)
+        base_time_close = float(base_record.time_close)
+
+        base_springs_qty = 0
+        if base_record.spring_qty and base_record.spring_qty.code != 'DA':
+            try:
+                base_springs_qty = int(base_record.spring_qty.code)
+            except (ValueError, TypeError):
+                base_springs_qty = 0
+
+        # Для расчета сопротивления пружин нужна запись DA для этого же корпуса
+        da_record = cls.objects.filter(
+            body_id=body_id,
+            spring_qty__code='DA'
+        ).select_related('pressure').first()
+
+        if da_record:
+            base_p_da = float(da_record.pressure.pressure_bar)
+            base_t_open_da = float(da_record.time_open)
+        else:
+            # Если нет записи DA, используем приблизительные коэффициенты
+            base_p_da = base_pressure
+            base_t_open_da = base_time_open * 1.6 if not is_da else base_time_open
+
+        # Получаем геометрические параметры из модели body
+        piston_diameter = getattr(base_record.body, 'piston_diameter', None)
+
+        # Получаем объем цилиндра из расхода воздуха (или рассчитываем)
+        air_usage_open = getattr(base_record.body, 'air_usage_open', None)
+
+        if air_usage_open is not None and air_usage_open > 0:
+            volume_liters = float(air_usage_open)
+        elif piston_diameter is not None and piston_diameter > 0:
+            # Рассчитываем объем приблизительно
+            try:
+                piston_diameter_m = float(piston_diameter) / 1000
+                area_m2 = 3.14159 * (piston_diameter_m / 2) ** 2
+                stroke_m = piston_diameter_m * 0.8  # ход ≈ 80% от диаметра
+                volume_m3 = area_m2 * stroke_m
+                volume_liters = volume_m3 * 1000
+                volume_liters = round(volume_liters, 4)
+            except (ValueError, TypeError):
+                volume_liters = None
+        else:
+            volume_liters = None
+
+        # Проверяем наличие обязательных параметров для расчета
+        if piston_diameter is None or volume_liters is None:
+            # Если расчета нет, возвращаем известные значения из базовой записи
+            return {
+                'time_open': base_time_open,
+                'time_close': base_time_close,
+                'pressure_bar': base_pressure,
+                'calculated': False,
+                'has_calculated_values': False,
+                'calculated_time_open': None,
+                'calculated_time_close': None,
+                'calculated_pressure_bar': None,
+                'calculated_springs_qty': None,
+                'base_pressure': base_pressure,
+                'base_springs_qty': base_springs_qty,
+                'target_pressure_bar': target_pressure_bar,
+                'target_springs_qty': target_springs_qty if not is_da else 0,
+                'error': f"Cannot calculate: missing geometric data for body_id={body_id}. Using base values.",
+                'can_operate': None,
+            }
+
+        # Конвертируем в float
+        try:
+            piston_diameter = float(piston_diameter)
+            volume_liters = float(volume_liters)
+        except (TypeError, ValueError) as e:
+            # При ошибке конвертации тоже возвращаем базовые значения
+            return {
+                'time_open': base_time_open,
+                'time_close': base_time_close,
+                'pressure_bar': base_pressure,
+                'calculated': False,
+                'has_calculated_values': False,
+                'calculated_time_open': None,
+                'calculated_time_close': None,
+                'calculated_pressure_bar': None,
+                'calculated_springs_qty': None,
+                'base_pressure': base_pressure,
+                'base_springs_qty': base_springs_qty,
+                'target_pressure_bar': target_pressure_bar,
+                'target_springs_qty': target_springs_qty if not is_da else 0,
+                'error': f"Invalid geometric data: {e}. Using base values.",
+                'can_operate': None,
+            }
+
+        # Выполняем физический расчет
+        from pneumatic_actuators.services.pneumatic_calculator import PneumaticCalculator
+
+        result = PneumaticCalculator.calculate_actuator_data(
+            mechanism_type='rack_pinion',
+            is_target_sr=not is_da,
+            target_pressure_bar=target_pressure_bar,
+            target_springs_qty=target_springs_qty if not is_da else 0,
+            base_p_sr=base_pressure,
+            base_t_open_sr=base_time_open,
+            base_t_close_sr=base_time_close,
+            base_springs_qty=base_springs_qty,
+            base_p_da=base_p_da,
+            base_t_open_da=base_t_open_da,
+            piston_diameter=piston_diameter,
+            volume_liters=volume_liters,
+            valve_torque_nm=0
+        )
+
+        if result:
+            return {
+                'time_open': result['time_open_sec'],
+                'time_close': result['time_close_sec'],
+                'pressure_bar': target_pressure_bar,
+                'calculated': True,
+                'has_calculated_values': True,
+                'calculated_time_open': result['time_open_sec'],
+                'calculated_time_close': result['time_close_sec'],
+                'calculated_pressure_bar': target_pressure_bar,
+                'calculated_springs_qty': target_springs_qty if not is_da else 0,
+                'base_pressure': base_pressure,
+                'base_springs_qty': base_springs_qty,
+                'air_consumption': result.get('air_consumption_norm_liters'),
+                'can_operate': result.get('can_operate'),
+                'p_loss_springs': result.get('p_loss_springs_bar'),
+                'p_loss_valve': result.get('p_loss_valve_bar'),
+                'error': None,
+            }
+
+        # Если расчет не удался, возвращаем базовые значения
+        return {
+            'time_open': base_time_open,
+            'time_close': base_time_close,
+            'pressure_bar': base_pressure,
+            'calculated': False,
+            'has_calculated_values': False,
+            'calculated_time_open': None,
+            'calculated_time_close': None,
+            'calculated_pressure_bar': None,
+            'calculated_springs_qty': None,
+            'base_pressure': base_pressure,
+            'base_springs_qty': base_springs_qty,
+            'target_pressure_bar': target_pressure_bar,
+            'target_springs_qty': target_springs_qty if not is_da else 0,
+            'error': 'Calculation failed. Using base values.',
+            'can_operate': None,
+        }

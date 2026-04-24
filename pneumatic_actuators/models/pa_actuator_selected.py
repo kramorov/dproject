@@ -11,9 +11,11 @@ from tabulate import tabulate
 
 import logging
 from django.utils.html import format_html
+
+
 logger = logging.getLogger(__name__)
 
-from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+from pneumatic_actuators.models import PneumaticActuatorModelLineItem, PneumaticActuatorBody, PneumaticCloseTimeParameter
 from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE , \
     ACTUATOR_VARIETY_RP_DEFAULT_CODE
 # Добавляем импорт абстрактного класса
@@ -666,7 +668,30 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         import logging
         logger = logging.getLogger(__name__)
         logger.debug(f"logger get_description_data")
-        print(f"print get_description_data")
+
+        try:
+            print(f"Вызов get_description_data")
+            print(f"  body_id: {self.selected_model_line_item.body_id}")
+            print(f"  spring_qty: {self.selected_springs_qty}")
+            print(f"  pressure: None")
+            
+            ttc = PneumaticCloseTimeParameter.get_time_to_close(
+                self.selected_model_line_item.body_id,
+                self.selected_springs_qty,
+                pressure=None
+            )
+            print(f"print get_time_to_close ={ttc}")
+        except Exception as e:
+            import traceback
+            print(f"Ошибка в get_time_to_close:")
+            print(f"  body_id: {self.selected_model_line_item.body_id}")
+            print(f"  spring_qty: {self.selected_springs_qty}")
+            print(f"  pressure: None")
+            print(f"  Тип ошибки: {type(e).__name__}")
+            print(f"  Сообщение: {str(e)}")
+            print(f"  Стек вызовов:")
+            traceback.print_exc()
+            ttc = None
         data = {
             'model': {
                 'name': self.code if self.code else None
@@ -675,12 +700,14 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'selected_options': {},
             'body_specs': {},  # ПОЛЕ ДЛЯ ХАРАКТЕРИСТИК КОРПУСА
             'calculated_parameters': {  # НОВОЕ ПОЛЕ ДЛЯ РАСЧЕТНЫХ ПАРАМЕТРОВ
-                'weight': float(self.calculated_weight) if self.calculated_weight else None
+                'weight': float(self.calculated_weight) if self.calculated_weight else None,
+                # 'time_to_close': PneumaticActuatorBody.get_time_to_close(self.selected_model_line_item.body_id,
+                #                                                          self.selected_springs_qty,pressure=None)
             },
             'torque_thrust_table': None,
             'cert_data' : None
         }
-
+        print(f'Получено время: {data['calculated_parameters']['time_to_close']}')
         # Базовые свойства из модели
         if self.selected_model_line_item:
             if self.selected_model_line_item.brand:
