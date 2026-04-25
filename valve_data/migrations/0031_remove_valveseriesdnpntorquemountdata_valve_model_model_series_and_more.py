@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('client_requests', '0006_remove_valveselection_client_request_line_item_parent_and_more'),
+        # ('client_requests', '0006_remove_valveselection_client_request_line_item_parent_and_more'),
         ('valve_data', '0030_alter_valvelinemodeldata_valve_model_construction_length_and_more'),
     ]
 

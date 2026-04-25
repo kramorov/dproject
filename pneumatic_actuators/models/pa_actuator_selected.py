@@ -377,251 +377,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'actions' : self._get_actions()
         }
 
-    def get_full_data(self , include: Optional[List[str]] = None) -> Dict[str , Any] :
-        """
-        Полные данные для форм и API
-        """
-        if include is None :
-            include = ['form' , 'metadata' , 'related' , 'description_data']
-
-        # Базовые данные
-        data = {
-            'id' : self.id ,
-            'model' : self._get_model_name() ,
-            'app' : self._get_app_label() ,
-            'is_active' : self.is_active ,
-            'sorting_order' : self.sorting_order ,
-            'display' : self.get_display_data() ,
-            'compact' : self.get_compact_data() ,
-        }
-
-        if 'form' in include :
-            data['form'] = self._get_form_data()
-
-        if 'metadata' in include :
-            data['metadata'] = self._get_metadata()
-
-        if 'related' in include :
-            data['related'] = self._get_related_data()
-
-        if 'description_data' in include :
-            # Используем существующий метод, но в новом формате
-            data['description_data'] = self._get_structured_description_data()
-
-        return data
 
     # ==================== Вспомогательные методы ====================
-
-    def _get_form_data(self) -> Dict[str , Any] :
-        """Данные для форм"""
-        return {
-            'name' : self.name ,
-            'code' : self.code ,
-            'description' : self.description ,
-            'sorting_order' : self.sorting_order ,
-            'is_active' : self.is_active ,
-            'selected_model_id' : self.selected_model_line_item.id if self.selected_model_line_item else None ,
-            'selected_safety_position_id' : self.selected_safety_position.id if self.selected_safety_position else None ,
-            'selected_springs_qty_id' : self.selected_springs_qty.id if self.selected_springs_qty else None ,
-            'selected_temperature_id' : self.selected_temperature.id if self.selected_temperature else None ,
-            'selected_ip_id' : self.selected_ip.id if self.selected_ip else None ,
-            'selected_exd_id' : self.selected_exd.id if self.selected_exd else None ,
-            'selected_body_coating_id' : self.selected_body_coating.id if self.selected_body_coating else None ,
-            'selected_hand_wheel' : self.selected_hand_wheel.id if self.selected_hand_wheel else None ,
-        }
-
-
-    def _get_metadata(self) -> Dict[str , Any] :
-        """Метаданные для форм"""
-        return {
-            'field_schema' : [
-                {
-                    'name' : 'name' ,
-                    'type' : 'text' ,
-                    'required' : True ,
-                    'label' : _('Название привода') ,
-                    'help_text' : _('Название привода') ,
-                    'max_length' : 200 ,
-                    'widget' : 'text_input'
-                } ,
-                {
-                    'name' : 'code' ,
-                    'type' : 'text' ,
-                    'required' : False ,
-                    'label' : _('Код/Артикул') ,
-                    'help_text' : _('Код привода') ,
-                    'max_length' : 50 ,
-                    'widget' : 'text_input'
-                } ,
-                {
-                    'name' : 'description' ,
-                    'type' : 'text' ,
-                    'required' : False ,
-                    'label' : _('Описание') ,
-                    'help_text' : _('Описание привода') ,
-                    'widget' : 'textarea' ,
-                    'rows' : 4
-                } ,
-                {
-                    'name' : 'selected_model' ,
-                    'type' : 'foreign_key' ,
-                    'required' : True ,
-                    'label' : _('Модель') ,
-                    'help_text' : _('Модель пневмопривода') ,
-                    'model' : 'pneumatic_actuators.PneumaticActuatorModelLineItem' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'selected_safety_position' ,
-                    'type' : 'foreign_key' ,
-                    'required' : False ,
-                    'label' : _('Положение безопасности') ,
-                    'help_text' : _('Выбранное положение безопасности') ,
-                    'model' : 'pneumatic_actuators.PneumaticSafetyPositionOption' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'selected_springs_qty' ,
-                    'type' : 'foreign_key' ,
-                    'required' : False ,
-                    'label' : _('Количество пружин') ,
-                    'help_text' : _('Выбранное количество пружин') ,
-                    'model' : 'pneumatic_actuators.PneumaticSpringsQtyOption' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'selected_temperature' ,
-                    'type' : 'foreign_key' ,
-                    'required' : False ,
-                    'label' : _('Температурная опция') ,
-                    'help_text' : _('Выбранная температурная опция') ,
-                    'model' : 'pneumatic_actuators.PneumaticTemperatureOption' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'selected_ip' ,
-                    'type' : 'foreign_key' ,
-                    'required' : False ,
-                    'label' : _('Степень защиты IP') ,
-                    'help_text' : _('Выбранная степень защиты IP') ,
-                    'model' : 'pneumatic_actuators.PneumaticIpOption' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'selected_hand_wheel' ,
-                    'type' : 'foreign_key' ,
-                    'required' : False ,
-                    'label' : _('Ручной дублер') ,
-                    'help_text' : _('Тип установленного ручного дублера') ,
-                    'model' : 'pneumatic_actuators.PneumaticHandWheelOption' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'selected_exd' ,
-                    'type' : 'foreign_key' ,
-                    'required' : False ,
-                    'label' : _('Взрывозащита') ,
-                    'help_text' : _('Выбранная опция взрывозащиты') ,
-                    'model' : 'pneumatic_actuators.PneumaticExdOption' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'selected_body_coating' ,
-                    'type' : 'foreign_key' ,
-                    'required' : False ,
-                    'label' : _('Покрытие корпуса') ,
-                    'help_text' : _('Выбранное покрытие корпуса') ,
-                    'model' : 'pneumatic_actuators.PneumaticBodyCoatingOption' ,
-                    'widget' : 'select'
-                } ,
-                {
-                    'name' : 'sorting_order' ,
-                    'type' : 'number' ,
-                    'required' : False ,
-                    'label' : _('Порядок сортировки') ,
-                    'help_text' : _('Порядок сортировки в списке') ,
-                    'min_value' : -100 ,
-                    'max_value' : 100 ,
-                    'default' : 0
-                } ,
-                {
-                    'name' : 'is_active' ,
-                    'type' : 'boolean' ,
-                    'required' : False ,
-                    'label' : _('Активно') ,
-                    'help_text' : _('Активно свойство или нет') ,
-                    'default' : True
-                }
-            ] ,
-            'validation_rules' : {
-                'name' : {
-                    'required' : True ,
-                    'min_length' : 2 ,
-                    'max_length' : 200
-                } ,
-                'code' : {
-                    'max_length' : 50
-                }
-            }
-        }
-
-    def _get_related_data(self) -> Dict[str , Any] :
-        """Связанные данные"""
-        related_data = {}
-
-        # Данные модели
-        if self.selected_model_line_item and hasattr(self.selected_model_line_item , 'get_compact_data') :
-            related_data['selected_model'] = self.selected_model_line_item.get_compact_data()
-
-        # Данные опций
-        option_fields = [
-            'selected_safety_position' ,
-            'selected_springs_qty' ,
-            'selected_temperature' ,
-            'selected_ip' ,
-            'selected_exd' ,
-            'selected_body_coating',
-            'selected_hand_wheel' ,
-        ]
-
-        for field_name in option_fields :
-            field = getattr(self , field_name)
-            if field and hasattr(field , 'get_compact_data') :
-                related_data[field_name] = field.get_compact_data()
-
-        # Доступные опции
-        related_data['available_options'] = self.get_available_options()
-
-        return related_data
-
-    def _get_structured_description_data(self) -> Dict[str , Any] :
-        """
-        Структурированные данные описания
-        Конвертируем существующий get_description_data в новый формат
-        """
-        # Используем существующий метод
-        existing_data = self.get_description_data()
-
-        # Конвертируем в новый формат
-        structured_data = {
-            'basic_info' : {
-                'model' : existing_data.get('model' , {}) ,
-                'basic_properties' : existing_data.get('basic_properties' , {}) ,
-                'selected_options' : existing_data.get('selected_options' , {}) ,
-            } ,
-            'technical_specs' : {
-                'body_specs' : existing_data.get('body_specs' , {}) ,
-                'calculated_parameters' : existing_data.get('calculated_parameters' , {}) ,
-                'torque_thrust_table' : existing_data.get('torque_thrust_table') ,
-            } ,
-            'formatted' : {
-                'short' : self._generate_short_description() ,
-                'technical' : self._generate_tech_description_for_display() ,
-                'html' : self._generate_html_description() ,
-            }
-        }
-
-        return structured_data
 
     def _generate_tech_description_for_display(self) -> str :
         """
@@ -645,163 +402,274 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             desc_parts.append(f'<p><strong>Описание модели:</strong> {self.selected_model_line_item.description}</p>')
 
         return '\n'.join(desc_parts)
-    # def get_description_preview(self) :
-    #     """Краткий предпросмотр описания"""
-    #     if not self.description :
-    #         return "Нет описания"
-    #
-    #     # Первые 100 символов
-    #     preview = self.description[:100]
-    #     if len(self.description) > 100 :
-    #         preview += "..."
-    #
-    #     return format_html(
-    #         '<span title="{}">{}</span>' ,
-    #         self.description.replace('"' , '&quot;') ,
-    #         preview
-    #     )
-    #
-    # get_description_preview.short_description = "Описание"
 
-    def get_description_data(self) -> Dict[str, Any]:
-        """Получить структурированные данные для описания"""
+    def get_description_data(self) -> Dict[str , Dict[str , Any]] :
+        """Получить унифицированную плоскую структуру данных для описания"""
         import logging
+        import traceback
         logger = logging.getLogger(__name__)
         logger.debug(f"logger get_description_data")
 
-        try:
-            print(f"Вызов get_description_data")
-            print(f"  body_id: {self.selected_model_line_item.body_id}")
-            print(f"  spring_qty: {self.selected_springs_qty}")
-            print(f"  pressure: None")
-            
+        data = {}
+
+        # ==================== ДАННЫЕ ИЗ ГЛАВНОЙ МОДЕЛИ ====================
+        try :
+            data['model_name'] = {
+                'category' : 'main' ,
+                'title' : 'Модель' ,
+                'data' : self.code if self.code else None ,
+                'display_data' : self.code if self.code else 'Не указано' ,
+                'text_data' : f"Модель: {self.code}" if self.code else None
+            }
+            logger.debug(f"model_name added: {self.code}")
+        except Exception as e :
+            logger.error(f"Error adding model_name: {e}")
+            traceback.print_exc()
+
+        # ==================== РАСЧЕТНЫЕ ПАРАМЕТРЫ ====================
+        try :
             ttc = PneumaticCloseTimeParameter.get_time_to_close(
-                self.selected_model_line_item.body_id,
-                self.selected_springs_qty,
+                self.selected_model_line_item.body_id if self.selected_model_line_item else None ,
+                self.selected_springs_qty ,
                 pressure=None
             )
-            print(f"print get_time_to_close ={ttc}")
-        except Exception as e:
-            import traceback
-            print(f"Ошибка в get_time_to_close:")
-            print(f"  body_id: {self.selected_model_line_item.body_id}")
-            print(f"  spring_qty: {self.selected_springs_qty}")
-            print(f"  pressure: None")
-            print(f"  Тип ошибки: {type(e).__name__}")
-            print(f"  Сообщение: {str(e)}")
-            print(f"  Стек вызовов:")
+            logger.debug(f"time_to_close calculated: {ttc}")
+        except Exception as e :
+            logger.error(f"Error in get_time_to_close: {e}")
             traceback.print_exc()
             ttc = None
-        data = {
-            'model': {
-                'name': self.code if self.code else None
-            },
-            'basic_properties': {},
-            'selected_options': {},
-            'body_specs': {},  # ПОЛЕ ДЛЯ ХАРАКТЕРИСТИК КОРПУСА
-            'calculated_parameters': {  # НОВОЕ ПОЛЕ ДЛЯ РАСЧЕТНЫХ ПАРАМЕТРОВ
-                'weight': float(self.calculated_weight) if self.calculated_weight else None,
-                # 'time_to_close': PneumaticActuatorBody.get_time_to_close(self.selected_model_line_item.body_id,
-                #                                                          self.selected_springs_qty,pressure=None)
-            },
-            'torque_thrust_table': None,
-            'cert_data' : None
-        }
-        print(f'Получено время: {data['calculated_parameters']['time_to_close']}')
-        # Базовые свойства из модели
-        if self.selected_model_line_item:
-            if self.selected_model_line_item.brand:
-                data['basic_properties']['brand'] = self.selected_model_line_item.brand.name
-            if self.selected_model_line_item.pneumatic_actuator_variety:
-                data['basic_properties'][
-                    'pneumatic_actuator_variety'] = self.selected_model_line_item.pneumatic_actuator_variety.name
-            if self.selected_model_line_item.default_output_type:
-                data['basic_properties']['default_output_type'] = self.selected_model_line_item.default_output_type.name
-            if self.selected_model_line_item.pneumatic_actuator_construction_variety:
-                data['basic_properties'][
-                    'pneumatic_actuator_construction_variety'] = self.selected_model_line_item.pneumatic_actuator_construction_variety.name
-            # if self.selected_model.default_hand_wheel:
-            #     data['basic_properties']['selected_hand_wheel'] = self.selected_model.selected_hand_wheel.name
 
-        # Опции через model_line_item
-        # print(f"\n=== DEBUG: Checking model_line_item options ===")
-        # print(f"Has selected_safety_position: {hasattr(self , 'selected_safety_position')}")
-        if self.selected_safety_position:
-            data['selected_options']['safety_position'] = {
-                'name': self.selected_safety_position.safety_position.name,
-                'description': self.selected_safety_position.description
+        try :
+            data['weight'] = {
+                'category' : 'calculated' ,
+                'title' : 'Вес' ,
+                'data' : float(self.calculated_weight) if self.calculated_weight else None ,
+                'display_data' : f"{float(self.calculated_weight):.1f} кг" if self.calculated_weight else 'Не указано' ,
+                'text_data' : f"Вес: {float(self.calculated_weight):.1f} кг" if self.calculated_weight else None
             }
-        # print(f"Has selected_springs_qty: {hasattr(self , 'selected_springs_qty')}")
-        if self.selected_springs_qty:
-            data['selected_options']['springs_qty'] = {
-                'name': self.selected_springs_qty.springs_qty.name,
-                'description': self.selected_springs_qty.description
+            logger.debug(f"weight added: {self.calculated_weight}")
+        except Exception as e :
+            logger.error(f"Error adding weight: {e}")
+            traceback.print_exc()
+
+        try :
+            data['time_to_close'] = {
+                'category' : 'calculated' ,
+                'title' : 'Время закрытия' ,
+                'data' : ttc ,
+                'display_data' : f"{ttc:.1f} сек" if ttc else 'Не указано' ,
+                'text_data' : f"Время закрытия: {ttc:.1f} сек" if ttc else None
+            }
+            logger.debug(f"time_to_close added: {ttc}")
+        except Exception as e :
+            logger.error(f"Error adding time_to_close: {e}")
+            traceback.print_exc()
+
+        # ==================== БАЗОВЫЕ СВОЙСТВА ====================
+        try :
+            data['brand'] = {
+                'category' : 'basic_properties' ,
+                'title' : 'Бренд' ,
+                'data' : self.selected_model_line_item.brand.id if self.selected_model_line_item and self.selected_model_line_item.brand else None ,
+                'display_data' : self.selected_model_line_item.brand.name if self.selected_model_line_item and self.selected_model_line_item.brand else 'Не указано' ,
+                'text_data' : f"Бренд: {self.selected_model_line_item.brand.name}" if self.selected_model_line_item and self.selected_model_line_item.brand else None
+            }
+            logger.debug(
+                f"brand added: {self.selected_model_line_item.brand.name if self.selected_model_line_item and self.selected_model_line_item.brand else None}")
+        except Exception as e :
+            logger.error(f"Error adding brand: {e}")
+            traceback.print_exc()
+
+        try :
+            data['actuator_variety'] = {
+                'category' : 'basic_properties' ,
+                'title' : 'Вид привода' ,
+                'data' : self.selected_model_line_item.pneumatic_actuator_variety.id if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_variety else None ,
+                'display_data' : self.selected_model_line_item.pneumatic_actuator_variety.name if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_variety else 'Не указано' ,
+                'text_data' : f"Вид привода: {self.selected_model_line_item.pneumatic_actuator_variety.name}" if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_variety else None
+            }
+            logger.debug(
+                f"actuator_variety added: {self.selected_model_line_item.pneumatic_actuator_variety.name if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_variety else None}")
+        except Exception as e :
+            logger.error(f"Error adding actuator_variety: {e}")
+            traceback.print_exc()
+
+        try :
+            data['output_type'] = {
+                'category' : 'basic_properties' ,
+                'title' : 'Тип выхода' ,
+                'data' : self.selected_model_line_item.default_output_type.id if self.selected_model_line_item and self.selected_model_line_item.default_output_type else None ,
+                'display_data' : self.selected_model_line_item.default_output_type.name if self.selected_model_line_item and self.selected_model_line_item.default_output_type else 'Не указано' ,
+                'text_data' : f"Тип выхода: {self.selected_model_line_item.default_output_type.name}" if self.selected_model_line_item and self.selected_model_line_item.default_output_type else None
+            }
+            logger.debug(
+                f"output_type added: {self.selected_model_line_item.default_output_type.name if self.selected_model_line_item and self.selected_model_line_item.default_output_type else None}")
+        except Exception as e :
+            logger.error(f"Error adding output_type: {e}")
+            traceback.print_exc()
+
+        try :
+            data['construction_variety'] = {
+                'category' : 'basic_properties' ,
+                'title' : 'Конструкция' ,
+                'data' : self.selected_model_line_item.pneumatic_actuator_construction_variety.id if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_construction_variety else None ,
+                'display_data' : self.selected_model_line_item.pneumatic_actuator_construction_variety.name if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_construction_variety else 'Не указано' ,
+                'text_data' : f"Конструкция: {self.selected_model_line_item.pneumatic_actuator_construction_variety.name}" if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_construction_variety else None
+            }
+            logger.debug(
+                f"construction_variety added: {self.selected_model_line_item.pneumatic_actuator_construction_variety.name if self.selected_model_line_item and self.selected_model_line_item.pneumatic_actuator_construction_variety else None}")
+        except Exception as e :
+            logger.error(f"Error adding construction_variety: {e}")
+            traceback.print_exc()
+
+        # ==================== ВЫБРАННЫЕ ОПЦИИ ====================
+        try :
+            data['safety_position'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Положение безопасности' ,
+                'data' : self.selected_safety_position.id if self.selected_safety_position else None ,
+                'display_data' : self.selected_safety_position.safety_position.name if self.selected_safety_position else 'Не указано' ,
+                'text_data' : f"Положение безопасности: {self.selected_safety_position.safety_position.name}" if self.selected_safety_position else None
+            }
+            logger.debug(
+                f"safety_position added: {self.selected_safety_position.safety_position.name if self.selected_safety_position else None}")
+        except Exception as e :
+            logger.error(f"Error adding safety_position: {e}")
+            traceback.print_exc()
+
+        try :
+            data['springs_qty'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Количество пружин' ,
+                'data' : self.selected_springs_qty.id if self.selected_springs_qty else None ,
+                'display_data' : self.selected_springs_qty.springs_qty.name if self.selected_springs_qty else 'Не указано' ,
+                'text_data' : f"Количество пружин: {self.selected_springs_qty.springs_qty.name}" if self.selected_springs_qty else None
+            }
+            logger.debug(
+                f"springs_qty added: {self.selected_springs_qty.springs_qty.name if self.selected_springs_qty else None}")
+        except Exception as e :
+            logger.error(f"Error adding springs_qty: {e}")
+            traceback.print_exc()
+
+        try :
+            data['temperature'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Температурное исполнение' ,
+                'data' : self.selected_temperature.id if self.selected_temperature else None ,
+                'display_data' : str(self.selected_temperature) if self.selected_temperature else 'Не указано' ,
+                'text_data' : f"Температурное исполнение: {self.selected_temperature}" if self.selected_temperature else None
+            }
+            logger.debug(f"temperature added: {self.selected_temperature if self.selected_temperature else None}")
+        except Exception as e :
+            logger.error(f"Error adding temperature: {e}")
+            traceback.print_exc()
+
+        try :
+            data['ip'] = {
+                'category' : 'selected_options' ,
+                'title' : 'IP защита' ,
+                'data' : self.selected_ip.id if self.selected_ip else None ,
+                'display_data' : str(self.selected_ip) if self.selected_ip else 'Не указано' ,
+                'text_data' : f"IP защита: {self.selected_ip}" if self.selected_ip else None
+            }
+            logger.debug(f"ip added: {self.selected_ip if self.selected_ip else None}")
+        except Exception as e :
+            logger.error(f"Error adding ip: {e}")
+            traceback.print_exc()
+
+        try :
+            data['exd'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Exd взрывозащита' ,
+                'data' : self.selected_exd.id if self.selected_exd else None ,
+                'display_data' : str(self.selected_exd) if self.selected_exd else 'Не указано' ,
+                'text_data' : f"Exd взрывозащита: {self.selected_exd}" if self.selected_exd else None
+            }
+            logger.debug(f"exd added: {self.selected_exd if self.selected_exd else None}")
+        except Exception as e :
+            logger.error(f"Error adding exd: {e}")
+            traceback.print_exc()
+
+        try :
+            data['body_coating'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Покрытие корпуса' ,
+                'data' : self.selected_body_coating.id if self.selected_body_coating else None ,
+                'display_data' : str(self.selected_body_coating) if self.selected_body_coating else 'Не указано' ,
+                'text_data' : f"Покрытие корпуса: {self.selected_body_coating}" if self.selected_body_coating else None
+            }
+            logger.debug(f"body_coating added: {self.selected_body_coating if self.selected_body_coating else None}")
+        except Exception as e :
+            logger.error(f"Error adding body_coating: {e}")
+            traceback.print_exc()
+
+        try :
+            data['hand_wheel'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Ручной дублер' ,
+                'data' : self.selected_hand_wheel.id if self.selected_hand_wheel else None ,
+                'display_data' : str(self.selected_hand_wheel) if self.selected_hand_wheel else 'Не указано' ,
+                'text_data' : f"Ручной дублер: {self.selected_hand_wheel}" if self.selected_hand_wheel else None
+            }
+            logger.debug(f"hand_wheel added: {self.selected_hand_wheel if self.selected_hand_wheel else None}")
+        except Exception as e :
+            logger.error(f"Error adding hand_wheel: {e}")
+            traceback.print_exc()
+
+        # ==================== ХАРАКТЕРИСТИКИ КОРПУСА (BODY) ====================
+        try :
+            if self.selected_model_line_item and self.selected_model_line_item.body :
+                body_data = self.selected_model_line_item.body.get_description_data()
+                for key , value in body_data.items() :
+                    data[f'body_{key}'] = value
+                logger.debug(f"body_data added, keys: {list(body_data.keys())}")
+            else :
+                logger.debug("No body data available")
+        except Exception as e :
+            logger.error(f"Error adding body_data: {e}")
+            traceback.print_exc()
+
+        # ==================== ТАБЛИЦА МОМЕНТОВ/УСИЛИЙ ====================
+        try :
+            spring_qty = self.selected_springs_qty.springs_qty if self.selected_springs_qty else None
+            ncno_code = self.selected_safety_position.safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
+            construction_variety_code = self.selected_model_line_item.pneumatic_actuator_construction_variety.code if self.selected_model_line_item else ACTUATOR_VARIETY_RP_DEFAULT_CODE
+            da_sr_code = self.selected_model_line_item.pneumatic_actuator_variety.code if self.selected_model_line_item else None
+
+            logger.debug(
+                f"torque table params: spring_qty={spring_qty}, ncno_code={ncno_code}, construction_variety_code={construction_variety_code}, da_sr_code={da_sr_code}")
+
+            from pneumatic_actuators.models import BodyThrustTorqueTable
+            torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
+                current_body=self.selected_model_line_item.body if self.selected_model_line_item else None ,
+                spring_qty_list=[spring_qty] if spring_qty else None ,
+                ncno_code=ncno_code ,
+                construction_variety_code=construction_variety_code ,
+                da_sr_code=da_sr_code
+            )
+
+            data['torque_thrust_table'] = {
+                'category' : 'torque' ,
+                'title' : 'Таблица моментов/усилий' ,
+                'data' : torque_data ,
+                'display_data' : 'Данные доступны' if torque_data else 'Не указано' ,
+                'text_data' : None
+            }
+            logger.debug(f"torque_thrust_table added, data available: {bool(torque_data)}")
+        except Exception as e :
+            logger.error(f"Error getting torque/thrust table data: {e}")
+            traceback.print_exc()
+            data['torque_thrust_table'] = {
+                'category' : 'torque' ,
+                'title' : 'Таблица моментов/усилий' ,
+                'data' : None ,
+                'display_data' : 'Ошибка загрузки' ,
+                'text_data' : None
             }
 
-        # Опции через model_line
-        if self.selected_temperature:
-            data['selected_options']['temperature'] = {
-                'name': str(self.selected_temperature),
-                'description': self.selected_temperature.description
-            }
-
-        if self.selected_ip:
-            data['selected_options']['ip'] = {
-                'name': str(self.selected_ip),
-                'description': self.selected_ip.description
-            }
-
-        if self.selected_exd:
-            data['selected_options']['exd'] = {
-                'name': str(self.selected_exd),
-                'description': self.selected_exd.description
-            }
-
-        if self.selected_body_coating:
-            data['selected_options']['body_coating'] = {
-                'name': str(self.selected_body_coating),
-                'description': self.selected_body_coating.description
-            }
-        if self.selected_hand_wheel:
-            data['selected_options']['hand_wheel'] = {
-                'name': str(self.selected_hand_wheel),
-                'description': self.selected_hand_wheel.description
-            }
-
-        # Характеристики корпуса
-        if self.selected_model_line_item and self.selected_model_line_item.body:
-            data['body_specs'] = self.selected_model_line_item.body.get_description_data()
-
-        # Таблица моментов/усилий
-        if self.selected_model_line_item and self.selected_model_line_item.body:
-            try:
-                if self.selected_springs_qty:
-                    spring_qty = self.selected_springs_qty.springs_qty
-                else:
-                    spring_qty = None
-
-                ncno_code = self.selected_safety_position.safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
-                construction_variety_code = self.selected_model_line_item.pneumatic_actuator_construction_variety.code if self.selected_model_line_item else ACTUATOR_VARIETY_RP_DEFAULT_CODE
-                da_sr_code = self.selected_model_line_item.pneumatic_actuator_variety.code if self.selected_model_line_item else None
-                # Получаем структурированные данные
-                from pneumatic_actuators.models import BodyThrustTorqueTable
-                torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
-                    current_body=self.selected_model_line_item.body,
-                    spring_qty_list=[spring_qty] if spring_qty else None,
-                    ncno_code=ncno_code,
-                    construction_variety_code=construction_variety_code, da_sr_code=da_sr_code
-                )
-
-                data['torque_thrust_table'] = torque_data
-                print(f"data['torque_thrust_table'] {data['torque_thrust_table']}")
-            except Exception as e:
-                logger.error(f"Error getting torque/thrust table data: {e}")
-                data['torque_thrust_table'] = {
-                    'error': str(e),
-                    'format': 'error'
-                }
-
+        logger.debug(f"get_description_data completed, total keys: {len(data)}")
         return data
+
     def _generate_short_description(self) -> str:
         """Сгенерировать краткое описание привода из структурированных данных
         записывается в поле description
@@ -900,174 +768,405 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         short_description+="\n".join(desc_parts)
         return short_description
 
-    def _generate_tech_description(self) -> str:
-        """Сгенерировать описание привода из структурированных данных"""
-        import re  # Добавляем импорт
+    def _generate_short_description(self) -> str :
+        """Сгенерировать краткое описание привода из структурированных данных
+        записывается в поле description
+        Основное предполагаемое использование - подстановка в КП в название номенклатуры.
+        """
+        data = self.get_description_data()
+        print(data)
 
+        # Модель
+        model_name = data.get('model_name' , {}).get('data')
+        if not model_name :
+            return "Модель: не выбрана"
+
+        short_description = f"{model_name}-"
+
+        # Базовые свойства
+        output_type = data.get('output_type' , {}).get('display_data' , 'пневмопривод')
+        short_description += f"Тип: {output_type}"
+
+        # Вид привода (DA/SR) и пружины
+        actuator_variety = data.get('actuator_variety' , {}).get('data')
+        if actuator_variety == 'SR' :
+            springs_qty = data.get('springs_qty' , {}).get('display_data' , '')
+            short_description += f" с возвратной пружиной, кол-во пружин {springs_qty};"
+        else :
+            short_description += f" двойного действия;"
+
+        # Выбранные опции
+        safety_position = data.get('safety_position' , {}).get('display_data' , '')
+        short_description += f" Положение безопасности: {safety_position};"
+
+        temperature = data.get('temperature' , {}).get('display_data' , '')
+        short_description += f" Темп.исп. {temperature};"
+
+        ip = data.get('ip' , {}).get('display_data' , '')
+        short_description += f" {ip};"
+
+        exd = data.get('exd' , {}).get('display_data' , '')
+        short_description += f" {exd};"
+
+        body_coating = data.get('body_coating' , {}).get('display_data' , '')
+        short_description += f" Покрытие корпуса: {body_coating};"
+
+        hand_wheel = data.get('hand_wheel' , {}).get('display_data' , '')
+        short_description += f" Ручной дублер на корпусе: {hand_wheel};"
+
+        # Технические характеристики корпуса (с префиксом body_)
+        min_pressure = data.get('body_min_pressure' , {}).get('display_data' , '')
+        max_pressure = data.get('body_max_pressure' , {}).get('display_data' , '')
+        short_description += f" Мин/Макс давл.{min_pressure}/{max_pressure};"
+
+        air_usage_open = data.get('body_air_usage_open' , {}).get('display_data' , '')
+        air_usage_close = data.get('body_air_usage_close' , {}).get('display_data' , '')
+        short_description += f" Расход откр/закр,л:{air_usage_open}/{air_usage_close};"
+
+        # Информация о штоке
+        stem_shape = data.get('body_stem_shape' , {}).get('display_data' , '')
+        stem_size = data.get('body_stem_size' , {}).get('display_data' , '')
+        short_description += f" Шток:{stem_shape}/{stem_size};"
+
+        mounting_plates = data.get('body_mounting_plates' , {}).get('display_data' , '')
+        short_description += f" Площадка:{mounting_plates};"
+
+        # Вес
+        weight = data.get('weight' , {}).get('display_data' , '')
+        short_description += f" Вес:{weight};"
+
+        # Таблица моментов/усилий
+        torque_table = data.get('torque_thrust_table' , {})
+        if torque_table and torque_table.get('data') :
+            table_data = torque_table.get('data')
+            desc_parts = []
+
+            if isinstance(table_data , dict) :
+                table_config = table_data.get('table_config' , {})
+                data_by_spring = table_data.get('data' , {}).get('by_spring' , {})
+
+                if data_by_spring :
+                    visible_fields = table_config.get('visible_fields' , [])
+                    pressure_order = table_config.get('pressure_order' , [])
+                    spring_order = table_config.get('spring_order' , [])
+                    torque_format = table_config.get('format' , {}).get('torque' , {})
+
+                    # Создаем заголовки
+                    headers = ["Пружины"]
+                    for pressure_code in pressure_order :
+                        for field in visible_fields :
+                            headers.append(f"{pressure_code}\n{field.upper()}")
+
+                    # Создаем строки таблицы
+                    table_rows = []
+                    for spring_code in spring_order :
+                        if spring_code in data_by_spring :
+                            row = [spring_code]
+                            spring_data = data_by_spring[spring_code]
+                            pressures_data = spring_data.get('pressures' , {})
+
+                            for pressure_code in pressure_order :
+                                if pressure_code in pressures_data :
+                                    pressure_values = pressures_data[pressure_code]
+                                    for field in visible_fields :
+                                        value = pressure_values.get(field)
+                                        if value is not None :
+                                            precision = torque_format.get('precision' , 1)
+                                            row.append(f"{value:.{precision}f}")
+                                        else :
+                                            row.append("—")
+                                else :
+                                    for _ in visible_fields :
+                                        row.append("—")
+
+                            table_rows.append(row)
+
+                    # Формируем таблицу
+                    if table_rows :
+                        desc_parts.append("\nТаблица моментов:")
+                        from tabulate import tabulate
+                        desc_parts.append(tabulate(
+                            table_rows ,
+                            headers=headers ,
+                            tablefmt="grid" ,
+                            stralign="center" ,
+                            numalign="center"
+                        ))
+                        desc_parts.append(f"\nПримечание: значения в {torque_format.get('unit' , 'Нм')}")
+
+            if desc_parts :
+                short_description += "\n" + "\n".join(desc_parts)
+
+        return short_description
+
+    def _generate_tech_description(self) -> str :
+        """Сгенерировать описание привода из плоской структуры данных"""
+        import re
         data = self.get_description_data()
         desc_parts = []
 
-        # Модель
-        if data['model']['name']:
-            desc_parts.append(f"Модель: {data['model']['name']}")
-        else:
+        # ==================== МОДЕЛЬ ====================
+        model_name = data.get('model_name' , {}).get('display_data')
+        if model_name and model_name != 'Не указано' :
+            desc_parts.append(f"Модель: {model_name}")
+        else :
             desc_parts.append("Модель: не выбрана")
 
-        # Базовые свойства
-        for prop_name, prop_value in data['basic_properties'].items():
-            if prop_value:
-                display_name = {
-                    'brand': 'Бренд',
-                    'pneumatic_actuator_variety': 'Тип привода',
-                    'default_output_type': 'Тип работы',
-                    'pneumatic_actuator_construction_variety': 'Тип конструкции',
-                    # 'default_hand_wheel': 'Ручной дублер'
-                }.get(prop_name, prop_name)
-                desc_parts.append(f"{display_name}: {prop_value}")
-        # print(f"# Базовые свойства {desc_parts}")
-        # Выбранные опции
-        for option_type, option_data in data['selected_options'].items():
-            display_name = {
-                'safety_position': 'Положение безопасности',
-                'springs_qty': 'Количество пружин',
-                'temperature': 'Температурный диапазон',
-                'ip': 'Степень защиты IP',
-                'exd': 'Взрывозащита',
-                'body_coating': 'Покрытие корпуса',
-                'hand_wheel': 'Встроенный ручной дублер'
-            }.get(option_type, option_type)
+        # ==================== БАЗОВЫЕ СВОЙСТВА ====================
+        brand = data.get('brand' , {}).get('display_data')
+        if brand and brand != 'Не указано' :
+            desc_parts.append(f"Бренд: {brand}")
 
-            desc_parts.append(f"{display_name}: {option_data['name']}")
-        # print(f"# Выбранные опции {desc_parts}")
-        # Характеристики корпуса
-        if data.get('body_specs'):
-            body_data = data['body_specs']
+        actuator_variety = data.get('actuator_variety' , {}).get('display_data')
+        if actuator_variety and actuator_variety != 'Не указано' :
+            desc_parts.append(f"Тип привода: {actuator_variety}")
 
-            # Технические характеристики корпуса
-            tech_specs = body_data.get('technical_specs', {})
-            if tech_specs:
-                desc_parts.append("Характеристики корпуса:")
+        output_type = data.get('output_type' , {}).get('display_data')
+        if output_type and output_type != 'Не указано' :
+            desc_parts.append(f"Тип работы: {output_type}")
 
-                for spec_name, spec_value in tech_specs.items():
-                    display_name = {
-                        'piston_diameter': 'Диаметр поршня',
-                        'turn_angle': 'Угол поворота',
-                        'turn_tuning_limit': 'Ограничитель поворота',
-                        'weight_spring': 'Вес пружины',
-                        'min_pressure': 'Минимальное давление',
-                        'max_pressure': 'Максимальное давление',
-                        'air_usage_open': 'Расход воздуха (открытие)',
-                        'air_usage_close': 'Расход воздуха (закрытие)'
-                    }.get(spec_name, spec_name)
-                    desc_parts.append(f"  {display_name}: {spec_value}")
-            # print(f"# tech_specs {desc_parts}")
-            # Информация о штоке
-            mounting_specs = body_data.get('mounting_specs', {})
-            if mounting_specs:
-                desc_parts.append("Присоединение к арматуре:")
-                if 'stem' in mounting_specs:
-                    stem_data = mounting_specs['stem']
-                    stem_parts = []
-                    if 'shape' in stem_data:
-                        stem_parts.append(f"форма: {stem_data['shape']}")
-                    if 'size' in stem_data:
-                        stem_parts.append(f"размер: {stem_data['size']}")
-                    if 'max_height' in stem_data:
-                        stem_parts.append(f"макс. высота: {stem_data['max_height']}")
-                    if 'max_diameter' in stem_data:
-                        stem_parts.append(f"макс. диаметр: {stem_data['max_diameter']}")
-                    if stem_parts:
-                        desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
+        construction_variety = data.get('construction_variety' , {}).get('display_data')
+        if construction_variety and construction_variety != 'Не указано' :
+            desc_parts.append(f"Тип конструкции: {construction_variety}")
 
-                if 'mounting_plates' in mounting_specs:
-                    desc_parts.append(f"  Монтажные площадки: {', '.join(mounting_specs['mounting_plates'])}")
-            # print(f"# mounting_specs {desc_parts}")
-            # Подключения корпуса
-            pipe_connections_specs = body_data.get('pipe_connections_specs', {})
-            if pipe_connections_specs:
-                desc_parts.append("Подключения корпуса:")  # Убрали \n
+        # ==================== ВЫБРАННЫЕ ОПЦИИ ====================
+        selected_options = []
 
-                if 'thread_in' in pipe_connections_specs:
-                    desc_parts.append(f"  Пневмовход: {pipe_connections_specs['thread_in']}")
-                if 'thread_out' in pipe_connections_specs:
-                    desc_parts.append(f"  Пневмовыход: {pipe_connections_specs['thread_out']}")
-                if 'pneumatic_connections' in pipe_connections_specs:
-                    desc_parts.append(f"  Типы пневмоподключений: {', '.join(pipe_connections_specs['pneumatic_connections'])}")
+        safety = data.get('safety_position' , {}).get('display_data')
+        if safety and safety != 'Не указано' :
+            selected_options.append(f"Положение безопасности: {safety}")
 
+        springs = data.get('springs_qty' , {}).get('display_data')
+        if springs and springs != 'Не указано' :
+            selected_options.append(f"Количество пружин: {springs}")
 
-        # Расчетные параметры
-        calc_params = data.get('calculated_parameters', {})
-        if calc_params.get('weight'):
-            desc_parts.append(f"Вес: {calc_params['weight']} кг")
+        temperature = data.get('temperature' , {}).get('display_data')
+        if temperature and temperature != 'Не указано' :
+            selected_options.append(f"Температурный диапазон: {temperature}")
 
-        # Таблица моментов/усилий - УБРАЛИ ОДНУ ИЗ ДУБЛИРУЮЩИХ СТРОК
-        if 'torque_thrust_table' in data:
-            table_data = data['torque_thrust_table']
+        ip = data.get('ip' , {}).get('display_data')
+        if ip and ip != 'Не указано' :
+            selected_options.append(f"Степень защиты IP: {ip}")
 
-            if isinstance(table_data, dict):
-                table_config = table_data.get('table_config', {})
-                data_by_spring = table_data.get('data', {}).get('by_spring', {})
+        exd = data.get('exd' , {}).get('display_data')
+        if exd and exd != 'Не указано' :
+            selected_options.append(f"Взрывозащита: {exd}")
 
-                if data_by_spring:
-                    visible_fields = table_config.get('visible_fields', [])
-                    pressure_order = table_config.get('pressure_order', [])
-                    spring_order = table_config.get('spring_order', [])
-                    torque_format = table_config.get('format', {}).get('torque', {})
+        coating = data.get('body_coating' , {}).get('display_data')
+        if coating and coating != 'Не указано' :
+            selected_options.append(f"Покрытие корпуса: {coating}")
 
-                    desc_parts.append("Таблица моментов:")  # Убрали \n
+        hand_wheel = data.get('hand_wheel' , {}).get('display_data')
+        if hand_wheel and hand_wheel != 'Не указано' :
+            selected_options.append(f"Ручной дублер: {hand_wheel}")
 
-                    # Начинаем HTML таблицу
-                    desc_parts.append('<table border="1" style="border-collapse: collapse; margin: 10px 0;">')
-                    desc_parts.append('<thead><tr><th rowspan="2">Пружины</th>')
+        if selected_options :
+            desc_parts.append("\nВыбранные опции:")
+            desc_parts.extend(f"  {opt}" for opt in selected_options)
 
-                    # Первая строка заголовка - давления
-                    for pressure_code in pressure_order:
-                        col_span = len(visible_fields)
-                        desc_parts.append(f'<th colspan="{col_span}">{pressure_code}</th>')
-                    desc_parts.append('</tr>')
+        # ==================== ХАРАКТЕРИСТИКИ КОРПУСА ====================
+        body_specs = []
 
-                    # Вторая строка заголовка - поля
-                    desc_parts.append('<tr>')
-                    for _ in pressure_order:
-                        for field in visible_fields:
-                            desc_parts.append(f'<th>{field.upper()}</th>')
-                    desc_parts.append('</tr></thead>')
+        piston = data.get('body_piston_diameter' , {}).get('display_data')
+        if piston and piston != 'Не указано' :
+            body_specs.append(f"Диаметр поршня: {piston}")
 
-                    # Тело таблицы
-                    desc_parts.append('<tbody>')
-                    for spring_code in spring_order:
-                        if spring_code in data_by_spring:
-                            desc_parts.append(f'<tr><td>{spring_code}</td>')
-                            spring_data = data_by_spring[spring_code]
-                            pressures_data = spring_data.get('pressures', {})
+        turn_angle = data.get('body_turn_angle' , {}).get('display_data')
+        if turn_angle and turn_angle != 'Не указано' :
+            body_specs.append(f"Угол поворота: {turn_angle}")
 
-                            for pressure_code in pressure_order:
-                                if pressure_code in pressures_data:
-                                    pressure_values = pressures_data[pressure_code]
-                                    for field in visible_fields:
-                                        value = pressure_values.get(field)
-                                        if value is not None:
-                                            precision = torque_format.get('precision', 1)
-                                            desc_parts.append(f'<td>{value:.{precision}f}</td>')
-                                        else:
-                                            desc_parts.append('<td>—</td>')
-                                else:
-                                    for _ in visible_fields:
+        turn_limit = data.get('body_turn_tuning_limit' , {}).get('display_data')
+        if turn_limit and turn_limit != 'Не указано' :
+            body_specs.append(f"Ограничитель поворота: {turn_limit}")
+
+        weight_spring = data.get('body_weight_spring' , {}).get('display_data')
+        if weight_spring and weight_spring != 'Не указано' :
+            body_specs.append(f"Вес пружины: {weight_spring}")
+
+        min_pressure = data.get('body_min_pressure' , {}).get('display_data')
+        max_pressure = data.get('body_max_pressure' , {}).get('display_data')
+        if min_pressure or max_pressure :
+            body_specs.append(f"Давление: {min_pressure} / {max_pressure}")
+
+        air_open = data.get('body_air_usage_open' , {}).get('display_data')
+        air_close = data.get('body_air_usage_close' , {}).get('display_data')
+        if air_open or air_close :
+            body_specs.append(f"Расход воздуха: открытие {air_open}, закрытие {air_close}")
+
+        if body_specs :
+            desc_parts.append("\nХарактеристики корпуса:")
+            desc_parts.extend(f"  {spec}" for spec in body_specs)
+
+        # ==================== ИНФОРМАЦИЯ О ШТОКЕ ====================
+        stem_parts = []
+        stem_shape = data.get('body_stem_shape' , {}).get('display_data')
+        if stem_shape and stem_shape != 'Не указано' :
+            stem_parts.append(f"форма: {stem_shape}")
+
+        stem_size = data.get('body_stem_size' , {}).get('display_data')
+        if stem_size and stem_size != 'Не указано' :
+            stem_parts.append(f"размер: {stem_size}")
+
+        stem_height = data.get('body_max_stem_height' , {}).get('display_data')
+        if stem_height and stem_height != 'Не указано' :
+            stem_parts.append(f"макс. высота: {stem_height}")
+
+        stem_diameter = data.get('body_max_stem_diameter' , {}).get('display_data')
+        if stem_diameter and stem_diameter != 'Не указано' :
+            stem_parts.append(f"макс. диаметр: {stem_diameter}")
+
+        if stem_parts :
+            desc_parts.append("\nПрисоединение к арматуре:")
+            desc_parts.append(f"  Шток: {', '.join(stem_parts)}")
+
+        # Монтажные площадки
+        mounting_plates = data.get('body_mounting_plates' , {}).get('display_data')
+        if mounting_plates and mounting_plates != 'Не указано' :
+            desc_parts.append(f"  Монтажные площадки: {mounting_plates}")
+
+        # ==================== ПОДКЛЮЧЕНИЯ ====================
+        connections = []
+        thread_in = data.get('body_thread_in' , {}).get('display_data')
+        if thread_in and thread_in != 'Не указано' :
+            connections.append(f"Пневмовход: {thread_in}")
+
+        thread_out = data.get('body_thread_out' , {}).get('display_data')
+        if thread_out and thread_out != 'Не указано' :
+            connections.append(f"Пневмовыход: {thread_out}")
+
+        pneum_conn = data.get('body_pneumatic_connections' , {}).get('display_data')
+        if pneum_conn and pneum_conn != 'Не указано' :
+            connections.append(f"Типы пневмоподключений: {pneum_conn}")
+
+        if connections :
+            desc_parts.append("\nПодключения корпуса:")
+            desc_parts.extend(f"  {conn}" for conn in connections)
+
+        # ==================== ВЕС ====================
+        weight = data.get('weight' , {}).get('display_data')
+        if weight and weight != 'Не указано' :
+            desc_parts.append(f"\nВес: {weight}")
+
+        # ==================== ТАБЛИЦА МОМЕНТОВ/УСИЛИЙ ====================
+        torque_table = data.get('torque_thrust_table' , {})
+        table_data = torque_table.get('data')
+
+        if table_data and isinstance(table_data , dict) :
+            table_config = table_data.get('table_config' , {})
+            data_by_spring = table_data.get('data' , {}).get('by_spring' , {})
+
+            if data_by_spring :
+                visible_fields = table_config.get('visible_fields' , [])
+                pressure_order = table_config.get('pressure_order' , [])
+                spring_order = table_config.get('spring_order' , [])
+                torque_format = table_config.get('format' , {}).get('torque' , {})
+
+                desc_parts.append("\nТаблица моментов:")
+
+                # Начинаем HTML таблицу
+                desc_parts.append('<table border="1" style="border-collapse: collapse; margin: 10px 0; width: 100%;">')
+                desc_parts.append('<thead>')
+                desc_parts.append('<tr><th rowspan="2">Пружины</th>')
+
+                for pressure_code in pressure_order :
+                    col_span = len(visible_fields)
+                    desc_parts.append(f'<th colspan="{col_span}">{pressure_code}</th>')
+                desc_parts.append('</tr>')
+
+                desc_parts.append('<tr>')
+                for _ in pressure_order :
+                    for field in visible_fields :
+                        desc_parts.append(f'<th>{field.upper()}</th>')
+                desc_parts.append('</tr>')
+                desc_parts.append('</thead>')
+
+                desc_parts.append('<tbody>')
+                for spring_code in spring_order :
+                    if spring_code in data_by_spring :
+                        desc_parts.append(f'<tr><td>{spring_code}</td>')
+                        spring_data = data_by_spring[spring_code]
+                        pressures_data = spring_data.get('pressures' , {})
+
+                        for pressure_code in pressure_order :
+                            if pressure_code in pressures_data :
+                                pressure_values = pressures_data[pressure_code]
+                                for field in visible_fields :
+                                    value = pressure_values.get(field)
+                                    if value is not None :
+                                        precision = torque_format.get('precision' , 1)
+                                        desc_parts.append(f'<td>{value:.{precision}f}</td>')
+                                    else :
                                         desc_parts.append('<td>—</td>')
+                            else :
+                                for _ in visible_fields :
+                                    desc_parts.append('<td>—</td>')
+                        desc_parts.append('</tr>')
+                desc_parts.append('</tbody>')
+                desc_parts.append('</table>')
 
-                            desc_parts.append('</tr>')
-                    desc_parts.append('</tbody></table>')
-
-                    desc_parts.append(f"Примечание: значения в {torque_format.get('unit', 'Нм')}")  # Убрали \n
+                desc_parts.append(f"Примечание: значения в {torque_format.get('unit' , 'Нм')}")
 
         # Собираем и чистим текст
         full_text = "\n".join(desc_parts)
-
-        # Убираем множественные пустые строки (2 и более подряд)
-        cleaned_text = re.sub(r'\n{2,}', '\n', full_text)
+        cleaned_text = re.sub(r'\n{3,}' , '\n\n' , full_text)
 
         return cleaned_text
 
+    def _get_structured_description_data(self) -> Dict[str , Any] :
+        """
+        Структурированные данные описания для API
+        """
+        data = self.get_description_data()
+
+        # Преобразуем плоскую структуру в группированную для API
+        structured_data = {
+            'basic_info' : {
+                'model' : data.get('model_name' , {}).get('display_data') ,
+                'brand' : data.get('brand' , {}).get('display_data') ,
+                'actuator_variety' : data.get('actuator_variety' , {}).get('display_data') ,
+                'output_type' : data.get('output_type' , {}).get('display_data') ,
+                'construction_variety' : data.get('construction_variety' , {}).get('display_data') ,
+            } ,
+            'selected_options' : {
+                'safety_position' : data.get('safety_position' , {}).get('display_data') ,
+                'springs_qty' : data.get('springs_qty' , {}).get('display_data') ,
+                'temperature' : data.get('temperature' , {}).get('display_data') ,
+                'ip' : data.get('ip' , {}).get('display_data') ,
+                'exd' : data.get('exd' , {}).get('display_data') ,
+                'body_coating' : data.get('body_coating' , {}).get('display_data') ,
+                'hand_wheel' : data.get('hand_wheel' , {}).get('display_data') ,
+            } ,
+            'technical_specs' : {
+                'piston_diameter' : data.get('body_piston_diameter' , {}).get('display_data') ,
+                'turn_angle' : data.get('body_turn_angle' , {}).get('display_data') ,
+                'turn_tuning_limit' : data.get('body_turn_tuning_limit' , {}).get('display_data') ,
+                'weight_spring' : data.get('body_weight_spring' , {}).get('display_data') ,
+                'min_pressure' : data.get('body_min_pressure' , {}).get('display_data') ,
+                'max_pressure' : data.get('body_max_pressure' , {}).get('display_data') ,
+                'air_usage_open' : data.get('body_air_usage_open' , {}).get('display_data') ,
+                'air_usage_close' : data.get('body_air_usage_close' , {}).get('display_data') ,
+                'stem_shape' : data.get('body_stem_shape' , {}).get('display_data') ,
+                'stem_size' : data.get('body_stem_size' , {}).get('display_data') ,
+                'max_stem_height' : data.get('body_max_stem_height' , {}).get('display_data') ,
+                'max_stem_diameter' : data.get('body_max_stem_diameter' , {}).get('display_data') ,
+                'mounting_plates' : data.get('body_mounting_plates' , {}).get('display_data') ,
+                'thread_in' : data.get('body_thread_in' , {}).get('display_data') ,
+                'thread_out' : data.get('body_thread_out' , {}).get('display_data') ,
+                'pneumatic_connections' : data.get('body_pneumatic_connections' , {}).get('display_data') ,
+            } ,
+            'calculated_parameters' : {
+                'weight' : data.get('weight' , {}).get('display_data') ,
+                'time_to_close' : data.get('time_to_close' , {}).get('display_data') ,
+            } ,
+            'torque_thrust_table' : data.get('torque_thrust_table' , {}).get('data') ,
+            'formatted' : {
+                'short' : self._generate_short_description() ,
+                'technical' : self._generate_tech_description() ,
+                'html' : self._generate_html_description() ,
+            }
+        }
+
+        return structured_data
     @property
     def generated_model_item_code(self) -> str:
         """Сгенерировать артикул по шаблону из model_line"""

@@ -1,0 +1,9 @@
+# client_requests/admin/__init__.py
+from .request_status_admin import ClientRequestStatusAdmin
+from .request_item_type_admin import RequestItemTypeAdmin
+from .request_item_admin import ClientRequestItemAdmin
+from .client_request_admin import ClientRequestAdmin
+from .comment_admin import CommentTypeAdmin, ClientRequestCommentAdmin, RequestItemCommentAdmin
+from .change_log_admin import RequestChangeLogAdmin
+from .snapshot_admin import RequestSnapshotAdmin
+from .request_number_counter_admin import RequestNumberCounterAdmin

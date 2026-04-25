@@ -5,7 +5,6 @@ import importlib
 from graphql import extend_schema
 
 from cable_glands.graphql.schema import cableGlandsSchema
-from client_requests.graphql.schema import clientRequestsSchema
 from clients.graphql.schema import clientsSchema
 from params.graphql.schema import paramsSchema
 from producers.graphql.schema import producersSchema
@@ -17,7 +16,6 @@ from media_library.graphql.schema import mediaLibrarySchema
 
 APP_SCHEMAS = [
     'params.graphql.schema.paramsSchema',
-    'clients.graphql.schema.clientsSchema',
     'producers.graphql.schema.producersSchema',
     'valve_data.graphql.schema.valveDataSchema',
     'media_library.graphql.schema.mediaLibrarySchema',
@@ -29,7 +27,6 @@ APP_SCHEMAS = [
 class Query(
     # paramsSchema.Query,
     clientsSchema.Query,
-    clientRequestsSchema.Query,
     cableGlandsSchema.Query,
     producersSchema.Query,
     paramsSchema.Query,
@@ -43,7 +40,6 @@ class Query(
 class Mutation(
     # paramsSchema.Mutation,
     clientsSchema.Mutation,
-    clientRequestsSchema.Mutation,
     cableGlandsSchema.Mutation,
     producersSchema.Mutation,
     # eaSchema.Mutation,

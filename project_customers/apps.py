@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 from django.utils.translation import gettext_lazy as _
 
-class ClientRequestsConfig(AppConfig):
+class ProjectCustomersConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'client_requests'
-    verbose_name = _("Запросы клиентов")
+    name = 'project_customers'
+    verbose_name = _("Клиенты и настройки")
