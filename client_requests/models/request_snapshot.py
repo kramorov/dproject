@@ -55,7 +55,7 @@ class RequestSnapshot(models.Model) :
         ordering = ['-snapshot_number']
 
     def __str__(self) :
-        return f"{self.request.request_number} - Версия {self.snapshot_number}"
+        return f"{self.request.code} - Версия {self.snapshot_number}"
 
     def save_snapshot(self) :
         """

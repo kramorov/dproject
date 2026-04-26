@@ -269,6 +269,16 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        'clients': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'client_request': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
 

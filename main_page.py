@@ -4,7 +4,8 @@ warnings.filterwarnings("ignore", message="Model '.*' was already registered")
 
 import streamlit as st
 from db_init import init_django
-from datetime import datetime
+from django.core.cache import cache
+from datetime import date, timedelta, datetime
 
 # Инициализируем Django ДО импорта моделей
 init_django()
@@ -78,6 +79,14 @@ MAIN_SECTIONS = {
         "page": None,
         "enabled": True,
         "order": 7
+    },
+    "client_requests": {
+        "title": "Запросы клиентов",
+        "icon": "💰",
+        "description": "Запросы клиентов",
+        "page": 'pages/request_list.py',
+        "enabled": True,
+        "order": 8
     }
 }
 
@@ -110,6 +119,13 @@ SIDEBAR_SECTIONS = {
         "page": None,
         "enabled": True,
         "order": 4
+    },
+    "client_requests": {
+        "title": "Запросы клиентов",
+        "icon": "🔌",
+        "page": 'pages/request_list.py',
+        "enabled": True,
+        "order": 5
     }
 }
 
@@ -120,43 +136,72 @@ SIDEBAR_SECTIONS = dict(sorted(SIDEBAR_SECTIONS.items(), key=lambda x: x[1]["ord
 
 # ==================== ФУНКЦИИ ДЛЯ КУРСОВ ВАЛЮТ ====================
 
-def get_currency_rates():
+def get_currency_rates(force_update=False) :
     """
-    Получить курсы валют с ЦБ РФ
-    Позже здесь будет реальный API запрос
+    Получить курсы валют с ЦБ РФ через модель ExchangeRate
+
+    Args:
+        force_update: Принудительно обновить курсы с ЦБ
     """
-    # TODO: Реализовать запрос к API ЦБ РФ
-    # Пока возвращаем заглушки
-    return {
-        "USD": 92.50,
-        "EUR": 99.80,
-        "CNY": 12.75,
-        "updated_at": datetime.now().strftime("%d.%m.%Y")
+    from price.models import ExchangeRate
+
+    today = date.today()
+    cache_key = f"currency_rates_{today.isoformat()}"
+
+    # Пытаемся получить из кэша
+    if not force_update :
+        cached_rates = cache.get(cache_key)
+        if cached_rates :
+            return cached_rates
+
+    # Получаем курсы на сегодня
+    rates = ExchangeRate.get_or_fetch_rates_for_date(today)
+
+    # Если курсов нет (выходной), берем последний доступный
+    if not rates :
+        last_rate = ExchangeRate.objects.order_by('-date').first()
+        if last_rate :
+            rates = ExchangeRate.get_or_fetch_rates_for_date(last_rate.date)
+            update_date = last_rate.date
+        else :
+            # Заглушки при отсутствии данных
+            result = {
+                "USD" : 92.50 ,
+                "EUR" : 99.80 ,
+                "CNY" : 12.75 ,
+                "updated_at" : datetime.now().strftime("%d.%m.%Y")
+            }
+            cache.set(cache_key , result , 3600)  # кэш на час
+            return result
+    else :
+        update_date = today
+
+    result = {
+        "USD" : float(rates.get("USD" , 0)) ,
+        "EUR" : float(rates.get("EUR" , 0)) ,
+        "CNY" : float(rates.get("CNY" , 0)) ,
+        "updated_at" : update_date.strftime("%d.%m.%Y")
     }
+
+    # Кэшируем на 6 часов
+    cache.set(cache_key , result , 21600)
+
+    return result
 
 
 def render_currency_block():
-    """Рендер блока с курсами валют в правом верхнем углу"""
+    """Рендер блока с курсами валют"""
     rates = get_currency_rates()
 
-    # Создаем HTML для отображения курсов
-    currency_html = f"""
-    <div style="
-        background-color: #f0f2f6;
-        padding: 8px 15px;
-        border-radius: 20px;
-        text-align: right;
-        font-size: 14px;
-        font-family: monospace;
-    ">
-        <span style="font-weight: bold;">📅 {rates['updated_at']}</span><br>
-        <span>💵 USD: {rates['USD']:.2f}</span>&nbsp;&nbsp;
-        <span>💶 EUR: {rates['EUR']:.2f}</span>&nbsp;&nbsp;
-        <span>💴 CNY: {rates['CNY']:.2f}</span>
-    </div>
-    """
-
-    return currency_html
+    with st.container():
+        st.markdown(f"**Курс ЦБ валют на {rates['updated_at']}**")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**USD**<br>{rates['USD']:.2f}", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"**EUR**<br>{rates['EUR']:.2f}", unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"**CNY**<br>{rates['CNY']:.2f}", unsafe_allow_html=True)
 
 
 def render_sidebar():
@@ -281,8 +326,7 @@ def main():
     with header_col1:
         st.markdown("# 🔩 Система управления пневматикой")
     with header_col2:
-        currency_html = render_currency_block()
-        st.markdown(currency_html, unsafe_allow_html=True)
+        render_currency_block()
 
     st.markdown("---")
 

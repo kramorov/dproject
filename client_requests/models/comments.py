@@ -136,4 +136,4 @@ class Meta :
 
 
 def __str__(self) :
-    return f"{self.request_item.request_parent.request_number} - Поз.{self.request_item.item_no} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    return f"{self.request_item.request_parent.code} - Поз.{self.request_item.item_no} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"

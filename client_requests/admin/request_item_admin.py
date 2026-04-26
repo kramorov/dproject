@@ -24,7 +24,7 @@ class ClientRequestItemAdmin(admin.ModelAdmin) :
     ]
 
     search_fields = [
-        'request_parent__request_number' ,
+        'request_parent__code' ,
         'request_line_text' ,
         'request_line_ol'
     ]

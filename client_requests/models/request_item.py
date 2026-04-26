@@ -121,7 +121,8 @@ class ClientRequestItem(models.Model) :
         verbose_name=_("Статус позиции") ,
         help_text=_("Текущий статус позиции")
     )
-
+    sorting_order = models.IntegerField(default=0 , verbose_name=_("Порядок сортировки") ,
+                                        help_text=_('Порядок сортировки в списке'))
     class Meta :
         verbose_name = _("Позиция запроса")
         verbose_name_plural = _("Позиции запроса")
@@ -130,7 +131,7 @@ class ClientRequestItem(models.Model) :
 
     def __str__(self) :
         type_name = self.item_type.name if self.item_type else "Не определен"
-        return f"{self.request_parent.request_number} - Поз.{self.item_no} ({type_name}) v{self.version}"
+        return f"{self.request_parent.code} - Поз.{self.item_no} ({type_name}) v{self.version}"
 
     def create_new_version(self , change_comment , changed_by , **updated_fields) :
         """

@@ -8,8 +8,9 @@ from django.utils import timezone
 
 from clients.models import Company , CompanyPerson
 from djangoProject1.common_models.abstract_models import CreatedAtMixin , UpdatedAtMixin
-from project_customers.utils import get_user_template # Исправить потом код этой функции на аутентификацию
-
+from project_customers.models import ProjectCustomer
+from project_customers.utils import get_user_template , \
+    get_streamlit_customer_user
 
 class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
     """
@@ -20,10 +21,16 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
         default=uuid.uuid4 ,
         editable=False
     )
+    name = models.CharField(
+        max_length=100 ,
+        blank=True , null=True ,
+        verbose_name=_("Название заявки") ,
+        help_text=_("Краткое название для идентификации")
+    )
 
-    request_number = models.CharField(
+    code = models.CharField(
         max_length=50 ,
-        unique=True ,
+        unique=False ,
         verbose_name=_("Номер заявки") ,
         help_text=_("Уникальный номер заявки (генерируется автоматически)")
     )
@@ -31,15 +38,8 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
     client_request_number = models.CharField(
         max_length=100 ,
         blank=True , null=True ,
-        verbose_name=_("Номер заявки клиента") ,
-        help_text=_("Номер заявки в системе клиента (если предоставлен)")
-    )
-
-    symbolic_code = models.CharField(
-        max_length=100 ,
-        blank=True , null=True ,
-        verbose_name=_("Название заявки") ,
-        help_text=_("Краткое название для идентификации")
+        verbose_name=_("Название заявки клиента") ,
+        help_text=_("Название заявки в системе клиента (если предоставлен)")
     )
 
     end_customer = models.CharField(
@@ -86,11 +86,11 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
     )
 
     internal_notes = models.TextField(
-        blank=True ,
+        blank=True ,null=True ,
         verbose_name=_("Внутренние заметки")
     )
     # Заказы в 1С
-    onec_orders = models.TextField(
+    orders_1c = models.TextField(
         blank=True , null=True ,
         verbose_name=_("Заказы в 1С") ,
         help_text=_("Номера заказов в 1С (можно несколько, разделитель - запятая)")
@@ -106,7 +106,7 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
     class Meta :
         verbose_name = _("Запрос клиента")
         verbose_name_plural = _("Запросы клиентов")
-        ordering = ['-request_date' , 'request_number']
+        ordering = ['-request_date' , 'code']
 
     created_by = models.ForeignKey(
         'project_customers.ProjectCustomerUser' ,
@@ -138,15 +138,15 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
     )
 
     def __str__(self) :
-        if self.symbolic_code :
-            return f"{self.request_number} - {self.symbolic_code}"
-        return self.request_number
+        if self.code :
+            return f"{self.code} - {self.name}"
+        return self.code
 
     def save(self , *args , **kwargs) :
         """Переопределяем save для автоматической генерации номера"""
         # Генерируем номер только если его еще нет
-        if not self.request_number :
-            self.request_number = self.generate_request_number()
+        if not self.code :
+            self.code = self.generate_request_number()
         super().save(*args , **kwargs)
 
     def generate_request_number(self) :
@@ -261,3 +261,105 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
     def get_current_snapshot(self) :
         """Получить текущий утвержденный снапшот"""
         return self.snapshots.filter(is_approved=True).first()
+
+    @classmethod
+    def get_for_user(cls , filters=None) :
+        """
+        Получить запросы для пользователя
+
+        Args:
+            filters: dict с фильтрами
+                {
+                    'customer_user': ProjectCustomerUser,  # пользователь (если None - берем из сессии)
+                    'code': str,                          # номер заявки
+                    'client_request_number': str,         # Название заявки клиента
+                    'symbolic_code': str,                 # название заявки
+                    'status_id': int,                     # ID статуса
+                    'company_id': int,                    # ID компании клиента
+                }
+
+        Returns:
+            QuerySet: отфильтрованные запросы
+        """
+
+
+        # Получаем пользователя из filters или из сессии
+        customer_user = filters.pop('customer_user' , None) if filters else None
+
+        if customer_user is None :
+            customer_user , customer_company = get_streamlit_customer_user()
+        else :
+            customer_company = customer_user.customer
+
+        if not customer_user :
+            return cls.objects.none()
+
+        # Фильтр по владельцу (только запросы своей компании и пользователя)
+        queryset = cls.objects.filter(
+            project_customer_request_owner=customer_company ,
+            project_customer_user_request_owner=customer_user
+        ).select_related(
+            'request_status' ,
+            'request_from_client_company' ,
+            'project_customer_request_owner' ,
+            'project_customer_user_request_owner'
+        ).order_by('-request_date' , '-created_at')
+
+        if filters :
+            if filters.get('code') :
+                queryset = queryset.filter(code__icontains=filters['code'])
+
+            if filters.get('client_request_number') :
+                queryset = queryset.filter(client_request_number__icontains=filters['client_request_number'])
+
+            if filters.get('symbolic_code') :
+                queryset = queryset.filter(symbolic_code__icontains=filters['symbolic_code'])
+
+            if filters.get('status_id') :
+                queryset = queryset.filter(request_status_id=filters['status_id'])
+
+            if filters.get('company_id') :
+                queryset = queryset.filter(request_from_client_company_id=filters['company_id'])
+
+        return queryset
+
+    @classmethod
+    def get_company_choices(cls , owner_user=None) :
+        """
+        Получить список компаний-клиентов для выпадающего списка
+        Только компа odels.pyи, которые делали запросы
+
+        Args:
+            owner_user: ProjectCustomerUser - пользователь-владелец сделки
+
+        Returns:
+            list: список словарей [{'id': id, 'name': name}, ...]
+        """
+        from project_customers.utils import get_streamlit_customer_user
+        from clients.models import Company
+
+        # Получаем пользователя из сессии или используем переданного
+        if owner_user :
+            customer_user = owner_user
+            customer_company = owner_user.customer
+        else :
+            customer_user , customer_company = get_streamlit_customer_user()
+
+        if not customer_user :
+            return []
+
+        # Базовый фильтр
+        queryset = cls.objects.filter(project_customer_request_owner=customer_company)
+
+        # Получаем уникальные компании клиентов из запросов
+        company_ids = queryset.exclude(
+            request_from_client_company__isnull=True
+        ).values_list('request_from_client_company_id' , flat=True).distinct()
+
+        # Возвращаем список словарей для selectbox
+        companies = Company.objects.filter(
+            id__in=company_ids ,
+            is_active=True
+        ).order_by('name')  # ← используем 'name', а не 'company_name'
+
+        return [{'id' : c.id , 'name' : c.name or c.full_name} for c in companies]

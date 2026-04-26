@@ -67,7 +67,7 @@ class RequestFile(models.Model) :
         ordering = ['-uploaded_at']
 
     def __str__(self) :
-        return f"{self.request.request_number} - {self.file.name}"
+        return f"{self.request.code} - {self.file.name}"
 
     def filename(self) :
         return self.file.name.split('/')[-1]

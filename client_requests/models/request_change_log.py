@@ -73,4 +73,4 @@ class RequestChangeLog(models.Model) :
         ordering = ['-changed_at']
 
     def __str__(self) :
-        return f"{self.request.request_number} - {self.changed_at.strftime('%Y-%m-%d %H:%M')}"
+        return f"{self.request.code} - {self.changed_at.strftime('%Y-%m-%d %H:%M')}"

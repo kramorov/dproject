@@ -1,6 +1,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class ClientRequestStatus(models.Model) :
     """
@@ -28,3 +31,19 @@ class ClientRequestStatus(models.Model) :
 
     def __str__(self) :
         return self.name
+
+    @classmethod
+    def get_choices(cls) :
+        """Получить список статусов для выпадающего списка"""
+        return cls.objects.filter(is_active=True).order_by('sorting_order')
+
+    @classmethod
+    def get_default_status(cls) :
+        """Получить статус по умолчанию (Новый)"""
+        logger.error(f"get_default_status")
+        try :
+            found=cls.objects.get(code='new')
+            logger.error(f'get_default_status found={found}')
+            return found
+        except cls.DoesNotExist :
+            return cls.objects.first()

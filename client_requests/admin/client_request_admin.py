@@ -11,12 +11,12 @@ from ..models import ClientRequest
 @admin.register(ClientRequest)
 class ClientRequestAdmin(admin.ModelAdmin) :
     list_display = [
-        'request_number' ,
-        'symbolic_code' ,
+        'code' ,
+        'name' ,
         'request_status' ,
         'request_date' ,
         'request_from_client_company' ,
-        'onec_orders_preview' ,
+        'orders_1c_preview' ,
         'bitrix_deal_id' ,
         'items_count'
     ]
@@ -28,16 +28,16 @@ class ClientRequestAdmin(admin.ModelAdmin) :
     ]
 
     search_fields = [
-        'request_number' ,
-        'symbolic_code' ,
+        'code' ,
+        'name' ,
         'client_request_number' ,
         'request_text' ,
-        'onec_orders' ,
+        'orders_1c' ,
         'bitrix_deal_id'
     ]
 
     readonly_fields = [
-        'request_number' ,
+        'code' ,
         'created_at' ,
         'updated_at' ,
         'items_link'
@@ -45,7 +45,7 @@ class ClientRequestAdmin(admin.ModelAdmin) :
 
     fieldsets = (
         (_('Номер и статус') , {
-            'fields' : ('request_number' , 'client_request_number' , 'symbolic_code' , 'request_status')
+            'fields' : ('code' , 'client_request_number' , 'name' , 'request_status')
         }) ,
         (_('Клиент') , {
             'fields' : ('request_from_client_company' , 'request_responsible_person' , 'end_customer')
@@ -57,7 +57,7 @@ class ClientRequestAdmin(admin.ModelAdmin) :
             'fields' : ('request_date' , 'required_by_date')
         }) ,
         (_('Интеграции') , {
-            'fields' : ('onec_orders' , 'bitrix_deal_id')
+            'fields' : ('orders_1c' , 'bitrix_deal_id')
         }) ,
         (_('Позиции') , {
             'fields' : ('items_link' ,)
@@ -68,13 +68,13 @@ class ClientRequestAdmin(admin.ModelAdmin) :
         }) ,
     )
 
-    def onec_orders_preview(self , obj) :
+    def orders_1c_preview(self , obj) :
         """Предпросмотр заказов в 1С"""
-        if obj.onec_orders :
+        if obj.orders_1c :
             return obj.onec_orders[:50] + '...' if len(obj.onec_orders) > 50 else obj.onec_orders
         return '-'
 
-    onec_orders_preview.short_description = _("Заказы в 1С")
+    orders_1c_preview.short_description = _("Заказы в 1С")
 
     def items_link(self , obj) :
         """Ссылка на позиции заявки"""
@@ -96,7 +96,7 @@ class ClientRequestAdmin(admin.ModelAdmin) :
         for obj in queryset :
             # Создаем копию
             obj.pk = None
-            obj.request_number = ''
+            obj.code = ''
             obj.save()
 
     def save_model(self , request , obj , form , change) :

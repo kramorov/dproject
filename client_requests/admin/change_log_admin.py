@@ -20,7 +20,7 @@ class RequestChangeLogAdmin(admin.ModelAdmin) :
     ]
 
     search_fields = [
-        'request__request_number' ,
+        'request__code' ,
         'change_comment'
     ]
 
