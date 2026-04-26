@@ -44,11 +44,6 @@ class ClientRequestItem(models.Model) :
     )
 
     # Исходные данные из запроса клиента
-    source_request_line_number = models.IntegerField(
-        null=True , blank=True ,
-        verbose_name=_("Номер строки в исходном запросе") ,
-        help_text=_("Номер строки в первичном тексте запроса")
-    )
 
     request_line_ol = models.CharField(
         max_length=255 ,
@@ -121,8 +116,7 @@ class ClientRequestItem(models.Model) :
         verbose_name=_("Статус позиции") ,
         help_text=_("Текущий статус позиции")
     )
-    sorting_order = models.IntegerField(default=0 , verbose_name=_("Порядок сортировки") ,
-                                        help_text=_('Порядок сортировки в списке'))
+
     class Meta :
         verbose_name = _("Позиция запроса")
         verbose_name_plural = _("Позиции запроса")
@@ -150,7 +144,6 @@ class ClientRequestItem(models.Model) :
             is_current=True ,
             parent_version=self ,
             item_type=self.item_type ,  # копируем тип
-            source_request_line_number=self.source_request_line_number ,
             request_line_ol=self.request_line_ol ,
             request_line_text=self.request_line_text ,
             change_comment=change_comment ,

@@ -64,3 +64,10 @@ class RequestItemType(models.Model) :
 
     def __str__(self) :
         return self.name
+
+    @classmethod
+    def get_choices(cls) :
+        """
+        Получить список активных типов подбора для выпадающего списка
+        """
+        return cls.objects.filter(is_active=True).order_by('sort_order' , 'symbolic_code')

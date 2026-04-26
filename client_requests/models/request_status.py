@@ -40,10 +40,7 @@ class ClientRequestStatus(models.Model) :
     @classmethod
     def get_default_status(cls) :
         """Получить статус по умолчанию (Новый)"""
-        logger.error(f"get_default_status")
         try :
-            found=cls.objects.get(code='new')
-            logger.error(f'get_default_status found={found}')
-            return found
+            return cls.objects.get(code='new')
         except cls.DoesNotExist :
             return cls.objects.first()

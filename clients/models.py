@@ -112,19 +112,19 @@ class Company(models.Model) :
         else :
             customer_user , project_customer = get_streamlit_customer_user()
 
-        if not customer_user or not project_customer :
-            logger.error(
-                f"No customer_user or project_customer found. customer_user: {customer_user}, project_customer: {project_customer}")
-            return []
-
-        logger.error(f"get_choices - project_customer: {project_customer} (type: {type(project_customer)})")
+        # if not customer_user or not project_customer :
+        #     logger.error(
+        #         f"No customer_user or project_customer found. customer_user: {customer_user}, project_customer: {project_customer}")
+        #     return []
+        #
+        # logger.error(f"get_choices - project_customer: {project_customer} (type: {type(project_customer)})")
 
         companies = cls.objects.filter(
             project_customer_request_owner=project_customer ,
             is_active=True
         ).order_by('name')
 
-        logger.error(f"Found {companies.count()} companies")
+        # logger.error(f"Found {companies.count()} companies")
 
         return [{'id' : c.id , 'name' : c.name} for c in companies]
 
@@ -141,11 +141,11 @@ class Company(models.Model) :
             customer_user , project_customer = get_streamlit_customer_user()
 
         if not customer_user or not project_customer :
-            logger.error(f"No customer_user or project_customer found")
+            logger.error(f"No customer_user or project_customer found Company.get_person_choices")
             return []
 
-        logger.error(f"get_person_choices - company_id: {company_id}")
-        logger.error(f"project_customer: {project_customer} (type: {type(project_customer)})")
+        # logger.error(f"get_person_choices - company_id: {company_id}")
+        # logger.error(f"project_customer: {project_customer} (type: {type(project_customer)})")
 
         # Базовый фильтр по владельцу
         persons = CompanyPerson.objects.filter(
@@ -153,19 +153,19 @@ class Company(models.Model) :
             is_active=True
         )
 
-        logger.error(f"Total persons (by owner): {persons.count()}")
+        # logger.error(f"Total persons (by owner): {persons.count()}")
 
         if company_id :
             persons = persons.filter(employee_company_id=company_id)
-            logger.error(f"After filter by company_id={company_id}: {persons.count()}")
-        else :
-            logger.error("No company_id filter applied")
+            # logger.error(f"After filter by company_id={company_id}: {persons.count()}")
+        # else :
+            # logger.error("No company_id filter applied")
 
         persons = persons.order_by('name')
 
         # Возвращаем ID как строки для единообразия
         persons_list = [{'id' : str(p.id) , 'name' : p.name} for p in persons]
-        logger.error(f"Final persons list with IDs (as strings): {persons_list}")
+        # logger.error(f"Final persons list with IDs (as strings): {persons_list}")
 
         return persons_list
 

@@ -44,7 +44,7 @@ class ClientRequestItemAdmin(admin.ModelAdmin) :
             'fields' : ('item_no' , 'item_type' , 'status')
         }) ,
         (_('Исходные данные') , {
-            'fields' : ('request_line_text' , 'request_line_ol' , 'source_request_line_number')
+            'fields' : ('request_line_text' , 'request_line_ol' )
         }) ,
         (_('Версионирование') , {
             'fields' : ('version' , 'is_current' , 'parent_version' , 'change_comment' , 'changed_by' , 'changed_at')
