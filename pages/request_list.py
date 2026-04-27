@@ -12,16 +12,9 @@ st.set_page_config(
     layout="wide"
 )
 
-
-def get_current_user():
-    """Получить текущего пользователя"""
-    customer_user , customer_company = get_streamlit_customer_user()
-    return customer_user , customer_company
-
-
 def render_filters():
     """Рендер фильтров"""
-    current_user, current_user_company = get_current_user()
+    # current_user, current_user_company = get_current_user()
 
     with st.expander("🔍 Фильтры", expanded=False):
         col1, col2, col3 = st.columns(3)
@@ -85,10 +78,10 @@ def render_filters():
 
 def render_create_form() :
     """Рендер формы создания"""
-    current_user , current_user_company = get_current_user()
+    current_user , current_user_company = get_streamlit_customer_user()
 
     with st.form("create_request_form") :
-        st.markdown("### ➕ Новый запрос клиента")
+        st.markdown("### ➕ Новый запрос клиента (page request_list)")
 
         col1 , col2 = st.columns(2)
         with col1 :
@@ -140,7 +133,9 @@ def render_create_form() :
             request.save()
 
             st.success(f"✅ Запрос {request.code} создан!")
-
+            # Очищаем флаг ДО перехода
+            if 'create_new_request' in st.session_state:
+                del st.session_state.create_new_request
             # Переходим на страницу редактирования
             st.session_state.edit_request_id = request.id
             st.session_state.create_new_request = False
@@ -271,10 +266,10 @@ def render_create_button():
 def main():
     st.title("📋 Запросы клиентов")
 
-    current_user , current_user_company = get_streamlit_customer_user()
-    if not current_user:
-        st.error("❌ Пользователь не найден")
-        return
+    # current_user , current_user_company = get_streamlit_customer_user()
+    # if not current_user:
+    #     st.error("❌ Пользователь не найден")
+    #     return
 
     render_create_button()
 

@@ -127,6 +127,33 @@ class ClientRequestItem(models.Model) :
         type_name = self.item_type.name if self.item_type else "Не определен"
         return f"{self.request_parent.code} - Поз.{self.item_no} ({type_name}) v{self.version}"
 
+    @classmethod
+    def create_new_item(cls, request_parent_id, item_type_id, request_line_ol='', request_line_text=''):
+        """
+        Создать новую позицию запроса с автоматическим определением номера позиции
+        """
+        # Определяем следующий номер позиции
+        max_no = cls.objects.filter(
+            request_parent_id=request_parent_id,
+            is_current=True,
+            status='active'
+        ).aggregate(max_no=models.Max('item_no'))['max_no']
+
+        item_no = (max_no or 0) + 1
+
+        # Создаем позицию
+        item = cls.objects.create(
+            request_parent_id=request_parent_id,
+            item_no=item_no,
+            version=1,
+            is_current=True,
+            item_type_id=item_type_id,
+            request_line_ol=request_line_ol,
+            request_line_text=request_line_text,
+            status='active'
+        )
+        return item
+
     def create_new_version(self , change_comment , changed_by , **updated_fields) :
         """
         Создать новую версию позиции на основе текущей
@@ -201,15 +228,15 @@ class ClientRequestItem(models.Model) :
         return f"Подобрать: {', '.join(items)}"
 
 
-@receiver(pre_save , sender=ClientRequestItem)
-def set_item_number(sender , instance , **kwargs) :
-    """
-    Автоматически установить номер позиции при создании первого экземпляра
-    """
-    if instance.item_no == 0 :
-        max_item_no = ClientRequestItem.objects.filter(
-            request_parent=instance.request_parent ,
-            version=1
-        ).aggregate(Max('item_no'))['item_no__max']
-
-        instance.item_no = max_item_no + 1 if max_item_no is not None else 1
+# @receiver(pre_save , sender=ClientRequestItem)
+# def set_item_number(sender , instance , **kwargs) :
+#     """
+#     Автоматически установить номер позиции при создании первого экземпляра
+#     """
+#     if instance.item_no == 0 :
+#         max_item_no = ClientRequestItem.objects.filter(
+#             request_parent=instance.request_parent ,
+#             version=1
+#         ).aggregate(Max('item_no'))['item_no__max']
+#
+#         instance.item_no = max_item_no + 1 if max_item_no is not None else 1

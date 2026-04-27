@@ -125,7 +125,8 @@ INSTALLED_APPS = [
     'price.apps.PriceConfig',
     'pneumatic_fittings.apps.FittingsConfig',
     'solenoid_valves.apps.SolenoidValvesConfig',
-    'project_customers.apps.ProjectCustomersConfig'
+    'project_customers.apps.ProjectCustomersConfig',
+    'pa_controls.apps.PaControlsConfig'
 ]
 
 MIDDLEWARE = [

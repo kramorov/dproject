@@ -221,12 +221,3 @@ class ValveSearchService :
         ).select_related('category').order_by('category__order' , 'order')
 
 
-# Сигналы для поддержания целостности
-@receiver(models.signals.post_save , sender=ValveModel)
-def update_parameter_values(sender , instance , **kwargs) :
-    """
-    Обновление таблицы ParameterValue при изменении модели
-    (опционально, для сложных запросов)
-    """
-    # Здесь можно реализовать синхронизацию с ValveParameterValue
-    pass

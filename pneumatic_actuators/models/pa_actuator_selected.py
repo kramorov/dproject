@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 from pneumatic_actuators.models import PneumaticActuatorModelLineItem, PneumaticActuatorBody, PneumaticCloseTimeParameter
 from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE , \
     ACTUATOR_VARIETY_RP_DEFAULT_CODE
+
+
+
 # Добавляем импорт абстрактного класса
 from core.models import StructuredDataMixin
 
