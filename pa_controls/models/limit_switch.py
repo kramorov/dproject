@@ -81,7 +81,24 @@ class LimitSwitchSensorVariety(models.Model):
 
 
 class LimitSwitchOutput(models.Model):
-    """Тип выходного сигнала БКВ """
+    """Электрическая схема и тип сигнала БКВ """
+    SIGNAL_CHOICES = [
+        ('DRY' , _('Сухой контакт (Passive)')) ,
+        ('PNP' , _('PNP (Active)')) ,
+        ('NPN' , _('NPN (Active)')) ,
+        ('NAMUR' , _('NAMUR (Ex)')) ,
+        ('SS_2W' , _('Solid State (2-wire)')) ,
+        ('ANALOG' , _('Аналоговый выход')) ,
+        ('PNEUM' , _('Пневматический')) ,
+    ]
+
+    CONTACT_CHOICES = [
+        ('SPST' , 'SPST (Вкл/Выкл)') ,
+        ('SPDT' , 'SPDT (Перекидной)') ,
+        ('DPST' , 'DPST (2 линии Вкл/Выкл)') ,
+        ('DPDT' , 'DPDT (2 перекидных)') ,
+        ('NONE' , 'Нет (для аналоговых/пневмо)') ,
+    ]
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа выходного сигнала БКВ")
@@ -96,15 +113,17 @@ class LimitSwitchOutput(models.Model):
                                     help_text=_('Активно свойство или нет'))
     contact_form = models.CharField(
         max_length=10, null=True, blank=True,
-        choices=[
-            ('SPST', 'SPST'), ('SPDT', 'SPDT'),
-            ('DPST', 'DPST'), ('DPDT', 'DPDT'),
-        ],
+        choices=CONTACT_CHOICES,default='SPDT',
         verbose_name=_("Форма контактов")
     )
-
-    wire_count = models.PositiveSmallIntegerField(default=2, verbose_name=_("Количество проводов"))
-
+    signal_type = models.CharField(
+        max_length=10 , choices=SIGNAL_CHOICES , default='DRY' , verbose_name=_("Тип сигнала")
+    )
+    wires_per_sensor = models.PositiveSmallIntegerField(
+        default=2 ,
+        verbose_name=_("Проводов на 1 датчик") ,
+        help_text=_("Сколько жил кабеля занимает один датчик в блоке")
+    )
     # ВСЁ остальное в JSON
     extra_params = models.JSONField(
         default=dict, blank=True,
@@ -119,7 +138,7 @@ class LimitSwitchOutput(models.Model):
 
     def __str__(self):
         if self.contact_form:
-            return f"{self.name} ({self.contact_form}, {self.wire_count}пр)"
+            return f"{self.name} ({self.contact_form})"
         return self.name or self.code
 
     @classmethod
@@ -147,6 +166,59 @@ class LimitSwitchOutput(models.Model):
         except cls.DoesNotExist:
             return None
 
+class LimitSwitchBody(StructuredDataMixin, models.Model):
+    """
+    Корпус БКВ
+    """
+
+    name = models.CharField(max_length=200,
+                            verbose_name=_("Название"),
+                            help_text=_('Текстовое название серии БКВ'))
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код клапана"))
+
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Текстовое описание серии БКВ'))
+    name_template = models.TextField(blank=True, null=True,
+                                     verbose_name=_("Шаблон названия"),
+                                     help_text=_('Шаблон для текстового названия БКВ'))
+    description_template = models.TextField(blank=True, null=True,
+                                            verbose_name=_("Шаблон описания"),
+                                            help_text=_('Шаблон для описания БКВ'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+    weight = models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
+                                 null=True , help_text=_('Вес') ,
+                                 verbose_name=_("Вес, кг"))
+    cable_glands_holes = \
+        models.ManyToManyField(CableGlandHolesSet , blank=True ,
+                               related_name='limit_switch_body_cable_glands_holes' ,
+                               verbose_name=_("Отверстия КВ") ,
+                               help_text=_('Отверстия под кабельные вводы'))
+    # Присоединительные размеры (Many-to-Many с монтажными стандартами)
+    mounting = models.ManyToManyField(
+        'pa_controls.PaControlMountingStandard' ,
+        blank=True ,
+        related_name='limit_switch_body_mounting' ,
+        verbose_name=_("Стандарты присоединения") ,
+        help_text=_("Стандарты присоединения NAMUR, с которыми совместим БКВ")
+    )
+    # ВСЁ остальное в JSON
+    extra_params = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Параметры") ,
+        help_text=_("signal_type, resistance, range и т.д.")
+    )
+
+    class Meta :
+        ordering = ['sorting_order' ]
+        verbose_name = _('Корпус БКВ')
+        verbose_name_plural = _('Корпуса БКВ')
+
+    def __str__(self) :
+        return self.name
 
 class LimitSwitchModelLine(StructuredDataMixin, models.Model):
     """
@@ -221,7 +293,11 @@ class LimitSwitchBox(StructuredDataMixin, models.Model):
                                    on_delete=models.SET_NULL,
                                    help_text=_('Серия БКВ'),
                                    verbose_name=_("Серия"))
-
+    body = models.ForeignKey(LimitSwitchBody , related_name='limit_switch_box_body' , blank=True ,
+                                   null=True ,
+                                   on_delete=models.SET_NULL ,
+                                   help_text=_('Корпус БКВ') ,
+                                   verbose_name=_("Корпус"))
     # Характеристики
     sensor_variety = models.ForeignKey(
         LimitSwitchSensorVariety, on_delete=models.SET_NULL, null=True,
@@ -271,14 +347,7 @@ class LimitSwitchBox(StructuredDataMixin, models.Model):
                                                 on_delete=models.SET_NULL,
                                                 help_text=_('Материал корпуса арматуры'),
                                                 verbose_name=_('Материал корпуса'))
-    weight = models.DecimalField(max_digits=5, decimal_places=2, blank=True,
-                                 null=True, help_text=_('Вес'),
-                                 verbose_name=_("Вес, кг"))
-    cable_glands_holes = \
-        models.ManyToManyField(CableGlandHolesSet,  blank=True,
-                               related_name='limit_switch_box_cable_glands_holes',
-                                verbose_name=_("Отверстия КВ"),
-                               help_text=_('Отверстия под кабельные вводы'))
+
     # Дополнительные характеристики
     is_pneumatic = models.BooleanField(default=False, verbose_name=_("Пневматический"))
     has_namur_interface = models.BooleanField(default=False, verbose_name=_("NAMUR интерфейс"))
@@ -290,14 +359,7 @@ class LimitSwitchBox(StructuredDataMixin, models.Model):
         verbose_name=_("Параметры"),
         help_text=_("signal_type, resistance, range и т.д.")
     )
-    # Присоединительные размеры (Many-to-Many с монтажными стандартами)
-    mounting_standards = models.ManyToManyField(
-        'pa_controls.PaControlMountingStandard',
-        blank=True,
-        related_name='limit_switch_box_mounting',
-        verbose_name=_("Стандарты присоединения"),
-        help_text=_("Стандарты присоединения NAMUR, с которыми совместим БКВ")
-    )
+
 
     class Meta:
         verbose_name = _("Блок концевых выключателей")
@@ -306,3 +368,39 @@ class LimitSwitchBox(StructuredDataMixin, models.Model):
 
     def __str__(self):
         return f"{self.name}"
+    def generated_model_name_description(self , name_or_description) :
+        """Сгенерировать название БКВ по шаблону из model_line"""
+        if not self.model_line :
+            return self.name or ""
+        if name_or_description == 'name' :
+            template = self.model_line.name_template
+            if not template :
+                print('Ошибка при формировании названия БКВ - в model_line нет шаблона')
+                return self.name or ""
+        else :
+            template = self.model_line.description_template
+            if not template :
+                print('Ошибка при формировании описания БКВ - в model_line нет шаблона')
+                return self.description or ""
+
+        # Замена переменных
+        replacements = {
+            '{model_code}' : self._get_value('code') ,
+            '{sensor_variety}': self._get_value('sensor_variety'),
+            '{output_type}': self._get_value('output_type'),
+            '{points}': self._get_value('points'),
+            '{body_material}': self._get_value('body_material'),
+            '{body_material_specified}': self._get_value('body_material_specified'),
+            '{work_temp_min}': self._get_value('work_temp_min'),
+            '{work_temp_max}': self._get_value('work_temp_max'),
+            '{cable_glands_holes}': self._get_value('body__cable_glands_holes'),
+            '{exd}': self._get_value('exd'),
+            '{ip}': self._get_value('ip'),
+
+        }
+        # Заменяем все плейсхолдеры
+        result = template
+        for placeholder , value in replacements.items() :
+            result = result.replace(placeholder , str(value) if value else '')
+
+        return result

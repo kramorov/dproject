@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from pa_controls.models import LimitSwitchSensorVariety, LimitSwitchOutput
-from pa_controls.models.limit_switch import LimitSwitchModelLine, LimitSwitchBox
+from pa_controls.models.limit_switch import LimitSwitchModelLine , LimitSwitchBox , LimitSwitchBody
 
 
 @admin.register(LimitSwitchSensorVariety)
@@ -34,10 +34,10 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
 
 @admin.register(LimitSwitchOutput)
 class LimitSwitchOutputAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'contact_form', 'wire_count', 'sorting_order', 'is_active', 'extra_params_preview']
-    list_filter = ['is_active', 'contact_form', 'wire_count']
+    list_display = ['id','name', 'code', 'contact_form', 'wires_per_sensor', 'sorting_order', 'is_active', 'extra_params_preview']
+    list_filter = ['is_active', 'contact_form', 'wires_per_sensor']
     search_fields = ['name', 'code', 'description']
-    list_editable = ['sorting_order', 'is_active', 'wire_count']
+    list_editable = ['sorting_order', 'is_active']
     ordering = ['sorting_order', 'name']
 
     fieldsets = (
@@ -45,7 +45,7 @@ class LimitSwitchOutputAdmin(admin.ModelAdmin):
             'fields': ('name', 'code', 'description')
         }),
         (_('Электрические характеристики'), {
-            'fields': ('contact_form', 'wire_count')
+            'fields': ('contact_form', 'signal_type', 'wires_per_sensor')
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),
@@ -109,6 +109,39 @@ class LimitSwitchModelLineAdmin(admin.ModelAdmin):
         }),
     )
 
+@admin.register(LimitSwitchBody)
+class LimitSwitchBodyAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'code', 'is_active', 'sorting_order'
+    ]
+    list_editable = ['sorting_order', 'is_active']
+    ordering = ['sorting_order']
+    # Для ManyToMany полей
+    filter_horizontal = ['cable_glands_holes', 'mounting']
+    fieldsets = (
+        (_('Основная информация'), {
+            'fields': ('name', 'code',  )
+        }),
+
+        (_('Кабельные вводы'), {
+            'fields': ('cable_glands_holes',),
+            'classes': ('wide',),
+            'description': _('Отверстия под кабельные вводы (можно выбрать несколько)')
+        }),
+        (_('Присоединительные размеры'), {
+            'fields': ('mounting',),
+            'classes': ('wide',),
+            'description': _('Стандарты присоединения NAMUR (можно выбрать несколько)')
+        }),
+        (_('Дополнительные параметры JSON'), {
+            'fields': ('extra_params',),
+            'classes': ('wide',),
+            'description': _('JSON формат: {"material": "aluminum", "features": ["led", "visual"]}')
+        }),
+        (_('Настройки'), {
+            'fields': ('sorting_order', 'is_active')
+        }),
+    )
 
 @admin.register(LimitSwitchBox)
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
@@ -123,8 +156,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_editable = ['sorting_order', 'is_active']
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes']  # <-- ВОТ ЭТА СТРОКА
-    # Для ManyToMany полей
-    filter_horizontal = ['cable_glands_holes', 'mounting_standards']
+
     fieldsets = (
         (_('Основная информация'), {
             'fields': (('name', 'code',  'model_line'),
@@ -132,25 +164,15 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
                        ('ip', 'exd'),
                        ('work_temp_min', 'work_temp_max'),)
         }),
-        (_('Температурный режим'), {
+        (_('Описание'), {
             'fields': ('description',),
             'classes': ('wide',),
         }),
         (_('Материалы и вес'), {
-            'fields': (('body_material', 'body_material_specified'), ('weight', ))
+            'fields': (('body_material', 'body_material_specified'),'body')
         }),
         (_('Дополнительные опции'), {
             'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
-        }),
-        (_('Кабельные вводы'), {
-            'fields': ('cable_glands_holes',),
-            'classes': ('wide',),
-            'description': _('Отверстия под кабельные вводы (можно выбрать несколько)')
-        }),
-        (_('Присоединительные размеры'), {
-            'fields': ('mounting_standards',),
-            'classes': ('wide',),
-            'description': _('Стандарты присоединения NAMUR (можно выбрать несколько)')
         }),
         (_('Дополнительные параметры JSON'), {
             'fields': ('extra_params',),
@@ -212,6 +234,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
                     sorting_order=original.sorting_order + 100,  # Сдвигаем порядок
                     is_active=original.is_active,
                     model_line=original.model_line,
+                    body=original.body ,
                     sensor_variety=original.sensor_variety,
                     output_type=original.output_type,
                     points=original.points,
@@ -221,18 +244,12 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
                     work_temp_max=original.work_temp_max,
                     body_material=original.body_material,
                     body_material_specified=original.body_material_specified,
-                    weight=original.weight,
                     is_pneumatic=original.is_pneumatic,
                     has_namur_interface=original.has_namur_interface,
                     has_visual_indicator=original.has_visual_indicator,
                     extra_params=original.extra_params.copy() if original.extra_params else {}
                 )
                 copy.save()
-
-                # Копируем ManyToMany связи
-                copy.cable_glands_holes.set(original.cable_glands_holes.all())
-                copy.mounting_standards.set(original.mounting_standards.all())
-
                 copied_count += 1
 
             except Exception as e:

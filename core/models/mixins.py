@@ -31,17 +31,57 @@ class StructuredDataMixin :
     CARD = DisplayView.CARD
     DETAIL = DisplayView.DETAIL
     BADGE = DisplayView.BADGE
+    # Старая версия
+    # def _get_value(self, field_path: str) -> str:
+    #     """Простое получение значения поля"""
+    #     try:
+    #         current_obj = self
+    #         for field_name in field_path.split('__'):
+    #             current_obj = getattr(current_obj, field_name, None)
+    #             if current_obj is None:
+    #                 return ""
+    #         return str(current_obj) if current_obj else ""
+    #     except Exception:
+    #         return ""
 
-    def _get_value(self, field_path: str) -> str:
-        """Простое получение значения поля"""
-        try:
+    # Новая версия, с JSON
+    def _get_value(self , field_path: str) -> str :
+        """
+        Универсальное получение значения:
+        - Обычные поля: 'code'
+        - Связи через __: 'body__material'
+        - JSON поля через .: 'extra_params.ip_rating'
+        - Комбинация: 'body__extra_params.cable_glands_holes'
+        """
+        try :
             current_obj = self
-            for field_name in field_path.split('__'):
-                current_obj = getattr(current_obj, field_name, None)
-                if current_obj is None:
-                    return ""
+
+            # Разбиваем на части
+            parts = field_path.split('__')
+
+            for part in parts :
+                # Проверяем, есть ли доступ к JSON через точку
+                if '.' in part :
+                    json_field , json_key = part.split('.' , 1)
+                    if hasattr(current_obj , json_field) :
+                        current_obj = getattr(current_obj , json_field)
+                        if isinstance(current_obj , dict) :
+                            current_obj = current_obj.get(json_key , '')
+                        else :
+                            return ""
+                    else :
+                        return ""
+                else :
+                    if hasattr(current_obj , part) :
+                        current_obj = getattr(current_obj , part)
+                        if current_obj is None :
+                            return ""
+                    else :
+                        return ""
+
             return str(current_obj) if current_obj else ""
-        except Exception:
+        except Exception as e :
+            print(f"Ошибка получения {field_path}: {e}")
             return ""
 
     def get_compact_data(self) -> Dict[str , Any] :
