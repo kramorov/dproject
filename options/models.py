@@ -602,7 +602,7 @@ class BaseBodyCoatingThroughOption(BaseThroughOption) :
 class BaseExdThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций Exd"""
     exd_option = models.ForeignKey(
-        'params.ExdOption' ,
+        'params.exd_models.ExdOption',
         on_delete=models.CASCADE ,
         verbose_name=_("Опция взрывозащиты")
     )

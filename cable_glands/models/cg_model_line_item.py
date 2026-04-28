@@ -4,7 +4,8 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 
-from params.models import ThreadSize, IpOption, ExdOption, ThreadSizeThroughOption
+from params.models import ThreadSize, IpOption, ThreadSizeThroughOption
+from params.exd_models import ExdOption
 
 """
 ModelLine - серия. В/з, ИП, сертификаты - все сюда

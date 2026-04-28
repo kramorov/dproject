@@ -7,7 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from core.models import StructuredDataMixin
 from producers.models import Brands
 
-from params.models import IpOption, ExdOption
+from params.models import IpOption
+from params.exd_models import ExdOption
 
 
 class CableGlandModelLine(StructuredDataMixin, models.Model):

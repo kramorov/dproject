@@ -173,7 +173,8 @@ class DirectionValveFilter(django_filters.FilterSet) :
     def __init__(self , *args , **kwargs) :
         super().__init__(*args , **kwargs)
         # Динамически заполняем queryset для ip и exd (только используемые значения)
-        from params.models import IpOption , ExdOption
+        from params.models import IpOption
+        from params.exd_models import ExdOption
 
         # IP - только используемые в клапанах
         used_ip_ids = DirectionValve.objects.filter(

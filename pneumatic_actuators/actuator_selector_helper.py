@@ -70,10 +70,11 @@ def get_actuator_options_table(
         PneumaticActuatorModelLineItem
     )
     from params.models import (
-        IpOption, ExdOption, HandWheelInstalledOption,
+        IpOption, HandWheelInstalledOption,
         BodyCoatingOption, SafetyPositionOption,
         DnVariety, PnVariety, MountingPlateTypes, StemSize, StemShapes, ValveTypes
     )
+    from params.exd_models import ExdOption
     from pneumatic_actuators.models.pa_options import (
         PneumaticSafetyPositionOption,
         PneumaticTemperatureOption,

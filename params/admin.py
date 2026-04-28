@@ -5,7 +5,7 @@ from django import forms
 import json
 
 
-from .models import PowerSupplies, ExdOption, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
+from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
     EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
     ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
     StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize, CertVariety, CertData, \
@@ -14,6 +14,7 @@ from .models import PowerSupplies, ExdOption, IpOption, BodyCoatingOption, Blink
     BodyColor, OptionVariety, ValveFunctionVariety, CoatingVariety, SealingClass, WarrantyTimePeriodVariety, \
     ValveActuationVariety, PneumaticAirSupplyPressure, PneumaticConnection, ThreadSizeSetItem, ThreadSizeSet, \
     ThreadInnerOuter
+from .exd_models import ExdOption
 
 
 class MeasureUnitsAdmin(admin.ModelAdmin):

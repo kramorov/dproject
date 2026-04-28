@@ -4,7 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from params.models import (
     PowerSupplies , ControlUnitLocationOption , ControlUnitTypeOption , SafetyPositionOption ,
-    ExdOption , IpOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , EnvTempParameters ,
+    IpOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , EnvTempParameters ,
     ClimaticZoneClassifier , ClimaticEquipmentPlacementClassifier , ClimaticConditions ,
     DigitalProtocolsSupportOption , MechanicalIndicatorInstalledOption , ControlUnitInstalledOption ,
     ActuatorGearboxOutputType , ActuatorGearBoxCombinationTypes , ValveTypes , HandWheelInstalledOption ,
@@ -12,6 +12,7 @@ from params.models import (
     ThreadSize , CertVariety , CertData , DnVariety , PnVariety , OptionVariety , BodyColor ,
     ValveFunctionVariety , ValveActuationVariety , SealingClass , CoatingVariety , WarrantyTimePeriodVariety
 )
+from params.exd_models import ExdOption
 
 
 class PowerSuppliesNode(DjangoObjectType) :

@@ -3,8 +3,9 @@
 import logging
 from typing import Dict, Any, Tuple, Optional, List
 
-from params.models import IpOption, ExdOption, HandWheelInstalledOption, BodyCoatingOption, StemShapes, \
+from params.models import IpOption, HandWheelInstalledOption, BodyCoatingOption, StemShapes, \
     PneumaticAirSupplyPressure
+from params.exd_models import ExdOption
 from pneumatic_actuators.models import BodyThrustTorqueTable, PneumaticActuatorVariety
 from pneumatic_actuators.models.pa_options import PneumaticIpOption
 

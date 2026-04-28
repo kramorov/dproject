@@ -12,7 +12,9 @@ from pneumatic_actuators.models.py_options_constants import SAFETY_POSITION_NC_D
 from params.models import (MountingPlateTypes, StemShapes, StemSize, ThreadTypes, PneumaticConnection, ThreadSize,
                            ValveFunctionVariety, SealingClass, WarrantyTimePeriodVariety, ValveActuationVariety,
                            OptionVariety, ValveTypes, DnVariety, PnVariety, PneumaticAirSupplyPressure,
-                           SafetyPositionOption, IpOption, ExdOption, BodyCoatingOption, HandWheelInstalledOption)
+                           SafetyPositionOption, IpOption, BodyCoatingOption, HandWheelInstalledOption)
+from params.exd_models import ExdOption
+
 
 class PaAssyRequirement(models.Model):
     """

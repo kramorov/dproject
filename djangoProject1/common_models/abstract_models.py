@@ -8,12 +8,13 @@ from django.utils.timezone import now
 # from client_request.models import ClientRequestLine, ClientRequest
 from electric_actuators.models import CableGlandHolesSet
 from producers.models import Brands, Producer
-from params.models import PowerSupplies , ExdOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , \
+from params.models import PowerSupplies , BodyCoatingOption , BlinkerOption , SwitchesParameters , \
     EnvTempParameters , IpOption , MeasureUnits , \
     DigitalProtocolsSupportOption , ControlUnitInstalledOption , ActuatorGearboxOutputType , HandWheelInstalledOption , \
     OperatingModeOption , StemShapes , StemSize , MountingPlateTypes , ThreadSize , CertVariety , CertData , \
     MechanicalIndicatorInstalledOption , ControlUnitLocationOption , ControlUnitTypeOption , SafetyPositionOption , \
     ValveTypes , ClimaticConditions
+from params.exd_models import ExdOption
 
 VALVE_DATA_STEM_TYPES = [
     ('Выдвижной', 'Выдвижной шток'),  # ('AC', 'Постоянный ток')

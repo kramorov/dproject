@@ -9,7 +9,9 @@ from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin
 from producers.models import Producer, Brands
 
-from params.models import ThreadSize , IpOption , ExdOption , ThreadSizeThroughOption
+from params.models import ThreadSize , IpOption , ThreadSizeThroughOption
+from params.exd_models import ExdOption
+
 
 class CableGlandModelLineCertRelation(AbstractCertRelation) :
     """

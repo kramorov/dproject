@@ -2,8 +2,9 @@ from django.db.models import Model
 from collections import namedtuple
 
 from electric_actuators.models import ElectricActuatorData ,  ElectricActuatorModelLine
-from params.models import IpOption, ExdOption, PowerSupplies, DigitalProtocolsSupportOption, ControlUnitInstalledOption, \
+from params.models import IpOption, PowerSupplies, DigitalProtocolsSupportOption, ControlUnitInstalledOption, \
     EnvTempParameters
+from params.exd_models import ExdOption
 from typing import Type
 
 SearchResult = namedtuple('SearchResult', ['record', 'description'])

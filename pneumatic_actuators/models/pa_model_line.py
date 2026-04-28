@@ -10,7 +10,8 @@ from django.core.exceptions import ValidationError
 from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
-    BodyCoatingOption , ExdOption , EnvTempParameters , HandWheelInstalledOption
+    BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
+from params.exd_models import ExdOption
 from pneumatic_actuators.models import PneumaticActuatorBody
 from pneumatic_actuators.models.pa_options import PneumaticHandWheelOption
 from pneumatic_actuators.models.pa_params import PneumaticActuatorVariety , PneumaticActuatorConstructionVariety

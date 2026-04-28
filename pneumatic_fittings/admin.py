@@ -38,12 +38,12 @@ class PneumaticFittingForm(forms.ModelForm) :
 class PneumaticFittingAdmin(admin.ModelAdmin) :
     form = PneumaticFittingForm
     list_display = [
-        'name' , 'code' , 'brand' , 'fitting_model_line', 'fitting_variety' ,
+        'name' , 'code' , 'brand' , 'model_line', 'fitting_variety' ,
         'pipe_diameter' , 'thread' , 'thread_inner_outer' , 'sorting_order' , 'is_active'
     ]
-    list_editable = ['code' , 'brand' , 'fitting_model_line','sorting_order' , 'is_active']
+    list_editable = ['code' , 'brand' , 'model_line','sorting_order' , 'is_active']
     list_filter = [
-        'brand' , 'fitting_model_line__code','fitting_variety' ,
+        'brand' , 'model_line__code','fitting_variety' ,
         'body_material' , 'pipe_material' , 'pipe_diameter' , 'thread' , 'thread_inner_outer'
     ]
     search_fields = ['name' , 'code' , 'description']
@@ -52,7 +52,7 @@ class PneumaticFittingAdmin(admin.ModelAdmin) :
 
     fieldsets = (
         (_('Основная информация') , {
-            'fields' : ('name' , ('code' , 'fitting_variety' , 'fitting_model_line',) ,
+            'fields' : ('name' , ('code' , 'fitting_variety' , 'model_line',) ,
                         ('producer' , 'brand' , 'body_material' ,) ,
                         ('pipe_material' , 'pipe_diameter') , ('thread' , 'thread_inner_outer') ,
                         ('description' , 'sorting_order' , 'is_active'))

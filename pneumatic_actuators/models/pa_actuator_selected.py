@@ -1190,15 +1190,15 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         result = template
         print(f"template: {result}")
         # Простая замена переменных
-        result = result.replace('{model_code}', self._get_value('selected_model_line_item__name'))
+        result = result.replace('{model_code}', self._get_value_old('selected_model_line_item__name'))
         # if
-        result = result.replace('{springs_qty}', self._get_value('selected_springs_qty__encoding'))
-        result = result.replace('{temperature}', self._get_value('selected_temperature__encoding'))
-        result = result.replace('{safety_position}', self._get_value('selected_safety_position__encoding'))
-        result = result.replace('{hand_wheel}', self._get_value('selected_hand_wheel__encoding'))
-        result = result.replace('{coating}', self._get_value('selected_body_coating__encoding'))
-        result = result.replace('{ip}', self._get_value('selected_ip__encoding'))
-        result = result.replace('{exd}', self._get_value('selected_exd__encoding'))
+        result = result.replace('{springs_qty}', self._get_value_old('selected_springs_qty__encoding'))
+        result = result.replace('{temperature}', self._get_value_old('selected_temperature__encoding'))
+        result = result.replace('{safety_position}', self._get_value_old('selected_safety_position__encoding'))
+        result = result.replace('{hand_wheel}', self._get_value_old('selected_hand_wheel__encoding'))
+        result = result.replace('{coating}', self._get_value_old('selected_body_coating__encoding'))
+        result = result.replace('{ip}', self._get_value_old('selected_ip__encoding'))
+        result = result.replace('{exd}', self._get_value_old('selected_exd__encoding'))
 
         print(f"До очистки: {result}")
         # Очистка лишних точек (две точки подряд -> одна точка)
@@ -1214,7 +1214,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
         return result
 
-    def _get_value(self, field_path: str) -> str:
+    def _get_value_old(self, field_path: str) -> str:
         """Простое получение значения поля"""
         try:
             current_obj = self
@@ -1229,14 +1229,14 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация"""
         parts = [
-            self._get_value('selected_model__code'),
-            self._get_value('selected_springs_qty__encoding'),
-            self._get_value('selected_temperature__encoding'),
-            self._get_value('selected_safety_position__encoding'),
-            self._get_value('selected_hand_wheel__encoding'),
-            self._get_value('selected_body_coating__encoding'),
-            self._get_value('selected_ip__encoding'),
-            self._get_value('selected_exd__encoding'),
+            self._get_value_old('selected_model__code'),
+            self._get_value_old('selected_springs_qty__encoding'),
+            self._get_value_old('selected_temperature__encoding'),
+            self._get_value_old('selected_safety_position__encoding'),
+            self._get_value_old('selected_hand_wheel__encoding'),
+            self._get_value_old('selected_body_coating__encoding'),
+            self._get_value_old('selected_ip__encoding'),
+            self._get_value_old('selected_exd__encoding'),
         ]
         # Фильтруем пустые значения и соединяем
         return '.'.join(filter(None, parts))

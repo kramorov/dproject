@@ -120,7 +120,7 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
     filter_horizontal = ['cable_glands_holes', 'mounting']
     fieldsets = (
         (_('Основная информация'), {
-            'fields': ('name', 'code',  )
+            'fields': ('name', 'code', 'weight', )
         }),
 
         (_('Кабельные вводы'), {

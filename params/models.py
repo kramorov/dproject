@@ -4,19 +4,10 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
-from core.models.mixins import StructuredDataMixin
+from core.models.mixins import StructuredDataMixin, OptionListToSelectMixin
 from options.models import BaseThroughOption
 
-
-class OptionListToSelectMixin:
-    @classmethod
-    def get_for_select(cls, active_only: bool = True) -> List[Dict]:
-        queryset = cls.objects.all()
-
-        if active_only and hasattr(cls, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-
-        return [{'id': obj.id, 'name': str(obj)} for obj in queryset]
+from .exd_models import ExdOption, GasGroup, DustGroup, TemperatureClass, ExplosionProtectionType, ExplosionProtectionLevel
 
 class PowerSupplies(models.Model,OptionListToSelectMixin):
     VOLTAGE_TYPES = [
@@ -122,35 +113,6 @@ class SafetyPositionOption(models.Model,OptionListToSelectMixin):
     class Meta:
         verbose_name = _('Безопасное положение при отсутствии питания')
         verbose_name_plural = _('Безопасные положения при отсутствии питания')
-        ordering = ['sorting_order']
-
-    def __str__(self):
-        return self.name
-
-
-class ExdOption(models.Model,OptionListToSelectMixin):
-    name = models.CharField(max_length=100, blank=True, null=True,
-                            verbose_name=_("Название"),
-                            help_text=_("Символьное обозначение вида взрывозащиты")
-                            )
-    code = models.CharField(max_length=50, blank=True, null=True,
-                            verbose_name=_("Код"),
-                            help_text=_("Код вида взрывозащиты"))
-    description = models.TextField(blank=True,
-                                   verbose_name=_("Описание"),
-                                   help_text=_('Текстовое описание вида взрывозащиты'))
-    sorting_order = models.IntegerField(default=0,
-                                        verbose_name=_("Порядок сортировки"),
-                                        help_text=_('Порядок сортировки в списке'))
-    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
-                                    help_text=_('Активно свойство или нет'))
-
-    exd_full_code = models.CharField(max_length=200, verbose_name=_('Полный код взрывозащиты'),
-                                     help_text=_('Полный код вида взрывозащиты'))
-
-    class Meta:
-        verbose_name = _('Тип взрывозащиты')
-        verbose_name_plural = _('Типы взрывозащиты')
         ordering = ['sorting_order']
 
     def __str__(self):

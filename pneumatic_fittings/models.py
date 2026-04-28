@@ -1,9 +1,9 @@
-#pneumatic_fittings/models.py
+# pneumatic_fittings/models.py
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
-from core.models.mixins import StructuredDataMixin
+from core.models.mixins import StructuredDataMixin, TemplateGeneratorMixin
 from materials.models import MaterialGeneral
 from params.models import ThreadSize, ThreadInnerOuter
 from producers.models import Brands, Producer
@@ -68,7 +68,7 @@ from producers.models import Brands, Producer
 # DigitalProtocolsSupportOption, ControlUnitInstalledOption,ActuatorType, ValveTypes, GearBoxTypes, \
 # HandWheelInstalledOption, OperatingModeOption
 
-class FittingShape(StructuredDataMixin,models.Model):
+class FittingShape(StructuredDataMixin, models.Model):
     name = models.CharField(max_length=100, verbose_name=_("Название формы"))
     code = models.SlugField(max_length=50, unique=True, verbose_name=_("Код"))
     description = models.TextField(blank=True, verbose_name=_("Краткое описание"))
@@ -82,6 +82,7 @@ class FittingShape(StructuredDataMixin,models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
+
     class Meta:
         verbose_name = "Форма фитинга"
         verbose_name_plural = "Формы фитингов"
@@ -89,7 +90,8 @@ class FittingShape(StructuredDataMixin,models.Model):
     def __str__(self):
         return self.name
 
-class FittingFixationMethod(StructuredDataMixin,models.Model):
+
+class FittingFixationMethod(StructuredDataMixin, models.Model):
     name = models.CharField(max_length=100, verbose_name=_("Название способа"))
     code = models.SlugField(max_length=50, unique=True, verbose_name=_("Код"))
     description = models.TextField(blank=True, verbose_name=_("Описание"))
@@ -98,12 +100,14 @@ class FittingFixationMethod(StructuredDataMixin,models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
+
     class Meta:
         verbose_name = "Способ фиксации фитинга"
         verbose_name_plural = "Способы фиксации фитингов"
 
     def __str__(self):
         return self.name
+
 
 class PneumaticFittingVariety(StructuredDataMixin, models.Model):
     """
@@ -131,6 +135,7 @@ class PneumaticFittingVariety(StructuredDataMixin, models.Model):
     def __str__(self):
         return self.name
 
+
 class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
     """
     Серия пневматических фитингов
@@ -144,10 +149,10 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
     description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание разновидности серии фитингов'))
     name_template = models.CharField(max_length=300,
-                            verbose_name=_("Шаблон названия"),
-                            help_text=_('Шаблон для текстового названия фитинга'))
+                                     verbose_name=_("Шаблон названия"),
+                                     help_text=_('Шаблон для текстового названия фитинга'))
     description_template = models.TextField(blank=True, verbose_name=_("Шаблон описания"),
-                                   help_text=_('Шаблон для описания фитинга'))
+                                            help_text=_('Шаблон для описания фитинга'))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
@@ -160,18 +165,21 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
                               on_delete=models.SET_NULL,
                               help_text=_('Бренд фитингов'),
                               verbose_name=_("Бренд"))
-    fitting_variety = models.ForeignKey(PneumaticFittingVariety, related_name='pneumatic_fitting_model_line_variety', blank=True,
+    fitting_variety = models.ForeignKey(PneumaticFittingVariety, related_name='pneumatic_fitting_model_line_variety',
+                                        blank=True,
                                         null=True,
                                         on_delete=models.SET_NULL,
                                         help_text=_('Тип фитинга'),
                                         verbose_name=_("Тип"))
 
-    body_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_body_material', blank=True,
+    body_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_body_material',
+                                      blank=True,
                                       null=True,
                                       on_delete=models.SET_NULL,
                                       help_text=_('Корпус'),
                                       verbose_name=_('Тип материала корпуса'))
-    pipe_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_pipe_material', blank=True,
+    pipe_material = models.ForeignKey(MaterialGeneral, related_name='pneumatic_fitting_model_line_pipe_material',
+                                      blank=True,
                                       null=True,
                                       on_delete=models.SET_NULL,
                                       help_text=_('Трубка'),
@@ -183,24 +191,25 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
     #                                                 help_text=_('Материал корпуса арматуры'),
     #                                                 verbose_name=_('Материал корпуса'))
     work_temp_min = models.IntegerField(
-        null=True , blank=True , default=-40,
-        help_text=_('Минимальная рабочая температура, °С') ,
+        null=True, blank=True, default=-40,
+        help_text=_('Минимальная рабочая температура, °С'),
         verbose_name=_('Т раб.мин, °С')
     )
     work_temp_max = models.IntegerField(
-        null=True , blank=True , default=120,
-        help_text=_('Максимальная рабочая температура, °С') ,
+        null=True, blank=True, default=120,
+        help_text=_('Максимальная рабочая температура, °С'),
         verbose_name=_('Т раб.макс, °С'))
 
     pressure_min = models.DecimalField(decimal_places=2, max_digits=6,
-        null=True, blank=True, default=0,
-        help_text=_('Минимальное рабочее давление, бар'),
-        verbose_name=_('P раб.мин, бар'))
+                                       null=True, blank=True, default=0,
+                                       help_text=_('Минимальное рабочее давление, бар'),
+                                       verbose_name=_('P раб.мин, бар'))
 
     pressure_max = models.DecimalField(decimal_places=2, max_digits=6,
-        null=True, blank=True, default=40,
-        help_text=_('Максимальное рабочее давление, бар'),
-        verbose_name=_('P раб.макс, бар'))
+                                       null=True, blank=True, default=40,
+                                       help_text=_('Максимальное рабочее давление, бар'),
+                                       verbose_name=_('P раб.макс, бар'))
+
     class Meta:
         ordering = ['brand', 'code']
         verbose_name = _('Серия пневматических фитингов')
@@ -269,7 +278,8 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
 
         return new_copy
 
-class PneumaticFitting(StructuredDataMixin, models.Model):
+
+class PneumaticFitting(StructuredDataMixin, TemplateGeneratorMixin, models.Model):
     """
     Пневматические фитинги
     """
@@ -297,11 +307,12 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
                               help_text=_('Бренд фитингов'),
                               verbose_name=_("Бренд"))
 
-    fitting_model_line= models.ForeignKey(PneumaticFittingModelLine, related_name='pneumatic_fitting_model_line', blank=True,
-                                        null=True,
-                                        on_delete=models.SET_NULL,
-                                        help_text=_('Серия фитинга'),
-                                        verbose_name=_("Серия"))
+    model_line = models.ForeignKey(PneumaticFittingModelLine, related_name='pneumatic_fitting_model_line_new',
+                                   blank=True,
+                                   null=True,
+                                   on_delete=models.SET_NULL,
+                                   help_text=_('Серия фитинга'),
+                                   verbose_name=_("Серия"))
     fitting_variety = models.ForeignKey(PneumaticFittingVariety, related_name='pneumatic_fitting_variety', blank=True,
                                         null=True,
                                         on_delete=models.SET_NULL,
@@ -319,18 +330,18 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
                                       help_text=_('Трубка'),
                                       verbose_name=_('Тип материала трубки'))
     pipe_diameter = (models.IntegerField(blank=True,
-                                      null=True,
-                                      help_text=_('Диаметр'),
-                                      verbose_name=_('Диаметр трубки, мм')))
+                                         null=True,
+                                         help_text=_('Диаметр'),
+                                         verbose_name=_('Диаметр трубки, мм')))
     thread = models.ForeignKey(ThreadSize, on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='pneumatic_fitting_thread',
                                verbose_name=_("Резьба"),
                                help_text=_('Резьба фитинга'))
 
     thread_inner_outer = models.ForeignKey(ThreadInnerOuter, on_delete=models.SET_NULL, null=True, blank=True,
-                               related_name='pneumatic_fitting_thread_in_out',
-                               verbose_name=_("Резьба наружная или внутренняя"),
-                               help_text=_('Резьба наружная или внутренняя'))
+                                           related_name='pneumatic_fitting_thread_in_out',
+                                           verbose_name=_("Резьба наружная или внутренняя"),
+                                           help_text=_('Резьба наружная или внутренняя'))
 
     #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
     #                                                 blank=True, null=True,
@@ -350,30 +361,31 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
 
     # Пропускная способность (л/мин или м³/ч)
     flow_rate = models.DecimalField(
-        max_digits=10 ,
-        decimal_places=2 ,
-        blank=True , null=True ,
-        verbose_name=_("Пропускная способность") ,
+        max_digits=10,
+        decimal_places=2,
+        blank=True, null=True,
+        verbose_name=_("Пропускная способность"),
         help_text=_('Пропускная способность глушителя (Норм.л/мин)')
     )
 
     # Уровень шума (дБ)
     noise_level = models.DecimalField(
-        max_digits=5 ,
-        decimal_places=1 ,
-        blank=True , null=True ,
-        verbose_name=_("Уровень шума") ,
+        max_digits=5,
+        decimal_places=1,
+        blank=True, null=True,
+        verbose_name=_("Уровень шума"),
         help_text=_('Уровень шума глушителя (дБ)')
     )
 
     # Рабочее давление (бар)
     operating_pressure = models.DecimalField(
-        max_digits=8 ,
-        decimal_places=2 ,
-        blank=True , null=True ,
-        verbose_name=_("Рабочее давление") ,
+        max_digits=8,
+        decimal_places=2,
+        blank=True, null=True,
+        verbose_name=_("Рабочее давление"),
         help_text=_('Максимальное рабочее давление (бар)')
     )
+
     class Meta:
         ordering = ['pipe_diameter', 'thread']
         verbose_name = _('Пневматический фитинг')
@@ -382,68 +394,46 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
     @property
     def temperature_range_display(self):
         """Отображаемый диапазон рабочих температур"""
-        return f'{self.fitting_model_line.work_temp_min}..{self.fitting_model_line.work_temp_max}'
+        return f'{self.model_line.work_temp_min}..{self.model_line.work_temp_max}'
 
     @property
     def pressure_range_display(self):
         """Отображаемый диапазон рабочих температур"""
-        return f'{self.fitting_model_line.pressure_min}..{self.fitting_model_line.pressure_max}'
+        return f'{self.model_line.pressure_min}..{self.model_line.pressure_max}'
 
-    def generated_model_name_description(self, name_or_description):
-        """Сгенерировать название фитинга по шаблону из model_line"""
-        if not self.fitting_model_line:
-            return self.name or ""
-        if name_or_description=='name':
-            template = self.fitting_model_line.name_template
-            if not template:
-                print('Ошибка при формировании названия фитинга - в model_line нет шаблона')
-                return self.name or ""
-        else:
-            template = self.fitting_model_line.description_template
-            if not template:
-                print('Ошибка при формировании описания фитинга - в model_line нет шаблона')
-                return self.description or ""
+    def _get_default_name_template(self) -> str:
+        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С"
+        return default_description_template
 
-        # Замена переменных
-        replacements = {
-            '{model_code}': self._get_value('code'),
-            '{temperature_range}': self._get_value('temperature_range_display'),
-            '{pressure_range}': self._get_value('pressure_range_display'),
-            '{pipe_diameter}': self._get_value('pipe_diameter'),
-            '{thread}': self._get_value('thread'),
-            '{thread_inner_outer}': self._get_value('thread_inner_outer'),
-            '{operating_pressure}': self._get_value('operating_pressure'),
-            '{noise_level}': self._get_value('noise_level'),
-            '{flow_rate}': self._get_value('flow_rate'),
+    def _get_default_description_template(self) -> str:
+        default_description_template = "{model_code} {fitting_variety} {brand}, {thread_inner_outer} резьба {thread}, цанговый зажим для трубки из металла наружн.диам. {pipe_diameter} мм, Т раб. {temperature_range} °С, Р раб. {pressure_range} бар, корпус - Нержавеющая сталь 304, в сборе с уплотнительным кольцом, трубки для присоединения: нержавеющая сталь, медь"
+        return default_description_template
+
+    def _get_data_dict(self) -> Dict[str, str]:
+        """Получить словарь соответствий плейсхолдеров и атрибутов для замены
+        Шаблон названия:
+
+        Шаблон описания
+
+        """
+        return {
+            '{model_code}': 'code',
+            '{brand}': 'model_line__brand',
+            '{temperature_range}': 'temperature_range_display',
+            '{fitting_variety}': 'fitting_variety__name',
+            '{shape}': 'fitting_variety__fixation_method',
+            '{fixation_method}': 'fitting_variety__fixation_method',
+            '{pressure_range}': 'pressure_range_display',
+            '{pipe_diameter}': 'pipe_diameter',
+            '{thread}': 'thread',
+            '{thread_inner_outer}': 'thread_inner_outer',
+            '{operating_pressure}': 'operating_pressure',
+            '{noise_level}': 'noise_level',
+            '{flow_rate}': 'flow_rate',
         }
-
-        # Заменяем все плейсхолдеры
-        result = template
-        for placeholder, value in replacements.items():
-            result = result.replace(placeholder, str(value) if value else '')
-
-        return result
 
     def __str__(self):
         return self.name
-
-    def save(self , *args , **kwargs) :
-        from django.core.exceptions import ValidationError
-
-        # Получаем оригинальный объект
-        original = None
-        if self.pk :
-            try :
-                original = self.__class__._default_manager.get(pk=self.pk)
-            except self.__class__.DoesNotExist :
-                pass
-
-        # Автозаполнение полей name description
-        self.name = self.generated_model_name_description('name')
-        self.description = self.generated_model_name_description('description')
-
-        # Сохраняем
-        super().save(*args , **kwargs)
 
     def copy(self, save_copy: bool = False, copy_relations: bool = False) -> 'PneumaticFitting':
         """
@@ -524,6 +514,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
         queryset = queryset.order_by('thread_type', 'sorting_order')
 
         return [{'id': t.id, 'name': t.name, 'code': t.code or ''} for t in queryset]
+
     # ==================== МЕТОДЫ ДЛЯ ФИЛЬТРАЦИИ И API ====================
 
     @classmethod
@@ -587,7 +578,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
         """
         result = {
             'brands': cls.get_distinct_values('brand'),
-            'model_lines': cls.get_distinct_values('fitting_model_line'),
+            'model_lines': cls.get_distinct_values('model_line'),
             'varieties': cls.get_distinct_values('fitting_variety'),
             'body_materials': cls.get_distinct_values('body_material'),
             'pipe_materials': cls.get_distinct_values('pipe_material'),
@@ -598,6 +589,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
         }
 
         return result
+
     @classmethod
     def filter_by_params(cls, params: Dict) -> Dict:
         """
@@ -609,7 +601,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
                     'temp_min': int,
                     'code': str,
                     'brand_id': int,
-                    'fitting_model_line_id': int,
+                    'model_line_id': int,
                     'fitting_variety_id': int,
                     'body_material_id': int,
                     'pipe_material_id': int,
@@ -629,7 +621,7 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
             }
         """
         queryset = cls.objects.select_related(
-            'brand', 'fitting_model_line', 'fitting_variety',
+            'brand', 'model_line', 'fitting_variety',
             'body_material', 'pipe_material', 'thread', 'thread_inner_outer'
         )
 
@@ -658,10 +650,10 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
             filters_applied['brand_id'] = brand_id
 
         # Фильтр по серии
-        model_line_id = params.get('fitting_model_line_id')
+        model_line_id = params.get('model_line_id')
         if model_line_id and model_line_id != 'all':
-            queryset = queryset.filter(fitting_model_line_id=model_line_id)
-            filters_applied['fitting_model_line_id'] = model_line_id
+            queryset = queryset.filter(model_line_id=model_line_id)
+            filters_applied['model_line_id'] = model_line_id
 
         # Фильтр по типу
         variety_id = params.get('fitting_variety_id')
@@ -760,11 +752,11 @@ class PneumaticFitting(StructuredDataMixin, models.Model):
                 'name': self.brand.name,
                 'code': self.brand.code
             } if self.brand else None,
-            'fitting_model_line': {
-                'id': self.fitting_model_line.id,
-                'name': self.fitting_model_line.name,
-                'code': self.fitting_model_line.code
-            } if self.fitting_model_line else None,
+            'model_line': {
+                'id': self.model_line.id,
+                'name': self.model_line.name,
+                'code': self.model_line.code
+            } if self.model_line else None,
             'fitting_variety': {
                 'id': self.fitting_variety.id,
                 'name': self.fitting_variety.name,

@@ -20,7 +20,7 @@ from params.graphql.types import (
 
 from params.models import (
     PowerSupplies, ControlUnitLocationOption, ControlUnitTypeOption, SafetyPositionOption,
-    ExdOption, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, EnvTempParameters,
+    IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, EnvTempParameters,
     DigitalProtocolsSupportOption, MechanicalIndicatorInstalledOption, ControlUnitInstalledOption,
     ActuatorGearboxOutputType, ActuatorGearBoxCombinationTypes, ValveTypes, HandWheelInstalledOption,
     OperatingModeOption, MountingPlateTypes, StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize,
@@ -28,6 +28,7 @@ from params.models import (
     CertData, CertVariety, DnVariety, PnVariety, OptionVariety, BodyColor,
     ValveFunctionVariety, ValveActuationVariety, SealingClass, CoatingVariety, WarrantyTimePeriodVariety
 )
+from params.exd_models import ExdOption
 
 
 class Query(graphene.ObjectType):

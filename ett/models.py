@@ -1,7 +1,8 @@
 # models.py
 from django.db import models
 from django.db import models
-from params.models import ValveTypes, MeasureUnits, ExdOption, IpOption, PowerSupplies
+from params.models import ValveTypes, MeasureUnits, IpOption, PowerSupplies
+from params.exd_models import ExdOption
 
 ETT_ACTUATOR_TYPES = [('Электро', 'Электро'), ('Пневмо', 'Пневмо'), ('Электро-гидро', 'Электро-гидро'),
                       ('Пневмо-гидро', 'Пневмо-гидро'), ('Ручной', 'Ручной')]

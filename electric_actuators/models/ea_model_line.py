@@ -736,13 +736,13 @@ class ModelLine(models.Model) :
                                help_text='Возможные для выбора покрытия корпуса для серии (можно выбрать несколько)')
 
     default_exd = \
-        models.ForeignKey('params.ExdOption' , blank=True , null=True ,
-                          related_name='default_exd_option' ,
-                          on_delete=models.SET_NULL ,
+        models.ForeignKey('params.exd_models.ExdOption', blank=True, null=True,
+                          related_name='default_exd_option',
+                          on_delete=models.SET_NULL,
                           help_text='Стандартное исполнение степени взрывозащиты для серии')
     allowed_exd = \
-        models.ManyToManyField('params.ExdOption' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_exd' ,
+        models.ManyToManyField('params.exd_models.ExdOption', blank=True, default=1,
+                               related_name='ea_model_line_allowed_exd',
                                help_text='Возможные для выбора степени взрывозащиты для серии (можно '
                                          'выбрать несколько)')
 

@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Any, Dict, Union
 import logging
 
 from core.models import StructuredDataMixin
+from core.models.mixins import TemplateGeneratorMixin
 from electric_actuators.models import CableGlandHolesSet
 from materials.models import MaterialGeneral, MaterialSpecified
 # from pa_controls.models import PaControlMountingStandard
@@ -14,7 +15,8 @@ from producers.models import Brands, Producer
 
 logger = logging.getLogger(__name__)
 
-from params.models import IpOption, ExdOption
+from params.models import IpOption
+from params.exd_models import ExdOption
 
 
 # ============================================================
@@ -139,7 +141,18 @@ class LimitSwitchOutput(models.Model):
     def __str__(self):
         if self.contact_form:
             return f"{self.name} ({self.contact_form})"
-        return self.name or self.code
+        return  f"{self.name}"
+
+    @property
+    def output_type_text(self) -> str:
+        """Возвращает человеко-читаемое значение типа выхода"""
+        text= f'Тип контактов: {self.get_contact_form_display()}, Тип сигнала: {self.get_signal_type_display()}, проводов на 1 датчик: {self.wires_per_sensor}'
+        return text
+
+    # @property
+    # def signal_type_display(self) -> str:
+    #     """Возвращает человеко-читаемое значение сигнала"""
+    #     return dict(self.SIGNAL_CHOICES).get(self.signal_type, self.signal_type)
 
     @classmethod
     def get_choices(cls):
@@ -179,12 +192,6 @@ class LimitSwitchBody(StructuredDataMixin, models.Model):
 
     description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание серии БКВ'))
-    name_template = models.TextField(blank=True, null=True,
-                                     verbose_name=_("Шаблон названия"),
-                                     help_text=_('Шаблон для текстового названия БКВ'))
-    description_template = models.TextField(blank=True, null=True,
-                                            verbose_name=_("Шаблон описания"),
-                                            help_text=_('Шаблон для описания БКВ'))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
@@ -219,6 +226,45 @@ class LimitSwitchBody(StructuredDataMixin, models.Model):
 
     def __str__(self) :
         return self.name
+
+    @property
+    def cable_glands_holes_list_text(self) -> str:
+        """
+        Возвращает текстовый список отверстий под кабельные вводы.
+        Разделитель - слово "или"
+        """
+        cable_glands = self.cable_glands_holes.all()
+        if not cable_glands:
+            return ""
+
+        names = [item.name for item in cable_glands]
+
+        if len(names) == 1:
+            return names[0]
+        elif len(names) == 2:
+            return f"{names[0]} или {names[1]}"
+        else:
+            return ", ".join(names[:-1]) + f" или {names[-1]}"
+
+    @property
+    def mounting_list_text(self) -> str:
+        """
+        Возвращает текстовый список стандартов присоединения.
+        Разделитель - слово "или"
+        """
+        mounting_standards = self.mounting.all()
+        if not mounting_standards:
+            return ""
+
+        names = [item.name for item in mounting_standards]
+
+        if len(names) == 1:
+            return names[0]
+        elif len(names) == 2:
+            return f"{names[0]} или {names[1]}"
+        else:
+            return ", ".join(names[:-1]) + f" или {names[-1]}"
+
 
 class LimitSwitchModelLine(StructuredDataMixin, models.Model):
     """
@@ -268,7 +314,7 @@ class LimitSwitchModelLine(StructuredDataMixin, models.Model):
         return self.name
 
 
-class LimitSwitchBox(StructuredDataMixin, models.Model):
+class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -368,39 +414,31 @@ class LimitSwitchBox(StructuredDataMixin, models.Model):
 
     def __str__(self):
         return f"{self.name}"
-    def generated_model_name_description(self , name_or_description) :
-        """Сгенерировать название БКВ по шаблону из model_line"""
-        if not self.model_line :
-            return self.name or ""
-        if name_or_description == 'name' :
-            template = self.model_line.name_template
-            if not template :
-                print('Ошибка при формировании названия БКВ - в model_line нет шаблона')
-                return self.name or ""
-        else :
-            template = self.model_line.description_template
-            if not template :
-                print('Ошибка при формировании описания БКВ - в model_line нет шаблона')
-                return self.description or ""
+    def _get_default_name_template(self) -> str:
+        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С"
+        return default_description_template
 
-        # Замена переменных
-        replacements = {
-            '{model_code}' : self._get_value('code') ,
-            '{sensor_variety}': self._get_value('sensor_variety'),
-            '{output_type}': self._get_value('output_type'),
-            '{points}': self._get_value('points'),
-            '{body_material}': self._get_value('body_material'),
-            '{body_material_specified}': self._get_value('body_material_specified'),
-            '{work_temp_min}': self._get_value('work_temp_min'),
-            '{work_temp_max}': self._get_value('work_temp_max'),
-            '{cable_glands_holes}': self._get_value('body__cable_glands_holes'),
-            '{exd}': self._get_value('exd'),
-            '{ip}': self._get_value('ip'),
+    def _get_default_description_template(self) -> str:
+        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С, {output_type_name}, Материал корпуса: {body_material_specified}, вес {weight}кг., Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}"
+        return default_description_template
 
+    def _get_data_dict(self) -> Dict[str, str]:
+        """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
+        return {
+            '{model_code}': 'code',
+            '{brand}': 'model_line__brand',
+            '{sensor_variety}': 'sensor_variety',
+            '{contact_form}':'output_type__contact_form',
+            '{signal_type}':'output_type__signal_type__signal_type_display',
+            '{output_type_name}':'output_type__output_type_text',
+            '{points}': 'points',
+            '{body_material}': 'body_material',
+            '{body_material_specified}': 'body_material_specified',
+            '{weight}': 'body__weight',
+            '{cable_glands_holes}': 'body__cable_glands_holes_list_text',
+            '{mounting}': 'body__mounting_list_text',
+            '{work_temp_min}': 'work_temp_min',
+            '{work_temp_max}': 'work_temp_max',
+            '{exd}': 'exd',
+            '{ip}': 'ip',
         }
-        # Заменяем все плейсхолдеры
-        result = template
-        for placeholder , value in replacements.items() :
-            result = result.replace(placeholder , str(value) if value else '')
-
-        return result
