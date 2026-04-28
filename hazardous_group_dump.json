@@ -1,0 +1,68 @@
+[
+{
+    "model": "params.hazardousgroup",
+    "pk": 1,
+    "fields": {
+        "code": "IIA",
+        "name": "IIA",
+        "description": "Пропан, метан, аммиак. Наименее опасная группа газов.",
+        "group_type": "GAS",
+        "rating": 1
+    }
+},
+{
+    "model": "params.hazardousgroup",
+    "pk": 2,
+    "fields": {
+        "code": "IIB",
+        "name": "IIB",
+        "description": "Этилен, коксовый газ, диметиловый эфир. Группа газов средней опасности.",
+        "group_type": "GAS",
+        "rating": 2
+    }
+},
+{
+    "model": "params.hazardousgroup",
+    "pk": 3,
+    "fields": {
+        "code": "IIC",
+        "name": "IIC",
+        "description": "Водород, ацетилен, сероуглерод. Наиболее опасная группа газов.",
+        "group_type": "GAS",
+        "rating": 3
+    }
+},
+{
+    "model": "params.hazardousgroup",
+    "pk": 4,
+    "fields": {
+        "code": "IIIA",
+        "name": "IIIA",
+        "description": "Легковоспламеняющиеся летучие частицы (мука, зерно, сахар, крахмал).",
+        "group_type": "DUST",
+        "rating": 1
+    }
+},
+{
+    "model": "params.hazardousgroup",
+    "pk": 5,
+    "fields": {
+        "code": "IIIB",
+        "name": "IIIB",
+        "description": "Непроводящая пыль (древесная, угольная, пластмассовая, торфяная).",
+        "group_type": "DUST",
+        "rating": 2
+    }
+},
+{
+    "model": "params.hazardousgroup",
+    "pk": 6,
+    "fields": {
+        "code": "IIIC",
+        "name": "IIIC",
+        "description": "Проводящая пыль (металлическая, графитовая, коксовая, углеродная).",
+        "group_type": "DUST",
+        "rating": 3
+    }
+}
+]
