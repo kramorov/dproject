@@ -145,10 +145,35 @@ class PowerSuppliesAdmin(admin.ModelAdmin):
 
 
 class ExdOptionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name',  'code', 'sorting_order', 'is_active']
-    list_editable = ['name', 'code', 'sorting_order']
-    search_fields = ('name' , 'code' , 'description')  # ← ДОБАВЬТЕ
-    ordering = ['sorting_order']
+    list_display = ['id', 'name', 'code', 'equipment_type', 'sorting_order', 'has_x_suffix', 'is_active']
+    list_editable = ['sorting_order', 'is_active']
+    list_filter = ['equipment_type', 'is_active', 'has_x_suffix', 'has_u_suffix']
+    search_fields = ['name', 'code', 'description', 'exd_full_code', 'generated_full_code']
+    ordering = ['sorting_order', 'id']
+    readonly_fields = ['generated_full_code']
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'code', 'description', 'exd_full_code', 'generated_full_code')
+        }),
+        ('Тип оборудования', {
+            'fields': ('equipment_type',)
+        }),
+        ('Газовая взрывозащита', {
+            'fields': ('gas_protection_types', 'gas_group', 'temperature_class', 'gas_protection_level'),
+            'classes': ('collapse',),
+        }),
+        ('Пылевая взрывозащита', {
+            'fields': ('dust_protection_types', 'dust_group', 'dust_temperature', 'dust_protection_level'),
+            'classes': ('collapse',),
+        }),
+        ('Специальные обозначения', {
+            'fields': ('has_x_suffix', 'has_u_suffix'),
+        }),
+        ('Сортировка и статус', {
+            'fields': ('sorting_order', 'is_active'),
+        }),
+    )
 
 class MechanicalIndicatorInstalledOptionAdmin(admin.ModelAdmin):
     list_display = ['id', 'name',  'code', 'sorting_order', 'is_active']

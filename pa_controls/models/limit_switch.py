@@ -365,11 +365,14 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
                            help_text=_('Степень защиты IP'),
                            verbose_name=_("IP")
                            )
-    exd = models.ForeignKey(ExdOption, on_delete=models.SET_NULL, null=True,
-                            related_name='limit_switch_box_exd',
-                            help_text=_('Степень Exd'),
-                            verbose_name=_("Exd")
-                            )
+    exd = models.ManyToManyField(
+        'params.ExdOption',
+        blank=True,
+        related_name='limit_switch_boxes',
+        help_text=_('Степень взрывозащиты (можно выбрать несколько вариантов)'),
+        verbose_name=_("Взрывозащита")
+    )
+
     work_temp_min = models.IntegerField(
         null=True, blank=True, default=-40,
         help_text=_('Минимальная рабочая температура, °С'),
@@ -414,6 +417,20 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
 
     def __str__(self):
         return f"{self.name}"
+
+    @property
+    def exd_display(self):
+        """Возвращает отображаемую маркировку взрывозащиты"""
+        if not self.exd.exists():
+            return "Не требуется"
+        return ", ".join([req.name for req in self.exd.all()])
+
+    @property
+    def exd_full_marking(self):
+        """Возвращает полную маркировку"""
+        if not self.exd.exists():
+            return ""
+        return ", ".join([req.generated_full_code or req.name for req in self.exd.all()])
     def _get_default_name_template(self) -> str:
         default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С"
         return default_description_template

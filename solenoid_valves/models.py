@@ -478,7 +478,7 @@ class DirectionValve(StructuredDataMixin, TemplateGeneratorMixin, models.Model):
     ip = models.ForeignKey('params.IpOption', blank=True, null=True, default=65,
                            on_delete=models.SET_NULL, related_name='direction_valve_ip', verbose_name=_("IP"),
                            help_text=_('Степень IP для модели клапана'))
-    exd = models.ForeignKey('params.exd_models.ExdOption', blank=True, null=True,
+    exd = models.ForeignKey('params.ExdOption', blank=True, null=True,
                             related_name='direction_valve_exd',
                             on_delete=models.SET_NULL, verbose_name=_("Exd"),
                             help_text=_('Степень взрывозащиты для модели клапана'))

@@ -143,11 +143,12 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
         }),
     )
 
+
 @admin.register(LimitSwitchBox)
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'model_line', 'sensor_variety', 'output_type',
-        'points', 'ip', 'is_active', 'sorting_order'
+        'points', 'ip', 'get_exd_display', 'is_active', 'sorting_order'
     ]
     list_filter = [
         'is_active', 'sensor_variety', 'output_type', 'model_line',
@@ -155,13 +156,14 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     ]
     list_editable = ['sorting_order', 'is_active']
     ordering = ['sorting_order', 'name']
-    actions = ['copy_selected_boxes']  # <-- ВОТ ЭТА СТРОКА
+    actions = ['copy_selected_boxes']
+    filter_horizontal = ['exd']  # Для ManyToMany полей
 
     fieldsets = (
         (_('Основная информация'), {
-            'fields': (('name', 'code',  'model_line'),
-            ('sensor_variety', 'output_type', 'points'),
-                       ('ip', 'exd'),
+            'fields': (('name', 'code', 'model_line'),
+                       ('sensor_variety', 'output_type', 'points'),
+                       ('ip', 'exd'),  # exd теперь ManyToMany
                        ('work_temp_min', 'work_temp_max'),)
         }),
         (_('Описание'), {
@@ -169,7 +171,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
             'classes': ('wide',),
         }),
         (_('Материалы и вес'), {
-            'fields': (('body_material', 'body_material_specified'),'body')
+            'fields': (('body_material', 'body_material_specified'), 'body')
         }),
         (_('Дополнительные опции'), {
             'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
@@ -186,9 +188,17 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'model_line', 'sensor_variety', 'output_type', 'ip', 'exd',
+            'model_line', 'sensor_variety', 'output_type', 'ip',
             'body_material', 'body_material_specified'
-        )
+        ).prefetch_related('exd')  # prefetch_related для ManyToMany
+
+    def get_exd_display(self, obj):
+        """Возвращает отображаемую маркировку взрывозащиты"""
+        if not obj.exd.exists():
+            return "-"
+        return ", ".join([exd.name for exd in obj.exd.all()])
+
+    get_exd_display.short_description = _("Взрывозащита")
 
     def copy_selected_boxes(self, request, queryset):
         """
@@ -231,15 +241,14 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
                     name=new_name,
                     code=new_code,
                     description=f"Копия: {original.description}" if original.description else "Копия",
-                    sorting_order=original.sorting_order + 100,  # Сдвигаем порядок
+                    sorting_order=original.sorting_order + 100,
                     is_active=original.is_active,
                     model_line=original.model_line,
-                    body=original.body ,
+                    body=original.body,
                     sensor_variety=original.sensor_variety,
                     output_type=original.output_type,
                     points=original.points,
                     ip=original.ip,
-                    exd=original.exd,
                     work_temp_min=original.work_temp_min,
                     work_temp_max=original.work_temp_max,
                     body_material=original.body_material,
@@ -250,6 +259,10 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
                     extra_params=original.extra_params.copy() if original.extra_params else {}
                 )
                 copy.save()
+
+                # Копируем ManyToMany поле exd
+                copy.exd.set(original.exd.all())
+
                 copied_count += 1
 
             except Exception as e:
