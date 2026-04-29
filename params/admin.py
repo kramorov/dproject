@@ -145,7 +145,7 @@ class PowerSuppliesAdmin(admin.ModelAdmin):
 
 
 class ExdOptionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'code', 'equipment_type', 'sorting_order', 'has_x_suffix', 'is_active']
+    list_display = ['id', 'name', 'code','sorting_order', 'has_x_suffix', 'is_active']
     list_editable = ['sorting_order', 'is_active']
     list_filter = ['equipment_type', 'is_active', 'has_x_suffix', 'has_u_suffix']
     search_fields = ['name', 'code', 'description', 'exd_full_code', 'generated_full_code']
@@ -157,18 +157,7 @@ class ExdOptionAdmin(admin.ModelAdmin):
             'fields': ('name', 'code', 'description', 'exd_full_code', 'generated_full_code')
         }),
         ('Тип оборудования', {
-            'fields': ('equipment_type',)
-        }),
-        ('Газовая взрывозащита', {
-            'fields': ('gas_protection_types', 'gas_group', 'temperature_class', 'gas_protection_level'),
-            'classes': ('collapse',),
-        }),
-        ('Пылевая взрывозащита', {
-            'fields': ('dust_protection_types', 'dust_group', 'dust_temperature', 'dust_protection_level'),
-            'classes': ('collapse',),
-        }),
-        ('Специальные обозначения', {
-            'fields': ('has_x_suffix', 'has_u_suffix'),
+            'fields': ('hazardous_group','equipment_type','temperature_class','explosion_protection_class')
         }),
         ('Сортировка и статус', {
             'fields': ('sorting_order', 'is_active'),
