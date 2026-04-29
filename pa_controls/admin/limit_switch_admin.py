@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.contrib import messages
 
 from pa_controls.models import LimitSwitchSensorVariety, LimitSwitchOutput
 from pa_controls.models.limit_switch import LimitSwitchModelLine , LimitSwitchBox , LimitSwitchBody
@@ -209,70 +210,18 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
 
         for original in queryset:
             try:
-                # Генерируем новые имена с суффиксом
-                original_name = original.name or ""
-                original_code = original.code or ""
-
-                # Если имя уже содержит суффикс, добавляем еще один
-                if " (Копия)" in original_name:
-                    base_name = original_name.replace(" (Копия)", "")
-                    new_name = f"{base_name} (Копия)"
-                else:
-                    new_name = f"{original_name} (Копия)"
-
-                # Для кода тоже добавляем суффикс (если есть)
-                if original_code:
-                    if "_copy" in original_code:
-                        # Увеличиваем номер копии
-                        import re
-                        match = re.search(r"_copy(\d+)$", original_code)
-                        if match:
-                            num = int(match.group(1)) + 1
-                            new_code = re.sub(r"_copy\d+$", f"_copy{num}", original_code)
-                        else:
-                            new_code = f"{original_code}_copy1"
-                    else:
-                        new_code = f"{original_code}_copy"
-                else:
-                    new_code = None
-
-                # Создаем копию
-                copy = LimitSwitchBox(
-                    name=new_name,
-                    code=new_code,
-                    description=f"Копия: {original.description}" if original.description else "Копия",
-                    sorting_order=original.sorting_order + 100,
-                    is_active=original.is_active,
-                    model_line=original.model_line,
-                    body=original.body,
-                    sensor_variety=original.sensor_variety,
-                    output_type=original.output_type,
-                    points=original.points,
-                    ip=original.ip,
-                    work_temp_min=original.work_temp_min,
-                    work_temp_max=original.work_temp_max,
-                    body_material=original.body_material,
-                    body_material_specified=original.body_material_specified,
-                    is_pneumatic=original.is_pneumatic,
-                    has_namur_interface=original.has_namur_interface,
-                    has_visual_indicator=original.has_visual_indicator,
-                    extra_params=original.extra_params.copy() if original.extra_params else {}
-                )
-                copy.save()
-
-                # Копируем ManyToMany поле exd
-                copy.exd.set(original.exd.all())
-
+                # Вызываем метод copy() модели
+                original.copy()
                 copied_count += 1
-
             except Exception as e:
                 errors.append(f"{original.name}: {str(e)}")
 
         # Сообщение о результате
         if copied_count > 0:
-            self.message_user(request, f"✅ Скопировано {copied_count} БКВ.")
+            self.message_user(request, f"✅ Скопировано {copied_count} БКВ.", level=messages.SUCCESS)
 
         if errors:
-            self.message_user(request, f"⚠️ Ошибки при копировании: {', '.join(errors)}", level='ERROR')
+            self.message_user(request, f"⚠️ Ошибки при копировании: {', '.join(errors)}", level=messages.ERROR)
 
     copy_selected_boxes.short_description = "📋 Копировать выбранные БКВ"
+

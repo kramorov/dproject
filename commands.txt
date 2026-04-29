@@ -11,8 +11,7 @@ git pull main main
 git push main av-be-master:main
 МАТЕРИАЛИЗОВАННОЕ ПРЕДСТАВЛЕНИЕ
 
-Копирование опций напряжения (блоки управления не работает)
-проверить AR11 030-120
+cp db.sqlite3 db.sqlite3.backup_$(date +%Y%m%d)
 
 streamlit run main_page.py
 

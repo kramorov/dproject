@@ -139,9 +139,17 @@ class LimitSwitchOutput(models.Model):
         ordering = ['sorting_order', 'name']
 
     def __str__(self):
-        if self.contact_form:
-            return f"{self.name} ({self.contact_form})"
+        # if self.contact_form:
+        #     return f"{self.name} ({self.contact_form})"
         return  f"{self.name}"
+
+    @property
+    def signal_type_text(self) -> str:
+        return self.get_signal_type_display()
+
+    @property
+    def contact_form_text(self) -> str:
+        return self.get_contact_form_display()
 
     @property
     def output_type_text(self) -> str:
@@ -418,19 +426,79 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
     def __str__(self):
         return f"{self.name}"
 
+    def copy(self, suffix=" (Копия)", code_suffix="_copy"):
+        """
+        Создает копию текущего объекта
+
+        Args:
+            suffix: суффикс для name
+            code_suffix: суффикс для code
+
+        Returns:
+            LimitSwitchBox: Скопированный объект
+        """
+        # Генерируем новые имена с суффиксом
+        original_name = self.name or ""
+        original_code = self.code or ""
+
+        # Для name
+        if suffix in original_name:
+            base_name = original_name.replace(suffix, "")
+            new_name = f"{base_name}{suffix}"
+        else:
+            new_name = f"{original_name}{suffix}"
+
+        # Для code
+        if original_code:
+            if code_suffix in original_code:
+                # Увеличиваем номер копии
+                import re
+                match = re.search(rf"{code_suffix}(\d+)$", original_code)
+                if match:
+                    num = int(match.group(1)) + 1
+                    new_code = re.sub(rf"{code_suffix}\d+$", f"{code_suffix}{num}", original_code)
+                else:
+                    new_code = f"{original_code}{code_suffix}1"
+            else:
+                new_code = f"{original_code}{code_suffix}"
+        else:
+            new_code = None
+
+        # Создаем копию
+        copy = LimitSwitchBox(
+            name=new_name,
+            code=new_code,
+            description=f"Копия: {self.description}" if self.description else "Копия",
+            sorting_order=self.sorting_order + 100,
+            is_active=self.is_active,
+            model_line=self.model_line,
+            body=self.body,
+            sensor_variety=self.sensor_variety,
+            output_type=self.output_type,
+            points=self.points,
+            ip=self.ip,
+            work_temp_min=self.work_temp_min,
+            work_temp_max=self.work_temp_max,
+            body_material=self.body_material,
+            body_material_specified=self.body_material_specified,
+            is_pneumatic=self.is_pneumatic,
+            has_namur_interface=self.has_namur_interface,
+            has_visual_indicator=self.has_visual_indicator,
+            extra_params=self.extra_params if self.extra_params else {}
+        )
+        copy.save()
+
+        # Копируем ManyToMany поле exd
+        copy.exd.set(self.exd.all())
+
+        return copy
     @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
         if not self.exd.exists():
-            return "Не требуется"
+            return "Нет"
         return ", ".join([req.name for req in self.exd.all()])
 
-    @property
-    def exd_full_marking(self):
-        """Возвращает полную маркировку"""
-        if not self.exd.exists():
-            return ""
-        return ", ".join([req.generated_full_code or req.name for req in self.exd.all()])
     def _get_default_name_template(self) -> str:
         default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С"
         return default_description_template
@@ -445,8 +513,8 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
             '{model_code}': 'code',
             '{brand}': 'model_line__brand',
             '{sensor_variety}': 'sensor_variety',
-            '{contact_form}':'output_type__contact_form',
-            '{signal_type}':'output_type__signal_type__signal_type_display',
+            '{contact_form}':'output_type__contact_form_text',
+            '{signal_type}':'output_type__signal_type_text',
             '{output_type_name}':'output_type__output_type_text',
             '{points}': 'points',
             '{body_material}': 'body_material',
@@ -456,6 +524,6 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
             '{mounting}': 'body__mounting_list_text',
             '{work_temp_min}': 'work_temp_min',
             '{work_temp_max}': 'work_temp_max',
-            '{exd}': 'exd',
+            '{exd}': 'exd_display',
             '{ip}': 'ip',
         }

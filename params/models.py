@@ -7,23 +7,25 @@ from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin, OptionListToSelectMixin
 from options.models import BaseThroughOption
 
-from .exd_models import ExdOption, GasGroup, DustGroup, TemperatureClass, ExplosionProtectionType, ExplosionProtectionLevel
+from .exd_models import ExdOption,  TemperatureClass, ExplosionProtectionType, \
+    ExplosionProtectionLevel, ExplosionProtectionMethod
 
-class PowerSupplies(models.Model,OptionListToSelectMixin):
+
+class PowerSupplies(models.Model, OptionListToSelectMixin):
     VOLTAGE_TYPES = [
         ('AC', 'AC - Переменный ток'),
         ('DC', 'DC - Постоянный ток'),
     ]
-    name = models.CharField(max_length=100,blank=True, null=True,
+    name = models.CharField(max_length=100, blank=True, null=True,
                             help_text=_("Символьное обозначение типа напряжения"),
                             verbose_name=_("Название"))
     code = models.CharField(max_length=50, blank=True, null=True,
                             help_text=_("Код типа напряжения"),
                             verbose_name=_("Код"))
     encoding = models.CharField(
-        max_length=20 ,
-        blank=True ,
-        verbose_name=_("Кодировка") ,
+        max_length=20,
+        blank=True,
+        verbose_name=_("Кодировка"),
         help_text=_("Код опции для подстановки в артикул")
     )
     description = models.TextField(blank=True, verbose_name=_("Описание"))
@@ -46,7 +48,7 @@ class PowerSupplies(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class ControlUnitLocationOption(models.Model,OptionListToSelectMixin):
+class ControlUnitLocationOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             help_text=_("Символьное обозначение типа размещения блока управления"),
                             verbose_name=_("Название"))
@@ -60,7 +62,6 @@ class ControlUnitLocationOption(models.Model,OptionListToSelectMixin):
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
-
     class Meta:
         verbose_name = _('Место размещения блока управления')
         verbose_name_plural = _('Места размещения блока управления')
@@ -70,8 +71,8 @@ class ControlUnitLocationOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class ControlUnitTypeOption(models.Model,OptionListToSelectMixin):
-    name = models.CharField(max_length=100,blank=True, null=True,
+class ControlUnitTypeOption(models.Model, OptionListToSelectMixin):
+    name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение типа размещения блока управления")
                             )
@@ -85,7 +86,7 @@ class ControlUnitTypeOption(models.Model,OptionListToSelectMixin):
                                         verbose_name=_("Порядок сортировки"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
-                                        help_text=_('Активно свойство или нет'))
+                                    help_text=_('Активно свойство или нет'))
 
     class Meta:
         verbose_name = _('Тип блока управления')
@@ -96,8 +97,8 @@ class ControlUnitTypeOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class SafetyPositionOption(models.Model,OptionListToSelectMixin):
-    name = models.CharField(max_length=100,blank=True, null=True,
+class SafetyPositionOption(models.Model, OptionListToSelectMixin):
+    name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение положения функции безопасности")
                             )
@@ -119,7 +120,7 @@ class SafetyPositionOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class IpOption(models.Model,OptionListToSelectMixin):
+class IpOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение исполнения IP")
@@ -135,7 +136,6 @@ class IpOption(models.Model,OptionListToSelectMixin):
 
     ip_rank = models.IntegerField(verbose_name=_('Ранг IP'), help_text=_('Приоритет исполнения IP (выше - лучше)'))
 
-
     class Meta:
         verbose_name = _('Вид защиты IP')
         verbose_name_plural = _('Виды защиты IP')
@@ -145,8 +145,7 @@ class IpOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-
-class BodyCoatingOption(models.Model,OptionListToSelectMixin):
+class BodyCoatingOption(models.Model, OptionListToSelectMixin):
     # TODO: Объединить этот класс с классом в Valve_data добавить толщину покрытия
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -170,7 +169,7 @@ class BodyCoatingOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class BlinkerOption(models.Model,OptionListToSelectMixin):
+class BlinkerOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение наличия блинкера")
@@ -193,7 +192,7 @@ class BlinkerOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class SwitchesParameters(models.Model,OptionListToSelectMixin):
+class SwitchesParameters(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение характеристик выключателей")
@@ -241,7 +240,7 @@ class EnvTempParameters(models.Model):
         return self.name
 
 
-class ClimaticZoneClassifier(models.Model,OptionListToSelectMixin):
+class ClimaticZoneClassifier(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение типа климатической зоны")
@@ -264,7 +263,7 @@ class ClimaticZoneClassifier(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class ClimaticEquipmentPlacementClassifier(models.Model,OptionListToSelectMixin):
+class ClimaticEquipmentPlacementClassifier(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название категории размещения оборудования")
@@ -287,7 +286,7 @@ class ClimaticEquipmentPlacementClassifier(models.Model,OptionListToSelectMixin)
         return self.name
 
 
-class ClimaticConditions(models.Model,OptionListToSelectMixin):
+class ClimaticConditions(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название значения температуры по климатическому исполнению")
@@ -324,7 +323,7 @@ class ClimaticConditions(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class DigitalProtocolsSupportOption(models.Model,OptionListToSelectMixin):
+class DigitalProtocolsSupportOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения поддерживаемого цифрового протокола")
@@ -347,7 +346,7 @@ class DigitalProtocolsSupportOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class MechanicalIndicatorInstalledOption(models.Model,OptionListToSelectMixin):
+class MechanicalIndicatorInstalledOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения установленного механического индикатора положения")
@@ -360,6 +359,7 @@ class MechanicalIndicatorInstalledOption(models.Model,OptionListToSelectMixin):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
+
     # encoding = models.CharField(max_length=10, verbose_name=_('Кодировка'),
     #                             help_text=_('Кодировка установленного механического индикатора положения'))
     class Meta:
@@ -375,7 +375,7 @@ class MechanicalIndicatorInstalledOption(models.Model,OptionListToSelectMixin):
             return "Новый индикатор"
 
 
-class ControlUnitInstalledOption(models.Model,OptionListToSelectMixin):
+class ControlUnitInstalledOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения установленного на приводе блока управления")
@@ -405,44 +405,44 @@ class ControlUnitInstalledOption(models.Model,OptionListToSelectMixin):
         return self.name
 
 
-class ActuatorGearboxOutputType(StructuredDataMixin , models.Model, OptionListToSelectMixin) :
-    name = models.CharField(max_length=100 , blank=True , null=True ,
-                            verbose_name=_("Название") ,
+class ActuatorGearboxOutputType(StructuredDataMixin, models.Model, OptionListToSelectMixin):
+    name = models.CharField(max_length=100, blank=True, null=True,
+                            verbose_name=_("Название"),
                             help_text=_("Название обозначения типа выхода привода/редуктора")
                             )
-    code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код обозначения типа выхода привода/редуктора"))
-    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание типа выхода привода/редуктора'))
-    sorting_order = models.IntegerField(default=0 , verbose_name=_("Порядок сортировки") ,
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"),
                                         help_text=_('Порядок сортировки в списке'))
-    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
-    class Meta :
+    class Meta:
         verbose_name = _('Тип выхода привода/редуктора')
         verbose_name_plural = _('Типы выходов привода/редуктора')
         ordering = ['sorting_order']
 
-    def __str__(self) :
+    def __str__(self):
         return self.name
 
     # ==================== StructuredDataMixin методы ====================
 
-    def get_compact_data(self) -> Dict[str , Any] :
+    def get_compact_data(self) -> Dict[str, Any]:
         """
         Минимальные данные для списков и таблиц
         """
         return {
-            'id' : self.id ,
-            'name' : self.name ,
-            'code' : self.code ,
-            'is_active' : self.is_active ,
-            'model' : self._get_model_name() ,
-            'app' : self._get_app_label() ,
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'is_active': self.is_active,
+            'model': self._get_model_name(),
+            'app': self._get_app_label(),
         }
 
-    def get_display_data(self , view_type: str = 'detail') -> Dict[str , Any] :
+    def get_display_data(self, view_type: str = 'detail') -> Dict[str, Any]:
         """
         Данные для отображения в UI
         """
@@ -450,185 +450,185 @@ class ActuatorGearboxOutputType(StructuredDataMixin , models.Model, OptionListTo
         fields = self._get_base_display_fields()
 
         # Обновляем лейблы для нашей модели
-        if 'name' in fields :
+        if 'name' in fields:
             fields['name']['label'] = _('Название типа выхода')
             fields['name']['priority'] = 1
 
-        if 'code' in fields :
+        if 'code' in fields:
             fields['code']['label'] = _('Код типа выхода')
             fields['code']['priority'] = 2
 
         # Добавляем description
         fields['description'] = self._format_field(
-            self.description ,
-            'text' ,
-            label=_('Описание') ,
-            icon='📄' ,
-            priority=3 ,
+            self.description,
+            'text',
+            label=_('Описание'),
+            icon='📄',
+            priority=3,
             multiline=True
         )
 
         # Добавляем sorting_order
         fields['sorting_order'] = self._format_field(
-            self.sorting_order ,
-            'number' ,
-            label=_('Порядок сортировки') ,
-            icon='🔢' ,
+            self.sorting_order,
+            'number',
+            label=_('Порядок сортировки'),
+            icon='🔢',
             priority=4
         )
 
-        if view_type == self.CARD :
+        if view_type == self.CARD:
             return {
-                'title' : self.name ,
-                'subtitle' : self.code or '' ,
-                'description' : self.description[:100] + '...' if self.description else '' ,
-                'badges' : [
-                    {'text' : self.code , 'type' : 'code'} if self.code else None ,
-                    {'text' : 'Активен' , 'type' : 'success'} if self.is_active
-                    else {'text' : 'Неактивен' , 'type' : 'secondary'} ,
-                ] ,
-                'details' : [
-                    {'label' : 'Сортировка' , 'value' : self.sorting_order} ,
+                'title': self.name,
+                'subtitle': self.code or '',
+                'description': self.description[:100] + '...' if self.description else '',
+                'badges': [
+                    {'text': self.code, 'type': 'code'} if self.code else None,
+                    {'text': 'Активен', 'type': 'success'} if self.is_active
+                    else {'text': 'Неактивен', 'type': 'secondary'},
+                ],
+                'details': [
+                    {'label': 'Сортировка', 'value': self.sorting_order},
                 ]
             }
 
-        elif view_type == self.LIST :
+        elif view_type == self.LIST:
             return {
-                'id' : self.id ,
-                'name' : self.name ,
-                'code' : self.code ,
-                'is_active' : self.is_active ,
-                'sorting_order' : self.sorting_order ,
+                'id': self.id,
+                'name': self.name,
+                'code': self.code,
+                'is_active': self.is_active,
+                'sorting_order': self.sorting_order,
             }
 
-        elif view_type == self.BADGE :
+        elif view_type == self.BADGE:
             return {
-                'text' : self.name ,
-                'code' : self.code ,
-                'type' : 'output_type' ,
-                'color' : 'purple' if self.is_active else 'gray' ,
+                'text': self.name,
+                'code': self.code,
+                'type': 'output_type',
+                'color': 'purple' if self.is_active else 'gray',
             }
 
         # По умолчанию DETAIL
         return {
-            'title' : self.name ,
-            'subtitle' : f'Код: {self.code}' if self.code else '' ,
-            'fields' : fields ,
-            'actions' : self._get_actions()
+            'title': self.name,
+            'subtitle': f'Код: {self.code}' if self.code else '',
+            'fields': fields,
+            'actions': self._get_actions()
         }
 
-    def get_full_data(self , include: Optional[List[str]] = None) -> Dict[str , Any] :
+    def get_full_data(self, include: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Полные данные для форм и API
         """
-        if include is None :
-            include = ['form' , 'metadata' , 'related']
+        if include is None:
+            include = ['form', 'metadata', 'related']
 
         data = {
-            'id' : self.id ,
-            'model' : self._get_model_name() ,
-            'app' : self._get_app_label() ,
-            'is_active' : self.is_active ,
-            'sorting_order' : self.sorting_order ,
-            'display' : self.get_display_data() ,
+            'id': self.id,
+            'model': self._get_model_name(),
+            'app': self._get_app_label(),
+            'is_active': self.is_active,
+            'sorting_order': self.sorting_order,
+            'display': self.get_display_data(),
         }
 
-        if 'form' in include :
+        if 'form' in include:
             data['form'] = {
-                'name' : self.name ,
-                'code' : self.code ,
-                'description' : self.description ,
-                'sorting_order' : self.sorting_order ,
-                'is_active' : self.is_active ,
+                'name': self.name,
+                'code': self.code,
+                'description': self.description,
+                'sorting_order': self.sorting_order,
+                'is_active': self.is_active,
             }
 
-        if 'metadata' in include :
+        if 'metadata' in include:
             data['metadata'] = self._get_metadata()
 
-        if 'related' in include :
+        if 'related' in include:
             data['related'] = self._get_related_data()
 
         return data
 
     # ==================== Вспомогательные методы ====================
 
-    def _get_metadata(self) -> Dict[str , Any] :
+    def _get_metadata(self) -> Dict[str, Any]:
         """
         Метаданные для форм
         """
         return {
-            'field_schema' : [
+            'field_schema': [
                 {
-                    'name' : 'name' ,
-                    'type' : 'text' ,
-                    'required' : False ,
-                    'label' : _('Название') ,
-                    'help_text' : _('Название обозначения типа выхода привода/редуктора') ,
-                    'max_length' : 100 ,
-                    'widget' : 'text_input'
-                } ,
+                    'name': 'name',
+                    'type': 'text',
+                    'required': False,
+                    'label': _('Название'),
+                    'help_text': _('Название обозначения типа выхода привода/редуктора'),
+                    'max_length': 100,
+                    'widget': 'text_input'
+                },
                 {
-                    'name' : 'code' ,
-                    'type' : 'text' ,
-                    'required' : False ,
-                    'label' : _('Код') ,
-                    'help_text' : _('Код обозначения типа выхода привода/редуктора') ,
-                    'max_length' : 50 ,
-                    'widget' : 'text_input'
-                } ,
+                    'name': 'code',
+                    'type': 'text',
+                    'required': False,
+                    'label': _('Код'),
+                    'help_text': _('Код обозначения типа выхода привода/редуктора'),
+                    'max_length': 50,
+                    'widget': 'text_input'
+                },
                 {
-                    'name' : 'description' ,
-                    'type' : 'text' ,
-                    'required' : False ,
-                    'label' : _('Описание') ,
-                    'help_text' : _('Текстовое описание типа выхода привода/редуктора') ,
-                    'widget' : 'textarea' ,
-                    'rows' : 4
-                } ,
+                    'name': 'description',
+                    'type': 'text',
+                    'required': False,
+                    'label': _('Описание'),
+                    'help_text': _('Текстовое описание типа выхода привода/редуктора'),
+                    'widget': 'textarea',
+                    'rows': 4
+                },
                 {
-                    'name' : 'sorting_order' ,
-                    'type' : 'number' ,
-                    'required' : False ,
-                    'label' : _('Порядок сортировки') ,
-                    'help_text' : _('Порядок сортировки в списке') ,
-                    'min_value' : -100 ,
-                    'max_value' : 100 ,
-                    'default' : 0
-                } ,
+                    'name': 'sorting_order',
+                    'type': 'number',
+                    'required': False,
+                    'label': _('Порядок сортировки'),
+                    'help_text': _('Порядок сортировки в списке'),
+                    'min_value': -100,
+                    'max_value': 100,
+                    'default': 0
+                },
                 {
-                    'name' : 'is_active' ,
-                    'type' : 'boolean' ,
-                    'required' : False ,
-                    'label' : _('Активно') ,
-                    'help_text' : _('Активно свойство или нет') ,
-                    'default' : True
+                    'name': 'is_active',
+                    'type': 'boolean',
+                    'required': False,
+                    'label': _('Активно'),
+                    'help_text': _('Активно свойство или нет'),
+                    'default': True
                 }
-            ] ,
-            'validation_rules' : {
-                'name' : {
-                    'max_length' : 100
+            ],
+            'validation_rules': {
+                'name': {
+                    'max_length': 100
                 }
             }
         }
 
-    def _get_related_data(self) -> Dict[str , Any] :
+    def _get_related_data(self) -> Dict[str, Any]:
         """
         Связанные данные
         """
         # Можно добавить подсчет связанных объектов
         return {
-            'model_lines_count' : getattr(self , '_model_lines_count' , 0) ,
+            'model_lines_count': getattr(self, '_model_lines_count', 0),
         }
 
     # ==================== Утилитарные методы ====================
 
-    def get_absolute_url(self) :
+    def get_absolute_url(self):
         """
         URL для детальной страницы
         """
         return f"/actuators/output-types/{self.id}/"
 
-    def get_admin_url(self) :
+    def get_admin_url(self):
         """
         URL в админке Django
         """
@@ -702,6 +702,7 @@ class ValveTypes(models.Model, OptionListToSelectMixin):
         return [{'id': obj.id, 'name': str(obj),
                  'actuator_gearbox_combinations': obj.actuator_gearbox_combinations} for obj in queryset]
 
+
 class HandWheelInstalledOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -717,7 +718,6 @@ class HandWheelInstalledOption(models.Model, OptionListToSelectMixin):
                                     help_text=_('Активно свойство или нет'))
     encoding = models.CharField(max_length=10, blank=True, verbose_name=_('Кодировка'),
                                 help_text=_('Кодировка установленного на приводе ручного дублера'))
-
 
     class Meta:
         verbose_name = _('Опция ручного дублера')
@@ -749,6 +749,7 @@ class OperatingModeOption(models.Model, OptionListToSelectMixin):
 
     def __str__(self):
         return self.name
+
 
 class MountingPlateTypes(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
@@ -819,6 +820,7 @@ class StemSize(models.Model, OptionListToSelectMixin):
                                   verbose_name=_('Шпонка размер Z'))
     thread_pitch = models.DecimalField(max_digits=3, decimal_places=0, blank=True, null=True,
                                        verbose_name=_('Шаг резьбы'))
+
     class Meta:
         verbose_name = _('Размер штока')
         verbose_name_plural = _('Размеры штоков')
@@ -834,7 +836,8 @@ class StemSize(models.Model, OptionListToSelectMixin):
         if active_only and hasattr(cls, 'is_active'):
             queryset = queryset.filter(is_active=True)
 
-        return [{'id': obj.id, 'name': str(obj), 'stem_shape_id':obj.stem_type.id} for obj in queryset]
+        return [{'id': obj.id, 'name': str(obj), 'stem_shape_id': obj.stem_type.id} for obj in queryset]
+
 
 class ThreadTypes(models.Model, OptionListToSelectMixin):
     # TODO: не надо ли объединить с типами резьбы в valve_data
@@ -850,6 +853,7 @@ class ThreadTypes(models.Model, OptionListToSelectMixin):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
+
     class Meta:
         verbose_name = _('Тип резьбы')
         verbose_name_plural = _('Типы резьб')
@@ -857,6 +861,7 @@ class ThreadTypes(models.Model, OptionListToSelectMixin):
 
     def __str__(self):
         return self.name
+
 
 class ThreadInnerOuter(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=30, blank=True, null=True,
@@ -871,6 +876,7 @@ class ThreadInnerOuter(models.Model, OptionListToSelectMixin):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
+
     class Meta:
         verbose_name = _('Расположения резьбы')
         verbose_name_plural = _('Расположения резьбы')
@@ -878,6 +884,7 @@ class ThreadInnerOuter(models.Model, OptionListToSelectMixin):
 
     def __str__(self):
         return self.name
+
 
 class MeasureUnits(models.Model):
     MEASURE_TYPES = [
@@ -936,6 +943,7 @@ class ThreadSize(models.Model, OptionListToSelectMixin):
                                        verbose_name=_('Шаг резьбы'))
     measure_units = models.ForeignKey(MeasureUnits, on_delete=models.SET_NULL, null=True,
                                       verbose_name=_('Единицы измерения'))
+
     class Meta:
         verbose_name = _('Тип и размер резьбы')
         verbose_name_plural = _('Типы и размеры резьб')
@@ -1044,29 +1052,32 @@ class ThreadSizeSetItem(models.Model, OptionListToSelectMixin):
             return self.thread_size.name  # Например: "2xNPT 1/2"
         return ""
 
+
 class ThreadSizeSetThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций наборов резьбы..."""
     thread_size_set = models.ForeignKey(
         ThreadSizeSet,
         on_delete=models.CASCADE,
-        verbose_name=_("Набор резьб") ,
+        verbose_name=_("Набор резьб"),
         help_text=_('Набор резьб'))
 
     class Meta:
         abstract = True
         ordering = ['sorting_order']
 
+
 class ThreadSizeThroughOption(BaseThroughOption):
     """Базовая модель для сквозных опций резьбы..."""
     thread_size = models.ForeignKey(
         ThreadSize,
         on_delete=models.CASCADE,
-        verbose_name=_("Размер и тип резьбы") ,
+        verbose_name=_("Размер и тип резьбы"),
         help_text=_('Размер и тип резьбы'))
 
     class Meta:
         abstract = True
         ordering = ['sorting_order']
+
 
 class CertVariety(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
@@ -1145,7 +1156,7 @@ class DnVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
     @classmethod
-    def find_dn(cls , search_value) :
+    def find_dn(cls, search_value):
         """
         Ищет DN по различным полям: name, code, diameter_metric (точные совпадения)
 
@@ -1155,36 +1166,36 @@ class DnVariety(models.Model, OptionListToSelectMixin):
         Returns:
             DnVariety object или None если не найден
         """
-        if search_value is None :
+        if search_value is None:
             return None
 
         search_value = str(search_value).strip()
 
         # Пробуем найти в разных полях (точные совпадения)
-        try :
+        try:
             # Поиск по code (точное совпадение)
-            if cls.objects.filter(code=search_value , is_active=True).exists() :
-                return cls.objects.get(code=search_value , is_active=True)
+            if cls.objects.filter(code=search_value, is_active=True).exists():
+                return cls.objects.get(code=search_value, is_active=True)
 
             # Поиск по name (точное совпадение)
-            if cls.objects.filter(name=search_value , is_active=True).exists() :
-                return cls.objects.get(name=search_value , is_active=True)
+            if cls.objects.filter(name=search_value, is_active=True).exists():
+                return cls.objects.get(name=search_value, is_active=True)
 
             # Поиск по diameter_metric (числовое сравнение)
-            try :
+            try:
                 diameter_value = int(search_value)
-                if cls.objects.filter(diameter_metric=diameter_value , is_active=True).exists() :
-                    return cls.objects.get(diameter_metric=diameter_value , is_active=True)
-            except (ValueError , TypeError) :
+                if cls.objects.filter(diameter_metric=diameter_value, is_active=True).exists():
+                    return cls.objects.get(diameter_metric=diameter_value, is_active=True)
+            except (ValueError, TypeError):
                 pass
 
-        except cls.DoesNotExist :
+        except cls.DoesNotExist:
             pass
 
         return None
 
     @classmethod
-    def get_dn_objects(cls , dn_input) :
+    def get_dn_objects(cls, dn_input):
         """
         Универсальный геттер для получения объектов DN из различных входных данных
 
@@ -1199,47 +1210,48 @@ class DnVariety(models.Model, OptionListToSelectMixin):
         Raises:
             ValueError: если входные данные имеют неподдерживаемый тип
         """
-        if dn_input is None :
-            return [] , []
+        if dn_input is None:
+            return [], []
 
         errors = []
         dn_objects = []
 
         # Обработка одиночного значения
-        if not isinstance(dn_input , (list , tuple)) :
-            if isinstance(dn_input , (str , int)) :
+        if not isinstance(dn_input, (list, tuple)):
+            if isinstance(dn_input, (str, int)):
                 # Одиночная строка или число
                 dn_obj = cls.find_dn(dn_input)
-                if dn_obj :
+                if dn_obj:
                     dn_objects.append(dn_obj)
-                else :
+                else:
                     errors.append(f"DN '{dn_input}' не найден в справочнике")
-            elif isinstance(dn_input , cls) :
+            elif isinstance(dn_input, cls):
                 # Одиночный объект DnVariety
                 dn_objects.append(dn_input)
-            else :
+            else:
                 raise ValueError(f"Неподдерживаемый тип входных данных: {type(dn_input)}")
 
         # Обработка списка значений
-        else :
-            for i , dn_val in enumerate(dn_input) :
-                if isinstance(dn_val , (str , int)) :
+        else:
+            for i, dn_val in enumerate(dn_input):
+                if isinstance(dn_val, (str, int)):
                     # Строка или число в списке
                     dn_obj = cls.find_dn(dn_val)
-                    if dn_obj :
+                    if dn_obj:
                         dn_objects.append(dn_obj)
-                    else :
+                    else:
                         errors.append(f"DN[{i}]: '{dn_val}' не найден в справочнике")
-                elif isinstance(dn_val , cls) :
+                elif isinstance(dn_val, cls):
                     # Объект DnVariety в списке
                     dn_objects.append(dn_val)
-                else :
+                else:
                     errors.append(f"DN[{i}]: неподдерживаемый тип данных '{type(dn_val)}'")
 
         # Сортируем по sorting_order
-        dn_objects = sorted(dn_objects , key=lambda x : x.sorting_order)
+        dn_objects = sorted(dn_objects, key=lambda x: x.sorting_order)
 
-        return dn_objects , errors
+        return dn_objects, errors
+
 
 class PnVariety(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
@@ -1265,7 +1277,7 @@ class PnVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
     @classmethod
-    def find_pn(cls , search_value) :
+    def find_pn(cls, search_value):
         """
         Ищет PN по различным полям: name, code, pressure_bar (точные совпадения)
 
@@ -1275,36 +1287,36 @@ class PnVariety(models.Model, OptionListToSelectMixin):
         Returns:
             PnVariety object или None если не найден
         """
-        if search_value is None :
+        if search_value is None:
             return None
 
         search_value = str(search_value).strip()
 
         # Пробуем найти в разных полях (точные совпадения)
-        try :
+        try:
             # Поиск по code (точное совпадение)
-            if cls.objects.filter(code=search_value , is_active=True).exists() :
-                return cls.objects.get(code=search_value , is_active=True)
+            if cls.objects.filter(code=search_value, is_active=True).exists():
+                return cls.objects.get(code=search_value, is_active=True)
 
             # Поиск по name (точное совпадение)
-            if cls.objects.filter(name=search_value , is_active=True).exists() :
-                return cls.objects.get(name=search_value , is_active=True)
+            if cls.objects.filter(name=search_value, is_active=True).exists():
+                return cls.objects.get(name=search_value, is_active=True)
 
             # Поиск по pressure_bar (числовое сравнение)
-            try :
+            try:
                 pressure_value = float(search_value)
-                if cls.objects.filter(pressure_bar=pressure_value , is_active=True).exists() :
-                    return cls.objects.get(pressure_bar=pressure_value , is_active=True)
-            except (ValueError , TypeError) :
+                if cls.objects.filter(pressure_bar=pressure_value, is_active=True).exists():
+                    return cls.objects.get(pressure_bar=pressure_value, is_active=True)
+            except (ValueError, TypeError):
                 pass
 
-        except cls.DoesNotExist :
+        except cls.DoesNotExist:
             pass
 
         return None
 
     @classmethod
-    def get_pn_objects(cls , pn_input) :
+    def get_pn_objects(cls, pn_input):
         """
         Универсальный геттер для получения объектов PN из различных входных данных
 
@@ -1319,47 +1331,48 @@ class PnVariety(models.Model, OptionListToSelectMixin):
         Raises:
             ValueError: если входные данные имеют неподдерживаемый тип
         """
-        if pn_input is None :
-            return [] , []
+        if pn_input is None:
+            return [], []
 
         errors = []
         pn_objects = []
 
         # Обработка одиночного значения
-        if not isinstance(pn_input , (list , tuple)) :
-            if isinstance(pn_input , (str , int , float)) :
+        if not isinstance(pn_input, (list, tuple)):
+            if isinstance(pn_input, (str, int, float)):
                 # Одиночная строка или число
                 pn_obj = cls.find_pn(pn_input)
-                if pn_obj :
+                if pn_obj:
                     pn_objects.append(pn_obj)
-                else :
+                else:
                     errors.append(f"PN '{pn_input}' не найден в справочнике")
-            elif isinstance(pn_input , cls) :
+            elif isinstance(pn_input, cls):
                 # Одиночный объект PnVariety
                 pn_objects.append(pn_input)
-            else :
+            else:
                 raise ValueError(f"Неподдерживаемый тип входных данных: {type(pn_input)}")
 
         # Обработка списка значений
-        else :
-            for i , pn_val in enumerate(pn_input) :
-                if isinstance(pn_val , (str , int , float)) :
+        else:
+            for i, pn_val in enumerate(pn_input):
+                if isinstance(pn_val, (str, int, float)):
                     # Строка или число в списке
                     pn_obj = cls.find_pn(pn_val)
-                    if pn_obj :
+                    if pn_obj:
                         pn_objects.append(pn_obj)
-                    else :
+                    else:
                         errors.append(f"PN[{i}]: '{pn_val}' не найден в справочнике")
-                elif isinstance(pn_val , cls) :
+                elif isinstance(pn_val, cls):
                     # Объект PnVariety в списке
                     pn_objects.append(pn_val)
-                else :
+                else:
                     errors.append(f"PN[{i}]: неподдерживаемый тип данных '{type(pn_val)}'")
 
         # Сортируем по sorting_order
-        pn_objects = sorted(pn_objects , key=lambda x : x.sorting_order)
+        pn_objects = sorted(pn_objects, key=lambda x: x.sorting_order)
 
-        return pn_objects , errors
+        return pn_objects, errors
+
 
 class OptionVariety(models.Model, OptionListToSelectMixin):
     """ Тип опций исполнения - под заказ/склад и т.п."""
@@ -1387,36 +1400,38 @@ class BodyColor(models.Model, OptionListToSelectMixin):
                                 help_text=_("Например: #FF0000 для красного"))
     ral_code = models.CharField(max_length=20, blank=True, verbose_name=_("RAL код"),
                                 help_text=_("Например: RAL 3000"))
-    ral_name_ru = models.CharField(max_length=100 , blank=True, verbose_name=_("Название на русском"), help_text=_("Название цвета на русском"))
-    ral_name_en = models.CharField(max_length=100 , blank=True , verbose_name=_("Name (eng") ,
+    ral_name_ru = models.CharField(max_length=100, blank=True, verbose_name=_("Название на русском"),
+                                   help_text=_("Название цвета на русском"))
+    ral_name_en = models.CharField(max_length=100, blank=True, verbose_name=_("Name (eng"),
                                    help_text=_("Color name in english"))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
-    class Meta :
+    class Meta:
         ordering = ['sorting_order']
         verbose_name = _("Цвет корпуса")
         verbose_name_plural = _("Цвета корпусов")
 
-    def __str__(self) :
-        if self.ral_code :
+    def __str__(self):
+        if self.ral_code:
             return f"{self.name} RAL({self.ral_code})"
         return self.name
+
     @property
-    def get_ral_name_ru(self) :
-        if self.ral_name_ru :
+    def get_ral_name_ru(self):
+        if self.ral_name_ru:
             return f"{self.ral_name_ru} (RAL{self.ral_code})"
         return self.name
 
     @property
-    def get_ral_name_en(self) :
-        if self.ral_name_en :
+    def get_ral_name_en(self):
+        if self.ral_name_en:
             return f"{self.ral_name_en} (RAL{self.ral_code})"
         return self.name
 
-    def get_color_display(self) :
+    def get_color_display(self):
         """Отображаемое представление цвета"""
-        if self.hex_code :
+        if self.hex_code:
             return f'<span style="display: inline-block; width: 20px; height: 20px; background-color: {self.hex_code}; border: 1px solid #ccc; margin-right: 5px;"></span>{self.name}'
         return self.name
     #
@@ -1426,6 +1441,7 @@ class BodyColor(models.Model, OptionListToSelectMixin):
     #         'color_option' : {'display_name' : 'Цвет корпуса' , 'value' : self.color_option.get_ral_name_ru if self.color_option else None} ,
     #     }
     #     return data
+
 
 class ValveFunctionVariety(models.Model, OptionListToSelectMixin):
     """ Тип арматуры - регулирующая, запорная"""
@@ -1445,10 +1461,13 @@ class ValveFunctionVariety(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return self.name
 
+
 class ValveActuationVariety(models.Model, OptionListToSelectMixin):
     """ Тип механизма приведения в действие арматуры - ручка/редуктор/привод"""
-    name = models.CharField(max_length=100, help_text=_("Название типа механизма приведения в действие арматуры - ручка/редуктор/привод"),
-                            verbose_name=_("Название типа механизма приведения в действие арматуры - ручка/редуктор/привод"))
+    name = models.CharField(max_length=100, help_text=_(
+        "Название типа механизма приведения в действие арматуры - ручка/редуктор/привод"),
+                            verbose_name=_(
+                                "Название типа механизма приведения в действие арматуры - ручка/редуктор/привод"))
     code = models.CharField(max_length=50, unique=True,
                             verbose_name=_("Код типа механизма приведения в действие арматуры"))
     description = models.TextField(blank=True, verbose_name=_("Описание"))
@@ -1463,6 +1482,7 @@ class ValveActuationVariety(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return self.name
 
+
 class SealingClass(models.Model, OptionListToSelectMixin):
     """ Класс герметичности арматуры - в зависимости от ее типа (регулирующая/запорная)"""
     name = models.CharField(max_length=100, verbose_name=_("Название класса герметичности арматуры"))
@@ -1471,9 +1491,10 @@ class SealingClass(models.Model, OptionListToSelectMixin):
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
     valve_function_variety = models.ManyToManyField(ValveFunctionVariety,
-                                               related_name="sealing_class_valve_function_variety",
-                                               verbose_name=_('Тип назначения арматуры - регулирование и запорное'),
-                                               help_text=_('Тип назначения арматуры - регулирование и запорное'))
+                                                    related_name="sealing_class_valve_function_variety",
+                                                    verbose_name=_(
+                                                        'Тип назначения арматуры - регулирование и запорное'),
+                                                    help_text=_('Тип назначения арматуры - регулирование и запорное'))
 
     class Meta:
         ordering = ['sorting_order', 'name']
@@ -1503,10 +1524,12 @@ class CoatingVariety(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return self.name
 
+
 class WarrantyTimePeriodVariety(models.Model, OptionListToSelectMixin):
     """ Варианты продолжительности гарантийного срока"""
     name = models.CharField(max_length=500, verbose_name=_("Текст продолжительности гарантийного срока"))
-    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код текста продолжительности гарантийного срока"))
+    code = models.CharField(max_length=50, unique=True,
+                            verbose_name=_("Код текста продолжительности гарантийного срока"))
     description = models.TextField(blank=True, verbose_name=_("Описание"))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
@@ -1520,32 +1543,32 @@ class WarrantyTimePeriodVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin) :
+class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin):
     """
     Давление питания в пневмосистеме
     """
-    name = models.CharField(max_length=10 ,
-                            verbose_name=_("Давление, бар") ,
+    name = models.CharField(max_length=10,
+                            verbose_name=_("Давление, бар"),
                             help_text=_('Давление в пневмосистеме, бар'))
-    code = models.CharField(max_length=10 , blank=True , null=True , verbose_name=_("Код") ,
+    code = models.CharField(max_length=10, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код давления в пневмосистеме, бар"))
-    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание давления питания'))
-    sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
                                         help_text=_('Порядок сортировки в списке'))
-    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
-    pressure_bar = models.DecimalField(max_digits=4 , decimal_places=1 , verbose_name=_("Давление в бар"))
+    pressure_bar = models.DecimalField(max_digits=4, decimal_places=1, verbose_name=_("Давление в бар"))
 
-    class Meta :
+    class Meta:
         ordering = ['sorting_order']
         verbose_name = _('Давление питания в пневмосистеме')
         verbose_name_plural = _('Давления питания в пневмосистеме')
 
-    def __str__(self) :
+    def __str__(self):
         return f"{self.name} бар"
 
-    def get_pressure_in_units(self , unit='bar') :
+    def get_pressure_in_units(self, unit='bar'):
         """
         Возвращает давление в различных единицах измерения
 
@@ -1559,20 +1582,20 @@ class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin) :
         pressure_bar = float(self.pressure_bar)
 
         conversion_rates = {
-            'bar' : 1.0 ,  # бар
-            'mpa' : 0.1 ,  # мегапаскали (1 бар = 0.1 МПа)
-            'kpa' : 100.0 ,  # килопаскали (1 бар = 100 кПа)
-            'atm' : 0.986923 ,  # атмосферы (1 бар ≈ 0.987 атм)
-            'psi' : 14.5038 ,  # фунты на кв. дюйм (1 бар ≈ 14.5 psi)
+            'bar': 1.0,  # бар
+            'mpa': 0.1,  # мегапаскали (1 бар = 0.1 МПа)
+            'kpa': 100.0,  # килопаскали (1 бар = 100 кПа)
+            'atm': 0.986923,  # атмосферы (1 бар ≈ 0.987 атм)
+            'psi': 14.5038,  # фунты на кв. дюйм (1 бар ≈ 14.5 psi)
         }
 
-        if unit in conversion_rates :
-            return round(pressure_bar * conversion_rates[unit] , 4)
-        else :
+        if unit in conversion_rates:
+            return round(pressure_bar * conversion_rates[unit], 4)
+        else:
             raise ValueError(f"Неподдерживаемая единица измерения: {unit}. "
                              f"Доступные: {', '.join(conversion_rates.keys())}")
 
-    def get_pressure_display(self , unit='bar') :
+    def get_pressure_display(self, unit='bar'):
         """
         Возвращает отформатированную строку давления с единицами измерения
 
@@ -1585,17 +1608,17 @@ class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin) :
         pressure_value = self.get_pressure_in_units(unit)
 
         unit_display = {
-            'bar' : 'бар' ,
-            'mpa' : 'МПа' ,
-            'kpa' : 'кПа' ,
-            'atm' : 'атм' ,
-            'psi' : 'psi'
+            'bar': 'бар',
+            'mpa': 'МПа',
+            'kpa': 'кПа',
+            'atm': 'атм',
+            'psi': 'psi'
         }
 
-        return f"{pressure_value} {unit_display.get(unit , unit)}"
+        return f"{pressure_value} {unit_display.get(unit, unit)}"
 
     @classmethod
-    def find_by_pressure(cls , pressure_value , unit='bar') :
+    def find_by_pressure(cls, pressure_value, unit='bar'):
         """
         Ищет объект давления по значению в указанных единицах
 
@@ -1606,45 +1629,46 @@ class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin) :
         Returns:
             PneumaticAirSupplyPressure or None: найденный объект или None
         """
-        try :
+        try:
             # Конвертируем в бар для поиска
-            if unit != 'bar' :
+            if unit != 'bar':
                 temp_obj = cls(pressure_bar=1.0)  # Временный объект для конвертации
                 conversion_rate = temp_obj.get_pressure_in_units(unit)
                 pressure_value_bar = pressure_value / conversion_rate
-            else :
+            else:
                 pressure_value_bar = pressure_value
 
             # Ищем ближайшее значение (с учетом погрешности)
             return cls.objects.filter(
-                pressure_bar__gte=pressure_value_bar - 0.05 ,
-                pressure_bar__lte=pressure_value_bar + 0.05 ,
+                pressure_bar__gte=pressure_value_bar - 0.05,
+                pressure_bar__lte=pressure_value_bar + 0.05,
                 is_active=True
             ).first()
 
-        except (ValueError , TypeError) :
+        except (ValueError, TypeError):
             return None
 
-class PneumaticConnection(models.Model, OptionListToSelectMixin) :
+
+class PneumaticConnection(models.Model, OptionListToSelectMixin):
     """
     Пневмоподключения - трубка, NAMUR
     """
-    name = models.CharField(max_length=50 ,
-                            verbose_name=_("Название") ,
+    name = models.CharField(max_length=50,
+                            verbose_name=_("Название"),
                             help_text=_('Название пневмоподключения'))
-    code = models.CharField(max_length=20 , blank=True , null=True , verbose_name=_("Код") ,
+    code = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код пневмоподключения"))
-    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание пневмоподключения'))
-    sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
                                         help_text=_('Порядок сортировки в списке'))
-    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
-    class Meta :
+    class Meta:
         ordering = ['sorting_order']
         verbose_name = _('Тип пневмоподключение')
         verbose_name_plural = _('Типы пневмоподключений')
 
-    def __str__(self) :
+    def __str__(self):
         return self.name

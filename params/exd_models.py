@@ -19,7 +19,9 @@ class HazardousGroup(models.Model) :
     group_type = models.CharField(max_length=5 , choices=GroupType.choices)
     rating = models.IntegerField(help_text="Чем выше рейтинг, тем более опасная среда")
 
-    class Meta :
+    class Meta:
+        verbose_name = _("Группа опасности")
+        verbose_name_plural = _("Exd Группа опасности")
         ordering = ['group_type' , 'rating']
 
     def __str__(self) :
@@ -38,65 +40,72 @@ class HazardousGroup(models.Model) :
             return self.rating >= required.rating
         except HazardousGroup.DoesNotExist :
             return False
-
-class GasGroup(models.Model, TextDescriptionMixin):
-    """Группа газа (IIA, IIB, IIC, etc.)"""
-    name = models.CharField(max_length=10, verbose_name=_("Название"))
-    code = models.CharField(max_length=10, verbose_name=_("Код"))
-    description = models.TextField(blank=True, verbose_name=_("Описание"))
-
-    class Meta:
-        verbose_name = _("Группа газа")
-        verbose_name_plural = _("Группы газов")
-
-    def __str__(self):
-        return self.code
-
-    def get_text_description(self) -> str:
-        """Генерирует описание группы газа"""
-        descriptions = {
-            'IIA': _("пропан, метан, аммиак (наименее опасная)"),
-            'IIB': _("этилен, коксовый газ (средняя опасность)"),
-            'IIC': _("водород, ацетилен, сероуглерод (наиболее опасная)"),
-        }
-        return descriptions.get(self.code, self.description or self.name)
-
-
-class DustGroup(models.Model, TextDescriptionMixin):
-    """Группа пыли (IIIA, IIIB, IIIC)"""
-    name = models.CharField(max_length=10, verbose_name=_("Название"))
-    code = models.CharField(max_length=10, verbose_name=_("Код"))
-    description = models.TextField(blank=True, verbose_name=_("Описание"))
-
-    class Meta:
-        verbose_name = _("Группа пыли")
-        verbose_name_plural = _("Группы пыли")
-
-    def __str__(self):
-        return self.code
-
-    def get_text_description(self) -> str:
-        """Генерирует описание группы пыли"""
-        descriptions = {
-            'IIIA': _("легковоспламеняющиеся летучие частицы (мука, зерно)"),
-            'IIIB': _("непроводящая пыль (древесная, угольная)"),
-            'IIIC': _("проводящая пыль (металлическая, графитовая)"),
-        }
-        return descriptions.get(self.code, self.description or self.name)
+#
+# class GasGroup(models.Model, TextDescriptionMixin):
+#     """Группа газа (IIA, IIB, IIC, etc.)"""
+#     name = models.CharField(max_length=10, verbose_name=_("Название"))
+#     code = models.CharField(max_length=10, verbose_name=_("Код"))
+#     description = models.TextField(blank=True, verbose_name=_("Описание"))
+#
+#     class Meta:
+#         verbose_name = _("Группа газа")
+#         verbose_name_plural = _("Exd Группы газов")
+#
+#     def __str__(self):
+#         return self.code
+#
+#     def get_text_description(self) -> str:
+#         """Генерирует описание группы газа"""
+#         descriptions = {
+#             'IIA': _("пропан, метан, аммиак (наименее опасная)"),
+#             'IIB': _("этилен, коксовый газ (средняя опасность)"),
+#             'IIC': _("водород, ацетилен, сероуглерод (наиболее опасная)"),
+#         }
+#         return descriptions.get(self.code, self.description or self.name)
+#
+#
+# class DustGroup(models.Model, TextDescriptionMixin):
+#     """Группа пыли (IIIA, IIIB, IIIC)"""
+#     name = models.CharField(max_length=10, verbose_name=_("Название"))
+#     code = models.CharField(max_length=10, verbose_name=_("Код"))
+#     description = models.TextField(blank=True, verbose_name=_("Описание"))
+#
+#     class Meta:
+#         verbose_name = _("Группа пыли")
+#         verbose_name_plural = _("Exd Группы пыли")
+#
+#     def __str__(self):
+#         return self.code
+#
+#     def get_text_description(self) -> str:
+#         """Генерирует описание группы пыли"""
+#         descriptions = {
+#             'IIIA': _("легковоспламеняющиеся летучие частицы (мука, зерно)"),
+#             'IIIB': _("непроводящая пыль (древесная, угольная)"),
+#             'IIIC': _("проводящая пыль (металлическая, графитовая)"),
+#         }
+#         return descriptions.get(self.code, self.description or self.name)
 
 
 class TemperatureClass(models.Model, TextDescriptionMixin):
     """Температурный класс (T1-T6)"""
+    name = models.CharField(max_length=10, verbose_name=_("Название"))
+    code = models.CharField(max_length=10, verbose_name=_("Код"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
     temperature_class = models.CharField(max_length=5, verbose_name=_("Класс"))
     max_surface_temp = models.IntegerField(verbose_name=_("Макс. температура поверхности, °C"))
     gas_ignition_temp = models.IntegerField(
         null=True, blank=True,
         verbose_name=_("Температура воспламенения газа, °C")
     )
-
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
     class Meta:
         verbose_name = _("Температурный класс")
-        verbose_name_plural = _("Температурные классы")
+        verbose_name_plural = _("Exd Температурные классы")
+        ordering = ['sorting_order']
 
     def __str__(self):
         return f"{self.temperature_class}"
@@ -109,7 +118,21 @@ class TemperatureClass(models.Model, TextDescriptionMixin):
             'temp': self.max_surface_temp,
             'ignition': self.max_surface_temp
         }
-
+class ExplosionProtectionMethod(models.Model):
+    """Общий метод (Вид) взрывозащиты: d, e, i, m, p, t и т.д."""
+    code = models.CharField(max_length=10, unique=True) # Например: 'i'
+    name = models.CharField(max_length=100) # Искробезопасная электрическая цепь
+    description = models.TextField()
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+    class Meta:
+        verbose_name = _("Общий метод (Вид) взрывозащиты")
+        verbose_name_plural = _("Exd Общие методы (Виды) взрывозащиты")
+        ordering = ['sorting_order']
+    def __str__(self):
+        return f"Ex {self.code}"
 
 class ExplosionProtectionType(models.Model, TextDescriptionMixin):
     """Тип взрывозащиты (Ex d, Ex e, Ex i, etc.)"""
@@ -121,19 +144,28 @@ class ExplosionProtectionType(models.Model, TextDescriptionMixin):
     code = models.CharField(max_length=10, verbose_name=_("Код"))
     name = models.CharField(max_length=100, verbose_name=_("Название"))
     description = models.TextField(blank=True, verbose_name=_("Описание"))
+    method = models.ForeignKey(ExplosionProtectionMethod, null=True, blank=True, on_delete=models.CASCADE,
+        related_name='explosion_protection_class_for_exd' ,
+        verbose_name=_("Разновидность вида взрывозащиты") ,
+        help_text=_("Разновидность вида взрывозащиты (Ex d, Ex ia...)")
+    )
     category = models.CharField(
         max_length=10,
         choices=ProtectionCategory.choices,
         default=ProtectionCategory.GAS,
         verbose_name=_("Категория")
     )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
 
     class Meta:
-        verbose_name = _("Тип взрывозащиты")
-        verbose_name_plural = _("Типы взрывозащиты")
-
+        verbose_name = _("Разновидность вида взрывозащиты")
+        verbose_name_plural = _("Exd Разновидности вида взрывозащиты")
+        ordering = ['sorting_order']
     def __str__(self):
-        return f"Ex{self.code}"
+        return f"Ex {self.code}"
 
     def get_text_description(self) -> str:
         """Генерирует описание типа взрывозащиты"""
@@ -174,7 +206,7 @@ class ExplosionProtectionLevel(models.Model, TextDescriptionMixin):
 
     class Meta:
         verbose_name = _("Уровень взрывозащиты")
-        verbose_name_plural = _("Уровни взрывозащиты")
+        verbose_name_plural = _("Exd Уровни взрывозащиты")
 
     def __str__(self):
         return self.code
@@ -226,10 +258,18 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         null=True ,
         blank=True ,
         related_name='explosion_protection_class_for_exd' ,
-        verbose_name=_("Температурный класс") ,
-        help_text=_("T1-T6 (хранятся как отдельные записи с equipment_type='SIMPLE')")
+        verbose_name=_("Разновидность вида взрывозащиты") ,
+        help_text=_("Разновидность вида взрывозащиты (Ex d, Ex ia...)")
     )
-
+    explosion_protection_level = models.ForeignKey(
+        'params.ExplosionProtectionLevel',  # Исправлено
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='explosion_protection_level_for_exd',
+        verbose_name=_("Уровень взрывозащиты"),
+        help_text=_("Уровень взрывозащиты(Gb,Db ...)")
+    )
     temperature_class = models.ForeignKey(
         'params.TemperatureClass',  # Исправлено
         on_delete=models.SET_NULL,
@@ -237,27 +277,7 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         blank=True,
         related_name='temp_class_for_exd',
         verbose_name=_("Температурный класс"),
-        help_text=_("T1-T6 (хранятся как отдельные записи с equipment_type='SIMPLE')")
-    )
-
-    gas_protection_level = models.ForeignKey(
-        'params.ExdOption',  # Исправлено
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='gas_level_for',
-        verbose_name=_("Уровень взрывозащиты (газ)"),
-        help_text=_("Ga, Gb, Gc (хранятся как отдельные записи с equipment_type='SIMPLE')")
-    )
-
-    # Для пылевой взрывозащиты
-    dust_protection_types = models.ManyToManyField(
-        'params.ExdOption',  # Исправлено
-        blank=True,
-        symmetrical=False,
-        related_name='dust_protection_for',
-        verbose_name=_("Типы взрывозащиты (пыль)"),
-        help_text=_("Ex t, Ex p, Ex i и т.д.")
+        help_text=_("Температурный класс")
     )
     # Для пылевой взрывозащиты
     hazardous_group = models.ForeignKey(
@@ -270,31 +290,12 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         help_text=_("Группа взрывоопасной среды (газ и пыль в одном справочнике)")
     )
 
-    dust_group = models.ForeignKey(
-        'params.ExdOption',  # Исправлено
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='dust_group_for',
-        verbose_name=_("Группа пыли"),
-        help_text=_("IIIA, IIIB, IIIC (хранятся как отдельные записи с equipment_type='SIMPLE')")
-    )
 
     dust_temperature = models.IntegerField(
         null=True,
         blank=True,
         verbose_name=_("Температура для пыли, °C"),
         help_text=_("Максимальная температура поверхности (например, 85, 95, 100)")
-    )
-
-    dust_protection_level = models.ForeignKey(
-        'params.ExdOption',  # Исправлено
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='dust_level_for',
-        verbose_name=_("Уровень взрывозащиты (пыль)"),
-        help_text=_("Da, Db, Dc (хранятся как отдельные записи с equipment_type='SIMPLE')")
     )
 
     # Специальные обозначения
@@ -320,9 +321,96 @@ class ExdOption(models.Model, OptionListToSelectMixin):
 
     class Meta:
         verbose_name = _('Тип взрывозащиты')
-        verbose_name_plural = _('Типы взрывозащиты')
+        verbose_name_plural = _('Exd Типы взрывозащиты')
         ordering = ['sorting_order']
 
     def __str__(self):
         return self.name or self.exd_full_code or "Exd"
+
+    def get_formatted_ex_code(self, option='name'):
+        """
+        Формирует строку маркировки
+
+        Args:
+            option: 'name' - для отображения (с пробелами, с °C для пыли)
+                    'code' - для кода (все маленькие буквы, разделитель "-")
+
+        Returns:
+            str: Отформатированная строка
+        """
+        parts = []
+
+        # Определяем разделитель и форматирование в зависимости от option
+        if option == 'code':
+            separator = '-'
+
+            # Функция форматирования для code
+            def fmt_code(value):
+                return str(value).lower()
+        else:  # option == 'name'
+            separator = ' '
+
+            # Функция форматирования для name (без изменений)
+            def fmt_code(value):
+                return str(value)
+
+        # 1. Вид защиты (Ex db, Ex ia...)
+        if self.explosion_protection_class:
+            if option == 'code':
+                # Извлекаем код без "Ex " (например, "db" из "Ex db")
+                class_code = str(self.explosion_protection_class.code).lower()
+                parts.append(class_code)
+            else:
+                parts.append(str(self.explosion_protection_class.name))
+
+        # 2. Группа среды (IIC, IIIC...)
+        if self.hazardous_group:
+            parts.append(fmt_code(self.hazardous_group.code))
+
+        # 3. Температурный класс
+        if self.temperature_class:
+            temp_code = self.temperature_class.code
+            gas_temps = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6']
+
+            if option == 'code':
+                parts.append(temp_code.lower())
+            else:  # option == 'name'
+                if temp_code in gas_temps:
+                    parts.append(temp_code)
+                else:
+                    parts.append(f"{temp_code}°C")
+        elif self.dust_temperature:
+            if option == 'code':
+                parts.append(f"t{self.dust_temperature}")
+            else:
+                parts.append(f"T{self.dust_temperature}°C")
+
+        # 4. Уровень взрывозащиты (Ga, Gb, Da...)
+        if self.explosion_protection_level:
+            if option == 'code':
+                parts.append(str(self.explosion_protection_level.code).lower())
+            else:
+                parts.append(str(self.explosion_protection_level.code))
+
+        # 5. Спец-символы
+        if self.has_x_suffix:
+            parts.append('x' if option == 'code' else 'X')
+        if self.has_u_suffix:
+            parts.append('u' if option == 'code' else 'U')
+
+        # Склеиваем с соответствующим разделителем
+        full_string = separator.join(filter(None, parts))
+
+        return full_string.strip()
+
+    def save(self, *args, **kwargs):
+        # Генерируем код
+        # Если имя или код не заданы вручную, используем генерацию
+        # if not self.name:
+        #     self.name = generated
+        # if not self.code:
+        #     self.code = generated
+        self.name = self.get_formatted_ex_code(option='name')
+        self.code = self.get_formatted_ex_code(option='code')
+        super().save(*args, **kwargs)
 
