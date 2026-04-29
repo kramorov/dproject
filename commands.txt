@@ -27,12 +27,14 @@ git pull dproject main
 
 python manage.py shell
 
->>> from app.models import PneumaticActuatorModelLine
->>> model_line = PneumaticActuatorModelLine.objects.first()
->>> for relation in model_line.cert_relations.all():
-...     print(f"Cert: {relation.cert_data.name}")
-...     print(f"Related object: {relation.get_related_object()}")
-...     print(f"Sorting: {relation.sorting_order}")
+ID	Название (Тип)	Код сигнала	Форма контактов (Логика)	Проводов	Пример датчика
+3	NAMUR (Ex/Safety)	NAMUR	SPST (Нормально замкнутый)	2	SJ3,5-SN
+5	Индуктивный PNP	IND_PNP	SPST (Нормально открытый)	3	NBB2-V3-E2
+7	Индуктивный NPN	IND_NPN	SPST (Нормально открытый)	3	NBB...-E0
+1	Герконовый (2-проводной) SPST	MECH_SPST	SPST (Нормально открытый)	2	—
+4	2-проводной бесконтактный	SS_2W	SPST (Нормально открытый)	2	NBB2-V3-Z0
+
+
 
 # Однострочник для копирования в COPY_RELATED_FIELDS
 # Получаем список всех ManyToOne связей

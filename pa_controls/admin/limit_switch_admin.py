@@ -35,10 +35,10 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
 
 @admin.register(LimitSwitchOutput)
 class LimitSwitchOutputAdmin(admin.ModelAdmin):
-    list_display = ['id','name', 'code', 'contact_form', 'wires_per_sensor', 'sorting_order', 'is_active', 'extra_params_preview']
+    list_display = ['id','name', 'code', 'contact_form', 'wires_per_sensor', 'signal_type', 'sorting_order', ]
     list_filter = ['is_active', 'contact_form', 'wires_per_sensor']
     search_fields = ['name', 'code', 'description']
-    list_editable = ['sorting_order', 'is_active']
+    list_editable = ['sorting_order', ]
     ordering = ['sorting_order', 'name']
 
     fieldsets = (

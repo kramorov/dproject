@@ -89,17 +89,19 @@ class LimitSwitchOutput(models.Model):
         ('PNP' , _('PNP (Active)')) ,
         ('NPN' , _('NPN (Active)')) ,
         ('NAMUR' , _('NAMUR (Ex)')) ,
-        ('SS_2W' , _('Solid State (2-wire)')) ,
-        ('ANALOG' , _('Аналоговый выход')) ,
+        ('NAMUR_S' , _('NAMUR с функцией безопасности')) ,  # Для серий SN / S1N (безопасность)
+        ('SS_2W' , _('2-проводной бесконтактный (AC/DC)')) ,  # Для серии NBB...-Z
+        ('ANALOG' , _('Аналоговый выход (4-20мА)')) ,
         ('PNEUM' , _('Пневматический')) ,
     ]
 
     CONTACT_CHOICES = [
-        ('SPST' , 'SPST (Вкл/Выкл)') ,
-        ('SPDT' , 'SPDT (Перекидной)') ,
-        ('DPST' , 'DPST (2 линии Вкл/Выкл)') ,
-        ('DPDT' , 'DPDT (2 перекидных)') ,
-        ('NONE' , 'Нет (для аналоговых/пневмо)') ,
+        ('NO' , _('SPST (Нормально открытый)')) ,
+        ('NC' , _('SPST (Нормально замкнутый)')) ,
+        ('SPDT' , _('SPDT (Перекидной)')) ,
+        ('DPST' , _('DPST (2 линии Вкл/Выкл)')) ,
+        ('DPDT' , _('DPDT (2 перекидных)')) ,
+        ('NONE' , _('Нет (для аналоговых/пневмо)')) ,
     ]
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
