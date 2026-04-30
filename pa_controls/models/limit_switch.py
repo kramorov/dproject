@@ -85,23 +85,27 @@ class LimitSwitchSensorVariety(models.Model):
 class LimitSwitchOutput(models.Model):
     """Электрическая схема и тип сигнала БКВ """
     SIGNAL_CHOICES = [
-        ('DRY' , _('Сухой контакт (Passive)')) ,
-        ('PNP' , _('PNP (Active)')) ,
-        ('NPN' , _('NPN (Active)')) ,
-        ('NAMUR' , _('NAMUR (Ex)')) ,
-        ('NAMUR_S' , _('NAMUR с функцией безопасности')) ,  # Для серий SN / S1N (безопасность)
-        ('SS_2W' , _('2-проводной бесконтактный (AC/DC)')) ,  # Для серии NBB...-Z
-        ('ANALOG' , _('Аналоговый выход (4-20мА)')) ,
-        ('PNEUM' , _('Пневматический')) ,
+        ('DRY', _('Сухой контакт (Passive)')),
+        ('PNP', _('PNP (Active)')),
+        ('NPN', _('NPN (Active)')),
+        ('NAMUR', _('NAMUR (Ex)')),
+        ('NAMUR_S', _('NAMUR с функцией безопасности')),  # Для серий SN / S1N (безопасность)
+        ('SS_2W', _('2-проводной бесконтактный (AC/DC)')),  # Для серии NBB...-Z
+        ('ANALOG', _('Аналоговый выход (4-20мА)')),
+        ('PNEUM', _('Пневматический')),
+        ('ANALOG_DRY', _('Аналог (4-20мА) + Сухой контакт')),
+        ('ANALOG_NAMUR', _('Аналог (4-20мА) + NAMUR (Ex)')),
     ]
 
     CONTACT_CHOICES = [
-        ('NO' , _('SPST (Нормально открытый)')) ,
-        ('NC' , _('SPST (Нормально замкнутый)')) ,
-        ('SPDT' , _('SPDT (Перекидной)')) ,
-        ('DPST' , _('DPST (2 линии Вкл/Выкл)')) ,
-        ('DPDT' , _('DPDT (2 перекидных)')) ,
-        ('NONE' , _('Нет (для аналоговых/пневмо)')) ,
+        ('NO', _('SPST (Нормально открытый)')),
+        ('NC', _('SPST (Нормально замкнутый)')),
+        ('SPDT', _('SPDT (Перекидной)')),
+        ('DPST', _('DPST (2 линии Вкл/Выкл)')),
+        ('DPDT', _('DPDT (2 перекидных)')),
+        ('NONE', _('Нет (для аналоговых/пневмо)')),
+        ('ANALOG_SPDT', _('1xАналог + 2xSPDT')),
+        ('ANALOG_SPST', _('1xАналог + 2xSPST')),
     ]
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -116,16 +120,16 @@ class LimitSwitchOutput(models.Model):
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
     contact_form = models.CharField(
-        max_length=10, null=True, blank=True,
-        choices=CONTACT_CHOICES,default='SPDT',
+        max_length=50, null=True, blank=True,
+        choices=CONTACT_CHOICES, default='SPDT',
         verbose_name=_("Форма контактов")
     )
     signal_type = models.CharField(
-        max_length=10 , choices=SIGNAL_CHOICES , default='DRY' , verbose_name=_("Тип сигнала")
+        max_length=50, choices=SIGNAL_CHOICES, default='DRY', verbose_name=_("Тип сигнала")
     )
     wires_per_sensor = models.PositiveSmallIntegerField(
-        default=2 ,
-        verbose_name=_("Проводов на 1 датчик") ,
+        default=2,
+        verbose_name=_("Проводов на 1 датчик"),
         help_text=_("Сколько жил кабеля занимает один датчик в блоке")
     )
     # ВСЁ остальное в JSON
@@ -143,7 +147,7 @@ class LimitSwitchOutput(models.Model):
     def __str__(self):
         # if self.contact_form:
         #     return f"{self.name} ({self.contact_form})"
-        return  f"{self.name}"
+        return f"{self.name}"
 
     @property
     def signal_type_text(self) -> str:
@@ -156,7 +160,7 @@ class LimitSwitchOutput(models.Model):
     @property
     def output_type_text(self) -> str:
         """Возвращает человеко-читаемое значение типа выхода"""
-        text= f'Тип контактов: {self.get_contact_form_display()}, Тип сигнала: {self.get_signal_type_display()}, проводов на 1 датчик: {self.wires_per_sensor}'
+        text = f'Тип контактов: {self.get_contact_form_display()}, Тип сигнала: {self.get_signal_type_display()}, проводов на 1 датчик: {self.wires_per_sensor}'
         return text
 
     # @property
@@ -189,6 +193,7 @@ class LimitSwitchOutput(models.Model):
         except cls.DoesNotExist:
             return None
 
+
 class LimitSwitchBody(StructuredDataMixin, models.Model):
     """
     Корпус БКВ
@@ -206,35 +211,35 @@ class LimitSwitchBody(StructuredDataMixin, models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
-    weight = models.DecimalField(max_digits=5 , decimal_places=2 , blank=True ,
-                                 null=True , help_text=_('Вес') ,
+    weight = models.DecimalField(max_digits=5, decimal_places=2, blank=True,
+                                 null=True, help_text=_('Вес'),
                                  verbose_name=_("Вес, кг"))
     cable_glands_holes = \
-        models.ManyToManyField(CableGlandHolesSet , blank=True ,
-                               related_name='limit_switch_body_cable_glands_holes' ,
-                               verbose_name=_("Отверстия КВ") ,
+        models.ManyToManyField(CableGlandHolesSet, blank=True,
+                               related_name='limit_switch_body_cable_glands_holes',
+                               verbose_name=_("Отверстия КВ"),
                                help_text=_('Отверстия под кабельные вводы'))
     # Присоединительные размеры (Many-to-Many с монтажными стандартами)
     mounting = models.ManyToManyField(
-        'pa_controls.PaControlMountingStandard' ,
-        blank=True ,
-        related_name='limit_switch_body_mounting' ,
-        verbose_name=_("Стандарты присоединения") ,
+        'pa_controls.PaControlMountingStandard',
+        blank=True,
+        related_name='limit_switch_body_mounting',
+        verbose_name=_("Стандарты присоединения"),
         help_text=_("Стандарты присоединения NAMUR, с которыми совместим БКВ")
     )
     # ВСЁ остальное в JSON
     extra_params = models.JSONField(
-        default=dict , blank=True ,
-        verbose_name=_("Параметры") ,
+        default=dict, blank=True,
+        verbose_name=_("Параметры"),
         help_text=_("signal_type, resistance, range и т.д.")
     )
 
-    class Meta :
-        ordering = ['sorting_order' ]
+    class Meta:
+        ordering = ['sorting_order']
         verbose_name = _('Корпус БКВ')
         verbose_name_plural = _('Корпуса БКВ')
 
-    def __str__(self) :
+    def __str__(self):
         return self.name
 
     @property
@@ -324,6 +329,131 @@ class LimitSwitchModelLine(StructuredDataMixin, models.Model):
         return self.name
 
 
+class SignalType(models.Model):
+    """Тип сигнала (NAMUR, PNP, Сухой контакт, 4-20мА и т.д.)"""
+    name = models.CharField(max_length=100, verbose_name=_("Название"))
+    code = models.CharField(max_length=50, verbose_name=_("Код"))
+    is_ex = models.BooleanField(default=False, help_text=_(
+        "Флаг определяет, требуется ли для данного сигнала расчет искробезопасных параметров и барьер"),
+                                verbose_name="Взрывозащищенный (Ex)")
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Подробное описание физического принципа работы сигнала'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+
+    class Meta:
+        verbose_name = "Тип сигнала"
+        verbose_name_plural = "Типы сигналов"
+
+    def __str__(self): return self.name
+
+
+class ContactForm(models.Model):
+    """Форма контактов (SPST, SPDT, DPDT)"""
+    name = models.CharField(max_length=100,
+                            help_text=_("Техническое наименование (например, 'Однополюсный перекидной')"),
+                            verbose_name=_("Название"))
+    code = models.CharField(max_length=50, unique=True, help_text=_("Международное сокращение (SPST, SPDT, DPDT, DPST)"
+                                                                    ), verbose_name=_("Код"))
+    wires_required = models.PositiveSmallIntegerField(
+        help_text=_("Минимальное количество жил кабеля для подключения одной единицы (напр. SPDT = 3 провода)"
+                    ), verbose_name="Базовое кол-во проводов")
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Схематичное описание работы или примечания по монтажу'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+
+    class Meta:
+        verbose_name = _("Форма контактов")
+        verbose_name_plural = _("Формы контактов")
+
+    def __str__(self): return f'{self.name}/{self.code}'
+
+
+class ContactState(models.Model):
+    """Состояние контакта (НО, НЗ, Перекидной)"""
+    name = models.CharField(max_length=100, help_text=_("Пользовательское описание (например, 'Нормально разомкнутый')"
+                                                        ), verbose_name=_("Название"))
+    code = models.CharField(max_length=50, unique=True,
+                            help_text=_("Технический код состояния: NO (разомкнут), NC (замкнут), CO (перекидной)"
+                                        ), verbose_name=_("Код"))  # NO, NC, CHANGE_OVER
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_(
+                                       "Описание состояния контакта в 'нормальном' (невозбужденном) положении датчика"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+
+    class Meta:
+        verbose_name = "Состояние контакта"
+        verbose_name_plural = "Состояния контактов"
+
+    def __str__(self): return self.name
+
+
+class SensorComponent(models.Model):
+    """База данных конкретных моделей датчиков и трансмиттеров"""
+    name = models.CharField(max_length=200,
+        verbose_name=_("Название"),
+        help_text=_('Текстовое название модели датчика'))
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код модели датчика"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Текстовое описание модели датчика'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+    brand = models.ForeignKey(Brands, related_name='sensor_component_brand', blank=True, null=True,
+                              on_delete=models.SET_NULL,
+                              help_text=_('Бренд'),
+                              verbose_name=_("Бренд датчика"))
+    # Ссылки на созданные ранее справочники
+    variety = models.ForeignKey(LimitSwitchSensorVariety, on_delete=models.PROTECT, verbose_name=_("Тип сенсора"))
+    signal_type = models.ForeignKey(SignalType, on_delete=models.PROTECT, verbose_name=_("Тип сигнала"))
+    contact_form = models.ForeignKey(ContactForm, on_delete=models.PROTECT, verbose_name=_("Форма контактов"))
+    contact_state = models.ForeignKey(ContactState, on_delete=models.PROTECT, verbose_name=_("Состояние контакта"))
+
+    # Электрические параметры строкой (как в паспорте)
+    electrical_specs = models.CharField(
+        max_length=255,
+        verbose_name=_("Электрические характеристики"),
+        help_text=_("Например: '8.2В / 25мА' или '250В (AC) / 1.0А' или '24В / 4-20мА'")
+    )
+
+    wires_count = models.PositiveSmallIntegerField(
+        default=2,
+        verbose_name=_("Кол-во проводов"),
+        help_text=_("Фактическое количество жил для подключения этого датчика")
+    )
+
+    # Искробезопасные параметры (отдельные поля для расчетов)
+    ui = models.FloatField(null=True, blank=True, verbose_name="Ui (В)")
+    ii = models.FloatField(null=True, blank=True, verbose_name="Ii (мА)")
+    pi = models.FloatField(null=True, blank=True, verbose_name="Pi (мВт)")
+    ci = models.FloatField(null=True, blank=True, verbose_name="Ci (нФ)")
+    li = models.FloatField(null=True, blank=True, verbose_name="Li (мкГн)")
+
+    # Всё остальное (материалы, частота, гистерезис, SIL, МДС)
+    extra_params = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_("Дополнительные параметры"),
+        help_text=_("Специфические данные: материал, частота, SIL, МДС, погрешность и т.д.")
+    )
+
+    class Meta:
+        verbose_name = _("Датчик (компонент)")
+        verbose_name_plural = _("Датчики (компоненты)")
+
+    def __str__(self):
+        return f"{self.name}"
+
 class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
@@ -349,16 +479,24 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
                                    on_delete=models.SET_NULL,
                                    help_text=_('Серия БКВ'),
                                    verbose_name=_("Серия"))
-    body = models.ForeignKey(LimitSwitchBody , related_name='limit_switch_box_body' , blank=True ,
-                                   null=True ,
-                                   on_delete=models.SET_NULL ,
-                                   help_text=_('Корпус БКВ') ,
-                                   verbose_name=_("Корпус"))
+    body = models.ForeignKey(LimitSwitchBody, related_name='limit_switch_box_body', blank=True,
+                             null=True,
+                             on_delete=models.SET_NULL,
+                             help_text=_('Корпус БКВ'),
+                             verbose_name=_("Корпус"))
     # Характеристики
     sensor_variety = models.ForeignKey(
         LimitSwitchSensorVariety, on_delete=models.SET_NULL, null=True,
         help_text=_('Тип сенсора'),
         verbose_name=_("Тип сенсора")
+    )
+    # Добавляем Many-to-Many связь с датчиками
+    sensor_components = models.ManyToManyField(
+        SensorComponent,
+        blank=True,
+        verbose_name=_("Датчики"),
+        help_text=_("Установленные датчики"),
+        related_name='limit_switch_boxes'  # обратная связь от датчика к корпусам
     )
     output_type = models.ForeignKey(
         LimitSwitchOutput, on_delete=models.SET_NULL, null=True,
@@ -418,7 +556,6 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
         verbose_name=_("Параметры"),
         help_text=_("signal_type, resistance, range и т.д.")
     )
-
 
     class Meta:
         verbose_name = _("Блок концевых выключателей")
@@ -494,6 +631,7 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
         copy.exd.set(self.exd.all())
 
         return copy
+
     @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
@@ -515,9 +653,10 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
             '{model_code}': 'code',
             '{brand}': 'model_line__brand',
             '{sensor_variety}': 'sensor_variety',
-            '{contact_form}':'output_type__contact_form_text',
-            '{signal_type}':'output_type__signal_type_text',
-            '{output_type_name}':'output_type__output_type_text',
+            '{contact_form}': 'output_type__contact_form_text',
+            '{signal_type}': 'output_type__signal_type_text',
+            '{wires_per_sensor}': "output_type__wires_per_sensor",
+            '{output_type_name}': 'output_type__output_type_text',
             '{points}': 'points',
             '{body_material}': 'body_material',
             '{body_material_specified}': 'body_material_specified',

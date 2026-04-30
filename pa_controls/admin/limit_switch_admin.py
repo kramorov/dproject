@@ -5,8 +5,130 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
 from pa_controls.models import LimitSwitchSensorVariety, LimitSwitchOutput
-from pa_controls.models.limit_switch import LimitSwitchModelLine , LimitSwitchBox , LimitSwitchBody
+from pa_controls.models.limit_switch import LimitSwitchModelLine, LimitSwitchBox, LimitSwitchBody, ContactState, \
+    ContactForm, SignalType, SensorComponent
 
+
+@admin.register(SensorComponent)
+class SensorComponentAdmin(admin.ModelAdmin):
+    """Админка для датчиков (компонентов)"""
+
+    list_display = ['id',
+        'name',
+        'code',
+
+        'wires_count',
+        'electrical_specs',
+        'is_active',
+        'sorting_order'
+    ]
+
+    list_filter = [
+        'is_active',
+        'brand',
+        'variety',
+        'signal_type',
+        'contact_form',
+        'contact_state',
+        'wires_count'
+    ]
+
+    search_fields = [
+        'name',
+        'code',
+    ]
+
+    list_editable = ['is_active', 'sorting_order']
+    ordering = ['sorting_order']
+
+    # Поля для отображения на странице редактирования
+    fieldsets = (
+        (_('Основная информация'), {
+            'fields': (('name', 'code',  'brand'),)
+        }),
+
+        (_('Технические характеристики'), {
+            'fields': (
+                'variety',
+                'signal_type',
+                'contact_form',
+                'contact_state',
+                'electrical_specs',
+                'wires_count'
+            )
+        }),
+
+        (_('Искробезопасные параметры (Ex)'), {
+            'fields': ('ui', 'ii', 'pi', 'ci', 'li'),
+            'classes': ('collapse',),
+        }),
+
+        (_('Дополнительные параметры'), {
+            'fields': ('extra_params','description',),
+            'classes': ('collapse',),
+        }),
+
+        (_('Настройки отображения'), {
+            'fields': ('sorting_order', 'is_active'),
+        }),
+    )
+
+
+@admin.register(SignalType)
+class SignalTypeAdmin(admin.ModelAdmin):
+    """Админка для типов сигналов"""
+    list_display = ['name', 'code', 'is_ex', 'is_active', 'sorting_order']
+    list_filter = ['is_ex', 'is_active']
+    search_fields = ['name', 'code', 'description']
+    list_editable = ['sorting_order', 'is_active']
+    ordering = ['sorting_order', 'name']
+    fieldsets = (
+        (_('Основная информация'), {
+            'fields': ('name', 'code', 'description')
+        }),
+        (_('Настройки'), {
+            'fields': ('is_ex', 'is_active', 'sorting_order')
+        }),
+    )
+
+
+@admin.register(ContactForm)
+class ContactFormAdmin(admin.ModelAdmin):
+    """Админка для форм контактов"""
+    list_display = ['name', 'code', 'wires_required', 'is_active', 'sorting_order']
+    list_filter = ['is_active']
+    search_fields = ['name', 'code', 'description']
+    list_editable = ['wires_required', 'sorting_order', 'is_active']
+    ordering = ['sorting_order', 'name']
+    fieldsets = (
+        (_('Основная информация'), {
+            'fields': ('name', 'code', 'description')
+        }),
+        (_('Технические параметры'), {
+            'fields': ('wires_required',)
+        }),
+        (_('Настройки'), {
+            'fields': ('is_active', 'sorting_order')
+        }),
+    )
+
+
+@admin.register(ContactState)
+class ContactStateAdmin(admin.ModelAdmin):
+    """Админка для состояний контактов"""
+    list_display = ['name', 'code', 'is_active', 'sorting_order']
+    list_filter = ['is_active']
+    search_fields = ['name', 'code', 'description']
+    list_editable = ['sorting_order', 'is_active']
+    ordering = ['sorting_order', 'name']
+    fieldsets = (
+        (_('Основная информация'), {
+            'fields': ('name', 'code', 'description')
+        }),
+        (_('Настройки'), {
+            'fields': ('is_active', 'sorting_order')
+        }),
+    )
 
 @admin.register(LimitSwitchSensorVariety)
 class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
@@ -148,23 +270,24 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 @admin.register(LimitSwitchBox)
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'code', 'model_line', 'sensor_variety', 'output_type',
-        'points', 'ip', 'get_exd_display', 'is_active', 'sorting_order'
+        'name', 'code', 'model_line', 'body', 'sensor_variety', 'output_type',
+        'points', 'ip', 'get_exd_display'
     ]
     list_filter = [
-        'is_active', 'sensor_variety', 'output_type', 'model_line',
-        'ip', 'exd'
+         'code','sensor_variety', 'output_type', 'model_line',
+        'ip', 'exd','points', 'body',
     ]
-    list_editable = ['sorting_order', 'is_active']
+    search_fields = ['name', 'code', ]
+    list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes']
-    filter_horizontal = ['exd']  # Для ManyToMany полей
+    filter_horizontal = ['sensor_components','exd']  # Для ManyToMany полей
 
     fieldsets = (
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
                        ('sensor_variety', 'output_type', 'points'),
-                       ('ip', 'exd'),  # exd теперь ManyToMany
+                       ('sensor_components','ip', 'exd'),  # exd теперь ManyToMany
                        ('work_temp_min', 'work_temp_max'),)
         }),
         (_('Описание'), {
