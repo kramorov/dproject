@@ -13,88 +13,364 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ValueGetterMixin:
+class TemplateMixin:
+    """
+    Миксин для генерации названий и описаний из шаблонов.
+    Включает в себя методы получения значений по путям (_get_value).
+    """
+
+    # === МЕТОДЫ ПОЛУЧЕНИЯ ЗНАЧЕНИЙ (поля, связи, JSON) ===
+    def _get_value(self, field_path: str) -> str:
+        """Универсальное получение значения по пути (поля, связи, JSON)."""
+        try:
+            return self._get_field_value(field_path)
+        except Exception as e:
+            logger.error(f"Ошибка получения {field_path}: {e}")
+            return ""
+
+    def _get_field_value(self, field_path: str) -> str:
+        """Реализация получения значения (без вызова методов)."""
+        current_obj = self
+        parts = field_path.split('__')
+        for part in parts:
+            if '.' in part:
+                json_field, json_key = part.split('.', 1)
+                if hasattr(current_obj, json_field):
+                    current_obj = getattr(current_obj, json_field)
+                    if isinstance(current_obj, dict):
+                        current_obj = current_obj.get(json_key, '')
+                    else:
+                        return ""
+                else:
+                    return ""
+            else:
+                if hasattr(current_obj, part):
+                    current_obj = getattr(current_obj, part)
+                    if current_obj is None:
+                        return ""
+                else:
+                    return ""
+        return str(current_obj) if current_obj is not None else ""
+
+    # === ПОЛУЧЕНИЕ ШАБЛОНОВ ИЗ ИСТОЧНИКА ===
+    def _get_name_template_source(self):
+        """Переопределить в модели: вернуть шаблон названия или None."""
+        return None
+
+    def _get_description_template_source(self):
+        """Переопределить в модели: вернуть шаблон описания или None."""
+        return None
+
+    # === ДЕФОЛТНЫЕ ШАБЛОНЫ ===
+    def _get_default_name_template(self) -> str:
+        return "{model_code}"
+
+    def _get_default_description_template(self) -> str:
+        return "{model_code}"
+
+    # === ИТОГОВЫЕ ШАБЛОНЫ ===
+    @property
+    def name_template(self) -> str:
+        return self._get_name_template_source() or self._get_default_name_template()
+
+    @property
+    def description_template(self) -> str:
+        return self._get_description_template_source() or self._get_default_description_template()
+
+    # === СЛОВАРЬ ДЛЯ ПОДСТАНОВКИ ===
+    def _get_data_dict(self) -> Dict[str, str]:
+        """Переопределить в модели: вернуть словарь {плейсхолдер: значение/путь}."""
+        return {
+            '{model_code}': '$code',
+        }
+
+    # === ЗАПОЛНЕНИЕ ШАБЛОНА ===
+    def _fill_template(self, template: str, data_dict: Dict[str, str] = None) -> str:
+        import re
+        if not template:
+            return ""
+        if data_dict is None:
+            data_dict = self._get_data_dict()
+        result = template
+        for placeholder, value in data_dict.items():
+            if isinstance(value, str) and value.startswith('$'):
+                path = value[1:]
+                value = self._get_value(path)
+            result = result.replace(placeholder, str(value) if value is not None else "")
+        # Удаляем оставшиеся незамененные плейсхолдеры
+        result = re.sub(r'\{[^{}]+\}', '', result)
+        result = re.sub(r'\s+', ' ', result).strip()
+        return result
+
+    # === ГЕНЕРАЦИЯ СТРОК ===
+    def generate_name(self) -> str:
+        return self._fill_template(self.name_template)
+
+    def generate_description(self) -> str:
+        return self._fill_template(self.description_template)
+
+    def get_display_name(self) -> str:
+        return self.generate_name()
+
+    def get_display_description(self) -> str:
+        return self.generate_description()
+
+    # === ОБНОВЛЕНИЕ ПОЛЕЙ МОДЕЛИ ===
+    def update_name(self, save: bool = False) -> bool:
+        generated = self.generate_name()
+        if generated and getattr(self, 'name', "") != generated:
+            self.name = generated
+            if save:
+                self.save(skip_auto_generate=True)
+            return True
+        return False
+
+    def update_description(self, save: bool = False) -> bool:
+        generated = self.generate_description()
+        if generated and getattr(self, 'description', "") != generated:
+            self.description = generated
+            if save:
+                self.save(skip_auto_generate=True)
+            return True
+        return False
+
+    def update_from_templates(self, save: bool = False) -> bool:
+        name_updated = self.update_name(save=False)
+        desc_updated = self.update_description(save=False)
+        if save and (name_updated or desc_updated):
+            self.save(skip_auto_generate=True)
+        return name_updated or desc_updated
+
+    # === СОХРАНЕНИЕ ===
+    def save(self, *args, **kwargs):
+        skip_auto_generate = kwargs.pop('skip_auto_generate', False)
+        if not skip_auto_generate:
+            self.update_name(save=False)
+            self.update_description(save=False)
+        super().save(*args, **kwargs)
+
+class ValueGetterMixin :
     """
     Миксин для универсального получения значений из полей модели:
     - Обычные поля
     - Связанные поля через __
     - JSON поля через .
     - Комбинации
+    - Вызов методов с параметрами (для M2M и других)
     """
 
-    def _get_value(self, field_path: str) -> str:
+    def _get_value(self , field_path: str) -> str :
         """
         Универсальное получение значения:
         - Обычные поля: 'code'
         - Связи через __: 'body__material'
         - JSON поля через .: 'extra_params.ip_rating'
         - Комбинация: 'body__extra_params.cable_glands_holes'
+        - Вызов методов: 'get_sensors_list("{name}")'
+        - Вызов методов с параметрами: 'body.get_cable_glands_holes("Отв.{name}", ", ", " или ")'
         """
-        try:
-            current_obj = self
+        print(f"[DEBUG] _get_value: field_path='{field_path}'")
+        try :
+            # Проверяем, есть ли вызов метода с параметрами
+            # if '(' in field_path and ')' in field_path :
+            #     return self._call_method_from_path(field_path)
 
-            # Разбиваем на части
-            parts = field_path.split('__')
+            # Обычная обработка (поля, связи, JSON)
+            return self._get_field_value(field_path)
 
-            for part in parts:
-                # Проверяем, есть ли доступ к JSON через точку
-                if '.' in part:
-                    json_field, json_key = part.split('.', 1)
-                    if hasattr(current_obj, json_field):
-                        current_obj = getattr(current_obj, json_field)
-                        if isinstance(current_obj, dict):
-                            current_obj = current_obj.get(json_key, '')
-                        else:
-                            return ""
-                    else:
-                        return ""
-                else:
-                    if hasattr(current_obj, part):
-                        current_obj = getattr(current_obj, part)
-                        if current_obj is None:
-                            return ""
-                    else:
-                        return ""
-
-            return str(current_obj) if current_obj else ""
-        except Exception as e:
+        except Exception as e :
             logger.error(f"Ошибка получения {field_path}: {e}")
             return ""
 
 
-class TemplateGeneratorMixin(ValueGetterMixin):
+    # def _call_method_from_path(self , field_path: str) -> str :
+    #     """
+    #     Вызывает метод из строки пути.
+    #
+    #     Поддерживаемые форматы:
+    #     - 'method_name("{param1}")'
+    #     - 'object.method_name("{param1}", "{param2}")'
+    #     - 'object__subobject.method_name("{param1}")'
+    #
+    #     Примеры:
+    #     - 'get_sensors_list("{name}")'
+    #     - 'body.get_cable_glands_holes("Отв.{name}", ", ", " или ")'
+    #     - 'model_line__brand.get_full_name("{code}")'
+    #     """
+    #     import re
+    #
+    #     print(f"[DEBUG] _call_method_from_path: field_path='{field_path}'")
+    #
+    #     # Разделяем на часть до скобок и параметры
+    #     match = re.match(r'^([^(]+)\((.*)\)$' , field_path)
+    #     if not match :
+    #         print(f"[DEBUG] не удалось распарсить: нет скобок")
+    #         return ""
+    #
+    #     method_path = match.group(1)
+    #     params_str = match.group(2)
+    #
+    #     print(f"[DEBUG] method_path: '{method_path}'")
+    #     print(f"[DEBUG] params_str: '{params_str}'")
+    #
+    #     # Парсим параметры (строки в кавычках)
+    #     # Шаблон для поиска строк: '...' или "..."
+    #     params = re.findall(r"'([^']*)'|\"([^\"]*)\"" , params_str)
+    #     params = [p[0] or p[1] for p in params]
+    #     print(f"[DEBUG] распарсенные параметры: {params}")
+    #
+    #     # Определяем объект, у которого вызываем метод
+    #     # Если в method_path нет точки - вызываем на self
+    #     if '.' not in method_path :
+    #         current_obj = self
+    #         method_name = method_path
+    #         print(f"[DEBUG] вызываем метод {method_name} на self")
+    #     else :
+    #         # Разбираем путь к объекту
+    #         parts = method_path.split('.')
+    #         current_obj = self
+    #         for part in parts[:-1] :
+    #             # Поддерживаем __ для связей
+    #             for subpart in part.split('__') :
+    #                 if hasattr(current_obj , subpart) :
+    #                     current_obj = getattr(current_obj , subpart)
+    #                     print(f"[DEBUG] перешли к {subpart}: {current_obj}")
+    #                     if current_obj is None :
+    #                         print(f"[DEBUG] current_obj is None")
+    #                         return ""
+    #                 else :
+    #                     print(f"[DEBUG] у {current_obj} нет атрибута {subpart}")
+    #                     return ""
+    #         method_name = parts[-1]
+    #         print(f"[DEBUG] вызываем метод {method_name} на объекте {current_obj}")
+    #
+    #     # Вызываем метод
+    #     if hasattr(current_obj , method_name) :
+    #         method = getattr(current_obj , method_name)
+    #         if callable(method) :
+    #             print(f"[DEBUG] вызываем метод с параметрами {params}")
+    #             result = method(*params)
+    #             print(f"[DEBUG] результат: '{result}'")
+    #             return result
+    #         else :
+    #             print(f"[DEBUG] {method_name} не является вызываемым")
+    #     else :
+    #         print(f"[DEBUG] у {current_obj} нет метода {method_name}")
+    #
+    #     return ""
+
+    def _get_field_value(self , field_path: str) -> str :
+        """
+        Получает значение обычного поля, связи или JSON.
+
+        Поддерживаемые форматы:
+        - 'code' - простое поле
+        - 'body__material' - связь через __
+        - 'extra_params.ip_rating' - JSON поле через .
+        - 'body__extra_params.cable_glands_holes' - комбинация
+        """
+        current_obj = self
+
+        # Разбиваем на части
+        parts = field_path.split('__')
+
+        for part in parts :
+            # Проверяем, есть ли доступ к JSON через точку
+            if '.' in part :
+                json_field , json_key = part.split('.' , 1)
+                if hasattr(current_obj , json_field) :
+                    current_obj = getattr(current_obj , json_field)
+                    if isinstance(current_obj , dict) :
+                        current_obj = current_obj.get(json_key , '')
+                    else :
+                        return ""
+                else :
+                    return ""
+            else :
+                if hasattr(current_obj , part) :
+                    current_obj = getattr(current_obj , part)
+                    if current_obj is None :
+                        return ""
+                else :
+                    return ""
+
+        return str(current_obj) if current_obj else ""
+
+
+class TemplateFillerMixin:
     """
-    Миксин для генерации названий и описаний из шаблонов
+    Миксин для заполнения шаблонов значениями из полей модели.
+    Не требует model_line и других зависимостей.
     """
-    # Объявляем атрибуты, которые будут доступны в моделях, использующих миксин
-    name: str
-    code: Optional[str]
-    description: str
-    model_line: Optional[Any]  # Any вместо конкретного типа, чтобы избежать циклических импортов
 
-    def _get_default_name_template(self) -> str:
+    def _get_data_dict(self) -> Dict[str, str]:
         """
-        Получить шаблон описания по умолчанию. Должен быть переопределен в каждой модели.
+        Должен быть переопределен в модели.
+        Возвращает словарь {плейсхолдер: путь_к_атрибуту}
         """
-        return "{model_code} "
+        return {}
 
-    def _get_default_description_template(self) -> str:
+    def _get_value(self, attr_path: str) -> str:
         """
-        Получить шаблон описания по умолчанию. Должен быть переопределен в каждой модели.
+        Получает значение по вложенному пути.
+        Поддерживает:
+        - Обычные поля: 'code'
+        - Связи через __: 'brand__name'
+        - JSON поля через .: 'extra_params.material'
         """
-        return "{model_code} "
-    def _get_data_dict(self):
-        """
-        Получить словарь соответствий плейсхолдеров и атрибутов для замены.
-        Должен быть переопределен в каждой модели.
-        """
-        print(f'_get_data_dict from TemplateGeneratorMixin')
-        return {
-            '{model_code}': 'code',
+        try:
+            current = self
+            # Заменяем . на __ для единообразия
+            path = attr_path.replace('.', '__')
+            for part in path.split('__'):
+                if hasattr(current, part):
+                    current = getattr(current, part)
+                    if current is None:
+                        return ""
+                elif isinstance(current, dict) and part in current:
+                    current = current.get(part, "")
+                else:
+                    return ""
+            return str(current) if current is not None else ""
+        except Exception:
+            return ""
+    def _get_model_meta_name(self) -> str:
+        """Возвращает имя модели для логов"""
+        return self.__class__.__name__
 
-        }
+    def _fill_template(self, template_str: str, placeholder_to_attr: Dict[str, str] = None, hide_code: bool = False) -> str:
+        """
+        Заполняет шаблон значениями из словаря.
 
-    def generated_model_name_description(self, name_or_description, hide_code=False):
+        Args:
+            template_str: шаблон с плейсхолдерами {placeholder}
+            placeholder_to_attr: словарь соответствий (если None, то используется self._get_data_dict())
+            hide_code: игнорируется в этом миксине, оставлен для совместимости
+
+        Returns:
+            Заполненная строка
+        """
+        if not template_str:
+            return ""
+
+        if placeholder_to_attr is None:
+            placeholder_to_attr = self._get_data_dict()
+
+        result = template_str
+        for placeholder, attr_path in placeholder_to_attr.items():
+            value = self._get_value(attr_path)
+            result = result.replace(placeholder, str(value) if value is not None else "")
+
+        return result
+
+
+class TemplateGeneratorMixin(TemplateFillerMixin):
+    """
+    Миксин для генерации названий и описаний из шаблонов model_line.
+    Наследует TemplateFillerMixin для базовой функциональности заполнения.
+    """
+
+    def generated_model_name_description(self, name_or_description: str, hide_code: bool = False) -> str:
         """
         Сгенерировать название или описание по шаблону из model_line
 
@@ -102,7 +378,6 @@ class TemplateGeneratorMixin(ValueGetterMixin):
             name_or_description: 'name' или 'description' - что генерировать
             hide_code: скрыть model_code при генерации
         """
-        # print(f'generated_model_name_description from TemplateGeneratorMixin')
         model_name = self._get_model_meta_name()
 
         if not self.model_line:
@@ -111,7 +386,6 @@ class TemplateGeneratorMixin(ValueGetterMixin):
         # Выбираем шаблон
         if name_or_description == 'name':
             template = self.model_line.name_template
-            # Если шаблона нет или он пустой - берем дефолтный
             if not template or not template.strip():
                 template = self._get_default_name_template()
                 if not template or not template.strip():
@@ -122,7 +396,6 @@ class TemplateGeneratorMixin(ValueGetterMixin):
                     return self.name or ""
         else:
             template = self.model_line.description_template
-            # Если шаблона нет или он пустой - берем дефолтный
             if not template or not template.strip():
                 template = self._get_default_description_template()
                 if not template or not template.strip():
@@ -135,18 +408,99 @@ class TemplateGeneratorMixin(ValueGetterMixin):
         # Получаем словарь соответствий
         placeholder_to_attr = self._get_data_dict()
 
-        # Формируем результат, заменяя плейсхолдеры
-        result = template
-        for placeholder, attr_name in placeholder_to_attr.items():
-            value = self._get_value(attr_name)
+        # Заполняем шаблон
+        result = self._fill_template(template, placeholder_to_attr, hide_code)
 
-            # Если hide_code=True и это плейсхолдер для model_code - скрываем
-            if hide_code and placeholder == '{model_code}':
-                value = ""
-
-            result = result.replace(placeholder, str(value) if value is not None else "")
-        # print(f'generated_model_name_description from TemplateGeneratorMixin. result={result}')
         return result
+
+    def _process_m2m_field(self, related_manager, item_template: str, separator: str = ", ",
+                           last_separator: str = None) -> str:
+        """
+        Универсальный метод для обработки M2M полей
+
+        Args:
+            related_manager: related менеджер M2M поля (например, self.sensor_components)
+            item_template: шаблон для каждого элемента (например '{name}', '{code} {name}')
+            separator: разделитель между элементами
+            last_separator: последний разделитель (если None, то используется separator)
+
+        Returns:
+            Строка с объединенными элементами
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.debug(f"_process_m2m_field: начало обработки")
+        logger.debug(f"  item_template: {item_template}")
+        logger.debug(f"  separator: {separator}")
+        logger.debug(f"  last_separator: {last_separator}")
+
+        items = related_manager.all()
+        logger.debug(f"  количество items: {items.count()}")
+
+        if not items:
+            logger.debug("  items пуст, возвращаем пустую строку")
+            return ""
+
+        result_items = []
+        for idx, item in enumerate(items):
+            logger.debug(f"  обработка item {idx}: {item}")
+            logger.debug(f"    тип item: {type(item).__name__}")
+
+            # Если у элемента есть метод _fill_template - используем его
+            if hasattr(item, '_fill_template'):
+                logger.debug(f"    у item есть _fill_template")
+                filled = item._fill_template(item_template)
+                logger.debug(f"    filled после _fill_template: {filled}")
+            else:
+                logger.debug(f"    у item НЕТ _fill_template, используем простую подстановку")
+                # Простая подстановка для обычных моделей
+                filled = item_template
+                for attr in ['name', 'code', 'full_code', 'description']:
+                    if f'{{{attr}}}' in filled:
+                        value = getattr(item, attr, '')
+                        filled = filled.replace(f'{{{attr}}}', str(value) if value else '')
+                        logger.debug(f"      заменен {{{attr}}} на '{value}'")
+                logger.debug(f"    filled после простой подстановки: {filled}")
+
+            result_items.append(filled)
+
+        # Объединяем с разделителями
+        if len(result_items) == 1:
+            result = result_items[0]
+            logger.debug(f"  один элемент, результат: {result}")
+            return result
+        elif len(result_items) == 2 and last_separator:
+            result = f"{result_items[0]} {last_separator} {result_items[1]}"
+            logger.debug(f"  два элемента с last_separator, результат: {result}")
+            return result
+        elif len(result_items) > 2 and last_separator:
+            result = f"{', '.join(result_items[:-1])} {last_separator} {result_items[-1]}"
+            logger.debug(f"  больше двух элементов с last_separator, результат: {result}")
+            return result
+        else:
+            result = separator.join(result_items)
+            logger.debug(f"  объединение с separator, результат: {result}")
+            return result
+
+
+
+    def _get_default_name_template(self) -> str:
+        """Должен быть переопределен в модели"""
+        return "{model_code}"
+
+    def _get_default_description_template(self) -> str:
+        """Должен быть переопределен в модели"""
+        return "{model_code}"
+
+    def _get_data_dict(self) -> Dict[str, str]:
+        """
+        Должен быть переопределен в модели.
+        Возвращает словарь соответствий плейсхолдеров и путей к атрибутам.
+        """
+        return {
+            '{model_code}': 'code',
+        }
 
     def update_name_from_template(self):
         """Обновить название из шаблона"""
@@ -181,11 +535,198 @@ class TemplateGeneratorMixin(ValueGetterMixin):
             self.update_name_and_description_from_templates()
         super().save(*args, **kwargs)
 
-    def _get_model_meta_name(self):
-        """Получить название модели из Meta"""
-        if hasattr(self, '_meta') and hasattr(self._meta, 'verbose_name'):
-            return self._meta.verbose_name
-        return self.__class__.__name__
+
+#
+# class ValueGetterMixin:
+#     """
+#     Миксин для универсального получения значений из полей модели:
+#     - Обычные поля
+#     - Связанные поля через __
+#     - JSON поля через .
+#     - Комбинации
+#     """
+#
+#     def _get_value(self, field_path: str) -> str:
+#         """
+#         Универсальное получение значения:
+#         - Обычные поля: 'code'
+#         - Связи через __: 'body__material'
+#         - JSON поля через .: 'extra_params.ip_rating'
+#         - Комбинация: 'body__extra_params.cable_glands_holes'
+#         """
+#         try:
+#             current_obj = self
+#
+#             # Разбиваем на части
+#             parts = field_path.split('__')
+#
+#             for part in parts:
+#                 # Проверяем, есть ли доступ к JSON через точку
+#                 if '.' in part:
+#                     json_field, json_key = part.split('.', 1)
+#                     if hasattr(current_obj, json_field):
+#                         current_obj = getattr(current_obj, json_field)
+#                         if isinstance(current_obj, dict):
+#                             current_obj = current_obj.get(json_key, '')
+#                         else:
+#                             return ""
+#                     else:
+#                         return ""
+#                 else:
+#                     if hasattr(current_obj, part):
+#                         current_obj = getattr(current_obj, part)
+#                         if current_obj is None:
+#                             return ""
+#                     else:
+#                         return ""
+#
+#             return str(current_obj) if current_obj else ""
+#         except Exception as e:
+#             logger.error(f"Ошибка получения {field_path}: {e}")
+#             return ""
+#
+#
+# class TemplateGeneratorMixin(ValueGetterMixin):
+#     """
+#     Миксин для генерации названий и описаний из шаблонов
+#     """
+#     # Объявляем атрибуты, которые будут доступны в моделях, использующих миксин
+#     name: str
+#     code: Optional[str]
+#     description: str
+#     model_line: Optional[Any]  # Any вместо конкретного типа, чтобы избежать циклических импортов
+#
+#     def _get_default_name_template(self) -> str:
+#         """
+#         Получить шаблон описания по умолчанию. Должен быть переопределен в каждой модели.
+#         """
+#         return "{model_code} "
+#
+#     def _get_default_description_template(self) -> str:
+#         """
+#         Получить шаблон описания по умолчанию. Должен быть переопределен в каждой модели.
+#         """
+#         return "{model_code} "
+#     def _get_data_dict(self):
+#         """
+#         Получить словарь соответствий плейсхолдеров и атрибутов для замены.
+#         Должен быть переопределен в каждой модели.
+#         """
+#         print(f'_get_data_dict from TemplateGeneratorMixin')
+#         return {
+#             '{model_code}': 'code',
+#
+#         }
+#
+#     def _fill_template(self , template_str: str , placeholder_to_attr: Dict[str , str] ,
+#                        hide_code: bool = False) -> str :
+#         """
+#         Заполняет шаблон значениями из словаря
+#
+#         Args:
+#             template_str: шаблон с плейсхолдерами {placeholder}
+#             placeholder_to_attr: словарь соответствия плейсхолдеров и путей к атрибутам
+#             hide_code: скрыть ли {model_code}
+#
+#         Returns:
+#             Заполненная строка
+#         """
+#         if not template_str :
+#             return ""
+#
+#         result = template_str
+#         for placeholder , attr_path in placeholder_to_attr.items() :
+#             value = self._get_value(attr_path)
+#
+#             # Если hide_code=True и это плейсхолдер для model_code - скрываем
+#             if hide_code and placeholder == '{model_code}' :
+#                 value = ""
+#
+#             result = result.replace(placeholder , str(value) if value is not None else "")
+#
+#         return result
+#
+#     def generated_model_name_description(self , name_or_description: str , hide_code: bool = False) -> str :
+#         """
+#         Сгенерировать название или описание по шаблону из model_line
+#
+#         Args:
+#             name_or_description: 'name' или 'description' - что генерировать
+#             hide_code: скрыть model_code при генерации
+#         """
+#         model_name = self._get_model_meta_name()
+#
+#         if not self.model_line :
+#             return self.name or ""
+#
+#         # Выбираем шаблон
+#         if name_or_description == 'name' :
+#             template = self.model_line.name_template
+#             if not template or not template.strip() :
+#                 template = self._get_default_name_template()
+#                 if not template or not template.strip() :
+#                     logger.error(
+#                         f'Ошибка при формировании названия в {model_name} - '
+#                         f'нет шаблона названия (ни в model_line, ни дефолтного)'
+#                     )
+#                     return self.name or ""
+#         else :
+#             template = self.model_line.description_template
+#             if not template or not template.strip() :
+#                 template = self._get_default_description_template()
+#                 if not template or not template.strip() :
+#                     logger.error(
+#                         f'Ошибка при формировании описания в {model_name} - '
+#                         f'нет шаблона описания (ни в model_line, ни дефолтного)'
+#                     )
+#                     return self.description or ""
+#
+#         # Получаем словарь соответствий
+#         placeholder_to_attr = self._get_data_dict()
+#
+#         # Заполняем шаблон
+#         result = self._fill_template(template , placeholder_to_attr , hide_code)
+#
+#         return result
+#
+#     def update_name_from_template(self):
+#         """Обновить название из шаблона"""
+#         print(f'update_name_from_template from TemplateGeneratorMixin')
+#         if self.model_line and self.model_line.name_template:
+#             generated_name = self.generated_model_name_description('name')
+#             if generated_name:
+#                 self.name = generated_name
+#                 return True
+#         return False
+#
+#     def update_description_from_template(self):
+#         """Обновить описание из шаблона"""
+#         if self.model_line and self.model_line.description_template:
+#             generated_description = self.generated_model_name_description('description')
+#             if generated_description:
+#                 self.description = generated_description
+#                 return True
+#         return False
+#
+#     def update_name_and_description_from_templates(self):
+#         """Обновить название и описание из шаблонов"""
+#         name_updated = self.update_name_from_template()
+#         description_updated = self.update_description_from_template()
+#         return name_updated or description_updated
+#
+#     def save(self, *args, **kwargs):
+#         """При сохранении обновляем название и описание из шаблонов, если не указано в параметрах skip_auto_generate=True"""
+#         skip_auto_generate = kwargs.pop('skip_auto_generate', False)
+#         # print(f'save from TemplateGeneratorMixin. skip_auto_generate={skip_auto_generate}')
+#         if not skip_auto_generate:
+#             self.update_name_and_description_from_templates()
+#         super().save(*args, **kwargs)
+#
+#     def _get_model_meta_name(self):
+#         """Получить название модели из Meta"""
+#         if hasattr(self, '_meta') and hasattr(self._meta, 'verbose_name'):
+#             return self._meta.verbose_name
+#         return self.__class__.__name__
 
 class StructuredDataMixin :
     """
@@ -206,86 +747,12 @@ class StructuredDataMixin :
     CARD = DisplayView.CARD
     DETAIL = DisplayView.DETAIL
     BADGE = DisplayView.BADGE
-    # Старая версия
-    # def _get_value(self, field_path: str) -> str:
-    #     """Простое получение значения поля"""
-    #     try:
-    #         current_obj = self
-    #         for field_name in field_path.split('__'):
-    #             current_obj = getattr(current_obj, field_name, None)
-    #             if current_obj is None:
-    #                 return ""
-    #         return str(current_obj) if current_obj else ""
-    #     except Exception:
-    #         return ""
-    # def get_data_dict(self):
-    #     """
-    #     Получить словарь соответствий плейсхолдеров и атрибутов для замены.
-    #     Должен быть переопределен в каждой модели.
-    #     """
-    #     return {
-    #         '{model_code}': 'code',
-    #         '{sensor_variety}': 'sensor_variety',
-    #         '{output_type}': 'output_type',
-    #         '{points}': 'points',
-    #         '{body_material}': 'body_material',
-    #         '{body_material_specified}': 'body_material_specified',
-    #         '{work_temp_min}': 'work_temp_min',
-    #         '{work_temp_max}': 'work_temp_max',
-    #         '{cable_glands_holes}': 'body__cable_glands_holes',
-    #         '{exd}': 'exd',
-    #         '{ip}': 'ip',
-    #     }
-    #
-    # def generated_model_name_description(self, name_or_description, hide_code=False):
-    #     """
-    #     Сгенерировать название или описание по шаблону из model_line
-    #
-    #     Args:
-    #         name_or_description: 'name' или 'description' - что генерировать
-    #         hide_code: скрыть model_code при генерации
-    #     """
-    #     model_name = self._get_model_meta_name()
-    #
-    #     if not self.model_line:
-    #         return self.name or ""
-    #
-    #     if name_or_description == 'name':
-    #         template = self.model_line.name_template
-    #         if not template:
-    #             logger.error(
-    #                 f'Ошибка при формировании названия в {model_name} - '
-    #                 f'в model_line нет шаблона названия модели'
-    #             )
-    #             return self.name or ""
-    #     else:
-    #         template = self.model_line.description_template
-    #         if not template:
-    #             logger.error(
-    #                 f'Ошибка при формировании описания в {model_name} - '
-    #                 f'в model_line нет шаблона описания'
-    #             )
-    #             return self.description or ""
-    #
-    #     # Получаем словарь соответствий
-    #     placeholder_to_attr = self.get_data_dict()
-    #
-    #     # Формируем результат, заменяя плейсхолдеры
-    #     result = template
-    #     for placeholder, attr_name in placeholder_to_attr.items():
-    #         value = self._get_value(attr_name)
-    #
-    #         # Если hide_code=True и это плейсхолдер для model_code - скрываем
-    #         if hide_code and placeholder == '{model_code}':
-    #             value = ""
-    #
-    #         result = result.replace(placeholder, str(value) if value is not None else "")
-    #
-    #     return result
+
 
 
     def save(self, *args, **kwargs):
         """При сохранении обновляем название и описание из шаблонов, если не указано в параметрах """
+        print(f"[DEBUG] save: name='{self._get_model_name()}'")
         super().save(*args, **kwargs)
 
     def _get_model_meta_name(self):
@@ -995,11 +1462,6 @@ class SoftDeleteMixin(models.Model) :
         self.deleted_at = None
         self.save()
 
-
-
-
-
-
 class AdminStructuredDataMixinCopyMixin :
     """Миксин для добавления action копирования"""
 
@@ -1052,3 +1514,45 @@ class OptionListToSelectMixin:
             queryset = queryset.filter(is_active=True)
 
         return [{'id': obj.id, 'name': str(obj)} for obj in queryset]
+
+class GetChoicesMixin:
+    """
+    Миксин для заполнения список кортежей для использования в выпадающем списке
+    Не требует model_line и других зависимостей.
+    """
+
+    @classmethod
+    def get_choices(cls) :
+        """
+        Возвращает список кортежей для использования в выпадающем списке
+        Returns: [(id, name), ...] или [(0, "— Выберите —"), (id, name), ...]
+        """
+        choices = cls.objects.filter(is_active=True).order_by('sorting_order' , 'name')
+        return [(item.id , item.name) for item in choices]
+
+    @classmethod
+    def get_select_choices(cls , include_empty=True) :
+        """
+        Возвращает список кортежей с пустым значением для selectbox
+        Args:
+            include_empty: добавить ли пустой вариант "-- Выберите --"
+        Returns: [(0, "— Выберите —"), (id, name), ...] или [(id, name), ...]
+        """
+        choices = cls.get_choices()
+
+        if include_empty :
+            return [(0 , "— Выберите —")] + choices
+
+        return choices
+
+    @classmethod
+    def get_choice_by_id(cls , choice_id) :
+        """ Получить название по ID """
+        if not choice_id :
+            return None
+
+        try :
+            item = cls.objects.get(id=choice_id , is_active=True)
+            return item.name
+        except cls.DoesNotExist :
+            return None

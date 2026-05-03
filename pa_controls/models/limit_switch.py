@@ -7,7 +7,8 @@ from typing import List, Optional, Tuple, Any, Dict, Union
 import logging
 
 from core.models import StructuredDataMixin
-from core.models.mixins import TemplateGeneratorMixin
+from core.models.mixins import TemplateGeneratorMixin , ValueGetterMixin , TemplateFillerMixin , GetChoicesMixin , \
+    TemplateMixin
 from electric_actuators.models import CableGlandHolesSet
 from materials.models import MaterialGeneral, MaterialSpecified
 # from pa_controls.models import PaControlMountingStandard
@@ -23,7 +24,7 @@ from params.exd_models import ExdOption
 # БЛОК КОНЦЕВЫХ ВЫКЛЮЧАТЕЛЕЙ (Limit Switch Box)
 # ============================================================
 
-class LimitSwitchSensorVariety(models.Model):
+class LimitSwitchSensorVariety(TemplateFillerMixin,GetChoicesMixin, models.Model):
     """Тип сенсора концевого выключателя (механический, индуктивный, магнитный, пневматический)"""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -37,49 +38,18 @@ class LimitSwitchSensorVariety(models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
-
+    name_template = models.TextField(blank=True , null=True ,
+                                     verbose_name=_("Шаблон названия") ,
+                                     help_text=_('Шаблон для текстового названия сенсора'))
+    description_template = models.TextField(blank=True , null=True ,
+                                            verbose_name=_("Шаблон описания") ,
+                                            help_text=_('Шаблон для описания сенсора'))
     class Meta:
         verbose_name = _("Тип сенсора БКВ")
         verbose_name_plural = _("Типы сенсоров БКВ")
 
     def __str__(self):
         return self.name
-
-    @classmethod
-    def get_choices(cls):
-        """
-        Возвращает список кортежей для использования в выпадающем списке
-        Returns: [(id, name), ...] или [(0, "— Выберите —"), (id, name), ...]
-        """
-        choices = cls.objects.filter(is_active=True).order_by('sorting_order', 'name')
-        return [(item.id, item.name) for item in choices]
-
-    @classmethod
-    def get_select_choices(cls, include_empty=True):
-        """
-        Возвращает список кортежей с пустым значением для selectbox
-        Args:
-            include_empty: добавить ли пустой вариант "-- Выберите --"
-        Returns: [(0, "— Выберите —"), (id, name), ...] или [(id, name), ...]
-        """
-        choices = cls.get_choices()
-
-        if include_empty:
-            return [(0, "— Выберите —")] + choices
-
-        return choices
-
-    @classmethod
-    def get_choice_by_id(cls, choice_id):
-        """ Получить название по ID """
-        if not choice_id:
-            return None
-
-        try:
-            item = cls.objects.get(id=choice_id, is_active=True)
-            return item.name
-        except cls.DoesNotExist:
-            return None
 
 
 class LimitSwitchOutput(models.Model):
@@ -132,6 +102,7 @@ class LimitSwitchOutput(models.Model):
         verbose_name=_("Проводов на 1 датчик"),
         help_text=_("Сколько жил кабеля занимает один датчик в блоке")
     )
+
     # ВСЁ остальное в JSON
     extra_params = models.JSONField(
         default=dict, blank=True,
@@ -162,37 +133,6 @@ class LimitSwitchOutput(models.Model):
         """Возвращает человеко-читаемое значение типа выхода"""
         text = f'Тип контактов: {self.get_contact_form_display()}, Тип сигнала: {self.get_signal_type_display()}, проводов на 1 датчик: {self.wires_per_sensor}'
         return text
-
-    # @property
-    # def signal_type_display(self) -> str:
-    #     """Возвращает человеко-читаемое значение сигнала"""
-    #     return dict(self.SIGNAL_CHOICES).get(self.signal_type, self.signal_type)
-
-    @classmethod
-    def get_choices(cls):
-        """Возвращает список кортежей для выпадающего списка"""
-        choices = cls.objects.filter(is_active=True).order_by('sorting_order', 'name')
-        return [(item.id, str(item)) for item in choices]
-
-    @classmethod
-    def get_select_choices(cls, include_empty=True, empty_label="— Выберите —"):
-        """Возвращает список с пустым значением для selectbox"""
-        choices = cls.get_choices()
-
-        if include_empty:
-            return [(0, empty_label)] + choices
-
-        return choices
-
-    @classmethod
-    def get_choice_by_id(cls, choice_id):
-        """Получить название по ID"""
-        try:
-            item = cls.objects.get(id=choice_id, is_active=True)
-            return str(item)
-        except cls.DoesNotExist:
-            return None
-
 
 class LimitSwitchBody(StructuredDataMixin, models.Model):
     """
@@ -396,7 +336,7 @@ class ContactState(models.Model):
     def __str__(self): return self.name
 
 
-class SensorComponent(models.Model):
+class SensorComponent(TemplateFillerMixin, GetChoicesMixin, models.Model):
     """База данных конкретных моделей датчиков и трансмиттеров"""
     name = models.CharField(max_length=200,
         verbose_name=_("Название"),
@@ -454,7 +394,117 @@ class SensorComponent(models.Model):
     def __str__(self):
         return f"{self.name}"
 
-class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
+    def _get_data_dict(self) -> Dict[str , str] :
+        """
+        Словарь соответствий плейсхолдеров и путей к атрибутам для SensorComponent
+        """
+        return {
+            # Основные поля
+            '{model_code}' : 'code' ,
+            '{name}' : 'name' ,
+            '{description}' : 'description' ,
+
+            # Бренд
+            '{brand}' : 'brand__name' ,
+            '{brand_code}' : 'brand__code' ,
+
+            # Тип сенсора (sensor_variety)
+            '{sensor_variety}' : 'variety__name' ,
+            '{sensor_variety_code}' : 'variety__code' ,
+            '{sensor_variety_description}' : 'variety__description' ,
+
+            # Тип сигнала
+            '{signal_type}' : 'signal_type__name' ,
+            '{signal_type_code}' : 'signal_type__code' ,
+            '{signal_type_description}' : 'signal_type__description' ,
+
+            # Форма контактов
+            '{contact_form}' : 'contact_form__name' ,
+            '{contact_form_code}' : 'contact_form__code' ,
+            '{contact_form_description}' : 'contact_form__description' ,
+
+            # Состояние контакта
+            '{contact_state}' : 'contact_state__name' ,
+            '{contact_state_code}' : 'contact_state__code' ,
+            '{contact_state_description}' : 'contact_state__description' ,
+
+            # Электрические параметры
+            '{electrical_specs}' : 'electrical_specs' ,
+            '{wires_count}' : 'wires_count' ,
+
+            # Искробезопасные параметры
+            '{ui}' : 'ui' ,
+            '{ii}' : 'ii' ,
+            '{pi}' : 'pi' ,
+            '{ci}' : 'ci' ,
+            '{li}' : 'li' ,
+
+            # JSON параметры (через .)
+            '{material}' : 'extra_params.material' ,
+            '{frequency}' : 'extra_params.frequency' ,
+            '{hysteresis}' : 'extra_params.hysteresis' ,
+            '{sil}' : 'extra_params.sil' ,
+            '{mds}' : 'extra_params.mds' ,
+            '{accuracy}' : 'extra_params.accuracy' ,
+            '{temperature_drift}' : 'extra_params.temperature_drift' ,
+            '{response_time}' : 'extra_params.response_time' ,
+            '{certification}' : 'extra_params.certification' ,
+        }
+
+    def _get_default_name_template(self) -> str :
+        """Шаблон названия по умолчанию"""
+        return "{brand} {name}"
+
+    def _get_default_description_template(self) -> str :
+        """Шаблон описания по умолчанию"""
+        # Искробезопасность: Ui={ui}В Ii={ii}мА Pi={pi}мВт Ci={ci}нФ Li={li}мкГн. Материал: {material}, частота: {frequency}, SIL: {sil}"
+        return "{brand} {name} - {sensor_variety}, {signal_type}, {contact_form}, {contact_state}, {electrical_specs}, {wires_count} провода."
+
+    def generated_model_name_description(self, name_or_description: str, hide_code: bool = False) -> str:
+        """
+        Версия generated_model_name_description для модели SensorComponent из TemplateGeneratorMixin
+        Сгенерировать название или описание по шаблону не из model_line, а из self
+
+        Args:
+            name_or_description: 'name' или 'description' - что генерировать
+            hide_code: скрыть model_code при генерации
+        """
+        model_name = self._get_model_meta_name()
+
+        if not self.variety:
+            return self.name or ""
+
+        # Выбираем шаблон
+        if name_or_description == 'name':
+            template = self.variety.name_template
+            if not template or not template.strip():
+                template = self._get_default_name_template()
+                if not template or not template.strip():
+                    logger.error(
+                        f'Ошибка при формировании названия в {model_name} - '
+                        f'нет шаблона названия (ни в model_line, ни дефолтного)'
+                    )
+                    return self.name or ""
+        else:
+            template = self.variety.description_template
+            if not template or not template.strip():
+                template = self._get_default_description_template()
+                if not template or not template.strip():
+                    logger.error(
+                        f'Ошибка при формировании описания в {model_name} - '
+                        f'нет шаблона описания (ни в model_line, ни дефолтного)'
+                    )
+                    return self.description or ""
+
+        # Получаем словарь соответствий
+        placeholder_to_attr = self._get_data_dict()
+
+        # Заполняем шаблон
+        result = self._fill_template(template, placeholder_to_attr, hide_code)
+
+        return result
+
+class LimitSwitchBox(TemplateMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -632,6 +682,28 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
 
         return copy
 
+    def save(self , *args , **kwargs) :
+        print(f"[DEBUG] ========== SAVE CALLED ==========")
+        print(f"[DEBUG] self.name до генерации: {self.name}")
+        print(f"[DEBUG] self.description до генерации: {self.description}")
+
+        # Генерируем название и описание
+        if self.model_line :
+            if self.model_line.name_template :
+                new_name = self.generated_model_name_description('name')
+                print(f"[DEBUG] сгенерированное name: {new_name}")
+                if new_name :
+                    self.name = new_name
+
+            if self.model_line.description_template :
+                new_description = self.generated_model_name_description('description')
+                print(f"[DEBUG] сгенерированное description: {new_description}")
+                if new_description :
+                    self.description = new_description
+
+        print(f"[DEBUG] self.name после генерации: {self.name}")
+        print(f"[DEBUG] ========== SAVE FINISHED ==========")
+        super().save(*args , **kwargs)
     @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
@@ -646,6 +718,25 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
     def _get_default_description_template(self) -> str:
         default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С, {output_type_name}, Материал корпуса: {body_material_specified}, вес {weight}кг., Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}"
         return default_description_template
+
+    @property
+    def get_sensors_list(self) -> str :
+        """
+        Возвращает текстовый список отверстий под кабельные вводы.
+        Разделитель - слово "или"
+        """
+        sensor_components = self.sensor_components.all()
+        if not sensor_components :
+            return ""
+
+        names = [item.name for item in sensor_components]
+
+        if len(names) == 1 :
+            return names[0]
+        elif len(names) == 2 :
+            return f"{names[0]} или {names[1]}"
+        else :
+            return ", ".join(names[:-1]) + f" или {names[-1]}"
 
     def _get_data_dict(self) -> Dict[str, str]:
         """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
@@ -667,4 +758,10 @@ class LimitSwitchBox(TemplateGeneratorMixin, models.Model):
             '{work_temp_max}': 'work_temp_max',
             '{exd}': 'exd_display',
             '{ip}': 'ip',
+            # M2M поле - вызов метода get_sensors_list с подшаблоном
+            # В подшаблоне можно использовать поля из SensorComponent (name, brand, signal_type, electrical_specs и т.д.)
+            '{sensors}' : 'get_sensors_list("{name} ({signal_type}, {electrical_specs})")' ,
+            '{sensors_short}' : 'get_sensors_list("{name}")' ,
+            '{sensors_detailed}' : 'get_sensors_list("{brand} {name}: {signal_type}, {contact_form}, {electrical_specs}, {wires_count}пров")' ,
+            '{sensors_with_ex}' : 'get_sensors_list("{name} [Ui={ui}В Ii={ii}мА]")' ,
         }
