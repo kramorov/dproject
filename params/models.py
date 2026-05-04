@@ -70,6 +70,28 @@ class ControlUnitLocationOption(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return self.name
 
+class FiltrationGrade(models.Model, OptionListToSelectMixin):
+    name = models.CharField(max_length=100, blank=True, null=True,
+                            help_text=_("Символьное обозначение cтепени очистки)"),
+                            verbose_name=_("Название"))
+    code = models.CharField(max_length=50, blank=True, null=True,
+                            help_text=_("Код cтепени очистки"),
+                            verbose_name=_("Код"))
+    value = models.DecimalField("Размер частиц (мкм)", max_digits=5, decimal_places=2)
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0,
+                                        verbose_name=_("Порядок сортировки"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+
+    class Meta:
+        verbose_name = _('Степень очистки (мкм)')
+        verbose_name_plural = _('Степень очистки (мкм)')
+        ordering = ['sorting_order']
+
+    def __str__(self):
+        return self.name if self.name else f"{self.value} мкм"
 
 class ControlUnitTypeOption(models.Model, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,

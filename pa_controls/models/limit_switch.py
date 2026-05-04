@@ -613,11 +613,11 @@ class LimitSwitchBox(TemplateMixin, models.Model):
         return self.model_line.description_template or None
 
     def _get_default_name_template(self) -> str:
-        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С"
+        default_description_template = "{model_code} Блок концевых выключателей {brand};  {points} датчика, тип датчика: {sensor_variety}; {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Датчик: {sensors}, Отверстия под КВ:{cable_glands_holes}, вес {weight} кг."
         return default_description_template
 
     def _get_default_description_template(self) -> str:
-        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С, {output_type_name}, Материал корпуса: {body_material_specified}, вес {weight}кг., Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}"
+        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}, вес {weight}кг. Датчики: {sensors_description}"
         return default_description_template
 
     @property
@@ -631,7 +631,6 @@ class LimitSwitchBox(TemplateMixin, models.Model):
             return ""
 
         names = [item.description for item in sensor_components]
-
         if len(names) == 1:
             return names[0]
         elif len(names) == 2:

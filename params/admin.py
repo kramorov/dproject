@@ -175,6 +175,10 @@ class TemperatureClassAdmin(admin.ModelAdmin):
     search_fields = ['temperature_class']
     list_editable = ['sorting_order', 'is_active']
 
+@admin.register(FiltrationGrade)
+class FiltrationGradeAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'value',]
+    search_fields = ['code', 'name']
 
 @admin.register(ExplosionProtectionMethod)
 class ExplosionProtectionMethodAdmin(admin.ModelAdmin):

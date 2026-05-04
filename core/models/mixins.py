@@ -31,32 +31,32 @@ class TemplateMixin:
 
     def _get_field_value(self, field_path: str) -> str:
         """Реализация получения значения (без вызова методов)."""
-        print(f"\n{'=' * 60}")
+        # print(f"\n{'=' * 60}")
         print(f"[GET_FIELD_VALUE] НАЧАЛО: field_path='{field_path}'")
-        print(f"{'=' * 60}")
+        # print(f"{'=' * 60}")
 
         current_obj = self
         parts = field_path.split('__')
-        print(f"[GET_FIELD_VALUE] Разбито на части: {parts}")
+        # print(f"[GET_FIELD_VALUE] Разбито на части: {parts}")
 
         for i, part in enumerate(parts):
-            print(f"\n--- Шаг {i} ---")
-            print(f"  Обработка part='{part}'")
-            print(f"  Текущий объект: {current_obj}")
-            print(f"  Тип current_obj: {type(current_obj).__name__}")
+            # print(f"\n--- Шаг {i} ---")
+            # print(f"  Обработка part='{part}'")
+            # print(f"  Текущий объект: {current_obj}")
+            # print(f"  Тип current_obj: {type(current_obj).__name__}")
 
             if '.' in part:
                 json_field, json_key = part.split('.', 1)
-                print(f"  JSON формат: json_field='{json_field}', json_key='{json_key}'")
+                # print(f"  JSON формат: json_field='{json_field}', json_key='{json_key}'")
 
                 if hasattr(current_obj, json_field):
                     current_obj = getattr(current_obj, json_field)
-                    print(f"  Получен current_obj: {current_obj}")
-                    print(f"  Тип после getattr: {type(current_obj).__name__}")
+                    # print(f"  Получен current_obj: {current_obj}")
+                    # print(f"  Тип после getattr: {type(current_obj).__name__}")
 
                     if isinstance(current_obj, dict):
                         current_obj = current_obj.get(json_key, '')
-                        print(f"  Извлечено из dict: '{current_obj}'")
+                        # print(f"  Извлечено из dict: '{current_obj}'")
                     else:
                         print(f"  ОШИБКА: Объект не dict (тип: {type(current_obj).__name__})")
                         return ""
@@ -68,8 +68,8 @@ class TemplateMixin:
 
                 if hasattr(current_obj, part):
                     current_obj = getattr(current_obj, part)
-                    print(f"  Получено значение: '{current_obj}'")
-                    print(f"  Тип значения: {type(current_obj).__name__}")
+                    # print(f"  Получено значение: '{current_obj}'")
+                    # print(f"  Тип значения: {type(current_obj).__name__}")
 
                     if current_obj is None:
                         print(f"  Значение None, возвращаем пустую строку")
@@ -82,7 +82,7 @@ class TemplateMixin:
 
         result = str(current_obj) if current_obj is not None else ""
         print(f"\n{'=' * 60}")
-        print(f"[GET_FIELD_VALUE] РЕЗУЛЬТАТ: '{result}'")
+        print(f"[GET_FIELD_VALUE] для шаблона РЕЗУЛЬТАТ: '{result}'")
         print(f"  Исходный тип: {type(current_obj).__name__}")
         print(f"{'=' * 60}\n")
         return result

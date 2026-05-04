@@ -3,7 +3,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
-from core.models.mixins import StructuredDataMixin, TemplateGeneratorMixin
+from core.models.mixins import StructuredDataMixin, TemplateGeneratorMixin, TemplateMixin
 from materials.models import MaterialGeneral
 from params.models import ThreadSize, ThreadInnerOuter
 from producers.models import Brands, Producer
@@ -279,7 +279,7 @@ class PneumaticFittingModelLine(StructuredDataMixin, models.Model):
         return new_copy
 
 
-class PneumaticFitting(StructuredDataMixin, TemplateGeneratorMixin, models.Model):
+class PneumaticFitting(StructuredDataMixin, TemplateMixin, models.Model):
     """
     Пневматические фитинги
     """
@@ -342,21 +342,6 @@ class PneumaticFitting(StructuredDataMixin, TemplateGeneratorMixin, models.Model
                                            related_name='pneumatic_fitting_thread_in_out',
                                            verbose_name=_("Резьба наружная или внутренняя"),
                                            help_text=_('Резьба наружная или внутренняя'))
-
-    #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
-    #                                                 blank=True, null=True,
-    #                                                 on_delete=models.SET_NULL,
-    #                                                 help_text=_('Материал корпуса арматуры'),
-    #                                                 verbose_name=_('Материал корпуса'))
-    # work_temp_min = models.IntegerField(
-    #     null=True , blank=True ,
-    #     help_text=_('Минимальная рабочая температура, °С') ,
-    #     verbose_name=_('Т раб мин, °С')
-    # )
-    # work_temp_max = models.IntegerField(
-    #     null=True , blank=True ,
-    #     help_text=_('Максимальная рабочая температура, °С') ,
-    #     verbose_name=_('Т раб макс, °С')
     # ==================== ПОЛЯ ДЛЯ ГЛУШИТЕЛЕЙ ====================
 
     # Пропускная способность (л/мин или м³/ч)
@@ -400,6 +385,13 @@ class PneumaticFitting(StructuredDataMixin, TemplateGeneratorMixin, models.Model
     def pressure_range_display(self):
         """Отображаемый диапазон рабочих температур"""
         return f'{self.model_line.pressure_min}..{self.model_line.pressure_max}'
+    def _get_name_template_source(self):
+        """Переопределить в модели: вернуть шаблон названия или None."""
+        return self.model_line.name_template or None
+
+    def _get_description_template_source(self):
+        """Переопределить в модели: вернуть шаблон описания или None."""
+        return self.model_line.description_template or None
 
     def _get_default_name_template(self) -> str:
         default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С"
