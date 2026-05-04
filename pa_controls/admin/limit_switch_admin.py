@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
-from pa_controls.models import LimitSwitchSensorVariety, LimitSwitchOutput
+from pa_controls.models import LimitSwitchSensorVariety
 from pa_controls.models.limit_switch import LimitSwitchModelLine, LimitSwitchBox, LimitSwitchBody, ContactState, \
     ContactForm, SignalType, SensorComponent
 
@@ -64,8 +64,8 @@ class SensorComponentAdmin(admin.ModelAdmin):
         }),
 
         (_('Дополнительные параметры'), {
-            'fields': ('extra_params','description',),
-            'classes': ('collapse',),
+            'fields': ('description','extra_params',),
+            # 'classes': ('collapse',),
         }),
 
         (_('Настройки отображения'), {
@@ -140,7 +140,7 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (_('Основная информация'), {
-            'fields': ('name', 'code', 'description')
+            'fields': ('name', 'code', 'name_template','description_template','description')
         }),
         (_('Настройки'), {
             'fields': ('sorting_order', 'is_active')
@@ -153,54 +153,6 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
         return '-'
 
     short_description.short_description = _('Краткое описание')
-
-
-@admin.register(LimitSwitchOutput)
-class LimitSwitchOutputAdmin(admin.ModelAdmin):
-    list_display = ['id','name', 'code', 'contact_form', 'wires_per_sensor', 'signal_type', 'sorting_order', ]
-    list_filter = ['is_active', 'contact_form', 'wires_per_sensor']
-    search_fields = ['name', 'code', 'description']
-    list_editable = ['sorting_order', ]
-    ordering = ['sorting_order', 'name']
-
-    fieldsets = (
-        (_('Основная информация'), {
-            'fields': ('name', 'code', 'description')
-        }),
-        (_('Электрические характеристики'), {
-            'fields': ('contact_form', 'signal_type', 'wires_per_sensor')
-        }),
-        (_('Дополнительные параметры'), {
-            'fields': ('extra_params',),
-            'classes': ('wide',),
-            'description': _(
-                'JSON формат: {"is_namur": true, "is_analog": true, "is_pneumatic": true, "resistance": 1, "signal_type": "4-20mA"}')
-        }),
-        (_('Настройки'), {
-            'fields': ('sorting_order', 'is_active')
-        }),
-    )
-
-    def extra_params_preview(self, obj):
-        if obj.extra_params:
-            # Показываем ключевые параметры
-            params = []
-            if obj.extra_params.get('is_namur'):
-                params.append('NAMUR')
-            if obj.extra_params.get('is_analog'):
-                params.append('Аналоговый')
-            if obj.extra_params.get('is_pneumatic'):
-                params.append('Пневматический')
-            if obj.extra_params.get('resistance'):
-                params.append(f"{obj.extra_params['resistance']} кОм")
-            if obj.extra_params.get('signal_type'):
-                params.append(obj.extra_params['signal_type'])
-
-            if params:
-                return format_html('<span style="color: #666;">{}</span>', ', '.join(params))
-        return '-'
-
-    extra_params_preview.short_description = _('Доп. параметры')
 
 
 @admin.register(LimitSwitchModelLine)
@@ -270,23 +222,23 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 @admin.register(LimitSwitchBox)
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'code', 'model_line', 'body', 'sensor_variety', 'output_type',
+        'name', 'code', 'model_line', 'body', 'sensor_variety',
         'points', 'ip', 'get_exd_display'
     ]
     list_filter = [
-         'code','sensor_variety', 'output_type', 'model_line',
+         'code','sensor_variety',  'model_line',
         'ip', 'exd','points', 'body',
     ]
     search_fields = ['name', 'code', ]
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
-    actions = ['copy_selected_boxes']
+    actions = ['copy_selected_boxes','save_selected_boxes']
     filter_horizontal = ['sensor_components','exd']  # Для ManyToMany полей
 
     fieldsets = (
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
-                       ('sensor_variety', 'output_type', 'points'),
+                       ('sensor_variety', 'points'),
                        ('sensor_components','ip', 'exd'),  # exd теперь ManyToMany
                        ('work_temp_min', 'work_temp_max'),)
         }),
@@ -312,7 +264,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'model_line', 'sensor_variety', 'output_type', 'ip',
+            'model_line', 'sensor_variety',  'ip',
             'body_material', 'body_material_specified'
         ).prefetch_related('exd')  # prefetch_related для ManyToMany
 
@@ -348,3 +300,26 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
 
     copy_selected_boxes.short_description = "📋 Копировать выбранные БКВ"
 
+    def save_selected_boxes(self, request, queryset):
+        """
+        Действие для перезаписи (сохранения) выбранных БКВ
+        """
+        saved_count = 0
+        errors = []
+
+        for obj in queryset:
+            try:
+                # Вызываем метод save() модели
+                obj.save()
+                saved_count += 1
+            except Exception as e:
+                errors.append(f"{obj.name}: {str(e)}")
+
+        # Сообщение о результате
+        if saved_count > 0:
+            self.message_user(request, f"✅ Сохранено {saved_count} БКВ.", level=messages.SUCCESS)
+
+        if errors:
+            self.message_user(request, f"⚠️ Ошибки при сохранении: {', '.join(errors)}", level=messages.ERROR)
+
+    save_selected_boxes.short_description = "💾 Перезаписать выбранные БКВ"

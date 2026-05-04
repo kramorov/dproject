@@ -22,6 +22,7 @@ class TemplateMixin:
     # === МЕТОДЫ ПОЛУЧЕНИЯ ЗНАЧЕНИЙ (поля, связи, JSON) ===
     def _get_value(self, field_path: str) -> str:
         """Универсальное получение значения по пути (поля, связи, JSON)."""
+        print(f'TemplateMixin: _get_value field_path:{field_path}')
         try:
             return self._get_field_value(field_path)
         except Exception as e:
@@ -30,29 +31,63 @@ class TemplateMixin:
 
     def _get_field_value(self, field_path: str) -> str:
         """Реализация получения значения (без вызова методов)."""
+        print(f"\n{'=' * 60}")
+        print(f"[GET_FIELD_VALUE] НАЧАЛО: field_path='{field_path}'")
+        print(f"{'=' * 60}")
+
         current_obj = self
         parts = field_path.split('__')
-        for part in parts:
+        print(f"[GET_FIELD_VALUE] Разбито на части: {parts}")
+
+        for i, part in enumerate(parts):
+            print(f"\n--- Шаг {i} ---")
+            print(f"  Обработка part='{part}'")
+            print(f"  Текущий объект: {current_obj}")
+            print(f"  Тип current_obj: {type(current_obj).__name__}")
+
             if '.' in part:
                 json_field, json_key = part.split('.', 1)
+                print(f"  JSON формат: json_field='{json_field}', json_key='{json_key}'")
+
                 if hasattr(current_obj, json_field):
                     current_obj = getattr(current_obj, json_field)
+                    print(f"  Получен current_obj: {current_obj}")
+                    print(f"  Тип после getattr: {type(current_obj).__name__}")
+
                     if isinstance(current_obj, dict):
                         current_obj = current_obj.get(json_key, '')
+                        print(f"  Извлечено из dict: '{current_obj}'")
                     else:
+                        print(f"  ОШИБКА: Объект не dict (тип: {type(current_obj).__name__})")
                         return ""
                 else:
+                    print(f"  ОШИБКА: Нет атрибута '{json_field}' у {type(current_obj).__name__}")
                     return ""
             else:
+                print(f"  Обычное поле: '{part}'")
+
                 if hasattr(current_obj, part):
                     current_obj = getattr(current_obj, part)
+                    print(f"  Получено значение: '{current_obj}'")
+                    print(f"  Тип значения: {type(current_obj).__name__}")
+
                     if current_obj is None:
+                        print(f"  Значение None, возвращаем пустую строку")
                         return ""
                 else:
+                    print(f"  ОШИБКА: Нет атрибута '{part}' у {type(current_obj).__name__}")
+                    print(
+                        f"  Доступные атрибуты: {[attr for attr in dir(current_obj) if not attr.startswith('_')][:10]}...")
                     return ""
-        return str(current_obj) if current_obj is not None else ""
 
-    # === ПОЛУЧЕНИЕ ШАБЛОНОВ ИЗ ИСТОЧНИКА ===
+        result = str(current_obj) if current_obj is not None else ""
+        print(f"\n{'=' * 60}")
+        print(f"[GET_FIELD_VALUE] РЕЗУЛЬТАТ: '{result}'")
+        print(f"  Исходный тип: {type(current_obj).__name__}")
+        print(f"{'=' * 60}\n")
+        return result
+
+    # === МЕТОДЫ ДЛЯ ПЕРЕОПРЕДЕЛЕНИЯ В МОДЕЛИ ===
     def _get_name_template_source(self):
         """Переопределить в модели: вернуть шаблон названия или None."""
         return None
@@ -68,7 +103,54 @@ class TemplateMixin:
     def _get_default_description_template(self) -> str:
         return "{model_code}"
 
+    # === СЛОВАРЬ ДЛЯ ПОДСТАНОВКИ ===
+    def _get_data_dict(self) -> Dict[str, str]:
+        """Переопределить в модели: вернуть словарь {плейсхолдер: значение/путь}."""
+        return {
+            '{model_code}': '$code',
+        }
     # === ИТОГОВЫЕ ШАБЛОНЫ ===
+    @property
+    def get_extra_params(self, separator: str = "; ", name_value_separator: str = ": ") -> str:
+        """
+        Формирует строку дополнительных параметров из JSON поля extra_params.
+
+        Args:
+            separator: Разделитель между параметрами (по умолчанию "; ")
+            name_value_separator: Разделитель между именем и значением (по умолчанию ": ")
+
+        Returns:
+            Строка вида "name1: value1; name2: value2; ..."
+        """
+        if not self.extra_params:
+            return ""
+
+        # Если extra_params строка, парсим её
+        if isinstance(self.extra_params, str):
+            try:
+                import json
+                params_dict = json.loads(self.extra_params)
+            except (json.JSONDecodeError, TypeError):
+                return ""
+        else:
+            params_dict = self.extra_params
+
+        if not isinstance(params_dict, dict):
+            return ""
+
+        # Формируем строку параметров
+        result_parts = []
+        for key, value in params_dict.items():
+            if not value:
+                continue
+
+            if isinstance(value, dict):
+                name = value.get('name', key)
+                val = value.get('value', '')
+                if val:
+                    result_parts.append(f"{name}{name_value_separator}{val}")
+        return separator.join(result_parts)
+
     @property
     def name_template(self) -> str:
         return self._get_name_template_source() or self._get_default_name_template()
@@ -77,29 +159,53 @@ class TemplateMixin:
     def description_template(self) -> str:
         return self._get_description_template_source() or self._get_default_description_template()
 
-    # === СЛОВАРЬ ДЛЯ ПОДСТАНОВКИ ===
-    def _get_data_dict(self) -> Dict[str, str]:
-        """Переопределить в модели: вернуть словарь {плейсхолдер: значение/путь}."""
-        return {
-            '{model_code}': '$code',
-        }
+
 
     # === ЗАПОЛНЕНИЕ ШАБЛОНА ===
     def _fill_template(self, template: str, data_dict: Dict[str, str] = None) -> str:
         import re
+
         if not template:
             return ""
+
+        # Находим все плейсхолдеры в шаблоне
+        placeholders_in_template = set(re.findall(r'\{([^{}]+)\}', template))
+
+        if not placeholders_in_template:
+            # Нет плейсхолдеров - возвращаем шаблон как есть
+            return template.strip()
+
+        # Получаем маппинг только если он нужен
         if data_dict is None:
-            data_dict = self._get_data_dict()
+            full_data_dict = self._get_data_dict()
+        else:
+            full_data_dict = data_dict
+
+        # Создаем словарь только с нужными плейсхолдерами
         result = template
-        for placeholder, value in data_dict.items():
-            if isinstance(value, str) and value.startswith('$'):
-                path = value[1:]
+
+        for placeholder in placeholders_in_template:
+            # Формируем ключ с фигурными скобками для поиска в словаре
+            dict_key = f'{{{placeholder}}}'
+
+            if dict_key in full_data_dict:
+                # Получаем путь к значению
+                path = full_data_dict[dict_key]
+                # Получаем значение по пути
                 value = self._get_value(path)
-            result = result.replace(placeholder, str(value) if value is not None else "")
-        # Удаляем оставшиеся незамененные плейсхолдеры
+                # Заменяем плейсхолдер
+                result = result.replace(dict_key, str(value) if value is not None else "")
+            else:
+                # Если плейсхолдер не найден в словаре, заменяем на пустую строку
+                # или можно залогировать предупреждение
+                print(f"[WARNING] Плейсхолдер {dict_key} не найден в data_dict")
+                result = result.replace(dict_key, "")
+
+        # Очищаем от оставшихся незамененных плейсхолдеров (на всякий случай)
         result = re.sub(r'\{[^{}]+\}', '', result)
+        # Убираем лишние пробелы
         result = re.sub(r'\s+', ' ', result).strip()
+
         return result
 
     # === ГЕНЕРАЦИЯ СТРОК ===
@@ -148,153 +254,6 @@ class TemplateMixin:
             self.update_name(save=False)
             self.update_description(save=False)
         super().save(*args, **kwargs)
-
-class ValueGetterMixin :
-    """
-    Миксин для универсального получения значений из полей модели:
-    - Обычные поля
-    - Связанные поля через __
-    - JSON поля через .
-    - Комбинации
-    - Вызов методов с параметрами (для M2M и других)
-    """
-
-    def _get_value(self , field_path: str) -> str :
-        """
-        Универсальное получение значения:
-        - Обычные поля: 'code'
-        - Связи через __: 'body__material'
-        - JSON поля через .: 'extra_params.ip_rating'
-        - Комбинация: 'body__extra_params.cable_glands_holes'
-        - Вызов методов: 'get_sensors_list("{name}")'
-        - Вызов методов с параметрами: 'body.get_cable_glands_holes("Отв.{name}", ", ", " или ")'
-        """
-        print(f"[DEBUG] _get_value: field_path='{field_path}'")
-        try :
-            # Проверяем, есть ли вызов метода с параметрами
-            # if '(' in field_path and ')' in field_path :
-            #     return self._call_method_from_path(field_path)
-
-            # Обычная обработка (поля, связи, JSON)
-            return self._get_field_value(field_path)
-
-        except Exception as e :
-            logger.error(f"Ошибка получения {field_path}: {e}")
-            return ""
-
-
-    # def _call_method_from_path(self , field_path: str) -> str :
-    #     """
-    #     Вызывает метод из строки пути.
-    #
-    #     Поддерживаемые форматы:
-    #     - 'method_name("{param1}")'
-    #     - 'object.method_name("{param1}", "{param2}")'
-    #     - 'object__subobject.method_name("{param1}")'
-    #
-    #     Примеры:
-    #     - 'get_sensors_list("{name}")'
-    #     - 'body.get_cable_glands_holes("Отв.{name}", ", ", " или ")'
-    #     - 'model_line__brand.get_full_name("{code}")'
-    #     """
-    #     import re
-    #
-    #     print(f"[DEBUG] _call_method_from_path: field_path='{field_path}'")
-    #
-    #     # Разделяем на часть до скобок и параметры
-    #     match = re.match(r'^([^(]+)\((.*)\)$' , field_path)
-    #     if not match :
-    #         print(f"[DEBUG] не удалось распарсить: нет скобок")
-    #         return ""
-    #
-    #     method_path = match.group(1)
-    #     params_str = match.group(2)
-    #
-    #     print(f"[DEBUG] method_path: '{method_path}'")
-    #     print(f"[DEBUG] params_str: '{params_str}'")
-    #
-    #     # Парсим параметры (строки в кавычках)
-    #     # Шаблон для поиска строк: '...' или "..."
-    #     params = re.findall(r"'([^']*)'|\"([^\"]*)\"" , params_str)
-    #     params = [p[0] or p[1] for p in params]
-    #     print(f"[DEBUG] распарсенные параметры: {params}")
-    #
-    #     # Определяем объект, у которого вызываем метод
-    #     # Если в method_path нет точки - вызываем на self
-    #     if '.' not in method_path :
-    #         current_obj = self
-    #         method_name = method_path
-    #         print(f"[DEBUG] вызываем метод {method_name} на self")
-    #     else :
-    #         # Разбираем путь к объекту
-    #         parts = method_path.split('.')
-    #         current_obj = self
-    #         for part in parts[:-1] :
-    #             # Поддерживаем __ для связей
-    #             for subpart in part.split('__') :
-    #                 if hasattr(current_obj , subpart) :
-    #                     current_obj = getattr(current_obj , subpart)
-    #                     print(f"[DEBUG] перешли к {subpart}: {current_obj}")
-    #                     if current_obj is None :
-    #                         print(f"[DEBUG] current_obj is None")
-    #                         return ""
-    #                 else :
-    #                     print(f"[DEBUG] у {current_obj} нет атрибута {subpart}")
-    #                     return ""
-    #         method_name = parts[-1]
-    #         print(f"[DEBUG] вызываем метод {method_name} на объекте {current_obj}")
-    #
-    #     # Вызываем метод
-    #     if hasattr(current_obj , method_name) :
-    #         method = getattr(current_obj , method_name)
-    #         if callable(method) :
-    #             print(f"[DEBUG] вызываем метод с параметрами {params}")
-    #             result = method(*params)
-    #             print(f"[DEBUG] результат: '{result}'")
-    #             return result
-    #         else :
-    #             print(f"[DEBUG] {method_name} не является вызываемым")
-    #     else :
-    #         print(f"[DEBUG] у {current_obj} нет метода {method_name}")
-    #
-    #     return ""
-
-    def _get_field_value(self , field_path: str) -> str :
-        """
-        Получает значение обычного поля, связи или JSON.
-
-        Поддерживаемые форматы:
-        - 'code' - простое поле
-        - 'body__material' - связь через __
-        - 'extra_params.ip_rating' - JSON поле через .
-        - 'body__extra_params.cable_glands_holes' - комбинация
-        """
-        current_obj = self
-
-        # Разбиваем на части
-        parts = field_path.split('__')
-
-        for part in parts :
-            # Проверяем, есть ли доступ к JSON через точку
-            if '.' in part :
-                json_field , json_key = part.split('.' , 1)
-                if hasattr(current_obj , json_field) :
-                    current_obj = getattr(current_obj , json_field)
-                    if isinstance(current_obj , dict) :
-                        current_obj = current_obj.get(json_key , '')
-                    else :
-                        return ""
-                else :
-                    return ""
-            else :
-                if hasattr(current_obj , part) :
-                    current_obj = getattr(current_obj , part)
-                    if current_obj is None :
-                        return ""
-                else :
-                    return ""
-
-        return str(current_obj) if current_obj else ""
 
 
 class TemplateFillerMixin:
