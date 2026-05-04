@@ -59,12 +59,12 @@ class LimitSwitchBody(StructuredDataMixin, models.Model):
 
     name = models.CharField(max_length=200,
                             verbose_name=_("Название"),
-                            help_text=_('Текстовое название серии БКВ'))
+                            help_text=_('Текстовое название серии корпусов БКВ'))
     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код клапана"))
 
     description = models.TextField(blank=True, verbose_name=_("Описание"),
-                                   help_text=_('Текстовое описание серии БКВ'))
+                                   help_text=_('Текстовое описание серии корпусов БКВ'))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),

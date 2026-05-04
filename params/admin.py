@@ -4,15 +4,15 @@ from django.utils.translation import gettext_lazy as _
 from django import forms
 import json
 
-from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
-    EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
-    ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
-    StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize, CertVariety, CertData, \
-    MechanicalIndicatorInstalledOption, SafetyPositionOption, ControlUnitTypeOption, ControlUnitLocationOption, \
-    ClimaticConditions, ClimaticEquipmentPlacementClassifier, ClimaticZoneClassifier, PnVariety, DnVariety, \
-    BodyColor, OptionVariety, ValveFunctionVariety, CoatingVariety, SealingClass, WarrantyTimePeriodVariety, \
-    ValveActuationVariety, PneumaticAirSupplyPressure, PneumaticConnection, ThreadSizeSetItem, ThreadSizeSet, \
-    ThreadInnerOuter
+from .models import PowerSupplies , IpOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , \
+    EnvTempParameters , DigitalProtocolsSupportOption , ControlUnitInstalledOption , ActuatorGearboxOutputType , \
+    ValveTypes , HandWheelInstalledOption , OperatingModeOption , ActuatorGearBoxCombinationTypes , MountingPlateTypes , \
+    StemShapes , StemSize , ThreadTypes , MeasureUnits , ThreadSize , CertVariety , CertData , \
+    MechanicalIndicatorInstalledOption , SafetyPositionOption , ControlUnitTypeOption , ControlUnitLocationOption , \
+    ClimaticConditions , ClimaticEquipmentPlacementClassifier , ClimaticZoneClassifier , PnVariety , DnVariety , \
+    BodyColor , OptionVariety , ValveFunctionVariety , CoatingVariety , SealingClass , WarrantyTimePeriodVariety , \
+    ValveActuationVariety , PneumaticAirSupplyPressure , PneumaticConnection , ThreadSizeSetItem , ThreadSizeSet , \
+    ThreadInnerOuter , FiltrationGrade
 from .exd_models import ExdOption, HazardousGroup, TemperatureClass, ExplosionProtectionType, ExplosionProtectionLevel, \
     ExplosionProtectionMethod
 
