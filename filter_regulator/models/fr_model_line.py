@@ -3,6 +3,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from filter_regulator.models import FilterRegulatorVariety
 from materials.models import MaterialGeneral , MaterialSpecified
 from producers.models import Brands
 
@@ -33,7 +34,12 @@ class FilterRegulatorModelLine(models.Model):
                               on_delete=models.SET_NULL,
                               help_text=_('Бренд фильтр-регулятора'),
                               verbose_name=_("Бренд"))
-
+    filter_variety = models.ForeignKey(FilterRegulatorVariety, related_name='filter_nodel_line_variety',
+                                       blank=True,
+                                       null=True,
+                                       on_delete=models.SET_NULL,
+                                       help_text=_('Тип модели фильтр-регулятора'),
+                                       verbose_name=_("Тип"))
     body_material = models.ForeignKey(MaterialGeneral, related_name='filter_model_line_body_material',
                                       blank=True,
                                       null=True,

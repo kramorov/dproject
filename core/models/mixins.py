@@ -9,7 +9,7 @@ from typing import Dict , List , Optional , Any
 from ..constants import DataFormat , DisplayView
 from typing import TypeVar , Any , Dict , Callable , Optional
 import logging
-
+from django.contrib import messages
 logger = logging.getLogger(__name__)
 
 
@@ -1515,3 +1515,124 @@ class GetChoicesMixin:
             return item.name
         except cls.DoesNotExist :
             return None
+
+
+class CopyMixin:
+    """
+    Миксин для копирования моделей.
+    Добавляет метод copy() для создания копии объекта.
+    """
+
+    def copy(self, suffix=" Копия", preserve_code=False, reset_fields=None):
+        """
+        Создает копию объекта.
+
+        Args:
+            suffix: Суффикс, добавляемый к полю code (по умолчанию " Копия")
+            preserve_code: Если True, не изменять поле code (по умолчанию False)
+            reset_fields: Список полей, которые нужно сбросить (например, ['sorting_order', 'is_active'])
+
+        Returns:
+            Model: Новая копия объекта
+        """
+        # Создаем копию объекта
+        copied_obj = self.__class__()
+
+        # Поля для сброса по умолчанию
+        if reset_fields is None:
+            reset_fields = ['sorting_order', 'is_active']
+
+        # Копируем все поля
+        for field in self._meta.fields:
+            field_name = field.name
+
+            # Пропускаем первичный ключ
+            if field_name == 'id':
+                continue
+
+            # Обработка поля code
+            if field_name == 'code' and not preserve_code:
+                original_code = getattr(self, field_name)
+                if original_code:
+                    copied_value = f"{original_code}{suffix}"
+                else:
+                    copied_value = f"{getattr(self, 'name', '')}{suffix}"
+                setattr(copied_obj, field_name, copied_value)
+
+            # Сброс указанных полей
+            elif field_name in reset_fields:
+                # Для булевых полей сбрасываем в True (активно по умолчанию)
+                if isinstance(field, models.BooleanField):
+                    setattr(copied_obj, field_name, True)
+                # Для числовых полей сбрасываем в 0
+                elif isinstance(field, (models.IntegerField, models.FloatField, models.DecimalField)):
+                    setattr(copied_obj, field_name, 0)
+                else:
+                    setattr(copied_obj, field_name, None)
+
+            # Копируем остальные поля
+            else:
+                setattr(copied_obj, field_name, getattr(self, field_name))
+
+        # Сохраняем копию
+        copied_obj.save()
+
+        # Копируем ManyToMany связи (если есть)
+        for m2m_field in self._meta.many_to_many:
+            getattr(copied_obj, m2m_field.name).set(getattr(self, m2m_field.name).all())
+
+        return copied_obj
+
+
+class AdminCopyMixin:
+    """
+    Миксин для админки с настройками копирования.
+    """
+
+    # Можно переопределить в дочернем классе
+    copy_action_description = "📋 Копировать выбранные объекты"
+    copy_suffix = " Копия"
+
+    def copy_selected_objects(self, request, queryset):
+        """
+        Действие для копирования выбранных объектов
+        Использование в admin.py:
+        class FilterRegulatorAdmin(AdminCopyMixin, admin.ModelAdmin):
+            list_display = ['name', 'code', 'sorting_order', 'is_active']
+            actions = ['copy_selected_objects']  # Действие уже есть в миксине
+        """
+
+        copied_count = 0
+        errors = []
+
+        for obj in queryset:
+            try:
+                if hasattr(obj, 'copy'):
+                    # Если у модели есть метод copy - используем его
+                    obj.copy()
+                else:
+                    # Стандартное копирование
+                    obj.pk = None
+                    obj.save()
+                copied_count += 1
+            except Exception as e:
+                obj_name = getattr(obj, 'name', getattr(obj, 'title', str(obj)))
+                errors.append(f"{obj_name}: {str(e)}")
+
+        # Сообщаем о результате
+        if copied_count:
+            self.message_user(
+                request,
+                f"✅ Успешно скопировано: {copied_count}",
+                level='SUCCESS'
+            )
+
+        if errors:
+            self.message_user(
+                request,
+                f"⚠️ Ошибки ({len(errors)}): {'; '.join(errors[:5])}",
+                level='ERROR'
+            )
+
+    copy_selected_objects.short_description = copy_action_description
+

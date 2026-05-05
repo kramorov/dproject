@@ -4,15 +4,15 @@ from django.utils.translation import gettext_lazy as _
 from django import forms
 import json
 
-from .models import PowerSupplies , IpOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , \
-    EnvTempParameters , DigitalProtocolsSupportOption , ControlUnitInstalledOption , ActuatorGearboxOutputType , \
-    ValveTypes , HandWheelInstalledOption , OperatingModeOption , ActuatorGearBoxCombinationTypes , MountingPlateTypes , \
-    StemShapes , StemSize , ThreadTypes , MeasureUnits , ThreadSize , CertVariety , CertData , \
-    MechanicalIndicatorInstalledOption , SafetyPositionOption , ControlUnitTypeOption , ControlUnitLocationOption , \
-    ClimaticConditions , ClimaticEquipmentPlacementClassifier , ClimaticZoneClassifier , PnVariety , DnVariety , \
-    BodyColor , OptionVariety , ValveFunctionVariety , CoatingVariety , SealingClass , WarrantyTimePeriodVariety , \
-    ValveActuationVariety , PneumaticAirSupplyPressure , PneumaticConnection , ThreadSizeSetItem , ThreadSizeSet , \
-    ThreadInnerOuter , FiltrationGrade
+from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
+    EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
+    ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
+    StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize, CertVariety, CertData, \
+    MechanicalIndicatorInstalledOption, SafetyPositionOption, ControlUnitTypeOption, ControlUnitLocationOption, \
+    ClimaticConditions, ClimaticEquipmentPlacementClassifier, ClimaticZoneClassifier, PnVariety, DnVariety, \
+    BodyColor, OptionVariety, ValveFunctionVariety, CoatingVariety, SealingClass, WarrantyTimePeriodVariety, \
+    ValveActuationVariety, PneumaticAirSupplyPressure, PneumaticConnection, ThreadSizeSetItem, ThreadSizeSet, \
+    ThreadInnerOuter, LockingMechanism
 from .exd_models import ExdOption, HazardousGroup, TemperatureClass, ExplosionProtectionType, ExplosionProtectionLevel, \
     ExplosionProtectionMethod
 
@@ -175,10 +175,6 @@ class TemperatureClassAdmin(admin.ModelAdmin):
     search_fields = ['temperature_class']
     list_editable = ['sorting_order', 'is_active']
 
-@admin.register(FiltrationGrade)
-class FiltrationGradeAdmin(admin.ModelAdmin):
-    list_display = ['code', 'name', 'value',]
-    search_fields = ['code', 'name']
 
 @admin.register(ExplosionProtectionMethod)
 class ExplosionProtectionMethodAdmin(admin.ModelAdmin):
@@ -586,6 +582,22 @@ class ThreadSizeSetItemAdmin(admin.ModelAdmin):
             'thread_set', 'thread_size'
         )
 
+
+@admin.register(LockingMechanism)
+class LockingMechanismAdmin(admin.ModelAdmin):
+    """Админка для способов блокировки дублера/переключателя"""
+
+    list_display = ('name', 'code', 'sorting_order', 'is_active')
+    list_filter = ('is_active',)
+    list_editable = ('sorting_order', 'is_active')
+    search_fields = ('name', 'code', 'description')
+    ordering = ('sorting_order', 'name')
+
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'description', 'is_active', 'sorting_order')
+        }),
+    )
 
 admin.site.register(PowerSupplies, PowerSuppliesAdmin)
 admin.site.register(ExdOption, ExdOptionAdmin)

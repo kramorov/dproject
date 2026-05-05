@@ -15,7 +15,7 @@ class FilterRegulatorModelLineAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'code', 'description', 'brand', 'is_active', 'sorting_order')
+            'fields': ('name', ('code', 'brand','filter_variety'), 'description', ('is_active', 'sorting_order'),)
         }),
         (_('Шаблоны'), {
             'fields': ('name_template', 'description_template'),
@@ -25,7 +25,7 @@ class FilterRegulatorModelLineAdmin(admin.ModelAdmin):
             'fields': ('body_material', 'body_material_specified', 'bowl_material', 'bowl_material_text','protection_material')
         }),
         (_('Рабочие параметры'), {
-            'fields': ('work_temp_min', 'work_temp_max', 'pressure_min', 'pressure_max', 'pressure_inlet_max')
+            'fields': (('work_temp_min', 'work_temp_max'), ('pressure_min', 'pressure_max', 'pressure_inlet_max'))
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),

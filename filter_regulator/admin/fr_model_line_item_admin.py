@@ -3,21 +3,25 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
+from core.models.mixins import AdminCopyMixin
 from filter_regulator.models import FilterRegulator
 
 
 @admin.register(FilterRegulator)
-class FilterRegulatorAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'model_line', 'filter_variety', 'gauge_quantity', 'is_active', 'sorting_order')
-    list_filter = ('is_active', 'model_line', 'filter_variety', 'drain_variety', 'gauge_quantity', )
-    search_fields = ('name', 'code', 'model_line__name', 'filter_variety__name')
+class FilterRegulatorAdmin(AdminCopyMixin, admin.ModelAdmin):
+    list_display = ('name', 'code', 'model_line',  'gauge_quantity', 'sorting_order', 'is_active', )
+    list_filter = ('is_active', 'model_line', 'drain_variety', 'gauge_quantity', )
+    list_editable = ( 'code', 'model_line','is_active', 'sorting_order')
+    search_fields = ('name', 'code', 'model_line__name',)
     ordering = ('sorting_order', 'name')
+
+
     fieldsets = (
         (None, {
-            'fields': ('name', 'code', 'description', 'model_line', 'filter_variety', 'body', 'drain_variety', 'is_active', 'sorting_order')
+            'fields': ( ('code', 'model_line', 'body'),'description',  ('drain_variety','filter_element_material'), ('is_active', 'sorting_order'),)
         }),
         (_('Характеристики'), {
-            'fields': ('gauge_quantity', 'filtration_rating', 'filter_element_material',  'flow_rate', 'wall_mounting_included', 'has_shut_off_valve')
+            'fields': ( ('filtration_rating',   'flow_rate'), ('gauge_quantity','wall_mounting_included', 'has_shut_off_valve'),)
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),
@@ -25,3 +29,4 @@ class FilterRegulatorAdmin(admin.ModelAdmin):
             'description': _('JSON формат: {"key": "value"}')
         }),
     )
+    actions = ['copy_selected_objects']
