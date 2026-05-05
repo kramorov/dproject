@@ -54,3 +54,23 @@ class TransmissionVariety(models.Model):
     def __str__(self):
         return self.name
 
+class GearboxVariety(models.Model):
+    """Простой справочник: Ручной дублер, Редуктор под привод"""
+    name = models.CharField(max_length=100,
+                            verbose_name=_("Название"),
+                            help_text=_('Текстовое название разновидности редуктора'))
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код разновидности редуктора"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Текстовое описание разновидности редуктора'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+    class Meta:
+        verbose_name = _("Разновидность редуктора")
+        verbose_name_plural = _("Разновидности редукторов")
+        ordering = ['sorting_order']
+    def __str__(self):
+        return self.name
+

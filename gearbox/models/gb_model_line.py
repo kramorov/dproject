@@ -19,7 +19,7 @@ class GearBoxModelLine(models.Model):
                             help_text=_('Текстовое название серии редуктора'))
     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код серии редукторов"))
-    description = models.TextField(blank=True, verbose_name=_("Описание"),
+    description = models.TextField(blank=True,null=True,  verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание разновидности серии редукторов'))
     name_template = models.TextField(blank=True, null=True,
                                      verbose_name=_("Шаблон названия"),
@@ -35,13 +35,22 @@ class GearBoxModelLine(models.Model):
                               on_delete=models.SET_NULL,
                               help_text=_('Бренд серии редукторов'),
                               verbose_name=_("Бренд"))
-    gearbox_output_variety = models.ForeignKey(ActuatorGearboxOutputType, related_name='gearbox_variety_model_line',
+    gearbox_variety = models.ForeignKey('gearbox.GearboxVariety' , related_name='gearbox_variety_model_line' ,
+                                               blank=True ,
+                                               null=True ,
+                                               on_delete=models.SET_NULL ,
+                                               help_text=_('Тип редуктора') ,
+                                               verbose_name=_("Тип"))
+    gearbox_output_variety = models.ForeignKey(ActuatorGearboxOutputType, related_name='gearbox_output_variety_model_line',
                                        blank=True,
                                        null=True,
                                        on_delete=models.SET_NULL,
                                        help_text=_('Тип выхода редуктора'),
-                                       verbose_name=_("Тип"))
-
+                                       verbose_name=_("Тип выхода"))
+    turn_angle = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Угол поворота") ,
+                                  help_text=_("Угол поворота"))
+    turn_tuning_limit = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Ограничитель") ,
+                                         help_text=_("Настройка ограничителя на ±1° (об.)"))
     # ВСЁ остальное в JSON
     extra_params = models.JSONField(
         default=dict , blank=True ,

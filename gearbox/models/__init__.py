@@ -13,5 +13,5 @@ __all__ = [
     'GearBoxInterlock' ,
     'GearBoxBody' ,
     'TransmissionVariety' ,
-    # '',
+    'GearboxVariety',
 ]

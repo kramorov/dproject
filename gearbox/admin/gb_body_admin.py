@@ -18,28 +18,29 @@ class GearBoxBodyAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'code', 'description', 'is_active', 'sorting_order')
+            'fields': (('name', 'code', 'transmission_variety'),)
         }),
-        (_('Тип передачи'), {
-            'fields': ('transmission_variety',)
-        }),
+
         (_('Передаточные характеристики'), {
-            'fields': ('reduction_ratio', 'reduction_ratio_text', 'reduction_ratio_verified',
-                       'amplification_factor', 'amplification_factor_verified', 'efficiency')
+            'fields': (('reduction_ratio', 'reduction_ratio_text', 'reduction_ratio_verified'),
+                       ('amplification_factor', 'amplification_factor_verified'), ('efficiency','mechanical_advantage','weight'),)
         }),
         (_('Моменты и усилие'), {
-            'fields': ('max_input_torque', 'max_output_torque', 'handwheel_force_nominal', 'handwheel_diameter')
+            'fields': (('max_input_torque', 'max_output_torque'), ('handwheel_force_nominal', 'handwheel_diameter'))
         }),
-        (_('Присоединение сверху (к арматуре)'), {
-            'fields': ('mounting_plate_top', 'stem_shape_top', 'stem_size_top', 'stem_height_top')
+        (_('Присоединение сверху (к приводу)'), {
+            'fields': ('mounting_plate_top', ('stem_shape_top', 'stem_size_top', 'stem_height_top'))
         }),
-        (_('Присоединение снизу (к приводу)'), {
-            'fields': ('mounting_plate_bottom', 'stem_shape_bottom', 'stem_size_bottom',
-                       'stem_height_bottom', 'max_stem_diameter_bottom')
+        (_('Присоединение снизу (к арматуре)'), {
+            'fields': ('mounting_plate_bottom', ('stem_shape_bottom', 'stem_size_bottom',
+                       'stem_height_bottom', 'max_stem_diameter_bottom'))
         }),
         (_('Дополнительные параметры'), {
-            'fields': ('mechanical_advantage','weight')
+            'fields': (('is_active', 'sorting_order'),)
         }),
+        (_('Описание') , {
+            'fields' : ('description',)
+        }) ,
     )
 
     filter_horizontal = ('mounting_plate_top', 'mounting_plate_bottom')

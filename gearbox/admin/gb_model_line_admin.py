@@ -17,8 +17,11 @@ class GearBoxModelLineAdmin(AdminCopyMixin, admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'code', 'description', 'brand', 'gearbox_output_variety', 'is_active', 'sorting_order')
+            'fields': (('name', 'code'), ('brand', 'gearbox_output_variety', 'gearbox_variety'),('is_active', 'sorting_order'),)
         }),
+        (_('Параметры') , {
+            'fields' : (('name_template' ,'description_template','description',),('turn_angle','turn_tuning_limit', )) ,
+        }) ,
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),
         }),

@@ -23,7 +23,7 @@ class GearBox(CopyMixin,TemplateMixin,  models.Model):
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
                                     help_text=_('Активно свойство или нет'))
 
-    model_line = models.ForeignKey('GearBoxModelLine' , related_name='gear_box_model_line' ,
+    model_line = models.ForeignKey('gearbox.GearBoxModelLine' , related_name='gear_box_model_line' ,
                                    blank=True ,
                                    null=True ,
                                    on_delete=models.SET_NULL ,
@@ -31,9 +31,9 @@ class GearBox(CopyMixin,TemplateMixin,  models.Model):
                                    verbose_name=_("Серия"))
 
     body = models.ForeignKey(
-        'GearBoxBody',
+        'gearbox.GearBoxBody',
         on_delete=models.SET_NULL,
-        null=True,
+        blank=True , null=True ,
         verbose_name=_("Корпус редуктора"),
         help_text=_("Корпус редуктора с писанием свойств")
     )
@@ -55,35 +55,42 @@ class GearBox(CopyMixin,TemplateMixin,  models.Model):
     override_mechanism = models.ForeignKey(
         'OverrideMechanism',
         on_delete=models.SET_NULL,
-        null=True,
+        blank=True , null=True ,
         verbose_name=_("Механизм отключения"),
         help_text=_("Механизм отключения дублера")
     )
     locking_mechanism = models.ForeignKey(
         LockingMechanism,
         on_delete=models.SET_NULL,
-        null=True,
+        blank=True , null=True ,
         verbose_name=_("Механизм блокировки"),
         help_text=_("Механизм блокировки дублера/переключателя")
     )
-    is_declutchable = models.BooleanField(
-        default=True,
-        verbose_name=_("Выключаемый (Declutchable)"),
+    DECLUTCHABLE_CHOICES = (
+        ('yes' , _('расцепляемый')) ,
+        ('no' , _('не расцепляемый')) ,
+    )
+
+    is_declutchable = models.CharField(
+        max_length=3 ,
+        choices=DECLUTCHABLE_CHOICES ,
+        default='yes' ,
+        verbose_name=_("Расцепляемый (Declutchable)") ,
         help_text=_("Можно ли физически отсоединить штурвал от привода")
     )
-    ip = models.ForeignKey(IpOption, on_delete=models.SET_NULL, null=True,
+    ip = models.ForeignKey(IpOption, on_delete=models.SET_NULL, blank=True , null=True ,
                            related_name='gearbox_ip',
                            help_text=_('Степень защиты IP'),
                            verbose_name=_("IP")
                            )
     # Интерлок (лучше вынести в отдельную модель)
-    interlock = models.ForeignKey('GearBoxInterlock', on_delete=models.SET_NULL, null=True, blank=True,related_name='gearbox_interlock',
+    interlock = models.ForeignKey('gearbox.GearBoxInterlock', on_delete=models.SET_NULL, null=True, blank=True,related_name='gearbox_interlock',
                            help_text=_('Модель интерлока'),
                            verbose_name=_("Модель интерлока")
                            )
     # ВСЁ остальное в JSON
     extra_params = models.JSONField(
-        default=dict , blank=True ,
+        default=dict , blank=True , null=True ,
         verbose_name=_("Параметры") ,
         help_text=_("signal_type, resistance, range и т.д.")
     )
@@ -95,6 +102,9 @@ class GearBox(CopyMixin,TemplateMixin,  models.Model):
     def __str__(self):
         return f"{self.name}"
 
+    @property
+    def is_declutchable_display(self) :
+        return dict(self.DECLUTCHABLE_CHOICES).get(self.is_declutchable , '')
     def copy(self):
         """ Переоределяем - вызываем функцию из миксина CopyMixin и передаем параметры
         Создает копию с суффиксом 'Копия' и сбросом sorting_order и is_active """
@@ -110,27 +120,37 @@ class GearBox(CopyMixin,TemplateMixin,  models.Model):
         return {
             '{model_code}': 'code',
             '{brand}': 'model_line__brand',
-            '{flow_rate}': 'flow_rate',
-            '{filter_variety}': 'model_line__filter_variety',
-            '{pressure_min}': 'model_line__pressure_min',
-            '{pressure_max}': 'model_line__pressure_max',
-            '{pressure_inlet_max}': 'model_line__pressure_inlet_max',
-            '{wall_mounting_included}': 'wall_mounting_included_display',
-            '{body_material}': 'model_line__body_material',
-            '{bowl_material}': 'model_line__bowl_material',
-            '{bowl_material_text}': 'model_line__bowl_material_text',
-            '{protection_material}': 'model_line__protection_material',
-            '{body_material_specified}': 'body_material_specified',
-            '{filter_element_material}': 'filter_element_material',
-            '{filtration_rating}': 'filtration_rating',
-            '{work_temp_min}': 'model_line__work_temp_min',
-            '{work_temp_max}': 'model_line__work_temp_max',
-            '{weight}': 'body__weight',
-            '{thread}': 'body__thread',
-            '{gauge_port_size}': 'body__gauge_port_size',
-            '{drain_port_size}': 'body__drain_port_size',
-            '{drain_variety}' : 'drain_variety' ,
-            '{gauge_quantity}': 'gauge_quantity_display',
+            '{gearbox_output_variety}': 'model_line__gearbox_output_variety',
+            '{gearbox_variety}' : 'model_line__gearbox_variety' ,
+            '{turn_angle}': 'model_line__turn_angle' ,
+            '{turn_tuning_limit}': 'model_line__turn_tuning_limit' ,
+            '{weight}' : 'body__weight' ,
+            '{mechanical_advantage}' : 'body__mechanical_advantage' ,
+            '{max_stem_diameter_bottom}' : 'body__max_stem_diameter_bottom',
+            '{stem_height_bottom}' : 'body__stem_height_bottom' ,
+            '{stem_size_bottom}' : 'body__stem_size_bottom' ,
+            '{stem_shape_bottom}' : 'body__stem_shape_bottom' ,
+            '{mounting_plate_bottom_list_text}' : 'body__mounting_plate_bottom_list_text' ,
+            '{stem_height_top}' : 'body__stem_height_top' ,
+            '{stem_size_top}' : 'body__stem_size_top' ,
+            '{stem_shape_top}' : 'body__stem_shape_top' ,
+            '{mounting_plate_top_list_text}' : 'body__mounting_plate_top_list_text' ,
+            '{handwheel_diameter}' : 'body__handwheel_diameter' ,
+            '{handwheel_force_nominal}' : 'body__handwheel_force_nominal' ,
+            '{max_output_torque}' : 'body__max_output_torque' ,
+            '{max_input_torque}' : 'body__max_input_torque' ,
+            '{efficiency}': 'body__efficiency',
+            '{amplification_factor}': 'body__amplification_factor',
+            '{reduction_ratio_text}': 'body__reduction_ratio_text',
+            '{transmission_variety}': 'body__transmission_variety',
+            '{interlock}': 'interlock',
+            '{ip}': 'ip',
+            '{locking_mechanism}': 'locking_mechanism',
+            '{is_declutchable}': 'is_declutchable_display',
+            '{override_mechanism}': 'override_mechanism',
+            '{body_material_text}': 'body_material_text',
+            '{work_temp_min}': 'work_temp_min',
+            '{work_temp_max}': 'work_temp_max',
         }
     def _get_name_template_source(self):
         """Переоределяем в модели функцию из миксина CopyMixin: вернуть шаблон названия или None."""

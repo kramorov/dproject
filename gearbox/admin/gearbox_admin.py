@@ -20,22 +20,17 @@ class GearBoxAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'code', 'description', 'model_line', 'is_active', 'sorting_order')
+            'fields': ('name', 'code',  'model_line', 'is_active', 'sorting_order')
         }),
-        (_('Корпус и материалы'), {
-            'fields': ('body', 'body_material_text')
+        (_('Корпус и механизмы'), {
+            'fields': (('body', 'body_material_text'),('override_mechanism', 'locking_mechanism', 'is_declutchable'))
         }),
         (_('Температурные режимы'), {
-            'fields': ('work_temp_min', 'work_temp_max')
+            'fields': (('work_temp_min', 'work_temp_max'),('ip', 'interlock'))
         }),
-        (_('Механизмы'), {
-            'fields': ('override_mechanism', 'locking_mechanism', 'is_declutchable')
-        }),
-        (_('Защита'), {
-            'fields': ('ip', 'interlock')
-        }),
+
         (_('Дополнительные параметры'), {
-            'fields': ('extra_params',),
+            'fields': ('extra_params','description',),
             'classes': ('wide',),
             'description': _('JSON формат: {"key": "value"}')
         }),
