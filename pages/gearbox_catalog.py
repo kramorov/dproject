@@ -1,8 +1,70 @@
-# debug_gearbox.py
+#gearbox_catalog.py
 import streamlit as st
 from gearbox.models import GearBox
+from params.exd_models import HazardousGroup , ExplosionProtectionType , TemperatureClass , ExplosionProtectionLevel , \
+    ExplosionProtectionMethod
 
 st.title("Отладка редукторов")
+
+# ========== СЕЛЕКТОРЫ ВЗРЫВОЗАЩИТЫ (с использованием метода NONE) ==========
+# Получаем все активные методы, включая 'NONE'
+methods = ExplosionProtectionMethod.objects.filter(is_active=True).order_by('sorting_order')
+method_choices = [{'id': None, 'code': 'NONE', 'name': 'Общепромышленное'}] + [
+    {'id': m.id, 'code': m.code, 'name': m.name} for m in methods
+]
+
+st.markdown("### 🔥 Взрывозащита")
+
+selected_method = st.selectbox(
+    "Способ взрывозащиты или общепромышленное исполнение",
+    method_choices,
+    format_func=lambda x: f"{x['code']} – {x['name']}" if x['code'] != 'NONE' else x['name']
+)
+
+# Если выбран метод "Общепромышленное" (code=NONE), остальные селекторы не показываем
+if selected_method['id'] is None:
+    st.info("Выбрано общепромышленное исполнение (без взрывозащиты)")
+    prot_type = None
+    hazard_group = None
+    temp_class = None
+else:
+    # Получаем конкретные типы взрывозащиты, связанные с выбранным методом
+    prot_types = ExplosionProtectionType.objects.filter(
+        method_id=selected_method['id'],
+        is_active=True
+    ).order_by('sorting_order')
+    prot_choices = [{'id': t.id, 'name': t.name, 'code': t.code} for t in prot_types]
+
+    # Группы газа и пыли (отдельно)
+    gas_groups = HazardousGroup.objects.filter(group_type='GAS').order_by('rating')
+    dust_groups = HazardousGroup.objects.filter(group_type='DUST').order_by('rating')
+    # Объединяем для выбора одной группы (пользователь сам выберет газ или пыль)
+    all_groups = [{'id': g.id, 'code': g.code, 'type': 'GAS'} for g in gas_groups] + \
+                 [{'id': g.id, 'code': g.code, 'type': 'DUST'} for g in dust_groups]
+
+    # Температурные классы
+    temp_classes = TemperatureClass.objects.filter(is_active=True).order_by('sorting_order')
+    temp_choices = [{'id': t.id, 'code': t.temperature_class, 'max_temp': t.max_surface_temp} for t in temp_classes]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        prot_type = st.selectbox("Тип взрывозащиты", prot_choices, format_func=lambda x: x['name'])
+    with col2:
+        selected_group = st.selectbox(
+            "Группа опасности",
+            [{'id': None, 'code': '—'}] + all_groups,
+            format_func=lambda x: x['code']
+        )
+        hazard_group = selected_group if selected_group['id'] is not None else None
+
+    temp_choice = st.selectbox(
+        "Температурный класс",
+        [{'id': None, 'code': '—'}] + temp_choices,
+        format_func=lambda x: x['code']
+    )
+    temp_class = temp_choice if temp_choice['id'] is not None else None
+
+# ========== ОСТАЛЬНЫЕ ФИЛЬТРЫ (без изменений) ==========
 
 # Получаем опции фильтров
 filter_options = GearBox.get_filter_options()

@@ -91,7 +91,7 @@ class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
     # Поля присоединения (ISO 5211 / ISO 5210)
     # Для дублеров важно посадочное место как под привод, так и под арматуру
     mounting_plate_top = models.ManyToManyField(MountingPlateTypes , blank=True ,
-                                                related_name='mounting_plate_top' ,
+                                                related_name='gearbox_body_mounting_plate_top' ,
                                                 verbose_name=_("Монт.площадка к приводу") ,
                                                 help_text=_('Монтажная площадка к приводу'))
     stem_shape_top = models.ForeignKey(StemShapes , on_delete=models.SET_NULL , null=True , blank=True ,
@@ -108,7 +108,7 @@ class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
         help_text=_('Высота штока к приводу'))
 
     mounting_plate_bottom = models.ManyToManyField(MountingPlateTypes , blank=True ,
-                                                   related_name='mounting_plate_bottom' ,
+                                                   related_name='gearbox_body_mounting_plate_bottom' ,
                                                    verbose_name=_("Монт.площадка к арматуре") ,
                                                    help_text=_('Монтажная площадка к арматуре'))
     stem_shape_bottom = models.ForeignKey(StemShapes , on_delete=models.SET_NULL , null=True , blank=True ,
