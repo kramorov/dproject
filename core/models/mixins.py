@@ -107,7 +107,7 @@ class TemplateMixin:
     def _get_data_dict(self) -> Dict[str, str]:
         """Переопределить в модели: вернуть словарь {плейсхолдер: значение/путь}."""
         return {
-            '{model_code}': '$code',
+            '{model_code}': 'code',
         }
     # === ИТОГОВЫЕ ШАБЛОНЫ ===
     @property

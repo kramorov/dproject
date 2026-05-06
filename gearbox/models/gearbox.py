@@ -1,14 +1,15 @@
 #gearbox/models/gearbox.py
-from typing import Dict
+from typing import Dict, List, Any
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import CopyMixin, TemplateMixin
-from params.models import LockingMechanism, IpOption
+from params.models import LockingMechanism, IpOption, MountingPlateTypes
 
 
-class GearBox(CopyMixin,TemplateMixin,  models.Model):
+class GearBox(CatalogFilterMixin, CopyMixin,TemplateMixin,  models.Model):
     """Модель редуктора (каталог)"""
     name = models.TextField(blank=True ,
                             verbose_name=_("Название") ,
@@ -105,6 +106,7 @@ class GearBox(CopyMixin,TemplateMixin,  models.Model):
     @property
     def is_declutchable_display(self) :
         return dict(self.DECLUTCHABLE_CHOICES).get(self.is_declutchable , '')
+
     def copy(self):
         """ Переоределяем - вызываем функцию из миксина CopyMixin и передаем параметры
         Создает копию с суффиксом 'Копия' и сбросом sorting_order и is_active """
@@ -168,4 +170,116 @@ class GearBox(CopyMixin,TemplateMixin,  models.Model):
         default_description_template = ("{model_code} {filter_variety} {brand}; Расход {flow_rate} л/мин; {drain_variety}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material}, Материал стакана: {bowl_material_text}, Кожух: {protection_material} Порты: {thread}; слив: {drain_port_size}; {gauge_quantity}; фильтрация {filtration_rating} мкм; Диапазон регулировки давления {pressure_min}..{pressure_max} бар; Макс. входное давление {pressure_inlet_max} бар; вес {weight}кг. Настенное крепление: {wall_mounting_included}")
         return default_description_template
 
+    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА CatalogFilterMixin ==========
+
+    # 1. Конфигурация фильтров
+    FILTER_CONFIG = [
+        FilterFieldConfig('model_line_id', 'model_line', 'exact'),
+        FilterFieldConfig('body_id', 'body', 'exact'),
+        CommonFilterConfigs.temp_min_filter('work_temp_min'),
+        CommonFilterConfigs.temp_max_filter('work_temp_max'),
+
+        # Фильтры по полям GearBoxBody (через связанную модель)
+        CommonFilterConfigs.min_value_filter(
+            param_name='min_work_torque',  # ← это имя параметра в запросе
+            model_field='max_work_torque',
+            related_path='body__max_work_torque',
+        ),
+        # IP фильтр - выбираем IP из списка, ищем с рангом >=
+        CommonFilterConfigs.ip_rank_gte_filter(
+            param_name='ip_id',  # Параметр получает ID выбранного IP
+            rank_field='ip_rank',
+            related_path='ip'
+        ),
+    ]
+
+    # M2M_FILTER_CONFIG должен быть определен
+    M2M_FILTER_CONFIG = [
+        {
+            'param_name': 'mounting_plate_top_id',
+            'm2m_field': 'body__mounting_plate_top',
+        },
+    ]
+
+    SEARCH_FIELDS = ['code', 'name', 'description']
+
+    SELECT_RELATED_FIELDS = [
+        'model_line', 'body',  'ip', #'interlock' - записей нет, поэтому не используем
+    ]
+
+    # PREFETCH_FIELDS = [
+    #     'body__mounting_plate_top',
+    #     'body__mounting_plate_bottom',
+    # ]
+
+    @classmethod
+    def get_filter_options(cls) -> Dict[str, List[Dict]]:
+        """Получить все доступные опции для фильтрации в UI"""
+        result = {
+            'model_lines': cls.get_distinct_values('model_line'),
+            'bodies': cls.get_distinct_values('body'),
+            'override_mechanisms': cls.get_distinct_values('override_mechanism'),
+            'locking_mechanisms': cls.get_distinct_values('locking_mechanism'),
+            'ip_options': cls.get_global_options(IpOption),
+            'mounting_plate_top_options': cls.get_global_options(MountingPlateTypes),
+            'min_work_torque_range': cls._get_value_range('body__max_work_torque'),
+        }
+        return result
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Сериализация редуктора с использованием to_dict() корпуса
+        """
+        return {
+            # Базовые поля
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'description': self.description,
+            'sorting_order': self.sorting_order,
+            'is_active': self.is_active,
+
+            # Прямые связи
+            'model_line': {
+                'id': self.model_line.id,
+                'name': self.model_line.name,
+                'code': getattr(self.model_line, 'code', '')
+            } if self.model_line else None,
+
+            'override_mechanism': {
+                'id': self.override_mechanism.id,
+                'name': self.override_mechanism.name,
+            } if self.override_mechanism else None,
+
+            'locking_mechanism': {
+                'id': self.locking_mechanism.id,
+                'name': self.locking_mechanism.name,
+            } if self.locking_mechanism else None,
+
+            'ip': {
+                'id': self.ip.id,
+                'name': self.ip.name,
+                'code': getattr(self.ip, 'code', '')
+            } if self.ip else None,
+
+            'interlock': {
+                'id': self.interlock.id,
+                'name': self.interlock.name,
+            } if self.interlock else None,
+
+            # Параметры работы
+            'work_temp_min': self.work_temp_min,
+            'work_temp_max': self.work_temp_max,
+            'is_declutchable': self.is_declutchable,
+            'is_declutchable_display': self.is_declutchable_display,
+
+            # Дополнительные параметры
+            'extra_params': self.extra_params or {},
+
+            # Корпус - используем метод to_dict() модели корпуса
+            'body': self.body.api_dict() if self.body else None,
+
+            # Материал корпуса (текстовое поле из GearBox, а не из корпуса)
+            'body_material_text': self.body_material_text,
+        }
 

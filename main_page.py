@@ -57,10 +57,10 @@ MAIN_SECTIONS = {
         "order": 4
     },
     "hand_wheels": {
-        "title": "Ручные дублеры",
+        "title": "Редукторы и Ручные дублеры",
         "icon": "🖐️",
-        "description": "Ручные дублеры и механизмы управления",
-        "page": None,
+        "description": "Редукторы и Ручные дублеры",
+        "page": "pages/gearbox_catalog.py",
         "enabled": True,
         "order": 5
     },
@@ -120,12 +120,19 @@ SIDEBAR_SECTIONS = {
         "enabled": True,
         "order": 4
     },
+    "gearbox": {
+        "title": "Редукторы и дублеры",
+        "icon": "🔌",
+        "page": "pages/gearbox_catalog.py",
+        "enabled": True,
+        "order": 5
+    },
     "client_requests": {
         "title": "Запросы клиентов",
         "icon": "🔌",
         "page": 'pages/request_list.py',
         "enabled": True,
-        "order": 5
+        "order": 6
     }
 }
 

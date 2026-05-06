@@ -40,52 +40,6 @@ class HazardousGroup(models.Model) :
             return self.rating >= required.rating
         except HazardousGroup.DoesNotExist :
             return False
-#
-# class GasGroup(models.Model, TextDescriptionMixin):
-#     """Группа газа (IIA, IIB, IIC, etc.)"""
-#     name = models.CharField(max_length=10, verbose_name=_("Название"))
-#     code = models.CharField(max_length=10, verbose_name=_("Код"))
-#     description = models.TextField(blank=True, verbose_name=_("Описание"))
-#
-#     class Meta:
-#         verbose_name = _("Группа газа")
-#         verbose_name_plural = _("Exd Группы газов")
-#
-#     def __str__(self):
-#         return self.code
-#
-#     def get_text_description(self) -> str:
-#         """Генерирует описание группы газа"""
-#         descriptions = {
-#             'IIA': _("пропан, метан, аммиак (наименее опасная)"),
-#             'IIB': _("этилен, коксовый газ (средняя опасность)"),
-#             'IIC': _("водород, ацетилен, сероуглерод (наиболее опасная)"),
-#         }
-#         return descriptions.get(self.code, self.description or self.name)
-#
-#
-# class DustGroup(models.Model, TextDescriptionMixin):
-#     """Группа пыли (IIIA, IIIB, IIIC)"""
-#     name = models.CharField(max_length=10, verbose_name=_("Название"))
-#     code = models.CharField(max_length=10, verbose_name=_("Код"))
-#     description = models.TextField(blank=True, verbose_name=_("Описание"))
-#
-#     class Meta:
-#         verbose_name = _("Группа пыли")
-#         verbose_name_plural = _("Exd Группы пыли")
-#
-#     def __str__(self):
-#         return self.code
-#
-#     def get_text_description(self) -> str:
-#         """Генерирует описание группы пыли"""
-#         descriptions = {
-#             'IIIA': _("легковоспламеняющиеся летучие частицы (мука, зерно)"),
-#             'IIIB': _("непроводящая пыль (древесная, угольная)"),
-#             'IIIC': _("проводящая пыль (металлическая, графитовая)"),
-#         }
-#         return descriptions.get(self.code, self.description or self.name)
-
 
 class TemperatureClass(models.Model, TextDescriptionMixin):
     """Температурный класс (T1-T6)"""

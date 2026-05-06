@@ -1,5 +1,5 @@
 # gearbox/models/gb_body.py
-from typing import Dict
+from typing import Dict, List, Any
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -68,6 +68,11 @@ class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
         max_digits=10 , decimal_places=2 , blank=True , null=True ,
         verbose_name=_("Макс. входной момент (Нм)") ,
         help_text=_("Момент, который можно приложить к штурвалу")
+    )
+    max_work_torque = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True,
+        verbose_name=_("Макс. рабочий выходной момент (Нм)"),
+        help_text=_("Максимальный рабочий выходной момент (Нм)")
     )
     max_output_torque = models.DecimalField(
         max_digits=10 , decimal_places=2 , blank=True , null=True ,
@@ -174,3 +179,107 @@ class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
             return f"{names[0]} или {names[1]}"
         else :
             return ", ".join(names[:-1]) + f" или {names[-1]}"
+
+    def api_dict(self) -> Dict[str, Any]:
+        """
+        Сериализация модели корпуса в словарь
+        """
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'description': self.description,
+
+            # Тип передачи
+            'transmission_variety': {
+                'id': self.transmission_variety.id,
+                'name': self.transmission_variety.name,
+                'code': getattr(self.transmission_variety, 'code', '')
+            } if self.transmission_variety else None,
+
+            # Передаточные числа
+            'reduction_ratio': float(self.reduction_ratio) if self.reduction_ratio else None,
+            'reduction_ratio_text': self.reduction_ratio_text,
+            'reduction_ratio_verified': float(self.reduction_ratio_verified) if self.reduction_ratio_verified else None,
+
+            # Коэффициенты
+            'amplification_factor': float(self.amplification_factor) if self.amplification_factor else None,
+            'amplification_factor_verified': float(
+                self.amplification_factor_verified) if self.amplification_factor_verified else None,
+            'efficiency': float(self.efficiency) if self.efficiency else None,
+
+            # Моменты и усилия
+            'max_input_torque': float(self.max_input_torque) if self.max_input_torque else None,
+            'max_output_torque': float(self.max_output_torque) if self.max_output_torque else None,
+            'max_work_torque': float(self.max_work_torque) if self.max_work_torque else None,
+            'handwheel_force_nominal': float(self.handwheel_force_nominal) if self.handwheel_force_nominal else None,
+            'handwheel_diameter': self.handwheel_diameter,
+
+            # Присоединение сверху (к приводу)
+            'mounting_plate_top': [
+                {
+                    'id': plate.id,
+                    'name': plate.name,
+                    'code': getattr(plate, 'code', '')
+                }
+                for plate in self.mounting_plate_top.all()
+            ],
+            'mounting_plate_top_list_text': self.mounting_plate_top_list_text,
+
+            'stem_shape_top': {
+                'id': self.stem_shape_top.id,
+                'name': self.stem_shape_top.name,
+            } if self.stem_shape_top else None,
+
+            'stem_size_top': {
+                'id': self.stem_size_top.id,
+                'name': self.stem_size_top.name,
+            } if self.stem_size_top else None,
+
+            'stem_height_top': float(self.stem_height_top) if self.stem_height_top else None,
+
+            # Присоединение снизу (к арматуре)
+            'mounting_plate_bottom': [
+                {
+                    'id': plate.id,
+                    'name': plate.name,
+                    'code': getattr(plate, 'code', '')
+                }
+                for plate in self.mounting_plate_bottom.all()
+            ],
+            'mounting_plate_bottom_list_text': self.mounting_plate_bottom_list_text,
+
+            'stem_shape_bottom': {
+                'id': self.stem_shape_bottom.id,
+                'name': self.stem_shape_bottom.name,
+            } if self.stem_shape_bottom else None,
+
+            'stem_size_bottom': {
+                'id': self.stem_size_bottom.id,
+                'name': self.stem_size_bottom.name,
+            } if self.stem_size_bottom else None,
+
+            'stem_height_bottom': float(self.stem_height_bottom) if self.stem_height_bottom else None,
+            'max_stem_diameter_bottom': float(self.max_stem_diameter_bottom) if self.max_stem_diameter_bottom else None,
+
+            # Дополнительные поля
+            'mechanical_advantage': float(self.mechanical_advantage) if self.mechanical_advantage else None,
+            'weight': float(self.weight) if self.weight else None,
+            'sorting_order': self.sorting_order,
+            'is_active': self.is_active,
+        }
+
+    # Можно также добавить краткую версию для списков
+    def api_short_dict(self) -> Dict[str, Any]:
+        """
+        Краткая сериализация для отображения в списках
+        """
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'reduction_ratio_display': self.reduction_ratio_text or str(
+                self.reduction_ratio) if self.reduction_ratio else '-',
+            'max_output_torque': float(self.max_output_torque) if self.max_output_torque else None,
+            'max_work_torque': float(self.max_work_torque) if self.max_work_torque else None,
+        }

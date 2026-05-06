@@ -10,9 +10,9 @@ class GearBoxBodyAdmin(admin.ModelAdmin):
     """Админка для корпусов редукторов"""
 
     list_display = (
-    'name', 'code', 'transmission_variety', 'reduction_ratio', 'efficiency', 'sorting_order', 'is_active')
+    'name', 'code', 'transmission_variety', 'max_work_torque', 'max_output_torque','sorting_order', 'is_active')
     list_filter = ('is_active', 'transmission_variety')
-    list_editable = ('sorting_order', 'is_active')
+    list_editable = ('max_work_torque','sorting_order', 'is_active')
     search_fields = ('name', 'code', 'description')
     ordering = ('sorting_order', 'name')
 
@@ -26,7 +26,7 @@ class GearBoxBodyAdmin(admin.ModelAdmin):
                        ('amplification_factor', 'amplification_factor_verified'), ('efficiency','mechanical_advantage','weight'),)
         }),
         (_('Моменты и усилие'), {
-            'fields': (('max_input_torque', 'max_output_torque'), ('handwheel_force_nominal', 'handwheel_diameter'))
+            'fields': (('max_input_torque', 'max_work_torque', 'max_output_torque'), ('handwheel_force_nominal', 'handwheel_diameter'))
         }),
         (_('Присоединение сверху (к приводу)'), {
             'fields': ('mounting_plate_top', ('stem_shape_top', 'stem_size_top', 'stem_height_top'))
