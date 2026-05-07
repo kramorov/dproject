@@ -32,13 +32,21 @@ MAIN_SECTIONS = {
         "enabled": True,
         "order": 1
     },
+    "filter_regulator": {
+        "title": "Фильтр-регуляторы",
+        "icon": "🔧",
+        "description": "Фильтр-регуляторы, регуляторы",
+        "page": "pages/filter_regulator_catalog.py",
+        "enabled": True,
+        "order": 2
+    },
     "pneumatic_actuators": {
         "title": "Пневмоприводы",
         "icon": "⚙️",
         "description": "Пневматические приводы и актуаторы",
         "page": 'pages/pa_selection.py',
         "enabled": True,
-        "order": 2
+        "order": 3
     },
     "electric_actuators": {
         "title": "Электроприводы",
@@ -46,7 +54,7 @@ MAIN_SECTIONS = {
         "description": "Электрические приводы и исполнительные механизмы",
         "page": None,
         "enabled": True,
-        "order": 3
+        "order": 4
     },
     "cable_glands": {
         "title": "Кабельные вводы",
@@ -54,7 +62,7 @@ MAIN_SECTIONS = {
         "description": "Кабельные вводы и аксессуары",
         "page": None,
         "enabled": True,
-        "order": 4
+        "order": 5
     },
     "hand_wheels": {
         "title": "Редукторы и Ручные дублеры",
@@ -62,7 +70,7 @@ MAIN_SECTIONS = {
         "description": "Редукторы и Ручные дублеры",
         "page": "pages/gearbox_catalog.py",
         "enabled": True,
-        "order": 5
+        "order": 6
     },
     "valves": {
         "title": "Арматура",
@@ -70,7 +78,15 @@ MAIN_SECTIONS = {
         "description": "Трубопроводная арматура",
         "page": None,
         "enabled": True,
-        "order": 6
+        "order": 7
+    },
+    "БКВ": {
+        "title": "БКВ",
+        "icon": "💰",
+        "description": "Блоки концевых выключателей",
+        "page": 'pages/limit_switch_box_catalog.py',
+        "enabled": True,
+        "order": 8
     },
     "prices": {
         "title": "Цены",
@@ -78,7 +94,7 @@ MAIN_SECTIONS = {
         "description": "Прайс-листы и цены на продукцию",
         "page": None,
         "enabled": True,
-        "order": 7
+        "order": 9
     },
     "client_requests": {
         "title": "Запросы клиентов",
@@ -86,7 +102,7 @@ MAIN_SECTIONS = {
         "description": "Запросы клиентов",
         "page": 'pages/request_list.py',
         "enabled": True,
-        "order": 8
+        "order": 10
     }
 }
 
@@ -99,40 +115,54 @@ SIDEBAR_SECTIONS = {
         "enabled": True,
         "order": 1
     },
+    "filter_regulator": {
+        "title": "Фильтр-регуляторы",
+        "icon": "🔧",
+        "page": "pages/filter_regulator_catalog.py",
+        "enabled": True,
+        "order": 2
+    },
+    "limit_switch_box": {
+        "title": "БКВ",
+        "icon": "🔧",
+        "page": 'pages/limit_switch_box_catalog.py',
+        "enabled": True,
+        "order": 3
+    },
     "pneumatic_actuators": {
         "title": "Пневмоприводы",
         "icon": "⚙️",
         "page": 'pages/pa_selection.py',
         "enabled": True,
-        "order": 2
+        "order": 4
     },
     "electric_actuators": {
         "title": "Электроприводы",
         "icon": "⚡",
         "page": None,
         "enabled": True,
-        "order": 3
+        "order": 5
     },
     "cable_glands": {
         "title": "Кабельные вводы",
         "icon": "🔌",
         "page": None,
         "enabled": True,
-        "order": 4
+        "order": 6
     },
     "gearbox": {
         "title": "Редукторы и дублеры",
         "icon": "🔌",
         "page": "pages/gearbox_catalog.py",
         "enabled": True,
-        "order": 5
+        "order": 7
     },
     "client_requests": {
         "title": "Запросы клиентов",
         "icon": "🔌",
         "page": 'pages/request_list.py',
         "enabled": True,
-        "order": 6
+        "order": 8
     }
 }
 

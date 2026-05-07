@@ -288,37 +288,40 @@ class CatalogFilterMixin(models.Model):
         Получить опции для ForeignKey поля
         Возвращает: [{'id': 1, 'name': '...', 'code': '...'}, ...]
         """
+        from django.db.models import ForeignKey
 
         try:
+            # Получаем queryset с select_related для оптимизации
+            queryset = cls.objects.select_related(field_path.replace('__', '_'))
+
+            # Получаем уникальные ID связанных объектов
+            ids = queryset.values_list(field_path, flat=True).distinct()
+
+            # Определяем модель назначения
             parts = field_path.split('__')
             model = cls
-
             for part in parts:
                 field = model._meta.get_field(part)
-                if field.is_relation and not field.many_to_many:
+                if isinstance(field, ForeignKey):
                     model = field.remote_field.model
 
-            # Это должно быть ForeignKey поле
-            final_field = model._meta.get_field(parts[-1])
-            if final_field.many_to_one:
-                related_model = final_field.remote_field.model
-                queryset = related_model.objects.all()
+            # Получаем объекты
+            objects = model.objects.filter(id__in=ids)
 
-                if active_only and hasattr(related_model, 'is_active'):
-                    queryset = queryset.filter(is_active=True)
+            if active_only and hasattr(model, 'is_active'):
+                objects = objects.filter(is_active=True)
 
-                return [
-                    {
-                        'id': obj.id,
-                        'name': getattr(obj, 'name', str(obj)),
-                        'code': getattr(obj, 'code', '') or ''
-                    }
-                    for obj in queryset.order_by('name')
-                ]
-        except (FieldDoesNotExist, AttributeError, IndexError):
-            pass
+            return [
+                {
+                    'id': obj.id,
+                    'name': getattr(obj, 'name', str(obj)),
+                    'code': getattr(obj, 'code', '') or ''
+                }
+                for obj in objects.order_by('name')
+            ]
 
-        return []
+        except Exception as e:
+            return dict('Список пустой - для отладки','проверь _get_foreign_key_options в CatalogFilterMixin') #[]
 
     @classmethod
     def _is_m2m_field_path(cls, field_path: str) -> bool:
@@ -635,89 +638,275 @@ class CommonFilterConfigs:
     """Типовые конфигурации фильтров"""
 
     @staticmethod
-    def temp_min_filter(temp_field_name: str = 'temp_min') -> FilterFieldConfig:
-        return FilterFieldConfig(
-            param_name='temp_min',
-            model_field=temp_field_name,
-            filter_type='lte',
-            value_converter=int
-        )
+    def min_value_filter(field_name: str,
+                         param_name: str = None,
+                         related_path: str = None,
+                         is_related_field: bool = False) -> FilterFieldConfig:
+        """
+        Фильтр для минимального значения (значение >= указанного)
 
-    @staticmethod
-    def temp_max_filter(temp_field_name: str = 'temp_max') -> FilterFieldConfig:
-        return FilterFieldConfig(
-            param_name='temp_max',
-            model_field=temp_field_name,
-            filter_type='gte',
-            value_converter=int
-        )
+        СИНТАКСИС:
 
-    @staticmethod
-    def min_value_filter(param_name: str, model_field: str, related_path: str = None) -> FilterFieldConfig:
-        """Фильтр для значений >= (минимальное значение)"""
+        # Прямое поле
+        CommonFilterConfigs.min_value_filter('filtration_rating', param_name='min_filtration')
+
+        # Связанное поле
+        CommonFilterConfigs.min_value_filter(
+            field_name='pressure_min',
+            param_name='model_line_pressure_min',
+            related_path='model_line__pressure_min',
+            is_related_field=True
+        )
+        """
+        if param_name is None:
+            param_name = field_name
+
         return FilterFieldConfig(
             param_name=param_name,
-            model_field=model_field,
+            model_field=field_name,
             filter_type='gte',
             value_converter=float,
-            is_related_field=bool(related_path),
-            related_path=related_path or model_field
+            is_related_field=is_related_field or bool(related_path),
+            related_path=related_path or field_name
         )
 
     @staticmethod
-    def max_value_filter(param_name: str, model_field: str, related_path: str = None) -> FilterFieldConfig:
-        """Фильтр для значений <= (максимальное значение)"""
+    def max_value_filter(field_name: str,
+                         param_name: str = None,
+                         related_path: str = None,
+                         is_related_field: bool = False) -> FilterFieldConfig:
+        """
+        Фильтр для максимального значения (значение <= указанного)
+
+        СИНТАКСИС:
+
+        # Прямое поле
+        CommonFilterConfigs.max_value_filter('filtration_rating', param_name='max_filtration')
+
+        # Связанное поле
+        CommonFilterConfigs.max_value_filter(
+            field_name='pressure_max',
+            param_name='model_line_pressure_max',
+            related_path='model_line__pressure_max',
+            is_related_field=True
+        )
+        """
+        if param_name is None:
+            param_name = field_name
+
         return FilterFieldConfig(
             param_name=param_name,
-            model_field=model_field,
+            model_field=field_name,
             filter_type='lte',
             value_converter=float,
-            is_related_field=bool(related_path),
-            related_path=related_path or model_field
+            is_related_field=is_related_field or bool(related_path),
+            related_path=related_path or field_name
+        )
+    @staticmethod
+    def temp_min_filter(field_name: str = 'temp_min',
+                        param_name: str = None,
+                        is_related_field: bool = False,
+                        related_path: str = None) -> FilterFieldConfig:
+        """
+        Фильтр для минимальной температуры (значение <= указанного)
+
+        СИНТАКСИС:
+
+        # Прямое поле
+        CommonFilterConfigs.temp_min_filter('work_temp_min')
+
+        # Связанное поле
+        CommonFilterConfigs.temp_min_filter(
+            field_name='work_temp_min',
+            param_name='model_line_temp_min',
+            is_related_field=True,
+            related_path='model_line__work_temp_min'
+        )
+        """
+        if param_name is None:
+            param_name = field_name
+
+        return FilterFieldConfig(
+            param_name=param_name,
+            model_field=field_name,
+            filter_type='lte',
+            value_converter=int,
+            is_related_field=is_related_field,
+            related_path=related_path or field_name
+        )
+
+    @staticmethod
+    def temp_max_filter(field_name: str = 'temp_max',
+                        param_name: str = None,
+                        is_related_field: bool = False,
+                        related_path: str = None) -> FilterFieldConfig:
+        """
+        Фильтр для максимальной температуры (значение >= указанного)
+
+        СИНТАКСИС:
+
+        # Прямое поле
+        CommonFilterConfigs.temp_max_filter('work_temp_max')
+
+        # Связанное поле
+        CommonFilterConfigs.temp_max_filter(
+            field_name='work_temp_max',
+            param_name='model_line_temp_max',
+            is_related_field=True,
+            related_path='model_line__work_temp_max'
+        )
+        """
+        if param_name is None:
+            param_name = field_name
+
+        return FilterFieldConfig(
+            param_name=param_name,
+            model_field=field_name,
+            filter_type='gte',
+            value_converter=int,
+            is_related_field=is_related_field,
+            related_path=related_path or field_name
         )
 
     @staticmethod
     def ip_rank_gte_filter(param_name: str = 'ip_id',
                            rank_field: str = 'ip_rank',
-                           related_path: str = 'ip') -> FilterFieldConfig:
+                           related_path: str = None,
+                           is_related_field: bool = False) -> FilterFieldConfig:
         """
         Фильтр для IP по рангу (>= ранг выбранного IP)
         Пользователь выбирает IP из списка, а фильтр ищет все IP с рангом >= выбранного
+
+        СИНТАКСИС:
+
+        1. Для поля в текущей модели:
+           CommonFilterConfigs.ip_rank_gte_filter(
+               param_name='ip_rank',           # имя параметра в запросе
+               rank_field='ip_rank',           # имя поля с рангом
+               related_path=None,              # не указываем
+               is_related_field=False          # False по умолчанию
+           )
+           Результат: filter(ip_rank__gte=value)
+
+        2. Для поля в связанной модели (через ForeignKey):
+           CommonFilterConfigs.ip_rank_gte_filter(
+               param_name='min_ip_rank',                    # имя параметра в запросе
+               rank_field='ip_rank',                        # имя поля с рангом в связанной модели
+               related_path='ip__ip_rank',                  # путь к полю (модель__поле)
+               is_related_field=True                        # обязательно True
+           )
+           Результат: filter(ip__ip_rank__gte=value)
+
+        ПРИМЕРЫ В FILTER_CONFIG:
+
+        # Прямое поле в текущей модели
+        CommonFilterConfigs.ip_rank_gte_filter('ip_rank'),
+
+        # Связанное поле
+        CommonFilterConfigs.ip_rank_gte_filter(
+            param_name='min_ip_rank',
+            rank_field='ip_rank',
+            related_path='ip__ip_rank',
+            is_related_field=True
+        ),
         """
         return FilterFieldConfig(
             param_name=param_name,
             model_field=rank_field,
             filter_type='gte',
-            value_converter=None,  # Здесь нужна особая конвертация
-            is_related_field=True,
-            related_path=related_path,
-            # Специальная обработка для IP
-            is_ip_filter=True  # Флаг, что это IP фильтр
+            value_converter=None,
+            is_related_field=is_related_field,
+            related_path=related_path or rank_field,
+            is_ip_filter=True
         )
 
     @staticmethod
     def ip_exact_filter(param_name: str = 'ip_rank',
-                        rank_field: str = 'ip_rank',  # ← исправлено: ip_rank
-                        related_path: str = 'ip') -> FilterFieldConfig:
+                        rank_field: str = 'ip_rank',
+                        related_path: str = None,
+                        is_related_field: bool = False) -> FilterFieldConfig:
         """
         Фильтр для IP по точному рангу (ip_rank = значение)
+
+        СИНТАКСИС:
+
+        1. Для поля в текущей модели:
+           CommonFilterConfigs.ip_exact_filter(
+               param_name='ip_rank',            # имя параметра в запросе
+               rank_field='ip_rank',            # имя поля с рангом
+               related_path=None,               # не указываем
+               is_related_field=False           # False по умолчанию
+           )
+           Результат: filter(ip_rank=value)
+
+        2. Для поля в связанной модели (через ForeignKey):
+           CommonFilterConfigs.ip_exact_filter(
+               param_name='exact_ip_rank',                  # имя параметра в запросе
+               rank_field='ip_rank',                        # имя поля с рангом в связанной модели
+               related_path='ip__ip_rank',                  # путь к полю (модель__поле)
+               is_related_field=True                        # обязательно True
+           )
+           Результат: filter(ip__ip_rank=value)
+
+        ПРИМЕРЫ В FILTER_CONFIG:
+
+        # Прямое поле в текущей модели
+        CommonFilterConfigs.ip_exact_filter('ip_rank'),
+
+        # Связанное поле
+        CommonFilterConfigs.ip_exact_filter(
+            param_name='exact_ip_rank',
+            rank_field='ip_rank',
+            related_path='ip__ip_rank',
+            is_related_field=True
+        ),
         """
+        if is_related_field and related_path:
+            full_path = f"{related_path}"
+        else:
+            full_path = rank_field
+
         return FilterFieldConfig(
             param_name=param_name,
             model_field=rank_field,
             filter_type='exact',
             value_converter=int,
-            is_related_field=True,
-            related_path=f"{related_path}__{rank_field}"
+            is_related_field=is_related_field,
+            related_path=full_path
         )
 
     @staticmethod
-    def exact_related_filter(param_name: str, related_path: str) -> FilterFieldConfig:
-        """Точный фильтр по связанному полю"""
+    def exact_related_filter(param_name: str,
+                             related_path: str,
+                             is_related_field: bool = True) -> FilterFieldConfig:
+        """
+        Точный фильтр по связанному полю (ForeignKey)
+
+        СИНТАКСИС:
+
+        CommonFilterConfigs.exact_related_filter(
+            param_name='brand_id',        # имя параметра в запросе
+            related_path='model_line__brand',  # путь к связанному полю
+            is_related_field=True         # True по умолчанию
+        )
+        Результат: filter(model_line__brand_id=value)
+
+        ПРИМЕР В FILTER_CONFIG:
+
+        FilterFieldConfig(
+            param_name='brand_id',
+            model_field='model_line__brand',
+            filter_type='exact',
+            is_related_field=True
+        ),
+
+        # ИЛИ используя метод:
+        CommonFilterConfigs.exact_related_filter('brand_id', 'model_line__brand'),
+        """
         return FilterFieldConfig(
             param_name=param_name,
             model_field=related_path,
             filter_type='exact',
-            is_related_field=True,
+            is_related_field=is_related_field,
             related_path=related_path
         )

@@ -176,14 +176,22 @@ class GearBox(CatalogFilterMixin, CopyMixin,TemplateMixin,  models.Model):
     FILTER_CONFIG = [
         FilterFieldConfig('model_line_id', 'model_line', 'exact'),
         FilterFieldConfig('body_id', 'body', 'exact'),
-        CommonFilterConfigs.temp_min_filter('work_temp_min'),
-        CommonFilterConfigs.temp_max_filter('work_temp_max'),
+        CommonFilterConfigs.temp_min_filter(
+            field_name='work_temp_min',
+            param_name='work_temp_min'
+        ),
+
+        CommonFilterConfigs.temp_min_filter(
+            field_name='work_temp_max',
+            param_name='work_temp_max'
+        ),
 
         # Фильтры по полям GearBoxBody (через связанную модель)
         CommonFilterConfigs.min_value_filter(
-            param_name='min_work_torque',  # ← это имя параметра в запросе
-            model_field='max_work_torque',
+            field_name='max_work_torque',
+            param_name='min_work_torque',
             related_path='body__max_work_torque',
+            is_related_field=True
         ),
         # IP фильтр - выбираем IP из списка, ищем с рангом >=
         CommonFilterConfigs.ip_rank_gte_filter(

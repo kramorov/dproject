@@ -4,9 +4,10 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
-from pa_controls.models import LimitSwitchSensorVariety
-from pa_controls.models.limit_switch import LimitSwitchModelLine, LimitSwitchBox, LimitSwitchBody, ContactState, \
-    ContactForm, SignalType, SensorComponent
+from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactState, ContactForm, LimitSwitchBody, \
+    SensorComponent
+from pa_controls.models.limit_switch import LimitSwitchBox
+from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 
 
 @admin.register(SensorComponent)

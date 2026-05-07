@@ -8,8 +8,8 @@ class CompanyType(DjangoObjectType):
         model = Company
         fields = (
             'id',
-            'symbolic_code',
-            'company_name'
+            'code',
+            'name'
         )
 
     verbose_names = graphene.Field(
@@ -40,7 +40,7 @@ class CompanyPersonType(DjangoObjectType):
         model = CompanyPerson
         fields = (
             'id',
-            'symbolic_code',
+            'code',
             'employee_company',
             'phone_number_office',
             'phone_number_cell',
