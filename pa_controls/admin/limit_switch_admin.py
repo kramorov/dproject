@@ -234,7 +234,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes']
-    filter_horizontal = ['sensor_components','exd']  # Для ManyToMany полей
+    filter_horizontal = ['sensor_components','exd', 'primary_sensor' , 'additional_sensor']  # Для ManyToMany полей
 
     fieldsets = (
         (_('Основная информация'), {
@@ -250,6 +250,9 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         (_('Материалы и вес'), {
             'fields': (('body_material', 'body_material_specified'), 'body')
         }),
+        (_('Датчики') , {
+            'fields' : ('primary_sensor' , 'additional_sensor')
+        }) ,
         (_('Дополнительные опции'), {
             'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
         }),

@@ -8,8 +8,8 @@ import logging
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import TemplateMixin
 from materials.models import MaterialGeneral, MaterialSpecified
-from pa_controls.models import LimitSwitchSensorVariety, LimitSwitchBody, \
-    SensorComponent
+from pa_controls.models import LimitSwitchSensorVariety , LimitSwitchBody , \
+    SensorComponent , SignalType , ContactForm
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 # from pa_controls.models import PaControlMountingStandard
 
@@ -66,6 +66,21 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
         verbose_name=_("Датчики"),
         help_text=_("Установленные датчики"),
         related_name='limit_switch_boxes'  # обратная связь от датчика к корпусам
+    )
+    primary_sensor = models.ForeignKey(
+        SensorComponent ,
+        blank=True , null=True, on_delete=models.SET_NULL,
+        verbose_name=_("Датчик основной") ,
+        help_text=_("Основной датчик") ,
+        related_name='limit_switch_boxes_primary_sensor'  # обратная связь от датчика к корпусам
+    )
+
+    additional_sensor = models.ManyToManyField(
+        SensorComponent ,
+        blank=True ,
+        verbose_name=_("Датчики дополнительные") ,
+        help_text=_("Дополнительные датчики") ,
+        related_name='limit_switch_boxes_additional_sensor'  # обратная связь от датчика к корпусам
     )
 
     points = models.IntegerField(default=2,
@@ -324,9 +339,35 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
     ]
 
     # 4. Поля для prefetch (ManyToMany)
+    # Поля для prefetch_related (ManyToMany и обратные связи)
     PREFETCH_FIELDS = [
-        'exd',
-        'sensor_components',
+        'sensor_components' ,  # датчики
+        'sensor_components__signal_type' ,
+        'sensor_components__contact_form' ,
+        # 'exd' ,  # взрывозащита
+    ]
+    # Конфигурация ManyToMany фильтров
+    M2M_FILTER_CONFIG = [
+        # Фильтр по датчику (по id датчика)
+        {
+            'param_name' : 'sensor_component_id' ,
+            'm2m_field' : 'sensor_components' ,
+        } ,
+        # Фильтр по типу сигнала датчика (через связанную модель)
+        {
+            'param_name' : 'signal_type_id' ,
+            'm2m_field' : 'sensor_components__signal_type' ,
+        } ,
+        # Фильтр по форме контакта датчика
+        {
+            'param_name' : 'contact_form_id' ,
+            'm2m_field' : 'sensor_components__contact_form' ,
+        } ,
+        # Фильтр по взрывозащите
+        {
+            'param_name' : 'exd_id' ,
+            'm2m_field' : 'exd' ,
+        } ,
     ]
 
     @classmethod
@@ -360,83 +401,97 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
             # Диапазоны значений
             'work_temp_range': cls._get_value_range('work_temp_min'),
         }
+
+        # Опции для датчиков (через связанные модели)
+        result['signal_type_options'] = cls.get_global_options(SignalType)
+        result['contact_form_options'] = cls.get_global_options(ContactForm)
+
         return result
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Сериализация БКВ"""
+    # ========== СЕРИАЛИЗАЦИЯ ==========
+    def to_dict(self) -> Dict[str , Any] :
+        """
+        Сериализация БКВ в словарь для API
+        """
         return {
-            # Базовые поля
-            'id': self.id,
-            'name': self.name,
-            'code': self.code,
-            'description': self.description,
-            'sorting_order': self.sorting_order,
-            'is_active': self.is_active,
+            'id' : self.id ,
+            'name' : self.name ,
+            'code' : self.code ,
+            'description' : self.description ,
+            'sorting_order' : self.sorting_order ,
+            'is_active' : self.is_active ,
+            'points' : self.points ,
+            'is_pneumatic' : self.is_pneumatic ,
+            'has_namur_interface' : self.has_namur_interface ,
+            'has_visual_indicator' : self.has_visual_indicator ,
+            'work_temp_min' : self.work_temp_min ,
+            'work_temp_max' : self.work_temp_max ,
+            'extra_params' : self.extra_params or {} ,
 
-            # Связанные модели
-            'model_line': {
-                'id': self.model_line.id,
-                'name': self.model_line.name,
-                'code': getattr(self.model_line, 'code', ''),
-                'brand': {
-                    'id': self.model_line.brand.id,
-                    'name': self.model_line.brand.name,
-                } if self.model_line and self.model_line.brand else None
-            } if self.model_line else None,
+            # Связанные объекты (краткая информация)
+            'model_line' : {
+                'id' : self.model_line.id ,
+                'name' : self.model_line.name ,
+                'code' : getattr(self.model_line , 'code' , '')
+            } if self.model_line else None ,
 
-            'sensor_variety': {
-                'id': self.sensor_variety.id,
-                'name': self.sensor_variety.name,
-            } if self.sensor_variety else None,
+            'body' : {
+                'id' : self.body.id ,
+                'name' : self.body.name ,
+                'code' : getattr(self.body , 'code' , '')
+            } if self.body else None ,
 
-            'ip': {
-                'id': self.ip.id,
-                'name': self.ip.name,
-                'code': self.ip.code
-            } if self.ip else None,
+            'sensor_variety' : {
+                'id' : self.sensor_variety.id ,
+                'name' : self.sensor_variety.name ,
+                'code' : getattr(self.sensor_variety , 'code' , '')
+            } if self.sensor_variety else None ,
 
-            'body_material': {
-                'id': self.body_material.id,
-                'name': self.body_material.name,
-            } if self.body_material else None,
+            'ip' : {
+                'id' : self.ip.id ,
+                'name' : self.ip.name ,
+                'code' : getattr(self.ip , 'code' , '')
+            } if self.ip else None ,
 
-            'body_material_specified': {
-                'id': self.body_material_specified.id,
-                'name': self.body_material_specified.name,
-            } if self.body_material_specified else None,
+            'body_material' : {
+                'id' : self.body_material.id ,
+                'name' : self.body_material.name ,
+                'code' : getattr(self.body_material , 'code' , '')
+            } if self.body_material else None ,
 
-            # Характеристики
-            'points': self.points,
-            'work_temp_min': self.work_temp_min,
-            'work_temp_max': self.work_temp_max,
+            'body_material_specified' : {
+                'id' : self.body_material_specified.id ,
+                'name' : self.body_material_specified.name ,
+                'code' : getattr(self.body_material_specified , 'code' , '')
+            } if self.body_material_specified else None ,
 
-            # Булевы поля
-            'is_pneumatic': self.is_pneumatic,
-            'has_namur_interface': self.has_namur_interface,
-            'has_visual_indicator': self.has_visual_indicator,
-
-            # ManyToMany поля
-            'exd': [
+            # ManyToMany поля (списки)
+            'sensor_components' : [
                 {
-                    'id': exd.id,
-                    'name': exd.name,
-                    'code': exd.code
-                }
-                for exd in self.exd.all()
-            ],
-            'exd_display': self.exd_display,
-
-            'sensor_components': [
-                {
-                    'id': sensor.id,
-                    'name': sensor.generate_name() if hasattr(sensor, 'generate_name') else sensor.name,
-                    'description': sensor.description
+                    'id' : sensor.id ,
+                    'name' : sensor.name ,
+                    'code' : getattr(sensor , 'code' , '') ,
+                    'signal_type' : {
+                        'id' : sensor.signal_type.id ,
+                        'name' : sensor.signal_type.name ,
+                        'code' : sensor.signal_type.code
+                    } if sensor.signal_type else None ,
+                    'contact_form' : {
+                        'id' : sensor.contact_form.id ,
+                        'name' : sensor.contact_form.name ,
+                        'code' : sensor.contact_form.code
+                    } if sensor.contact_form else None ,
                 }
                 for sensor in self.sensor_components.all()
-            ],
-            'sensors_description': self.get_sensors_description_list,
-            'sensors_names': self.get_sensors_names_list,
-
-            # Дополнительно
-            'extra_params': self.extra_params or {},
+            ] ,
+            'sensors_names' : 'self.get_sensors_names_list',
+            'exd' : [
+                {
+                    'id' : ex.id ,
+                    'name' : ex.name ,
+                    'code' : getattr(ex , 'code' , '') ,
+                    'full_code' : getattr(ex , 'full_code' , '')
+                }
+                for ex in self.exd.all()
+            ] ,
         }

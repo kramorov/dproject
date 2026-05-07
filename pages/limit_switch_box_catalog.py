@@ -63,6 +63,44 @@ with col3:
 with col4:
     st.markdown("### ")
 
+
+# Дополнительные фильтры для сенсоров
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    if filter_options.get('signal_type_options'):
+        selected_signal_type = st.selectbox(
+            "Тип сигнала датчика",
+            [{'id': None, 'name': 'Все'}] + filter_options['signal_type_options'],
+            format_func=lambda x: x['name']
+        )
+    else:
+        selected_signal_type = None
+
+with col2:
+    if filter_options.get('contact_form_options'):
+        selected_contact_form = st.selectbox(
+            "Форма контактов датчика",
+            [{'id': None, 'name': 'Все'}] + filter_options['contact_form_options'],
+            format_func=lambda x: x['name']
+        )
+    else:
+        selected_contact_form = None
+
+with col3:
+    st.markdown("")
+    # Фильтр по конкретному датчику (опционально, если нужно)
+        # if filter_options.get('sensor_component_options'):
+        #     selected_sensor = st.selectbox(
+        #         "Датчик",
+        #         [{'id': None, 'name': 'Все'}] + filter_options['sensor_component_options'],
+        #         format_func=lambda x: x['name']
+        #     )
+        # else:
+        #     selected_sensor = None
+
+with col4:
+    st.markdown("")
 # Формируем params
 params = {'limit': 100}
 
@@ -83,6 +121,13 @@ if min_temp:
 if max_temp:
     params['work_temp_max'] = max_temp
 
+if selected_signal_type and selected_signal_type.get('id'):
+    params['signal_type_id'] = selected_signal_type['id']
+if selected_contact_form and selected_contact_form.get('id'):
+    params['contact_form_id'] = selected_contact_form['id']
+if selected_sensor and selected_sensor.get('id'):
+    params['sensor_component_id'] = selected_sensor['id']
+
 result = LimitSwitchBox.filter_by_params(params)
 
 st.write(f"**Найдено:** {result['total']} | **Загружено:** {len(result['data'])}")
@@ -95,5 +140,5 @@ for item in result['data']:
         st.write(f"**Датчиков:** {item['points']}")
         st.write(f"**IP:** {item['ip']['name'] if item['ip'] else '-'}")
         st.write(f"**Температура:** {item['work_temp_min']}...{item['work_temp_max']} °C")
-        st.write(f"**Взрывозащита:** {item['exd_display']}")
+        # st.write(f"**Взрывозащита:** {item['exd_display']}")
         st.write(f"**Датчики:** {item['sensors_names']}")
