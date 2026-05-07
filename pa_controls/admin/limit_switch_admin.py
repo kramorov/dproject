@@ -224,23 +224,23 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'model_line', 'body', 'sensor_variety',
-        'points', 'ip', 'get_exd_display'
+        'points', 'ip',
     ]
     list_filter = [
          'code','sensor_variety',  'model_line',
-        'ip', 'exd','points', 'body',
+        'ip', 'points', 'body',
     ]
     search_fields = ['name', 'code', ]
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes']
-    filter_horizontal = ['sensor_components','exd', 'primary_sensor' , 'additional_sensor']  # Для ManyToMany полей
+    filter_horizontal = ['additional_sensor','exd', ]  # Для ManyToMany полей
 
     fieldsets = (
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
-                       ('sensor_variety', 'points'),
-                       ('sensor_components','ip', 'exd'),  # exd теперь ManyToMany
+                       ( 'points','sensor_variety',),
+                       ('ip', ),  # exd теперь ManyToMany
                        ('work_temp_min', 'work_temp_max'),)
         }),
         (_('Описание'), {
@@ -251,7 +251,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
             'fields': (('body_material', 'body_material_specified'), 'body')
         }),
         (_('Датчики') , {
-            'fields' : ('primary_sensor' , 'additional_sensor')
+            'fields' : ('primary_sensor' , 'additional_sensor', 'exd', )
         }) ,
         (_('Дополнительные опции'), {
             'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
@@ -270,7 +270,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related(
             'model_line', 'sensor_variety',  'ip',
             'body_material', 'body_material_specified'
-        ).prefetch_related('exd')  # prefetch_related для ManyToMany
+        )#.prefetch_related('exd')  # prefetch_related для ManyToMany
 
     def get_exd_display(self, obj):
         """Возвращает отображаемую маркировку взрывозащиты"""

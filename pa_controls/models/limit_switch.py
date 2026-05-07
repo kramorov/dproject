@@ -59,14 +59,7 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
         help_text=_('Тип сенсора'),
         verbose_name=_("Тип сенсора")
     )
-    # Добавляем Many-to-Many связь с датчиками
-    sensor_components = models.ManyToManyField(
-        SensorComponent,
-        blank=True,
-        verbose_name=_("Датчики"),
-        help_text=_("Установленные датчики"),
-        related_name='limit_switch_boxes'  # обратная связь от датчика к корпусам
-    )
+
     primary_sensor = models.ForeignKey(
         SensorComponent ,
         blank=True , null=True, on_delete=models.SET_NULL,
@@ -74,7 +67,7 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
         help_text=_("Основной датчик") ,
         related_name='limit_switch_boxes_primary_sensor'  # обратная связь от датчика к корпусам
     )
-
+    # Добавляем Many-to-Many связь с дополнительными датчиками
     additional_sensor = models.ManyToManyField(
         SensorComponent ,
         blank=True ,
@@ -95,7 +88,7 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
     exd = models.ManyToManyField(
         'params.ExdOption',
         blank=True,
-        related_name='limit_switch_boxes',
+        related_name='limit_switch_boxes_exd_new',
         help_text=_('Степень взрывозащиты (можно выбрать несколько вариантов)'),
         verbose_name=_("Взрывозащита")
     )
