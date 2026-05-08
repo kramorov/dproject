@@ -18,7 +18,10 @@ class HazardousGroup(models.Model) :
                                    help_text=_('Текстовое группы взрывоопасной среды'))
     group_type = models.CharField(max_length=5 , choices=GroupType.choices)
     rating = models.IntegerField(help_text="Чем выше рейтинг, тем более опасная среда")
-
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
     class Meta:
         verbose_name = _("Группа опасности")
         verbose_name_plural = _("Exd Группа опасности")
@@ -47,6 +50,9 @@ class TemperatureClass(models.Model, TextDescriptionMixin):
     code = models.CharField(max_length=10, verbose_name=_("Код"))
     description = models.TextField(blank=True, verbose_name=_("Описание"))
     temperature_class = models.CharField(max_length=5, verbose_name=_("Класс"))
+    # Ранг строгости: T6=6, T5=5, ..., T1=1
+    strictness_rating = models.IntegerField(default=0, blank=True)
+
     max_surface_temp = models.IntegerField(verbose_name=_("Макс. температура поверхности, °C"))
     gas_ignition_temp = models.IntegerField(
         null=True, blank=True,
@@ -63,6 +69,13 @@ class TemperatureClass(models.Model, TextDescriptionMixin):
 
     def __str__(self):
         return f"{self.temperature_class}"
+
+    def save(self, *args, **kwargs):
+        # Автоматически устанавливаем ранг на основе кода
+        if self.temperature_class and not self.strictness_rating:
+            rank_map = {'T1': 1, 'T2': 2, 'T3': 3, 'T4': 4, 'T5': 5, 'T6': 6}
+            self.strictness_rating = rank_map.get(self.temperature_class, 0)
+        super().save(*args, **kwargs)
 
     def get_text_description(self) -> str:
         """Генерирует описание температурного класса"""
@@ -157,7 +170,10 @@ class ExplosionProtectionLevel(models.Model, TextDescriptionMixin):
         blank=True,
         help_text=_("Зона взрывоопасности")
     )
-
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
     class Meta:
         verbose_name = _("Уровень взрывозащиты")
         verbose_name_plural = _("Exd Уровни взрывозащиты")
@@ -224,6 +240,9 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         verbose_name=_("Уровень взрывозащиты"),
         help_text=_("Уровень взрывозащиты(Gb,Db ...)")
     )
+    # Для газа и пыли используются разные поля: для газа TemperatureClass, для пыли - dust_temperature
+    # Разная логика совместимости (газ: T6 подходит для T1-T6, пыль: 200°C подходит для 85°C) - чем больше, тем лучше
+    # Для газа
     temperature_class = models.ForeignKey(
         'params.TemperatureClass',  # Исправлено
         on_delete=models.SET_NULL,
@@ -233,6 +252,15 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         verbose_name=_("Температурный класс"),
         help_text=_("Температурный класс")
     )
+    # Для пыли
+    dust_temperature = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Температура для пыли, °C"),
+        help_text=_("Максимальная температура поверхности (например, 85, 95, 100)")
+    )
+    # Кэшированный ранг температуры (для быстрой фильтрации)
+    temperature_rating = models.IntegerField(null=True, blank=True)
     # Для пылевой взрывозащиты
     hazardous_group = models.ForeignKey(
         'params.HazardousGroup' ,  # Исправлено
@@ -242,14 +270,6 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         related_name='hazardous_group' ,
         verbose_name=_("Группа взрывоопасной среды") ,
         help_text=_("Группа взрывоопасной среды (газ и пыль в одном справочнике)")
-    )
-
-
-    dust_temperature = models.IntegerField(
-        null=True,
-        blank=True,
-        verbose_name=_("Температура для пыли, °C"),
-        help_text=_("Максимальная температура поверхности (например, 85, 95, 100)")
     )
 
     # Специальные обозначения
@@ -358,13 +378,177 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         return full_string.strip()
 
     def save(self, *args, **kwargs):
-        # Генерируем код
-        # Если имя или код не заданы вручную, используем генерацию
-        # if not self.name:
-        #     self.name = generated
-        # if not self.code:
-        #     self.code = generated
+        # Устанавливаем temperature_rating
+        if self.temperature_class:
+            self.temperature_rating = self.temperature_class.strictness_rating
+        elif self.dust_temperature:
+            self.temperature_rating = self.dust_temperature
+        else:
+            self.temperature_rating = None
+
         self.name = self.get_formatted_ex_code(option='name')
         self.code = self.get_formatted_ex_code(option='code')
         super().save(*args, **kwargs)
 
+    @classmethod
+    def get_structured_choices(cls) -> Dict:
+        """
+        Возвращает словарь с иерархическими данными для выбора взрывозащиты.
+        Структура:
+        {
+            "methods": [
+                {"id": 1, "code": "d", "name": "Взрывонепроницаемая оболочка", "types": [...]},
+                ...
+            ],
+            "gas_groups": [...],
+            "dust_groups": [...],
+            "temperature_classes": [...],
+            "protection_levels": {"gas": [...], "dust": [...]}
+        }
+        """
+
+        # 1. Методы взрывозащиты + связанные типы
+        methods_qs = ExplosionProtectionMethod.objects.filter(is_active=True).order_by('sorting_order')
+        methods = []
+        for method in methods_qs:
+            # Типы, связанные с этим методом
+            types = ExplosionProtectionType.objects.filter(
+                method=method,
+                is_active=True
+            ).order_by('sorting_order')
+
+            methods.append({
+                'id': method.id,
+                'code': method.code,
+                'name': method.name,
+                'description': method.description,
+                'types': [
+                    {'id': t.id, 'code': t.code, 'name': t.name}
+                    for t in types
+                ]
+            })
+
+        # 2. Группы газа и пыли
+            # 2. Группы - объединяем газ и пыль в один список
+        gas_groups = [
+            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'GAS'}
+            for g in HazardousGroup.objects.filter(group_type='GAS', is_active=True).order_by('rating')
+        ]
+        dust_groups = [
+            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'DUST'}
+            for g in HazardousGroup.objects.filter(group_type='DUST', is_active=True).order_by('rating')
+        ]
+        all_groups = gas_groups + dust_groups  # просто складываем списки
+        # 3. Температурные классы
+        temp_classes = [
+            {
+                'id': t.id,
+                'code': t.temperature_class,
+                'name': t.name,
+                'max_temp': t.max_surface_temp,
+                'strictness_rating': t.strictness_rating
+            }
+            for t in TemperatureClass.objects.filter(is_active=True).order_by('sorting_order')
+        ]
+
+        # 4. Уровни взрывозащиты
+        protection_levels = [
+            {'id': l.id, 'code': l.code, 'name': l.name}
+            for l in ExplosionProtectionLevel.objects.filter(
+                code__in=['Ga', 'Gb', 'Gc', 'Da', 'Db', 'Dc']
+            ).order_by('code')
+        ]
+        return {
+            'methods': methods,
+            'groups': all_groups,
+            'temperature_classes': temp_classes,
+            'protection_levels': protection_levels,
+        }
+
+    def get_compatible_ids(self) -> set:
+        """
+        Возвращает ID всех ExdOption, совместимых с текущим
+        Вход: Объект ExdOption	Выход: ID совместимых	Когда использовать: Когда уже выбран конкретный ExdOption
+        """
+        queryset = ExdOption.objects.filter(is_active=True)
+
+        # 1. Фильтр по методу взрывозащиты (через ForeignKey)
+        if self.explosion_protection_class and self.explosion_protection_class.method:
+            # Ищем все типы с таким же методом
+            queryset = queryset.filter(
+                explosion_protection_class__method=self.explosion_protection_class.method
+            )
+
+        # 2. Фильтр по группе (rating >= текущей)
+        if self.hazardous_group:
+            queryset = queryset.filter(
+                hazardous_group__rating__gte=self.hazardous_group.rating,
+                hazardous_group__group_type=self.hazardous_group.group_type
+            )
+
+        # 3. Фильтр по температуре
+        if self.temperature_class:
+            queryset = queryset.filter(
+                temperature_rating__gte=self.temperature_class.strictness_rating
+            )
+        elif self.dust_temperature:
+            queryset = queryset.filter(
+                temperature_rating__gte=self.dust_temperature
+            )
+
+        return set(queryset.values_list('id', flat=True))
+
+    @classmethod
+    def get_compatible_ids_by_components(cls, method_id: int = None, type_id: int = None,
+                                         group_id: int = None,temp_id: int = None) -> set:
+        """
+        Возвращает ID всех ExdOption, совместимых с выбранными компонентами.
+
+        Args:
+            method_id: ID метода взрывозащиты (ExplosionProtectionMethod)
+            type_id: ID типа взрывозащиты (ExplosionProtectionType)
+            gas_group_id: ID газовой группы (HazardousGroup)
+            dust_group_id: ID пылевой группы (HazardousGroup)
+            temp_id: ID температурного класса (TemperatureClass)
+        Вход: Параметры (method_id, type_id...)	Выход: ID совместимых	Когда использовать: Когда пользователь выбирает через UI компоненты
+        Returns:
+            set: множество ID совместимых ExdOption
+        """
+        print(f"DEBUG: get_compatible_ids_by_components called with:")
+        print(f"  method_id={method_id}, type_id={type_id}")
+        print(f"  group_id={group_id}")
+        print(f"  temp_id={temp_id}")
+
+        queryset = cls.objects.filter(is_active=True)
+        print(f"  Initial queryset count: {queryset.count()}")
+
+        if type_id:
+            queryset = queryset.filter(explosion_protection_class_id=type_id)
+            print(f"  After type filter (id={type_id}): {queryset.count()}")
+        elif method_id:
+            type_ids = ExplosionProtectionType.objects.filter(
+                method_id=method_id, is_active=True
+            ).values_list('id', flat=True)
+            print(f"  Found type_ids for method {method_id}: {list(type_ids)}")
+            queryset = queryset.filter(explosion_protection_class_id__in=type_ids)
+            print(f"  After method filter: {queryset.count()}")
+
+        if group_id:
+            group = HazardousGroup.objects.get(id=group_id)
+            queryset = queryset.filter(
+                hazardous_group__rating__gte=group.rating,
+                hazardous_group__group_type=group.group_type
+            )
+            print(f"  After gas/dust group filter: {queryset.count()}")
+
+        if temp_id:
+            temp_class = TemperatureClass.objects.get(id=temp_id)
+            print(f"  Temp class: {temp_class.code}, strictness_rating={temp_class.strictness_rating}")
+            queryset = queryset.filter(
+                temperature_rating__gte=temp_class.strictness_rating
+            )
+            print(f"  After temp filter: {queryset.count()}")
+
+        result = set(queryset.values_list('id', flat=True))
+        print(f"  Final compatible IDs: {result}")
+        return result

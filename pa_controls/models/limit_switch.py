@@ -7,10 +7,12 @@ import logging
 
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import TemplateMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified
 from pa_controls.models import LimitSwitchSensorVariety , LimitSwitchBody , \
     SensorComponent , SignalType , ContactForm , ContactState
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
+from params.exd_models import ExdOption
 
 # from pa_controls.models import PaControlMountingStandard
 
@@ -24,7 +26,7 @@ from params.models import IpOption
 # ============================================================
 
 
-class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
+class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -304,86 +306,125 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
             '{sensors_description}': 'get_sensors_description_list',
         }
 
-    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА CatalogFilterMixin ==========
+    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
 
-    # 1. Конфигурация фильтров
-    FILTER_CONFIG = [
-        # Прямые поля
-        FilterFieldConfig('model_line_id', 'model_line', 'exact'),
-        FilterFieldConfig('sensor_variety_id', 'sensor_variety', 'exact'),
-        FilterFieldConfig('points', 'points', 'exact'),
-
-        FilterFieldConfig('body_material_id', 'body_material', 'exact'),
-        FilterFieldConfig('body_material_specified_id', 'body_material_specified', 'exact'),
-
-        # Температурные фильтры
-        CommonFilterConfigs.temp_min_filter('work_temp_min'),
-        CommonFilterConfigs.temp_max_filter('work_temp_max'),
-
-        # IP фильтр - выбираем IP из списка, ищем с рангом >=
-        CommonFilterConfigs.ip_rank_gte_filter(
-            param_name='ip_id',  # Параметр получает ID выбранного IP
-            rank_field='ip_rank',
-            related_path='ip'
+    FILTER_DEFINITIONS = [
+        # Серия
+        FilterDefinition(
+            param_name='model_line_id',
+            model_field='model_line',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Серия',
+            order=1
         ),
 
-        # Фильтр по бренду (через model_line)
-        FilterFieldConfig(
+        # Тип сенсора
+        FilterDefinition(
+            param_name='sensor_variety_id',
+            model_field='sensor_variety',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Тип сенсора',
+            order=2
+        ),
+
+        # Количество датчиков
+        FilterDefinition(
+            param_name='points',
+            model_field='points',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.CHOICES,
+            choices=[(1, '1 датчик'), (2, '2 датчика'), (3, '3 датчика'), (4, '4 датчика')],
+            label='Количество датчиков',
+            order=3
+        ),
+
+        # IP (с ранжированием)
+        FilterDefinition(
+            param_name='ip_id',
+            model_field='ip',
+            filter_type=FilterType.IP_RANK,
+            data_source_type=DataSourceType.GLOBAL_MODEL,
+            source_model=IpOption,
+            label='IP',
+            order=4
+        ),
+
+        # Температура
+        FilterDefinition(
+            param_name='work_temp_min',
+            model_field='work_temp_min',
+            filter_type=FilterType.TEMP_MIN,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура от',
+            order=5
+        ),
+        FilterDefinition(
+            param_name='work_temp_max',
+            model_field='work_temp_max',
+            filter_type=FilterType.TEMP_MAX,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура до',
+            order=6
+        ),
+
+        # Материалы
+        FilterDefinition(
+            param_name='body_material_id',
+            model_field='body_material',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Материал корпуса',
+            order=7
+        ),
+
+        # Бренд через серию
+        FilterDefinition(
             param_name='model_line_brand_id',
             model_field='model_line__brand',
-            filter_type='exact',
-            is_related_field=True
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Бренд серии',
+            order=8
+        ),
+
+        # Тип сигнала (датчики)
+        # FilterDefinition(  #Все значения из глобальной модели
+        #     param_name='signal_type_id',
+        #     model_field='primary_sensor__signal_type',
+        #     filter_type=FilterType.EXACT,
+        #     data_source_type=DataSourceType.GLOBAL_MODEL,
+        #     source_model=SignalType,
+        #     label='Тип сигнала',
+        #     order=9
+        # ),
+        # Только имеющиеся в справочнике
+        # Для ForeignKey полей - используем UNIQUE_FIELD_VALUES (только используемые)
+        FilterDefinition(
+            param_name='signal_type_id',
+            model_field='primary_sensor__signal_type',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,  # ← только используемые
+            label='Тип сигнала',
+            order=9
+        ),
+        FilterDefinition(
+            param_name='exd_id',
+            model_field='exd',  # имя ManyToMany поля
+            filter_type=FilterType.EXD_COMPATIBLE,
+            data_source_type=DataSourceType.CUSTOM,  # опции не автоматические
+            label='Взрывозащита',
+            order=10
         ),
     ]
 
-    # 2. Поля для текстового поиска
     SEARCH_FIELDS = ['code', 'name', 'description']
 
-    # 3. Поля для оптимизации запросов
     SELECT_RELATED_FIELDS = [
-        'model_line',
-        'model_line__brand',
-        'sensor_variety',
-        'ip',
-        'body_material',
-        'body_material_specified',
+        'model_line', 'model_line__brand', 'sensor_variety',
+        'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type'
     ]
-
-    # 4. Поля для prefetch (ManyToMany)
-    # Поля для prefetch_related (ManyToMany и обратные связи)
-    PREFETCH_FIELDS = [
-        'primary_sensor' ,  # датчики
-        'primary_sensor__signal_type' ,
-        'primary_sensor__contact_form' ,
-        # 'exd' ,  # взрывозащита
-    ]
-
-    @classmethod
-    def get_filter_options(cls) -> Dict[str, List[Dict]]:
-        """Получить все доступные опции для фильтрации в UI"""
-        result = {'model_lines' : cls.get_distinct_values('model_line') ,
-                  'sensor_varieties' : cls.get_distinct_values('sensor_variety') ,
-                  'ip_options' : cls.get_global_options(IpOption) ,
-                  'body_materials' : cls._get_foreign_key_options('body_material') ,
-                  'signal_types' : cls.get_global_options(SignalType) ,
-                  'contact_forms' : cls.get_global_options(ContactForm) ,
-                  'contact_states' : cls.get_global_options(ContactState) ,
-                  'body_materials_specified' : cls._get_foreign_key_options('body_material_specified') ,
-                  'model_line_brands' : cls._get_foreign_key_options('model_line__brand') , 'points_options' : [
-                {'id' : 1 , 'name' : '1 датчик' , 'code' : '1'} ,
-                {'id' : 2 , 'name' : '2 датчика' , 'code' : '2'} ,
-                {'id' : 3 , 'name' : '3 датчика' , 'code' : '3'} ,
-                {'id' : 4 , 'name' : '4 датчика' , 'code' : '4'} ,
-            ] , 'boolean_options' : [
-                {'id' : 'true' , 'name' : 'Да' , 'code' : 'true'} ,
-                {'id' : 'false' , 'name' : 'Нет' , 'code' : 'false'} ,
-            ] , 'work_temp_range' : cls._get_value_range('work_temp_min') ,
-                  'signal_type_options' : cls.get_global_options(SignalType) ,
-                  'contact_form_options' : cls.get_global_options(ContactForm)}
-
-        # Опции для датчиков (через связанные модели)
-
-        return result
 
     # ========== СЕРИАЛИЗАЦИЯ ==========
     def to_dict(self) -> Dict[str , Any] :
@@ -442,32 +483,33 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
                 'code' : getattr(self.body_material_specified , 'code' , '')
             } if self.body_material_specified else None ,
             # ManyToMany поля (списки)
-            'additional_sensor' : [
+            'additional_sensor': [
                 {
-                    'id' : sensor.id ,
-                    'name' : sensor.name ,
-                    'code' : getattr(sensor , 'code' , '') ,
-                    'signal_type' : {
-                        'id' : sensor.signal_type.id ,
-                        'name' : sensor.signal_type.name ,
-                        'code' : sensor.signal_type.code
-                    } if sensor.signal_type else None ,
-                    'contact_form' : {
-                        'id' : sensor.contact_form.id ,
-                        'name' : sensor.contact_form.name ,
-                        'code' : sensor.contact_form.code
-                    } if sensor.contact_form else None ,
+                    'id': sensor.id,
+                    'name': sensor.name,
+                    'code': getattr(sensor, 'code', ''),
+                    'signal_type': {
+                        'id': sensor.signal_type.id,
+                        'name': sensor.signal_type.name,
+                        'code': getattr(sensor.signal_type, 'code', '')
+                    } if sensor.signal_type else None,
+                    'contact_form': {
+                        'id': sensor.contact_form.id,
+                        'name': sensor.contact_form.name,
+                        'code': getattr(sensor.contact_form, 'code', '')
+                    } if sensor.contact_form else None,
                 }
                 for sensor in self.additional_sensor.all()
-            ] ,
+            ] if self.additional_sensor.exists() else [],
+
             'sensors_names' : 'self.get_sensors_names_list',
-            'exd' : [
-                {
-                    'id' : ex.id ,
-                    'name' : ex.name ,
-                    'code' : getattr(ex , 'code' , '') ,
-                    'full_code' : getattr(ex , 'full_code' , '')
-                }
-                for ex in self.exd.all()
-            ] ,
+            'exd': [
+            {
+                'id': exd.id,
+                'name': exd.name,
+                'code': exd.code,
+                'formatted_code': exd.get_formatted_ex_code('name')
+            }
+            for exd in self.exd.all()
+        ],
         }

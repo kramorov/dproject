@@ -6,10 +6,11 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
 from params.models import LockingMechanism, IpOption, MountingPlateTypes
 
 
-class GearBox(CatalogFilterMixin, CopyMixin,TemplateMixin,  models.Model):
+class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
     """Модель редуктора (каталог)"""
     name = models.TextField(blank=True ,
                             verbose_name=_("Название") ,
@@ -170,36 +171,100 @@ class GearBox(CatalogFilterMixin, CopyMixin,TemplateMixin,  models.Model):
         default_description_template = ("{model_code} {filter_variety} {brand}; Расход {flow_rate} л/мин; {drain_variety}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material}, Материал стакана: {bowl_material_text}, Кожух: {protection_material} Порты: {thread}; слив: {drain_port_size}; {gauge_quantity}; фильтрация {filtration_rating} мкм; Диапазон регулировки давления {pressure_min}..{pressure_max} бар; Макс. входное давление {pressure_inlet_max} бар; вес {weight}кг. Настенное крепление: {wall_mounting_included}")
         return default_description_template
 
-    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА CatalogFilterMixin ==========
+    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
 
     # 1. Конфигурация фильтров
-    FILTER_CONFIG = [
-        FilterFieldConfig('model_line_id', 'model_line', 'exact'),
-        FilterFieldConfig('body_id', 'body', 'exact'),
-        CommonFilterConfigs.temp_min_filter(
-            field_name='work_temp_min',
-            param_name='work_temp_min'
+    FILTER_DEFINITIONS = [
+        # Серия
+        FilterDefinition(
+            param_name='model_line_id',
+            model_field='model_line',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Серия',
+            order=1
+        ),
+           # IP (с ранжированием)
+        FilterDefinition(
+            param_name='ip_id',
+            model_field='ip',
+            filter_type=FilterType.IP_RANK,
+            data_source_type=DataSourceType.GLOBAL_MODEL,
+            source_model=IpOption,
+            label='IP',
+            order=4
         ),
 
-        CommonFilterConfigs.temp_min_filter(
-            field_name='work_temp_max',
-            param_name='work_temp_max'
+
+        # Температура
+        FilterDefinition(
+            param_name='work_temp_min',
+            model_field='work_temp_min',
+            filter_type=FilterType.TEMP_MIN,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура от',
+            order=5
+        ),
+        FilterDefinition(
+            param_name='work_temp_max',
+            model_field='work_temp_max',
+            filter_type=FilterType.TEMP_MAX,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура до',
+            order=6
+        ),
+        FilterDefinition(
+            param_name='work_temp_max',
+            model_field='work_temp_max',
+            filter_type=FilterType.TEMP_MAX,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура до',
+            order=6
+        ),
+        # Материалы
+        FilterDefinition(
+            param_name='body_material_id',
+            model_field='body_material',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Материал корпуса',
+            order=7
         ),
 
-        # Фильтры по полям GearBoxBody (через связанную модель)
-        CommonFilterConfigs.min_value_filter(
-            field_name='max_work_torque',
-            param_name='min_work_torque',
-            related_path='body__max_work_torque',
-            is_related_field=True
+        # Бренд через серию
+        FilterDefinition(
+            param_name='model_line_brand_id',
+            model_field='model_line__brand',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Бренд серии',
+            order=8
         ),
-        # IP фильтр - выбираем IP из списка, ищем с рангом >=
-        CommonFilterConfigs.ip_rank_gte_filter(
-            param_name='ip_id',  # Параметр получает ID выбранного IP
-            rank_field='ip_rank',
-            related_path='ip'
+
+        # Тип сигнала (датчики)
+        # FilterDefinition(  #Все значения из глобальной модели
+        #     param_name='signal_type_id',
+        #     model_field='primary_sensor__signal_type',
+        #     filter_type=FilterType.EXACT,
+        #     data_source_type=DataSourceType.GLOBAL_MODEL,
+        #     source_model=SignalType,
+        #     label='Тип сигнала',
+        #     order=9
+        # ),
+        # Только имеющиеся в справочнике
+        # Для ForeignKey полей - используем UNIQUE_FIELD_VALUES (только используемые)
+        FilterDefinition(
+            param_name='signal_type_id',
+            model_field='primary_sensor__signal_type',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,  # ← только используемые
+            label='Тип сигнала',
+            order=9
         ),
     ]
+
+
+
 
     # M2M_FILTER_CONFIG должен быть определен
     M2M_FILTER_CONFIG = [
@@ -220,19 +285,6 @@ class GearBox(CatalogFilterMixin, CopyMixin,TemplateMixin,  models.Model):
     #     'body__mounting_plate_bottom',
     # ]
 
-    @classmethod
-    def get_filter_options(cls) -> Dict[str, List[Dict]]:
-        """Получить все доступные опции для фильтрации в UI"""
-        result = {
-            'model_lines': cls.get_distinct_values('model_line'),
-            'bodies': cls.get_distinct_values('body'),
-            'override_mechanisms': cls.get_distinct_values('override_mechanism'),
-            'locking_mechanisms': cls.get_distinct_values('locking_mechanism'),
-            'ip_options': cls.get_global_options(IpOption),
-            'mounting_plate_top_options': cls.get_global_options(MountingPlateTypes),
-            'min_work_torque_range': cls._get_value_range('body__max_work_torque'),
-        }
-        return result
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -291,3 +343,82 @@ class GearBox(CatalogFilterMixin, CopyMixin,TemplateMixin,  models.Model):
             'body_material_text': self.body_material_text,
         }
 
+
+
+   # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА CatalogFilterMixin ==========
+   #
+   #  # 1. Конфигурация фильтров
+   #  FILTER_CONFIG = [
+   #      FilterFieldConfig('model_line_id', 'model_line', 'exact'),
+   #      FilterFieldConfig('body_id', 'body', 'exact'),
+   #      CommonFilterConfigs.temp_min_filter(
+   #          field_name='work_temp_min',
+   #          param_name='work_temp_min'
+   #      ),
+   #
+   #      CommonFilterConfigs.temp_min_filter(
+   #          field_name='work_temp_max',
+   #          param_name='work_temp_max'
+   #      ),
+   #
+   #      # Фильтры по полям GearBoxBody (через связанную модель)
+   #      CommonFilterConfigs.min_value_filter(
+   #          field_name='max_work_torque',
+   #          param_name='min_work_torque',
+   #          related_path='body__max_work_torque',
+   #          is_related_field=True
+   #      ),
+   #      # IP фильтр - выбираем IP из списка, ищем с рангом >=
+   #      CommonFilterConfigs.ip_rank_gte_filter(
+   #          param_name='ip_id',  # Параметр получает ID выбранного IP
+   #          rank_field='ip_rank',
+   #          related_path='ip'
+   #      ),
+   #  ]
+   #
+   #  # M2M_FILTER_CONFIG должен быть определен
+   #  M2M_FILTER_CONFIG = [
+   #      {
+   #          'param_name': 'mounting_plate_top_id',
+   #          'm2m_field': 'body__mounting_plate_top',
+   #      },
+   #  ]
+   #
+   #  SEARCH_FIELDS = ['code', 'name', 'description']
+   #
+   #  SELECT_RELATED_FIELDS = [
+   #      'model_line', 'body',  'ip', #'interlock' - записей нет, поэтому не используем
+   #  ]
+   #
+   #  # PREFETCH_FIELDS = [
+   #  #     'body__mounting_plate_top',
+   #  #     'body__mounting_plate_bottom',
+   #  # ]
+   #
+   #  @classmethod
+   #  def get_filter_options(cls) -> Dict[str, List[Dict]]:
+   #      """Получить все доступные опции для фильтрации в UI"""
+   #      result = {
+   #          'model_lines': cls.get_distinct_values('model_line'),
+   #          'bodies': cls.get_distinct_values('body'),
+   #          'override_mechanisms': cls.get_distinct_values('override_mechanism'),
+   #          'locking_mechanisms': cls.get_distinct_values('locking_mechanism'),
+   #          'ip_options': cls.get_global_options(IpOption),
+   #          'mounting_plate_top_options': cls.get_global_options(MountingPlateTypes),
+   #          'min_work_torque_range': cls._get_value_range('body__max_work_torque'),
+   #      }
+   #      return result
+    #
+    # @classmethod
+    # def get_filter_options(cls) -> Dict[str, List[Dict]]:
+    #     """Получить все доступные опции для фильтрации в UI"""
+    #     result = {
+    #         'model_lines': cls.get_distinct_values('model_line'),
+    #         'bodies': cls.get_distinct_values('body'),
+    #         'override_mechanisms': cls.get_distinct_values('override_mechanism'),
+    #         'locking_mechanisms': cls.get_distinct_values('locking_mechanism'),
+    #         'ip_options': cls.get_global_options(IpOption),
+    #         'mounting_plate_top_options': cls.get_global_options(MountingPlateTypes),
+    #         'min_work_torque_range': cls._get_value_range('body__max_work_torque'),
+    #     }
+    #     return result

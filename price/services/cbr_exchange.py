@@ -5,6 +5,7 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 from typing import Dict, Optional
+from django.utils.timezone import timedelta
 
 from price.models.exchange_rate import ExchangeRate
 
@@ -100,7 +101,7 @@ class CBRExchangeService:
         """
         Обновить курсы за период (для бэкфиллинга)
         """
-        from django.utils.timezone import timedelta
+
 
         current = start_date
         while current <= end_date:

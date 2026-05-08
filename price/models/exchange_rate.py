@@ -7,10 +7,9 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 from typing import Dict, Optional
-import logging
-
 from core.models import StructuredDataMixin
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -86,8 +85,7 @@ class ExchangeRate(StructuredDataMixin, models.Model):
                 if currency in rates:
                     return cls.objects.get(currency=currency, date=target_date)
             except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
+
                 logger.error(f"Ошибка загрузки курса {currency} на {target_date}: {e}")
 
             return None
