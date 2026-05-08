@@ -9,8 +9,9 @@ from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, Com
 from core.models.mixins import TemplateMixin
 from materials.models import MaterialGeneral, MaterialSpecified
 from pa_controls.models import LimitSwitchSensorVariety , LimitSwitchBody , \
-    SensorComponent , SignalType , ContactForm
+    SensorComponent , SignalType , ContactForm , ContactState
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
+
 # from pa_controls.models import PaControlMountingStandard
 
 logger = logging.getLogger(__name__)
@@ -229,12 +230,27 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
         return default_description_template
 
     @property
+    def get_sensors_signal_types_list(self) -> str :
+        codes = []
+        if self.primary_sensor and self.primary_sensor.signal_type :
+            codes.append(self.primary_sensor.signal_type.name)
+        for sensor in self.additional_sensor.all() :
+            if sensor.signal_type :
+                codes.append(sensor.signal_type.name)
+
+        if not codes :
+            return ""
+        if len(codes) == 1 :
+            return codes[0]
+        return "+".join(codes[:-1]) + " + " + codes[-1]
+
+    @property
     def get_sensors_description_list(self) -> str:
         """
         Возвращает  список поля description датчиков.
         Разделитель - символ "+"
         """
-        sensor_components = self.sensor_components.all()
+        sensor_components = self.additional_sensor.all()
         if not sensor_components:
             return ""
 
@@ -246,12 +262,12 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
         else:
             return ", ".join(names[:-1]) + f" + {names[-1]}"
     @property
-    def get_sensors_names_list(self) -> str :
+    def get_additional_sensors_names_list(self) -> str :
         """
         Возвращает текстовый список датчиков.
         Разделитель - символ "+"
         """
-        sensor_components = self.sensor_components.all()
+        sensor_components = self.additional_sensor.all()
         if not sensor_components :
             return ""
 
@@ -282,7 +298,9 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
             '{ip}': 'ip',
             # M2M поле - вызов метода get_sensors_list с подшаблоном
             # В подшаблоне можно использовать поля из SensorComponent (name, brand, signal_type, electrical_specs и т.д.)
-            '{sensors}' : 'get_sensors_names_list' ,
+            '{primary_sensor}' : 'primary_sensor__description' ,
+            '{sensors}' : 'get_additional_sensors_names_list' ,
+            '{signals}' : 'get_sensors_signal_types_list' ,
             '{sensors_description}': 'get_sensors_description_list',
         }
 
@@ -334,70 +352,36 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
     # 4. Поля для prefetch (ManyToMany)
     # Поля для prefetch_related (ManyToMany и обратные связи)
     PREFETCH_FIELDS = [
-        'sensor_components' ,  # датчики
-        'sensor_components__signal_type' ,
-        'sensor_components__contact_form' ,
+        'primary_sensor' ,  # датчики
+        'primary_sensor__signal_type' ,
+        'primary_sensor__contact_form' ,
         # 'exd' ,  # взрывозащита
-    ]
-    # Конфигурация ManyToMany фильтров
-    M2M_FILTER_CONFIG = [
-        # Фильтр по датчику (по id датчика)
-        {
-            'param_name' : 'sensor_component_id' ,
-            'm2m_field' : 'sensor_components' ,
-        } ,
-        # Фильтр по типу сигнала датчика (через связанную модель)
-        {
-            'param_name' : 'signal_type_id' ,
-            'm2m_field' : 'sensor_components__signal_type' ,
-        } ,
-        # Фильтр по форме контакта датчика
-        {
-            'param_name' : 'contact_form_id' ,
-            'm2m_field' : 'sensor_components__contact_form' ,
-        } ,
-        # Фильтр по взрывозащите
-        {
-            'param_name' : 'exd_id' ,
-            'm2m_field' : 'exd' ,
-        } ,
     ]
 
     @classmethod
     def get_filter_options(cls) -> Dict[str, List[Dict]]:
         """Получить все доступные опции для фильтрации в UI"""
-        result = {
-            # Прямые ForeignKey поля
-            'model_lines': cls.get_distinct_values('model_line'),
-            'sensor_varieties': cls.get_distinct_values('sensor_variety'),
-            'ip_options': cls.get_global_options(IpOption),
-            'body_materials': cls._get_foreign_key_options('body_material'),
-            'body_materials_specified': cls._get_foreign_key_options('body_material_specified'),
-
-            # Бренд через model_line
-            'model_line_brands': cls._get_foreign_key_options('model_line__brand'),
-
-            # Choice поля (points от 1 до 4)
-            'points_options': [
-                {'id': 1, 'name': '1 датчик', 'code': '1'},
-                {'id': 2, 'name': '2 датчика', 'code': '2'},
-                {'id': 3, 'name': '3 датчика', 'code': '3'},
-                {'id': 4, 'name': '4 датчика', 'code': '4'},
-            ],
-
-            # Булевы опции
-            'boolean_options': [
-                {'id': 'true', 'name': 'Да', 'code': 'true'},
-                {'id': 'false', 'name': 'Нет', 'code': 'false'},
-            ],
-
-            # Диапазоны значений
-            'work_temp_range': cls._get_value_range('work_temp_min'),
-        }
+        result = {'model_lines' : cls.get_distinct_values('model_line') ,
+                  'sensor_varieties' : cls.get_distinct_values('sensor_variety') ,
+                  'ip_options' : cls.get_global_options(IpOption) ,
+                  'body_materials' : cls._get_foreign_key_options('body_material') ,
+                  'signal_types' : cls.get_global_options(SignalType) ,
+                  'contact_forms' : cls.get_global_options(ContactForm) ,
+                  'contact_states' : cls.get_global_options(ContactState) ,
+                  'body_materials_specified' : cls._get_foreign_key_options('body_material_specified') ,
+                  'model_line_brands' : cls._get_foreign_key_options('model_line__brand') , 'points_options' : [
+                {'id' : 1 , 'name' : '1 датчик' , 'code' : '1'} ,
+                {'id' : 2 , 'name' : '2 датчика' , 'code' : '2'} ,
+                {'id' : 3 , 'name' : '3 датчика' , 'code' : '3'} ,
+                {'id' : 4 , 'name' : '4 датчика' , 'code' : '4'} ,
+            ] , 'boolean_options' : [
+                {'id' : 'true' , 'name' : 'Да' , 'code' : 'true'} ,
+                {'id' : 'false' , 'name' : 'Нет' , 'code' : 'false'} ,
+            ] , 'work_temp_range' : cls._get_value_range('work_temp_min') ,
+                  'signal_type_options' : cls.get_global_options(SignalType) ,
+                  'contact_form_options' : cls.get_global_options(ContactForm)}
 
         # Опции для датчиков (через связанные модели)
-        result['signal_type_options'] = cls.get_global_options(SignalType)
-        result['contact_form_options'] = cls.get_global_options(ContactForm)
 
         return result
 
@@ -457,9 +441,8 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
                 'name' : self.body_material_specified.name ,
                 'code' : getattr(self.body_material_specified , 'code' , '')
             } if self.body_material_specified else None ,
-
             # ManyToMany поля (списки)
-            'sensor_components' : [
+            'additional_sensor' : [
                 {
                     'id' : sensor.id ,
                     'name' : sensor.name ,
@@ -475,7 +458,7 @@ class LimitSwitchBox(CatalogFilterMixin, TemplateMixin, models.Model):
                         'code' : sensor.contact_form.code
                     } if sensor.contact_form else None ,
                 }
-                for sensor in self.sensor_components.all()
+                for sensor in self.additional_sensor.all()
             ] ,
             'sensors_names' : 'self.get_sensors_names_list',
             'exd' : [

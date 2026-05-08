@@ -44,7 +44,8 @@ class ContactState(models.Model):
         verbose_name = "Состояние контакта"
         verbose_name_plural = "Состояния контактов"
 
-    def __str__(self): return self.name
+    def __str__(self):
+        return f'{self.code} - {self.name}'
 
 
 class ContactForm(models.Model):
@@ -68,7 +69,7 @@ class ContactForm(models.Model):
         verbose_name = _("Форма контактов")
         verbose_name_plural = _("Формы контактов")
 
-    def __str__(self): return f'{self.name}/{self.code}'
+    def __str__(self): return f'{self.code} - {self.name}'
 
 
 class LimitSwitchSensorVariety(TemplateFillerMixin, GetChoicesMixin, models.Model):
