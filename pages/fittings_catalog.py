@@ -1,295 +1,237 @@
 # pages/fittings_catalog.py
 
 import streamlit as st
-from db_init import init_django
-
-init_django()
-
 from pneumatic_fittings.models import PneumaticFitting
 
 st.set_page_config(page_title="Каталог фитингов", layout="wide")
 st.title("🔧 Каталог пневматических фитингов")
 
+# Получаем опции фильтров
+filter_options = PneumaticFitting.get_filter_options()
 
-def init_session_state():
-    """Инициализация session state"""
-    if 'filters_applied' not in st.session_state:
-        st.session_state.filters_applied = False
-    if 'filter_result' not in st.session_state:
-        st.session_state.filter_result = None
-    if 'filter_options' not in st.session_state:
-        st.session_state.filter_options = PneumaticFitting.get_filter_options()
+# ==================== СТРОКА 1 ====================
+st.markdown("### 🔍 Основные фильтры")
+col1, col2, col3 = st.columns(3)
 
-    # Инициализируем значения фильтров
-    if 'filter_code' not in st.session_state:
-        st.session_state.filter_code = ""
-    if 'filter_brand' not in st.session_state:
-        st.session_state.filter_brand = 0
-    if 'filter_model_line' not in st.session_state:
-        st.session_state.filter_model_line = 0
+with col1:
+    search_text = st.text_input("Поиск по коду", placeholder="Введите код...")
 
-
-def render_filters():
-    """Рендер фильтров на главной странице"""
-    st.markdown("### 🔍 Фильтры")
-
-    # Получаем опции для фильтров
-    options = st.session_state.filter_options
-
-    # Строка 1: Поиск по коду, бренд, серия
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        code = st.text_input(
-            "Поиск по коду",
-            value=st.session_state.filter_code,
-            placeholder="Введите код...",
-            key="filter_code"
-        )
-
-    with col2:
-        brand_options = {0: "Все бренды"}
-        for b in options.get('brands', []):
-            brand_options[b['id']] = b['name']
-
-        brand_id = st.selectbox(
+with col2:
+    if filter_options.get('brand_id'):
+        selected_brand = st.selectbox(
             "Бренд",
-            options=list(brand_options.keys()),
-            format_func=lambda x: brand_options.get(x, "Все"),
-            key="filter_brand"
+            [{'id': None, 'name': 'Все'}] + filter_options['brand_id'],
+            format_func=lambda x: x['name']
         )
+    else:
+        selected_brand = None
 
-    with col3:
-        model_options = {0: "Все серии"}
-        for ml in options.get('model_lines', []):
-            model_options[ml['id']] = ml['name']
-
-        model_line_id = st.selectbox(
+with col3:
+    if filter_options.get('fitting_model_line_id'):
+        selected_line = st.selectbox(
             "Серия",
-            options=list(model_options.keys()),
-            format_func=lambda x: model_options.get(x, "Все"),
-            key="filter_model_line"
+            [{'id': None, 'name': 'Все'}] + filter_options['fitting_model_line_id'],
+            format_func=lambda x: x['name']
         )
+    else:
+        selected_line = None
 
-    # Строка 2: Тип фитинга, тип резьбы, резьба
-    col1, col2, col3 = st.columns(3)
+# ==================== СТРОКА 2 ====================
+st.markdown("### 🔧 Параметры фитинга")
+col1, col2, col3 = st.columns(3)
 
-    with col1:
-        variety_options = {0: "Все типы"}
-        for v in options.get('varieties', []):
-            variety_options[v['id']] = v['name']
-
-        variety_id = st.selectbox(
+with col1:
+    if filter_options.get('fitting_variety_id'):
+        selected_variety = st.selectbox(
             "Тип фитинга",
-            options=list(variety_options.keys()),
-            format_func=lambda x: variety_options.get(x, "Все"),
-            key="filter_variety"
+            [{'id': None, 'name': 'Все'}] + filter_options['fitting_variety_id'],
+            format_func=lambda x: x['name']
         )
+    else:
+        selected_variety = None
 
-    with col2:
-        # Фильтр по типу резьбы
-        thread_type_options = {0: "Все типы резьб"}
-        for tt in options.get('thread_types', []):
-            thread_type_options[tt['id']] = tt['name']
-
-        thread_type_id = st.selectbox(
-            "Тип резьбы",
-            options=list(thread_type_options.keys()),
-            format_func=lambda x: thread_type_options[x],
-            key="filter_thread_type"
-        )
-
-        # Получаем отфильтрованные резьбы
-        threads = PneumaticFitting.get_filtered_threads(
-            thread_type_id if thread_type_id != 0 else None
-        )
-
-    with col3:
-        thread_options = {0: "Все резьбы"}
-        for t in threads:
-            thread_options[t['id']] = t['name']
-
-        thread_id = st.selectbox(
-            "Резьба",
-            options=list(thread_options.keys()),
-            format_func=lambda x: thread_options[x],
-            key="filter_thread"
-        )
-
-    # Строка 3: Тип резьбы (наружная/внутренняя), материал корпуса, материал трубки
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        tio_options = {0: "Все"}
-        for tio in options.get('thread_inner_outers', []):
-            tio_options[tio['id']] = tio['name']
-
-        thread_inner_outer_id = st.selectbox(
-            "Тип резьбы (нар/внут)",
-            options=list(tio_options.keys()),
-            format_func=lambda x: tio_options.get(x, "Все"),
-            key="filter_tio"
-        )
-
-    with col2:
-        body_material_options = {0: "Все материалы"}
-        for bm in options.get('body_materials', []):
-            body_material_options[bm['id']] = bm['name']
-
-        body_material_id = st.selectbox(
+with col2:
+    if filter_options.get('body_material_id'):
+        selected_body_material = st.selectbox(
             "Материал корпуса",
-            options=list(body_material_options.keys()),
-            format_func=lambda x: body_material_options.get(x, "Все"),
-            key="filter_body_material"
+            [{'id': None, 'name': 'Все'}] + filter_options['body_material_id'],
+            format_func=lambda x: x['name']
         )
+    else:
+        selected_body_material = None
 
-    with col3:
-        pipe_material_options = {0: "Все материалы"}
-        for pm in options.get('pipe_materials', []):
-            pipe_material_options[pm['id']] = pm['name']
-
-        pipe_material_id = st.selectbox(
+with col3:
+    if filter_options.get('pipe_material_id'):
+        selected_pipe_material = st.selectbox(
             "Материал трубки",
-            options=list(pipe_material_options.keys()),
-            format_func=lambda x: pipe_material_options.get(x, "Все"),
-            key="filter_pipe_material"
+            [{'id': None, 'name': 'Все'}] + filter_options['pipe_material_id'],
+            format_func=lambda x: x['name']
         )
+    else:
+        selected_pipe_material = None
 
-    # Строка 4: Диаметр трубки, температура, активность
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+# ==================== СТРОКА 3 ====================
+col1, col2, col3 = st.columns(3)
 
-    with col1:
-        diameter_options = {0: "Все диаметры"}
-        for d in options.get('pipe_diameters', []):
-            diameter_options[d['id']] = f"{d['name']} мм"
-
-        pipe_diameter = st.selectbox(
-            "Диаметр трубки (мм)",
-            options=list(diameter_options.keys()),
-            format_func=lambda x: diameter_options.get(x, "Все"),
-            key="filter_pipe_diameter"
+with col1:
+    if filter_options.get('pipe_diameter'):
+        selected_diameter = st.selectbox(
+            "Диаметр трубки",
+            [{'id': None, 'name': 'Все'}] + filter_options['pipe_diameter'],
+            format_func=lambda x: f"{x['name']} мм" if x['id'] is not None else x['name']
         )
+    else:
+        selected_diameter = None
 
-    with col2:
-        temp_min = st.number_input(
-            "Мин. температура (≤ °C)",
-            value=None,
-            placeholder="Не выше",
-            step=5,
-            key="filter_temp_min"
+with col2 :
+    if filter_options.get('thread_type_id') :
+        selected_thread_type = st.selectbox(
+            "Тип резьбы" ,
+            [{'id' : None , 'name' : 'Все'}] + filter_options['thread_type_id'] ,
+            format_func=lambda x : x['name']
         )
+    else :
+        selected_thread_type = None
 
-    with col3:
-        is_active = st.checkbox("Только активные", value=True, key="filter_active")
+with col3 :
+    # Каскад: резьбы фильтруются по выбранному типу
+    if selected_thread_type and selected_thread_type.get('id') :
+        thread_options = PneumaticFitting.get_cascade_options(
+            'thread_type_id' , selected_thread_type['id']
+        )
+    else :
+        thread_options = filter_options.get('thread_id' , [])
 
-    with col4:
-        st.markdown("### ")
-        apply_btn = st.button("🔍 Применить", use_container_width=True, key="apply_filters")
+    if thread_options :
+        selected_thread = st.selectbox(
+            "Резьба" ,
+            [{'id' : None , 'name' : 'Все'}] + thread_options ,
+            format_func=lambda x : x['name']
+        )
+    else :
+        selected_thread = None
 
-    # Строка 5: Кнопка сброса
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        reset_btn = st.button("🗑 Сбросить все фильтры", use_container_width=True)
+    # ==================== СТРОКА 4 ====================
+col1, col2, col3 = st.columns(3)
 
-    # Сбор параметров фильтрации
-    filters = {
-        'code': code if code else None,
-        'temp_min': temp_min if temp_min else None,
-        'brand_id': brand_id if brand_id != 0 else None,
-        'fitting_model_line_id': model_line_id if model_line_id != 0 else None,
-        'fitting_variety_id': variety_id if variety_id != 0 else None,
-        'body_material_id': body_material_id if body_material_id != 0 else None,
-        'pipe_material_id': pipe_material_id if pipe_material_id != 0 else None,
-        'pipe_diameter': pipe_diameter if pipe_diameter != 0 else None,
-        'thread_type_id': thread_type_id if thread_type_id != 0 else None,
-        'thread_id': thread_id if thread_id != 0 else None,
-        'thread_inner_outer_id': thread_inner_outer_id if thread_inner_outer_id != 0 else None,
-        'is_active': is_active
-    }
+with col1:
+    if filter_options.get('thread_inner_outer_id'):
+        selected_tio = st.selectbox(
+            "Резьба (нар/внут)",
+            [{'id': None, 'name': 'Все'}] + filter_options['thread_inner_outer_id'],
+            format_func=lambda x: x['name']
+        )
+    else:
+        selected_tio = None
 
-    return filters, apply_btn, reset_btn
+with col2:
+    temp_min = st.number_input(
+        "Мин. температура (≤ °C)",
+        value=None,
+        placeholder="Не указано",
+        step=5
+    )
 
+with col3:
+    limit = st.number_input("Лимит записей", min_value=1, max_value=1000, value=100)
 
-def render_simple_fitting_card(fitting: dict):
-    """Рендер простой карточки фитинга (только description)"""
-    description = fitting.get('description', '')
-    if not description:
-        description = '—'
+# ==================== ФОРМИРУЕМ ПАРАМЕТРЫ ====================
+params = {'limit': limit}
 
-    is_active = fitting.get('is_active', True)
-    bg_color = '#fef9e6' if not is_active else '#fff'
-    border_color = '#ffcccc' if not is_active else '#e0e0e0'
+if search_text:
+    params['search'] = search_text
 
-    with st.container():
-        st.markdown(f"""
-        <div style="
-            border: 1px solid {border_color};
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            background-color: {bg_color};
-        ">
-            <div style="font-size: 14px; color: #444; line-height: 1.4;">
-                {description}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+if selected_brand and selected_brand.get('id'):
+    params['brand_id'] = selected_brand['id']
 
+if selected_line and selected_line.get('id'):
+    params['fitting_model_line_id'] = selected_line['id']
 
-def render_results():
-    """Рендер результатов поиска"""
-    if not st.session_state.filters_applied:
-        st.info("👆 Используйте фильтры выше для поиска фитингов")
-        return
+if selected_variety and selected_variety.get('id'):
+    params['fitting_variety_id'] = selected_variety['id']
 
-    result = st.session_state.filter_result
+if selected_body_material and selected_body_material.get('id'):
+    params['body_material_id'] = selected_body_material['id']
 
-    if not result or not result.get('data'):
-        st.warning("😕 Ничего не найдено. Попробуйте изменить критерии поиска.")
-        return
+if selected_pipe_material and selected_pipe_material.get('id'):
+    params['pipe_material_id'] = selected_pipe_material['id']
 
-    data = result['data']
-    for fitting in data:
-        render_simple_fitting_card(fitting)
+if selected_diameter and selected_diameter.get('id'):
+    params['pipe_diameter'] = selected_diameter['id']
 
-def main():
-    """Главная функция страницы"""
-    init_session_state()
+if selected_thread and selected_thread.get('id') :
+    # COMPATIBLE_CASCADE сам учтёт совместимые типы — thread_type_id не нужен
+    params['thread_id'] = selected_thread['id']
+elif selected_thread_type and selected_thread_type.get('id') :
+    # Только тип, без конкретной резьбы
+    params['thread_type_id'] = selected_thread_type['id']
 
-    filters, apply_btn, reset_btn = render_filters()
+if selected_tio and selected_tio.get('id'):
+    params['thread_inner_outer_id'] = selected_tio['id']
 
-    if apply_btn:
-        with st.spinner("Поиск..."):
-            clean_filters = {k: v for k, v in filters.items() if v is not None and v != ''}
-            # Сохраняем фильтры в query_params
-            st.query_params.update(clean_filters)
-            st.session_state.filter_result = PneumaticFitting.filter_by_params(clean_filters)
-            st.session_state.filters_applied = True
-            st.rerun()
+if temp_min:
+    params['temp_min'] = temp_min
 
-    if reset_btn:
-        # Очищаем query_params - это автоматически сбросит все виджеты
-        # Сбрасываем session_state
-        st.session_state.filter_code = ""
-        st.session_state.filter_brand = 0
-        st.session_state.filter_model_line = 0
-        st.session_state.filter_variety = 0
-        st.session_state.filter_thread_type = 0
-        st.session_state.filter_thread = 0
-        st.session_state.filter_tio = 0
-        st.session_state.filter_body_material = 0
-        st.session_state.filter_pipe_material = 0
-        st.session_state.filter_pipe_diameter = 0
-        st.session_state.filter_temp_min = None
-        st.session_state.filter_active = True
+# ==================== ЗАГРУЖАЕМ ДАННЫЕ ====================
+result = PneumaticFitting.filter_by_params(params)
 
-        st.session_state.filter_result = None
-        st.session_state.filters_applied = False
-        st.rerun()
+st.markdown("---")
+st.markdown("### 📈 Результаты")
 
-    st.markdown("---")
-    render_results()
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Найдено записей", result['total'])
+with col2:
+    st.metric("Загружено записей", len(result['data']))
 
+if result.get('filters_applied'):
+    st.write(f"**Применённые фильтры:** {result['filters_applied']}")
 
-if __name__ == "__main__":
-    main()
+# ==================== ОТОБРАЖАЕМ КАРТОЧКИ ====================
+for item in result['data']:
+    expander_title = item['name']
+    if item.get('code'):
+        expander_title += f" ({item['code']})"
+    if item.get('pipe_diameter'):
+        expander_title += f" | ⌀{item['pipe_diameter']} мм"
+
+    with st.expander(expander_title):
+        if item.get('description'):
+            st.markdown(f"**📝 Описание:** {item['description']}")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**📋 Основное:**")
+            st.write(f"**Бренд:** {item['brand']['name'] if item.get('brand') else '-'}")
+            st.write(f"**Серия:** {item['model_line']['name'] if item.get('model_line') else '-'}")
+            st.write(f"**Тип фитинга:** {item['fitting_variety']['name'] if item.get('fitting_variety') else '-'}")
+            st.write(f"**Диаметр трубки:** {item.get('pipe_diameter', '-')} мм" if item.get('pipe_diameter') else "**Диаметр трубки:** -")
+            # Badge совместимости резьбы
+            if selected_thread_type and selected_thread_type.get('id') :
+                item_thread = item.get('thread' , {}) or {}
+                item_tt = item_thread.get('thread_type' , {}) or {}
+                if item_tt.get('id') and item_tt['id'] != selected_thread_type['id'] :
+                    st.caption(
+                        f"🔗 Совместимая резьба: {item_tt.get('name' , '')} (выбрано: {selected_thread_type['name']})")
+
+        with col2:
+            st.markdown("**⚙️ Характеристики:**")
+            st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
+            st.write(f"**Материал трубки:** {item['pipe_material']['name'] if item.get('pipe_material') else '-'}")
+            st.write(f"**Резьба:** {item['thread']['name'] if item.get('thread') else '-'}")
+            st.write(f"**Тип резьбы:** {item['thread_inner_outer']['name'] if item.get('thread_inner_outer') else '-'}")
+            temp_range = f"{item.get('temp_min', '-')}…{item.get('temp_max', '-')} °C"
+            st.write(f"**Температура:** {temp_range}")
+
+        # Дополнительные параметры если есть
+        if item.get('flow_rate') or item.get('operating_pressure'):
+            st.markdown("---")
+            st.markdown("**📊 Дополнительно:**")
+            extras_col1, extras_col2 = st.columns(2)
+            with extras_col1:
+                if item.get('flow_rate'):
+                    st.write(f"**Расход:** {item['flow_rate']} л/мин")
+            with extras_col2:
+                if item.get('operating_pressure'):
+                    st.write(f"**Рабочее давление:** {item['operating_pressure']} бар")

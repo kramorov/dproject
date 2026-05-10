@@ -4,15 +4,14 @@ from typing import Dict, List, Any
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from filter_regulator.models import FilterRegulatorBody
 from filter_regulator.models.fr_model_line import FilterRegulatorModelLine
 from filter_regulator.models.fr_options import FilterRegulatorVariety , DrainVariety
-from params.models import ThreadSize
 
 
-class FilterRegulator(CatalogFilterMixin,CopyMixin,TemplateMixin,  models.Model):
+class FilterRegulator(SmartCatalogMixin,CopyMixin,TemplateMixin,  models.Model):
     """Модель фильтр-регулятора (каталог)"""
     name = models.TextField(blank=True ,
                             verbose_name=_("Название") ,
@@ -152,69 +151,158 @@ class FilterRegulator(CatalogFilterMixin,CopyMixin,TemplateMixin,  models.Model)
         default_description_template = ("{model_code} {filter_variety} {brand}; Расход {flow_rate} л/мин; {drain_variety}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material}, Материал стакана: {bowl_material_text}, Кожух: {protection_material} Порты: {thread}; слив: {drain_port_size}; {gauge_quantity}; фильтрация {filtration_rating} мкм; Диапазон регулировки давления {pressure_min}..{pressure_max} бар; Макс. входное давление {pressure_inlet_max} бар; вес {weight}кг. Настенное крепление: {wall_mounting_included}")
         return default_description_template
 
-        # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА ==========
+        # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
 
-    FILTER_CONFIG = [
-        # Прямые поля
-        FilterFieldConfig('model_line_id', 'model_line', 'exact'),
-        FilterFieldConfig('drain_variety_id', 'drain_variety', 'exact'),
-        FilterFieldConfig('gauge_quantity', 'gauge_quantity', 'exact'),
-        FilterFieldConfig('filter_element_material', 'filter_element_material', 'exact'),
+    FILTER_DEFINITIONS = [
+        # --- Прямые ForeignKey ---
+        FilterDefinition(
+            param_name='model_line_id' ,
+            model_field='model_line' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Серия' ,
+            order=1
+        ) ,
+        FilterDefinition(
+            param_name='drain_variety_id' ,
+            model_field='drain_variety' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Тип дренажа' ,
+            order=2
+        ) ,
 
-        # Диапазонные фильтры
-        CommonFilterConfigs.min_value_filter('filtration_rating', param_name='min_filtration_rating'),
-        CommonFilterConfigs.max_value_filter('filtration_rating', param_name='max_filtration_rating'),
-        CommonFilterConfigs.min_value_filter('flow_rate', param_name='min_flow_rate'),
-        CommonFilterConfigs.max_value_filter('flow_rate', param_name='max_flow_rate'),
+        # --- Choice-поля ---
+        FilterDefinition(
+            param_name='gauge_quantity' ,
+            model_field='gauge_quantity' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.CHOICES ,
+            source_field='gauge_quantity' ,
+            label='Манометр' ,
+            order=3
+        ) ,
+        FilterDefinition(
+            param_name='filter_element_material' ,
+            model_field='filter_element_material' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.CHOICES ,
+            source_field='filter_element_material' ,
+            label='Материал фильтр. элемента' ,
+            order=4
+        ) ,
 
-        # Фильтры по полям корпуса
-        FilterFieldConfig('body_thread_id', 'body__thread', 'exact', is_related_field=True),
+        # --- Диапазонные (MIN/MAX) ---
+        FilterDefinition(
+            param_name='min_filtration_rating' ,
+            model_field='filtration_rating' ,
+            filter_type=FilterType.MIN ,
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Тонкость фильтрации от' ,
+            order=5
+        ) ,
+        FilterDefinition(
+            param_name='max_filtration_rating' ,
+            model_field='filtration_rating' ,
+            filter_type=FilterType.MAX ,
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Тонкость фильтрации до' ,
+            order=6
+        ) ,
+        FilterDefinition(
+            param_name='min_flow_rate' ,
+            model_field='flow_rate' ,
+            filter_type=FilterType.MIN ,
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Расход от' ,
+            order=7
+        ) ,
+        FilterDefinition(
+            param_name='max_flow_rate' ,
+            model_field='flow_rate' ,
+            filter_type=FilterType.MAX ,
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Расход до' ,
+            order=8
+        ) ,
 
-        # Фильтры по полям серии
-        FilterFieldConfig('model_line_filter_variety_id', 'model_line__filter_variety', 'exact', is_related_field=True),
-        FilterFieldConfig('model_line_body_material_id', 'model_line__body_material', 'exact', is_related_field=True),
+        # --- Связанные ForeignKey (через body / model_line) ---
+        FilterDefinition(
+            param_name='body_thread_id' ,
+            model_field='body__thread' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
+            label='Резьба корпуса' ,
+            order=9
+        ) ,
+        FilterDefinition(
+            param_name='model_line_filter_variety_id' ,
+            model_field='model_line__filter_variety' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
+            label='Разновидность' ,
+            order=10
+        ) ,
+        FilterDefinition(
+            param_name='model_line_body_material_id' ,
+            model_field='model_line__body_material' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
+            label='Материал корпуса серии' ,
+            order=11
+        ) ,
+        FilterDefinition(
+            param_name='model_line_brand_id' ,
+            model_field='model_line__brand' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
+            label='Бренд серии' ,
+            order=12
+        ) ,
 
-        # Фильтр по бренду из model_line
-        FilterFieldConfig('model_line_brand_id', 'model_line__brand', 'exact', is_related_field=True),
-        # Фильтры по температуре связанные поля из model_line
-        CommonFilterConfigs.temp_min_filter(
-            field_name='work_temp_min',
-            param_name='model_line_work_temp_min',
-            is_related_field=True,
-            related_path='model_line__work_temp_min'
-        ),
-        CommonFilterConfigs.temp_max_filter(
-            field_name='work_temp_max',
-            param_name='model_line_work_temp_max',
-            is_related_field=True,
-            related_path='model_line__work_temp_max'
-        ),
-        # Фильтры по давлению связанные поля из model_line
-        # Для давления - используем min_value_filter и max_value_filter
-        # Фильтры по давлению (диапазон должен перекрывать требуемый)
-        # user_min_pressure - оборудование должно иметь минимальное давление НЕ ВЫШЕ (≤)
-        CommonFilterConfigs.max_value_filter(  # ← lte
-            field_name='pressure_min',
-            param_name='model_line_pressure_min',
-            related_path='model_line__pressure_min',
-            is_related_field=True
-        ),
+        # --- Температуры (TEMP_MIN = lte, TEMP_MAX = gte) ---
+        FilterDefinition(
+            param_name='model_line_work_temp_min' ,
+            model_field='model_line__work_temp_min' ,
+            filter_type=FilterType.TEMP_MIN ,
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Раб. температура от' ,
+            order=13
+        ) ,
+        FilterDefinition(
+            param_name='model_line_work_temp_max' ,
+            model_field='model_line__work_temp_max' ,
+            filter_type=FilterType.TEMP_MAX ,
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Раб. температура до' ,
+            order=14
+        ) ,
 
-        # pressure_max должно быть НЕ НИЖЕ (≥) требуемого максимума
-        CommonFilterConfigs.min_value_filter(  # ← gte
-            field_name='pressure_max',
-            param_name='model_line_pressure_max',
-            related_path='model_line__pressure_max',
-            is_related_field=True
-        ),
-
-        # Максимальное входное давление
-        CommonFilterConfigs.min_value_filter(  # ← gte
-            field_name='pressure_inlet_max',
-            param_name='model_line_pressure_inlet_max',
-            related_path='model_line__pressure_inlet_max',
-            is_related_field=True
-        ),
+        # --- Давления (MAX=lte для user_min, MIN=gte для user_max) ---
+        FilterDefinition(
+            param_name='model_line_pressure_min' ,
+            model_field='model_line__pressure_min' ,
+            filter_type=FilterType.MAX ,  # lte: оборудование.pressure_min <= user_min
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Требуемое давление от' ,
+            order=15
+        ) ,
+        FilterDefinition(
+            param_name='model_line_pressure_max' ,
+            model_field='model_line__pressure_max' ,
+            filter_type=FilterType.MIN ,  # gte: оборудование.pressure_max >= user_max
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Требуемое давление до' ,
+            order=16
+        ) ,
+        FilterDefinition(
+            param_name='model_line_pressure_inlet_max' ,
+            model_field='model_line__pressure_inlet_max' ,
+            filter_type=FilterType.MIN ,  # gte
+            data_source_type=DataSourceType.FIELD_VALUES ,
+            label='Макс. входное давление' ,
+            order=17
+        ) ,
     ]
 
     SEARCH_FIELDS = ['code', 'name', 'description']
@@ -229,36 +317,6 @@ class FilterRegulator(CatalogFilterMixin,CopyMixin,TemplateMixin,  models.Model)
         'drain_variety',
     ]
 
-    PREFETCH_FIELDS = []
-
-    @classmethod
-    def get_filter_options(cls) -> Dict[str, List[Dict]]:
-        """Получить все доступные опции для фильтрации в UI"""
-        result = {
-            # Прямые ForeignKey поля
-            'model_lines': cls.get_distinct_values('model_line'),
-            'drain_varieties': cls.get_distinct_values('drain_variety'),
-
-            # ForeignKey через get_foreign_key_options
-            'body_thread_options': cls._get_foreign_key_options('body__thread'),
-            'model_line_filter_varieties': cls._get_foreign_key_options('model_line__filter_variety'),
-            'model_line_body_materials': cls._get_foreign_key_options('model_line__body_material'),
-            'model_line_brands': cls._get_foreign_key_options('model_line__brand'),  # ← добавили
-
-            # Choice поля
-            'gauge_quantity_options': [
-                {'id': 0, 'name': str(_('Без манометра')), 'code': '0'},
-                {'id': 1, 'name': str(_('1 манометр в комплекте')), 'code': '1'},
-                {'id': 2, 'name': str(_('2 манометра в комплекте')), 'code': '2'},
-            ],
-
-            # Диапазоны значений
-            'filtration_rating_range': cls._get_value_range('filtration_rating'),
-            'flow_rate_range': cls._get_value_range('flow_rate'),
-            'model_line_pressure_range': cls._get_value_range('model_line__pressure_min'),
-            'model_line_temp_range': cls._get_value_range('model_line__work_temp_min'),
-        }
-        return result
 
     def to_dict(self) -> Dict[str, Any]:
         """Сериализация фильтр-регулятора"""
@@ -288,6 +346,11 @@ class FilterRegulator(CatalogFilterMixin,CopyMixin,TemplateMixin,  models.Model)
                 'id': self.model_line.id,
                 'name': self.model_line.name,
                 'code': getattr(self.model_line, 'code', ''),
+                'brand' : {
+                    'id' : self.model_line.brand.id ,
+                    'name' : self.model_line.brand.name ,
+                    'code' : getattr(self.model_line.brand , 'code' , '')
+                } if self.model_line and self.model_line.brand else None ,
                 'filter_variety': {
                     'id': self.model_line.filter_variety.id,
                     'name': self.model_line.filter_variety.name,
@@ -299,11 +362,11 @@ class FilterRegulator(CatalogFilterMixin,CopyMixin,TemplateMixin,  models.Model)
                 'work_temp_min': self.model_line.work_temp_min if self.model_line else None,
                 'work_temp_max': self.model_line.work_temp_max if self.model_line else None,
                 'pressure_min': float(
-                    self.model_line.pressure_min) if self.model_line and self.model_line.pressure_min else None,
+                    self.model_line.pressure_min) if self.model_line and self.model_line.pressure_min is not None else None,
                 'pressure_max': float(
-                    self.model_line.pressure_max) if self.model_line and self.model_line.pressure_max else None,
+                    self.model_line.pressure_max) if self.model_line and self.model_line.pressure_max is not None else None,
                 'pressure_inlet_max': float(
-                    self.model_line.pressure_inlet_max) if self.model_line and self.model_line.pressure_inlet_max else None,
+                    self.model_line.pressure_inlet_max) if self.model_line and self.model_line.pressure_inlet_max is not None else None,
             } if self.model_line else None,
 
             'drain_variety': {

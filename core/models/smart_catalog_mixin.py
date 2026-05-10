@@ -21,6 +21,8 @@ class FilterType(Enum):
     TEMP_MAX = "temp_max"  # максимальная температура
     IP_RANK = "ip_rank"  # ранг IP (>= выбранного)
     EXD_COMPATIBLE = "exd_compatible"  # поиск совместимых ExdOption (M2M или FK)
+    FK_CASCADE = "fk_cascade" # ← каскадный FK: родитель → потомки → __in
+    COMPATIBLE_CASCADE = "compatible_cascade" #По аналогии с EXD_COMPATIBLE, но для каскадных FK с учётом совместимости:
 
 
 class DataSourceType(Enum):
@@ -114,6 +116,9 @@ class FilterDefinition:
             choices: List[tuple] = None,  # для CHOICES - список вариантов
             active_only: bool = True,  # только активные
             order_by: str = 'name',  # сортировка опций
+            cascade_model: Type[models.Model] = None ,  # ← для FK_CASCADE
+            cascade_lookup: str = None ,  # ← для FK_CASCADE
+            cascade_match_fields: List[str] = None ,  # ← для FK_CASCADE поля для сопоставления (диаметр, шаг)
     ):
         self.param_name = param_name
         self.model_field = model_field
@@ -126,6 +131,9 @@ class FilterDefinition:
         self.choices = choices
         self.active_only = active_only
         self.order_by = order_by
+        self.cascade_model = cascade_model
+        self.cascade_lookup = cascade_lookup
+        self.cascade_match_fields = cascade_match_fields or []
 
     def get_options(self, model_class) -> List[Dict]:
         """Получить опции для фильтра на основе data_source_type"""
@@ -270,7 +278,6 @@ class FilterDefinition:
 
         elif self.filter_type == FilterType.IP_RANK:
             # Для IP нужно получить ранг выбранной записи
-
             try:
                 selected_ip = IpOption.objects.get(id=int(value))
                 return f"{self.model_field}__ip_rank__gte", selected_ip.ip_rank
@@ -298,7 +305,90 @@ class FilterDefinition:
                 print(f"  ERROR: {e}")
                 return None, None
 
-        # EXACT, CHOICE, BOOLEAN и прочие — прямое совпадение
+        elif self.filter_type == FilterType.FK_CASCADE:
+            if not self.cascade_model or not self.cascade_lookup :
+                return None , None
+            try :
+                value_int = int(value)
+
+                # Определяем: value — это ID cascade_model или source_model?
+                child = self.cascade_model.objects.filter(id=value_int).first()
+
+                if child :
+                    # --- Режим «от потомка»: value = ThreadSize.id ---
+                    # 1. Находим его родителя (ThreadTypes)
+                    parent_id = getattr(child , self.cascade_lookup + '_id')
+                    # 2. Совместимые родители
+                    if self.source_model and hasattr(self.source_model , 'get_compatible_ids') :
+                        parent = self.source_model.objects.get(id=parent_id)
+                        parent_ids = parent.get_compatible_ids()
+                    else :
+                        parent_ids = [parent_id]
+                        # 3. Ищем потомков: совместимый тип + совпадение по cascade_match_fields
+                    match_filter = {f'{self.cascade_lookup}__in' : parent_ids}
+                    if self.cascade_match_fields :
+                        for field in self.cascade_match_fields :
+                            val = getattr(child , field)
+                            if val is not None :
+                                match_filter[field] = val
+                    child_ids = list(
+                        self.cascade_model.objects
+                        .filter(**match_filter)
+                        .values_list('id' , flat=True)
+                    )
+                elif self.source_model :
+                    # --- Режим «от родителя»: value = ThreadTypes.id ---
+                    if hasattr(self.source_model , 'get_compatible_ids') :
+                        parent = self.source_model.objects.get(id=value_int)
+                        parent_ids = parent.get_compatible_ids()
+                    else :
+                        parent_ids = [value_int]
+                    child_ids = list(
+                        self.cascade_model.objects
+                        .filter(**{f'{self.cascade_lookup}__in' : parent_ids})
+                        .values_list('id' , flat=True)
+                    )
+                else :
+                    return None , None
+                if not child_ids :
+                        return None , None
+                return f'{self.model_field}__in' , child_ids
+
+            except Exception :
+                return None , None
+
+        elif self.filter_type == FilterType.COMPATIBLE_CASCADE :
+            # value = ID родителя (ThreadTypes)
+            # source_model = родитель (ThreadTypes) — должен иметь get_compatible_ids()
+            # cascade_model = потомок (ThreadSize)
+            # cascade_lookup = поле в потомке → родитель (thread_type)
+            if not self.source_model or not self.cascade_model or not self.cascade_lookup :
+                return None , None
+            try :
+                selected = self.cascade_model.objects.get(id=int(value))
+                parent = getattr(selected , self.cascade_lookup)  # ThreadTypes-объект
+                compatible_type_ids = parent.get_compatible_ids()
+                # Строим фильтр: тип в совместимых + совпадение по диаметру/шагу
+                match_filter = {f"{self.cascade_lookup}__in" : compatible_type_ids}
+                if self.cascade_match_fields :
+                    for field in self.cascade_match_fields :
+                        val = getattr(selected , field)
+                        if val is not None :
+                            match_filter[field] = val
+
+                child_ids = list(
+                    self.cascade_model.objects
+                    .filter(**match_filter)
+                    .values_list('id' , flat=True)
+                )
+                if not child_ids :
+                    return None , None
+                return f"{self.model_field}__in" , child_ids
+            except Exception :
+                return None , None
+
+
+            # EXACT, CHOICE, BOOLEAN и прочие — прямое совпадение
         return f"{self.model_field}", value
 
 
@@ -329,6 +419,40 @@ class SmartCatalogMixin(models.Model):
                     result[fd.param_name] = options
 
         return result
+
+    @classmethod
+    def get_cascade_options(cls , parent_param_name: str , parent_value: Any) -> List[Dict] :
+        """
+        Опции для дочернего дропдауна, отфильтрованные по родителю.
+        Использует cascade_model и cascade_lookup из FilterDefinition родителя.
+        Пример: get_cascade_options('thread_type_id', 3) → все ThreadSize с thread_type=3
+        """
+        for fd in cls.FILTER_DEFINITIONS :
+            if fd.param_name == parent_param_name and fd.cascade_model and fd.cascade_lookup :
+                try :
+                    parent_id = int(parent_value)
+                    if fd.source_model and hasattr(fd.source_model , 'get_compatible_ids') :
+                        parent = fd.source_model.objects.get(id=parent_id)
+                        parent_ids = parent.get_compatible_ids()
+                    else :
+                        parent_ids = [parent_id]
+
+                    qs = fd.cascade_model.objects.filter(
+                        **{f'{fd.cascade_lookup}__in' : parent_ids}
+                    )
+                    if hasattr(fd.cascade_model , 'is_active') :
+                        qs = qs.filter(is_active=True)
+                    if hasattr(fd.cascade_model , 'sorting_order') :
+                        qs = qs.order_by('sorting_order' , 'name')
+                    else :
+                        qs = qs.order_by('name')
+                    return [
+                        {'id' : obj.id , 'name' : str(obj) , 'code' : getattr(obj , 'code' , '') or ''}
+                        for obj in qs
+                    ]
+                except Exception :
+                    return []
+        return []
 
     @classmethod
     def _apply_text_search(cls, queryset: QuerySet, search_text: str) -> QuerySet:

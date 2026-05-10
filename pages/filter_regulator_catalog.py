@@ -1,4 +1,4 @@
-# filter_regulator_catalog.py
+# pages/filter_regulator_catalog.py
 
 import streamlit as st
 from filter_regulator.models import FilterRegulator
@@ -35,26 +35,26 @@ with col1:
     search_text = st.text_input("Поиск", placeholder="Код или название...")
 
 with col2:
-    if filter_options.get('model_lines'):
+    if filter_options.get('model_line_id'):
         selected_line = st.selectbox(
             "Серия",
-            [{'id': None, 'name': 'Все'}] + filter_options['model_lines'],
+            [{'id': None, 'name': 'Все'}] + filter_options['model_line_id'],
             format_func=lambda x: x['name']
         )
 
 with col3:
-    if filter_options.get('drain_varieties'):
+    if filter_options.get('drain_variety_id'):
         selected_drain = st.selectbox(
             "Тип дренажа",
-            [{'id': None, 'name': 'Все'}] + filter_options['drain_varieties'],
+            [{'id': None, 'name': 'Все'}] + filter_options['drain_variety_id'],
             format_func=lambda x: x['name']
         )
 
 with col4:
-    if filter_options.get('model_line_brands'):
+    if filter_options.get('model_line_brand_id'):
         selected_brand = st.selectbox(
             "Бренд серии",
-            [{'id': None, 'name': 'Все'}] + filter_options['model_line_brands'],
+            [{'id': None, 'name': 'Все'}] + filter_options['model_line_brand_id'],
             format_func=lambda x: x['name']
         )
 
@@ -63,26 +63,26 @@ st.markdown("### 🔧 Параметры серии (Model Line)")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if filter_options.get('body_thread_options'):
+    if filter_options.get('body_thread_id'):
         selected_thread = st.selectbox(
             "Резьба корпуса",
-            [{'id': None, 'name': 'Все'}] + filter_options['body_thread_options'],
+            [{'id': None, 'name': 'Все'}] + filter_options['body_thread_id'],
             format_func=lambda x: x['name']
         )
 
 with col2:
-    if filter_options.get('model_line_filter_varieties'):
+    if filter_options.get('model_line_filter_variety_id'):
         selected_filter_variety = st.selectbox(
             "Разновидность",
-            [{'id': None, 'name': 'Все'}] + filter_options['model_line_filter_varieties'],
+            [{'id': None, 'name': 'Все'}] + filter_options['model_line_filter_variety_id'],
             format_func=lambda x: x['name']
         )
 
 with col3:
-    if filter_options.get('model_line_body_materials'):
+    if filter_options.get('model_line_body_material_id'):
         selected_body_material = st.selectbox(
             "Материал корпуса серии",
-            [{'id': None, 'name': 'Все'}] + filter_options['model_line_body_materials'],
+            [{'id': None, 'name': 'Все'}] + filter_options['model_line_body_material_id'],
             format_func=lambda x: x['name']
         )
 
@@ -131,10 +131,10 @@ with col1:
     )
 
 with col2:
-    if filter_options.get('gauge_quantity_options'):
+    if filter_options.get('gauge_quantity'):
         selected_gauge = st.selectbox(
             "Манометр",
-            [{'id': None, 'name': 'Все'}] + filter_options['gauge_quantity_options'],
+            [{'id': None, 'name': 'Все'}] + filter_options['gauge_quantity'],
             format_func=lambda x: x['name']
         )
 

@@ -853,6 +853,12 @@ class ThreadTypes(models.Model, OptionListToSelectMixin):
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
+    compatible_thread_types = models.ManyToManyField(
+        'self' , blank=True , symmetrical=True ,
+        verbose_name=_("Совместимые типы резьб") ,
+        help_text=_("Например: G совместим с R (BSPT)")
+    )
+
     class Meta:
         verbose_name = _('Тип резьбы')
         verbose_name_plural = _('Типы резьб')
@@ -860,6 +866,14 @@ class ThreadTypes(models.Model, OptionListToSelectMixin):
 
     def __str__(self):
         return self.name
+
+
+
+    def get_compatible_ids(self) -> List[int] :
+        """Возвращает [свой id] + id совместимых типов"""
+        ids = [self.id]
+        ids.extend(self.compatible_thread_types.values_list('id' , flat=True))
+        return list(set(ids))
 
 
 class ThreadInnerOuter(models.Model, OptionListToSelectMixin):
