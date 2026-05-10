@@ -23,7 +23,7 @@ class GearBoxAdmin(admin.ModelAdmin):
             'fields': ('name', 'code',  'model_line', 'is_active', 'sorting_order')
         }),
         (_('Корпус и механизмы'), {
-            'fields': (('body', 'body_material_text'),('override_mechanism', 'locking_mechanism', 'is_declutchable'))
+            'fields': (('body', 'body_material', 'body_material_text'),('override_mechanism', 'locking_mechanism', 'is_declutchable'))
         }),
         (_('Температурные режимы'), {
             'fields': (('work_temp_min', 'work_temp_max'),('ip', 'interlock'))

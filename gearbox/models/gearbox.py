@@ -7,6 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
+from materials.models import MaterialGeneral
+from pa_controls.models import SignalType
 from params.models import LockingMechanism, IpOption, MountingPlateTypes
 
 
@@ -39,6 +41,14 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
         verbose_name=_("Корпус редуктора"),
         help_text=_("Корпус редуктора с писанием свойств")
     )
+    # Материал корпуса - для фильтров
+    body_material = models.ForeignKey(MaterialGeneral , related_name='gearbox_body_material' ,
+                                      blank=True ,
+                                      null=True ,
+                                      on_delete=models.SET_NULL ,
+                                      help_text=_('Корпус') ,
+                                      verbose_name=_('Тип материала корпуса'))
+
     body_material_text = models.CharField(
         max_length=50, null=True, blank=True,
         verbose_name=_("Материал корпуса")
@@ -214,11 +224,11 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
             order=6
         ),
         FilterDefinition(
-            param_name='work_temp_max',
-            model_field='work_temp_max',
-            filter_type=FilterType.TEMP_MAX,
+            param_name='min_work_torque',
+            model_field='body__max_work_torque',
+            filter_type=FilterType.MIN,
             data_source_type=DataSourceType.FIELD_VALUES,
-            label='Температура до',
+            label='Рабочий момент не меньше',
             order=6
         ),
         # Материалы
@@ -230,6 +240,15 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
             label='Материал корпуса',
             order=7
         ),
+        # Материалы
+        FilterDefinition(
+            param_name='body_id' ,
+            model_field='body' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Модель корпуса' ,
+            order=7
+        ) ,
 
         # Бренд через серию
         FilterDefinition(
@@ -240,27 +259,11 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
             label='Бренд серии',
             order=8
         ),
+        FilterDefinition(param_name='mounting_plate_top_id' ,
+                         model_field='body__mounting_plate_top' , filter_type=FilterType.EXACT ,
+                         data_source_type=DataSourceType.GLOBAL_MODEL , source_model=MountingPlateTypes ,
+                         label='Монтажная площадка' , order=10) ,
 
-        # Тип сигнала (датчики)
-        # FilterDefinition(  #Все значения из глобальной модели
-        #     param_name='signal_type_id',
-        #     model_field='primary_sensor__signal_type',
-        #     filter_type=FilterType.EXACT,
-        #     data_source_type=DataSourceType.GLOBAL_MODEL,
-        #     source_model=SignalType,
-        #     label='Тип сигнала',
-        #     order=9
-        # ),
-        # Только имеющиеся в справочнике
-        # Для ForeignKey полей - используем UNIQUE_FIELD_VALUES (только используемые)
-        FilterDefinition(
-            param_name='signal_type_id',
-            model_field='primary_sensor__signal_type',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,  # ← только используемые
-            label='Тип сигнала',
-            order=9
-        ),
     ]
 
 
@@ -321,11 +324,11 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
                 'name': self.ip.name,
                 'code': getattr(self.ip, 'code', '')
             } if self.ip else None,
-
-            'interlock': {
-                'id': self.interlock.id,
-                'name': self.interlock.name,
-            } if self.interlock else None,
+            #
+            # 'interlock': {
+            #     'id': self.interlock.id,
+            #     'name': self.interlock.name,
+            # } if self.interlock else None,
 
             # Параметры работы
             'work_temp_min': self.work_temp_min,

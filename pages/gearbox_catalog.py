@@ -1,68 +1,8 @@
-#gearbox_catalog.py
+#pages/gearbox_catalog.py
 import streamlit as st
 from gearbox.models import GearBox
-from params.exd_models import HazardousGroup , ExplosionProtectionType , TemperatureClass , ExplosionProtectionLevel , \
-    ExplosionProtectionMethod
 
 st.title("Отладка редукторов")
-
-# ========== СЕЛЕКТОРЫ ВЗРЫВОЗАЩИТЫ (с использованием метода NONE) ==========
-# Получаем все активные методы, включая 'NONE'
-methods = ExplosionProtectionMethod.objects.filter(is_active=True).order_by('sorting_order')
-method_choices = [{'id': None, 'code': 'NONE', 'name': 'Общепромышленное'}] + [
-    {'id': m.id, 'code': m.code, 'name': m.name} for m in methods
-]
-
-st.markdown("### 🔥 Взрывозащита")
-
-selected_method = st.selectbox(
-    "Способ взрывозащиты или общепромышленное исполнение",
-    method_choices,
-    format_func=lambda x: f"{x['code']} – {x['name']}" if x['code'] != 'NONE' else x['name']
-)
-
-# Если выбран метод "Общепромышленное" (code=NONE), остальные селекторы не показываем
-if selected_method['id'] is None:
-    st.info("Выбрано общепромышленное исполнение (без взрывозащиты)")
-    prot_type = None
-    hazard_group = None
-    temp_class = None
-else:
-    # Получаем конкретные типы взрывозащиты, связанные с выбранным методом
-    prot_types = ExplosionProtectionType.objects.filter(
-        method_id=selected_method['id'],
-        is_active=True
-    ).order_by('sorting_order')
-    prot_choices = [{'id': t.id, 'name': t.name, 'code': t.code} for t in prot_types]
-
-    # Группы газа и пыли (отдельно)
-    gas_groups = HazardousGroup.objects.filter(group_type='GAS').order_by('rating')
-    dust_groups = HazardousGroup.objects.filter(group_type='DUST').order_by('rating')
-    # Объединяем для выбора одной группы (пользователь сам выберет газ или пыль)
-    all_groups = [{'id': g.id, 'code': g.code, 'type': 'GAS'} for g in gas_groups] + \
-                 [{'id': g.id, 'code': g.code, 'type': 'DUST'} for g in dust_groups]
-
-    # Температурные классы
-    temp_classes = TemperatureClass.objects.filter(is_active=True).order_by('sorting_order')
-    temp_choices = [{'id': t.id, 'code': t.temperature_class, 'max_temp': t.max_surface_temp} for t in temp_classes]
-
-    col1, col2 = st.columns(2)
-    with col1:
-        prot_type = st.selectbox("Тип взрывозащиты", prot_choices, format_func=lambda x: x['name'])
-    with col2:
-        selected_group = st.selectbox(
-            "Группа опасности",
-            [{'id': None, 'code': '—'}] + all_groups,
-            format_func=lambda x: x['code']
-        )
-        hazard_group = selected_group if selected_group['id'] is not None else None
-
-    temp_choice = st.selectbox(
-        "Температурный класс",
-        [{'id': None, 'code': '—'}] + temp_choices,
-        format_func=lambda x: x['code']
-    )
-    temp_class = temp_choice if temp_choice['id'] is not None else None
 
 # ========== ОСТАЛЬНЫЕ ФИЛЬТРЫ (без изменений) ==========
 
@@ -88,33 +28,31 @@ with col2:
 
 with col3:
     # Фильтр по минимальной температуре
-    temp_min = st.number_input(
+    work_temp_min = st.number_input(
         "Температура от (°С)",
         value=None,
         placeholder="Не указано",
         step=5
     )
-
 with col4:
-    # Фильтр по IP
-    if filter_options.get('ip_options'):
-        selected_ip = st.selectbox(
-            "IP",
-            [{'id': None, 'name': 'Все'}] + filter_options['ip_options'],
-            format_func=lambda x: x['name']
-        )
-    else:
-        selected_ip = None
+    # Фильтр по максимальной температуре
+    work_temp_max = st.number_input(
+        "Температура до (°С)",
+        value=None,
+        placeholder="Не указано",
+        step=5
+    )
+
 
 # ==================== СТРОКА 2 ====================
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     # Фильтр по серии
-    if filter_options.get('model_lines'):
+    if filter_options.get('model_line_id'):
         selected_line = st.selectbox(
             "Серия",
-            [{'id': None, 'name': 'Все'}] + filter_options['model_lines'],
+            [{'id': None, 'name': 'Все'}] + filter_options['model_line_id'],
             format_func=lambda x: x['name']
         )
     else:
@@ -122,30 +60,32 @@ with col1:
 
 with col2:
     # Фильтр по корпусу
-    if filter_options.get('bodies'):
+    if filter_options.get('body_id'):
         selected_body = st.selectbox(
             "Корпус",
-            [{'id': None, 'name': 'Все'}] + filter_options['bodies'],
+            [{'id': None, 'name': 'Все'}] + filter_options['body_id'],
             format_func=lambda x: x['name']
         )
     else:
         selected_body = None
 
 with col3:
-    # Фильтр по максимальной температуре
-    temp_max = st.number_input(
-        "Температура до (°С)",
-        value=None,
-        placeholder="Не указано",
-        step=5
-    )
+    # Фильтр по IP
+    if filter_options.get('ip_id'):
+        selected_ip = st.selectbox(
+            "IP",
+            [{'id': None, 'name': 'Все'}] + filter_options['ip_id'],
+            format_func=lambda x: x['name']
+        )
+    else:
+        selected_ip = None
 
 with col4:
     # Фильтр по монтажной площадке
-    if filter_options.get('mounting_plate_top_options'):
+    if filter_options.get('mounting_plate_top_id'):
         selected_plate = st.selectbox(
             "Монтажная площадка",
-            [{'id': None, 'name': 'Все'}] + filter_options['mounting_plate_top_options'],
+            [{'id': None, 'name': 'Все'}] + filter_options['mounting_plate_top_id'],
             format_func=lambda x: x['name']
         )
     else:
@@ -170,11 +110,11 @@ if search_text:
 if min_work_torque:
     params['min_work_torque'] = min_work_torque
 
-if temp_min:
-    params['temp_min'] = temp_min
+if work_temp_min:
+    params['work_temp_min'] = work_temp_min
 
-if temp_max:
-    params['temp_max'] = temp_max
+if work_temp_max:
+    params['work_temp_max'] = work_temp_max
 
 if selected_ip and selected_ip.get('id'):
     params['ip_id'] = selected_ip['id']
