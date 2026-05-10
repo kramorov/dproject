@@ -423,7 +423,7 @@ class ExdOption(models.Model, OptionListToSelectMixin):
                 'name': method.name,
                 'description': method.description,
                 'types': [
-                    {'id': t.id, 'code': t.code, 'name': t.name}
+                    {'id': t.id, 'code': t.code, 'name': t.name, 'description': t.description}
                     for t in types
                 ]
             })
@@ -431,11 +431,11 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         # 2. Группы газа и пыли
             # 2. Группы - объединяем газ и пыль в один список
         gas_groups = [
-            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'GAS'}
+            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'GAS', 'description': g.description}
             for g in HazardousGroup.objects.filter(group_type='GAS', is_active=True).order_by('rating')
         ]
         dust_groups = [
-            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'DUST'}
+            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'DUST', 'description': g.description}
             for g in HazardousGroup.objects.filter(group_type='DUST', is_active=True).order_by('rating')
         ]
         all_groups = gas_groups + dust_groups  # просто складываем списки
@@ -445,6 +445,7 @@ class ExdOption(models.Model, OptionListToSelectMixin):
                 'id': t.id,
                 'code': t.temperature_class,
                 'name': t.name,
+                'description': t.description,
                 'max_temp': t.max_surface_temp,
                 'strictness_rating': t.strictness_rating
             }

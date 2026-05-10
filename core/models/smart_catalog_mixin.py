@@ -298,6 +298,9 @@ class FilterDefinition:
                 print(f"  ERROR: {e}")
                 return None, None
 
+        # EXACT, CHOICE, BOOLEAN и прочие — прямое совпадение
+        return f"{self.model_field}", value
+
 
 class SmartCatalogMixin(models.Model):
     """
@@ -362,10 +365,13 @@ class SmartCatalogMixin(models.Model):
                 continue
 
             lookup, converted_value = fd.build_filter_lookup(value)
-            print(f"  lookup={lookup}, converted={converted_value}")
+
             if lookup and converted_value is not None:
                 queryset = queryset.filter(**{lookup: converted_value})
                 filters_applied[fd.param_name] = value
+                print(f"  lookup={lookup}, converted={converted_value}")
+            else:
+                print(f" SmartCatalogMixin fd.build_filter_lookup(value) return None")
 
         # Поиск
         search_text = params.get('search', '')

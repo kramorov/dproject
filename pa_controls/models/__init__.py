@@ -1,4 +1,5 @@
 # pa_controls/models/__init__.py
+# from .limit_switch import LimitSwitchBox
 from .lsb_model_line import LimitSwitchModelLine
 from .sensor import SensorComponent
 from .lsb_body import LimitSwitchBody
@@ -14,7 +15,7 @@ __all__ = [
     'SensorComponent',
     'LimitSwitchBody',
     'LimitSwitchModelLine',
-    # '',
+    # 'LimitSwitchBox',
     # '',
     # '',
     # '',

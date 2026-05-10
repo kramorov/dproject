@@ -24,8 +24,6 @@ from params.models import IpOption
 # ============================================================
 # БЛОК КОНЦЕВЫХ ВЫКЛЮЧАТЕЛЕЙ (Limit Switch Box)
 # ============================================================
-
-
 class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
@@ -91,7 +89,6 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
     exd = models.ManyToManyField(
         'params.ExdOption',
         blank=True,
-        related_name='limit_switch_boxes_exd_new',
         help_text=_('Степень взрывозащиты (можно выбрать несколько вариантов)'),
         verbose_name=_("Взрывозащита")
     )
@@ -201,20 +198,62 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
         )
         copy.save()
 
-        # Копируем ManyToMany поле exd
-        copy.exd.set(self.exd.all())
-        # Копируем ManyToMany поле sensor_components
-        copy.exd.set(self.sensor_components.all())
+        # Копируем exd через ручной метод
+        copy.exd_set_ids(self.exd_get_ids())
+        # Копируем ManyToMany поле additional_sensor
+        copy.additional_sensor.set(self.additional_sensor.all())
         return copy
 
     @property
+    def exd_all(self):
+        """Обход бага Django: ручной запрос через through-таблицу"""
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT exdoption_id FROM pa_controls_limitswitchbox_exd WHERE limitswitchbox_id = %s',
+                [self.pk]
+            )
+            ids = [r[0] for r in c.fetchall()]
+        return ExdOption.objects.filter(id__in=ids) if ids else ExdOption.objects.none()
+
+    def exd_exists(self):
+        """Обход бага Django: проверка через through-таблицу"""
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT 1 FROM pa_controls_limitswitchbox_exd WHERE limitswitchbox_id = %s LIMIT 1',
+                [self.pk]
+            )
+            return c.fetchone() is not None
+
+    def exd_get_ids(self):
+        """Вернуть список ID ExdOption, связанных с этим БКВ"""
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT exdoption_id FROM pa_controls_limitswitchbox_exd WHERE limitswitchbox_id = %s',
+                [self.pk]
+            )
+            return [r[0] for r in c.fetchall()]
+
+    def exd_set_ids(self, exd_ids):
+        """Заменить связи с ExdOption на новый набор ID"""
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute('DELETE FROM pa_controls_limitswitchbox_exd WHERE limitswitchbox_id = %s', [self.pk])
+            for eid in exd_ids:
+                c.execute(
+                    'INSERT INTO pa_controls_limitswitchbox_exd (limitswitchbox_id, exdoption_id) VALUES (%s, %s)',
+                    [self.pk, eid]
+                )
+
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
-        if not self.exd.exists():
+        if not self.exd_exists():
             return "Нет"
 
-        return ", ".join([req.name for req in self.exd.all()])
-
+        return ", ".join([req.name for req in self.exd_all])
+    
     def _get_name_template_source(self):
         """Переопределить в модели: вернуть шаблон названия или None."""
         return self.model_line.name_template or None
@@ -286,7 +325,7 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
         """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
         return {
             '{model_code}': 'code',
-            '{brand}': 'model_line__brand',
+            '{brand}': 'model_line__brand__name',
             '{sensor_variety}': 'sensor_variety',
             '{points}': 'points',
             '{body_material}': 'body_material',
@@ -419,6 +458,15 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
         ),
     ]
 
+    # ========== ОПЦИИ ДЛЯ ФИЛЬТРОВ (CUSTOM) ==========
+    @classmethod
+    def _get_exd_id_options(cls) -> List[Dict]:
+        """Опции для фильтра Exd — все активные ExdOption"""
+        return [
+            {'id': obj.id, 'name': obj.name, 'code': obj.code}
+            for obj in ExdOption.objects.filter(is_active=True).order_by('name')
+        ]
+
     SEARCH_FIELDS = ['code', 'name', 'description']
 
     SELECT_RELATED_FIELDS = [
@@ -502,7 +550,7 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
                 for sensor in self.additional_sensor.all()
             ] if self.additional_sensor.exists() else [],
 
-            'sensors_names' : 'self.get_sensors_names_list',
+            'sensors_names' : self.get_additional_sensors_names_list,
             'exd': [
             {
                 'id': exd.id,
@@ -510,6 +558,6 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
                 'code': exd.code,
                 'formatted_code': exd.get_formatted_ex_code('name')
             }
-            for exd in self.exd.all()
+            for exd in self.exd_all
         ],
         }

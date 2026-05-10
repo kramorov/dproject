@@ -1,6 +1,5 @@
 #pa_controls/admin/limit_switch_admin.py
 from django.contrib import admin
-from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
@@ -224,7 +223,7 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'model_line', 'body', 'sensor_variety',
-        'points', 'ip',
+        'points', 'ip', 'get_exd_display',
     ]
     list_filter = [
          'code','sensor_variety',  'model_line',
@@ -234,13 +233,13 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes']
-    filter_horizontal = ['additional_sensor', ]  # Для ManyToMany полей 'exd',
+    filter_horizontal = ['additional_sensor', 'exd']
 
     fieldsets = (
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
                        ( 'points','sensor_variety',),
-                       ('ip', ),  # exd теперь ManyToMany
+                       ('ip', ),
                        ('work_temp_min', 'work_temp_max'),)
         }),
         (_('Описание'), {
@@ -251,7 +250,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
             'fields': (('body_material', 'body_material_specified'), 'body')
         }),
         (_('Датчики') , {
-            'fields' : ('primary_sensor' , 'additional_sensor', ) # 'exd',
+            'fields' : ('primary_sensor' , 'additional_sensor', 'exd')
         }) ,
         (_('Дополнительные опции'), {
             'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
@@ -266,17 +265,44 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         }),
     )
 
+    def get_form(self, request, obj=None, **kwargs):
+        form_class = super().get_form(request, obj, **kwargs)
+
+        # Патчим __init__: пропускаем exd в model_to_dict, затем заполняем вручную
+        original_init = form_class.__init__
+        def patched_init(self_form, *args, **init_kwargs):
+            opts = self_form._meta
+            saved_fields = opts.fields
+            if saved_fields and 'exd' in saved_fields:
+                opts.fields = tuple(f for f in saved_fields if f != 'exd')
+            original_init(self_form, *args, **init_kwargs)
+            opts.fields = saved_fields
+            # Заполняем exd вручную через raw SQL
+            instance = init_kwargs.get('instance') or (args[0] if args else None)
+            if instance and instance.pk:
+                self_form.initial['exd'] = instance.exd_get_ids()
+        form_class.__init__ = patched_init
+
+        return form_class
+
+    def save_related(self, request, form, formsets, change):
+        # Вытаскиваем exd ДО save_m2m — иначе Django упадёт на .set()
+        exd_data = form.cleaned_data.pop('exd', None)
+        super().save_related(request, form, formsets, change)
+        if exd_data is not None:
+            form.instance.exd_set_ids([o.pk for o in exd_data])
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
             'model_line', 'sensor_variety',  'ip',
-            'body_material', 'body_material_specified'
-        )#.prefetch_related('exd')  # prefetch_related для ManyToMany
+            'body_material', 'body_material_specified', 'body', 'primary_sensor'
+        )
 
     def get_exd_display(self, obj):
         """Возвращает отображаемую маркировку взрывозащиты"""
-        if not obj.exd.exists():
+        if not obj.exd_exists():
             return "-"
-        return ", ".join([exd.name for exd in obj.exd.all()])
+        return ", ".join([exd.name for exd in obj.exd_all])
 
     get_exd_display.short_description = _("Взрывозащита")
 

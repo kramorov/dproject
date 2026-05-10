@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "agents": [
+    {
+      "id": "agent_18968f11",
+      "agent_type": "general",
+      "prompt": "Read the file C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\valve_data\\models.py and extract every Django model class defined in it. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model.",
+      "assignment": {
+        "objective": "Read the file C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\valve_data\\models.py and extract every Django model class defined in it. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model."
+      },
+      "model": "deepseek-v4-pro",
+      "nickname": "蓝鲸",
+      "status": {
+        "Failed": "API call timed out after 120s"
+      },
+      "result": null,
+      "steps_taken": 0,
+      "duration_ms": 384109,
+      "allowed_tools": [],
+      "updated_at_ms": 1778341183700,
+      "session_boot_id": "boot_b2572257-c95"
+    },
+    {
+      "id": "agent_3ebecde5",
+      "agent_type": "general",
+      "prompt": "Read the file C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\params\\models.py and extract every Django model class defined in it. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model.",
+      "assignment": {
+        "objective": "Read the file C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\params\\models.py and extract every Django model class defined in it. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model."
+      },
+      "model": "deepseek-v4-pro",
+      "nickname": "Blue",
+      "status": {
+        "Failed": "API call timed out after 120s"
+      },
+      "result": null,
+      "steps_taken": 0,
+      "duration_ms": 386055,
+      "allowed_tools": [],
+      "updated_at_ms": 1778341183700,
+      "session_boot_id": "boot_b2572257-c95"
+    },
+    {
+      "id": "agent_5c80179b",
+      "agent_type": "general",
+      "prompt": "Read the file C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\options\\models.py and extract every Django model class defined in it. For each model, list:\n1. Model class name\n2. Whether it's abstract or concrete\n3. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n4. All ManyToManyField fields (field name → target model)\n5. All OneToOneField fields\n\nAlso note which models inherit from BaseThroughOption or BaseThroughOptionNoDefault.\n\nFormat the output as a structured list grouped by model. Be thorough - this file is ~57K chars.",
+      "assignment": {
+        "objective": "Read the file C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\options\\models.py and extract every Django model class defined in it. For each model, list:\n1. Model class name\n2. Whether it's abstract or concrete\n3. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n4. All ManyToManyField fields (field name → target model)\n5. All OneToOneField fields\n\nAlso note which models inherit from BaseThroughOption or BaseThroughOptionNoDefault.\n\nFormat the output as a structured list grouped by model. Be thorough - this file is ~57K chars."
+      },
+      "model": "deepseek-v4-pro",
+      "nickname": "Fin",
+      "status": {
+        "Failed": "API call timed out after 120s"
+      },
+      "result": null,
+      "steps_taken": 0,
+      "duration_ms": 377819,
+      "allowed_tools": [],
+      "updated_at_ms": 1778341183700,
+      "session_boot_id": "boot_b2572257-c95"
+    },
+    {
+      "id": "agent_7a678fed",
+      "agent_type": "general",
+      "prompt": "Read ALL model files under C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pneumatic_actuators\\models\\ (every .py file). Extract every Django model class. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model.",
+      "assignment": {
+        "objective": "Read ALL model files under C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pneumatic_actuators\\models\\ (every .py file). Extract every Django model class. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model."
+      },
+      "model": "deepseek-v4-pro",
+      "nickname": "座头鲸",
+      "status": {
+        "Failed": "API call timed out after 120s"
+      },
+      "result": null,
+      "steps_taken": 0,
+      "duration_ms": 381352,
+      "allowed_tools": [],
+      "updated_at_ms": 1778341183700,
+      "session_boot_id": "boot_b2572257-c95"
+    },
+    {
+      "id": "agent_98ab6a28",
+      "agent_type": "general",
+      "prompt": "Read the following model files and extract all Django model classes with their relationships. For each concrete model (not abstract), list: class name, ForeignKey fields, ManyToManyField fields.\n\nFiles to read:\n1. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_body.py\n2. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_model_line.py\n3. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_model_line_item.py\n4. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_dicts.py\n5. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_thread_option.py\n6. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_cert.py\n7. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\metal_sleeve.py\n8. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\solenoid_valves\\models.py\n9. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pneumatic_fittings\\models.py\n10. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_body.py\n11. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_model_line.py\n12. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_model_line_item.py\n13. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_options.py\n14. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gb_model_line.py\n15. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gb_options.py\n16. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gearbox.py\n17. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\interlock.py\n18. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gb_body.py\n19. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\lsb_model_line.py\n20. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\sensor.py\n21. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\lsb_body.py\n22. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\pa_control_options.py\n23. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\pa_control_mounting.py\n\nGroup by app. Format compactly.",
+      "assignment": {
+        "objective": "Read the following model files and extract all Django model classes with their relationships. For each concrete model (not abstract), list: class name, ForeignKey fields, ManyToManyField fields.\n\nFiles to read:\n1. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_body.py\n2. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_model_line.py\n3. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_model_line_item.py\n4. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_dicts.py\n5. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_thread_option.py\n6. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\cg_cert.py\n7. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cable_glands\\models\\metal_sleeve.py\n8. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\solenoid_valves\\models.py\n9. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pneumatic_fittings\\models.py\n10. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_body.py\n11. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_model_line.py\n12. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_model_line_item.py\n13. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\filter_regulator\\models\\fr_options.py\n14. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gb_model_line.py\n15. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gb_options.py\n16. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gearbox.py\n17. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\interlock.py\n18. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\gearbox\\models\\gb_body.py\n19. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\lsb_model_line.py\n20. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\sensor.py\n21. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\lsb_body.py\n22. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\pa_control_options.py\n23. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\pa_controls\\models\\pa_control_mounting.py\n\nGroup by app. Format compactly."
+      },
+      "model": "deepseek-v4-pro",
+      "nickname": "Sperm",
+      "status": {
+        "Failed": "API call timed out after 120s"
+      },
+      "result": null,
+      "steps_taken": 0,
+      "duration_ms": 377935,
+      "allowed_tools": [],
+      "updated_at_ms": 1778341183700,
+      "session_boot_id": "boot_b2572257-c95"
+    },
+    {
+      "id": "agent_9a384d88",
+      "agent_type": "general",
+      "prompt": "Read ALL model files under C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\electric_actuators\\models\\ (every .py file in that directory and subdirectories). Extract every Django model class. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model.",
+      "assignment": {
+        "objective": "Read ALL model files under C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\electric_actuators\\models\\ (every .py file in that directory and subdirectories). Extract every Django model class. For each model, list:\n1. Model class name\n2. All ForeignKey fields (field name → target model as \"app_label.ModelName\")\n3. All ManyToManyField fields (field name → target model)\n4. All OneToOneField fields\n\nIgnore abstract classes, mixins, and non-model classes. Only report concrete models that create database tables.\n\nFormat the output as a structured list grouped by model."
+      },
+      "model": "deepseek-v4-pro",
+      "nickname": "Humpback",
+      "status": {
+        "Failed": "API call timed out after 120s"
+      },
+      "result": null,
+      "steps_taken": 0,
+      "duration_ms": 382694,
+      "allowed_tools": [],
+      "updated_at_ms": 1778341183700,
+      "session_boot_id": "boot_b2572257-c95"
+    },
+    {
+      "id": "agent_a3f42e81",
+      "agent_type": "general",
+      "prompt": "Read the following files and extract all Django model classes with their relationships (ForeignKey, ManyToManyField fields). Only concrete models.\n\nFiles:\n1. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\ett\\models.py\n2. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cert_doc\\models.py\n3. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\media_library\\models.py\n4. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\equipment_type.py\n5. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\feature_variety.py\n6. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\feature_template.py\n7. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\feature_set.py\n8. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\price\\models\\currency.py\n9. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\price\\models\\exchange_rate.py\n10. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\client_request.py\n11. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_item.py\n12. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_snapshot.py\n13. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_change_log.py\n14. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_file.py\n15. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\comments.py\n16. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_status.py\n17. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_item_type.py\n18. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_number_counter.py\n19. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\pa_assy_requirement.py\n20. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\customer.py\n21. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\legal_entity.py\n22. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\user.py\n23. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\user_settings.py\n24. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\customer_settings.py\n25. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\user_parameter.py\n26. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\tenders\\models.py\n\nGroup by app. Format compactly.",
+      "assignment": {
+        "objective": "Read the following files and extract all Django model classes with their relationships (ForeignKey, ManyToManyField fields). Only concrete models.\n\nFiles:\n1. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\ett\\models.py\n2. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\cert_doc\\models.py\n3. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\media_library\\models.py\n4. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\equipment_type.py\n5. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\feature_variety.py\n6. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\feature_template.py\n7. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\features\\models\\feature_set.py\n8. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\price\\models\\currency.py\n9. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\price\\models\\exchange_rate.py\n10. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\client_request.py\n11. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_item.py\n12. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_snapshot.py\n13. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_change_log.py\n14. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_file.py\n15. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\comments.py\n16. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_status.py\n17. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_item_type.py\n18. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\request_number_counter.py\n19. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\client_requests\\models\\pa_assy_requirement.py\n20. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\customer.py\n21. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\legal_entity.py\n22. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\user.py\n23. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\user_settings.py\n24. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\customer_settings.py\n25. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\project_customers\\models\\user_parameter.py\n26. C:\\Users\\kramo\\PycharmProjects\\djangoProject1\\tenders\\models.py\n\nGroup by app. Format compactly."
+      },
+      "model": "deepseek-v4-pro",
+      "nickname": "抹香鲸",
+      "status": {
+        "Failed": "API call timed out after 120s"
+      },
+      "result": null,
+      "steps_taken": 0,
+      "duration_ms": 377890,
+      "allowed_tools": [],
+      "updated_at_ms": 1778341183700,
+      "session_boot_id": "boot_b2572257-c95"
+    }
+  ]
+}

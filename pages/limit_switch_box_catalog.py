@@ -169,6 +169,13 @@ with col2:
     )
 
     selected_type_id = selected_type['id'] if selected_type and selected_type.get('id') else None
+
+    if selected_type_id:
+        method = next((m for m in methods if m['id'] == selected_method_id), None)
+        if method:
+            typ = next((t for t in method.get('types', []) if t['id'] == selected_type_id), None)
+            if typ and typ.get('description'):
+                st.caption(f"📖 {typ['description']}")
 with col3:
     # Группы (объединенные газ и пыль)
     groups = exd_structure.get('groups', [])
@@ -188,10 +195,13 @@ with col3:
     selected_group_id = selected_group['id'] if selected_group and selected_group.get('id') else None
 
     # Опционально: показывать тип группы (газ/пыль)
-    if selected_group:
-        group = next((g for g in groups if g['id'] == selected_group), None)
+    if selected_group_id:
+        group = next((g for g in groups if g['id'] == selected_group_id), None)
         if group:
-            st.caption(f"Тип: {'Газ' if group['group_type'] == 'GAS' else 'Пыль'}")
+            group_type = 'Газ' if group.get('group_type') == 'GAS' else 'Пыль'
+            desc = group.get('description', '')
+            caption = f"{group_type}" + (f" — {desc}" if desc else "")
+            st.caption(f"📖 {caption}")
 
 with col4:
     temp_classes = exd_structure.get('temperature_classes', [])
@@ -209,6 +219,11 @@ with col4:
     )
 
     selected_temp_id = selected_temp['id'] if selected_temp and selected_temp.get('id') else None
+
+    if selected_temp_id:
+        tc = next((t for t in temp_classes if t['id'] == selected_temp_id), None)
+        if tc and tc.get('description'):
+            st.caption(f"📖 {tc['description']}")
 # ==================== ФОРМИРУЕМ ПАРАМЕТРЫ ====================
 params = {'limit': 100}
 

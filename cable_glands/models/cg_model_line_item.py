@@ -74,6 +74,44 @@ class CableGlandItem(models.Model):
         verbose_name_plural = _("Модели кабельных вводов")
         ordering = ['sorting_order']
 
+    # --- Обход бага Django: M2M к ExdOption (.all/.exists/.set не работают) ---
+    @property
+    def exd_all(self):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT exdoption_id FROM cable_glands_cableglanditem_exd WHERE cableglanditem_id = %s',
+                [self.pk]
+            )
+            ids = [r[0] for r in c.fetchall()]
+        return ExdOption.objects.filter(id__in=ids) if ids else ExdOption.objects.none()
+
+    def exd_exists(self):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT 1 FROM cable_glands_cableglanditem_exd WHERE cableglanditem_id = %s LIMIT 1',
+                [self.pk]
+            )
+            return c.fetchone() is not None
+
+    def exd_get_ids(self):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT exdoption_id FROM cable_glands_cableglanditem_exd WHERE cableglanditem_id = %s',
+                [self.pk]
+            )
+            return [r[0] for r in c.fetchall()]
+
+    def exd_set_ids(self, exd_ids):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute('DELETE FROM cable_glands_cableglanditem_exd WHERE cableglanditem_id = %s', [self.pk])
+            for eid in exd_ids:
+                c.execute('INSERT INTO cable_glands_cableglanditem_exd (cableglanditem_id, exdoption_id) VALUES (%s, %s)', [self.pk, eid])
+    # --- конец обхода ---
+
     def get_full_description(self):
         # Нумерация в БД по умолчанию:
         # 1- Кабельный ввод
@@ -84,7 +122,8 @@ class CableGlandItem(models.Model):
         result_table_model_line = self.model_line.get_full_description()
         if not self.exd_same_as_model_line:
             exd_description = ' / '.join([exd.text_description \
-                                          for exd in sorted(self.exd.all(), key=lambda exd: exd.text_description)])
+                                          # Обход бага Django: exd.all() заменён на exd_all (raw SQL)
+                                          for exd in sorted(self.exd_all, key=lambda exd: exd.text_description)])
             next(param for param in result_table_model_line \
                  if param['param_name'] == 'exd')['param_value'] = exd_description
         name_str = self.name + ' ' + self.model_line.cable_gland_type.name

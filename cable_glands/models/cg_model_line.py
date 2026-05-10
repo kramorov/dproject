@@ -79,5 +79,40 @@ class CableGlandModelLine(StructuredDataMixin, models.Model):
         verbose_name_plural = _("Серии кабельных вводов")
         ordering = ['sorting_order']
 
+    # --- Обход бага Django: M2M к ExdOption (.all/.exists/.set не работают) ---
+    @property
+    def exd_all(self):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT exdoption_id FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s',
+                [self.pk]
+            )
+            ids = [r[0] for r in c.fetchall()]
+        return ExdOption.objects.filter(id__in=ids) if ids else ExdOption.objects.none()
+
+    def exd_exists(self):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT 1 FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s LIMIT 1',
+                [self.pk]
+            )
+            return c.fetchone() is not None
+
+    def exd_get_ids(self):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute('SELECT exdoption_id FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s', [self.pk])
+            return [r[0] for r in c.fetchall()]
+
+    def exd_set_ids(self, exd_ids):
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute('DELETE FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s', [self.pk])
+            for eid in exd_ids:
+                c.execute('INSERT INTO cable_glands_cableglandmodelline_exd (cableglandmodelline_id, exdoption_id) VALUES (%s, %s)', [self.pk, eid])
+    # --- конец обхода ---
+
     def __str__(self):
         return self.code
