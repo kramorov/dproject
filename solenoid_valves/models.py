@@ -259,6 +259,12 @@ class ValveFunction(StructuredDataMixin, models.Model):
     positions_count = models.IntegerField(verbose_name=_("Кол-во положений"),
                                           help_text=_("Второе число в схеме (позиционность)"))
 
+    compatible_functions = models.ManyToManyField(
+        'self', blank=True, symmetrical=True,
+        verbose_name=_("Совместимые схемы"),
+        help_text=_("Например: 3/2 ↔ 5/2")
+    )
+
     class Meta:
         ordering = ['sorting_order', 'name']
         verbose_name = _('Схема распределения (Функция)')
@@ -266,6 +272,12 @@ class ValveFunction(StructuredDataMixin, models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_compatible_ids(self):
+        """Возвращает [свой id] + id совместимых схем"""
+        ids = [self.id]
+        ids.extend(self.compatible_functions.values_list('id', flat=True))
+        return list(set(ids))
 
 
 class ValvePilotVariety(StructuredDataMixin, models.Model):
