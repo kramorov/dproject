@@ -96,9 +96,7 @@ with col2 :
 with col3 :
     # Каскад: резьбы фильтруются по выбранному типу
     if selected_thread_type and selected_thread_type.get('id') :
-        thread_options = PneumaticFitting.get_cascade_options(
-            'thread_type_id' , selected_thread_type['id']
-        )
+        thread_options = PneumaticFitting.get_filtered_threads(selected_thread_type['id'])
     else :
         thread_options = filter_options.get('thread_id' , [])
 
@@ -183,55 +181,102 @@ with col1:
     st.metric("Найдено записей", result['total'])
 with col2:
     st.metric("Загружено записей", len(result['data']))
+if result.get('compatible_data'):
+    col3, col4 = st.columns(2)
+    with col3:
+        st.metric("Точных совпадений", result.get('exact_total', 0))
+    with col4:
+        st.metric("Совместимых", result.get('compatible_total', 0))
 
 if result.get('filters_applied'):
     st.write(f"**Применённые фильтры:** {result['filters_applied']}")
 
-# ==================== ОТОБРАЖАЕМ КАРТОЧКИ ====================
-for item in result['data']:
-    expander_title = item['name']
-    if item.get('code'):
-        expander_title += f" ({item['code']})"
-    if item.get('pipe_diameter'):
-        expander_title += f" | ⌀{item['pipe_diameter']} мм"
+# ==================== ТОЧНЫЕ СОВПАДЕНИЯ ====================
+if result['data']:
+    st.markdown("---")
+    st.markdown("### 🎯 Точные совпадения")
+    for item in result['data']:
+        expander_title = item['name']
+        if item.get('code'):
+            expander_title += f" ({item['code']})"
+        if item.get('pipe_diameter'):
+            expander_title += f" | ⌀{item['pipe_diameter']} мм"
 
-    with st.expander(expander_title):
-        if item.get('description'):
-            st.markdown(f"**📝 Описание:** {item['description']}")
+        with st.expander(expander_title):
+            if item.get('description'):
+                st.markdown(f"**📝 Описание:** {item['description']}")
 
-        col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
 
-        with col1:
-            st.markdown("**📋 Основное:**")
-            st.write(f"**Бренд:** {item['brand']['name'] if item.get('brand') else '-'}")
-            st.write(f"**Серия:** {item['model_line']['name'] if item.get('model_line') else '-'}")
-            st.write(f"**Тип фитинга:** {item['fitting_variety']['name'] if item.get('fitting_variety') else '-'}")
-            st.write(f"**Диаметр трубки:** {item.get('pipe_diameter', '-')} мм" if item.get('pipe_diameter') else "**Диаметр трубки:** -")
-            # Badge совместимости резьбы
-            if selected_thread_type and selected_thread_type.get('id') :
-                item_thread = item.get('thread' , {}) or {}
-                item_tt = item_thread.get('thread_type' , {}) or {}
-                if item_tt.get('id') and item_tt['id'] != selected_thread_type['id'] :
-                    st.caption(
-                        f"🔗 Совместимая резьба: {item_tt.get('name' , '')} (выбрано: {selected_thread_type['name']})")
+            with col1:
+                st.markdown("**📋 Основное:**")
+                st.write(f"**Бренд:** {item['brand']['name'] if item.get('brand') else '-'}")
+                st.write(f"**Серия:** {item['model_line']['name'] if item.get('model_line') else '-'}")
+                st.write(f"**Тип фитинга:** {item['fitting_variety']['name'] if item.get('fitting_variety') else '-'}")
+                st.write(f"**Диаметр трубки:** {item.get('pipe_diameter', '-')} мм" if item.get('pipe_diameter') else "**Диаметр трубки:** -")
 
-        with col2:
-            st.markdown("**⚙️ Характеристики:**")
-            st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
-            st.write(f"**Материал трубки:** {item['pipe_material']['name'] if item.get('pipe_material') else '-'}")
-            st.write(f"**Резьба:** {item['thread']['name'] if item.get('thread') else '-'}")
-            st.write(f"**Тип резьбы:** {item['thread_inner_outer']['name'] if item.get('thread_inner_outer') else '-'}")
-            temp_range = f"{item.get('temp_min', '-')}…{item.get('temp_max', '-')} °C"
-            st.write(f"**Температура:** {temp_range}")
+            with col2:
+                st.markdown("**⚙️ Характеристики:**")
+                st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
+                st.write(f"**Материал трубки:** {item['pipe_material']['name'] if item.get('pipe_material') else '-'}")
+                st.write(f"**Резьба:** {item['thread']['name'] if item.get('thread') else '-'}")
+                st.write(f"**Тип резьбы:** {item['thread_inner_outer']['name'] if item.get('thread_inner_outer') else '-'}")
+                temp_range = f"{item.get('temp_min', '-')}…{item.get('temp_max', '-')} °C"
+                st.write(f"**Температура:** {temp_range}")
 
-        # Дополнительные параметры если есть
-        if item.get('flow_rate') or item.get('operating_pressure'):
-            st.markdown("---")
-            st.markdown("**📊 Дополнительно:**")
-            extras_col1, extras_col2 = st.columns(2)
-            with extras_col1:
-                if item.get('flow_rate'):
-                    st.write(f"**Расход:** {item['flow_rate']} л/мин")
-            with extras_col2:
-                if item.get('operating_pressure'):
-                    st.write(f"**Рабочее давление:** {item['operating_pressure']} бар")
+            if item.get('flow_rate') or item.get('operating_pressure'):
+                st.markdown("---")
+                st.markdown("**📊 Дополнительно:**")
+                extras_col1, extras_col2 = st.columns(2)
+                with extras_col1:
+                    if item.get('flow_rate'):
+                        st.write(f"**Расход:** {item['flow_rate']} л/мин")
+                with extras_col2:
+                    if item.get('operating_pressure'):
+                        st.write(f"**Рабочее давление:** {item['operating_pressure']} бар")
+
+# ==================== СОВМЕСТИМЫЕ ====================
+if result.get('compatible_data'):
+    st.markdown("---")
+    st.markdown("### 🔗 Совместимые резьбы")
+    for item in result['compatible_data']:
+        thread_name = item.get('thread', {}).get('name', '')
+        expander_title = item['name']
+        if item.get('code'):
+            expander_title += f" ({item['code']})"
+        if item.get('pipe_diameter'):
+            expander_title += f" | ⌀{item['pipe_diameter']} мм"
+
+        with st.expander(expander_title):
+            st.caption(f"🔗 Совместимая резьба: {thread_name}")
+            if item.get('description'):
+                st.markdown(f"**📝 Описание:** {item['description']}")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**📋 Основное:**")
+                st.write(f"**Бренд:** {item['brand']['name'] if item.get('brand') else '-'}")
+                st.write(f"**Серия:** {item['model_line']['name'] if item.get('model_line') else '-'}")
+                st.write(f"**Тип фитинга:** {item['fitting_variety']['name'] if item.get('fitting_variety') else '-'}")
+                st.write(f"**Диаметр трубки:** {item.get('pipe_diameter', '-')} мм" if item.get('pipe_diameter') else "**Диаметр трубки:** -")
+
+            with col2:
+                st.markdown("**⚙️ Характеристики:**")
+                st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
+                st.write(f"**Материал трубки:** {item['pipe_material']['name'] if item.get('pipe_material') else '-'}")
+                st.write(f"**Резьба:** {item['thread']['name'] if item.get('thread') else '-'}")
+                st.write(f"**Тип резьбы:** {item['thread_inner_outer']['name'] if item.get('thread_inner_outer') else '-'}")
+                temp_range = f"{item.get('temp_min', '-')}…{item.get('temp_max', '-')} °C"
+                st.write(f"**Температура:** {temp_range}")
+
+            if item.get('flow_rate') or item.get('operating_pressure'):
+                st.markdown("---")
+                st.markdown("**📊 Дополнительно:**")
+                extras_col1, extras_col2 = st.columns(2)
+                with extras_col1:
+                    if item.get('flow_rate'):
+                        st.write(f"**Расход:** {item['flow_rate']} л/мин")
+                with extras_col2:
+                    if item.get('operating_pressure'):
+                        st.write(f"**Рабочее давление:** {item['operating_pressure']} бар")

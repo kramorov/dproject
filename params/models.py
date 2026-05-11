@@ -950,9 +950,9 @@ class ThreadSize(models.Model, OptionListToSelectMixin):
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
     thread_type = models.ForeignKey(ThreadTypes, on_delete=models.SET_NULL, null=True, verbose_name=_('Тип резьбы'))
-    thread_diameter = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True,
+    thread_diameter = models.DecimalField(max_digits=6, decimal_places=3, blank=True, null=True,
                                           verbose_name=_('Диаметр резьбы'))
-    thread_pitch = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True,
+    thread_pitch = models.DecimalField(max_digits=6, decimal_places=3, blank=True, null=True,
                                        verbose_name=_('Шаг резьбы'))
     measure_units = models.ForeignKey(MeasureUnits, on_delete=models.SET_NULL, null=True,
                                       verbose_name=_('Единицы измерения'))

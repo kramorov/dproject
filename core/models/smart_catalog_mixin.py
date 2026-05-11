@@ -7,7 +7,8 @@ from django.db.models import QuerySet, Q
 from django.core.exceptions import FieldDoesNotExist
 
 from params.exd_models import ExdOption
-from params.models import IpOption
+from params.models import IpOption , ThreadSize , ThreadTypes
+
 
 class FilterType(Enum):
     """Типы фильтров"""
@@ -23,6 +24,8 @@ class FilterType(Enum):
     EXD_COMPATIBLE = "exd_compatible"  # поиск совместимых ExdOption (M2M или FK)
     FK_CASCADE = "fk_cascade" # ← каскадный FK: родитель → потомки → __in
     COMPATIBLE_CASCADE = "compatible_cascade" #По аналогии с EXD_COMPATIBLE, но для каскадных FK с учётом совместимости:
+    THREAD_COMPATIBLE = "thread_compatible"  # G↔R с учётом диаметра/шага
+    FUNCTION_COMPATIBLE = "function_compatible"  # 3/2 ↔ 5/2 клапаны
 
 
 class DataSourceType(Enum):
@@ -117,6 +120,7 @@ class FilterDefinition:
             active_only: bool = True,  # только активные
             order_by: str = 'name',  # сортировка опций
             cascade_model: Type[models.Model] = None ,  # ← для FK_CASCADE
+            is_parent_filter: bool = False ,  # ← для THREAD_COMPATIBLE: True = всегда режим «родитель»
             cascade_lookup: str = None ,  # ← для FK_CASCADE
             cascade_match_fields: List[str] = None ,  # ← для FK_CASCADE поля для сопоставления (диаметр, шаг)
     ):
@@ -132,6 +136,7 @@ class FilterDefinition:
         self.active_only = active_only
         self.order_by = order_by
         self.cascade_model = cascade_model
+        self.is_parent_filter = is_parent_filter
         self.cascade_lookup = cascade_lookup
         self.cascade_match_fields = cascade_match_fields or []
 
@@ -311,33 +316,30 @@ class FilterDefinition:
             try :
                 value_int = int(value)
 
-                # Определяем: value — это ID cascade_model или source_model?
-                child = self.cascade_model.objects.filter(id=value_int).first()
-
-                if child :
-                    # --- Режим «от потомка»: value = ThreadSize.id ---
-                    # 1. Находим его родителя (ThreadTypes)
+                # Режим: cascade_match_fields есть → потомок, нет → родитель
+                if self.cascade_match_fields :
+                    # --- Режим «от потомка»: value = cascade_model.id (ThreadSize) ---
+                    child = self.cascade_model.objects.filter(id=value_int).first()
+                    if not child :
+                        return None , None
                     parent_id = getattr(child , self.cascade_lookup + '_id')
-                    # 2. Совместимые родители
                     if self.source_model and hasattr(self.source_model , 'get_compatible_ids') :
                         parent = self.source_model.objects.get(id=parent_id)
                         parent_ids = parent.get_compatible_ids()
                     else :
                         parent_ids = [parent_id]
-                        # 3. Ищем потомков: совместимый тип + совпадение по cascade_match_fields
                     match_filter = {f'{self.cascade_lookup}__in' : parent_ids}
-                    if self.cascade_match_fields :
-                        for field in self.cascade_match_fields :
-                            val = getattr(child , field)
-                            if val is not None :
-                                match_filter[field] = val
+                    for field in self.cascade_match_fields :
+                        val = getattr(child , field)
+                        if val is not None :
+                            match_filter[field] = val
                     child_ids = list(
                         self.cascade_model.objects
                         .filter(**match_filter)
                         .values_list('id' , flat=True)
                     )
-                elif self.source_model :
-                    # --- Режим «от родителя»: value = ThreadTypes.id ---
+                else :
+                    # --- Режим «от родителя»: value = source_model.id (ThreadTypes) ---
                     if hasattr(self.source_model , 'get_compatible_ids') :
                         parent = self.source_model.objects.get(id=value_int)
                         parent_ids = parent.get_compatible_ids()
@@ -348,8 +350,6 @@ class FilterDefinition:
                         .filter(**{f'{self.cascade_lookup}__in' : parent_ids})
                         .values_list('id' , flat=True)
                     )
-                else :
-                    return None , None
                 if not child_ids :
                         return None , None
                 return f'{self.model_field}__in' , child_ids
@@ -387,8 +387,81 @@ class FilterDefinition:
             except Exception :
                 return None , None
 
+        elif self.filter_type == FilterType.THREAD_COMPATIBLE:
+            try :
+                value_int = int(value)
+                print(f"[THREAD_COMPATIBLE] value_int={value_int}, is_parent_filter={self.is_parent_filter}, param={self.param_name}")
+                if self.is_parent_filter :
+                    # --- Режим «тип резьбы»: ищем все резьбы совместимых типов ---
+                    thread_type = ThreadTypes.objects.filter(id=value_int).first()
+                    print(f"  parent mode: thread_type={thread_type}")
+                    if thread_type :
+                        compatible_type_ids = [value_int]  # тип резьбы — без совместимости, только выбранный
+                    else :
+                        compatible_type_ids = [value_int]
+                    print(f"  compatible_type_ids={compatible_type_ids}")
+                    child_ids = list(
+                        ThreadSize.objects.filter(thread_type__in=compatible_type_ids)
+                        .values_list('id' , flat=True)
+                    )
+                    print(f"  child_ids (first 10)={child_ids[:10]}, count={len(child_ids)}")
+                else :
+                    # --- Режим «конкретная резьба»: ищем ThreadSize + аналоги ---
+                    thread_size = ThreadSize.objects.filter(id=value_int).first()
+                    print(f"  child mode: thread_size={thread_size}")
+                    if thread_size and thread_size.thread_type :
+                        tt = thread_size.thread_type
+                        print(f"  tt={tt}, tt.id={tt.id}, thread_size.diameter={thread_size.thread_diameter}, pitch={thread_size.thread_pitch}")
+                        # Если нет диаметра И шага — аналог не найдём, возвращаем только себя
+                        if thread_size.thread_diameter is None and thread_size.thread_pitch is None :
+                            print(f"  NO diameter/pitch → exact match only [{value_int}]")
+                            child_ids = [value_int]
+                            if child_ids :
+                                return f'{self.model_field}__in' , child_ids
+                            return None , None
+                        try:
+                            if hasattr(tt , 'get_compatible_ids') :
+                                compatible_type_ids = tt.get_compatible_ids()
+                            else :
+                                compatible_type_ids = [tt.id]
+                        except Exception as e:
+                            print(f"  ERROR in get_compatible_ids: {e}")
+                            compatible_type_ids = [tt.id]
+                        print(f"  compatible_type_ids={compatible_type_ids}")
+                        match_filter = {'thread_type__in' : compatible_type_ids}
+                        if thread_size.thread_diameter is not None :
+                            match_filter['thread_diameter'] = thread_size.thread_diameter
+                        if thread_size.thread_pitch is not None :
+                            match_filter['thread_pitch'] = thread_size.thread_pitch
+                        print(f"  match_filter={match_filter}")
+                        child_ids = list(
+                            ThreadSize.objects.filter(**match_filter).values_list('id' , flat=True)
+                        )
+                        print(f"  child_ids={child_ids}")
+                    else :
+                        return None , None
+                if not child_ids :
+                    return None , None
+                return f'{self.model_field}__in' , child_ids
+            except Exception:
+                return None , None
+                # EXACT, CHOICE, BOOLEAN и прочие — прямое совпадение
 
-            # EXACT, CHOICE, BOOLEAN и прочие — прямое совпадение
+        elif self.filter_type == FilterType.FUNCTION_COMPATIBLE:
+            # value = ID функции (ValveFunction)
+            # source_model должен иметь get_compatible_ids()
+            try:
+                value_int = int(value)
+                if self.source_model and hasattr(self.source_model, 'get_compatible_ids'):
+                    func = self.source_model.objects.filter(id=value_int).first()
+                    if func:
+                        ids = func.get_compatible_ids()
+                        print(f"[FUNCTION_COMPATIBLE] {func.name} → compatible ids={ids}")
+                        return f'{self.model_field}__in', ids
+                return f'{self.model_field}', value_int
+            except Exception:
+                return None, None
+
         return f"{self.model_field}", value
 
 
@@ -482,6 +555,7 @@ class SmartCatalogMixin(models.Model):
         filters_applied = {}
 
         # Применяем фильтры
+        split_thread_id = None  # для разделения точных/совместимых резьб
         for fd in cls.FILTER_DEFINITIONS:
             value = params.get(fd.param_name)
             print(f"DEBUG: Applying filter {fd.param_name}={value}")
@@ -493,6 +567,9 @@ class SmartCatalogMixin(models.Model):
             if lookup and converted_value is not None:
                 queryset = queryset.filter(**{lookup: converted_value})
                 filters_applied[fd.param_name] = value
+                # Запомнить точный ID для разделения выдачи (thread / function)
+                if fd.filter_type in (FilterType.THREAD_COMPATIBLE, FilterType.FUNCTION_COMPATIBLE) and not fd.is_parent_filter:
+                    split_thread_id = int(value)
                 print(f"  lookup={lookup}, converted={converted_value}")
             else:
                 print(f" SmartCatalogMixin fd.build_filter_lookup(value) return None")
@@ -521,19 +598,33 @@ class SmartCatalogMixin(models.Model):
 
         # Сериализация
         data = []
+        compatible_data = []
         for obj in queryset:
             try:
-                data.append(obj.to_dict())
+                item = obj.to_dict()
+                if split_thread_id is not None:
+                    obj_fk_id = getattr(obj, 'thread_id', None) or getattr(obj, 'function_id', None)
+                    if obj_fk_id == split_thread_id:
+                        data.append(item)
+                    else:
+                        compatible_data.append(item)
+                else:
+                    data.append(item)
             except Exception as e:
                 print(f"Error serializing {obj.__class__.__name__} id={obj.id}: {e}")
 
-        return {
+        result = {
             'data': data,
             'total': total,
             'filters_applied': filters_applied,
             'limit': limit,
             'offset': offset
         }
+        if split_thread_id is not None:
+            result['compatible_data'] = compatible_data
+            result['exact_total'] = len(data)
+            result['compatible_total'] = len(compatible_data)
+        return result
 
     def to_dict(self) -> Dict[str, Any]:
         """Должен быть переопределен"""

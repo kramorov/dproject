@@ -1,0 +1,67 @@
+234:class ValveFunction(StructuredDataMixin, models.Model):
+235:    """Справочник схем распределения: 3/2, 5/2, 5/3 и т.д."""
+236:    name = models.CharField(max_length=20,
+237:                            verbose_name=_("Схема (Функция)"),
+238:                            help_text=_('Обозначение схемы, например, 5/2 или 3/2'))
+239:
+240:    code = models.CharField(max_length=20, blank=True, null=True,
+241:                            verbose_name=_("Код"),
+242:                            help_text=_("Внутренний код или артикул типа схемы"))
+243:
+244:    description = models.TextField(blank=True,
+245:                                   verbose_name=_("Описание"),
+246:                                   help_text=_('Например: "5-линейный 2-позиционный"'))
+247:
+248:    sorting_order = models.IntegerField(default=0,
+249:                                        verbose_name=_("Сортировка"))
+250:
+251:    is_active = models.BooleanField(default=True,
+252:                                    verbose_name=_("Активно"))
+253:    ports_count = models.IntegerField(verbose_name=_("Кол-во портов"),
+254:                                      help_text=_("Первое число в схеме (линейность)"))
+255:
+256:    positions_count = models.IntegerField(verbose_name=_("Кол-во положений"),
+257:                                          help_text=_("Второе число в схеме (позиционность)"))
+258:
+259:    class Meta:
+260:        ordering = ['sorting_order', 'name']
+261:        verbose_name = _('Схема распределения (Функция)')
+262:        verbose_name_plural = _('Схемы распределения (Функции)')
+263:
+264:    def __str__(self):
+265:        return self.name
+266:
+267:
+268:class ValvePilotVariety(StructuredDataMixin, models.Model):
+269:    """Справочник типов управляющего сигнала (пилота)"""
+270:
+271:    class SignalCategory(models.TextChoices):
+272:        ELECTRIC = 'electric', _('Электрический (Соленоид)')
+273:        PNEUMATIC = 'pneumatic', _('Пневматический (Воздух)')
+274:        MECHANICAL = 'mechanical', _('Механический (Ролик/Рычаг)')
+275:        MANUAL = 'manual', _('Ручной (Кнопка/Педаль)')
+276:
+277:    name = models.CharField(
+278:        max_length=100,
+279:        verbose_name=_("Название"),
+280:        help_text=_("Напр: Электромагнитный, Пневмопривод")
+281:    )
+282:
+283:    code = models.CharField(
+284:        max_length=50,
+285:        unique=True,
+286:        verbose_name=_("Код")
+287:    )
+288:
+289:    category = models.CharField(
+290:        max_length=20,
+291:        choices=SignalCategory.choices,
+292:        default=SignalCategory.ELECTRIC,
+293:        verbose_name=_("Категория сигнала")
+294:    )
+295:
+296:    description = models.TextField(blank=True, verbose_name=_("Описание"))
+297:    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+298:    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок"))
+299:
+300:    class Meta:

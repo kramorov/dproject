@@ -5,10 +5,13 @@ import math
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin, TemplateGeneratorMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified, WorkingMedium
 from params.models import ThreadSize, ThreadInnerOuter, SealingClass, PowerSupplies, PneumaticConnection
 from producers.models import Brands, Producer
 from electric_actuators.models import CableGlandHolesSet
+from params.exd_models import ExdOption
+from params.models import IpOption
 
 '''
 1. ModelLine (Общие свойства серии)
@@ -421,7 +424,7 @@ class DirectionValveBody(StructuredDataMixin, models.Model):
         return self.name
 
 
-class DirectionValve(StructuredDataMixin, TemplateGeneratorMixin, models.Model):
+class DirectionValve(SmartCatalogMixin, TemplateGeneratorMixin, models.Model):
     '''
     DirectionValve (Характеристики конкретного артикула)  Это то, что определяет финальный «Part Number» и цену.
         function - ValveFunction (3/2, 5/2, 5/3).
@@ -441,6 +444,120 @@ class DirectionValve(StructuredDataMixin, TemplateGeneratorMixin, models.Model):
         Порты NAMUR: В соленоидных клапанах часто важно, крепится он «на трубах» или «на приводе» (NAMUR стандарт). Стоит добавить булево поле is_namur.
 
     '''
+
+    # ========== КОНФИГУРАЦИЯ SmartCatalogMixin ==========
+    FILTER_DEFINITIONS = [
+        FilterDefinition(
+            param_name='model_line_id',
+            model_field='model_line',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Серия',
+            order=1
+        ),
+        FilterDefinition(
+            param_name='brand_id',
+            model_field='brand',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Бренд',
+            order=2
+        ),
+        FilterDefinition(
+            param_name='function_id',
+            model_field='function',
+            filter_type=FilterType.FUNCTION_COMPATIBLE,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            source_model=ValveFunction,
+            label='Схема (функция)',
+            order=3
+        ),
+        FilterDefinition(
+            param_name='ip_id',
+            model_field='ip',
+            filter_type=FilterType.IP_RANK,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            source_model=IpOption,
+            label='IP',
+            order=4
+        ),
+        FilterDefinition(
+            param_name='exd_id',
+            model_field='exd',
+            filter_type=FilterType.EXD_COMPATIBLE,
+            data_source_type=DataSourceType.CUSTOM,
+            label='Exd',
+            order=5
+        ),
+        FilterDefinition(
+            param_name='power_supply_id',
+            model_field='power_supply',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Питание',
+            order=6
+        ),
+        FilterDefinition(
+            param_name='kv',
+            model_field='kv',
+            filter_type=FilterType.MIN,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Kv',
+            order=7
+        ),
+        FilterDefinition(
+            param_name='body_material_id',
+            model_field='body_material',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Материал корпуса',
+            order=8
+        ),
+        FilterDefinition(
+            param_name='solenoid_body_material_id',
+            model_field='solenoid_body_material',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Материал соленоида',
+            order=9
+        ),
+        FilterDefinition(
+            param_name='pneumatic_connection_id',
+            model_field='pneumatic_connection',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Пневмоподключение',
+            order=10
+        ),
+        FilterDefinition(
+            param_name='work_temp_min',
+            model_field='work_temp_min',
+            filter_type=FilterType.TEMP_MIN,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура мин.',
+            order=11
+        ),
+        FilterDefinition(
+            param_name='work_temp_max',
+            model_field='work_temp_max',
+            filter_type=FilterType.TEMP_MAX,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура макс.',
+            order=12
+        ),
+    ]
+    SEARCH_FIELDS = ['code']
+    SELECT_RELATED_FIELDS = [
+        'brand',
+        'model_line',
+        'function',
+        'ip',
+        'exd',
+        'power_supply',
+        'body_material',
+        'solenoid_body_material',
+        'pneumatic_connection',
+    ]
 
     name = models.TextField(
         verbose_name=_("Название"),
@@ -743,6 +860,37 @@ class DirectionValve(StructuredDataMixin, TemplateGeneratorMixin, models.Model):
     #         result = result.replace(placeholder , str(value) if value else '')
     #
     #     return result
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'description': self.description,
+            'kv': float(self.kv) if self.kv else None,
+            'work_temp_min': self.work_temp_min,
+            'work_temp_max': self.work_temp_max,
+            'is_active': self.is_active,
+            'sorting_order': self.sorting_order,
+            'brand': {'id': self.brand.id, 'name': self.brand.name}
+                if self.brand else None,
+            'model_line': {'id': self.model_line.id, 'name': self.model_line.name}
+                if self.model_line else None,
+            'function': {'id': self.function.id, 'name': self.function.name}
+                if self.function else None,
+            'ip': {'id': self.ip.id, 'name': self.ip.name}
+                if self.ip else None,
+            'exd': {'id': self.exd.id, 'name': self.exd.name}
+                if self.exd else None,
+            'power_supply': {'id': self.power_supply.id, 'name': self.power_supply.name}
+                if self.power_supply else None,
+            'body_material': {'id': self.body_material.id, 'name': self.body_material.name}
+                if self.body_material else None,
+            'solenoid_body_material': {'id': self.solenoid_body_material.id, 'name': self.solenoid_body_material.name}
+                if self.solenoid_body_material else None,
+            'pneumatic_connection': {'id': self.pneumatic_connection.id, 'name': self.pneumatic_connection.name}
+                if self.pneumatic_connection else None,
+        }
 
     def __str__(self):
         return self.name

@@ -37,33 +37,45 @@ class FK_CascadeFilterTest(TestCase):
             thread_type=cls.npt, thread_diameter=13.7
         )
 
-        # Общие данные
-        cls.brand = Brands.objects.create(name='Test Brand', code='TB')
+        # Общие данные — отдельный бренд чтобы изолировать от реальных данных
+        cls.brand = Brands.objects.create(
+            name='_TEST_FK_CASCADE_BRAND', code='_TFCB'
+        )
         cls.line = PneumaticFittingModelLine.objects.create(
-            name='Test Line', code='TL', brand=cls.brand
+            name='_Test Line', code='_TL', brand=cls.brand
         )
 
         # Фитинги
         cls.fit_g34 = PneumaticFitting.objects.create(
-            name='Fit G 3/4', code='F1',
+            name='_Fit G 3/4', code='_F_G34',
             model_line=cls.line, brand=cls.brand, thread=cls.g_34
         )
         cls.fit_r34 = PneumaticFitting.objects.create(
-            name='Fit R 3/4', code='F2',
+            name='_Fit R 3/4', code='_F_R34',
             model_line=cls.line, brand=cls.brand, thread=cls.r_34
         )
         cls.fit_g18 = PneumaticFitting.objects.create(
-            name='Fit G 1/8', code='F3',
+            name='_Fit G 1/8', code='_F_G18',
             model_line=cls.line, brand=cls.brand, thread=cls.g_18
         )
         cls.fit_r18 = PneumaticFitting.objects.create(
-            name='Fit R 1/8', code='F4',
+            name='_Fit R 1/8', code='_F_R18',
             model_line=cls.line, brand=cls.brand, thread=cls.r_18
         )
         cls.fit_npt14 = PneumaticFitting.objects.create(
-            name='Fit NPT 1/4', code='F5',
+            name='_Fit NPT 1/4', code='_F_N14',
             model_line=cls.line, brand=cls.brand, thread=cls.npt_14
         )
+
+    # =================================================================
+    # Хелпер: фильтр + изоляция по бренду
+    # =================================================================
+
+    def _filter(self, extra_params):
+        """filter_by_params с изоляцией на тестовый бренд"""
+        params = {'brand_id': self.brand.id, 'limit': 100}
+        params.update(extra_params)
+        return PneumaticFitting.filter_by_params(params)
 
     # =================================================================
     # ТЕСТЫ: выбор типа резьбы (родитель) → режим «от родителя»
@@ -71,19 +83,15 @@ class FK_CascadeFilterTest(TestCase):
 
     def test_thread_type_G_returns_G_and_R_all_sizes(self):
         """Тип G → все G + R (без учёта диаметра)"""
-        result = PneumaticFitting.filter_by_params({'thread_type_id': self.g.id})
-        names = {r['name'] for r in result['data']}
-        self.assertIn('Fit G 3/4', names)
-        self.assertIn('Fit R 3/4', names)
-        self.assertIn('Fit G 1/8', names)
-        self.assertIn('Fit R 1/8', names)
-        self.assertNotIn('Fit NPT 1/4', names)
+        result = self._filter({'thread_type_id': self.g.id})
+        codes = {r['code'] for r in result['data']}
+        self.assertEqual(codes, {'_F_G34', '_F_R34', '_F_G18', '_F_R18'})
 
     def test_thread_type_NPT_returns_only_NPT(self):
         """NPT без совместимых → только NPT"""
-        result = PneumaticFitting.filter_by_params({'thread_type_id': self.npt.id})
-        names = {r['name'] for r in result['data']}
-        self.assertEqual(names, {'Fit NPT 1/4'})
+        result = self._filter({'thread_type_id': self.npt.id})
+        codes = {r['code'] for r in result['data']}
+        self.assertEqual(codes, {'_F_N14'})
 
     # =================================================================
     # ТЕСТЫ: выбор конкретной резьбы (потомок) → режим «от потомка»
@@ -91,42 +99,42 @@ class FK_CascadeFilterTest(TestCase):
 
     def test_thread_G34_returns_G34_and_R34_only(self):
         """G 3/4 → G 3/4 + R 3/4, НЕ G 1/8, НЕ NPT"""
-        result = PneumaticFitting.filter_by_params({'thread_id': self.g_34.id})
-        names = {r['name'] for r in result['data']}
-        self.assertEqual(names, {'Fit G 3/4', 'Fit R 3/4'})
+        result = self._filter({'thread_id': self.g_34.id})
+        codes = {r['code'] for r in result['data']}
+        self.assertEqual(codes, {'_F_G34', '_F_R34'})
 
     def test_thread_G18_returns_G18_and_R18_only(self):
         """G 1/8 → G 1/8 + R 1/8, НЕ G 3/4"""
-        result = PneumaticFitting.filter_by_params({'thread_id': self.g_18.id})
-        names = {r['name'] for r in result['data']}
-        self.assertEqual(names, {'Fit G 1/8', 'Fit R 1/8'})
+        result = self._filter({'thread_id': self.g_18.id})
+        codes = {r['code'] for r in result['data']}
+        self.assertEqual(codes, {'_F_G18', '_F_R18'})
 
     def test_thread_NPT14_returns_only_NPT14(self):
         """NPT 1/4 без аналогов → только сам"""
-        result = PneumaticFitting.filter_by_params({'thread_id': self.npt_14.id})
-        names = {r['name'] for r in result['data']}
-        self.assertEqual(names, {'Fit NPT 1/4'})
+        result = self._filter({'thread_id': self.npt_14.id})
+        codes = {r['code'] for r in result['data']}
+        self.assertEqual(codes, {'_F_N14'})
 
     # =================================================================
-    # ТЕСТЫ: get_cascade_options
+    # ТЕСТЫ: get_filtered_threads (дропдаун — без смешивания, только свой тип)
     # =================================================================
 
-    def test_cascade_options_G_returns_all_G_and_R(self):
-        """Дропдаун при типе G → все G + R"""
-        opts = PneumaticFitting.get_cascade_options('thread_type_id', self.g.id)
-        codes = {o['code'] for o in opts}
-        self.assertEqual(codes, {'G1/8', 'G3/4', 'R1/8', 'R3/4'})
+    def test_get_filtered_threads_G_returns_only_G(self):
+        """Дропдаун при типе G → только G (R не показываем)"""
+        sizes = PneumaticFitting.get_filtered_threads(self.g.id)
+        codes = {s['code'] for s in sizes}
+        self.assertEqual(codes, {'G1/8', 'G3/4'})
 
-    def test_cascade_options_NPT_returns_only_NPT(self):
+    def test_get_filtered_threads_NPT_returns_only_NPT(self):
         """Дропдаун при NPT → только NPT"""
-        opts = PneumaticFitting.get_cascade_options('thread_type_id', self.npt.id)
-        codes = {o['code'] for o in opts}
+        sizes = PneumaticFitting.get_filtered_threads(self.npt.id)
+        codes = {s['code'] for s in sizes}
         self.assertEqual(codes, {'NPT1/4'})
 
-    def test_cascade_options_unknown_param_returns_empty(self):
-        """Несуществующий param_name → пустой список"""
-        opts = PneumaticFitting.get_cascade_options('nonexistent', 1)
-        self.assertEqual(opts, [])
+    def test_get_filtered_threads_unknown_returns_empty(self):
+        """Несуществующий thread_type → пустой список"""
+        sizes = PneumaticFitting.get_filtered_threads(99999)
+        self.assertEqual(sizes, [])
 
     # =================================================================
     # ТЕСТ: совместимость ThreadTypes.get_compatible_ids

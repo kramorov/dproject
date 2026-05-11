@@ -494,22 +494,22 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
     #
     #     return [{'id': t.id, 'name': t.name, 'code': t.code or ''} for t in queryset]
     #
-    # @classmethod
-    # def get_filtered_threads(cls, thread_type_id: int = None) -> List[Dict]:
-    #     """
-    #     Получить резьбы с опциональной фильтрацией по типу резьбы
-    #     """
-    #     from params.models import ThreadSize
-    #
-    #     queryset = ThreadSize.objects.filter(is_active=True)
-    #
-    #     if thread_type_id:
-    #         queryset = queryset.filter(thread_type_id=thread_type_id)
-    #
-    #     # Сортируем для удобства
-    #     queryset = queryset.order_by('thread_type', 'sorting_order')
-    #
-    #     return [{'id': t.id, 'name': t.name, 'code': t.code or ''} for t in queryset]
+    @classmethod
+    def get_filtered_threads(cls, thread_type_id: int = None) -> List[Dict]:
+        """
+        Получить резьбы с опциональной фильтрацией по типу резьбы
+        """
+        from params.models import ThreadSize
+
+        queryset = ThreadSize.objects.filter(is_active=True)
+
+        if thread_type_id:
+            queryset = queryset.filter(thread_type_id=thread_type_id)
+
+        # Сортируем для удобства
+        queryset = queryset.order_by('thread_type', 'sorting_order')
+
+        return [{'id': t.id, 'name': t.name, 'code': t.code or ''} for t in queryset]
 
     # ========== КОНФИГУРАЦИЯ ДЛЯ SmartCatalogMixin ==========
 
@@ -519,7 +519,7 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
             param_name='brand_id' ,
             model_field='brand' ,
             filter_type=FilterType.EXACT ,
-            data_source_type=DataSourceType.FOREIGN_KEY ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
             label='Бренд' ,
             order=1
         ) ,
@@ -527,7 +527,7 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
             param_name='fitting_model_line_id' ,
             model_field='model_line' ,
             filter_type=FilterType.EXACT ,
-            data_source_type=DataSourceType.FOREIGN_KEY ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
             label='Серия' ,
             order=2
         ) ,
@@ -535,7 +535,7 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
             param_name='fitting_variety_id' ,
             model_field='fitting_variety' ,
             filter_type=FilterType.EXACT ,
-            data_source_type=DataSourceType.FOREIGN_KEY ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
             label='Тип фитинга' ,
             order=3
         ) ,
@@ -543,7 +543,7 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
             param_name='body_material_id' ,
             model_field='body_material' ,
             filter_type=FilterType.EXACT ,
-            data_source_type=DataSourceType.FOREIGN_KEY ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
             label='Материал корпуса' ,
             order=4
         ) ,
@@ -551,7 +551,7 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
             param_name='pipe_material_id' ,
             model_field='pipe_material' ,
             filter_type=FilterType.EXACT ,
-            data_source_type=DataSourceType.FOREIGN_KEY ,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
             label='Материал трубки' ,
             order=5
         ) ,
@@ -570,25 +570,18 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
         FilterDefinition(
             param_name='thread_type_id' ,
             model_field='thread' ,
-            filter_type=FilterType.FK_CASCADE ,
+            is_parent_filter=True ,  # ← всегда режим «тип резьбы»
+            filter_type=FilterType.THREAD_COMPATIBLE ,  # ← специализированный
             data_source_type=DataSourceType.GLOBAL_MODEL ,
             source_model=ThreadTypes ,
-            cascade_model=ThreadSize ,
-            cascade_lookup='thread_type' ,
-            # без cascade_match_fields → режим «от родителя»
             label='Тип резьбы' ,
             order=7
         ) ,
         FilterDefinition(
             param_name='thread_id' ,
             model_field='thread' ,
-            filter_type=FilterType.FK_CASCADE ,
+            filter_type=FilterType.THREAD_COMPATIBLE ,  # ← специализированный
             data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
-            source_model=ThreadTypes ,  # get_compatible_ids()
-            cascade_model=ThreadSize ,
-            cascade_lookup='thread_type' ,
-            cascade_match_fields=['thread_diameter' , 'thread_pitch'] ,
-            # с cascade_match_fields → режим «от потомка»
             label='Резьба' ,
             order=8
         ) ,
