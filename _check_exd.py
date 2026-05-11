@@ -1,7 +1,5 @@
-import sqlite3
-c = sqlite3.connect('db.sqlite3').cursor()
-c.execute('SELECT COUNT(*) FROM pa_controls_limitswitchbox_exd')
-print('Rows:', c.fetchone()[0])
-c.execute('SELECT * FROM pa_controls_limitswitchbox_exd LIMIT 3')
-for r in c.fetchall():
-    print(r)
+import django, os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'djangoProject1.settings'
+django.setup()
+from solenoid_valves.models import ValveFunction
+print('has get_compatible_ids:', hasattr(ValveFunction, 'get_compatible_ids'))

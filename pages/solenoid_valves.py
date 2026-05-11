@@ -207,70 +207,47 @@ with col3:
 if result.get('filters_applied'):
     st.write(f"**Применённые фильтры:** {result['filters_applied']}")
 
+# ==================== ФУНКЦИЯ ОТРИСОВКИ КАРТОЧКИ ====================
+def _render_valve(item, badge=None):
+    expander_title = item.get('name', '')
+    if item.get('code'):
+        expander_title += f" ({item['code']})"
+
+    with st.expander(expander_title):
+        if badge:
+            st.caption(badge)
+        if item.get('description'):
+            st.markdown(f"**📝 Описание:** {item['description']}")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**📋 Основное:**")
+            st.write(f"**Бренд:** {item['brand']['name'] if item.get('brand') else '-'}")
+            st.write(f"**Серия:** {item['model_line']['name'] if item.get('model_line') else '-'}")
+            st.write(f"**Схема:** {item['function']['name'] if item.get('function') else '-'}")
+            st.write(f"**IP:** {item['ip']['name'] if item.get('ip') else '-'}")
+            st.write(f"**Exd:** {item['exd']['name'] if item.get('exd') else '-'}")
+
+        with col2:
+            st.markdown("**⚙️ Характеристики:**")
+            st.write(f"**Питание:** {item['power_supply']['name'] if item.get('power_supply') else '-'}")
+            st.write(f"**Kv:** {item.get('kv', '-')} м³/ч" if item.get('kv') else "**Kv:** -")
+            st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
+            st.write(f"**Материал соленоида:** {item['solenoid_body_material']['name'] if item.get('solenoid_body_material') else '-'}")
+            st.write(f"**Пневмоподключение:** {item['pneumatic_connection']['name'] if item.get('pneumatic_connection') else '-'}")
+            temp_range = f"{item.get('work_temp_min', '-')}…{item.get('work_temp_max', '-')} °C"
+            st.write(f"**Температура:** {temp_range}")
+
 # ==================== ТОЧНЫЕ СОВПАДЕНИЯ ====================
 if result['data']:
     st.markdown("---")
     st.markdown("### 🎯 Точные совпадения")
     for item in result['data']:
-        expander_title = item.get('name', '')
-        if item.get('code'):
-            expander_title += f" ({item['code']})"
-
-        with st.expander(expander_title):
-            if item.get('description'):
-                st.markdown(f"**📝 Описание:** {item['description']}")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown("**📋 Основное:**")
-                st.write(f"**Бренд:** {item['brand']['name'] if item.get('brand') else '-'}")
-                st.write(f"**Серия:** {item['model_line']['name'] if item.get('model_line') else '-'}")
-                st.write(f"**Схема:** {item['function']['name'] if item.get('function') else '-'}")
-                st.write(f"**IP:** {item['ip']['name'] if item.get('ip') else '-'}")
-                st.write(f"**Exd:** {item['exd']['name'] if item.get('exd') else '-'}")
-
-            with col2:
-                st.markdown("**⚙️ Характеристики:**")
-                st.write(f"**Питание:** {item['power_supply']['name'] if item.get('power_supply') else '-'}")
-                st.write(f"**Kv:** {item.get('kv', '-')} м³/ч" if item.get('kv') else "**Kv:** -")
-                st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
-                st.write(f"**Материал соленоида:** {item['solenoid_body_material']['name'] if item.get('solenoid_body_material') else '-'}")
-                st.write(f"**Пневмоподключение:** {item['pneumatic_connection']['name'] if item.get('pneumatic_connection') else '-'}")
-                temp_range = f"{item.get('work_temp_min', '-')}…{item.get('work_temp_max', '-')} °C"
-                st.write(f"**Температура:** {temp_range}")
+        _render_valve(item)
 
 # ==================== СОВМЕСТИМЫЕ ====================
 if result.get('compatible_data'):
     st.markdown("---")
     st.markdown("### 🔗 Совместимые схемы (например, 3/2 ↔ 5/2)")
     for item in result['compatible_data']:
-        func_name = item.get('function', {}).get('name', '')
-        expander_title = item.get('name', '')
-        if item.get('code'):
-            expander_title += f" ({item['code']})"
-
-        with st.expander(expander_title):
-            st.caption(f"🔗 Совместимая схема: {func_name}")
-            if item.get('description'):
-                st.markdown(f"**📝 Описание:** {item['description']}")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown("**📋 Основное:**")
-                st.write(f"**Бренд:** {item['brand']['name'] if item.get('brand') else '-'}")
-                st.write(f"**Серия:** {item['model_line']['name'] if item.get('model_line') else '-'}")
-                st.write(f"**Схема:** {item['function']['name'] if item.get('function') else '-'}")
-                st.write(f"**IP:** {item['ip']['name'] if item.get('ip') else '-'}")
-                st.write(f"**Exd:** {item['exd']['name'] if item.get('exd') else '-'}")
-
-            with col2:
-                st.markdown("**⚙️ Характеристики:**")
-                st.write(f"**Питание:** {item['power_supply']['name'] if item.get('power_supply') else '-'}")
-                st.write(f"**Kv:** {item.get('kv', '-')} м³/ч" if item.get('kv') else "**Kv:** -")
-                st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
-                st.write(f"**Материал соленоида:** {item['solenoid_body_material']['name'] if item.get('solenoid_body_material') else '-'}")
-                st.write(f"**Пневмоподключение:** {item['pneumatic_connection']['name'] if item.get('pneumatic_connection') else '-'}")
-                temp_range = f"{item.get('work_temp_min', '-')}…{item.get('work_temp_max', '-')} °C"
-                st.write(f"**Температура:** {temp_range}")

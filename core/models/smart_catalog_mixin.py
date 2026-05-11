@@ -555,7 +555,8 @@ class SmartCatalogMixin(models.Model):
         filters_applied = {}
 
         # Применяем фильтры
-        split_thread_id = None  # для разделения точных/совместимых резьб
+        split_fk_id = None  # точный ID для разделения (thread / function)
+        split_fk_field = None  # имя поля (thread_id / function_id)
         for fd in cls.FILTER_DEFINITIONS:
             value = params.get(fd.param_name)
             print(f"DEBUG: Applying filter {fd.param_name}={value}")
@@ -569,7 +570,8 @@ class SmartCatalogMixin(models.Model):
                 filters_applied[fd.param_name] = value
                 # Запомнить точный ID для разделения выдачи (thread / function)
                 if fd.filter_type in (FilterType.THREAD_COMPATIBLE, FilterType.FUNCTION_COMPATIBLE) and not fd.is_parent_filter:
-                    split_thread_id = int(value)
+                    split_fk_id = int(value)
+                    split_fk_field = fd.model_field + '_id'  # thread → thread_id, function → function_id
                 print(f"  lookup={lookup}, converted={converted_value}")
             else:
                 print(f" SmartCatalogMixin fd.build_filter_lookup(value) return None")
@@ -602,9 +604,9 @@ class SmartCatalogMixin(models.Model):
         for obj in queryset:
             try:
                 item = obj.to_dict()
-                if split_thread_id is not None:
-                    obj_fk_id = getattr(obj, 'thread_id', None) or getattr(obj, 'function_id', None)
-                    if obj_fk_id == split_thread_id:
+                if split_fk_id is not None and split_fk_field:
+                    obj_fk_id = getattr(obj, split_fk_field, None)
+                    if obj_fk_id == split_fk_id:
                         data.append(item)
                     else:
                         compatible_data.append(item)
@@ -620,7 +622,7 @@ class SmartCatalogMixin(models.Model):
             'limit': limit,
             'offset': offset
         }
-        if split_thread_id is not None:
+        if split_fk_id is not None:
             result['compatible_data'] = compatible_data
             result['exact_total'] = len(data)
             result['compatible_total'] = len(compatible_data)
