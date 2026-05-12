@@ -102,7 +102,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles' ,
     'rest_framework' ,
     'corsheaders' ,
-    'core' ,
+    # 'core' ,
     'graphene_django' ,
     'import_export',
     'rangefilter',
@@ -128,7 +128,8 @@ INSTALLED_APPS = [
     'project_customers.apps.ProjectCustomersConfig',
     'pa_controls.apps.PaControlsConfig',
     'filter_regulator.apps.FilterRegulatorConfig',
-    'gearbox.apps.GearBoxConfig'
+    'gearbox.apps.GearBoxConfig',
+    'core.apps.CoreConfig'
 ]
 
 MIDDLEWARE = [

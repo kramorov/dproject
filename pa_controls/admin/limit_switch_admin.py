@@ -172,7 +172,7 @@ class LimitSwitchModelLineAdmin(admin.ModelAdmin):
             'description': _('Шаблоны для автоматического формирования названия и описания')
         }),
         (_('Производитель и бренд'), {
-            'fields': ('producer', 'brand')
+            'fields': ('producer', 'brand', 'equipment_type')
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),

@@ -8,7 +8,7 @@ from typing import List , Optional , Tuple , Any , Dict , Union
 from django.core.exceptions import ValidationError
 
 from cert_doc.models import AbstractCertRelation
-from core.models import StructuredDataMixin
+from core.models import StructuredDataMixin , EquipmentTypeMixin
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -22,7 +22,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class PneumaticActuatorModelLine(StructuredDataMixin , models.Model) :
+class PneumaticActuatorModelLine(EquipmentTypeMixin,StructuredDataMixin , models.Model) :
     """
     Серия пневмоприводов - DA и SR -
     Объединяет в себе общие для всех моделей серии свойства

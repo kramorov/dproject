@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import CertVariety , CertData
+from .models import CertVariety , CertData , CertRelation
 from core.admin import BaseAdmin
 
 
@@ -152,7 +152,7 @@ class CertDataAdmin(BaseAdmin) :
 
     fieldsets = (
         ('Основная информация' , {
-            'fields' : (('name' ,'code' ,'cert_variety' ,),
+            'fields' : (('name' ,'code' ,'cert_variety' ,'equipment_type', ),
                         ('valid_from' , 'valid_until','brand'),
                         'issued_by',
                         'public_url',
@@ -524,6 +524,63 @@ class CertDataAdmin(BaseAdmin) :
             request ,
             f'Деактивировано {updated} сертификатов.'
         )
+
+    class Media :
+        css = {
+            'all' : (
+                'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css' ,
+            )
+        }
+
+
+@admin.register(CertRelation)
+class CertRelationAdmin(admin.ModelAdmin):
+    """Админка для связей сертификатов с объектами"""
+    list_display = [
+        'id',
+        'cert_data_link',
+        'content_type',
+        'related_object_display',
+        'is_active',
+        'sorting_order',
+    ]
+    list_filter = [
+        'is_active',
+        'content_type',
+        'cert_data__cert_variety',
+    ]
+    search_fields = [
+        'cert_data__name',
+        'cert_data__code',
+        'object_id',
+    ]
+    autocomplete_fields = ['cert_data']
+    list_select_related = ['cert_data', 'content_type']
+    list_editable = ['is_active', 'sorting_order']
+    ordering = ['cert_data', 'content_type', 'object_id']
+
+    fieldsets = (
+        (_('Связь'), {
+            'fields': ('cert_data', 'content_type', 'object_id')
+        }),
+        (_('Настройки'), {
+            'fields': ('sorting_order', 'is_active')
+        }),
+    )
+
+    def cert_data_link(self, obj):
+        url = reverse('admin:cert_doc_certdata_change', args=[obj.cert_data_id])
+        return format_html('<a href="{}">{}</a>', url, obj.cert_data.name or obj.cert_data.code)
+    cert_data_link.short_description = _('Сертификат')
+    cert_data_link.admin_order_field = 'cert_data__name'
+
+    def related_object_display(self, obj):
+        """Отображение связанного объекта через GFK"""
+        obj_instance = obj.content_object
+        if obj_instance:
+            return str(obj_instance)
+        return f"#{obj.object_id}"
+    related_object_display.short_description = _('Связанный объект')
 
     class Media :
         css = {

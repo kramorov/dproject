@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from storage_manager.fields import ManagedFileField
 from storage_manager.services import file_service
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -261,6 +263,28 @@ class MediaLibraryItem(models.Model):
         blank=True,
         related_name='created_media_items',
         verbose_name=_("Кто создал")
+    )
+
+    # ==================== Связь с любым объектом (GenericForeignKey) ====================
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Тип связанного объекта"),
+    )
+    object_id = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name=_("ID связанного объекта")
+    )
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    # EquipmentType — явный FK (миксин не детектится makemigrations)
+    equipment_type = models.ForeignKey(
+        'core.EquipmentType',
+        on_delete=models.PROTECT,
+        blank=True, null=True,
+        verbose_name=_("Тип оборудования"),
+        help_text=_("К какому типу оборудования относится файл")
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -558,4 +582,3 @@ class MediaLibraryItem(models.Model):
                 for sep in separators:
                     filename_without_ext = filename_without_ext.replace(sep, ' ')
                 self.description = f"Файл: {filename_without_ext.strip()}"
-

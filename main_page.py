@@ -113,6 +113,14 @@ MAIN_SECTIONS = {
         "enabled": True,
         "order": 11
     },
+    "equipment_type_editor": {
+            "title": "Типы оборудования",
+            "icon": "💰",
+            "description": "Типы оборудования",
+            "page": 'pages/equipment_type_editor.py',
+            "enabled": True,
+            "order": 12
+        },
 }
 
 # Словарь разделов для САЙДБАРА (навигация)
@@ -176,11 +184,24 @@ SIDEBAR_SECTIONS = {
     "solenoid_valves": {
         "title": "Соленоидные клапаны",
         "icon": "💰",
-
         "page": 'pages/solenoid_valves.py',
         "enabled": True,
         "order": 11
     },
+    "equipment_type_editor": {
+            "title": "Типы оборудования",
+            "icon": "💰",
+            "page": 'pages/equipment_type_editor.py',
+            "enabled": True,
+            "order": 12
+        },
+    "media_library_editor": {
+            "title": "Медиабиблиотека",
+            "icon": "💰",
+            "page": 'media_library_editor.py',
+            "enabled": True,
+            "order": 13
+        },
 }
 
 # Сортировка по order

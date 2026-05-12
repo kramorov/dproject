@@ -154,9 +154,15 @@ class FilterDefinition:
             ]
         elif self.data_source_type == DataSourceType.UNIQUE_FIELD_VALUES:
             # Уникальные значения из поля (с получением объектов для ForeignKey)
-            values = model_class.objects.filter(
-                **{f"{self.model_field}__isnull": False}
-            ).values_list(self.model_field, flat=True).distinct()
+            try:
+                values = model_class.objects.filter(
+                    **{f"{self.model_field}__isnull": False}
+                ).values_list(self.model_field, flat=True).distinct()
+            except Exception as e:
+                import traceback
+                print(f"[UNIQUE_FIELD_VALUES ERROR] model={model_class.__name__}, field={self.model_field}: {e}")
+                traceback.print_exc()
+                return []
 
             # Проверяем, является ли поле ForeignKey
             try:

@@ -1,12 +1,12 @@
 # pages/fittings_catalog.py
 
 import streamlit as st
-from pneumatic_fittings.models import PneumaticFitting
 
 st.set_page_config(page_title="Каталог фитингов", layout="wide")
 st.title("🔧 Каталог пневматических фитингов")
 
 # Получаем опции фильтров
+from pneumatic_fittings.models import PneumaticFitting
 filter_options = PneumaticFitting.get_filter_options()
 
 # ==================== СТРОКА 1 ====================
