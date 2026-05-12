@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.core.exceptions import ValidationError
 from features.models.feature_template import FeatureTemplate
-from features.models.equipment_type import EquipmentType
+from core.models.equipment_type import EquipmentType
 from features.models.feature_variety import FeatureVariety
 
 

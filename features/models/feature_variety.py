@@ -2,7 +2,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from core.models import BaseAbstractModel
-from .equipment_type import EquipmentType
+from core.models.equipment_type import EquipmentType
 
 
 class FeatureVariety(BaseAbstractModel):

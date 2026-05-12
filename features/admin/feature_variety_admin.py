@@ -4,7 +4,7 @@ from django import forms
 from django.utils.html import format_html
 from django.urls import reverse
 from features.models.feature_variety import FeatureVariety
-from features.models.equipment_type import EquipmentType
+from core.models.equipment_type import EquipmentType
 
 
 class FeatureVarietyForm(forms.ModelForm):

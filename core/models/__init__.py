@@ -13,6 +13,8 @@ from django.db.models import Model
 
 # Импортируем все из модулей для удобного доступа
 from .base import BaseAbstractModel
+from .equipment_type import EquipmentType
+from .equipment_type_mixin import EquipmentTypeMixin
 from .mixins import (
     StructuredDataMixin ,
     TimestampMixin ,
@@ -23,6 +25,10 @@ from .mixins import (
 __all__ = [
     # Базовые модели
     'BaseAbstractModel',
+
+    # Классификатор
+    'EquipmentType',
+    'EquipmentTypeMixin',
 
     # Миксины
     'StructuredDataMixin' ,

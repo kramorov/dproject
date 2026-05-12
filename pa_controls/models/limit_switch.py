@@ -6,7 +6,7 @@ from typing import Dict, List, Any
 import logging
 
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
-from core.models.mixins import TemplateMixin
+from core.models.mixins import TemplateMixin, CopyMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified
 from pa_controls.models import LimitSwitchSensorVariety , LimitSwitchBody , \
@@ -24,7 +24,7 @@ from params.models import IpOption
 # ============================================================
 # БЛОК КОНЦЕВЫХ ВЫКЛЮЧАТЕЛЕЙ (Limit Switch Box)
 # ============================================================
-class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
+class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, CopyMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -137,72 +137,76 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
     def __str__(self):
         return f"{self.name}"
 
-    def copy(self, suffix=" (Копия)", code_suffix="_copy"):
-        """
-        Создает копию текущего объекта
+    def _copy_custom_relations(self, new_copy):
+        new_copy.exd_set_ids(self.exd_get_ids())
+        new_copy.additional_sensor.set(self.additional_sensor.all())
 
-        Args:
-            suffix: суффикс для name
-            code_suffix: суффикс для code
-
-        Returns:
-            LimitSwitchBox: Скопированный объект
-        """
-        # Генерируем новые имена с суффиксом
-        original_name = self.name or ""
-        original_code = self.code or ""
-
-        # Для name
-        if suffix in original_name:
-            base_name = original_name.replace(suffix, "")
-            new_name = f"{base_name}{suffix}"
-        else:
-            new_name = f"{original_name}{suffix}"
-
-        # Для code
-        if original_code:
-            if code_suffix in original_code:
-                # Увеличиваем номер копии
-                import re
-                match = re.search(rf"{code_suffix}(\d+)$", original_code)
-                if match:
-                    num = int(match.group(1)) + 1
-                    new_code = re.sub(rf"{code_suffix}\d+$", f"{code_suffix}{num}", original_code)
-                else:
-                    new_code = f"{original_code}{code_suffix}1"
-            else:
-                new_code = f"{original_code}{code_suffix}"
-        else:
-            new_code = None
-
-        # Создаем копию
-        copy = LimitSwitchBox(
-            name=new_name,
-            code=new_code,
-            description=f"Копия: {self.description}" if self.description else "Копия",
-            sorting_order=self.sorting_order + 100,
-            is_active=self.is_active,
-            model_line=self.model_line,
-            body=self.body,
-            sensor_variety=self.sensor_variety,
-            points=self.points,
-            ip=self.ip,
-            work_temp_min=self.work_temp_min,
-            work_temp_max=self.work_temp_max,
-            body_material=self.body_material,
-            body_material_specified=self.body_material_specified,
-            is_pneumatic=self.is_pneumatic,
-            has_namur_interface=self.has_namur_interface,
-            has_visual_indicator=self.has_visual_indicator,
-            extra_params=self.extra_params if self.extra_params else {}
-        )
-        copy.save()
-
-        # Копируем exd через ручной метод
-        copy.exd_set_ids(self.exd_get_ids())
-        # Копируем ManyToMany поле additional_sensor
-        copy.additional_sensor.set(self.additional_sensor.all())
-        return copy
+    # def copy(self, suffix=" (Копия)", code_suffix="_copy"):
+    #     """
+    #     Создает копию текущего объекта
+    #
+    #     Args:
+    #         suffix: суффикс для name
+    #         code_suffix: суффикс для code
+    #
+    #     Returns:
+    #         LimitSwitchBox: Скопированный объект
+    #     """
+    #     # Генерируем новые имена с суффиксом
+    #     original_name = self.name or ""
+    #     original_code = self.code or ""
+    #
+    #     # Для name
+    #     if suffix in original_name:
+    #         base_name = original_name.replace(suffix, "")
+    #         new_name = f"{base_name}{suffix}"
+    #     else:
+    #         new_name = f"{original_name}{suffix}"
+    #
+    #     # Для code
+    #     if original_code:
+    #         if code_suffix in original_code:
+    #             # Увеличиваем номер копии
+    #             import re
+    #             match = re.search(rf"{code_suffix}(\d+)$", original_code)
+    #             if match:
+    #                 num = int(match.group(1)) + 1
+    #                 new_code = re.sub(rf"{code_suffix}\d+$", f"{code_suffix}{num}", original_code)
+    #             else:
+    #                 new_code = f"{original_code}{code_suffix}1"
+    #         else:
+    #             new_code = f"{original_code}{code_suffix}"
+    #     else:
+    #         new_code = None
+    #
+    #     # Создаем копию
+    #     copy = LimitSwitchBox(
+    #         name=new_name,
+    #         code=new_code,
+    #         description=f"Копия: {self.description}" if self.description else "Копия",
+    #         sorting_order=self.sorting_order + 100,
+    #         is_active=self.is_active,
+    #         model_line=self.model_line,
+    #         body=self.body,
+    #         sensor_variety=self.sensor_variety,
+    #         points=self.points,
+    #         ip=self.ip,
+    #         work_temp_min=self.work_temp_min,
+    #         work_temp_max=self.work_temp_max,
+    #         body_material=self.body_material,
+    #         body_material_specified=self.body_material_specified,
+    #         is_pneumatic=self.is_pneumatic,
+    #         has_namur_interface=self.has_namur_interface,
+    #         has_visual_indicator=self.has_visual_indicator,
+    #         extra_params=self.extra_params if self.extra_params else {}
+    #     )
+    #     copy.save()
+    #
+    #     # Копируем exd через ручной метод
+    #     copy.exd_set_ids(self.exd_get_ids())
+    #     # Копируем ManyToMany поле additional_sensor
+    #     copy.additional_sensor.set(self.additional_sensor.all())
+    #     return copy
 
     @property
     def exd_all(self):
@@ -247,12 +251,13 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
                     [self.pk, eid]
                 )
 
+    @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
-        if not self.exd_exists():
+        ids = self.exd_get_ids()
+        if not ids:
             return "Нет"
-
-        return ", ".join([req.name for req in self.exd_all])
+        return ", ".join(req.name for req in ExdOption.objects.filter(id__in=ids))
     
     def _get_name_template_source(self):
         """Переопределить в модели: вернуть шаблон названия или None."""
@@ -270,6 +275,11 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
         default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}, вес {weight}кг. Датчики: {sensors_description}"
         return default_description_template
 
+    # '{primary_sensor_contact_form}': 'primary_sensor__contact_form',
+
+    @property
+    def get_primary_sensor_contact_form(self) -> str:
+        return '' if self.primary_sensor.contact_form.code=='NONE' else self.primary_sensor.contact_form
     @property
     def get_sensors_signal_types_list(self) -> str :
         codes = []
@@ -340,6 +350,10 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, models.Model):
             # M2M поле - вызов метода get_sensors_list с подшаблоном
             # В подшаблоне можно использовать поля из SensorComponent (name, brand, signal_type, electrical_specs и т.д.)
             '{primary_sensor}' : 'primary_sensor__description' ,
+            '{primary_sensor_signal_type}': 'primary_sensor__signal_type',
+            '{primary_sensor_contact_state}': 'primary_sensor__contact_state',
+            '{primary_sensor_contact_form}': 'get_primary_sensor_contact_form',
+            # '{primary_sensor}': 'primary_sensor__description',
             '{sensors}' : 'get_additional_sensors_names_list' ,
             '{signals}' : 'get_sensors_signal_types_list' ,
             '{sensors_description}': 'get_sensors_description_list',

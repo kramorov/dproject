@@ -11,7 +11,7 @@ from typing import TypeVar , Any , Dict , Callable , Optional
 import logging
 from django.contrib import messages
 logger = logging.getLogger(__name__)
-
+import copy
 
 class TemplateMixin:
     """
@@ -1523,7 +1523,7 @@ class CopyMixin:
     Добавляет метод copy() для создания копии объекта.
     """
 
-    def copy(self, suffix=" Копия", preserve_code=False, reset_fields=None):
+    def copy(self, suffix=" Копия", preserve_code=False, reset_fields=None, deep_copy_fields=None):
         """
         Создает копию объекта.
 
@@ -1531,7 +1531,8 @@ class CopyMixin:
             suffix: Суффикс, добавляемый к полю code (по умолчанию " Копия")
             preserve_code: Если True, не изменять поле code (по умолчанию False)
             reset_fields: Список полей, которые нужно сбросить (например, ['sorting_order', 'is_active'])
-
+            deep_copy_fields: Список полей, для которых нужен deep copy (например, ['extra_params']).
+                      Также автоматически определяется для JSONField.
         Returns:
             Model: Новая копия объекта
         """
@@ -1572,7 +1573,11 @@ class CopyMixin:
 
             # Копируем остальные поля
             else:
-                setattr(copied_obj, field_name, getattr(self, field_name))
+                value = getattr(self, field_name)
+                # Deep copy для mutable-полей (JSONField, dict, list)
+                if self._should_deep_copy(field, field_name, value, deep_copy_fields):
+                    value = copy.deepcopy(value)
+                setattr(copied_obj, field_name, value)
 
         # Сохраняем копию
         copied_obj.save()
@@ -1581,8 +1586,31 @@ class CopyMixin:
         for m2m_field in self._meta.many_to_many:
             getattr(copied_obj, m2m_field.name).set(getattr(self, m2m_field.name).all())
 
+        # Вызываем хук для специализированных связей (exd через through-таблицу и т.п.)
+        self._copy_custom_relations(copied_obj)
+
         return copied_obj
 
+    def _should_deep_copy(self, field, field_name, value, deep_copy_fields):
+        """
+        Определяет, нужно ли делать deep copy для поля.
+        """
+        if value is None:
+            return False
+        # Явно указанные поля
+        if deep_copy_fields and field_name in deep_copy_fields:
+            return isinstance(value, (dict, list))
+        # Автоопределение: JSONField
+        if isinstance(field, models.JSONField):
+            return isinstance(value, (dict, list))
+        return False
+
+    def _copy_custom_relations(self, new_copy):
+        """
+        Хук для копирования специализированных связей (exd через through-таблицу и т.п.).
+        Переопределите в модели при необходимости.
+        """
+        pass
 
 class AdminCopyMixin:
     """

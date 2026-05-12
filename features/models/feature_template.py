@@ -3,7 +3,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.postgres.fields import JSONField
 from core.models import BaseAbstractModel
-from .equipment_type import EquipmentType
+from core.models.equipment_type import EquipmentType
 from .feature_variety import FeatureVariety
 import json
 
