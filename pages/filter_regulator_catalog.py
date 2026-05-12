@@ -209,17 +209,17 @@ if selected_body_material and selected_body_material.get('id'):
     params['model_line_body_material_id'] = selected_body_material['id']
 
 if min_work_temp:
-    params['model_line_work_temp_min'] = min_work_temp
+    params['work_temp_min'] = min_work_temp
 if max_work_temp:
-    params['model_line_work_temp_max'] = max_work_temp
+    params['work_temp_max'] = max_work_temp
 
 if required_min_pressure:
-    params['model_line_pressure_min'] = required_min_pressure  # оборудование должно иметь давление НЕ ВЫШЕ # user_min - используем max_value_filter
+    params['pressure_min'] = required_min_pressure  # оборудование должно иметь давление НЕ ВЫШЕ # user_min - используем max_value_filter
 if required_max_pressure:
-    params['model_line_pressure_max'] = required_max_pressure  # user_max - используем min_value_filter оборудование должно иметь давление НЕ НИЖЕ
+    params['pressure_max'] = required_max_pressure  # user_max - используем min_value_filter оборудование должно иметь давление НЕ НИЖЕ
 
 if max_inlet_pressure:
-    params['model_line_pressure_inlet_max'] = max_inlet_pressure
+    params['pressure_inlet_max'] = max_inlet_pressure
 
 # ==================== ЗАГРУЖАЕМ ДАННЫЕ ====================
 result = FilterRegulator.filter_by_params(params)

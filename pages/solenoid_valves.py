@@ -207,6 +207,7 @@ with col3:
 if result.get('filters_applied'):
     st.write(f"**Применённые фильтры:** {result['filters_applied']}")
 
+
 # ==================== ФУНКЦИЯ ОТРИСОВКИ КАРТОЧКИ ====================
 def _render_valve(item, badge=None):
     expander_title = item.get('name', '')
@@ -234,10 +235,13 @@ def _render_valve(item, badge=None):
             st.write(f"**Питание:** {item['power_supply']['name'] if item.get('power_supply') else '-'}")
             st.write(f"**Kv:** {item.get('kv', '-')} м³/ч" if item.get('kv') else "**Kv:** -")
             st.write(f"**Материал корпуса:** {item['body_material']['name'] if item.get('body_material') else '-'}")
-            st.write(f"**Материал соленоида:** {item['solenoid_body_material']['name'] if item.get('solenoid_body_material') else '-'}")
-            st.write(f"**Пневмоподключение:** {item['pneumatic_connection']['name'] if item.get('pneumatic_connection') else '-'}")
+            st.write(
+                f"**Материал соленоида:** {item['solenoid_body_material']['name'] if item.get('solenoid_body_material') else '-'}")
+            st.write(
+                f"**Пневмоподключение:** {item['pneumatic_connection']['name'] if item.get('pneumatic_connection') else '-'}")
             temp_range = f"{item.get('work_temp_min', '-')}…{item.get('work_temp_max', '-')} °C"
             st.write(f"**Температура:** {temp_range}")
+
 
 # ==================== ТОЧНЫЕ СОВПАДЕНИЯ ====================
 if result['data']:
@@ -251,3 +255,4 @@ if result.get('compatible_data'):
     st.markdown("---")
     st.markdown("### 🔗 Совместимые схемы (например, 3/2 ↔ 5/2)")
     for item in result['compatible_data']:
+        _render_valve(item)

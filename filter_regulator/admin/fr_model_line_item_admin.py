@@ -23,6 +23,9 @@ class FilterRegulatorAdmin(AdminCopyMixin, admin.ModelAdmin):
         (_('Характеристики'), {
             'fields': ( ('filtration_rating',   'flow_rate'), ('gauge_quantity','wall_mounting_included', 'has_shut_off_valve'),)
         }),
+        (_('Рабочие параметры'), {
+            'fields': (('work_temp_min', 'work_temp_max'), ('pressure_min', 'pressure_max', 'pressure_inlet_max'))
+        }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),
             'classes': ('wide',),

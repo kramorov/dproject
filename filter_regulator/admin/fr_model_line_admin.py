@@ -22,7 +22,7 @@ class FilterRegulatorModelLineAdmin(admin.ModelAdmin):
             'classes': ('wide',),
         }),
         (_('Материалы'), {
-            'fields': ('body_material', 'body_material_specified', 'bowl_material', 'bowl_material_text','protection_material')
+            'fields': (('body_material', 'body_material_specified','body_material_text',), ('bowl_material', 'bowl_material_text'),'protection_material')
         }),
         (_('Рабочие параметры'), {
             'fields': (('work_temp_min', 'work_temp_max'), ('pressure_min', 'pressure_max', 'pressure_inlet_max'))

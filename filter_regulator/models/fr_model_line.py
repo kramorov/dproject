@@ -40,30 +40,43 @@ class FilterRegulatorModelLine(models.Model):
                                        on_delete=models.SET_NULL,
                                        help_text=_('Тип модели фильтр-регулятора'),
                                        verbose_name=_("Тип"))
+    # body_material - для фильтрации, в описание не идет
     body_material = models.ForeignKey(MaterialGeneral, related_name='filter_model_line_body_material',
                                       blank=True,
                                       null=True,
                                       on_delete=models.SET_NULL,
                                       help_text=_('Корпус'),
                                       verbose_name=_('Тип материала корпуса'))
+    # body_material_specified - для фильтрации, в описание не идет
     body_material_specified = models.ForeignKey(MaterialSpecified , related_name='filter_model_line_body_material_specified' ,
                                                 blank=True , null=True ,
                                                 on_delete=models.SET_NULL ,
                                                 help_text=_('Материал корпуса арматуры') ,
                                                 verbose_name=_('Материал корпуса'))
+    # body_material_text - для описания
+    body_material_text = models.CharField(max_length=200,
+                                          blank=True,
+                                          null=True,
+                                          help_text=_('Материал корпус фильтр-регулятора'),
+                                          verbose_name=_("Корпус (текст)"))
+    # bowl_material - для фильтрации, в описание не идет
     bowl_material = models.ForeignKey(MaterialGeneral, related_name='filter_model_line_bowl_material',
                                       blank=True,
                                       null=True,
                                       on_delete=models.SET_NULL,
                                       help_text=_('Стакан'),
                                       verbose_name=_('Тип материала стакана'))
-    protection_material = models.CharField(max_length=50 ,
-                                           verbose_name=_("Материал защиты (кожуха)"))  # Алюминиевый кожух
+    # bowl_material_text - для описания
+    bowl_material_text = models.CharField(max_length=200,
+                                          blank=True,
+                                          null=True,
+                                          help_text=_('Материал стакана фильтр-регулятора'),
+                                          verbose_name=_("Стакан (текст)"))
+    # protection_material - для описания
+    protection_material = models.CharField(max_length=200 ,
+                                           help_text=_('Материал стакана фильтр-регулятора'),
+                                           verbose_name=_("Материал кожуха (текст)"))  # Алюминиевый кожух
 
-    bowl_material_text = models.CharField(
-        max_length=50 , null=True , blank=True ,
-        verbose_name=_("Материал стакана")
-    )
 
     work_temp_min = models.IntegerField(
         null=True, blank=True, default=-40,

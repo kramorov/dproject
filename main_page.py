@@ -1,5 +1,6 @@
 # main_page.py
 import warnings
+
 warnings.filterwarnings("ignore", message="Model '.*' was already registered")
 
 import streamlit as st
@@ -103,7 +104,15 @@ MAIN_SECTIONS = {
         "page": 'pages/request_list.py',
         "enabled": True,
         "order": 10
-    }
+    },
+    "solenoid_valves": {
+        "title": "Соленоидные клапаны",
+        "icon": "💰",
+        "description": "Соленоидные клапаны",
+        "page": 'pages/solenoid_valves.py',
+        "enabled": True,
+        "order": 11
+    },
 }
 
 # Словарь разделов для САЙДБАРА (навигация)
@@ -163,7 +172,15 @@ SIDEBAR_SECTIONS = {
         "page": 'pages/request_list.py',
         "enabled": True,
         "order": 8
-    }
+    },
+    "solenoid_valves": {
+        "title": "Соленоидные клапаны",
+        "icon": "💰",
+
+        "page": 'pages/solenoid_valves.py',
+        "enabled": True,
+        "order": 11
+    },
 }
 
 # Сортировка по order
@@ -173,7 +190,7 @@ SIDEBAR_SECTIONS = dict(sorted(SIDEBAR_SECTIONS.items(), key=lambda x: x[1]["ord
 
 # ==================== ФУНКЦИИ ДЛЯ КУРСОВ ВАЛЮТ ====================
 
-def get_currency_rates(force_update=False) :
+def get_currency_rates(force_update=False):
     """
     Получить курсы валют с ЦБ РФ через модель ExchangeRate
 
@@ -186,42 +203,42 @@ def get_currency_rates(force_update=False) :
     cache_key = f"currency_rates_{today.isoformat()}"
 
     # Пытаемся получить из кэша
-    if not force_update :
+    if not force_update:
         cached_rates = cache.get(cache_key)
-        if cached_rates :
+        if cached_rates:
             return cached_rates
 
     # Получаем курсы на сегодня
     rates = ExchangeRate.get_or_fetch_rates_for_date(today)
 
     # Если курсов нет (выходной), берем последний доступный
-    if not rates :
+    if not rates:
         last_rate = ExchangeRate.objects.order_by('-date').first()
-        if last_rate :
+        if last_rate:
             rates = ExchangeRate.get_or_fetch_rates_for_date(last_rate.date)
             update_date = last_rate.date
-        else :
+        else:
             # Заглушки при отсутствии данных
             result = {
-                "USD" : 92.50 ,
-                "EUR" : 99.80 ,
-                "CNY" : 12.75 ,
-                "updated_at" : datetime.now().strftime("%d.%m.%Y")
+                "USD": 92.50,
+                "EUR": 99.80,
+                "CNY": 12.75,
+                "updated_at": datetime.now().strftime("%d.%m.%Y")
             }
-            cache.set(cache_key , result , 3600)  # кэш на час
+            cache.set(cache_key, result, 3600)  # кэш на час
             return result
-    else :
+    else:
         update_date = today
 
     result = {
-        "USD" : float(rates.get("USD" , 0)) ,
-        "EUR" : float(rates.get("EUR" , 0)) ,
-        "CNY" : float(rates.get("CNY" , 0)) ,
-        "updated_at" : update_date.strftime("%d.%m.%Y")
+        "USD": float(rates.get("USD", 0)),
+        "EUR": float(rates.get("EUR", 0)),
+        "CNY": float(rates.get("CNY", 0)),
+        "updated_at": update_date.strftime("%d.%m.%Y")
     }
 
     # Кэшируем на 6 часов
-    cache.set(cache_key , result , 21600)
+    cache.set(cache_key, result, 21600)
 
     return result
 
