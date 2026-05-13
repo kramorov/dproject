@@ -404,64 +404,6 @@ class CertDataAdmin(BaseAdmin) :
 
     download_links.short_description = "Ссылки для скачивания"
 
-    # def relations_list(self , obj) :
-    #     """Список связанных объектов"""
-    #     if not obj.pk :
-    #         return "Сначала сохраните объект"
-    #
-    #     html = ['<div style="max-height: 300px; overflow-y: auto;">']
-    #
-    #     # Продукты
-    #     product_relations = obj.productcertrelation_relations.all()
-    #     if product_relations.exists() :
-    #         html.append('<h4 style="margin: 15px 0 5px 0;">📦 Связанные продукты:</h4>')
-    #         html.append('<ul style="margin-left: 20px;">')
-    #         for rel in product_relations[:10] :  # Ограничиваем показ
-    #             product_name = str(rel.product) if rel.product else "Неизвестный продукт"
-    #             html.append(
-    #                 f'<li>'
-    #                 f'<a href="{reverse("admin:cert_doc_productcertrelation_change" , args=[rel.id])}">'
-    #                 f'{product_name}'
-    #                 f'</a>'
-    #                 f'{" <span style=\"color: #4CAF50;\">(основной)</span>" if rel.is_primary else ""}'
-    #                 f'</li>'
-    #             )
-    #         if product_relations.count() > 10 :
-    #             html.append(f'<li>... и еще {product_relations.count() - 10}</li>')
-    #         html.append('</ul>')
-    #
-    #     # Проекты
-    #     project_relations = obj.projectcertrelation_relations.all()
-    #     if project_relations.exists() :
-    #         html.append('<h4 style="margin: 15px 0 5px 0;">🏗️ Связанные проекты:</h4>')
-    #         html.append('<ul style="margin-left: 20px;">')
-    #         for rel in project_relations[:10] :
-    #             project_name = str(rel.project) if rel.project else "Неизвестный проект"
-    #             html.append(
-    #                 f'<li>'
-    #                 f'<a href="{reverse("admin:cert_doc_projectcertrelation_change" , args=[rel.id])}">'
-    #                 f'{project_name}'
-    #                 f'</a>'
-    #                 f'</li>'
-    #             )
-    #         if project_relations.count() > 10 :
-    #             html.append(f'<li>... и еще {project_relations.count() - 10}</li>')
-    #         html.append('</ul>')
-    #
-    #     if not product_relations.exists() and not project_relations.exists() :
-    #         html.append(
-    #             '<div style="color: #999; padding: 15px; background: #f5f5f5; '
-    #             'border-radius: 5px; text-align: center;">'
-    #             'Нет связанных объектов'
-    #             '</div>'
-    #         )
-    #
-    #     html.append('</div>')
-    #
-    #     return format_html(''.join(html))
-    #
-    # relations_list.short_description = "Связанные объекты"
-
     # Действия
 
     @admin.action(description=_('Пометить как просроченные'))
@@ -537,55 +479,49 @@ class CertDataAdmin(BaseAdmin) :
 # @admin.register(CertRelation)
 # class CertRelationAdmin(admin.ModelAdmin):
 #     """Админка для связей сертификатов с объектами"""
-    list_display = [
-        'id',
-        'cert_data_link',
-        'content_type',
-        'related_object_display',
-        'is_active',
-        'sorting_order',
-    ]
-    list_filter = [
-        'is_active',
-        'content_type',
-        'cert_data__cert_variety',
-    ]
-    search_fields = [
-        'cert_data__name',
-        'cert_data__code',
-        'object_id',
-    ]
-    autocomplete_fields = ['cert_data']
-    list_select_related = ['cert_data', 'content_type']
-    list_editable = ['is_active', 'sorting_order']
-    ordering = ['cert_data', 'content_type', 'object_id']
-
-    fieldsets = (
-        (_('Связь'), {
-            'fields': ('cert_data', 'content_type', 'object_id')
-        }),
-        (_('Настройки'), {
-            'fields': ('sorting_order', 'is_active')
-        }),
-    )
-
-    def cert_data_link(self, obj):
-        url = reverse('admin:cert_doc_certdata_change', args=[obj.cert_data_id])
-        return format_html('<a href="{}">{}</a>', url, obj.cert_data.name or obj.cert_data.code)
-    cert_data_link.short_description = _('Сертификат')
-    cert_data_link.admin_order_field = 'cert_data__name'
-
-    def related_object_display(self, obj):
-        """Отображение связанного объекта через GFK"""
-        obj_instance = obj.content_object
-        if obj_instance:
-            return str(obj_instance)
-        return f"#{obj.object_id}"
-    related_object_display.short_description = _('Связанный объект')
-
-    class Media :
-        css = {
-            'all' : (
-                'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css' ,
-            )
-        }
+#     list_display = [
+#         'id',
+#         'cert_data_link',
+#         'related_object_display',
+#         'is_active',
+#         'sorting_order',
+#     ]
+#     list_filter = [
+#         'is_active',
+#         'cert_data__cert_variety',
+#     ]
+#
+#
+#     list_select_related = ['cert_data', 'content_type']
+#     list_editable = ['is_active', 'sorting_order']
+#
+#
+#     fieldsets = (
+#         (_('Связь'), {
+#             'fields': ('cert_data', 'content_type', 'object_id')
+#         }),
+#         (_('Настройки'), {
+#             'fields': ('sorting_order', 'is_active')
+#         }),
+#     )
+#
+#     def cert_data_link(self, obj):
+#         url = reverse('admin:cert_doc_certdata_change', args=[obj.cert_data_id])
+#         return format_html('<a href="{}">{}</a>', url, obj.cert_data.name or obj.cert_data.code)
+#     cert_data_link.short_description = _('Сертификат')
+#     cert_data_link.admin_order_field = 'cert_data__name'
+#
+#     def related_object_display(self, obj):
+#         """Отображение связанного объекта через GFK"""
+#         obj_instance = obj.content_object
+#         if obj_instance:
+#             return str(obj_instance)
+#         return f"#{obj.object_id}"
+#     related_object_display.short_description = _('Связанный объект')
+#
+#     class Media :
+#         css = {
+#             'all' : (
+#                 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css' ,
+#             )
+#         }
