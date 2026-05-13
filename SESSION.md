@@ -1,4 +1,4 @@
-# SESSION.md — состояние на 2026-05-12
+# SESSION.md — состояние на 2026-05-13
 
 ## Правила (см. .deepseek/instructions.md)
 
@@ -13,7 +13,56 @@
 - Streamlit (pages/)
 - djangoProject1/settings.py
 
-## Что сделано
+---
+
+## Архитектура связей сертификатов (новое, 2026-05-13)
+
+### Проблема
+Сертификаты бывают двух типов:
+- **Строгие** (ТР ТС 012): один тип оборудования → несколько серий
+- **Простые** (декларация): несколько типов оборудования → несколько серий
+
+### Решение
+1. **CertData.equipment_type (FK) → equipment_types (M2M)** — сертификат может относиться к нескольким типам оборудования
+2. **EquipmentTypeMixin.cert_docs = M2M(CertData)** — явная связь «сертификат ↔ серия» через честный FK, без GFK
+3. **CertRelation с GFK удалён** — заменён на M2M cert_docs в миксине
+
+### Структура
+```
+CertData
+├── equipment_types = M2M(EquipmentType)   ← было FK, стало M2M
+├── media_item = FK(MediaLibraryItem)
+├── brand = FK(Brands, null=True)
+└── ...
+
+EquipmentTypeMixin (abstract)
+├── equipment_type = FK(EquipmentType)      ← уже было
+└── cert_docs = M2M(CertData)              ← новое поле, related_name='%(class)s_related'
+```
+
+### Доступ
+- Со стороны серии: `model_line.cert_docs.all()`
+- Со стороны сертификата: `cert.pneumaticactuatormodelline_related.all()` и т.д.
+
+### Что изменено
+| Файл | Что |
+|---|---|
+| `cert_doc/models.py` | `equipment_type` (FK) → `equipment_types` (M2M), `CertRelation` закомментирован |
+| `core/models/equipment_type_mixin.py` | Добавлен `cert_docs = M2M(CertData)` |
+| `cert_doc/admin.py` | Убран import CertRelation, `equipment_type` → `equipment_types`, CertRelationAdmin удалён |
+| `pages/cert_manager.py` | Форма: multiselect типов; связи: M2M cert_docs вместо GFK CertRelation |
+
+### НЕ затронуто
+- `cable_glands/models/cg_cert.py` — `CableGlandModelLineCertRelation(AbstractCertRelation)` — живой
+- `electric_actuators/models/ea_model_line.py` — `ElectricActuatorModelLineCertRelation` — живой
+- `pneumatic_actuators/models/pa_model_line.py` — `PneumaticActuatorModelLineCertRelation` — живой
+- `AbstractCertRelation` в `cert_doc/models.py` — остался, от него наследуются конкретные классы выше
+
+Эти классы можно позже перевести на `cert_docs` через EquipmentTypeMixin, но это отдельная задача.
+
+---
+
+## Что сделано ранее
 
 ### EquipmentType — дерево классификации оборудования
 - Модель: `core/models/equipment_type.py` → `EquipmentType`
@@ -23,15 +72,12 @@
   - **Причина:** строковые ссылки не резолвятся makemigrations для abstract-моделей
 - Миграция в pa_controls: `0026_limitswitchmodelline_equipment_type.py` — применена
 - LimitSwitchModelLine — использует EquipmentTypeMixin, поле работает
-- PneumaticActuatorModelLine — EquipmentTypeMixin НЕ добавлен (отложили)
+- PneumaticActuatorModelLine — EquipmentTypeMixin добавлен
 
 ### Сертификаты (cert_doc)
-- `CertData` — сертификат: поля name, code, issued_by, valid_from/until, brand, equipment_type (явный FK), media_item, public_url
+- `CertData` — сертификат: поля name, code, issued_by, valid_from/until, brand, equipment_types (M2M), media_item, public_url
 - `CertVariety` — тип сертификата
-- `CertRelation` — связка сертификат↔объект через GFK (content_type + object_id)
-  - Миграция: 0002_certdata_equipment_type_certrelation.py — применена
-- Админка: `CertDataAdmin`, `CertRelationAdmin`
-- Streamlit: `pages/cert_manager.py` — создание/редактирование сертификатов, привязка к сериям
+- ~~`CertRelation`~~ — удалён (GFK), заменён на cert_docs M2M в EquipmentTypeMixin
 
 ### Медиабиблиотека (media_library)
 - `MediaLibraryItem` — equipment_type (явный FK), content_type/object_id (GFK)
@@ -48,7 +94,7 @@
 ### Страницы Streamlit
 - `pages/fittings_catalog.py` — фитинги с разделением точных/совместимых резьб
 - `pages/solenoid_valves.py` — соленоидные клапаны с FUNCTION_COMPATIBLE
-- `pages/cert_manager.py` — управление сертификатами
+- `pages/cert_manager.py` — управление сертификатами (обновлено: M2M типов + cert_docs)
 - `pages/media_library_editor.py` — медиабиблиотека
 - `pages/equipment_type_editor.py` — редактор дерева EquipmentType
 
@@ -57,12 +103,11 @@
 - Все с `sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')` для Windows
 - README.md — справка
 
-
 ## Следующие шаги (на выбор)
-- Подумать о том, чтобы типизировать CertRelation - сделать справочник соответсвий - сертификат к model_line в LSB, Pneumatic actuator
+- Перевести CableGlandModelLineCertRelation и др. на EquipmentTypeMixin.cert_docs
 - Заполнить EquipmentType через админку/Streamlit
-- Привязать сертификаты к сериям через cert_manager
 - Заняться DirectionValve (модель готова, страница готова, нужны данные)
+- Сделать миграции для новых полей (equipment_types M2M, cert_docs M2M)
 
 ## Важные пути
 

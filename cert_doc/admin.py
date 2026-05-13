@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import CertVariety , CertData , CertRelation
+from .models import CertVariety , CertData
 from core.admin import BaseAdmin
 
 
@@ -152,7 +152,7 @@ class CertDataAdmin(BaseAdmin) :
 
     fieldsets = (
         ('Основная информация' , {
-            'fields' : (('name' ,'code' ,'cert_variety' ,'equipment_type', ),
+            'fields' : (('name' ,'code' ,'cert_variety' ,'equipment_types', ),
                         ('valid_from' , 'valid_until','brand'),
                         'issued_by',
                         'public_url',
@@ -533,9 +533,10 @@ class CertDataAdmin(BaseAdmin) :
         }
 
 
-@admin.register(CertRelation)
-class CertRelationAdmin(admin.ModelAdmin):
-    """Админка для связей сертификатов с объектами"""
+# CertRelationAdmin удалён — связь теперь через cert_docs M2M на EquipmentTypeMixin
+# @admin.register(CertRelation)
+# class CertRelationAdmin(admin.ModelAdmin):
+#     """Админка для связей сертификатов с объектами"""
     list_display = [
         'id',
         'cert_data_link',

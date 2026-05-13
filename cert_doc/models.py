@@ -61,28 +61,25 @@ class CertData(BaseAbstractModel , StructuredDataMixin) :
                               related_name='cert_owner_brand' ,
                               help_text=_('Бренд для сертификата (для фильтрации)'))
 
-    equipment_type = models.ForeignKey(
-        'core.EquipmentType',
-        on_delete=models.PROTECT,
-        blank=True, null=True,
-        verbose_name=_("Тип оборудования"),
-        help_text=_("К какому типу оборудования относится сертификат")
+    # === БЫЛО: equipment_type = FK ===
+    equipment_types = models.ManyToManyField(
+        'core.EquipmentType' ,
+        blank=True ,
+        verbose_name=_("Типы оборудования") ,
+        help_text=_("К каким типам оборудования относится сертификат")
     )
 
     public_url = models.CharField(
-        max_length=2000 ,
-        blank=True ,
-        null=True ,
+        max_length=2000 , blank=True , null=True ,
         verbose_name=_("URL") ,
         help_text=_("URL адрес для скачивания")
     )
 
-    # Связь с медиабиблиотекой
+    # Связь с медиабиблиотекой — без изменений
     media_item = models.ForeignKey(
         'media_library.MediaLibraryItem' ,
         on_delete=models.SET_NULL ,
-        blank=True ,
-        null=True ,
+        blank=True , null=True ,
         related_name='certificates' ,
         verbose_name=_("Медиафайл") ,
         help_text=_("Связанный файл из медиабиблиотеки")
@@ -413,27 +410,27 @@ class AbstractCertRelation(StructuredDataMixin , models.Model) :  # Добавл
 
         return cert_full
 
-
-class CertRelation(AbstractCertRelation):
-    """Универсальная связь сертификата с любым объектом (через GFK)"""
-
-    content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE,
-        limit_choices_to={'app_label__in': [
-            'pneumatic_fittings', 'solenoid_valves', 'electric_actuators',
-            'pneumatic_actuators', 'cable_glands', 'gearbox', 'pa_controls',
-            'filter_regulator', 'valve_data', 'producers',
-        ]},
-        verbose_name=_("Тип связанного объекта")
-    )
-    object_id = models.PositiveIntegerField(verbose_name=_("ID связанного объекта"))
-    content_object = GenericForeignKey('content_type', 'object_id')
-
-    class Meta:
-        verbose_name = _('Связь сертификата')
-        verbose_name_plural = _('Связи сертификатов')
-        unique_together = ('cert_data', 'content_type', 'object_id')
-
-    def get_related_object(self):
-        return self.content_object
+#
+# class CertRelation(AbstractCertRelation):
+#     """Универсальная связь сертификата с любым объектом (через GFK)"""
+#
+#     content_type = models.ForeignKey(
+#         ContentType,
+#         on_delete=models.CASCADE,
+#         limit_choices_to={'app_label__in': [
+#             'pneumatic_fittings', 'solenoid_valves', 'electric_actuators',
+#             'pneumatic_actuators', 'cable_glands', 'gearbox', 'pa_controls',
+#             'filter_regulator', 'valve_data', 'producers',
+#         ]},
+#         verbose_name=_("Тип связанного объекта")
+#     )
+#     object_id = models.PositiveIntegerField(verbose_name=_("ID связанного объекта"))
+#     content_object = GenericForeignKey('content_type', 'object_id')
+#
+#     class Meta:
+#         verbose_name = _('Связь сертификата')
+#         verbose_name_plural = _('Связи сертификатов')
+#         unique_together = ('cert_data', 'content_type', 'object_id')
+#
+#     def get_related_object(self):
+#         return self.content_object

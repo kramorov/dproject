@@ -1,9 +1,9 @@
 # pages/cert_manager.py
 """Управление сертификатами"""
 import streamlit as st
-from cert_doc.models import CertData, CertVariety, CertRelation
+from cert_doc.models import CertData, CertVariety
 from media_library.models import MediaLibraryItem, MediaCategory
-from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 
 # Сессия
 if 'edit_cert_id' not in st.session_state:
@@ -16,41 +16,43 @@ if 'edit_mode_new' not in st.session_state:
 st.set_page_config(page_title="Сертификаты", layout="wide")
 st.title("📜 Сертификаты")
 
+
 # ==================== СПРАВОЧНИКИ ДЛЯ ПРИВЯЗКИ ====================
-@st.cache_data(ttl=60)
-def get_linkable_models(equipment_type_id=None):
-    """Модели, к которым можно привязать сертификат. Фильтруются по типу оборудования."""
+def get_models_with_cert_docs():
+    """Возвращает список классов моделей, у которых есть поле cert_docs (M2M к CertData)."""
     from pneumatic_actuators.models import PneumaticActuatorModelLine
-    from electric_actuators.models import ElectricActuatorModelLine
-    from pneumatic_fittings.models import PneumaticFittingModelLine
-    from solenoid_valves.models import DirectionalValveModelLine
-    from gearbox.models import GearBoxModelLine
     from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 
-    all_cls = [
+    candidates = [
         PneumaticActuatorModelLine,
-        ElectricActuatorModelLine,
-        PneumaticFittingModelLine,
-        DirectionalValveModelLine,
-        GearBoxModelLine,
         LimitSwitchModelLine,
     ]
+    return [cls for cls in candidates if hasattr(cls, 'cert_docs')]
 
-    models = []
-    for cls in all_cls:
-        ct = ContentType.objects.get_for_model(cls)
+
+def get_linkable_objects(cert):
+    """
+    Возвращает объекты model_line, к которым можно привязать сертификат.
+    Фильтрация: model_line.equipment_type входит в cert.equipment_types.
+    Исключаются уже привязанные.
+    """
+    available = []
+    cert_type_ids = list(cert.equipment_types.values_list('id', flat=True))
+
+    for cls in get_models_with_cert_docs():
         qs = cls.objects.filter(is_active=True)
-        # Фильтр по equipment_type: если у ModelLine есть поле equipment_type
-        if equipment_type_id and hasattr(cls, 'equipment_type'):
-            qs = qs.filter(equipment_type_id=equipment_type_id)
+        if cert_type_ids and hasattr(cls, 'equipment_type'):
+            qs = qs.filter(equipment_type_id__in=cert_type_ids)
+        # Исключаем уже привязанные
+        already_linked_ids = cls.objects.filter(cert_docs=cert).values_list('id', flat=True)
+        qs = qs.exclude(id__in=already_linked_ids)
         for obj in qs.order_by('name')[:500]:
-            models.append({
-                'ct_id': ct.id,
-                'obj_id': obj.id,
-                'name': str(obj),
+            available.append({
                 'model_name': cls.__name__,
+                'obj': obj,
+                'display': str(obj),
             })
-    return models
+    return available
 
 
 # ==================== БОКОВАЯ ПАНЕЛЬ — ФОРМА ====================
@@ -58,11 +60,11 @@ with st.sidebar:
     st.header("📝 Сертификат")
 
     varieties = list(CertVariety.objects.filter(is_active=True))
-    brands = []  # from producers
+    brands = []
     try:
         from producers.models import Brands
         brands = list(Brands.objects.filter(is_active=True).order_by('name'))
-    except:
+    except Exception:
         pass
 
     if st.session_state.edit_mode_new:
@@ -80,28 +82,44 @@ with st.sidebar:
     with st.form("cert_form"):
         name = st.text_input("Название *", value=cert.name if cert else '')
         code = st.text_input("Код", value=cert.code or '' if cert else '')
-        description = st.text_area("Описание (серии, бренды)", value=cert.description or '' if cert else '', height=80)
+        description = st.text_area(
+            "Описание (серии, бренды)",
+            value=cert.description or '' if cert else '',
+            height=80
+        )
         issued_by = st.text_input("Кем выдан", value=cert.issued_by or '' if cert else '')
         cert_variety = st.selectbox(
             "Тип сертификата",
             options=[v.id for v in varieties],
             format_func=lambda x: next((v.name for v in varieties if v.id == x), ''),
-            index=next((i for i, v in enumerate(varieties) if cert and v.id == cert.cert_variety_id), 0) if cert else 0
+            index=next(
+                (i for i, v in enumerate(varieties) if cert and v.id == cert.cert_variety_id), 0
+            ) if cert else 0
         )
         brand_id = st.selectbox(
             "Бренд",
             options=[b.id for b in brands],
             format_func=lambda x: next((b.name for b in brands if b.id == x), ''),
-            index=next((i for i, b in enumerate(brands) if cert and b.id == cert.brand_id), 0) if cert and cert.brand_id else 0
+            index=next(
+                (i for i, b in enumerate(brands) if cert and b.id == cert.brand_id), 0
+            ) if cert and cert.brand_id else 0
         )
 
+        # === Типы оборудования (M2M, multiselect) ===
         from core.models import EquipmentType
-        etypes = list(EquipmentType.objects.filter(is_active=True).order_by('level', 'sorting_order', 'name'))
-        equipment_type_id = st.selectbox(
-            "Тип оборудования",
+        etypes = list(EquipmentType.objects.filter(is_active=True).order_by(
+            'level', 'sorting_order', 'name'
+        ))
+        # Дефолт: выбранные типы для существующего сертификата
+        default_et_ids = (
+            list(cert.equipment_types.values_list('id', flat=True))
+            if cert else []
+        )
+        selected_et_ids = st.multiselect(
+            "Типы оборудования",
             options=[e.id for e in etypes],
             format_func=lambda x: next((e.name for e in etypes if e.id == x), ''),
-            index=next((i for i, e in enumerate(etypes) if cert and e.id == cert.equipment_type_id), 0) if cert and cert.equipment_type_id else 0
+            default=default_et_ids
         )
 
         col1, col2 = st.columns(2)
@@ -120,7 +138,6 @@ with st.sidebar:
         ]
         current_media = cert.media_item_id if cert else None
 
-        # Если current_media не в списке — добавим
         if current_media and current_media not in [m['id'] for m in media_options]:
             existing = MediaLibraryItem.objects.filter(id=current_media).first()
             if existing:
@@ -129,8 +146,12 @@ with st.sidebar:
         selected_media = st.selectbox(
             "Файл PDF",
             options=[m['id'] for m in media_options],
-            format_func=lambda x: next((m['name'] for m in media_options if m['id'] == x), ''),
-            index=next((i for i, m in enumerate(media_options) if m['id'] == current_media), 0)
+            format_func=lambda x: next(
+                (m['name'] for m in media_options if m['id'] == x), ''
+            ),
+            index=next(
+                (i for i, m in enumerate(media_options) if m['id'] == current_media), 0
+            )
         )
 
         public_url = st.text_input("URL", value=cert.public_url or '' if cert else '')
@@ -153,13 +174,13 @@ with st.sidebar:
                     cert_variety_id=cert_variety,
                     issued_by=issued_by.strip(),
                     brand_id=brand_id or None,
-                    equipment_type_id=equipment_type_id or None,
                     valid_from=valid_from,
                     valid_until=valid_until,
                     public_url=public_url.strip() or None,
                     media_item_id=selected_media,
                 )
                 cert.save()
+                cert.equipment_types.set(selected_et_ids)
                 st.success(f"Создан: {cert.name}")
             else:
                 cert.name = name.strip()
@@ -168,12 +189,12 @@ with st.sidebar:
                 cert.cert_variety_id = cert_variety
                 cert.issued_by = issued_by.strip()
                 cert.brand_id = brand_id or None
-                cert.equipment_type_id = equipment_type_id or None
                 cert.valid_from = valid_from
                 cert.valid_until = valid_until
                 cert.public_url = public_url.strip() or None
                 cert.media_item_id = selected_media
                 cert.save()
+                cert.equipment_types.set(selected_et_ids)
                 st.success(f"Обновлён: {cert.name}")
 
             st.session_state.edit_cert_id = cert.id
@@ -186,10 +207,13 @@ with st.sidebar:
             st.session_state.edit_mode_new = True
             st.rerun()
 
+
 # ==================== СПИСОК СЕРТИФИКАТОВ ====================
 st.markdown("### 📋 Список сертификатов")
 
-certs = CertData.objects.select_related('cert_variety', 'brand', 'media_item').order_by('-valid_until')
+certs = CertData.objects.select_related(
+    'cert_variety', 'brand', 'media_item'
+).prefetch_related('equipment_types').order_by('-valid_until')
 
 for cert in certs[:30]:
     col1, col2, col3, col4 = st.columns([4, 2, 2, 2])
@@ -197,6 +221,9 @@ for cert in certs[:30]:
         st.write(f"📜 **{cert.name}**")
         if cert.description:
             st.caption(cert.description[:100])
+        et_names = ', '.join(e.name for e in cert.equipment_types.all())
+        if et_names:
+            st.caption(f"Типы: {et_names}")
     with col2:
         st.write(f"{cert.cert_variety.name if cert.cert_variety else '—'}")
     with col3:
@@ -216,49 +243,55 @@ for cert in certs[:30]:
                 st.session_state.selected_cert_id = cert.id
                 st.rerun()
 
-# ==================== УПРАВЛЕНИЕ СВЯЗЯМИ ====================
+
+# ==================== УПРАВЛЕНИЕ СВЯЗЯМИ (M2M cert_docs) ====================
 if st.session_state.selected_cert_id:
     cert = CertData.objects.filter(id=st.session_state.selected_cert_id).first()
     if cert:
         st.divider()
         st.markdown(f"### 🔗 Связи сертификата: **{cert.name}**")
 
-        # Существующие связи
-        links = CertRelation.objects.filter(cert_data=cert).select_related('content_type')
-        if links:
-            for link in links:
-                col1, col2, col3 = st.columns([5, 1, 1])
-                obj = link.content_object
+        # --- Существующие связи ---
+        linked_objects = []
+        for cls in get_models_with_cert_docs():
+            for obj in cls.objects.filter(cert_docs=cert).order_by('name'):
+                linked_objects.append({
+                    'model_name': cls.__name__,
+                    'obj': obj,
+                    'display': str(obj),
+                })
+
+        if linked_objects:
+            for item in linked_objects:
+                col1, col2 = st.columns([8, 1])
                 with col1:
-                    ct_name = link.content_type.model_class().__name__ if link.content_type else '—'
-                    st.write(f"**{ct_name}**: {obj}")
+                    st.write(f"**{item['model_name']}**: {item['display']}")
                 with col2:
-                    if st.button("❌", key=f"dellink_{link.id}"):
-                        link.delete()
+                    if st.button("❌", key=f"dellink_{item['obj'].id}_{item['model_name']}"):
+                        item['obj'].cert_docs.remove(cert)
                         st.rerun()
         else:
             st.caption("Нет связей. Добавьте серии/модели ниже.")
 
-        # Добавить новую связь
+        # --- Добавить новую связь ---
         st.markdown("**➕ Добавить связь:**")
-        linkable = get_linkable_models(cert.equipment_type_id)
-        # Группируем по типу модели
-        model_types = sorted(set(m['model_name'] for m in linkable))
-        selected_model_type = st.selectbox("Тип объекта", model_types)
-        filtered = [m for m in linkable if m['model_name'] == selected_model_type]
+        available = get_linkable_objects(cert)
 
-        if filtered:
-            selected_obj = st.selectbox(
-                "Объект",
-                options=range(len(filtered)),
-                format_func=lambda i: filtered[i]['name']
-            )
-            if st.button("🔗 Привязать"):
-                obj = filtered[selected_obj]
-                ct = ContentType.objects.get(id=obj['ct_id'])
-                CertRelation.objects.get_or_create(
-                    cert_data=cert,
-                    content_type=ct,
-                    object_id=obj['obj_id'],
+        if available:
+            # Группируем по типу модели
+            model_types = sorted(set(m['model_name'] for m in available))
+            selected_model_type = st.selectbox("Тип объекта", model_types)
+            filtered = [m for m in available if m['model_name'] == selected_model_type]
+
+            if filtered:
+                selected_idx = st.selectbox(
+                    "Объект",
+                    options=range(len(filtered)),
+                    format_func=lambda i: filtered[i]['display']
                 )
-                st.rerun()
+                if st.button("🔗 Привязать"):
+                    obj = filtered[selected_idx]['obj']
+                    obj.cert_docs.add(cert)
+                    st.rerun()
+        else:
+            st.caption("Нет доступных объектов для привязки. Проверьте, что у сертификата указаны типы оборудования, а у серий — совпадающий equipment_type.")
