@@ -24,3 +24,5 @@ class EquipmentTypeMixin(models.Model):
 
     class Meta:
         abstract = True
+
+

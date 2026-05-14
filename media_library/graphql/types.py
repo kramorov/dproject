@@ -1,7 +1,7 @@
 import graphene
 from graphene_django import DjangoObjectType
 from django.utils.translation import gettext_lazy as _
-from ..models import MediaCategory , MediaTag , MediaLibraryItem
+from ..models import MediaCategory , MediaLibraryItem
 
 
 class MediaCategoryType(DjangoObjectType) :
@@ -27,17 +27,6 @@ class MediaCategoryType(DjangoObjectType) :
         return self.media_items_count
 
 
-class MediaTagType(DjangoObjectType) :
-    media_items_count = graphene.Int()
-
-    class Meta :
-        model = MediaTag
-        fields = ('id' , 'name' , 'is_active' , 'created_at' , 'updated_at')
-
-    def resolve_media_items_count(self , info) :
-        return self.media_items.count()
-
-
 class MediaLibraryItemType(DjangoObjectType) :
     filename = graphene.String()
     file_extension = graphene.String()
@@ -51,7 +40,7 @@ class MediaLibraryItemType(DjangoObjectType) :
         model = MediaLibraryItem
         fields = (
             'id' , 'title' , 'description' , 'media_file' , 'preview_file' ,
-            'category' , 'tags' , 'mime_type' , 'is_active' , 'is_public' ,
+            'category' ,  'mime_type' , 'is_active' , 'is_public' ,
             'created_by' , 'created_at' , 'updated_at'
         )
 

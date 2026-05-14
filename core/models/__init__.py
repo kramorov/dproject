@@ -15,6 +15,7 @@ from django.db.models import Model
 from .base import BaseAbstractModel
 from .equipment_type import EquipmentType
 from .equipment_type_mixin import EquipmentTypeMixin
+from .image_gallery_mixin import ImageGalleryMixin
 from .mixins import (
     StructuredDataMixin ,
     TimestampMixin ,
@@ -40,6 +41,8 @@ __all__ = [
     'get_all_models_with_mixin' ,
     'get_all_base_models' ,
     'register_model_signal' ,
+
+    'ImageGalleryMixin',
 ]
 
 # Регистрируем модели для Django

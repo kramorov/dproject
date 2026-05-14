@@ -23,6 +23,8 @@ cd C:\Users\s.kramorov\PycharmProjects\djangoProject1
 cd C:\Users\kramo\PycharmProjects\djangoProject1
 deepseek-tui
 Прочитай SESSION.md и продолжай
+Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
+Добавь туда же дату и время обновления (куда-то в начале файла).
 
 Из дома:
 git add .

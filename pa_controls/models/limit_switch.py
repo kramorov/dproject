@@ -526,7 +526,7 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, CopyMixin, models.Model):
                 'name' : self.sensor_variety.name ,
                 'code' : getattr(self.sensor_variety , 'code' , '')
             } if self.sensor_variety else None ,
-
+            'cert_description' : self.get_cert_docs_description() ,
             'ip' : {
                 'id' : self.ip.id ,
                 'name' : self.ip.name ,

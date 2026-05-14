@@ -1,21 +1,53 @@
-# media_library/models.py
+"""
+Медиабиблиотека — централизованное хранилище файлов.
+
+Назначение:
+    - Изображения товаров для каталога
+    - Сертификаты (PDF)
+    - Электрические схемы и чертежи
+    - Техдокументация
+
+Модели:
+    MediaCategory      — категория файла (фото, чертёж, сертификат...)
+    MediaLibraryItem   — элемент библиотеки: файл + классификация + фильтры
+
+Связи:
+    На MediaLibraryItem ссылаются другие сущности через FK или M2M
+    (сертификаты, model_line, model_line_item).
+    Сама медиабиблиотека не знает о внешних моделях.
+"""
 import os
 import logging
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+
+from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
+from producers.models import Brands
 from storage_manager.fields import ManagedFileField
 from storage_manager.services import file_service
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
 class MediaCategory(models.Model):
-    """Категория медиаматериалов"""
+    """
+    Категория медиафайла — жёсткая классификация по типу содержимого.
+
+    Предопределённые категории (PREDEFINED_CATEGORIES):
+        DRAWING, PHOTO, SCHEMA, DIAGRAM, MANUAL, USER_MANUAL,
+        WORD_TEMPLATE, EXCEL_TEMPLATE, CERTIFICATE, TECH_DOC,
+        PRESENTATION, VIDEO, BROCHURE, CATALOG, AUDIO, OTHER.
+
+    Поля:
+        name (unique)     — название
+        code (unique)     — код заглавными латинскими (CERTIFICATE, PHOTO...)
+        icon              — emoji (📐, 📷, 🏆...)
+        is_predefined     — автоопределяется по коду
+        sorting_order     — порядок в списках
+    """
 
     # Предопределенные категории с иконками, описанием и порядком
     PREDEFINED_CATEGORIES = [
@@ -158,35 +190,28 @@ class MediaCategory(models.Model):
         return self.media_items.count()
 
 
-class MediaTag(models.Model):
-    """Теги для медиаматериалов"""
 
-    name = models.CharField(
-        max_length=50,
-        unique=True,
-        verbose_name=_("Название тега"),
-        help_text=_("Уникальное название тега")
-    )
+class MediaLibraryItem(SmartCatalogMixin, models.Model):
+    """
+    Элемент медиабиблиотеки — файл с классификацией и фильтрацией.
 
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name=_("Активен")
-    )
+    Поля:
+        title            — название
+        description      — описание
+        keywords         — ключевые слова через запятую (поиск)
+        media_file       — сам файл (ManagedFileField)
+        preview_file     — автопревью для изображений
+        category         — FK → MediaCategory (тип файла)
+        equipment_type   — FK → EquipmentType (фильтр: к какому типу оборудования)
+        mime_type        — автоопределение по расширению
+        is_active        — активно / скрыто
+        is_public        — доступно всем
+        created_by       — кто загрузил
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = _("Тег медиа")
-        verbose_name_plural = _("Теги медиа")
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-
-class MediaLibraryItem(models.Model):
-    """Элемент медиабиблиотеки"""
+    Фильтрация:
+        Через SmartCatalogMixin: категория, тип оборудования, ключевые слова,
+        полнотекстовый поиск по title/description/keywords.
+    """
 
     title = models.CharField(
         max_length=200,
@@ -228,12 +253,18 @@ class MediaLibraryItem(models.Model):
         related_name='media_items',
         verbose_name=_("Категория")
     )
+    brand = models.ForeignKey(
+        Brands , on_delete=models.SET_NULL ,
+        blank=True , null=True ,
+        verbose_name="Бренд" ,
+        help_text="Бренд для быстрой фильтрации"
+    )
 
-    tags = models.ManyToManyField(
-        MediaTag,
-        blank=True,
-        related_name='media_items',
-        verbose_name=_("Теги")
+    keywords = models.CharField(
+        max_length=500 ,
+        blank=True ,
+        verbose_name="Ключевые слова" ,
+        help_text="Через запятую: насос, нержавейка, DN50"
     )
 
     # MIME-тип для определения типа контента
@@ -264,19 +295,6 @@ class MediaLibraryItem(models.Model):
         related_name='created_media_items',
         verbose_name=_("Кто создал")
     )
-
-    # ==================== Связь с любым объектом (GenericForeignKey) ====================
-    content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Тип связанного объекта"),
-    )
-    object_id = models.PositiveIntegerField(
-        null=True, blank=True,
-        verbose_name=_("ID связанного объекта")
-    )
-    content_object = GenericForeignKey('content_type', 'object_id')
 
     # EquipmentType — явный FK (миксин не детектится makemigrations)
     equipment_type = models.ForeignKey(
@@ -582,3 +600,59 @@ class MediaLibraryItem(models.Model):
                 for sep in separators:
                     filename_without_ext = filename_without_ext.replace(sep, ' ')
                 self.description = f"Файл: {filename_without_ext.strip()}"
+
+    # ========== SmartCatalogMixin КОНФИГУРАЦИЯ ==========
+
+    FILTER_DEFINITIONS = [
+        FilterDefinition(
+            param_name='category_id' ,
+            model_field='category' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Категория' ,
+            order=1
+        ) ,
+        FilterDefinition(
+            param_name='equipment_type_id' ,
+            model_field='equipment_type' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Тип оборудования' ,
+            order=2
+        ) ,
+        FilterDefinition(
+            param_name='keyword' ,
+            model_field='keywords' ,
+            filter_type=FilterType.CONTAINS ,  # icontains
+            data_source_type=DataSourceType.CUSTOM ,  # не показывать в дропдауне
+            label='Ключевое слово' ,
+        ) ,
+    ]
+
+    SEARCH_FIELDS = ['title' , 'description', 'keywords']
+
+    SELECT_RELATED_FIELDS = ['category' , 'equipment_type' , 'created_by']
+
+    def to_dict(self) :
+        return {
+            'id' : self.id ,
+            'title' : self.title ,
+        'description': self.description ,
+        'category': {
+            'id' : self.category.id ,
+            'name' : self.category.name ,
+            'icon' : self.category.icon ,
+            'code' : self.category.code ,
+        } if self.category else None ,
+        'equipment_type': {
+            'id' : self.equipment_type.id ,
+            'name' : self.equipment_type.name ,
+        } if self.equipment_type else None ,
+            'keywords' : self.keywords ,
+        'mime_type': self.mime_type ,
+        'is_public': self.is_public ,
+        'is_active': self.is_active ,
+        'has_file': bool(self.media_file) ,
+        'file_name': self.media_file.name if self.media_file else None ,
+        'created_at': self.created_at.isoformat() if self.created_at else None ,
+        }

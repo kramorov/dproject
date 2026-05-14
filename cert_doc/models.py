@@ -1,4 +1,16 @@
-# cert_doc/models.py
+"""
+Сертификаты и декларации соответствия.
+
+Модели:
+    CertVariety  - тип сертификата (ТР ТС 012, декларация, ...)
+    CertData     - сертификат: реквизиты, сроки, типы оборудования
+
+Архитектура связей:
+    CertData.equipment_types  - M2M -> EquipmentType
+    EquipmentTypeMixin.cert_docs - M2M <- CertData
+    Прямая:  model_line.cert_docs.all()
+    Обратная: cert.<model>_related.all()
+"""
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -7,11 +19,20 @@ from django.contrib.contenttypes.models import ContentType
 from typing import List, Optional, Tuple, Any, Dict, Union
 from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel , StructuredDataMixin , EquipmentTypeMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from producers.models import Brands
 
 
 class CertVariety(BaseAbstractModel) :
-    """Тип сертификата"""
+    """
+    Тип (разновидность) сертификата.
+
+    Примеры: ТР ТС 012/2011, Декларация соответствия, Сертификат ISO.
+
+    Поля:
+        name - название типа
+        code - код
+    """
     name = models.CharField(max_length=100 , blank=True , null=True ,
                             verbose_name=_("Название") ,
                             help_text=_("Название типа сертификата")
@@ -28,8 +49,26 @@ class CertVariety(BaseAbstractModel) :
         return self.name or self.code or f"#{self.id}"
 
 
-class CertData(BaseAbstractModel , StructuredDataMixin) :
-    """Базовая модель сертификата"""
+class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin) :
+    """
+    Сертификат (или декларация) соответствия на оборудование.
+
+    Поля:
+        name              - название
+        code              - код/номер
+        description       - описание (серии, бренды)
+        cert_variety      - FK -> CertVariety
+        issued_by         - кем выдан
+        valid_from/until  - срок действия
+        brand             - FK -> Brands
+        equipment_types   - M2M -> EquipmentType
+        media_item        - FK -> MediaLibraryItem (файл PDF)
+        public_url        - URL
+
+    Фильтрация (SmartCatalogMixin):
+        Тип сертификата, бренд, тип оборудования.
+        Поиск: name / code / description / issued_by.
+    """
     name = models.CharField(max_length=100 , blank=True , null=True ,
                             verbose_name=_("Название") ,
                             help_text=_("Название сертификата")
@@ -92,6 +131,79 @@ class CertData(BaseAbstractModel , StructuredDataMixin) :
 
     def __str__(self) :
         return self.name or self.code or f"#{self.id}"
+
+    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
+
+    FILTER_DEFINITIONS = [
+        FilterDefinition(
+            param_name='cert_variety_id' ,
+            model_field='cert_variety' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Тип сертификата' ,
+            order=1
+        ) ,
+        FilterDefinition(
+            param_name='brand_id' ,
+            model_field='brand' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Бренд' ,
+            order=2
+        ) ,
+        FilterDefinition(
+            param_name='equipment_type_id' ,
+            model_field='equipment_types' ,
+            filter_type=FilterType.EXACT ,
+            data_source_type=DataSourceType.FOREIGN_KEY ,
+            label='Тип оборудования' ,
+            order=3
+        ) ,
+    ]
+
+    SEARCH_FIELDS = ['name' , 'code' , 'description' , 'issued_by']
+
+    SELECT_RELATED_FIELDS = [
+        'cert_variety' ,
+        'brand' ,
+        'media_item' ,
+    ]
+    PREFETCH_FIELDS = [
+        'equipment_types' ,
+    ]
+    def to_dict(self) -> Dict[str , Any] :
+        """Сериализация сертификата для каталога"""
+        return {
+            'id' : self.id ,
+            'name' : self.name ,
+            'code' : self.code ,
+            'description' : self.description ,
+            'sorting_order' : self.sorting_order ,
+            'is_active' : self.is_active ,
+            'cert_variety' : {
+                'id' : self.cert_variety.id ,
+                'name' : self.cert_variety.name ,
+                'code' : getattr(self.cert_variety , 'code' , '') or '' ,
+            } if self.cert_variety else None ,
+            'brand' : {
+                'id' : self.brand.id ,
+                'name' : self.brand.name ,
+                'code' : getattr(self.brand , 'code' , '') or '' ,
+            } if self.brand else None ,
+            'equipment_types' : [
+                 {'id': et.id, 'name': et.name}
+                 for et in self.equipment_types.all()
+             ],
+            'issued_by' : self.issued_by ,
+            'valid_from' : self.valid_from.isoformat() if self.valid_from else None ,
+            'valid_until' : self.valid_until.isoformat() if self.valid_until else None ,
+            'public_url' : self.public_url ,
+            'has_media' : bool(self.media_item) ,
+            'media_item' : {
+                'id' : self.media_item.id ,
+                'title' : self.media_item.title ,
+            } if self.media_item else None ,
+        }
 
     def get_compact_data(self) :
         """Минимальные данные для списков"""

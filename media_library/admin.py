@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django import forms
-from .models import MediaCategory , MediaTag , MediaLibraryItem
+from .models import MediaCategory ,MediaLibraryItem
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,6 @@ class MediaLibraryItemForm(forms.ModelForm) :
                 filename_without_ext = self._get_filename_without_extension(instance.media_file.name)
                 instance.description = f"Файл: {filename_without_ext}"
 
-            # Ищем существующие теги в имени файла
-            self._find_existing_tags_in_filename(instance.media_file.name , instance)
-
         if commit :
             instance.save()
             self.save_m2m()
@@ -62,47 +59,28 @@ class MediaLibraryItemForm(forms.ModelForm) :
             name = name.replace(sep , ' ')
         return name.strip()
 
-    def _find_existing_tags_in_filename(self , filename , instance) :
-        """Ищет существующие теги в имени файла"""
-        name_without_ext = os.path.splitext(filename)[0].upper()
-        all_tags = MediaTag.objects.filter(is_active=True)
-
-        matching_tags = []
-        for tag in all_tags :
-            tag_name_upper = tag.name.upper()
-            if tag_name_upper in name_without_ext :
-                matching_tags.append(tag)
-
-        if matching_tags :
-            if not instance.pk :
-                instance.save()
-            instance.tags.add(*matching_tags)
-            logger.info(f"Автоматически добавлены теги: {[tag.name for tag in matching_tags]}")
-
-
 @admin.register(MediaLibraryItem)
 class MediaLibraryItemAdmin(admin.ModelAdmin) :
     form = MediaLibraryItemForm
     list_display = [
-        'preview_display' , 'title' , 'category' , 'tags_display' , 'is_active' , 'created_at'
+        'preview_display' , 'title' , 'category' ,  'keywords_short' ,  'is_active' , 'created_at'
     ]
     list_display_links = ['preview_display' , 'title']
-    list_filter = ['category' , 'is_active' , 'is_public' , 'created_at' , 'tags']
-    search_fields = ['title' , 'description' , 'tags__name']
+    list_filter = ['category' , 'is_active' , 'is_public' , 'created_at' ]
+    search_fields = ['title' , 'description', 'keywords' ]
     readonly_fields = [
         'preview_display' , 'file_type_display' , 'file_size_display' ,
         'filename_display' , 'created_at' , 'updated_at' , 'replace_file_action' ,
-        'auto_tags_info', 'preview_actions'
+         'preview_actions'
     ]
     list_editable = ['is_active']
-    filter_horizontal = ['tags']
 
     fieldsets = (
         (_("Основная информация") , {
             'fields' : (('title' , 'category' ),('created_by',  'is_public' , 'is_active' ,'created_at' , 'updated_at' ))
         }) ,
         (_("Описание") , {
-            'fields' : ('description'  , ('tags', 'auto_tags_info'))
+            'fields' : ('description'  , 'keywords')
         }) ,
         (_("Файл") , {
             'fields' : ('media_file', ('replace_file_action', 'preview_actions', 'preview_display'))
@@ -118,6 +96,12 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
         #     'classes' : ('collapse' ,)
         # }) ,
     )
+
+    @admin.display(description="Ключевые слова")
+    def keywords_short(self , obj) :
+        if obj.keywords :
+            return obj.keywords[:80] + ('…' if len(obj.keywords) > 80 else '')
+        return '-'
 
     def preview_actions(self , obj) :
         """Кнопки для управления превью"""
@@ -254,37 +238,6 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
         )
 
     preview_display.short_description = _("Превью")
-
-    def tags_display(self , obj) :
-        """Отображает теги в списке"""
-        tags = obj.tags.all()[:5]
-        if tags :
-            tag_html = []
-            for tag in tags :
-                tag_html.append(
-                    f'<span style="background: #e9ecef; padding: 2px 6px; '
-                    f'border-radius: 12px; font-size: 11px; margin: 1px;">{tag.name}</span>'
-                )
-            return format_html(' '.join(tag_html))
-        return "-"
-
-    tags_display.short_description = _("Теги")
-
-    def auto_tags_info(self , obj) :
-        """Информация о автоматическом создании тегов"""
-        if obj.pk :
-            return format_html(
-                '<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 4px solid #007bff;">'
-                '<strong>ℹ️ Автоматические теги</strong><br>'
-                'При загрузке нового файла система автоматически:<br>'
-                '• Добавит имя файла (без расширения) в описание<br>'
-                '• Найдет существующие теги в имени файла<br>'
-                '<small>Разделители: _ - . , ; — – пробел</small>'
-                '</div>'
-            )
-        return ""
-
-    auto_tags_info.short_description = _("Автоматизация")
 
     def replace_file_action(self , obj) :
         """Кнопка для замены файла через JavaScript/AJAX"""
@@ -570,7 +523,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
     def get_queryset(self , request) :
         return super().get_queryset(request).select_related(
             'category' , 'created_by'
-        ).prefetch_related('tags')
+        )
 
     def replace_file_view(self , request , object_id) :
         """View для отдельной страницы замены файла"""
@@ -628,16 +581,3 @@ class MediaCategoryAdmin(admin.ModelAdmin) :
             return False
         return super().has_delete_permission(request , obj)
 
-
-@admin.register(MediaTag)
-class MediaTagAdmin(admin.ModelAdmin) :
-    list_display = ['name' , 'is_active' , 'media_items_count' , 'created_at']
-    list_filter = ['is_active' , 'created_at']
-    search_fields = ['name']
-    list_editable = ['is_active']
-    readonly_fields = ['created_at' , 'updated_at']
-
-    def media_items_count(self , obj) :
-        return obj.media_items.count()
-
-    media_items_count.short_description = _("Медиа элементов")

@@ -1,8 +1,18 @@
-# deepseek-tools/dump_model_range.py
-# Вывести строки файла с номерами. Умнее чем show_lines — принимает имя класса.
-# Использование: python deepseek-tools/dump_model_range.py path ClassName [padding_lines]
-# Без padding_lines: только определение класса
-# С padding_lines=50: класс + 50 строк после
+"""
+Вывести определение класса + опциональный хвост строк после него.
+
+Умнее чем show_lines — принимает имя класса, сам находит его границы.
+
+Использование:
+    python deepseek-tools/dump_model_range.py <путь> <ИмяКласса> [отступ]
+
+Без отступа — только строки класса (от class до следующего class).
+С отступом=50 — класс + 50 строк после его закрытия.
+
+Пример:
+    python deepseek-tools/dump_model_range.py cert_doc/models.py CertData
+    python deepseek-tools/dump_model_range.py cert_doc/models.py CertData 50
+"""
 import sys, re, io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')

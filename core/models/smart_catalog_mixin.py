@@ -486,6 +486,33 @@ class SmartCatalogMixin(models.Model):
     SELECT_RELATED_FIELDS: List[str] = []
     PREFETCH_FIELDS: List[str] = []
 
+    def get_cert_docs_list(self):
+        """Список сертификатов, привязанных к этой записи через cert_docs M2M."""
+        if hasattr(self, 'cert_docs'):
+            return list(self.cert_docs.all())
+        return []
+
+    def get_cert_docs_description(self) -> str:
+        """
+        Строка для шаблона описания вида:
+        'ТР ТС 012  АВ-001  Срок: 2024-01-01 до 2026-01-01; Декларация  ДК-002  Срок: 2025-06-01 до 2027-06-01'
+
+        Если сертификатов нет — пустая строка.
+        """
+        certs = self.get_cert_docs_list()
+        if not certs:
+            return ''
+
+        parts = []
+        for c in certs:
+            variety = c.cert_variety.name if c.cert_variety else ''
+            code = c.code or ''
+            date_from = c.valid_from.isoformat() if c.valid_from else '...'
+            date_until = c.valid_until.isoformat() if c.valid_until else '...'
+            parts.append(f'{variety}  {code}  Срок: {date_from} до {date_until}')
+
+        return '; '.join(parts)
+
     @classmethod
     def get_filter_options(cls) -> Dict[str, List[Dict]]:
         """Автоматически собрать все опции из FILTER_DEFINITIONS"""

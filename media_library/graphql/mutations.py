@@ -4,8 +4,8 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from graphene_file_upload.scalars import Upload
 
-from ..models import MediaCategory , MediaTag , MediaLibraryItem
-from .types import MediaCategoryType , MediaTagType , MediaLibraryItemType
+from ..models import MediaCategory ,  MediaLibraryItem
+from .types import MediaCategoryType ,  MediaLibraryItemType
 from .types import MediaCategoryInput , MediaTagInput , MediaLibraryItemInput , MediaFileUploadInput
 
 User = get_user_model()
@@ -95,74 +95,6 @@ class DeleteMediaCategory(graphene.Mutation) :
             return DeleteMediaCategory(success=True)
         except MediaCategory.DoesNotExist :
             raise GraphQLError(_("Категория не найдена"))
-
-
-class CreateMediaTag(graphene.Mutation) :
-    class Arguments :
-        input = MediaTagInput(required=True)
-
-    media_tag = graphene.Field(MediaTagType)
-
-    @classmethod
-    def mutate(cls , root , info , input) :
-        if not info.context.user.has_perm('media_library.add_mediatag') :
-            raise GraphQLError(_("У вас нет прав для создания тегов"))
-
-        try :
-            media_tag = MediaTag(
-                name=input.name ,
-                is_active=input.is_active if input.is_active is not None else True
-            )
-            media_tag.full_clean()
-            media_tag.save()
-            return CreateMediaTag(media_tag=media_tag)
-        except ValidationError as e :
-            raise GraphQLError(str(e))
-
-
-class UpdateMediaTag(graphene.Mutation) :
-    class Arguments :
-        id = graphene.ID(required=True)
-        input = MediaTagInput(required=True)
-
-    media_tag = graphene.Field(MediaTagType)
-
-    @classmethod
-    def mutate(cls , root , info , id , input) :
-        if not info.context.user.has_perm('media_library.change_mediatag') :
-            raise GraphQLError(_("У вас нет прав для изменения тегов"))
-
-        try :
-            media_tag = MediaTag.objects.get(id=id)
-            media_tag.name = input.name
-            media_tag.is_active = input.is_active if input.is_active is not None else media_tag.is_active
-            media_tag.full_clean()
-            media_tag.save()
-            return UpdateMediaTag(media_tag=media_tag)
-        except MediaTag.DoesNotExist :
-            raise GraphQLError(_("Тег не найден"))
-        except ValidationError as e :
-            raise GraphQLError(str(e))
-
-
-class DeleteMediaTag(graphene.Mutation) :
-    class Arguments :
-        id = graphene.ID(required=True)
-
-    success = graphene.Boolean()
-
-    @classmethod
-    def mutate(cls , root , info , id) :
-        if not info.context.user.has_perm('media_library.delete_mediatag') :
-            raise GraphQLError(_("У вас нет прав для удаления тегов"))
-
-        try :
-            media_tag = MediaTag.objects.get(id=id)
-            media_tag.delete()
-            return DeleteMediaTag(success=True)
-        except MediaTag.DoesNotExist :
-            raise GraphQLError(_("Тег не найден"))
-
 
 class UploadMediaFile(graphene.Mutation) :
     class Arguments :
@@ -328,10 +260,6 @@ class MediaLibraryMutations(graphene.ObjectType) :
     create_media_category = CreateMediaCategory.Field()
     update_media_category = UpdateMediaCategory.Field()
     delete_media_category = DeleteMediaCategory.Field()
-
-    create_media_tag = CreateMediaTag.Field()
-    update_media_tag = UpdateMediaTag.Field()
-    delete_media_tag = DeleteMediaTag.Field()
 
     upload_media_file = UploadMediaFile.Field()
     update_media_library_item = UpdateMediaLibraryItem.Field()

@@ -1,6 +1,14 @@
-# deepseek-tools/list_model_fields.py
-# Показать только поля модели (строки с "= models.")
-# Использование: python deepseek-tools/list_model_fields.py path ClassName
+"""
+Показать только поля Django-модели (строки с '= models.').
+
+Использование:
+    python deepseek-tools/list_model_fields.py <путь> <ИмяКласса>
+
+Пример:
+    python deepseek-tools/list_model_fields.py cert_doc/models.py CertData
+
+Выводит строки с номерами — только объявления полей, без методов и Meta.
+"""
 import sys, re, io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')

@@ -1,6 +1,16 @@
-# deepseek-tools/find_class.py
-# Найти класс по имени и показать его содержимое (поля, Meta, __str__)
-# Использование: python deepseek-tools/find_class.py path ClassName [show_all]
+"""
+Найти класс по имени и показать его содержимое.
+
+Использование:
+    python deepseek-tools/find_class.py <путь> <ИмяКласса> [all]
+
+Без 'all' — только поля, Meta, __str__ и другие dunder-методы.
+С 'all' — всё содержимое класса, включая пользовательские методы.
+
+Пример:
+    python deepseek-tools/find_class.py cert_doc/models.py CertData
+    python deepseek-tools/find_class.py cert_doc/models.py CertData all
+"""
 import sys, re, io
 
 # Windows: перекодируем вывод чтобы не падать на спецсимволах

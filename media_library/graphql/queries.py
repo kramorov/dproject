@@ -3,8 +3,8 @@ import graphene
 # from graphene_django import DjangoObjectType
 # from graphene_django.filters import DjangoFilterConnectionField
 from django.db.models import Q
-from ..models import MediaCategory , MediaTag , MediaLibraryItem
-from .types import MediaCategoryType , MediaTagType , MediaLibraryItemType
+from ..models import MediaCategory ,  MediaLibraryItem
+from .types import MediaCategoryType ,  MediaLibraryItemType
 
 
 class MediaLibraryQuery(graphene.ObjectType) :
@@ -23,19 +23,6 @@ class MediaLibraryQuery(graphene.ObjectType) :
         id=graphene.ID(required=True)
     )
 
-    # MediaTag queries
-    media_tags = graphene.List(
-        MediaTagType ,
-        id=graphene.ID() ,
-        name=graphene.String() ,
-        is_active=graphene.Boolean() ,
-        search=graphene.String()
-    )
-
-    media_tag = graphene.Field(
-        MediaTagType ,
-        id=graphene.ID(required=True)
-    )
 
     # MediaLibraryItem queries
     media_library_items = graphene.List(
@@ -43,7 +30,6 @@ class MediaLibraryQuery(graphene.ObjectType) :
         id=graphene.ID() ,
         title=graphene.String() ,
         category_id=graphene.ID() ,
-        tag_id=graphene.ID() ,
         is_active=graphene.Boolean() ,
         is_public=graphene.Boolean() ,
         is_image=graphene.Boolean() ,
@@ -82,27 +68,6 @@ class MediaLibraryQuery(graphene.ObjectType) :
         except MediaCategory.DoesNotExist :
             return None
 
-    # Resolvers for MediaTag
-    def resolve_media_tags(self , info , **kwargs) :
-        queryset = MediaTag.objects.all()
-
-        if kwargs.get('id') :
-            queryset = queryset.filter(id=kwargs['id'])
-        if kwargs.get('name') :
-            queryset = queryset.filter(name__icontains=kwargs['name'])
-        if kwargs.get('is_active') is not None :
-            queryset = queryset.filter(is_active=kwargs['is_active'])
-        if kwargs.get('search') :
-            queryset = queryset.filter(name__icontains=kwargs['search'])
-
-        return queryset.order_by('name')
-
-    def resolve_media_tag(self , info , id) :
-        try :
-            return MediaTag.objects.get(id=id)
-        except MediaTag.DoesNotExist :
-            return None
-
     # Resolvers for MediaLibraryItem
     def resolve_media_library_items(self , info , **kwargs) :
         queryset = MediaLibraryItem.objects.select_related(
@@ -115,8 +80,6 @@ class MediaLibraryQuery(graphene.ObjectType) :
             queryset = queryset.filter(title__icontains=kwargs['title'])
         if kwargs.get('category_id') :
             queryset = queryset.filter(category_id=kwargs['category_id'])
-        if kwargs.get('tag_id') :
-            queryset = queryset.filter(tags__id=kwargs['tag_id'])
         if kwargs.get('is_active') is not None :
             queryset = queryset.filter(is_active=kwargs['is_active'])
         if kwargs.get('is_public') is not None :
