@@ -7,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from typing import List, Optional, Tuple, Any, Dict, Union
 from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel , StructuredDataMixin , EquipmentTypeMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from producers.models import Brands
 
 
@@ -28,7 +29,7 @@ class CertVariety(BaseAbstractModel) :
         return self.name or self.code or f"#{self.id}"
 
 
-class CertData(BaseAbstractModel , StructuredDataMixin) :
+class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin) :
     """Базовая модель сертификата"""
     name = models.CharField(max_length=100 , blank=True , null=True ,
                             verbose_name=_("Название") ,
@@ -95,6 +96,77 @@ class CertData(BaseAbstractModel , StructuredDataMixin) :
 
     def __str__(self) :
         return self.name or self.code or f"#{self.id}"
+        # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
+
+    FILTER_DEFINITIONS = [
+        FilterDefinition(
+            param_name='cert_variety_id',
+            model_field='cert_variety',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Тип сертификата',
+            order=1
+        ),
+        FilterDefinition(
+            param_name='brand_id',
+            model_field='brand',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Бренд',
+            order=2
+        ),
+        FilterDefinition(
+            param_name='equipment_type_id',
+            model_field='equipment_type',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Тип оборудования',
+            order=3
+        ),
+    ]
+
+    SEARCH_FIELDS = ['name', 'code', 'description', 'issued_by']
+
+    SELECT_RELATED_FIELDS = [
+        'cert_variety',
+        'brand',
+        'equipment_type',
+        'media_item',
+    ]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Сериализация сертификата для каталога"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'description': self.description,
+            'sorting_order': self.sorting_order,
+            'is_active': self.is_active,
+            'cert_variety': {
+                'id': self.cert_variety.id,
+                'name': self.cert_variety.name,
+                'code': getattr(self.cert_variety, 'code', '') or '',
+            } if self.cert_variety else None,
+            'brand': {
+                'id': self.brand.id,
+                'name': self.brand.name,
+                'code': getattr(self.brand, 'code', '') or '',
+            } if self.brand else None,
+            'equipment_type': {
+                'id': self.equipment_type.id,
+                'name': self.equipment_type.name,
+            } if self.equipment_type else None,
+            'issued_by': self.issued_by,
+            'valid_from': self.valid_from.isoformat() if self.valid_from else None,
+            'valid_until': self.valid_until.isoformat() if self.valid_until else None,
+            'public_url': self.public_url,
+            'has_media': bool(self.media_item),
+            'media_item': {
+                'id': self.media_item.id,
+                'title': self.media_item.title,
+            } if self.media_item else None,
+        }
 
     def get_compact_data(self) :
         """Минимальные данные для списков"""

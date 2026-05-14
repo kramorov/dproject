@@ -113,14 +113,22 @@ MAIN_SECTIONS = {
         "enabled": True,
         "order": 11
     },
-    "equipment_type_editor": {
-            "title": "Типы оборудования",
-            "icon": "💰",
-            "description": "Типы оборудования",
-            "page": 'pages/equipment_type_editor.py',
-            "enabled": True,
-            "order": 12
-        },
+    # "equipment_type_editor": {
+    #         "title": "Типы оборудования",
+    #         "icon": "💰",
+    #         "description": "Типы оборудования",
+    #         "page": 'pages/equipment_type_editor.py',
+    #         "enabled": True,
+    #         "order": 12
+    #     },
+    "Cert_docs": {
+        "title": "Сертификаты",
+        "icon": "💰",
+        "description": "Сертификаты",
+        "page": 'pages/cert_manager.py',
+        "enabled": True,
+        "order": 14
+    },
 }
 
 # Словарь разделов для САЙДБАРА (навигация)
@@ -195,12 +203,19 @@ SIDEBAR_SECTIONS = {
             "enabled": True,
             "order": 12
         },
-    "media_library_editor": {
-            "title": "Медиабиблиотека",
+    # "media_library_editor": {
+    #         "title": "Медиабиблиотека",
+    #         "icon": "💰",
+    #         "page": 'pages/media_library_editor.py',
+    #         "enabled": True,
+    #         "order": 13
+    #     },
+    "Cert_docs": {
+            "title": "Сертификаты",
             "icon": "💰",
-            "page": 'media_library_editor.py',
+            "page": 'pages/cert_manager.py',
             "enabled": True,
-            "order": 13
+            "order": 14
         },
 }
 

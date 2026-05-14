@@ -7,6 +7,55 @@ from typing import List , Optional , Tuple , Any , Dict , Union
 import logging
 logger = logging.getLogger(__name__)
 
+'''
+body_material STS316 type	TS905							
+Acting type	Linear type/ Rotary typ	
+Connection type*	Conduit entry	Air connection
+G(PF)1/4	PT1/4	1
+G(PF)1/4	NPT1/4	2
+NPT1/2	NPT1/4	3
+M20	NPT1/4	4
+M20	G1/4	5				
+Lever type - model.LeverVarieties
+work_temp_min
+-30℃~80℃ (standard)	S
+Ambient Temp.	-40℃~80℃	L
+-60℃~80℃ (for EAC)	U		
+Communication	None	0
+Position transmitter(4~20mA DC)	1
+HART	2
+HART and Position transmitter (4~20mA DC)	3	
+Alarm switch	None	0
+Included	A
+
+features:
+Input signal		4~20mA DC
+Impedance	500Ω (20mA DC)
+Supply pressure		0.14~0.7MPa
+Stroke	Linear type:10~150mm, Rotary type:0~900
+Air connection	PT1/4, NPT1/4
+Gauge connection	PT1/8, NPT1/8
+Conduit		NPT1/2, M20
+Explosion proof type	Ex db IIC T5/T6 Gb
+Ex tb IIIC T100℃/T85℃ Db
+Degree of protection		IP66
+
+Ambient Temp.	-30℃~+80℃(T5)/+70℃(T6) (Standard type),
+-40℃~+80℃(T5)/+70℃(T6) (Low temp type)
+Linearity		±0.5% F.S.
+Sensitivity		±0.2% F.S
+Hysteresis		±0.5% F.S
+Repeatability		±0.3% F.S
+Air consumption	Below 2.3LPM (Sup.=0.14MPa)
+Required air quality	Class 3 (ISO 8573-1)
+Flow capacity	Over 100LPM (Sup.=0.14MPa)
+Material	Aluminum die cast	Stainless steel 316
+Weight	3.5kg	7.0kg
+
+'''
+
+
+
 # class PositionerType(models.Model):
 #     """Тип позиционера"""
 #     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
