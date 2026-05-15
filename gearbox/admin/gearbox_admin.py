@@ -28,7 +28,9 @@ class GearBoxAdmin(admin.ModelAdmin):
         (_('Температурные режимы'), {
             'fields': (('work_temp_min', 'work_temp_max'),('ip', 'interlock'))
         }),
-
+        (_('Изображения и технички'), {
+            'fields': ('images', 'tech_docs'),
+        }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params','description',),
             'classes': ('wide',),

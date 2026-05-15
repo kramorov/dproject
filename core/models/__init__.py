@@ -21,6 +21,7 @@ from .mixins import (
     TimestampMixin ,
     SoftDeleteMixin ,
 )
+from .tech_doc_mixin import TechDocMixin
 
 # Экспортируем всё что нужно наружу
 __all__ = [
@@ -42,7 +43,7 @@ __all__ = [
     'get_all_base_models' ,
     'register_model_signal' ,
 
-    'ImageGalleryMixin',
+    'ImageGalleryMixin', 'TechDocMixin'
 ]
 
 # Регистрируем модели для Django

@@ -8,6 +8,7 @@ from gearbox.models.gb_model_line import GearBoxModelLine
 
 @admin.register(GearBoxModelLine)
 class GearBoxModelLineAdmin(AdminCopyMixin, admin.ModelAdmin):
+    filter_horizontal = ('images',)
     list_display = ('name', 'code', 'brand',  'sorting_order', 'is_active')
     list_filter = ('is_active', 'brand', 'gearbox_output_variety')
     list_editable = ('sorting_order', 'is_active')
@@ -18,6 +19,9 @@ class GearBoxModelLineAdmin(AdminCopyMixin, admin.ModelAdmin):
     fieldsets = (
         (None, {
             'fields': (('name', 'code'), ('brand', 'gearbox_output_variety', 'gearbox_variety'),('is_active', 'sorting_order'),)
+        }),
+        (_('Изображения и технички'), {
+            'fields': ('images','tech_docs'),
         }),
         (_('Параметры') , {
             'fields' : (('name_template' ,'description_template','description',),('turn_angle','turn_tuning_limit', )) ,

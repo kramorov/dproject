@@ -1,4 +1,4 @@
-# SESSION.md — обновлён 2026-05-14 23:59 (сессия DeepSeek TUI)
+# SESSION.md — обновлён 2026-05-15 22:00 (сессия DeepSeek TUI)
 
 ## Правила (см. .deepseek/instructions.md)
 
@@ -31,85 +31,75 @@ EquipmentTypeMixin (abstract)
 ```
 - CertRelation (GFK) удалён из кода, закомментирован в models.py
 - AbstractCertRelation — живой, от него наследуются CableGlandModelLineCertRelation и др. (не переведены на cert_docs)
-- Страница: `pages/cert_manager_new.py` — полностью на M2M cert_docs, фильтры через SmartCatalogMixin
+- Страница: `pages/cert_manager_new.py` — полностью на M2M cert_docs
 
 ### Медиабиблиотека — без GFK
 ```
 MediaLibraryItem
 ├── category = FK(MediaCategory)
-├── keywords = CharField (было tags M2M → заменено)
+├── keywords = CharField
 ├── equipment_type = FK(EquipmentType)
-├── brand = FK(Brands) — ДОБАВИТЬ (обсудили, задача на завтра)
-└── GFK (content_type/object_id) — УДАЛЁН из модели
+├── brand = FK(Brands) — добавлен
+├── sorting_order = IntegerField(default=0) — добавлен (2026-05-15)
+├── is_default = BooleanField(default=True) — добавлен (2026-05-15)
+└── GFK (content_type/object_id) — УДАЛЁН
 ```
 - Связь строится с другой стороны: `model_line.images` (M2M), `cert.media_item` (FK)
-- Страница: `pages/media_library_editor.py` — фильтры через SmartCatalogMixin, форма загрузки/редактирования
-- GFK убран из страницы
+- Страница: `pages/media_library_editor.py` — фильтры через SmartCatalogMixin, загрузка/редактирование/удаление
 
-### ImageGalleryMixin — новый
+### Удаление MediaLibraryItem — raw SQL
+Из-за бага в каскадном коллекторе Django (ValueError: Cannot query str() при удалении)
+используется сырой SQL в обход ORM:
+```python
+UPDATE cert_doc_certdata SET media_item_id = NULL WHERE media_item_id = %s
+DELETE FROM media_library_medialibraryitem WHERE id = %s
+```
+
+### ImageGalleryMixin — обновлён (2026-05-15)
 ```
 core/models/image_gallery_mixin.py
 ├── images = M2M(MediaLibraryItem, related_name='+')
-├── get_images(), get_images_by_category(code)
-├── get_first_image(), get_images_count()
-└── get_images_description() → '🖼️ name1; 📐 name2'
+├── get_images()           -> filter(is_active=True).order_by('sorting_order')
+├── get_images_by_category -> filter(category__code=code)
+├── get_default_image()    -> is_default=True или первый по sorting_order
+├── get_first_image()      -> делегирует get_default_image()
+├── get_images_count()     -> count()
+└── get_images_description() -> строка для шаблона
 ```
-- ✅ Зарегистрирован в core/models/__init__.py
-- НЕ применён к model_line / model_line_item (отдельная задача)
-
-### SmartCatalogMixin — методы сертификатов
-Добавлены пользователем:
-- `get_cert_docs_list()` — список сертификатов через M2M cert_docs
-- `get_cert_docs_description()` — строка 'Тип  Код  Срок: с .. до; ...'
+- Зарегистрирован в core/models/__init__.py
+- Применён к GearBoxModelLine и GearBox
 
 ---
 
-## Что сделано в эту сессию (2026-05-14)
+## Что сделано в эту сессию (2026-05-15)
 
-### cert_doc/models.py
-- FILTER_DEFINITIONS: раскомментирован equipment_type_id → model_field='equipment_types'
-- SELECT_RELATED_FIELDS: убран 'equipment_type'
-- PREFETCH_FIELDS: добавлен ['equipment_types']
-- to_dict(): equipment_types как список [{id, name}]
-- Модульный докстринг + докстринги CertVariety, CertData
+### brand в MediaLibraryItem — интеграция
+- `media_library/models.py`: добавлен brand в FILTER_DEFINITIONS, SELECT_RELATED_FIELDS, to_dict() (пользователь)
+- `pages/media_library_editor.py`: бренд в фильтрах, форме загрузки, форме редактирования
+- Фикс `UploadedFile._committed` — обёртка в DjangoFile
 
-### pages/cert_manager_new.py (полная переделка)
-- Импорты: убраны CertRelation, ContentType
-- get_linkable_models(): GFK → M2M cert_docs, список equipment_type_ids, проверка hasattr('cert_docs')
-- Форма: selectbox → multiselect для equipment_types
-- Сохранение: убран equipment_type_id=, добавлен cert.equipment_types.set()
-- Блок связей: CertRelation → obj.cert_docs.add/remove()
-- Результаты: связи через cert_docs, equipment_types как список
-- get_models_with_cert_docs() — 6 классов (PA, EA, фитинги, DirectionValve, GearBox, LSB)
-- Критический фикс: list → tuple для st.cache_data
+### sorting_order и is_default в MediaLibraryItem
+- Поля добавлены пользователем в models.py
+- `pages/media_library_editor.py`: поля в форме редактирования (number_input + checkbox), сохранение
 
-### media_library/models.py
-- tags M2M → keywords CharField (пользователь)
-- Убран GFK (content_type, object_id, content_object) — пользователь
-- FILTER_DEFINITIONS: category_id, equipment_type_id, keyword (CONTAINS, CUSTOM)
-- SEARCH_FIELDS: title, description, keywords
-- SELECT_RELATED_FIELDS: category, equipment_type, created_by
-- to_dict(): обновлён (keywords, без tags)
-- Модульный докстринг + докстринги MediaCategory, MediaLibraryItem
+### ImageGalleryMixin — доработка
+- `get_images()` -> `order_by('sorting_order')`
+- Добавлен `get_default_image()` (is_default=True -> первый)
+- `get_first_image()` делегирует `get_default_image()`
 
-### media_library/admin.py
-- tags_display → keywords_short (пользователь)
-- Убраны auto_tags_info, _find_existing_tags_in_filename
-- Убран prefetch_related('tags')
-- search_fields: + 'keywords'
+### GearBox + GearBoxModelLine — изображения
+- Пользователь применил ImageGalleryMixin к обеим моделям
+- `gearbox/models/gearbox.py`: PREFETCH_FIELDS=['images'], images в to_dict()
+- `gearbox/admin/gearbox_admin.py`: filter_horizontal=('images',), images в fieldsets
+- `gearbox/admin/gb_model_line_admin.py`: filter_horizontal=('images',), images в fieldsets
+- `pages/gearbox_catalog.py`: отображение картинок с fallback GearBox -> GearBoxModelLine -> «Нет изображений»
 
-### pages/media_library_editor.py (переделка)
-- Ручная get_items() → MediaLibraryItem.filter_by_params() через SmartCatalogMixin
-- Фильтры: категория, тип оборудования, поиск (title+desc+keywords), ключевое слово
-- Форма загрузки: + keywords
-- Форма редактирования: + keywords, + equipment_type, + is_active
-- Убран GFK (content_object, clear_gfk)
+### Докстринги
+- Обновлены: ImageGalleryMixin, GearBoxModelLine (исправлен неверный), GearBox
 
-### deepseek-tools/ (чистка + докстринги)
-- Удалены все _-скрипты (11 шт) и _-txt (4 шт) — одноразовые, заменены универсальными
-- _add_docstrings.py → add_docstrings.py
-- Докстринги: show_lines.py, find_class.py, dump_model_range.py, list_model_fields.py
-- README.md — без изменений
+### Удаление дубликатов в медиабиблиотеке
+- Кнопка удаления рядом с редактированием
+- Raw SQL удаление (обход бага коллектора)
 
 ---
 
@@ -126,19 +116,23 @@ core/models/image_gallery_mixin.py
 | Медиабиблиотека (модель) | media_library/models.py |
 | Медиабиблиотека (админка) | media_library/admin.py |
 | Медиабиблиотека (страница) | pages/media_library_editor.py |
+| Редукторы (модель) | gearbox/models/gearbox.py |
+| Редукторы (model_line) | gearbox/models/gb_model_line.py |
+| Редукторы (админка) | gearbox/admin/gearbox_admin.py |
+| Редукторы (админка model_line) | gearbox/admin/gb_model_line_admin.py |
+| Редукторы (каталог) | pages/gearbox_catalog.py |
 | Фильтры | core/models/smart_catalog_mixin.py |
 | Инструменты | deepseek-tools/ |
 
 ---
 
-## Следующие шаги (на завтра)
+## Следующие шаги
 
-- **Добавить `brand` FK на MediaLibraryItem** — поле + миграция + фильтр в SmartCatalogMixin
-- Применить ImageGalleryMixin к model_line (PneumaticActuatorModelLine и др.)
+- Применить ImageGalleryMixin к model_line других сущностей (PA, EA, фитинги и др.)
 - Применить ImageGalleryMixin к model_line_item
 - Перевести CableGlandModelLineCertRelation и др. на EquipmentTypeMixin.cert_docs
 - Заполнить EquipmentType через админку/Streamlit
-
-### Уже сделано из предыдущего списка
-- ✅ ImageGalleryMixin зарегистрирован в core/models/__init__.py
-- ✅ Миграции применены
+- Обсудить: куда привязывать руководства по эксплуатации, техдокументацию (отдельное поле technical_docs или через категории в images)
+- Обсудить: нужна ли through-модель для изображений (если будет переиспользование)
+- Миграция для sorting_order/is_default в MediaLibraryItem
+- Миграция для images M2M в GearBoxModelLine

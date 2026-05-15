@@ -1,7 +1,9 @@
 # pages/media_library_editor.py
 """Медиабиблиотека — каталог с фильтрацией через SmartCatalogMixin"""
 import streamlit as st
+from django.core.files import File as DjangoFile
 from media_library.models import MediaLibraryItem, MediaCategory
+from producers.models import Brands
 
 st.set_page_config(page_title="Медиабиблиотека", layout="wide")
 st.title("🖼️ Медиабиблиотека")
@@ -15,7 +17,7 @@ if 'edit_media_id' not in st.session_state:
 filter_options = MediaLibraryItem.get_filter_options()
 
 st.markdown("### 🔍 Фильтры")
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     search_text = st.text_input("Поиск", placeholder="Название, описание, ключевые слова...")
@@ -40,7 +42,15 @@ with col3:
 
 with col4:
     keyword_text = st.text_input("Ключевое слово", placeholder="насос, DN50...")
+    selected_brand = None
 
+with col5:
+    if filter_options.get('brand_id'):
+        selected_brand = st.selectbox(
+            "Бренд",
+            [{'id': None, 'name': 'Все'}] + filter_options['brand_id'],
+            format_func=lambda x: x['name']
+        )
 
 # ==================== ПАРАМЕТРЫ → filter_by_params ====================
 params = {'limit': 100}
@@ -53,6 +63,9 @@ if selected_category and selected_category.get('id'):
 
 if selected_equipment_type and selected_equipment_type.get('id'):
     params['equipment_type_id'] = selected_equipment_type['id']
+
+if selected_brand and selected_brand.get('id'):
+    params['brand_id'] = selected_brand['id']
 
 if keyword_text:
     params['keyword'] = keyword_text
@@ -79,6 +92,12 @@ with st.sidebar:
                 (f"{c.icon} {c.name}" for c in categories if c.id == x), ""
             )
         )
+        brands = list(Brands.objects.filter(is_active=True).order_by('name'))
+        brand = st.selectbox(
+            "Бренд",
+            options=[None] + [b.id for b in brands],
+            format_func=lambda x: next((b.name for b in brands if b.id == x), "— Не указан —")
+        )
         is_public = st.checkbox("Публичный", value=True)
         if st.form_submit_button("Загрузить"):
             if uploaded_file and title.strip():
@@ -87,8 +106,9 @@ with st.sidebar:
                     description=description.strip(),
                     keywords=keywords.strip(),
                     category_id=category,
+                    brand_id=brand,
                     is_public=is_public,
-                    media_file=uploaded_file,
+                    media_file=DjangoFile(uploaded_file, name=uploaded_file.name),
                 )
                 item.save()
                 st.success(f"Загружено: {item.title}")
@@ -136,9 +156,29 @@ else:
             st.write("✅" if item.get('is_public') else "🔒")
 
         with col4:
-            if st.button("✏️", key=f"edit_{item['id']}"):
-                st.session_state.edit_media_id = item['id']
-                st.rerun()
+            col4a, col4b = st.columns(2)
+            with col4a:
+                if st.button("✏️", key=f"edit_{item['id']}"):
+                    st.session_state.edit_media_id = item['id']
+                    st.rerun()
+            with col4b:
+                if st.button("🗑️", key=f"delete_{item['id']}"):
+                    try:
+                        from django.db import connection
+                        media_id = item['id']
+                        with connection.cursor() as cursor:
+                            cursor.execute(
+                                "UPDATE cert_doc_certdata SET media_item_id = NULL WHERE media_item_id = %s",
+                                [media_id]
+                            )
+                            cursor.execute(
+                                "DELETE FROM media_library_medialibraryitem WHERE id = %s",
+                                [media_id]
+                            )
+                        st.success("Удалено")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Ошибка удаления: {e}")
 
 
 # ==================== РЕДАКТИРОВАНИЕ ====================
@@ -169,8 +209,30 @@ if st.session_state.get('edit_media_id'):
                     (f"{c.icon} {c.name}" for c in categories if c.id == x), ""
                 )
             )
+
+            # бренд
+            brands = list(Brands.objects.filter(is_active=True).order_by('name'))
+            brand_options = [None] + [b.id for b in brands]
+            brand_index = 0
+            if item.brand_id:
+                for i, bid in enumerate(brand_options):
+                    if bid == item.brand_id:
+                        brand_index = i
+                        break
+            new_brand = st.selectbox(
+                "Бренд",
+                options=brand_options,
+                format_func=lambda x: next(
+                    (b.name for b in brands if b.id == x), "— Не указан —"
+                ),
+                index=brand_index
+            )
+
             new_public = st.checkbox("Публичный", value=item.is_public)
             new_active = st.checkbox("Активен", value=item.is_active)
+
+            new_sorting = st.number_input("Порядок сортировки", value=item.sorting_order, step=1)
+            new_is_default = st.checkbox("По умолчанию", value=item.is_default)
 
             # equipment_type — отдельно
             from core.models import EquipmentType
@@ -202,8 +264,11 @@ if st.session_state.get('edit_media_id'):
                 item.description = new_desc.strip()
                 item.keywords = new_keywords.strip()
                 item.category_id = new_cat
+                item.brand_id = new_brand or None
                 item.is_public = new_public
                 item.is_active = new_active
+                item.sorting_order = new_sorting
+                item.is_default = new_is_default
                 item.equipment_type_id = new_equipment_type or None
                 item.save()
                 st.success("Сохранено")

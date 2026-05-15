@@ -4,6 +4,7 @@ from typing import Dict, List, Any
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
@@ -12,8 +13,14 @@ from pa_controls.models import SignalType
 from params.models import LockingMechanism, IpOption, MountingPlateTypes
 
 
-class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
-    """Модель редуктора (каталог)"""
+class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,TechDocMixin, models.Model):
+    """
+    Модель редуктора (каталог).
+
+    Наследует ImageGalleryMixin — поле ``images`` (M2M на MediaLibraryItem).
+    Если у конкретного редуктора нет своих изображений, страница каталога
+    подхватывает их из GearBoxModelLine.images.
+    """
     name = models.TextField(blank=True ,
                             verbose_name=_("Название") ,
                             help_text=_('Текстовое название модели редуктора'))
@@ -283,6 +290,10 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
         'model_line', 'body',  'ip', #'interlock' - записей нет, поэтому не используем
     ]
 
+    PREFETCH_FIELDS = [
+        'images',
+    ]
+
     # PREFETCH_FIELDS = [
     #     'body__mounting_plate_top',
     #     'body__mounting_plate_bottom',
@@ -335,6 +346,19 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin,  models.Model):
             'work_temp_max': self.work_temp_max,
             'is_declutchable': self.is_declutchable,
             'is_declutchable_display': self.is_declutchable_display,
+
+            # Изображения
+            'images': [
+                {
+                    'id': img.id,
+                    'title': img.title,
+                    'url': img.media_file.url if img.media_file else '',
+                    'preview_url': img.preview_file.url if img.preview_file else '',
+                    'is_default': img.is_default,
+                    'sorting_order': img.sorting_order,
+                }
+                for img in self.get_images()
+            ],
 
             # Дополнительные параметры
             'extra_params': self.extra_params or {},

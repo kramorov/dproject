@@ -304,6 +304,10 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         verbose_name=_("Тип оборудования"),
         help_text=_("К какому типу оборудования относится файл")
     )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_default= models.BooleanField(default=True, verbose_name=_("Пол умолчанию"),
+                                    help_text=_('Изображение по умолчанию'))
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -613,6 +617,14 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
             order=1
         ) ,
         FilterDefinition(
+            param_name='brand_id',
+            model_field='brand',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.FOREIGN_KEY,
+            label='Бренд',
+            order=3
+        ),
+        FilterDefinition(
             param_name='equipment_type_id' ,
             model_field='equipment_type' ,
             filter_type=FilterType.EXACT ,
@@ -631,7 +643,7 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
 
     SEARCH_FIELDS = ['title' , 'description', 'keywords']
 
-    SELECT_RELATED_FIELDS = ['category' , 'equipment_type' , 'created_by']
+    SELECT_RELATED_FIELDS = ['category' , 'equipment_type' , 'created_by', 'brand']
 
     def to_dict(self) :
         return {
@@ -644,6 +656,10 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
             'icon' : self.category.icon ,
             'code' : self.category.code ,
         } if self.category else None ,
+        'brand': {
+            'id': self.brand.id,
+            'name': self.brand.name,
+        } if self.brand else None,
         'equipment_type': {
             'id' : self.equipment_type.id ,
             'name' : self.equipment_type.name ,

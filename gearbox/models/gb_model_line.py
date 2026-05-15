@@ -4,14 +4,18 @@ from typing import Dict
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from params.models import ActuatorGearboxOutputType
 from producers.models import Brands
 
 
-class GearBoxModelLine(models.Model):
+class GearBoxModelLine(ImageGalleryMixin, TechDocMixin, models.Model):
     """
-    Серия пневматических фитингов
+    Серия редукторов (model line).
+
+    Наследует ImageGalleryMixin — поле ``images`` (M2M на MediaLibraryItem)
+    для фотографий, чертежей и схем серии.
     """
 
     name = models.CharField(max_length=100,
