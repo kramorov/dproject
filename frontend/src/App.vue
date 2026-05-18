@@ -40,11 +40,11 @@ import {useDataStore} from '@/services/store.js';
 // Инициализация хранилища
 const dataStore = useDataStore();
 const loadingMessage = ref('Загрузка данных...')
-// Запускаем загрузку при монтировании
-onMounted(async () => {
-  await dataStore.fetchInitialData()
-})
-// Можно следить за изменениями статуса загрузки
+// Запускаем загрузку при монтировании (заблокировано: 404)
+// onMounted(async () => {
+//   await dataStore.fetchInitialData()
+// })
+// // Можно следить за изменениями статуса загрузки
 watch(() => dataStore.isLoading, (isLoading) => {
   if (!isLoading && dataStore.error) {
     loadingMessage.value = `Ошибка: ${dataStore.error}`

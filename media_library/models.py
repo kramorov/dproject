@@ -1,3 +1,4 @@
+# media_library/models.py
 """
 Медиабиблиотека — централизованное хранилище файлов.
 
@@ -672,3 +673,7 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         'file_name': self.media_file.name if self.media_file else None ,
         'created_at': self.created_at.isoformat() if self.created_at else None ,
         }
+
+    def get_compact_data(self):
+        """Для UniversalAPIView — отдаёт to_dict() вместо сериализатора."""
+        return self.to_dict()

@@ -7,40 +7,40 @@ from .models import MediaLibraryItem , MediaCategory
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_migrate)
-def create_predefined_categories(sender , **kwargs) :
-    """Создает предопределенные категории после миграций"""
-    if sender.name == 'media_library' :
-        logger.info("Проверка предопределенных категорий медиабиблиотеки")
-        try :
-            MediaCategory.get_or_create_predefined()
-            logger.info("Предопределенные категории медиабиблиотеки созданы/проверены")
-        except Exception as e :
-            logger.error(f"Ошибка при создании предопределенных категорий: {str(e)}")
+# @receiver(post_migrate)
+# def create_predefined_categories(sender , **kwargs) :
+#     """Создает предопределенные категории после миграций"""
+#     if sender.name == 'media_library' :
+#         logger.info("Проверка предопределенных категорий медиабиблиотеки")
+#         try :
+#             MediaCategory.get_or_create_predefined()
+#             logger.info("Предопределенные категории медиабиблиотеки созданы/проверены")
+#         except Exception as e :
+#             logger.error(f"Ошибка при создании предопределенных категорий: {str(e)}")
 
-
-@receiver(pre_delete , sender=MediaLibraryItem)
-def cleanup_media_files(sender , instance , **kwargs) :
-    """Очистка файлов перед удалением объекта"""
-    logger.info(f"Удаление файлов для медиа-элемента {instance.pk}")
-
-    try :
-        from storage_manager.services import file_service
-
-        # Удаляем основной файл
-        if instance.media_file and instance.media_file.name :
-            if file_service.file_exists(instance.media_file.name) :
-                file_service.delete_file(instance.media_file.name)
-                logger.info(f"Удален медиа-файл: {instance.media_file.name}")
-
-        # Удаляем превью
-        if instance.preview_file and instance.preview_file.name :
-            if file_service.file_exists(instance.preview_file.name) :
-                file_service.delete_file(instance.preview_file.name)
-                logger.info(f"Удалено превью: {instance.preview_file.name}")
-
-    except Exception as e :
-        logger.error(f"Ошибка при удалении файлов медиа-элемента {instance.pk}: {str(e)}")
+#
+# @receiver(pre_delete , sender=MediaLibraryItem)
+# def cleanup_media_files(sender , instance , **kwargs) :
+#     """Очистка файлов перед удалением объекта"""
+#     logger.info(f"Удаление файлов для медиа-элемента {instance.pk}")
+#
+#     try :
+#         from storage_manager.services import file_service
+#
+#         # Удаляем основной файл
+#         if instance.media_file and instance.media_file.name :
+#             if file_service.file_exists(instance.media_file.name) :
+#                 file_service.delete_file(instance.media_file.name)
+#                 logger.info(f"Удален медиа-файл: {instance.media_file.name}")
+#
+#         # Удаляем превью
+#         if instance.preview_file and instance.preview_file.name :
+#             if file_service.file_exists(instance.preview_file.name) :
+#                 file_service.delete_file(instance.preview_file.name)
+#                 logger.info(f"Удалено превью: {instance.preview_file.name}")
+#
+#     except Exception as e :
+#         logger.error(f"Ошибка при удалении файлов медиа-элемента {instance.pk}: {str(e)}")
 
 
 @receiver(post_save , sender=MediaLibraryItem)

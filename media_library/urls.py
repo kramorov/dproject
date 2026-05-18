@@ -1,27 +1,26 @@
 # media_library/urls.py
+"""
+URL-ы медиабиблиотеки — два входа:
+
+  api/admin/media/   — админка (upload, edit, delete)
+  api/media/         — публичная раздача (download, preview)
+"""
 from django.urls import path
-from . import views
+from .views import (
+    MediaAdminUploadView,
+    MediaAdminDetailView,
+    MediaDownloadView,
+    MediaPreviewView,
+)
 
-app_name = 'media_library'
+# ── Админские эндпоинты ──────────────────────────────
+urlpatterns_admin = [
+    path('upload/', MediaAdminUploadView.as_view(), name='media_admin_upload'),
+    path('<int:pk>/', MediaAdminDetailView.as_view(), name='media_admin_detail'),
+]
 
-urlpatterns = [
-    # Детальная страница медиафайла с проверкой доступа
-    path('media/<int:pk>/' ,
-         views.media_detail ,
-         name='media_detail') ,
-
-    # Скачивание медиафайла
-    path('media/<int:pk>/download/' ,
-         views.download_media ,
-         name='download_media') ,
-
-    # Просмотр медиафайла в браузере
-    path('media/<int:pk>/view/' ,
-         views.view_media ,
-         name='view_media') ,
-
-    # Информация о медиафайле (JSON)
-    path('media/<int:pk>/info/' ,
-         views.media_info ,
-         name='media_info') ,
+# ── Публичные эндпоинты ──────────────────────────────
+urlpatterns_public = [
+    path('<int:pk>/download/', MediaDownloadView.as_view(), name='media_download'),
+    path('<int:pk>/view/', MediaPreviewView.as_view(), name='media_view'),
 ]

@@ -1,13 +1,12 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import path from 'path';
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import { resolve } from 'path'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'), // Настройка алиаса для папки src
+      '@': resolve(__dirname, './src'),
     },
   },
   server: {
@@ -18,4 +17,12 @@ export default defineConfig({
       },
     },
   },
-});
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        'media-library': resolve(__dirname, 'src/apps/media-library/index.html'),
+      },
+    },
+  },
+})

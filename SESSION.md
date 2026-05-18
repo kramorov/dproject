@@ -1,4 +1,4 @@
-# SESSION.md — обновлён 2026-05-15 22:00 (сессия DeepSeek TUI)
+# SESSION.md — обновлён 2026-05-18 23:00 (сессия DeepSeek TUI)
 
 ## Правила (см. .deepseek/instructions.md)
 
@@ -7,99 +7,46 @@
 - После изменений проверяй через grep_files
 - При смене машины — читай этот файл
 
+---
+
+## Сделано в эту сессию (2026-05-18)
+
+### API медиатеки — переписано
+- `media_library/views.py` → удалён, заменён на `media_library/views/` (пакет)
+- 4 view-класса: admin_upload, admin_detail, download, preview
+- Два входа: `/api/admin/media/` (IsAdminUser) + `/api/media/` (AllowAny)
+- CRUD через UniversalAPIView: `?model=media_library.MediaLibraryItem&fmt=compact`
+- `get_compact_data()` добавлен в MediaLibraryItem — отдаёт `to_dict()` с вложенными объектами
+- `core/views.py`: `fmt` добавлен в `exclude_filters` (баг — утекал в queryset filter)
+
+### Сигналы — почищено
+- `post_migrate`, `pre_delete MediaLibraryItem`, оба `post_save` — удалены пользователем
+
+### Фронтенд — структура мини-приложений
+- `frontend/src/shared/` — config, api (axios+interceptor), BaseModal, BaseButton
+- `frontend/src/apps/media-library/` — автономное мини-приложение:
+  - `MediaGrid.vue` — сетка + 5 фильтров (поиск, категория, тип, бренд, keyword) + debounce
+  - `MediaUpload.vue` — drag&drop загрузка с формой (brand, equipment_type)
+  - `MediaEdit.vue` — модалка редактирования/удаления/замены файла, `extractId()` для совместимости
+
+### vite.config.js — multi-page build
+- `main` (старый SPA) + `media-library` (отдельный HTML/JS/CSS)
+
+### Документация
+- `media_library/README.md` — полная карта модуля
+- `frontend/README.md` — карта фронтенда с легендой статусов
+
+### Мелкие правки
+- `App.vue`: `fetchInitialData()` закомментирован (давал 404)
+- `TopMenu.vue`: все ссылки на `<router-link>`, медиатека в выпадающем меню
+
+---
+
 ## Текущий стек
 
-- Django 4.1 + SQLite
-- Streamlit (pages/)
-- djangoProject1/settings.py
-
----
-
-## Архитектура (актуальное)
-
-### Сертификаты — M2M cert_docs
-```
-CertData
-├── equipment_types = M2M(EquipmentType)
-├── media_item = FK(MediaLibraryItem)
-├── brand = FK(Brands, null=True)
-└── cert_variety = FK(CertVariety)
-
-EquipmentTypeMixin (abstract)
-├── equipment_type = FK(EquipmentType)
-└── cert_docs = M2M(CertData, related_name='%(class)s_related')
-```
-- CertRelation (GFK) удалён из кода, закомментирован в models.py
-- AbstractCertRelation — живой, от него наследуются CableGlandModelLineCertRelation и др. (не переведены на cert_docs)
-- Страница: `pages/cert_manager_new.py` — полностью на M2M cert_docs
-
-### Медиабиблиотека — без GFK
-```
-MediaLibraryItem
-├── category = FK(MediaCategory)
-├── keywords = CharField
-├── equipment_type = FK(EquipmentType)
-├── brand = FK(Brands) — добавлен
-├── sorting_order = IntegerField(default=0) — добавлен (2026-05-15)
-├── is_default = BooleanField(default=True) — добавлен (2026-05-15)
-└── GFK (content_type/object_id) — УДАЛЁН
-```
-- Связь строится с другой стороны: `model_line.images` (M2M), `cert.media_item` (FK)
-- Страница: `pages/media_library_editor.py` — фильтры через SmartCatalogMixin, загрузка/редактирование/удаление
-
-### Удаление MediaLibraryItem — raw SQL
-Из-за бага в каскадном коллекторе Django (ValueError: Cannot query str() при удалении)
-используется сырой SQL в обход ORM:
-```python
-UPDATE cert_doc_certdata SET media_item_id = NULL WHERE media_item_id = %s
-DELETE FROM media_library_medialibraryitem WHERE id = %s
-```
-
-### ImageGalleryMixin — обновлён (2026-05-15)
-```
-core/models/image_gallery_mixin.py
-├── images = M2M(MediaLibraryItem, related_name='+')
-├── get_images()           -> filter(is_active=True).order_by('sorting_order')
-├── get_images_by_category -> filter(category__code=code)
-├── get_default_image()    -> is_default=True или первый по sorting_order
-├── get_first_image()      -> делегирует get_default_image()
-├── get_images_count()     -> count()
-└── get_images_description() -> строка для шаблона
-```
-- Зарегистрирован в core/models/__init__.py
-- Применён к GearBoxModelLine и GearBox
-
----
-
-## Что сделано в эту сессию (2026-05-15)
-
-### brand в MediaLibraryItem — интеграция
-- `media_library/models.py`: добавлен brand в FILTER_DEFINITIONS, SELECT_RELATED_FIELDS, to_dict() (пользователь)
-- `pages/media_library_editor.py`: бренд в фильтрах, форме загрузки, форме редактирования
-- Фикс `UploadedFile._committed` — обёртка в DjangoFile
-
-### sorting_order и is_default в MediaLibraryItem
-- Поля добавлены пользователем в models.py
-- `pages/media_library_editor.py`: поля в форме редактирования (number_input + checkbox), сохранение
-
-### ImageGalleryMixin — доработка
-- `get_images()` -> `order_by('sorting_order')`
-- Добавлен `get_default_image()` (is_default=True -> первый)
-- `get_first_image()` делегирует `get_default_image()`
-
-### GearBox + GearBoxModelLine — изображения
-- Пользователь применил ImageGalleryMixin к обеим моделям
-- `gearbox/models/gearbox.py`: PREFETCH_FIELDS=['images'], images в to_dict()
-- `gearbox/admin/gearbox_admin.py`: filter_horizontal=('images',), images в fieldsets
-- `gearbox/admin/gb_model_line_admin.py`: filter_horizontal=('images',), images в fieldsets
-- `pages/gearbox_catalog.py`: отображение картинок с fallback GearBox -> GearBoxModelLine -> «Нет изображений»
-
-### Докстринги
-- Обновлены: ImageGalleryMixin, GearBoxModelLine (исправлен неверный), GearBox
-
-### Удаление дубликатов в медиабиблиотеке
-- Кнопка удаления рядом с редактированием
-- Raw SQL удаление (обход бага коллектора)
+- Django 4.1 + SQLite + DRF (UniversalAPIView)
+- Vue 3 + Vite 6 + Pinia (фронтенд)
+- Streamlit (pages/) — старые страницы, постепенно заменяются
 
 ---
 
@@ -107,32 +54,27 @@ core/models/image_gallery_mixin.py
 
 | Что | Где |
 |---|---|
-| EquipmentTypeMixin | core/models/equipment_type_mixin.py |
-| EquipmentType | core/models/equipment_type.py |
-| ImageGalleryMixin | core/models/image_gallery_mixin.py |
-| SmartCatalogMixin | core/models/smart_catalog_mixin.py |
-| Сертификаты (модель) | cert_doc/models.py |
-| Сертификаты (страница) | pages/cert_manager_new.py |
-| Медиабиблиотека (модель) | media_library/models.py |
-| Медиабиблиотека (админка) | media_library/admin.py |
-| Медиабиблиотека (страница) | pages/media_library_editor.py |
-| Редукторы (модель) | gearbox/models/gearbox.py |
-| Редукторы (model_line) | gearbox/models/gb_model_line.py |
-| Редукторы (админка) | gearbox/admin/gearbox_admin.py |
-| Редукторы (админка model_line) | gearbox/admin/gb_model_line_admin.py |
-| Редукторы (каталог) | pages/gearbox_catalog.py |
-| Фильтры | core/models/smart_catalog_mixin.py |
-| Инструменты | deepseek-tools/ |
+| Медиатека (модель) | `media_library/models.py` |
+| Медиатека (views) | `media_library/views/` |
+| Медиатека (urls) | `media_library/urls.py` |
+| Медиатека (README) | `media_library/README.md` |
+| UniversalAPIView | `core/views.py` |
+| Фронтенд (README) | `frontend/README.md` |
+| Мини-приложение медиатеки | `frontend/src/apps/media-library/` |
+| Shared компоненты | `frontend/src/shared/` |
+| vite.config.js | `frontend/vite.config.js` |
+| SPA меню | `frontend/src/components/header/TopMenu.vue` |
+| SPA App | `frontend/src/App.vue` |
 
 ---
 
 ## Следующие шаги
 
-- Применить ImageGalleryMixin к model_line других сущностей (PA, EA, фитинги и др.)
-- Применить ImageGalleryMixin к model_line_item
-- Перевести CableGlandModelLineCertRelation и др. на EquipmentTypeMixin.cert_docs
-- Заполнить EquipmentType через админку/Streamlit
-- Обсудить: куда привязывать руководства по эксплуатации, техдокументацию (отдельное поле technical_docs или через категории в images)
-- Обсудить: нужна ли through-модель для изображений (если будет переиспользование)
-- Миграция для sorting_order/is_default в MediaLibraryItem
-- Миграция для images M2M в GearBoxModelLine
+- Переписать `media_library/graphql/` — схема не актуальна
+- Решить: файловая загрузка через GraphQL (graphene-file-upload) или оставить REST
+- Удалить `media_library/templates/` (старые HTML)
+- Убрать импорт signals из `media_library/apps.py`
+- Контроль доступа для партнёров (API Key / token)
+- Пагинация в UniversalAPIView
+- Применить ImageGalleryMixin к model_line других сущностей (PA, EA, фитинги)
+- Следующее мини-приложение: кабельные вводы или электроприводы
