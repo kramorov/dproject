@@ -38,10 +38,10 @@ class PneumaticFittingForm(forms.ModelForm) :
 class PneumaticFittingAdmin(admin.ModelAdmin) :
     form = PneumaticFittingForm
     list_display = [
-        'name' , 'code' , 'brand' , 'model_line', 'fitting_variety' ,
+        'name' , 'code' , 'brand' ,
         'pipe_diameter' , 'thread' , 'thread_inner_outer' , 'sorting_order' , 'is_active'
     ]
-    list_editable = ['code' , 'brand' , 'model_line','sorting_order' , 'is_active']
+    list_editable = ['code' , 'brand' , 'pipe_diameter' ,'thread' ,'sorting_order' , 'is_active']
     list_filter = [
         'brand' , 'model_line__code','fitting_variety' ,
         'body_material' , 'pipe_material' , 'pipe_diameter' , 'thread' , 'thread_inner_outer'
@@ -75,7 +75,7 @@ class PneumaticFittingAdmin(admin.ModelAdmin) :
         copied_count = 0
         for fitting in queryset :
             # Создаем копию без сохранения, чтобы пользователь мог изменить
-            copy_obj = fitting.copy(save_copy=False)
+            copy_obj = fitting.copy()
             # copy_obj.name = f"Копия {fitting.name}"
 
             # Сохраняем копию

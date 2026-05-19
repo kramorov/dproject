@@ -6,13 +6,13 @@ URL-ы медиабиблиотеки — два входа:
   api/media/         — публичная раздача (download, preview)
 """
 from django.urls import path
-from .views import (
-    MediaAdminUploadView,
-    MediaAdminDetailView,
-    MediaAdminCopyView,
-    MediaDownloadView,
-    MediaPreviewView,
-)
+
+from media_library.views.admin_copy import MediaAdminCopyView
+from media_library.views.admin_detail import MediaAdminDetailView
+from media_library.views.admin_upload import MediaAdminUploadView
+from media_library.views.download import MediaDownloadView
+from media_library.views.preview import MediaPreviewView
+
 
 # ── Админские эндпоинты ──────────────────────────────
 urlpatterns_admin = [

@@ -230,65 +230,12 @@ class PneumaticFittingModelLine(StructuredDataMixin , CopyMixin , models.Model) 
         """Отображаемый диапазон рабочих температур"""
         return f'{self.pressure_min}..{self.pressure_max}'
 
-    # def copy(self, save_copy: bool = False, copy_relations: bool = False) -> 'PneumaticFittingModelLine':
-    #     """
-    #     Создает копию объекта PneumaticFittingModelLine
-    #
-    #     Args:
-    #         save_copy: Сохранить копию в БД (если False - возвращает несохраненный объект)
-    #         copy_relations: Скопировать связанные объекты (ManyToMany и обратные связи)
-    #
-    #     Returns:
-    #         Новый объект PneumaticFittingModelLine (сохраненный или нет)
-    #
-    #     Example:
-    #         # В админке или shell
-    #         original = PneumaticFitting.objects.get(id=1)
-    #         copy_obj = original.copy(save_copy=True)
-    #         copy_obj.name = f"Копия {original.name}"
-    #         copy_obj.save()
-    #     """
-    #     # Получаем все поля текущего объекта
-    #     all_fields = self._meta.fields
-    #
-    #     # Создаем словарь для нового объекта, исключая первичный ключ
-    #     new_data = {}
-    #     for field in all_fields:
-    #         if field.name != self._meta.pk.name:
-    #             value = getattr(self, field.name)
-    #
-    #             # Для ForeignKey полей (кроме null=True, blank=True)
-    #             if isinstance(field, models.ForeignKey):
-    #                 # Если поле не пустое, копируем ссылку
-    #                 if value is not None:
-    #                     new_data[field.name] = value
-    #                 else:
-    #                     new_data[field.name] = None
-    #             else:
-    #                 new_data[field.name] = value
-    #
-    #     # Изменяем уникальные/специальные поля для копии
-    #     new_data['name'] = f"{self.name} (копия)"
-    #     new_data['code'] = f"{self.code}_copy"
-    #     new_data['sorting_order'] = self.sorting_order + 1
-    #
-    #     # Создаем новый объект
-    #     new_copy = PneumaticFittingModelLine(**new_data)
-    #     #
-    #     # if save_copy:
-    #     #     new_copy.save()
-    #
-    #     return new_copy
-
 
 class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin , CopyMixin , models.Model) :
     """
     Пневматические фитинги
     """
-    temp_min = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.мин") ,
-                                        help_text=_('Минимальная температура окружающей среды'))
-    temp_max = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.макс") ,
-                                        help_text=_('Максимальная температура окружающей среды'))
+
     name = models.CharField(max_length=300 ,
                             verbose_name=_("Название") ,
                             help_text=_('Текстовое название фитинга'))
@@ -373,6 +320,10 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
         verbose_name=_("Рабочее давление") ,
         help_text=_('Максимальное рабочее давление (бар)')
     )
+    temp_min = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.мин") ,
+                                        help_text=_('Минимальная температура окружающей среды'))
+    temp_max = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.макс") ,
+                                        help_text=_('Максимальная температура окружающей среды'))
 
     class Meta :
         ordering = ['pipe_diameter' , 'thread']

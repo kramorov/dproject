@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.template.defaulttags import url
 from django.urls import path, include
 
+# from media_library.urls import urlpatterns_public
 from .views import GetUrlByNameAPIView
 from graphene_django.views import GraphQLView
 from .graphql_api.schema import schema  # Импорт вашей GraphQL-схемы
