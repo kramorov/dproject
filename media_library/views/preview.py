@@ -49,8 +49,9 @@ class MediaPreviewView(APIView):
         # Выбираем, что отдавать: превью или оригинал
         file_field = None
         content_type = item.mime_type or 'application/octet-stream'
+        is_previewable = item.is_image() or item.file_extension.lower() == 'pdf'
 
-        if item.is_image() and item.preview_file and item.preview_file.name:
+        if is_previewable and item.preview_file and item.preview_file.name:
             if item.preview_file.storage.exists(item.preview_file.name):
                 file_field = item.preview_file
                 content_type = 'image/jpeg'  # preview всегда JPEG
@@ -63,7 +64,7 @@ class MediaPreviewView(APIView):
             file_field = item.media_file
 
         # Определяем Content-Disposition
-        is_safe = content_type in self.SAFE_INLINE_TYPES or item.is_image()
+        is_safe = content_type in self.SAFE_INLINE_TYPES or is_previewable
         disposition = 'inline' if is_safe else 'attachment'
 
         response = FileResponse(
@@ -75,6 +76,7 @@ class MediaPreviewView(APIView):
         response['Content-Disposition'] = f'{disposition}; filename="{item.filename}"'
         response['Content-Length'] = file_field.size
         response['X-Content-Type-Options'] = 'nosniff'
+        response['X-Frame-Options'] = 'SAMEORIGIN'
 
         logger.info(f"Preview: {item.filename} (id={pk}, inline={is_safe})")
         return response

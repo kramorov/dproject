@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
+  <div v-if="show" class="modal-overlay" @click.self="closable && $emit('close')">
     <div class="modal-window" :style="{ maxWidth: width }">
       <div class="modal-header">
         <h3>{{ title }}</h3>
@@ -15,6 +15,7 @@ defineProps({
   show: Boolean,
   title: { type: String, default: '' },
   width: { type: String, default: '500px' },
+  closable: { type: Boolean, default: true },
 })
 defineEmits(['close'])
 </script>

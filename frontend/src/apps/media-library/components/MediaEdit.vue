@@ -1,10 +1,11 @@
 <template>
-  <BaseModal :show="show" :title="'Редактировать: ' + (item?.title || '')" @close="$emit('close')">
+  <BaseModal :show="show" :title="'Редактировать: ' + (item?.title || '')" :closable="false" @close="$emit('close')">
     <div v-if="item" class="edit-form">
       <div class="edit-preview">
         <img
-          v-if="item.has_file && isImage(item.mime_type)"
+          v-if="isPreviewable(item)"
           :src="previewUrl(item.id)" class="preview-img"
+          @click.stop="$emit('preview', item)"
         />
         <div v-else class="preview-placeholder">📁 {{ item.file_name || '—' }}</div>
       </div>
@@ -46,6 +47,9 @@
         <button class="btn-primary" :disabled="saving" @click="save">
           {{ saving ? 'Сохранение...' : 'Сохранить' }}
         </button>
+        <button class="btn-copy" :disabled="copying" @click="doCopy">
+          {{ copying ? 'Копирование...' : 'Копировать' }}
+        </button>
         <button class="btn-danger" :disabled="deleting" @click="doDelete">
           {{ deleting ? 'Удаление...' : 'Удалить' }}
         </button>
@@ -67,7 +71,7 @@ const props = defineProps({
   brands: { type: Array, default: () => [] },
   equipmentTypes: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['close', 'updated', 'deleted'])
+const emit = defineEmits(['close', 'updated', 'deleted', 'preview', 'copied'])
 
 const form = reactive({
   title: '', category_id: null, brand_id: null, equipment_type_id: null,
@@ -77,10 +81,14 @@ const form = reactive({
 const newFile = ref(null)
 const saving = ref(false)
 const deleting = ref(false)
+const copying = ref(false)
 const saveError = ref(null)
 
 function previewUrl(id) { return mediaApi.previewUrl(id) }
 function isImage(mime) { return mime && mime.startsWith('image/') }
+function isPreviewable(item) {
+  return item.has_file && (isImage(item.mime_type) || item.mime_type === 'application/pdf')
+}
 
 function extractId(value) {
   if (value === null || value === undefined) return null
@@ -140,6 +148,18 @@ async function doDelete() {
     deleting.value = false
   }
 }
+
+async function doCopy() {
+  copying.value = true; saveError.value = null
+  try {
+    const { data } = await mediaApi.copy(props.item.id)
+    emit('copied', data)
+  } catch (e) {
+    saveError.value = e.displayMessage || 'Ошибка копирования'
+  } finally {
+    copying.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -157,11 +177,12 @@ async function doDelete() {
 .form-row label { display: flex; align-items: center; gap: 4px; margin: 0; }
 .edit-actions { display: flex; gap: 8px; margin-top: 12px; }
 .error-msg { color: #dc2626; font-size: 13px; }
-.btn-primary, .btn-danger, .btn-cancel {
+.btn-primary, .btn-danger, .btn-copy, .btn-cancel {
   padding: 6px 16px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
 }
 .btn-primary { background: #2563eb; color: #fff; }
 .btn-danger  { background: #dc2626; color: #fff; }
+.btn-copy    { background: #059669; color: #fff; }
 .btn-cancel  { background: #e5e7eb; color: #374151; }
-.btn-primary:disabled, .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary:disabled, .btn-danger:disabled, .btn-copy:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

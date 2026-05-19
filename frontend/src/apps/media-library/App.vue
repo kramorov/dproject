@@ -14,7 +14,15 @@
       :equipment-types="equipmentTypes"
       @uploaded="onUploaded"
     />
-    <MediaGrid v-else ref="gridRef" @select="onSelectItem" />
+    <MediaGrid v-else ref="gridRef" @select="onSelectItem" @preview="onPreviewItem" />
+
+    <MediaViewer
+      :show="viewerVisible"
+      :items="viewerItems"
+      :index="viewerIndex"
+      @close="viewerVisible = false"
+      @update:index="viewerIndex = $event"
+    />
 
     <MediaEdit
       :show="editModalVisible"
@@ -25,6 +33,8 @@
       @close="editModalVisible = false"
       @updated="onUpdated"
       @deleted="onDeleted"
+      @preview="onPreviewFromEdit"
+      @copied="onCopied"
     />
   </div>
 </template>
@@ -34,12 +44,16 @@ import { ref } from 'vue'
 import MediaGrid from './components/MediaGrid.vue'
 import MediaUpload from './components/MediaUpload.vue'
 import MediaEdit from './components/MediaEdit.vue'
+import MediaViewer from '@/shared/components/MediaViewer.vue'
 import mediaApi from './api'
 
 const showUpload = ref(false)
 const editModalVisible = ref(false)
 const selectedItem = ref(null)
 const gridRef = ref(null)
+const viewerVisible = ref(false)
+const viewerItems = ref([])
+const viewerIndex = ref(0)
 const categories = ref([])
 const brands = ref([])
 const equipmentTypes = ref([])
@@ -56,8 +70,29 @@ Promise.all([
 
 function onUploaded() { showUpload.value = false; gridRef.value?.fetchData() }
 function onSelectItem(item) { selectedItem.value = item; editModalVisible.value = true }
+function onPreviewItem(item, index) {
+  if (!item.has_file) return
+  viewerItems.value = gridRef.value?.getItems() || [item]
+  viewerIndex.value = index
+  viewerVisible.value = true
+}
+function onPreviewFromEdit(item) {
+  if (!item.has_file) return
+  viewerItems.value = [item]
+  viewerIndex.value = 0
+  viewerVisible.value = true
+}
 function onUpdated() { editModalVisible.value = false; gridRef.value?.fetchData() }
 function onDeleted() { editModalVisible.value = false; gridRef.value?.fetchData() }
+function onCopied(newItem) {
+  editModalVisible.value = false
+  gridRef.value?.fetchData()
+  // Открываем карточку копии после обновления списка
+  setTimeout(() => {
+    selectedItem.value = newItem
+    editModalVisible.value = true
+  }, 300)
+}
 </script>
 
 <style scoped>

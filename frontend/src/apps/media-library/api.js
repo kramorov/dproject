@@ -17,6 +17,7 @@ export default {
     })
   },
   remove(id) { return api.delete(`${BASE}/${id}/`) },
+  copy(id) { return api.post(`${BASE}/${id}/copy/`) },
   list(params = {}) {
     return api.get('/core/', { params: { model: 'media_library.MediaLibraryItem', fmt: 'compact', ...params } })
   },

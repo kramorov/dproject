@@ -12,7 +12,14 @@
         <router-link to="/cable-gland-body-material-edit" class="w3-bar-item w3-button">Редактирование материала кабельных вводов</router-link>
         <router-link to="/cable-input-data" class="w3-bar-item w3-button">Данные по кабельным вводам</router-link>
         <router-link to="/adaptation-data" class="w3-bar-item w3-button">Данные по адаптации</router-link>
+      </div>
+    </div>
+
+    <div class="w3-dropdown-hover">
+      <button class="w3-button">⚙️ Настройки</button>
+      <div class="w3-dropdown-content w3-bar-block teal w3-card-4">
         <a href="/src/apps/media-library/index.html" class="w3-bar-item w3-button">🖼️ Медиабиблиотека</a>
+        <a href="/src/apps/cert-docs/index.html" class="w3-bar-item w3-button">📜 Сертификаты</a>
       </div>
     </div>
   </div>

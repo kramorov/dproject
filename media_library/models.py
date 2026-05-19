@@ -339,7 +339,7 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         super().save(*args, **kwargs)
 
         # Создаем превью ПОСЛЕ сохранения (когда есть pk)
-        if self.is_image() and self.media_file and not self.preview_file:
+        if self.media_file and not self.preview_file and (self.is_image() or self._is_pdf()):
             logger.info(f"Создание превью для {self.pk}")
             if self.create_preview():
                 # Сохраняем снова чтобы обновить preview_file
@@ -460,75 +460,115 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         document_extensions = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'}
         return self.file_extension.lower() in document_extensions
 
-    def create_preview(self) :
-        """Создает превью для изображений с улучшенной диагностикой"""
-        if not self.is_image() or not self.media_file :
-            logger.warning(f"Превью не создается: не изображение или нет файла")
+    def _create_image_preview(self) :
+        """Создает JPEG-превью 400×300 для изображений."""
+        from PIL import Image
+        from io import BytesIO
+        import os
+
+        with self.media_file.storage.open(self.media_file.name , 'rb') as original_file :
+            img = Image.open(original_file)
+            logger.info(f"Исходное изображение: {img.format}, {img.mode}, {img.size}")
+
+            if img.mode in ('RGBA' , 'P' , 'LA') :
+                img = img.convert('RGB')
+            elif img.mode != 'RGB' :
+                img = img.convert('RGB')
+
+            img.thumbnail((400 , 300) , Image.Resampling.LANCZOS)
+            logger.info(f"Размер превью: {img.size}")
+
+            buffer = BytesIO()
+            img.save(buffer , format='JPEG' , quality=85 , optimize=True)
+            buffer.seek(0)
+
+            original_name = os.path.basename(self.media_file.name)
+            name_without_ext = os.path.splitext(original_name)[0]
+            preview_filename = f"{name_without_ext}_preview.jpg"
+
+            from django.core.files import File
+            self.preview_file.save(preview_filename , File(buffer , name=preview_filename) , save=False)
+            buffer.close()
+            return True
+
+    def _create_pdf_preview(self) :
+        """Создает JPEG-превью первой страницы PDF (PyMuPDF, без системных зависимостей)."""
+        from io import BytesIO
+        from PIL import Image
+        import os
+
+        try :
+            import fitz  # PyMuPDF
+        except ImportError :
+            logger.warning("PyMuPDF не установлен — PDF-превью пропущено (pip install PyMuPDF)")
             return False
 
         try :
-            from PIL import Image
-            from io import BytesIO
-            import os
+            with self.media_file.storage.open(self.media_file.name , 'rb') as f :
+                pdf_bytes = f.read()
 
-            logger.info(f"Создание превью для {self.pk}, файл: {self.media_file.name}")
+            doc = fitz.open(stream=pdf_bytes , filetype='pdf')
+            page = doc[0]  # первая страница
 
-            # Проверяем существование файла в хранилище
-            if not self.media_file.storage.exists(self.media_file.name) :
-                logger.error(f"Оригинальный файл не существует: {self.media_file.name}")
+            # Рендерим в pixmap с dpi=100 (≈ 830×1170 для A4), затем уменьшаем
+            pix = page.get_pixmap(dpi=100)
+            img = Image.frombytes('RGB' , [pix.width , pix.height] , pix.samples)
+            img.thumbnail((400 , 300) , Image.Resampling.LANCZOS)
+            doc.close()
+
+            buffer = BytesIO()
+            img.save(buffer , format='JPEG' , quality=85 , optimize=True)
+            buffer.seek(0)
+
+            original_name = os.path.basename(self.media_file.name)
+            name_without_ext = os.path.splitext(original_name)[0]
+            preview_filename = f"{name_without_ext}_preview.jpg"
+
+            from django.core.files import File
+            self.preview_file.save(preview_filename , File(buffer , name=preview_filename) , save=False)
+            buffer.close()
+            logger.info(f"PDF-превью создано: {self.pk}")
+            return True
+
+        except Exception as e :
+            logger.warning(f"Ошибка PDF-превью: {str(e)}")
+            return False
+
+    def _is_pdf(self) :
+        """Проверяет, является ли файл PDF."""
+        return self.file_extension.lower() == 'pdf'
+
+    def create_preview(self) :
+        """Создает превью: JPEG для изображений, первая страница для PDF."""
+        if not self.media_file :
+            return False
+        if not self.media_file.storage.exists(self.media_file.name) :
+            logger.error(f"Файл не существует: {self.media_file.name}")
+            return False
+
+        try :
+            if self.is_image() :
+                return self._create_image_preview()
+            elif self._is_pdf() :
+                return self._create_pdf_preview()
+            else :
+                logger.debug(f"Превью не поддерживается для типа: {self.mime_type}")
                 return False
-
-            # Открываем оригинальный файл
-            with self.media_file.storage.open(self.media_file.name , 'rb') as original_file :
-                img = Image.open(original_file)
-                logger.info(f"Изображение открыто: {img.format}, {img.mode}, {img.size}")
-
-                # Конвертируем в RGB если нужно
-                if img.mode in ('RGBA' , 'P' , 'LA') :
-                    img = img.convert('RGB')
-                    logger.info(f"Конвертировано в RGB")
-                elif img.mode != 'RGB' :
-                    img = img.convert('RGB')
-                    logger.info(f"Конвертировано в RGB из {img.mode}")
-
-                # Определяем размеры превью
-                max_size = (400 , 300)
-                img.thumbnail(max_size , Image.Resampling.LANCZOS)
-                logger.info(f"Размер превью: {img.size}")
-
-                # Сохраняем в буфер
-                buffer = BytesIO()
-                img.save(buffer , format='JPEG' , quality=85 , optimize=True)
-                buffer.seek(0)
-
-                # Генерируем имя для превью
-                original_name = os.path.basename(self.media_file.name)
-                name_without_ext = os.path.splitext(original_name)[0]
-                preview_filename = f"{name_without_ext}_preview.jpg"
-
-                # Сохраняем превью
-                from django.core.files import File
-                django_file = File(buffer , name=preview_filename)
-
-                self.preview_file.save(preview_filename , django_file , save=False)
-                logger.info(f"Превью сохранено: {self.preview_file.name}")
-
-                buffer.close()
-                return True
-
         except ImportError :
-            logger.error("PIL (Pillow) не установлен")
+            logger.error("Pillow не установлен")
             return False
         except Exception as e :
-            logger.error(f"Ошибка создания превью: {str(e)}" , exc_info=True)
+            logger.error(f"Ошибка превью: {str(e)}" , exc_info=True)
             return False
 
     def recreate_preview(self) :
         """
-        Принудительно пересоздает превью для изображения
+        Принудительно пересоздает превью (изображение или PDF).
         """
-        if not self.is_image() or not self.media_file :
-            return False , "Файл не является изображением или отсутствует"
+        if not self.media_file :
+            return False , "Файл отсутствует"
+        if not self.is_image() and not self._is_pdf() :
+            return False , "Превью поддерживается только для изображений и PDF"
 
         try :
             # Удаляем старое превью если есть

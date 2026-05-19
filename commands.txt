@@ -8,7 +8,7 @@ git checkout -- db.sqlite3 (отмена локальных изменений)
 
 Отправка:
 git pull main main
-git push main av-be-master:main
+git push main office-work       Старое: git push main av-be-master:main
 МАТЕРИАЛИЗОВАННОЕ ПРЕДСТАВЛЕНИЕ
 
 cp db.sqlite3 db.sqlite3.backup_$(date +%Y%m%d)

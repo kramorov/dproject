@@ -22,24 +22,31 @@
     <div v-else-if="error" class="status-msg error">{{ error }}</div>
     <div v-else class="cards">
       <div
-        v-for="item in items" :key="item.id"
+        v-for="(item, index) in items" :key="item.id"
         class="card" :class="{ inactive: !item.is_active }"
         @click="$emit('select', item)"
       >
-        <div class="card-preview">
+        <div class="card-preview" @click.stop="$emit('preview', item, index)">
           <img
-            v-if="item.has_file && isImage(item.mime_type)"
+            v-if="isPreviewable(item)"
             :src="previewUrl(item.id)" :alt="item.title" class="card-img"
           />
           <div v-else-if="item.has_file" class="card-placeholder">{{ iconFor(item.mime_type) }}</div>
           <div v-else class="card-placeholder no-file">∅</div>
         </div>
         <div class="card-body">
-          <div class="card-title">{{ item.title || '—' }}</div>
-          <div class="card-meta">
-            <span v-if="item.category">{{ item.category.icon }} {{ item.category.name }}</span>
-            <span v-if="item.brand">{{ item.brand.name }}</span>
+          <div class="card-row card-row-meta">
+            <span class="card-cell" :title="(item.category?.icon||'') + ' ' + (item.category?.name||'—')">
+              {{ item.category?.icon || '' }} {{ item.category?.name || '—' }}
+            </span>
+            <span class="card-cell" :title="item.brand?.name || ''">
+              {{ item.brand?.name || '—' }}
+            </span>
+            <span class="card-cell" :title="item.equipment_type?.name || ''">
+              {{ item.equipment_type?.name || '—' }}
+            </span>
           </div>
+          <div class="card-row card-row-title">{{ item.title || '—' }}</div>
         </div>
       </div>
       <div v-if="items.length === 0 && !loading" class="status-msg">Ничего не найдено</div>
@@ -63,11 +70,15 @@ const selectedBrand = ref(null)
 const loading = ref(false)
 const error = ref(null)
 
-defineEmits(['select'])
-defineExpose({ fetchData })
+defineEmits(['select', 'preview'])
+function getItems() { return items.value }
+defineExpose({ fetchData, getItems })
 
 function previewUrl(id) { return mediaApi.previewUrl(id) }
 function isImage(mime) { return mime && mime.startsWith('image/') }
+function isPreviewable(item) {
+  return item.has_file && (isImage(item.mime_type) || item.mime_type === 'application/pdf')
+}
 function iconFor(mime) {
   if (!mime) return '📁'
   if (mime.startsWith('image/')) return '🖼️'
@@ -137,27 +148,42 @@ onMounted(fetchData)
   border: none; border-radius: 6px; cursor: pointer; font-size: 13px; white-space: nowrap;
 }
 .cards {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
 }
 .card {
+  display: flex; flex-direction: row; align-items: stretch;
   border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;
   cursor: pointer; transition: box-shadow 0.15s; background: #fff;
 }
 .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .card.inactive { opacity: 0.5; }
 .card-preview {
-  height: 120px; background: #f9fafb;
+  width: 100px; min-width: 100px; height: 75px; flex-shrink: 0;
+  background: #f9fafb;
   display: flex; align-items: center; justify-content: center;
 }
-.card-img { width: 100%; height: 100%; object-fit: cover; }
-.card-placeholder { font-size: 32px; }
-.card-placeholder.no-file { color: #d1d5db; font-size: 40px; font-weight: 300; }
-.card-body { padding: 8px 10px; }
-.card-title {
-  font-size: 13px; font-weight: 500; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
+.card-img { width: 100%; height: 100%; object-fit: contain; }
+.card-placeholder { font-size: 28px; }
+.card-placeholder.no-file { color: #d1d5db; font-size: 36px; font-weight: 300; }
+.card-body {
+  flex: 1; padding: 8px 12px;
+  display: flex; flex-direction: column; justify-content: center;
+  min-width: 0;
 }
-.card-meta { font-size: 11px; color: #6b7280; margin-top: 4px; display: flex; gap: 8px; }
+.card-row-meta {
+  display: flex; gap: 0; margin-bottom: 4px;
+}
+.card-cell {
+  flex: 1; min-width: 0; padding: 0 6px;
+  font-size: 11px; color: #6b7280; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-cell:first-child { padding-left: 0; }
+.card-cell:last-child  { padding-right: 0; }
+.card-row-title {
+  font-size: 14px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .status-msg { grid-column: 1 / -1; text-align: center; padding: 40px; color: #6b7280; }
 .status-msg.error { color: #dc2626; }
 </style>

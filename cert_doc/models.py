@@ -1,3 +1,4 @@
+# cert_doc/models.py
 """
 Сертификаты и декларации соответствия.
 
@@ -20,6 +21,7 @@ from typing import List, Optional, Tuple, Any, Dict, Union
 from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel , StructuredDataMixin , EquipmentTypeMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
+from core.models.mixins import CopyMixin
 from producers.models import Brands
 
 
@@ -49,7 +51,7 @@ class CertVariety(BaseAbstractModel) :
         return self.name or self.code or f"#{self.id}"
 
 
-class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin) :
+class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyMixin) :
     """
     Сертификат (или декларация) соответствия на оборудование.
 
@@ -132,6 +134,15 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin) :
     def __str__(self) :
         return self.name or self.code or f"#{self.id}"
 
+    def copy(self, suffix=" (копия)", preserve_code=False):
+        """Копия сертификата: все поля кроме media_item, к названию + (копия)."""
+        new_cert = super().copy(suffix=suffix, preserve_code=preserve_code)
+        new_cert.media_item = None
+        if new_cert.name and suffix not in (new_cert.name or ''):
+            new_cert.name = f"{new_cert.name}{suffix}"
+        new_cert.save()
+        return new_cert
+
     # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
 
     FILTER_DEFINITIONS = [
@@ -206,21 +217,8 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin) :
         }
 
     def get_compact_data(self) :
-        """Минимальные данные для списков"""
-        from django.utils.formats import date_format
-
-        return {
-            'id' : self.id ,
-            'name' : self.name ,
-            'code' : self.code ,
-            'cert_variety' : str(self.cert_variety) if self.cert_variety else None ,
-            'valid_until' : date_format(self.valid_until , 'd.m.Y') if self.valid_until else None ,
-            'has_media' : bool(self.media_item) ,
-            'has_url' : bool(self.public_url) ,
-            'is_active' : self.is_active ,
-            'model' : 'CertData' ,
-            'app' : 'cert_doc' ,
-        }
+        """Для UniversalAPIView — отдаёт полные данные (to_dict)."""
+        return self.to_dict()
 
     def get_display_data(self , view_type='detail') :
         """Данные для отображения"""

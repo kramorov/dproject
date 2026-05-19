@@ -22,6 +22,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         'media-library': resolve(__dirname, 'src/apps/media-library/index.html'),
+        'cert-docs': resolve(__dirname, 'src/apps/cert-docs/index.html'),
       },
     },
   },

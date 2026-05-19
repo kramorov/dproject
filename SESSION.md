@@ -1,4 +1,4 @@
-# SESSION.md — обновлён 2026-05-18 23:00 (сессия DeepSeek TUI)
+# SESSION.md — обновлён 2026-05-19 23:30 (сессия DeepSeek TUI)
 
 ## Правила (см. .deepseek/instructions.md)
 
@@ -9,44 +9,48 @@
 
 ---
 
-## Сделано в эту сессию (2026-05-18)
+## Сделано в эту сессию (2026-05-18—19)
 
 ### API медиатеки — переписано
 - `media_library/views.py` → удалён, заменён на `media_library/views/` (пакет)
-- 4 view-класса: admin_upload, admin_detail, download, preview
-- Два входа: `/api/admin/media/` (IsAdminUser) + `/api/media/` (AllowAny)
-- CRUD через UniversalAPIView: `?model=media_library.MediaLibraryItem&fmt=compact`
-- `get_compact_data()` добавлен в MediaLibraryItem — отдаёт `to_dict()` с вложенными объектами
-- `core/views.py`: `fmt` добавлен в `exclude_filters` (баг — утекал в queryset filter)
+- 5 view-классов: admin_upload, admin_detail, admin_copy, download, preview
+- Два входа: `/api/admin/media/` (AllowAny) + `/api/media/` (AllowAny)
+- PDF-превью через PyMuPDF (без poppler)
+- `X-Frame-Options: SAMEORIGIN` для download/preview
+- `download/` отдаёт изображения/PDF inline
+- `get_compact_data()` в MediaLibraryItem → `to_dict()`
+- `core/views.py`: `fmt` добавлен в `exclude_filters`
 
-### Сигналы — почищено
-- `post_migrate`, `pre_delete MediaLibraryItem`, оба `post_save` — удалены пользователем
+### Мини-приложение «Медиатека» (Vue)
+- `shared/`: config, api, BaseModal, BaseButton, MediaViewer
+- `apps/media-library/`: MediaGrid (2 в ряд, 5 фильтров), MediaUpload (drag&drop), MediaEdit (BaseModal, копирование, closable=false)
+- MediaViewer: fullscreen просмотр изображений и PDF, листание стрелками, клавиатура
+- Кнопка «Копировать» → копия без файла
+- Закрытие модалки только по кнопкам
 
-### Фронтенд — структура мини-приложений
-- `frontend/src/shared/` — config, api (axios+interceptor), BaseModal, BaseButton
-- `frontend/src/apps/media-library/` — автономное мини-приложение:
-  - `MediaGrid.vue` — сетка + 5 фильтров (поиск, категория, тип, бренд, keyword) + debounce
-  - `MediaUpload.vue` — drag&drop загрузка с формой (brand, equipment_type)
-  - `MediaEdit.vue` — модалка редактирования/удаления/замены файла, `extractId()` для совместимости
+### Мини-приложение «Сертификаты» (Vue)
+- `cert_doc/views/`: admin_create, admin_detail, admin_copy, admin_media_upload, filters
+- `cert_doc/urls.py` → `/api/admin/certs/`
+- `apps/cert-docs/`: CertGrid (таблица с цветовыми индикаторами срока), CertEdit (BaseModal 800px, drag&drop PDF в медиатеку)
+- CopyMixin из `core/models/mixins.py` + `name` + "(копия)"
+- Удаление: `soft=False` (обход SoftDeleteMixin)
+- Фильтры через `get_filter_options()` — только используемые бренды/типы
+- `get_compact_data()` = `to_dict()` (был минимальный набор)
 
-### vite.config.js — multi-page build
-- `main` (старый SPA) + `media-library` (отдельный HTML/JS/CSS)
-
-### Документация
-- `media_library/README.md` — полная карта модуля
-- `frontend/README.md` — карта фронтенда с легендой статусов
-
-### Мелкие правки
-- `App.vue`: `fetchInitialData()` закомментирован (давал 404)
-- `TopMenu.vue`: все ссылки на `<router-link>`, медиатека в выпадающем меню
+### Фронтенд — общее
+- `TopMenu.vue`: все ссылки на `<router-link>`, новый пункт «⚙️ Настройки»
+- `vite.config.js`: multi-page (main + media-library + cert-docs)
+- `App.vue`: `fetchInitialData()` закомментирован
+- `frontend/README.md` — карта фронтенда
+- `media_library/README.md` — карта модуля
 
 ---
 
 ## Текущий стек
 
 - Django 4.1 + SQLite + DRF (UniversalAPIView)
-- Vue 3 + Vite 6 + Pinia (фронтенд)
-- Streamlit (pages/) — старые страницы, постепенно заменяются
+- Vue 3 + Vite 6 (фронтенд, мини-приложения)
+- Streamlit (pages/) — старые страницы
 
 ---
 
@@ -56,25 +60,27 @@
 |---|---|
 | Медиатека (модель) | `media_library/models.py` |
 | Медиатека (views) | `media_library/views/` |
-| Медиатека (urls) | `media_library/urls.py` |
 | Медиатека (README) | `media_library/README.md` |
+| Медиатека (фронт) | `frontend/src/apps/media-library/` |
+| Сертификаты (модель) | `cert_doc/models.py` |
+| Сертификаты (views) | `cert_doc/views/` |
+| Сертификаты (фронт) | `frontend/src/apps/cert-docs/` |
 | UniversalAPIView | `core/views.py` |
-| Фронтенд (README) | `frontend/README.md` |
-| Мини-приложение медиатеки | `frontend/src/apps/media-library/` |
+| CopyMixin | `core/models/mixins.py` |
+| SoftDeleteMixin | `core/models/mixins.py` |
 | Shared компоненты | `frontend/src/shared/` |
 | vite.config.js | `frontend/vite.config.js` |
-| SPA меню | `frontend/src/components/header/TopMenu.vue` |
-| SPA App | `frontend/src/App.vue` |
+| Меню | `frontend/src/components/header/TopMenu.vue` |
 
 ---
 
 ## Следующие шаги
 
-- Переписать `media_library/graphql/` — схема не актуальна
-- Решить: файловая загрузка через GraphQL (graphene-file-upload) или оставить REST
-- Удалить `media_library/templates/` (старые HTML)
-- Убрать импорт signals из `media_library/apps.py`
-- Контроль доступа для партнёров (API Key / token)
-- Пагинация в UniversalAPIView
+- Привязка model_line к сертификату (M2M cert_docs через EquipmentTypeMixin)
+- Выбор существующего файла из медиатеки в сертификате
+- Замена файла сертификата (через механизм замены в медиатеке)
+- GraphQL вместо REST для list/filter (решили пока REST)
 - Применить ImageGalleryMixin к model_line других сущностей (PA, EA, фитинги)
+- Аутентификация (API Key / token)
+- Пагинация в UniversalAPIView
 - Следующее мини-приложение: кабельные вводы или электроприводы

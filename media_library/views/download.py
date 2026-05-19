@@ -44,14 +44,18 @@ class MediaDownloadView(APIView):
         if not item.media_file.storage.exists(item.media_file.name):
             raise Http404("File not found on storage")
 
+        inline_types = {'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'}
+        as_attachment = item.mime_type not in inline_types
+
         response = FileResponse(
             item.media_file.open('rb'),
             content_type=item.mime_type or 'application/octet-stream',
-            as_attachment=True,
+            as_attachment=as_attachment,
             filename=item.filename,
         )
         response['Content-Length'] = item.media_file.size
         response['X-Content-Type-Options'] = 'nosniff'
+        response['X-Frame-Options'] = 'SAMEORIGIN'
 
         logger.info(f"Download: {item.filename} (id={pk})")
         return response

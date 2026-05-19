@@ -25,7 +25,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import UniversalAPIView
-from media_library.urls import urlpatterns_admin, urlpatterns_public
+from media_library.urls import urlpatterns_admin as media_admin_urls, urlpatterns_public
+from cert_doc.urls import urlpatterns_admin as cert_admin_urls
 
 urlpatterns = [
     path('api/get-url/<str:name>/', GetUrlByNameAPIView.as_view(), name='get_url_by_name'),
@@ -45,7 +46,8 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     path('api/pneumatic_actuators/', include('pneumatic_actuators.urls')),
     path('api/electric_actuators/', include('electric_actuators.urls')),
     path('api/features/', include('features.urls')),
-    path('api/admin/media/', include(urlpatterns_admin)),
+    path('api/admin/media/', include(media_admin_urls)),
+    path('api/admin/certs/', include(cert_admin_urls)),
     path('api/media/', include(urlpatterns_public)),
     # GraphQL
     path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),

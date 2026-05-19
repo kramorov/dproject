@@ -70,7 +70,7 @@ MediaLibraryItem (SmartCatalogMixin)
 
 ### Особенности save()
 - Автоопределение `mime_type` по расширению
-- Автосоздание `preview_file` (JPEG, 400×300) для изображений
+- Автосоздание `preview_file` (JPEG, 400×300) — изображения (Pillow) + PDF (PyMuPDF, первая страница)
 
 ### Особенности удаления
 - Физические файлы чистятся вручную через `file_service.delete_file()`
@@ -111,7 +111,8 @@ SELECT_RELATED_FIELDS = ['category', 'equipment_type', 'created_by', 'brand']
 
 ### Низкий приоритет
 - [ ] **Тесты** — нет ни одного теста на views
-- [ ] **preview для не-изображений** — сейчас preview создаётся только для изображений. PDF-превью (первая страница) не реализовано
+- [x] **preview для PDF** — реализовано через PyMuPDF (2026-05-19)
+- [ ] **preview для Word/Excel** — не реализовано, показ generic-иконки
 - [ ] **Автоопределение equipment_type** — по имени файла или ключевым словам
 
 ---

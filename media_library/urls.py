@@ -9,6 +9,7 @@ from django.urls import path
 from .views import (
     MediaAdminUploadView,
     MediaAdminDetailView,
+    MediaAdminCopyView,
     MediaDownloadView,
     MediaPreviewView,
 )
@@ -16,6 +17,7 @@ from .views import (
 # ── Админские эндпоинты ──────────────────────────────
 urlpatterns_admin = [
     path('upload/', MediaAdminUploadView.as_view(), name='media_admin_upload'),
+    path('<int:pk>/copy/', MediaAdminCopyView.as_view(), name='media_admin_copy'),
     path('<int:pk>/', MediaAdminDetailView.as_view(), name='media_admin_detail'),
 ]
 
