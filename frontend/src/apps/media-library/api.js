@@ -24,6 +24,9 @@ export default {
   detail(id) {
     return api.get('/core/', { params: { model: 'media_library.MediaLibraryItem', id } })
   },
+  filterOptions() {
+    return api.get(`${BASE}/filters/`)
+  },
   previewUrl(id) { return `/api/media/${id}/view/` },
   downloadUrl(id) { return `/api/media/${id}/download/` },
 }

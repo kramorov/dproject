@@ -2,9 +2,28 @@
 """
 POST /api/admin/certs/ — создание сертификата.
 
-Поля:
-    name, code, description, cert_variety_id, brand_id, equipment_type_ids,
-    issued_by, valid_from, valid_until, public_url, media_item_id, is_active
+Обязательные поля:
+    name              — str
+    cert_variety_id   — int (FK → CertVariety)
+
+Опциональные:
+    code              — str
+    description       — str
+    brand_id          — int (FK → Brands)
+    equipment_type_ids — list[int] (M2M → EquipmentType)
+    issued_by         — str
+    valid_from        — date (YYYY-MM-DD)
+    valid_until       — date (YYYY-MM-DD)
+    public_url        — str (URL)
+    media_item_id     — int (FK → MediaLibraryItem)
+    is_active         — bool (default true)
+
+Возвращает:
+    201 — cert.to_dict() с вложенными объектами
+    400 — список ошибок валидации
+
+После создания вызывает cert.refresh_from_db() —
+даты конвертируются в Python date из строк.
 """
 import logging
 from rest_framework.views import APIView
@@ -91,5 +110,6 @@ class CertAdminCreateView(APIView):
             except (ValueError, TypeError):
                 pass
 
+        cert.refresh_from_db()
         logger.info(f"CertData created: id={cert.pk}")
         return Response(cert.to_dict(), status=status.HTTP_201_CREATED)

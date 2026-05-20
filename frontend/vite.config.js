@@ -23,6 +23,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         'media-library': resolve(__dirname, 'src/apps/media-library/index.html'),
         'cert-docs': resolve(__dirname, 'src/apps/cert-docs/index.html'),
+        'price-catalog': resolve(__dirname, 'src/apps/price-catalog/index.html'),
       },
     },
   },

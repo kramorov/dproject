@@ -1,9 +1,16 @@
 # price/urls.py
 from django.urls import path
-from .views import update_exchange_rates
 
-app_name = 'price'
+from price.views import PriceCatalogView, PriceFilterOptionsView, PriceDocumentListView, PriceDocumentDetailView
+from price.views.document_detail import PriceDocumentItemView
 
-urlpatterns = [
-    path('cbr-update/', update_exchange_rates, name='cbr-update'),
+urlpatterns_admin = [
+    path('', PriceCatalogView.as_view(), name='price_catalog'),
+    path('filters/', PriceFilterOptionsView.as_view(), name='price_filter_options'),
+    path('documents/', PriceDocumentListView.as_view(), name='price_document_list'),
+    path('documents/<int:pk>/', PriceDocumentDetailView.as_view(), name='price_document_detail'),
+    path('documents/<int:pk>/apply/', PriceDocumentDetailView.as_view(), name='price_document_apply'),
+    path('documents/<int:doc_id>/items/', PriceDocumentItemView.as_view(), name='price_document_items'),
 ]
+
+urlpatterns = urlpatterns_admin  # совместимость с include('price.urls')

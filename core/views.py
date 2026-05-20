@@ -341,7 +341,7 @@ class UniversalAPIView(APIView) :
 
         # Фильтрация
         filters = {}
-        exclude_filters = {'model' , 'app' , 'action' , 'id' , 'format' , 'fmt' , 'view' , 'depth' , 'include'}
+        exclude_filters = {'model' , 'app' , 'action' , 'id' , 'format' , 'fmt' , 'view' , 'depth' , 'include', 'search', 'limit'}
 
         for key , value in request.query_params.items() :
             if key not in exclude_filters :

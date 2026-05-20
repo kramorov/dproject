@@ -108,16 +108,14 @@ async function fetchData() {
     const { data } = await mediaApi.list(params)
     items.value = Array.isArray(data.data) ? data.data : []
 
-    // Загружаем справочники при первом вызове
+    // Загружаем опции фильтров при первом вызове
     if (!categories.value.length) {
-      const [catRes, etRes, brandRes] = await Promise.all([
-        mediaApi.list({ model: 'media_library.MediaCategory' }),
-        mediaApi.list({ model: 'core.EquipmentType' }),
-        mediaApi.list({ model: 'producers.Brands' }),
-      ])
-      categories.value = Array.isArray(catRes.data.data) ? catRes.data.data : []
-      equipmentTypes.value = Array.isArray(etRes.data.data) ? etRes.data.data : []
-      brands.value = Array.isArray(brandRes.data.data) ? brandRes.data.data : []
+      try {
+        const { data } = await mediaApi.filterOptions()
+        categories.value = data.category_id || []
+        equipmentTypes.value = data.equipment_type_id || []
+        brands.value = data.brand_id || []
+      } catch { /* fallback — фильтры будут пустые */ }
     }
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка загрузки'

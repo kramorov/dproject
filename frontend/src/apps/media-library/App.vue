@@ -58,14 +58,10 @@ const categories = ref([])
 const brands = ref([])
 const equipmentTypes = ref([])
 
-Promise.all([
-  mediaApi.list({ model: 'media_library.MediaCategory' }),
-  mediaApi.list({ model: 'producers.Brands' }),
-  mediaApi.list({ model: 'core.EquipmentType' }),
-]).then(([catRes, brandRes, etRes]) => {
-  categories.value = Array.isArray(catRes.data.data) ? catRes.data.data : []
-  brands.value = Array.isArray(brandRes.data.data) ? brandRes.data.data : []
-  equipmentTypes.value = Array.isArray(etRes.data.data) ? etRes.data.data : []
+mediaApi.filterOptions().then(({ data }) => {
+  categories.value = data.category_id || []
+  brands.value = data.brand_id || []
+  equipmentTypes.value = data.equipment_type_id || []
 })
 
 function onUploaded() { showUpload.value = false; gridRef.value?.fetchData() }

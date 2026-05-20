@@ -15,8 +15,10 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import resources
 from rangefilter.filters import DateRangeFilter
 
+from price.models import Currency, PriceVariety, PriceHistory
 
-from price.models.currency import Currency, PriceVariety, PriceHistory
+
+# from price.models.currency import Currency, PriceVariety, PriceHistory
 
 # ========== CURRENCY ==========
 class CurrencyResource(resources.ModelResource):

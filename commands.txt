@@ -7,7 +7,7 @@ git merge av-be-master (если надо)
 git checkout -- db.sqlite3 (отмена локальных изменений)
 
 Отправка:
-git pull main main
+git pull main office-work
 git push main office-work       Старое: git push main av-be-master:main
 МАТЕРИАЛИЗОВАННОЕ ПРЕДСТАВЛЕНИЕ
 

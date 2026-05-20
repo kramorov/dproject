@@ -1,6 +1,16 @@
 # cert_doc/views/admin_detail.py
 """
-PUT / PATCH / DELETE /api/admin/certs/<id>/ — редактирование и удаление сертификата.
+PUT  /api/admin/certs/<id>/  — полное обновление сертификата
+PATCH  /api/admin/certs/<id>/  — частичное обновление
+DELETE /api/admin/certs/<id>/  — физическое удаление
+
+Особенности:
+    - PUT требует name и cert_variety_id
+    - PATCH обновляет только переданные поля
+    - equipment_type_ids (M2M) обновляется через .set()
+    - DELETE использует cert.delete(soft=False) — жёсткое удаление
+      (обход SoftDeleteMixin.is_deleted)
+    - После PUT/PATCH вызывается cert.refresh_from_db()
 """
 import logging
 from rest_framework.views import APIView
@@ -87,6 +97,7 @@ class CertAdminDetailView(APIView):
 
         cert.save()
         self._update_m2m(cert, request.data)
+        cert.refresh_from_db()
         return Response(cert.to_dict())
 
     def patch(self, request, pk):
@@ -100,6 +111,7 @@ class CertAdminDetailView(APIView):
 
         cert.save()
         self._update_m2m(cert, request.data)
+        cert.refresh_from_db()
         return Response(cert.to_dict())
 
     def delete(self, request, pk):

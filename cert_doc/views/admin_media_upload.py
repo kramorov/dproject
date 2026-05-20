@@ -1,9 +1,26 @@
 # cert_doc/views/admin_media_upload.py
 """
-POST /api/admin/certs/upload-media/ — загрузка файла сертификата в медиатеку.
+POST /api/admin/certs/upload-media/ — загрузка PDF-файла сертификата в медиатеку.
 
-Создаёт MediaLibraryItem и возвращает его id.
-Поля медиафайла автозаполняются из параметров сертификата.
+Принимает multipart/form-data:
+    file               — PDF (обязательно)
+    title              — str (авто: «Тип — Оборудование — Название»)
+    equipment_type_id  — int (опционально)
+    brand_id           — int (опционально)
+
+Создаёт MediaLibraryItem:
+    category = MediaCategory.objects.get(code='CERTIFICATE')
+    equipment_type / brand — из параметров запроса
+    is_public = True
+    created_by = request.user
+
+Возвращает:
+    201 — {id, title, ...to_dict()}
+    400 — нет файла или нет категории CERTIFICATE
+
+Используется фронтендом CertEdit.vue для:
+    1. Загрузки нового файла (когда media_item_id ещё нет)
+    2. После загрузки фронтенд проставляет media_item_id в сертификат через PATCH
 """
 import logging
 from rest_framework.views import APIView

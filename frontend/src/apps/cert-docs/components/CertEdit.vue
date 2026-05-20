@@ -32,23 +32,72 @@
       <!-- Блок медиафайла -->
       <div class="media-block">
         <div class="media-title">📎 Файл сертификата</div>
+
+        <!-- Файл привязан -->
         <div v-if="linkedMedia" class="media-linked">
           <span>📄 {{ linkedMedia.title || linkedMedia.file_name }}</span>
           <button class="btn-sm" @click="$emit('view-media', linkedMedia.id)">👁️</button>
+          <button class="btn-sm" @click="replaceMode = !replaceMode">{{ replaceMode ? 'Отмена' : '🔄' }}</button>
           <button class="btn-sm btn-unlink" @click="unlinkMedia">✕</button>
         </div>
-        <div v-else class="media-upload">
+
+        <!-- Замена файла -->
+        <div v-if="linkedMedia && replaceMode" class="media-upload">
           <div class="drop-zone" :class="{ drag: dragging }"
             @dragover.prevent="dragging=true" @dragleave="dragging=false"
-            @drop.prevent="onDrop" @click="fileInput?.click()">
-            <span v-if="!uploadFile">Перетащите PDF или кликните</span>
+            @drop.prevent="onReplaceDrop" @click="fileInput?.click()">
+            <span v-if="!uploadFile">Перетащите новый PDF</span>
             <span v-else>{{ uploadFile.name }}</span>
           </div>
           <input ref="fileInput" type="file" accept=".pdf" hidden @change="onFileSelect" />
-          <button class="btn-sm btn-primary" :disabled="!canUpload || uploading" @click="doUpload">
-            {{ uploading ? 'Загрузка...' : 'Загрузить в медиатеку' }}
+          <button class="btn-sm btn-primary" :disabled="!canUpload || uploading" @click="doReplace">
+            {{ uploading ? 'Замена...' : 'Заменить файл' }}
           </button>
         </div>
+
+        <!-- Нет файла: загрузка или выбор из медиатеки -->
+        <div v-if="!linkedMedia">
+          <div class="media-upload">
+            <div class="drop-zone" :class="{ drag: dragging }"
+              @dragover.prevent="dragging=true" @dragleave="dragging=false"
+              @drop.prevent="onDrop" @click="fileInput?.click()">
+              <span v-if="!uploadFile">Перетащите PDF или кликните</span>
+              <span v-else>{{ uploadFile.name }}</span>
+            </div>
+            <input ref="fileInput" type="file" accept=".pdf" hidden @change="onFileSelect" />
+            <button class="btn-sm btn-primary" :disabled="!canUpload || uploading" @click="doUpload">
+              {{ uploading ? 'Загрузка...' : 'Загрузить в медиатеку' }}
+            </button>
+          </div>
+
+          <div class="media-pick">
+            <div class="pick-label">или выберите существующий:</div>
+            <div class="pick-filters">
+              <input v-model="mediaSearch" placeholder="Ключевое слово..." class="pick-input"
+                @input="onMediaSearch" @focus="showMediaList=true" />
+              <select v-model="mediaEqType" class="pick-select" @change="onMediaSearch">
+                <option :value="null">Тип оборуд.</option>
+                <option v-for="e in opts.equipmentTypes" :key="e.id" :value="e.id">{{ e.name }}</option>
+              </select>
+              <select v-model="mediaBrand" class="pick-select" @change="onMediaSearch">
+                <option :value="null">Бренд</option>
+                <option v-for="b in opts.brands" :key="b.id" :value="b.id">{{ b.name }}</option>
+              </select>
+            </div>
+            <div v-if="showMediaList && mediaResults.length" class="pick-drop">
+              <div v-for="m in mediaResults" :key="m.id" class="pick-item" @click="pickMedia(m)">
+                <span class="pi-name">📄 {{ m.title || m.file_name || m.id }}</span>
+                <span class="pi-meta" v-if="m.brand || m.equipment_type">
+                  {{ m.brand?.name || '' }}{{ m.brand && m.equipment_type ? ' · ' : '' }}{{ m.equipment_type?.name || '' }}
+                </span>
+              </div>
+            </div>
+            <div v-if="showMediaList && !mediaResults.length && !mediaLoading" class="pick-empty">
+              {{ mediaSearch || mediaEqType || mediaBrand ? 'Ничего не найдено' : 'Начните поиск' }}
+            </div>
+          </div>
+        </div>
+
         <div v-if="mediaError" class="error-msg">{{ mediaError }}</div>
       </div>
 
@@ -106,12 +155,21 @@ const linkedMedia = ref(null)
 const uploadFile = ref(null)
 const dragging = ref(false)
 const uploading = ref(false)
+const replaceMode = ref(false)
 const mediaError = ref(null)
 const fileInput = ref(null)
 const saving = ref(false)
 const deleting = ref(false)
 const copying = ref(false)
 const formError = ref(null)
+
+// Поиск по медиатеке
+const mediaSearch = ref('')
+const mediaEqType = ref(null)
+const mediaBrand = ref(null)
+const mediaResults = ref([])
+const mediaLoading = ref(false)
+const showMediaList = ref(false)
 
 const canUpload = computed(() => uploadFile.value)
 
@@ -156,9 +214,11 @@ watch(() => props.item, (val) => {
     linkedMedia.value = null
   }
   uploadFile.value = null; formError.value = null; mediaError.value = null
+  replaceMode.value = false; mediaSearch.value = ''; mediaEqType.value = null; mediaBrand.value = null; mediaResults.value = []; showMediaList.value = false
 }, { immediate: true })
 
 function onDrop(e) { dragging.value=false; const f=e.dataTransfer.files[0]; if(f) uploadFile.value=f }
+function onReplaceDrop(e) { replaceMode.value=true; onDrop(e) }
 function onFileSelect(e) { const f=e.target.files[0]; if(f) uploadFile.value=f }
 
 async function doUpload() {
@@ -182,6 +242,53 @@ async function doUpload() {
 function unlinkMedia() {
   linkedMedia.value = null
   form.media_item_id = null
+  replaceMode.value = false
+}
+
+async function doReplace() {
+  if (!uploadFile.value || !linkedMedia.value) return
+  uploading.value = true; mediaError.value = null
+  try {
+    const fd = new FormData()
+    fd.append('file', uploadFile.value)
+    await certApi.replaceMediaFile(linkedMedia.value.id, fd)
+    linkedMedia.value = { ...linkedMedia.value, title: uploadFile.value.name }
+    uploadFile.value = null
+    replaceMode.value = false
+  } catch (e) {
+    mediaError.value = e.displayMessage || 'Ошибка замены файла'
+  } finally { uploading.value = false }
+}
+
+// Поиск по медиатеке
+let searchTimer = null
+function onMediaSearch() {
+  clearTimeout(searchTimer)
+  showMediaList.value = true
+  const q = mediaSearch.value.trim()
+  if (!q && !mediaEqType.value && !mediaBrand.value) { mediaResults.value = []; return }
+  searchTimer = setTimeout(async () => {
+    mediaLoading.value = true
+    try {
+      mediaResults.value = await certApi.searchMedia({
+        query: q,
+        equipment_type_id: mediaEqType.value,
+        brand_id: mediaBrand.value,
+      })
+    } catch { mediaResults.value = [] }
+    finally { mediaLoading.value = false }
+  }, 300)
+}
+
+function pickMedia(item) {
+  linkedMedia.value = item
+  form.media_item_id = item.id
+  mediaSearch.value = ''
+  mediaEqType.value = null
+  mediaBrand.value = null
+  mediaResults.value = []
+  showMediaList.value = false
+  uploadFile.value = null
 }
 
 async function save() {
@@ -235,6 +342,17 @@ async function doCopy() {
 .btn-sm.btn-primary { background:#2563eb; color:#fff; border-color:#2563eb; margin-top:4px; }
 .btn-sm.btn-primary:disabled { opacity:.5; cursor:not-allowed; }
 .btn-sm.btn-unlink { color:#dc2626; border-color:#fca5a5; }
+.media-pick { margin-top: 10px; }
+.pick-label { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+.pick-filters { display: flex; gap: 4px; margin-bottom: 4px; }
+.pick-input { flex: 1; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 13px; min-width: 0; }
+.pick-select { padding: 5px 6px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 12px; max-width: 130px; }
+.pick-drop { max-height: 180px; overflow-y: auto; border: 1px solid #d1d5db; border-radius: 5px; margin-top: 2px; }
+.pick-item { padding: 6px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+.pick-item:hover { background: #f0f9ff; }
+.pi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi-meta { font-size: 10px; color: #9ca3af; margin-left: 8px; white-space: nowrap; }
+.pick-empty { padding: 8px 10px; font-size: 12px; color: #9ca3af; }
 .actions { display:flex; gap:8px; margin-top:14px; }
 .error-msg { color:#dc2626; font-size:12px; margin-top:6px; }
 .btn-primary,.btn-danger,.btn-copy,.btn-cancel { padding:6px 16px; border:none; border-radius:6px; font-size:14px; cursor:pointer; }

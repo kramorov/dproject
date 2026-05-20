@@ -29,11 +29,19 @@ class CertVariety(BaseAbstractModel) :
     """
     Тип (разновидность) сертификата.
 
-    Примеры: ТР ТС 012/2011, Декларация соответствия, Сертификат ISO.
+    Примеры:
+        ТР ТС 012/2011 — Техрегламент «О безопасности оборудования для работы во взрывоопасных средах»
+        Декларация соответствия
+        Сертификат ISO 9001
+        Свидетельство о типовом одобрении
 
     Поля:
-        name - название типа
-        code - код
+        name — название типа (напр. «ТР ТС 012/2011»)
+        code — краткий код (напр. «TR_TS_012»)
+
+    Наследует:
+        BaseAbstractModel → SoftDeleteMixin, TimestampMixin
+        → is_active, sorting_order, created_at, updated_at
     """
     name = models.CharField(max_length=100 , blank=True , null=True ,
                             verbose_name=_("Название") ,
@@ -55,21 +63,40 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyM
     """
     Сертификат (или декларация) соответствия на оборудование.
 
-    Поля:
-        name              - название
-        code              - код/номер
-        description       - описание (серии, бренды)
-        cert_variety      - FK -> CertVariety
-        issued_by         - кем выдан
-        valid_from/until  - срок действия
-        brand             - FK -> Brands
-        equipment_types   - M2M -> EquipmentType
-        media_item        - FK -> MediaLibraryItem (файл PDF)
-        public_url        - URL
+    Основная модель приложения. Связывает сертификат с типами оборудования,
+    брендами и файлом PDF из медиатеки.
 
-    Фильтрация (SmartCatalogMixin):
-        Тип сертификата, бренд, тип оборудования.
-        Поиск: name / code / description / issued_by.
+    Поля:
+        name              — название сертификата
+        code              — код / регистрационный номер
+        description       — описание (для каких серий, брендов)
+        cert_variety (FK) — CertVariety (ТР ТС 012, декларация...)
+        issued_by         — кем выдан (название организации)
+        valid_from        — дата начала действия
+        valid_until       — дата окончания (подсвечивается красным, если истёк)
+        brand (FK)        — Brands (для фильтрации)
+        equipment_types (M2M) — EquipmentType (к каким типам оборудования)
+        media_item (FK)   — MediaLibraryItem (PDF-файл сертификата)
+        public_url        — внешняя ссылка на сертификат
+
+    Наследование:
+        SmartCatalogMixin   — фильтрация, поиск, to_dict()
+        BaseAbstractModel   — is_active, sorting_order, SoftDeleteMixin
+        StructuredDataMixin — get_compact_data(), get_display_data()
+        CopyMixin           — copy() с автосуффиксом «(копия)»
+
+    Копирование (copy):
+        Копирует все поля + M2M equipment_types.
+        code и name получают суффикс «(копия)».
+        media_item сбрасывается в None (копия без файла).
+        Удаление: soft=False — физическое удаление (обход SoftDeleteMixin).
+
+    API:
+        CRUD:       /api/admin/certs/
+        Фильтры:    /api/admin/certs/filters/
+        Загрузка PDF: /api/admin/certs/upload-media/  (создаёт MediaLibraryItem)
+        Копия:      /api/admin/certs/<id>/copy/
+        Список:     /api/core/?model=cert_doc.CertData&fmt=compact
     """
     name = models.CharField(max_length=100 , blank=True , null=True ,
                             verbose_name=_("Название") ,

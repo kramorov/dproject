@@ -1,6 +1,17 @@
 # cert_doc/views/admin_copy.py
 """
-POST /api/admin/certs/<id>/copy/ — копия сертификата (CopyMixin).
+POST /api/admin/certs/<id>/copy/ — создание копии сертификата.
+
+Использует CertData.copy() (CopyMixin):
+    - Копирует все скалярные поля + M2M equipment_types
+    - code и name получают суффикс « (копия)»
+    - media_item сбрасывается в None
+    - sorting_order сбрасывается в 0
+
+Возвращает:
+    201 — new_cert.to_dict()
+    404 — оригинал не найден
+    500 — ошибка копирования с текстом исключения
 """
 import logging
 from rest_framework.views import APIView
