@@ -68,7 +68,7 @@ function onUploaded() { showUpload.value = false; gridRef.value?.fetchData() }
 function onSelectItem(item) { selectedItem.value = item; editModalVisible.value = true }
 function onPreviewItem(item, index) {
   if (!item.has_file) return
-  viewerItems.value = gridRef.value?.getItems() || [item]
+  viewerItems.value = [item]
   viewerIndex.value = index
   viewerVisible.value = true
 }

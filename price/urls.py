@@ -1,8 +1,11 @@
 # price/urls.py
 from django.urls import path
 
-from price.views import PriceCatalogView, PriceFilterOptionsView, PriceDocumentListView, PriceDocumentDetailView
-from price.views.document_detail import PriceDocumentItemView
+
+from price.views.document_detail import PriceDocumentItemView , PriceDocumentDetailView
+from price.views.document_journal import PriceDocumentListView
+from price.views.price_catalog import PriceCatalogView
+from price.views.price_filters import PriceFilterOptionsView
 
 urlpatterns_admin = [
     path('', PriceCatalogView.as_view(), name='price_catalog'),

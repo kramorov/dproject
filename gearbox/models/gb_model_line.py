@@ -5,12 +5,13 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from core.models import ImageGalleryMixin, TechDocMixin
+from core.models.cert_doc_mixin import CertDocMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from params.models import ActuatorGearboxOutputType
 from producers.models import Brands
 
 
-class GearBoxModelLine(ImageGalleryMixin, TechDocMixin, models.Model):
+class GearBoxModelLine(ImageGalleryMixin, CertDocMixin, TechDocMixin, models.Model):
     """
     Серия редукторов (model line).
 

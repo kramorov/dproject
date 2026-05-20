@@ -11,11 +11,13 @@ from media_library.views.admin_copy import MediaAdminCopyView
 from media_library.views.admin_detail import MediaAdminDetailView
 from media_library.views.admin_upload import MediaAdminUploadView
 from media_library.views.download import MediaDownloadView
+from media_library.views.filters import MediaFilterOptionsView
 from media_library.views.preview import MediaPreviewView
 
 
 # ── Админские эндпоинты ──────────────────────────────
 urlpatterns_admin = [
+    path('filters/', MediaFilterOptionsView.as_view(), name='media_admin_filters'),
     path('upload/', MediaAdminUploadView.as_view(), name='media_admin_upload'),
     path('<int:pk>/copy/', MediaAdminCopyView.as_view(), name='media_admin_copy'),
     path('<int:pk>/', MediaAdminDetailView.as_view(), name='media_admin_detail'),
