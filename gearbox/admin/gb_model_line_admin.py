@@ -18,7 +18,7 @@ class GearBoxModelLineAdmin(AdminCopyMixin, admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': (('name', 'code'), ('brand', 'gearbox_output_variety', 'gearbox_variety'),('is_active', 'sorting_order'),)
+            'fields': (('name', 'code'), ('brand', 'gearbox_output_variety', 'gearbox_variety','equipment_type'),('is_active', 'sorting_order'),)
         }),
         (_('Изображения и технички'), {
             'fields': ('images','tech_docs','cert_docs'),

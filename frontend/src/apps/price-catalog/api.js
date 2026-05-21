@@ -7,6 +7,9 @@ export default {
   listPrices(params = {}) { return api.get(`${B}/`, { params }) },
   filterOptions() { return api.get(`${B}/filters/`) },
 
+  // Срез цен
+  getSnapshot(params = {}) { return api.get(`${B}/snapshot/`, { params }) },
+
   // Документы
   listDocuments(params = {}) { return api.get(`${B}/documents/`, { params }) },
   createDocument(data) { return api.post(`${B}/documents/`, data) },
@@ -14,6 +17,7 @@ export default {
   updateDocument(id, data) { return api.put(`${B}/documents/${id}/`, data) },
   deleteDocument(id) { return api.delete(`${B}/documents/${id}/`) },
   applyDocument(id) { return api.post(`${B}/documents/${id}/apply/`) },
+  unapplyDocument(id) { return api.post(`${B}/documents/${id}/unapply/`) },
 
   // Строки документа
   getItems(docId) { return api.get(`${B}/documents/${docId}/items/`) },

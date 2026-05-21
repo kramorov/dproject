@@ -123,6 +123,7 @@ INSTALLED_APPS = [
     'pneumatic_actuators.apps.PneumaticActuatorConfig' ,
     'features.apps.FeaturesConfig',
     'price.apps.PriceConfig',
+    'sku.apps.SkuConfig',
     'pneumatic_fittings.apps.FittingsConfig',
     'solenoid_valves.apps.SolenoidValvesConfig',
     'project_customers.apps.ProjectCustomersConfig',

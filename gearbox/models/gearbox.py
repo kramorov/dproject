@@ -4,16 +4,15 @@ from typing import Dict, List, Any
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models import ImageGalleryMixin, TechDocMixin
-from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
+from core.models import ImageGalleryMixin , TechDocMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
 from materials.models import MaterialGeneral
-from pa_controls.models import SignalType
 from params.models import LockingMechanism, IpOption, MountingPlateTypes
+from sku.models import SKUMixin
 
 
-class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,TechDocMixin, models.Model):
+class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,TechDocMixin,  SKUMixin, models.Model):
     """
     Модель редуктора (каталог).
 
@@ -120,6 +119,17 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,Tech
 
     def __str__(self):
         return f"{self.name}"
+
+    # Для миксина SKUMixin
+    def get_equipment_type_for_sku(self):
+        return self.model_line.equipment_type
+
+    def get_brand_for_sku(self):
+        return self.model_line.brand
+
+    def save(self , *args , **kwargs) :
+        super().save(*args , **kwargs)
+        self.sync_sku()  # Обновления номенклатуры ← явно, последним, после всех миксинов
 
     @property
     def is_declutchable_display(self) :
@@ -371,81 +381,3 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,Tech
         }
 
 
-
-   # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА CatalogFilterMixin ==========
-   #
-   #  # 1. Конфигурация фильтров
-   #  FILTER_CONFIG = [
-   #      FilterFieldConfig('model_line_id', 'model_line', 'exact'),
-   #      FilterFieldConfig('body_id', 'body', 'exact'),
-   #      CommonFilterConfigs.temp_min_filter(
-   #          field_name='work_temp_min',
-   #          param_name='work_temp_min'
-   #      ),
-   #
-   #      CommonFilterConfigs.temp_min_filter(
-   #          field_name='work_temp_max',
-   #          param_name='work_temp_max'
-   #      ),
-   #
-   #      # Фильтры по полям GearBoxBody (через связанную модель)
-   #      CommonFilterConfigs.min_value_filter(
-   #          field_name='max_work_torque',
-   #          param_name='min_work_torque',
-   #          related_path='body__max_work_torque',
-   #          is_related_field=True
-   #      ),
-   #      # IP фильтр - выбираем IP из списка, ищем с рангом >=
-   #      CommonFilterConfigs.ip_rank_gte_filter(
-   #          param_name='ip_id',  # Параметр получает ID выбранного IP
-   #          rank_field='ip_rank',
-   #          related_path='ip'
-   #      ),
-   #  ]
-   #
-   #  # M2M_FILTER_CONFIG должен быть определен
-   #  M2M_FILTER_CONFIG = [
-   #      {
-   #          'param_name': 'mounting_plate_top_id',
-   #          'm2m_field': 'body__mounting_plate_top',
-   #      },
-   #  ]
-   #
-   #  SEARCH_FIELDS = ['code', 'name', 'description']
-   #
-   #  SELECT_RELATED_FIELDS = [
-   #      'model_line', 'body',  'ip', #'interlock' - записей нет, поэтому не используем
-   #  ]
-   #
-   #  # PREFETCH_FIELDS = [
-   #  #     'body__mounting_plate_top',
-   #  #     'body__mounting_plate_bottom',
-   #  # ]
-   #
-   #  @classmethod
-   #  def get_filter_options(cls) -> Dict[str, List[Dict]]:
-   #      """Получить все доступные опции для фильтрации в UI"""
-   #      result = {
-   #          'model_lines': cls.get_distinct_values('model_line'),
-   #          'bodies': cls.get_distinct_values('body'),
-   #          'override_mechanisms': cls.get_distinct_values('override_mechanism'),
-   #          'locking_mechanisms': cls.get_distinct_values('locking_mechanism'),
-   #          'ip_options': cls.get_global_options(IpOption),
-   #          'mounting_plate_top_options': cls.get_global_options(MountingPlateTypes),
-   #          'min_work_torque_range': cls._get_value_range('body__max_work_torque'),
-   #      }
-   #      return result
-    #
-    # @classmethod
-    # def get_filter_options(cls) -> Dict[str, List[Dict]]:
-    #     """Получить все доступные опции для фильтрации в UI"""
-    #     result = {
-    #         'model_lines': cls.get_distinct_values('model_line'),
-    #         'bodies': cls.get_distinct_values('body'),
-    #         'override_mechanisms': cls.get_distinct_values('override_mechanism'),
-    #         'locking_mechanisms': cls.get_distinct_values('locking_mechanism'),
-    #         'ip_options': cls.get_global_options(IpOption),
-    #         'mounting_plate_top_options': cls.get_global_options(MountingPlateTypes),
-    #         'min_work_torque_range': cls._get_value_range('body__max_work_torque'),
-    #     }
-    #     return result

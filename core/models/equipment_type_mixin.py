@@ -14,13 +14,6 @@ class EquipmentTypeMixin(models.Model):
         verbose_name="Тип оборудования",
         help_text="К какому типу оборудования относится эта запись"
     )
-    cert_docs = models.ManyToManyField(
-        'cert_doc.CertData' ,
-        blank=True ,
-        related_name='%(class)s_related' ,
-        verbose_name="Сертификаты" ,
-        help_text="Сертификаты, применимые к этой серии"
-    )
 
     class Meta:
         abstract = True

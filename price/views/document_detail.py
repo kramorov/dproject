@@ -1,7 +1,8 @@
 # price/views/document_detail.py
 """
 GET/PUT/DELETE /api/admin/prices/documents/<id>/ — редактирование документа
-POST /api/admin/prices/documents/<id>/apply/ — применить цены
+POST /api/admin/prices/documents/<id>/apply/ — провести (записать цены в PriceHistory)
+POST /api/admin/prices/documents/<id>/unapply/ — отмена проведения
 GET/POST/DELETE /api/admin/prices/documents/<id>/items/ — строки документа
 """
 from rest_framework.views import APIView
@@ -17,21 +18,50 @@ class PriceDocumentDetailView(APIView):
 
     def _get_doc(self, pk):
         try:
-            return PriceDocument.objects.prefetch_related('items__content_type', 'items__price_variety', 'items__currency').get(pk=pk)
+            return PriceDocument.objects.select_related(
+                'item_content_type', 'default_price_variety', 'default_currency'
+            ).prefetch_related(
+                'items__content_type', 'items__price_variety', 'items__currency'
+            ).get(pk=pk)
         except PriceDocument.DoesNotExist:
             return None
+
+    def _resolve_product_codes(self, doc, items_qs):
+        """Пакетно разрешить code/name товаров для списка items."""
+        code_map = {}
+        ct = doc.item_content_type
+        if ct:
+            obj_ids = [it.object_id for it in items_qs]
+            if obj_ids:
+                try:
+                    model = ct.model_class()
+                    for obj in model.objects.filter(pk__in=obj_ids).only('pk'):
+                        pk = obj.pk
+                        code_map[pk] = {
+                            'code': getattr(obj, 'code', '') or '',
+                            'name': str(obj),
+                        }
+                except Exception:
+                    pass
+        return code_map
 
     def get(self, request, pk):
         doc = self._get_doc(pk)
         if not doc:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        items_qs = list(doc.items.filter(is_active=True))
+        code_map = self._resolve_product_codes(doc, items_qs)
+
         items = []
-        for item in doc.items.filter(is_active=True):
+        for item in items_qs:
+            pinfo = code_map.get(item.object_id, {})
             items.append({
                 'id': item.id,
                 'object_id': item.object_id,
                 'content_type_id': item.content_type_id,
+                'product_code': pinfo.get('code', ''),
+                'product_name': pinfo.get('name', ''),
                 'price': float(item.price),
                 'price_variety_id': item.price_variety_id,
                 'price_variety_name': item.price_variety.name if item.price_variety else None,
@@ -47,28 +77,73 @@ class PriceDocumentDetailView(APIView):
             'name': doc.name,
             'document_date': doc.document_date.isoformat(),
             'description': doc.description,
+            'status': doc.status,
+            'status_label': doc.get_status_display(),
             'is_applied': doc.is_applied,
             'item_content_type_id': doc.item_content_type_id,
             'item_content_type_name': str(ct) if ct else None,
             'content_type_app': ct.app_label if ct else None,
             'content_type_model': ct.model if ct else None,
+            'default_price_variety_id': doc.default_price_variety_id,
+            'default_price_variety_name': doc.default_price_variety.name if doc.default_price_variety else None,
+            'default_currency_id': doc.default_currency_id,
+            'default_currency_name': doc.default_currency.name if doc.default_currency else None,
+            'default_currency_symbol': doc.default_currency.symbol if doc.default_currency else None,
             'items': items,
         })
 
     def put(self, request, pk):
+        """
+        PUT — редактировать реквизиты документа.
+
+        Реквизиты (name, date, item_content_type) — только в статусе draft.
+        Статус можно менять: draft → on_approval (только перевод).
+        """
         doc = self._get_doc(pk)
         if not doc:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
-        if doc.is_applied:
-            return Response({'error': 'Document already applied'}, status=status.HTTP_400_BAD_REQUEST)
 
         data = request.data
+
+        # Изменение статуса (разрешено draft→on_approval)
+        if 'status' in data:
+            new_status = data['status']
+            if doc.status == PriceDocument.Status.DRAFT and new_status == PriceDocument.Status.ON_APPROVAL:
+                doc.status = PriceDocument.Status.ON_APPROVAL
+                doc.save(update_fields=['status'])
+                return Response({'success': True, 'status': doc.status, 'status_label': doc.get_status_display()})
+            else:
+                return Response(
+                    {'error': f'Переход {doc.status} → {new_status} запрещён'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Редактирование реквизитов — только draft
+        if doc.status != PriceDocument.Status.DRAFT:
+            return Response(
+                {'error': f'Редактирование запрещено. Текущий статус: {doc.get_status_display()}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if 'name' in data:
             doc.name = data['name'].strip()
         if 'description' in data:
             doc.description = data['description']
         if 'document_date' in data:
             doc.document_date = data['document_date']
+        if 'item_content_type_id' in data:
+            try:
+                ct = ContentType.objects.get(pk=int(data['item_content_type_id']))
+                doc.item_content_type = ct
+            except ContentType.DoesNotExist:
+                return Response({'error': 'ContentType not found'}, status=status.HTTP_400_BAD_REQUEST)
+        if 'default_price_variety_id' in data:
+            pv_id = data['default_price_variety_id']
+            doc.default_price_variety_id = int(pv_id) if pv_id else None
+        if 'default_currency_id' in data:
+            cur_id = data['default_currency_id']
+            doc.default_currency_id = int(cur_id) if cur_id else None
+
         doc.save()
         return Response({'success': True})
 
@@ -79,20 +154,46 @@ class PriceDocumentDetailView(APIView):
         doc.delete()
         return Response({'success': True})
 
-    # ── Apply ──
+    # ── Apply (проведение) ──
     def post(self, request, pk):
-        """POST /api/admin/prices/documents/<id>/apply/ — применить цены."""
+        """
+        POST /api/admin/prices/documents/<id>/apply/ — провести документ.
+        POST /api/admin/prices/documents/<id>/unapply/ — отмена проведения.
+        """
         doc = self._get_doc(pk)
         if not doc:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
-        if doc.is_applied:
-            return Response({'error': 'Already applied'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            doc.apply_prices()
-            return Response({'success': True, 'items_processed': doc.items.count()})
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        action = request.path.rstrip('/').split('/')[-1]
+
+        if action == 'apply':
+            if doc.status == PriceDocument.Status.POSTED:
+                return Response({'error': 'Документ уже проведён'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                doc.apply_prices()
+                return Response({
+                    'success': True,
+                    'items_processed': doc.items.filter(is_active=True).count(),
+                    'status': doc.status,
+                    'status_label': doc.get_status_display(),
+                })
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        elif action == 'unapply':
+            if doc.status != PriceDocument.Status.POSTED:
+                return Response({'error': 'Документ не был проведён'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                doc.unapply_prices()
+                return Response({
+                    'success': True,
+                    'status': doc.status,
+                    'status_label': doc.get_status_display(),
+                })
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'error': 'Unknown action'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class PriceDocumentItemView(APIView):
@@ -125,8 +226,12 @@ class PriceDocumentItemView(APIView):
             doc = PriceDocument.objects.get(pk=doc_id)
         except PriceDocument.DoesNotExist:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
-        if doc.is_applied:
-            return Response({'error': 'Document already applied'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if doc.status != PriceDocument.Status.DRAFT:
+            return Response(
+                {'error': f'Добавление позиций запрещено. Статус: {doc.get_status_display()}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         data = request.data
         object_id = data.get('object_id')
@@ -137,8 +242,8 @@ class PriceDocumentItemView(APIView):
             document=doc,
             content_type=doc.item_content_type,
             object_id=int(object_id),
-            price_variety_id=data.get('price_variety_id'),
-            currency_id=data.get('currency_id'),
+            price_variety_id=data.get('price_variety_id') or doc.default_price_variety_id,
+            currency_id=data.get('currency_id') or doc.default_currency_id,
             price=data.get('price', 0),
             comment=data.get('comment', ''),
             sorting_order=data.get('sorting_order', 0),
@@ -149,6 +254,17 @@ class PriceDocumentItemView(APIView):
         item_id = request.query_params.get('id')
         if not item_id:
             return Response({'error': 'id param required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            doc = PriceDocument.objects.get(pk=doc_id)
+        except PriceDocument.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if doc.status != PriceDocument.Status.DRAFT:
+            return Response(
+                {'error': f'Удаление позиций запрещено. Статус: {doc.get_status_display()}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             item = PriceDocumentItem.objects.get(pk=int(item_id), document_id=doc_id)

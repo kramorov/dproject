@@ -17,7 +17,7 @@ class GearBoxAdmin(admin.ModelAdmin):
     # search_fields = ('name', 'code', 'model_line__name', 'description')
     ordering = ('sorting_order', 'name')
     actions = ['copy_selected_objects']
-
+    filter_horizontal = ['images', 'tech_docs']
     fieldsets = (
         (None, {
             'fields': ('name', 'code',  'model_line', 'is_active', 'sorting_order')

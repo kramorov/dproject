@@ -4,14 +4,14 @@ from typing import Dict
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models import ImageGalleryMixin, TechDocMixin
+from core.models import ImageGalleryMixin , TechDocMixin , EquipmentTypeMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from params.models import ActuatorGearboxOutputType
 from producers.models import Brands
 
 
-class GearBoxModelLine(ImageGalleryMixin, CertDocMixin, TechDocMixin, models.Model):
+class GearBoxModelLine(ImageGalleryMixin, CertDocMixin, TechDocMixin, EquipmentTypeMixin, models.Model):
     """
     Серия редукторов (model line).
 
