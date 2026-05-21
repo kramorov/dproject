@@ -61,7 +61,7 @@ class FeatureTemplateAdmin(admin.ModelAdmin):
     def equipment_type_display(self, obj):
         """Отображение типа оборудования"""
         if obj.equipment_type:
-            url = reverse('admin:features_equipmenttype_change', args=[obj.equipment_type.id])
+            url = reverse('admin:core_equipmenttype_change', args=[obj.equipment_type.id])
             return format_html(
                 '<a href="{}">{}</a>',
                 url, obj.equipment_type.name

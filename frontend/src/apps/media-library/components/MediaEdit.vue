@@ -138,12 +138,24 @@ async function save() {
 
 async function doDelete() {
   if (!confirm('Удалить безвозвратно?')) return
-  deleting.value = true
+  deleting.value = true; saveError.value = null
   try {
     await mediaApi.remove(props.item.id)
     emit('deleted')
   } catch (e) {
-    saveError.value = e.displayMessage || 'Ошибка удаления'
+    if (e.response?.status === 409 && e.response?.data?.references) {
+      const refs = e.response.data.references.join('\n')
+      if (confirm(`Объект используется:\n\n${refs}\n\nВсё равно удалить? Связи будут разорваны.`)) {
+        try {
+          await mediaApi.remove(props.item.id, true)
+          emit('deleted')
+        } catch (e2) {
+          saveError.value = e2.displayMessage || 'Ошибка удаления'
+        }
+      }
+    } else {
+      saveError.value = e.displayMessage || 'Ошибка удаления'
+    }
   } finally {
     deleting.value = false
   }

@@ -179,8 +179,9 @@ onMounted(fetchData)
 .card-cell:first-child { padding-left: 0; }
 .card-cell:last-child  { padding-right: 0; }
 .card-row-title {
-  font-size: 14px; font-weight: 500;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 13px; font-weight: 500; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; max-height: 2.6em;
 }
 .status-msg { grid-column: 1 / -1; text-align: center; padding: 40px; color: #6b7280; }
 .status-msg.error { color: #dc2626; }

@@ -103,6 +103,28 @@ class PriceHistory(StructuredDataMixin, models.Model):
         obj_name = str(self.content_object) if self.content_object else f"#{self.object_id}"
         return f"{obj_name} — {self.price_variety}: {self.price} {self.currency}"
 
+    # ── SmartCatalogMixin compatibility (used when queried via UniversalAPIView) ──
+    SELECT_RELATED_FIELDS = ['price_variety', 'currency']
+
+    def get_compact_data(self):
+        """Для UniversalAPIView — отдаёт полные данные."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'price': float(self.price),
+            'price_variety_id': self.price_variety_id,
+            'price_variety_name': self.price_variety.name if self.price_variety else None,
+            'currency_id': self.currency_id,
+            'currency_name': self.currency.name if self.currency else None,
+            'currency_symbol': self.currency.symbol if self.currency else None,
+            'price_date': self.price_date.isoformat() if self.price_date else None,
+            'is_current': self.is_current,
+            'is_active': self.is_active,
+            'object_id': self.object_id,
+            'content_type_id': self.content_type_id,
+        }
+
     def save(self, *args, **kwargs):
         """Авто-заполнение name и code из content_object."""
         if self.content_object and not self.name:

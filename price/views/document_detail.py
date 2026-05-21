@@ -41,6 +41,7 @@ class PriceDocumentDetailView(APIView):
                 'sorting_order': item.sorting_order,
             })
 
+        ct = doc.item_content_type
         return Response({
             'id': doc.id,
             'name': doc.name,
@@ -48,7 +49,9 @@ class PriceDocumentDetailView(APIView):
             'description': doc.description,
             'is_applied': doc.is_applied,
             'item_content_type_id': doc.item_content_type_id,
-            'item_content_type_name': str(doc.item_content_type) if doc.item_content_type else None,
+            'item_content_type_name': str(ct) if ct else None,
+            'content_type_app': ct.app_label if ct else None,
+            'content_type_model': ct.model if ct else None,
             'items': items,
         })
 

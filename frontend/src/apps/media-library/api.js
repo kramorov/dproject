@@ -16,7 +16,10 @@ export default {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
-  remove(id) { return api.delete(`${BASE}/${id}/`) },
+  remove(id, force = false) {
+    const params = force ? { force: 'true' } : {}
+    return api.delete(`${BASE}/${id}/`, { params })
+  },
   copy(id) { return api.post(`${BASE}/${id}/copy/`) },
   list(params = {}) {
     return api.get('/core/', { params: { model: 'media_library.MediaLibraryItem', fmt: 'compact', ...params } })

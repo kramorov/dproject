@@ -26,13 +26,12 @@ venv.bak/
 # Django
 *.log
 local_settings.py
-db.sqlite3
-media/
+
 
 # System
 .DS_Store
 Thumbs.db
 
 # DeepSeek temp scripts (legacy root, now in deepseek-tools/)
-_*.py
-_*.txt
+#_*.py
+#_*.txt

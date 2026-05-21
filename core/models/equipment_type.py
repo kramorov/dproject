@@ -27,6 +27,14 @@ class EquipmentType(BaseAbstractModel):
         help_text=_("Иконка для отображения (emoji или название класса CSS)")
     )
 
+    # Связь с моделью товара для цен и документов
+    content_type = models.ForeignKey(
+        'contenttypes.ContentType', on_delete=models.SET_NULL,
+        blank=True, null=True,
+        verbose_name=_("Модель товара"),
+        help_text=_("Django-модель товара этого типа (для цен, документов)")
+    )
+
     # Уровень в иерархии (для удобства)
     level = models.IntegerField(
         default=0,
@@ -109,6 +117,7 @@ class EquipmentType(BaseAbstractModel):
         data.update({
             'level': self.level,
             'parent_id': self.parent_id,
+            'content_type_id': self.content_type_id,
             'icon': self.icon,
             'full_path': self.get_full_path(),
             'children_count': self.get_children_count(),

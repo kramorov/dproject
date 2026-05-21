@@ -19,7 +19,7 @@ class PriceCatalogView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        qs = PriceHistory.objects.filter(is_active=True).select_related('price_variety', 'currency')
+        qs = PriceHistory.objects.filter(is_active=True).select_related('price_variety', 'currency', 'content_type')
 
         variety = request.query_params.get('price_variety_id')
         if variety:

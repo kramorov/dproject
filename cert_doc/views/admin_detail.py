@@ -120,7 +120,7 @@ class CertAdminDetailView(APIView):
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            cert.delete(soft=False)
+            cert.delete()
             return Response({'success': True})
         except Exception as e:
             logger.error(f"Delete failed for pk={pk}: {str(e)}", exc_info=True)

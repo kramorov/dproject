@@ -101,7 +101,7 @@ class FeatureVarietyAdmin(admin.ModelAdmin):
         if types.exists():
             items = []
             for et in types:
-                url = reverse('admin:features_equipmenttype_change', args=[et.id])
+                url = reverse('admin:core_equipmenttype_change', args=[et.id])
                 items.append(f'<a href="{url}" title="{et.name}">{et.name[:15]}</a>')
 
             result = ", ".join(items)

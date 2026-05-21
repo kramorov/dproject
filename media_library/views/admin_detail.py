@@ -171,6 +171,15 @@ class MediaAdminDetailView(APIView):
         if item is None:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        force = request.query_params.get('force', '').lower() in ('true', '1', 'yes')
+
+        # Проверяем связи — только если не force
+        if not force:
+            refs = self._check_references(item)
+            if refs:
+                return Response({'error': 'Объект используется', 'references': refs},
+                                status=status.HTTP_409_CONFLICT)
+
         try:
             # 1. Очищаем физические файлы
             if item.media_file:
@@ -178,21 +187,14 @@ class MediaAdminDetailView(APIView):
             if item.preview_file:
                 file_service.delete_file(item.preview_file.name)
 
-            # 2. Очищаем M2M-связи через Django ORM
-            #    ImageGalleryMixin создаёт M2M на MediaLibraryItem,
-            #    чистим явно, чтобы избежать каскадного бага.
-            for rel in item._meta.related_objects:
-                if rel.many_to_many:
-                    getattr(item, rel.get_accessor_name()).clear()
-
-            # 3. Обнуляем FK (CertData.media_item) сырым SQL
+            # 2. Обнуляем FK (CertData.media_item) сырым SQL
             with connection.cursor() as cursor:
                 cursor.execute(
                     "UPDATE cert_doc_certdata SET media_item_id = NULL WHERE media_item_id = %s",
                     [item.pk],
                 )
 
-            # 4. Удаляем запись сырым SQL (обход бага каскадного коллектора Django)
+            # 3. Удаляем запись сырым SQL
             with connection.cursor() as cursor:
                 cursor.execute(
                     "DELETE FROM media_library_medialibraryitem WHERE id = %s",
@@ -205,3 +207,32 @@ class MediaAdminDetailView(APIView):
         except Exception as e:
             logger.error(f"Error deleting MediaLibraryItem {pk}: {str(e)}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _check_references(self, item):
+        """Проверить внешние ссылки на MediaLibraryItem."""
+        refs = []
+        # FK: CertData.media_item
+        from cert_doc.models import CertData
+        certs = CertData.objects.filter(media_item=item)
+        if certs.exists():
+            names = ', '.join(c.name or f'#{c.id}' for c in certs[:5])
+            refs.append(f'Сертификаты ({certs.count()}): {names}')
+
+        # M2M через ImageGalleryMixin (related_name='+') — не доступны напрямую
+        # Проверяем через through-таблицы
+        with connection.cursor() as cursor:
+            # Собираем все M2M через таблицы, ссылающиеся на MediaLibraryItem
+            cursor.execute("""
+                SELECT name FROM sqlite_master
+                WHERE type='table'
+                AND name LIKE '%_images'
+                AND name != 'media_library_medialibraryitem'
+            """)
+            for (table,) in cursor.fetchall():
+                cursor.execute(f"SELECT COUNT(*) FROM \"{table}\" WHERE medialibraryitem_id = %s", [item.pk])
+                count = cursor.fetchone()[0]
+                if count:
+                    label = table.replace('_', ' ').strip()
+                    refs.append(f'{label} ({count})')
+
+        return refs

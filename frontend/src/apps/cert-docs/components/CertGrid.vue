@@ -65,7 +65,7 @@ async function fetchData(){
     const p={}
     if(selVariety.value)p.cert_variety_id=selVariety.value
     if(selBrand.value)p.brand_id=selBrand.value
-    if(selEqType.value)p.equipment_type_id=selEqType.value
+    if(selEqType.value)p.equipment_types=selEqType.value
     if(search.value)p.search=search.value
     const {data}=await certApi.list(p)
     items.value=Array.isArray(data.data)?data.data:[]
@@ -86,7 +86,7 @@ onMounted(fetchData)
 .row{cursor:pointer;transition:background .1s}
 .row:hover{background:#f0f9ff}
 .row.ina{opacity:.5}
-.nm{font-weight:500}
+.nm{font-weight:500;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-height:2.6em}
 .cd{font-size:11px;color:#6b7280}
 .badge{display:inline-block;padding:1px 8px;background:#e5e7eb;border-radius:10px;font-size:12px}
 .db{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px}

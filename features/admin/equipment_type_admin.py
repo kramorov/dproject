@@ -27,8 +27,10 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'level_display',
         'parent_display', 'children_count',
+        'content_type',
         'sorting_order', 'is_active'
     ]
+    list_editable = ['content_type']
 
     list_filter = ['level', 'is_active']
     search_fields = ['name', 'code', 'description']
@@ -43,7 +45,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
             'classes': ('wide', 'collapse'),
         }),
         ('Настройки', {
-            'fields': ('sorting_order', 'is_active')
+            'fields': ('content_type', 'sorting_order', 'is_active')
         }),
     )
 
@@ -79,7 +81,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         if obj.parent:
             return format_html(
                 '<a href="{}">{}</a>',
-                reverse('admin:features_equipmenttype_change', args=[obj.parent.id]),
+                reverse('admin:core_equipmenttype_change', args=[obj.parent.id]),
                 obj.parent.name
             )
         return "—"
@@ -90,7 +92,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         """Количество дочерних элементов"""
         count = obj.children.count()
         if count > 0:
-            url = reverse('admin:features_equipmenttype_changelist') + f'?parent__id__exact={obj.id}'
+            url = reverse('admin:core_equipmenttype_changelist') + f'?parent__id__exact={obj.id}'
             return format_html(
                 '<a href="{}" class="badge" style="background: #4CAF50; color: white; '
                 'padding: 2px 8px; border-radius: 10px;">{} шт.</a>',
@@ -115,7 +117,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
             parents = []
             current = obj.parent
             while current:
-                url = reverse('admin:features_equipmenttype_change', args=[current.id])
+                url = reverse('admin:core_equipmenttype_change', args=[current.id])
                 parents.insert(0, f'<a href="{url}">{current.name}</a>')
                 current = current.parent
 
@@ -129,7 +131,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
             html += f'<strong>Дочерние типы ({children.count()}):</strong><br>'
             html += '<ul style="list-style-type: none; padding-left: 0;">'
             for child in children:
-                url = reverse('admin:features_equipmenttype_change', args=[child.id])
+                url = reverse('admin:core_equipmenttype_change', args=[child.id])
                 html += f'<li style="margin: 5px 0; padding-left: 20px; position: relative;">'
                 html += f'<span style="position: absolute; left: 0;">↳</span>'
                 html += f'<a href="{url}">{child.name}</a>'
