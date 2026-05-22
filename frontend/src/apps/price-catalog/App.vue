@@ -35,7 +35,7 @@ const tab = ref('catalog')
 const selectedDocId = ref(null)
 const docVersion = ref(0)
 
-const opts = reactive({ varieties: [], currencies: [] })
+const opts = reactive({ varieties: [], currencies: [], equipmentTypes: [], brands: [] })
 const contentTypes = ref([])
 
 provide('opts', opts)
@@ -46,6 +46,8 @@ onMounted(async () => {
     const r = await priceApi.filterOptions()
     opts.varieties = r.data.varieties || []
     opts.currencies = r.data.currencies || []
+    opts.equipmentTypes = r.data.equipment_types || []
+    opts.brands = r.data.brands || []
     contentTypes.value = r.data.equipment_types || []
   } catch {}
 })

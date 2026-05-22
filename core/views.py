@@ -1,4 +1,7 @@
 from rest_framework.views import APIView
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
 from rest_framework.response import Response
 from rest_framework import status
 from django.apps import apps
@@ -8,7 +11,11 @@ from .serializers import get_model_serializer , get_model_field_info , get_app_m
 import logging
 
 logger = logging.getLogger(__name__)
+
+@method_decorator(csrf_exempt, name='dispatch')
 class UniversalAPIView(APIView) :
+    authentication_classes = []
+    permission_classes = []
     """
     Универсальная вьюха для работы с любыми моделями.
     Поддерживает StructuredDataMixin методы.
@@ -341,7 +348,7 @@ class UniversalAPIView(APIView) :
 
         # Фильтрация
         filters = {}
-        exclude_filters = {'model' , 'app' , 'action' , 'id' , 'format' , 'fmt' , 'view' , 'depth' , 'include', 'search', 'limit'}
+        exclude_filters = {'model' , 'app' , 'action' , 'id' , 'format' , 'fmt' , 'view' , 'depth' , 'include', 'limit', 'offset'}
 
         for key , value in request.query_params.items() :
             if key not in exclude_filters :
@@ -368,6 +375,27 @@ class UniversalAPIView(APIView) :
                     'error' : f'Filter error: {str(e)}' ,
                     'filters' : filters
                 } , status=status.HTTP_400_BAD_REQUEST)
+
+        # Поиск по подстроке (поддерживает поля name, code, title)
+        search_query = request.query_params.get('search', '').strip()
+        if search_query:
+            search_q = Q()
+            for field_base in ('name', 'code', 'title'):
+                if hasattr(model, field_base):
+                    search_q |= Q(**{f'{field_base}__icontains': search_query})
+            if search_q:
+                queryset = queryset.filter(search_q)
+
+        # Пагинация
+        limit_str = request.query_params.get('limit')
+        if limit_str:
+            try:
+                limit_val = int(limit_str)
+                offset_val = int(request.query_params.get('offset', 0))
+                response_data['total'] = queryset.count()
+                queryset = queryset[offset_val:offset_val + limit_val]
+            except (ValueError, TypeError):
+                pass
 
         # Используем методы StructuredDataMixin для списка если доступно
         if data_format == 'compact' and hasattr(model() , 'get_compact_data') :
@@ -407,6 +435,50 @@ class UniversalAPIView(APIView) :
 
         return Response(response_data)
 
+    def post(self, request):
+        return self._write(request, 'create')
+
+    def put(self, request):
+        return self._write(request, 'update')
+
+    def delete(self, request):
+        model_param = request.query_params.get('model') or request.data.get('model')
+        obj_id = request.query_params.get('id') or request.data.get('id')
+        if not model_param or not obj_id:
+            return Response({'error': 'model and id required'}, status=400)
+        try:
+            app_name, model_name = model_param.split('.')
+            model = apps.get_model(app_name, model_name)
+            obj = model.objects.get(pk=obj_id)
+            obj.delete()
+            return Response({'success': True, 'deleted': obj_id})
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+    def _write(self, request, action):
+        try:
+            data = request.data if hasattr(request, 'data') else {}
+            model_param = data.get('model') or request.query_params.get('model')
+            if not model_param:
+                return Response({'error': 'model required'}, status=400)
+            app_name, model_name = model_param.split('.')
+            model = apps.get_model(app_name, model_name)
+            if action == 'create':
+                fields = {k: v for k, v in data.items() if k != 'model'}
+                obj = model.objects.create(**fields)
+                return Response({'success': True, 'id': obj.pk})
+            else:
+                obj_id = data.get('id') or request.query_params.get('id')
+                if not obj_id:
+                    return Response({'error': 'id required for update'}, status=400)
+                obj = model.objects.get(pk=obj_id)
+                fields = {k: v for k, v in data.items() if k not in ('model', 'id')}
+                for field, value in fields.items():
+                    setattr(obj, field, value)
+                obj.save()
+                return Response({'success': True, 'id': obj.pk})
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=400)
 
 
 class DebugAPIView(APIView) :

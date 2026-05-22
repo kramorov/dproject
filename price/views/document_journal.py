@@ -1,6 +1,7 @@
 # price/views/document_journal.py
 """
-GET /api/admin/prices/documents/ — журнал документов цен.
+GET  /api/admin/prices/documents/ — журнал документов цен.
+POST /api/admin/prices/documents/ — создать документ.
 
 Параметры:
     search         — поиск по названию
@@ -12,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from price.models import PriceDocument
+from django.utils.timezone import now
 
 
 class PriceDocumentListView(APIView):
@@ -60,8 +62,6 @@ class PriceDocumentListView(APIView):
                 'status_label': doc.get_status_display(),
                 'is_applied': doc.is_applied,
                 'items_count': doc.items.filter(is_active=True).count(),
-                'content_type_id': doc.item_content_type_id,
-                'content_type_name': str(doc.item_content_type) if doc.item_content_type else None,
                 'default_price_variety_id': doc.default_price_variety_id,
                 'default_price_variety_name': doc.default_price_variety.name if doc.default_price_variety else None,
                 'default_currency_id': doc.default_currency_id,
@@ -71,25 +71,14 @@ class PriceDocumentListView(APIView):
         return Response({'total': total, 'count': len(data), 'data': data})
 
     def post(self, request):
-        from django.contrib.contenttypes.models import ContentType
         data = request.data
         name = data.get('name', '').strip()
         if not name:
             return Response({'error': 'name is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        ct_id = data.get('item_content_type_id')
-        if not ct_id:
-            return Response({'error': 'item_content_type_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            ct = ContentType.objects.get(pk=int(ct_id))
-        except ContentType.DoesNotExist:
-            return Response({'error': 'ContentType not found'}, status=status.HTTP_400_BAD_REQUEST)
-
         doc = PriceDocument.objects.create(
             name=name,
-            item_content_type=ct,
-            document_date=data.get('document_date') or None,
+            document_date=data.get('document_date') or now().date(),
             description=data.get('description', ''),
             default_price_variety_id=data.get('default_price_variety_id') or None,
             default_currency_id=data.get('default_currency_id') or None,

@@ -15,7 +15,7 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import resources
 from rangefilter.filters import DateRangeFilter
 
-from price.models import Currency, PriceVariety, PriceHistory
+from price.models import Currency, PriceVariety, PriceHistory, PriceDocument, PriceDocumentItem
 
 
 # from price.models.currency import Currency, PriceVariety, PriceHistory
@@ -163,7 +163,7 @@ class PriceHistoryAdmin(admin.ModelAdmin):
         'is_active',
         ('price_date', DateRangeFilter),
     )
-    search_fields = ('name', 'code', 'description')  # <-- ЭТО ДЛЯ СПИСКА АДМИНКИ
+    search_fields = ('name', 'code', 'sku__code', 'sku__name')
     date_hierarchy = 'price_date'
     ordering = ('-price_date', 'sorting_order')
     list_per_page = 25
@@ -177,13 +177,9 @@ class PriceHistoryAdmin(admin.ModelAdmin):
                 ('sorting_order', 'is_active'),
             )
         }),
-        (_('Комментарий'), {
-            'fields': ('description',),
-            'classes': ('collapse',)
-        }),
     )
 
-    list_select_related = ('price_variety', 'currency')
+    list_select_related = ('price_variety', 'currency', 'sku')
 
     @admin.display(description=_('Подробнее'))
     def view_details_button(self, obj):
@@ -438,3 +434,65 @@ class PriceHistoryAdmin(admin.ModelAdmin):
             'opts': self.model._meta,
         }
         return render(request, 'admin/price/pricehistory/import_excel.html', context)
+
+
+# ========== PRICE DOCUMENT ==========
+
+class PriceDocumentItemInline(admin.TabularInline):
+    model = PriceDocumentItem
+    extra = 0
+    fields = ('sku', 'price_variety', 'currency', 'price', 'comment')
+    autocomplete_fields = ('sku',)
+    can_delete = True
+    show_change_link = False
+
+
+@admin.register(PriceDocument)
+class PriceDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+        'document_date',
+        'status_badge',
+        'items_count',
+        'is_active',
+    )
+    list_filter = (
+        'status',
+        'is_active',
+        ('document_date', DateRangeFilter),
+    )
+    search_fields = ('name', 'description')
+    ordering = ('-document_date',)
+    date_hierarchy = 'document_date'
+    list_per_page = 25
+    list_select_related = ('default_price_variety', 'default_currency')
+
+    fieldsets = (
+        (None, {
+            'fields': (
+                'name',
+                ('document_date', 'status'),
+                ('default_price_variety', 'default_currency'),
+                'description',
+                ('sorting_order', 'is_active'),
+            )
+        }),
+    )
+    readonly_fields = ('status',)  # статус меняется только через API
+
+    inlines = [PriceDocumentItemInline]
+
+    @admin.display(description=_('Статус'))
+    def status_badge(self, obj):
+        labels = {'draft': '✎ Черновик', 'on_approval': '⟳ На согласовании', 'posted': '✓ Проведён'}
+        colors = {'draft': '#6c757d', 'on_approval': '#ffc107', 'posted': '#28a745'}
+        label = labels.get(obj.status, obj.status)
+        color = colors.get(obj.status, '#6c757d')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color, label,
+        )
+
+    @admin.display(description=_('Позиций'))
+    def items_count(self, obj):
+        return obj.items.filter(is_active=True).count()

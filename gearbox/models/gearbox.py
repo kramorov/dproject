@@ -1,10 +1,10 @@
-#gearbox/models/gearbox.py
+# gearbox/models/gearbox.py
 from typing import Dict, List, Any
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models import ImageGalleryMixin , TechDocMixin
+from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
 from materials.models import MaterialGeneral
@@ -12,47 +12,54 @@ from params.models import LockingMechanism, IpOption, MountingPlateTypes
 from sku.models import SKUMixin
 
 
-class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,TechDocMixin,  SKUMixin, models.Model):
+class GearBox(SmartCatalogMixin, CopyMixin, TemplateMixin, ImageGalleryMixin, TechDocMixin, SKUMixin, models.Model):
     """
     Модель редуктора (каталог).
 
-    Наследует ImageGalleryMixin — поле ``images`` (M2M на MediaLibraryItem).
+    Наследует:
+    - ``SmartCatalogMixin`` — фильтрация и поиск в каталоге
+    - ``CopyMixin`` — копирование через админку
+    - ``TemplateMixin`` — генерация названия/описания по шаблону из model_line
+    - ``ImageGalleryMixin`` — галерея изображений (поле ``images``)
+    - ``TechDocMixin`` — техническая документация (поле ``tech_docs``)
+    - ``SKUMixin`` — привязка к номенклатуре (поле ``sku``, автосинхронизация)
+
     Если у конкретного редуктора нет своих изображений, страница каталога
-    подхватывает их из GearBoxModelLine.images.
+    подхватывает их из ``GearBoxModelLine.images``.
     """
-    name = models.TextField(blank=True ,
-                            verbose_name=_("Название") ,
+    name = models.TextField(blank=True,
+                            verbose_name=_("Название"),
                             help_text=_('Текстовое название модели редуктора'))
-    code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
                             help_text=_("Код модели редуктора"))
-    description = models.TextField(blank=True , verbose_name=_("Описание") ,
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание модели редуктора'))
 
-    sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
                                         help_text=_('Порядок сортировки в списке'))
-    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
-    model_line = models.ForeignKey('gearbox.GearBoxModelLine' , related_name='gear_box_model_line' ,
-                                   blank=True ,
-                                   null=True ,
-                                   on_delete=models.SET_NULL ,
-                                   help_text=_('Серия модели редуктора') ,
+    model_line = models.ForeignKey('gearbox.GearBoxModelLine', related_name='gear_box_model_line',
+                                   blank=True,
+                                   null=True,
+                                   on_delete=models.SET_NULL,
+                                   help_text=_('Серия модели редуктора'),
                                    verbose_name=_("Серия"))
 
     body = models.ForeignKey(
         'gearbox.GearBoxBody',
         on_delete=models.SET_NULL,
-        blank=True , null=True ,
+        blank=True, null=True,
         verbose_name=_("Корпус редуктора"),
         help_text=_("Корпус редуктора с писанием свойств")
     )
     # Материал корпуса - для фильтров
-    body_material = models.ForeignKey(MaterialGeneral , related_name='gearbox_body_material' ,
-                                      blank=True ,
-                                      null=True ,
-                                      on_delete=models.SET_NULL ,
-                                      help_text=_('Корпус') ,
+    body_material = models.ForeignKey(MaterialGeneral, related_name='gearbox_body_material',
+                                      blank=True,
+                                      null=True,
+                                      on_delete=models.SET_NULL,
+                                      help_text=_('Корпус'),
                                       verbose_name=_('Тип материала корпуса'))
 
     body_material_text = models.CharField(
@@ -73,45 +80,47 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,Tech
     override_mechanism = models.ForeignKey(
         'OverrideMechanism',
         on_delete=models.SET_NULL,
-        blank=True , null=True ,
+        blank=True, null=True,
         verbose_name=_("Механизм отключения"),
         help_text=_("Механизм отключения дублера")
     )
     locking_mechanism = models.ForeignKey(
         LockingMechanism,
         on_delete=models.SET_NULL,
-        blank=True , null=True ,
+        blank=True, null=True,
         verbose_name=_("Механизм блокировки"),
         help_text=_("Механизм блокировки дублера/переключателя")
     )
     DECLUTCHABLE_CHOICES = (
-        ('yes' , _('расцепляемый')) ,
-        ('no' , _('не расцепляемый')) ,
+        ('yes', _('расцепляемый')),
+        ('no', _('не расцепляемый')),
     )
 
     is_declutchable = models.CharField(
-        max_length=3 ,
-        choices=DECLUTCHABLE_CHOICES ,
-        default='yes' ,
-        verbose_name=_("Расцепляемый (Declutchable)") ,
+        max_length=3,
+        choices=DECLUTCHABLE_CHOICES,
+        default='yes',
+        verbose_name=_("Расцепляемый (Declutchable)"),
         help_text=_("Можно ли физически отсоединить штурвал от привода")
     )
-    ip = models.ForeignKey(IpOption, on_delete=models.SET_NULL, blank=True , null=True ,
+    ip = models.ForeignKey(IpOption, on_delete=models.SET_NULL, blank=True, null=True,
                            related_name='gearbox_ip',
                            help_text=_('Степень защиты IP'),
                            verbose_name=_("IP")
                            )
-    # Интерлок (лучше вынести в отдельную модель)
-    interlock = models.ForeignKey('gearbox.GearBoxInterlock', on_delete=models.SET_NULL, null=True, blank=True,related_name='gearbox_interlock',
-                           help_text=_('Модель интерлока'),
-                           verbose_name=_("Модель интерлока")
-                           )
+    # Интерлок
+    interlock = models.ForeignKey('gearbox.GearBoxInterlock', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='gearbox_interlock',
+                                  help_text=_('Модель интерлока'),
+                                  verbose_name=_("Модель интерлока")
+                                  )
     # ВСЁ остальное в JSON
     extra_params = models.JSONField(
-        default=dict , blank=True , null=True ,
-        verbose_name=_("Параметры") ,
+        default=dict, blank=True, null=True,
+        verbose_name=_("Параметры"),
         help_text=_("signal_type, resistance, range и т.д.")
     )
+
     class Meta:
         verbose_name = _("Редуктор")
         verbose_name_plural = _("Редукторы")
@@ -120,55 +129,73 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,Tech
     def __str__(self):
         return f"{self.name}"
 
-    # Для миксина SKUMixin
+    # ── SKUMixin ──
+
     def get_equipment_type_for_sku(self):
+        """Тип оборудования для SKU — берётся из model_line."""
         return self.model_line.equipment_type
 
     def get_brand_for_sku(self):
+        """Бренд для SKU — берётся из model_line."""
         return self.model_line.brand
 
-    def save(self , *args , **kwargs) :
-        super().save(*args , **kwargs)
-        self.sync_sku()  # Обновления номенклатуры ← явно, последним, после всех миксинов
+    def save(self, *args, **kwargs):
+        """
+        Сохраняет модель и синхронизирует номенклатуру (SKU).
+
+        Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
+        или «подхватывает» существующую по коду, обогащая её полями модели.
+        """
+        super().save(*args, **kwargs)
+        self.sync_sku()
 
     @property
-    def is_declutchable_display(self) :
-        return dict(self.DECLUTCHABLE_CHOICES).get(self.is_declutchable , '')
+    def is_declutchable_display(self):
+        return dict(self.DECLUTCHABLE_CHOICES).get(self.is_declutchable, '')
 
     def copy(self):
-        """ Переоределяем - вызываем функцию из миксина CopyMixin и передаем параметры
-        Создает копию с суффиксом 'Копия' и сбросом sorting_order и is_active """
+        """
+        Создаёт копию редуктора.
+
+        Переопределяет ``CopyMixin.copy()``: добавляет суффикс « Копия»
+        к названию и сбрасывает ``sorting_order`` и ``is_active``.
+        Корпус (body) при копировании расшаривается (не клонируется).
+        """
         copied_obj = super().copy(suffix=" Копия", reset_fields=['sorting_order', 'is_active'])
-        # Если нужно скопировать и корпус (создать новый корпус)
-        # if self.body:
-        #     copied_obj.body = self.body.copy()
-        #     copied_obj.body.save()
         return copied_obj
 
     def _get_data_dict(self) -> Dict[str, str]:
-        """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
+        """
+        Словарь плейсхолдер → путь к атрибуту для шаблонов названия/описания.
+
+        Используется ``TemplateMixin`` для подстановки значений в шаблоны
+        ``name_template`` и ``description_template`` из model_line.
+
+        Ключи — плейсхолдеры вида ``{model_code}``, значения — dotted-пути
+        к атрибутам модели (поддерживает ``__`` для связанных полей).
+        """
         return {
             '{model_code}': 'code',
             '{brand}': 'model_line__brand',
             '{gearbox_output_variety}': 'model_line__gearbox_output_variety',
-            '{gearbox_variety}' : 'model_line__gearbox_variety' ,
-            '{turn_angle}': 'model_line__turn_angle' ,
-            '{turn_tuning_limit}': 'model_line__turn_tuning_limit' ,
-            '{weight}' : 'body__weight' ,
-            '{mechanical_advantage}' : 'body__mechanical_advantage' ,
-            '{max_stem_diameter_bottom}' : 'body__max_stem_diameter_bottom',
-            '{stem_height_bottom}' : 'body__stem_height_bottom' ,
-            '{stem_size_bottom}' : 'body__stem_size_bottom' ,
-            '{stem_shape_bottom}' : 'body__stem_shape_bottom' ,
-            '{mounting_plate_bottom_list_text}' : 'body__mounting_plate_bottom_list_text' ,
-            '{stem_height_top}' : 'body__stem_height_top' ,
-            '{stem_size_top}' : 'body__stem_size_top' ,
-            '{stem_shape_top}' : 'body__stem_shape_top' ,
-            '{mounting_plate_top_list_text}' : 'body__mounting_plate_top_list_text' ,
-            '{handwheel_diameter}' : 'body__handwheel_diameter' ,
-            '{handwheel_force_nominal}' : 'body__handwheel_force_nominal' ,
-            '{max_output_torque}' : 'body__max_output_torque' ,
-            '{max_input_torque}' : 'body__max_input_torque' ,
+            '{gearbox_variety}': 'model_line__gearbox_variety',
+            '{turn_angle}': 'model_line__turn_angle',
+            '{turn_tuning_limit}': 'model_line__turn_tuning_limit',
+            '{weight}': 'body__weight',
+            '{mechanical_advantage}': 'body__mechanical_advantage',
+            '{max_stem_diameter_bottom}': 'body__max_stem_diameter_bottom',
+            '{stem_height_bottom}': 'body__stem_height_bottom',
+            '{stem_size_bottom}': 'body__stem_size_bottom',
+            '{stem_shape_bottom}': 'body__stem_shape_bottom',
+            '{mounting_plate_bottom_list_text}': 'body__mounting_plate_bottom_list_text',
+            '{stem_height_top}': 'body__stem_height_top',
+            '{stem_size_top}': 'body__stem_size_top',
+            '{stem_shape_top}': 'body__stem_shape_top',
+            '{mounting_plate_top_list_text}': 'body__mounting_plate_top_list_text',
+            '{handwheel_diameter}': 'body__handwheel_diameter',
+            '{handwheel_force_nominal}': 'body__handwheel_force_nominal',
+            '{max_output_torque}': 'body__max_output_torque',
+            '{max_input_torque}': 'body__max_input_torque',
             '{efficiency}': 'body__efficiency',
             '{amplification_factor}': 'body__amplification_factor',
             '{reduction_ratio_text}': 'body__reduction_ratio_text',
@@ -182,137 +209,54 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,Tech
             '{work_temp_min}': 'work_temp_min',
             '{work_temp_max}': 'work_temp_max',
         }
+
     def _get_name_template_source(self):
-        """Переоределяем в модели функцию из миксина CopyMixin: вернуть шаблон названия или None."""
+        """
+        Шаблон названия из model_line.
+
+        Переопределяет ``TemplateMixin._get_name_template_source()``.
+        Если шаблон не задан — возвращает None (используется стандартное название).
+        """
         return self.model_line.name_template or None
 
     def _get_description_template_source(self):
-        """Переоределяем в модели функцию из миксина CopyMixin: вернуть шаблон описания или None."""
+        """
+        Шаблон описания из model_line.
+
+        Переопределяет ``TemplateMixin._get_description_template_source()``.
+        Если шаблон не задан — возвращает None (используется стандартное описание).
+        """
         return self.model_line.description_template or None
 
     def _get_default_name_template(self) -> str:
-        default_description_template = ("{model_code} {filter_variety} {brand}; Расход {flow_rate} л/мин; {drain_variety}; Т.окр. {work_temp_min}..{work_temp_max} °С, Рег.давления {pressure_min}..{pressure_max} бар; Порты: {thread}; фильтрация {filtration_rating} мкм;")
-        return default_description_template
+        """
+        Дефолтный шаблон названия (заглушка — для редукторов не используется).
+
+        В реальности название редуктора задаётся шаблоном из model_line,
+        этот метод — fallback из TemplateMixin.
+        """
+        return "{model_code} {brand} {gearbox_variety}"
 
     def _get_default_description_template(self) -> str:
-        default_description_template = ("{model_code} {filter_variety} {brand}; Расход {flow_rate} л/мин; {drain_variety}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material}, Материал стакана: {bowl_material_text}, Кожух: {protection_material} Порты: {thread}; слив: {drain_port_size}; {gauge_quantity}; фильтрация {filtration_rating} мкм; Диапазон регулировки давления {pressure_min}..{pressure_max} бар; Макс. входное давление {pressure_inlet_max} бар; вес {weight}кг. Настенное крепление: {wall_mounting_included}")
-        return default_description_template
+        """
+        Дефолтный шаблон описания (заглушка — для редукторов не используется).
 
-    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
+        В реальности описание редуктора задаётся шаблоном из model_line,
+        этот метод — fallback из TemplateMixin.
+        """
+        return "{model_code} {brand} {gearbox_variety} {gearbox_output_variety}"
 
-    # 1. Конфигурация фильтров
-    FILTER_DEFINITIONS = [
-        # Серия
-        FilterDefinition(
-            param_name='model_line_id',
-            model_field='model_line',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.FOREIGN_KEY,
-            label='Серия',
-            order=1
-        ),
-           # IP (с ранжированием)
-        FilterDefinition(
-            param_name='ip_id',
-            model_field='ip',
-            filter_type=FilterType.IP_RANK,
-            data_source_type=DataSourceType.GLOBAL_MODEL,
-            source_model=IpOption,
-            label='IP',
-            order=4
-        ),
-
-
-        # Температура
-        FilterDefinition(
-            param_name='work_temp_min',
-            model_field='work_temp_min',
-            filter_type=FilterType.TEMP_MIN,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Температура от',
-            order=5
-        ),
-        FilterDefinition(
-            param_name='work_temp_max',
-            model_field='work_temp_max',
-            filter_type=FilterType.TEMP_MAX,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Температура до',
-            order=6
-        ),
-        FilterDefinition(
-            param_name='min_work_torque',
-            model_field='body__max_work_torque',
-            filter_type=FilterType.MIN,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Рабочий момент не меньше',
-            order=6
-        ),
-        # Материалы
-        FilterDefinition(
-            param_name='body_material_id',
-            model_field='body_material',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.FOREIGN_KEY,
-            label='Материал корпуса',
-            order=7
-        ),
-        # Материалы
-        FilterDefinition(
-            param_name='body_id' ,
-            model_field='body' ,
-            filter_type=FilterType.EXACT ,
-            data_source_type=DataSourceType.FOREIGN_KEY ,
-            label='Модель корпуса' ,
-            order=7
-        ) ,
-
-        # Бренд через серию
-        FilterDefinition(
-            param_name='model_line_brand_id',
-            model_field='model_line__brand',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Бренд серии',
-            order=8
-        ),
-        FilterDefinition(param_name='mounting_plate_top_id' ,
-                         model_field='body__mounting_plate_top' , filter_type=FilterType.EXACT ,
-                         data_source_type=DataSourceType.GLOBAL_MODEL , source_model=MountingPlateTypes ,
-                         label='Монтажная площадка' , order=10) ,
-
-    ]
-
-
-
-
-    # M2M_FILTER_CONFIG должен быть определен
-    M2M_FILTER_CONFIG = [
-        {
-            'param_name': 'mounting_plate_top_id',
-            'm2m_field': 'body__mounting_plate_top',
-        },
-    ]
-
-    SEARCH_FIELDS = ['code', 'name', 'description']
-
-    SELECT_RELATED_FIELDS = [
-        'model_line', 'body',  'ip', #'interlock' - записей нет, поэтому не используем
-    ]
-
-    PREFETCH_FIELDS = [
-        'images',
-    ]
-
-    # PREFETCH_FIELDS = [
-    #     'body__mounting_plate_top',
-    #     'body__mounting_plate_bottom',
-    # ]
-
+    # FILTER_DEFINITIONS, M2M_FILTER_CONFIG, SEARCH_FIELDS
+    # перенесены в gearbox/services/filters.py
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        Сериализация редуктора с использованием to_dict() корпуса
+        Сериализация редуктора в словарь для API (SmartCatalogMixin).
+
+        Возвращает полную структуру: базовые поля, model_line, ip, корпус
+        (через ``GearBoxBody.api_dict()``), изображения, extra_params.
+        Используется ``SmartCatalogMixin.filter_by_params()`` для выдачи
+        каталога с фильтрами.
         """
         return {
             # Базовые поля
@@ -345,13 +289,7 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,Tech
                 'name': self.ip.name,
                 'code': getattr(self.ip, 'code', '')
             } if self.ip else None,
-            #
-            # 'interlock': {
-            #     'id': self.interlock.id,
-            #     'name': self.interlock.name,
-            # } if self.interlock else None,
 
-            # Параметры работы
             'work_temp_min': self.work_temp_min,
             'work_temp_max': self.work_temp_max,
             'is_declutchable': self.is_declutchable,
@@ -373,11 +311,9 @@ class GearBox(SmartCatalogMixin, CopyMixin,TemplateMixin, ImageGalleryMixin,Tech
             # Дополнительные параметры
             'extra_params': self.extra_params or {},
 
-            # Корпус - используем метод to_dict() модели корпуса
+            # Корпус - используем метод api_dict() модели корпуса
             'body': self.body.api_dict() if self.body else None,
 
             # Материал корпуса (текстовое поле из GearBox, а не из корпуса)
             'body_material_text': self.body_material_text,
         }
-
-

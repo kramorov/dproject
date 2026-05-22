@@ -11,7 +11,17 @@ from params.models import IpOption
 
 
 class GearBoxInterlock(CopyMixin, TemplateMixin, models.Model):
-    """Блокировка/интерлок редуктора"""
+    """
+    Блокировка/интерлок редуктора.
+
+    Устройство контроля положения редуктора с датчиками:
+    - Тип сенсора (``interlock_sensor_variety`` — механический, индуктивный…)
+    - Датчики (``interlock_sensor_components`` — M2M на ``SensorComponent``)
+    - Количество точек переключения (``interlock_points``, обычно 2 для SIL)
+    - Степень защиты IP (``interlock_ip``) и взрывозащита (``interlock_exd``)
+
+    Наследует ``CopyMixin`` и ``TemplateMixin``.
+    """
     name = models.TextField(blank=True,
                             verbose_name=_("Название"),
                             help_text=_('Текстовое название модели интерлока редуктора'))

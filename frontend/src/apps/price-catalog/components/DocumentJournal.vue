@@ -17,8 +17,6 @@
     <div v-if="showCreate" class="card">
       <h4>Новый документ</h4>
       <input v-model="form.name" placeholder="Название" class="fi" />
-      <select v-model="form.ct" class="fi"><option :value="null">Тип оборудования</option>
-        <option v-for="e in contentTypes" :key="e.id" :value="e.content_type_id">{{ e.name }}</option></select>
       <select v-model="form.priceVariety" class="fi"><option :value="null">Тип цены</option>
         <option v-for="v in opts.varieties" :key="v.id" :value="v.id">{{ v.name }}</option></select>
       <select v-model="form.currency" class="fi"><option :value="null">Валюта</option>
@@ -31,11 +29,10 @@
 
     <div v-if="loading" class="st">Загрузка...</div>
     <table v-else class="tb">
-      <thead><tr><th>Название</th><th>Тип</th><th>Дата</th><th>Позиций</th><th>Статус</th><th></th></tr></thead>
+      <thead><tr><th>Название</th><th>Дата</th><th>Позиций</th><th>Статус</th><th></th></tr></thead>
       <tbody>
         <tr v-for="d in docs" :key="d.id">
           <td class="lnk" @click="$emit('open', d.id)">{{ d.name }}</td>
-          <td>{{ d.content_type_name||'—' }}</td>
           <td>{{ d.document_date?.slice(0,10)||'—' }}</td>
           <td>{{ d.items_count }}</td>
           <td><span :class="badge(d.status)">{{ d.status_label||'—' }}</span></td>
@@ -56,7 +53,6 @@ import priceApi from '../api'
 
 const emit = defineEmits(['open'])
 const opts = inject('opts')
-const contentTypes = inject('contentTypes')
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 
@@ -64,7 +60,7 @@ const docs = ref([])
 const loading = ref(false)
 const search = ref(''), status = ref(''), dateFrom = ref(''), dateTo = ref('')
 const showCreate = ref(false)
-const form = reactive({ name: '', ct: null, priceVariety: null, currency: null, date: todayStr() })
+const form = reactive({ name: '', priceVariety: null, currency: null, date: todayStr() })
 const err = ref(null)
 
 function badge(s) {
@@ -87,17 +83,16 @@ async function load() {
 }
 
 async function doCreate() {
-  if (!form.name || !form.ct) { err.value = 'Название и тип обязательны'; return }
+  if (!form.name) { err.value = 'Название обязательно'; return }
   err.value = null
   try {
     await priceApi.createDocument({
       name: form.name,
-      item_content_type_id: form.ct,
       default_price_variety_id: form.priceVariety || undefined,
       default_currency_id: form.currency || undefined,
       document_date: form.date || undefined,
     })
-    form.name = ''; form.ct = null; form.priceVariety = null; form.currency = null; form.date = todayStr()
+    form.name = ''; form.priceVariety = null; form.currency = null; form.date = todayStr()
     showCreate.value = false
     load()
   } catch (e) { err.value = e.displayMessage }

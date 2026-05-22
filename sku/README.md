@@ -2,111 +2,109 @@
 
 Единый реестр товаров/услуг для всего проекта.
 
-**Дата:** 2026-05-21
+**Дата:** 2026-05-22
 
 ---
 
 ## Назначение
 
-SKU (Stock Keeping Unit) — сквозной справочник, к которому привязываются:
+SKU (Stock Keeping Unit) — сквозной справочник:
 - Модели оборудования (через `SKUMixin`)
-- Цены (`PriceHistory.sku`)
-- Документы цен, счета, КП
+- Цены (`PriceHistory.sku` — FK, CASCADE)
+- Документы цен (`PriceDocumentItem.sku`)
+- Счета, КП
 
 Позволяет:
 - Вести позиции без модели — просто код, название, описание
 - Унифицировать поиск и фильтрацию цен (один FK вместо GFK)
-- Автоматически синхронизировать данные из моделей оборудования
+- Постепенно мигрировать на сущности Django: номенклатура создаётся раньше,
+  модель «подхватывает» существующую SKU и обогащает её полями
 
 ---
 
 ## Модель SKU
 
-| Поле | Тип | Описание |
-|---|---|---|
-| `code` | CharField(100) unique | Уникальный артикул |
-| `name` | CharField(300) | Наименование |
-| `description` | TextField | Описание |
-| `equipment_type` | FK → EquipmentType | Тип оборудования |
-| `brand` | FK → Producer | Бренд |
-| `source_*` | GFK → модель | Кто создал запись |
-| `extra` | JSONField | Произвольные параметры |
-| `is_active` | BooleanField | Активность |
+| Поле | Тип |
+|---|---|
+| `code` | CharField(100) unique |
+| `name` | CharField(300) |
+| `description` | TextField |
+| `equipment_type` | FK → EquipmentType |
+| `brand` | FK → Producer |
+| `source_*` | GFK → модель-источник |
+| `extra` | JSONField |
+| `is_active` | BooleanField |
 
 ---
 
 ## SKUMixin
 
-Абстрактная модель (`class Meta: abstract = True`). Добавляет поле `sku` (OneToOneField) и метод `sync_sku()`.
+Абстрактная модель: `sku` (OneToOneField) + `sync_sku()`.
 
-### Подключение к модели
+### Логика sync_sku()
+1. Модель уже привязана к SKU → обновить поля из модели
+2. Привязки нет → поиск SKU по коду (get_or_create):
+   - Код новый → создать SKU
+   - **SKU уже существует** (standalone для счетов/КП) → «подхватить»:
+     обогатить name, description, equipment_type, brand, source_*
+3. Кода нет → выход
 
+### Подключение
 ```python
 from sku.models import SKUMixin
-
 class GearBox(SKUMixin, models.Model):
-    code = models.CharField(...)
-    name = models.TextField(...)
-
-    # sku — уже есть из миксина (OneToOneField)
-
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.sync_sku()
 ```
 
-### Хуки (переопределить при необходимости)
-
-```python
-def get_sku_code(self):             # → self.code
-def get_sku_name(self):             # → str(self) → self.name → code
-def get_sku_description(self):      # → self.description
-def get_equipment_type_for_sku(self): # → self.equipment_type
-def get_brand_for_sku(self):        # → self.brand
-```
-
-### Логика sync_sku()
-
-- При первом save: `get_or_create(SKU, code=...)` → `update(sku=sku)`
-- При повторном save: обновляет `name`, `description`, `equipment_type`, `brand` в SKU если изменились
-- Если кода нет — выходит молча (SKU не создаётся)
-
 ---
 
 ## Связь с ценами
 
-`PriceHistory.sku` — FK на SKU (добавлен в миграции `0005`). GFK-поля сохранены для совместимости.
+`PriceHistory.sku` — FK (CASCADE). При удалении SKU — каскадное удаление цен.
 
 ```python
-# Старый способ (GFK)
-PriceHistory.get_current_price(instance, variety)
-
-# Новый способ (SKU)
-PriceHistory.get_current_price_by_sku(sku, variety)
+PriceHistory.get_current_price(instance, variety)     # GFK (совместимость)
+PriceHistory.get_current_price_by_sku(sku, variety)   # SKU (основной)
 ```
+
+`PriceDocumentItem.sku` — FK (PROTECT). Позиции документа привязаны к номенклатуре.
 
 ---
 
 ## API
 
-Пока нет отдельного API — SKU отдаётся через:
-- `PriceHistory.get_compact_data()` → `sku_id`, `sku_code`, `sku_name`
-- `PriceDocumentDetailView.get()` — через items
+| Метод | URL | Описание |
+|---|---|---|
+| GET | `/api/admin/sku/` | Список (search, brand_id, equipment_type_id) |
+| POST | `/api/admin/sku/batch/` | Групповое обновление ({ids, equipment_type_id?, brand_id?}) |
+| CRUD | `/api/core/` | Через UniversalAPIView: `model=sku.SKU` |
 
-Планируется: `/api/admin/sku/` для поиска и фильтрации.
+---
+
+## Фронтенд
+
+`frontend/src/apps/sku-admin/`
+- **Список** — поиск, фильтры (тип, бренд), кнопка «Создать»
+- **Форма CRUD** — модальное окно (код, название, описание, тип, бренд)
+- **Групповая обработка:**
+  - Фильтры: код (подстрока), тип (с «не указано»), бренд (с «не указано»)
+  - Чекбоксы, «Выделить всё/Снять»
+  - «Отобрать по фильтрам» — обновление списка
+  - «Записать» — установить тип/бренд выделенным
 
 ---
 
 ## Админка
 
-`/admin/sku/sku/` — список с поиском, фильтрами, импортом/экспортом, подсчётом цен.
+`/admin/sku/sku/` — поиск, фильтры, импорт/экспорт, list_editable.
 
 ---
 
 ## Консольные команды
 
 ```bash
-# gearbox
 python manage.py sync_gearbox_sku
 ```
 
@@ -116,16 +114,17 @@ python manage.py sync_gearbox_sku
 
 | Файл | Что |
 |---|---|
-| `sku/0001_initial.py` | CREATE TABLE sku_sku |
+| `sku/0001_initial.py` | CREATE TABLE |
 | `sku/0002_sku_description.py` | ADD description |
-| `price/0005_pricehistory_sku.py` | ADD sku FK + indexes |
+| `price/0007_pricehistory_sku.py` | ADD sku FK + indexes |
+| `price/0008_link_pricehistory_to_sku.py` | Data: PH → SKU |
+| `price/0009_document_to_sku.py` | PriceDocumentItem GFK → sku FK |
 
 ---
 
 ## Что дальше
 
-- Проверить связку SKU ← цены: создание документа, проведение, срез
 - Массовое создание SKU для всех моделей с `code`
-- API для поиска SKU
-- Замена GFK на SKU в PriceHistory и PriceDocumentItem
-- Перенос существующих цен на SKU
+- Замена GFK на SKU в PriceHistory (полный переход)
+- API для поиска SKU (выполнено)
+- Интеграция с 1С

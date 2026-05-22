@@ -2,6 +2,10 @@
   <div>
     <div class="fl">
       <input v-model="search" placeholder="Поиск..." @input="load" class="fi" />
+      <select v-model="eqType" @change="load" class="fi"><option value="">Тип оборудования</option>
+        <option v-for="t in opts.equipmentTypes" :key="t.id" :value="t.id">{{ t.name }}</option></select>
+      <select v-model="brand" @change="load" class="fi"><option value="">Бренд</option>
+        <option v-for="b in opts.brands" :key="b.id" :value="b.id">{{ b.name }}</option></select>
       <select v-model="variety" @change="load" class="fi"><option value="">Вид цены</option>
         <option v-for="v in opts.varieties" :key="v.id" :value="v.id">{{ v.name }}</option></select>
       <select v-model="currency" @change="load" class="fi"><option value="">Валюта</option>
@@ -36,6 +40,7 @@ const opts = inject('opts')
 const items = ref([])
 const loading = ref(false)
 const search = ref(''), variety = ref(''), currency = ref(''), dateFrom = ref(''), dateTo = ref(''), currentOnly = ref(false)
+const eqType = ref(''), brand = ref('')
 
 async function load() {
   loading.value = true
@@ -46,6 +51,8 @@ async function load() {
     if (currency.value) params.currency_id = currency.value
     if (dateFrom.value) params.date_from = dateFrom.value
     if (dateTo.value) params.date_to = dateTo.value
+    if (eqType.value) params.equipment_type_id = eqType.value
+    if (brand.value) params.brand_id = brand.value
     if (currentOnly.value) params.is_current = true
     const r = await priceApi.listPrices(params)
     items.value = r.data.data || []

@@ -1,5 +1,7 @@
 from django.db import models
-from django.contrib.postgres.fields import JSONField  # Для PostgreSQL
+# Закомментировано — проект на SQLite, импорт тянет psycopg2 и ломает manage.py.
+# Модель использует models.JSONField, этот импорт не нужен.
+# from django.contrib.postgres.fields import JSONField  # Для PostgreSQL
 
 
 # Или для других БД: from django.db.models import JSONField

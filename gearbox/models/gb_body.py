@@ -10,8 +10,17 @@ from gearbox.models.gb_options import OverrideMechanism , TransmissionVariety
 from params.models import StemSize , StemShapes , MountingPlateTypes
 
 
-class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
-    """Модель корпуса редуктора с основными механическими свойствами"""
+class GearBoxBody(CopyMixin, TemplateMixin, models.Model):
+    """
+    Корпус редуктора — механические характеристики.
+
+    Содержит: тип передачи, передаточное число (расчётное и проверенное),
+    КПД (η), коэффициент усиления (MA), максимальные моменты (входной,
+    рабочий, выходной), усилие и диаметр штурвала, присоединения
+    (монтажные площадки ISO 5211/5210, штоки сверху/снизу), вес.
+
+    Наследует ``CopyMixin`` и ``TemplateMixin``.
+    """
     name = models.CharField(max_length=50 , blank=True ,
                             verbose_name=_("Название") ,
                             help_text=_('Текстовое название модели редуктора'))
@@ -142,29 +151,33 @@ class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
         verbose_name = _("Корпус редуктора")
         verbose_name_plural = _("Корпуса редукторов")
         ordering = ['sorting_order']
+
     def __str__(self):
         return f"{self.name}"
 
     @property
     def mounting_plate_bottom_list_text(self) -> str :
         """
-        Возвращает текстовый список стандартов присоединения.
-        Разделитель - слово "или"
+        Возвращает текстовый список стандартов присоединения снизу (к арматуре).
+        Разделитель — слово «или».
         """
         return self._get_mounting_plate_list_text(top_or_bottom='BOTTOM')
 
     @property
     def mounting_plate_top_list_text(self) -> str :
         """
-        Возвращает текстовый список стандартов присоединения.
-        Разделитель - слово "или"
+        Возвращает текстовый список стандартов присоединения сверху (к приводу).
+        Разделитель — слово «или».
         """
         return self._get_mounting_plate_list_text(top_or_bottom='TOP')
 
     def _get_mounting_plate_list_text(self, top_or_bottom='TOP') -> str :
         """
-        Возвращает текстовый список стандартов присоединения.
-        Разделитель - слово "или"
+        Формирует текстовый список монтажных площадок.
+
+        - 1 элемент: ``"F10"``
+        - 2 элемента: ``"F10 или F12"``
+        - 3+ элемента: ``"F10, F12 или F14"``
         """
         mounting_standards = self.mounting_plate_top.all() if top_or_bottom == 'TOP' else self.mounting_plate_bottom.all()
 
@@ -182,7 +195,11 @@ class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
 
     def api_dict(self) -> Dict[str, Any]:
         """
-        Сериализация модели корпуса в словарь
+        Полная сериализация корпуса для API.
+
+        Возвращает все механические характеристики: тип передачи,
+        передаточные числа, КПД, коэффициенты усиления, моменты,
+        присоединения (верх/низ), вес.
         """
         return {
             'id': self.id,
@@ -269,10 +286,12 @@ class GearBoxBody(CopyMixin , TemplateMixin , models.Model) :
             'is_active': self.is_active,
         }
 
-    # Можно также добавить краткую версию для списков
     def api_short_dict(self) -> Dict[str, Any]:
         """
-        Краткая сериализация для отображения в списках
+        Краткая сериализация корпуса для отображения в списках.
+
+        Возвращает только ключевые поля: id, name, code,
+        передаточное число и максимальные моменты.
         """
         return {
             'id': self.id,

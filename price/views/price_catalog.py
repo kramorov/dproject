@@ -37,6 +37,14 @@ class PriceCatalogView(APIView):
         if date_to:
             qs = qs.filter(price_date__lte=date_to)
 
+        equipment_type_id = request.query_params.get('equipment_type_id')
+        if equipment_type_id:
+            qs = qs.filter(sku__equipment_type_id=int(equipment_type_id))
+
+        brand_id = request.query_params.get('brand_id')
+        if brand_id:
+            qs = qs.filter(sku__brand_id=int(brand_id))
+
         search = request.query_params.get('search', '').strip()
         if search:
             from django.db.models import Q

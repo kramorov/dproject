@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from price.models import PriceVariety, Currency
 from core.models.equipment_type import EquipmentType
+from producers.models import Brands
 
 
 class PriceFilterOptionsView(APIView):
@@ -34,8 +35,15 @@ class PriceFilterOptionsView(APIView):
             .order_by('name')
         )
 
+        brands = list(
+            Brands.objects.filter(is_active=True)
+            .values('id', 'name')
+            .order_by('name')
+        )
+
         return Response({
             'varieties': varieties,
             'currencies': currencies,
             'equipment_types': equipment_types,
+            'brands': brands,
         })

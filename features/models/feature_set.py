@@ -1,7 +1,9 @@
 # features/models/feature_set.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.contrib.postgres.fields import JSONField
+# Закомментировано — проект на SQLite, импорт тянет psycopg2 и ломает manage.py.
+# Модель использует models.JSONField, этот импорт не нужен.
+# from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel
 from .feature_template import FeatureTemplate

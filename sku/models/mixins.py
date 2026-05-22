@@ -78,9 +78,20 @@ class SKUMixin(models.Model):
     # ── Синхронизация ──
 
     def sync_sku(self):
-        """Создать или обновить SKU. Вызвать вручную в save() модели."""
-        from .sku import SKU
+        """
+        Создать или обновить SKU. Вызвать вручную в save() модели.
 
+        Логика:
+            1. Если модель уже привязана к SKU (self.sku_id) — обновить поля SKU
+               (name, description, equipment_type, brand, source_*) из модели.
+            2. Если привязки нет — найти SKU по коду (get_or_create).
+               - Если код новый → создать SKU с defaults из модели.
+               - Если SKU с таким кодом уже существует (standalone-номенклатура
+                 для счетов/КП) → «подхватить» её: обогатить поля SKU данными
+                 из модели (name, description, equipment_type, brand, source_*).
+            3. Если кода нет — выходит молча.
+        """
+        from .sku import SKU
         code = self.get_sku_code()
         if not code:
             return
@@ -93,6 +104,7 @@ class SKUMixin(models.Model):
         brand = self.get_brand_for_sku()
 
         if self.sku_id:
+            # Уже привязана — обновляем поля SKU из модели
             sku = self.sku
             changed = False
             if sku.name != name[:300]:
@@ -107,9 +119,16 @@ class SKUMixin(models.Model):
             if sku.brand != brand:
                 sku.brand = brand
                 changed = True
+            # source_* — обновляем, только если ещё не заполнены
+            if sku.source_content_type_id is None or sku.source_object_id is None:
+                sku.source_content_type = ct
+                sku.source_object_id = self.pk
+                changed = True
             if changed:
-                sku.save(update_fields=['name', 'description', 'equipment_type', 'brand'])
+                sku.save(update_fields=['name', 'description', 'equipment_type', 'brand',
+                                        'source_content_type', 'source_object_id'])
         else:
+            # Пытаемся найти или создать SKU по коду
             sku, created = SKU.objects.get_or_create(
                 code=code,
                 defaults={
@@ -121,7 +140,30 @@ class SKUMixin(models.Model):
                     'source_object_id': self.pk,
                 }
             )
-            if created:
-                self.__class__.objects.filter(pk=self.pk).update(sku=sku)
-            else:
-                self.__class__.objects.filter(pk=self.pk).update(sku=sku)
+            if not created:
+                # Нашли существующую SKU (созданную ранее как standalone — для счетов/КП).
+                # Обогащаем её полями из модели, которая теперь «подхватила» эту номенклатуру.
+                update_fields = {}
+                if not sku.name or sku.name == sku.code:
+                    sku.name = name[:300]
+                    update_fields['name'] = sku.name
+                if not sku.description and desc:
+                    sku.description = desc
+                    update_fields['description'] = sku.description
+                if sku.equipment_type_id is None and eq_type is not None:
+                    sku.equipment_type = eq_type
+                    update_fields['equipment_type'] = sku.equipment_type
+                if sku.brand_id is None and brand is not None:
+                    sku.brand = brand
+                    update_fields['brand'] = sku.brand
+                # source_* — заполняем, т.к. standalone-SKU создавалась без привязки к модели
+                if sku.source_content_type_id is None:
+                    sku.source_content_type = ct
+                    update_fields['source_content_type'] = sku.source_content_type
+                if sku.source_object_id is None:
+                    sku.source_object_id = self.pk
+                    update_fields['source_object_id'] = sku.source_object_id
+                if update_fields:
+                    sku.save(update_fields=list(update_fields.keys()))
+            # Привязываем модель к SKU
+            self.__class__.objects.filter(pk=self.pk).update(sku=sku)

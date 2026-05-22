@@ -32,7 +32,7 @@ class SKUAdmin(ImportExportModelAdmin, admin.ModelAdmin):
         'description_preview',
         'is_active',
     )
-    list_editable = ('code','brand' , 'is_active' ,)
+    list_editable = ('code','brand' , 'equipment_type','is_active' ,)
     list_filter = (
         'is_active',
         ('equipment_type', admin.RelatedOnlyFieldListFilter),

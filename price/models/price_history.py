@@ -51,6 +51,15 @@ class PriceHistory(StructuredDataMixin, models.Model):
                             verbose_name=_("Код товара"),
                             help_text=_("Копируется из GFK-товара для быстрого поиска"))
 
+    # Основная связь — через справочник номенклатуры
+    sku = models.ForeignKey(
+        'sku.SKU', on_delete=models.CASCADE,
+        blank=True, null=True,
+        related_name='price_history',
+        verbose_name=_("SKU"),
+        help_text=_("Позиция номенклатуры (основной способ привязки)")
+    )
+
     price_variety = models.ForeignKey(
         'price.PriceVariety', on_delete=models.PROTECT,
         verbose_name=_("Вид цены")
@@ -97,6 +106,8 @@ class PriceHistory(StructuredDataMixin, models.Model):
             models.Index(fields=['content_type', 'object_id']),
             models.Index(fields=['price_variety', 'is_current']),
             models.Index(fields=['content_type', 'object_id', 'price_variety', 'is_current']),
+            models.Index(fields=['sku']),
+            models.Index(fields=['sku', 'price_variety', 'is_current']),
         ]
 
     def __str__(self):
@@ -112,6 +123,9 @@ class PriceHistory(StructuredDataMixin, models.Model):
             'id': self.id,
             'name': self.name,
             'code': self.code,
+            'sku_id': self.sku_id,
+            'sku_code': self.sku.code if self.sku else None,
+            'sku_name': self.sku.name if self.sku else None,
             'price': float(self.price),
             'price_variety_id': self.price_variety_id,
             'price_variety_name': self.price_variety.name if self.price_variety else None,
@@ -136,7 +150,7 @@ class PriceHistory(StructuredDataMixin, models.Model):
     @classmethod
     def get_current_price(cls, instance, price_variety):
         """
-        Получить актуальную цену для товара и вида цены.
+        Получить актуальную цену для товара и вида цены (через GFK).
 
         Args:
             instance — объект товара
@@ -149,6 +163,26 @@ class PriceHistory(StructuredDataMixin, models.Model):
         return cls.objects.filter(
             content_type=ct,
             object_id=instance.pk,
+            price_variety=price_variety,
+            is_current=True,
+            is_active=True,
+        ).first()
+
+    @classmethod
+    def get_current_price_by_sku(cls, sku, price_variety):
+        """
+        Получить актуальную цену для позиции номенклатуры и вида цены.
+
+        Args:
+            sku — экземпляр SKU или sku_id
+            price_variety — экземпляр или id PriceVariety
+
+        Returns:
+            PriceHistory или None
+        """
+        sku_id = sku.pk if hasattr(sku, 'pk') else sku
+        return cls.objects.filter(
+            sku_id=sku_id,
             price_variety=price_variety,
             is_current=True,
             is_active=True,
