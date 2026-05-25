@@ -30,6 +30,7 @@ defineEmits(['select'])
 
 const CATALOG_INFO = {
   gearbox:     { id: 'gearbox',     name: 'Редукторы',         icon: '⚙️', description: 'Червячные, цилиндрические, конические' },
+  filter_regulator: { id: 'filter_regulator', name: 'Фильтр-регуляторы', icon: '🔧', description: 'Фильтры-регуляторы сжатого воздуха' },
   pneumatic:   { id: 'pneumatic',   name: 'Пневмоприводы',     icon: '💨', description: 'Поршневые, мембранные, SR/SD' },
   electric:    { id: 'electric',    name: 'Электроприводы',    icon: '⚡', description: 'Многооборотные, неполнооборотные' },
   fittings:    { id: 'fittings',    name: 'Пневмофитинги',     icon: '🔧', description: 'Фитинги, трубки, клапаны' },

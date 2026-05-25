@@ -4,11 +4,13 @@ from typing import Dict, List, Any
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin, TemplateMixin, CatalogDictMixin, ImageGalleryMixin, TechDocMixin
+from core.models import ImageGalleryMixin, TechDocMixin
+from core.models.mixins import CopyMixin, TemplateMixin, CatalogDictMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from filter_regulator.models import FilterRegulatorBody
 from filter_regulator.models.fr_model_line import FilterRegulatorModelLine
 from filter_regulator.models.fr_options import FilterRegulatorVariety, DrainVariety
+from sku.models import SKUMixin
 
 
 class FilterRegulator(
@@ -18,6 +20,7 @@ class FilterRegulator(
     TechDocMixin,
     SmartCatalogMixin,
     TemplateMixin,
+    SKUMixin,
     models.Model,
 ):
     """Модель фильтр-регулятора (каталог)"""
@@ -122,6 +125,26 @@ class FilterRegulator(
 
     def __str__(self):
         return f"{self.name} ({self.code})"
+
+    # ── SKUMixin ──
+
+    def get_equipment_type_for_sku(self):
+        """Тип оборудования для SKU — берётся из model_line."""
+        return self.model_line.equipment_type
+
+    def get_brand_for_sku(self):
+        """Бренд для SKU — берётся из model_line."""
+        return self.model_line.brand
+
+    def save(self, *args, **kwargs):
+        """
+        Сохраняет модель и синхронизирует номенклатуру (SKU).
+
+        Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
+        или «подхватывает» существующую по коду, обогащая её полями модели.
+        """
+        super().save(*args, **kwargs)
+        self.sync_sku()
 
     def copy(self):
         return super().copy(suffix=" Копия", reset_fields=[])
@@ -317,6 +340,33 @@ class FilterRegulator(
             'name': self.sku.name,
         }
 
+
+    def _get_certs_section(self) -> list:
+        """Секция сертификатов (из model_line.cert_docs)."""
+        certs = []
+        if not (self.model_line and hasattr(self.model_line, 'cert_docs')):
+            return certs
+
+        for cert in self.model_line.cert_docs.all():
+            from django.conf import settings
+            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
+            try:
+                title = getattr(cert, 'name', '') or ''
+                code = getattr(cert, 'code', '') or ''
+                media = getattr(cert, 'media_item', None)
+                if not media:
+                    continue
+
+                certs.append({
+                    'id': cert.id,
+                    'title': title,
+                    'file_name': code,
+                    'url': f"{base}/api/media/{media.id}/download/",
+                })
+            except Exception:
+                continue
+        return certs
+
     def to_dict(self) -> dict:
         tv = self._get_template_vars()
         return {
@@ -399,6 +449,13 @@ class FilterRegulator(
                     'type': 'files',
                     'order': 3,
                     'data': self._get_docs_section(),
+                },
+                {
+                    'key': 'certs',
+                    'title': 'Сертификаты',
+                    'type': 'files',
+                    'order': 4,
+                    'data': self._get_certs_section(),
                 },
                 {
                     'key': 'description',

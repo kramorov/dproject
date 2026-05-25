@@ -5,14 +5,16 @@ from typing import Dict, List, Any
 
 import logging
 
+from core.models import TechDocMixin, ImageGalleryMixin
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
-from core.models.mixins import TemplateMixin, CopyMixin
+from core.models.mixins import TemplateMixin, CopyMixin, CatalogDictMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified
 from pa_controls.models import LimitSwitchSensorVariety , LimitSwitchBody , \
     SensorComponent , SignalType , ContactForm , ContactState
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 from params.exd_models import ExdOption
+from sku.models import SKUMixin
 
 # from pa_controls.models import PaControlMountingStandard
 
@@ -24,7 +26,12 @@ from params.models import IpOption
 # ============================================================
 # БЛОК КОНЦЕВЫХ ВЫКЛЮЧАТЕЛЕЙ (Limit Switch Box)
 # ============================================================
-class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, CopyMixin, models.Model):
+class LimitSwitchBox(CatalogDictMixin,
+    ImageGalleryMixin,
+    TechDocMixin,
+    SmartCatalogMixin,
+    TemplateMixin,
+    SKUMixin,CopyMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -136,6 +143,27 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, CopyMixin, models.Model):
 
     def __str__(self):
         return f"{self.name}"
+
+
+    # ── SKUMixin ──
+
+    def get_equipment_type_for_sku(self):
+        """Тип оборудования для SKU — берётся из model_line."""
+        return self.model_line.equipment_type
+
+    def get_brand_for_sku(self):
+        """Бренд для SKU — берётся из model_line."""
+        return self.model_line.brand
+
+    def save(self, *args, **kwargs):
+        """
+        Сохраняет модель и синхронизирует номенклатуру (SKU).
+
+        Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
+        или «подхватывает» существующую по коду, обогащая её полями модели.
+        """
+        super().save(*args, **kwargs)
+        self.sync_sku()
 
     def _copy_custom_relations(self, new_copy):
         new_copy.exd_set_ids(self.exd_get_ids())
@@ -488,90 +516,204 @@ class LimitSwitchBox(SmartCatalogMixin, TemplateMixin, CopyMixin, models.Model):
         'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type'
     ]
 
-    # ========== СЕРИАЛИЗАЦИЯ ==========
-    def to_dict(self) -> Dict[str , Any] :
-        """
-        Сериализация БКВ в словарь для API
-        """
+    # ========== СЕРИАЛИЗАЦИЯ (CatalogDictMixin) ==========
+
+    def _get_template_vars(self) -> dict:
+        """Единый источник строковых значений для шаблонов и секций."""
+        ml = self.model_line
+        body = self.body
         return {
-            'id' : self.id ,
-            'name' : self.name ,
-            'code' : self.code ,
-            'description' : self.description ,
-            'sorting_order' : self.sorting_order ,
-            'is_active' : self.is_active ,
-            'points' : self.points ,
-            'is_pneumatic' : self.is_pneumatic ,
-            'has_namur_interface' : self.has_namur_interface ,
-            'has_visual_indicator' : self.has_visual_indicator ,
-            'work_temp_min' : self.work_temp_min ,
-            'work_temp_max' : self.work_temp_max ,
-            'extra_params' : self.extra_params or {} ,
+            'code': self.code or '',
+            'name': self.name or '',
+            'model_line_name': ml.name if ml else '',
+            'brand_name': ml.brand.name if ml and ml.brand else '',
+            'sensor_variety': self.sensor_variety.name if self.sensor_variety else '',
+            'points': str(self.points) if self.points else '',
+            'ip': self.ip.name if self.ip else '',
+            'exd': self.exd_display or '',
+            'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
+            'work_temp_min': str(self.work_temp_min) if self.work_temp_min is not None else '',
+            'work_temp_max': str(self.work_temp_max) if self.work_temp_max is not None else '',
+            'body_material': self.body_material.name if self.body_material else '',
+            'body_material_specified': self.body_material_specified.name if self.body_material_specified else '',
+            'weight': str(body.weight) if body and body.weight else '',
+            'cable_glands_holes': body.cable_glands_holes_list_text if body and body.cable_glands_holes_list_text else '',
+            'mounting': body.mounting_list_text if body and body.mounting_list_text else '',
+            'is_pneumatic': 'Да' if self.is_pneumatic else 'Нет',
+            'has_namur_interface': 'Да' if self.has_namur_interface else 'Нет',
+            'has_visual_indicator': 'Да' if self.has_visual_indicator else 'Нет',
+            'primary_sensor': self.primary_sensor.name if self.primary_sensor else '',
+            'primary_sensor_signal_type': self.primary_sensor.signal_type.name if self.primary_sensor and self.primary_sensor.signal_type else '',
+            'sensors': self.get_additional_sensors_names_list or '',
+            'sensors_description': self.get_sensors_description_list or '',
+            'signals': self.get_sensors_signal_types_list or '',
+            'cert_description': self.get_cert_docs_description() or '',
+        }
 
-            # Связанные объекты (краткая информация)
-            'model_line' : {
-                'id' : self.model_line.id ,
-                'name' : self.model_line.name ,
-                'code' : getattr(self.model_line , 'code' , '')
-            } if self.model_line else None ,
+    def _get_images_section(self) -> list:
+        images = []
+        for img in self.images.all():
+            if img.media_file:
+                images.append({
+                    'id': img.id,
+                    'title': getattr(img, 'title', '') or '',
+                    'url': img.media_file.url,
+                    'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
+                    'is_default': getattr(img, 'is_default', False),
+                })
+        if not images and self.model_line:
+            for img in self.model_line.images.all():
+                if img.media_file:
+                    images.append({
+                        'id': img.id,
+                        'title': getattr(img, 'title', '') or '',
+                        'url': img.media_file.url,
+                        'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
+                        'is_default': getattr(img, 'is_default', False),
+                    })
+        return images
 
-            'body' : {
-                'id' : self.body.id ,
-                'name' : self.body.name ,
-                'code' : getattr(self.body , 'code' , '')
-            } if self.body else None ,
+    def _get_docs_section(self) -> list:
+        docs = []
+        for doc in self.tech_docs.all():
+            if doc.media_file:
+                docs.append({
+                    'id': doc.id,
+                    'title': getattr(doc, 'title', '') or '',
+                    'url': doc.media_file.url,
+                    'file_name': getattr(doc, 'title', '') or '',
+                })
+        return docs
 
-            'sensor_variety' : {
-                'id' : self.sensor_variety.id ,
-                'name' : self.sensor_variety.name ,
-                'code' : getattr(self.sensor_variety , 'code' , '')
-            } if self.sensor_variety else None ,
-            'cert_description' : self.get_cert_docs_description() ,
-            'ip' : {
-                'id' : self.ip.id ,
-                'name' : self.ip.name ,
-                'code' : getattr(self.ip , 'code' , '')
-            } if self.ip else None ,
+    def _get_certs_section(self) -> list:
+        certs = []
+        if self.model_line and hasattr(self.model_line, 'cert_docs'):
+            for cert in self.model_line.cert_docs.all():
+                media = getattr(cert, 'media_item', None)
+                if not media:
+                    continue
+                from django.conf import settings
+                base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
+                certs.append({
+                    'id': cert.id,
+                    'title': getattr(cert, 'name', '') or '',
+                    'file_name': getattr(cert, 'code', '') or '',
+                    'url': f'{base}/api/media/{media.id}/download/',
+                })
+        return certs
 
-            'body_material' : {
-                'id' : self.body_material.id ,
-                'name' : self.body_material.name ,
-                'code' : getattr(self.body_material , 'code' , '')
-            } if self.body_material else None ,
+    def _get_model_line_summary(self) -> dict:
+        if not self.model_line:
+            return None
+        ml = self.model_line
+        return {
+            'id': ml.id,
+            'name': ml.name,
+            'code': getattr(ml, 'code', '') or '',
+            'brand': {
+                'id': ml.brand.id,
+                'name': ml.brand.name,
+            } if ml.brand else None,
+        }
 
-            'body_material_specified' : {
-                'id' : self.body_material_specified.id ,
-                'name' : self.body_material_specified.name ,
-                'code' : getattr(self.body_material_specified , 'code' , '')
-            } if self.body_material_specified else None ,
-            # ManyToMany поля (списки)
-            'additional_sensor': [
+    def _get_sku_summary(self) -> dict:
+        if not hasattr(self, 'sku') or not self.sku:
+            return None
+        return {
+            'id': self.sku.id,
+            'code': self.sku.code,
+            'name': self.sku.name,
+        }
+
+    def to_dict(self) -> dict:
+        """Структурированная сериализация БКВ (CatalogDictMixin)."""
+        tv = self._get_template_vars()
+        return {
+            'id': self.id,
+            'code': self.code or '',
+            'name': self.name or '',
+            'description': self.description or '',
+            'is_active': self.is_active,
+            'sorting_order': self.sorting_order,
+            'model_line': self._get_model_line_summary(),
+            'sku': self._get_sku_summary(),
+            'template_vars': tv,
+            'sections': [
                 {
-                    'id': sensor.id,
-                    'name': sensor.name,
-                    'code': getattr(sensor, 'code', ''),
-                    'signal_type': {
-                        'id': sensor.signal_type.id,
-                        'name': sensor.signal_type.name,
-                        'code': getattr(sensor.signal_type, 'code', '')
-                    } if sensor.signal_type else None,
-                    'contact_form': {
-                        'id': sensor.contact_form.id,
-                        'name': sensor.contact_form.name,
-                        'code': getattr(sensor.contact_form, 'code', '')
-                    } if sensor.contact_form else None,
-                }
-                for sensor in self.additional_sensor.all()
-            ] if self.additional_sensor.exists() else [],
+                    'key': 'images', 'title': 'Изображения', 'type': 'gallery',
+                    'order': 1, 'data': self._get_images_section(),
+                },
+                {
+                    'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
+                    'order': 2, 'groups': [
+                        {
+                            'key': 'general', 'title': 'Основные', 'order': 1,
+                            'fields': [
+                                {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'unit': '', 'type': 'text', 'order': 1},
+                                {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'unit': '', 'type': 'text', 'order': 2},
+                                {'key': 'sensor_variety', 'label': 'Тип сенсора', 'value': tv['sensor_variety'], 'unit': '', 'type': 'text', 'order': 3},
+                                {'key': 'points', 'label': 'Количество датчиков', 'value': tv['points'], 'unit': '', 'type': 'number', 'order': 4},
+                                {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 5},
+                                {'key': 'exd', 'label': 'Взрывозащита', 'value': tv['exd'], 'unit': '', 'type': 'text', 'order': 6},
+                                {'key': 'is_pneumatic', 'label': 'Пневматический', 'value': tv['is_pneumatic'], 'unit': '', 'type': 'text', 'order': 7},
+                                {'key': 'has_namur_interface', 'label': 'NAMUR интерфейс', 'value': tv['has_namur_interface'], 'unit': '', 'type': 'text', 'order': 8},
+                                {'key': 'has_visual_indicator', 'label': 'Визуальный индикатор', 'value': tv['has_visual_indicator'], 'unit': '', 'type': 'text', 'order': 9},
+                            ]
+                        },
+                        {
+                            'key': 'body', 'title': 'Корпус', 'order': 2,
+                            'fields': [
+                                {'key': 'body_material', 'label': 'Материал корпуса', 'value': tv['body_material'], 'unit': '', 'type': 'text', 'order': 1},
+                                {'key': 'body_material_specified', 'label': 'Материал (уточн.)', 'value': tv['body_material_specified'], 'unit': '', 'type': 'text', 'order': 2},
+                                {'key': 'weight', 'label': 'Вес', 'value': tv['weight'], 'unit': 'кг', 'type': 'number', 'order': 3},
+                                {'key': 'cable_glands_holes', 'label': 'Отверстия под КВ', 'value': tv['cable_glands_holes'], 'unit': '', 'type': 'text', 'order': 4},
+                                {'key': 'mounting', 'label': 'Монтаж', 'value': tv['mounting'], 'unit': '', 'type': 'text', 'order': 5},
+                            ]
+                        },
+                        {
+                            'key': 'sensors', 'title': 'Датчики', 'order': 3,
+                            'fields': [
+                                {'key': 'primary_sensor', 'label': 'Основной датчик', 'value': tv['primary_sensor'], 'unit': '', 'type': 'text', 'order': 1},
+                                {'key': 'primary_sensor_signal_type', 'label': 'Тип сигнала', 'value': tv['primary_sensor_signal_type'], 'unit': '', 'type': 'text', 'order': 2},
+                                {'key': 'sensors', 'label': 'Доп. датчики', 'value': tv['sensors'], 'unit': '', 'type': 'text', 'order': 3},
+                                {'key': 'signals', 'label': 'Типы сигналов', 'value': tv['signals'], 'unit': '', 'type': 'text', 'order': 4},
+                            ]
+                        },
+                        {
+                            'key': 'conditions', 'title': 'Условия эксплуатации', 'order': 4,
+                            'fields': [
+                                {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'], 'unit': '', 'type': 'text', 'order': 1},
+                            ]
+                        },
+                    ]
+                },
+                {
+                    'key': 'docs', 'title': 'Документация', 'type': 'files',
+                    'order': 3, 'data': self._get_docs_section(),
+                },
+                {
+                    'key': 'certs', 'title': 'Сертификаты', 'type': 'files',
+                    'order': 4, 'data': self._get_certs_section(),
+                },
+                {
+                    'key': 'description', 'title': 'Описание', 'type': 'text',
+                    'order': 5, 'data': self.description or '',
+                },
+            ],
+        }
 
-            'sensors_names' : self.get_additional_sensors_names_list,
-            'exd': [
-            {
-                'id': exd.id,
-                'name': exd.name,
-                'code': exd.code,
-                'formatted_code': exd.get_formatted_ex_code('name')
-            }
-            for exd in self.exd_all
-        ],
+    def to_values_dict(self) -> dict:
+        """Облегчённая сериализация для списков."""
+        tv = self._get_template_vars()
+        images = self._get_images_section()
+        return {
+            'id': self.id,
+            'code': self.code or '',
+            'name': self.name or '',
+            'image_alt': self.name or '',
+            'template_vars': tv,
+            'values': tv,
+            'images': images,
+            'model_line': self._get_model_line_summary(),
+            'sku': self._get_sku_summary(),
         }

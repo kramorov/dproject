@@ -1,11 +1,13 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models import StructuredDataMixin , EquipmentTypeMixin
+from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, ImageGalleryMixin
+from core.models.cert_doc_mixin import CertDocMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin
 from producers.models import Producer, Brands
 
 
-class LimitSwitchModelLine(EquipmentTypeMixin, StructuredDataMixin, models.Model):
+class LimitSwitchModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,EquipmentTypeMixin, SmartCatalogMixin,  StructuredDataMixin, models.Model):
     """
     Серия БКВ
     """

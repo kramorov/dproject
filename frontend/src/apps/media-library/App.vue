@@ -58,7 +58,7 @@ const categories = ref([])
 const brands = ref([])
 const equipmentTypes = ref([])
 
-mediaApi.filterOptions().then(({ data }) => {
+mediaApi.filterOptions('all').then(({ data }) => {
   categories.value = data.category_id || []
   brands.value = data.brand_id || []
   equipmentTypes.value = data.equipment_type_id || []

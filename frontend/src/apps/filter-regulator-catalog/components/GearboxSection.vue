@@ -6,11 +6,13 @@
     <h1 class="page-title">Фильтр-регуляторы</h1>
     <p class="page-subtitle">
       Выберите серию
+      <button class="show-all-btn" @click="$emit('engineer')">🔬 Инженерный каталог</button>
       <button class="show-all-btn" @click="$emit('select')">Показать все</button>
+      Выберите серию
     </p>
 
     <div class="series-grid" v-if="series.length">
-      <div v-for="s in series" :key="s.id" class="series-card" @click="$emit('selectSeries', s.brandId)">
+      <div v-for="s in series" :key="s.id" class="series-card" @click="$emit('selectSeries', s.id)">
         <div class="series-image">
           <img v-if="s.image" :src="s.image" :alt="s.name" loading="lazy" />
           <span v-else class="no-image">🔧</span>
@@ -32,7 +34,7 @@ import { ref, onMounted } from 'vue'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import frApi from '../api'
 
-defineEmits(['selectSeries', 'select'])
+defineEmits(['selectSeries', 'select', 'engineer'])
 
 const series = ref([])
 const loaded = ref(false)

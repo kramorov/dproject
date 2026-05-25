@@ -4,15 +4,15 @@
       <input v-model="search" placeholder="Поиск..." class="fi" @input="onFilter" />
       <select v-model="selVariety" class="fs" @change="onFilter">
         <option :value="null">Все типы</option>
-        <option v-for="v in opts.varieties" :key="v.id" :value="v.id">{{ v.name || v.code }}</option>
+        <option v-for="v in varieties" :key="v.id" :value="v.id">{{ v.name || v.code }}</option>
       </select>
       <select v-model="selBrand" class="fs" @change="onFilter">
         <option :value="null">Все бренды</option>
-        <option v-for="b in opts.brands" :key="b.id" :value="b.id">{{ b.name }}</option>
+        <option v-for="b in brands" :key="b.id" :value="b.id">{{ b.name }}</option>
       </select>
       <select v-model="selEqType" class="fs" @change="onFilter">
         <option :value="null">Тип оборудования</option>
-        <option v-for="e in opts.equipmentTypes" :key="e.id" :value="e.id">{{ e.name }}</option>
+        <option v-for="e in equipmentTypes" :key="e.id" :value="e.id">{{ e.name }}</option>
       </select>
     </div>
 
@@ -54,6 +54,7 @@ defineExpose({fetchData})
 
 const items=ref([]), search=ref(''), selVariety=ref(null), selBrand=ref(null), selEqType=ref(null)
 const loading=ref(false), error=ref(null)
+const varieties=ref([]), brands=ref([]), equipmentTypes=ref([])
 
 function fmt(iso){return iso?new Date(iso).toLocaleDateString('ru-RU'):''}
 let t=null
@@ -72,7 +73,16 @@ async function fetchData(){
   }catch(e){error.value=e.displayMessage||'Ошибка'}finally{loading.value=false}
 }
 
-onMounted(fetchData)
+async function loadFilterOptions() {
+  try {
+    const { data } = await certApi.filterOptions()
+    varieties.value = data.cert_variety_id || []
+    brands.value = data.brand_id || []
+    equipmentTypes.value = data.equipment_type_id || []
+  } catch {}
+}
+
+onMounted(() => { loadFilterOptions(); fetchData() })
 </script>
 
 <style scoped>

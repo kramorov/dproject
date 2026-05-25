@@ -1,26 +1,35 @@
 # Модуль `filter_regulator` — каталог фильтр-регуляторов
 
-Реализован по типовому шаблону `gearbox` (см. `gearbox/README.md`).
-
 ## Модели
 
 | Модель | Файл | Описание |
 |---|---|---|
-| `FilterRegulator` | `models/fr_model_line_item.py` | Фильтр-регулятор: серия, корпус, IP, фильтрация, давление |
-| `FilterRegulatorModelLine` | `models/fr_model_line.py` | Серия: бренд, тип, материалы, шаблоны названия/описания |
-| `FilterRegulatorBody` | `models/fr_body.py` | Корпус: резьбы, вес |
+| `FilterRegulator` | `models/fr_model_line_item.py` | Фильтр-регулятор: серия, корпус, IP, материал, температуры, расход |
+| `FilterRegulatorModelLine` | `models/fr_model_line.py` | Серия: бренд, тип, материал корпуса/стакана, давления |
+| `FilterRegulatorBody` | `models/fr_body.py` | Корпус: резьба портов, манометра, слива, вес |
 | `FilterRegulatorVariety` | `models/fr_options.py` | Тип фильтр-регулятора |
 | `DrainVariety` | `models/fr_options.py` | Тип слива |
 
 ## Наследование FilterRegulator
 
 ```
-CatalogDictMixin    — to_dict(), get_field_meta(), to_values_dict(), build_schema()
-ImageGalleryMixin   — галерея изображений (images M2M)
-TechDocMixin        — техническая документация (tech_docs M2M)
-SmartCatalogMixin   — фильтрация и поиск (FILTER_DEFINITIONS в services/filters.py)
-CopyMixin           — копирование через админку
-TemplateMixin       — генерация названия/описания по шаблону model_line
+CatalogDictMixin  — to_dict(), to_values_dict(), build_schema()
+SmartCatalogMixin — фильтрация и поиск (FILTER_DEFINITIONS в services/filters.py)
+CopyMixin         — копирование
+TemplateMixin     — генерация названия/описания по шаблону model_line
+ImageGalleryMixin — галерея изображений (images M2M)
+TechDocMixin      — техническая документация (tech_docs M2M)
+```
+
+> SKUMixin закомментирован — требуется makemigrations + migrate для добавления колонки sku_id.
+
+## Наследование FilterRegulatorModelLine
+
+```
+ImageGalleryMixin — галерея
+TechDocMixin      — техдокументация
+CertDocMixin      — сертификаты (cert_docs M2M)
+SmartCatalogMixin — фильтрация
 ```
 
 ## API
@@ -31,57 +40,91 @@ TemplateMixin       — генерация названия/описания п�
 | `GET` | `/api/filter-regulator/catalog/` | Список с фильтрами + цена |
 | `GET` | `/api/filter-regulator/catalog/<id>/` | Детальная модель + Schema.org + цена |
 | `GET` | `/api/filter-regulator/filters/` | Опции фильтров |
+| `GET` | `/api/filter-regulator/engineer/` | Инженерный каталог (визуальный подбор) |
 
-## Структура to_dict()
+### Параметры каталога
 
-```python
+| Параметр | Тип | Описание |
+|---|---|---|
+| `model_line_id` | int | Серия (главный фильтр) |
+| `filtration_rating_min` | number | Тонкость фильтрации не менее, мкм |
+| `body_material_id` | int | Материал корпуса |
+| `flow_rate_min` | number | Расход не менее, л/мин |
+| `thread_id` | int | Резьба портов |
+| `work_temp_min` | int | Температура от, °С |
+| `work_temp_max` | int | Температура до, °С |
+| `brand_id` | int | Бренд (только используемые) |
+| `search` | string | Поиск по code, name, description |
+| `is_active` | bool | Только активные (по умолчанию true) |
+| `limit` | int | Размер страницы (по умолчанию 24, макс 100) |
+| `offset` | int | Смещение |
+| `lang` | string | Язык (ru, en, zh) |
+
+## Инженерный каталог
+
+`GET /api/filter-regulator/engineer/?model_line_id=X`
+
+**Параметры**: те же, что в каталоге (подфильтры опциональны).
+
+**Ответ**:
+```json
 {
-    "id": 1, "code": "FR-1", "name": "...",
-    "model_line": {"id": 1, "name": "FR Series", "brand": {...}},
-    "sku": {"id": 1, "code": "FR-1"},
-
-    "template_vars": {  # 21 значение
-        "code", "name", "model_line_name", "brand_name",
-        "filter_variety", "body_material", "bowl_material",
-        "protection_material", "ip", "work_temp",
-        "pressure_range", "pressure_inlet_max", "weight",
-        "thread", "gauge_port_size", "drain_port_size",
-        "filtration_rating", "flow_rate",
-        "filter_element_material", "wall_mounting_included",
-        "has_shut_off_valve"
-    },
-
-    "sections": [
-        {"key": "images", "type": "gallery"},
-        {"key": "specs",  "type": "specs", "groups": [
-            {"key": "general",    "title": "Основные",         "fields": [...]},  # 10 полей
-            {"key": "pressure",   "title": "Давление",         "fields": [...]},  # 2 поля
-            {"key": "body_specs", "title": "Корпус",           "fields": [...]},  # 6 полей
-            {"key": "conditions", "title": "Условия эксплуатации", "fields": [...]},  # 1 поле
-        ]},
-        {"key": "docs",        "type": "files"},
-        {"key": "description", "type": "text"},
-    ],
-
-    "price": {"price": "...", "currency": "RUB", "symbol": "₽"},
-    "schema": {"@context": "https://schema.org", "@type": "Product", ...},
+    "model_line": {"id": 1, "name": "BPFR", "code": ""},
+    "total": 3,
+    "items": [{...to_dict()...}],
+    "filters": {
+        "filtration_rating_min": [{"value": 25.0, "label": "25.0", "count": 3}],
+        "body_material_id": [{"id": 1, "name": "Алюминий", "count": 3}],
+        "flow_rate_min": [{"value": 2000.0, "label": "2000.00", "count": 3}],
+        "thread_id": [{"id": 18, "name": "G 1/8\"", "count": 3}]
+    }
 }
 ```
 
-## Фильтры
+**ENGINEER_FILTERS** (в `services/filters.py`): filtration_rating_min, body_material_id, flow_rate_min, thread_id
 
-`services/filters.py`: IP (с ранжированием), температура мин/макс, бренд. Все кроме IP — `UNIQUE_FIELD_VALUES`.
+## Структура to_dict() — детальная страница
+
+```python
+{
+    "id": 7, "code": "BPAFR15S02.25RM", "name": "...",
+    "model_line": {"id": 3, "name": "BPAFR", "brand": {...}},
+    "sku": None,  # будет заполнено после миграции SKU
+    "template_vars": {
+        "code": "BPAFR15S02.25RM",
+        "brand_name": "Архимед",
+        "filter_variety": "...",
+        "body_material": "...",
+        "ip": "...",
+        "filtration_rating": "25.0",
+        "flow_rate": "4430.00",
+        "thread": "NPT 1/2\"",
+        ...
+    },
+    "sections": [
+        {"key": "images", "type": "gallery", "data": [...]},
+        {"key": "specs", "type": "specs", "groups": [
+            {"key": "general", "title": "Основные", "fields": [...]},
+            {"key": "pressure", "title": "Давление", "fields": [...]},
+            {"key": "body_specs", "title": "Корпус", "fields": [...]},
+            {"key": "conditions", "title": "Условия эксплуатации", "fields": [...]},
+        ]},
+        {"key": "docs", "type": "files", "data": [...]},
+        {"key": "certs", "type": "files", "data": [...]},
+        {"key": "description", "type": "text", "data": "..."},
+    ],
+}
+```
 
 ## Фронтенд
 
-`frontend/src/apps/filter-regulator-catalog/` — полный SPA (копия gearbox):
-- `api.js` — `/api/filter-regulator/`
-- `App.vue` — standalone SPA (страницы: секции, каталог, деталка, бренд)
-- `GearboxSection.vue` — сетка серий
-- `GearboxList.vue` — подбор + фильтры (FilterSidebar + ProductCard)
-- `GearboxDetail.vue` — карточка товара (ProductDetail)
-- `GearboxBrand.vue` — витрина бренда
+**Страницы** (`frontend/src/apps/filter-regulator-catalog/`):
+- `GearboxSection` — сетка серий + кнопка «Инженерный каталог»
+- `GearboxList` — подбор + фильтры
+- `GearboxDetail` — карточка товара
+- `GearboxBrand` — витрина серии (фильтр по model_line_id)
+- `EngineerCatalog` — визуальный подбор (чипсы, авто-дефолты, одна карточка)
 
-Использует те же shared-компоненты, что и gearbox (`ProductCard`, `ProductDetail`, `TabSpecs`, etc.).
+**Виджет**: `widget/App.vue` — маршруты `#/filter_regulator/{lines,list,detail,brand,engineer}`
 
-**Запуск**: `npm run dev` → `http://localhost:5173/src/apps/filter-regulator-catalog/index.html`
+**Меню**: TopMenu «⚙️ Настройки» → «🔧 Фильтр-регуляторы», «🔬 Инженерный каталог»

@@ -15,7 +15,7 @@ class FilterRegulatorAdmin(AdminCopyMixin, admin.ModelAdmin):
     search_fields = ('name', 'code', 'model_line__name',)
     ordering = ('sorting_order', 'name')
 
-
+    filter_horizontal = ('images', 'tech_docs')
     fieldsets = (
         (None, {
             'fields': ( ('code', 'model_line', 'body'),'description',  ('drain_variety','filter_element_material'), ('is_active', 'sorting_order'),)
@@ -24,7 +24,10 @@ class FilterRegulatorAdmin(AdminCopyMixin, admin.ModelAdmin):
             'fields': ( ('filtration_rating',   'flow_rate'), ('gauge_quantity','wall_mounting_included', 'has_shut_off_valve'),)
         }),
         (_('Рабочие параметры'), {
-            'fields': (('work_temp_min', 'work_temp_max'), ('pressure_min', 'pressure_max', 'pressure_inlet_max'))
+            'fields': (('work_temp_min', 'work_temp_max', 'ip'), )
+        }),
+        (_('Изображения и технички'), {
+            'fields': ('images', 'tech_docs'),
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),

@@ -35,7 +35,7 @@ const opts = ref({ varieties: [], brands: [], equipmentTypes: [] })
 
 onMounted(async () => {
   try {
-    const { data } = await certApi.filterOptions()
+    const { data } = await certApi.filterOptions('all')
     opts.value.varieties = data.cert_variety_id || []
     opts.value.brands = data.brand_id || []
     opts.value.equipmentTypes = data.equipment_type_id || []

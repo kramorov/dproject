@@ -12,8 +12,8 @@ export default {
   list(params = {}) {
     return api.get('/core/', { params: { model: 'cert_doc.CertData', fmt: 'compact', ...params } })
   },
-  filterOptions() {
-    return api.get(`${BASE}/filters/`)
+  filterOptions(scope = 'used') {
+    return api.get(`${BASE}/filters/`, { params: { scope } })
   },
   uploadMedia(formData) {
     return api.post(`${BASE}/upload-media/`, formData, {

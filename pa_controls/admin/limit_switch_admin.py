@@ -161,10 +161,11 @@ class LimitSwitchModelLineAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'producer', 'brand']
     list_editable = ['sorting_order', 'is_active']
     ordering = ['sorting_order', 'name']
+    filter_horizontal = ('images', 'tech_docs', 'cert_docs')
 
     fieldsets = (
         (_('Основная информация'), {
-            'fields': ('name', 'code', 'description')
+            'fields': ('name', 'code', 'equipment_type', 'description')
         }),
         (_('Шаблоны'), {
             'fields': ('name_template', 'description_template'),
@@ -172,7 +173,10 @@ class LimitSwitchModelLineAdmin(admin.ModelAdmin):
             'description': _('Шаблоны для автоматического формирования названия и описания')
         }),
         (_('Производитель и бренд'), {
-            'fields': ('producer', 'brand', 'equipment_type')
+            'fields': ('producer', 'brand')
+        }),
+        (_('Изображения и технички'), {
+            'fields': ('images', 'tech_docs', 'cert_docs'),
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),
@@ -233,7 +237,8 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes']
-    filter_horizontal = ['additional_sensor', 'exd']
+    filter_horizontal = ['additional_sensor', 'exd','images', 'tech_docs',]
+
 
     fieldsets = (
         (_('Основная информация'), {

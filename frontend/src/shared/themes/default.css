@@ -86,7 +86,7 @@
   --cat-tab-padding: 12px 24px;
 
   /* Таблица характеристик */
-  --cat-specs-row-padding: 10px 0;
+  --cat-specs-row-padding: 4px 0;
   --cat-specs-label-width: 240px;
   --cat-specs-stripe-bg: var(--cat-bg);
   --cat-specs-border: 1px solid var(--cat-border-light);

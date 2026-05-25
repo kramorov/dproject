@@ -620,6 +620,35 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
             logger.error(f"Ошибка замены файла: {str(e)}")
             return False
 
+    def copy(self, created_by=None):
+        """Создаёт копию элемента без файла.
+        Все скалярные поля копируются, media_file и preview_file — нет.
+        Название получает суффикс «(копия)»."""
+        skip = {'id', 'pk', 'created_at', 'updated_at', 'media_file', 'preview_file'}
+        reset = {'sorting_order': 0, 'is_default': False}
+
+        duplicate = MediaLibraryItem()
+
+        for field in self._meta.fields:
+            name = field.name
+            if name in skip:
+                continue
+            value = getattr(self, name)
+
+            if name in reset:
+                setattr(duplicate, name, reset[name])
+            elif name == 'title':
+                setattr(duplicate, name, f'{value or ""} (копия)')
+            else:
+                setattr(duplicate, name, value)
+
+        if created_by is not None:
+            duplicate.created_by = created_by
+
+        duplicate.save()
+        logger.info(f'MediaLibraryItem скопирован: {self.pk} → {duplicate.pk}')
+        return duplicate
+
     def _update_file_info(self):
         """Обновляет информацию о файле после замены"""
         if self.media_file:

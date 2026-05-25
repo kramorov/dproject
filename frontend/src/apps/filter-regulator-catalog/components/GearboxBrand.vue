@@ -30,7 +30,7 @@ import FilterSidebar from '@/shared/components/FilterSidebar.vue'
 import ProductCard from '@/shared/components/ProductCard.vue'
 import frApi from '../api'
 
-const props = defineProps({ brandId: [Number, String] })
+const props = defineProps({ brandId: [Number, String], modelLineId: [Number, String] })
 const emit = defineEmits(['select'])
 
 const items = ref([])
@@ -54,6 +54,7 @@ async function fetchData() {
   loaded.value = false
   try {
     const params = { limit: limit.value, offset: offset.value }
+    if (props.modelLineId) params.model_line_id = props.modelLineId
     if (props.brandId) params.brand_id = props.brandId
     for (const [k, v] of Object.entries(activeFilters)) if (v !== '' && v != null) params[k] = v
     const r = await frApi.list(params)

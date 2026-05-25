@@ -3,19 +3,53 @@
 Фильтры для каталога фильтр-регуляторов.
 """
 from core.models.smart_catalog_mixin import FilterDefinition, FilterType, DataSourceType
-from params.models import IpOption
 
 
 FILTER_REGULATOR_FILTER_DEFINITIONS = [
-    # IP (с ранжированием)
+    # Серия (model_line) — главный фильтр
     FilterDefinition(
-        param_name='ip_id',
-        model_field='ip',
-        filter_type=FilterType.IP_RANK,
-        data_source_type=DataSourceType.GLOBAL_MODEL,
-        source_model=IpOption,
-        label='IP',
+        param_name='model_line_id',
+        model_field='model_line',
+        filter_type=FilterType.EXACT,
+        data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+        label='Серия',
+        order=1,
+    ),
+    # Тонкость фильтрации
+    FilterDefinition(
+        param_name='filtration_rating_min',
+        model_field='filtration_rating',
+        filter_type=FilterType.MIN,
+        data_source_type=DataSourceType.FIELD_VALUES,
+        label='Тонкость фильтрации, мкм',
+        order=2,
+    ),
+    # Материал корпуса
+    FilterDefinition(
+        param_name='body_material_id',
+        model_field='body_material',
+        filter_type=FilterType.EXACT,
+        data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+        label='Материал корпуса',
+        order=3,
+    ),
+    # Расход
+    FilterDefinition(
+        param_name='flow_rate_min',
+        model_field='flow_rate',
+        filter_type=FilterType.MIN,
+        data_source_type=DataSourceType.FIELD_VALUES,
+        label='Расход не менее, л/мин',
         order=4,
+    ),
+    # Резьба портов
+    FilterDefinition(
+        param_name='thread_id',
+        model_field='body__thread',
+        filter_type=FilterType.EXACT,
+        data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+        label='Резьба портов',
+        order=5,
     ),
     # Температура мин
     FilterDefinition(
@@ -24,7 +58,7 @@ FILTER_REGULATOR_FILTER_DEFINITIONS = [
         filter_type=FilterType.TEMP_MIN,
         data_source_type=DataSourceType.FIELD_VALUES,
         label='Температура от, °С',
-        order=5,
+        order=6,
     ),
     # Температура макс
     FilterDefinition(
@@ -33,7 +67,7 @@ FILTER_REGULATOR_FILTER_DEFINITIONS = [
         filter_type=FilterType.TEMP_MAX,
         data_source_type=DataSourceType.FIELD_VALUES,
         label='Температура до, °С',
-        order=6,
+        order=7,
     ),
     # Бренд через серию
     FilterDefinition(
@@ -58,7 +92,6 @@ FILTER_REGULATOR_SELECT_RELATED = [
     'body__drain_port_size',
     'ip',
     'body_material',
-    'sku',
 ]
 
 FILTER_REGULATOR_PREFETCH_FIELDS = [
@@ -66,4 +99,13 @@ FILTER_REGULATOR_PREFETCH_FIELDS = [
     'tech_docs',
     'model_line__images',
     'model_line__tech_docs',
+    'model_line__cert_docs',
+]
+
+# Фильтры для инженерного каталога (визуальный подбор)
+ENGINEER_FILTERS = [
+    'filtration_rating_min',
+    'body_material_id',
+    'flow_rate_min',
+    'thread_id',
 ]

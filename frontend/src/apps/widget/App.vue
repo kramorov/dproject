@@ -35,6 +35,31 @@
       @select="id => navigate('gearbox', 'detail', id)"
     />
 
+    <!-- ===== FILTER-REGULATOR ===== -->
+    <FrSection
+      v-else-if="route.catalog === 'filter_regulator' && route.view === 'lines'"
+      @select-series="brandId => navigate('filter_regulator', 'brand', brandId)"
+      @select="navigate('filter_regulator', 'list')"
+    />
+    <FrList
+      v-else-if="route.catalog === 'filter_regulator' && route.view === 'list'"
+      @select="id => navigate('filter_regulator', 'detail', id)"
+    />
+    <FrDetail
+      v-else-if="route.catalog === 'filter_regulator' && route.view === 'detail'"
+      :id="route.id"
+      @close="navigate('filter_regulator', 'list')"
+    />
+    <FrBrand
+      v-else-if="route.catalog === 'filter_regulator' && route.view === 'brand'"
+      :model-line-id="route.id"
+      @select="id => navigate('filter_regulator', 'detail', id)"
+    />
+    <FrEngineer
+      v-else-if="route.catalog === 'filter_regulator' && route.view === 'engineer'"
+      @select="id => navigate('filter_regulator', 'detail', id)"
+    />
+
     <!-- 404 -->
     <div v-else class="not-found">
       <p>Страница не найдена</p>
@@ -53,6 +78,11 @@ import GearboxSection from '@/apps/gearbox-catalog/components/GearboxSection.vue
 import GearboxList from '@/apps/gearbox-catalog/components/GearboxList.vue'
 import GearboxDetail from '@/apps/gearbox-catalog/components/GearboxDetail.vue'
 import GearboxBrand from '@/apps/gearbox-catalog/components/GearboxBrand.vue'
+import FrSection from '@/apps/filter-regulator-catalog/components/GearboxSection.vue'
+import FrList from '@/apps/filter-regulator-catalog/components/GearboxList.vue'
+import FrDetail from '@/apps/filter-regulator-catalog/components/GearboxDetail.vue'
+import FrBrand from '@/apps/filter-regulator-catalog/components/GearboxBrand.vue'
+import FrEngineer from '@/apps/filter-regulator-catalog/components/EngineerCatalog.vue'
 
 const props = defineProps({
   /** Список разрешённых каталогов (из конфига виджета) */

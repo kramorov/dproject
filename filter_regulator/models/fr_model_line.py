@@ -3,12 +3,15 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
+from core.models.cert_doc_mixin import CertDocMixin
+from core.models.smart_catalog_mixin import SmartCatalogMixin
 from filter_regulator.models import FilterRegulatorVariety
 from materials.models import MaterialGeneral , MaterialSpecified
 from producers.models import Brands
 
 
-class FilterRegulatorModelLine(models.Model):
+class FilterRegulatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, SmartCatalogMixin, models.Model):
     """
     Серия пневматических фитингов
     """

@@ -5,10 +5,12 @@ from .catalog import (
     FilterRegulatorFilterOptionsView,
 )
 from .meta import FilterRegulatorMetaView
+from .engineer import EngineerCatalogView
 
 __all__ = [
     'FilterRegulatorCatalogView',
     'FilterRegulatorDetailView',
     'FilterRegulatorFilterOptionsView',
     'FilterRegulatorMetaView',
+    'EngineerCatalogView',
 ]

@@ -211,10 +211,10 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
             if preview_url :
                 return format_html(
-                    '<img src="{}" style="max-width: 80px; max-height: 80px; '
+                    '<img id="preview-img-{2}" src="{0}" style="max-width: 80px; max-height: 80px; '
                     'border-radius: 4px; border: 1px solid #ddd; object-fit: cover;" '
-                    'title="{}" onerror="this.style.display=\'none\'" />' ,
-                    preview_url , obj.title
+                    'title="{1}" onerror="this.style.display=\'none\'" />' ,
+                    preview_url , obj.title , obj.pk
                 )
 
         # Иконка для не-изображений
@@ -282,7 +282,25 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
                     .then(data => {{
                         if (data.success) {{
                             statusDiv.innerHTML = '<span style="color: #155724;">✅ ' + data.message + '</span>';
-                            setTimeout(function() {{ location.reload(); }}, 2000);
+                            // Update preview image in-place
+                            var previewImg = document.getElementById('preview-img-' + itemId);
+                            if (previewImg && data.new_preview_url) {{
+                                previewImg.src = data.new_preview_url + '?t=' + Date.now();
+                                previewImg.style.display = '';
+                            }}
+                            // Update file info fields
+                            var fileSizeEl = document.getElementById('file-size-' + itemId);
+                            if (fileSizeEl && data.new_file_size_display) {{
+                                fileSizeEl.textContent = data.new_file_size_display;
+                            }}
+                            var filenameEl = document.getElementById('filename-' + itemId);
+                            if (filenameEl && data.new_filename) {{
+                                filenameEl.textContent = data.new_filename;
+                            }}
+                            var fileTypeEl = document.getElementById('file-type-' + itemId);
+                            if (fileTypeEl && data.new_file_type_html) {{
+                                fileTypeEl.innerHTML = data.new_file_type_html;
+                            }}
                         }} else {{
                             statusDiv.innerHTML = '<span style="color: #721c24;">❌ ' + data.message + '</span>';
                         }}
@@ -303,23 +321,24 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
     def file_type_display(self , obj) :
         ext = obj.file_extension.upper() if obj.file_extension else "-"
         if obj.is_image() :
-            return format_html('<span style="color: green;">🖼️ {}</span>' , ext)
+            html = format_html('<span style="color: green;">🖼️ {}</span>' , ext)
         elif obj.is_video() :
-            return format_html('<span style="color: blue;">🎬 {}</span>' , ext)
+            html = format_html('<span style="color: blue;">🎬 {}</span>' , ext)
         elif obj.is_document() :
-            return format_html('<span style="color: orange;">📄 {}</span>' , ext)
+            html = format_html('<span style="color: orange;">📄 {}</span>' , ext)
         else :
-            return format_html('<span>📁 {}</span>' , ext)
+            html = format_html('<span>📁 {}</span>' , ext)
+        return format_html('<span id="file-type-{}">{}</span>' , obj.pk , html)
 
     file_type_display.short_description = _("Тип файла")
 
     def file_size_display(self , obj) :
-        return obj.file_size_display
+        return format_html('<span id="file-size-{}">{}</span>' , obj.pk , obj.file_size_display)
 
     file_size_display.short_description = _("Размер")
 
     def filename_display(self , obj) :
-        return obj.filename
+        return format_html('<span id="filename-{}">{}</span>' , obj.pk , obj.filename)
 
     filename_display.short_description = _("Имя файла")
 
@@ -457,7 +476,10 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
                     response_data = {
                         'success' : True ,
                         'message' : 'Файл успешно заменен' ,
-                        'new_filename' : new_file.name ,
+                        'new_filename' : media_item.filename ,
+                        'new_preview_url' : media_item.preview_file.url if media_item.preview_file else (media_item.media_file.url if media_item.is_image() else None) ,
+                        'new_file_size_display' : media_item.file_size_display ,
+                        'new_file_type_html' : self.file_type_display(media_item) ,
                     }
 
                     logger.info(f"Файл заменен для {media_item.pk}")
@@ -580,4 +602,3 @@ class MediaCategoryAdmin(admin.ModelAdmin) :
         if obj and obj.is_predefined :
             return False
         return super().has_delete_permission(request , obj)
-
