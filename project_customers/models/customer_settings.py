@@ -32,10 +32,18 @@ class CustomerSettings(models.Model) :
     bitrix_webhook = models.CharField(max_length=500 , blank=True , verbose_name=_("Bitrix webhook"))
     onec_api_url = models.CharField(max_length=500 , blank=True , verbose_name=_("1C API URL"))
 
+    # Валюта по умолчанию для каталога
+    default_currency = models.ForeignKey(
+        'price.Currency',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Валюта каталога"),
+        help_text=_("В какой валюте показывать цены в каталоге (RUB, USD, ...)")
+    )
+
     class Meta :
         verbose_name = _("Настройки клиента")
         verbose_name_plural = _("Настройки клиентов")
 
     def __str__(self) :
         return f"Настройки {self.customer.name}"
-

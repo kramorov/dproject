@@ -4,19 +4,10 @@
 Используются вьюхой каталога для построения фильтров и опций.
 """
 from core.models.smart_catalog_mixin import FilterDefinition, FilterType, DataSourceType
-from params.models import IpOption, MountingPlateTypes
+from params.models import IpOption
 
 
 GEARBOX_FILTER_DEFINITIONS = [
-    # Серия редуктора
-    FilterDefinition(
-        param_name='model_line_id',
-        model_field='model_line',
-        filter_type=FilterType.EXACT,
-        data_source_type=DataSourceType.FOREIGN_KEY,
-        label='Серия',
-        order=1,
-    ),
     # IP (с ранжированием)
     FilterDefinition(
         param_name='ip_id',
@@ -54,23 +45,14 @@ GEARBOX_FILTER_DEFINITIONS = [
         label='Рабочий момент не менее, Нм',
         order=7,
     ),
-    # Материал корпуса
+    # Материал корпуса — только используемые в GearBox
     FilterDefinition(
         param_name='body_material_id',
         model_field='body_material',
         filter_type=FilterType.EXACT,
-        data_source_type=DataSourceType.FOREIGN_KEY,
+        data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
         label='Материал корпуса',
         order=8,
-    ),
-    # Модель корпуса
-    FilterDefinition(
-        param_name='body_id',
-        model_field='body',
-        filter_type=FilterType.EXACT,
-        data_source_type=DataSourceType.FOREIGN_KEY,
-        label='Модель корпуса',
-        order=9,
     ),
     # Бренд через серию
     FilterDefinition(
@@ -81,13 +63,12 @@ GEARBOX_FILTER_DEFINITIONS = [
         label='Бренд',
         order=10,
     ),
-    # Монтажная площадка (верх)
+    # Монтажная площадка — только используемые в GearBox
     FilterDefinition(
         param_name='mounting_plate_top_id',
         model_field='body__mounting_plate_top',
         filter_type=FilterType.EXACT,
-        data_source_type=DataSourceType.GLOBAL_MODEL,
-        source_model=MountingPlateTypes,
+        data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
         label='Монтажная площадка',
         order=11,
     ),

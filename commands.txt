@@ -10,7 +10,7 @@ git checkout -- db.sqlite3 (отмена локальных изменений)
 git pull main office-work
 git push main office-work       Старое: git push main av-be-master:main
 МАТЕРИАЛИЗОВАННОЕ ПРЕДСТАВЛЕНИЕ
-
+docker compose up -d
 cp db.sqlite3 "db.sqlite3.backup_$(Get-Date -Format 'yyyyMMdd')"
 
 streamlit run main_page.py
@@ -22,6 +22,7 @@ deepseek login --api-key sk-6dac533475de4e1cb36238915dac2d84
 cd C:\Users\s.kramorov\PycharmProjects\djangoProject1
 cd C:\Users\kramo\PycharmProjects\djangoProject1
 deepseek-tui
+deepseek update
 Прочитай SESSION.md и продолжай
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).
@@ -219,8 +220,13 @@ npm install -D sass-embedded
 Если DeepSeek-TUI продолжает портить файлы, замените его на Aider.
 Это тоже консольный агент, но его алгоритм редактирования файлов (режим Diff/Architect) — один из лучших в мире.
 В терминале PyCharm установите его: pip install aider-chat.
-Настройте ключ DeepSeek в переменных окружения Windows (в PowerShell: $env:DEEPSEEK_API_KEY="ваш_ключ").
-Запустите командой: aider --model deepseek/deepseek-chat
+Настройте ключ DeepSeek в переменных окружения Windows (в PowerShell: $env:DEEPSEEK_API_KEY="sk-6dac533475de4e1cb36238915dac2d84").
+Запустите командой: aider --model deepseek/deepseek-v4-pro
 (или укажите модель deepseek-v4-pro / deepseek-v4-flash в зависимости от используемой версии API).
 Почему это работает лучше: Aider намного стабильнее работает с разметкой изменений, автоматически делает аккуратные
 Git-коммиты после каждой правки, и если код сломался, вы можете просто написать ему /undo.
+
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+uvx --python 3.11 aider-chat
+uvx --from aider-chat aider.exe
+uvx --from aider-chat aider.exe --model deepseek/deepseek-v4-pro

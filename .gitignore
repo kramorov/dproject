@@ -35,3 +35,4 @@ Thumbs.db
 # DeepSeek temp scripts (legacy root, now in deepseek-tools/)
 #_*.py
 #_*.txt
+.aider*

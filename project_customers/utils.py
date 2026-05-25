@@ -25,6 +25,10 @@ def get_current_customer_user(request) :
     # 3. Для отладки - возвращаем первого пользователя
     if settings.DEBUG :
         ProjectCustomerUser = apps.get_model('project_customers' , 'ProjectCustomerUser')
+        ProjectCustomer = apps.get_model('project_customers' , 'ProjectCustomer')
+        archimed = ProjectCustomer.objects.filter(name__icontains='Архимед').first()
+        if archimed:
+            return ProjectCustomerUser.objects.filter(customer=archimed).first()
         return ProjectCustomerUser.objects.first()
 
     return None

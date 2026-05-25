@@ -1,0 +1,22 @@
+/* shared/themes/minimal.css — минималистичная схема.
+   Подключить ПОВЕРХ default.css: <link rel="stylesheet" href="themes/minimal.css"> */
+:root {
+  --cat-primary: #111827;
+  --cat-primary-hover: #374151;
+  --cat-primary-light: #f3f4f6;
+
+  --cat-radius-sm: 0;
+  --cat-radius-md: 0;
+  --cat-radius-lg: 0;
+  --cat-radius-xl: 0;
+  --cat-radius-2xl: 0;
+
+  --cat-shadow-card: none;
+  --cat-shadow-card-hover: none;
+  --cat-shadow-modal: 0 4px 24px rgba(0,0,0,.3);
+
+  --cat-border: #d1d5db;
+  --cat-card-image-ratio: 1 / 1;
+  --cat-header-title-size: var(--cat-text-2xl);
+  --cat-thumb-size: 56px;
+}

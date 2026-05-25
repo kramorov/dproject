@@ -142,7 +142,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware' ,
     'django.contrib.messages.middleware.MessageMiddleware' ,
     'django.middleware.locale.LocaleMiddleware' ,
-    'django.middleware.clickjacking.XFrameOptionsMiddleware' ,
+    # 'django.middleware.clickjacking.XFrameOptionsMiddleware' ,
 ]
 
 # Настройки медиабиблиотеки
@@ -307,6 +307,7 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+X_FRAME_OPTIONS = 'ALLOWALL'
 
 import sys
 if sys.platform == 'win32':

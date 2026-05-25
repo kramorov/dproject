@@ -1664,3 +1664,134 @@ class AdminCopyMixin:
 
     copy_selected_objects.short_description = copy_action_description
 
+
+class CatalogDictMixin:
+    """
+    Миксин для моделей каталога — структурированная сериализация в словарь.
+
+    Использует единый метод ``to_dict()`` для трёх режимов выдачи:
+      - ``get_field_meta()``     — метаданные полей (label, group, unit, type)
+      - ``to_values_dict()``     — только значения (для списков)
+      - ``to_dict()``            — полная структура с секциями (для деталки)
+
+    ``to_dict()`` должен возвращать словарь с ключами:
+      - ``template_vars``   — плоский словарь {key: value} для шаблонов описаний
+      - ``sections``        — список секций [{key, title, type, order, data/groups}]
+
+    Поддерживает gettext-переводы через ``django.utils.translation.gettext_lazy``.
+    При запросе с ``?lang=zh`` Django-мидлварь активирует нужную локаль.
+    """
+
+    def to_dict(self) -> dict:
+        raise NotImplementedError(
+            f"{self.__class__.__name__} должен реализовать to_dict()"
+        )
+
+    @classmethod
+    def get_field_meta(cls) -> dict:
+        """
+        Извлекает плоский словарь field_key -> {label, group, unit, type} из sections.
+
+        Вызывается на классе (без инстанса) — создаёт dummy-объект.
+        """
+        dummy = cls()
+        data = dummy.to_dict()
+        meta = {}
+        for section in data.get("sections", []):
+            if section.get("type") == "specs":
+                for group in section.get("groups", []):
+                    for field in group.get("fields", []):
+                        meta[field["key"]] = {
+                            "label": field["label"],
+                            "group": group.get("title", ""),
+                            "unit": field.get("unit", ""),
+                            "type": field.get("type", "text"),
+                            "order": field.get("order", 0),
+                        }
+        return meta
+
+    def to_values_dict(self) -> dict:
+        """
+        Только значения полей (без метаданных) — для списков.
+
+        Возвращает:
+            {id, code, name, values: {key: value}, images, model_line, sku, ...}
+        """
+        data = self.to_dict()
+        values = {}
+        for section in data.get("sections", []):
+            if section.get("type") == "specs":
+                for group in section.get("groups", []):
+                    for field in group.get("fields", []):
+                        values[field["key"]] = field["value"]
+        return {
+            "id": data.get("id"),
+            "code": data.get("code"),
+            "name": data.get("name"),
+            "image_alt": data.get("image_alt", ""),
+            "template_vars": data.get("template_vars", {}),
+            "values": values,
+            "images": next(
+                (s["data"] for s in data.get("sections", [])
+                 if s.get("type") == "gallery"),
+                [],
+            ),
+            "model_line": data.get("model_line"),
+            "sku": data.get("sku"),
+        }
+
+    @staticmethod
+    def build_schema(data: dict, *, price_data: dict = None,
+                     category_name: str = None) -> dict:
+        """
+        Генерирует Schema.org Product из структуры to_dict().
+
+        Читает:
+          - data["code"], data["name"]               -> name, sku, mpn
+          - data["template_vars"]["brand_name"]       -> Brand
+          - data["sections"][type=gallery]            -> image
+          - data["sections"][type=text]               -> description
+          - price_data                                -> Offer
+        """
+        tv = data.get("template_vars", {}) or {}
+
+        # Изображения
+        images = []
+        for s in data.get("sections", []):
+            if s.get("type") == "gallery":
+                images = [img["url"] for img in s.get("data", []) if img.get("url")]
+                break
+
+        # Описание
+        description = ""
+        for s in data.get("sections", []):
+            if s.get("type") == "text" and s.get("data"):
+                description = s["data"]
+                break
+
+        schema = {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": tv.get("name") or data.get("name", ""),
+            "sku": tv.get("code") or data.get("code", ""),
+            "mpn": tv.get("code") or data.get("code", ""),
+            "image": images[0] if images else None,
+            "description": description or None,
+            "brand": (
+                {"@type": "Brand", "name": tv["brand_name"]}
+                if tv.get("brand_name") else None
+            ),
+            "category": str(category_name) if category_name else None,
+            "offers": (
+                {
+                    "@type": "Offer",
+                    "priceCurrency": price_data.get("currency", "USD") if price_data else "USD",
+                    "price": str(price_data.get("price", "")),
+                    "availability": "https://schema.org/InStock",
+                }
+                if price_data else None
+            ),
+        }
+
+        return {k: v for k, v in schema.items() if v is not None}
+

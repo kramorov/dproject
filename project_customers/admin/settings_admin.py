@@ -6,7 +6,7 @@ from project_customers.models import CustomerSettings , UserSettings
 
 @admin.register(CustomerSettings)
 class CustomerSettingsAdmin(admin.ModelAdmin):
-    list_display = ['customer', 'request_number_template']
+    list_display = ['customer', 'default_currency', 'request_number_template']
     search_fields = ['customer__name']
 
 

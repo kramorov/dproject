@@ -26,6 +26,7 @@ export default defineConfig({
         'price-catalog': resolve(__dirname, 'src/apps/price-catalog/index.html'),
         'sku-admin': resolve(__dirname, 'src/apps/sku-admin/index.html'),
         'gearbox-catalog': resolve(__dirname, 'src/apps/gearbox-catalog/index.html'),
+        'widget': resolve(__dirname, 'src/apps/widget/index.html'),
       },
     },
   },

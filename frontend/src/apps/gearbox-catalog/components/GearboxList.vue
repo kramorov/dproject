@@ -1,38 +1,24 @@
+<!-- gearbox-catalog/components/GearboxList.vue -->
+<!-- Страница подбора редукторов — использует FilterSidebar + ProductCard -->
 <template>
   <div class="list-page">
     <!-- Поиск -->
     <div class="search-bar">
       <input
         v-model="search"
-        placeholder="Поиск редукторов по названию, коду, описанию..."
+        placeholder="Поиск редукторов по названию, коду..."
         @input="onSearchInput"
       />
     </div>
 
     <div class="content">
       <!-- Боковая панель фильтров -->
-      <aside class="sidebar" v-if="filters.loaded">
-        <div class="filter-block">
-          <h3>Фильтры</h3>
-          <button class="reset-btn" @click="resetFilters" v-if="hasActiveFilters">Сбросить</button>
-        </div>
-
-        <div
-          v-for="(f, key) in sortedFilters"
-          :key="key"
-          class="filter-group"
-        >
-          <label>{{ f.label }}</label>
-          <select v-model="activeFilters[key]" @change="applyFilters">
-            <option value="">Все</option>
-            <option
-              v-for="opt in f.options"
-              :key="opt.id"
-              :value="opt.id"
-            >{{ opt.name }}</option>
-          </select>
-        </div>
-      </aside>
+      <FilterSidebar
+        v-if="filtersLoaded"
+        :filters="filterData"
+        @change="onFilterChange"
+        @reset="resetFilters"
+      />
 
       <!-- Сетка карточек -->
       <main class="main">
@@ -41,12 +27,12 @@
         </div>
 
         <div class="grid" v-if="items.length">
-          <GearboxCard
+          <ProductCard
             v-for="item in items"
             :key="item.id"
             :item="item"
-            :price="prices[item.sku?.code] || null"
-            @click="select(item.id)"
+            :price="item.price || null"
+            @select="id => emit('select', id)"
           />
         </div>
 
@@ -56,15 +42,9 @@
 
         <!-- Пагинация -->
         <div class="pagination" v-if="total > limit">
-          <button
-            :disabled="offset === 0"
-            @click="goPage(offset - limit)"
-          >← Назад</button>
+          <button :disabled="offset === 0" @click="goPage(offset - limit)">← Назад</button>
           <span>{{ offset + 1 }}–{{ Math.min(offset + limit, total) }} из {{ total }}</span>
-          <button
-            :disabled="offset + limit >= total"
-            @click="goPage(offset + limit)"
-          >Вперёд →</button>
+          <button :disabled="offset + limit >= total" @click="goPage(offset + limit)">Вперёд →</button>
         </div>
       </main>
     </div>
@@ -72,8 +52,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
-import GearboxCard from './GearboxCard.vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import FilterSidebar from '@/shared/components/FilterSidebar.vue'
+import ProductCard from '@/shared/components/ProductCard.vue'
 import gearboxApi from '../api'
 
 const props = defineProps({ filters: Object })
@@ -81,29 +62,25 @@ const emit = defineEmits(['select'])
 
 const search = ref('')
 const items = ref([])
-const prices = reactive({})
 const loaded = ref(false)
 const total = ref(0)
 const limit = ref(24)
 const offset = ref(0)
-
+const filterData = reactive({})
+const filtersLoaded = ref(false)
 const activeFilters = reactive({})
 
 let searchTimer = null
 
-// Сортировка фильтров по order
-const sortedFilters = computed(() => {
-  const arr = []
-  for (const [key, val] of Object.entries(props.filters.data)) {
-    arr.push({ key, ...val })
+async function loadFilters() {
+  try {
+    const r = await gearboxApi.getFilters()
+    Object.assign(filterData, r.data || {})
+  } catch (e) {
+    console.error('Failed to load filters', e)
   }
-  arr.sort((a, b) => (a.order || 99) - (b.order || 99))
-  return arr
-})
-
-const hasActiveFilters = computed(() => {
-  return Object.values(activeFilters).some(v => v !== '' && v != null)
-})
+  filtersLoaded.value = true
+}
 
 function onSearchInput() {
   clearTimeout(searchTimer)
@@ -113,7 +90,8 @@ function onSearchInput() {
   }, 300)
 }
 
-function applyFilters() {
+function onFilterChange(key, value) {
+  activeFilters[key] = value
   offset.value = 0
   fetchData()
 }
@@ -122,8 +100,10 @@ function resetFilters() {
   for (const k of Object.keys(activeFilters)) {
     activeFilters[k] = ''
   }
+  Object.assign(filterData, {})
   search.value = ''
   offset.value = 0
+  loadFilters()
   fetchData()
 }
 
@@ -145,21 +125,6 @@ async function fetchData() {
     const r = await gearboxApi.list(params)
     items.value = r.data.data || []
     total.value = r.data.total || 0
-
-    // Загружаем цены
-    const codes = r.data.sku_codes || []
-    if (codes.length) {
-      try {
-        const pr = await gearboxApi.getPrices(codes)
-        if (pr.data?.snapshots) {
-          for (const [code, entry] of Object.entries(pr.data.snapshots)) {
-            prices[code] = entry
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load prices', e)
-      }
-    }
   } catch (e) {
     console.error('Failed to load catalog', e)
     items.value = []
@@ -168,42 +133,27 @@ async function fetchData() {
   loaded.value = true
 }
 
-function select(id) {
-  emit('select', id)
-}
-
-onMounted(() => {
-  if (props.filters.loaded) fetchData()
-})
-
-watch(() => props.filters.loaded, (val) => {
-  if (val) fetchData()
+onMounted(async () => {
+  await loadFilters()
+  fetchData()
 })
 </script>
 
 <style scoped>
-.list-page{max-width:1440px;margin:0 auto}
-.search-bar{margin-bottom:20px}
-.search-bar input{width:100%;padding:12px 16px;font-size:16px;border:1px solid #d1d5db;border-radius:8px;background:#fff;outline:none}
-.search-bar input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-.content{display:flex;gap:24px}
-.sidebar{width:260px;flex-shrink:0}
-.filter-block{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.filter-block h3{font-size:18px;font-weight:600;margin:0}
-.reset-btn{padding:4px 12px;font-size:13px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer}
-.reset-btn:hover{background:#e5e7eb}
-.filter-group{margin-bottom:16px}
-.filter-group label{display:block;font-size:13px;font-weight:500;color:#6b7280;margin-bottom:4px}
-.filter-group select{width:100%;padding:8px 10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;background:#fff}
-.main{flex:1;min-width:0}
-.results-info{font-size:14px;color:#6b7280;margin-bottom:16px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.empty{text-align:center;padding:60px 20px;color:#9ca3af;font-size:16px}
-.pagination{display:flex;justify-content:center;align-items:center;gap:16px;margin-top:32px;padding:16px 0}
-.pagination button{padding:8px 20px;font-size:14px;background:#fff;border:1px solid #d1d5db;border-radius:6px;cursor:pointer}
-.pagination button:disabled{opacity:.4;cursor:default}
-.pagination button:not(:disabled):hover{border-color:#2563eb;color:#2563eb}
-.pagination span{font-size:14px;color:#6b7280}
-@media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){.content{flex-direction:column}.sidebar{width:100%}.grid{grid-template-columns:1fr}}
+.list-page { max-width: 1440px; margin: 0 auto; }
+.search-bar { margin-bottom: 20px; }
+.search-bar input { width: 100%; padding: 12px 16px; font-size: var(--cat-text-lg); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-lg); background: var(--cat-surface); outline: none; }
+.search-bar input:focus { border-color: var(--cat-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.content { display: flex; gap: 24px; }
+.main { flex: 1; min-width: 0; }
+.results-info { font-size: var(--cat-text-base); color: var(--cat-muted); margin-bottom: 16px; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.empty { text-align: center; padding: 60px 20px; color: var(--cat-muted-light); font-size: var(--cat-text-lg); }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 32px; padding: 16px 0; }
+.pagination button { padding: 8px 20px; font-size: var(--cat-text-base); background: var(--cat-pagination-btn-bg); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); cursor: pointer; }
+.pagination button:disabled { opacity: .4; cursor: default; }
+.pagination button:not(:disabled):hover { border-color: var(--cat-primary); color: var(--cat-primary); }
+.pagination span { font-size: var(--cat-text-base); color: var(--cat-muted); }
+@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .content { flex-direction: column; } .grid { grid-template-columns: 1fr; } }
 </style>

@@ -1,0 +1,26 @@
+/* shared/themes/dark.css — тёмная схема каталога.
+   Подключить ПОВЕРХ default.css: <link rel="stylesheet" href="themes/dark.css"> */
+:root {
+  --cat-primary: #3b82f6;
+  --cat-primary-hover: #60a5fa;
+  --cat-primary-light: #1e3a5f;
+  --cat-text: #e5e7eb;
+  --cat-text-soft: #d1d5db;
+  --cat-muted: #9ca3af;
+  --cat-muted-light: #6b7280;
+  --cat-border: #374151;
+  --cat-border-light: #1f2937;
+  --cat-bg: #1f2937;
+  --cat-bg-page: #111827;
+  --cat-bg-hover: #374151;
+  --cat-surface: #1f2937;
+  --cat-overlay: rgba(0,0,0,0.7);
+
+  --cat-shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --cat-shadow-card: 0 4px 16px rgba(0,0,0,.4);
+  --cat-shadow-card-hover: 0 4px 20px rgba(59,130,246,.15);
+  --cat-shadow-modal: 0 4px 24px rgba(0,0,0,.5);
+
+  --cat-pagination-btn-bg: var(--cat-bg);
+  --cat-dl-btn-color: #fff;
+}

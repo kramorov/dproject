@@ -1,27 +1,57 @@
 <template>
   <div class="app">
-    <GearboxList
-      v-if="!selectedId"
-      :filters="filters"
-      @select="selectedId = $event"
+    <!-- Страница серий -->
+    <GearboxSection
+      v-if="page === 'section'"
+      @select-series="goToBrand"
+      @select="goToList"
     />
+
+    <!-- Страница подбора (каталог с фильтрами) -->
+    <GearboxList
+      v-else-if="page === 'list'"
+      :filters="filters"
+      @select="onSelectItem"
+    />
+
+    <!-- Страница карточки товара -->
     <GearboxDetail
-      v-else
+      v-else-if="page === 'detail'"
       :id="selectedId"
-      @close="selectedId = null"
+      @close="page = 'list'"
+    />
+
+    <!-- Страница бренда -->
+    <GearboxBrand
+      v-else-if="page === 'brand'"
+      :brand-id="brandId"
+      @select="onSelectItem"
     />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import GearboxSection from './components/GearboxSection.vue'
 import GearboxList from './components/GearboxList.vue'
 import GearboxDetail from './components/GearboxDetail.vue'
+import GearboxBrand from './components/GearboxBrand.vue'
 import gearboxApi from './api'
 
+const page = ref('section')
 const selectedId = ref(null)
+const brandId = ref(null)
 const filters = reactive({ loaded: false, data: {} })
 
+function goToList() { page.value = 'list' }
+function goToBrand(id) { brandId.value = id; page.value = 'brand' }
+
+function onSelectItem(id) {
+  selectedId.value = id
+  page.value = 'detail'
+}
+
+// Предзагрузка фильтров
 onMounted(async () => {
   try {
     const r = await gearboxApi.getFilters()
@@ -36,6 +66,6 @@ onMounted(async () => {
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;color:#1a1a1a}
+body{font-family:var(--cat-font);background:var(--cat-bg-page);color:var(--cat-text)}
 .app{max-width:1440px;margin:0 auto;padding:16px}
 </style>

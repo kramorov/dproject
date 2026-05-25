@@ -1,0 +1,53 @@
+<!-- shared/components/ProductCard.vue -->
+<template>
+  <div class="product-card" @click="emit('select', item.id)">
+    <div class="card-image">
+      <img v-if="imageUrl" :src="imageUrl" :alt="item.image_alt || item.name" loading="lazy" />
+      <span v-else class="no-image">🈚</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-title">{{ item.name || item.code }}</h3>
+      <p class="card-code" v-if="item.code">{{ item.code }}</p>
+      <div class="card-price" v-if="price">
+        <span class="price-val">{{ price.price }}</span>
+        <span class="price-cur">{{ price.symbol || price.currency }}</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+
+const props = defineProps({
+  item: { type: Object, required: true },
+  price: { type: Object, default: null },
+})
+
+const emit = defineEmits(['select'])
+
+const imageUrl = computed(() => {
+  const imgs = props.item.images || []
+  return imgs[0]?.url || imgs[0]?.preview_url || null
+})
+</script>
+
+<style scoped>
+.product-card {
+  background: var(--cat-card-bg);
+  border: 1px solid var(--cat-border);
+  border-radius: var(--cat-radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow .2s, transform .2s, border-color .2s;
+}
+.product-card:hover { box-shadow: var(--cat-shadow-card-hover); border-color: var(--cat-primary); transform: translateY(-2px); }
+.card-image { aspect-ratio: var(--cat-card-image-ratio); background: var(--cat-bg); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.card-image img { width: 100%; height: 100%; object-fit: contain; }
+.no-image { font-size: 32px; color: var(--cat-border); }
+.card-body { padding: var(--cat-card-padding); }
+.card-title { font-size: var(--cat-card-title-size); font-weight: var(--cat-card-title-weight); margin: 0 0 4px; color: var(--cat-text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: var(--cat-card-title-lines); -webkit-box-orient: vertical; overflow: hidden; }
+.card-code { font-size: var(--cat-text-xs); color: var(--cat-muted); font-family: var(--cat-font-mono); margin: 0 0 8px; }
+.price-val { font-size: var(--cat-price-size); font-weight: var(--cat-price-weight); color: var(--cat-price-color); }
+.price-cur { font-size: var(--cat-text-xs); color: var(--cat-muted); margin-left: 2px; }
+</style>

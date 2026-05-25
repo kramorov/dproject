@@ -1,17 +1,25 @@
-# filter_requlator/models/fr_model_line_item.py
+# filter_regulator/models/fr_model_line_item.py
 from typing import Dict, List, Any
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.mixins import CopyMixin, TemplateMixin, CatalogDictMixin, ImageGalleryMixin, TechDocMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from filter_regulator.models import FilterRegulatorBody
 from filter_regulator.models.fr_model_line import FilterRegulatorModelLine
 from filter_regulator.models.fr_options import FilterRegulatorVariety, DrainVariety
 
 
-class FilterRegulator(SmartCatalogMixin, CopyMixin, TemplateMixin, models.Model):
+class FilterRegulator(
+    CatalogDictMixin,
+    CopyMixin,
+    ImageGalleryMixin,
+    TechDocMixin,
+    SmartCatalogMixin,
+    TemplateMixin,
+    models.Model,
+):
     """Модель фильтр-регулятора (каталог)"""
     name = models.TextField(blank=True,
                             verbose_name=_("Название"),
@@ -47,8 +55,20 @@ class FilterRegulator(SmartCatalogMixin, CopyMixin, TemplateMixin, models.Model)
                              blank=True,
                              null=True,
                              on_delete=models.SET_NULL,
-                             help_text=_('Материал корпус фильтр-регулятора'),
+                             help_text=_('Корпус фильтр-регулятора'),
                              verbose_name=_("Корпус"))
+
+    ip = models.ForeignKey('params.IpOption', related_name='filter_regulator_ip',
+                           blank=True, null=True,
+                           on_delete=models.SET_NULL,
+                           verbose_name=_("Степень защиты IP"))
+
+    body_material = models.ForeignKey('materials.MaterialGeneral',
+                                      related_name='filter_regulator_body_material',
+                                      blank=True, null=True,
+                                      on_delete=models.SET_NULL,
+                                      verbose_name=_('Материал корпуса'))
+
     work_temp_min = models.IntegerField(
         null=True, blank=True, default=-40,
         help_text=_('Минимальная рабочая температура, °С'),
@@ -59,26 +79,6 @@ class FilterRegulator(SmartCatalogMixin, CopyMixin, TemplateMixin, models.Model)
         help_text=_('Максимальная рабочая температура, °С'),
         verbose_name=_('Т раб.макс, °С'))
 
-    pressure_min = models.DecimalField(decimal_places=2, max_digits=6,
-                                       null=True, blank=True, default=0,
-                                       help_text=_('Минимальное давление на выходе, бар'),
-                                       verbose_name=_('P выход.мин, бар'))
-
-    pressure_max = models.DecimalField(decimal_places=2, max_digits=6,
-                                       null=True, blank=True, default=8,
-                                       help_text=_('Максимальное давление на выходе, бар'),
-                                       verbose_name=_('P выход.макс, бар'))
-    pressure_inlet_max = models.DecimalField(decimal_places=2, max_digits=6,
-                                             null=True, blank=True, default=10,
-                                             help_text=_('Максимальное рабочее давление, бар'),
-                                             verbose_name=_('P раб.макс, бар'))
-
-    drain_variety = models.ForeignKey(DrainVariety, related_name='filter_drain_variety',
-                                      blank=True,
-                                      null=True,
-                                      on_delete=models.SET_NULL,
-                                      help_text=_('Тип модели фильтр-регулятора'),
-                                      verbose_name=_("Тип"))
     filtration_rating = models.DecimalField(
         max_digits=5, decimal_places=1,
         null=True, blank=True,
@@ -103,7 +103,12 @@ class FilterRegulator(SmartCatalogMixin, CopyMixin, TemplateMixin, models.Model)
     wall_mounting_included = models.CharField(max_length=20, choices=WALL_MOUNTING_CHOICES, default='yes',
                                               verbose_name=_("Настенное крепление в комплекте"))
     has_shut_off_valve = models.BooleanField(default=False, verbose_name=_("Отсечной клапан в комплекте"))
-    # ВСЁ остальное в JSON
+
+    drain_variety = models.ForeignKey(DrainVariety, related_name='filter_drain_variety',
+                                      blank=True, null=True,
+                                      on_delete=models.SET_NULL,
+                                      verbose_name=_("Слив"))
+
     extra_params = models.JSONField(
         default=dict, blank=True,
         verbose_name=_("Параметры"),
@@ -119,38 +124,20 @@ class FilterRegulator(SmartCatalogMixin, CopyMixin, TemplateMixin, models.Model)
         return f"{self.name} ({self.code})"
 
     def copy(self):
-        """ Переоределяем - вызываем функцию из миксина CopyMixin и передаем пароаметры
-        Создает копию с суффиксом 'Копия' и сбросом sorting_order и is_active"""
-        # return super().copy(suffix=" Копия", reset_fields=['sorting_order', 'is_active'])
         return super().copy(suffix=" Копия", reset_fields=[])
 
     @property
     def gauge_quantity_display(self):
-        """Возвращает текстовое представление комплектации манометром"""
         return self.get_gauge_quantity_display()
 
     @property
-    def get_body_material_description(self):
-        """Возвращает текстовое представление комплектации манометром"""
-        return f'{self.model_line.body_material_text}' if self.model_line.body_material_text is not None else f'{self.model_line.body_material}'
-
-    @property
-    def get_bowl_material_description(self):
-        """Возвращает текстовое представление комплектации манометром"""
-        return f'{self.model_line.bowl_material_text}' if self.model_line.bowl_material_text is not None else f'{self.model_line.bowl_material}'
-
-    @property
-    def get_protection_material_description(self):
-        """Возвращает текстовое представление комплектации манометром"""
-        return f'{self.model_line.protection_material}' if self.model_line.protection_material is not None else ''
-
-    @property
     def wall_mounting_included_display(self):
-        """Возвращает текстовое представление комплектации манометром"""
         return self.get_wall_mounting_included_display()
 
+    # ── TemplateMixin helpers ──
+
     def _get_data_dict(self) -> Dict[str, str]:
-        """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
+        """Словарь плейсхолдер → dotted-путь для TemplateMixin."""
         return {
             '{model_code}': 'code',
             '{brand}': 'model_line__brand',
@@ -163,7 +150,6 @@ class FilterRegulator(SmartCatalogMixin, CopyMixin, TemplateMixin, models.Model)
             '{body_material}': 'get_body_material_description',
             '{bowl_material}': 'get_bowl_material_description',
             '{protection_material}': 'get_protection_material_description',
-            # '{body_material_specified}': 'get_body_material_description',
             '{filter_element_material}': 'filter_element_material',
             '{filtration_rating}': 'filtration_rating',
             '{work_temp_min}': 'work_temp_min',
@@ -177,254 +163,264 @@ class FilterRegulator(SmartCatalogMixin, CopyMixin, TemplateMixin, models.Model)
         }
 
     def _get_name_template_source(self):
-        """Переоределяем в модели функцию из миксина CopyMixin: вернуть шаблон названия или None."""
         return self.model_line.name_template or None
 
     def _get_description_template_source(self):
-        """Переоределяем в модели функцию из миксина CopyMixin: вернуть шаблон описания или None."""
         return self.model_line.description_template or None
 
     def _get_default_name_template(self) -> str:
-        default_description_template = (
-            "{model_code} {filter_variety} {brand}; Расход {flow_rate} л/мин; {drain_variety}; Т.окр. {work_temp_min}..{work_temp_max} °С, Рег.давления {pressure_min}..{pressure_max} бар; Порты: {thread}; фильтрация {filtration_rating} мкм;")
-        return default_description_template
+        return (
+            "{model_code} {filter_variety} {brand}; "
+            "Расход {flow_rate} л/мин; {drain_variety}; "
+            "Т.окр. {work_temp_min}..{work_temp_max} °С, "
+            "Рег.давления {pressure_min}..{pressure_max} бар; "
+            "Порты: {thread}; фильтрация {filtration_rating} мкм;"
+        )
 
     def _get_default_description_template(self) -> str:
-        default_description_template = (
-            "{model_code} {filter_variety} {brand}; Расход {flow_rate} л/мин; {drain_variety}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material}, Материал стакана: {bowl_material_text}, Кожух: {protection_material} Порты: {thread}; слив: {drain_port_size}; {gauge_quantity}; фильтрация {filtration_rating} мкм; Диапазон регулировки давления {pressure_min}..{pressure_max} бар; Макс. входное давление {pressure_inlet_max} бар; вес {weight}кг. Настенное крепление: {wall_mounting_included}")
-        return default_description_template
+        return (
+            "{model_code} {filter_variety} {brand}; "
+            "Расход {flow_rate} л/мин; {drain_variety}; "
+            "Т.окр. {work_temp_min}..{work_temp_max} °С, "
+            "Материал корпуса: {body_material}, "
+            "Материал стакана: {bowl_material_text}, "
+            "Кожух: {protection_material} "
+            "Порты: {thread}; слив: {drain_port_size}; "
+            "{gauge_quantity}; фильтрация {filtration_rating} мкм; "
+            "Диапазон регулировки давления {pressure_min}..{pressure_max} бар; "
+            "Макс. входное давление {pressure_inlet_max} бар; "
+            "вес {weight}кг. "
+            "Настенное крепление: {wall_mounting_included}"
+        )
 
-        # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
+    # ── CatalogDictMixin helpers ──
 
-    FILTER_DEFINITIONS = [
-        # --- Прямые ForeignKey ---
-        FilterDefinition(
-            param_name='model_line_id',
-            model_field='model_line',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.FOREIGN_KEY,
-            label='Серия',
-            order=1
-        ),
-        FilterDefinition(
-            param_name='drain_variety_id',
-            model_field='drain_variety',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.FOREIGN_KEY,
-            label='Тип дренажа',
-            order=2
-        ),
+    def _get_image_url(self, img):
+        if not img:
+            return None
+        try:
+            from django.conf import settings
+            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
+            return f"{base}/api/media/{img.id}/view/"
+        except Exception:
+            return None
 
-        # --- Choice-поля ---
-        FilterDefinition(
-            param_name='gauge_quantity',
-            model_field='gauge_quantity',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.CHOICES,
-            source_field='gauge_quantity',
-            label='Манометр',
-            order=3
-        ),
-        FilterDefinition(
-            param_name='filter_element_material',
-            model_field='filter_element_material',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.CHOICES,
-            source_field='filter_element_material',
-            label='Материал фильтр. элемента',
-            order=4
-        ),
+    def _get_file_info(self, doc):
+        if not doc:
+            return None
+        try:
+            from django.conf import settings
+            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
+            return {
+                'id': doc.id,
+                'title': getattr(doc, 'title', '') or '',
+                'url': f"{base}/api/media/{doc.id}/download/",
+                'file_name': getattr(doc, 'file_name', '') or '',
+            }
+        except Exception:
+            return None
 
-        # --- Диапазонные (MIN/MAX) ---
-        FilterDefinition(
-            param_name='min_filtration_rating',
-            model_field='filtration_rating',
-            filter_type=FilterType.MIN,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Тонкость фильтрации от',
-            order=5
-        ),
-        FilterDefinition(
-            param_name='max_filtration_rating',
-            model_field='filtration_rating',
-            filter_type=FilterType.MAX,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Тонкость фильтрации до',
-            order=6
-        ),
-        FilterDefinition(
-            param_name='min_flow_rate',
-            model_field='flow_rate',
-            filter_type=FilterType.MIN,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Расход от',
-            order=7
-        ),
-        FilterDefinition(
-            param_name='max_flow_rate',
-            model_field='flow_rate',
-            filter_type=FilterType.MAX,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Расход до',
-            order=8
-        ),
+    def _get_image_alt(self) -> str:
+        parts = []
+        if self.model_line and self.model_line.filter_variety:
+            parts.append(self.model_line.filter_variety.name)
+        if self.code:
+            parts.append(self.code)
+        return ' '.join(parts) or self.name or ''
 
-        # --- Связанные ForeignKey (через body / model_line) ---
-        FilterDefinition(
-            param_name='body_thread_id',
-            model_field='body__thread',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Резьба корпуса',
-            order=9
-        ),
-        FilterDefinition(
-            param_name='model_line_filter_variety_id',
-            model_field='model_line__filter_variety',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Разновидность',
-            order=10
-        ),
-        FilterDefinition(
-            param_name='model_line_body_material_id',
-            model_field='model_line__body_material',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Материал корпуса серии',
-            order=11
-        ),
-        FilterDefinition(
-            param_name='model_line_brand_id',
-            model_field='model_line__brand',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Бренд серии',
-            order=12
-        ),
-
-        # --- Температуры (TEMP_MIN = lte, TEMP_MAX = gte) ---
-        FilterDefinition(
-            param_name='work_temp_min',
-            model_field='work_temp_min',
-            filter_type=FilterType.TEMP_MIN,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Раб. температура от',
-            order=13
-        ),
-        FilterDefinition(
-            param_name='work_temp_max',
-            model_field='work_temp_max',
-            filter_type=FilterType.TEMP_MAX,
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Раб. температура до',
-            order=14
-        ),
-
-        # --- Давления (MAX=lte для user_min, MIN=gte для user_max) ---
-        FilterDefinition(
-            param_name='pressure_min',
-            model_field='pressure_min',
-            filter_type=FilterType.MAX,  # lte: оборудование.pressure_min <= user_min
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Требуемое давление от',
-            order=15
-        ),
-        FilterDefinition(
-            param_name='pressure_max',
-            model_field='pressure_max',
-            filter_type=FilterType.MIN,  # gte: оборудование.pressure_max >= user_max
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Требуемое давление до',
-            order=16
-        ),
-        FilterDefinition(
-            param_name='pressure_inlet_max',
-            model_field='pressure_inlet_max',
-            filter_type=FilterType.MIN,  # gte
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Макс. входное давление',
-            order=17
-        ),
-    ]
-
-    SEARCH_FIELDS = ['code', 'name', 'description']
-
-    SELECT_RELATED_FIELDS = [
-        'model_line',
-        'model_line__brand',  # ← добавили brand
-        'model_line__filter_variety',
-        'model_line__body_material',
-        'body',
-        'body__thread',
-        'drain_variety',
-    ]
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Сериализация фильтр-регулятора"""
+    def _get_template_vars(self) -> dict:
+        body = self.body
+        ml = self.model_line
         return {
-            # Базовые поля
+            'code': self.code or '',
+            'name': self.name or '',
+            'model_line_name': ml.name if ml else '',
+            'brand_name': ml.brand.name if ml and ml.brand else '',
+            'filter_variety': ml.filter_variety.name if ml and ml.filter_variety else '',
+            'body_material': ml.body_material_text if ml and ml.body_material_text else '',
+            'bowl_material': ml.bowl_material_text if ml and ml.bowl_material_text else '',
+            'protection_material': ml.protection_material if ml and ml.protection_material else '',
+            'ip': self.ip.name if self.ip else '',
+            'work_temp': f"{self.work_temp_min}...+{self.work_temp_max} °С" if self.work_temp_min is not None else '',
+            'pressure_range': f"{ml.pressure_min}...{ml.pressure_max}" if ml and ml.pressure_min is not None else '',
+            'pressure_inlet_max': str(ml.pressure_inlet_max) if ml and ml.pressure_inlet_max else '',
+            'weight': str(body.weight) if body and body.weight else '',
+            'thread': body.thread.name if body and body.thread else '',
+            'gauge_port_size': body.gauge_port_size.name if body and body.gauge_port_size else '',
+            'drain_port_size': body.drain_port_size.name if body and body.drain_port_size else '',
+            'filtration_rating': str(self.filtration_rating) if self.filtration_rating else '',
+            'flow_rate': str(self.flow_rate) if self.flow_rate else '',
+            'filter_element_material': self.get_filter_element_material_display() if self.filter_element_material else '',
+            'wall_mounting_included': self.get_wall_mounting_included_display() if self.wall_mounting_included else '',
+            'has_shut_off_valve': 'Да' if self.has_shut_off_valve else 'Нет',
+        }
+
+    def _get_images_section(self) -> list:
+        images = []
+        for img in self.get_images():
+            url = self._get_image_url(img)
+            if url:
+                images.append({
+                    'id': img.id,
+                    'title': getattr(img, 'title', '') or '',
+                    'url': url,
+                    'preview_url': url,
+                    'is_default': getattr(img, 'is_default', False),
+                })
+        if not images and self.model_line and hasattr(self.model_line, 'images'):
+            for img in self.model_line.images.all():
+                url = self._get_image_url(img)
+                if url:
+                    images.append({
+                        'id': img.id,
+                        'title': getattr(img, 'title', '') or '',
+                        'url': url,
+                        'preview_url': url,
+                        'is_default': getattr(img, 'is_default', False),
+                    })
+        return images
+
+    def _get_docs_section(self) -> list:
+        docs = []
+        for doc in self.tech_docs.all():
+            info = self._get_file_info(doc)
+            if info:
+                docs.append(info)
+        if self.model_line and hasattr(self.model_line, 'tech_docs'):
+            for doc in self.model_line.tech_docs.all():
+                info = self._get_file_info(doc)
+                if info and not any(d['id'] == info['id'] for d in docs):
+                    docs.append(info)
+        return docs
+
+    def _get_model_line_summary(self) -> dict:
+        if not self.model_line:
+            return None
+        ml = self.model_line
+        return {
+            'id': ml.id,
+            'name': ml.name,
+            'code': getattr(ml, 'code', '') or '',
+            'filter_variety': ml.filter_variety.name if ml.filter_variety else None,
+            'brand': {
+                'id': ml.brand.id,
+                'name': ml.brand.name,
+            } if ml.brand else None,
+        }
+
+    def _get_sku_summary(self) -> dict:
+        if not hasattr(self, 'sku') or not self.sku:
+            return None
+        return {
+            'id': self.sku.id,
+            'code': self.sku.code,
+            'name': self.sku.name,
+        }
+
+    def to_dict(self) -> dict:
+        tv = self._get_template_vars()
+        return {
             'id': self.id,
-            'name': self.name,
-            'code': self.code,
-            'description': self.description,
-            'sorting_order': self.sorting_order,
+            'code': self.code or '',
+            'name': self.name or '',
+            'description': self.description or '',
+            'image_alt': self._get_image_alt(),
             'is_active': self.is_active,
+            'sorting_order': self.sorting_order,
+            'model_line': self._get_model_line_summary(),
+            'sku': self._get_sku_summary(),
+            'template_vars': tv,
+            'sections': [
+                {
+                    'key': 'images',
+                    'title': 'Изображения',
+                    'type': 'gallery',
+                    'order': 1,
+                    'data': self._get_images_section(),
+                },
+                {
+                    'key': 'specs',
+                    'title': 'Характеристики',
+                    'type': 'specs',
+                    'order': 2,
+                    'groups': [
+                        {
+                            'key': 'general',
+                            'title': 'Основные',
+                            'order': 1,
+                            'fields': [
+                                {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'unit': '', 'type': 'text', 'order': 1},
+                                {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'unit': '', 'type': 'text', 'order': 2},
+                                {'key': 'filter_variety', 'label': 'Тип', 'value': tv['filter_variety'], 'unit': '', 'type': 'text', 'order': 3},
+                                {'key': 'body_material', 'label': 'Материал корпуса', 'value': tv['body_material'], 'unit': '', 'type': 'text', 'order': 4},
+                                {'key': 'bowl_material', 'label': 'Материал стакана', 'value': tv['bowl_material'], 'unit': '', 'type': 'text', 'order': 5},
+                                {'key': 'protection_material', 'label': 'Материал кожуха', 'value': tv['protection_material'], 'unit': '', 'type': 'text', 'order': 6},
+                                {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 7},
+                                {'key': 'filtration_rating', 'label': 'Тонкость фильтрации', 'value': tv['filtration_rating'], 'unit': 'мкм', 'type': 'number', 'order': 8},
+                                {'key': 'flow_rate', 'label': 'Расход', 'value': tv['flow_rate'], 'unit': 'л/мин', 'type': 'number', 'order': 9},
+                                {'key': 'filter_element_material', 'label': 'Фильтрующий элемент', 'value': tv['filter_element_material'], 'unit': '', 'type': 'text', 'order': 10},
+                            ]
+                        },
+                        {
+                            'key': 'pressure',
+                            'title': 'Давление',
+                            'order': 2,
+                            'fields': [
+                                {'key': 'pressure_range', 'label': 'Диапазон выходного давления', 'value': tv['pressure_range'], 'unit': 'бар', 'type': 'text', 'order': 1},
+                                {'key': 'pressure_inlet_max', 'label': 'Макс. входное давление', 'value': tv['pressure_inlet_max'], 'unit': 'бар', 'type': 'number', 'order': 2},
+                            ]
+                        },
+                        {
+                            'key': 'body_specs',
+                            'title': 'Корпус',
+                            'order': 3,
+                            'fields': [
+                                {'key': 'weight', 'label': 'Вес', 'value': tv['weight'], 'unit': 'кг', 'type': 'number', 'order': 1},
+                                {'key': 'thread', 'label': 'Резьба портов', 'value': tv['thread'], 'unit': '', 'type': 'text', 'order': 2},
+                                {'key': 'gauge_port_size', 'label': 'Резьба манометра', 'value': tv['gauge_port_size'], 'unit': '', 'type': 'text', 'order': 3},
+                                {'key': 'drain_port_size', 'label': 'Резьба слива', 'value': tv['drain_port_size'], 'unit': '', 'type': 'text', 'order': 4},
+                                {'key': 'wall_mounting_included', 'label': 'Настенное крепление', 'value': tv['wall_mounting_included'], 'unit': '', 'type': 'text', 'order': 5},
+                                {'key': 'has_shut_off_valve', 'label': 'Отсечной клапан', 'value': tv['has_shut_off_valve'], 'unit': '', 'type': 'text', 'order': 6},
+                            ]
+                        },
+                        {
+                            'key': 'conditions',
+                            'title': 'Условия эксплуатации',
+                            'order': 4,
+                            'fields': [
+                                {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'], 'unit': '', 'type': 'text', 'order': 1},
+                            ]
+                        },
+                    ]
+                },
+                {
+                    'key': 'docs',
+                    'title': 'Документация',
+                    'type': 'files',
+                    'order': 3,
+                    'data': self._get_docs_section(),
+                },
+                {
+                    'key': 'description',
+                    'title': 'Описание',
+                    'type': 'text',
+                    'order': 4,
+                    'data': self.description or '',
+                },
+            ],
+        }
 
-            # Параметры
-            'gauge_quantity': self.gauge_quantity,
-            'gauge_quantity_display': self.get_gauge_quantity_display(),
-            'filtration_rating': float(self.filtration_rating) if self.filtration_rating else None,
-            'filter_element_material': self.filter_element_material,
-            'filter_element_material_display': self.get_filter_element_material_display(),
-            'flow_rate': float(self.flow_rate) if self.flow_rate else None,
-            'wall_mounting_included': self.wall_mounting_included,
-            'wall_mounting_included_display': self.get_wall_mounting_included_display(),
-            'has_shut_off_valve': self.has_shut_off_valve,
-            'extra_params': self.extra_params or {},
-
-            # Связанные модели
-            'model_line': {
-                'id': self.model_line.id,
-                'name': self.model_line.name,
-                'code': getattr(self.model_line, 'code', ''),
-                'brand': {
-                    'id': self.model_line.brand.id,
-                    'name': self.model_line.brand.name,
-                    'code': getattr(self.model_line.brand, 'code', '')
-                } if self.model_line and self.model_line.brand else None,
-                'filter_variety': {
-                    'id': self.model_line.filter_variety.id,
-                    'name': self.model_line.filter_variety.name,
-                } if self.model_line and self.model_line.filter_variety else None,
-                'body_material': {
-                    'id': self.model_line.body_material.id,
-                    'name': self.model_line.body_material.name,
-                } if self.model_line and self.model_line.body_material else None,
-                'work_temp_min': self.model_line.work_temp_min if self.model_line else None,
-                'work_temp_max': self.model_line.work_temp_max if self.model_line else None,
-                'pressure_min': float(
-                    self.model_line.pressure_min) if self.model_line and self.model_line.pressure_min is not None else None,
-                'pressure_max': float(
-                    self.model_line.pressure_max) if self.model_line and self.model_line.pressure_max is not None else None,
-                'pressure_inlet_max': float(
-                    self.model_line.pressure_inlet_max) if self.model_line and self.model_line.pressure_inlet_max is not None else None,
-            } if self.model_line else None,
-
-            'drain_variety': {
-                'id': self.drain_variety.id,
-                'name': self.drain_variety.name,
-                'code': getattr(self.drain_variety, 'code', '')
-            } if self.drain_variety else None,
-
-            'body': {
-                'id': self.body.id,
-                'name': self.body.name,
-                'code': getattr(self.body, 'code', ''),
-                'thread': {
-                    'id': self.body.thread.id,
-                    'name': self.body.thread.name,
-                    'code': self.body.thread.code
-                } if self.body and self.body.thread else None
-            } if self.body else None,
+    def to_values_dict(self) -> dict:
+        tv = self._get_template_vars()
+        images = self._get_images_section()
+        return {
+            'id': self.id,
+            'code': self.code or '',
+            'name': self.name or '',
+            'image_alt': self._get_image_alt(),
+            'template_vars': tv,
+            'values': tv,
+            'images': images,
+            'model_line': self._get_model_line_summary(),
+            'sku': self._get_sku_summary(),
         }
