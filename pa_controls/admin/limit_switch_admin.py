@@ -237,7 +237,8 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes']
-    filter_horizontal = ['additional_sensor', 'exd','images', 'tech_docs',]
+    filter_horizontal = ['additional_sensor', 'exd']
+    raw_id_fields = ['images', 'tech_docs']
 
 
     fieldsets = (
@@ -260,6 +261,9 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         (_('Дополнительные опции'), {
             'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
         }),
+        (_('Изображения и технички'), {
+            'fields': ('images', 'tech_docs'),
+        }),
         (_('Дополнительные параметры JSON'), {
             'fields': ('extra_params',),
             'classes': ('wide',),
@@ -273,29 +277,59 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form_class = super().get_form(request, obj, **kwargs)
 
-        # Патчим __init__: пропускаем exd в model_to_dict, затем заполняем вручную
+        # Патчим __init__: пропускаем M2M-поля (exd, images, tech_docs) — обход бага prefetch
+        skipped = {'exd'}  # images/tech_docs — через raw_id_fields, не конфликтуют
         original_init = form_class.__init__
         def patched_init(self_form, *args, **init_kwargs):
             opts = self_form._meta
             saved_fields = opts.fields
-            if saved_fields and 'exd' in saved_fields:
-                opts.fields = tuple(f for f in saved_fields if f != 'exd')
+            if saved_fields:
+                opts.fields = tuple(f for f in saved_fields if f not in skipped)
             original_init(self_form, *args, **init_kwargs)
             opts.fields = saved_fields
-            # Заполняем exd вручную через raw SQL
+            # Заполняем M2M-поля вручную через raw SQL
             instance = init_kwargs.get('instance') or (args[0] if args else None)
             if instance and instance.pk:
                 self_form.initial['exd'] = instance.exd_get_ids()
+                # images и tech_docs — через through-таблицу
+                from django.db import connection
+                with connection.cursor() as cur:
+                    cur.execute('SELECT medialibraryitem_id FROM pa_controls_limitswitchbox_images WHERE limitswitchbox_id = %s', [instance.pk])
+                    self_form.initial['images'] = [r[0] for r in cur.fetchall()]
+                    cur.execute('SELECT medialibraryitem_id FROM pa_controls_limitswitchbox_tech_docs WHERE limitswitchbox_id = %s', [instance.pk])
+                    self_form.initial['tech_docs'] = [r[0] for r in cur.fetchall()]
         form_class.__init__ = patched_init
 
         return form_class
 
     def save_related(self, request, form, formsets, change):
-        # Вытаскиваем exd ДО save_m2m — иначе Django упадёт на .set()
+        # Вытаскиваем M2M-поля ДО save_m2m — обход бага prefetch
         exd_data = form.cleaned_data.pop('exd', None)
+        images_data = form.cleaned_data.pop('images', None)
+        tech_docs_data = form.cleaned_data.pop('tech_docs', None)
         super().save_related(request, form, formsets, change)
+        inst = form.instance
         if exd_data is not None:
-            form.instance.exd_set_ids([o.pk for o in exd_data])
+            inst.exd_set_ids([o.pk for o in exd_data])
+        if images_data is not None:
+            from django.db import connection
+            with connection.cursor() as cur:
+                cur.execute('DELETE FROM pa_controls_limitswitchbox_images WHERE limitswitchbox_id = %s', [inst.pk])
+                for media_id in [o.pk if hasattr(o, 'pk') else o for o in images_data]:
+                    cur.execute('INSERT INTO pa_controls_limitswitchbox_images (limitswitchbox_id, medialibraryitem_id) VALUES (%s, %s)', [inst.pk, media_id])
+        if tech_docs_data is not None:
+            from django.db import connection
+            with connection.cursor() as cur:
+                cur.execute('DELETE FROM pa_controls_limitswitchbox_tech_docs WHERE limitswitchbox_id = %s', [inst.pk])
+                for media_id in [o.pk if hasattr(o, 'pk') else o for o in tech_docs_data]:
+                    cur.execute('INSERT INTO pa_controls_limitswitchbox_tech_docs (limitswitchbox_id, medialibraryitem_id) VALUES (%s, %s)', [inst.pk, media_id])
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        # images/tech_docs — raw_id вместо filter_horizontal (обход бага prefetch)
+        if db_field.name in ('images', 'tech_docs'):
+            from django import forms
+            kwargs['widget'] = forms.SelectMultiple()
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(

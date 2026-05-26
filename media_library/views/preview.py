@@ -4,10 +4,14 @@ GET — просмотр превью или файла в браузере.
 
 Для изображений отдаёт preview_file (если есть), иначе оригинал.
 Для PDF отдаёт как inline.
-Для остальных — скачивание (как download).
+
+Режим зависит от settings.MEDIA_SERVE_MODE:
+    'proxy'    — Django читает файл и стримит клиенту
+    'redirect' — редирект на presigned URL (клиент качает напрямую из S3)
 """
 import logging
-from django.http import Http404, FileResponse
+from django.http import Http404, FileResponse, HttpResponseRedirect
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -21,7 +25,6 @@ logger = logging.getLogger(__name__)
 class MediaPreviewView(APIView):
     permission_classes = [AllowAny]
 
-    # MIME-типы, которые безопасно показывать inline
     SAFE_INLINE_TYPES = {
         'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
         'application/pdf',
@@ -46,7 +49,9 @@ class MediaPreviewView(APIView):
                 {'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN
             )
 
-        # Выбираем, что отдавать: превью или оригинал
+        mode = getattr(settings, 'MEDIA_SERVE_MODE', 'redirect')
+
+        # Выбираем файл: превью или оригинал
         file_field = None
         content_type = item.mime_type or 'application/octet-stream'
         is_previewable = item.is_image() or item.file_extension.lower() == 'pdf'
@@ -54,7 +59,7 @@ class MediaPreviewView(APIView):
         if is_previewable and item.preview_file and item.preview_file.name:
             if item.preview_file.storage.exists(item.preview_file.name):
                 file_field = item.preview_file
-                content_type = 'image/jpeg'  # preview всегда JPEG
+                content_type = 'image/jpeg'
 
         if file_field is None:
             if not item.media_file or not item.media_file.name:
@@ -63,7 +68,12 @@ class MediaPreviewView(APIView):
                 raise Http404("File not found on storage")
             file_field = item.media_file
 
-        # Определяем Content-Disposition
+        if mode == 'redirect':
+            url = file_field.url
+            logger.info(f"Preview redirect: {item.filename} (id={pk})")
+            return HttpResponseRedirect(url)
+
+        # proxy mode — стримим через Django
         is_safe = content_type in self.SAFE_INLINE_TYPES or is_previewable
         disposition = 'inline' if is_safe else 'attachment'
 
@@ -78,5 +88,5 @@ class MediaPreviewView(APIView):
         response['X-Content-Type-Options'] = 'nosniff'
         response['X-Frame-Options'] = 'SAMEORIGIN'
 
-        logger.info(f"Preview: {item.filename} (id={pk}, inline={is_safe})")
+        logger.info(f"Preview proxy: {item.filename} (id={pk}, inline={is_safe})")
         return response

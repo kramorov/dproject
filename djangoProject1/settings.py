@@ -20,7 +20,32 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR , 'media')
 # Настройки хранилища
-FILE_STORAGE_BACKEND = 'local'  # 'local' или 'yandex_cloud'
+FILE_STORAGE_BACKEND = 'cloudru'  # было 'local'
+# FILE_STORAGE_BACKEND = os.getenv('FILE_STORAGE_BACKEND', 'local')
+
+# Режим раздачи медиафайлов:
+#   'proxy'    — Django читает из хранилища и стримит клиенту (медленно, но контролирует доступ)
+#   'redirect' — редирект на presigned URL / прямой URL хранилища (быстро, клиент качает напрямую)
+# Режим раздачи медиафайлов:
+#   'redirect' — 302 на presigned URL S3 (быстро, клиент качает напрямую из облака)
+#   'proxy'    — Django стримит файл через себя (медленно, но полный контроль доступа)
+MEDIA_SERVE_MODE = 'redirect'
+# Cloud.ru Evolution Object Storage
+# --- Админский аккаунт (запись, удаление, управление) ---
+CLOUDRU_ADMIN_TENANT_ID = 'ffe0e1bf-9a68-496a-9029-34355a9e1527'
+CLOUDRU_ADMIN_KEY_ID = '559cd892faa5b6b99024317984b6842c'      # ← впиши Key ID админского сервисного аккаунта
+CLOUDRU_ADMIN_KEY_SECRET = '0396f67824ad72d6102ffddfeb47ae4c'  # ← впиши Key Secret
+
+# --- Читательский аккаунт (только чтение, для раздачи через фронт) ---
+CLOUDRU_READER_TENANT_ID = 'ffe0e1bf-9a68-496a-9029-34355a9e1527'      # ← tenant_id (может совпадать с админским)
+CLOUDRU_READER_KEY_ID = 'b80dbdc1a274dd429829fd9a35cb4648'         # ← Key ID читательского сервисного аккаунта
+CLOUDRU_READER_KEY_SECRET = '6aa288e0cba5cca6dd6d03e48243068c'     # ← Key Secret
+
+# --- Общие настройки ---
+CLOUDRU_BUCKET_NAME = 'media-storage'
+CLOUDRU_ENDPOINT_URL = 'https://s3.cloud.ru'
+CLOUDRU_REGION = 'ru-central-1'
+  # 'local' или 'cloudru'
 # Настройки для Yandex Cloud (для будущего использования)
 # YC_BUCKET_NAME = os.getenv('YC_BUCKET_NAME', '')
 # YC_ACCESS_KEY = os.getenv('YC_ACCESS_KEY', '')

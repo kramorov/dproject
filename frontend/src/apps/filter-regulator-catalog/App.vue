@@ -39,7 +39,7 @@ import { ref, reactive, onMounted } from 'vue'
 import GearboxSection from './components/GearboxSection.vue'
 import GearboxList from './components/GearboxList.vue'
 import GearboxDetail from './components/GearboxDetail.vue'
-import GearboxBrand from './components/GearboxBrand.vue'
+import GearboxBrand from './components/FrBrand.vue'
 import EngineerCatalog from './components/EngineerCatalog.vue'
 import frApi from './api'
 

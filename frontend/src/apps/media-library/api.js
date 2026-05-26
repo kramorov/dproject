@@ -21,6 +21,7 @@ export default {
     return api.delete(`${BASE}/${id}/`, { params })
   },
   copy(id) { return api.post(`${BASE}/${id}/copy/`) },
+  recreatePreview(id) { return api.post(`${BASE}/${id}/recreate-preview/`) },
   list(params = {}) {
     return api.get('/core/', { params: { model: 'media_library.MediaLibraryItem', fmt: 'compact', ...params } })
   },

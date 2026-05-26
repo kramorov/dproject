@@ -10,8 +10,8 @@ from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, Com
 from core.models.mixins import TemplateMixin, CopyMixin, CatalogDictMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified
-from pa_controls.models import LimitSwitchSensorVariety , LimitSwitchBody , \
-    SensorComponent , SignalType , ContactForm , ContactState
+from pa_controls.models import LimitSwitchSensorVariety, LimitSwitchBody, \
+    SensorComponent, SignalType, ContactForm, ContactState
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 from params.exd_models import ExdOption
 from sku.models import SKUMixin
@@ -27,11 +27,11 @@ from params.models import IpOption
 # БЛОК КОНЦЕВЫХ ВЫКЛЮЧАТЕЛЕЙ (Limit Switch Box)
 # ============================================================
 class LimitSwitchBox(CatalogDictMixin,
-    ImageGalleryMixin,
-    TechDocMixin,
-    SmartCatalogMixin,
-    TemplateMixin,
-    SKUMixin,CopyMixin, models.Model):
+                     ImageGalleryMixin,
+                     TechDocMixin,
+                     SmartCatalogMixin,
+                     TemplateMixin,
+                     SKUMixin, CopyMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -69,18 +69,18 @@ class LimitSwitchBox(CatalogDictMixin,
     )
 
     primary_sensor = models.ForeignKey(
-        SensorComponent ,
-        blank=True , null=True, on_delete=models.SET_NULL,
-        verbose_name=_("Датчик основной") ,
-        help_text=_("Основной датчик") ,
+        SensorComponent,
+        blank=True, null=True, on_delete=models.SET_NULL,
+        verbose_name=_("Датчик основной"),
+        help_text=_("Основной датчик"),
         related_name='limit_switch_boxes_primary_sensor'  # обратная связь от датчика к корпусам
     )
     # Добавляем Many-to-Many связь с дополнительными датчиками
     additional_sensor = models.ManyToManyField(
-        SensorComponent ,
-        blank=True ,
-        verbose_name=_("Датчики дополнительные") ,
-        help_text=_("Дополнительные датчики") ,
+        SensorComponent,
+        blank=True,
+        verbose_name=_("Датчики дополнительные"),
+        help_text=_("Дополнительные датчики"),
         related_name='limit_switch_boxes_additional_sensor'  # обратная связь от датчика к корпусам
     )
 
@@ -135,6 +135,22 @@ class LimitSwitchBox(CatalogDictMixin,
         verbose_name=_("Параметры"),
         help_text=_("signal_type, resistance, range и т.д.")
     )
+    # Переопределяем images из ImageGalleryMixin —
+    # related_name='+' ломает prefetch в Django 5.2
+    images = models.ManyToManyField(
+        'media_library.MediaLibraryItem',
+        blank=True,
+        related_name='limitswitchbox_images',
+        verbose_name="Изображения",
+        help_text="Изображения из медиабиблиотеки"
+    )
+    # Переопределяем tech_docs из TechDocMixin
+    tech_docs = models.ManyToManyField(
+        'media_library.MediaLibraryItem',
+        blank=True,
+        related_name='lsb_tech_docs',
+        verbose_name="Техдокументация",
+    )
 
     class Meta:
         verbose_name = _("Блок концевых выключателей")
@@ -143,7 +159,6 @@ class LimitSwitchBox(CatalogDictMixin,
 
     def __str__(self):
         return f"{self.name}"
-
 
     # ── SKUMixin ──
 
@@ -286,7 +301,7 @@ class LimitSwitchBox(CatalogDictMixin,
         if not ids:
             return "Нет"
         return ", ".join(req.name for req in ExdOption.objects.filter(id__in=ids))
-    
+
     def _get_name_template_source(self):
         """Переопределить в модели: вернуть шаблон названия или None."""
         return self.model_line.name_template or None
@@ -307,19 +322,20 @@ class LimitSwitchBox(CatalogDictMixin,
 
     @property
     def get_primary_sensor_contact_form(self) -> str:
-        return '' if self.primary_sensor.contact_form.code=='NONE' else self.primary_sensor.contact_form
+        return '' if self.primary_sensor.contact_form.code == 'NONE' else self.primary_sensor.contact_form
+
     @property
-    def get_sensors_signal_types_list(self) -> str :
+    def get_sensors_signal_types_list(self) -> str:
         codes = []
-        if self.primary_sensor and self.primary_sensor.signal_type :
+        if self.primary_sensor and self.primary_sensor.signal_type:
             codes.append(self.primary_sensor.signal_type.name)
-        for sensor in self.additional_sensor.all() :
-            if sensor.signal_type :
+        for sensor in self.additional_sensor.all():
+            if sensor.signal_type:
                 codes.append(sensor.signal_type.name)
 
-        if not codes :
+        if not codes:
             return ""
-        if len(codes) == 1 :
+        if len(codes) == 1:
             return codes[0]
         return "+".join(codes[:-1]) + " + " + codes[-1]
 
@@ -340,23 +356,24 @@ class LimitSwitchBox(CatalogDictMixin,
             return f"{names[0]}; + {names[1]}"
         else:
             return ", ".join(names[:-1]) + f" + {names[-1]}"
+
     @property
-    def get_additional_sensors_names_list(self) -> str :
+    def get_additional_sensors_names_list(self) -> str:
         """
         Возвращает текстовый список датчиков.
         Разделитель - символ "+"
         """
         sensor_components = self.additional_sensor.all()
-        if not sensor_components :
+        if not sensor_components:
             return ""
 
         names = [item.generate_name() for item in sensor_components]
 
-        if len(names) == 1 :
+        if len(names) == 1:
             return names[0]
-        elif len(names) == 2 :
+        elif len(names) == 2:
             return f"{names[0]}; + {names[1]}"
-        else :
+        else:
             return ", ".join(names[:-1]) + f" + {names[-1]}"
 
     def _get_data_dict(self) -> Dict[str, str]:
@@ -377,13 +394,13 @@ class LimitSwitchBox(CatalogDictMixin,
             '{ip}': 'ip',
             # M2M поле - вызов метода get_sensors_list с подшаблоном
             # В подшаблоне можно использовать поля из SensorComponent (name, brand, signal_type, electrical_specs и т.д.)
-            '{primary_sensor}' : 'primary_sensor__description' ,
+            '{primary_sensor}': 'primary_sensor__description',
             '{primary_sensor_signal_type}': 'primary_sensor__signal_type',
             '{primary_sensor_contact_state}': 'primary_sensor__contact_state',
             '{primary_sensor_contact_form}': 'get_primary_sensor_contact_form',
             # '{primary_sensor}': 'primary_sensor__description',
-            '{sensors}' : 'get_additional_sensors_names_list' ,
-            '{signals}' : 'get_sensors_signal_types_list' ,
+            '{sensors}': 'get_additional_sensors_names_list',
+            '{signals}': 'get_sensors_signal_types_list',
             '{sensors_description}': 'get_sensors_description_list',
         }
 
@@ -550,9 +567,26 @@ class LimitSwitchBox(CatalogDictMixin,
             'cert_description': self.get_cert_docs_description() or '',
         }
 
+    @staticmethod
+    def _safe_m2m(instance, method_name):
+        try:
+            return getattr(instance, method_name)()
+        except Exception:
+            return []
+
     def _get_images_section(self) -> list:
+        from django.db import connection
+        from media_library.models import MediaLibraryItem
         images = []
-        for img in self.images.all():
+
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT medialibraryitem_id FROM pa_controls_limitswitchbox_images WHERE limitswitchbox_id = %s',
+                [self.pk]
+            )
+            ids = [row[0] for row in c.fetchall()]
+
+        for img in MediaLibraryItem.objects.filter(id__in=ids):
             if img.media_file:
                 images.append({
                     'id': img.id,
@@ -561,8 +595,16 @@ class LimitSwitchBox(CatalogDictMixin,
                     'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
                     'is_default': getattr(img, 'is_default', False),
                 })
+
         if not images and self.model_line:
-            for img in self.model_line.images.all():
+            # raw SQL через модель model_line
+            with connection.cursor() as c:
+                c.execute(
+                    'SELECT medialibraryitem_id FROM pa_controls_limitswitchmodelline_images WHERE limitswitchmodelline_id = %s',
+                    [self.model_line.pk]
+                )
+                ids = [row[0] for row in c.fetchall()]
+            for img in MediaLibraryItem.objects.filter(id__in=ids):
                 if img.media_file:
                     images.append({
                         'id': img.id,
@@ -574,32 +616,66 @@ class LimitSwitchBox(CatalogDictMixin,
         return images
 
     def _get_docs_section(self) -> list:
+        from django.db import connection
+        from media_library.models import MediaLibraryItem
         docs = []
-        for doc in self.tech_docs.all():
-            if doc.media_file:
+        seen = set()
+        # 1. Документация самого товара
+        with connection.cursor() as c:
+            c.execute(
+                'SELECT medialibraryitem_id FROM pa_controls_limitswitchbox_tech_docs WHERE limitswitchbox_id = %s',
+                [self.pk]
+            )
+            ids = [row[0] for row in c.fetchall()]
+        for doc in MediaLibraryItem.objects.filter(id__in=ids):
+            if doc.media_file and doc.id not in seen:
+                seen.add(doc.id)
                 docs.append({
-                    'id': doc.id,
-                    'title': getattr(doc, 'title', '') or '',
-                    'url': doc.media_file.url,
-                    'file_name': getattr(doc, 'title', '') or '',
+                    'id': doc.id, 'title': getattr(doc, 'title', '') or '',
+                    'url': doc.media_file.url, 'file_name': getattr(doc, 'title', '') or '',
                 })
+        # 2. Документация из серии (model_line)
+        if self.model_line:
+            with connection.cursor() as c:
+                c.execute(
+                    'SELECT medialibraryitem_id FROM pa_controls_limitswitchmodelline_tech_docs WHERE limitswitchmodelline_id = %s',
+                    [self.model_line.pk]
+                )
+                ids = [row[0] for row in c.fetchall()]
+            for doc in MediaLibraryItem.objects.filter(id__in=ids):
+                if doc.media_file and doc.id not in seen:
+                    seen.add(doc.id)
+                    docs.append({
+                        'id': doc.id, 'title': getattr(doc, 'title', '') or '',
+                        'url': doc.media_file.url, 'file_name': getattr(doc, 'title', '') or '',
+                    })
         return docs
 
     def _get_certs_section(self) -> list:
+        from django.db import connection
         certs = []
         if self.model_line and hasattr(self.model_line, 'cert_docs'):
-            for cert in self.model_line.cert_docs.all():
-                media = getattr(cert, 'media_item', None)
-                if not media:
-                    continue
+            # raw SQL через through-таблицу сертификатов model_line
+            with connection.cursor() as c:
+                c.execute(
+                    'SELECT certdata_id FROM pa_controls_limitswitchmodelline_cert_docs WHERE limitswitchmodelline_id = %s',
+                    [self.model_line.pk]
+                )
+                cert_ids = [row[0] for row in c.fetchall()]
+            if cert_ids:
+                from cert_doc.models import CertData
                 from django.conf import settings
                 base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
-                certs.append({
-                    'id': cert.id,
-                    'title': getattr(cert, 'name', '') or '',
-                    'file_name': getattr(cert, 'code', '') or '',
-                    'url': f'{base}/api/media/{media.id}/download/',
-                })
+                for cert in CertData.objects.filter(id__in=cert_ids):
+                    media = getattr(cert, 'media_item', None)
+                    if not media:
+                        continue
+                    certs.append({
+                        'id': cert.id,
+                        'title': getattr(cert, 'name', '') or '',
+                        'file_name': getattr(cert, 'code', '') or '',
+                        'url': f"{base}/api/media/{media.id}/view/",
+                    })
         return certs
 
     def _get_model_line_summary(self) -> dict:
@@ -641,59 +717,77 @@ class LimitSwitchBox(CatalogDictMixin,
             'sections': [
                 {
                     'key': 'images', 'title': 'Изображения', 'type': 'gallery',
-                    'order': 1, 'data': self._get_images_section(),
+                    'order': 1, 'data': self._safe_m2m(self, '_get_images_section')
                 },
                 {
                     'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
                     'order': 2, 'groups': [
-                        {
-                            'key': 'general', 'title': 'Основные', 'order': 1,
-                            'fields': [
-                                {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'sensor_variety', 'label': 'Тип сенсора', 'value': tv['sensor_variety'], 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'points', 'label': 'Количество датчиков', 'value': tv['points'], 'unit': '', 'type': 'number', 'order': 4},
-                                {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 5},
-                                {'key': 'exd', 'label': 'Взрывозащита', 'value': tv['exd'], 'unit': '', 'type': 'text', 'order': 6},
-                                {'key': 'is_pneumatic', 'label': 'Пневматический', 'value': tv['is_pneumatic'], 'unit': '', 'type': 'text', 'order': 7},
-                                {'key': 'has_namur_interface', 'label': 'NAMUR интерфейс', 'value': tv['has_namur_interface'], 'unit': '', 'type': 'text', 'order': 8},
-                                {'key': 'has_visual_indicator', 'label': 'Визуальный индикатор', 'value': tv['has_visual_indicator'], 'unit': '', 'type': 'text', 'order': 9},
-                            ]
-                        },
-                        {
-                            'key': 'body', 'title': 'Корпус', 'order': 2,
-                            'fields': [
-                                {'key': 'body_material', 'label': 'Материал корпуса', 'value': tv['body_material'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'body_material_specified', 'label': 'Материал (уточн.)', 'value': tv['body_material_specified'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'weight', 'label': 'Вес', 'value': tv['weight'], 'unit': 'кг', 'type': 'number', 'order': 3},
-                                {'key': 'cable_glands_holes', 'label': 'Отверстия под КВ', 'value': tv['cable_glands_holes'], 'unit': '', 'type': 'text', 'order': 4},
-                                {'key': 'mounting', 'label': 'Монтаж', 'value': tv['mounting'], 'unit': '', 'type': 'text', 'order': 5},
-                            ]
-                        },
-                        {
-                            'key': 'sensors', 'title': 'Датчики', 'order': 3,
-                            'fields': [
-                                {'key': 'primary_sensor', 'label': 'Основной датчик', 'value': tv['primary_sensor'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'primary_sensor_signal_type', 'label': 'Тип сигнала', 'value': tv['primary_sensor_signal_type'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'sensors', 'label': 'Доп. датчики', 'value': tv['sensors'], 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'signals', 'label': 'Типы сигналов', 'value': tv['signals'], 'unit': '', 'type': 'text', 'order': 4},
-                            ]
-                        },
-                        {
-                            'key': 'conditions', 'title': 'Условия эксплуатации', 'order': 4,
-                            'fields': [
-                                {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'], 'unit': '', 'type': 'text', 'order': 1},
-                            ]
-                        },
-                    ]
+                    {
+                        'key': 'general', 'title': 'Основные', 'order': 1,
+                        'fields': [
+                            {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'unit': '',
+                             'type': 'text', 'order': 1},
+                            {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'unit': '',
+                             'type': 'text', 'order': 2},
+                            {'key': 'sensor_variety', 'label': 'Тип сенсора', 'value': tv['sensor_variety'], 'unit': '',
+                             'type': 'text', 'order': 3},
+                            {'key': 'points', 'label': 'Количество датчиков', 'value': tv['points'], 'unit': '',
+                             'type': 'number', 'order': 4},
+                            {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 5},
+                            {'key': 'exd', 'label': 'Взрывозащита', 'value': tv['exd'], 'unit': '', 'type': 'text',
+                             'order': 6},
+                            {'key': 'is_pneumatic', 'label': 'Пневматический', 'value': tv['is_pneumatic'], 'unit': '',
+                             'type': 'text', 'order': 7},
+                            {'key': 'has_namur_interface', 'label': 'NAMUR интерфейс',
+                             'value': tv['has_namur_interface'], 'unit': '', 'type': 'text', 'order': 8},
+                            {'key': 'has_visual_indicator', 'label': 'Визуальный индикатор',
+                             'value': tv['has_visual_indicator'], 'unit': '', 'type': 'text', 'order': 9},
+                        ]
+                    },
+                    {
+                        'key': 'body', 'title': 'Корпус', 'order': 2,
+                        'fields': [
+                            {'key': 'body_material', 'label': 'Материал корпуса', 'value': tv['body_material'],
+                             'unit': '', 'type': 'text', 'order': 1},
+                            {'key': 'body_material_specified', 'label': 'Материал (уточн.)',
+                             'value': tv['body_material_specified'], 'unit': '', 'type': 'text', 'order': 2},
+                            {'key': 'weight', 'label': 'Вес', 'value': tv['weight'], 'unit': 'кг', 'type': 'number',
+                             'order': 3},
+                            {'key': 'cable_glands_holes', 'label': 'Отверстия под КВ',
+                             'value': tv['cable_glands_holes'], 'unit': '', 'type': 'text', 'order': 4},
+                            {'key': 'mounting', 'label': 'Монтаж', 'value': tv['mounting'], 'unit': '', 'type': 'text',
+                             'order': 5},
+                        ]
+                    },
+                    {
+                        'key': 'sensors', 'title': 'Датчики', 'order': 3,
+                        'fields': [
+                            {'key': 'primary_sensor', 'label': 'Основной датчик', 'value': tv['primary_sensor'],
+                             'unit': '', 'type': 'text', 'order': 1},
+                            {'key': 'primary_sensor_signal_type', 'label': 'Тип сигнала',
+                             'value': tv['primary_sensor_signal_type'], 'unit': '', 'type': 'text', 'order': 2},
+                            {'key': 'sensors', 'label': 'Доп. датчики', 'value': tv['sensors'], 'unit': '',
+                             'type': 'text', 'order': 3},
+                            {'key': 'signals', 'label': 'Типы сигналов', 'value': tv['signals'], 'unit': '',
+                             'type': 'text', 'order': 4},
+                        ]
+                    },
+                    {
+                        'key': 'conditions', 'title': 'Условия эксплуатации', 'order': 4,
+                        'fields': [
+                            {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'], 'unit': '',
+                             'type': 'text', 'order': 1},
+                        ]
+                    },
+                ]
                 },
                 {
                     'key': 'docs', 'title': 'Документация', 'type': 'files',
-                    'order': 3, 'data': self._get_docs_section(),
+                    'order': 3, 'data': self._safe_m2m(self, '_get_docs_section')
                 },
                 {
                     'key': 'certs', 'title': 'Сертификаты', 'type': 'files',
-                    'order': 4, 'data': self._get_certs_section(),
+                    'order': 4, 'data': self._safe_m2m(self, '_get_certs_section')
                 },
                 {
                     'key': 'description', 'title': 'Описание', 'type': 'text',

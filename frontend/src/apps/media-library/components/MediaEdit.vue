@@ -50,6 +50,9 @@
         <button class="btn-copy" :disabled="copying" @click="doCopy">
           {{ copying ? 'Копирование...' : 'Копировать' }}
         </button>
+        <button class="btn-preview" :disabled="recreating" @click="doRecreatePreview">
+          {{ recreating ? 'Обновление...' : '🔄 Обновить превью' }}
+        </button>
         <button class="btn-danger" :disabled="deleting" @click="doDelete">
           {{ deleting ? 'Удаление...' : 'Удалить' }}
         </button>
@@ -82,6 +85,7 @@ const newFile = ref(null)
 const saving = ref(false)
 const deleting = ref(false)
 const copying = ref(false)
+const recreating = ref(false)
 const saveError = ref(null)
 
 function previewUrl(id) { return mediaApi.previewUrl(id) }
@@ -161,6 +165,22 @@ async function doDelete() {
   }
 }
 
+async function doRecreatePreview() {
+  recreating.value = true; saveError.value = null
+  try {
+    const { data } = await mediaApi.recreatePreview(props.item.id)
+    if (data.success) {
+      emit('updated')  // перечитает список и обновит preview URL
+    } else {
+      saveError.value = data.message || 'Не удалось обновить превью'
+    }
+  } catch (e) {
+    saveError.value = e.displayMessage || 'Ошибка обновления превью'
+  } finally {
+    recreating.value = false
+  }
+}
+
 async function doCopy() {
   copying.value = true; saveError.value = null
   try {
@@ -195,6 +215,7 @@ async function doCopy() {
 .btn-primary { background: #2563eb; color: #fff; }
 .btn-danger  { background: #dc2626; color: #fff; }
 .btn-copy    { background: #059669; color: #fff; }
+.btn-preview { background: #d97706; color: #fff; }
 .btn-cancel  { background: #e5e7eb; color: #374151; }
-.btn-primary:disabled, .btn-danger:disabled, .btn-copy:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary:disabled, .btn-danger:disabled, .btn-copy:disabled, .btn-preview:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

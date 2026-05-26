@@ -27,6 +27,7 @@ export default defineConfig({
         'sku-admin': resolve(__dirname, 'src/apps/sku-admin/index.html'),
         'gearbox-catalog': resolve(__dirname, 'src/apps/gearbox-catalog/index.html'),
         'filter-regulator-catalog': resolve(__dirname, 'src/apps/filter-regulator-catalog/index.html'),
+        'limit-switch-catalog': resolve(__dirname, 'src/apps/limit-switch-catalog/index.html'),
         'widget': resolve(__dirname, 'src/apps/widget/index.html'),
       },
     },

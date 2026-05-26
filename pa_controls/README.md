@@ -20,8 +20,8 @@ CatalogDictMixin   — to_dict(), to_values_dict(), build_schema()
 SmartCatalogMixin  — фильтрация и поиск
 CopyMixin          — копирование (_copy_custom_relations для M2M)
 TemplateMixin      — генерация названия/описания по шаблону
-ImageGalleryMixin  — галерея изображений
-TechDocMixin       — техническая документация
+ImageGalleryMixin  — галерея изображений (переопределён related_name)
+TechDocMixin       — техническая документация (переопределён related_name)
 SKUMixin           — привязка к номенклатуре
 ```
 
@@ -46,10 +46,10 @@ SKUMixin           — привязка к номенклатуре
     "sections": [
         {"key": "images", "type": "gallery"},
         {"key": "specs", "type": "specs", "groups": [
-            {"key": "general", "title": "Основные", "fields": [...]},      # 9 полей
-            {"key": "body", "title": "Корпус", "fields": [...]},           # 5 полей
-            {"key": "sensors", "title": "Датчики", "fields": [...]},       # 4 поля
-            {"key": "conditions", "title": "Условия эксплуатации"},        # 1 поле
+            {"key": "general", "title": "Основные", "fields": [...]},
+            {"key": "body", "title": "Корпус", "fields": [...]},
+            {"key": "sensors", "title": "Датчики", "fields": [...]},
+            {"key": "conditions", "title": "Условия эксплуатации"},
         ]},
         {"key": "docs", "type": "files"},
         {"key": "certs", "type": "files"},
@@ -58,15 +58,31 @@ SKUMixin           — привязка к номенклатуре
 }
 ```
 
+## API
+
+| Метод | URL | Назначение |
+|-------|-----|-----------|
+| `GET` | `/api/pa-controls/catalog/` | Список с фильтрами |
+| `GET` | `/api/pa-controls/catalog/<id>/` | Детальная модель |
+| `GET` | `/api/pa-controls/filters/` | Опции фильтров (`?scope=used`) |
+| `GET` | `/api/pa-controls/meta/` | Метаданные полей |
+
 ## Фильтры
 
-FILTER_DEFINITIONS:
-- model_line_id — серия (EXACT)
-- sensor_variety_id — тип сенсора (EXACT, UNIQUE_FIELD_VALUES)
-- points — количество датчиков (EXACT, CHOICES: 1-4)
-- ip_id — IP (IP_RANK, GLOBAL_MODEL)
-- work_temp_min/max — температура (TEMP_MIN/MAX)
-- body_material_id — материал корпуса (EXACT)
-- model_line_brand_id — бренд серии (EXACT, UNIQUE_FIELD_VALUES)
-- signal_type_id — тип сигнала (EXACT, UNIQUE_FIELD_VALUES)
-- exd_id — взрывозащита (EXD_COMPATIBLE)
+- `model_line_id` — серия (EXACT)
+- `sensor_variety_id` — тип сенсора (EXACT)
+- `points` — количество датчиков (EXACT, CHOICES)
+- `ip_id` — IP (IP_RANK)
+- `work_temp_min/max` — температура (TEMP_MIN/MAX)
+- `body_material_id` — материал корпуса (EXACT)
+- `model_line_brand_id` — бренд серии (EXACT)
+- `signal_type_id` — тип сигнала (EXACT)
+- `exd_id` — взрывозащита (EXD_COMPATIBLE)
+
+## Особенности
+
+- **M2M-поля `images` и `tech_docs`** переопределены с уникальными `related_name` (`lsb_images`, `lsb_tech_docs`) для обхода бага Django 5.2 с `related_name='+'`.
+- **Чтение через raw SQL** в `_get_images_section`, `_get_docs_section`, `_get_certs_section` — обход prefetch-бага.
+- **Админка**: `images`/`tech_docs` через `raw_id_fields`, `exd` через `get_form`/`save_related` патч.
+- **Документация** собирается из товара + серии (model_line), без дубликатов.
+- **Копирование**: `CopyMixin._copy_custom_relations` копирует `exd` и `additional_sensor`.

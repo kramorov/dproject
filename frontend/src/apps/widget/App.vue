@@ -81,7 +81,7 @@ import GearboxBrand from '@/apps/gearbox-catalog/components/GearboxBrand.vue'
 import FrSection from '@/apps/filter-regulator-catalog/components/GearboxSection.vue'
 import FrList from '@/apps/filter-regulator-catalog/components/GearboxList.vue'
 import FrDetail from '@/apps/filter-regulator-catalog/components/GearboxDetail.vue'
-import FrBrand from '@/apps/filter-regulator-catalog/components/GearboxBrand.vue'
+import FrBrand from '@/apps/filter-regulator-catalog/components/FrBrand.vue'
 import FrEngineer from '@/apps/filter-regulator-catalog/components/EngineerCatalog.vue'
 
 const props = defineProps({

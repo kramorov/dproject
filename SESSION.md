@@ -1,5 +1,14 @@
 # Состояние проекта на 2026-05-25
 
+## ⚠️ НАПОМИНАНИЕ: установить PyMuPDF на домашней машине
+
+При смене машины выполни:
+```
+pip install PyMuPDF
+```
+Без него PDF-превью в медиатеке не создаются (молча пропускаются).
+Добавлен в requirements.txt (2026-05-26).
+
 ## Ключевые архитектурные решения
 
 1. CatalogDictMixin в core/models/mixins.py — единый to_dict() для всех каталогов
@@ -10,6 +19,18 @@
 6. Виджет widget/ — клиентский hash-роутер (#/gearbox/detail/123), F5 работает
 7. Shared-компоненты — переиспользуются для всех типов каталогов
 8. Фильтры списка: scope=used (только существующие), формы создания: scope=all (полные справочники)
+
+## ⚠️ Облачное хранилище cloud.ru (2026-05-26)
+
+Медиабиблиотека перенесена в Cloud.ru Evolution Object Storage.
+- Бакет: media-storage, эндпоинт: https://s3.cloud.ru, регион: ru-central-1
+- Ключи: в settings.py (CLOUDRU_ADMIN_*, CLOUDRU_READER_*)
+- Режим раздачи: MEDIA_SERVE_MODE = 'redirect' — клиент качает напрямую из S3 через presigned URL.
+  'proxy' — Django стримит через себя (медленно). Переключать в settings.py.
+- Бэкенд: storage_manager/storage_backends/cloudru.py (CloudRuStorage)
+- Миграция: python manage.py migrate_media_to_cloudru
+- Бэкап: media_backup_20260526/ + db_backup_20260526.sqlite3
+- Для домашней машины: установить boto3 и PyMuPDF, вписать ключи в settings.py
 
 ## Правила работы
 - Не писать в существующие файлы без разрешения
@@ -42,6 +63,15 @@
   - to_values_dict(): облегчённая для списков
   - Секции specs: Основные (9 полей), Корпус (5), Датчики (4), Условия эксплуатации (1)
   - Фильтры: model_line_id, sensor_variety_id, points, ip_id, work_temp_min/max, body_material_id, model_line_brand_id, signal_type_id, exd_id
+  - M2M images/tech_docs: переопределены (related_name='lsb_images'/'lsb_tech_docs'), чтение через raw SQL
+  - Документация: сбор из товара + серии (model_line), без дубликатов
+- **Фронтенд**: frontend/src/apps/limit-switch-catalog/ (4 страницы: LsbSection/LsbList/LsbDetail/LsbBrand)
+  - Стилизация: CSS-переменные --cat-* (тема default.css)
+  - Детали: через shared ProductDetail
+- **API**: /api/pa-controls/catalog/, /<id>/, /filters/, /meta/
+- **Виджет**: CatalogIndex «Блоки концевых выключателей»
+- **Меню**: TopMenu «⚙️ Настройки» → «🔌 Блоки концевых выключателей»
+- **Админка**: exd/images/tech_docs — патч get_form/save_related (raw SQL), raw_id_fields
 
 ## Фильтрация: scope=used / scope=all
 - Медиатека: MediaFilterOptionsView — ?scope=used / ?scope=all

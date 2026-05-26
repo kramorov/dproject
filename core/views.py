@@ -348,7 +348,7 @@ class UniversalAPIView(APIView) :
 
         # Фильтрация
         filters = {}
-        exclude_filters = {'model' , 'app' , 'action' , 'id' , 'format' , 'fmt' , 'view' , 'depth' , 'include', 'limit', 'offset'}
+        exclude_filters = {'model' , 'app' , 'action' , 'id' , 'format' , 'fmt' , 'view' , 'depth' , 'include', 'limit', 'offset', 'keyword', 'search'}
 
         for key , value in request.query_params.items() :
             if key not in exclude_filters :
@@ -375,6 +375,11 @@ class UniversalAPIView(APIView) :
                     'error' : f'Filter error: {str(e)}' ,
                     'filters' : filters
                 } , status=status.HTTP_400_BAD_REQUEST)
+
+        # Поиск по ключевому слову (маппинг 'keyword' -> 'keywords__icontains')
+        keyword = request.query_params.get('keyword', '').strip()
+        if keyword and hasattr(model, 'keywords'):
+            queryset = queryset.filter(**{'keywords__icontains': keyword})
 
         # Поиск по подстроке (поддерживает поля name, code, title)
         search_query = request.query_params.get('search', '').strip()

@@ -21,6 +21,7 @@
         <a href="/src/apps/gearbox-catalog/index.html" class="w3-bar-item w3-button">📜 РУчные дублеры</a>
         <a href="/src/apps/filter-regulator-catalog/index.html" class="w3-bar-item w3-button">🔧 Фильтр-регуляторы</a>
         <a href="/src/apps/filter-regulator-catalog/index.html#engineer" class="w3-bar-item w3-button">🔬 Инженерный каталог</a>
+        <a href="/src/apps/limit-switch-catalog/index.html" class="w3-bar-item w3-button">🔌 Блоки концевых выключателей</a>
         <a href="/src/apps/media-library/index.html" class="w3-bar-item w3-button">🖼️ Медиабиблиотека</a>
         <a href="/src/apps/cert-docs/index.html" class="w3-bar-item w3-button">📜 Сертификаты</a>
         <a href="/src/apps/price-catalog/index.html" class="w3-bar-item w3-button">💰 Цены</a>
