@@ -1,27 +1,27 @@
 <!-- filter-regulator-catalog/App.vue -->
-<!-- Standalone SPA для разработки. Повторяет структуру gearbox App.vue. -->
+<!-- Standalone SPA для разработки. Повторяет структуру Fr App.vue. -->
 <template>
   <div class="app">
-    <GearboxSection
+    <FrSection
       v-if="page === 'section'"
       @select-series="goToBrand"
       @select="goToList"
       @engineer="page = 'engineer'"
     />
 
-    <GearboxList
+    <FrList
       v-else-if="page === 'list'"
       :filters="filters"
       @select="onSelectItem"
     />
 
-    <GearboxDetail
+    <FrDetail
       v-else-if="page === 'detail'"
       :id="selectedId"
       @close="page = 'list'"
     />
 
-    <GearboxBrand
+    <FrBrand
       v-else-if="page === 'brand'"
       :model-line-id="modelLineId"
       @select="onSelectItem"
@@ -36,10 +36,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import GearboxSection from './components/GearboxSection.vue'
-import GearboxList from './components/GearboxList.vue'
-import GearboxDetail from './components/GearboxDetail.vue'
-import GearboxBrand from './components/FrBrand.vue'
+import FrSection from './components/FrSection.vue'
+import FrList from './components/FrList.vue'
+import FrDetail from './components/FrDetail.vue'
+import FrBrand from './components/FrBrand.vue'
 import EngineerCatalog from './components/EngineerCatalog.vue'
 import frApi from './api'
 
