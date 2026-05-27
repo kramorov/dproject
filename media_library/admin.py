@@ -63,11 +63,11 @@ class MediaLibraryItemForm(forms.ModelForm) :
 class MediaLibraryItemAdmin(admin.ModelAdmin) :
     form = MediaLibraryItemForm
     list_display = [
-        'preview_display' , 'title' , 'category' ,  'keywords_short' ,  'is_active' , 'created_at'
+        'preview_display' , 'name' , 'code' , 'category' ,  'keywords_short' ,  'is_active' , 'created_at'
     ]
-    list_display_links = ['preview_display' , 'title']
+    list_display_links = ['preview_display' , 'name']
     list_filter = ['category' , 'is_active' , 'is_public' , 'created_at' ]
-    search_fields = ['title' , 'description', 'keywords' ]
+    search_fields = ['name' , 'code' , 'description', 'keywords' ]
     readonly_fields = [
         'preview_display' , 'file_type_display' , 'file_size_display' ,
         'filename_display' , 'created_at' , 'updated_at' , 'replace_file_action' ,
@@ -77,7 +77,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
     fieldsets = (
         (_("Основная информация") , {
-            'fields' : (('title' , 'category' ),('created_by',  'is_public' , 'is_active' ,'created_at' , 'updated_at' ))
+            'fields' : (('name' , 'code' , 'category' ),('created_by',  'is_public' , 'is_active' ,'created_at' , 'updated_at' ))
         }) ,
         (_("Описание") , {
             'fields' : ('description'  , 'keywords')
@@ -214,7 +214,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
                     '<img id="preview-img-{2}" src="{0}" style="max-width: 80px; max-height: 80px; '
                     'border-radius: 4px; border: 1px solid #ddd; object-fit: cover;" '
                     'title="{1}" onerror="this.style.display=\'none\'" />' ,
-                    preview_url , obj.title , obj.pk
+                    preview_url , obj.name , obj.pk
                 )
 
         # Иконка для не-изображений
@@ -234,7 +234,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
             'background: #f8f9fa;" title="{}">{}'
             '<div style="font-size: 10px; position: absolute; bottom: 2px; color: #666;">.{}</div>'
             '</div>' ,
-            obj.title , icon , obj.file_extension
+            obj.name , icon , obj.file_extension
         )
 
     preview_display.short_description = _("Превью")

@@ -239,11 +239,11 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyM
             'valid_until' : self.valid_until.isoformat() if self.valid_until else None ,
             'public_url' : self.public_url ,
             'has_media' : bool(self.media_item) ,
-            'media_item' : {
+            'media_item' : ({
                 'id' : self.media_item.id ,
-                'title' : self.media_item.title ,
-                'url' : self.media_item.get_serve_url() if self.media_item else None ,
-            } if self.media_item else None ,
+                'name' : self.media_item.name ,
+                'url' : self.media_item.get_serve_url() or '',
+            } if self.media_item else None) ,
         }
 
     def get_compact_data(self) :
@@ -420,7 +420,7 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyM
             } if self.brand else None ,
             'media_item' : {
                 'id' : self.media_item_id ,
-                'title' : self.media_item.title if self.media_item else None ,
+                'name' : self.media_item.name if self.media_item else None ,
                 'url' : self.media_item.media_file.url if self.media_item and self.media_item.media_file else None
             } if self.media_item else None
         }

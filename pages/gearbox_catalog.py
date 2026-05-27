@@ -123,7 +123,7 @@ def get_line_images(line_id):
     if line:
         return [
             {
-                'title': img.title,
+                'title': img.name,
                 'url': img.media_file.url if img.media_file else '',
                 'preview_url': img.preview_file.url if img.preview_file else '',
             }

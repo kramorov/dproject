@@ -1,5 +1,5 @@
 <template>
-  <BaseModal :show="show" :title="'Редактировать: ' + (item?.title || '')" :closable="false" @close="$emit('close')">
+  <BaseModal :show="show" :title="'Редактировать: ' + (item?.name || '')" :closable="false" @close="$emit('close')">
     <div v-if="item" class="edit-form">
       <div class="edit-preview">
         <img
@@ -11,7 +11,9 @@
       </div>
 
       <label>Название</label>
-      <input v-model="form.title" class="field" />
+      <input v-model="form.name" class="field" />
+      <label>Код</label>
+      <input v-model="form.code" class="field" />
       <label>Категория</label>
       <select v-model="form.category_id" class="field">
         <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.icon }} {{ c.name }}</option>
@@ -77,7 +79,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'updated', 'deleted', 'preview', 'copied'])
 
 const form = reactive({
-  title: '', category_id: null, brand_id: null, equipment_type_id: null,
+  name: '', code: '', category_id: null, brand_id: null, equipment_type_id: null,
   keywords: '', description: '',
   sorting_order: 0, is_public: true, is_active: true, is_default: false,
 })
@@ -101,7 +103,8 @@ function extractId(value) {
 
 watch(() => props.item, (val) => {
   if (val) {
-    form.title = val.title || ''
+    form.name = val.name || ''
+    form.code = val.code || ''
     form.category_id = extractId(val.category)
     form.brand_id = extractId(val.brand)
     form.equipment_type_id = extractId(val.equipment_type)

@@ -6,7 +6,7 @@
     </div>
     <div class="thumbnails" v-if="images.length > 1">
       <button v-for="(img, i) in images" :key="img.id" class="thumb" :class="{ active: i === activeIndex }" @click="activeIndex = i">
-        <img :src="img.preview_url || img.url" :alt="img.title || alt" loading="lazy" />
+        <img :src="img.preview_url || img.url" :alt="img.name || alt" loading="lazy" />
       </button>
     </div>
   </div>

@@ -190,3 +190,46 @@ pip install PyMuPDF
 | API эндпоинты (фронтенд) | frontend/src/shared/endpoints.js |
 | Composable useCatalog | frontend/src/shared/composables/useCatalog.js |
 | Spinner (загрузка) | frontend/src/shared/components/Spinner.vue |
+
+## Админка БКВ (2026-05-27)
+
+Создано приложение `frontend/src/apps/limit-switch-admin/` — CRUD для LimitSwitchModelLine и LimitSwitchBox.
+
+### Бэкенд
+- `core/views.py` `_write` — поддержка M2M-полей через `_set_m2m()` (raw-SQL + Django ORM)
+- `pa_controls/models/limit_switch.py` — `set_images_ids()`, `set_tech_docs_ids()` (raw SQL)
+- `pa_controls/views/m2m_data.py` — batch-эндпоинт `/api/pa-controls/m2m-items/?model=...&ids=1,2,3`
+- `pa_controls/models/lsb_model_line.py` — `get_images_data()`, `get_tech_docs_data()`, `get_cert_docs_data()`
+
+### Переиспользуемые компоненты (shared/)
+- `BasePicker.vue` — универсальный модальный подбор (fetchFn, filterDefs, columns)
+- `ChipList.vue` — таблица code + name с чекбоксами и batch-удалением
+- `FkSelect.vue` — выбор ForeignKey с поиском
+- `M2MSelect.vue` — выбор ManyToMany с чипсами
+- `AdminTable.vue` — таблица с поиском/пагинацией (limit-switch-admin/components/)
+- `AdminForm.vue` — модалка CRUD с защитой от несохранённых изменений
+
+### Табы в формах
+- ModelLineForm: Основное / Изображения / Техдокументация / Сертификаты
+- Подбор через BasePicker, данные загружаются через `/api/pa-controls/m2m-items/`
+- M2M-watch с `immediate: true` (props.item установлен до монтирования)
+
+## MediaLibraryItem: title → name (2026-05-27)
+
+Поле `title` переименовано в `name`, добавлено поле `code`.
+
+### Затронутые файлы
+- `media_library/models.py` — `__str__`, `to_dict()`, `SEARCH_FIELDS`, `copy()`, `get_absolute_url()`
+- `media_library/admin.py` — все `title` → `name` + `code`
+- `media_library/views/admin_detail.py`, `admin_upload.py` — `title` → `name`
+- `media_library/urls.py` — `app_name = 'media_library'`
+- `cert_doc/models.py` — `media_item.title` → `.name` + `.code`, fix None-check
+- `cert_doc/views/admin_media_upload.py` — `title` → `name`
+- `core/models/image_gallery_mixin.py`, `tech_doc_mixin.py` — `.title` → `.name`
+- `gearbox/models/gearbox.py`, `filter_regulator/...`, `pa_controls/...` — унификация: `{id, name, code, url}`
+- Весь фронтенд: `item.title` → `item.name`, `file.title` → `file.name`
+- `pages/gearbox_catalog.py`, `pages_finished/media_library_editor.py`
+
+### Стандарт сериализации
+Изображения: `{id, name, code, url, preview_url, is_default}`
+Документы: `{id, name, code, url, file_name}`

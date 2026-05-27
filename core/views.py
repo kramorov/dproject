@@ -468,9 +468,18 @@ class UniversalAPIView(APIView) :
                 return Response({'error': 'model required'}, status=400)
             app_name, model_name = model_param.split('.')
             model = apps.get_model(app_name, model_name)
+
+            # M2M-поля обрабатываем отдельно (поддержка raw-SQL моделей)
+            m2m_names = {f.name for f in model._meta.many_to_many}
+            all_f = {k: v for k, v in data.items() if k != 'model'}
+            regular = {k: v for k, v in all_f.items() if k not in m2m_names}
+            m2m = {k: v for k, v in all_f.items() if k in m2m_names}
+
             if action == 'create':
-                fields = {k: v for k, v in data.items() if k != 'model'}
-                obj = model.objects.create(**fields)
+                obj = model.objects.create(**regular)
+                for fn, vals in m2m.items():
+                    if vals:
+                        self._set_m2m(obj, fn, vals)
                 return Response({'success': True, 'id': obj.pk})
             else:
                 obj_id = data.get('id') or request.query_params.get('id')
@@ -478,12 +487,27 @@ class UniversalAPIView(APIView) :
                     return Response({'error': 'id required for update'}, status=400)
                 obj = model.objects.get(pk=obj_id)
                 fields = {k: v for k, v in data.items() if k not in ('model', 'id')}
+                m2m_update = {}
                 for field, value in fields.items():
-                    setattr(obj, field, value)
+                    if field in m2m_names:
+                        m2m_update[field] = value
+                    else:
+                        setattr(obj, field, value)
                 obj.save()
+                for fn, vals in m2m_update.items():
+                    if vals is not None:
+                        self._set_m2m(obj, fn, vals)
                 return Response({'success': True, 'id': obj.pk})
         except Exception as e:
             return Response({'success': False, 'error': str(e)}, status=400)
+
+    def _set_m2m(self, obj, field_name, values):
+        """Установить M2M-связи. Использует raw-SQL если есть кастомный метод."""
+        setter = getattr(obj, f'set_{field_name}_ids', None) or getattr(obj, f'{field_name}_set_ids', None)
+        if callable(setter):
+            setter(values)
+        else:
+            getattr(obj, field_name).set(values)
 
 
 class DebugAPIView(APIView) :

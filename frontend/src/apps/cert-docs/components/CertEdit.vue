@@ -35,7 +35,7 @@
 
         <!-- Файл привязан -->
         <div v-if="linkedMedia" class="media-linked">
-          <span>📄 {{ linkedMedia.title || linkedMedia.file_name }}</span>
+          <span>📄 {{ linkedMedia.name || linkedMedia.title || linkedMedia.file_name }}</span>
           <button class="btn-sm" @click="$emit('view-media', linkedMedia.id)">👁️</button>
           <button class="btn-sm" @click="replaceMode = !replaceMode">{{ replaceMode ? 'Отмена' : '🔄' }}</button>
           <button class="btn-sm btn-unlink" @click="unlinkMedia">✕</button>
@@ -86,7 +86,7 @@
             </div>
             <div v-if="showMediaList && mediaResults.length" class="pick-drop">
               <div v-for="m in mediaResults" :key="m.id" class="pick-item" @click="pickMedia(m)">
-                <span class="pi-name">📄 {{ m.title || m.file_name || m.id }}</span>
+                <span class="pi-name">📄 {{ m.name || m.title || m.file_name || m.id }}</span>
                 <span class="pi-meta" v-if="m.brand || m.equipment_type">
                   {{ m.brand?.name || '' }}{{ m.brand && m.equipment_type ? ' · ' : '' }}{{ m.equipment_type?.name || '' }}
                 </span>

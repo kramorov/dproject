@@ -10,7 +10,6 @@ from params.graphql.schema import paramsSchema
 from producers.graphql.schema import producersSchema
 # from electric_actuators.graphql.schema import eaSchema
 from valve_data.graphql.schema import valveDataSchema
-from media_library.graphql.schema import mediaLibrarySchema
 
 # from clients.graphql.schema import clientsSchema
 
@@ -18,7 +17,6 @@ APP_SCHEMAS = [
     'params.graphql.schema.paramsSchema',
     'producers.graphql.schema.producersSchema',
     'valve_data.graphql.schema.valveDataSchema',
-    'media_library.graphql.schema.mediaLibrarySchema',
     # 'client_requests.graphql.schema.clientRequestsSchema',
     # Добавьте другие приложения
 ]
@@ -32,7 +30,6 @@ class Query(
     paramsSchema.Query,
     # eaSchema.Query,
     valveDataSchema.Query,
-    mediaLibrarySchema.MediaLibraryQuery,
     graphene.ObjectType
 ):
     pass
@@ -44,7 +41,6 @@ class Mutation(
     producersSchema.Mutation,
     # eaSchema.Mutation,
     valveDataSchema.Mutation,
-    mediaLibrarySchema.MediaLibraryMutations,
     graphene.ObjectType
 ):
     pass

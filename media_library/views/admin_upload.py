@@ -3,7 +3,8 @@
 Загрузка медиафайла — POST multipart/form-data.
 
 Поля:
-    title           — str (обязательно)
+    name            — str (обязательно)
+    code            — str (опционально)
     file            — файл (обязательно, multipart)
     category_id     — int (обязательно, FK → MediaCategory)
     description     — str (опционально)
@@ -33,9 +34,9 @@ class MediaAdminUploadView(APIView):
         logger.info("MediaAdminUploadView POST")
 
         # --- Валидация обязательных полей ---
-        title = request.data.get('title', '').strip()
-        if not title:
-            return Response({'error': 'title is required'}, status=status.HTTP_400_BAD_REQUEST)
+        name = request.data.get('name', '').strip()
+        if not name:
+            return Response({'error': 'name is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         uploaded_file = request.FILES.get('file')
         if not uploaded_file:
@@ -76,7 +77,8 @@ class MediaAdminUploadView(APIView):
         # --- Создание ---
         try:
             item = MediaLibraryItem(
-                title=title,
+                name=name,
+                code=request.data.get('code', ''),
                 description=request.data.get('description', ''),
                 media_file=uploaded_file,
                 category=category,
@@ -89,7 +91,7 @@ class MediaAdminUploadView(APIView):
             )
             item.save()  # save() автоопределяет mime_type и создаёт preview
 
-            logger.info(f"MediaLibraryItem created: id={item.pk}, title={item.title}")
+            logger.info(f"MediaLibraryItem created: id={item.pk}, name={item.name}")
             return Response(item.to_dict(), status=status.HTTP_201_CREATED)
 
         except Exception as e:

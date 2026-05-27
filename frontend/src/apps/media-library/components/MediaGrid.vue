@@ -29,7 +29,7 @@
         <div class="card-preview" @click.stop="$emit('preview', item, index)">
           <img
             v-if="isPreviewable(item)"
-            :src="previewUrl(item.id)" :alt="item.title" class="card-img"
+            :src="previewUrl(item.id)" :alt="item.name" class="card-img"
           />
           <div v-else-if="item.has_file" class="card-placeholder">{{ iconFor(item.mime_type) }}</div>
           <div v-else class="card-placeholder no-file">∅</div>
@@ -46,7 +46,7 @@
               {{ item.equipment_type?.name || '—' }}
             </span>
           </div>
-          <div class="card-row card-row-title">{{ item.title || '—' }}</div>
+          <div class="card-row card-row-title">{{ item.name || '—' }}</div>
         </div>
       </div>
       <div v-if="items.length === 0 && !loading" class="status-msg">Ничего не найдено</div>

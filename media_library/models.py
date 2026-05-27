@@ -215,12 +215,13 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         полнотекстовый поиск по title/description/keywords.
     """
 
-    title = models.CharField(
-        max_length=200,
-        verbose_name=_("Название"),
+    name = models.CharField(
+        max_length=200 ,
+        verbose_name=_("Название") ,
         help_text=_("Название медиа элемента")
     )
-
+    code = models.CharField(max_length=150 , blank=True , null=True , verbose_name=_("Код") ,
+                            help_text=_("Код элемента"))
     description = models.TextField(
         blank=True,
         verbose_name=_("Описание"),
@@ -325,7 +326,7 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.title} ({self.category.name})"
+        return f"{self.name} ({self.category.name})"
 
     def save(self, *args, **kwargs):
         """
@@ -425,7 +426,13 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
     def get_absolute_url(self):
         """Абсолютный URL для детальной страницы"""
         from django.urls import reverse
-        return reverse('media_library:media_detail', kwargs={'pk': self.pk})
+        try:
+            return reverse('media_library:media_view', kwargs={'pk': self.pk})
+        except Exception:
+            try:
+                return reverse('media_view', kwargs={'pk': self.pk})
+            except Exception:
+                return f'/api/media/{self.pk}/view/'
 
     def is_image(self) :
         """Проверяет, является ли файл изображением"""
@@ -638,7 +645,7 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
 
             if name in reset:
                 setattr(duplicate, name, reset[name])
-            elif name == 'title':
+            elif name == 'name':
                 setattr(duplicate, name, f'{value or ""} (копия)')
             else:
                 setattr(duplicate, name, value)
@@ -728,14 +735,15 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
         return f"{base}/api/media/{self.id}/view/"
 
-    SEARCH_FIELDS = ['title' , 'description', 'keywords']
+    SEARCH_FIELDS = ['name' , 'description', 'keywords']
 
     SELECT_RELATED_FIELDS = ['category' , 'equipment_type' , 'created_by', 'brand']
 
     def to_dict(self) :
         return {
             'id' : self.id ,
-            'title' : self.title ,
+            'name' : self.name ,
+            'code' : self.code or '',
         'description': self.description ,
         'category': {
             'id' : self.category.id ,

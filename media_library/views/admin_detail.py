@@ -45,7 +45,7 @@ class MediaAdminDetailView(APIView):
         errors = []
 
         # Текстовые поля
-        for field in ('title', 'description', 'keywords'):
+        for field in ('name', 'code', 'description', 'keywords'):
             if field in data:
                 setattr(item, field, data[field])
 
@@ -94,8 +94,8 @@ class MediaAdminDetailView(APIView):
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
         # Проверка обязательных полей для PUT
-        if not request.data.get('title', '').strip():
-            return Response({'error': 'title is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not request.data.get('name', '').strip():
+            return Response({'error': 'name is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not request.data.get('category_id'):
             return Response({'error': 'category_id is required'}, status=status.HTTP_400_BAD_REQUEST)

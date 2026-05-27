@@ -1,4 +1,6 @@
 # media_library/urls.py
+app_name = 'media_library'
+
 """
 URL-ы медиабиблиотеки — два входа:
 

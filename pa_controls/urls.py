@@ -7,8 +7,10 @@ from pa_controls.views.catalog import (
 )
 from pa_controls.views.meta import LimitSwitchBoxMetaView
 from pa_controls.views.quickselect import LimitSwitchBoxQuickSelectView
+from pa_controls.views.m2m_data import m2m_items
 
 urlpatterns = [
+    path('m2m-items/', m2m_items, name='m2m_items'),
     path('quickselect/', LimitSwitchBoxQuickSelectView.as_view(), name='lsb_quickselect'),
     path('meta/', LimitSwitchBoxMetaView.as_view(), name='lsb_meta'),
     path('catalog/', LimitSwitchBoxCatalogView.as_view(), name='lsb_catalog'),

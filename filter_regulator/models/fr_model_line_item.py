@@ -229,7 +229,7 @@ class FilterRegulator(
             base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
             return {
                 'id': doc.id,
-                'title': getattr(doc, 'title', '') or '',
+                'name': getattr(doc, 'name', '') or '',
                 'url': f"{base}/api/media/{doc.id}/download/",
                 'file_name': getattr(doc, 'file_name', '') or '',
             }
@@ -278,7 +278,8 @@ class FilterRegulator(
             if url:
                 images.append({
                     'id': img.id,
-                    'title': getattr(img, 'title', '') or '',
+                    'name': getattr(img, 'name', '') or '',
+                    'code': getattr(img, 'code', '') or '',
                     'url': url,
                     'preview_url': url,
                     'is_default': getattr(img, 'is_default', False),
@@ -289,7 +290,8 @@ class FilterRegulator(
                 if url:
                     images.append({
                         'id': img.id,
-                        'title': getattr(img, 'title', '') or '',
+                        'name': getattr(img, 'name', '') or '',
+                        'code': getattr(img, 'code', '') or '',
                         'url': url,
                         'preview_url': url,
                         'is_default': getattr(img, 'is_default', False),

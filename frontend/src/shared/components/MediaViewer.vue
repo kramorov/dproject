@@ -3,7 +3,7 @@
     <div v-if="show && currentItem" class="viewer-overlay" @click.self="$emit('close')" @keydown="onKey">
       <!-- Заголовок -->
       <div class="viewer-toolbar">
-        <span class="viewer-title">{{ currentItem?.title || 'Просмотр' }}</span>
+        <span class="viewer-title">{{ currentItem?.name || 'Просмотр' }}</span>
         <span class="viewer-counter" v-if="items.length > 1">{{ index + 1 }} / {{ items.length }}</span>
         <button class="viewer-close" @click.stop="$emit('close')">&times;</button>
       </div>
@@ -26,7 +26,7 @@
         <img
             v-if="isImage(currentItem.mime_type)"
             :src="viewUrl(currentItem.id)"
-            :alt="currentItem.title"
+            :alt="currentItem.name"
             class="viewer-img"
           />
           <!-- PDF (встроенный просмотрщик браузера, листание страниц) -->
@@ -38,7 +38,7 @@
           />
           <!-- Остальные типы — скачать -->
           <div v-else class="viewer-unsupported">
-            <p>📁 {{ currentItem.file_name || currentItem.title }}</p>
+            <p>📁 {{ currentItem.file_name || currentItem.name }}</p>
             <p>Предпросмотр недоступен</p>
             <a :href="downloadUrl(currentItem.id)" target="_blank" class="viewer-dl-link">Скачать</a>
           </div>

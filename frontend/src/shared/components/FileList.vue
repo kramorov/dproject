@@ -14,7 +14,7 @@
         rel="noopener"
         :download="null"
       >
-        📄 &nbsp;{{ file.title || file.file_name || 'Файл' }}
+        📄 &nbsp;{{ file.name || file.file_name || 'Файл' }}
       </a>
       <a
         class="file-dl-btn"

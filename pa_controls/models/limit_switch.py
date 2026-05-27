@@ -294,6 +294,28 @@ class LimitSwitchBox(CatalogDictMixin,
                     [self.pk, eid]
                 )
 
+    def set_images_ids(self, image_ids):
+        """Установить M2M-связи для images через raw SQL"""
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute('DELETE FROM pa_controls_limitswitchbox_images WHERE limitswitchbox_id = %s', [self.pk])
+            for mid in (image_ids or []):
+                c.execute(
+                    'INSERT INTO pa_controls_limitswitchbox_images (limitswitchbox_id, medialibraryitem_id) VALUES (%s, %s)',
+                    [self.pk, mid]
+                )
+
+    def set_tech_docs_ids(self, doc_ids):
+        """Установить M2M-связи для tech_docs через raw SQL"""
+        from django.db import connection
+        with connection.cursor() as c:
+            c.execute('DELETE FROM pa_controls_limitswitchbox_tech_docs WHERE limitswitchbox_id = %s', [self.pk])
+            for did in (doc_ids or []):
+                c.execute(
+                    'INSERT INTO pa_controls_limitswitchbox_tech_docs (limitswitchbox_id, medialibraryitem_id) VALUES (%s, %s)',
+                    [self.pk, did]
+                )
+
     @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
@@ -598,7 +620,8 @@ class LimitSwitchBox(CatalogDictMixin,
             if img.media_file:
                 images.append({
                     'id': img.id,
-                    'title': getattr(img, 'title', '') or '',
+                    'name': getattr(img, 'name', '') or '',
+                    'code': getattr(img, 'code', '') or '',
                     'url': img.media_file.url,
                     'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
                     'is_default': getattr(img, 'is_default', False),
@@ -616,7 +639,8 @@ class LimitSwitchBox(CatalogDictMixin,
                 if img.media_file:
                     images.append({
                         'id': img.id,
-                        'title': getattr(img, 'title', '') or '',
+                        'name': getattr(img, 'name', '') or '',
+                        'code': getattr(img, 'code', '') or '',
                         'url': img.media_file.url,
                         'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
                         'is_default': getattr(img, 'is_default', False),
@@ -639,8 +663,9 @@ class LimitSwitchBox(CatalogDictMixin,
             if doc.media_file and doc.id not in seen:
                 seen.add(doc.id)
                 docs.append({
-                    'id': doc.id, 'title': getattr(doc, 'title', '') or '',
-                    'url': doc.media_file.url, 'file_name': getattr(doc, 'title', '') or '',
+                    'id': doc.id, 'name': getattr(doc, 'name', '') or '',
+                    'code': getattr(doc, 'code', '') or '',
+                    'url': doc.media_file.url, 'file_name': getattr(doc, 'name', '') or '',
                 })
         # 2. Документация из серии (model_line)
         if self.model_line:
@@ -654,8 +679,9 @@ class LimitSwitchBox(CatalogDictMixin,
                 if doc.media_file and doc.id not in seen:
                     seen.add(doc.id)
                     docs.append({
-                        'id': doc.id, 'title': getattr(doc, 'title', '') or '',
-                        'url': doc.media_file.url, 'file_name': getattr(doc, 'title', '') or '',
+                        'id': doc.id, 'name': getattr(doc, 'name', '') or '',
+                        'code': getattr(doc, 'code', '') or '',
+                        'url': doc.media_file.url, 'file_name': getattr(doc, 'name', '') or '',
                     })
         return docs
 

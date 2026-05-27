@@ -114,3 +114,21 @@ CLOUDRU_REGION = 'ru-central-1'
 boto3          # S3-клиент для Cloud.ru
 PyMuPDF        # PDF-превью (pip install PyMuPDF)
 ```
+
+## Модель MediaLibraryItem (2026-05-27)
+
+Поля: `id`, `name`, `code`, `description`, `media_file`, `preview_file`, `mime_type`,
+`category` (FK), `equipment_type` (FK), `brand` (FK),
+`keywords`, `is_active`, `is_public`, `is_default`, `sorting_order`.
+
+- `name` — основное название (ранее `title`, переименовано)
+- `code` — строковый код элемента
+- `to_dict()` — `id, name, code, description, category, brand, ...`
+- `get_absolute_url()` — fallback: `media_library:media_view` → `/api/media/{pk}/view/`
+- `SEARCH_FIELDS = ['name', 'code', 'description', 'keywords']`
+
+### Сериализация в каталогах
+
+Изображения: `{id, name, code, url, preview_url, is_default}`
+Документы: `{id, name, code, url, file_name}`
+Унифицировано: gearbox, filter_regulator, pa_controls.

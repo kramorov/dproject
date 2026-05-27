@@ -15,7 +15,8 @@
     <input ref="fileInput" type="file" hidden @change="onFileSelect" />
 
     <div class="form-fields">
-      <input v-model="form.title" placeholder="Название *" class="field" />
+      <input v-model="form.name" placeholder="Название *" class="field" />
+      <input v-model="form.code" placeholder="Код" class="field" />
       <select v-model="form.category_id" class="field">
         <option :value="null">Категория *</option>
         <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.icon }} {{ c.name }}</option>
@@ -62,12 +63,12 @@ const uploading = ref(false)
 const uploadError = ref(null)
 
 const form = reactive({
-  title: '', category_id: null, brand_id: null, equipment_type_id: null,
+  name: '', code: '', category_id: null, brand_id: null, equipment_type_id: null,
   keywords: '', description: '',
   is_public: true, is_active: true,
 })
 
-const canUpload = computed(() => file.value && form.title.trim() && form.category_id)
+const canUpload = computed(() => file.value && form.name.trim() && form.category_id)
 
 function onDrop(e) { dragging.value = false; const f = e.dataTransfer.files[0]; if (f) file.value = f }
 function onFileSelect(e) { const f = e.target.files[0]; if (f) file.value = f }
@@ -84,7 +85,8 @@ async function upload() {
   try {
     const fd = new FormData()
     fd.append('file', file.value)
-    fd.append('title', form.title.trim())
+    fd.append('name', form.name.trim())
+    if (form.code.trim()) fd.append('code', form.code.trim())
     fd.append('category_id', form.category_id)
     if (form.brand_id) fd.append('brand_id', form.brand_id)
     if (form.equipment_type_id) fd.append('equipment_type_id', form.equipment_type_id)
@@ -95,7 +97,7 @@ async function upload() {
 
     await mediaApi.upload(fd)
     file.value = null
-    Object.assign(form, { title: '', category_id: null, brand_id: null, equipment_type_id: null, keywords: '', description: '' })
+    Object.assign(form, { name: '', code: '', category_id: null, brand_id: null, equipment_type_id: null, keywords: '', description: '' })
     emit('uploaded')
   } catch (e) {
     uploadError.value = e.displayMessage || 'Ошибка загрузки'

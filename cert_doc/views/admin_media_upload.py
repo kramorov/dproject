@@ -50,7 +50,7 @@ class CertMediaUploadView(APIView):
             return Response({'error': 'MediaCategory CERTIFICATE not found'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Из параметров сертификата
-        title = request.data.get('title', '').strip() or uploaded_file.name
+        name = request.data.get('name', '').strip() or request.data.get('title', '').strip() or uploaded_file.name
         equipment_type = None
         brand = None
 
@@ -69,7 +69,7 @@ class CertMediaUploadView(APIView):
                 pass
 
         item = MediaLibraryItem(
-            title=title,
+            name=name,
             category=category,
             equipment_type=equipment_type,
             brand=brand,
@@ -79,4 +79,4 @@ class CertMediaUploadView(APIView):
         )
         item.save()
 
-        return Response({'id': item.id, 'title': item.title, **item.to_dict()}, status=status.HTTP_201_CREATED)
+        return Response({'id': item.id, 'name': item.name, **item.to_dict()}, status=status.HTTP_201_CREATED)

@@ -4,7 +4,7 @@
   <div v-if="file" class="fv-overlay" @click.self="$emit('close')">
     <div class="fv-window" :class="{ expanded }">
       <div class="fv-header">
-        <h3>{{ file.title || file.file_name || 'Файл' }}</h3>
+        <h3>{{ file.name || file.file_name || 'Файл' }}</h3>
         <div class="fv-header-actions">
           <button class="fv-icon-btn" @click="expanded = !expanded" :title="expanded ? 'Свернуть' : 'На весь экран'">
             {{ expanded ? '🗗' : '🗖' }}

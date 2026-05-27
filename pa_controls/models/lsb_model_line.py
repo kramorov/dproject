@@ -1,3 +1,4 @@
+# pa_controls/models/lsb_model_line.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -53,3 +54,26 @@ class LimitSwitchModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,Equipme
 
     def __str__(self):
         return self.name
+
+    # ── M2M-сериализаторы: id, code, name ──
+
+    def get_images_data(self):
+        """Изображения → [{id, code, name}]"""
+        return [
+            {'id': img.id, 'code': img.code or '', 'name': img.name or ''}
+            for img in self.images.all()
+        ]
+
+    def get_tech_docs_data(self):
+        """Техдокументация → [{id, code, name}]"""
+        return [
+            {'id': doc.id, 'code': doc.code or '', 'name': doc.name or ''}
+            for doc in self.tech_docs.all()
+        ]
+
+    def get_cert_docs_data(self):
+        """Сертификаты → [{id, code, name}]"""
+        return [
+            {'id': cert.id, 'code': cert.code or '', 'name': cert.name or ''}
+            for cert in self.cert_docs.all()
+        ]

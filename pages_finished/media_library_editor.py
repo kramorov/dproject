@@ -111,7 +111,7 @@ with st.sidebar:
                     media_file=DjangoFile(uploaded_file, name=uploaded_file.name),
                 )
                 item.save()
-                st.success(f"Загружено: {item.title}")
+                st.success(f"Загружено: {item.name}")
                 st.rerun()
             else:
                 st.error("Название и файл обязательны")
@@ -189,12 +189,12 @@ if st.session_state.get('edit_media_id'):
 
     if item:
         st.divider()
-        st.markdown(f"### ✏️ Редактирование: **{item.title}**")
+        st.markdown(f"### ✏️ Редактирование: **{item.name}**")
 
         categories = MediaCategory.objects.filter(is_active=True)
 
         with st.form("edit_form"):
-            new_title = st.text_input("Название", value=item.title)
+            new_title = st.text_input("Название", value=item.name)
             new_desc = st.text_area("Описание", value=item.description or '', height=80)
             new_keywords = st.text_input(
                 "Ключевые слова", value=item.keywords or '',
@@ -260,7 +260,7 @@ if st.session_state.get('edit_media_id'):
                 cancel_btn = st.form_submit_button("↩️ Отмена")
 
             if save_btn:
-                item.title = new_title.strip()
+                item.name = new_title.strip()
                 item.description = new_desc.strip()
                 item.keywords = new_keywords.strip()
                 item.category_id = new_cat

@@ -39,6 +39,6 @@ class TechDocMixin(models.Model):
         parts = []
         for doc in tech_docs_list:
             icon = getattr(doc.category, 'icon', ' ') if doc.category else ' '
-            name = doc.title or (doc.media_file.name if doc.media_file else '-')
+            name = doc.name or (doc.media_file.name if doc.media_file else '-')
             parts.append(f'{icon} {name}')
         return '; '.join(parts)

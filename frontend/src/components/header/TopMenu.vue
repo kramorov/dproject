@@ -28,6 +28,7 @@ const allItems = [
     { to:'/admin/media', label:'🖼️ Медиабиблиотека' },
     { to:'/admin/price', label:'💰 Цены' },
     { to:'/admin/sku', label:'📦 SKU' },
+    { to:'/admin/limit-switch', label:'🔌 БКВ' },
     { to:'/widgets', label:'📋 Виджеты' },
   ]},
 ]

@@ -65,6 +65,6 @@ class ImageGalleryMixin(models.Model):
         parts = []
         for img in imgs:
             icon = getattr(img.category, 'icon', ' ') if img.category else ' '
-            name = img.title or (img.media_file.name if img.media_file else '-')
+            name = img.name or (img.media_file.name if img.media_file else '-')
             parts.append(f'{icon} {name}')
         return '; '.join(parts)
