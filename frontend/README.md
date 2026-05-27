@@ -226,6 +226,82 @@ Dev: `npm run dev`, открыть `/src/apps/media-library/index.html`.
 
 ---
 
+---
+
+## Инструкция: создание нового каталога
+
+Все каталоги используют унифицированные Generic-компоненты из `shared/components/catalog/`. Для добавления нового каталога (например, `electric_actuators`):
+
+### 1. Создать директорию `src/apps/electric-actuator-catalog/`
+
+### 2. `api.js` — API-клиент
+
+```js
+import api from '@/shared/api'
+import { ENDPOINTS } from '@/shared/endpoints'
+const E = ENDPOINTS.electricActuator
+export default {
+  list(params)        { return api.get(E.catalog, { params }) },
+  getDetail(id)       { return api.get(E.detail(id)) },
+  getFilters()        { return api.get(E.filters) },
+  getQuickSelect(mlId, f = {}) { return api.get(E.quickselect, { params: { model_line_id: mlId, ...f } }) },
+}
+```
+
+### 3. `App.vue` — точка входа
+
+Копировать структуру из любого существующего каталога. Обязательно:
+- Импортировать `CatalogSection/List/Detail/Brand` из `@/shared/components/catalog/`
+- Импортировать `QuickSelect` из `@/shared/components/catalog/QuickSelect.vue`
+- Использовать `useCatalogRouter` из `@/shared/composables/useCatalogRouter.js`
+- Определить `labels` с названиями, иконками, filterLabels для QuickSelect
+
+### 4. `index.html` + `main.js`
+
+```html
+<!-- src/apps/electric-actuator-catalog/index.html -->
+<div id="electric-actuator-app"></div>
+<script type="module" src="./main.js"></script>
+```
+```js
+// main.js
+import { createApp } from 'vue'
+import App from './App.vue'
+createApp(App).mount('#electric-actuator-app')
+```
+
+### 5. Обновить `shared/endpoints.js`
+
+Добавить секцию для нового каталога:
+```js
+electricActuator: {
+  catalog: '/electric_actuators/catalog/',
+  detail: id => `/electric_actuators/catalog/${id}/`,
+  filters: '/electric_actuators/filters/',
+  quickselect: '/electric_actuators/quickselect/',
+},
+```
+
+### 6. Обновить `vite.config.js`
+
+Добавить точку входа в `rollupOptions.input`:
+```js
+'electric-actuator-catalog': path.resolve(__dirname, 'src/apps/electric-actuator-catalog/index.html'),
+```
+
+### 7. Обновить виджет (`widget/App.vue`)
+
+Добавить 5 блоков `<QuickSelect / CatalogSection / CatalogList / CatalogDetail / CatalogBrand>` с условием `route.catalog === 'electric_actuator'`. Импортировать API-клиент и добавить labels в объект `labels`.
+
+### 8. Обновить `widget/CatalogIndex.vue`
+
+Добавить запись в объект `catalogs`:
+```js
+electric_actuator: { id: 'electric_actuator', name: 'Электроприводы', icon: '⚡', ... }
+```
+
+---
+
 ## Легенда статусов
 
 - **Создано (дата)** — файл написан в рамках рефакторинга

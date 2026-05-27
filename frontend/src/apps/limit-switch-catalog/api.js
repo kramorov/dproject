@@ -1,11 +1,16 @@
 // limit-switch-catalog/api.js
-import axios from 'axios'
+// API-клиент для блоков концевых выключателей. Использует общий @/shared/api и централизованные эндпоинты.
+import api from '@/shared/api'
+import { ENDPOINTS } from '@/shared/endpoints'
 
-const BASE = '/api/pa-controls'
+const E = ENDPOINTS.limitSwitch
 
 export default {
-  list(params) { return axios.get(`${BASE}/catalog/`, { params }) },
-  getDetail(id) { return axios.get(`${BASE}/catalog/${id}/`) },
-  getFilters() { return axios.get(`${BASE}/filters/`) },
-  getMeta() { return axios.get(`${BASE}/meta/`) },
+  list(params)    { return api.get(E.catalog, { params }) },
+  getDetail(id)   { return api.get(E.detail(id)) },
+  getFilters()    { return api.get(E.filters) },
+  getQuickSelect(mlId, filters = {}) {
+    return api.get(E.quickselect, { params: { model_line_id: mlId, ...filters } })
+  },
+  getMeta()       { return api.get(E.meta) },
 }

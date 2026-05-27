@@ -1,71 +1,30 @@
+<!-- gearbox-catalog/App.vue -->
 <template>
   <div class="app">
-    <!-- Страница серий -->
-    <GearboxSection
-      v-if="page === 'section'"
-      @select-series="goToBrand"
-      @select="goToList"
-    />
-
-    <!-- Страница подбора (каталог с фильтрами) -->
-    <GearboxList
-      v-else-if="page === 'list'"
-      :filters="filters"
-      @select="onSelectItem"
-    />
-
-    <!-- Страница карточки товара -->
-    <GearboxDetail
-      v-else-if="page === 'detail'"
-      :id="selectedId"
-      @close="page = 'list'"
-    />
-
-    <!-- Страница бренда -->
-    <GearboxBrand
-      v-else-if="page === 'brand'"
-      :brand-id="brandId"
-      @select="onSelectItem"
-    />
+    <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" :extra-buttons="labels.section.extraButtons" @select-series="goToBrand" @select="goToList" @quickselect="goToQuickSelect" />
+    <CatalogList v-else-if="page === 'list'" :api="api" :labels="labels.list" @select="onSelectItem" />
+    <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" @close="page = 'list'" />
+    <CatalogBrand v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="brand_id" :id-value="idValue" @select="onSelectItem" />
+    <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="onSelectItem" />
   </div>
 </template>
-
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import GearboxSection from './components/GearboxSection.vue'
-import GearboxList from './components/GearboxList.vue'
-import GearboxDetail from './components/GearboxDetail.vue'
-import GearboxBrand from './components/GearboxBrand.vue'
+import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
+import CatalogList from '@/shared/components/catalog/CatalogList.vue'
+import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
+import CatalogBrand from '@/shared/components/catalog/CatalogBrand.vue'
+import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
+import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
 import gearboxApi from './api'
-
-const page = ref('section')
-const selectedId = ref(null)
-const brandId = ref(null)
-const filters = reactive({ loaded: false, data: {} })
-
-function goToList() { page.value = 'list' }
-function goToBrand(id) { brandId.value = id; page.value = 'brand' }
-
-function onSelectItem(id) {
-  selectedId.value = id
-  page.value = 'detail'
+const api = gearboxApi
+const labels = {
+  section: { title:'Редукторы', subtitle:'Выберите серию редуктора', icon:'⚙️', countLabel:'моделей', breadcrumbs:[{name:'Каталог'},{name:'Редукторы'}], extraButtons:[{key:'quickselect',label:'⚡ Быстрый подбор',event:'quickselect'},{key:'showAll',label:'Показать все',event:'select'}] },
+  list: { searchPlaceholder:'Поиск редукторов...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
+  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Редукторы' },
+  brand: { countLabel:'Редукторов:', emptyLabel:'Нет товаров', breadcrumbName:'Редукторы' },
+  quickselect: { title:'Быстрый подбор', breadcrumbName:'Редукторы', filterLabels:{ body_material_id:'Материал корпуса', min_work_torque:'Рабочий момент, Нм', mounting_plate_top_id:'Монтажная площадка' }, autoSelectRules:{} },
 }
-
-// Предзагрузка фильтров
-onMounted(async () => {
-  try {
-    const r = await gearboxApi.getFilters()
-    filters.data = r.data || {}
-    filters.loaded = true
-  } catch (e) {
-    console.error('Failed to load filters', e)
-    filters.loaded = true
-  }
-})
+const { page, selectedId, idValue, goToList, goToBrand, onSelectItem } = useCatalogRouter(api, { idProp:'brand_id' })
+function goToQuickSelect() { page.value = 'quickselect' }
 </script>
-
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--cat-font);background:var(--cat-bg-page);color:var(--cat-text)}
-.app{max-width:1440px;margin:0 auto;padding:16px}
-</style>
+<style> *{box-sizing:border-box;margin:0;padding:0} body{font-family:var(--cat-font);background:var(--cat-bg-page);color:var(--cat-text)} .app{max-width:1440px;margin:0 auto;padding:16px} </style>

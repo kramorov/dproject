@@ -85,6 +85,29 @@ pip install PyMuPDF
 - [x] Инженерный каталог фильтр-регуляторов
 - [x] LimitSwitchBox — переписан на CatalogDictMixin
 
+## Рефакторинг (2026-05-27)
+
+Унификация фронтенда и бэкенда трёх каталогов (gearbox, filter_regulator, limit_switch).
+
+### Бэкенд
+- **BaseFilterOptionsView** — общий View для /filters/ (core/views.py). Три FilterOptionsView → подклассы по 5 строк. Формат: `{ param_name: { label, order, options } }`.
+- **API-слой фронтенда**: все api.js используют `@/shared/api`. Пути вынесены в `shared/endpoints.js`.
+
+### Фронтенд
+- **Generic-компоненты** в `shared/components/catalog/`: CatalogSection/List/Brand/Detail. Параметризуются через `api` + `labels`. Заменили 12 старых компонентов (GearboxSection, FrBrand, LsbList…).
+- **Composables**: `useCatalog.js` (fetchData, пагинация, фильтры), `useCatalogRouter.js` (навигация App.vue).
+- **Виджет**: добавлен limit_switch (был только в CatalogIndex, без роутов). Все каталоги используют Generic-компоненты.
+- **CSS**: все каталоги на CSS-переменных, filter-regulator переведён с hardcoded-цветов.
+
+### Удалено
+- **QuickSelect (Быстрый подбор)**: `BaseQuickSelectView` в core/views.py. Заменил EngineerCatalog. Чипсовые фильтры + одна карточка. Подклассы в gearbox/filter_regulator/pa_controls.
+- **Spinner.vue**: общий компонент загрузки, заменил «Загрузка...» в 5 компонентах.
+- **Breadcrumbs**: родительские уровни с `url: '#'` — кликабельны.
+
+### Удалено
+- 13 старых компонентов, ~2400 строк копипасты → ~400 строк конфигов + Generic-компоненты.
+- `EngineerCatalog.vue` → `QuickSelect.vue`. `engineer.py` → `quickselect.py`.
+
 ## Важные пути
 
 | Ресурс | Путь |
@@ -94,8 +117,11 @@ pip install PyMuPDF
 | FilterRegulator.to_dict() | filter_regulator/models/fr_model_line_item.py |
 | LimitSwitchBox.to_dict() | pa_controls/models/limit_switch.py |
 | FilterRegulator фильтры | filter_regulator/services/filters.py |
-| Инженерный каталог (бэкенд) | filter_regulator/views/engineer.py |
-| Инженерный каталог (фронтенд) | frontend/src/apps/filter-regulator-catalog/components/EngineerCatalog.vue |
+| QuickSelect (бэкенд, общий) | core/views.py → BaseQuickSelectView |
+| QuickSelect (filter_regulator) | filter_regulator/views/quickselect.py |
+| QuickSelect (gearbox) | gearbox/views/quickselect.py |
+| QuickSelect (limit_switch) | pa_controls/views/quickselect.py |
+| QuickSelect (фронтенд) | frontend/src/shared/components/catalog/QuickSelect.vue |
 | Shared компоненты | frontend/src/shared/components/ |
 | CSS темы | frontend/src/shared/themes/ |
 | Виджет | frontend/src/apps/widget/ |
@@ -106,3 +132,11 @@ pip install PyMuPDF
 | Медиатека (админ) | media_library/admin.py |
 | Медиатека (модель) | media_library/models.py |
 | Сертификаты (фильтры) | cert_doc/views/filters.py |
+| BaseFilterOptionsView | core/views.py |
+| FilterOptionsView (gearbox) | gearbox/views/catalog.py |
+| FilterOptionsView (filter_regulator) | filter_regulator/views/catalog.py |
+| FilterOptionsView (limit_switch) | pa_controls/views/catalog.py |
+| Generic-компоненты каталогов | frontend/src/shared/components/catalog/ |
+| API эндпоинты (фронтенд) | frontend/src/shared/endpoints.js |
+| Composable useCatalog | frontend/src/shared/composables/useCatalog.js |
+| Spinner (загрузка) | frontend/src/shared/components/Spinner.vue |

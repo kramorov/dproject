@@ -5,12 +5,12 @@ from .catalog import (
     FilterRegulatorFilterOptionsView,
 )
 from .meta import FilterRegulatorMetaView
-from .engineer import EngineerCatalogView
+from .quickselect import FilterRegulatorQuickSelectView
 
 __all__ = [
     'FilterRegulatorCatalogView',
     'FilterRegulatorDetailView',
     'FilterRegulatorFilterOptionsView',
     'FilterRegulatorMetaView',
-    'EngineerCatalogView',
+    'FilterRegulatorQuickSelectView',
 ]

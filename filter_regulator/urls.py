@@ -5,13 +5,13 @@ from .views import (
     FilterRegulatorDetailView,
     FilterRegulatorFilterOptionsView,
     FilterRegulatorMetaView,
-    EngineerCatalogView,
 )
+from .views.quickselect import FilterRegulatorQuickSelectView
 
 urlpatterns = [
+    path('quickselect/', FilterRegulatorQuickSelectView.as_view(), name='filter_regulator_quickselect'),
     path('catalog/', FilterRegulatorCatalogView.as_view(), name='filter_regulator_catalog'),
     path('catalog/<int:pk>/', FilterRegulatorDetailView.as_view(), name='filter_regulator_detail'),
     path('filters/', FilterRegulatorFilterOptionsView.as_view(), name='filter_regulator_filters'),
     path('meta/', FilterRegulatorMetaView.as_view(), name='filter_regulator_meta'),
-    path('engineer/', EngineerCatalogView.as_view(), name='filter_regulator_engineer'),
 ]

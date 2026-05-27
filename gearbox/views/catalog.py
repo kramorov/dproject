@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import translation
 
 from gearbox.models import GearBox
+from core.views import BaseFilterOptionsView
 from gearbox.services.filters import (
     GEARBOX_FILTER_DEFINITIONS,
     GEARBOX_SEARCH_FIELDS,
@@ -157,29 +158,12 @@ class GearboxDetailView(APIView):
         return Response(data)
 
 
-class GearboxFilterOptionsView(APIView):
+class GearboxFilterOptionsView(BaseFilterOptionsView):
     """
-    GET /api/gearbox/filters/
+    GET /api/gearbox/filters/ — опции для FilterSidebar на фронтенде.
+
+    Наследует get() из BaseFilterOptionsView (core/views.py).
     """
     permission_classes = [AllowAny]
-
-    def get(self, request):
-        result = {}
-        for fd in GEARBOX_FILTER_DEFINITIONS:
-            if fd.data_source_type.value != 'custom':
-                try:
-                    options = fd.get_options(GearBox)
-                    if options:
-                        result[fd.param_name] = {
-                            'label': fd.label,
-                            'order': fd.order,
-                            'options': options,
-                        }
-                except Exception as e:
-                    result[fd.param_name] = {
-                        'label': fd.label,
-                        'order': fd.order,
-                        'options': [],
-                        'error': str(e),
-                    }
-        return Response(result)
+    filter_definitions = GEARBOX_FILTER_DEFINITIONS
+    model_class = GearBox

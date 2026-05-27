@@ -534,3 +534,196 @@ class DebugAPIView(APIView) :
                     response['model_error'] = str(e)
 
         return Response(response)
+
+
+class BaseFilterOptionsView(APIView):
+    """
+    Общий View для опций фильтров каталога — единая реализация для всех каталогов.
+
+    Заменяет три идентичных FilterOptionsView (gearbox, filter_regulator, pa_controls).
+    Логика: итерация по FILTER_DEFINITIONS → fd.get_options(model_class) → { label, order, options }.
+
+    Подкласс должен определить два атрибута:
+        filter_definitions — список FilterDefinition (из services/filters.py)
+        model_class         — класс модели Django
+
+    Пример:
+        class GearboxFilterOptionsView(BaseFilterOptionsView):
+            permission_classes = [AllowAny]
+            filter_definitions = GEARBOX_FILTER_DEFINITIONS
+            model_class = GearBox
+
+    Ответ (JSON):
+        { param_name: { label: str, order: int, options: [{id, name, code}] } }
+
+    См. также:
+        core/models/smart_catalog_mixin.py — FilterDefinition, FilterType, DataSourceType
+        gearbox/views/catalog.py           — пример использования
+    """
+    permission_classes = []
+    filter_definitions = None
+    model_class = None
+
+    def get(self, request):
+        if not self.filter_definitions:
+            return Response({'error': 'filter_definitions not configured'}, status=500)
+
+        result = {}
+        for fd in self.filter_definitions:
+            if fd.data_source_type.value != 'custom':
+                try:
+                    options = fd.get_options(self.model_class)
+                    if options:
+                        result[fd.param_name] = {
+                            'label': fd.label,
+                            'order': fd.order,
+                            'options': options,
+                        }
+                except Exception as e:
+                    result[fd.param_name] = {
+                        'label': fd.label,
+                        'order': fd.order,
+                        'options': [],
+                        'error': str(e),
+                    }
+        return Response(result)
+
+
+class BaseQuickSelectView(APIView):
+    """
+    Общий View для «Быстрого подбора» — чипсовые фильтры + одна карточка товара.
+
+    Заменяет EngineerCatalogView, делает паттерн доступным для всех каталогов.
+    Возвращает { model_line, items, filters: { key: [{id/value, name/label, count}] } }.
+
+    Подкласс должен определить атрибуты:
+        quickselect_filters  — список param_name для быстрого подбора
+        filter_definitions   — полные FILTER_DEFINITIONS
+        model_class          — класс модели Django
+        model_line_model     — модель серии
+        select_related       — список полей для select_related
+        prefetch_fields      — список полей для prefetch_related (опционально)
+        auto_select_rules    — dict: { param_name: 'min'|'max' }
+
+    См. также:
+        filter_regulator/views/engineer.py  — пример использования
+    """
+    permission_classes = []
+    quickselect_filters = None
+    filter_definitions = None
+    model_class = None
+    model_line_model = None
+    select_related = None
+    prefetch_fields = None
+    auto_select_rules = {}
+
+    def get(self, request):
+        params = request.query_params
+        model_line_id = params.get('model_line_id')
+        brand_id = params.get('brand_id')
+
+        if not model_line_id and not brand_id:
+            return Response({'error': 'model_line_id or brand_id is required'}, status=400)
+
+        qs = self.model_class.objects.filter(is_active=True)
+
+        if model_line_id:
+            qs = qs.filter(model_line_id=model_line_id)
+        if brand_id:
+            qs = qs.filter(model_line__brand_id=brand_id)
+
+        if self.select_related:
+            qs = qs.select_related(*self.select_related)
+        if self.prefetch_fields:
+            qs = qs.prefetch_related(*self.prefetch_fields)
+
+        # Применяем фильтры из запроса
+        allowed_params = set(self.quickselect_filters or []) | {'work_temp_min', 'work_temp_max'}
+        for fd in (self.filter_definitions or []):
+            if fd.param_name not in allowed_params:
+                continue
+            value = params.get(fd.param_name)
+            if value is None or value == '' or value == 'all':
+                continue
+            lookup, converted = fd.build_filter_lookup(value)
+            if lookup and converted is not None:
+                qs = qs.filter(**{lookup: converted})
+
+        items = [obj.to_dict() for obj in qs[:50]]
+
+        # Опции фильтров с подсчётом
+        filters_out = {}
+        for fd in (self.filter_definitions or []):
+            if fd.param_name not in (self.quickselect_filters or []):
+                continue
+            options = self._get_filter_options(qs, fd)
+            if options:
+                filters_out[fd.param_name] = options
+
+        ml_info = None
+        if model_line_id and self.model_line_model:
+            ml_info = self._get_model_line_info(model_line_id)
+
+        return Response({
+            'model_line': ml_info,
+            'total': qs.count(),
+            'items': items,
+            'filters': filters_out,
+        })
+
+    def _get_filter_options(self, qs, fd):
+        """Собрать доступные значения фильтра с подсчётом."""
+        from core.models.smart_catalog_mixin import FilterType as _FT
+        from django.db.models import Count
+        field_name = fd.model_field
+
+        if fd.filter_type in (_FT.EXACT,):
+            try:
+                parts = field_name.split('__')
+                rel_model = self.model_class
+                for part in parts:
+                    fld = rel_model._meta.get_field(part)
+                    if fld.is_relation:
+                        rel_model = fld.remote_field.model
+
+                rows = (
+                    qs.values(f'{field_name}_id')
+                    .annotate(count=Count('id'))
+                    .order_by(f'{field_name}_id')
+                )
+                ids = [r[f'{field_name}_id'] for r in rows if r[f'{field_name}_id'] is not None]
+                if not ids:
+                    return []
+
+                objects = rel_model.objects.filter(id__in=ids)
+                obj_map = {obj.id: obj for obj in objects}
+
+                return [
+                    {'id': oid, 'name': str(obj_map[oid]), 'count': row['count']}
+                    for row in rows
+                    if (oid := row[f'{field_name}_id']) and oid in obj_map
+                ]
+            except Exception:
+                return []
+
+        elif fd.filter_type in (_FT.MIN,):
+            values = (
+                qs.values_list(field_name, flat=True)
+                .distinct()
+                .order_by(field_name)
+            )
+            return [
+                {'value': v, 'label': str(v), 'count': qs.filter(**{f'{field_name}__gte': v}).count()}
+                for v in values if v is not None
+            ]
+
+        return []
+
+    def _get_model_line_info(self, model_line_id):
+        if not self.model_line_model:
+            return None
+        try:
+            ml = self.model_line_model.objects.get(id=model_line_id)
+            return {'id': ml.id, 'name': ml.name, 'code': getattr(ml, 'code', '') or ''}
+        except Exception:
+            return None

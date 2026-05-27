@@ -1,17 +1,18 @@
 // filter-regulator-catalog/api.js
-// API-клиент для фильтр-регуляторов.
-// Все URL как у gearbox, только модель другая.
-import axios from 'axios'
+// API-клиент для фильтр-регуляторов. Использует общий @/shared/api и централизованные эндпоинты.
+import api from '@/shared/api'
+import { ENDPOINTS } from '@/shared/endpoints'
 
-const BASE = '/api/filter-regulator'
+const E = ENDPOINTS.filterRegulator
+const A = ENDPOINTS.admin
 
 export default {
-  list(params) { return axios.get(`${BASE}/catalog/`, { params }) },
-  getDetail(id) { return axios.get(`${BASE}/catalog/${id}/`) },
-  getFilters() { return axios.get(`${BASE}/filters/`) },
-  getEngineer(mlId, filters = {}) {
-    return axios.get(`${BASE}/engineer/`, { params: { model_line_id: mlId, ...filters } })
+  list(params)    { return api.get(E.catalog, { params }) },
+  getDetail(id)   { return api.get(E.detail(id)) },
+  getFilters()    { return api.get(E.filters) },
+  getQuickSelect(mlId, filters = {}) {
+    return api.get(E.quickselect, { params: { model_line_id: mlId, ...filters } })
   },
-  getMeta() { return axios.get(`${BASE}/meta/`) },
-  getPrices(codes) { return axios.get(`/api/admin/prices/snapshot/`, { params: { codes: codes.join(',') } }) },
+  getMeta()       { return api.get(E.meta) },
+  getPrices(codes) { return api.get(A.pricesSnapshot, { params: { code: codes.join(',') } }) },
 }

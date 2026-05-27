@@ -105,3 +105,10 @@ GEARBOX_PREFETCH_FIELDS = [
     'body__mounting_plate_top',
     'body__mounting_plate_bottom',
 ]
+
+# Фильтры для быстрого подбора (QuickSelect)
+GEARBOX_QUICKSELECT_FILTERS = [
+    'body_material_id',
+    'min_work_torque',
+    'mounting_plate_top_id',
+]

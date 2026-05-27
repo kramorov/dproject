@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import translation
 
 from filter_regulator.models import FilterRegulator
+from core.views import BaseFilterOptionsView
 from filter_regulator.services.filters import (
     FILTER_REGULATOR_FILTER_DEFINITIONS,
     FILTER_REGULATOR_SEARCH_FIELDS,
@@ -127,27 +128,12 @@ class FilterRegulatorDetailView(APIView):
         return Response(data)
 
 
-class FilterRegulatorFilterOptionsView(APIView):
-    """GET /api/filter-regulator/filters/"""
-    permission_classes = [AllowAny]
+class FilterRegulatorFilterOptionsView(BaseFilterOptionsView):
+    """
+    GET /api/filter-regulator/filters/ — опции для FilterSidebar на фронтенде.
 
-    def get(self, request):
-        result = {}
-        for fd in FILTER_REGULATOR_FILTER_DEFINITIONS:
-            if fd.data_source_type.value != 'custom':
-                try:
-                    options = fd.get_options(FilterRegulator)
-                    if options:
-                        result[fd.param_name] = {
-                            'label': fd.label,
-                            'order': fd.order,
-                            'options': options,
-                        }
-                except Exception as e:
-                    result[fd.param_name] = {
-                        'label': fd.label,
-                        'order': fd.order,
-                        'options': [],
-                        'error': str(e),
-                    }
-        return Response(result)
+    Наследует get() из BaseFilterOptionsView (core/views.py).
+    """
+    permission_classes = [AllowAny]
+    filter_definitions = FILTER_REGULATOR_FILTER_DEFINITIONS
+    model_class = FilterRegulator

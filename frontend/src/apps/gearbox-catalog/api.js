@@ -1,18 +1,17 @@
-// src/apps/gearbox-catalog/api.js
+// gearbox-catalog/api.js
+// API-клиент для редукторов. Использует общий @/shared/api и централизованные эндпоинты.
 import api from '@/shared/api'
+import { ENDPOINTS } from '@/shared/endpoints'
 
-const B = '/gearbox'
+const E = ENDPOINTS.gearbox
+const A = ENDPOINTS.admin
 
 export default {
-  // Каталог
-  list(params = {}) { return api.get(`${B}/catalog/`, { params }) },
-  getDetail(id) { return api.get(`${B}/catalog/${id}/`) },
-  getFilters() { return api.get(`${B}/filters/`) },
-
-  // Цены — через существующий снэпшот
-  getPrices(skuCodes) {
-    return api.get('/admin/prices/snapshot/', {
-      params: { code: skuCodes.join(',') }
-    })
+  list(params)    { return api.get(E.catalog, { params }) },
+  getDetail(id)   { return api.get(E.detail(id)) },
+  getFilters()    { return api.get(E.filters) },
+  getQuickSelect(mlId, filters = {}) {
+    return api.get(E.quickselect, { params: { model_line_id: mlId, ...filters } })
   },
+  getPrices(codes) { return api.get(A.pricesSnapshot, { params: { code: codes.join(',') } }) },
 }

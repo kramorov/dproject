@@ -102,8 +102,8 @@ FILTER_REGULATOR_PREFETCH_FIELDS = [
     'model_line__cert_docs',
 ]
 
-# Фильтры для инженерного каталога (визуальный подбор)
-ENGINEER_FILTERS = [
+# Фильтры для быстрого подбора (QuickSelect)
+QUICKSELECT_FILTERS = [
     'filtration_rating_min',
     'body_material_id',
     'flow_rate_min',

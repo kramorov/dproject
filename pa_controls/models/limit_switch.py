@@ -528,6 +528,14 @@ class LimitSwitchBox(CatalogDictMixin,
 
     SEARCH_FIELDS = ['code', 'name', 'description']
 
+    # Фильтры для быстрого подбора (QuickSelect)
+    QUICKSELECT_FILTERS = [
+        'sensor_variety_id',
+        'points',
+        'body_material_id',
+        'signal_type_id',
+    ]
+
     SELECT_RELATED_FIELDS = [
         'model_line', 'model_line__brand', 'sensor_variety',
         'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type'
