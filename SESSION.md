@@ -1,4 +1,4 @@
-# Состояние проекта на 2026-05-25
+# Состояние проекта на 2026-05-27
 
 ## ⚠️ НАПОМИНАНИЕ: установить PyMuPDF на домашней машине
 
@@ -20,22 +20,72 @@ pip install PyMuPDF
 7. Shared-компоненты — переиспользуются для всех типов каталогов
 8. Фильтры списка: scope=used (только существующие), формы создания: scope=all (полные справочники)
 
-## ⚠️ Облачное хранилище cloud.ru (2026-05-26)
+## ⚠️ Облачное хранилище Cloud.ru (2026-05-27)
 
 Медиабиблиотека перенесена в Cloud.ru Evolution Object Storage.
 - Бакет: media-storage, эндпоинт: https://s3.cloud.ru, регион: ru-central-1
 - Ключи: в settings.py (CLOUDRU_ADMIN_*, CLOUDRU_READER_*)
-- Режим раздачи: MEDIA_SERVE_MODE = 'redirect' — клиент качает напрямую из S3 через presigned URL.
-  'proxy' — Django стримит через себя (медленно). Переключать в settings.py.
 - Бэкенд: storage_manager/storage_backends/cloudru.py (CloudRuStorage)
-- Миграция: python manage.py migrate_media_to_cloudru
+- Нормализация путей: python manage.py normalize_media_paths (\\ → /)
 - Бэкап: media_backup_20260526/ + db_backup_20260526.sqlite3
 - Для домашней машины: установить boto3 и PyMuPDF, вписать ключи в settings.py
+
+### Режимы раздачи (MEDIA_SERVE_MODE)
+| Режим | Статус | Описание |
+|-------|--------|----------|
+| `redirect` | ✅ РАБОТАЕТ | Django → 302 на presigned URL (boto3, tenant_id в X-Amz-Credential) |
+| `direct` | ❌ НЕ РАБОТАЕТ | Прямые ссылки на Cloud.ru. Проблема: Cloud.ru требует X-Project-Id, браузер не может передать заголовок через `<img src>`. Публичная политика бакета не помогает — аутентификация всё равно требуется. |
+| `proxy` | ⚠️ Для отладки | Django стримит файлы через себя. Медленно, нагружает сервер. |
+
+### История попыток прямого доступа (direct mode)
+1. `MEDIA_PUBLIC_BASE_URL = 'https://s3.cloud.ru/media-storage'` — ошибка `missing tenant id`
+2. CORS-правила на бакете — не помогли (проблема в аутентификации, не в CORS)
+3. `?tenant_id=...` в URL — ошибка `SignatureDoesNotMatch` (boto3 не включает tenant_id в подпись)
+4. `X-Project-Id` через заголовок — невозможно для `<img src="...">` (браузер не шлёт кастомные заголовки)
+5. `https://media-storage.hb.bizmrg.com` — `NoSuchBucket` (неверный формат endpoint)
+6. **Решение**: `MEDIA_SERVE_MODE = 'redirect'` — presigned URL через boto3 с tenant_id в `X-Amz-Credential`
+
+### Проблема обратных слешей (Windows)
+- `os.path.join` на Windows → `\` вместо `/`
+- Старые файлы в S3: `media_library\medialibraryitem\...`
+- Новые файлы: `media_library/medialibraryitem/...`
+- **Решение**: `CloudRuStorage._normalize()` + `_resolve_name()` — ищет оба варианта
+- **Ускорение**: `python manage.py normalize_media_paths` — обновляет пути в БД
+
+## Админ-панель фронтенда (2026-05-27)
+
+Добавлены страницы в «Администрирование» (только для admin):
+- `/admin/cert-docs` — сертификаты (CertDocsPage)
+- `/admin/media` — медиабиблиотека (было)
+- `/admin/price` — цены (PriceCatalogPage)
+- `/admin/sku` — номенклатура (SkuAdminPage)
+- `/admin/widgets` — виджеты (было)
+
+Меню: `TopMenu.vue` → выпадающий список «⚙️ Администрирование».
+Роуты: `router/index.js` → meta.role = 'admin'.
+Изображения: все через Django API → storage backend. Хардкода S3 URL нет.
 
 ## Правила работы
 - Не писать в существующие файлы без разрешения
 - Шаг за шагом
 - При смене машины читать SESSION.md (в git)
+
+## Рефакторинг (2026-05-27)
+
+### Унификация каталогов
+- **BaseFilterOptionsView** — общий View для /filters/ (core/views.py)
+- **BaseQuickSelectView** — общий View для быстрого подбора (core/views.py), заменил EngineerCatalog
+- **QuickSelect.vue** — универсальный чипсовый подбор (shared/components/catalog/)
+- **Generic-компоненты**: CatalogSection/List/Brand/Detail (shared/components/catalog/)
+- **Composables**: useCatalog.js, useCatalogRouter.js
+- **API-слой**: все api.js → @/shared/api + shared/endpoints.js
+- **Удалено**: 13 старых компонентов + EngineerCatalog.vue, ~2400 строк копипасты
+
+### Медиатека
+- **Пагинация**: MediaGrid (limit/offset, селект 20/50)
+- **MediaLibraryItem.get_serve_url()** — единый метод для URL файлов
+- **CatalogDictMixin._get_image_url()** / **_get_doc_url()** → делегируют get_serve_url()
+- **MediaPreviewView** — try/except защита от PyMuPDF-крашей
 
 ## Реализованные каталоги
 

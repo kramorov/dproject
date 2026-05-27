@@ -20,6 +20,7 @@
 import os
 import logging
 from django.db import models
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
@@ -711,6 +712,22 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         ) ,
     ]
 
+    @property
+    def public_url(self):
+        base = getattr(settings, 'MEDIA_PUBLIC_BASE_URL', '')
+        if self.media_file and self.media_file.name and base:
+            return f"{base}/{self.media_file.name}"
+        return None
+
+    def get_serve_url(self, mode=None):
+        """URL для отдачи файла в зависимости от режима."""
+        from django.conf import settings
+        mode = mode or getattr(settings, 'MEDIA_SERVE_MODE', 'redirect')
+        if mode == 'direct':
+            return self.public_url or (self.media_file.url if self.media_file else None)
+        base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
+        return f"{base}/api/media/{self.id}/view/"
+
     SEARCH_FIELDS = ['title' , 'description', 'keywords']
 
     SELECT_RELATED_FIELDS = ['category' , 'equipment_type' , 'created_by', 'brand']
@@ -739,6 +756,7 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         'is_public': self.is_public ,
         'is_active': self.is_active ,
         'has_file': bool(self.media_file) ,
+        'public_url': self.public_url ,
         'file_name': self.media_file.name if self.media_file else None ,
         'created_at': self.created_at.isoformat() if self.created_at else None ,
         }

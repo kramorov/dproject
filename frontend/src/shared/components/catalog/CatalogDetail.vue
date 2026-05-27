@@ -12,7 +12,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import ProductDetail from '@/shared/components/ProductDetail.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, id:{type:[Number,String],default:null} })
-defineEmits(['close'])
+const emit = defineEmits(['close','navigate'])
 const product = ref(null); const price = ref(null); const loading = ref(true)
 const breadcrumbs = computed(() => [
   { name:'Каталог', url:'#' },

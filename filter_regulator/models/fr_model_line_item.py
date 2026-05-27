@@ -219,14 +219,7 @@ class FilterRegulator(
     # ── CatalogDictMixin helpers ──
 
     def _get_image_url(self, img):
-        if not img:
-            return None
-        try:
-            from django.conf import settings
-            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
-            return f"{base}/api/media/{img.id}/view/"
-        except Exception:
-            return None
+        return CatalogDictMixin._get_image_url(self, img)
 
     def _get_file_info(self, doc):
         if not doc:

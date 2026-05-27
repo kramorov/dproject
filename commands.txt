@@ -30,8 +30,8 @@ deepseek update
 Из дома:
 git add .
 git commit -m "добавлено опции из model_line в  selected_actuator"
-git push -u dproject main
-git pull dproject main
+git push
+git pull
 
 ID	Название (Тип)	Код сигнала	Форма контактов (Логика)	Проводов	Пример датчика
 3	NAMUR (Ex/Safety)	NAMUR	SPST (Нормально замкнутый)	2	SJ3,5-SN

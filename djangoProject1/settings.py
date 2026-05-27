@@ -29,7 +29,8 @@ FILE_STORAGE_BACKEND = 'cloudru'  # было 'local'
 # Режим раздачи медиафайлов:
 #   'redirect' — 302 на presigned URL S3 (быстро, клиент качает напрямую из облака)
 #   'proxy'    — Django стримит файл через себя (медленно, но полный контроль доступа)
-MEDIA_SERVE_MODE = 'redirect'
+MEDIA_SERVE_MODE = 'redirect'  # 'redirect' | 'direct' | 'proxy'
+MEDIA_PUBLIC_BASE_URL = 'https://s3.cloud.ru/media-storage'
 # Cloud.ru Evolution Object Storage
 # --- Админский аккаунт (запись, удаление, управление) ---
 CLOUDRU_ADMIN_TENANT_ID = 'ffe0e1bf-9a68-496a-9029-34355a9e1527'
@@ -78,7 +79,12 @@ ALLOWED_HOSTS = [
     'host.docker.internal'  # Важно!
 
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173" ,  # URL вашего приложения на Vite
     "http://localhost:3000" ,
@@ -98,6 +104,7 @@ CORS_ALLOW_HEADERS = [
     "content-type" ,
     "authorization" ,
     "x-csrf-token" ,
+    "x-csrftoken" ,
     "x-requested-with" ,
     "accept" ,
     "origin" ,

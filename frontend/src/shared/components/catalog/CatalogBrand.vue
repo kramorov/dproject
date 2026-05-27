@@ -1,7 +1,7 @@
 <!-- shared/components/catalog/CatalogBrand.vue -->
 <template>
   <div class="catalog-brand">
-    <Breadcrumbs :items="breadcrumbs" />
+    <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <div class="brand-header"><h1 class="page-title">{{ brandName || labels.title || 'Бренд' }}</h1><p class="page-count" v-if="total">{{ labels.countLabel || 'Товаров:' }} {{ total }}</p></div>
     <div class="content" v-if="!loading || items.length">
       <FilterSidebar v-if="filtersLoaded && showFilters" :filters="filterData" @change="onFilterChange" @reset="resetFilters" />

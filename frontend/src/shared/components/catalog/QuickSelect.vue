@@ -1,7 +1,7 @@
 <!-- shared/components/catalog/QuickSelect.vue -->
 <template>
   <div class="qs-page">
-    <Breadcrumbs :items="breadcrumbs" />
+    <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <h1 class="page-title">{{ pageTitle }}</h1>
     <div class="chip-group" v-if="modelLines.length"><div class="chip-label">Серия</div><div class="chip-row"><button v-for="ml in modelLines" :key="ml.id" class="chip" :class="{active:selectedML===ml.id}" @click="selectSeries(ml.id)">{{ ml.name }}</button></div></div>
     <div v-if="filterGroups.length" class="filter-chips"><div v-for="group in filterGroups" :key="group.key" class="chip-group"><div class="chip-label">{{ group.label }}</div><div class="chip-row"><button v-for="opt in group.options" :key="opt.value||opt.id" class="chip" :class="{active:String(activeFilters[group.key])===String(opt.value??opt.id)}" @click="toggleFilter(group.key,opt.value??opt.id)">{{ opt.label||opt.name }}<span class="chip-count" v-if="opt.count!=null">({{ opt.count }})</span></button></div></div></div>

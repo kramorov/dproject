@@ -1,7 +1,7 @@
 <!-- shared/components/catalog/CatalogSection.vue -->
 <template>
   <div class="catalog-section">
-    <Breadcrumbs :items="breadcrumbs" />
+    <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <h1 class="page-title">{{ labels.title }}</h1>
     <p class="page-subtitle">
       {{ labels.subtitle }}
@@ -18,14 +18,14 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,required:true}, extraButtons:{type:Array,default:()=>[]} })
 defineEmits(['selectSeries','select','quickselect','engineer'])
 const series = ref([])
 const loaded = ref(false)
-const breadcrumbs = (props.labels.breadcrumbs || [{name:'Каталог'},{name:props.labels.title}]).map((b,i,arr) => ({...b, url: i < arr.length-1 ? '#' : undefined }))
+const breadcrumbs = computed(() => (props.labels.breadcrumbs || [{name:'Каталог'},{name:props.labels.title}]))
 onMounted(async () => { try { const r = await props.api.list({limit:1000}); const items = r.data?.data||[]; const map={}; for(const item of items){ const ml=item.model_line; if(!ml||map[ml.id]) continue; map[ml.id]={id:ml.id,name:ml.name,code:ml.code||'',image:item.images?.[0]?.preview_url||item.images?.[0]?.url||null,count:0}; } for(const item of items){ const ml=item.model_line; if(ml&&map[ml.id]) map[ml.id].count++ } series.value=Object.values(map).sort((a,b)=>a.name.localeCompare(b.name)) } catch(e){ console.error(e) } loaded.value=true })
 </script>
 <style scoped>

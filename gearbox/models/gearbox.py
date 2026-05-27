@@ -250,15 +250,7 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
     # перенесены в gearbox/services/filters.py
 
     def _get_image_url(self, img):
-        """URL изображения — абсолютный, для работы на сторонних сайтах."""
-        if not img:
-            return None
-        try:
-            from django.conf import settings
-            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
-            return f"{base}/api/media/{img.id}/view/"
-        except Exception:
-            return None
+        return CatalogDictMixin._get_image_url(self, img)
 
     def _get_file_info(self, doc):
         """Информация о файле — абсолютный URL для работы на сторонних сайтах."""

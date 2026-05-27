@@ -68,4 +68,4 @@ const labels = {
   },
 }
 </script>
-<style> *{box-sizing:border-box;margin:0;padding:0} body{font-family:var(--cat-font);background:var(--cat-bg-page);color:var(--cat-text)} .widget-app{max-width:1440px;margin:0 auto;padding:16px} .not-found{text-align:center;padding:60px 20px;color:var(--cat-muted-light)} .not-found button{margin-top:12px;padding:8px 20px;cursor:pointer} </style>
+<style scoped> .widget-app{max-width:1440px;margin:0 auto;padding:16px} .not-found{text-align:center;padding:60px 20px;color:var(--cat-muted-light)} .not-found button{margin-top:12px;padding:8px 20px;cursor:pointer} </style>

@@ -44,6 +44,17 @@ class ProjectCustomerUser(models.Model) :
     # Права доступа (пока не используем, оставляем на будущее)
     # role = models.CharField(max_length=50, default='user')
 
+    # Права доступа
+    ROLE_ADMIN = 'admin'
+    ROLE_USER = 'user'
+    ROLE_VIEWER = 'viewer'
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, _('Администратор')),
+        (ROLE_USER, _('Пользователь системы')),
+        (ROLE_VIEWER, _('Any (только каталоги)')),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_VIEWER, verbose_name=_("Роль"))
+
     is_active = models.BooleanField(default=True , verbose_name=_("Активен"))
 
     created_at = models.DateTimeField(auto_now_add=True)

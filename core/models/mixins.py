@@ -1687,6 +1687,16 @@ class CatalogDictMixin:
             f"{self.__class__.__name__} должен реализовать to_dict()"
         )
 
+    def _get_image_url(self, img):
+        if not img:
+            return None
+        return img.get_serve_url() if hasattr(img, 'get_serve_url') else None
+
+    def _get_doc_url(self, doc):
+        if not doc:
+            return None
+        return doc.get_serve_url() if hasattr(doc, 'get_serve_url') else None
+
     @classmethod
     def get_field_meta(cls) -> dict:
         """
@@ -1794,4 +1804,3 @@ class CatalogDictMixin:
         }
 
         return {k: v for k, v in schema.items() if v is not None}
-

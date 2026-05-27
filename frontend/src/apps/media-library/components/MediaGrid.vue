@@ -50,6 +50,16 @@
         </div>
       </div>
       <div v-if="items.length === 0 && !loading" class="status-msg">Ничего не найдено</div>
+      <div class="pagination" v-if="total > limit">
+        <select v-model="limit" @change="offset=0;fetchData()" class="limit-select">
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+        </select>
+        <button :disabled="offset === 0" @click="prevPage">← Назад</button>
+        <span>{{ offset + 1 }}–{{ Math.min(offset + limit, total) }} из {{ total }}</span>
+        <button :disabled="offset + limit >= total" @click="nextPage">Вперёд →</button>
+      </div>
     </div>
   </div>
 </template>
@@ -69,6 +79,9 @@ const selectedEquipmentType = ref(null)
 const selectedBrand = ref(null)
 const loading = ref(false)
 const error = ref(null)
+const limit = ref(20)
+const offset = ref(0)
+const total = ref(0)
 
 defineEmits(['select', 'preview'])
 function getItems() { return items.value }
@@ -92,13 +105,18 @@ function iconFor(mime) {
 let debounceTimer = null
 function onFilterChange() {
   clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(fetchData, 200)
+  debounceTimer = setTimeout(() => { offset.value = 0; fetchData() }, 200)
 }
+
+function nextPage() { offset.value += limit.value; fetchData(); window.scrollTo(0,0) }
+function prevPage() { offset.value = Math.max(0, offset.value - limit.value); fetchData(); window.scrollTo(0,0) }
 
 async function fetchData() {
   loading.value = true; error.value = null
   try {
-    const params = {}
+    const params = { limit: limit.value, offset: offset.value }
+    if (!params.limit) delete params.limit
+    if (!params.offset) delete params.offset
     if (selectedCategory.value) params.category_id = selectedCategory.value
     if (selectedEquipmentType.value) params.equipment_type_id = selectedEquipmentType.value
     if (selectedBrand.value) params.brand_id = selectedBrand.value
@@ -107,6 +125,7 @@ async function fetchData() {
 
     const { data } = await mediaApi.list(params)
     items.value = Array.isArray(data.data) ? data.data : []
+    total.value = data.total || items.value.length
 
     // Загружаем опции фильтров при первом вызове
     if (!categories.value.length) {
@@ -185,4 +204,10 @@ onMounted(fetchData)
 }
 .status-msg { grid-column: 1 / -1; text-align: center; padding: 40px; color: #6b7280; }
 .status-msg.error { color: #dc2626; }
+.pagination { display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px; padding:16px 0 }
+.pagination button { padding:8px 20px; font-size:14px; background:#fff; border:1px solid #d1d5db; border-radius:6px; cursor:pointer }
+.pagination button:disabled { opacity:.4; cursor:default }
+.pagination button:not(:disabled):hover { border-color:#2563eb; color:#2563eb }
+.pagination .limit-select { padding:7px 8px; font-size:14px; border:1px solid #d1d5db; border-radius:6px; background:#fff }
+.pagination span { font-size:14px; color:#6b7280 }
 </style>

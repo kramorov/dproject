@@ -1,44 +1,31 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// import HomeView from '../views/HomeView.vue'
 import HomePage from '../pages/HomePage.vue'
-// import CableGlandItemType from '../components/CableGlandItemType';  // Импорт компонента
+import api from '@/shared/api'
 
 const routes = [
-  {
-    path: '/',
-    name: 'home',
-    component: HomePage,
-  },
-  {
-    path: '/about',
-    name: 'about',
-    // route level code-splitting
-    // this generates a separate chunk (About.[hash].js) for this route
-    // which is lazy-loaded when the route is visited.
-    component: () => import('../pages/AboutPage.vue'),
-  },
-  // {
-  //   path: '/cg',
-  //   name: 'CableGlandItemTypes',
-  //   component: CableGlandItemType,  // Назначаем компонент для этого маршрута
-  // },
-  // { path: '/', component: HomePage },
-  // { path: '/drive-selection', component: () => import('../pages/electric_actuators/ActuatorList.vue') },
-  { path: '/drive-selection', component: () => import('../components/OldSortedTable.vue') },
-  { path: '/cable-gland-edit', component: () => import('../pages/cable_glands/CableGlandEditPage.vue') },
-  { path: '/cable-gland-body-material-edit', component: () => import('../pages/cable_glands/CableGlandBodyMaterial.vue') },
-  { path: '/adaptation-data', component: () => import('../pages/adaptation/AdaptationMainPage.vue') },
-  { path: '/cable-input-data', component: () => import('../pages/cable_glands/CableMainPage.vue') },
-  { path: '/login', component: () => import('../pages/auth/LoginMainPage.vue') },
-  { path: '/register', component: () => import('../pages/auth/RegisterMainPage.vue') },
-  { path: '/drive-data', component: () => import('../pages/electric_actuators/DriveDataMainPage.vue') },
-  { path: '/ett-decode', component: () => import('../components/ett/EttDecodePage.vue') },
-  { path: '/actuator-edit', component: () => import('../components/ActuatorEdit1.vue') },
-  { path: '/client-requests', component: () => import('../pages/client_request/ClientRequestMainPage.vue') },
-  // { path: '/cable-input-data', component: CableGlandEdit },
+  { path: '/', name: 'home', component: HomePage, meta: { title: 'Главная' } },
+  { path: '/login', component: () => import('../pages/auth/LoginMainPage.vue'), meta: { title: 'Вход' } },
+  { path: '/register', component: () => import('../pages/auth/RegisterMainPage.vue'), meta: { title: 'Регистрация' } },
+  { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры' } },
+  { path: '/catalog/filter-regulator', component: () => import('../pages/catalog/FilterRegulatorPage.vue'), meta: { title: 'Фильтр-регуляторы' } },
+  { path: '/catalog/limit-switch', component: () => import('../pages/catalog/LimitSwitchPage.vue'), meta: { title: 'Блоки концевых выключателей' } },
+  { path: '/admin/media', component: () => import('../pages/admin/MediaPage.vue'), meta: { title: 'Медиабиблиотека', role: 'admin' } },
+  { path: '/admin/cert-docs', component: () => import('../pages/admin/CertDocsPage.vue'), meta: { title: 'Сертификаты', role: 'admin' } },
+  { path: '/admin/price', component: () => import('../pages/admin/PriceCatalogPage.vue'), meta: { title: 'Цены', role: 'admin' } },
+  { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', role: 'admin' } },
+  { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', role: 'admin' } },
 ]
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-});
+
+const router = createRouter({ history: createWebHistory(), routes })
+
+router.beforeEach(async (to, from, next) => {
+  const requiredRole = to.meta.role
+  if (!requiredRole) return next()
+  try {
+    const r = await api.get('/auth/me/')
+    if (requiredRole === 'admin' && r.data.role !== 'admin') return next('/login')
+    next()
+  } catch (e) { next('/login') }
+})
+
 export default router

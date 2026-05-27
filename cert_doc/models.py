@@ -242,6 +242,7 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyM
             'media_item' : {
                 'id' : self.media_item.id ,
                 'title' : self.media_item.title ,
+                'url' : self.media_item.get_serve_url() if self.media_item else None ,
             } if self.media_item else None ,
         }
 
