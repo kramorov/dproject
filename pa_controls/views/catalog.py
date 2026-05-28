@@ -2,48 +2,86 @@
 """
 API каталога блоков концевых выключателей.
 
-GET  /api/pa-controls/catalog/       — список с фильтрами и поиском
-GET  /api/pa-controls/catalog/<id>/  — детальная модель
+GET  /api/pa-controls/sections/      — серии (группировка, счётчики, фото)
+GET  /api/pa-controls/catalog/       — список товаров (карточки)
+GET  /api/pa-controls/catalog/<id>/  — детальная карточка товара
 GET  /api/pa-controls/filters/       — опции фильтров
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from django.db.models import Prefetch, Count
 from django.shortcuts import get_object_or_404
 
 from core.views import BaseFilterOptionsView
 from pa_controls.models.limit_switch import LimitSwitchBox
+from pa_controls.models.lsb_model_line import LimitSwitchModelLine
+from pa_controls.models.sensor import SensorComponent
 
 SEARCH_FIELDS = ['code', 'name', 'description']
-SELECT_RELATED = ['model_line', 'body', 'sensor_variety', 'primary_sensor', 'sku']
+SELECT_RELATED = [
+    'model_line', 'model_line__brand',
+    'body', 'sensor_variety', 'primary_sensor',
+    'ip', 'body_material', 'body_material_specified',
+    'sku',
+]
 
 
+# ═══════════════════════════════════════════════════════════════
+# Section — серии со счётчиками и первым фото (1 быстрый запрос)
+# ═══════════════════════════════════════════════════════════════
+class LimitSwitchBoxSectionView(APIView):
+    """GET /api/pa-controls/sections/"""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        qs = (
+            LimitSwitchModelLine.objects
+            .filter(limit_switch_box_model_line__is_active=True)
+            .annotate(count=Count('limit_switch_box_model_line'))
+            .prefetch_related('images')
+            .select_related('brand')
+            .order_by('name')
+            .distinct()
+        )
+        result = []
+        for ml in qs:
+            img = ml.images.first()
+            result.append({
+                'id': ml.id,
+                'name': ml.name,
+                'code': ml.code or '',
+                'count': ml.count,
+                'image': (
+                    img.preview_file.url if img and img.preview_file
+                    else (img.media_file.url if img and img.media_file else None)
+                ),
+                'brand': {'id': ml.brand.id, 'name': ml.brand.name} if ml.brand else None,
+            })
+        return Response(result)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Catalog list — карточки товаров (лёгкий to_values_dict)
+# ═══════════════════════════════════════════════════════════════
 class LimitSwitchBoxCatalogView(APIView):
     """
     GET /api/pa-controls/catalog/
 
-    Параметры:
-        search              — поиск по code, name, description
-        model_line_id       — серия
-        sensor_variety_id   — тип сенсора
-        points              — количество датчиков (1-4)
-        ip_id               — IP
-        work_temp_min       — температура от
-        work_temp_max       — температура до
-        body_material_id    — материал корпуса
-        model_line_brand_id — бренд серии
-        signal_type_id      — тип сигнала
-        exd_id              — взрывозащита
-        is_active           — только активные (по умолчанию true)
-        limit / offset      — пагинация
+    Параметры: search, model_line_id, sensor_variety_id, points,
+               ip_id, work_temp_min/max, body_material_id,
+               model_line_brand_id, signal_type_id, exd_id,
+               limit / offset
     """
     permission_classes = [AllowAny]
 
     def get(self, request):
         params = request.query_params
 
-        qs = LimitSwitchBox.objects.select_related(*SELECT_RELATED)
-        # prefetch не используется — M2M через 'images' с related_name='+' не поддерживается
+        qs = LimitSwitchBox.objects.select_related(*SELECT_RELATED).prefetch_related(
+            'images',
+            'model_line__images',
+        )
 
         is_active = params.get('is_active', 'true')
         if is_active.lower() in ('true', '1'):
@@ -55,13 +93,11 @@ class LimitSwitchBoxCatalogView(APIView):
             value = params.get(fd.param_name)
             if value is None or value == '' or value == 'all':
                 continue
-
             lookup, converted = fd.build_filter_lookup(value)
             if lookup and converted is not None:
                 qs = qs.filter(**{lookup: converted})
                 filters_applied[fd.param_name] = value
 
-        # Search
         search = params.get('search', '').strip()
         if search and SEARCH_FIELDS:
             from django.db.models import Q
@@ -76,6 +112,22 @@ class LimitSwitchBoxCatalogView(APIView):
         offset = int(params.get('offset', 0))
         qs = qs[offset:offset + limit]
 
+        # Кэш фолбэк-изображений серий: одна серия → один dict, не на каждый товар
+        ml_img_cache = {}
+        for item in qs:
+            mid = item.model_line_id
+            if mid and mid not in ml_img_cache:
+                img = item.model_line.images.first() if hasattr(item.model_line, 'images') else None
+                ml_img_cache[mid] = {
+                    'id': img.id, 'name': getattr(img, 'name', '') or '',
+                    'code': getattr(img, 'code', '') or '',
+                    'url': img.media_file.url,
+                    'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
+                    'is_default': getattr(img, 'is_default', False),
+                } if img and img.media_file else None
+        for item in qs:
+            item._ml_img_cache = ml_img_cache
+
         data = [item.to_values_dict() for item in qs]
 
         return Response({
@@ -87,19 +139,35 @@ class LimitSwitchBoxCatalogView(APIView):
         })
 
 
+# ═══════════════════════════════════════════════════════════════
+# Detail — полная карточка товара (тяжёлый to_dict)
+# ═══════════════════════════════════════════════════════════════
 class LimitSwitchBoxDetailView(APIView):
     """GET /api/pa-controls/catalog/<id>/"""
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
         item = get_object_or_404(
-            LimitSwitchBox.objects.select_related(*SELECT_RELATED)
-            ,
+            LimitSwitchBox.objects.select_related(*SELECT_RELATED).prefetch_related(
+                'images',
+                'tech_docs',
+                Prefetch(
+                    'additional_sensor',
+                    queryset=SensorComponent.objects.select_related(
+                        'variety', 'signal_type', 'contact_form', 'contact_state', 'brand',
+                    )
+                ),
+                'model_line__images',
+                'model_line__tech_docs',
+            ),
             pk=pk,
         )
         return Response(item.to_dict())
 
 
+# ═══════════════════════════════════════════════════════════════
+# Filters
+# ═══════════════════════════════════════════════════════════════
 class LimitSwitchBoxFilterOptionsView(BaseFilterOptionsView):
     """
     GET /api/pa-controls/filters/ — опции для FilterSidebar на фронтенде.

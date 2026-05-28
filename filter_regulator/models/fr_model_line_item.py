@@ -271,6 +271,33 @@ class FilterRegulator(
             'has_shut_off_valve': 'Да' if self.has_shut_off_valve else 'Нет',
         }
 
+    def _get_first_image(self) -> dict | None:
+        """Первое активное изображение — для списков."""
+        for img in self.get_images():
+            url = self._get_image_url(img)
+            if url:
+                return {
+                    'id': img.id,
+                    'name': getattr(img, 'name', '') or '',
+                    'code': getattr(img, 'code', '') or '',
+                    'url': url,
+                    'preview_url': url,
+                    'is_default': getattr(img, 'is_default', False),
+                }
+        if self.model_line:
+            for img in self.model_line.images.all():
+                url = self._get_image_url(img)
+                if url:
+                    return {
+                        'id': img.id,
+                        'name': getattr(img, 'name', '') or '',
+                        'code': getattr(img, 'code', '') or '',
+                        'url': url,
+                        'preview_url': url,
+                        'is_default': getattr(img, 'is_default', False),
+                    }
+        return None
+
     def _get_images_section(self) -> list:
         images = []
         for img in self.get_images():
@@ -463,8 +490,8 @@ class FilterRegulator(
         }
 
     def to_values_dict(self) -> dict:
-        tv = self._get_template_vars()
-        images = self._get_images_section()
+        first_img = self._get_first_image()
+        tv = {'code': self.code or '', 'name': self.name or ''}
         return {
             'id': self.id,
             'code': self.code or '',
@@ -472,7 +499,7 @@ class FilterRegulator(
             'image_alt': self._get_image_alt(),
             'template_vars': tv,
             'values': tv,
-            'images': images,
+            'images': [first_img] if first_img else [],
             'model_line': self._get_model_line_summary(),
             'sku': self._get_sku_summary(),
         }

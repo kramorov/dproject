@@ -2,16 +2,16 @@
 // Универсальный composable для каталогов: fetchData, пагинация, фильтры, поиск.
 // Заменяет дублирующуюся логику в GearboxList/FrList/LsbList и GearboxBrand/FrBrand/LsbBrand.
 
-import { ref, reactive } from 'vue'
+import { ref, reactive, unref } from 'vue'
 
 /**
  * @param {Object}   api           API-модуль каталога ({ list, getFilters, getDetail })
  * @param {Object}   [opts]
  * @param {number}   [opts.limit=24]
  * @param {number}   [opts.debounceMs=300]
- * @param {Object}   [opts.fixedParams]    Параметры, всегда добавляемые к запросу (напр. { brand_id } в Brand)
- * @param {Function} [opts.onData]         Callback после загрузки (напр. установить brandName из первого элемента)
- * @param {boolean}  [opts.withSearch=true] Показывать строку поиска
+ * @param {Object|Function|import('vue').Ref} [opts.fixedParams]  Параметры, всегда добавляемые к запросу
+ * @param {Function} [opts.onData]         Callback после загрузки
+ * @param {boolean}  [opts.withSearch=true]
  */
 export function useCatalog(api, opts = {}) {
   const {
@@ -86,8 +86,10 @@ export function useCatalog(api, opts = {}) {
       const params = { limit: limit.value, offset: offset.value }
 
       // Фиксированные параметры (brand_id, model_line_id и т.д.)
-      if (fixedParams) {
-        Object.assign(params, typeof fixedParams === 'function' ? fixedParams() : fixedParams)
+      // unref поддерживает как обычные объекты, так и Vue ref/computed
+      const fp = unref(fixedParams)
+      if (fp) {
+        Object.assign(params, typeof fp === 'function' ? fp() : fp)
       }
 
       // Поиск

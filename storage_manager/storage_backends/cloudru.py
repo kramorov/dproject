@@ -76,7 +76,13 @@ class CloudRuStorage(BaseStorage):
         return response['ContentLength']
 
     def url(self, name):
-        name = self._resolve_name(name)
+        """Presigned URL. БЕЗ head_object — только нормализация слешей (мгновенно).
+
+        TODO(prod): кэшировать presigned URL (одинаковый ключ → одинаковый URL в пределах часа).
+        Сейчас каждый вызов генерирует новую подпись → браузер не может переиспользовать HTTP-кэш.
+        Решение: раундить время до ближайших N минут, либо in-memory lru_cache с TTL < ExpiresIn.
+        """
+        name = self._normalize(name)
         return self.s3_reader.generate_presigned_url(
             'get_object',
             Params={'Bucket': self.bucket_name, 'Key': name},

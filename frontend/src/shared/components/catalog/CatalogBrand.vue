@@ -27,8 +27,22 @@ const brandName = ref('')
 const fixedParams = computed(() => props.idValue ? { [props.idProp]: props.idValue } : {})
 const { items,total,loading,limit,offset, filterData,filtersLoaded, loadFilters,fetchData, onFilterChange,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, withSearch:false, onData(items){ if(items.length&&!brandName.value) brandName.value=items[0]?.model_line?.brand?.name||items[0]?.model_line?.name||'' } })
 const breadcrumbs = computed(() => [{ name:'Каталог', url:'#' }, { name:props.labels.breadcrumbName||props.labels.title||'Каталог', url:'#' }, { name:brandName.value||'Бренд' }])
-watch(()=>props.idValue,()=>{ offset.value=0; fetchData() })
-onMounted(async()=>{ await loadFilters(); if(props.idValue) fetchData() })
+watch(() => props.idValue, (newVal) => {
+  if (newVal) {
+    onFilterChange(props.idProp, newVal)
+  } else {
+    resetFilters()
+    fetchData()
+  }
+})
+onMounted(async () => {
+  await loadFilters()
+  if (props.idValue) {
+    onFilterChange(props.idProp, props.idValue)
+  } else {
+    fetchData()
+  }
+})
 </script>
 <style scoped>
 .catalog-brand{max-width:1200px;margin:0 auto;padding:var(--cat-gap-xl,16px)} .brand-header{margin-bottom:20px} .page-title{font-size:var(--cat-text-3xl,28px);font-weight:700;margin:8px 0 4px;color:var(--cat-text,#1f2937)} .page-count{font-size:var(--cat-text-md,15px);color:var(--cat-muted,#6b7280);margin:0} .content{display:flex;gap:24px} .main{flex:1;min-width:0} .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px} .empty{text-align:center;padding:60px 20px;color:var(--cat-muted-light,#9ca3af);font-size:var(--cat-text-md,16px)} .pagination{display:flex;justify-content:center;align-items:center;gap:16px;margin-top:32px;padding:16px 0} .pagination button{padding:8px 20px;font-size:var(--cat-text-base,14px);background:var(--cat-surface,#fff);border:1px solid var(--cat-border,#d1d5db);border-radius:var(--cat-radius-md,6px);cursor:pointer;color:var(--cat-text,#1f2937)} .pagination button:disabled{opacity:.4;cursor:default} .pagination button:not(:disabled):hover{border-color:var(--cat-primary,#2563eb);color:var(--cat-primary,#2563eb)} .pagination span{font-size:var(--cat-text-base,14px);color:var(--cat-muted,#6b7280)} @media(max-width:768px){.content{flex-direction:column}.grid{grid-template-columns:1fr}}

@@ -20,6 +20,7 @@ export const ENDPOINTS = {
   },
 
   limitSwitch: {
+    sections: '/pa-controls/sections/',
     catalog: '/pa-controls/catalog/',
     detail: (id) => `/pa-controls/catalog/${id}/`,
     filters: '/pa-controls/filters/',

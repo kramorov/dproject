@@ -182,7 +182,7 @@ class LimitSwitchBox(CatalogDictMixin,
         self.sync_sku()
 
     def _copy_custom_relations(self, new_copy):
-        new_copy.exd = self.exd
+        new_copy.exd.set(self.exd.all())
         new_copy.additional_sensor.set(self.additional_sensor.all())
 
     # def copy(self, suffix=" (Копия)", code_suffix="_copy"):
@@ -257,7 +257,10 @@ class LimitSwitchBox(CatalogDictMixin,
     @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
-        return self.exd.name if self.exd else "Нет"
+        names = [e.name for e in self.exd.all() if e.name]
+        if not names:
+            return "Нет"
+        return ", ".join(names)
 
     def _get_name_template_source(self):
         """Переопределить в модели: вернуть шаблон названия или None."""
@@ -496,7 +499,6 @@ class LimitSwitchBox(CatalogDictMixin,
     SELECT_RELATED_FIELDS = [
         'model_line', 'model_line__brand', 'sensor_variety',
         'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type',
-        'exd',
     ]
 
     # ========== СЕРИАЛИЗАЦИЯ (CatalogDictMixin) ==========
@@ -513,7 +515,7 @@ class LimitSwitchBox(CatalogDictMixin,
             'sensor_variety': self.sensor_variety.name if self.sensor_variety else '',
             'points': str(self.points) if self.points else '',
             'ip': self.ip.name if self.ip else '',
-            'exd': self.exd.name if self.exd else '',
+            'exd': self.exd_display or '',
             'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
             'work_temp_min': str(self.work_temp_min) if self.work_temp_min is not None else '',
             'work_temp_max': str(self.work_temp_max) if self.work_temp_max is not None else '',
@@ -733,9 +735,9 @@ class LimitSwitchBox(CatalogDictMixin,
         }
 
     def to_values_dict(self) -> dict:
-        """Облегчённая сериализация для списков."""
-        tv = self._get_template_vars()
-        images = self._get_images_section()
+        """Облегчённая сериализация для списков (без шаблонов, одно фото)."""
+        first_img = self._get_first_image()
+        tv = {'code': self.code or '', 'name': self.name or ''}
         return {
             'id': self.id,
             'code': self.code or '',
@@ -743,7 +745,7 @@ class LimitSwitchBox(CatalogDictMixin,
             'image_alt': self.name or '',
             'template_vars': tv,
             'values': tv,
-            'images': images,
+            'images': [first_img] if first_img else [],
             'model_line': self._get_model_line_summary(),
             'sku': self._get_sku_summary(),
         }

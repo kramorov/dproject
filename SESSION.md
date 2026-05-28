@@ -2,6 +2,21 @@
 
 ## Сегодня (2026-05-28)
 
+### ⚡ Оптимизация каталогов
+- **Cloud.ru**: `url()` больше не делает `head_object` — только `_normalize()` (было 120+ сетевых запросов на 24 карточки, стало 0)
+- **`to_values_dict()`**: больше не вызывает `_get_template_vars()` — лёгкий `tv = {code, name}`
+- **`_get_first_image()`**: 1 фото вместо 3-5 (вынесен в `CatalogDictMixin`, переиспользуется всеми каталогами)
+- **`_ml_img_cache`**: фолбэк-изображения серий кэшируются вьюхой — 1 раз на серию вместо N раз на товар
+- **`useCatalog.js`**: `unref(fixedParams)` — чинит фильтр по серии/бренду (был сломан для всех каталогов)
+- **`CatalogBrand.vue`**: `onFilterChange` при старте — фильтр в сайдбаре подсвечивается
+- **`ProductCard.vue`**: `ProgressiveImage` — сначала превью, потом full фоном
+- **`ProductGallery.vue`**: превью → фоновая загрузка full + preload всей галереи
+- **`SELECT_RELATED`**: дополнен `ip`, `body_material`, `body_material_specified`, `model_line__brand`
+- **`prefetch_related`**: добавлен для `images`, `tech_docs`, `additional_sensor`, `model_line__images/tech_docs`
+- **`/sections/`**: новый эндпоинт — 1 запрос с `annotate(Count)` вместо 1000 записей
+- **Gearbox + FilterRegulator**: унифицированы — `to_values_dict()` лёгкий, `_get_first_image()` из mixin
+- **`CATALOG_PATTERN.md`**: инструкция для новых каталогов + чек-лист производительности
+
 ### Починка LimitSwitchBox API
 - **Корень проблемы**: `LimitSwitchBox` был закомментирован в `pa_controls/models/__init__.py` → Django не регистрировал модель → миграции `SeparateDatabaseAndState` ломали through-таблицы (`exd`, `images`, `tech_docs`)
 - **Решение**: раскомментирован импорт, исправлен циклический импорт (прямые импорты из подмодулей вместо `pa_controls.models`)
@@ -22,20 +37,9 @@
 ### CertEdit
 - `isNew`: `!props.item || !props.item.id` — поддержка пресетов без id
 - Копирование `name` из формы в новый сертификат
-
-## ⚠️ НАПОМИНАНИЕ
-
-## ⚠️ НАПОМИНАНИЕ: установить PyMuPDF на домашней машине
-
-При смене машины выполни:
-```
-pip install PyMuPDF
-```
-Без него PDF-превью в медиатеке не создаются (молча пропускаются).
-Добавлен в requirements.txt (2026-05-26).
-
+ 
 ## Ключевые архитектурные решения
-
+ 
 1. CatalogDictMixin в core/models/mixins.py — единый to_dict() для всех каталогов
 2. to_dict() → sections (gallery/specs/docs/certs/description) + template_vars
 3. _get_template_vars() — единый источник значений. _get_data_dict() — для TemplateMixin
@@ -53,8 +57,7 @@ pip install PyMuPDF
 - Бэкенд: storage_manager/storage_backends/cloudru.py (CloudRuStorage)
 - Нормализация путей: python manage.py normalize_media_paths (\\ → /)
 - Бэкап: media_backup_20260526/ + db_backup_20260526.sqlite3
-- Для домашней машины: установить boto3 и PyMuPDF, вписать ключи в settings.py
-
+ 
 ### Режимы раздачи (MEDIA_SERVE_MODE)
 | Режим | Статус | Описание |
 |-------|--------|----------|
@@ -258,3 +261,10 @@ pip install PyMuPDF
 ### Стандарт сериализации
 Изображения: `{id, name, code, url, preview_url, is_default}`
 Документы: `{id, name, code, url, file_name}`
+
+## ⚠️ ЗАДАНИЕ: CATALOG_PATTERN.md
+
+При каждом добавлении или изменении общих компонентов каталогов:
+1. Прочитай `CATALOG_PATTERN.md`
+2. Обнови его — добавь новые паттерны, исправь устаревшее
+3. Убедись, что чек-лист производительности актуален

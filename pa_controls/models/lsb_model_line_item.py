@@ -734,8 +734,8 @@ class LsbModelLineItem(CatalogDictMixin,
 
     def to_values_dict(self) -> dict:
         """Облегчённая сериализация для списков."""
-        tv = self._get_template_vars()
-        images = self._get_images_section()
+        first_img = self._get_first_image()
+        tv = {'code': self.code or '', 'name': self.name or ''}
         return {
             'id': self.id,
             'code': self.code or '',
@@ -743,7 +743,7 @@ class LsbModelLineItem(CatalogDictMixin,
             'image_alt': self.name or '',
             'template_vars': tv,
             'values': tv,
-            'images': images,
+            'images': [first_img] if first_img else [],
             'model_line': self._get_model_line_summary(),
             'sku': self._get_sku_summary(),
         }

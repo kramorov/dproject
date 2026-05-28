@@ -2,7 +2,12 @@
 <template>
   <div class="product-card" @click="emit('select', item.id)">
     <div class="card-image">
-      <img v-if="imageUrl" :src="imageUrl" :alt="item.image_alt || item.name" loading="lazy" />
+      <ProgressiveImage
+        v-if="imagePreview || imageFull"
+        :preview="imagePreview"
+        :full="imageFull"
+        :alt="item.image_alt || item.name"
+      />
       <span v-else class="no-image">🈚</span>
     </div>
     <div class="card-body">
@@ -18,6 +23,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import ProgressiveImage from '@/shared/components/ProgressiveImage.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -26,9 +32,13 @@ const props = defineProps({
 
 const emit = defineEmits(['select'])
 
-const imageUrl = computed(() => {
-  const imgs = props.item.images || []
-  return imgs[0]?.url || imgs[0]?.preview_url || null
+const imgs = computed(() => props.item.images || [])
+const imagePreview = computed(() => imgs.value[0]?.preview_url || imgs.value[0]?.url || null)
+const imageFull = computed(() => {
+  const first = imgs.value[0]
+  if (!first) return null
+  // full только если отличается от preview
+  return first.url !== first.preview_url ? (first.url || null) : null
 })
 </script>
 
@@ -43,7 +53,7 @@ const imageUrl = computed(() => {
 }
 .product-card:hover { box-shadow: var(--cat-shadow-card-hover); border-color: var(--cat-primary); transform: translateY(-2px); }
 .card-image { aspect-ratio: var(--cat-card-image-ratio); background: var(--cat-bg); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.card-image img { width: 100%; height: 100%; object-fit: contain; }
+.card-image :deep(img) { width: 100%; height: 100%; object-fit: contain; }
 .no-image { font-size: 32px; color: var(--cat-border); }
 .card-body { padding: var(--cat-card-padding); }
 .card-title { font-size: var(--cat-card-title-size); font-weight: var(--cat-card-title-weight); margin: 0 0 4px; color: var(--cat-text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: var(--cat-card-title-lines); -webkit-box-orient: vertical; overflow: hidden; }

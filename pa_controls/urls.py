@@ -1,6 +1,7 @@
 # pa_controls/urls.py
 from django.urls import path
 from pa_controls.views.catalog import (
+    LimitSwitchBoxSectionView,
     LimitSwitchBoxCatalogView,
     LimitSwitchBoxDetailView,
     LimitSwitchBoxFilterOptionsView,
@@ -11,6 +12,7 @@ from pa_controls.views.m2m_data import m2m_items
 
 urlpatterns = [
     path('m2m-items/', m2m_items, name='m2m_items'),
+    path('sections/', LimitSwitchBoxSectionView.as_view(), name='lsb_sections'),
     path('quickselect/', LimitSwitchBoxQuickSelectView.as_view(), name='lsb_quickselect'),
     path('meta/', LimitSwitchBoxMetaView.as_view(), name='lsb_meta'),
     path('catalog/', LimitSwitchBoxCatalogView.as_view(), name='lsb_catalog'),
