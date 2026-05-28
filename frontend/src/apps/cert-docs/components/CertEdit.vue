@@ -141,7 +141,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['saved', 'deleted', 'cancel', 'view-media', 'copied'])
 
-const isNew = computed(() => !props.item)
+const isNew = computed(() => !props.item || !props.item.id)
 
 const form = reactive({
   name:'', code:'', description:'', cert_variety_id:null,

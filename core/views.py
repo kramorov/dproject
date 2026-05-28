@@ -393,50 +393,66 @@ class UniversalAPIView(APIView) :
 
         # Пагинация
         limit_str = request.query_params.get('limit')
+        limit_val = None
+        offset_val = 0
         if limit_str:
             try:
                 limit_val = int(limit_str)
                 offset_val = int(request.query_params.get('offset', 0))
+            except (ValueError, TypeError):
+                limit_val = None
+
+        def _eval_queryset(qs):
+            """Оценить queryset и вернуть список данных."""
+            data = []
+            if data_format == 'compact' and hasattr(model(), 'get_compact_data'):
+                for obj in qs:
+                    data.append(obj.get_compact_data())
+            elif data_format == 'display' and hasattr(model(), 'get_display_data'):
+                for obj in qs:
+                    disp = obj.get_display_data('list')
+                    if isinstance(disp, dict) and 'fields' in disp:
+                        flat = {'id': obj.id}
+                        for fn, fd in disp['fields'].items():
+                            flat[fn] = fd.get('formatted', fd.get('value'))
+                        data.append(flat)
+                    else:
+                        data.append(disp)
+                response_data['view'] = 'list'
+            else:
+                serializer_class = get_model_serializer(model, depth=depth)
+                serializer = serializer_class(qs, many=True)
+                data = serializer.data
+            return data
+
+        try:
+            if limit_val:
                 response_data['total'] = queryset.count()
                 queryset = queryset[offset_val:offset_val + limit_val]
-            except (ValueError, TypeError):
-                pass
+            data = _eval_queryset(queryset)
+        except Exception as e:
+            # Fallback: raw SQL для моделей с битыми M2M through-таблицами
+            logger.warning(f'ORM list failed for {model.__name__}: {e}, falling back to raw SQL')
+            from django.db import connection
+            table = model._meta.db_table
+            with connection.cursor() as c:
+                c.execute(f'SELECT COUNT(*) FROM "{table}"')
+                response_data['total'] = c.fetchone()[0]
+                if limit_val:
+                    c.execute(
+                        f'SELECT id FROM "{table}" ORDER BY sorting_order LIMIT %s OFFSET %s',
+                        [limit_val, offset_val]
+                    )
+                else:
+                    c.execute(f'SELECT id FROM "{table}" ORDER BY sorting_order')
+                ids = [r[0] for r in c.fetchall()]
+            qs = model.objects.filter(id__in=ids)
+            data = _eval_queryset(qs)
 
-        # Используем методы StructuredDataMixin для списка если доступно
-        if data_format == 'compact' and hasattr(model() , 'get_compact_data') :
-            data = []
-            for obj in queryset :
-                data.append(obj.get_compact_data())
-
-            response_data['count'] = len(data)
-            response_data['data'] = data
-
-        elif data_format == 'display' and hasattr(model() , 'get_display_data') :
-            data = []
-            for obj in queryset :
-                display_data = obj.get_display_data('list')  # Для списков используем 'list' view
-                if isinstance(display_data , dict) and 'fields' in display_data :
-                    # Преобразуем fields в плоскую структуру для таблиц
-                    flat_data = {'id' : obj.id}
-                    for field_name , field_data in display_data['fields'].items() :
-                        flat_data[field_name] = field_data.get('formatted' , field_data.get('value'))
-                    data.append(flat_data)
-                else :
-                    data.append(display_data)
-
-            response_data['count'] = len(data)
-            response_data['data'] = data
-            response_data['view'] = 'list'
-
-        else :
-            # Стандартный сериализатор
-            serializer_class = get_model_serializer(model , depth=depth)
-            serializer = serializer_class(queryset , many=True)
-
-            response_data['count'] = len(serializer.data)
-            response_data['data'] = serializer.data
-            response_data[
-                'format'] = 'serializer' if data_format == 'serializer' else f'serializer (requested: {data_format})'
+        response_data['count'] = len(data)
+        response_data['data'] = data
+        if data_format == 'serializer' or (data_format != 'compact' and data_format != 'display'):
+            response_data['format'] = 'serializer' if data_format == 'serializer' else f'serializer (requested: {data_format})'
 
         return Response(response_data)
 

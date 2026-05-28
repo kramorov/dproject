@@ -1,4 +1,4 @@
-# pa_controls/models/limit_switch.py
+# pa_controls/models/lsb_model_line_item.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Any
@@ -27,7 +27,7 @@ from params.models import IpOption
 # ============================================================
 # БЛОК КОНЦЕВЫХ ВЫКЛЮЧАТЕЛЕЙ (Limit Switch Box)
 # ============================================================
-class LimitSwitchBox(CatalogDictMixin,
+class LsbModelLineItem(CatalogDictMixin,
                      ImageGalleryMixin,
                      TechDocMixin,
                      SmartCatalogMixin,
@@ -52,12 +52,12 @@ class LimitSwitchBox(CatalogDictMixin,
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
-    model_line = models.ForeignKey(LimitSwitchModelLine, related_name='limit_switch_box_model_line', blank=True,
+    model_line = models.ForeignKey(LimitSwitchModelLine, related_name='lsb_item_model_line', blank=True,
                                    null=True,
                                    on_delete=models.SET_NULL,
                                    help_text=_('Серия БКВ'),
                                    verbose_name=_("Серия"))
-    body = models.ForeignKey(LimitSwitchBody, related_name='limit_switch_box_body', blank=True,
+    body = models.ForeignKey(LimitSwitchBody, related_name='lsb_item_body', blank=True,
                              null=True,
                              on_delete=models.SET_NULL,
                              help_text=_('Корпус БКВ'),
@@ -74,7 +74,7 @@ class LimitSwitchBox(CatalogDictMixin,
         blank=True, null=True, on_delete=models.SET_NULL,
         verbose_name=_("Датчик основной"),
         help_text=_("Основной датчик"),
-        related_name='limit_switch_boxes_primary_sensor'  # обратная связь от датчика к корпусам
+        related_name='lsb_item_primary_sensor'
     )
     # Добавляем Many-to-Many связь с дополнительными датчиками
     additional_sensor = models.ManyToManyField(
@@ -82,7 +82,7 @@ class LimitSwitchBox(CatalogDictMixin,
         blank=True,
         verbose_name=_("Датчики дополнительные"),
         help_text=_("Дополнительные датчики"),
-        related_name='limit_switch_boxes_additional_sensor'  # обратная связь от датчика к корпусам
+        related_name='lsb_item_additional_sensor'
     )
 
     points = models.IntegerField(default=2,
@@ -90,7 +90,7 @@ class LimitSwitchBox(CatalogDictMixin,
                                  help_text=_("Количество точек переключения (датчиков)")
                                  )
     ip = models.ForeignKey(IpOption, on_delete=models.SET_NULL, null=True,
-                           related_name='limit_switch_box_ip',
+                           related_name='lsb_item_ip',
                            help_text=_('Степень защиты IP'),
                            verbose_name=_("IP")
                            )
@@ -112,14 +112,14 @@ class LimitSwitchBox(CatalogDictMixin,
         verbose_name=_('Т раб.макс, °С'))
 
     # Материалы
-    body_material = models.ForeignKey(MaterialGeneral, related_name='limit_switch_box_body_material',
+    body_material = models.ForeignKey(MaterialGeneral, related_name='lsb_item_body_material',
                                       blank=True,
                                       null=True,
                                       on_delete=models.SET_NULL,
                                       help_text=_('Корпус'),
                                       verbose_name=_('Тип материала корпуса'))
     body_material_specified = models.ForeignKey(MaterialSpecified,
-                                                related_name='limit_switch_box_body_material_specified',
+                                                related_name='lsb_item_body_material_specified',
                                                 blank=True, null=True,
                                                 on_delete=models.SET_NULL,
                                                 help_text=_('Материал корпуса арматуры'),
@@ -182,7 +182,7 @@ class LimitSwitchBox(CatalogDictMixin,
         self.sync_sku()
 
     def _copy_custom_relations(self, new_copy):
-        new_copy.exd = self.exd
+        new_copy.exd.set(self.exd.all())
         new_copy.additional_sensor.set(self.additional_sensor.all())
 
     # def copy(self, suffix=" (Копия)", code_suffix="_copy"):
@@ -257,7 +257,8 @@ class LimitSwitchBox(CatalogDictMixin,
     @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
-        return self.exd.name if self.exd else "Нет"
+        names = [e.name for e in self.exd.all()]
+        return ", ".join(names) if names else "Нет"
 
     def _get_name_template_source(self):
         """Переопределить в модели: вернуть шаблон названия или None."""
@@ -496,7 +497,6 @@ class LimitSwitchBox(CatalogDictMixin,
     SELECT_RELATED_FIELDS = [
         'model_line', 'model_line__brand', 'sensor_variety',
         'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type',
-        'exd',
     ]
 
     # ========== СЕРИАЛИЗАЦИЯ (CatalogDictMixin) ==========
@@ -513,7 +513,7 @@ class LimitSwitchBox(CatalogDictMixin,
             'sensor_variety': self.sensor_variety.name if self.sensor_variety else '',
             'points': str(self.points) if self.points else '',
             'ip': self.ip.name if self.ip else '',
-            'exd': self.exd.name if self.exd else '',
+            'exd': self.exd_display or '',
             'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
             'work_temp_min': str(self.work_temp_min) if self.work_temp_min is not None else '',
             'work_temp_max': str(self.work_temp_max) if self.work_temp_max is not None else '',

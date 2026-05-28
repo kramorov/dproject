@@ -17,6 +17,13 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/Breadcrumbs.vue` | Хлебные крошки |
 | `shared/components/Spinner.vue` | Индикатор загрузки |
 | `shared/components/MediaViewer.vue` | Просмотрщик медиафайлов (изображения/PDF) |
+| `shared/components/M2MDualList.vue` | M2M-селектор filter_horizontal (две панели + поиск) |
+| `shared/components/JsonFieldsEditor.vue` | Редактор JSON extra_params (таблица + raw JSON) |
+| `shared/components/MediaUploadModal.vue` | Модалка загрузки файла в медиатеку |
+| `shared/components/BasePicker.vue` | Модальный подбор (fetchFn, filterDefs, columns) |
+| `shared/components/ChipList.vue` | Таблица code+name с чекбоксами и batch-удалением |
+| `shared/components/FkSelect.vue` | Выбор ForeignKey с поиском |
+| `shared/components/M2MSelect.vue` | Выбор ManyToMany с чипсами |
 | `shared/components/catalog/CatalogSection.vue` | Страница серий (grid карточек) |
 | `shared/components/catalog/CatalogList.vue` | Каталог с фильтрами и пагинацией |
 | `shared/components/catalog/CatalogBrand.vue` | Витрина бренда |
@@ -45,6 +52,7 @@ App.vue параметризуется через `labels` + `api`. 13 стар�
 | `cert-docs/` | /api/admin/certs/ | /admin/cert-docs |
 | `price-catalog/` | /api/admin/prices/ | /admin/price |
 | `sku-admin/` | /api/admin/sku/ | /admin/sku |
+| `limit-switch-admin/` | /api/core/ + /api/pa-controls/ | /admin/limit-switch |
 
 ### Виджет
 | Приложение | Назначение |

@@ -7,46 +7,65 @@
       <button :class="{ act: tab === 'images' }" @click="tab = 'images'">Изображения</button>
       <button :class="{ act: tab === 'docs' }" @click="tab = 'docs'">Техдокументация</button>
       <button :class="{ act: tab === 'certs' }" @click="tab = 'certs'">Сертификаты</button>
+      <button :class="{ act: tab === 'extra' }" @click="tab = 'extra'">Дополнительно</button>
     </div>
 
-    <!-- Основное -->
-    <template v-if="tab === 'main'">
-      <div class="fg fw"><label>Название *</label><input v-model="form.name" class="field" /></div>
-      <div class="fg fw"><label>Описание</label><textarea v-model="form.description" class="field" rows="2" /></div>
-      <div class="mlf-row">
-        <div class="fg"><label>Код</label><input v-model="form.code" class="field" /></div>
-        <div class="fg"><label>Сортировка</label><input v-model.number="form.sorting_order" type="number" class="field" /></div>
+    <div class="mlf-panels">
+      <!-- Основное -->
+      <div :class="['mlf-panel', { 'mlf-panel--active': tab === 'main' }]">
+        <div class="fg fw"><label>Название *</label><input v-model="form.name" class="field" /></div>
+        <div class="fg fw"><label>Описание</label><textarea v-model="form.description" class="field" rows="2" /></div>
+        <div class="mlf-row">
+          <div class="fg"><label>Код</label><input v-model="form.code" class="field" /></div>
+          <div class="fg"><label>Сортировка</label><input v-model.number="form.sorting_order" type="number" class="field" /></div>
+        </div>
+        <div class="mlf-row">
+          <div class="fg"><FkSelect v-model="form.equipment_type_id" :options="opts.equipmentTypes" label="Тип оборудования *" placeholder="Выберите тип" /></div>
+        </div>
+        <div class="mlf-row">
+          <div class="fg"><FkSelect v-model="form.producer_id" :options="opts.producers" label="Производитель" placeholder="—" /></div>
+          <div class="fg"><FkSelect v-model="form.brand_id" :options="opts.brands" label="Бренд" placeholder="—" /></div>
+        </div>
+        <div class="fg fw"><label>Шаблон названия</label><textarea v-model="form.name_template" class="field" rows="2" /></div>
+        <div class="fg fw"><label>Шаблон описания</label><textarea v-model="form.description_template" class="field" rows="2" /></div>
+        <label class="chk"><input type="checkbox" v-model="form.is_active" /> Активно</label>
       </div>
-      <div class="mlf-row">
-        <div class="fg"><FkSelect v-model="form.equipment_type_id" :options="opts.equipmentTypes" label="Тип оборудования *" placeholder="Выберите тип" /></div>
+
+      <!-- Изображения -->
+      <div :class="['mlf-panel', { 'mlf-panel--active': tab === 'images' }]">
+        <div class="mlf-cert-toolbar">
+          <span class="mlf-section-label">Изображения</span>
+          <button class="btn-new" @click="showImageUpload = true">+ Новый</button>
+        </div>
+        <ChipList :items="imageItems" pickLabel="Подбор"
+          @pick="showImagePicker = true" @remove="removeImage" @removeBatch="removeImageBatch" />
       </div>
-      <div class="mlf-row">
-        <div class="fg"><FkSelect v-model="form.producer_id" :options="opts.producers" label="Производитель" placeholder="—" /></div>
-        <div class="fg"><FkSelect v-model="form.brand_id" :options="opts.brands" label="Бренд" placeholder="—" /></div>
+
+      <!-- Техдокументация -->
+      <div :class="['mlf-panel', { 'mlf-panel--active': tab === 'docs' }]">
+        <div class="mlf-cert-toolbar">
+          <span class="mlf-section-label">Техдокументация</span>
+          <button class="btn-new" @click="showDocUpload = true">+ Новый</button>
+        </div>
+        <ChipList :items="techDocItems" pickLabel="Подбор"
+          @pick="showDocPicker = true" @remove="removeDoc" @removeBatch="removeDocBatch" />
       </div>
-      <div class="fg fw"><label>Шаблон названия</label><textarea v-model="form.name_template" class="field" rows="2" /></div>
-      <div class="fg fw"><label>Шаблон описания</label><textarea v-model="form.description_template" class="field" rows="2" /></div>
-      <div class="fg fw"><label>Доп. параметры (JSON)</label><textarea v-model="form.extra_params_json" class="field" rows="3" placeholder='{}' /></div>
-      <label class="chk"><input type="checkbox" v-model="form.is_active" /> Активно</label>
-    </template>
 
-    <!-- Изображения -->
-    <template v-if="tab === 'images'">
-      <ChipList label="Изображения" :items="imageItems" pickLabel="Подбор"
-        @pick="showImagePicker = true" @remove="removeImage" @removeBatch="removeImageBatch" />
-    </template>
+      <!-- Сертификаты -->
+      <div :class="['mlf-panel', { 'mlf-panel--active': tab === 'certs' }]">
+        <div class="mlf-cert-toolbar">
+          <span class="mlf-section-label">Сертификаты</span>
+          <button class="btn-new" @click="showCertForm = true">+ Новый</button>
+        </div>
+        <ChipList :items="certItems" pickLabel="Подбор"
+          @pick="showCertPicker = true" @remove="removeCert" @removeBatch="removeCertBatch" />
+      </div>
 
-    <!-- Техдокументация -->
-    <template v-if="tab === 'docs'">
-      <ChipList label="Техдокументация" :items="techDocItems" pickLabel="Подбор"
-        @pick="showDocPicker = true" @remove="removeDoc" @removeBatch="removeDocBatch" />
-    </template>
-
-    <!-- Сертификаты -->
-    <template v-if="tab === 'certs'">
-      <ChipList label="Сертификаты" :items="certItems" pickLabel="Подбор"
-        @pick="showCertPicker = true" @remove="removeCert" @removeBatch="removeCertBatch" />
-    </template>
+      <!-- Дополнительно -->
+      <div :class="['mlf-panel', { 'mlf-panel--active': tab === 'extra' }]">
+        <JsonFieldsEditor v-model="form.extra_params" label="Доп. параметры" />
+      </div>
+    </div>
 
     <!-- Пикеры (рендерятся всегда, вне табов) -->
     <BasePicker :show="showImagePicker" title="Подбор изображений"
@@ -64,16 +83,31 @@
       :preselected="certItems.map(i => i.id)"
       :columns="[{key:'code',label:'Код'},{key:'name',label:'Название'}]"
       @close="showCertPicker = false" @selected="onCertsSelected" />
+
+    <CertEdit :show="showCertForm" :item="newCertPreset" :opts="certOpts"
+      @saved="onCertSaved" @cancel="showCertForm = false" />
+
+    <MediaUploadModal :show="showImageUpload" categoryCode="IMAGE"
+      :brandId="form.brand_id" :equipmentTypeId="form.equipment_type_id"
+      :brands="opts.brands" :equipmentTypes="opts.equipmentTypes"
+      @close="showImageUpload = false" @uploaded="onImageUploaded" />
+    <MediaUploadModal :show="showDocUpload" categoryCode="TECH_DOC"
+      :brandId="form.brand_id" :equipmentTypeId="form.equipment_type_id"
+      :brands="opts.brands" :equipmentTypes="opts.equipmentTypes"
+      @close="showDocUpload = false" @uploaded="onDocUploaded" />
   </div>
   <Spinner v-else />
 </template>
 
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue'
+import { reactive, ref, watch, onMounted, computed } from 'vue'
 import FkSelect from '@/shared/components/FkSelect.vue'
 import BasePicker from '@/shared/components/BasePicker.vue'
 import ChipList from '@/shared/components/ChipList.vue'
 import Spinner from '@/shared/components/Spinner.vue'
+import CertEdit from '@/apps/cert-docs/components/CertEdit.vue'
+import MediaUploadModal from '@/shared/components/MediaUploadModal.vue'
+import JsonFieldsEditor from '@/shared/components/JsonFieldsEditor.vue'
 import api from '@/shared/api'
 import { refsApi } from '../api'
 
@@ -86,9 +120,13 @@ const ready = ref(false)
 const showImagePicker = ref(false)
 const showDocPicker = ref(false)
 const showCertPicker = ref(false)
+const showImageUpload = ref(false)
+const showDocUpload = ref(false)
 const imageItems = ref([])
 const techDocItems = ref([])
 const certItems = ref([])
+const showCertForm = ref(false)
+const certVarieties = ref([])
 
 const opts = reactive({
   producers: [],
@@ -100,10 +138,22 @@ const form = reactive({
   name: '', code: '', description: '', name_template: '', description_template: '',
   sorting_order: 0, is_active: true,
   equipment_type_id: null, producer_id: null, brand_id: null,
-  extra_params_json: '{}',
+  extra_params: [],
 })
 
 function extractId(v) { return v && typeof v === 'object' ? v.id : v || null }
+
+const certOpts = computed(() => ({
+  varieties: certVarieties.value,
+  brands: opts.brands,
+  equipmentTypes: opts.equipmentTypes,
+}))
+
+const newCertPreset = computed(() => ({
+  name: form.name || '',
+  brand: opts.brands.find(b => b.id === form.brand_id) || null,
+  equipment_types: opts.equipmentTypes.filter(e => e.id === form.equipment_type_id),
+}))
 
 watch(() => props.item, (val) => {
   if (val) {
@@ -117,13 +167,13 @@ watch(() => props.item, (val) => {
     form.equipment_type_id = extractId(val.equipment_type)
     form.producer_id = extractId(val.producer)
     form.brand_id = extractId(val.brand)
-    form.extra_params_json = val.extra_params ? JSON.stringify(val.extra_params, null, 2) : '{}'
+    form.extra_params = Array.isArray(val.extra_params) ? val.extra_params : []
   } else {
     Object.assign(form, {
       name: '', code: '', description: '', name_template: '', description_template: '',
       sorting_order: 0, is_active: true,
       equipment_type_id: null, producer_id: null, brand_id: null,
-      extra_params_json: '{}',
+      extra_params: [],
     })
   }
 }, { immediate: true })
@@ -178,6 +228,23 @@ function onImagesSelected(items) { imageItems.value = items }
 function onDocsSelected(items) { techDocItems.value = items }
 function onCertsSelected(items) { certItems.value = items }
 
+function onImageUploaded(item) {
+  imageItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
+}
+function onDocUploaded(item) {
+  techDocItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
+}
+
+function onCertSaved() {
+  showCertForm.value = false
+  if (props.item?.cert_docs) {
+    const arr = Array.isArray(props.item.cert_docs) ? props.item.cert_docs : []
+    if (arr.length && typeof arr[0] === 'number') {
+      loadM2mDetails(arr, 'cert_doc.CertData').then(items => { certItems.value = items })
+    }
+  }
+}
+
 const mediaFilterDefs = [{ key: 'search', type: 'text', label: 'Поиск' }]
 const certFilterDefs = [{ key: 'search', type: 'text', label: 'Поиск' }]
 
@@ -200,8 +267,6 @@ async function fetchCerts(params) {
 }
 
 function getFormData() {
-  let ep = {}
-  try { ep = JSON.parse(form.extra_params_json || '{}') } catch {}
   return {
     name: form.name, code: form.code || null,
     description: form.description,
@@ -212,7 +277,7 @@ function getFormData() {
     equipment_type_id: form.equipment_type_id || null,
     producer_id: form.producer_id || null,
     brand_id: form.brand_id || null,
-    extra_params: ep,
+    extra_params: form.extra_params,
     images: imageItems.value.map(i => i.id),
     tech_docs: techDocItems.value.map(i => i.id),
     cert_docs: certItems.value.map(i => i.id),
@@ -222,12 +287,13 @@ function getFormData() {
 defineExpose({ getFormData })
 
 onMounted(async () => {
-  const [producers, brands, equipmentTypes] = await Promise.all([
-    refsApi.producers(), refsApi.brands(), refsApi.equipmentTypes(),
+  const [producers, brands, equipmentTypes, varieties] = await Promise.all([
+    refsApi.producers(), refsApi.brands(), refsApi.equipmentTypes(), refsApi.certVarieties(),
   ])
   opts.producers = producers
   opts.brands = brands
   opts.equipmentTypes = equipmentTypes
+  certVarieties.value = varieties
   ready.value = true
 })
 </script>
@@ -238,6 +304,10 @@ onMounted(async () => {
 .mlf-tabs button { padding: 6px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; transition: all .15s; }
 .mlf-tabs button.act { background: #2563eb; color: #fff; border-color: #2563eb; }
 .mlf-tabs button:hover:not(.act) { background: #f3f4f6; }
+/* Панели табов: grid, все в одной ячейке — высота по максимальной */
+.mlf-panels { display: grid; grid-template-areas: "panel"; }
+.mlf-panel { grid-area: panel; visibility: hidden; }
+.mlf-panel--active { visibility: visible; }
 .mlf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .fg { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .fg.fw { grid-column: 1 / -1; }
@@ -246,4 +316,8 @@ onMounted(async () => {
 .field:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
 .chk { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .mlf-media-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mlf-cert-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.mlf-section-label { font-weight: 500; font-size: 13px; color: #374151; }
+.btn-new { padding: 4px 14px; background: #2563eb; color: #fff; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; }
+.btn-new:hover { background: #1d4ed8; }
 </style>

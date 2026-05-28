@@ -78,6 +78,7 @@ export const refsApi = {
   async producers()      { return fetchAll('producers.Producer') },
   async brands()         { return fetchAll('producers.Brands') },
   async equipmentTypes() { return fetchAll('core.EquipmentType') },
+  async certVarieties()  { return fetchAll('cert_doc.CertVariety') },
 }
 
 export { extractIds, listResponse }

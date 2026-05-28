@@ -81,8 +81,9 @@ SKUMixin           — привязка к номенклатуре
 
 ## Особенности
 
-- **M2M-поля `images` и `tech_docs`** переопределены с уникальными `related_name` (`lsb_images`, `lsb_tech_docs`) для обхода бага Django 5.2 с `related_name='+'`.
-- **Чтение через raw SQL** в `_get_images_section`, `_get_docs_section`, `_get_certs_section` — обход prefetch-бага.
-- **Админка**: `images`/`tech_docs` через `raw_id_fields`, `exd` через `get_form`/`save_related` патч.
-- **Документация** собирается из товара + серии (model_line), без дубликатов.
-- **Копирование**: `CopyMixin._copy_custom_relations` копирует `exd` и `additional_sensor`.
+- **M2M-поля `exd`, `images`, `tech_docs`** — все с `related_name='+'`. Обход бага миграций `SeparateDatabaseAndState`.
+- **LimitSwitchBox в `__init__.py`** — раскомментирован 2026-05-28. Без регистрации модели миграции ломаются.
+- **Импорты**: прямые из подмодулей вместо `pa_controls.models` — обход циклического импорта.
+- **Админка**: стандартный M2M, без raw-SQL патчей.
+- **Документация**: из товара + model_line, без дубликатов.
+- **Копирование**: `exd.set()` + `additional_sensor.set()`.

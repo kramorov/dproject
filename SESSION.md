@@ -1,4 +1,29 @@
-# Состояние проекта на 2026-05-27
+# Состояние проекта на 2026-05-28
+
+## Сегодня (2026-05-28)
+
+### Починка LimitSwitchBox API
+- **Корень проблемы**: `LimitSwitchBox` был закомментирован в `pa_controls/models/__init__.py` → Django не регистрировал модель → миграции `SeparateDatabaseAndState` ломали through-таблицы (`exd`, `images`, `tech_docs`)
+- **Решение**: раскомментирован импорт, исправлен циклический импорт (прямые импорты из подмодулей вместо `pa_controls.models`)
+- **M2M-поля**: `related_name='+'` на `exd`, `images`, `tech_docs` — как у gearbox/filter_regulator
+- Заменены FK-стиль методы на M2M: `exd_display` итерация, `_copy_custom_relations` через `.set()`
+
+### Shared-компоненты фронтенда
+- `M2MDualList.vue` — filter_horizontal стиль (две панели + поиск + стрелки)
+- `JsonFieldsEditor.vue` — редактор extra_params (таблица + raw JSON ▲▼)
+- `MediaUploadModal.vue` — загрузка в медиатеку (IMAGE/TECH_DOC)
+
+### Формы LimitSwitchBox (табы)
+- **ModelLineForm**: Основное | Изображения | Техдокументация | Сертификаты | Дополнительно
+- **LimitSwitchForm**: Основное | Изображения | Техдокументация | Дополнительно
+- Кнопки «+ Новый» на вкладках медиа для загрузки в медиатеку
+- Кнопка «+ Новый» на сертификатах → CertEdit с пресетом equipment_type и brand
+
+### CertEdit
+- `isNew`: `!props.item || !props.item.id` — поддержка пресетов без id
+- Копирование `name` из формы в новый сертификат
+
+## ⚠️ НАПОМИНАНИЕ
 
 ## ⚠️ НАПОМИНАНИЕ: установить PyMuPDF на домашней машине
 

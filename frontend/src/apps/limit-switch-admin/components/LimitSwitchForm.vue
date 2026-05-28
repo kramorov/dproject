@@ -1,7 +1,17 @@
-<!-- apps/limit-switch-admin/components/LimitSwitchForm.vue — форма LimitSwitchBox -->
+<!-- apps/limit-switch-admin/components/LimitSwitchForm.vue — форма LimitSwitchBox с табами -->
 <template>
   <div class="lsf-grid" v-if="ready">
-    <!-- Основные -->
+    <!-- Табы -->
+    <div class="lsf-tabs">
+      <button :class="{ act: tab === 'main' }" @click="tab = 'main'">Основное</button>
+      <button :class="{ act: tab === 'images' }" @click="tab = 'images'">Изображения</button>
+      <button :class="{ act: tab === 'docs' }" @click="tab = 'docs'">Техдокументация</button>
+      <button :class="{ act: tab === 'extra' }" @click="tab = 'extra'">Дополнительно</button>
+    </div>
+
+    <div class="lsf-panels">
+      <!-- Основное -->
+      <div :class="['lsf-panel', { 'lsf-panel--active': tab === 'main' }]">
     <div class="fg fw"><label>Название *</label><input v-model="form.name" class="field" /></div>
     <div class="fg fw"><label>Описание</label><textarea v-model="form.description" class="field" rows="2" /></div>
     <div class="lsf-row-3">
@@ -49,29 +59,37 @@
 
     <!-- Взрывозащита -->
     <h4 class="lsf-sec">Взрывозащита и флаги</h4>
-    <div class="fg fw"><M2MSelect v-model="form.exd_ids" :options="opts.exdOptions" label="Взрывозащита" placeholder="—" /></div>
+    <M2MDualList v-model="form.exd_ids" :options="opts.exdOptions" label="Взрывозащита" />
     <div class="lsf-row-3">
       <label class="chk"><input type="checkbox" v-model="form.is_pneumatic" /> Пневматический</label>
       <label class="chk"><input type="checkbox" v-model="form.has_namur_interface" /> NAMUR интерфейс</label>
       <label class="chk"><input type="checkbox" v-model="form.has_visual_indicator" /> Визуальный индикатор</label>
     </div>
-
-    <!-- Изображения и документация -->
-    <h4 class="lsf-sec">Медиа</h4>
-    <div class="lsf-media-row">
-      <div class="lsf-media-col">
-        <ChipList label="Изображения" :items="imageItems"
-          pickLabel="Подбор"
-          @pick="showImagePicker = true"
-          @remove="removeImage"
-          @removeBatch="removeImageBatch" />
       </div>
-      <div class="lsf-media-col">
-        <ChipList label="Техдокументация" :items="techDocItems"
-          pickLabel="Подбор"
-          @pick="showDocPicker = true"
-          @remove="removeDoc"
-          @removeBatch="removeDocBatch" />
+
+      <!-- Изображения -->
+      <div :class="['lsf-panel', { 'lsf-panel--active': tab === 'images' }]">
+        <div class="lsf-media-toolbar">
+          <span class="lsf-media-label">Изображения</span>
+          <button class="btn-new" @click="showImageUpload = true">+ Новый</button>
+        </div>
+        <ChipList :items="imageItems" pickLabel="Подбор"
+          @pick="showImagePicker = true" @remove="removeImage" @removeBatch="removeImageBatch" />
+      </div>
+
+      <!-- Техдокументация -->
+      <div :class="['lsf-panel', { 'lsf-panel--active': tab === 'docs' }]">
+        <div class="lsf-media-toolbar">
+          <span class="lsf-media-label">Техдокументация</span>
+          <button class="btn-new" @click="showDocUpload = true">+ Новый</button>
+        </div>
+        <ChipList :items="techDocItems" pickLabel="Подбор"
+          @pick="showDocPicker = true" @remove="removeDoc" @removeBatch="removeDocBatch" />
+      </div>
+
+      <!-- Дополнительно -->
+      <div :class="['lsf-panel', { 'lsf-panel--active': tab === 'extra' }]">
+        <JsonFieldsEditor v-model="form.extra_params" label="Доп. параметры" />
       </div>
     </div>
 
@@ -90,8 +108,11 @@
       :columns="[{key:'code',label:'Код'},{key:'name',label:'Название'}]"
       @close="showDocPicker = false" @selected="onDocsSelected" />
 
-    <!-- JSON -->
-    <div class="fg fw"><label>Доп. параметры (JSON)</label><textarea v-model="form.extra_params_json" class="field" rows="3" placeholder='{}' /></div>
+    <MediaUploadModal :show="showImageUpload" categoryCode="IMAGE"
+      @close="showImageUpload = false" @uploaded="onImageUploaded" />
+    <MediaUploadModal :show="showDocUpload" categoryCode="TECH_DOC"
+      @close="showDocUpload = false" @uploaded="onDocUploaded" />
+
   </div>
   <Spinner v-else />
 </template>
@@ -100,9 +121,12 @@
 import { reactive, ref, watch, onMounted } from 'vue'
 import FkSelect from '@/shared/components/FkSelect.vue'
 import M2MSelect from '@/shared/components/M2MSelect.vue'
+import M2MDualList from '@/shared/components/M2MDualList.vue'
+import JsonFieldsEditor from '@/shared/components/JsonFieldsEditor.vue'
 import BasePicker from '@/shared/components/BasePicker.vue'
 import ChipList from '@/shared/components/ChipList.vue'
 import Spinner from '@/shared/components/Spinner.vue'
+import MediaUploadModal from '@/shared/components/MediaUploadModal.vue'
 import api from '@/shared/api'
 import { refsApi } from '../api'
 
@@ -110,9 +134,12 @@ const props = defineProps({
   item: { type: Object, default: null },
 })
 
+const tab = ref('main')
 const ready = ref(false)
 const showImagePicker = ref(false)
 const showDocPicker = ref(false)
+const showImageUpload = ref(false)
+const showDocUpload = ref(false)
 const imageItems = ref([])
 const techDocItems = ref([])
 const opts = reactive({
@@ -129,7 +156,7 @@ const form = reactive({
   work_temp_min: -40, work_temp_max: 120,
   body_material_id: null, body_material_specified_id: null,
   is_pneumatic: false, has_namur_interface: false, has_visual_indicator: false,
-  extra_params_json: '{}',
+  extra_params: [],
 })
 
 function extractId(v) { return v && typeof v === 'object' ? v.id : v || null }
@@ -149,7 +176,7 @@ watch(() => props.item, (val) => {
     form.primary_sensor_id = extractId(val.primary_sensor)
     form.additional_sensor_ids = extractIds(val.additional_sensor)
     form.ip_id = extractId(val.ip)
-    form.exd_ids = extractIds(val.exd) || extractIds(val.exd_all) || []
+    form.exd_ids = extractIds(val.exd) || []
     form.work_temp_min = val.work_temp_min ?? -40
     form.work_temp_max = val.work_temp_max ?? 120
     form.body_material_id = extractId(val.body_material)
@@ -157,7 +184,7 @@ watch(() => props.item, (val) => {
     form.is_pneumatic = !!val.is_pneumatic
     form.has_namur_interface = !!val.has_namur_interface
     form.has_visual_indicator = !!val.has_visual_indicator
-    form.extra_params_json = val.extra_params ? JSON.stringify(val.extra_params, null, 2) : '{}'
+    form.extra_params = Array.isArray(val.extra_params) ? val.extra_params : []
   } else {
     Object.assign(form, {
       name: '', code: '', description: '', sorting_order: 0, is_active: true,
@@ -168,15 +195,13 @@ watch(() => props.item, (val) => {
       work_temp_min: -40, work_temp_max: 120,
       body_material_id: null, body_material_specified_id: null,
       is_pneumatic: false, has_namur_interface: false, has_visual_indicator: false,
-      extra_params_json: '{}',
+      extra_params: [],
     })
   }
 }, { immediate: true })
 
 function getFormData() {
-  let ep = {}
-  try { ep = JSON.parse(form.extra_params_json || '{}') } catch {}
-  return {
+    return {
     name: form.name,
     code: form.code || null,
     description: form.description || '',
@@ -199,7 +224,7 @@ function getFormData() {
     is_pneumatic: form.is_pneumatic,
     has_namur_interface: form.has_namur_interface,
     has_visual_indicator: form.has_visual_indicator,
-    extra_params: ep,
+    extra_params: form.extra_params,
   }
 }
 
@@ -211,6 +236,14 @@ function onImagesSelected(items) {
 function onDocsSelected(items) {
   techDocItems.value = items
 }
+
+function onImageUploaded(item) {
+  imageItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
+}
+function onDocUploaded(item) {
+  techDocItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
+}
+
 function removeImage(id) {
   imageItems.value = imageItems.value.filter(i => i.id !== id)
 }
@@ -301,6 +334,17 @@ onMounted(async () => {
 .field:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
 .chk { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .lsf-sec { margin: 4px 0 2px; font-size: 14px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
-.lsf-media-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.lsf-media-col { display: flex; flex-direction: column; gap: 6px; }
+/* Табы */
+.lsf-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.lsf-tabs button { padding: 6px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; transition: all .15s; }
+.lsf-tabs button.act { background: #2563eb; color: #fff; border-color: #2563eb; }
+.lsf-tabs button:hover:not(.act) { background: #f3f4f6; }
+/* Панели табов */
+.lsf-panels { display: grid; grid-template-areas: "panel"; }
+.lsf-panel { grid-area: panel; visibility: hidden; }
+.lsf-panel--active { visibility: visible; }
+.lsf-media-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.lsf-media-label { font-weight: 500; font-size: 13px; color: #374151; }
+.btn-new { padding: 4px 14px; background: #2563eb; color: #fff; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; }
+.btn-new:hover { background: #1d4ed8; }
 </style>
