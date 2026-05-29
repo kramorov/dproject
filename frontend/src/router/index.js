@@ -15,6 +15,7 @@ const routes = [
   { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', role: 'admin' } },
   { path: '/admin/limit-switch', component: () => import('../pages/admin/LimitSwitchAdminPage.vue'), meta: { title: 'БКВ', role: 'admin' } },
   { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', role: 'admin' } },
+  { path: '/tools/image-processor', component: () => import('../pages/ImageProcessorTest.vue'), meta: { title: 'Обрезка изображений' } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

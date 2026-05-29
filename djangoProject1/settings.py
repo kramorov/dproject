@@ -152,6 +152,7 @@ INSTALLED_APPS = [
     'clients.apps.ClientsConfig' ,
     'client_requests.apps.ClientRequestsConfig' ,
     'media_library.apps.MediaLibraryConfig' ,
+    'image_processor.apps.ImageProcessorConfig' ,
     'pneumatic_actuators.apps.PneumaticActuatorConfig' ,
     'features.apps.FeaturesConfig',
     'price.apps.PriceConfig',

@@ -1,10 +1,8 @@
 # gearbox/views/__init__.py
-from .catalog import GearboxCatalogView, GearboxDetailView, GearboxFilterOptionsView
 from .meta import GearboxMetaView
+from .quickselect import GearboxQuickSelectView
 
 __all__ = [
-    'GearboxCatalogView',
-    'GearboxDetailView',
-    'GearboxFilterOptionsView',
     'GearboxMetaView',
+    'GearboxQuickSelectView',
 ]

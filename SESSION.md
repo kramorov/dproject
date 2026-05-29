@@ -9,6 +9,32 @@
   по сигналам модели (post_save/post_delete на связанные модели). Ключ кэша: `catalog:filters:{catalog}:{scope}:{model_line_id}`.
 - **Приоритет**: medium, до production-нагрузки.
 
+### 🖼️ Оптимизация изображений: WebP + ресайз + кроп (план)
+- **WebP-варианты** для каждого изображения: `webp_sm` (150w), `webp_md` (400w), `webp_lg` (800w), `webp_xl` (1600w)
+- **center_crop** для sm/md (квадратные карточки), **thumbnail** для lg/xl (пропорции)
+- **`remove_background`** флаг в модели — нейросеть `rembg` (ONNX/U2Net) для удаления фона
+- **Конвертация при загрузке** (save) — новые файлы сразу получают WebP-варианты
+- **Management command** `generate_webp_variants` — добить существующие (пакетами по 50)
+- **Fallback**: `get_image_urls()` отдаёт WebP если есть, иначе оригинал
+- **Frontend**: `<img srcset="...">` — браузер сам выбирает размер
+- **Экономия**: карточка ~12 KB WebP вместо ~200 KB JPEG
+- **Поля**: `webp_sm/md/lg/xl` (ManagedFileField), `remove_background` (BooleanField)
+
+### ✂️ Image Cropper — интерактивная обрезка (готово)
+- **Приложение** `image_processor/` — модели, API, сервисы, README
+- **API**: `/api/image-processor/` → `upload/`, `preview/`, `crop/`
+- **Pipeline**: загрузка → [rembg] → crop_and_pad → WebP sm/md/lg (lossy, с альфа-каналом)
+- **Модель**: `ImageCropSession` — ManagedFileField (Cloud.ru), координаты, bgColor, флаг rembg
+- **Фронтенд**: `ImageCropper.vue` — canvas, drag/зум, color picker, лог-панель
+  - Рамка фиксирована, изображение двигается
+  - Колёсико — зум
+  - Чекбокс «Убрать фон» → rembg (U2Net, ~170 MB модель)
+  - Превью на шахматном фоне
+  - Лог с таймстемпами и диагностикой прозрачности
+- **Тестовая страница**: `/tools/image-processor`
+- **Результат**: WebP с прозрачностью (RGBA, lossy quality=80)
+- **Известно**: RGBA на 30-50% больше RGB; U2Net лучше на однородном фоне
+
 ---
 
 ## Сегодня (2026-05-29) — CatalogConfig и Exact/Compatible split
