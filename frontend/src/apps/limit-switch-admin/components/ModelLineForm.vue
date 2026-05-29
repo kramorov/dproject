@@ -4,7 +4,7 @@
     <!-- Табы -->
     <div class="mlf-tabs">
       <button :class="{ act: tab === 'main' }" @click="tab = 'main'">Основное</button>
-      <button :class="{ act: tab === 'images' }" @click="tab = 'images'">Изображения</button>
+      <button :class="{ act: tab === 'gallery' }" @click="tab = 'gallery'">Галерея</button>
       <button :class="{ act: tab === 'docs' }" @click="tab = 'docs'">Техдокументация</button>
       <button :class="{ act: tab === 'certs' }" @click="tab = 'certs'">Сертификаты</button>
       <button :class="{ act: tab === 'extra' }" @click="tab = 'extra'">Дополнительно</button>
@@ -31,14 +31,9 @@
         <label class="chk"><input type="checkbox" v-model="form.is_active" /> Активно</label>
       </div>
 
-      <!-- Изображения -->
-      <div :class="['mlf-panel', { 'mlf-panel--active': tab === 'images' }]">
-        <div class="mlf-cert-toolbar">
-          <span class="mlf-section-label">Изображения</span>
-          <button class="btn-new" @click="showImageUpload = true">+ Новый</button>
-        </div>
-        <ChipList :items="imageItems" pickLabel="Подбор"
-          @pick="showImagePicker = true" @remove="removeImage" @removeBatch="removeImageBatch" />
+      <!-- Галерея -->
+      <div :class="['mlf-panel', { 'mlf-panel--active': tab === 'gallery' }]">
+        <div class="fg"><FkSelect v-model="form.image_gallery_id" :options="opts.imageGalleries" label="Набор изображений" placeholder="—" /></div>
       </div>
 
       <!-- Техдокументация -->
@@ -67,12 +62,7 @@
       </div>
     </div>
 
-    <!-- Пикеры (рендерятся всегда, вне табов) -->
-    <BasePicker :show="showImagePicker" title="Подбор изображений"
-      :fetchFn="fetchMediaImages" :filterDefs="mediaFilterDefs" :defaultFilters="{}"
-      :preselected="imageItems.map(i => i.id)"
-      :columns="[{key:'code',label:'Код'},{key:'name',label:'Название'}]"
-      @close="showImagePicker = false" @selected="onImagesSelected" />
+    <!-- Пикеры -->
     <BasePicker :show="showDocPicker" title="Подбор техдокументации"
       :fetchFn="fetchMediaDocs" :filterDefs="mediaFilterDefs" :defaultFilters="{}"
       :preselected="techDocItems.map(i => i.id)"
@@ -87,10 +77,6 @@
     <CertEdit :show="showCertForm" :item="newCertPreset" :opts="certOpts"
       @saved="onCertSaved" @cancel="showCertForm = false" />
 
-    <MediaUploadModal :show="showImageUpload" categoryCode="IMAGE"
-      :brandId="form.brand_id" :equipmentTypeId="form.equipment_type_id"
-      :brands="opts.brands" :equipmentTypes="opts.equipmentTypes"
-      @close="showImageUpload = false" @uploaded="onImageUploaded" />
     <MediaUploadModal :show="showDocUpload" categoryCode="TECH_DOC"
       :brandId="form.brand_id" :equipmentTypeId="form.equipment_type_id"
       :brands="opts.brands" :equipmentTypes="opts.equipmentTypes"
@@ -117,27 +103,24 @@ const props = defineProps({
 
 const tab = ref('main')
 const ready = ref(false)
-const showImagePicker = ref(false)
 const showDocPicker = ref(false)
 const showCertPicker = ref(false)
-const showImageUpload = ref(false)
 const showDocUpload = ref(false)
-const imageItems = ref([])
 const techDocItems = ref([])
 const certItems = ref([])
 const showCertForm = ref(false)
 const certVarieties = ref([])
 
 const opts = reactive({
-  producers: [],
-  brands: [],
-  equipmentTypes: [],
+  producers: [], brands: [], equipmentTypes: [],
+  imageGalleries: [],
 })
 
 const form = reactive({
   name: '', code: '', description: '', name_template: '', description_template: '',
   sorting_order: 0, is_active: true,
   equipment_type_id: null, producer_id: null, brand_id: null,
+  image_gallery_id: null,
   extra_params: [],
 })
 
@@ -167,18 +150,19 @@ watch(() => props.item, (val) => {
     form.equipment_type_id = extractId(val.equipment_type)
     form.producer_id = extractId(val.producer)
     form.brand_id = extractId(val.brand)
+    form.image_gallery_id = extractId(val.image_gallery)
     form.extra_params = Array.isArray(val.extra_params) ? val.extra_params : []
   } else {
     Object.assign(form, {
       name: '', code: '', description: '', name_template: '', description_template: '',
       sorting_order: 0, is_active: true,
       equipment_type_id: null, producer_id: null, brand_id: null,
+      image_gallery_id: null,
       extra_params: [],
     })
   }
 }, { immediate: true })
 
-// populate M2M items (supports both nested objects and ID arrays)
 function normalizeItems(arr) {
   if (!arr || !arr.length) return []
   if (typeof arr[0] === 'object') {
@@ -186,74 +170,42 @@ function normalizeItems(arr) {
   }
   return arr.map(id => ({ id, code: '', name: '' }))
 }
-async function loadM2mDetails(ids, model) {
-  if (!ids || !ids.length) return []
-  try {
-    const res = await api.get('/pa-controls/m2m-items/', { params: { model, ids: ids.join(',') } })
-    return (res.data?.data || []).map(i => ({ id: i.id, code: i.code || '', name: i.name || '' }))
-  } catch { return ids.map(id => ({ id, code: '', name: '' })) }
-}
 
-watch(() => props.item, async (val) => {
-  imageItems.value = []
+// Populate M2M items (tech_docs, cert_docs)
+watch(() => props.item, (val) => {
   techDocItems.value = []
   certItems.value = []
   if (!val) return
-  if (val.images) {
-    const arr = Array.isArray(val.images) ? val.images : []
-    if (arr.length && typeof arr[0] === 'object') imageItems.value = normalizeItems(arr)
-    else if (arr.length && typeof arr[0] === 'number') imageItems.value = await loadM2mDetails(arr, 'media_library.MediaLibraryItem')
-  }
   if (val.tech_docs) {
     const arr = Array.isArray(val.tech_docs) ? val.tech_docs : []
     if (arr.length && typeof arr[0] === 'object') techDocItems.value = normalizeItems(arr)
-    else if (arr.length && typeof arr[0] === 'number') techDocItems.value = await loadM2mDetails(arr, 'media_library.MediaLibraryItem')
   }
   if (val.cert_docs) {
     const arr = Array.isArray(val.cert_docs) ? val.cert_docs : []
     if (arr.length && typeof arr[0] === 'object') certItems.value = normalizeItems(arr)
-    else if (arr.length && typeof arr[0] === 'number') certItems.value = await loadM2mDetails(arr, 'cert_doc.CertData')
   }
 }, { immediate: true })
 
 
-function removeImage(id) { imageItems.value = imageItems.value.filter(i => i.id !== id) }
-function removeImageBatch(ids) { imageItems.value = imageItems.value.filter(i => !ids.includes(i.id)) }
 function removeDoc(id) { techDocItems.value = techDocItems.value.filter(i => i.id !== id) }
 function removeDocBatch(ids) { techDocItems.value = techDocItems.value.filter(i => !ids.includes(i.id)) }
 function removeCert(id) { certItems.value = certItems.value.filter(i => i.id !== id) }
 function removeCertBatch(ids) { certItems.value = certItems.value.filter(i => !ids.includes(i.id)) }
 
-function onImagesSelected(items) { imageItems.value = items }
 function onDocsSelected(items) { techDocItems.value = items }
 function onCertsSelected(items) { certItems.value = items }
 
-function onImageUploaded(item) {
-  imageItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
-}
 function onDocUploaded(item) {
   techDocItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
 }
 
 function onCertSaved() {
   showCertForm.value = false
-  if (props.item?.cert_docs) {
-    const arr = Array.isArray(props.item.cert_docs) ? props.item.cert_docs : []
-    if (arr.length && typeof arr[0] === 'number') {
-      loadM2mDetails(arr, 'cert_doc.CertData').then(items => { certItems.value = items })
-    }
-  }
 }
 
 const mediaFilterDefs = [{ key: 'search', type: 'text', label: 'Поиск' }]
 const certFilterDefs = [{ key: 'search', type: 'text', label: 'Поиск' }]
 
-async function fetchMediaImages(params) {
-  const q = { model: 'media_library.MediaLibraryItem', fmt: 'compact', limit: params.limit || 25, offset: params.offset || 0 }
-  if (params.search) q.search = params.search
-  q.category__code = 'IMAGE'
-  return api.get('/core/', { params: q })
-}
 async function fetchMediaDocs(params) {
   const q = { model: 'media_library.MediaLibraryItem', fmt: 'compact', limit: params.limit || 25, offset: params.offset || 0 }
   if (params.search) q.search = params.search
@@ -277,8 +229,8 @@ function getFormData() {
     equipment_type_id: form.equipment_type_id || null,
     producer_id: form.producer_id || null,
     brand_id: form.brand_id || null,
+    image_gallery_id: form.image_gallery_id || null,
     extra_params: form.extra_params,
-    images: imageItems.value.map(i => i.id),
     tech_docs: techDocItems.value.map(i => i.id),
     cert_docs: certItems.value.map(i => i.id),
   }
@@ -287,13 +239,15 @@ function getFormData() {
 defineExpose({ getFormData })
 
 onMounted(async () => {
-  const [producers, brands, equipmentTypes, varieties] = await Promise.all([
+  const [producers, brands, equipmentTypes, varieties, ig] = await Promise.all([
     refsApi.producers(), refsApi.brands(), refsApi.equipmentTypes(), refsApi.certVarieties(),
+    api.get('/core/', { params: { model: 'media_library.ImageGallerySet', fmt: 'compact', limit: 200 } }).then(r => (r.data?.data || [])),
   ])
   opts.producers = producers
   opts.brands = brands
   opts.equipmentTypes = equipmentTypes
   certVarieties.value = varieties
+  opts.imageGalleries = ig.map(g => ({ id: g.id, name: g.name || g.code || `#${g.id}` }))
   ready.value = true
 })
 </script>
@@ -304,7 +258,6 @@ onMounted(async () => {
 .mlf-tabs button { padding: 6px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; transition: all .15s; }
 .mlf-tabs button.act { background: #2563eb; color: #fff; border-color: #2563eb; }
 .mlf-tabs button:hover:not(.act) { background: #f3f4f6; }
-/* Панели табов: grid, все в одной ячейке — высота по максимальной */
 .mlf-panels { display: grid; grid-template-areas: "panel"; }
 .mlf-panel { grid-area: panel; visibility: hidden; }
 .mlf-panel--active { visibility: visible; }
@@ -315,7 +268,6 @@ onMounted(async () => {
 .field { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; }
 .field:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
 .chk { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-.mlf-media-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .mlf-cert-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .mlf-section-label { font-weight: 500; font-size: 13px; color: #374151; }
 .btn-new { padding: 4px 14px; background: #2563eb; color: #fff; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; }

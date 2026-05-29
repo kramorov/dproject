@@ -322,63 +322,6 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
             ),
         }
 
-    def _get_first_image(self) -> dict | None:
-        """Первое активное изображение — для списков."""
-        for img in self.get_images():
-            url = self._get_image_url(img)
-            if url:
-                return {
-                    'id': img.id,
-                    'name': getattr(img, 'name', '') or '',
-                    'code': getattr(img, 'code', '') or '',
-                    'url': url,
-                    'preview_url': url,
-                    'is_default': getattr(img, 'is_default', False),
-                }
-        # Фолбэк: изображения серии
-        if self.model_line:
-            for img in self.model_line.images.all():
-                url = self._get_image_url(img)
-                if url:
-                    return {
-                        'id': img.id,
-                        'name': getattr(img, 'name', '') or '',
-                        'code': getattr(img, 'code', '') or '',
-                        'url': url,
-                        'preview_url': url,
-                        'is_default': getattr(img, 'is_default', False),
-                    }
-        return None
-
-    def _get_images_section(self) -> list:
-        """Секция галереи изображений."""
-        images = []
-        for img in self.get_images():
-            url = self._get_image_url(img)
-            if url:
-                images.append({
-                    'id': img.id,
-                    'name': getattr(img, 'name', '') or '',
-                    'code': getattr(img, 'code', '') or '',
-                    'url': url,
-                    'preview_url': url,
-                    'is_default': getattr(img, 'is_default', False),
-                })
-        # Если нет своих — берём из model_line
-        if not images and self.model_line:
-            for img in self.model_line.images.all():
-                url = self._get_image_url(img)
-                if url:
-                    images.append({
-                        'id': img.id,
-                        'name': getattr(img, 'name', '') or '',
-                        'code': getattr(img, 'code', '') or '',
-                        'url': url,
-                        'preview_url': url,
-                        'is_default': getattr(img, 'is_default', False),
-                    })
-        return images
-
     def _get_docs_section(self) -> list:
         """Секция документов."""
         docs = []

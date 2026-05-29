@@ -1,70 +1,95 @@
 # core/models/image_gallery_mixin.py
+"""
+Миксин галереи изображений через ImageGallerySet.
+
+Добавляет FK ``image_gallery`` на ImageGallerySet + методы доступа.
+Фолбэк: если у model_line_item нет своей галереи — берётся из model_line.
+
+Заменяет старый подход с голым M2M ``images`` на MediaLibraryItem.
+"""
 from django.db import models
+from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 
 
 class ImageGalleryMixin(models.Model):
     """
-    Mixin for models with an image gallery from the media library.
+    Миксин с FK на ImageGallerySet.
 
-    Adds ``images`` M2M to MediaLibraryItem + access methods.
+    Поле:
+        image_gallery — FK → ImageGallerySet (набор изображений с порядком и default)
 
-    Methods:
-        get_images()            — all active images, ordered by sorting_order
-        get_images_by_category  — filter by MediaCategory.code
-        get_default_image()     — image with is_default=True, or first by order
-        get_first_image()       — alias for get_default_image()
-        get_images_count()      — count of active images
-        get_images_description()— string: 'icon title; icon title'
+    Свойства/методы:
+        _gallery            — @cached_property: своя галерея → model_line (фолбэк)
+        _get_first_image()  — dict для списков (ProductCard)
+        _get_images_section() — list для детальной карточки
+        _build_image_dict() — dict из MediaLibraryItem
     """
 
-    images = models.ManyToManyField(
-        'media_library.MediaLibraryItem',
-        blank=True,
+    image_gallery = models.ForeignKey(
+        'media_library.ImageGallerySet',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
         related_name='+',
-        verbose_name="Изображения",
-        help_text="Изображения из медиабиблиотеки"
+        verbose_name=_("Галерея изображений"),
+        help_text=_("Набор изображений")
     )
 
     class Meta:
         abstract = True
 
-    # ----------------------------------------------------------------
-    # Access methods
-    # ----------------------------------------------------------------
+    # ── cached property: своя галерея → model_line ──
+
+    @cached_property
+    def _gallery(self):
+        """Галерея: своя → фолбэк на model_line. Кэшируется на инстансе."""
+        g = self.image_gallery
+        if not g:
+            ml = getattr(self, 'model_line', None)
+            if ml:
+                g = getattr(ml, 'image_gallery', None)
+        return g
+
+    # ── методы для CatalogDictMixin ──
+
+    def _get_first_image(self) -> dict | None:
+        """Первое изображение — для списков (ProductCard)."""
+        g = self._gallery
+        if not g:
+            return None
+        img = g.get_default_image()
+        return self._build_image_dict(img) if img else None
+
+    def _get_images_section(self) -> list:
+        """Галерея — для детальной карточки."""
+        g = self._gallery
+        if not g:
+            return []
+        return [
+            self._build_image_dict(item.image)
+            for item in g.get_images()
+        ]
+
+    def _build_image_dict(self, img) -> dict:
+        """Собрать словарь для одного изображения."""
+        return {
+            'id': img.id,
+            'name': getattr(img, 'name', '') or '',
+            'code': getattr(img, 'code', '') or '',
+            'url': img.media_file.url if img.media_file else '',
+            'preview_url': img.preview_file.url if img.preview_file else (img.media_file.url if img.media_file else ''),
+            'is_default': getattr(img, 'is_default', False),
+        }
+
+    # ── deprecated: старые методы для обратной совместимости ──
 
     def get_images(self):
-        """All active images, ordered by sorting_order."""
-        return self.images.filter(is_active=True).order_by('sorting_order')
-
-    def get_images_by_category(self, code: str):
-        """Images of a specific category by MediaCategory.code."""
-        return self.images.filter(category__code=code, is_active=True)
-
-    def get_default_image(self):
-        """Default image (with is_default flag) or first by sorting_order."""
-        img = self.images.filter(
-            is_active=True, is_default=True
-        ).order_by('sorting_order').first()
-        if not img:
-            img = self.images.filter(is_active=True).order_by('sorting_order').first()
-        return img
+        """Deprecated. Используйте self._gallery.get_images()."""
+        g = self._gallery
+        if not g:
+            return []
+        return [item.image for item in g.get_images()]
 
     def get_first_image(self):
-        """First image for preview / cover."""
-        return self.get_default_image()
-
-    def get_images_count(self) -> int:
-        """Number of active images."""
-        return self.images.filter(is_active=True).count()
-
-    def get_images_description(self) -> str:
-        """String for template: 'icon title; icon title'."""
-        imgs = list(self.get_images())
-        if not imgs:
-            return ''
-        parts = []
-        for img in imgs:
-            icon = getattr(img.category, 'icon', ' ') if img.category else ' '
-            name = img.name or (img.media_file.name if img.media_file else '-')
-            parts.append(f'{icon} {name}')
-        return '; '.join(parts)
+        """Deprecated. Используйте self._get_first_image()."""
+        return self._get_first_image()

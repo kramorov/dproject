@@ -136,15 +136,7 @@ class LimitSwitchBox(CatalogDictMixin,
         verbose_name=_("Параметры"),
         help_text=_("signal_type, resistance, range и т.д.")
     )
-    # Переопределяем images из ImageGalleryMixin —
-    # related_name='+' ломает prefetch в Django 5.2
-    images = models.ManyToManyField(
-        'media_library.MediaLibraryItem',
-        blank=True,
-        related_name='+',
-        verbose_name="Изображения",
-        help_text="Изображения из медиабиблиотеки"
-    )
+    # images заменён на image_gallery из ImageGalleryMixin
     # Переопределяем tech_docs из TechDocMixin
     tech_docs = models.ManyToManyField(
         'media_library.MediaLibraryItem',
@@ -184,75 +176,6 @@ class LimitSwitchBox(CatalogDictMixin,
     def _copy_custom_relations(self, new_copy):
         new_copy.exd.set(self.exd.all())
         new_copy.additional_sensor.set(self.additional_sensor.all())
-
-    # def copy(self, suffix=" (Копия)", code_suffix="_copy"):
-    #     """
-    #     Создает копию текущего объекта
-    #
-    #     Args:
-    #         suffix: суффикс для name
-    #         code_suffix: суффикс для code
-    #
-    #     Returns:
-    #         LimitSwitchBox: Скопированный объект
-    #     """
-    #     # Генерируем новые имена с суффиксом
-    #     original_name = self.name or ""
-    #     original_code = self.code or ""
-    #
-    #     # Для name
-    #     if suffix in original_name:
-    #         base_name = original_name.replace(suffix, "")
-    #         new_name = f"{base_name}{suffix}"
-    #     else:
-    #         new_name = f"{original_name}{suffix}"
-    #
-    #     # Для code
-    #     if original_code:
-    #         if code_suffix in original_code:
-    #             # Увеличиваем номер копии
-    #             import re
-    #             match = re.search(rf"{code_suffix}(\d+)$", original_code)
-    #             if match:
-    #                 num = int(match.group(1)) + 1
-    #                 new_code = re.sub(rf"{code_suffix}\d+$", f"{code_suffix}{num}", original_code)
-    #             else:
-    #                 new_code = f"{original_code}{code_suffix}1"
-    #         else:
-    #             new_code = f"{original_code}{code_suffix}"
-    #     else:
-    #         new_code = None
-    #
-    #     # Создаем копию
-    #     copy = LimitSwitchBox(
-    #         name=new_name,
-    #         code=new_code,
-    #         description=f"Копия: {self.description}" if self.description else "Копия",
-    #         sorting_order=self.sorting_order + 100,
-    #         is_active=self.is_active,
-    #         model_line=self.model_line,
-    #         body=self.body,
-    #         sensor_variety=self.sensor_variety,
-    #         points=self.points,
-    #         ip=self.ip,
-    #         work_temp_min=self.work_temp_min,
-    #         work_temp_max=self.work_temp_max,
-    #         body_material=self.body_material,
-    #         body_material_specified=self.body_material_specified,
-    #         is_pneumatic=self.is_pneumatic,
-    #         has_namur_interface=self.has_namur_interface,
-    #         has_visual_indicator=self.has_visual_indicator,
-    #         extra_params=self.extra_params if self.extra_params else {}
-    #     )
-    #     copy.save()
-    #
-    #     # Копируем exd через ручной метод
-    #     copy.exd_set_ids(self.exd_get_ids())
-    #     # Копируем ManyToMany поле additional_sensor
-    #     copy.additional_sensor.set(self.additional_sensor.all())
-    #     return copy
-
-
 
     @property
     def exd_display(self):
@@ -498,6 +421,7 @@ class LimitSwitchBox(CatalogDictMixin,
 
     SELECT_RELATED_FIELDS = [
         'model_line', 'model_line__brand', 'sensor_variety',
+        'image_gallery', 'model_line__image_gallery',
         'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type',
     ]
 
@@ -542,31 +466,6 @@ class LimitSwitchBox(CatalogDictMixin,
         except Exception:
             return []
 
-    def _get_images_section(self) -> list:
-        images = []
-        for img in self.images.all():
-            if img.media_file:
-                images.append({
-                    'id': img.id,
-                    'name': getattr(img, 'name', '') or '',
-                    'code': getattr(img, 'code', '') or '',
-                    'url': img.media_file.url,
-                    'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
-                    'is_default': getattr(img, 'is_default', False),
-                })
-        if not images and self.model_line and hasattr(self.model_line, 'images'):
-            for img in self.model_line.images.all():
-                if img.media_file:
-                    images.append({
-                        'id': img.id,
-                        'name': getattr(img, 'name', '') or '',
-                        'code': getattr(img, 'code', '') or '',
-                        'url': img.media_file.url,
-                        'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
-                        'is_default': getattr(img, 'is_default', False),
-                    })
-        return images
-
     def _get_docs_section(self) -> list:
         docs = []
         seen = set()
@@ -590,21 +489,25 @@ class LimitSwitchBox(CatalogDictMixin,
         return docs
 
     def _get_certs_section(self) -> list:
-        from django.db import connection
         certs = []
         if self.model_line and hasattr(self.model_line, 'cert_docs'):
-            # raw SQL через through-таблицу сертификатов model_line
-            with connection.cursor() as c:
-                c.execute(
-                    'SELECT certdata_id FROM pa_controls_limitswitchmodelline_cert_docs WHERE limitswitchmodelline_id = %s',
-                    [self.model_line.pk]
-                )
-                cert_ids = [row[0] for row in c.fetchall()]
+            # Было: raw SQL в обход ошибки — сейчас работает через ORM
+            # with connection.cursor() as c:
+            #     c.execute(
+            #         'SELECT certdata_id FROM pa_controls_limitswitchmodelline_cert_docs WHERE limitswitchmodelline_id = %s',
+            #         [self.model_line.pk]
+            #     )
+            #     cert_ids = [row[0] for row in c.fetchall()]
+            cert_ids = list(
+                self.model_line.cert_docs
+                .filter(is_active=True)
+                .values_list('id', flat=True)
+            )
             if cert_ids:
                 from cert_doc.models import CertData
                 from django.conf import settings
                 base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
-                for cert in CertData.objects.filter(id__in=cert_ids):
+                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item'):
                     media = getattr(cert, 'media_item', None)
                     if not media:
                         continue

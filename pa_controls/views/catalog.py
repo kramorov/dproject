@@ -21,6 +21,7 @@ from pa_controls.models.sensor import SensorComponent
 SEARCH_FIELDS = ['code', 'name', 'description']
 SELECT_RELATED = [
     'model_line', 'model_line__brand',
+    'image_gallery', 'model_line__image_gallery',
     'body', 'sensor_variety', 'primary_sensor',
     'ip', 'body_material', 'body_material_specified',
     'sku',
@@ -39,14 +40,14 @@ class LimitSwitchBoxSectionView(APIView):
             LimitSwitchModelLine.objects
             .filter(limit_switch_box_model_line__is_active=True)
             .annotate(count=Count('limit_switch_box_model_line'))
-            .prefetch_related('images')
+            .prefetch_related('image_gallery__items__image')
             .select_related('brand')
             .order_by('name')
             .distinct()
         )
         result = []
         for ml in qs:
-            img = ml.images.first()
+            img = ml.image_gallery.get_default_image() if ml.image_gallery else None
             result.append({
                 'id': ml.id,
                 'name': ml.name,
@@ -79,8 +80,8 @@ class LimitSwitchBoxCatalogView(APIView):
         params = request.query_params
 
         qs = LimitSwitchBox.objects.select_related(*SELECT_RELATED).prefetch_related(
-            'images',
-            'model_line__images',
+            'image_gallery__items__image',
+            'model_line__image_gallery__items__image',
         )
 
         is_active = params.get('is_active', 'true')
@@ -111,23 +112,6 @@ class LimitSwitchBoxCatalogView(APIView):
         limit = int(params.get('limit', 100))
         offset = int(params.get('offset', 0))
         qs = qs[offset:offset + limit]
-
-        # Кэш фолбэк-изображений серий: одна серия → один dict, не на каждый товар
-        ml_img_cache = {}
-        for item in qs:
-            mid = item.model_line_id
-            if mid and mid not in ml_img_cache:
-                img = item.model_line.images.first() if hasattr(item.model_line, 'images') else None
-                ml_img_cache[mid] = {
-                    'id': img.id, 'name': getattr(img, 'name', '') or '',
-                    'code': getattr(img, 'code', '') or '',
-                    'url': img.media_file.url,
-                    'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
-                    'is_default': getattr(img, 'is_default', False),
-                } if img and img.media_file else None
-        for item in qs:
-            item._ml_img_cache = ml_img_cache
-
         data = [item.to_values_dict() for item in qs]
 
         return Response({
@@ -148,8 +132,8 @@ class LimitSwitchBoxDetailView(APIView):
 
     def get(self, request, pk):
         item = get_object_or_404(
-            LimitSwitchBox.objects.select_related(*SELECT_RELATED).prefetch_related(
-                'images',
+            LimitSwitchBox.objects.select_related(*SELECT_RELATED, 'image_gallery', 'model_line__image_gallery').prefetch_related(
+                'image_gallery__items__image',
                 'tech_docs',
                 Prefetch(
                     'additional_sensor',
@@ -157,7 +141,7 @@ class LimitSwitchBoxDetailView(APIView):
                         'variety', 'signal_type', 'contact_form', 'contact_state', 'brand',
                     )
                 ),
-                'model_line__images',
+                'model_line__image_gallery__items__image',
                 'model_line__tech_docs',
             ),
             pk=pk,

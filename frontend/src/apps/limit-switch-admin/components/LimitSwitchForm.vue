@@ -4,7 +4,7 @@
     <!-- Табы -->
     <div class="lsf-tabs">
       <button :class="{ act: tab === 'main' }" @click="tab = 'main'">Основное</button>
-      <button :class="{ act: tab === 'images' }" @click="tab = 'images'">Изображения</button>
+      <button :class="{ act: tab === 'gallery' }" @click="tab = 'gallery'">Галерея</button>
       <button :class="{ act: tab === 'docs' }" @click="tab = 'docs'">Техдокументация</button>
       <button :class="{ act: tab === 'extra' }" @click="tab = 'extra'">Дополнительно</button>
     </div>
@@ -67,14 +67,9 @@
     </div>
       </div>
 
-      <!-- Изображения -->
-      <div :class="['lsf-panel', { 'lsf-panel--active': tab === 'images' }]">
-        <div class="lsf-media-toolbar">
-          <span class="lsf-media-label">Изображения</span>
-          <button class="btn-new" @click="showImageUpload = true">+ Новый</button>
-        </div>
-        <ChipList :items="imageItems" pickLabel="Подбор"
-          @pick="showImagePicker = true" @remove="removeImage" @removeBatch="removeImageBatch" />
+      <!-- Галерея -->
+      <div :class="['lsf-panel', { 'lsf-panel--active': tab === 'gallery' }]">
+        <div class="fg"><FkSelect v-model="form.image_gallery_id" :options="opts.imageGalleries" label="Набор изображений" placeholder="—" /></div>
       </div>
 
       <!-- Техдокументация -->
@@ -93,13 +88,6 @@
       </div>
     </div>
 
-    <BasePicker :show="showImagePicker" title="Подбор изображений"
-      :fetchFn="fetchMediaItems"
-      :filterDefs="mediaFilterDefs"
-      :defaultFilters="mediaDefaultFilters"
-      :preselected="imageItems.map(i => i.id)"
-      :columns="[{key:'code',label:'Код'},{key:'name',label:'Название'}]"
-      @close="showImagePicker = false" @selected="onImagesSelected" />
     <BasePicker :show="showDocPicker" title="Подбор техдокументации"
       :fetchFn="fetchTechDocItems"
       :filterDefs="mediaFilterDefs"
@@ -108,8 +96,6 @@
       :columns="[{key:'code',label:'Код'},{key:'name',label:'Название'}]"
       @close="showDocPicker = false" @selected="onDocsSelected" />
 
-    <MediaUploadModal :show="showImageUpload" categoryCode="IMAGE"
-      @close="showImageUpload = false" @uploaded="onImageUploaded" />
     <MediaUploadModal :show="showDocUpload" categoryCode="TECH_DOC"
       @close="showDocUpload = false" @uploaded="onDocUploaded" />
 
@@ -136,15 +122,13 @@ const props = defineProps({
 
 const tab = ref('main')
 const ready = ref(false)
-const showImagePicker = ref(false)
 const showDocPicker = ref(false)
-const showImageUpload = ref(false)
 const showDocUpload = ref(false)
-const imageItems = ref([])
 const techDocItems = ref([])
 const opts = reactive({
   modelLines: [], bodies: [], sensorVarieties: [], sensors: [],
   ipOptions: [], exdOptions: [], bodyMaterials: [], specifiedMaterials: [],
+  imageGalleries: [],
 })
 
 const form = reactive({
@@ -156,6 +140,7 @@ const form = reactive({
   work_temp_min: -40, work_temp_max: 120,
   body_material_id: null, body_material_specified_id: null,
   is_pneumatic: false, has_namur_interface: false, has_visual_indicator: false,
+  image_gallery_id: null,
   extra_params: [],
 })
 
@@ -184,6 +169,7 @@ watch(() => props.item, (val) => {
     form.is_pneumatic = !!val.is_pneumatic
     form.has_namur_interface = !!val.has_namur_interface
     form.has_visual_indicator = !!val.has_visual_indicator
+    form.image_gallery_id = extractId(val.image_gallery)
     form.extra_params = Array.isArray(val.extra_params) ? val.extra_params : []
   } else {
     Object.assign(form, {
@@ -195,6 +181,7 @@ watch(() => props.item, (val) => {
       work_temp_min: -40, work_temp_max: 120,
       body_material_id: null, body_material_specified_id: null,
       is_pneumatic: false, has_namur_interface: false, has_visual_indicator: false,
+      image_gallery_id: null,
       extra_params: [],
     })
   }
@@ -215,7 +202,7 @@ function getFormData() {
     additional_sensor: form.additional_sensor_ids,
     ip_id: form.ip_id || null,
     exd: form.exd_ids,
-    images: imageItems.value.map(i => i.id),
+    image_gallery_id: form.image_gallery_id || null,
     tech_docs: techDocItems.value.map(i => i.id),
     work_temp_min: form.work_temp_min,
     work_temp_max: form.work_temp_max,
@@ -230,47 +217,23 @@ function getFormData() {
 
 defineExpose({ getFormData })
 
-function onImagesSelected(items) {
-  imageItems.value = items
-}
 function onDocsSelected(items) {
   techDocItems.value = items
 }
 
-function onImageUploaded(item) {
-  imageItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
-}
 function onDocUploaded(item) {
   techDocItems.value.push({ id: item.id, code: item.code || '', name: item.name || '' })
 }
 
-function removeImage(id) {
-  imageItems.value = imageItems.value.filter(i => i.id !== id)
-}
 function removeDoc(id) {
   techDocItems.value = techDocItems.value.filter(i => i.id !== id)
-}
-function removeImageBatch(ids) {
-  imageItems.value = imageItems.value.filter(i => !ids.includes(i.id))
 }
 function removeDocBatch(ids) {
   techDocItems.value = techDocItems.value.filter(i => !ids.includes(i.id))
 }
 
-// ── Media filter config + fetch functions ──
-const mediaFilterDefs = [
-  { key: 'search', type: 'text', label: 'Поиск' },
-]
-
+const mediaFilterDefs = [{ key: 'search', type: 'text', label: 'Поиск' }]
 const mediaDefaultFilters = {}
-
-async function fetchMediaItems(params) {
-  const q = { model: 'media_library.MediaLibraryItem', fmt: 'compact', limit: params.limit || 25, offset: params.offset || 0 }
-  if (params.search) q.search = params.search
-  // Фильтр по категории IMAGE
-  q.category__code = 'IMAGE'
-  return api.get('/core/', { params: q })
-}
 
 async function fetchTechDocItems(params) {
   const q = { model: 'media_library.MediaLibraryItem', fmt: 'compact', limit: params.limit || 25, offset: params.offset || 0 }
@@ -279,46 +242,29 @@ async function fetchTechDocItems(params) {
   return api.get('/core/', { params: q })
 }
 
-// Populate media items when editing
-watch(() => props.item, async (val) => {
-  imageItems.value = []
+// Populate tech_docs when editing
+watch(() => props.item, (val) => {
   techDocItems.value = []
   if (!val) return
-  if (val.images) {
-    const arr = Array.isArray(val.images) ? val.images : []
-    if (arr.length && typeof arr[0] === 'object') {
-      imageItems.value = arr.map(i => ({ id: i.id, code: i.code || '', name: i.name || '' }))
-    } else if (arr.length && typeof arr[0] === 'number') {
-      imageItems.value = await loadM2mDetails(arr, 'media_library.MediaLibraryItem')
-    }
-  }
   if (val.tech_docs) {
     const arr = Array.isArray(val.tech_docs) ? val.tech_docs : []
     if (arr.length && typeof arr[0] === 'object') {
       techDocItems.value = arr.map(d => ({ id: d.id, code: d.code || '', name: d.name || '' }))
-    } else if (arr.length && typeof arr[0] === 'number') {
-      techDocItems.value = await loadM2mDetails(arr, 'media_library.MediaLibraryItem')
     }
   }
 }, { immediate: true })
 
-async function loadM2mDetails(ids, model) {
-  if (!ids || !ids.length) return []
-  try {
-    const res = await api.get('/pa-controls/m2m-items/', { params: { model, ids: ids.join(',') } })
-    return (res.data?.data || []).map(i => ({ id: i.id, code: i.code || '', name: i.name || '' }))
-  } catch { return ids.map(id => ({ id, code: '', name: '' })) }
-}
-
 onMounted(async () => {
-  const [ml, bd, sv, sn, ip, ex, bm, sm] = await Promise.all([
+  const [ml, bd, sv, sn, ip, ex, bm, sm, ig] = await Promise.all([
     refsApi.modelLines(), refsApi.bodies(), refsApi.sensorVarieties(),
     refsApi.sensors(), refsApi.ipOptions(), refsApi.exdOptions(),
     refsApi.bodyMaterials(), refsApi.specifiedMaterials(),
+    api.get('/core/', { params: { model: 'media_library.ImageGallerySet', fmt: 'compact', limit: 200 } }).then(r => (r.data?.data || [])),
   ])
   opts.modelLines = ml; opts.bodies = bd; opts.sensorVarieties = sv
   opts.sensors = sn; opts.ipOptions = ip; opts.exdOptions = ex
   opts.bodyMaterials = bm; opts.specifiedMaterials = sm
+  opts.imageGalleries = ig.map(g => ({ id: g.id, name: g.name || g.code || `#${g.id}` }))
   ready.value = true
 })
 </script>
@@ -334,12 +280,10 @@ onMounted(async () => {
 .field:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
 .chk { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .lsf-sec { margin: 4px 0 2px; font-size: 14px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
-/* Табы */
 .lsf-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
 .lsf-tabs button { padding: 6px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; transition: all .15s; }
 .lsf-tabs button.act { background: #2563eb; color: #fff; border-color: #2563eb; }
 .lsf-tabs button:hover:not(.act) { background: #f3f4f6; }
-/* Панели табов */
 .lsf-panels { display: grid; grid-template-areas: "panel"; }
 .lsf-panel { grid-area: panel; visibility: hidden; }
 .lsf-panel--active { visibility: visible; }

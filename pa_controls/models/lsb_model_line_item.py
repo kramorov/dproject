@@ -136,15 +136,7 @@ class LsbModelLineItem(CatalogDictMixin,
         verbose_name=_("Параметры"),
         help_text=_("signal_type, resistance, range и т.д.")
     )
-    # Переопределяем images из ImageGalleryMixin —
-    # related_name='+' ломает prefetch в Django 5.2
-    images = models.ManyToManyField(
-        'media_library.MediaLibraryItem',
-        blank=True,
-        related_name='+',
-        verbose_name="Изображения",
-        help_text="Изображения из медиабиблиотеки"
-    )
+    # images заменён на image_gallery из ImageGalleryMixin
     # Переопределяем tech_docs из TechDocMixin
     tech_docs = models.ManyToManyField(
         'media_library.MediaLibraryItem',
@@ -496,6 +488,7 @@ class LsbModelLineItem(CatalogDictMixin,
 
     SELECT_RELATED_FIELDS = [
         'model_line', 'model_line__brand', 'sensor_variety',
+        'image_gallery', 'model_line__image_gallery',
         'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type',
     ]
 
@@ -540,31 +533,6 @@ class LsbModelLineItem(CatalogDictMixin,
         except Exception:
             return []
 
-    def _get_images_section(self) -> list:
-        images = []
-        for img in self.images.all():
-            if img.media_file:
-                images.append({
-                    'id': img.id,
-                    'name': getattr(img, 'name', '') or '',
-                    'code': getattr(img, 'code', '') or '',
-                    'url': img.media_file.url,
-                    'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
-                    'is_default': getattr(img, 'is_default', False),
-                })
-        if not images and self.model_line and hasattr(self.model_line, 'images'):
-            for img in self.model_line.images.all():
-                if img.media_file:
-                    images.append({
-                        'id': img.id,
-                        'name': getattr(img, 'name', '') or '',
-                        'code': getattr(img, 'code', '') or '',
-                        'url': img.media_file.url,
-                        'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
-                        'is_default': getattr(img, 'is_default', False),
-                    })
-        return images
-
     def _get_docs_section(self) -> list:
         docs = []
         seen = set()
@@ -588,21 +556,25 @@ class LsbModelLineItem(CatalogDictMixin,
         return docs
 
     def _get_certs_section(self) -> list:
-        from django.db import connection
         certs = []
         if self.model_line and hasattr(self.model_line, 'cert_docs'):
-            # raw SQL через through-таблицу сертификатов model_line
-            with connection.cursor() as c:
-                c.execute(
-                    'SELECT certdata_id FROM pa_controls_limitswitchmodelline_cert_docs WHERE limitswitchmodelline_id = %s',
-                    [self.model_line.pk]
-                )
-                cert_ids = [row[0] for row in c.fetchall()]
+            # Было: raw SQL в обход ошибки — сейчас работает через ORM
+            # with connection.cursor() as c:
+            #     c.execute(
+            #         'SELECT certdata_id FROM pa_controls_limitswitchmodelline_cert_docs WHERE limitswitchmodelline_id = %s',
+            #         [self.model_line.pk]
+            #     )
+            #     cert_ids = [row[0] for row in c.fetchall()]
+            cert_ids = list(
+                self.model_line.cert_docs
+                .filter(is_active=True)
+                .values_list('id', flat=True)
+            )
             if cert_ids:
                 from cert_doc.models import CertData
                 from django.conf import settings
                 base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
-                for cert in CertData.objects.filter(id__in=cert_ids):
+                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item'):
                     media = getattr(cert, 'media_item', None)
                     if not media:
                         continue

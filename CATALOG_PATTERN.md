@@ -12,7 +12,7 @@
 
 ### 1. Модель (`models/`)
 
-Наследовать от `CatalogDictMixin` (core/models/mixins.py):
+Наследовать от `CatalogDictMixin` + `ImageGalleryMixin` (core/models/):
 
 ```python
 class MyModel(CatalogDictMixin, ImageGalleryMixin, TechDocMixin,
@@ -22,8 +22,7 @@ class MyModel(CatalogDictMixin, ImageGalleryMixin, TechDocMixin,
 ```
 
 Обязательные методы:
-- `_get_template_vars()` → `dict` — плоский словарь значений (для `to_dict()`)
-- `_get_images_section()` → `list` — все фото (для `to_dict()`)
+- `_get_template_vars()` → `dict` — плоский словарь значений
 - `_get_docs_section()` → `list` — документация
 - `_get_certs_section()` → `list` — сертификаты
 - `_get_model_line_summary()` → `dict` — `{id, name, code, brand}`
@@ -31,9 +30,9 @@ class MyModel(CatalogDictMixin, ImageGalleryMixin, TechDocMixin,
 - `to_dict()` → `dict` — полная структура с sections
 - `_get_image_alt()` → `str` — alt-текст
 
-❗ `_get_first_image()` уже есть в `CatalogDictMixin` — возвращает первое фото.
-   Если модель использует `get_images()` (активные + сортировка) вместо `self.images.all()`,
-   **переопределить** `_get_first_image()` (см. gearbox/models/gearbox.py).
+❗ `_get_first_image()` и `_get_images_section()` — теперь в `ImageGalleryMixin`,
+   **не нужно** переопределять в модели. Миксин сам делает фолбэк
+   `item.image_gallery → model_line.image_gallery`.
 
 ❗ `to_values_dict()` — переопределить для скорости:
 ```python
@@ -50,11 +49,21 @@ def to_values_dict(self) -> dict:
     }
 ```
 
-### 2. View (`views/catalog.py`)
+### 2. ImageGallerySet — наборы изображений
+
+Модели в `media_library/models.py`:
+- `ImageGallerySet` — контейнер (name, code, keywords)
+- `ImageGallerySetItem` — через through: `gallery_set`, `image`, `sorting_order`, `is_default`
+
+`ImageGalleryMixin` добавляет FK `image_gallery` → `ImageGallerySet`.
+Фолбэк: если у товара нет своей галереи → берётся из `model_line.image_gallery`.
+
+### 3. View (`views/catalog.py`)
 
 ```python
 SELECT_RELATED = [
     'model_line', 'model_line__brand',
+    'image_gallery', 'model_line__image_gallery',
     # ВСЕ ForeignKey, к которым обращается _get_template_vars()
 ]
 ```
@@ -63,7 +72,8 @@ SELECT_RELATED = [
 class MyCatalogView(APIView):
     def get(self, request):
         qs = MyModel.objects.select_related(*SELECT_RELATED).prefetch_related(
-            'images', 'model_line__images',  # для _get_first_image
+            'image_gallery__items__image',
+            'model_line__image_gallery__items__image',
         )
         # ... filters, search, pagination ...
         data = [item.to_values_dict() for item in qs]
@@ -74,8 +84,10 @@ class MyDetailView(APIView):
     def get(self, request, pk):
         item = get_object_or_404(
             MyModel.objects.select_related(*SELECT_RELATED).prefetch_related(
-                'images', 'tech_docs',
-                'model_line__images', 'model_line__tech_docs',
+                'image_gallery__items__image',
+                'tech_docs',
+                'model_line__image_gallery__items__image',
+                'model_line__tech_docs',
             ),
             pk=pk,
         )
@@ -87,11 +99,15 @@ class MySectionView(APIView):
     def get(self, request):
         qs = ModelLine.objects.filter(
             related_name__is_active=True
-        ).annotate(count=Count('related_name')).prefetch_related('images').order_by('name').distinct()
-        ...
+        ).annotate(count=Count('related_name')).prefetch_related(
+            'image_gallery__items__image'
+        ).select_related('brand').order_by('name').distinct()
+        for ml in qs:
+            img = ml.image_gallery.get_default_image() if ml.image_gallery else None
+            ...
 ```
 
-### 3. URLs
+### 4. URLs
 
 ```python
 path('sections/', MySectionView.as_view()),
@@ -135,26 +151,27 @@ export default {
 
 ### 3. App.vue
 
-Использовать Generic-компоненты из `shared/components/catalog/`:
-- `CatalogSection` — страница серий (автоматически использует `getSections()` если есть)
-- `CatalogList` — список с фильтрами
-- `CatalogDetail` — карточка товара
-- `CatalogBrand` — товары серии/бренда
-- `QuickSelect` — быстрый подбор
+### 4. Shared-компоненты UI
 
-```html
-<CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" ... />
-<CatalogList v-else-if="page === 'list'" :api="api" :labels="labels.list" ... />
-<CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" ... />
-<CatalogBrand v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" ... />
-```
+- `PageTitle` — заголовок страницы (title + subtitle + context-чип «Серия XXX»)
+- `CatalogActions` — кнопки «Инженерный подбор» / «Быстрый подбор»
+- `Breadcrumbs` — все непоследние крошки кликабельны, emit `navigate`
+
+Использовать Generic-компоненты из `shared/components/catalog/`:
+- `CatalogSection` — сетка серий + CatalogActions
+- `CatalogList` — инженерный подбор (фильтры + поиск)
+- `CatalogModelLine` — товары серии (fixedParams + ?scope=model_line)
+- `CatalogDetail` — карточка товара
+- `QuickSelect` — быстрый подбор (чипсы → карточка)
 
 ## Чек-лист производительности
 
-- [ ] `SELECT_RELATED` покрывает **все** FK, к которым обращается `_get_template_vars()`
-- [ ] `prefetch_related('images', 'model_line__images')` в list view
+- [ ] `SELECT_RELATED` покрывает **все** FK, включая `image_gallery`, `model_line__image_gallery`
+- [ ] `prefetch_related('image_gallery__items__image', 'model_line__image_gallery__items__image')` в list view
 - [ ] `to_values_dict()` **не вызывает** `_get_template_vars()` (только лёгкий `tv`)
-- [ ] `to_values_dict()` использует `_get_first_image()` (1 фото, не все)
-- [ ] Для M2M-полей в `_get_template_vars()` — правильный доступ (`.all()` + цикл), не `.name` как у FK
-- [ ] `_get_model_line_summary()` покрыто `select_related('model_line__brand')`
+- [ ] `to_values_dict()` использует `_get_first_image()` из микcина (1 фото)
+- [ ] `_gallery` — `@cached_property` в `ImageGalleryMixin`, не требует ручного кэша
+- [ ] Section View: `image_gallery__items__image` в prefetch, не `images`
+- [ ] Крошки трёхуровневые: Каталог / Оборудование / Страница
 - [ ] `url()` хранилища (Cloud.ru) **не делает HEAD-запросов** — только `_normalize()`
+- [ ] Удаление вызывает `MediaLibraryItem.delete()` → `file_service.delete_file()` для облака

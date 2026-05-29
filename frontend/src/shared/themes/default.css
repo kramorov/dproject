@@ -117,4 +117,9 @@
   /* Сетка */
   --cat-grid-gap: var(--cat-gap-xl);
   --cat-grid-columns: 3;
+
+  /* Заголовок страницы (PageTitle) */
+  --cat-page-title-size: var(--cat-text-4xl);
+  --cat-page-title-weight: 700;
+  --cat-page-title-color: var(--cat-text);
 }

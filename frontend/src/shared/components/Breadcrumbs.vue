@@ -3,7 +3,7 @@
   <nav class="breadcrumbs" v-if="items.length">
     <ol>
       <li v-for="(item, i) in items" :key="i">
-        <a v-if="(item.to || item.url) && i < items.length - 1" :href="item.url || item.to || '#'" @click.prevent="onClick(item)" class="crumb-link">{{ item.name }}</a>
+        <a v-if="i < items.length - 1" href="#" @click.prevent="onClick(item)" class="crumb-link">{{ item.name }}</a>
         <span v-else>{{ item.name }}</span>
       </li>
     </ol>
@@ -15,10 +15,10 @@ const props = defineProps({ items: { type: Array, default: () => [] } })
 const emit = defineEmits(['navigate'])
 const router = useRouter()
 function onClick(item) {
-  console.log('[Breadcrumbs] onClick', JSON.stringify(item))
   if (item.to) { router.push(item.to); return }
   if (item.url && item.url !== '#') { router.push(item.url); return }
-  emit('navigate', item) }
+  emit('navigate', item)
+}
 </script>
 <style scoped>
 .breadcrumbs { margin-bottom: 12px }

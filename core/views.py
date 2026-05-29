@@ -603,14 +603,22 @@ class BaseFilterOptionsView(APIView):
     permission_classes = []
     filter_definitions = None
     model_class = None
+    # Параметры, исключаемые при ?scope=model_line (уже зафиксированы)
+    scope_exclude = {
+        'model_line': ['model_line_id'],
+    }
 
     def get(self, request):
+        scope = request.query_params.get('scope', 'list')
+        exclude = self.scope_exclude.get(scope, [])
+
         if not self.filter_definitions:
             return Response({'error': 'filter_definitions not configured'}, status=500)
 
         result = {}
         for fd in self.filter_definitions:
             if fd.data_source_type.value != 'custom':
+                if fd.param_name in exclude: continue
                 try:
                     options = fd.get_options(self.model_class)
                     if options:

@@ -24,7 +24,8 @@ cd C:\Users\kramo\PycharmProjects\djangoProject1
 codewhale
 npm install -g codewhale-tui
 deepseek update
-Прочитай SESSION.md и продолжай
+Прочитай SESSION.md, CATALOG_PATTERN.md и  frontend\README.md продолжай
+
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).
 

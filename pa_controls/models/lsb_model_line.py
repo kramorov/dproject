@@ -59,9 +59,12 @@ class LimitSwitchModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,Equipme
 
     def get_images_data(self):
         """Изображения → [{id, code, name}]"""
+        g = self._gallery
+        if not g:
+            return []
         return [
-            {'id': img.id, 'code': img.code or '', 'name': img.name or ''}
-            for img in self.images.all()
+            {'id': item.image.id, 'code': item.image.code or '', 'name': item.image.name or ''}
+            for item in g.get_images()
         ]
 
     def get_tech_docs_data(self):

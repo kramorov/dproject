@@ -16,6 +16,8 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/FilterSidebar.vue` | Боковая панель фильтров |
 | `shared/components/Breadcrumbs.vue` | Хлебные крошки |
 | `shared/components/Spinner.vue` | Индикатор загрузки |
+| `shared/components/PageTitle.vue` | Заголовок страницы (title + context-чип) |
+| `shared/components/catalog/CatalogActions.vue` | Кнопки «Инженерный/Быстрый подбор» |
 | `shared/components/MediaViewer.vue` | Просмотрщик медиафайлов (изображения/PDF) |
 | `shared/components/M2MDualList.vue` | M2M-селектор filter_horizontal (две панели + поиск) |
 | `shared/components/JsonFieldsEditor.vue` | Редактор JSON extra_params (таблица + raw JSON) |
@@ -24,14 +26,13 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/ChipList.vue` | Таблица code+name с чекбоксами и batch-удалением |
 | `shared/components/FkSelect.vue` | Выбор ForeignKey с поиском |
 | `shared/components/M2MSelect.vue` | Выбор ManyToMany с чипсами |
-| `shared/components/catalog/CatalogSection.vue` | Страница серий (grid карточек) |
-| `shared/components/catalog/CatalogList.vue` | Каталог с фильтрами и пагинацией |
-| `shared/components/catalog/CatalogBrand.vue` | Витрина бренда |
+| `shared/components/catalog/CatalogSection.vue` | Сетка серий + CatalogActions |
+| `shared/components/catalog/CatalogList.vue` | Инженерный подбор (фильтры + поиск) |
+| `shared/components/catalog/CatalogModelLine.vue` | Товары серии (fixedParams + context) |
 | `shared/components/catalog/CatalogDetail.vue` | Карточка товара |
 | `shared/components/catalog/QuickSelect.vue` | Быстрый подбор (чипсы → карточка) |
-| `shared/composables/useCatalog.js` | Логика каталогов (fetchData, пагинация, фильтры) |
+| `shared/composables/useCatalog.js` | Логика каталогов: fetchData, пагинация, фильтры, filterScope |
 | `shared/composables/useCatalogRouter.js` | Навигация App.vue каталогов |
-| `shared/themes/default.css` | CSS Custom Properties (тема по умолчанию) |
 
 ## `src/apps/` — мини-приложения
 
@@ -43,7 +44,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `limit-switch-catalog/` | /api/pa-controls/ |
 
 Все каталоги используют Generic-компоненты из shared/components/catalog/.
-App.vue параметризуется через `labels` + `api`. 13 старых компонентов удалены.
+App.vue параметризуется через `labels` + `api`.
 
 ### Админка
 | Приложение | API | Страница SPA |

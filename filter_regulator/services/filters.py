@@ -95,9 +95,9 @@ FILTER_REGULATOR_SELECT_RELATED = [
 ]
 
 FILTER_REGULATOR_PREFETCH_FIELDS = [
-    'images',
+    'image_gallery__items__image',
     'tech_docs',
-    'model_line__images',
+    'model_line__image_gallery__items__image',
     'model_line__tech_docs',
     'model_line__cert_docs',
 ]

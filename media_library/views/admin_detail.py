@@ -181,25 +181,10 @@ class MediaAdminDetailView(APIView):
                                 status=status.HTTP_409_CONFLICT)
 
         try:
-            # 1. Очищаем физические файлы
-            if item.media_file:
-                file_service.delete_file(item.media_file.name)
-            if item.preview_file:
-                file_service.delete_file(item.preview_file.name)
-
-            # 2. Обнуляем FK (CertData.media_item) сырым SQL
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE cert_doc_certdata SET media_item_id = NULL WHERE media_item_id = %s",
-                    [item.pk],
-                )
-
-            # 3. Удаляем запись сырым SQL
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "DELETE FROM media_library_medialibraryitem WHERE id = %s",
-                    [item.pk],
-                )
+            # Удаляем через модель:
+            # - O2O cert_doc_certdata.media_item_id обнулится через on_delete=SET_NULL
+            # - media_file и preview_file удалятся из облака в MediaLibraryItem.delete()
+            item.delete()
 
             logger.info(f"MediaLibraryItem deleted: id={pk}")
             return Response({'success': True}, status=status.HTTP_200_OK)
@@ -211,7 +196,7 @@ class MediaAdminDetailView(APIView):
     def _check_references(self, item):
         """Проверить внешние ссылки на MediaLibraryItem."""
         refs = []
-        # FK: CertData.media_item
+        # O2O: CertData.media_item
         from cert_doc.models import CertData
         certs = CertData.objects.filter(media_item=item)
         if certs.exists():

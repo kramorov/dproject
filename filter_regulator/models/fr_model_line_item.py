@@ -271,60 +271,6 @@ class FilterRegulator(
             'has_shut_off_valve': 'Да' if self.has_shut_off_valve else 'Нет',
         }
 
-    def _get_first_image(self) -> dict | None:
-        """Первое активное изображение — для списков."""
-        for img in self.get_images():
-            url = self._get_image_url(img)
-            if url:
-                return {
-                    'id': img.id,
-                    'name': getattr(img, 'name', '') or '',
-                    'code': getattr(img, 'code', '') or '',
-                    'url': url,
-                    'preview_url': url,
-                    'is_default': getattr(img, 'is_default', False),
-                }
-        if self.model_line:
-            for img in self.model_line.images.all():
-                url = self._get_image_url(img)
-                if url:
-                    return {
-                        'id': img.id,
-                        'name': getattr(img, 'name', '') or '',
-                        'code': getattr(img, 'code', '') or '',
-                        'url': url,
-                        'preview_url': url,
-                        'is_default': getattr(img, 'is_default', False),
-                    }
-        return None
-
-    def _get_images_section(self) -> list:
-        images = []
-        for img in self.get_images():
-            url = self._get_image_url(img)
-            if url:
-                images.append({
-                    'id': img.id,
-                    'name': getattr(img, 'name', '') or '',
-                    'code': getattr(img, 'code', '') or '',
-                    'url': url,
-                    'preview_url': url,
-                    'is_default': getattr(img, 'is_default', False),
-                })
-        if not images and self.model_line and hasattr(self.model_line, 'images'):
-            for img in self.model_line.images.all():
-                url = self._get_image_url(img)
-                if url:
-                    images.append({
-                        'id': img.id,
-                        'name': getattr(img, 'name', '') or '',
-                        'code': getattr(img, 'code', '') or '',
-                        'url': url,
-                        'preview_url': url,
-                        'is_default': getattr(img, 'is_default', False),
-                    })
-        return images
-
     def _get_docs_section(self) -> list:
         docs = []
         for doc in self.tech_docs.all():

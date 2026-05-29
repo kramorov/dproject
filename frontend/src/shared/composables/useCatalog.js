@@ -1,6 +1,5 @@
 // shared/composables/useCatalog.js
 // Универсальный composable для каталогов: fetchData, пагинация, фильтры, поиск.
-// Заменяет дублирующуюся логику в GearboxList/FrList/LsbList и GearboxBrand/FrBrand/LsbBrand.
 
 import { ref, reactive, unref } from 'vue'
 
@@ -10,7 +9,8 @@ import { ref, reactive, unref } from 'vue'
  * @param {number}   [opts.limit=24]
  * @param {number}   [opts.debounceMs=300]
  * @param {Object|Function|import('vue').Ref} [opts.fixedParams]  Параметры, всегда добавляемые к запросу
- * @param {Function} [opts.onData]         Callback после загрузки
+ * @param {string}   [opts.filterScope]  ?scope= для getFilters (model_line — без model_line_id/brand_id)
+ * @param {Function} [opts.onData]       Callback после загрузки
  * @param {boolean}  [opts.withSearch=true]
  */
 export function useCatalog(api, opts = {}) {
@@ -18,6 +18,7 @@ export function useCatalog(api, opts = {}) {
     limit: defaultLimit = 24,
     debounceMs = 300,
     fixedParams = null,
+    filterScope = null,
     onData = null,
     withSearch = true,
   } = opts
@@ -38,7 +39,8 @@ export function useCatalog(api, opts = {}) {
   // --- Фильтры ---
   async function loadFilters() {
     try {
-      const r = await api.getFilters()
+      const params = filterScope ? { scope: filterScope } : undefined
+      const r = await api.getFilters(params)
       Object.assign(filterData, r.data || {})
     } catch (e) {
       console.error('[useCatalog] Failed to load filters', e)
@@ -86,7 +88,6 @@ export function useCatalog(api, opts = {}) {
       const params = { limit: limit.value, offset: offset.value }
 
       // Фиксированные параметры (brand_id, model_line_id и т.д.)
-      // unref поддерживает как обычные объекты, так и Vue ref/computed
       const fp = unref(fixedParams)
       if (fp) {
         Object.assign(params, typeof fp === 'function' ? fp() : fp)

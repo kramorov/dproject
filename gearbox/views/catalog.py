@@ -167,3 +167,6 @@ class GearboxFilterOptionsView(BaseFilterOptionsView):
     permission_classes = [AllowAny]
     filter_definitions = GEARBOX_FILTER_DEFINITIONS
     model_class = GearBox
+    scope_exclude = {
+        'model_line': ['brand_id'],
+    }

@@ -656,6 +656,25 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         duplicate.save()
         logger.info(f'MediaLibraryItem скопирован: {self.pk} → {duplicate.pk}')
         return duplicate
+    
+    def delete(self, *args, **kwargs):
+        """Удаляет запись БД, а также файлы media_file и preview_file из облака."""
+        paths_to_delete = []
+        if self.media_file:
+            paths_to_delete.append(self.media_file.name)
+        if self.preview_file:
+            paths_to_delete.append(self.preview_file.name)
+
+        # Сначала удаляем запись БД
+        super().delete(*args, **kwargs)
+
+        # Затем удаляем файлы из облачного хранилища
+        for path in paths_to_delete:
+            try:
+                file_service.delete_file(path)
+                logger.info(f"Файл удалён из облака: {path}")
+            except Exception as e:
+                logger.error(f"Ошибка удаления файла {path}: {e}")
 
     def _update_file_info(self):
         """Обновляет информацию о файле после замены"""
@@ -772,3 +791,63 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
     def get_compact_data(self):
         """Для UniversalAPIView — отдаёт to_dict() вместо сериализатора."""
         return self.to_dict()
+
+
+# ═══════════════════════════════════════════════════════════════
+# ImageGallerySet — набор изображений с порядком и default
+# ═══════════════════════════════════════════════════════════════
+
+class ImageGallerySet(models.Model):
+    """Именованный набор изображений — одна запись = одна конфигурация галереи."""
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    code = models.CharField(max_length=150, blank=True, null=True, verbose_name=_("Код"))
+    keywords = models.CharField(max_length=500, blank=True, verbose_name=_("Ключевые слова"),
+                                help_text=_("Через запятую, для поиска"))
+    images = models.ManyToManyField(
+        'media_library.MediaLibraryItem',
+        through='ImageGallerySetItem',
+        related_name='gallery_sets',
+        verbose_name=_("Изображения"),
+    )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Сортировка"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Набор изображений")
+        verbose_name_plural = _("Наборы изображений")
+        ordering = ['sorting_order']
+
+    def __str__(self):
+        return self.name or self.code or f"GallerySet #{self.pk}"
+
+    def get_images(self):
+        return self.items.select_related('image').order_by('sorting_order')
+
+    def get_default_image(self):
+        item = self.items.filter(is_default=True).first()
+        if item:
+            return item.image
+        first = self.items.first()
+        return first.image if first else None
+
+
+class ImageGallerySetItem(models.Model):
+    """Through-модель: набор ↔ изображение с дополнительными полями."""
+    gallery_set = models.ForeignKey(
+        ImageGallerySet, on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name=_("Набор"),
+    )
+    image = models.ForeignKey(
+        'media_library.MediaLibraryItem', on_delete=models.CASCADE,
+        related_name='+',
+        verbose_name=_("Изображение"),
+    )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок"))
+    is_default = models.BooleanField(default=False, verbose_name=_("По умолчанию"))
+
+    class Meta:
+        verbose_name = _("Элемент набора")
+        verbose_name_plural = _("Элементы наборов")
+        ordering = ['sorting_order']

@@ -14,7 +14,6 @@ class MediaLibraryConfig(AppConfig):
         """
         # Импортируем сигналы чтобы они зарегистрировались
         try:
-            from . import signals
-            print("Сигналы медиабиблиотеки зарегистрированы")
+            from . import signals  # noqa: F401 — регистрирует receiver'ы
         except ImportError as e:
             print(f"Ошибка регистрации сигналов: {e}")

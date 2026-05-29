@@ -17,7 +17,7 @@ class GearBoxAdmin(admin.ModelAdmin):
     # search_fields = ('name', 'code', 'model_line__name', 'description')
     ordering = ('sorting_order', 'name')
     actions = ['copy_selected_objects']
-    filter_horizontal = ['images', 'tech_docs']
+    filter_horizontal = ['tech_docs']
     fieldsets = (
         (None, {
             'fields': ('name', 'code',  'model_line', 'is_active', 'sorting_order')
@@ -29,7 +29,7 @@ class GearBoxAdmin(admin.ModelAdmin):
             'fields': (('work_temp_min', 'work_temp_max'),('ip', 'interlock'))
         }),
         (_('Изображения и технички'), {
-            'fields': ('images', 'tech_docs'),
+            'fields': ('image_gallery', 'tech_docs'),
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params','description',),

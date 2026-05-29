@@ -25,6 +25,7 @@ from .tech_doc_mixin import TechDocMixin
 
 # Экспортируем всё что нужно наружу
 __all__ = [
+    'ImageGallerySet', 'ImageGallerySetItem',
     # Базовые модели
     'BaseAbstractModel',
 

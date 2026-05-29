@@ -25,7 +25,7 @@ const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object
 const emit = defineEmits(['select'])
 const brandName = ref('')
 const fixedParams = computed(() => props.idValue ? { [props.idProp]: props.idValue } : {})
-const { items,total,loading,limit,offset, filterData,filtersLoaded, loadFilters,fetchData, onFilterChange,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, withSearch:false, onData(items){ if(items.length&&!brandName.value) brandName.value=items[0]?.model_line?.brand?.name||items[0]?.model_line?.name||'' } })
+const { items,total,loading,limit,offset, filterData,filtersLoaded, loadFilters,fetchData, onFilterChange,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, filterScope:'model_line', withSearch:false, onData(items){ if(items.length&&!brandName.value) brandName.value=items[0]?.model_line?.brand?.name||items[0]?.model_line?.name||'' } })
 const breadcrumbs = computed(() => [{ name:'Каталог', url:'#' }, { name:props.labels.breadcrumbName||props.labels.title||'Каталог', url:'#' }, { name:brandName.value||'Бренд' }])
 watch(() => props.idValue, (newVal) => {
   if (newVal) {

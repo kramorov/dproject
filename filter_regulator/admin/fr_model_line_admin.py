@@ -12,7 +12,7 @@ class FilterRegulatorModelLineAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'brand', 'body_material', 'bowl_material')
     search_fields = ('name', 'code', 'brand__name')
     ordering = ('brand', 'sorting_order', 'name')
-    filter_horizontal = ('images', 'tech_docs', 'cert_docs')
+    filter_horizontal = ('tech_docs', 'cert_docs')
     fieldsets = (
         (None, {
             'fields': ('name', ('code', 'brand','filter_variety'),'equipment_type', 'description', ('is_active', 'sorting_order'),)
@@ -28,7 +28,7 @@ class FilterRegulatorModelLineAdmin(admin.ModelAdmin):
             'fields': (('work_temp_min', 'work_temp_max'), ('pressure_min', 'pressure_max', 'pressure_inlet_max'))
         }),
         (_('Изображения и технички'), {
-            'fields': ('images', 'tech_docs', 'cert_docs'),
+            'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),

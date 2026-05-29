@@ -146,11 +146,11 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyM
     )
 
     # Связь с медиабиблиотекой — без изменений
-    media_item = models.ForeignKey(
+    media_item = models.OneToOneField(
         'media_library.MediaLibraryItem' ,
         on_delete=models.SET_NULL ,
         blank=True , null=True ,
-        related_name='certificates' ,
+        related_name='cert_data' ,
         verbose_name=_("Медиафайл") ,
         help_text=_("Связанный файл из медиабиблиотеки")
     )
@@ -171,6 +171,17 @@ class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyM
             new_cert.name = f"{new_cert.name}{suffix}"
         new_cert.save()
         return new_cert
+
+    def delete(self, *args, **kwargs):
+        """Удаляет сертификат и каскадно — связанный элемент медиабиблиотеки (с файлами в облаке)."""
+        media = self.media_item
+        super().delete(*args, **kwargs)
+        if media:
+            try:
+                media.delete()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Ошибка удаления media_item {media.pk}: {e}")
 
     # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
 

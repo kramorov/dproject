@@ -161,7 +161,7 @@ class LimitSwitchModelLineAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'producer', 'brand']
     list_editable = ['sorting_order', 'is_active']
     ordering = ['sorting_order', 'name']
-    filter_horizontal = ('images', 'tech_docs', 'cert_docs')
+    filter_horizontal = ('tech_docs', 'cert_docs')
 
     fieldsets = (
         (_('Основная информация'), {
@@ -176,7 +176,7 @@ class LimitSwitchModelLineAdmin(admin.ModelAdmin):
             'fields': ('producer', 'brand')
         }),
         (_('Изображения и технички'), {
-            'fields': ('images', 'tech_docs', 'cert_docs'),
+            'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
         }),
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),
@@ -227,7 +227,7 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'model_line', 'body', 'sensor_variety',
-        'points', 'ip', 'get_exd_display',
+        'points', 'ip',
     ]
     list_filter = [
          'code','sensor_variety',  'model_line',
@@ -237,7 +237,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes']
-    filter_horizontal = ['additional_sensor']
+    filter_horizontal = ['additional_sensor', 'exd']
     # raw_id_fields = ['images', 'tech_docs']
 
 
@@ -256,14 +256,14 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
             'fields': (('body_material', 'body_material_specified'), 'body')
         }),
         (_('Датчики') , {
-            'fields' : ('primary_sensor' , 'additional_sensor', 'exd')
+            'fields' : ('primary_sensor' , 'additional_sensor')
         }) ,
         (_('Дополнительные опции'), {
             'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
         }),
-        # (_('Изображения и технички'), {
-        #     'fields': ('images', 'tech_docs'),
-        # }),
+        (_('Изображения и технички'), {
+            'fields': ('image_gallery',),
+        }),
         (_('Дополнительные параметры JSON'), {
             'fields': ('extra_params',),
             'classes': ('wide',),
@@ -287,12 +287,11 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related(
             'model_line', 'sensor_variety', 'ip',
             'body_material', 'body_material_specified', 'body', 'primary_sensor',
-            'exd',
         )
 
     def get_exd_display(self, obj):
         """Возвращает отображаемую маркировку взрывозащиты"""
-        return obj.exd.name if obj.exd_id else "-"
+        return ", ".join(e.name for e in obj.exd.all()) or "-"
 
     get_exd_display.short_description = _("Взрывозащита")
 

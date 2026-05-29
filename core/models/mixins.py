@@ -1697,40 +1697,6 @@ class CatalogDictMixin:
             return None
         return doc.get_serve_url() if hasattr(doc, 'get_serve_url') else None
 
-    def _get_first_image(self) -> dict | None:
-        """
-        Только первое изображение — для списков (ProductCard использует одно фото).
-
-        Используется в оптимизированном ``to_values_dict()``.
-        Модели с кастомным доступом к изображениям (get_images()) могут переопределить.
-        """
-        # Свои изображения
-        for img in self.images.all():
-            if img.media_file:
-                return self._build_image_dict(img)
-        # Кэш фолбэк-изображений серий (заполняется вьюхой через _ml_img_cache)
-        cache = getattr(self, '_ml_img_cache', None)
-        ml = getattr(self, 'model_line', None)
-        if cache is not None and ml:
-            return cache.get(ml.id)
-        # Фолбэк: изображения серии
-        if ml and hasattr(ml, 'images'):
-            for img in ml.images.all():
-                if img.media_file:
-                    return self._build_image_dict(img)
-        return None
-
-    def _build_image_dict(self, img) -> dict:
-        """Собрать словарь для одного изображения."""
-        return {
-            'id': img.id,
-            'name': getattr(img, 'name', '') or '',
-            'code': getattr(img, 'code', '') or '',
-            'url': img.media_file.url,
-            'preview_url': img.preview_file.url if img.preview_file else img.media_file.url,
-            'is_default': getattr(img, 'is_default', False),
-        }
-
     # ═══════════════════════════════════════════════════════════════
     # Шаблон для новых каталогов — см. CATALOG_PATTERN.md
     # ═══════════════════════════════════════════════════════════════

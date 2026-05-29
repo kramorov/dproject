@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django import forms
 from .models import MediaCategory ,MediaLibraryItem
+from .models import ImageGallerySet, ImageGallerySetItem
 
 logger = logging.getLogger(__name__)
 
@@ -346,11 +347,6 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
         urls = super().get_urls()
         custom_urls = [
             path(
-                '<path:object_id>/replace-file/' ,
-                self.admin_site.admin_view(self.replace_file_view) ,
-                name='media_library_medialibraryitem_replace_file' ,
-            ) ,
-            path(
                 '<path:object_id>/replace-file-ajax/' ,
                 self.admin_site.admin_view(self.replace_file_ajax) ,
                 name='media_library_medialibraryitem_replace_file_ajax' ,
@@ -547,11 +543,6 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
             'category' , 'created_by'
         )
 
-    def replace_file_view(self , request , object_id) :
-        """View для отдельной страницы замены файла"""
-        from .views import replace_file_view
-        return replace_file_view(request , object_id)
-
 @admin.register(MediaCategory)
 class MediaCategoryAdmin(admin.ModelAdmin) :
     list_display = [
@@ -601,4 +592,28 @@ class MediaCategoryAdmin(admin.ModelAdmin) :
     def has_delete_permission(self , request , obj=None) :
         if obj and obj.is_predefined :
             return False
+        return super().has_delete_permission(request , obj)
+
+
+# ═══════════════════════════════════════════════════════════════
+# ImageGallerySet — админка с инлайном элементов
+# ═══════════════════════════════════════════════════════════════
+
+class ImageGallerySetItemInline(admin.TabularInline):
+    model = ImageGallerySetItem
+    extra = 1
+    fields = ('image', 'sorting_order', 'is_default')
+    raw_id_fields = ('image',)
+    autocomplete_fields = ('image',)
+
+
+@admin.register(ImageGallerySet)
+class ImageGallerySetAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'sorting_order', 'items_count')
+    search_fields = ('name', 'code', 'keywords')
+    inlines = [ImageGallerySetItemInline]
+
+    @admin.display(description="Изображений")
+    def items_count(self, obj):
+        return obj.items.count()
         return super().has_delete_permission(request , obj)
