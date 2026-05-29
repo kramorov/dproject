@@ -7,31 +7,21 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from core.utils.catalog_helpers import get_currency_code
 from django.utils import translation
 
 from filter_regulator.models import FilterRegulator
 from core.views import BaseFilterOptionsView
+from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
 from filter_regulator.services.filters import (
     FILTER_REGULATOR_FILTER_DEFINITIONS,
     FILTER_REGULATOR_SEARCH_FIELDS,
     FILTER_REGULATOR_SELECT_RELATED,
     FILTER_REGULATOR_PREFETCH_FIELDS,
 )
-from price.services.currency_converter import get_bulk_prices, get_display_price
-from project_customers.utils import get_current_customer_user
-
-
-def _get_currency_code(request):
-    """Извлечь код валюты из настроек клиента или дефолт RUB."""
-    try:
-        user = get_current_customer_user(request)
-        if user and hasattr(user, 'customer'):
-            settings = getattr(user.customer, 'settings', None)
-            if settings and settings.default_currency:
-                return settings.default_currency.code
-    except Exception:
-        pass
-    return 'RUB'
+from price.services.currency_converter import (
+    get_bulk_prices, get_display_price,
+)
 
 
 class FilterRegulatorCatalogView(APIView):
@@ -41,7 +31,7 @@ class FilterRegulatorCatalogView(APIView):
     def get(self, request):
         params = request.query_params
         lang = params.get('lang', 'ru')
-        currency_code = _get_currency_code(request)
+        currency_code = get_currency_code(request)
 
         with translation.override(lang):
             qs = FilterRegulator.objects.select_related(*FILTER_REGULATOR_SELECT_RELATED)
@@ -104,7 +94,7 @@ class FilterRegulatorDetailView(APIView):
 
     def get(self, request, pk):
         lang = request.GET.get('lang', 'ru')
-        currency_code = _get_currency_code(request)
+        currency_code = get_currency_code(request)
 
         with translation.override(lang):
             obj = get_object_or_404(
@@ -131,9 +121,6 @@ class FilterRegulatorDetailView(APIView):
 class FilterRegulatorFilterOptionsView(BaseFilterOptionsView):
     """
     GET /api/filter-regulator/filters/ — опции для FilterSidebar на фронтенде.
-
-    Наследует get() из BaseFilterOptionsView (core/views.py).
     """
     permission_classes = [AllowAny]
-    filter_definitions = FILTER_REGULATOR_FILTER_DEFINITIONS
-    model_class = FilterRegulator
+    catalog_config = FILTER_REGULATOR_CONFIG

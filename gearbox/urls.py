@@ -1,6 +1,8 @@
 # gearbox/urls.py
 from django.urls import path
-from gearbox.views.catalog import GearboxCatalogView, GearboxDetailView, GearboxFilterOptionsView
+from gearbox.catalog.views_list import GearboxCatalogView
+from gearbox.catalog.views_detail import GearboxDetailView
+from gearbox.catalog.views_filters import GearboxFilterOptionsView
 from gearbox.views.meta import GearboxMetaView
 from gearbox.views.quickselect import GearboxQuickSelectView
 

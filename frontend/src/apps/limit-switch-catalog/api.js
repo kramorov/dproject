@@ -9,7 +9,7 @@ export default {
   getSections()  { return api.get(E.sections) },
   list(params)   { return api.get(E.catalog, { params }) },
   getDetail(id)  { return api.get(E.detail(id)) },
-  getFilters()   { return api.get(E.filters) },
+  getFilters(params) { return api.get(E.filters, { params }) },
   getQuickSelect(mlId, filters = {}) {
     return api.get(E.quickselect, { params: { model_line_id: mlId, ...filters } })
   },

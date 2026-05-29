@@ -1,145 +1,127 @@
 # Состояние проекта на 2026-05-29
 
-## Сегодня (2026-05-29)
+## ⏳ Задачи на потом
+
+### Кэширование опций фильтров
+- **Проблема**: `BaseFilterOptionsView.get()` вызывает `fd.get_options()` для каждого фильтра.
+  На странице серии с 6 фильтрами — 6-10 отдельных запросов к БД при каждой загрузке сайдбара.
+- **Решение**: кэшировать результат `get_options` в Django cache (memcached/redis) с инвалидацией
+  по сигналам модели (post_save/post_delete на связанные модели). Ключ кэша: `catalog:filters:{catalog}:{scope}:{model_line_id}`.
+- **Приоритет**: medium, до production-нагрузки.
+
+---
+
+## Сегодня (2026-05-29) — CatalogConfig и Exact/Compatible split
+
+### 🏗️ CatalogConfig — единая конфигурация каталогов
+- **`core/models/filter_definition.py`** — `FilterType`, `DataSourceType`, `FilterDefinition` вынесены из `smart_catalog_mixin.py`
+  - `supports_split()` — может ли фильтр различать exact/compatible
+  - `classify_match(obj, value)` — классификация объекта: 'exact' | 'compatible' | None
+  - `get_options(model_class, queryset=None)` — опции фильтра, опционально scoped
+  - Float-сравнение с допуском `1e-9`
+- **`core/models/catalog_config.py`** — `FilterSet` + `CatalogConfig` dataclasses
+  - `FilterSet`: `definitions`, `scoped`, `show_compatible`
+  - `CatalogConfig`: `model_class`, `filter_sets`, `select_related`, `prefetch_fields`, `labels`
+  - `apply_visibility_scope()` — хук слоя 0 (TODO: партнёрские настройки)
+- **`core/utils/catalog_helpers.py`** — `get_currency_code(request)` вынесена из дубликатов
+
+### 🎯 Exact / Compatible split
+- **`SmartCatalogMixin.apply_filters_and_split()`** — единый метод фильтрации + разделения
+  - Параметр `serializer` (default: `to_values_dict()` — лёгкий)
+  - `split_mode='auto'` — разделяет при `show_compatible=true`
+  - Ответ: `data`, `compatible_data`, `exact_count`, `compatible_count`, `split_filter`, `split_page_note`
+- **Поддерживаемые типы**: TEMP_MIN, TEMP_MAX, MIN, MAX, EXD_COMPATIBLE, THREAD_COMPATIBLE, FUNCTION_COMPATIBLE, IP_RANK
+- **Логика classify_match**:
+  - FK-based: `obj.{field}_id == requested_id` → exact
+  - Value-based: `abs(float(actual) - requested) < 1e-9` → exact
+
+### 📁 Пакеты catalog/ во всех трёх каталогах
+- **`gearbox/catalog/`**: `filter_defs.py`, `config.py`, `views_filters.py`, `views_list.py`, `views_detail.py`
+- **`filter_regulator/catalog/`**: `filter_defs.py`, `config.py`, `views_filters.py`
+- **`pa_controls/catalog/`**: `filter_defs.py`, `config.py`, `views_filters.py`
+- Каждый `config.py` определяет 3 FilterSet: `list`, `model_line`, `quickselect`
+
+### 🖥️ BaseFilterOptionsView → CatalogConfig
+- Новый путь: `catalog_config = XXX_CONFIG` → возвращает `{ filters, show_compatible }`
+- Старый путь (`filter_definitions + scope_exclude`) сохранён для обратной совместимости
+- `scope_exclude` по умолчанию исключает `model_line_id` и `brand_id`
+- FilterOptionsView всех трёх каталогов переведены на `catalog_config`
+
+### 🎛️ Фронтенд: FilterSidebar + useCatalog
+- **FilterSidebar.vue**: чекбокс «Показывать совместимые» (виден при `showCompatibleToggle`)
+- **useCatalog.js**:
+  - `showCompatible`, `compatibleData`, `exactTotal`, `compatibleTotal`, `splitFilter`
+  - `toggleCompatible(val)` — переключение → перезапрос
+  - Обработка нового формата `{ filters, show_compatible }`
+  - Очистка `filterData` при смене scope (фикс бага с накоплением старых ключей)
+- **CatalogList.vue / CatalogModelLine.vue**: секции «🎯 Точно подходят» / «🔗 Выполняют условия»
+- **Баг**: `getFilters()` в api.js всех трёх каталогов не принимал параметры → `?scope=model_line` не доходил. Исправлено.
+
+### 📄 Документация
+- **`catalog_concept.md`** — полная концепция: 3 слоя, компоненты, постраничная работа, конфигурация, ограничения
+- **`CATALOG_PATTERN.md`** — обновлён (CatalogConfig, api.js fix)
+- **`frontend/README.md`** — обновлён (новые поля useCatalog, FilterSidebar)
+
+---
+
+## Ранее (2026-05-28 и раньше)
 
 ### 🏗️ ImageGallerySet — наборы изображений
 - **Модели**: `ImageGallerySet` + `ImageGallerySetItem` (through) в `media_library/models.py`
-  - `name, code, keywords` — поиск и идентификация
-  - M2M `images` через through с полями `sorting_order` и `is_default`
-  - `get_images()`, `get_default_image()` — методы доступа
-  - Админка с TabularInline (autocomplete на image)
-- **ImageGalleryMixin** переписан:
-  - Старый голый M2M `images` → FK `image_gallery` на `ImageGallerySet`
-  - `@cached_property _gallery` — своя галерея → фолбэк на `model_line.image_gallery`
-  - `_get_first_image()`, `_get_images_section()`, `_build_image_dict()` — единые для всех каталогов
-- **Удалены дублирующие методы** из gearbox, filter_regulator, pa_controls (4× `_get_first_image`, 4× `_get_images_section`)
-- **Удалён `_ml_img_cache`** из pa_controls views — заменён на `prefetch_related('image_gallery__items__image')`
-- **Фронтенд каталогов**:
-  - Таб «Изображения» → «Галерея», `FkSelect` вместо `ChipList`+`BasePicker`+`MediaUploadModal`
-  - `CatalogBrand` → `CatalogModelLine` (переименован, `idProp` по умолчанию `model_line_id`)
-  - `useCatalog`: добавлен `filterScope` → `api.getFilters({scope})` для `?scope=model_line`
-  - `BaseFilterOptionsView`: `scope_exclude` — при `?scope=model_line` исключает `model_line_id`/`brand_id`
-  - gearbox: `scope_exclude = {'model_line': ['brand_id']}` (фильтр по бренду уже зафиксирован)
-  - Обновлены все 4 App.vue (gearbox, filter_regulator, limit_switch, widget)
-  - `PageTitle` — новый shared-компонент заголовка (title + subtitle + context-чип)
-  - `CatalogActions` — кнопки «Инженерный подбор» / «Быстрый подбор» над сеткой серий
-  - `Breadcrumbs` — все непоследние крошки кликабельны (`router.push` или `emit('navigate')`)
-  - Крошки трёхуровневые: Каталог / БКВ / Серия (или Инженерный/Быстрый подбор)
-  - Стили PageTitle вынесены в CSS-переменные (`--cat-page-title-*`)
-  - Удалены `extraButtons` из CatalogSection — заменены на CatalogActions
-  - Удалён старый `CatalogBrand.vue`
+- **ImageGalleryMixin** переписан: FK `image_gallery` вместо голого M2M `images`
+- Удалены дублирующие методы из gearbox, filter_regulator, pa_controls
 
 ### 🔗 CertData.media_item: FK → O2O
-- `media_item = ForeignKey(..., related_name='certificates')` → `OneToOneField(..., related_name='cert_data')`
-- Семантика: один сертификат = один PDF, эксклюзивная связь
-- `CertData.delete()` — каскадно удаляет `media_item` → `MediaLibraryItem.delete()` → облачные файлы
+- `media_item = ForeignKey` → `OneToOneField`, каскадное удаление с очисткой облака
 
-### 🗑️ Каскадное удаление с очисткой облака
-- **`MediaLibraryItem.delete()`** — удаляет `media_file` и `preview_file` из Cloud.ru через `file_service.delete_file()`
-- **`media_library/views/admin_detail.py`** DELETE: raw SQL → `item.delete()`
-  - O2O `cert_doc_certdata.media_item_id` обнуляется через `on_delete=SET_NULL`
-  - Файлы удаляются в модели, не во вьюхе
-- **Убран мёртвый `replace_file_view`** из админки (дублировал `replace_file_ajax`)
+### 🗑️ Каскадное удаление с очисткой Cloud.ru
+- `MediaLibraryItem.delete()` удаляет файлы из Cloud.ru через `file_service.delete_file()`
 
 ### 🧹 Чистка
-- **Raw SQL → ORM**: `lsb_model_line_item.py` и `limit_switch.py` — `_get_certs_section()`:
-  - `cursor.execute(SELECT ... through)` → `self.model_line.cert_docs.filter(is_active=True).values_list('id', flat=True)`
-  - Добавлен `select_related('media_item')` для устранения N+1
-- **Сигналы**: удалены мёртвые `create_preview_on_save`, `update_media_item_metadata`, закомментированные
-  - Оставлен только `prevent_predefined_category_deletion`
-  - Убран `print("Сигналы...")` из `apps.py`
-- **Админки**: `images` в `filter_horizontal`/`fieldsets` заменён на `image_gallery` во всех admin-классах
-- **`exd` в raw_id_fields** (LimitSwitchBoxAdmin) — убран, M2M нельзя в raw_id_fields
-- **Баг codewhale-tui v0.8.47** — паника в verify.rs:422 на кириллице
+- Raw SQL → ORM, удалены мёртвые сигналы, `images` → `image_gallery` в админках
 
-### ⚡ Оптимизация каталогов (2026-05-28)
-- **Cloud.ru**: `url()` больше не делает `head_object` — только `_normalize()` (было 120+ сетевых запросов на 24 карточки, стало 0)
-- **`to_values_dict()`**: больше не вызывает `_get_template_vars()` — лёгкий `tv = {code, name}`
-- **`useCatalog.js`**: `unref(fixedParams)` — чинит фильтр по серии/бренду (был сломан для всех каталогов)
-- **`CatalogBrand.vue`**: `onFilterChange` при старте — фильтр в сайдбаре подсвечивается
-- **`ProductCard.vue`**: `ProgressiveImage` — сначала превью, потом full фоном
-- **`ProductGallery.vue`**: превью → фоновая загрузка full + preload всей галереи
-- **`SELECT_RELATED`**: дополнен `ip`, `body_material`, `body_material_specified`, `model_line__brand`
-- **`prefetch_related`**: добавлен для `images`, `tech_docs`, `additional_sensor`, `model_line__images/tech_docs`
-- **`/sections/`**: новый эндпоинт — 1 запрос с `annotate(Count)` вместо 1000 записей
-- **Gearbox + FilterRegulator**: унифицированы — `to_values_dict()` лёгкий, `_get_first_image()` из mixin
-- **`CATALOG_PATTERN.md`**: инструкция для новых каталогов + чек-лист производительности
+### ⚡ Оптимизация каталогов
+- Cloud.ru: `url()` без `head_object` (0 сетевых запросов вместо 120+)
+- `to_values_dict()` лёгкий (без `_get_template_vars()`)
+- `/sections/` эндпоинт с `annotate(Count)`
 
 ## Ключевые архитектурные решения
 
-1. **ImageGalleryMixin** — FK `image_gallery` → `ImageGallerySet`, кэширование через `@cached_property _gallery`
-2. **ImageGallerySet** в `media_library` — контейнер с through-моделью для порядка и default
-3. **CatalogDictMixin** — `to_dict()` → sections (gallery/specs/docs/certs/description) + template_vars
-4. **CertData.media_item** — O2O вместо FK, каскадное удаление с очисткой облака
-5. **MediaLibraryItem.delete()** — удаление файлов из Cloud.ru при удалении записи
-6. Цены вшиты в ответ API, конвертация через ExchangeRate, валюта из CustomerSettings
-7. CSS Custom Properties — default/dark/minimal темы, компоненты ссылаются на переменные
-8. Виджет widget/ — клиентский hash-роутер (#/gearbox/detail/123), F5 работает
-9. Shared-компоненты — переиспользуются для всех типов каталогов
-10. Фильтры списка: scope=used (только существующие), формы создания: scope=all (полные справочники)
-
-## ⚠️ Облачное хранилище Cloud.ru (2026-05-27)
-
-Медиабиблиотека использует Cloud.ru (S3-совместимое) через `storage_manager`.
-- `ManagedFileField` — кастомное поле с авто-категоризацией
-- `file_service` — глобальный синглтон для операций с файлами
-- `MediaLibraryItem.delete()` вызывает `file_service.delete_file()` для media_file и preview_file
-
-## Структура каталогов
-
-### Редукторы (gearbox)
-- **Бэкенд**: GearBox(CatalogDictMixin, ImageGalleryMixin, TemplateMixin, SKUMixin, ...)
-- **Фронтенд**: frontend/src/apps/gearbox-catalog/ (5 страниц + gearbox-admin/)
-- **API**: /api/gearbox/catalog/, /<id>/, /filters/, /meta/
-- **Виджет**: CatalogIndex «Редукторы», маршруты #/gearbox/*
-
-### Фильтр-регуляторы (filter_regulator)
-- **Бэкенд**: FilterRegulator(CatalogDictMixin, ImageGalleryMixin, TemplateMixin, SKUMixin, ...)
-- **Фронтенд**: frontend/src/apps/filter-regulator-catalog/ (5 страниц + EngineerCatalog)
-- **API**: /api/filter-regulator/catalog/, /<id>/, /filters/, /meta/, /engineer/
-
-### Блоки концевых выключателей (pa_controls)
-- **Бэкенд**: LimitSwitchBox / LsbModelLineItem (CatalogDictMixin, ImageGalleryMixin, ...)
-- **Фронтенд**: frontend/src/apps/limit-switch-catalog/ (4 страницы)
-- **Админка**: limit-switch-admin/ — CRUD с табами и shared-компонентами
-- **API**: /api/pa-controls/catalog/, /<id>/, /filters/, /meta/
+1. **CatalogConfig** — единая точка конфигурации: фильтры, scope, ORM, метки
+2. **FilterSet** — позитивное определение фильтров на страницу (вместо `scope_exclude`)
+3. **apply_filters_and_split()** — единый метод фильтрации с exact/compatible
+4. **FilterDefinition.classify_match()** — классификация exact/compatible для всех splittable-типов
+5. **ImageGalleryMixin** — FK `image_gallery` → `ImageGallerySet`
+6. **CertData.media_item** — O2O с каскадным удалением
+7. **MediaLibraryItem.delete()** — удаление файлов из Cloud.ru
+8. Цены вшиты в ответ API, конвертация через ExchangeRate
+9. CSS Custom Properties, виджет с hash-роутером, shared-компоненты
+10. `apply_visibility_scope()` — хук для партнёрских ограничений (TODO)
 
 ## Файловая карта
 
 | Компонент | Путь |
 |---|---|
-| ImageGalleryMixin | core/models/image_gallery_mixin.py |
-| ImageGallerySet | media_library/models.py |
-| CatalogDictMixin | core/models/mixins.py |
+| FilterDefinition, FilterType, DataSourceType | core/models/filter_definition.py |
+| FilterSet, CatalogConfig | core/models/catalog_config.py |
+| SmartCatalogMixin (apply_filters_and_split) | core/models/smart_catalog_mixin.py |
 | BaseFilterOptionsView | core/views.py |
-| FilterOptionsView (gearbox) | gearbox/views/catalog.py |
-| FilterOptionsView (filter_regulator) | filter_regulator/views/catalog.py |
-| FilterOptionsView (limit_switch) | pa_controls/views/catalog.py |
+| get_currency_code (shared) | core/utils/catalog_helpers.py |
+| ImageGalleryMixin | core/models/image_gallery_mixin.py |
+| CatalogDictMixin | core/models/mixins.py |
+| Gearbox config | gearbox/catalog/config.py |
+| Gearbox filter defs | gearbox/catalog/filter_defs.py |
+| Gearbox views (new) | gearbox/catalog/views_*.py |
+| Filter-regulator config | filter_regulator/catalog/config.py |
+| Filter-regulator filter defs | filter_regulator/catalog/filter_defs.py |
+| Limit-switch config | pa_controls/catalog/config.py |
+| Limit-switch filter defs | pa_controls/catalog/filter_defs.py |
 | Shared компоненты | frontend/src/shared/components/ |
-| Generic-компоненты каталогов | frontend/src/shared/components/catalog/ |
-| CSS темы | frontend/src/shared/themes/ |
-| Виджет | frontend/src/apps/widget/ |
-| Vite config | frontend/vite.config.js |
-| Цены / валюта | price/services/currency_converter.py |
-| Медиатека (админ) | media_library/admin.py |
-| Медиатека (модель) | media_library/models.py |
+| Catalog composable | frontend/src/shared/composables/useCatalog.js |
+| Catalog API clients | frontend/src/apps/*/api.js |
+| Концепция каталогов | catalog_concept.md |
+| Паттерн каталога | CATALOG_PATTERN.md |
 
-## ⚠️ Баг codewhale-tui v0.8.47 (2026-05-29)
+## ⚠️ Баг codewhale-tui v0.8.47
 
-В codewhale-tui v0.8.47 обнаружен баг — паника в `verify.rs:422`:
-```
-start byte index N is not a char boundary; it is inside 'О' (bytes N..N+2)
-```
-Возникает при использовании `edit_file` на файлах с кириллицей.
-
-### До исправления:
-- **НЕ использовать `edit_file`** на файлах с русским текстом
-- **Использовать `write_file`** — перезапись файла целиком
-- **Использовать `apply_patch`** — unified diff, безопасный путь
-- **`read_file` безопасен** — read-only не вызывает верификатор
-
-### Файлы повышенного риска:
-- `media_library/models.py` — много кириллицы в docstrings
-- `core/views.py`
-- `SESSION.md`
-- Все файлы с русскими комментариями/docstrings
+Паника в `verify.rs:422` на кириллице. `edit_file` — не использовать. `apply_patch` и `write_file` — безопасны.

@@ -14,6 +14,7 @@ from django.db.models import Prefetch, Count
 from django.shortcuts import get_object_or_404
 
 from core.views import BaseFilterOptionsView
+from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
 from pa_controls.models.limit_switch import LimitSwitchBox
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 from pa_controls.models.sensor import SensorComponent
@@ -155,9 +156,6 @@ class LimitSwitchBoxDetailView(APIView):
 class LimitSwitchBoxFilterOptionsView(BaseFilterOptionsView):
     """
     GET /api/pa-controls/filters/ — опции для FilterSidebar на фронтенде.
-
-    Наследует get() из BaseFilterOptionsView (core/views.py).
     """
     permission_classes = [AllowAny]
-    filter_definitions = LimitSwitchBox.FILTER_DEFINITIONS
-    model_class = LimitSwitchBox
+    catalog_config = LIMIT_SWITCH_CONFIG

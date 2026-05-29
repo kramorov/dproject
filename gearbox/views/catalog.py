@@ -18,6 +18,8 @@ from django.utils import translation
 
 from gearbox.models import GearBox
 from core.views import BaseFilterOptionsView
+from gearbox.catalog.config import GEARBOX_CONFIG
+from core.utils.catalog_helpers import get_currency_code
 from gearbox.services.filters import (
     GEARBOX_FILTER_DEFINITIONS,
     GEARBOX_SEARCH_FIELDS,
@@ -25,21 +27,6 @@ from gearbox.services.filters import (
     GEARBOX_PREFETCH_FIELDS,
 )
 from price.services.currency_converter import get_bulk_prices, get_display_price
-from project_customers.utils import get_current_customer_user
-
-
-def _get_currency_code(request):
-    """Извлечь код валюты из настроек клиента или дефолт RUB."""
-    try:
-        user = get_current_customer_user(request)
-        if user and hasattr(user, 'customer'):
-            settings = getattr(user.customer, 'settings', None)
-            if settings and settings.default_currency:
-                return settings.default_currency.code
-    except Exception:
-        pass
-    return 'RUB'
-
 
 class GearboxCatalogView(APIView):
     """
@@ -63,7 +50,7 @@ class GearboxCatalogView(APIView):
     def get(self, request):
         params = request.query_params
         lang = params.get('lang', 'ru')
-        currency_code = _get_currency_code(request)
+        currency_code = get_currency_code(request)
 
         with translation.override(lang):
             qs = GearBox.objects.select_related(*GEARBOX_SELECT_RELATED)
@@ -132,7 +119,7 @@ class GearboxDetailView(APIView):
 
     def get(self, request, pk):
         lang = request.GET.get('lang', 'ru')
-        currency_code = _get_currency_code(request)
+        currency_code = get_currency_code(request)
 
         with translation.override(lang):
             obj = get_object_or_404(
@@ -161,12 +148,6 @@ class GearboxDetailView(APIView):
 class GearboxFilterOptionsView(BaseFilterOptionsView):
     """
     GET /api/gearbox/filters/ — опции для FilterSidebar на фронтенде.
-
-    Наследует get() из BaseFilterOptionsView (core/views.py).
     """
     permission_classes = [AllowAny]
-    filter_definitions = GEARBOX_FILTER_DEFINITIONS
-    model_class = GearBox
-    scope_exclude = {
-        'model_line': ['brand_id'],
-    }
+    catalog_config = GEARBOX_CONFIG

@@ -1,12 +1,10 @@
 # filter_regulator/urls.py
 from django.urls import path
-from .views import (
-    FilterRegulatorCatalogView,
-    FilterRegulatorDetailView,
-    FilterRegulatorFilterOptionsView,
-    FilterRegulatorMetaView,
-)
-from .views.quickselect import FilterRegulatorQuickSelectView
+from filter_regulator.catalog.views_list import FilterRegulatorCatalogView
+from filter_regulator.catalog.views_detail import FilterRegulatorDetailView
+from filter_regulator.catalog.views_filters import FilterRegulatorFilterOptionsView
+from filter_regulator.views.meta import FilterRegulatorMetaView
+from filter_regulator.views.quickselect import FilterRegulatorQuickSelectView
 
 urlpatterns = [
     path('quickselect/', FilterRegulatorQuickSelectView.as_view(), name='filter_regulator_quickselect'),

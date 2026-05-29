@@ -1,0 +1,3 @@
+# filter_regulator/catalog/__init__.py
+from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
+from filter_regulator.catalog.filter_defs import FILTER_REGULATOR_FILTER_DEFINITIONS

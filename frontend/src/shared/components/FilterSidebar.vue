@@ -24,6 +24,14 @@
         >{{ opt.name }}</option>
       </select>
     </div>
+
+    <div class="filter-group" v-if="showCompatibleToggle">
+      <label class="compatible-label">
+        <input type="checkbox" :checked="showCompatible" @change="$emit('toggleCompatible', $event.target.checked)" />
+        Показывать совместимые
+      </label>
+    </div>
+
   </aside>
 </template>
 
@@ -32,9 +40,11 @@ import { reactive, computed, watch } from 'vue'
 
 const props = defineProps({
   filters: { type: Object, default: () => ({}) },
+  showCompatible: { type: Boolean, default: false },
+  showCompatibleToggle: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['change', 'reset'])
+const emit = defineEmits(['change', 'reset', 'toggleCompatible'])
 
 const active = reactive({})
 
@@ -62,6 +72,8 @@ const hasActive = computed(() =>
 <style scoped>
 .filter-sidebar { width: 260px; flex-shrink: 0; }
 .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.compatible-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--cat-text-base); color: var(--cat-text); }
+.compatible-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
 .filter-header h3 { font-size: var(--cat-text-xl); font-weight: 600; margin: 0; }
 .reset-btn { padding: 4px 12px; font-size: var(--cat-text-sm); background: var(--cat-border-light); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-sm); cursor: pointer; }
 .reset-btn:hover { background: var(--cat-border); }

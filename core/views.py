@@ -580,45 +580,80 @@ class BaseFilterOptionsView(APIView):
     """
     Общий View для опций фильтров каталога — единая реализация для всех каталогов.
 
-    Заменяет три идентичных FilterOptionsView (gearbox, filter_regulator, pa_controls).
-    Логика: итерация по FILTER_DEFINITIONS → fd.get_options(model_class) → { label, order, options }.
-
-    Подкласс должен определить два атрибута:
-        filter_definitions — список FilterDefinition (из services/filters.py)
-        model_class         — класс модели Django
+    New (preferred): set catalog_config = SomeCatalogConfig.
+    Old (backward compat): set filter_definitions + model_class + scope_exclude.
 
     Пример:
         class GearboxFilterOptionsView(BaseFilterOptionsView):
             permission_classes = [AllowAny]
-            filter_definitions = GEARBOX_FILTER_DEFINITIONS
-            model_class = GearBox
+            catalog_config = GEARBOX_CONFIG
 
     Ответ (JSON):
-        { param_name: { label: str, order: int, options: [{id, name, code}] } }
-
-    См. также:
-        core/models/smart_catalog_mixin.py — FilterDefinition, FilterType, DataSourceType
-        gearbox/views/catalog.py           — пример использования
+        {
+            filters: { param_name: { label, order, options: [{id, name, code}] } },
+            show_compatible: bool,
+        }
     """
     permission_classes = []
+    # ── New path ──
+    catalog_config = None  # CatalogConfig instance
+    # ── Old path (backward compat) ──
     filter_definitions = None
     model_class = None
-    # Параметры, исключаемые при ?scope=model_line (уже зафиксированы)
     scope_exclude = {
-        'model_line': ['model_line_id'],
+        'model_line': ['model_line_id', 'brand_id'],
     }
 
     def get(self, request):
         scope = request.query_params.get('scope', 'list')
-        exclude = self.scope_exclude.get(scope, [])
 
-        if not self.filter_definitions:
+        # ── New path: CatalogConfig ──
+        if self.catalog_config is not None:
+            config = self.catalog_config
+            filter_set = config.get_filter_set(scope)
+            model_line_id = request.query_params.get('model_line_id')
+
+            # Scoped queryset for filter options
+            base_qs = None
+            if filter_set.scoped and model_line_id:
+                base_qs = config.get_scoped_queryset(model_line_id)
+
+            result = {}
+            for fd in filter_set.definitions:
+                if fd.data_source_type.value == 'custom':
+                    continue
+                try:
+                    options = fd.get_options(config.model_class, queryset=base_qs)
+                    if options:
+                        result[fd.param_name] = {
+                            'label': fd.label,
+                            'order': fd.order,
+                            'options': options,
+                        }
+                except Exception as e:
+                    result[fd.param_name] = {
+                        'label': fd.label,
+                        'order': fd.order,
+                        'options': [],
+                        'error': str(e),
+                    }
+
+            return Response({
+                'filters': result,
+                'show_compatible': filter_set.show_compatible,
+            })
+
+        # ── Old path: filter_definitions + scope_exclude ──
+        if self.filter_definitions is None:
             return Response({'error': 'filter_definitions not configured'}, status=500)
 
+        exclude = self.scope_exclude.get(scope, [])
         result = {}
         for fd in self.filter_definitions:
-            if fd.data_source_type.value != 'custom':
-                if fd.param_name in exclude: continue
+            if fd.data_source_type.value == 'custom':
+                continue
+            if fd.param_name in exclude:
+                continue
                 try:
                     options = fd.get_options(self.model_class)
                     if options:

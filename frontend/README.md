@@ -13,7 +13,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/ProductCard.vue` | Карточка товара с картинкой и ценой |
 | `shared/components/ProductGallery.vue` | Галерея изображений с лайтбоксом |
 | `shared/components/ProductDetail.vue` | Детальная карточка (секции specs/docs/certs) |
-| `shared/components/FilterSidebar.vue` | Боковая панель фильтров |
+| `shared/components/FilterSidebar.vue` | Боковая панель фильтров + чекбокс «Показывать совместимые» |
 | `shared/components/Breadcrumbs.vue` | Хлебные крошки |
 | `shared/components/Spinner.vue` | Индикатор загрузки |
 | `shared/components/PageTitle.vue` | Заголовок страницы (title + context-чип) |
@@ -27,12 +27,63 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/FkSelect.vue` | Выбор ForeignKey с поиском |
 | `shared/components/M2MSelect.vue` | Выбор ManyToMany с чипсами |
 | `shared/components/catalog/CatalogSection.vue` | Сетка серий + CatalogActions |
-| `shared/components/catalog/CatalogList.vue` | Инженерный подбор (фильтры + поиск) |
-| `shared/components/catalog/CatalogModelLine.vue` | Товары серии (fixedParams + context) |
+| `shared/components/catalog/CatalogList.vue` | Инженерный подбор (фильтры + поиск + exact/compatible секции) |
+| `shared/components/catalog/CatalogModelLine.vue` | Товары серии (fixedParams + context + exact/compatible секции) |
 | `shared/components/catalog/CatalogDetail.vue` | Карточка товара |
 | `shared/components/catalog/QuickSelect.vue` | Быстрый подбор (чипсы → карточка) |
-| `shared/composables/useCatalog.js` | Логика каталогов: fetchData, пагинация, фильтры, filterScope |
+| `shared/composables/useCatalog.js` | Логика каталогов: fetchData, пагинация, фильтры, exact/compatible split |
 | `shared/composables/useCatalogRouter.js` | Навигация App.vue каталогов |
+
+### `useCatalog.js` — поля и методы
+
+```javascript
+const {
+  // State
+  items,                // точные совпадения (или все, если split выключен)
+  compatibleData,       // совместимые (только при showCompatible=true)
+  total,                // общее количество до пагинации
+  exactTotal,           // exact_count на текущей странице
+  compatibleTotal,      // compatible_count на текущей странице
+  splitFilter,          // по какому фильтру разделение
+  loading, limit, offset,
+
+  // Filters
+  filterData,           // reactive: { param_name: { label, order, options } }
+  filtersLoaded,
+  showCompatibleAvailable,  // true если бэкенд поддерживает split
+  showCompatible,       // состояние чекбокса
+  activeFilters,        // { param_name: selectedValue }
+  search,
+
+  // Actions
+  loadFilters(),        // GET /filters/?scope=...
+  fetchData(),          // GET /catalog/ с фильтрами
+  onFilterChange(key, value),
+  toggleCompatible(val), // включить/выключить split
+  resetFilters(),
+  onSearchInput(),
+  goPage(n),
+} = useCatalog(api, {
+  fixedParams,          // { model_line_id: 10 }
+  filterScope: 'model_line',  // ?scope=model_line для страницы серии
+  withSearch: true,
+})
+```
+
+### FilterSidebar — «Показывать совместимые»
+
+Чекбокс виден когда `showCompatibleAvailable=true` (бэкенд вернул `show_compatible: true` в ответе `/filters/`).
+При включении отправляет `show_compatible=true` → бэкенд разделяет ответ на `data` (exact) и `compatible_data`.
+
+### ⚠️ api.js: getFilters ДОЛЖЕН принимать params
+
+```javascript
+// Правильно:
+getFilters(params) { return api.get(E.filters, { params }) }
+
+// Неправильно (params игнорируются → scope не доходит до бэкенда):
+getFilters() { return api.get(E.filters) }
+```
 
 ## `src/apps/` — мини-приложения
 

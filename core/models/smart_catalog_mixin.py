@@ -1,474 +1,10 @@
 # core/models/smart_catalog_mixin.py
 
-from typing import Dict, List, Any, Optional, Type
-from enum import Enum
+from typing import Dict, List, Any, Optional
 from django.db import models
 from django.db.models import QuerySet, Q
-from django.core.exceptions import FieldDoesNotExist
 
-from params.exd_models import ExdOption
-from params.models import IpOption , ThreadSize , ThreadTypes
-
-
-class FilterType(Enum):
-    """Типы фильтров"""
-    EXACT = "exact"  # точное совпадение
-    CONTAINS = "icontains"  # содержит
-    MIN = "gte"  # больше или равно
-    MAX = "lte"  # меньше или равно
-    CHOICE = "choice"  # выбор из списка
-    BOOLEAN = "boolean"  # да/нет
-    TEMP_MIN = "temp_min"  # минимальная температура
-    TEMP_MAX = "temp_max"  # максимальная температура
-    IP_RANK = "ip_rank"  # ранг IP (>= выбранного)
-    EXD_COMPATIBLE = "exd_compatible"  # поиск совместимых ExdOption (M2M или FK)
-    FK_CASCADE = "fk_cascade" # ← каскадный FK: родитель → потомки → __in
-    COMPATIBLE_CASCADE = "compatible_cascade" #По аналогии с EXD_COMPATIBLE, но для каскадных FK с учётом совместимости:
-    THREAD_COMPATIBLE = "thread_compatible"  # G↔R с учётом диаметра/шага
-    FUNCTION_COMPATIBLE = "function_compatible"  # 3/2 ↔ 5/2 клапаны
-
-
-class DataSourceType(Enum):
-    """Тип источника данных для опций фильтра
-        Тип	            Что получаем	                    Производительность
-        GLOBAL_MODEL	Все типы сигналов из справочника	Быстро, но много лишних
-        FIELD_VALUES	Только используемые (уникальные)	Быстро, только нужные
-        FOREIGN_KEY	    Все связанные (через цепочку)	    Средне
-        CUSTOM	        Полный контроль	                    Зависит от реализации"""
-
-    FIELD_VALUES = "field_values"  # уникальные значения из поля (простые типы)
-    UNIQUE_FIELD_VALUES = "unique_field_values"  # уникальные значения из поля с получением объектов (для FK)
-    FOREIGN_KEY = "foreign_key"  # все записи из связанной модели
-    GLOBAL_MODEL = "global_model"  # все записи из глобального справочника
-    CHOICES = "choices"  # из choices поля
-    CUSTOM = "custom"  # кастомный метод
-
-
-class FilterDefinition:
-    """
-    Единое определение фильтра
-
-    Примеры:
-
-    1. Точное совпадение по ForeignKey:
-    FilterDefinition(
-        param_name='model_line_id',
-        model_field='model_line',
-        filter_type=FilterType.EXACT,
-        data_source_type=DataSourceType.FOREIGN_KEY,
-        label='Серия'
-    )
-
-    2. Температура (прямое поле):
-    FilterDefinition(
-        param_name='work_temp_min',
-        model_field='work_temp_min',
-        filter_type=FilterType.TEMP_MIN,
-        data_source_type=DataSourceType.FIELD_VALUES,
-        label='Температура от'
-    )
-
-    3. IP ранг (связанное поле):
-    FilterDefinition(
-        param_name='ip_id',
-        model_field='ip',
-        filter_type=FilterType.IP_RANK,
-        data_source_type=DataSourceType.GLOBAL_MODEL,
-        source_model=IpOption,
-        label='IP'
-    )
-
-    4. Бренд через серию:
-    FilterDefinition(
-        param_name='brand_id',
-        model_field='model_line__brand',
-        filter_type=FilterType.EXACT,
-        data_source_type=DataSourceType.FOREIGN_KEY,
-        label='Бренд'
-    )
-    # Для M2M:
-    FilterDefinition(
-        param_name='exd_id',
-        model_field='exd',  # ManyToManyField
-        filter_type=FilterType.EXD_COMPATIBLE,
-        data_source_type=DataSourceType.CUSTOM,
-        label='Взрывозащита',
-    )
-
-    # Для ForeignKey:
-    FilterDefinition(
-        param_name='exd_id',
-        model_field='exd_option',  # ForeignKey
-        filter_type=FilterType.EXD_COMPATIBLE,
-        data_source_type=DataSourceType.CUSTOM,
-        label='Взрывозащита',
-    )
-    """
-
-
-    def __init__(
-            self,
-            param_name: str,  # имя параметра в запросе
-            model_field: str,  # путь к полю в модели (поддерживает __)
-            filter_type: FilterType,  # тип фильтра
-            data_source_type: DataSourceType,  # откуда брать опции
-            label: str = None,  # отображаемое название
-            order: int = 0,  # порядок сортировки
-            source_model: Type[models.Model] = None,  # для GLOBAL_MODEL
-            source_field: str = None,  # для CHOICES - поле с choices
-            choices: List[tuple] = None,  # для CHOICES - список вариантов
-            active_only: bool = True,  # только активные
-            order_by: str = 'name',  # сортировка опций
-            cascade_model: Type[models.Model] = None ,  # ← для FK_CASCADE
-            is_parent_filter: bool = False ,  # ← для THREAD_COMPATIBLE: True = всегда режим «родитель»
-            cascade_lookup: str = None ,  # ← для FK_CASCADE
-            cascade_match_fields: List[str] = None ,  # ← для FK_CASCADE поля для сопоставления (диаметр, шаг)
-    ):
-        self.param_name = param_name
-        self.model_field = model_field
-        self.filter_type = filter_type
-        self.data_source_type = data_source_type
-        self.label = label or param_name
-        self.order = order
-        self.source_model = source_model
-        self.source_field = source_field
-        self.choices = choices
-        self.active_only = active_only
-        self.order_by = order_by
-        self.cascade_model = cascade_model
-        self.is_parent_filter = is_parent_filter
-        self.cascade_lookup = cascade_lookup
-        self.cascade_match_fields = cascade_match_fields or []
-
-    def get_options(self, model_class) -> List[Dict]:
-        """Получить опции для фильтра на основе data_source_type"""
-
-        if self.data_source_type == DataSourceType.FIELD_VALUES:
-            # Уникальные значения из поля
-            values = model_class.objects.filter(
-                **{f"{self.model_field}__isnull": False}
-            ).values_list(self.model_field, flat=True).distinct().order_by(self.model_field)
-            return [
-                {'id': v, 'name': str(v), 'code': ''}
-                for v in values if v is not None
-            ]
-        elif self.data_source_type == DataSourceType.UNIQUE_FIELD_VALUES:
-            # Уникальные значения из поля (с получением объектов для ForeignKey)
-            try:
-                values = model_class.objects.filter(
-                    **{f"{self.model_field}__isnull": False}
-                ).values_list(self.model_field, flat=True).distinct()
-            except Exception as e:
-                import traceback
-                print(f"[UNIQUE_FIELD_VALUES ERROR] model={model_class.__name__}, field={self.model_field}: {e}")
-                traceback.print_exc()
-                return []
-
-            # Проверяем, является ли поле ForeignKey
-            try:
-                parts = self.model_field.split('__')
-                rel_model = model_class
-                for part in parts:
-                    field = rel_model._meta.get_field(part)
-                    if field.is_relation:
-                        rel_model = field.remote_field.model
-
-                # Получаем объекты по ID (только те, что используются)
-                objects = rel_model.objects.filter(id__in=values)
-                if self.active_only and hasattr(rel_model, 'is_active'):
-                    objects = objects.filter(is_active=True)
-
-                # Сортировка: если есть sorting_order - используем его, иначе order_by
-                if hasattr(rel_model, 'sorting_order'):
-                    objects = objects.order_by('sorting_order', self.order_by)
-                else:
-                    objects = objects.order_by(self.order_by)
-
-                return [
-                    {
-                        'id': obj.id,
-                        'name': getattr(obj, 'name', str(obj)),
-                        'code': getattr(obj, 'code', '') or ''
-                    }
-                    for obj in objects
-                ]
-            except (FieldDoesNotExist, AttributeError):
-                # Если не ForeignKey - возвращаем простые значения
-                return [
-                    {'id': v, 'name': str(v), 'code': ''}
-                    for v in values if v is not None
-                ]
-        elif self.data_source_type == DataSourceType.FOREIGN_KEY:
-            # Все записи из связанной модели
-            try:
-                parts = self.model_field.split('__')
-                rel_model = model_class
-                for part in parts:
-                    field = rel_model._meta.get_field(part)
-                    if field.is_relation:
-                        rel_model = field.remote_field.model
-
-                queryset = rel_model.objects.all()
-
-                if self.active_only and hasattr(rel_model, 'is_active'):
-                    queryset = queryset.filter(is_active=True)
-
-                # Сортировка: если есть sorting_order - используем его, иначе order_by
-                if hasattr(rel_model, 'sorting_order'):
-                    queryset = queryset.order_by('sorting_order', self.order_by)
-                else:
-                    queryset = queryset.order_by(self.order_by)
-
-                return [
-                    {
-                        'id': obj.id,
-                        'name': getattr(obj, 'name', str(obj)),
-                        'code': getattr(obj, 'code', '') or ''
-                    }
-                    for obj in queryset
-                ]
-            except (FieldDoesNotExist, AttributeError):
-                return []
-
-        elif self.data_source_type == DataSourceType.GLOBAL_MODEL:
-            # Все записи из глобальной модели
-            if self.source_model:
-                queryset = self.source_model.objects.all()
-                if self.active_only and hasattr(self.source_model, 'is_active'):
-                    queryset = queryset.filter(is_active=True)
-                    # Сортировка: если есть sorting_order - используем его, иначе order_by
-                if hasattr(self.source_model, 'sorting_order'):
-                    queryset = queryset.order_by('sorting_order', self.order_by)
-                else:
-                    queryset = queryset.order_by(self.order_by)
-
-                return [
-                        {
-                            'id': obj.id,
-                            'name': getattr(obj, 'name', str(obj)),
-                            'code': getattr(obj, 'code', '') or ''
-                        }
-                        for obj in queryset
-                    ]
-            return []
-
-        elif self.data_source_type == DataSourceType.CHOICES:
-            # Из choices
-            if self.choices:
-                return [{'id': v, 'name': str(l), 'code': v} for v, l in self.choices]
-            if self.source_field:
-                field = model_class._meta.get_field(self.source_field)
-                if hasattr(field, 'choices'):
-                    return [{'id': v, 'name': str(l), 'code': v} for v, l in field.choices]
-
-        elif self.data_source_type == DataSourceType.CUSTOM:
-            # Кастомный метод: _get_{param_name}_options
-            method_name = f'_get_{self.param_name}_options'
-            if hasattr(model_class, method_name):
-                return getattr(model_class, method_name)()
-
-        return []
-
-    def build_filter_lookup(self, value: Any) -> tuple:
-        """Построить lookup для фильтрации"""
-
-        if self.filter_type == FilterType.TEMP_MIN:
-            return f"{self.model_field}__lte", value
-
-        elif self.filter_type == FilterType.TEMP_MAX:
-            return f"{self.model_field}__gte", value
-
-        elif self.filter_type == FilterType.MIN:
-            return f"{self.model_field}__gte", value
-
-        elif self.filter_type == FilterType.MAX:
-            return f"{self.model_field}__lte", value
-
-        elif self.filter_type == FilterType.CONTAINS:
-            return f"{self.model_field}__icontains", value
-
-        elif self.filter_type == FilterType.IP_RANK:
-            # Для IP нужно получить ранг выбранной записи
-            try:
-                selected_ip = IpOption.objects.get(id=int(value))
-                return f"{self.model_field}__ip_rank__gte", selected_ip.ip_rank
-            except (IpOption.DoesNotExist, ValueError, TypeError):
-                return None, None
-        elif self.filter_type == FilterType.EXD_COMPATIBLE:
-            print(f"DEBUG: EXD_COMPATIBLE filter with value={value}, type={type(value)}")
-            try:
-                if isinstance(value, list):
-                    # Уже список ID совместимых ExdOption
-                    if not value:  # Пустой список
-                        print(f"  Empty list - returning None")
-                        return None, None
-                    print(f"  Processing list of IDs: {value}")
-                    return f"{self.model_field}__in", value
-                else:
-                    # Один ID - находим совместимые
-                    selected_exd = ExdOption.objects.get(id=int(value))
-                    compatible_ids = selected_exd.get_compatible_ids()
-                    if not compatible_ids:  # Пустое множество
-                        return None, None
-                    print(f"  Compatible IDs: {compatible_ids}")
-                    return f"{self.model_field}__in", list(compatible_ids)
-            except (ExdOption.DoesNotExist, ValueError, TypeError) as e:
-                print(f"  ERROR: {e}")
-                return None, None
-
-        elif self.filter_type == FilterType.FK_CASCADE:
-            if not self.cascade_model or not self.cascade_lookup :
-                return None , None
-            try :
-                value_int = int(value)
-
-                # Режим: cascade_match_fields есть → потомок, нет → родитель
-                if self.cascade_match_fields :
-                    # --- Режим «от потомка»: value = cascade_model.id (ThreadSize) ---
-                    child = self.cascade_model.objects.filter(id=value_int).first()
-                    if not child :
-                        return None , None
-                    parent_id = getattr(child , self.cascade_lookup + '_id')
-                    if self.source_model and hasattr(self.source_model , 'get_compatible_ids') :
-                        parent = self.source_model.objects.get(id=parent_id)
-                        parent_ids = parent.get_compatible_ids()
-                    else :
-                        parent_ids = [parent_id]
-                    match_filter = {f'{self.cascade_lookup}__in' : parent_ids}
-                    for field in self.cascade_match_fields :
-                        val = getattr(child , field)
-                        if val is not None :
-                            match_filter[field] = val
-                    child_ids = list(
-                        self.cascade_model.objects
-                        .filter(**match_filter)
-                        .values_list('id' , flat=True)
-                    )
-                else :
-                    # --- Режим «от родителя»: value = source_model.id (ThreadTypes) ---
-                    if hasattr(self.source_model , 'get_compatible_ids') :
-                        parent = self.source_model.objects.get(id=value_int)
-                        parent_ids = parent.get_compatible_ids()
-                    else :
-                        parent_ids = [value_int]
-                    child_ids = list(
-                        self.cascade_model.objects
-                        .filter(**{f'{self.cascade_lookup}__in' : parent_ids})
-                        .values_list('id' , flat=True)
-                    )
-                if not child_ids :
-                        return None , None
-                return f'{self.model_field}__in' , child_ids
-
-            except Exception :
-                return None , None
-
-        elif self.filter_type == FilterType.COMPATIBLE_CASCADE :
-            # value = ID родителя (ThreadTypes)
-            # source_model = родитель (ThreadTypes) — должен иметь get_compatible_ids()
-            # cascade_model = потомок (ThreadSize)
-            # cascade_lookup = поле в потомке → родитель (thread_type)
-            if not self.source_model or not self.cascade_model or not self.cascade_lookup :
-                return None , None
-            try :
-                selected = self.cascade_model.objects.get(id=int(value))
-                parent = getattr(selected , self.cascade_lookup)  # ThreadTypes-объект
-                compatible_type_ids = parent.get_compatible_ids()
-                # Строим фильтр: тип в совместимых + совпадение по диаметру/шагу
-                match_filter = {f"{self.cascade_lookup}__in" : compatible_type_ids}
-                if self.cascade_match_fields :
-                    for field in self.cascade_match_fields :
-                        val = getattr(selected , field)
-                        if val is not None :
-                            match_filter[field] = val
-
-                child_ids = list(
-                    self.cascade_model.objects
-                    .filter(**match_filter)
-                    .values_list('id' , flat=True)
-                )
-                if not child_ids :
-                    return None , None
-                return f"{self.model_field}__in" , child_ids
-            except Exception :
-                return None , None
-
-        elif self.filter_type == FilterType.THREAD_COMPATIBLE:
-            try :
-                value_int = int(value)
-                print(f"[THREAD_COMPATIBLE] value_int={value_int}, is_parent_filter={self.is_parent_filter}, param={self.param_name}")
-                if self.is_parent_filter :
-                    # --- Режим «тип резьбы»: ищем все резьбы совместимых типов ---
-                    thread_type = ThreadTypes.objects.filter(id=value_int).first()
-                    print(f"  parent mode: thread_type={thread_type}")
-                    if thread_type :
-                        compatible_type_ids = [value_int]  # тип резьбы — без совместимости, только выбранный
-                    else :
-                        compatible_type_ids = [value_int]
-                    print(f"  compatible_type_ids={compatible_type_ids}")
-                    child_ids = list(
-                        ThreadSize.objects.filter(thread_type__in=compatible_type_ids)
-                        .values_list('id' , flat=True)
-                    )
-                    print(f"  child_ids (first 10)={child_ids[:10]}, count={len(child_ids)}")
-                else :
-                    # --- Режим «конкретная резьба»: ищем ThreadSize + аналоги ---
-                    thread_size = ThreadSize.objects.filter(id=value_int).first()
-                    print(f"  child mode: thread_size={thread_size}")
-                    if thread_size and thread_size.thread_type :
-                        tt = thread_size.thread_type
-                        print(f"  tt={tt}, tt.id={tt.id}, thread_size.diameter={thread_size.thread_diameter}, pitch={thread_size.thread_pitch}")
-                        # Если нет диаметра И шага — аналог не найдём, возвращаем только себя
-                        if thread_size.thread_diameter is None and thread_size.thread_pitch is None :
-                            print(f"  NO diameter/pitch → exact match only [{value_int}]")
-                            child_ids = [value_int]
-                            if child_ids :
-                                return f'{self.model_field}__in' , child_ids
-                            return None , None
-                        try:
-                            if hasattr(tt , 'get_compatible_ids') :
-                                compatible_type_ids = tt.get_compatible_ids()
-                            else :
-                                compatible_type_ids = [tt.id]
-                        except Exception as e:
-                            print(f"  ERROR in get_compatible_ids: {e}")
-                            compatible_type_ids = [tt.id]
-                        print(f"  compatible_type_ids={compatible_type_ids}")
-                        match_filter = {'thread_type__in' : compatible_type_ids}
-                        if thread_size.thread_diameter is not None :
-                            match_filter['thread_diameter'] = thread_size.thread_diameter
-                        if thread_size.thread_pitch is not None :
-                            match_filter['thread_pitch'] = thread_size.thread_pitch
-                        print(f"  match_filter={match_filter}")
-                        child_ids = list(
-                            ThreadSize.objects.filter(**match_filter).values_list('id' , flat=True)
-                        )
-                        print(f"  child_ids={child_ids}")
-                    else :
-                        return None , None
-                if not child_ids :
-                    return None , None
-                return f'{self.model_field}__in' , child_ids
-            except Exception:
-                return None , None
-                # EXACT, CHOICE, BOOLEAN и прочие — прямое совпадение
-
-        elif self.filter_type == FilterType.FUNCTION_COMPATIBLE:
-            # value = ID функции (ValveFunction)
-            # source_model должен иметь get_compatible_ids()
-            try:
-                value_int = int(value)
-                if self.source_model and hasattr(self.source_model, 'get_compatible_ids'):
-                    func = self.source_model.objects.filter(id=value_int).first()
-                    if func:
-                        ids = func.get_compatible_ids()
-                        print(f"[FUNCTION_COMPATIBLE] {func.name} → compatible ids={ids}")
-                        return f'{self.model_field}__in', ids
-                return f'{self.model_field}', value_int
-            except Exception:
-                return None, None
-
-        return f"{self.model_field}", value
+from core.models.filter_definition import FilterType, DataSourceType, FilterDefinition
 
 
 class SmartCatalogMixin(models.Model):
@@ -575,7 +111,12 @@ class SmartCatalogMixin(models.Model):
 
     @classmethod
     def filter_by_params(cls, params: Dict) -> Dict:
-        """Фильтрация на основе FILTER_DEFINITIONS"""
+        """
+        Фильтрация на основе FILTER_DEFINITIONS.
+
+        NOTE: только для Streamlit-страниц (pages/*.py).
+        Для production API использовать apply_filters_and_split().
+        """
         print(f"DEBUG filter_by_params: received params={params}")
         queryset = cls.objects.all()
 
@@ -659,6 +200,119 @@ class SmartCatalogMixin(models.Model):
             result['compatible_data'] = compatible_data
             result['exact_total'] = len(data)
             result['compatible_total'] = len(compatible_data)
+        return result
+
+    @classmethod
+    def apply_filters_and_split(
+        cls,
+        params: Dict,
+        filter_definitions: List,
+        base_queryset: QuerySet = None,
+        split_mode: str = 'auto',
+        serializer=None,
+    ) -> Dict:
+        """
+        Unified filtering + optional exact/compatible split.
+
+        Args:
+            params: Request query params (limit, offset, search,
+                    show_compatible, and filter values).
+            filter_definitions: The FilterDefinition objects to apply
+                                (from a FilterSet).
+            base_queryset: Optional pre-filtered queryset (visibility
+                           scope already applied).
+            split_mode: 'auto' — split if show_compatible=true and a
+                        splittable filter is active; 'off' — never split.
+
+        Returns:
+            {
+                data: [...], total: int, filters_applied: {...},
+                # Only when split:
+                compatible_data: [...], exact_total: int,
+                compatible_total: int, split_filter: str, split_value: any,
+            }
+        """
+        queryset = base_queryset if base_queryset is not None else cls.objects.all()
+
+        filters_applied = {}
+
+        # ── Track the "primary" splittable filter ──
+        split_fd: Optional[FilterDefinition] = None
+        split_raw_value = None
+
+        for fd in filter_definitions:
+            value = params.get(fd.param_name)
+            if value is None or value == '' or value == 'all':
+                continue
+
+            lookup, converted = fd.build_filter_lookup(value)
+            if lookup and converted is not None:
+                queryset = queryset.filter(**{lookup: converted})
+                filters_applied[fd.param_name] = value
+
+                # Remember the LAST splittable filter for classification
+                if fd.supports_split():
+                    split_fd = fd
+                    split_raw_value = value
+
+        # ── Text search ──
+        search_text = params.get('search', '').strip()
+        if search_text:
+            queryset = cls._apply_text_search(queryset, search_text)
+            filters_applied['search'] = search_text
+
+        # ── Pagination ──
+        total = queryset.count()
+        limit = min(int(params.get('limit', 24)), 200)
+        offset = max(int(params.get('offset', 0)), 0)
+        qs_page = queryset[offset:offset + limit]
+
+        # ── Serializer ──
+        if serializer is None:
+            serializer = (lambda obj: obj.to_values_dict()) if hasattr(cls, 'to_values_dict') else (lambda obj: obj.to_dict())
+
+        show_compatible = params.get('show_compatible', '').lower() in ('true', '1')
+        do_split = (
+            split_mode == 'auto'
+            and show_compatible
+            and split_fd is not None
+            and split_raw_value is not None
+        )
+
+        data = []
+        compatible_data = []
+
+        for obj in qs_page:
+            try:
+                item = serializer(obj)
+            except Exception:
+                item = {'id': obj.id}
+
+            if do_split:
+                classification = split_fd.classify_match(obj, split_raw_value)
+                if classification == 'exact':
+                    data.append(item)
+                else:
+                    compatible_data.append(item)
+            else:
+                data.append(item)
+
+        result: Dict[str, Any] = {
+            'data': data,
+            'total': total,
+            'filters_applied': filters_applied,
+            'limit': limit,
+            'offset': offset,
+        }
+
+        if do_split:
+            result['compatible_data'] = compatible_data
+            result['exact_count'] = len(data)
+            result['compatible_count'] = len(compatible_data)
+            result['split_filter'] = split_fd.param_name
+            result['split_value'] = split_raw_value
+            result['split_page_note'] = 'exact_count/compatible_count are per-page (not full totals)'
+
         return result
 
     def to_dict(self) -> Dict[str, Any]:
