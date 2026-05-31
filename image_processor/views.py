@@ -3,7 +3,7 @@
 API для интерактивной обрезки изображений.
 
 POST /upload/   — загрузить оригинал, вернуть session_id + URL
-POST /crop/     — применить crop-параметры, вернуть WebP-варианты
+POST /crop/     — применить crop-параметры + category_code → варианты по профилю
 POST /preview/  — превью crop-области (без сохранения)
 """
 from rest_framework.views import APIView
@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 from image_processor.models import ImageCropSession
-from image_processor.services import process_crop_session, crop_and_pad
+from image_processor.services import process_crop_session, process_with_profile, crop_and_pad
 from PIL import Image
 from io import BytesIO
 import base64
@@ -59,8 +59,14 @@ class ImageUploadView(APIView):
         original_size = file.size
 
         content = session.original_file.read()
-        img = Image.open(BytesIO(content))
-        width, height = img.size
+        is_pdf = file.name.lower().endswith('.pdf')
+        if is_pdf:
+            width, height = 0, 0
+            has_alpha = False
+        else:
+            img = Image.open(BytesIO(content))
+            width, height = img.size
+            has_alpha = img.mode in ('RGBA', 'PA', 'LA')
 
         return Response({
             'session_id': session.id,
@@ -68,6 +74,7 @@ class ImageUploadView(APIView):
             'original_size': original_size,
             'width': width,
             'height': height,
+            'has_alpha': has_alpha,
         })
 
 
@@ -75,14 +82,17 @@ class ImageUploadView(APIView):
 class ImageCropView(APIView):
     """
     POST /api/image-processor/crop/
-    Body: JSON
-        {
-            session_id: int,
-            crop_x: float,
-            crop_y: float,
-            crop_size: float,
-            background_color: '#FFFFFF' (optional)
-        }
+    Body: JSON {
+        session_id: int,
+        crop_x, crop_y, crop_size: float,
+        background_color: '#FFFFFF' (optional),
+        remove_background: bool (optional),
+        category_code: 'PHOTO' | 'CERTIFICATE' | ... (optional),
+        dry_run: bool (optional, default false)
+    }
+    
+    Без category_code: фиксированные sm/md/lg, сохраняет в БД (старое поведение).
+    С category_code: варианты по профилю. dry_run=true → base64 без записи в БД.
 
     Returns: { results: { sm: url, md: url, lg: url } }
     """
@@ -96,18 +106,34 @@ class ImageCropView(APIView):
         crop_size = request.data.get('crop_size')
         bg_color = request.data.get('background_color', DEFAULT_BG)
         remove_bg = request.data.get('remove_background', False)
+        category_code = request.data.get('category_code', '')
+        dry_run = request.data.get('dry_run', False)
 
-        if session_id is None or crop_x is None or crop_y is None or crop_size is None:
-            return Response({'error': 'Missing required fields'}, status=400)
-
+        if session_id is None:
+            return Response({'error': 'Missing session_id'}, status=400)
+        
         session = get_object_or_404(ImageCropSession, pk=session_id)
-        session.crop_x = float(crop_x)
-        session.crop_y = float(crop_y)
-        session.crop_size = float(crop_size)
+        
+        # Crop params: required for old mode, optional for profile mode (PDFs don't need them)
+        has_crop = crop_x is not None and crop_y is not None and crop_size is not None
+        if has_crop:
+            session.crop_x = float(crop_x)
+            session.crop_y = float(crop_y)
+            session.crop_size = float(crop_size)
         session.background_color = bg_color
         session.remove_background = bool(remove_bg)
-        session.save()
+        
+        # ── Profile-based processing (test mode) ──
+        if category_code:
+            try:
+                result = process_with_profile(session, category_code)
+                if 'error' in result:
+                    return Response(result, status=400)
+                return Response(result)
+            except RuntimeError as e:
+                return Response({'error': str(e)}, status=400)
 
+        session.save()
         try:
             sizes = process_crop_session(session)
         except RuntimeError as e:
@@ -155,13 +181,15 @@ class ImagePreviewView(APIView):
         content = session.original_file.read()
         img = Image.open(BytesIO(content))
 
-        has_alpha = bool(remove_bg)
-        if has_alpha:
+        if remove_bg:
             try:
                 from image_processor.services import _remove_background
                 img = _remove_background(img)
+                has_alpha = True
             except RuntimeError as e:
                 return Response({'error': str(e)}, status=400)
+        else:
+            has_alpha = False
         if not has_alpha:
             if img.mode == 'RGBA':
                 from image_processor.services import hex_to_rgb

@@ -1,4 +1,4 @@
-# Состояние проекта на 2026-05-29
+# Состояние проекта на 2026-05-30
 
 ## ⏳ Задачи на потом
 
@@ -8,6 +8,25 @@
 - **Решение**: кэшировать результат `get_options` в Django cache (memcached/redis) с инвалидацией
   по сигналам модели (post_save/post_delete на связанные модели). Ключ кэша: `catalog:filters:{catalog}:{scope}:{model_line_id}`.
 - **Приоритет**: medium, до production-нагрузки.
+
+### 🛡️ Защита от парсеров и скрапинга
+- **Источник**: анализ защиты на vseinstrumenti.ru (ServicePipe) и market.yandex.ru
+- **Уровень 1 — минимальный (сейчас нет ничего)**:
+  - Rate limiting на `/api/` через `django-ratelimit` или nginx `limit_req`
+  - Лимит: 60 запросов/мин с IP на `/api/catalog/`, 30/мин на `/api/media/`
+  - Блокировка пустых/подозрительных User-Agent на уровне nginx
+  - `X-Robots-Tag: noindex, nofollow` на API-эндпоинтах (не индексировать поисковиками)
+- **Уровень 2 — средний**:
+  - Проверка `Referer` на `/api/media/*/download/` — только с нашего домена
+  - CSRF-токены уже есть (axios interceptors), но проверить на всех эндпоинтах
+  - Throttling на Django REST Framework (встроенный `UserRateThrottle`/`AnonRateThrottle`)
+  - Логирование подозрительной активности: >100 запросов с одного IP за минуту → alert
+- **Уровень 3 — высокий (перед production)**:
+  - SRI (Subresource Integrity) на критических JS-бандлах: `integrity="sha256-..."`
+  - Cloudflare/аналог как reverse proxy с Bot Fight Mode
+  - Защита от копирования изображений: `user-select: none` + `pointer-events: none` на оверлеях
+  - Watermark на full-size изображениях (накладывать при отдаче, не хранить)
+- **Приоритет**: уровень 1 — high (до публичного доступа), уровень 2 — medium, уровень 3 — low
 
 ### 🖼️ Оптимизация изображений: WebP + ресайз + кроп (план)
 - **WebP-варианты** для каждого изображения: `webp_sm` (150w), `webp_md` (400w), `webp_lg` (800w), `webp_xl` (1600w)
@@ -35,9 +54,67 @@
 - **Результат**: WebP с прозрачностью (RGBA, lossy quality=80)
 - **Известно**: RGBA на 30-50% больше RGB; U2Net лучше на однородном фоне
 
+### 🔄 Миграция фронтенда на новую структуру вариантов
+- **Контекст**: `MediaLibraryItem.variants` (JSONField) заменил старые `preview_file` + `media_file.url`
+- **Что нужно обновить**:
+  - `ProgressiveImage.vue` — `preview`/`full` пропсы → `variants[role][width]`
+  - `ProductCard.vue` — `imagePreview`/`imageFull` → `get_variant('card', 400)`
+  - `ProductGallery.vue` — миниатюры (`thumb/80`), главное фото (`card/800`)
+  - `CatalogSection.vue` — баннер серии (`card/400`)
+  - `_build_image_dict()` в `image_gallery_mixin.py` — отдавать `variants` вместо `preview_url`
+  - API: эндпоинт `/api/media/{id}/` должен возвращать `variants` с URL (через `get_variants_for_api`)
+  - `srcset` на всех `<img>` — чтобы браузер сам выбирал размер
+- **Приоритет**: high (старая структура `preview_file` отключена, всё сломается)
+
+### 📁 TECH_DOC — через-модель для техдокументации
+- **Проблема**: техническая документация может быть PDF, PDF с 3D, изображение, .STP
+- **Нужна through-модель** (как `ImageGallerySetItem` для изображений, `CertData` для сертификатов)
+- **Поля**: `media_item` (FK), `doc_type` (PDF/IMAGE/STP/DWG), `sorting_order`
+- **Профиль**: `TECH_DOC` в `PRESENTATION_PROFILES` уже есть (пустой — только скачивание)
+- **Приоритет**: medium (пока нет техдокументации в базе)
+
 ---
 
-## Сегодня (2026-05-29) — CatalogConfig и Exact/Compatible split
+## Сегодня (2026-05-30) — Профили отображения и PDF-обработка
+
+### 🏗️ PRESENTATION_PROFILES в MediaCategory
+- Хардкод-словарь профилей по коду категории
+- Категории: PRODUCT_GALLERY, BANNER, CERTIFICATE, TECH_DOC, SCHEMA, DRAWING, DIAGRAM
+- PHOTO переименован в PRODUCT_GALLERY, добавлен BANNER (1200/1920)
+- CERTIFICATE и TECH_DOC: page(600/800), email→сборный PDF(100dpi)
+
+### 📄 PDF-обработка в image_processor
+- `render_pdf_page()` — рендер страницы через PyMuPDF
+- `_process_pdf_with_profile()` — постраничный рендер + профильные варианты
+- `process_with_profile()` — единый вход: детектит PDF по расширению
+- Email PDF: все страницы → один файл, JPEG quality=60, deflate-сжатие, исходные размеры A4
+- `/crop/` принимает `category_code`, crop-параметры опциональны для PDF
+- `/upload/` детектит PDF и пропускает PIL.open()
+
+### 🖼️ Доработки ImageCropper
+- Селектор «Убрать фон» / «Наложить фон» вместо чекбокса (по умолчанию «Убрать»)
+- Альфа-канал автоопределяется (бейдж), но режим не меняет
+- При «Наложить фон» — альфа всегда заливается bgColor
+- Пропс `categoryCode` — передаётся в `/crop/`
+- Таймаут превью увеличен до 120с (rembg на больших фото)
+
+### 🧪 Тестовая страница `/tools/image-processor`
+- Выбор категории → показ профиля → обработка
+- PDF-категории: загрузка PDF → автообработка → страницы + email PDF
+- Фото-категории: интерактивная обрезка → профильные варианты
+- Сравнение исходного/сжатого размера для PDF
+- Blob URL для открытия PDF (Chrome блокирует data: URI)
+
+### 📝 Документация обновлена
+- `image_processor/README.md` — полностью переписан
+- `media_library/README.md` — добавлены профили + variants
+- `frontend/README.md` — ImageCropper + тестовая страница
+- `CATALOG_PATTERN.md` — без изменений (актуален)
+- Анализ защиты Яндекс.Маркета и ВсеИнструменты.ру в SESSION.md
+
+---
+
+## Ранее (2026-05-29) — CatalogConfig и Exact/Compatible split
 
 ### 🏗️ CatalogConfig — единая конфигурация каталогов
 - **`core/models/filter_definition.py`** — `FilterType`, `DataSourceType`, `FilterDefinition` вынесены из `smart_catalog_mixin.py`

@@ -19,6 +19,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/PageTitle.vue` | Заголовок страницы (title + context-чип) |
 | `shared/components/catalog/CatalogActions.vue` | Кнопки «Инженерный/Быстрый подбор» |
 | `shared/components/MediaViewer.vue` | Просмотрщик медиафайлов (изображения/PDF) |
+| `shared/components/ImageCropper.vue` | Интерактивная обрезка: drag/зум, фон/rembg, профили |
 | `shared/components/M2MDualList.vue` | M2M-селектор filter_horizontal (две панели + поиск) |
 | `shared/components/JsonFieldsEditor.vue` | Редактор JSON extra_params (таблица + raw JSON) |
 | `shared/components/MediaUploadModal.vue` | Модалка загрузки файла в медиатеку |
@@ -126,6 +127,7 @@ App.vue параметризуется через `labels` + `api`.
 | `pages/admin/PriceCatalogPage.vue` | /admin/price | Цены |
 | `pages/admin/SkuAdminPage.vue` | /admin/sku | Номенклатура |
 | `pages/admin/WidgetsPage.vue` | /widgets | Виджеты |
+| `pages/ImageProcessorTest.vue` | /tools/image-processor | Тест обработки изображений и PDF (профили) |
 
 ## `src/components/` — общие компоненты SPA
 

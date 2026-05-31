@@ -132,3 +132,38 @@ PyMuPDF        # PDF-превью (pip install PyMuPDF)
 Изображения: `{id, name, code, url, preview_url, is_default}`
 Документы: `{id, name, code, url, file_name}`
 Унифицировано: gearbox, filter_regulator, pa_controls.
+
+## Профили отображения (2026-05-30)
+
+`MediaCategory.PRESENTATION_PROFILES` — хардкод-словарь, определяющий какие варианты
+генерировать для каждой категории при загрузке файла.
+
+| Категория | Роли (ширины) | multi_page | dpi |
+|-----------|---------------|------------|-----|
+| PRODUCT_GALLERY | icon(50), thumb(80,150), card(400,800) | нет | 72 |
+| CERTIFICATE | icon(50), page(600), email→PDF(100dpi) | да | 150 |
+| TECH_DOC | icon(50), page(800), email→PDF(100dpi) | да | 150 |
+| BANNER | full(1200,1920) | нет | 72 |
+| SCHEMA/DRAWING/DIAGRAM | icon + card/full | нет | 150 |
+
+Профиль читается через `item.category.profile` или `MediaCategory.get_profile(code)`.
+
+## Генерация вариантов
+
+`media_library/services.py` — оркестратор:
+- `generate_variants(item)` — читает `item.category.profile`, вызывает `image_processor`,
+  сохраняет файлы в Cloud.ru, возвращает словарь для `item.variants` (JSONField)
+- `delete_variants(item)` — удаляет варианты из облака
+- `get_variants_for_api(item)` — оборачивает пути в URL через `file_service.get_file_url()`
+
+Генерация запускается автоматически при `MediaLibraryItem.save()` для изображений и PDF.
+
+## Модель MediaLibraryItem (2026-05-30)
+
+Новые поля:
+- `variants` (JSONField) — сгенерированные варианты: пути к файлам
+  - Изображения: `{'icon': {'50': 'path'}, 'card': {'400': 'path', '800': 'path'}, ...}`
+  - PDF: `{'pages': [{n:1, 'icon':{...}, 'page':{...}}, ...], 'total_pages': N}`
+
+Старые поля (deprecated):
+- `preview_file` — заменён на `variants`; оставлен для обратной совместимости

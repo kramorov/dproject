@@ -29,6 +29,7 @@ from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition
 from producers.models import Brands
 from storage_manager.fields import ManagedFileField
 from storage_manager.services import file_service
+from .services import generate_variants, _collect_variant_paths, delete_variants
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -54,22 +55,111 @@ class MediaCategory(models.Model):
     # Предопределенные категории с иконками, описанием и порядком
     PREDEFINED_CATEGORIES = [
         ('DRAWING', 'Чертеж', '📐', 'Чертежи и технические схемы изделий', 1),
-        ('PHOTO', 'Изображение', '📷', 'Фотографии и изображеия изделий и компонентов', 2),
-        ('SCHEMA', 'Схема', '🔌', 'Электрические и гидравлические схемы', 3),
-        ('DIAGRAM', 'Диаграмма', '📊', 'Графики и диаграммы', 4),
-        ('MANUAL', 'Инструкция', '📖', 'Инструкции по сборке и настройке', 5),
-        ('USER_MANUAL', 'Руководство по эксплуатации', '📚', 'Руководства по эксплуатации оборудования', 6),
-        ('WORD_TEMPLATE', 'Шаблон документа Word', '📝', 'Шаблоны документов Microsoft Word', 7),
-        ('EXCEL_TEMPLATE', 'Шаблон документа Excel', '📊', 'Шаблоны таблиц Microsoft Excel', 8),
-        ('CERTIFICATE', 'Сертификат', '🏆', 'Сертификаты соответствия и качества', 9),
-        ('TECH_DOC', 'Техдокументация', '📋', 'Техническая документация', 10),
-        ('PRESENTATION', 'Презентация', '📽️', 'Презентации и демонстрационные материалы', 11),
-        ('VIDEO', 'Видео', '🎬', 'Видео материалы и обучающие ролики', 12),
-        ('BROCHURE', 'Листовка', '📄', 'Рекламные листовки и буклеты', 13),
-        ('CATALOG', 'Каталог', '📑', 'Каталоги продукции и комплектующих', 14),
-        ('AUDIO', 'Аудио', '🎵', 'Аудио материалы', 15),
+        ('PRODUCT_GALLERY', 'Галерея товара', '📷', 'Фотографии и изображения товаров', 2),
+        ('BANNER', 'Баннер', '🖼️', 'Баннеры, слайдеры, фоны — на весь экран', 3),
+        ('SCHEMA', 'Схема', '🔌', 'Электрические и гидравлические схемы', 4),
+        ('DIAGRAM', 'Диаграмма', '📊', 'Графики и диаграммы', 5),
+        ('MANUAL', 'Инструкция', '📖', 'Инструкции по сборке и настройке', 6),
+        ('USER_MANUAL', 'Руководство по эксплуатации', '📚', 'Руководства по эксплуатации оборудования', 7),
+        ('WORD_TEMPLATE', 'Шаблон документа Word', '📝', 'Шаблоны документов Microsoft Word', 8),
+        ('EXCEL_TEMPLATE', 'Шаблон документа Excel', '📊', 'Шаблоны таблиц Microsoft Excel', 9),
+        ('CERTIFICATE', 'Сертификат', '🏆', 'Сертификаты соответствия и качества', 10),
+        ('TECH_DOC', 'Техдокументация', '📋', 'Техническая документация', 11),
+        ('PRESENTATION', 'Презентация', '📽️', 'Презентации и демонстрационные материалы', 12),
+        ('VIDEO', 'Видео', '🎬', 'Видео материалы и обучающие ролики', 13),
+        ('BROCHURE', 'Листовка', '📄', 'Рекламные листовки и буклеты', 14),
+        ('CATALOG', 'Каталог', '📑', 'Каталоги продукции и комплектующих', 15),
+        ('AUDIO', 'Аудио', '🎵', 'Аудио материалы', 16),
         ('OTHER', 'Другое', '📁', 'Прочие медиа материалы', 100),
     ]
+    
+    # ═══════════════════════════════════════════════════════════════
+    # Профили отображения по категориям.
+    #
+    # Определяют, какие варианты (размеры, форматы) генерировать
+    # для файлов каждой категории при загрузке.
+    #
+    # ⚠️  Изменение профиля НЕ обновляет существующие файлы.
+    #     После изменения нужно вручную перегенерировать варианты
+    #     через manage.py generate_media_variants --category=CODE.
+    # ═══════════════════════════════════════════════════════════════
+    PRESENTATION_PROFILES = {
+        'PRODUCT_GALLERY': {
+            'variants': [
+                {'role': 'icon', 'widths': [50],                'format': 'webp', 'quality': 80},
+                {'role': 'thumb', 'widths': [80, 150],          'format': 'webp', 'quality': 80},
+                {'role': 'card', 'widths': [400, 800],          'format': 'webp', 'quality': 80},
+            ],
+            'multi_page': False,
+            'render_dpi': 72,
+            'keep_alpha': True,
+        },
+        'BANNER': {
+            'variants': [
+                {'role': 'full', 'widths': [1200, 1920],        'format': 'webp', 'quality': 85},
+            ],
+            'multi_page': False,
+            'render_dpi': 72,
+            'keep_alpha': False,
+        },
+        'CERTIFICATE': {
+            'variants': [
+                {'role': 'icon',  'widths': [50],               'format': 'webp', 'quality': 80},
+                {'role': 'page',  'widths': [600],              'format': 'webp', 'quality': 85},
+                {'role': 'email', 'widths': [800],              'format': 'webp', 'quality': 80},
+            ],
+            'multi_page': True,
+            'render_dpi': 150,
+            'email_dpi': 100,
+            'keep_alpha': False,
+        },
+        'SCHEMA': {
+            'variants': [
+                {'role': 'icon', 'widths': [50],                'format': 'webp', 'quality': 80},
+                {'role': 'card', 'widths': [150, 400],          'format': 'webp', 'quality': 80},
+                {'role': 'full', 'widths': [800, 1600],         'format': 'webp', 'quality': 80},
+            ],
+            'multi_page': False,
+            'render_dpi': 150,
+            'keep_alpha': False,
+        },
+        'DRAWING': {
+            'variants': [
+                {'role': 'icon', 'widths': [50],                'format': 'webp', 'quality': 80},
+                {'role': 'full', 'widths': [800, 1600],         'format': 'webp', 'quality': 85},
+            ],
+            'multi_page': False,
+            'render_dpi': 150,
+            'keep_alpha': False,
+        },
+        'TECH_DOC': {
+            'variants': [
+                {'role': 'icon',  'widths': [50],               'format': 'webp', 'quality': 80},
+                {'role': 'page',  'widths': [800],              'format': 'webp', 'quality': 85},
+                {'role': 'email', 'widths': [800],              'format': 'webp', 'quality': 80},
+            ],
+            'multi_page': True,
+            'render_dpi': 150,
+            'email_dpi': 100,
+            'keep_alpha': False,
+        },
+        'DIAGRAM': {
+            'variants': [
+                {'role': 'icon', 'widths': [50],                'format': 'webp', 'quality': 80},
+                {'role': 'card', 'widths': [150, 400],          'format': 'webp', 'quality': 80},
+                {'role': 'full', 'widths': [800, 1600],         'format': 'webp', 'quality': 80},
+            ],
+            'multi_page': False,
+            'render_dpi': 150,
+            'keep_alpha': False,
+        },
+        'PRESENTATION': {
+            'variants': [],
+            'multi_page': False,
+            'render_dpi': 0,
+            'keep_alpha': False,
+        },
+    }
 
     PREDEFINED_CODES = [code for code, name, icon, desc, order in PREDEFINED_CATEGORIES]
 
@@ -176,6 +266,16 @@ class MediaCategory(models.Model):
                 }
             )
 
+    @classmethod
+    def get_profile(cls, code):
+        """Профиль отображения для кода категории (или пустой dict)."""
+        return cls.PRESENTATION_PROFILES.get(code, {})
+
+    @property
+    def profile(self):
+        """Профиль отображения этой категории."""
+        return self.PRESENTATION_PROFILES.get(self.code, {})
+
     @property
     def is_user_defined(self):
         """Является ли категория пользовательской"""
@@ -247,6 +347,13 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         verbose_name=_("Превью"),
         help_text=_("Автоматически создаваемое превью для изображений"),
         editable=False
+    )
+    
+    variants = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_("Варианты"),
+        help_text=_("Сгенерированные варианты: размеры, страницы PDF"),
     )
 
     # Классификация
@@ -337,22 +444,31 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
             self.mime_type = self._detect_mime_type()
             logger.info(f"Определен MIME-тип: {self.mime_type} для файла {self.media_file.name}")
 
+        is_new_file = self.pk is None or self._media_file_changed()
+        
         # Сохраняем объект чтобы получить pk
         super().save(*args, **kwargs)
 
-        # Создаем превью ПОСЛЕ сохранения (когда есть pk)
-        if self.media_file and not self.preview_file and (self.is_image() or self._is_pdf()):
-            logger.info(f"Создание превью для {self.pk}")
-            if self.create_preview():
-                # Сохраняем снова чтобы обновить preview_file
-                super().save(update_fields=['preview_file'])
-                logger.info(f"Превью создано для {self.pk}")
+        # Генерируем варианты ПОСЛЕ сохранения
+        if self.media_file and (self.is_image() or self._is_pdf()):
+            if not self.variants:
+                logger.info(f"Генерация вариантов для {self.pk} (категория: {self.category.code})")
             else:
-                logger.warning(f"Не удалось создать превью для {self.pk}")
+                logger.info(f"Обновление вариантов для {self.pk}")
+            # Удаляем старые варианты если файл изменился
+            if is_new_file and self.pk and self.variants:
+                delete_variants(self)
+            try:
+                self.variants = generate_variants(self)
+                super().save(update_fields=['variants'])
+                logger.info(f"Варианты созданы для {self.pk}")
+            except Exception as e:
+                logger.error(f"Ошибка генерации вариантов для {self.pk}: {e}")
 
 
     def _detect_mime_type(self):
         """Определяет MIME-тип файла по расширению"""
+
         if not self.media_file:
             return ''
 
@@ -377,6 +493,13 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         }
 
         return mime_types.get(extension, 'application/octet-stream')
+
+    def _media_file_changed(self):
+        """Проверяет, изменился ли media_file по сравнению с БД."""
+        if not self.pk:
+            return True
+        old = MediaLibraryItem.objects.filter(pk=self.pk).values('media_file').first()
+        return old and old['media_file'] != (self.media_file.name if self.media_file else '')
 
     def clean(self):
         """Валидация"""
@@ -664,6 +787,8 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
             paths_to_delete.append(self.media_file.name)
         if self.preview_file:
             paths_to_delete.append(self.preview_file.name)
+        if self.variants:
+            paths_to_delete.extend(_collect_variant_paths(self.variants))
 
         # Сначала удаляем запись БД
         super().delete(*args, **kwargs)

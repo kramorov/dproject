@@ -13,14 +13,17 @@
 
     <div v-else class="cropper-workspace">
       <div class="cropper-toolbar">
-        <label class="bg-picker">
+        <label class="bg-mode-select">
           Фон:
+          <select v-model="bgMode">
+            <option value="remove">Убрать фон</option>
+            <option value="fill">Наложить фон</option>
+          </select>
+          <span v-if="hasAlpha" class="alpha-note">🫧 альфа-канал</span>
+        </label>
+        <label class="bg-picker" v-if="bgMode === 'fill'">
           <input type="color" v-model="bgColor" />
           {{ bgColor }}
-        </label>
-        <label class="remove-bg-check">
-          <input type="checkbox" v-model="removeBg" />
-          Убрать фон
         </label>
         <button @click="resetImage" class="btn-ghost">Сбросить</button>
         <button @click="doCrop" class="btn-primary" :disabled="processing">
@@ -56,6 +59,7 @@
 import api from '@/shared/api'
 export default {
   name: 'ImageCropper',
+  props: { categoryCode: { type: String, default: '' } },
   emits: ['crop-complete'],
 
   data() {
@@ -63,7 +67,8 @@ export default {
       sessionId: null, originalUrl: null,
       imgW: 0, imgH: 0,
       bgColor: '#F0F0F0',
-      removeBg: false,
+      bgMode: 'remove',
+      hasAlpha: false,
 
       // Позиция и масштаб изображения на canvas
       imgX: 0, imgY: 0, zoom: 1,
@@ -108,6 +113,9 @@ export default {
           this.imgW = data.width; this.imgH = data.height
           this.$nextTick(() => this.initCanvas())
         } else { this.addLog(data.error || 'Upload failed', true); this.uploadError = data.error || 'Upload failed' }
+        if (data.has_alpha) {
+          this.hasAlpha = true; this.addLog('🫧 Альфа-канал — фон уже прозрачный')
+        }
       } catch (err) { this.addLog(err.message || 'Upload error', true); this.uploadError = err.message }
       this.processing = false
     },
@@ -228,27 +236,38 @@ export default {
     async doCrop() {
       this.processing = true; this.previewUrl = null; this.log = []
       this.addLog(`Обрезка: ${Math.round(this.frameSize/this.zoom)}×${Math.round(this.frameSize/this.zoom)} px`)
-      if (this.removeBg) this.addLog('Удаление фона нейросетью (rembg)…')
+      if (this.bgMode === 'remove') this.addLog('Удаление фона нейросетью (rembg)…')
       const origCropX = (this.frameX - this.imgX) / this.zoom
       const origCropY = (this.frameY - this.imgY) / this.zoom
       const origCropSize = this.frameSize / this.zoom
-      const body = { session_id: this.sessionId, crop_x: origCropX, crop_y: origCropY, crop_size: origCropSize, background_color: this.bgColor, remove_background: this.removeBg }
+      const body = {
+        session_id: this.sessionId,
+        crop_x: origCropX, crop_y: origCropY, crop_size: origCropSize,
+        background_color: this.bgColor,
+        remove_background: this.bgMode === 'remove',
+        category_code: this.categoryCode || undefined,
+      }
       try {
         this.addLog('Запрос превью…')
         const t0 = Date.now()
-        const prevR = await api.post('/image-processor/preview/', body)
+        const prevR = await api.post('/image-processor/preview/', body, { timeout: 120000 })
         if (prevR.data.preview) {
           this.previewUrl = prevR.data.preview
           this.addLog(`Превью готово (${(Date.now()-t0)/1000|0}с)`)
         }
         this.addLog('Генерация WebP…')
         const cropR = await api.post('/image-processor/crop/', body, { timeout: 120000 })
-        if (cropR.data.results) {
-          const info = [`SM: ${cropR.data.results.sm?.size||'?'}`, `MD: ${cropR.data.results.md?.size||'?'}`, `LG: ${cropR.data.results.lg?.size||'?'}`]
-          if (cropR.data.bg_removed_full_pct !== undefined) {
-            info.push(`фон: ${cropR.data.bg_removed_full_pct}% / в кадре ${cropR.data.bg_removed_crop_pct}%`)
+        if (cropR.data.results || cropR.data.variants) {
+          if (cropR.data.results) {
+            const info = [`SM: ${cropR.data.results.sm?.size||'?'}`, `MD: ${cropR.data.results.md?.size||'?'}`, `LG: ${cropR.data.results.lg?.size||'?'}`]
+            if (cropR.data.bg_removed_full_pct !== undefined) {
+              info.push(`фон: ${cropR.data.bg_removed_full_pct}% / в кадре ${cropR.data.bg_removed_crop_pct}%`)
+            }
+            this.addLog(`Готово! ${info.join(', ')}`)
+          } else {
+            const roleCount = Object.keys(cropR.data.variants).length
+            this.addLog(`Готово! Профиль «${cropR.data.category}», ролей: ${roleCount}`)
           }
-          this.addLog(`Готово! ${info.join(', ')}`)
           this.$emit('crop-complete', cropR.data)
         } else if (cropR.data.error) {
           this.addLog(cropR.data.error, true)
@@ -271,8 +290,9 @@ export default {
 .cropper-toolbar { display: flex; align-items: center; gap: 16px; padding: 12px 0; flex-wrap: wrap; }
 .bg-picker { display: flex; align-items: center; gap: 6px; font-size: 14px; }
 .bg-picker input[type="color"] { width: 32px; height: 28px; border: none; cursor: pointer; }
-.remove-bg-check { display: flex; align-items: center; gap: 4px; font-size: 14px; cursor: pointer; }
-.remove-bg-check input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+.bg-mode-select { display: flex; align-items: center; gap: 4px; font-size: 14px; }
+.bg-mode-select select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.alpha-note { font-size: 12px; color: #22c55e; background: #dcfce7; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
 .btn-primary { padding: 8px 24px; background: var(--cat-primary, #3b82f6); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-ghost { padding: 8px 16px; background: transparent; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 14px; }

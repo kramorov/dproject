@@ -1,13 +1,17 @@
 # image_processor/services.py
 """
-Генерация WebP-вариантов из crop-параметров.
+Переиспользуемые инструменты обработки изображений и PDF.
 
-Pipeline:
+Image pipeline (crop):
     1. Открыть оригинал (Pillow)
     2. [Опционально] Убрать фон нейросетью (rembg)
     3. Вырезать crop-область (crop_x, crop_y, crop_size)
     4. Добить фоном (background_color) — если рамка выходит за границы
     5. Сгенерировать WebP: sm(150), md(400), lg(800)
+
+PDF pipeline:
+    1. Рендерить страницу/страницы через PyMuPDF (fitz)
+    2. Вернуть PIL Image для дальнейшей обработки
 """
 from io import BytesIO
 from PIL import Image
@@ -137,6 +141,172 @@ def generate_webp_variants(image: Image.Image) -> dict:
     return variants
 
 
+def resize_and_encode(image: Image.Image, width: int, fmt: str = 'webp',
+                      quality: int = 80) -> BytesIO:
+    """
+    Ресайз изображения по ширине (пропорционально) и кодирование в целевой формат.
+    
+    Args:
+        image:   PIL Image
+        width:   целевая ширина в px
+        fmt:     'webp', 'jpeg'/'jpg', 'png'
+        quality: качество сжатия (для lossy-форматов)
+    
+    Returns BytesIO с закодированным изображением (указатель на начале).
+    """
+    variant = image.copy()
+    w_percent = width / float(variant.size[0])
+    h = int(float(variant.size[1]) * w_percent)
+    variant = variant.resize((width, h), Image.LANCZOS)
+    
+    buf = BytesIO()
+    fmt_lower = fmt.lower()
+    
+    if fmt_lower == 'webp':
+        variant.save(buf, 'WEBP', quality=quality)
+    elif fmt_lower in ('jpeg', 'jpg'):
+        if variant.mode == 'RGBA':
+            bg = Image.new('RGB', variant.size, (255, 255, 255))
+            bg.paste(variant, (0, 0), variant)
+            variant = bg
+        elif variant.mode != 'RGB':
+            variant = variant.convert('RGB')
+        variant.save(buf, 'JPEG', quality=quality)
+    elif fmt_lower == 'png':
+        variant.save(buf, 'PNG')
+    else:
+        variant.save(buf, 'WEBP', quality=quality)
+    
+    buf.seek(0)
+    return buf
+
+
+def render_pdf_page(pdf_bytes: bytes, page_num: int = 0,
+                    dpi: int = 150) -> Image.Image:
+    """
+    Рендерит одну страницу PDF в PIL Image (RGB).
+    
+    Args:
+        pdf_bytes: сырые байты PDF-файла
+        page_num:  номер страницы (0-based)
+        dpi:       разрешение (150 = читаемый A4, 72 = превью)
+    """
+    try:
+        import fitz
+    except ImportError:
+        raise RuntimeError('PyMuPDF (fitz) не установлен: pip install PyMuPDF')
+    
+    doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+    if page_num >= len(doc):
+        doc.close()
+        raise IndexError(
+            f'Страница {page_num} за пределами PDF (всего {len(doc)} стр.)'
+        )
+    page = doc[page_num]
+    pix = page.get_pixmap(dpi=dpi)
+    img = Image.frombytes('RGB', [pix.width, pix.height], pix.samples)
+    doc.close()
+    return img
+
+
+def _process_pdf_with_profile(pdf_bytes: bytes, profile: dict,
+                               category_code: str) -> dict:
+    """
+    Render PDF pages and generate profile-based variants.
+    
+    Special handling for 'email' role: all pages re-rendered at email_dpi,
+    combined into a single PDF preserving original page dimensions (A4 etc.).
+    """
+    import base64
+    import fitz
+    from io import BytesIO
+    
+    multi_page = profile.get('multi_page', False)
+    render_dpi = profile.get('render_dpi', 150)
+    email_dpi = profile.get('email_dpi', 0)
+    
+    # Separate email variants from per-page variants
+    variants = profile.get('variants', [])
+    has_email = any(vs['role'] == 'email' for vs in variants)
+    page_variants = [vs for vs in variants if vs['role'] != 'email']
+    
+    doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+    total = len(doc)
+    max_pages = total if multi_page else 1
+    
+    pages = []
+    for i in range(max_pages):
+        page = doc[i]
+        pix = page.get_pixmap(dpi=render_dpi)
+        page_img = Image.frombytes('RGB', [pix.width, pix.height], pix.samples)
+        
+        page_entry = {'n': i + 1}
+        for vs in page_variants:
+            role = vs['role']
+            role_variants = {}
+            for w in vs['widths']:
+                buf = resize_and_encode(page_img, w, vs['format'], vs['quality'])
+                b64 = base64.b64encode(buf.read()).decode()
+                fmt_lower = vs['format'].lower()
+                mime_ext = 'jpeg' if fmt_lower in ('jpeg', 'jpg') else fmt_lower
+                role_variants[str(w)] = {
+                    'data': f'data:image/{mime_ext};base64,{b64}',
+                    'size': buf.getbuffer().nbytes,
+                    'format': vs['format'],
+                    'width': w,
+                }
+            page_entry[role] = role_variants
+        pages.append(page_entry)
+    
+    doc.close()
+    
+    result = {
+        'category': category_code,
+        'profile': profile,
+        'pages': pages,
+        'total_pages': total,
+        'original_size': len(pdf_bytes),
+    }
+    
+    # ── Email: re-render at email_dpi, combine into one PDF ──
+    if has_email and email_dpi:
+        email_doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+        out_pdf = fitz.open()
+        
+        for i in range(max_pages):
+            page = email_doc[i]
+            page_rect = page.rect  # original page size in points (e.g. A4: 595×842)
+            pix = page.get_pixmap(dpi=email_dpi)
+            img = Image.frombytes('RGB', [pix.width, pix.height], pix.samples)
+            
+            buf = BytesIO()
+            img.save(buf, 'JPEG', quality=60, optimize=True)
+            buf.seek(0)
+            
+            out_page = out_pdf.new_page(width=page_rect.width, height=page_rect.height)
+            out_page.insert_image(out_page.rect, stream=buf.read())
+        
+        email_doc.close()
+        
+        pdf_buf = BytesIO()
+        out_pdf.save(pdf_buf, garbage=4, deflate=True)
+        out_pdf.close()
+        pdf_buf.seek(0)
+        
+        b64 = base64.b64encode(pdf_buf.read()).decode()
+        result['email_pdf'] = {
+            str(email_dpi): {
+                'data': f'data:application/pdf;base64,{b64}',
+                'size': pdf_buf.getbuffer().nbytes,
+                'format': 'pdf',
+                'dpi': email_dpi,
+                'pages': max_pages,
+            }
+        }
+    
+    return result
+
+
 def process_crop_session(session) -> dict:
     """
     Основной pipeline для ImageCropSession.
@@ -146,9 +316,9 @@ def process_crop_session(session) -> dict:
 
     content = session.original_file.read()
     img = Image.open(BytesIO(content))
-
-    # Убрать фон нейросетью
     has_alpha = False
+    pct_full = 0.0
+
     if session.remove_background:
         img_before = img.copy()
         img = _remove_background(img)
@@ -162,7 +332,7 @@ def process_crop_session(session) -> dict:
         else:
             transparent_full, pct_full = 0, 0.0
 
-    # Привести к RGB если нет прозрачности
+    # Привести к RGB только если нет прозрачности
     if not has_alpha:
         if img.mode == 'RGBA':
             bg = Image.new('RGB', img.size, hex_to_rgb(session.background_color))
@@ -207,4 +377,81 @@ def process_crop_session(session) -> dict:
     if session.remove_background:
         result['bg_removed_full_pct'] = pct_full
         result['bg_removed_crop_pct'] = crop_pct
+    return result
+
+
+def process_with_profile(session, category_code: str) -> dict:
+    """
+    Process file (image or PDF) using a MediaCategory profile.
+    
+    Returns dict with base64-encoded variants (no DB writes).
+    
+    Images:  {'category':..., 'variants': {'icon':{'50':{...}}, ...}}
+    PDF:     {'category':..., 'pages': [{'n':1, 'icon':{...}, 'page':{...}}, ...]}
+    """
+    import base64
+    from io import BytesIO
+    from media_library.models import MediaCategory
+    
+    profile = MediaCategory.get_profile(category_code)
+    if not profile or not profile.get('variants'):
+        return {'error': f'No profile or variants for category "{category_code}"'}
+    
+    content = session.original_file.read()
+    
+    # ── PDF branch ──
+    if session.original_file.name.lower().endswith('.pdf'):
+        return _process_pdf_with_profile(content, profile, category_code)
+    
+    # ── Image branch ──
+    img = Image.open(BytesIO(content))
+    has_alpha = False
+    pct_full = 0.0
+    
+    if session.remove_background:
+        img = _remove_background(img)
+        has_alpha = True
+        if img.mode == 'RGBA':
+            alpha_full = img.split()[-1]
+            total_full = alpha_full.size[0] * alpha_full.size[1]
+            transparent_full = sum(1 for p in alpha_full.getdata() if p < 128)
+            pct_full = round(transparent_full / total_full * 100, 1) if total_full else 0
+    
+    if not has_alpha:
+        if img.mode == 'RGBA':
+            bg = Image.new('RGB', img.size, hex_to_rgb(session.background_color))
+            bg.paste(img, (0, 0), img)
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+    
+    # Crop + pad
+    cropped = crop_and_pad(
+        img, session.crop_x, session.crop_y, session.crop_size,
+        session.background_color, has_alpha=has_alpha,
+    )
+    
+    # ── Profile-based variants ──
+    result = {
+        'category': category_code,
+        'profile': profile,
+        'variants': {},
+    }
+    
+    for vs in profile['variants']:
+        role = vs['role']
+        result['variants'][role] = {}
+        for w in vs['widths']:
+            buf = resize_and_encode(cropped, w, vs['format'], vs['quality'])
+            b64 = base64.b64encode(buf.read()).decode()
+            fmt_lower = vs['format'].lower()
+            mime_ext = 'jpeg' if fmt_lower in ('jpeg', 'jpg') else fmt_lower
+            result['variants'][role][str(w)] = {
+                'data': f'data:image/{mime_ext};base64,{b64}',
+                'size': buf.getbuffer().nbytes,
+                'format': vs['format'],
+                'width': w,
+            }
+    
+    result['cropped_size'] = cropped.size[0] * cropped.size[1]  # pixels
     return result
