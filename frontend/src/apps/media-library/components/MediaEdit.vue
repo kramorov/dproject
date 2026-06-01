@@ -60,7 +60,12 @@
       <!-- Правая колонка: превью + варианты + редактор -->
       <div class="edit-right">
         <div class="edit-preview">
-          <img v-if="isPreviewable(item)" :src="previewUrl(item.id)" class="preview-img" />
+          <img v-if="isImage(item?.mime_type)" :src="previewUrl(item.id)" class="preview-img" />
+          <iframe
+            v-else-if="item?.mime_type === 'application/pdf'"
+            :src="previewUrl(item.id)" class="preview-pdf"
+            frameborder="0"
+          />
           <div v-else-if="!item?.has_file" class="preview-placeholder">
             <span class="preview-placeholder-icon">📁</span>
             <span class="preview-placeholder-text">{{ item.file_name || '—' }}</span>
@@ -155,7 +160,7 @@ function extractId(value) {
   return typeof value === 'object' ? value.id : value
 }
 
-watch(() => props.item, (val) => {
+watch(() => props.item, async (val) => {
   if (val) {
     form.name = val.name || ''
     form.code = val.code || ''
@@ -171,6 +176,15 @@ watch(() => props.item, (val) => {
     newFile.value = null
     saveError.value = null
     showCropper.value = false
+    // Ленивая загрузка вариантов
+    if (val.has_file && (isImage(val.mime_type) || val.mime_type === 'application/pdf')) {
+      try {
+        const { data } = await mediaApi.getVariants(val.id)
+        if (data.variants) {
+          val.variants = data.variants
+        }
+      } catch {}
+    }
   }
 }, { immediate: true })
 
@@ -208,6 +222,9 @@ async function onCropComplete(cropData) {
     fd.append('file', file)
     const { data } = await mediaApi.regenerateVariants(props.item.id, fd)
     if (data.success) {
+      if (data.variants) {
+        props.item.variants = data.variants
+      }
       emit('updated')  // обновит карточку и покажет новые варианты
     } else {
       saveError.value = data.message || 'Ошибка генерации вариантов'
@@ -270,6 +287,9 @@ async function doRecreatePreview() {
   try {
     const { data } = await mediaApi.recreatePreview(props.item.id)
     if (data.success) {
+      if (data.variants) {
+        props.item.variants = data.variants
+      }
       emit('updated')
     } else {
       saveError.value = data.message || 'Не удалось обновить варианты'
@@ -311,6 +331,7 @@ async function doCopy() {
   border: 1px solid #e2e8f0; border-radius: 6px;
 }
 .preview-img { max-width: 100%; max-height: 160px; border-radius: 4px; object-fit: contain; display: block; margin: 0 auto 4px; }
+.preview-pdf { width: 100%; height: 200px; border: none; border-radius: 4px; }
 .preview-open-link { font-size: 12px; color: #2563eb; text-decoration: none; }
 .preview-open-link:hover { text-decoration: underline; }
 .preview-placeholder {

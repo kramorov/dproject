@@ -226,12 +226,14 @@ class FilterRegulator(
             return None
         try:
             from django.conf import settings
-            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
+            has_email = doc.variants.filter(role='email').exists()
             return {
                 'id': doc.id,
                 'name': getattr(doc, 'name', '') or '',
-                'url': f"{base}/api/media/{doc.id}/download/",
+                'url': f"/api/media/{doc.id}/download/",
                 'file_name': getattr(doc, 'file_name', '') or '',
+                'preview_url': f"/api/media/{doc.id}/view/",
+                'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
             }
         except Exception:
             return None

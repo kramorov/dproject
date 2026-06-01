@@ -1,6 +1,9 @@
 # media_library/views/download.py
 """
-GET — скачивание медиафайла.
+GET — скачивание медиафайла или варианта.
+
+Параметры:
+    ?variant=email — отдать email-вариант (сжатый PDF) вместо оригинала.
 
 Отдаёт файл как бинарный поток с правильными заголовками:
 - Content-Type из mime_type
@@ -8,7 +11,8 @@ GET — скачивание медиафайла.
 - Content-Length
 """
 import logging
-from django.http import Http404, FileResponse
+from django.http import Http404, FileResponse, HttpResponseRedirect
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -37,6 +41,26 @@ class MediaDownloadView(APIView):
             return Response(
                 {'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN
             )
+
+        variant = request.GET.get('variant', '')
+        mode = getattr(settings, 'MEDIA_SERVE_MODE', 'redirect')
+
+        if variant == 'email':
+            v = item.variants.filter(role='email').first()
+            if not v:
+                raise Http404("Email variant not found")
+            # Стримим напрямую — редирект ломает Content-Disposition
+            from storage_manager.services import file_service
+            try:
+                f = file_service.storage.open(v.file_path, 'rb')
+            except Exception:
+                raise Http404("Variant file not accessible")
+            content_type = f'image/{v.format}' if v.format != 'pdf' else 'application/pdf'
+            ext = v.format if v.format != 'pdf' else 'pdf'
+            response = FileResponse(f, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{(item.name or "document")} (сжат).{ext}"'
+            response['Content-Length'] = v.file_size
+            return response
 
         if not item.media_file or not item.media_file.name:
             raise Http404("File not found")

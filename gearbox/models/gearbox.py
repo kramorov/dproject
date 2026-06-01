@@ -253,17 +253,19 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
         return CatalogDictMixin._get_image_url(self, img)
 
     def _get_file_info(self, doc):
-        """Информация о файле — абсолютный URL для работы на сторонних сайтах."""
+        """Информация о файле — URL для скачивания, превью, email-вариант."""
         if not doc:
             return None
         try:
             from django.conf import settings
-            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
+            has_email = doc.variants.filter(role='email').exists()
             return {
                 'id': doc.id,
                 'name': getattr(doc, 'name', '') or '',
-                'url': f"{base}/api/media/{doc.id}/download/",
+                'url': f"/api/media/{doc.id}/download/",
                 'file_name': getattr(doc, 'file_name', '') or '',
+                'preview_url': f"/api/media/{doc.id}/view/",
+                'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
             }
         except Exception:
             return None
@@ -358,11 +360,16 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
                 if not media:
                     continue
 
+                has_email = media.variants.filter(role='email').exists()
+                variety_name = getattr(getattr(cert, 'cert_variety', None), 'name', '') or ''
+                dl_name = f"Сертификат {variety_name} {code}".strip() if variety_name else (code or 'certificate')
                 certs.append({
                     'id': cert.id,
-                    'title': title,
-                    'file_name': code,
-                    'url': f"{base}/api/media/{media.id}/download/",
+                    'name': title,
+                    'file_name': dl_name,
+                    'url': f"/api/media/{media.id}/download/",
+                    'preview_url': f"/api/media/{media.id}/view/",
+                    'email_url': f"/api/media/{media.id}/download/?variant=email" if has_email else None,
                 })
             except Exception:
                 continue

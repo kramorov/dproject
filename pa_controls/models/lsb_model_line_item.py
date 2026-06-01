@@ -539,19 +539,25 @@ class LsbModelLineItem(CatalogDictMixin,
         for doc in self.tech_docs.all():
             if doc.media_file and doc.id not in seen:
                 seen.add(doc.id)
+                has_email = doc.variants.filter(role='email').exists()
                 docs.append({
                     'id': doc.id, 'name': getattr(doc, 'name', '') or '',
-                    'code': getattr(doc, 'code', '') or '',
-                    'url': doc.media_file.url, 'file_name': getattr(doc, 'name', '') or '',
+                    'url': f"/api/media/{doc.id}/download/",
+                    'file_name': getattr(doc, 'name', '') or '',
+                    'preview_url': f"/api/media/{doc.id}/view/",
+                    'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
                 })
         if self.model_line and hasattr(self.model_line, 'tech_docs'):
             for doc in self.model_line.tech_docs.all():
                 if doc.media_file and doc.id not in seen:
                     seen.add(doc.id)
+                    has_email = doc.variants.filter(role='email').exists()
                     docs.append({
                         'id': doc.id, 'name': getattr(doc, 'name', '') or '',
-                        'code': getattr(doc, 'code', '') or '',
-                        'url': doc.media_file.url, 'file_name': getattr(doc, 'name', '') or '',
+                        'url': f"/api/media/{doc.id}/download/",
+                        'file_name': getattr(doc, 'name', '') or '',
+                        'preview_url': f"/api/media/{doc.id}/view/",
+                        'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
                     })
         return docs
 
@@ -572,17 +578,18 @@ class LsbModelLineItem(CatalogDictMixin,
             )
             if cert_ids:
                 from cert_doc.models import CertData
-                from django.conf import settings
-                base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
                 for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item'):
                     media = getattr(cert, 'media_item', None)
                     if not media:
                         continue
+                    has_email = media.variants.filter(role='email').exists()
                     certs.append({
                         'id': cert.id,
-                        'title': getattr(cert, 'name', '') or '',
-                        'file_name': getattr(cert, 'code', '') or '',
-                        'url': f"{base}/api/media/{media.id}/view/",
+                        'name': getattr(cert, 'name', '') or '',
+                        'file_name': f"Сертификат {getattr(getattr(cert, 'cert_variety', None), 'name', '') or ''} {getattr(cert, 'code', '') or ''}".strip() or 'certificate',
+                        'url': f"/api/media/{media.id}/download/",
+                        'preview_url': f"/api/media/{media.id}/view/",
+                        'email_url': f"/api/media/{media.id}/download/?variant=email" if has_email else None,
                     })
         return certs
 

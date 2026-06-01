@@ -145,6 +145,17 @@ class MediaCategory(models.Model):
             'render_dpi': 150,
             'keep_alpha': False,
         },
+        'USER_MANUAL': {
+            'variants': [
+                {'role': 'icon',  'widths': [50],               'format': 'webp', 'quality': 80},
+                {'role': 'page',  'widths': [800],              'format': 'webp', 'quality': 85},
+                {'role': 'email', 'widths': [800],              'format': 'webp', 'quality': 80},
+            ],
+            'multi_page': True,
+            'render_dpi': 150,
+            'email_dpi': 100,
+            'keep_alpha': False,
+        },
         'TECH_DOC': {
             'variants': [
                 {'role': 'icon',  'widths': [50],               'format': 'webp', 'quality': 80},
@@ -716,10 +727,11 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
     @property
     def preview_url(self):
         """URL preview-варианта из MediaVariant (первый thumb/card), фолбэк на preview_file/оригинал."""
-        # card 400 → thumb 150 → что есть
+        # card 400 → thumb 150 → icon 50 → что есть
         v = (self.variants.filter(role='card', width=400).first() or
              self.variants.filter(role='thumb', width=150).first() or
-             self.variants.filter(role__in=['card', 'thumb']).order_by('width').first())
+             self.variants.filter(role='icon', width=50).first() or
+             self.variants.filter(role__in=['card', 'thumb', 'icon', 'page']).order_by('width').first())
         if v:
             return file_service.get_file_url(v.file_path)
         if self.preview_file and self.preview_file.name:
@@ -930,7 +942,6 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         'public_url': self.public_url ,
         'file_name': self.media_file.name if self.media_file else None ,
         'created_at': self.created_at.isoformat() if self.created_at else None ,
-            'variants': self.get_variants_for_api(),
         }
 
     def get_compact_data(self):
@@ -1011,7 +1022,12 @@ class ImageGallerySetItem(models.Model):
 # ═══════════════════════════════════════════════════════════════
 
 class MediaVariant(models.Model):
-    """Вариант медиафайла: ресайз/формат/страница PDF."""
+    """
+    Вариант медиафайла: ресайз/формат/страница PDF.
+
+    Для изображений — ресайзы по ролям (icon, thumb, card, full).
+    Для PDF — постраничные рендеры (icon, page) + сжатый комбинированный PDF (email, format='pdf').
+    """
     media_item = models.ForeignKey(
         'media_library.MediaLibraryItem',
         on_delete=models.CASCADE,

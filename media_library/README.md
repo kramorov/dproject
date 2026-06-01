@@ -166,5 +166,10 @@ PyMuPDF        # PDF-превью (pip install PyMuPDF)
 - `file_path`, `file_size`, `page_num` (nullable, для PDF), `created_at`
 - `unique_together`: (media_item, role, width, page_num)
 
+Email-вариант для PDF: один `MediaVariant` с `role='email', format='pdf', page_num=1` —
+комбинированный сжатый PDF (email_dpi, JPEG quality=60).
+
+`preview_url` property: card 400 → thumb 150 → icon 50 → preview_file (фолбэк) → оригинал.
+
 Старые поля (deprecated):
-- `preview_file` — заменён на `variants`; оставлен для обратной совместимости
+- `preview_file` — заменён на `MediaVariant`; оставлен для обратной совместимости

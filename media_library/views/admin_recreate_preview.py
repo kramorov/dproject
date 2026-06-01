@@ -44,6 +44,7 @@ class MediaAdminRecreatePreviewView(APIView):
             return Response({
                 'success': True,
                 'message': f'Regenerated {count} variants',
+                'variants': item.get_variants_for_api(),
                 'item': item.to_dict(),
             })
         except Exception as e:

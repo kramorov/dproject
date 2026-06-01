@@ -22,6 +22,7 @@ export default {
   },
   copy(id) { return api.post(`${BASE}/${id}/copy/`) },
   recreatePreview(id) { return api.post(`${BASE}/${id}/recreate-preview/`) },
+  getVariants(id) { return api.get(`${BASE}/${id}/variants/`) },
   regenerateVariants(id, formData) {
     return api.post(`${BASE}/${id}/regenerate-variants/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

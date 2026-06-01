@@ -25,6 +25,29 @@
   - `ImageGalleryMixin._build_image_dict()` → `img.preview_url`
   - Внешние ссылки (gearbox_catalog, pa_controls, valve_data) → `preview_url`
 - ⚠️ **После проверки — удалить preview_file файлы из Cloud.ru, затем дропнуть поле из БД**
+- **Email PDF** — для PDF-категорий (CERTIFICATE, TECH_DOC, USER_MANUAL) генерируется сжатый комбинированный PDF (email_dpi, JPEG quality=60)
+  - `generate_variants()` разделяет email от постраничных вариантов
+  - Email сохраняется как один `MediaVariant` с `role='email', format='pdf', page_num=1`
+  - `get_variants_for_api()` возвращает `email_pdf` отдельным ключом
+- **Профили**: добавлен `USER_MANUAL` (как TECH_DOC), `PHOTO` (как PRODUCT_GALLERY)
+- **preview_url** — card 400 → thumb 150 → icon 50 → любой
+- **`_detect_mime_type`** — добавлен `.webp`
+- **Фронтенд медиабиблиотеки**:
+  - `MediaEdit` — двухколоночный макет, превью `<iframe>` для PDF, `<img>` для изображений
+  - `MediaVariantsPreview` — показ сгенерированных вариантов
+  - `ImageCropper` — `initialUrl` prop + авто-загрузка существующего изображения
+  - `MediaGrid` — PDF показывают миниатюру (icon 50px) или иконку 📄
+  - `MediaPreviewView` — `?proxy=1` для CORS
+- **Каталоги (gearbox, filter-regulator, pa_controls)**:
+  - `_get_file_info` / `_get_certs_section` — относительные URL, `preview_url`, `email_url`
+  - `FileList.vue` — превью, 👁️ Открыть (DocViewer), 📥 Скачать, 📧 Сжат
+  - `DocViewer.vue` — попап с постраничным просмотром (◀ ▶, клавиатура)
+  - `MediaDownloadView` — поддержка `?variant=email` (прямая отдача PDF)
+  - Конфиги: `prefetch_related('...__image__variants')` во всех трёх
+  - `FilterSidebar` — `color: var(--cat-text)` для select
+  - `CatalogList`/`CatalogModelLine` — `defineEmits(['navigate'])`
+  - `gearbox-catalog/App.vue` — `id-prop="model_line_id"` (был `brand_id`)
+- **Миграция**: `replace_variants_jsonfield_with_through_model` (сделана)
 
 ## ⏳ Задачи на потом
 

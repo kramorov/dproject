@@ -45,6 +45,7 @@ class MediaAdminRegenerateVariantsView(APIView):
             return Response({
                 'success': True,
                 'message': f'Сгенерировано {count} вариантов',
+                'variants': item.get_variants_for_api(),
                 'item': item.to_dict(),
             })
         except Exception as e:

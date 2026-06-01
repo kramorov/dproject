@@ -143,6 +143,14 @@ pip install rembg onnxruntime    # удаление фона
 pip install PyMuPDF              # рендеринг PDF (fitz)
 ```
 
+## Интеграция с MediaVariant
+
+Начиная с 2026-06-01, `media_library/services.py` использует `image_processor` для генерации:
+- Постраничных вариантов (icon, page) — WebP
+- Email PDF — комбинированный сжатый PDF (email_dpi, JPEG quality=60, deflate)
+
+Email сохраняется как один `MediaVariant` с `role='email', format='pdf'`.
+
 ## Ограничения
 
 - `rembg` (U2Net) хорошо работает на однородном фоне. На сложном — частично.

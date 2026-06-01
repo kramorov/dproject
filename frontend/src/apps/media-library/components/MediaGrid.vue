@@ -28,7 +28,7 @@
       >
         <div class="card-preview" @click.stop="$emit('preview', item, index)">
           <img
-            v-if="isPreviewable(item)"
+            v-if="item.has_file && (isImage(item.mime_type) || item.mime_type === 'application/pdf')"
             :src="previewUrl(item.id)" :alt="item.name" class="card-img"
           />
           <div v-else-if="item.has_file" class="card-placeholder">{{ iconFor(item.mime_type) }}</div>
