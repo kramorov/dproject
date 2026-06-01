@@ -3,7 +3,6 @@
 <template>
   <div class="product-header">
     <h1 class="product-title">{{ name || code }}</h1>
-    <p class="product-code" v-if="code">{{ code }}</p>
 
     <div class="product-price" v-if="price">
       <span class="price-value">{{ price.price }}</span>

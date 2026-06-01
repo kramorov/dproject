@@ -163,6 +163,7 @@ INSTALLED_APPS = [
     'pa_controls.apps.PaControlsConfig',
     'filter_regulator.apps.FilterRegulatorConfig',
     'gearbox.apps.GearBoxConfig',
+    'storage_manager.apps.StorageManagerConfig',
     'core.apps.CoreConfig'
 ]
 

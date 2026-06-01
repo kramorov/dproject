@@ -443,6 +443,7 @@ class FilterRegulator(
         return {
             'id': self.id,
             'code': self.code or '',
+            'title': self.generate_title(),
             'name': self.name or '',
             'image_alt': self._get_image_alt(),
             'template_vars': tv,

@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
+from price.services.currency_converter import get_bulk_prices
+from core.utils.catalog_helpers import get_currency_code
 
 
 class LimitSwitchBoxCatalogView(APIView):
@@ -28,5 +30,20 @@ class LimitSwitchBoxCatalogView(APIView):
             filter_definitions=filter_set.definitions,
             base_queryset=qs,
         )
+
+        # Цены
+        currency_code = get_currency_code(request)
+        data = result.get('data', [])
+        sku_codes = [item.get('sku', {}).get('code') for item in data if item.get('sku', {}).get('code')]
+        prices = get_bulk_prices(sku_codes, currency_code) if sku_codes else {}
+        for item in data:
+            item['price'] = prices.get(item.get('sku', {}).get('code'))
+        if result.get('compatible_data'):
+            comp_data = result['compatible_data']
+            comp_skus = [item.get('sku', {}).get('code') for item in comp_data if item.get('sku', {}).get('code')]
+            comp_prices = get_bulk_prices(comp_skus, currency_code) if comp_skus else {}
+            for item in comp_data:
+                item['price'] = comp_prices.get(item.get('sku', {}).get('code'))
+            result['currency'] = currency_code
 
         return Response(result)

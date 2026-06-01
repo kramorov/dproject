@@ -151,6 +151,21 @@ pip install PyMuPDF              # рендеринг PDF (fitz)
 
 Email сохраняется как один `MediaVariant` с `role='email', format='pdf'`.
 
+## Очистка сессий
+
+`ImageCropSession` удаляется автоматически:
+- **Новый режим** (`category_code` передан в `/crop/`): сессия удаляется сразу после ответа — данные в base64, файлы в облако не пишутся.
+- **Старый режим**: `original_file` удаляется, `result_sm/md/lg` остаются — клиент получает presigned URL.
+- **При ошибке** сессия тоже удаляется.
+
+Для зачистки брошенных сессий (пользователь загрузил изображение, но не нажал «Обрезать»):
+
+```bash
+python manage.py cleanup_crop_sessions --dry-run    # посмотреть сколько
+python manage.py cleanup_crop_sessions               # старше 1 часа
+python manage.py cleanup_crop_sessions --all          # все
+```
+
 ## Ограничения
 
 - `rembg` (U2Net) хорошо работает на однородном фоне. На сложном — частично.

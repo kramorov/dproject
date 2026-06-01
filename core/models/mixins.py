@@ -96,12 +96,21 @@ class TemplateMixin:
         """Переопределить в модели: вернуть шаблон описания или None."""
         return None
 
+    def _get_title_template_source(self):
+        """Переопределить в модели: вернуть шаблон заголовка или None."""
+        return None
+
     # === ДЕФОЛТНЫЕ ШАБЛОНЫ ===
     def _get_default_name_template(self) -> str:
         return "{model_code}"
 
     def _get_default_description_template(self) -> str:
         return "{model_code}"
+
+    def _get_default_title_template(self) -> str:
+        """Дефолтный шаблон заголовка."""
+        return "{model_code}"
+
 
     # === СЛОВАРЬ ДЛЯ ПОДСТАНОВКИ ===
     def _get_data_dict(self) -> Dict[str, str]:
@@ -154,6 +163,11 @@ class TemplateMixin:
     @property
     def name_template(self) -> str:
         return self._get_name_template_source() or self._get_default_name_template()
+
+    @property
+    def title_template(self) -> str:
+        """Итоговый шаблон заголовка: source или default."""
+        return self._get_title_template_source() or self._get_default_title_template()
 
     @property
     def description_template(self) -> str:
@@ -220,6 +234,10 @@ class TemplateMixin:
 
     def get_display_description(self) -> str:
         return self.generate_description()
+
+    def generate_title(self) -> str:
+        """Сгенерировать заголовок из шаблона title_template."""
+        return self._fill_template(self.title_template)
 
     # === ОБНОВЛЕНИЕ ПОЛЕЙ МОДЕЛИ ===
     def update_name(self, save: bool = False) -> bool:

@@ -23,7 +23,7 @@ cd C:\Users\kramo\PycharmProjects\djangoProject1
 codewhale
 npm install -g codewhale-tui
 deepseek update
-Прочитай SESSION.md, CATALOG_PATTERN.md, frontend\README.md, image_processor\README.md medialibrary\README.md продолжай
+Прочитай SESSION.md, CATALOG_PATTERN.md, frontend\README.md, image_processor\README.md media_library\README.md продолжай
 
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).
@@ -236,3 +236,37 @@ ca62177a-1c49-40f9-9c58-965d01621220
 pip install awscli
 
 python -c "from rembg import remove; print('Модель загружена')"
+
+
+Готово. Команда для полного бэкапа:
+
+python manage.py backup_cloudru
+Файлы сохранятся в backups/cloudru/2026-06-01/ с сохранением S3-структуры путей. Там же будет manifest.json со списком всех объектов и их метаданными.
+Если хочешь сначала посмотреть что будет скачано (без загрузки):
+python manage.py backup_cloudru --dry-run
+
+Только создать индекс без файлов:
+python manage.py backup_cloudru --manifest-only
+
+После бэкапа — запусти find_orphaned_files для поиска мусора:
+python manage.py find_orphaned_files
+
+Теперь можно. Полный workflow:
+
+1. Бэкап:
+python manage.py backup_cloudru
+→ backups/cloudru/2026-06-01/manifest.json + все файлы
+
+2. Поиск орфанов по манифесту (без запросов к облаку):
+python manage.py find_orphaned_files --manifest backups/cloudru/2026-06-01/manifest.json
+
+3. Если орфаны есть — сохранить их в манифест (на случай ошибочного удаления):
+python manage.py find_orphaned_files --manifest backups/cloudru/2026-06-01/manifest.json --save-manifest
+
+4. Удалить орфанов:
+python manage.py find_orphaned_files --manifest backups/cloudru/2026-06-01/manifest.json --delete
+
+Или одной командой (бэкап → поиск → удаление):
+python manage.py backup_cloudru && python manage.py find_orphaned_files --manifest backups/cloudru/2026-06-01/manifest.json --save-manifest --delete
+
+Перед --delete лучше сначала прогнать без него — посмотреть что найдётся.

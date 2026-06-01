@@ -11,6 +11,43 @@ from datetime import date
 from price.models import ExchangeRate
 
 
+def round_price(price_value: Decimal, currency_code: str) -> Decimal:
+    """
+    Округлить цену согласно правилам для валюты.
+
+    Правила по умолчанию (позже будут вынесены в настройки):
+      - RUB: > 100 → округлить ВВЕРХ до целого; <= 100 → 2 знака
+      - Остальные валюты: 2 знака
+
+    Returns:
+        Округлённое Decimal.
+    """
+    import math
+
+    if currency_code == 'RUB' and price_value > 100:
+        # Округление вверх до целого
+        return Decimal(math.ceil(float(price_value)))
+    elif currency_code == 'RUB':
+        return price_value.quantize(Decimal('0.01'))
+    else:
+        return price_value.quantize(Decimal('0.01'))
+
+
+def format_price(price_value: Decimal, currency_code: str) -> str:
+    """
+    Отформатировать цену для отображения: разделители тысяч, без копеек для RUB.
+
+    Returns:
+        Строка вида "1 250" или "125.50".
+    """
+    if currency_code == 'RUB' and price_value == price_value.to_integral():
+        # Целое число — без десятичной части
+        return f'{int(price_value):,}'.replace(',', ' ')
+    else:
+        # С десятичной частью
+        return f'{price_value:,.2f}'.replace(',', ' ')
+
+
 def convert_price(price_value: Decimal, from_currency_code: str,
                   to_currency_code: str, target_date: date = None) -> Decimal:
     """
@@ -39,11 +76,11 @@ def convert_price(price_value: Decimal, from_currency_code: str,
 
     # RUB → to
     if rate_to:
-        return (rub / rate_to).quantize(Decimal('0.01'))
+        return round_price(rub / rate_to, to_currency_code)
 
     # Если to_currency — RUB, то уже в рублях
     if to_currency_code == 'RUB':
-        return rub.quantize(Decimal('0.01'))
+        return round_price(rub, 'RUB')
 
     return price_value
 
@@ -109,7 +146,7 @@ def get_display_price(sku_code: str, default_currency_code: str = 'RUB') -> dict
     symbol = to_currency.symbol if to_currency else default_currency_code
 
     return {
-        'price': str(converted),
+        'price': format_price(converted, default_currency_code),
         'currency': default_currency_code,
         'symbol': symbol,
     }
@@ -142,7 +179,7 @@ def get_bulk_prices(sku_codes: list, default_currency_code: str = 'RUB') -> dict
         from_currency = rec.currency.code if rec.currency else 'USD'
         converted = convert_price(rec.price, from_currency, default_currency_code)
         result[rec.sku.code] = {
-            'price': str(converted),
+            'price': format_price(converted, default_currency_code),
             'currency': default_currency_code,
             'symbol': _get_symbol(default_currency_code),
         }

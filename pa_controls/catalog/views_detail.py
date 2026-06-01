@@ -10,6 +10,8 @@ from django.db.models import Prefetch
 
 from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
 from pa_controls.models.sensor import SensorComponent
+from price.services.currency_converter import get_display_price
+from core.utils.catalog_helpers import get_currency_code
 
 
 class LimitSwitchBoxDetailView(APIView):
@@ -36,4 +38,9 @@ class LimitSwitchBoxDetailView(APIView):
             ),
             pk=pk,
         )
-        return Response(item.to_dict())
+        data = item.to_dict()
+        sku_code = item.sku.code if hasattr(item, 'sku') and item.sku else None
+        if sku_code:
+            currency_code = get_currency_code(request)
+            data['price'] = get_display_price(sku_code, currency_code)
+        return Response(data)

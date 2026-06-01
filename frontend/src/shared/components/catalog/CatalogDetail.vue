@@ -17,9 +17,9 @@ const product = ref(null); const price = ref(null); const loading = ref(true)
 const breadcrumbs = computed(() => [
   { name:'Каталог', url:'#' },
   { name:props.labels.breadcrumbName||'Каталог', url:'#' },
-  { name:product.value?.name||product.value?.code||'...' },
+  { name:product.value?.title||product.value?.name||product.value?.code||'...' },
 ])
-async function fetchDetail(){ if(!props.id) return; loading.value=true; try{ const r=await props.api.getDetail(props.id); const data=r.data||{}; product.value={...data,image_alt:data.name||data.code||''}; price.value=data.price||null } catch(e){ product.value=null } loading.value=false }
+async function fetchDetail(){ if(!props.id) return; loading.value=true; try{ const r=await props.api.getDetail(props.id); const data=r.data||{}; product.value={...data,image_alt:data.code||''}; price.value=data.price||null } catch(e){ product.value=null } loading.value=false }
 onMounted(fetchDetail); watch(()=>props.id,fetchDetail)
 </script>
 <style scoped>

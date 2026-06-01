@@ -173,3 +173,18 @@ Email-вариант для PDF: один `MediaVariant` с `role='email', forma
 
 Старые поля (deprecated):
 - `preview_file` — заменён на `MediaVariant`; оставлен для обратной совместимости
+
+## Бэкап и анализ хранилища
+
+Полный набор команд для работы с Cloud.ru — в `storage_manager/management/commands/` (см. `README.md` там же).
+
+```bash
+python manage.py backup_cloudru              # бэкап всего бакета на диск
+python manage.py find_orphaned_files          # поиск файлов без ссылок в БД
+python manage.py analyze_storage              # сверка БД и облака по категориям
+python manage.py cleanup_crop_sessions        # очистка брошенных crop-сессий
+```
+
+Типичный workflow: `backup_cloudru` → `find_orphaned_files --manifest ...` → при необходимости `--delete`.
+
+Состояние на 2026-06-01: 935 объектов, 357.4 МБ. Орфанов нет, 31.8 МБ crop-сессий удалены.

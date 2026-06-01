@@ -7,6 +7,7 @@ ImageCropSession — временная сессия обрезки изобра
 """
 from django.db import models
 from storage_manager.fields import ManagedFileField
+from storage_manager.services import file_service
 
 
 class ImageCropSession(models.Model):
@@ -48,3 +49,19 @@ class ImageCropSession(models.Model):
 
     def __str__(self):
         return f'Crop session #{self.id} ({self.created_at:%Y-%m-%d %H:%M})'
+
+    def delete_files(self):
+        """Удалить файлы из Cloud.ru (без удаления записи БД)."""
+        fields = ['original_file', 'result_sm', 'result_md', 'result_lg']
+        for field_name in fields:
+            f = getattr(self, field_name)
+            if f and f.name:
+                try:
+                    file_service.delete_file(f.name)
+                except Exception:
+                    pass
+
+    def delete(self, *args, **kwargs):
+        """Удаляет запись БД и файлы из облака."""
+        self.delete_files()
+        super().delete(*args, **kwargs)

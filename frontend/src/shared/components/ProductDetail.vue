@@ -7,11 +7,11 @@
 
     <div class="detail-layout">
       <div class="detail-gallery">
-        <ProductGallery :images="galleryImages" :alt="product.image_alt || product.name" />
+        <ProductGallery :images="galleryImages" :alt="product.image_alt || product.code" />
       </div>
 
       <div class="detail-info">
-        <ProductHeader :name="product.name" :code="product.code" :price="price" />
+        <ProductHeader :name="product.title || product.name" :code="product.code" :price="price" />
 
         <ProductTabs :tabs="tabItems">
           <template #default="{ activeTab }">

@@ -16,6 +16,7 @@ from django.utils.decorators import method_decorator
 
 from image_processor.models import ImageCropSession
 from image_processor.services import process_crop_session, process_with_profile, crop_and_pad
+from storage_manager.services import file_service
 from PIL import Image
 from io import BytesIO
 import base64
@@ -127,10 +128,15 @@ class ImageCropView(APIView):
         if category_code:
             try:
                 result = process_with_profile(session, category_code)
+                # Новый режим: данные возвращаются base64 в ответе,
+                # файлы в облако не пишутся — сессию можно удалить сразу.
+                session.delete()
                 if 'error' in result:
                     return Response(result, status=400)
                 return Response(result)
             except RuntimeError as e:
+                try: session.delete()
+                except Exception: pass
                 return Response({'error': str(e)}, status=400)
 
         session.save()
@@ -138,7 +144,11 @@ class ImageCropView(APIView):
             sizes = process_crop_session(session)
         except RuntimeError as e:
             return Response({'error': str(e)}, status=400)
-
+        # Старый режим: результаты сохранены в Cloud.ru, клиент получает presigned URL.
+        # original_file больше не нужен — удаляем его. result_sm/md/lg оставляем:
+        # клиент будет их скачивать по URL из ответа.
+        if session.original_file and session.original_file.name:
+            file_service.delete_file(session.original_file.name)
         response_data = {
             'session_id': session.id,
             'original_size': session.original_file.size,

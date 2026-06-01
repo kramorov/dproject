@@ -1,5 +1,42 @@
 # Состояние проекта на 2026-06-01
 
+## Сегодня (2026-06-01) — Бэкап Cloud.ru, анализ хранилища, автоочистка
+
+### Инструменты бэкапа и восстановления (`storage_manager/management/commands/`)
+
+- **`backup_cloudru`** — полный бэкап бакета Cloud.ru на локальный диск. Скачивает все объекты с сохранением S3-структуры путей, создаёт `manifest.json` с метаданными (ETag, размер, дата). Повторный запуск докачивает только недостающие файлы. Флаги: `--prefix`, `--output-dir`, `--dry-run`, `--manifest-only`.
+- **`restore_cloudru`** — восстановление из локального бэкапа в Cloud.ru. Читает `manifest.json`, заливает файлы обратно, пропускает существующие того же размера. Флаги: `--overwrite`, `--dry-run`, `--prefix`.
+- **`find_orphaned_files`** — поиск файлов в облаке без ссылок в БД. Сравнивает: MediaLibraryItem (media_file + preview_file), MediaVariant (file_path), ImageCropSession (original + results). Поддерживает `--manifest` (офлайн-режим). Флаги: `--delete`, `--save-manifest`, `--output`.
+- **`analyze_storage`** — детальная сверка БД и облака: разбивка по категориям, preview_file, элементы без вариантов, топ-15, баланс. Учитывает оба варианта слешей.
+- **`list_inactive_media`** — неактивные MediaLibraryItem с размерами.
+- **`analyze_tech_doc`** — анализ TECH_DOC на дубликаты (по имени, размеру, семействам).
+- Документация: `storage_manager/management/commands/README.md`
+- `storage_manager.apps.StorageManagerConfig` добавлен в `INSTALLED_APPS`
+
+### Результаты анализа (бэкап 2026-06-01: 935 объектов, 357.4 МБ)
+
+| Категория | Оригиналы | Варианты | Preview | Всего |
+|-----------|----------|---------|---------|-------|
+| CERTIFICATE | 56.3 МБ | 9.7 МБ | 0.2 МБ | 66.2 МБ |
+| TECH_DOC | 181.2 МБ | 33.0 МБ | 1.6 МБ | 215.8 МБ |
+| USER_MANUAL | 22.9 МБ | 10.2 МБ | 0.1 МБ | 33.2 МБ |
+| PRODUCT_GALLERY | 6.6 МБ | 1.6 МБ | 0.3 МБ | 8.6 МБ |
+| DRAWING + PHOTO | 1.4 МБ | 0.1 МБ | 0.3 МБ | 1.8 МБ |
+| **Итого** | **268.4** | **54.6** | **2.5** | **325.5** |
+
+- Орфаны: 123 файла `imagecropsession/` (31.8 МБ) — удалены через `cleanup_crop_sessions`
+- Орфанов по БД: 0 (все 935 объектов привязаны)
+- TECH_DOC: 63 элемента, 50 из них — техно-листовки ЯМАЛ (156.3 МБ, не дубли)
+- `preview_file`: 2.5 МБ, 116 записей с дублирующимися файлами (у всех есть MediaVariant)
+- 20 элементов без MediaVariant (7 DRAWING + 13 PHOTO)
+
+### Автоочистка ImageCropSession
+
+- **`ImageCropSession.delete_files()`** — удаление файлов из Cloud.ru
+- **`ImageCropSession.delete()`** — переопределён: сначала файлы, потом запись БД
+- **`ImageCropView.post()`**: новый режим — сессия удаляется сразу (base64-ответ); старый режим — `original_file` удаляется, results остаются для presigned URL; при ошибке — тоже удаляется
+- **`cleanup_crop_sessions`** — команда для зачистки брошенных сессий (`--hours`, `--all`, `--dry-run`)
+
 ## 🔧 В работе: MediaVariant — through-модель вместо JSONField
 
 - **Удалён** `variants = models.JSONField` из `MediaLibraryItem`

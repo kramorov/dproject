@@ -6,12 +6,12 @@
         v-if="imagePreview || imageFull"
         :preview="imagePreview"
         :full="imageFull"
-        :alt="item.image_alt || item.name"
+        :alt="item.image_alt || item.code"
       />
       <span v-else class="no-image">🈚</span>
     </div>
     <div class="card-body">
-      <h3 class="card-title">{{ item.name || item.code }}</h3>
+      <h3 class="card-title">{{ item.title || item.name || item.code }}</h3>
       <p class="card-code" v-if="item.code">{{ item.code }}</p>
       <div class="card-price" v-if="price">
         <span class="price-val">{{ price.price }}</span>

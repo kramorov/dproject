@@ -1,0 +1,85 @@
+Источник: манифест (935 объектов, 357.4 МБ)
+MediaLibraryItem в БД: 117
+MediaVariant в БД: 579
+
+=== АНАЛИЗ ПО КАТЕГОРИЯМ ===
+Категория                 Элементов    Оригиналы     Варианты      Preview        Всего    Ожидалось
+-----------------------------------------------------------------------------------------------
+DRAWING                          7     838.4 КБ        0.0 Б     131.3 КБ     969.7 КБ     838.4 КБ ⚠ preview: 131.3 КБ
+PHOTO                           14     593.1 КБ      53.8 КБ     191.3 КБ     838.2 КБ     646.9 КБ ⚠ preview: 191.3 КБ
+PRODUCT_GALLERY                 17       6.6 МБ       1.6 МБ     280.9 КБ       8.6 МБ       8.3 МБ ⚠ preview: 280.9 КБ
+USER_MANUAL                      4      22.9 МБ      10.2 МБ      80.2 КБ      33.2 МБ      33.1 МБ ⚠ preview: 80.2 КБ
+CERTIFICATE                     12      56.3 МБ       9.7 МБ     232.1 КБ      66.2 МБ      66.0 МБ ⚠ preview: 232.1 КБ
+TECH_DOC                        63      22.7 МБ      33.0 МБ     214.3 КБ      55.9 МБ      55.7 МБ ⚠ preview: 214.3 КБ
+-----------------------------------------------------------------------------------------------
+ИТОГО                                  109.9 МБ      54.6 МБ       1.1 МБ     165.6 МБ
+
+⚠ preview_file (старое поле): 1.1 МБ — кандидат на удаление
+
+=== ЭЛЕМЕНТЫ С preview_file (старое поле) ===
+Всего элементов с preview_file: 116
+  #126 [CERTIFICATE] ТР ТС 012 — Блок концевых выключателей TopWorx DXP variants: 17  ✅ media_library_previews/medialibraryitem/6a/18/6a1871c1f0fbd3b00c7611eb5b0a52da.jpg
+  #124 [TECH_DOC] Техническая листовка на серию БКВ АМУР             variants: 5  ❌ media_library_previews/medialibraryitem/6b/6d/6b6decd4c0376b06ba04e88b23aac216.jpg
+  #123 [TECH_DOC] Техническая листовка на серию БКВ ЯМАЛ             variants: 5  ❌ media_library_previews/medialibraryitem/53/68/5368f7e50f5c32020a6f2ec360ff6c04.jpg
+  #122 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2P02                       variants: 7  ❌ media_library_previews/medialibraryitem/3d/6b/3d6b4407d6805f8a1a88d83a8cc1e41a.jpg
+  #121 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2P01                       variants: 7  ❌ media_library_previews/medialibraryitem/07/ec/07ec3c0a4be9f9a9dc72735756ddb656.jpg
+  #120 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2P00                       variants: 7  ❌ media_library_previews/medialibraryitem/35/e6/35e6f025ba240e8e35fb4b52b964a90b.jpg
+  #119 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2E52                       variants: 5  ❌ media_library_previews/medialibraryitem/e6/a7/e6a7afb5d66400f4916b97fa709e24f8.jpg
+  #118 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2E51                       variants: 5  ❌ media_library_previews/medialibraryitem/84/a0/84a000872d40c1ab11775306b31298bb.jpg
+  #117 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2E50                       variants: 5  ❌ media_library_previews/medialibraryitem/29/5d/295d94ce65607ef8b23639b63ca18402.jpg
+  #116 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2E02                       variants: 5  ❌ media_library_previews/medialibraryitem/8d/f5/8df5b28b1c5902b8fbceaf0a060060b2.jpg
+  #115 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2E01                       variants: 5  ❌ media_library_previews/medialibraryitem/fb/ad/fbad97319af95727711ddbdc301fdc69.jpg
+  #114 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2E00                       variants: 5  ❌ media_library_previews/medialibraryitem/89/0e/890e3432e3042f49c64d60fe1c2755f0.jpg
+  #113 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2R92                       variants: 5  ❌ media_library_previews/medialibraryitem/d1/e3/d1e36dc356dfce158c0f1d662143dcf2.jpg
+  #112 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2R91                       variants: 5  ❌ media_library_previews/medialibraryitem/cc/c1/ccc1747e537c5c6ad55aff4cb7541ceb.jpg
+  #111 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2R81                       variants: 5  ❌ media_library_previews/medialibraryitem/08/71/0871b467ef6e80c2b1bcd80dd29ae312.jpg
+  #110 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2R90                       variants: 5  ❌ media_library_previews/medialibraryitem/64/27/6427b77548c84d352a4262e723be7baf.jpg
+  #109 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2R82                       variants: 5  ❌ media_library_previews/medialibraryitem/26/92/26920b4decdd019adfb0093777bc8e55.jpg
+  #108 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-2R80                       variants: 5  ❌ media_library_previews/medialibraryitem/da/c5/dac5e2f79501ab2fb24288bf194213b8.jpg
+  #107 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-4N82                       variants: 5  ❌ media_library_previews/medialibraryitem/a9/5b/a95b2ee21d495d231afa11cb32962d07.jpg
+  #106 [TECH_DOC] Техничка на БКВ ЯМАЛ BY-4N81                       variants: 5  ❌ media_library_previews/medialibraryitem/15/8e/158ec5fa805480ba1ae8a2e4dcef62a1.jpg
+  ... и ещё 96
+
+=== PDF/Изображения БЕЗ MediaVariant (нет превьюшек) ===
+Элементов без вариантов (должны быть): 20
+  #1 [DRAWING] Чертеж ABRA BUV-VF 826 863 866 843 Ду700 800  Ру10 jpg 📄 ✅ | ожидалось вариантов: 3
+  #14 [DRAWING] ABRA BUV FL226 263 266 DN50 1000 ручка Чертеж      jpg 📄 ✅ | ожидалось вариантов: 3
+  #15 [DRAWING] ABRA BUV FL226 263 266 DN50 1000 с ручным редуктор jpg 📄 ✅ | ожидалось вариантов: 3
+  #16 [DRAWING] ABRA BUV FL226 263 266 DN350 600 монтажная площадк jpg 📄 ✅ | ожидалось вариантов: 3
+  #17 [DRAWING] ABRA BUV FL226 263 266 DN700 1000 монтажная площад jpg 📄 ✅ | ожидалось вариантов: 3
+  #18 [DRAWING] ABRA BUV FL226 263 266 DN50 300 монтажная площадка jpg 📄 ✅ | ожидалось вариантов: 3
+  #67 [DRAWING] Чертеж БКВ ЯМАЛ без МК                             pdf 📄 ✅ | ожидалось вариантов: 3
+  #8 [PHOTO] ABRA BUV VF866 DN32 300 ручной редуктор  Изображен jpg 📄 ✅ | ожидалось вариантов: 5
+  #9 [PHOTO] ABRA BUV FL226 263 266 DN50 250 ручка Изображение  jpg 📄 ✅ | ожидалось вариантов: 5
+  #10 [PHOTO] ABRA BUV FL226 263 266 DN50 250 ручной редуктор Из jpg 📄 ✅ | ожидалось вариантов: 5
+  #11 [PHOTO] ABRA-BUV-FL226-263-266-DN300-1000-ручной редуктор- jpg 📄 ✅ | ожидалось вариантов: 5
+  #12 [PHOTO] ABRA BUV FL226 263 266 DN300 1000 ручной редуктор  jpg 📄 ✅ | ожидалось вариантов: 5
+  #13 [PHOTO] ABRA BUV FL226 263 266 DN50 300 монтажная площадка jpg 📄 ✅ | ожидалось вариантов: 5
+  #19 [PHOTO] ABRA BUV VF826 DN32 300 Изображение                jpg 📄 ✅ | ожидалось вариантов: 5
+  #21 [PHOTO] ABRA BUV VF826 DN350 600 ручной редуктор   Изображ jpg 📄 ✅ | ожидалось вариантов: 5
+  #23 [PHOTO] ABRA BUV VF843 DN700 800 ручной редуктор  Изображе jpg 📄 ✅ | ожидалось вариантов: 5
+  #24 [PHOTO] ABRA BUV VF863 DN32 300 ручной редуктор  Изображен jpg 📄 ✅ | ожидалось вариантов: 5
+  #25 [PHOTO] ABRA BUV VF863 DN40 80 ручка Изображение           jpg 📄 ✅ | ожидалось вариантов: 5
+  #26 [PHOTO] ABRA BUV VF866 DN32 300 ручка  Изображение         jpg 📄 ✅ | ожидалось вариантов: 5
+  #27 [PHOTO] ABRA BUV VF826 DN100 300 ручной редуктор  Изображе jpg 📄 ✅ | ожидалось вариантов: 5
+
+=== ТОП-15 ЭЛЕМЕНТОВ ПО РАЗМЕРУ ===
+     26.3 МБ  #126 [CERTIFICATE] ТР ТС 012 — Блок концевых выключателей TopWorx DXP  файлов: 1+17+1
+     11.6 МБ  #72 [USER_MANUAL] РЭ на БКВ ЯМАЛ                                      файлов: 1+25+1
+     11.0 МБ  #52 [CERTIFICATE] ТР ТС 012 — Блок концевых выключателей — ТР ТС 012  файлов: 1+11+1
+     11.0 МБ  #73 [USER_MANUAL] РЭ на БКВ УРАЛ                                      файлов: 1+25+1
+      9.6 МБ  #28 [CERTIFICATE] ТР ТС 012 Сертификат на пневмоприводы AIR DA/SR     файлов: 1+9+1
+      8.4 МБ  #69 [USER_MANUAL] РЭ на БКВ АМУР                                      файлов: 1+25+1
+      4.0 МБ  #45 [CERTIFICATE] Сертификат ТР ТС 012 серт С-RU.АЖ58.В.04740/23  на  файлов: 1+9+1
+      3.9 МБ  #68 [TECH_DOC] Техническая листовка на БКВ УРАЛ                    файлов: 1+5+1
+      3.6 МБ  #32 [CERTIFICATE] Сейсмо пневмоприводы AIR DA/SR, SY/SYM, Quifer      файлов: 1+3+1
+      3.6 МБ  #31 [CERTIFICATE] SIL пневмоприводы AIR DA/SR, SY/SYM, Quifer         файлов: 1+3+1
+      2.8 МБ  #40 [TECH_DOC] Техническая листовка на серию соленоидных клапанов  файлов: 1+5+1
+      2.7 МБ  #37 [TECH_DOC] Техническая листовка фильтр-регуляторы серии BPFR   файлов: 1+5+1
+      2.5 МБ  #38 [TECH_DOC] Техническая листовка фильтр-регуляторы серии BPFR.  файлов: 1+5+1
+      2.3 МБ  #70 [TECH_DOC] Техническая листовка на БКВ APL                     файлов: 1+5+1
+      2.3 МБ  #39 [TECH_DOC] Техническая листовка фильтр-регуляторы серии BPAFR  файлов: 1+5+1
+
+=== ОРФАНЫ В ОБЛАКЕ (файлы без ссылок в БД) ===
+Орфанов: 123 (31.8 МБ)
+  files/imagecropsession/ — 123 шт, 31.8 МБ
