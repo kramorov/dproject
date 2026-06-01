@@ -22,6 +22,11 @@ export default {
   },
   copy(id) { return api.post(`${BASE}/${id}/copy/`) },
   recreatePreview(id) { return api.post(`${BASE}/${id}/recreate-preview/`) },
+  regenerateVariants(id, formData) {
+    return api.post(`${BASE}/${id}/regenerate-variants/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
   list(params = {}) {
     return api.get('/core/', { params: { model: 'media_library.MediaLibraryItem', fmt: 'compact', ...params } })
   },

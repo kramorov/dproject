@@ -51,7 +51,9 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
         'ip', 'body_material', 'body_material_specified', 'sku',
     ],
     prefetch_fields=[
+        'image_gallery__items__image__variants',
         'image_gallery__items__image',
+        'model_line__image_gallery__items__image__variants',
         'model_line__image_gallery__items__image',
     ],
     search_fields=['code', 'name', 'description'],

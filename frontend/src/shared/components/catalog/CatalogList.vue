@@ -47,7 +47,7 @@ import FilterSidebar from '@/shared/components/FilterSidebar.vue'
 import ProductCard from '@/shared/components/ProductCard.vue'
 import { useCatalog } from '@/shared/composables/useCatalog.js'
 const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, withSearch:{type:Boolean,default:true}, fixedParams:{type:[Object,Function],default:null} })
-defineEmits(['select'])
+defineEmits(['select', 'navigate'])
 const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible,search, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters, onSearchInput,goPage } = useCatalog(props.api,{ withSearch:props.withSearch, fixedParams:props.fixedParams })
 const eqLabel = computed(() => props.labels.breadcrumbName || 'Каталог')
 const breadcrumbs = computed(() => [

@@ -47,7 +47,7 @@ import ProductCard from '@/shared/components/ProductCard.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 import { useCatalog } from '@/shared/composables/useCatalog.js'
 const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, idProp:{type:String,default:'model_line_id'}, idValue:{type:[Number,String],default:null}, showFilters:{type:Boolean,default:true} })
-const emit = defineEmits(['select'])
+const emit = defineEmits(['select', 'navigate'])
 const mlName = ref('')
 const fixedParams = computed(() => props.idValue ? { [props.idProp]: props.idValue } : {})
 const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, filterScope:'model_line', withSearch:false, onData(items){ if(items.length&&!mlName.value) mlName.value=items[0]?.model_line?.name||'' } })

@@ -77,7 +77,7 @@ class ImageGalleryMixin(models.Model):
             'name': getattr(img, 'name', '') or '',
             'code': getattr(img, 'code', '') or '',
             'url': img.media_file.url if img.media_file else '',
-            'preview_url': img.preview_file.url if img.preview_file else (img.media_file.url if img.media_file else ''),
+            'preview_url': img.preview_url if img.media_file else '',
             'is_default': getattr(img, 'is_default', False),
         }
 

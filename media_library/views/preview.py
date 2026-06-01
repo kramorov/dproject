@@ -2,8 +2,8 @@
 """
 GET — просмотр превью или файла в браузере.
 
-Для изображений отдаёт preview_file (если есть), иначе оригинал.
-Для PDF отдаёт как inline.
+Для изображений/PDF отдаёт подходящий вариант из MediaVariant (card/thumb),
+фолбэк — preview_file, затем оригинал.
 
 Режим зависит от settings.MEDIA_SERVE_MODE:
     'proxy'    — Django читает файл и стримит клиенту
@@ -18,6 +18,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 
 from media_library.models import MediaLibraryItem
+from storage_manager.services import file_service
 
 logger = logging.getLogger(__name__)
 
@@ -50,38 +51,55 @@ class MediaPreviewView(APIView):
                     {'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN
                 )
 
-            mode = getattr(settings, 'MEDIA_SERVE_MODE', 'redirect')
-
-            # Выбираем файл: превью или оригинал
-            file_field = None
-            content_type = item.mime_type or 'application/octet-stream'
+            force_proxy = request.GET.get('proxy') == '1'
+            mode = 'proxy' if force_proxy else getattr(settings, 'MEDIA_SERVE_MODE', 'redirect')
             is_previewable = item.is_image() or item.file_extension.lower() == 'pdf'
 
-            if is_previewable and item.preview_file and item.preview_file.name:
-                if item.preview_file.storage.exists(item.preview_file.name):
-                    file_field = item.preview_file
-                    content_type = 'image/jpeg'
+            # Определяем URL для отдачи
+            serve_url = None
+            content_type = item.mime_type or 'application/octet-stream'
 
-            if file_field is None:
+            if is_previewable:
+                # Пробуем MediaVariant: card(400) → thumb(150) → icon(50)
+                for role in ('card', 'thumb', 'icon'):
+                    v = item.variants.filter(role=role).order_by('width').first()
+                    if v:
+                        serve_url = file_service.get_file_url(v.file_path)
+                        content_type = f'image/{v.format}' if v.format != 'pdf' else 'application/pdf'
+                        break
+
+                # Фолбэк: старый preview_file
+                if not serve_url and item.preview_file and item.preview_file.name:
+                    if item.preview_file.storage.exists(item.preview_file.name):
+                        if mode == 'redirect':
+                            serve_url = item.preview_file.url
+                        else:
+                            serve_url = None  # будем стримить ниже
+                        content_type = 'image/jpeg'
+
+            # Фолбэк: оригинал
+            if not serve_url:
                 if not item.media_file or not item.media_file.name:
                     raise Http404("File not found")
                 if not item.media_file.storage.exists(item.media_file.name):
                     raise Http404("File not found on storage")
-                file_field = item.media_file
+                if mode == 'redirect':
+                    serve_url = item.media_file.url
+                # для proxy mode serve_url остаётся None — стримим ниже
 
-            if mode == 'redirect':
-                url = file_field.url
-                return HttpResponseRedirect(url)
+            if mode == 'redirect' and serve_url:
+                return HttpResponseRedirect(serve_url)
             if mode == 'direct':
-                url = item.public_url or file_field.url
-                return HttpResponseRedirect(url)
+                url = item.public_url or serve_url
+                if url:
+                    return HttpResponseRedirect(url)
 
             # proxy mode — стримим через Django
             is_safe = content_type in self.SAFE_INLINE_TYPES or is_previewable
             disposition = 'inline' if is_safe else 'attachment'
 
             try:
-                f = file_field.open('rb')
+                f = item.media_file.open('rb')
             except Exception as e:
                 logger.error(f"Preview open failed pk={pk}: {e}")
                 raise Http404("File not accessible")
@@ -93,9 +111,10 @@ class MediaPreviewView(APIView):
                 filename=item.filename,
             )
             response['Content-Disposition'] = f'{disposition}; filename="{item.filename}"'
-            response['Content-Length'] = file_field.size
+            response['Content-Length'] = item.media_file.size
             response['X-Content-Type-Options'] = 'nosniff'
             response['X-Frame-Options'] = 'SAMEORIGIN'
+            response['Access-Control-Allow-Origin'] = '*'
 
             logger.info(f"Preview proxy: {item.filename} (id={pk}, inline={is_safe})")
             return response

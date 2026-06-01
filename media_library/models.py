@@ -11,6 +11,9 @@
 Модели:
     MediaCategory      — категория файла (фото, чертёж, сертификат...)
     MediaLibraryItem   — элемент библиотеки: файл + классификация + фильтры
+    MediaVariant       — through-модель: сгенерированные варианты (размеры, форматы)
+    ImageGallerySet    — именованный набор изображений
+    ImageGallerySetItem — through-модель для наборов
 
 Связи:
     На MediaLibraryItem ссылаются другие сущности через FK или M2M
@@ -29,7 +32,7 @@ from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition
 from producers.models import Brands
 from storage_manager.fields import ManagedFileField
 from storage_manager.services import file_service
-from .services import generate_variants, _collect_variant_paths, delete_variants
+from .services import generate_variants, delete_variants, get_variants_for_api
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -84,6 +87,16 @@ class MediaCategory(models.Model):
     #     через manage.py generate_media_variants --category=CODE.
     # ═══════════════════════════════════════════════════════════════
     PRESENTATION_PROFILES = {
+        'PHOTO': {
+            'variants': [
+                {'role': 'icon', 'widths': [50],                'format': 'webp', 'quality': 80},
+                {'role': 'thumb', 'widths': [80, 150],          'format': 'webp', 'quality': 80},
+                {'role': 'card', 'widths': [400, 800],          'format': 'webp', 'quality': 80},
+            ],
+            'multi_page': False,
+            'render_dpi': 72,
+            'keep_alpha': True,
+        },
         'PRODUCT_GALLERY': {
             'variants': [
                 {'role': 'icon', 'widths': [50],                'format': 'webp', 'quality': 80},
@@ -298,17 +311,23 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
     Элемент медиабиблиотеки — файл с классификацией и фильтрацией.
 
     Поля:
-        title            — название
+        name             — название
+        code             — строковый код
         description      — описание
         keywords         — ключевые слова через запятую (поиск)
-        media_file       — сам файл (ManagedFileField)
-        preview_file     — автопревью для изображений
-        category         — FK → MediaCategory (тип файла)
-        equipment_type   — FK → EquipmentType (фильтр: к какому типу оборудования)
+        media_file       — оригинальный файл (ManagedFileField → Cloud.ru)
+        preview_file     — [deprecated] автопревью (заменён на MediaVariant)
+        category         — FK → MediaCategory (тип файла, определяет профиль вариантов)
+        brand            — FK → Brands
+        equipment_type   — FK → EquipmentType (к какому типу оборудования)
         mime_type        — автоопределение по расширению
-        is_active        — активно / скрыто
-        is_public        — доступно всем
+        is_active / is_public / is_default / sorting_order
         created_by       — кто загрузил
+
+    Варианты:
+        Связаны через through-модель MediaVariant (related_name='variants').
+        Генерируются автоматически в save() для изображений и PDF согласно
+        профилю категории (MediaCategory.PRESENTATION_PROFILES).
 
     Фильтрация:
         Через SmartCatalogMixin: категория, тип оборудования, ключевые слова,
@@ -349,12 +368,6 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         editable=False
     )
     
-    variants = models.JSONField(
-        default=dict,
-        blank=True,
-        verbose_name=_("Варианты"),
-        help_text=_("Сгенерированные варианты: размеры, страницы PDF"),
-    )
 
     # Классификация
     category = models.ForeignKey(
@@ -451,19 +464,26 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
 
         # Генерируем варианты ПОСЛЕ сохранения
         if self.media_file and (self.is_image() or self._is_pdf()):
-            if not self.variants:
-                logger.info(f"Генерация вариантов для {self.pk} (категория: {self.category.code})")
-            else:
-                logger.info(f"Обновление вариантов для {self.pk}")
-            # Удаляем старые варианты если файл изменился
-            if is_new_file and self.pk and self.variants:
-                delete_variants(self)
-            try:
-                self.variants = generate_variants(self)
-                super().save(update_fields=['variants'])
-                logger.info(f"Варианты созданы для {self.pk}")
-            except Exception as e:
-                logger.error(f"Ошибка генерации вариантов для {self.pk}: {e}")
+            if self.pk:
+                needs_generation = False
+                if is_new_file:
+                    has_existing = self.variants.exists()
+                    if has_existing:
+                        logger.info(f"Обновление вариантов для {self.pk}")
+                        delete_variants(self)
+                        needs_generation = True
+                    else:
+                        logger.info(f"Генерация вариантов для {self.pk} (категория: {self.category.code})")
+                        needs_generation = True
+                elif not self.variants.exists():
+                    logger.info(f"Варианты отсутствуют — генерация для {self.pk} (категория: {self.category.code})")
+                    needs_generation = True
+                if needs_generation:
+                    try:
+                        generate_variants(self)
+                        logger.info(f"Варианты созданы для {self.pk}")
+                    except Exception as e:
+                        logger.error(f"Ошибка генерации вариантов для {self.pk}: {e}")
 
 
     def _detect_mime_type(self):
@@ -477,6 +497,7 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         mime_types = {
             '.pdf': 'application/pdf',
             '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
             '.png': 'image/png', '.gif': 'image/gif', '.bmp': 'image/bmp', '.svg': 'image/svg+xml',
             '.doc': 'application/msword',
             '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -692,6 +713,19 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
             logger.error(f"Ошибка превью: {str(e)}" , exc_info=True)
             return False
 
+    @property
+    def preview_url(self):
+        """URL preview-варианта из MediaVariant (первый thumb/card), фолбэк на preview_file/оригинал."""
+        # card 400 → thumb 150 → что есть
+        v = (self.variants.filter(role='card', width=400).first() or
+             self.variants.filter(role='thumb', width=150).first() or
+             self.variants.filter(role__in=['card', 'thumb']).order_by('width').first())
+        if v:
+            return file_service.get_file_url(v.file_path)
+        if self.preview_file and self.preview_file.name:
+            return self.preview_file.url
+        return self.media_file.url if self.media_file else ''
+
     def recreate_preview(self) :
         """
         Принудительно пересоздает превью (изображение или PDF).
@@ -720,32 +754,15 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
             logger.error(f"Ошибка при пересоздании превью для {self.pk}: {str(e)}")
             return False , f"Ошибка: {str(e)}"
     def replace_file(self , new_file , create_preview=True) :
-        """Заменяет файл используя ManagedFileField"""
+        """Заменяет файл используя ManagedFileField. preview_file устарел — варианты через MediaVariant."""
         try :
             logger.info(f"Замена файла для {self.pk}")
-
-            # Удаляем старые файлы через сервис
             old_media_path = self.media_file.name if self.media_file else None
-            old_preview_path = self.preview_file.name if self.preview_file else None
-
-            # Просто сохраняем новый файл - ManagedFileField сам все обработает
             self.media_file = new_file
             self.mime_type = self._detect_mime_type()
-
-            # Сохраняем чтобы сгенерировалось имя файла
             self.save()
-
-            # Удаляем старые файлы
             if old_media_path :
                 file_service.delete_file(old_media_path)
-            if old_preview_path :
-                file_service.delete_file(old_preview_path)
-
-            # Создаем превью если нужно
-            if create_preview and self.is_image() :
-                self.create_preview()
-                self.save(update_fields=['preview_file'])
-
             return True
         except Exception as e :
             logger.error(f"Ошибка замены файла: {str(e)}")
@@ -781,16 +798,18 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         return duplicate
     
     def delete(self, *args, **kwargs):
-        """Удаляет запись БД, а также файлы media_file и preview_file из облака."""
+        """Удаляет запись БД, а также файлы media_file, preview_file и вариантов из облака."""
         paths_to_delete = []
         if self.media_file:
             paths_to_delete.append(self.media_file.name)
         if self.preview_file:
             paths_to_delete.append(self.preview_file.name)
-        if self.variants:
-            paths_to_delete.extend(_collect_variant_paths(self.variants))
+        # Собираем пути вариантов из through-модели
+        for v in self.variants.all():
+            if v.file_path:
+                paths_to_delete.append(v.file_path)
 
-        # Сначала удаляем запись БД
+        # Сначала удаляем запись БД (CASCADE удалит MediaVariant)
         super().delete(*args, **kwargs)
 
         # Затем удаляем файлы из облачного хранилища
@@ -911,11 +930,20 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         'public_url': self.public_url ,
         'file_name': self.media_file.name if self.media_file else None ,
         'created_at': self.created_at.isoformat() if self.created_at else None ,
+            'variants': self.get_variants_for_api(),
         }
 
     def get_compact_data(self):
         """Для UniversalAPIView — отдаёт to_dict() вместо сериализатора."""
         return self.to_dict()
+
+    def get_variants_for_api(self) -> dict:
+        """
+        Вернуть variants с URL вместо путей — для API.
+
+        Делегирует в media_library.services.get_variants_for_api().
+        """
+        return get_variants_for_api(self)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -976,3 +1004,49 @@ class ImageGallerySetItem(models.Model):
         verbose_name = _("Элемент набора")
         verbose_name_plural = _("Элементы наборов")
         ordering = ['sorting_order']
+
+
+# ═══════════════════════════════════════════════════════════════
+# MediaVariant — through-модель для вариантов MediaLibraryItem
+# ═══════════════════════════════════════════════════════════════
+
+class MediaVariant(models.Model):
+    """Вариант медиафайла: ресайз/формат/страница PDF."""
+    media_item = models.ForeignKey(
+        'media_library.MediaLibraryItem',
+        on_delete=models.CASCADE,
+        related_name='variants',
+        verbose_name=_("Элемент медиабиблиотеки"),
+    )
+    role = models.CharField(
+        max_length=20,
+        verbose_name=_("Роль"),
+        help_text=_("icon, thumb, card, page, full, email"),
+    )
+    width = models.PositiveIntegerField(verbose_name=_("Ширина, px"))
+    height = models.PositiveIntegerField(verbose_name=_("Высота, px"))
+    format = models.CharField(
+        max_length=10,
+        verbose_name=_("Формат"),
+        help_text=_("webp, jpeg, png, pdf"),
+    )
+    file_path = models.CharField(
+        max_length=500,
+        verbose_name=_("Путь в хранилище"),
+    )
+    file_size = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Размер файла, байт"),
+    )
+    page_num = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name=_("Номер страницы"),
+        help_text=_("Только для PDF"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создан"))
+
+    class Meta:
+        verbose_name = _("Вариант медиа")
+        verbose_name_plural = _("Варианты медиа")
+        ordering = ['media_item', 'page_num', 'role', 'width']
+        unique_together = [('media_item', 'role', 'width', 'page_num')]

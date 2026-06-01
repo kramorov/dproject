@@ -125,7 +125,7 @@ def get_line_images(line_id):
             {
                 'title': img.name,
                 'url': img.media_file.url if img.media_file else '',
-                'preview_url': img.preview_file.url if img.preview_file else '',
+                'preview_url': img.preview_url if img.media_file else '',
             }
             for img in line.get_images()
         ]

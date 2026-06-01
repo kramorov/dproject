@@ -79,6 +79,6 @@ const hasActive = computed(() =>
 .reset-btn:hover { background: var(--cat-border); }
 .filter-group { margin-bottom: 16px; }
 .filter-group label { display: block; font-size: var(--cat-text-sm); font-weight: 500; color: var(--cat-muted); margin-bottom: 4px; }
-.filter-group select { width: 100%; padding: 8px 10px; font-size: var(--cat-text-base); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }
+.filter-group select { width: 100%; padding: 8px 10px; font-size: var(--cat-text-base); color: var(--cat-text); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }
 .filter-single-value { display: block; padding: 8px 10px; font-size: var(--cat-text-base); color: var(--cat-text); background: var(--cat-surface); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); }
 </style>

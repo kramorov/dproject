@@ -4,10 +4,13 @@
 <template>
   <div class="image-cropper">
     <div v-if="!sessionId" class="cropper-upload">
-      <label class="upload-btn">
-        <input type="file" accept="image/*" @change="onFileSelected" hidden />
-        <span>📁 Выбрать изображение</span>
-      </label>
+      <Spinner v-if="initialLoading" text="Загрузка изображения…" />
+      <template v-else-if="!initialUrl">
+        <label class="upload-btn">
+          <input type="file" accept="image/*" @change="onFileSelected" hidden />
+          <span>📁 Выбрать изображение</span>
+        </label>
+      </template>
       <p v-if="uploadError" class="error">{{ uploadError }}</p>
     </div>
 
@@ -57,9 +60,14 @@
 
 <script>
 import api from '@/shared/api'
+import Spinner from '@/shared/components/Spinner.vue'
 export default {
+  components: { Spinner },
   name: 'ImageCropper',
-  props: { categoryCode: { type: String, default: '' } },
+  props: {
+    categoryCode: { type: String, default: '' },
+    initialUrl: { type: String, default: '' },
+  },
   emits: ['crop-complete'],
 
   data() {
@@ -82,12 +90,37 @@ export default {
       dragStartImgX: 0, dragStartImgY: 0,
 
       uploadError: '', processing: false, previewUrl: null,
+      initialLoading: !!this.initialUrl,
       log: [],
       img: null, canvasScale: 1,
     }
   },
 
+  mounted() {
+    if (this.initialUrl) {
+      this.autoLoadExisting()
+    }
+  },
+
   methods: {
+    async autoLoadExisting() {
+      this.initialLoading = true
+      this.uploadError = ''; this.processing = true; this.log = []
+      this.addLog(`Загрузка существующего изображения…`)
+      try {
+        const resp = await fetch(this.initialUrl)
+        const blob = await resp.blob()
+        const file = new File([blob], 'existing_image.' + (blob.type === 'image/webp' ? 'webp' : 'jpg'), { type: blob.type })
+        const fakeE = { target: { files: [file] } }
+        await this.onFileSelected(fakeE)
+        this.initialLoading = false
+      } catch (err) {
+        this.addLog(err.message || 'Failed to load image', true)
+        this.uploadError = err.message || 'Failed to load image'
+        this.processing = false
+        this.initialLoading = false
+      }
+    },
     addLog(msg, err) {
       const t = new Date().toLocaleTimeString()
       this.log.push({ time: t, msg, err: !!err })

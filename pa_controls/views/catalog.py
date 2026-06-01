@@ -35,7 +35,7 @@ class LimitSwitchBoxSectionView(APIView):
                 'code': ml.code or '',
                 'count': ml.count,
                 'image': (
-                    img.preview_file.url if img and img.preview_file
+                    img.preview_url if img and img.media_file
                     else (img.media_file.url if img and img.media_file else None)
                 ),
                 'brand': {'id': ml.brand.id, 'name': ml.brand.name} if ml.brand else None,

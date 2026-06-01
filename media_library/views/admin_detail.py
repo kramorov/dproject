@@ -17,6 +17,7 @@ from media_library.models import MediaLibraryItem, MediaCategory
 from core.models import EquipmentType
 from producers.models import Brands
 from storage_manager.services import file_service
+from media_library.services import delete_variants
 
 logger = logging.getLogger(__name__)
 
@@ -105,15 +106,13 @@ class MediaAdminDetailView(APIView):
         if new_file:
             if new_file.size > 100 * 1024 * 1024:
                 return Response({'error': 'file size exceeds 100 MB'}, status=status.HTTP_400_BAD_REQUEST)
-            # Удаляем старые файлы
+            # Удаляем старые варианты и файлы
+            delete_variants(item)
             old_media_path = item.media_file.name if item.media_file else None
-            old_preview_path = item.preview_file.name if item.preview_file else None
             item.media_file = new_file
             item.mime_type = None  # автоопределится в save()
             if old_media_path:
                 file_service.delete_file(old_media_path)
-            if old_preview_path:
-                file_service.delete_file(old_preview_path)
 
         # Обновление полей
         errors = self._update_scalar_fields(item, request.data)
@@ -141,14 +140,12 @@ class MediaAdminDetailView(APIView):
         if new_file:
             if new_file.size > 100 * 1024 * 1024:
                 return Response({'error': 'file size exceeds 100 MB'}, status=status.HTTP_400_BAD_REQUEST)
+            delete_variants(item)
             old_media_path = item.media_file.name if item.media_file else None
-            old_preview_path = item.preview_file.name if item.preview_file else None
             item.media_file = new_file
             item.mime_type = None
             if old_media_path:
                 file_service.delete_file(old_media_path)
-            if old_preview_path:
-                file_service.delete_file(old_preview_path)
 
         # Частичное обновление полей
         errors = self._update_scalar_fields(item, request.data)

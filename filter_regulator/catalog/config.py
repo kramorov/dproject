@@ -47,8 +47,10 @@ FILTER_REGULATOR_CONFIG = CatalogConfig(
         'body__drain_port_size', 'ip', 'body_material',
     ],
     prefetch_fields=[
+        'image_gallery__items__image__variants',
         'image_gallery__items__image',
         'tech_docs',
+        'model_line__image_gallery__items__image__variants',
         'model_line__image_gallery__items__image',
         'model_line__tech_docs',
         'model_line__cert_docs',

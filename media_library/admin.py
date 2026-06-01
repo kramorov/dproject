@@ -10,7 +10,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django import forms
 from .models import MediaCategory ,MediaLibraryItem
-from .models import ImageGallerySet, ImageGallerySetItem
+from .models import ImageGallerySet, ImageGallerySetItem, MediaVariant
+from .services import delete_variants, generate_variants
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +61,23 @@ class MediaLibraryItemForm(forms.ModelForm) :
             name = name.replace(sep , ' ')
         return name.strip()
 
+class MediaVariantInline(admin.TabularInline):
+    model = MediaVariant
+    extra = 0
+    fields = ('role', 'width', 'height', 'format', 'file_size', 'page_num', 'created_at')
+    readonly_fields = fields
+    can_delete = False
+    verbose_name = _("Вариант")
+    verbose_name_plural = _("Варианты")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(MediaLibraryItem)
 class MediaLibraryItemAdmin(admin.ModelAdmin) :
     form = MediaLibraryItemForm
+    inlines = [MediaVariantInline]
     list_display = [
         'preview_display' , 'name' , 'code' , 'category' ,  'keywords_short' ,  'is_active' , 'created_at'
     ]
@@ -105,38 +120,37 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
         return '-'
 
     def preview_actions(self , obj) :
-        """Кнопки для управления превью"""
+        """Кнопки для управления вариантами"""
         if not obj.pk :
-            return "Сохраните объект для управления превью"
+            return "Сохраните объект для управления вариантами"
 
-        if not obj.is_image() :
+        if not (obj.is_image() or obj._is_pdf()) :
             return format_html(
                 '<div style="padding: 10px; background: #f8d7da; border-radius: 4px;">'
-                '⚠️ Файл не является изображением'
+                '⚠️ Варианты поддерживаются только для изображений и PDF'
                 '</div>'
             )
 
-        preview_status = "❌ Отсутствует"
-        if obj.preview_file :
-            preview_status = "✅ Создано"
+        variant_count = obj.variants.count()
+        variant_status = f"✅ {variant_count} вариантов" if variant_count else "❌ Отсутствуют"
 
         return format_html(
             '''
             <div style="margin: 10px 0;">
                 <div style="margin-bottom: 10px;">
-                    <strong>Статус превью:</strong> {status}
+                    <strong>Статус вариантов:</strong> {status}
                 </div>
                 <button type="button" class="button" style="background: #28a745; color: white; 
                         padding: 8px 15px; border: none; border-radius: 4px; font-size: 13px; 
                         margin: 5px 5px 5px 0; cursor: pointer;" 
                         onclick="recreatePreview({id})">
-                    🔄 Создать/Обновить превью
+                    🔄 Перегенерировать варианты
                 </button>
                 <button type="button" class="button" style="background: #dc3545; color: white; 
                         padding: 8px 15px; border: none; border-radius: 4px; font-size: 13px; 
                         margin: 5px 0; cursor: pointer;" 
                         onclick="deletePreview({id})">
-                    🗑️ Удалить превью
+                    🗑️ Удалить варианты
                 </button>
                 <div id="preview-status-{id}" style="margin-top: 10px; font-size: 12px;"></div>
             </div>
@@ -144,7 +158,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
             <script>
             function recreatePreview(itemId) {{
                 var statusDiv = document.getElementById('preview-status-' + itemId);
-                statusDiv.innerHTML = '<span style="color: #856404;">⏳ Создаем превью...</span>';
+                statusDiv.innerHTML = '<span style="color: #856404;">⏳ Генерируем варианты...</span>';
 
                 fetch('/admin/media_library/medialibraryitem/' + itemId + '/recreate-preview/', {{
                     method: 'POST',
@@ -170,7 +184,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
             function deletePreview(itemId) {{
                 var statusDiv = document.getElementById('preview-status-' + itemId);
-                statusDiv.innerHTML = '<span style="color: #856404;">⏳ Удаляем превью...</span>';
+                statusDiv.innerHTML = '<span style="color: #856404;">⏳ Удаляем варианты...</span>';
 
                 fetch('/admin/media_library/medialibraryitem/' + itemId + '/delete-preview/', {{
                     method: 'POST',
@@ -195,19 +209,17 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
             }}
             </script>
             ''' ,
-            status=preview_status ,
+            status=variant_status ,
             id=obj.pk
         )
 
-    preview_actions.short_description = _("Управление превью")
+    preview_actions.short_description = _("Варианты")
 
     def preview_display(self , obj) :
         """Отображает превью изображения"""
         if obj.is_image() :
-            preview_url = None
-            if obj.preview_file and hasattr(obj.preview_file , 'url') :
-                preview_url = obj.preview_file.url
-            elif obj.media_file and hasattr(obj.media_file , 'url') :
+            preview_url = obj.preview_url
+            if not preview_url and obj.media_file and hasattr(obj.media_file, 'url'):
                 preview_url = obj.media_file.url
 
             if preview_url :
@@ -352,13 +364,13 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
                 name='media_library_medialibraryitem_replace_file_ajax' ,
             ) ,
             path(
-                '<path:object_id>/replace-file-ajax/' ,
-                self.admin_site.admin_view(self.replace_file_ajax) ,
-                name='media_library_medialibraryitem_replace_file_ajax' ,
-            ) ,
-            path(
                 '<path:object_id>/recreate-preview/' ,
                 self.admin_site.admin_view(self.recreate_preview_ajax) ,
+                name='media_library_medialibraryitem_recreate_preview' ,
+            ) ,
+            path(
+                '<path:object_id>/regenerate-variants/' ,
+                self.admin_site.admin_view(self.regenerate_variants_ajax) ,
                 name='media_library_medialibraryitem_recreate_preview' ,
             ) ,
             path(
@@ -371,7 +383,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
     @csrf_exempt
     def recreate_preview_ajax(self , request , object_id) :
-        """AJAX view для пересоздания превью"""
+        """AJAX view для перегенерации вариантов"""
         try :
             media_item = MediaLibraryItem.objects.get(pk=object_id)
         except MediaLibraryItem.DoesNotExist :
@@ -382,14 +394,21 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
         if request.method == 'POST' :
             try :
-                success , message = media_item.recreate_preview()
-                logger.info(f"Результат создания превью для {object_id}: {success} - {message}")
+                if not (media_item.is_image() or media_item._is_pdf()):
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Варианты поддерживаются только для изображений и PDF'
+                    })
+                delete_variants(media_item)
+                count = generate_variants(media_item)
+                message = f'Сгенерировано {count} вариантов' if count else 'Варианты не созданы (нет профиля)'
+                logger.info(f"Варианты перегенерированы для {object_id}: {count}")
                 return JsonResponse({
-                    'success' : success ,
+                    'success' : True ,
                     'message' : message
                 })
             except Exception as e :
-                logger.error(f"Ошибка при создании превью {object_id}: {str(e)}" , exc_info=True)
+                logger.error(f"Ошибка при генерации вариантов {object_id}: {str(e)}" , exc_info=True)
                 return JsonResponse({
                     'success' : False ,
                     'message' : f'Ошибка: {str(e)}'
@@ -401,8 +420,33 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
         })
 
     @csrf_exempt
+    def regenerate_variants_ajax(self, request, object_id):
+        """AJAX view для генерации вариантов из загруженного файла (без замены media_file)."""
+        try:
+            media_item = MediaLibraryItem.objects.get(pk=object_id)
+        except MediaLibraryItem.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Элемент не найден'})
+
+        if request.method != 'POST' or not request.FILES.get('file'):
+            return JsonResponse({'success': False, 'message': 'Файл не передан'})
+
+        uploaded = request.FILES['file']
+        try:
+            if not (media_item.is_image() or media_item._is_pdf()):
+                return JsonResponse({'success': False, 'message': 'Только изображения и PDF'})
+
+            delete_variants(media_item)
+            count = generate_variants(media_item, source_file=uploaded)
+
+            logger.info(f"Варианты сгенерированы из внешнего файла для {object_id}: {count}")
+            return JsonResponse({'success': True, 'message': f'Сгенерировано {count} вариантов'})
+        except Exception as e:
+            logger.error(f"Ошибка генерации вариантов {object_id}: {e}", exc_info=True)
+            return JsonResponse({'success': False, 'message': str(e)})
+
+    @csrf_exempt
     def delete_preview_ajax(self , request , object_id) :
-        """AJAX view для удаления превью"""
+        """AJAX view для удаления вариантов"""
         try :
             media_item = MediaLibraryItem.objects.get(pk=object_id)
         except MediaLibraryItem.DoesNotExist :
@@ -413,22 +457,20 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
         if request.method == 'POST' :
             try :
-                if media_item.preview_file :
-                    preview_name = media_item.preview_file.name
-                    media_item.preview_file.delete(save=False)
-                    media_item.save(update_fields=['preview_file'])
-                    logger.info(f"Превью удалено: {preview_name}")
+                if media_item.variants.exists():
+                    delete_variants(media_item)
+                    logger.info(f"Варианты удалены для {object_id}")
                     return JsonResponse({
                         'success' : True ,
-                        'message' : 'Превью успешно удалено'
+                        'message' : 'Варианты успешно удалены'
                     })
                 else :
                     return JsonResponse({
                         'success' : False ,
-                        'message' : 'Превью не существует'
+                        'message' : 'Варианты отсутствуют'
                     })
             except Exception as e :
-                logger.error(f"Ошибка при удалении превью {object_id}: {str(e)}")
+                logger.error(f"Ошибка при удалении вариантов {object_id}: {str(e)}")
                 return JsonResponse({
                     'success' : False ,
                     'message' : f'Ошибка: {str(e)}'
@@ -455,17 +497,12 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
             try :
                 # Заменяем файл
-                if media_item.replace_file(new_file , create_preview=True) :
+                if media_item.replace_file(new_file) :
                     # Обновляем описание
                     if not media_item.description or media_item.description.startswith("Файл: ") :
                         filename_without_ext = MediaLibraryItemForm()._get_filename_without_extension(new_file.name)
                         media_item.description = f"Файл: {filename_without_ext}"
                         media_item.save()
-
-                    # Принудительно создаем превью если нужно
-                    if media_item.is_image() and not media_item.preview_file :
-                        media_item.create_preview()
-                        media_item.save(update_fields=['preview_file'])
 
                     media_item.refresh_from_db()
 
@@ -473,7 +510,7 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
                         'success' : True ,
                         'message' : 'Файл успешно заменен' ,
                         'new_filename' : media_item.filename ,
-                        'new_preview_url' : media_item.preview_file.url if media_item.preview_file else (media_item.media_file.url if media_item.is_image() else None) ,
+                        'new_preview_url' : media_item.preview_url if media_item.is_image() else None ,
                         'new_file_size_display' : media_item.file_size_display ,
                         'new_file_type_html' : self.file_type_display(media_item) ,
                     }
@@ -500,13 +537,8 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
     def save_model(self , request , obj , form , change) :
         """
-        Переопределяем сохранение модели в админке
+        Сохранение модели в админке. Варианты генерируются в MediaLibraryItem.save().
         """
-        # MIME-тип должен определяться автоматически в модели
-        # Превью создается автоматически после сохранения
-
-        # Автоматически устанавливаем created_by при создании
-        # Если объект создается впервые (не редактируется)
         if not change :  # change=False означает создание нового объекта
             obj.created_by = request.user
             logger.info(f"Установлен created_by: {request.user} для нового объекта")
@@ -515,27 +547,10 @@ class MediaLibraryItemAdmin(admin.ModelAdmin) :
 
         super().save_model(request , obj , form , change)
 
-        # После сохранения принудительно проверяем превью
-        if obj.is_image() and not obj.preview_file :
-            logger.info(f"Принудительное создание превью в админке для {obj.pk}")
-            if obj.create_preview() :
-                # Сохраняем только поле preview_file
-                MediaLibraryItem.objects.filter(pk=obj.pk).update(
-                    preview_file=obj.preview_file
-                )
-
     def response_add(self , request , obj , post_url_continue=None) :
-        """Принудительно создаем превью после добавления"""
-        if obj.is_image() and not obj.preview_file :
-            obj.create_preview()
-            obj.save(update_fields=['preview_file'])
         return super().response_add(request , obj , post_url_continue)
 
     def response_change(self , request , obj) :
-        """Принудительно создаем превью после изменения"""
-        if obj.is_image() and not obj.preview_file :
-            obj.create_preview()
-            obj.save(update_fields=['preview_file'])
         return super().response_change(request , obj)
 
     def get_queryset(self , request) :

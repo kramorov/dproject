@@ -1,4 +1,30 @@
-# Состояние проекта на 2026-05-30
+# Состояние проекта на 2026-06-01
+
+## 🔧 В работе: MediaVariant — through-модель вместо JSONField
+
+- **Удалён** `variants = models.JSONField` из `MediaLibraryItem`
+- **Добавлена** `MediaVariant` — through-модель с полями: `media_item` (FK), `role`, `width`, `height`, `format`, `file_path`, `file_size`, `page_num`, `created_at`
+- `unique_together`: `(media_item, role, width, page_num)`
+- **`services.py`** переписан:
+  - `_save_to_storage()` → возвращает `(path, size)`
+  - `_compute_height()` — вычисление высоты по пропорции
+  - `generate_variants()` → создаёт `MediaVariant` через `apps.get_model`
+  - `delete_variants()` → удаляет файлы из Cloud.ru + строки БД
+  - `get_variants_for_api()` → строит словарь из through-строк
+- **`models.py`**:
+  - `save()` → `self.variants.exists()` / `self.variants.all().delete()` + CASCADE
+  - `delete()` → `self.variants.all()` для сбора путей
+  - `get_variants_for_api()` — метод модели, делегирует в `services`
+- ⚠️ **Нужно создать миграцию вручную**: `python manage.py makemigrations media_library --name replace_variants_jsonfield_with_through_model`
+- **`preview_file` — deprecated**: поле оставлено в БД, но код переведён на `MediaVariant`
+  - `preview_url` property → MediaVariant (thumb/card) → preview_file (фолбэк)
+  - `MediaPreviewView` → отдаёт variant из MediaVariant
+  - `admin_recreate_preview` → `delete_variants()` + `generate_variants()`
+  - `admin_detail.py` PUT/PATCH → `delete_variants()` перед заменой файла
+  - `to_dict()` → включает `variants` (get_variants_for_api)
+  - `ImageGalleryMixin._build_image_dict()` → `img.preview_url`
+  - Внешние ссылки (gearbox_catalog, pa_controls, valve_data) → `preview_url`
+- ⚠️ **После проверки — удалить preview_file файлы из Cloud.ru, затем дропнуть поле из БД**
 
 ## ⏳ Задачи на потом
 

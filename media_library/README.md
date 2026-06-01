@@ -152,18 +152,19 @@ PyMuPDF        # PDF-превью (pip install PyMuPDF)
 
 `media_library/services.py` — оркестратор:
 - `generate_variants(item)` — читает `item.category.profile`, вызывает `image_processor`,
-  сохраняет файлы в Cloud.ru, возвращает словарь для `item.variants` (JSONField)
-- `delete_variants(item)` — удаляет варианты из облака
-- `get_variants_for_api(item)` — оборачивает пути в URL через `file_service.get_file_url()`
+  сохраняет файлы в Cloud.ru, создаёт строки `MediaVariant` в БД
+- `delete_variants(item)` — удаляет варианты из облака и БД
+- `get_variants_for_api(item)` — строит словарь {role: {width: url}} из через through-модели
 
 Генерация запускается автоматически при `MediaLibraryItem.save()` для изображений и PDF.
 
-## Модель MediaLibraryItem (2026-05-30)
+## Модель MediaVariant (2026-06-01) — through-модель
 
-Новые поля:
-- `variants` (JSONField) — сгенерированные варианты: пути к файлам
-  - Изображения: `{'icon': {'50': 'path'}, 'card': {'400': 'path', '800': 'path'}, ...}`
-  - PDF: `{'pages': [{n:1, 'icon':{...}, 'page':{...}}, ...], 'total_pages': N}`
+Заменила `MediaLibraryItem.variants` (JSONField). Поля:
+- `media_item` (FK → MediaLibraryItem, related_name='variants', CASCADE)
+- `role` (icon/thumb/card/page/full/email), `width`, `height`, `format`
+- `file_path`, `file_size`, `page_num` (nullable, для PDF), `created_at`
+- `unique_together`: (media_item, role, width, page_num)
 
 Старые поля (deprecated):
 - `preview_file` — заменён на `variants`; оставлен для обратной совместимости

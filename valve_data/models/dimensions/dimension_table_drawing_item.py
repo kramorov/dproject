@@ -83,7 +83,7 @@ class DimensionTableDrawingItem(models.Model):
                 'title': drawing_item.drawing.title,
                 'description': drawing_item.description or drawing_item.drawing.description,
                 'media_file': drawing_item.drawing.media_file.url if drawing_item.drawing.media_file else None,
-                'preview_file': drawing_item.drawing.preview_file.url if drawing_item.drawing.preview_file else None,
+                'preview_file': drawing_item.drawing.preview_url if drawing_item.drawing.media_file else None,
                 'mime_type': drawing_item.drawing.mime_type,
                 'display_order': drawing_item.display_order,
                 'allowed_dns': [dn.code for dn in drawing_item.allowed_dn.all()],

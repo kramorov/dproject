@@ -235,9 +235,4 @@ ca62177a-1c49-40f9-9c58-965d01621220
 
 pip install awscli
 
-aws configure set aws_access_key_id 559cd892faa5b6b99024317984b6842c
-aws configure set aws_secret_access_key 0396f67824ad72d6102ffddfeb47ae4c
-aws configure set region ru-central-1
-aws s3 ls --endpoint-url https://s3.cloud.ru
-
-aws s3 ls s3://media-storage --endpoint-url https://s3.cloud.ru
+python -c "from rembg import remove; print('Модель загружена')"
