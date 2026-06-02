@@ -20,6 +20,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/catalog/CatalogActions.vue` | Кнопки «Инженерный/Быстрый подбор» |
 | `shared/components/MediaViewer.vue` | Просмотрщик медиафайлов (изображения/PDF) |
 | `shared/components/ImageCropper.vue` | Интерактивная обрезка: drag/зум, фон/rembg, профили |
+| `shared/components/ExdFilter.vue` | Каскадный фильтр взрывозащиты (метод→тип→группа→темп.класс) |
 | `shared/components/M2MDualList.vue` | M2M-селектор filter_horizontal (две панели + поиск) |
 | `shared/components/JsonFieldsEditor.vue` | Редактор JSON extra_params (таблица + raw JSON) |
 | `shared/components/MediaUploadModal.vue` | Модалка загрузки файла в медиатеку |
@@ -70,6 +71,18 @@ const {
   withSearch: true,
 })
 ```
+
+### ExdFilter — каскадный фильтр взрывозащиты (2026-06-02)
+
+Переиспользуемый компонент для всех каталогов. Заменяет плоский `<select>` для фильтров типа `exd_compatible`.
+
+- **API**: `GET /api/core/exd/structure/` → иерархия (методы, типы, группы газ/пыль, темп.классы)
+- **API**: `GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id=` → совместимые ExdOption ID
+- **Селекты**: Метод → Тип → Группа (газ/пыль раздельно) → Темп.класс (только для газа)
+- **«Общепромышленное»**: `methodId=0` — первый пункт в селекте методов, ищет модели без Ex
+- **Sentinel'ы**: `_none_` (без Ex) и `_empty_` (нет совместимых) — передаются в `exd_id` как строка
+- **Эмит**: `update:modelValue` — массив ID или `['_none_']`/`['_empty_']` → `FilterSidebar` отправляет в API
+- Интегрирован в `FilterSidebar.vue` — определяется по `filter_type === 'exd_compatible'`
 
 ### FilterSidebar — «Показывать совместимые»
 

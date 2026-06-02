@@ -1,6 +1,8 @@
 <!-- shared/components/catalog/CatalogModelLine.vue -->
+<!-- DEBUG: CatalogModelLine -->
 <template>
   <div class="catalog-model-line">
+    <span class="debug-tag">CatalogModelLine</span>
     <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <PageTitle :title="labels.title" :context="mlName" context-label="Серия" />
     <p class="page-count" v-if="total">{{ labels.countLabel || 'Товаров:' }} {{ total }}</p>

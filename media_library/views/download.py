@@ -44,6 +44,11 @@ class MediaDownloadView(APIView):
 
         variant = request.GET.get('variant', '')
         mode = getattr(settings, 'MEDIA_SERVE_MODE', 'redirect')
+        custom_filename = request.GET.get('filename', '')
+
+        # ── Имя файла для скачивания: query-параметр → item.name → item.filename ──
+        ext = item.file_extension or ''
+        download_name = custom_filename or (f"{item.name or 'document'}.{ext}" if ext else (item.name or 'document'))
 
         if variant == 'email':
             v = item.variants.filter(role='email').first()
@@ -56,9 +61,8 @@ class MediaDownloadView(APIView):
             except Exception:
                 raise Http404("Variant file not accessible")
             content_type = f'image/{v.format}' if v.format != 'pdf' else 'application/pdf'
-            ext = v.format if v.format != 'pdf' else 'pdf'
             response = FileResponse(f, content_type=content_type)
-            response['Content-Disposition'] = f'attachment; filename="{(item.name or "document")} (сжат).{ext}"'
+            response['Content-Disposition'] = f'attachment; filename="{download_name}"'
             response['Content-Length'] = v.file_size
             return response
 
@@ -75,7 +79,7 @@ class MediaDownloadView(APIView):
             item.media_file.open('rb'),
             content_type=item.mime_type or 'application/octet-stream',
             as_attachment=as_attachment,
-            filename=item.filename,
+            filename=download_name,
         )
         response['Content-Length'] = item.media_file.size
         response['X-Content-Type-Options'] = 'nosniff'

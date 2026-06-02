@@ -237,6 +237,7 @@ class TemplateMixin:
 
     def generate_title(self) -> str:
         """Сгенерировать заголовок из шаблона title_template."""
+        # print(f'Mixin template generate_title={self._fill_template(self.title_template)}, template={self.title_template}')
         return self._fill_template(self.title_template)
 
     # === ОБНОВЛЕНИЕ ПОЛЕЙ МОДЕЛИ ===

@@ -236,7 +236,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     search_fields = ['name', 'code', ]
     list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
     ordering = ['sorting_order', 'name']
-    actions = ['copy_selected_boxes','save_selected_boxes']
+    actions = ['copy_selected_boxes','save_selected_boxes','regenerate_from_templates']
     filter_horizontal = ['additional_sensor', 'exd']
     # raw_id_fields = ['images', 'tech_docs']
 
@@ -245,7 +245,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
                        ( 'points','sensor_variety',),
-                       ('ip', ),
+                       ('ip', 'exd'),
                        ('work_temp_min', 'work_temp_max'),)
         }),
         (_('Описание'), {
@@ -342,3 +342,15 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
             self.message_user(request, f"⚠️ Ошибки при сохранении: {', '.join(errors)}", level=messages.ERROR)
 
     save_selected_boxes.short_description = "💾 Перезаписать выбранные БКВ"
+
+    def regenerate_from_templates(self, request, queryset):
+        """
+        Перегенерировать name и description из шаблонов.
+        """
+        updated = 0
+        for obj in queryset:
+            if obj.update_from_templates(save=True):
+                updated += 1
+        self.message_user(request, f"♻️ Обновлено: {updated} из {queryset.count()}", level=messages.SUCCESS)
+
+    regenerate_from_templates.short_description = "♻️ Перегенерировать name/description из шаблонов"

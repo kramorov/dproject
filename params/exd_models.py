@@ -462,6 +462,8 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         return {
             'methods': methods,
             'groups': all_groups,
+            'gas_groups': gas_groups,
+            'dust_groups': dust_groups,
             'temperature_classes': temp_classes,
             'protection_levels': protection_levels,
         }
@@ -494,7 +496,7 @@ class ExdOption(models.Model, OptionListToSelectMixin):
             )
         elif self.dust_temperature:
             queryset = queryset.filter(
-                temperature_rating__gte=self.dust_temperature
+                temperature_rating__lte=self.dust_temperature
             )
 
         return set(queryset.values_list('id', flat=True))
@@ -543,12 +545,20 @@ class ExdOption(models.Model, OptionListToSelectMixin):
             print(f"  After gas/dust group filter: {queryset.count()}")
 
         if temp_id:
-            temp_class = TemperatureClass.objects.get(id=temp_id)
-            print(f"  Temp class: {temp_class.code}, strictness_rating={temp_class.strictness_rating}")
-            queryset = queryset.filter(
-                temperature_rating__gte=temp_class.strictness_rating
-            )
-            print(f"  After temp filter: {queryset.count()}")
+            is_dust = False
+            if group_id:
+                try:
+                    group = HazardousGroup.objects.get(id=group_id)
+                    is_dust = group.group_type == 'DUST'
+                except HazardousGroup.DoesNotExist:
+                    pass
+            if not is_dust:
+                temp_class = TemperatureClass.objects.get(id=temp_id)
+                print(f"  Temp class: {temp_class.code}, strictness_rating={temp_class.strictness_rating}")
+                queryset = queryset.filter(
+                    temperature_rating__gte=temp_class.strictness_rating
+                )
+                print(f"  After temp filter: {queryset.count()}")
 
         result = set(queryset.values_list('id', flat=True))
         print(f"  Final compatible IDs: {result}")

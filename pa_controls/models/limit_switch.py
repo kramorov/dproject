@@ -1,4 +1,5 @@
 # pa_controls/models/limit_switch.py
+import re
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Any
@@ -201,7 +202,10 @@ class LimitSwitchBox(CatalogDictMixin,
         default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}, вес {weight}кг. Датчики: {sensors_description}"
         return default_description_template
 
-    # '{primary_sensor_contact_form}': 'primary_sensor__contact_form',
+    def _get_title_template_source(self):
+        """Переопределить в модели: вернуть шаблон заголовка или None."""
+        title_template = "{model_code} {points} датчика, {sensor_variety}; {ip}, В/з: {exd}; {work_temp_min}..{work_temp_max} °С, корпус: {body_material}"
+        return title_template
 
     @property
     def get_primary_sensor_contact_form(self) -> str:
@@ -511,18 +515,26 @@ class LimitSwitchBox(CatalogDictMixin,
             )
             if cert_ids:
                 from cert_doc.models import CertData
-                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item'):
+                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item', 'cert_variety'):
                     media = getattr(cert, 'media_item', None)
                     if not media:
                         continue
                     has_email = media.variants.filter(role='email').exists()
+                    from urllib.parse import quote
+                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                    cert_code = getattr(cert, 'code', '') or ''
+                    ml_name = self.model_line.name if self.model_line else ''
+                    base_name = re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {cert_code} для {ml_name}".strip())
+                    dl_name = f"{base_name}.pdf"
+                    email_name = f"{base_name} (сжат).pdf"
                     certs.append({
-                        'id': cert.id,
+                        'id': media.id,
                         'name': getattr(cert, 'name', '') or '',
-                        'file_name': f"Сертификат {getattr(getattr(cert, 'cert_variety', None), 'name', '') or ''} {getattr(cert, 'code', '') or ''}".strip() or 'certificate',
-                        'url': f"/api/media/{media.id}/download/",
+                        'file_name': dl_name,
+                        'email_file_name': email_name,
+                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
                         'preview_url': f"/api/media/{media.id}/view/",
-                        'email_url': f"/api/media/{media.id}/download/?variant=email" if has_email else None,
+                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
                     })
         return certs
 
@@ -585,21 +597,23 @@ class LimitSwitchBox(CatalogDictMixin,
                             {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 5},
                             {'key': 'exd', 'label': 'Взрывозащита', 'value': tv['exd'], 'unit': '', 'type': 'text',
                              'order': 6},
-                            {'key': 'is_pneumatic', 'label': 'Пневматический', 'value': tv['is_pneumatic'], 'unit': '',
+                            {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'], 'unit': '',
                              'type': 'text', 'order': 7},
-                            {'key': 'has_namur_interface', 'label': 'NAMUR интерфейс',
-                             'value': tv['has_namur_interface'], 'unit': '', 'type': 'text', 'order': 8},
+                            # {'key': 'is_pneumatic', 'label': 'Пневматический', 'value': tv['is_pneumatic'], 'unit': '',
+                            #  'type': 'text', 'order': 7},
+                            # {'key': 'has_namur_interface', 'label': 'NAMUR интерфейс',
+                            #  'value': tv['has_namur_interface'], 'unit': '', 'type': 'text', 'order': 8},
                             {'key': 'has_visual_indicator', 'label': 'Визуальный индикатор',
                              'value': tv['has_visual_indicator'], 'unit': '', 'type': 'text', 'order': 9},
                         ]
                     },
                     {
-                        'key': 'body', 'title': 'Корпус', 'order': 2,
+                        'key': 'body', 'title': 'Корпус', 'order': 3,
                         'fields': [
                             {'key': 'body_material', 'label': 'Материал корпуса', 'value': tv['body_material'],
                              'unit': '', 'type': 'text', 'order': 1},
-                            {'key': 'body_material_specified', 'label': 'Материал (уточн.)',
-                             'value': tv['body_material_specified'], 'unit': '', 'type': 'text', 'order': 2},
+                            # {'key': 'body_material_specified', 'label': 'Материал (уточн.)',
+                            #  'value': tv['body_material_specified'], 'unit': '', 'type': 'text', 'order': 2},
                             {'key': 'weight', 'label': 'Вес', 'value': tv['weight'], 'unit': 'кг', 'type': 'number',
                              'order': 3},
                             {'key': 'cable_glands_holes', 'label': 'Отверстия под КВ',
@@ -609,7 +623,7 @@ class LimitSwitchBox(CatalogDictMixin,
                         ]
                     },
                     {
-                        'key': 'sensors', 'title': 'Датчики', 'order': 3,
+                        'key': 'sensors', 'title': 'Датчики', 'order': 2,
                         'fields': [
                             {'key': 'primary_sensor', 'label': 'Основной датчик', 'value': tv['primary_sensor'],
                              'unit': '', 'type': 'text', 'order': 1},
@@ -621,13 +635,7 @@ class LimitSwitchBox(CatalogDictMixin,
                              'type': 'text', 'order': 4},
                         ]
                     },
-                    {
-                        'key': 'conditions', 'title': 'Условия эксплуатации', 'order': 4,
-                        'fields': [
-                            {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'], 'unit': '',
-                             'type': 'text', 'order': 1},
-                        ]
-                    },
+
                 ]
                 },
                 {

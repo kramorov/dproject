@@ -11,18 +11,24 @@
       :key="f.key"
       class="filter-group"
     >
-      <label>{{ f.label }}</label>
-      <!-- Одна опция — показываем текстом -->
-      <span v-if="f.options.length === 1" class="filter-single-value">{{ f.options[0].name }}</span>
-      <!-- Несколько опций — выпадающий список -->
-      <select v-else v-model="active[f.key]" @change="$emit('change', f.key, active[f.key])">
-        <option value="">Все</option>
-        <option
-          v-for="opt in f.options"
-          :key="opt.id"
-          :value="opt.id"
-        >{{ opt.name }}</option>
-      </select>
+      <!-- Exd-каскадный фильтр -->
+      <ExdFilter
+        v-if="f.filter_type === 'exd_compatible'"
+        @update:modelValue="ids => onExdChange(ids)"
+      />
+      <!-- Обычные фильтры -->
+      <template v-else>
+        <label>{{ f.label }}</label>
+        <span v-if="f.options.length === 1" class="filter-single-value">{{ f.options[0].name }}</span>
+        <select v-else v-model="active[f.key]" @change="$emit('change', f.key, active[f.key])">
+          <option value="">Все</option>
+          <option
+            v-for="opt in f.options"
+            :key="opt.id"
+            :value="opt.id"
+          >{{ opt.name }}</option>
+        </select>
+      </template>
     </div>
 
     <div class="filter-group" v-if="showCompatibleToggle">
@@ -36,7 +42,10 @@
 </template>
 
 <script setup>
-import { reactive, computed, watch } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
+import ExdFilter from './ExdFilter.vue'
+
+const activeExdIds = ref([])
 
 const props = defineProps({
   filters: { type: Object, default: () => ({}) },
@@ -67,6 +76,17 @@ const sortedFilters = computed(() => {
 const hasActive = computed(() =>
   Object.values(active).some(v => v !== '' && v != null)
 )
+
+function onExdChange(ids) {
+  activeExdIds.value = ids
+  if (!ids.length) {
+    emit('change', 'exd_id', '')
+  } else if (ids[0] === '_none_' || ids[0] === '_empty_') {
+    emit('change', 'exd_id', ids[0])
+  } else {
+    emit('change', 'exd_id', ids.join(','))
+  }
+}
 </script>
 
 <style scoped>

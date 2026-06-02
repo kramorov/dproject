@@ -273,11 +273,25 @@ class FilterDefinition:
             except (IpOption.DoesNotExist, ValueError, TypeError):
                 return None, None
         elif self.filter_type == FilterType.EXD_COMPATIBLE:
+            # Принимает: одиночный ExdOption ID (→ get_compatible_ids),
+            # список ID, comma-separated строку, или sentinel'ы:
+            #   _none_  — общепромышленное (exd отсутствует: exd__isnull=True)
+            #   _empty_ — нет совместимых (возвращает пустой queryset)
+            # Для одиночного ID — расширяет до всех совместимых (rating__gte).
             try:
+                if value == '_none_':
+                    return f"{self.model_field}__isnull", True
+                if value == '_empty_':
+                    return f"{self.model_field}__in", []
                 if isinstance(value, list):
                     if not value:
                         return None, None
-                    return f"{self.model_field}__in", value
+                    return f"{self.model_field}__in", [int(v) for v in value]
+                if isinstance(value, str) and ',' in value:
+                    ids = [int(v.strip()) for v in value.split(',') if v.strip()]
+                    if ids:
+                        return f"{self.model_field}__in", ids
+                    return None, None
                 else:
                     selected_exd = ExdOption.objects.get(id=int(value))
                     compatible_ids = selected_exd.get_compatible_ids()

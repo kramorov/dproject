@@ -1,4 +1,5 @@
 # gearbox/models/gearbox.py
+import re
 from typing import Dict, List, Any
 
 from django.db import models
@@ -350,7 +351,7 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
         if not (self.model_line and hasattr(self.model_line, 'cert_docs')):
             return certs
 
-        for cert in self.model_line.cert_docs.all():
+        for cert in self.model_line.cert_docs.select_related('media_item', 'cert_variety').all():
             from django.conf import settings
             base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
             try:
@@ -361,15 +362,20 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
                     continue
 
                 has_email = media.variants.filter(role='email').exists()
-                variety_name = getattr(getattr(cert, 'cert_variety', None), 'name', '') or ''
-                dl_name = f"Сертификат {variety_name} {code}".strip() if variety_name else (code or 'certificate')
+                variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                ml_name = self.model_line.name if self.model_line else ''
+                base_name = re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {code} для {ml_name}".strip())
+                dl_name = f"{base_name}.pdf"
+                email_name = f"{base_name} (сжат).pdf"
+                from urllib.parse import quote
                 certs.append({
-                    'id': cert.id,
+                    'id': media.id,
                     'name': title,
                     'file_name': dl_name,
-                    'url': f"/api/media/{media.id}/download/",
+                    'email_file_name': email_name,
+                    'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
                     'preview_url': f"/api/media/{media.id}/view/",
-                    'email_url': f"/api/media/{media.id}/download/?variant=email" if has_email else None,
+                    'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
                 })
             except Exception:
                 continue

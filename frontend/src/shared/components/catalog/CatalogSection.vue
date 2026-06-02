@@ -1,6 +1,8 @@
 <!-- shared/components/catalog/CatalogSection.vue -->
+<!-- DEBUG: CatalogSection -->
 <template>
   <div class="catalog-section">
+    <span class="debug-tag">CatalogSection</span>
     <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <PageTitle :title="labels.title" :subtitle="labels.subtitle" />
     <CatalogActions @engineer="$emit('select')" @quickselect="$emit('quickselect')" />

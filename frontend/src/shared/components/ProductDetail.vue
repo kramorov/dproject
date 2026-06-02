@@ -2,6 +2,7 @@
 <!-- Оркестратор страницы товара. Компонует: JsonLd, Breadcrumbs, ProductGallery, ProductHeader, ProductTabs. -->
 <template>
   <div class="product-detail">
+    <span class="debug-tag">ProductDetail</span>
     <JsonLd :schema="product.schema" />
     <Breadcrumbs :items="breadcrumbs" />
 

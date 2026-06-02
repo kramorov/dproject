@@ -1,6 +1,8 @@
 <!-- shared/components/catalog/QuickSelect.vue -->
+<!-- DEBUG: QuickSelect -->
 <template>
   <div class="qs-page">
+    <span class="debug-tag">QuickSelect</span>
     <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <PageTitle :title="pageTitle" />
     <div class="chip-group" v-if="modelLines.length"><div class="chip-label">Серия</div><div class="chip-row"><button v-for="ml in modelLines" :key="ml.id" class="chip" :class="{active:selectedML===ml.id}" @click="selectSeries(ml.id)">{{ ml.name }}</button></div></div>

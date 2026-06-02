@@ -1,6 +1,8 @@
 <!-- shared/components/catalog/CatalogDetail.vue -->
+<!-- DEBUG: CatalogDetail -->
 <template>
   <div class="catalog-detail">
+    <span class="debug-tag">CatalogDetail</span>
     <button class="back-btn" @click="$emit('close')">← {{ labels.backLabel || 'Назад к каталогу' }}</button>
     <ProductDetail v-if="product" :product="product" :price="price" :breadcrumbs="breadcrumbs" />
     <Spinner v-else-if="loading" />

@@ -11,7 +11,7 @@
           <a href="#" @click.prevent="openDoc(file)" class="file-link">👁️ Открыть</a>
           <a :href="file.url" :download="file.file_name || file.name || true" class="file-link">📥 Скачать</a>
           <a v-if="file.email_url" :href="file.email_url"
-             :download="(file.file_name || file.name || 'file') + ' (сжат)'" class="file-link file-link-email">
+             :download="file.email_file_name || (file.file_name || file.name || 'file') + ' (сжат).pdf'" class="file-link file-link-email">
             📧 Сжат
           </a>
         </div>

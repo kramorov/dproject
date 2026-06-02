@@ -1,4 +1,38 @@
-# Состояние проекта на 2026-06-01
+# Состояние проекта на 2026-06-02
+
+## Сегодня (2026-06-02) — Скачивание сертификатов, Exd-фильтр, админка БКВ
+
+### 📥 Имена файлов при скачивании сертификатов и техдокументации
+
+- **Проблема**: при скачивании сертификатов имя файла было хешем из Cloud.ru или «Без названия.pdf». Сжатая версия дублировала суффикс.
+- **Решение**:
+  - `MediaDownloadView` — принимает `?filename=`, использует в `Content-Disposition`. Фолбэк: `item.name` + расширение.
+  - `_get_certs_section()` во всех моделях — формирует `file_name` по шаблону `"{variety} {code} для {model_line}.pdf"` + санитазация (`\ / : * ? " < > |` → `_`).
+  - API-ответ: `file_name`, `email_file_name`, `email_url` с `&filename=`.
+  - `FileList.vue` — `:download="file.email_file_name"` для сжатой версии.
+  - `select_related('cert_variety')`, `str(cert.cert_variety)`, `'id': media.id` для DocViewer.
+
+### 💥 Каскадный Exd-фильтр на фронтенде
+
+- **Проблема**: `fd_exd` с `CUSTOM` пропускался в `BaseFilterOptionsView`, не отображался. При пустом результате фильтра показывались все модели.
+- **Решение**:
+  - **API**: `GET /api/core/exd/structure/` → иерархия (методы→типы→группы→темп.классы) + `gas_groups`/`dust_groups` раздельно
+  - **API**: `GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id=` → совместимые ExdOption ID
+  - **Vue**: `ExdFilter.vue` — каскадные селекты: метод → тип → группа (газ/пыль раздельно) → темп.класс (только для газа)
+  - **Sentinel'ы**: `_none_` (общепромышленное → `exd__isnull=True`), `_empty_` (нет совместимых → `exd__in=[]`), иначе comma-separated ID
+  - **«Общепромышленное»**: опция `methodId=0` в селекте методов → ищет модели без взрывозащиты
+  - `FilterSidebar.vue` — рендерит `ExdFilter` для `filter_type === 'exd_compatible'`, передаёт sentinel'ы как строку
+  - `filter_definition.py` — `EXD_COMPATIBLE`: comma-separated ID, список, одиночный ID, или sentinel'ы `_none_`/`_empty_`
+  - `exd_models.py` — `get_compatible_ids_by_components`: не фильтрует по `TemperatureClass` для пылевых групп
+  - `exd_models.py` — `get_compatible_ids`: `temperature_rating__lte` для пыли (меньше = безопаснее)
+  - `BaseFilterOptionsView` — добавлен `filter_type` в ответ API, CUSTOM больше не пропускается
+
+### 🔧 Админка LimitSwitchBox
+
+- Action `regenerate_from_templates` — перегенерация `name`/`description` через `update_from_templates(save=True)`.
+- `TemplateMixin`: `generate_title`/`title_template`/`_get_title_template_source` переопределены в `LimitSwitchBox`.
+
+## 2026-06-01 — Бэкап Cloud.ru, анализ хранилища, автоочистка
 
 ## Сегодня (2026-06-01) — Бэкап Cloud.ru, анализ хранилища, автоочистка
 

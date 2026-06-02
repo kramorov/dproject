@@ -1,4 +1,5 @@
 # filter_regulator/models/fr_model_line_item.py
+import re
 from typing import Dict, List, Any
 
 from django.db import models
@@ -317,7 +318,7 @@ class FilterRegulator(
         if not (self.model_line and hasattr(self.model_line, 'cert_docs')):
             return certs
 
-        for cert in self.model_line.cert_docs.all():
+        for cert in self.model_line.cert_docs.select_related('media_item', 'cert_variety').all():
             from django.conf import settings
             base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
             try:
@@ -327,11 +328,16 @@ class FilterRegulator(
                 if not media:
                     continue
 
+                from urllib.parse import quote
+                variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                ml_name = self.model_line.name if self.model_line else ''
+                base_name = re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {code} для {ml_name}".strip())
+                dl_name = f"{base_name}.pdf"
                 certs.append({
-                    'id': cert.id,
+                    'id': media.id,
                     'title': title,
-                    'file_name': code,
-                    'url': f"{base}/api/media/{media.id}/download/",
+                    'file_name': dl_name,
+                    'url': f"{base}/api/media/{media.id}/download/?filename={quote(dl_name)}",
                 })
             except Exception:
                 continue

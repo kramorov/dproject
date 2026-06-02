@@ -188,3 +188,24 @@ python manage.py cleanup_crop_sessions        # очистка брошенны�
 Типичный workflow: `backup_cloudru` → `find_orphaned_files --manifest ...` → при необходимости `--delete`.
 
 Состояние на 2026-06-01: 935 объектов, 357.4 МБ. Орфанов нет, 31.8 МБ crop-сессий удалены.
+
+## Имена файлов при скачивании (2026-06-02)
+
+`MediaDownloadView` (`views/download.py`) — единая точка скачивания:
+
+| Параметр | Назначение |
+|----------|-----------|
+| `?variant=email` | Сжатый PDF (email-вариант) |
+| `?filename=...` | Кастомное имя файла (URL-encoded) |
+
+**Приоритет имени**: `?filename=` → `item.name` + расширение → `item.filename` (имя в облаке).
+
+**Шаблон для сертификатов** (в `_get_certs_section()` моделей оборудования):
+```
+{variety_name} {cert_code} для {model_line}.pdf          — обычный
+{variety_name} {cert_code} для {model_line} (сжат).pdf   — сжатый
+```
+
+Недопустимые символы (`\ / : * ? " < > |`) заменяются на `_`.
+
+**API-ответ** включает `file_name` и `email_file_name` — фронтенд использует их в `download`-атрибуте `<a>`, минуя зависимость от `Content-Disposition`.

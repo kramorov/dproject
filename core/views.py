@@ -590,9 +590,10 @@ class BaseFilterOptionsView(APIView):
 
     Ответ (JSON):
         {
-            filters: { param_name: { label, order, options: [{id, name, code}] } },
+            filters: { param_name: { label, order, filter_type, options: [{id, name, code}] } },
             show_compatible: bool,
         }
+        filter_type — строка ('exact', 'exd_compatible', ...) для выбора UI-компонента на фронте.
     """
     permission_classes = []
     # ── New path ──
@@ -620,14 +621,13 @@ class BaseFilterOptionsView(APIView):
 
             result = {}
             for fd in filter_set.definitions:
-                if fd.data_source_type.value == 'custom':
-                    continue
                 try:
                     options = fd.get_options(config.model_class, queryset=base_qs)
                     if options:
                         result[fd.param_name] = {
                             'label': fd.label,
                             'order': fd.order,
+                            'filter_type': fd.filter_type.value,
                             'options': options,
                         }
                 except Exception as e:
@@ -650,8 +650,6 @@ class BaseFilterOptionsView(APIView):
         exclude = self.scope_exclude.get(scope, [])
         result = {}
         for fd in self.filter_definitions:
-            if fd.data_source_type.value == 'custom':
-                continue
             if fd.param_name in exclude:
                 continue
                 try:
@@ -810,3 +808,42 @@ class BaseQuickSelectView(APIView):
             return {'id': ml.id, 'name': ml.name, 'code': getattr(ml, 'code', '') or ''}
         except Exception:
             return None
+
+
+class ExdStructureView(APIView):
+    """GET /api/core/exd/structure/ — иерархия взрывозащиты для каскадного фильтра."""
+    permission_classes = []
+
+    def get(self, request):
+        from params.exd_models import ExdOption
+        return Response(ExdOption.get_structured_choices())
+
+
+class ExdCompatibleView(APIView):
+    """GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id= — совместимые ExdOption."""
+    permission_classes = []
+
+    def get(self, request):
+        from params.exd_models import ExdOption
+        try:
+            method_id = request.GET.get('method_id') or None
+            type_id = request.GET.get('type_id') or None
+            group_id = request.GET.get('group_id') or None
+            temp_id = request.GET.get('temp_id') or None
+
+            if method_id:
+                method_id = int(method_id)
+            if type_id:
+                type_id = int(type_id)
+            if group_id:
+                group_id = int(group_id)
+            if temp_id:
+                temp_id = int(temp_id)
+
+            ids = ExdOption.get_compatible_ids_by_components(
+                method_id=method_id, type_id=type_id,
+                group_id=group_id, temp_id=temp_id,
+            )
+            return Response({'ids': sorted(ids)})
+        except Exception as e:
+            return Response({'error': str(e), 'ids': []}, status=400)

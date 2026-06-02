@@ -228,3 +228,39 @@ const {
 - [ ] Крошки трёхуровневые: Каталог / Оборудование / Страница
 - [ ] `url()` хранилища (Cloud.ru) **не делает HEAD-запросов** — только `_normalize()`
 - [ ] Удаление вызывает `MediaLibraryItem.delete()` → `file_service.delete_file()` для облака
+
+---
+
+## Фильтр взрывозащиты (Exd) — 2026-06-02
+
+### FilterDefinition
+
+```python
+fd_exd = FilterDefinition(
+    param_name='exd_id',
+    model_field='exd',
+    filter_type=FilterType.EXD_COMPATIBLE,
+    data_source_type=DataSourceType.CUSTOM,
+    label='Взрывозащита',
+    order=10,
+)
+```
+
+### API
+
+| Эндпоинт | Назначение |
+|----------|-----------|
+| `GET /api/core/exd/structure/` | Иерархия: methods, gas_groups, dust_groups, temperature_classes |
+| `GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id=` | Совместимые ExdOption ID |
+
+### Sentinel'ы
+
+| Значение `exd_id` | Фильтр | Описание |
+|-------------------|--------|----------|
+| `_none_` | `exd__isnull=True` | Общепромышленное (без Ex) |
+| `_empty_` | `exd__in=[]` | Ex-метод без совместимых → пустой результат |
+| `5,7,10` | `exd__in=[5,7,10]` | Конкретные совместимые ID |
+
+### Фронтенд
+
+`ExdFilter.vue` — переиспользуемый каскадный компонент. `FilterSidebar.vue` рендерит его при `filter_type === 'exd_compatible'`. Селекты: Метод → Тип → Группа (газ/пыль) → Темп.класс (только газ). Первый пункт методов — «Общепромышленное».

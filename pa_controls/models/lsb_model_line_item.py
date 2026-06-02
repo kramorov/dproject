@@ -1,4 +1,5 @@
 # pa_controls/models/lsb_model_line_item.py
+import re
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Any
@@ -177,75 +178,6 @@ class LsbModelLineItem(CatalogDictMixin,
         new_copy.exd.set(self.exd.all())
         new_copy.additional_sensor.set(self.additional_sensor.all())
 
-    # def copy(self, suffix=" (Копия)", code_suffix="_copy"):
-    #     """
-    #     Создает копию текущего объекта
-    #
-    #     Args:
-    #         suffix: суффикс для name
-    #         code_suffix: суффикс для code
-    #
-    #     Returns:
-    #         LimitSwitchBox: Скопированный объект
-    #     """
-    #     # Генерируем новые имена с суффиксом
-    #     original_name = self.name or ""
-    #     original_code = self.code or ""
-    #
-    #     # Для name
-    #     if suffix in original_name:
-    #         base_name = original_name.replace(suffix, "")
-    #         new_name = f"{base_name}{suffix}"
-    #     else:
-    #         new_name = f"{original_name}{suffix}"
-    #
-    #     # Для code
-    #     if original_code:
-    #         if code_suffix in original_code:
-    #             # Увеличиваем номер копии
-    #             import re
-    #             match = re.search(rf"{code_suffix}(\d+)$", original_code)
-    #             if match:
-    #                 num = int(match.group(1)) + 1
-    #                 new_code = re.sub(rf"{code_suffix}\d+$", f"{code_suffix}{num}", original_code)
-    #             else:
-    #                 new_code = f"{original_code}{code_suffix}1"
-    #         else:
-    #             new_code = f"{original_code}{code_suffix}"
-    #     else:
-    #         new_code = None
-    #
-    #     # Создаем копию
-    #     copy = LimitSwitchBox(
-    #         name=new_name,
-    #         code=new_code,
-    #         description=f"Копия: {self.description}" if self.description else "Копия",
-    #         sorting_order=self.sorting_order + 100,
-    #         is_active=self.is_active,
-    #         model_line=self.model_line,
-    #         body=self.body,
-    #         sensor_variety=self.sensor_variety,
-    #         points=self.points,
-    #         ip=self.ip,
-    #         work_temp_min=self.work_temp_min,
-    #         work_temp_max=self.work_temp_max,
-    #         body_material=self.body_material,
-    #         body_material_specified=self.body_material_specified,
-    #         is_pneumatic=self.is_pneumatic,
-    #         has_namur_interface=self.has_namur_interface,
-    #         has_visual_indicator=self.has_visual_indicator,
-    #         extra_params=self.extra_params if self.extra_params else {}
-    #     )
-    #     copy.save()
-    #
-    #     # Копируем exd через ручной метод
-    #     copy.exd_set_ids(self.exd_get_ids())
-    #     # Копируем ManyToMany поле additional_sensor
-    #     copy.additional_sensor.set(self.additional_sensor.all())
-    #     return copy
-
-
-
     @property
     def exd_display(self):
         """Возвращает отображаемую маркировку взрывозащиты"""
@@ -268,7 +200,9 @@ class LsbModelLineItem(CatalogDictMixin,
         default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}, вес {weight}кг. Датчики: {sensors_description}"
         return default_description_template
 
-    # '{primary_sensor_contact_form}': 'primary_sensor__contact_form',
+
+
+
 
     @property
     def get_primary_sensor_contact_form(self) -> str:
@@ -578,18 +512,26 @@ class LsbModelLineItem(CatalogDictMixin,
             )
             if cert_ids:
                 from cert_doc.models import CertData
-                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item'):
+                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item', 'cert_variety'):
                     media = getattr(cert, 'media_item', None)
                     if not media:
                         continue
                     has_email = media.variants.filter(role='email').exists()
+                    from urllib.parse import quote
+                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                    cert_code = getattr(cert, 'code', '') or ''
+                    ml_name = self.model_line.name if self.model_line else ''
+                    base_name = re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {cert_code} для {ml_name}".strip())
+                    dl_name = f"{base_name}.pdf"
+                    email_name = f"{base_name} (сжат).pdf"
                     certs.append({
-                        'id': cert.id,
+                        'id': media.id,
                         'name': getattr(cert, 'name', '') or '',
-                        'file_name': f"Сертификат {getattr(getattr(cert, 'cert_variety', None), 'name', '') or ''} {getattr(cert, 'code', '') or ''}".strip() or 'certificate',
-                        'url': f"/api/media/{media.id}/download/",
+                        'file_name': dl_name,
+                        'email_file_name': email_name,
+                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
                         'preview_url': f"/api/media/{media.id}/view/",
-                        'email_url': f"/api/media/{media.id}/download/?variant=email" if has_email else None,
+                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
                     })
         return certs
 

@@ -1,6 +1,8 @@
 <!-- shared/components/catalog/CatalogList.vue -->
+<!-- DEBUG: CatalogList -->
 <template>
   <div class="catalog-list">
+    <span class="debug-tag">CatalogList</span>
     <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <PageTitle :title="labels.title" />
     <div class="search-bar" v-if="withSearch"><input v-model="search" :placeholder="labels.searchPlaceholder||'Поиск...'" @input="onSearchInput" /></div>
