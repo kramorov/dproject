@@ -21,6 +21,14 @@
         />
       </div>
 
+      <!-- Climate cascade — зона + размещение → температуры -->
+      <div class="req-form__field">
+        <label>Климатическое исполнение</label>
+        <ClimateFilter
+          @update:temps="onClimateTemps"
+        />
+      </div>
+
       <!-- Regular fields from schema -->
       <div v-for="f in nonExdFields" :key="f.name" class="req-form__field">
         <label :for="'rf-'+f.name">{{ f.label }}</label>
@@ -31,7 +39,7 @@
           :id="'rf-'+f.name"
           v-model="formData[f.name]"
         >
-          <option :value="null">{{ f.optional ? '—' : 'Выберите...' }}</option>
+          <option :value="null">Не указано</option>
           <option v-for="c in f.choices" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
 
@@ -81,6 +89,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import api from '@/shared/api'
 import ExdFilter from '@/shared/components/ExdFilter.vue'
+import ClimateFilter from '@/shared/components/ClimateFilter.vue'
 
 const TYPES = [
   { value: 'gearbox', label: 'Редуктор' },
@@ -126,6 +135,12 @@ async function loadSchema() {
       params: { type: selectedType.value },
     })
     schema.value = data
+    // Apply default values from schema
+    if (data.defaults) {
+      for (const [k, v] of Object.entries(data.defaults)) {
+        formData[k] = v
+      }
+    }
   } catch (e) {
     console.error('[RequirementForm] Schema load failed', e)
   }
@@ -137,6 +152,18 @@ function resetForm() {
     delete formData[k]
   }
   exdValue.value = null
+  // Re-apply defaults from schema
+  if (schema.value?.defaults) {
+    Object.assign(formData, schema.value.defaults)
+  }
+}
+
+function onClimateTemps(temps) {
+  if (temps) {
+    formData.temp_min = temps.min_temp
+    formData.temp_max = temps.max_temp
+    formData.climatic_designation = temps.designation
+  }
 }
 
 async function onSubmit() {

@@ -171,6 +171,33 @@ path('quickselect/', MyQuickSelectView.as_view()),
 - Django API: `/api/{catalog}/engineer/` + `/api/{catalog}/engineer/filters/`
 - `'engineer'` FilterSet в `config.py` (пока копия `'list'`)
 
+### Requirement-модели: `get_defaults()` (2026-06-03)
+
+Каждая модель требований определяет `@classmethod get_defaults()` — значения по умолчанию для формы:
+- `BaseRequirement`: все FK/числовые поля → `None` («Не указано»)
+- `LimitSwitchRequirement`: `points: 2`, остальное `None`
+- `GearboxRequirement` / `FilterRegulatorRequirement`: все `None`
+- Schema API: `GET /api/.../requirements/schema/` возвращает `defaults` → фронтенд применяет при загрузке формы.
+- Селекты фильтров: `'Все'` → `'Не указано'` (FilterSidebar, EngineerFilterBar, RequirementForm).
+
+### ClimateFilter — каскадный фильтр климатического исполнения (ГОСТ 15150-69)
+
+Компонент `ClimateFilter.vue` (стили ExdFilter, `compact`-режим):
+- **Селекторы**: климатическая зона (У, ХЛ, УХЛ…) → категория размещения (1–5)
+- **Описание**: расшифровка зоны + размещения + температурный диапазон (рабочий и предельный)
+- **Парсинг**: текстовое поле «УХЛ4» → автозаполнение каскада через `POST /api/core/climate/parse/`
+
+**FilterDefinition** — `fd_climate` (во всех каталогах):
+```python
+fd_climate = FilterDefinition(
+    param_name='climate',
+    model_field='work_temp_min',
+    filter_type=FilterType.CLIMATE_CASCADE,
+    data_source_type=DataSourceType.CUSTOM,
+    label='Клим. исполнение',
+)
+```
+
 ## Фронтенд
 
 ### 1. `api.js` — ⚠️ getFilters ДОЛЖЕН принимать params

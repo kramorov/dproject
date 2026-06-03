@@ -57,6 +57,24 @@
 - **`RequirementForm.vue`** — динамическая форма: загружает схему, рендерит поля, для `exd_protection` — каскадный `ExdFilter` в режиме `single`
 - **Тестовая страница**: `/tools/requirements`
 
+### 🎯 Defaults-механизм и «Не указано» (2026-06-03)
+
+- **`get_defaults()`** — `@classmethod` на каждой Requirement-модели, возвращает словарь значений по умолчанию для формы:
+  - `BaseRequirement`: `ip_protection=None, temp_min=None, temp_max=None`
+  - `GearboxRequirement` / `FilterRegulatorRequirement`: все поля `None`
+  - `LimitSwitchRequirement`: **`points=2`**, остальные `None`
+- **Schema API** включает `defaults` в ответ → `RequirementForm.vue` применяет при загрузке и сбросе
+- **«Не указано»** заменил `'—'` в селектах `RequirementForm` и `'Все'` в `FilterSidebar` / `EngineerFilterBar` — невыбранный фильтр = «не указано» = без фильтрации
+
+### 🌡️ Каскадный ClimateFilter — климатическое исполнение (ГОСТ 15150-69)
+
+- **`ClimateFilter.vue`** — каскад: зона → размещение → описание → t° (стили ExdFilter)
+- **Парсер**: `core/models/climate_parser.py` — `УХЛ4` → `{zone_code: 'uhl', placement_code: '4'}`
+- **API**: `GET /api/core/climate/structure/` (зоны+размещения+условия), `POST /api/core/climate/parse/` (парсинг → температуры)
+- **Поля**: `BaseRequirement.climatic_designation` — строка «УХЛ4» сохраняется в требовании
+- **FilterType**: `CLIMATE_CASCADE` — `fd_climate` во всех трёх каталогах, `FilterSidebar` / `EngineerFilterBar` рендерят `ClimateFilter`
+- **RequirementForm**: `ClimateFilter` → `onClimateTemps()` → `formData.temp_min/temp_max/climatic_designation`
+
 ### 🔧 Прочее
 
 - `db.sqlite3` — git stash/pull main office-work

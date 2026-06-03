@@ -3,7 +3,7 @@
 API for equipment requirements.
 
 GET  /api/client_requests/requirements/schema/?type=gearbox
-     Returns field metadata (name, label, type, choices for FK fields).
+     Returns field metadata (name, label, type, choices, defaults for FK fields).
 
 POST /api/client_requests/requirements/preview/
      Accepts field values, returns filter_params for EngineerSelection API.
@@ -89,7 +89,9 @@ class RequirementsSchemaView(APIView):
                           f'Valid: {list(REQUIREMENT_CLASSES.keys())}'},
                 status=400,
             )
-        return Response(_get_field_schema(klass))
+        schema = _get_field_schema(klass)
+        schema['defaults'] = klass.get_defaults()
+        return Response(schema)
 
 
 class RequirementsPreviewView(APIView):

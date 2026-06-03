@@ -17,11 +17,15 @@
         @update:modelValue="ids => onExdChange(ids)"
       />
       <!-- Обычные фильтры -->
+      <ClimateFilter
+        v-else-if="f.filter_type === 'climate_cascade'"
+        @update:temps="temps => onClimateChange(temps, f.key)"
+      />
       <template v-else>
         <label>{{ f.label }}</label>
         <span v-if="f.options.length === 1" class="filter-single-value">{{ f.options[0].name }}</span>
         <select v-else v-model="active[f.key]" @change="$emit('change', f.key, active[f.key])">
-          <option value="">Все</option>
+          <option value="">Не указано</option>
           <option
             v-for="opt in f.options"
             :key="opt.id"
@@ -44,6 +48,7 @@
 <script setup>
 import { reactive, ref, computed, watch } from 'vue'
 import ExdFilter from './ExdFilter.vue'
+import ClimateFilter from './ClimateFilter.vue'
 
 const activeExdIds = ref([])
 
@@ -85,6 +90,13 @@ function onExdChange(ids) {
     emit('change', 'exd_id', ids[0])
   } else {
     emit('change', 'exd_id', ids.join(','))
+  }
+}
+
+function onClimateChange(temps, key) {
+  if (temps) {
+    emit('change', 'work_temp_min', temps.min_temp)
+    emit('change', 'work_temp_max', temps.max_temp)
   }
 }
 </script>

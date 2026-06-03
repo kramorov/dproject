@@ -50,6 +50,20 @@ class FilterRegulatorRequirement(BaseRequirement):
         verbose_name = _("Требование к фильтр-регулятору")
         verbose_name_plural = _("Требования к фильтр-регуляторам")
 
+    @classmethod
+    def get_defaults(cls):
+        """
+        Defaults for filter-regulator requirement form: all fields «Не указано» (None).
+        """
+        defaults = super().get_defaults()
+        defaults.update({
+            'body_material': None,
+            'flow_rate': None,
+            'thread': None,
+            'filtration': None,
+        })
+        return defaults
+
     def to_filter_params(self):
         params = super().to_filter_params()
         if self.body_material_id:

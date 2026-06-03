@@ -49,6 +49,12 @@ class BaseRequirement(models.Model):
         verbose_name=_("Макс. температура, °C"),
     )
 
+    climatic_designation = models.CharField(
+        max_length=20, blank=True,
+        verbose_name=_("Климатическое исполнение"),
+        help_text=_("Обозначение по ГОСТ 15150, например «УХЛ4», «У2»"),
+    )
+
     # ── Метаданные ──
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -70,6 +76,21 @@ class BaseRequirement(models.Model):
         if item:
             return f"Требования к поз.{item.item_no} ({item.request_parent.code})"
         return f"Требования #{self.id}"
+
+    @classmethod
+    def get_defaults(cls):
+        """
+        Возвращает словарь значений по умолчанию для формы требований.
+
+        None означает «Не указано» — фильтр не применяется.
+        Наследники переопределяют для указания специфичных defaults.
+        """
+        return {
+            'ip_protection': None,
+            'temp_min': None,
+            'temp_max': None,
+            'climatic_designation': None,
+        }
 
     def to_filter_params(self):
         """

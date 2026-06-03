@@ -43,6 +43,19 @@ class GearboxRequirement(BaseRequirement):
         verbose_name = _("Требование к редуктору")
         verbose_name_plural = _("Требования к редукторам")
 
+    @classmethod
+    def get_defaults(cls):
+        """
+        Defaults for gearbox requirement form: all fields «Не указано» (None).
+        """
+        defaults = super().get_defaults()
+        defaults.update({
+            'body_material': None,
+            'torque': None,
+            'mounting_plate': None,
+        })
+        return defaults
+
     def to_filter_params(self):
         params = super().to_filter_params()
         if self.body_material_id:

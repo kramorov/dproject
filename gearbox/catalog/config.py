@@ -11,6 +11,7 @@ from gearbox.models.gb_model_line import GearBoxModelLine
 from gearbox.catalog.filter_defs import (
     fd_ip, fd_temp_min, fd_temp_max, fd_torque,
     fd_body_material, fd_brand, fd_mounting_plate,
+    fd_climate,
 )
 
 
@@ -25,6 +26,7 @@ GEARBOX_CONFIG = CatalogConfig(
                 fd_ip,
                 fd_temp_min,
                 fd_temp_max,
+                fd_climate,
                 fd_torque,
                 fd_body_material,
                 fd_brand,
@@ -40,6 +42,7 @@ GEARBOX_CONFIG = CatalogConfig(
                 fd_ip,
                 fd_temp_min,
                 fd_temp_max,
+                fd_climate,
                 fd_torque,
                 fd_body_material,
                 fd_brand,
@@ -54,6 +57,7 @@ GEARBOX_CONFIG = CatalogConfig(
                 fd_ip,
                 fd_temp_min,
                 fd_temp_max,
+                fd_climate,
                 fd_torque,
                 fd_body_material,
                 fd_mounting_plate,

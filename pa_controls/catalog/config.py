@@ -9,6 +9,7 @@ from pa_controls.catalog.filter_defs import (
     fd_model_line, fd_sensor_variety, fd_points, fd_ip,
     fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
     fd_signal_type, fd_exd,
+    fd_climate,
 )
 
 
@@ -21,7 +22,7 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
             definitions=[
                 fd_model_line, fd_sensor_variety, fd_points, fd_ip,
                 fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
-                fd_signal_type, fd_exd,
+                fd_signal_type, fd_exd, fd_climate,
             ],
             scoped=False,
             show_compatible=True,
@@ -30,7 +31,7 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
             definitions=[
                 fd_model_line, fd_sensor_variety, fd_points, fd_ip,
                 fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
-                fd_signal_type, fd_exd,
+                fd_signal_type, fd_exd, fd_climate,
             ],
             scoped=False,
             show_compatible=True,
@@ -40,7 +41,7 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
             definitions=[
                 fd_sensor_variety, fd_points, fd_ip,
                 fd_temp_min, fd_temp_max, fd_body_material,
-                fd_signal_type, fd_exd,
+                fd_signal_type, fd_exd, fd_climate,
             ],
             scoped=True,
             show_compatible=True,

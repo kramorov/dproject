@@ -22,6 +22,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/MediaViewer.vue` | Просмотрщик медиафайлов (изображения/PDF) |
 | `shared/components/ImageCropper.vue` | Интерактивная обрезка: drag/зум, фон/rembg, профили |
 | `shared/components/ExdFilter.vue` | Каскадный фильтр взрывозащиты (метод→тип→группа→темп.класс) |
+| `shared/components/ClimateFilter.vue` | Каскадный фильтр климатического исполнения (зона→размещение→t°) |
 | `shared/components/M2MDualList.vue` | M2M-селектор filter_horizontal (две панели + поиск) |
 | `shared/components/JsonFieldsEditor.vue` | Редактор JSON extra_params (таблица + raw JSON) |
 | `shared/components/MediaUploadModal.vue` | Модалка загрузки файла в медиатеку |
@@ -173,11 +174,27 @@ App.vue параметризуется через `labels` + `api`.
 - Группы фильтруются по категории типа (GAS/DUST)
 - Стиль `.filter-group-border` в `default.css`
 
+### ClimateFilter — каскадный фильтр климатического исполнения (2026-06-03)
+
+- Селекты: климатическая зона (У, ХЛ, УХЛ…) + категория размещения (1–5)
+- Все в одну строку, поле «Описание» с расшифровкой и рабочими/предельными t°
+- Пропс `compact` — для горизонтального фильтр-бара
+- Текстовое поле парсинга: `УХЛ4` → автозаполнение через `POST /api/core/climate/parse/`
+- Стили: переиспользует CSS-классы ExdFilter (`.exd-filter`, `.exd-row`, `.exd-description-text`)
+- API: `GET /api/core/climate/structure/` — зоны, размещения, условия с температурами
+- Эмит: `update:temps` → `{zone_id, placement_id, min_temp, max_temp, designation}`
+- Интегрирован в `FilterSidebar`, `EngineerFilterBar` (через `filter_type='climate_cascade'`) и `RequirementForm`
+- **`BaseRequirement.climatic_designation`** — хранит исходную строку («УХЛ4») в модели требований
+
 ### RequirementForm — форма требований (2026-06-03)
 
 - Динамическая форма: загружает схему через `GET /api/client_requests/requirements/schema/`
 - Для `exd_protection` — каскадный `ExdFilter` в режиме `single`
 - `POST /api/client_requests/requirements/preview/` → `filter_params`
+- **«Не указано»**: селекты показывают `Не указано` вместо `—` (FK-поля) — если поле не выбрано, фильтр не применяется
+- **Defaults**: `schema.defaults` из API применяется при загрузке (`loadSchema`) и сбросе (`resetForm`)
+  - Для БКВ: `points=2`, остальное `null`
+  - Для редуктора и фильтр-регулятора: всё `null`
 
 ## `src/components/` — общие компоненты SPA
 

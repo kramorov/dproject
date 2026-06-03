@@ -56,6 +56,21 @@ class LimitSwitchRequirement(BaseRequirement):
         verbose_name = _("Требование к БКВ")
         verbose_name_plural = _("Требования к БКВ")
 
+    @classmethod
+    def get_defaults(cls):
+        """
+        Defaults for limit-switch requirement form: points=2, all other fields «Не указано» (None).
+        """
+        defaults = super().get_defaults()
+        defaults.update({
+            'body_material': None,
+            'sensor_variety': None,
+            'points': 2,
+            'exd_protection': None,
+            'signal_type': None,
+        })
+        return defaults
+
     def to_filter_params(self):
         params = super().to_filter_params()
         if self.body_material_id:

@@ -69,6 +69,15 @@ fd_temp_max = FilterDefinition(
     order=7,
 )
 
+fd_climate = FilterDefinition(
+    param_name='climate',
+    model_field='work_temp_min',
+    filter_type=FilterType.CLIMATE_CASCADE,
+    data_source_type=DataSourceType.CUSTOM,
+    label='Клим. исполнение',
+    order=8,
+)
+
 fd_brand = FilterDefinition(
     param_name='brand_id',
     model_field='model_line__brand',
@@ -88,5 +97,6 @@ FILTER_REGULATOR_FILTER_DEFINITIONS = [
     fd_thread,
     fd_temp_min,
     fd_temp_max,
+    fd_climate,
     fd_brand,
 ]

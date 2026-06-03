@@ -61,6 +61,15 @@ fd_temp_max = FilterDefinition(
     order=6,
 )
 
+fd_climate = FilterDefinition(
+    param_name='climate',
+    model_field='work_temp_min',
+    filter_type=FilterType.CLIMATE_CASCADE,
+    data_source_type=DataSourceType.CUSTOM,
+    label='Клим. исполнение',
+    order=7,
+)
+
 fd_body_material = FilterDefinition(
     param_name='body_material_id',
     model_field='body_material',
@@ -102,5 +111,6 @@ fd_exd = FilterDefinition(
 LIMIT_SWITCH_FILTER_DEFINITIONS = [
     fd_model_line, fd_sensor_variety, fd_points, fd_ip,
     fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
+    fd_climate,
     fd_signal_type, fd_exd,
 ]

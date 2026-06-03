@@ -6,6 +6,7 @@ These are the same FilterDefinitions previously in gearbox/services/filters.py.
 Kept here for the CatalogConfig; the old location remains for backward compat.
 """
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
+from params.models import IpOption, ClimaticZoneClassifier, ClimaticEquipmentPlacementClassifier
 from params.models import IpOption
 
 # ── Individual filter definitions (named for reuse in FilterSets) ──
@@ -36,6 +37,15 @@ fd_temp_max = FilterDefinition(
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до, °С',
     order=6,
+)
+
+fd_climate = FilterDefinition(
+    param_name='climate',
+    model_field='work_temp_min',
+    filter_type=FilterType.CLIMATE_CASCADE,
+    data_source_type=DataSourceType.CUSTOM,
+    label='Клим. исполнение',
+    order=7,
 )
 
 fd_torque = FilterDefinition(
@@ -80,6 +90,7 @@ GEARBOX_FILTER_DEFINITIONS = [
     fd_ip,
     fd_temp_min,
     fd_temp_max,
+    fd_climate,
     fd_torque,
     fd_body_material,
     fd_brand,

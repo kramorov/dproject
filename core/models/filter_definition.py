@@ -36,6 +36,7 @@ class FilterType(Enum):
     EXD_COMPATIBLE = "exd_compatible"
     FK_CASCADE = "fk_cascade"
     COMPATIBLE_CASCADE = "compatible_cascade"
+    CLIMATE_CASCADE = "climate_cascade"
     THREAD_COMPATIBLE = "thread_compatible"
     FUNCTION_COMPATIBLE = "function_compatible"
 
