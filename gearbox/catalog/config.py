@@ -35,6 +35,20 @@ GEARBOX_CONFIG = CatalogConfig(
         ),
 
         # ── Series page: no brand, values scoped to model_line ──
+        'engineer': FilterSet(
+            definitions=[
+                fd_ip,
+                fd_temp_min,
+                fd_temp_max,
+                fd_torque,
+                fd_body_material,
+                fd_brand,
+                fd_mounting_plate,
+            ],
+            scoped=False,
+            show_compatible=True,
+        ),
+
         'model_line': FilterSet(
             definitions=[
                 fd_ip,

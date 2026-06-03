@@ -1,4 +1,5 @@
 # Frontend — структура проекта
+> Обновлено 2026-06-03: EngineerSelection, EngineerProductCard, EngineerFilterBar, ExdFilter, RequirementForm
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -72,7 +73,18 @@ const {
 })
 ```
 
-### ExdFilter — каскадный фильтр взрывозащиты (2026-06-02)
+### ExdFilter — каскадный фильтр взрывозащиты (2026-06-02, обновлён 2026-06-03)
+
+Редизайн 2026-06-03:
+- Селекты показывают коды (`Ex d`, `db`) вместо полных названий
+- Все селекты в одну строку, компактные размеры
+- Поле «Описание» всегда видно с динамической расшифровкой
+- Пропсы `compact` (для EngineerFilterBar) и `single` (для RequirementForm)
+- Текстовое поле: ввод `Ex db IIC T4` → автозаполнение каскада через `POST /api/core/exd/parse/`
+- Группы фильтруются по категории типа (GAS/DUST)
+- Стиль `.filter-group-border` в `shared/themes/default.css`
+
+Исходная версия (2026-06-02):
 
 Переиспользуемый компонент для всех каталогов. Заменяет плоский `<select>` для фильтров типа `exd_compatible`.
 
@@ -141,6 +153,31 @@ App.vue параметризуется через `labels` + `api`.
 | `pages/admin/SkuAdminPage.vue` | /admin/sku | Номенклатура |
 | `pages/admin/WidgetsPage.vue` | /widgets | Виджеты |
 | `pages/ImageProcessorTest.vue` | /tools/image-processor | Тест обработки изображений и PDF (профили) |
+
+### EngineerSelection — инженерный подбор (2026-06-03)
+
+Выделенный компонент, независимый от `CatalogList`:
+
+| Компонент | Назначение |
+|-----------|-----------|
+| `catalog/EngineerSelection.vue` | Страница инженерного подбора (фильтры сверху, карточки списком) |
+| `catalog/EngineerProductCard.vue` | Горизонтальная карточка (изображение 100px + спеки + цена) |
+| `catalog/EngineerFilterBar.vue` | Горизонтальная панель фильтров (селекты в строку) |
+
+### ExdFilter — каскадный фильтр взрывозащиты (редизайн 2026-06-03)
+
+- Селекты: метод (`Ex d`), тип (`db`), группа, T-класс — коды без расшифровок
+- Все в одну строку, поле «Описание» всегда видно
+- Пропс `compact` — для горизонтального фильтр-бара, `single` — для формы требований
+- Текстовое поле парсинга: `Ex db IIC T4` → автозаполнение каскада
+- Группы фильтруются по категории типа (GAS/DUST)
+- Стиль `.filter-group-border` в `default.css`
+
+### RequirementForm — форма требований (2026-06-03)
+
+- Динамическая форма: загружает схему через `GET /api/client_requests/requirements/schema/`
+- Для `exd_protection` — каскадный `ExdFilter` в режиме `single`
+- `POST /api/client_requests/requirements/preview/` → `filter_params`
 
 ## `src/components/` — общие компоненты SPA
 

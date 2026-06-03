@@ -1,186 +1,115 @@
-#core/models/exd_parser.py
+# core/models/exd_parser.py
+# Парсер строки взрывозащиты: "Ex db IIC T4", "ExdbIICT6" → структурированные данные.
+# Используется ExdParseView (core/views.py) для автозаполнения каскадного ExdFilter.
+# Обновлён 2026-06-03: regex, upper-case, вырезание уровней (Ga-Gc, Da-Dc) и X/U.
 
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from dataclasses import dataclass
-from django.db import models
 
 
 @dataclass
 class ExdFilterData:
     """Результат парсинга строки взрывозащиты"""
-    method_code: Optional[str] = None  # Код метода: d, e, i, m, p, t
-    protection_type_code: Optional[str] = None  # Код типа: ia, ib, ic и т.д.
-    level_code: Optional[str] = None  # Уровень: Ga, Gb, Gc, Da, Db, Dc
-    temperature_code: Optional[str] = None  # Температурный класс: T1-T6
-    group_code: Optional[str] = None  # Группа: IIA, IIB, IIC, IIIA, IIIB, IIIC
-    has_x: Optional[bool] = False  # Суффикс X
-    has_u: Optional[bool] = False  # Суффикс U
-
-    # Для пыли
-    dust_temperature: Optional[int] = None  # Температура для пыли (85, 95, 100)
+    method_code: Optional[str] = None
+    protection_type_code: Optional[str] = None
+    temperature_code: Optional[str] = None
+    group_code: Optional[str] = None
+    has_x: Optional[bool] = False
+    has_u: Optional[bool] = False
+    dust_temperature: Optional[int] = None
 
 
 class ExdStringParser:
     """
-    Парсер строки взрывозащиты
-    Примеры:
-        - "Ex d IIC T6 Gb" -> взрывозащищенный, метод d, группа IIC, класс T6, уровень Gb
-        - "Ex e" -> только метод e
-        - "Ex ia IIB T4" -> метод ia, группа IIB, класс T4
-        - "Ex tD A21" -> метод tD для пыли, уровень A21
+    Парсер строки взрывозащиты. Все сравнения case‑insensitive (upper).
+    Уровни (Ga, Gb, Gc, Da, Db, Dc) и суффиксы X, U вырезаются до разбора.
     """
 
-    # Регулярные выражения для компонентов
-    EX_PREFIX = r'^Ex\s+'
+    _RE_EX_PREFIX = re.compile(r'^EX\s*')
+    _RE_STRIP = re.compile(r'\b(G[ABC]|D[ABC]|[XU])\b')
+    _RE_GROUP = re.compile(r'(I{1,3}[A-C])')
+    _RE_TEMP = re.compile(r'(T[1-6])')
+    _RE_TYPE = re.compile(r'\b([A-Z]{1,2})\b')
+    _RE_DUST_TEMP = re.compile(r'(\d{2,3})\s*$')
 
-    # Методы взрывозащиты
-    METHODS = {
-        'd', 'e', 'i', 'm', 'p', 'o', 'q', 'n', 't', 'ma', 'mb', 'mc',
-        'ia', 'ib', 'ic', 'nA', 'nC', 'nR', 'nL'
+    COMPOUND_TYPE_CODES = {
+        'DB', 'DC', 'EB', 'EC', 'TB', 'TC',
+        'IA', 'IB', 'IC', 'MA', 'MB', 'MC',
+        'NA', 'NC', 'NR', 'NL',
     }
-
-    # Уровни взрывозащиты (газ)
-    GAS_LEVELS = {'Ga', 'Gb', 'Gc'}
-
-    # Уровни взрывозащиты (пыль)
-    DUST_LEVELS = {'Da', 'Db', 'Dc'}
-
-    # Группы газа
-    GAS_GROUPS = {'IIA', 'IIB', 'IIC'}
-
-    # Группы пыли
-    DUST_GROUPS = {'IIIA', 'IIIB', 'IIIC'}
-
-    # Температурные классы
-    TEMP_CLASSES = {f'T{i}' for i in range(1, 7)}
 
     @classmethod
     def parse(cls, exd_string: str) -> Optional[ExdFilterData]:
-        """
-        Парсит строку взрывозащиты и возвращает структурированные данные
-        """
         if not exd_string or not exd_string.strip():
             return None
 
-        # Убираем пробелы и приводим к стандартному виду
-        exd_string = exd_string.strip()
+        s = exd_string.strip().upper()
 
-        # Убираем префикс Ex если есть
-        if exd_string.startswith('Ex'):
-            exd_string = exd_string[2:].strip()
-        elif exd_string.startswith('ex'):
-            exd_string = exd_string[2:].strip()
+        # Убираем префикс EX
+        s = cls._RE_EX_PREFIX.sub('', s).strip()
 
-        # Проверяем суффиксы
-        has_x = False
-        has_u = False
+        # Запоминаем X/U до вырезания
+        has_x = 'X' in s.split()
+        has_u = 'U' in s.split()
 
-        if exd_string.endswith(' X'):
-            has_x = True
-            exd_string = exd_string[:-2].strip()
-        elif exd_string.endswith('X'):
-            has_x = True
-            exd_string = exd_string[:-1].strip()
-
-        if exd_string.endswith(' U'):
-            has_u = True
-            exd_string = exd_string[:-2].strip()
-        elif exd_string.endswith('U'):
-            has_u = True
-            exd_string = exd_string[:-1].strip()
-
-        # Разбиваем на части
-        parts = exd_string.split()
+        # Вырезаем уровни и суффиксы X/U
+        s = cls._RE_STRIP.sub(' ', s)
+        s = re.sub(r'\s+', ' ', s).strip()
 
         result = ExdFilterData(has_x=has_x, has_u=has_u)
 
-        # Парсим части
-        i = 0
-        while i < len(parts):
-            part = parts[i]
+        # Группа, температура
+        m_group = cls._RE_GROUP.search(s)
+        m_temp = cls._RE_TEMP.search(s)
+        m_dust_temp = cls._RE_DUST_TEMP.search(s) if not m_temp else None
 
-            # Метод или тип взрывозащиты
-            if part in cls.METHODS:
-                # Проверяем, не является ли это полным типом (ia, ib)
-                if part in ['ia', 'ib', 'ic', 'ma', 'mb', 'mc']:
-                    result.protection_type_code = part
+        if m_group:
+            result.group_code = m_group.group(1)
+            s = s.replace(m_group.group(0), ' ')
+        if m_temp:
+            result.temperature_code = m_temp.group(1)
+            s = s.replace(m_temp.group(0), ' ')
+        if m_dust_temp:
+            result.dust_temperature = int(m_dust_temp.group(1))
+            s = s.replace(m_dust_temp.group(0), ' ')
+
+        # Остаток — метод/тип
+        s = s.strip()
+        if s:
+            m_type = cls._RE_TYPE.search(s)
+            if m_type:
+                code = m_type.group(1)
+                if code in cls.COMPOUND_TYPE_CODES:
+                    result.protection_type_code = code.lower()
+                    result.method_code = code[0].lower()
                 else:
-                    result.method_code = part
-                i += 1
-                continue
+                    result.method_code = code.lower()
+                    result.protection_type_code = code.lower()
 
-            # Группа
-            if part in cls.GAS_GROUPS or part in cls.DUST_GROUPS:
-                result.group_code = part
-                i += 1
-                continue
-
-            # Температурный класс
-            if part in cls.TEMP_CLASSES:
-                result.temperature_code = part
-                i += 1
-                continue
-
-            # Уровень взрывозащиты
-            if part in cls.GAS_LEVELS or part in cls.DUST_LEVELS:
-                result.level_code = part
-                i += 1
-                continue
-
-            # Температура для пыли (например, 85, 95, 100)
-            if part.isdigit() and i == len(parts) - 1:
-                result.dust_temperature = int(part)
-                i += 1
-                continue
-
-            i += 1
-
-        # Если нашли только метод, но не тип, то тип = метод
-        if result.method_code and not result.protection_type_code:
-            result.protection_type_code = result.method_code
+        if not any([result.method_code, result.group_code,
+                     result.temperature_code, result.dust_temperature]):
+            return None
 
         return result
 
     @classmethod
     def parse_to_filter_config(cls, exd_string: str) -> Dict:
-        """
-        Парсит строку и возвращает словарь для фильтрации ExdOption
-        """
         parsed = cls.parse(exd_string)
         if not parsed:
             return {}
 
-        filter_config = {}
-
-        # Фильтр по типу взрывозащиты (Ex d, Ex e и т.д.)
+        cfg = {}
         if parsed.protection_type_code:
-            filter_config['explosion_protection_class__code'] = parsed.protection_type_code
-
-        # Фильтр по методу
+            cfg['explosion_protection_class__code'] = parsed.protection_type_code
         if parsed.method_code:
-            filter_config['explosion_protection_class__method__code'] = parsed.method_code
-
-        # Фильтр по уровню
-        if parsed.level_code:
-            filter_config['explosion_protection_level__code'] = parsed.level_code
-
-        # Фильтр по группе (с учетом совместимости)
+            cfg['explosion_protection_class__method__code'] = parsed.method_code
         if parsed.group_code:
-            # Для группы нужно использовать каскадный фильтр (rating >=)
-            filter_config['_group_filter'] = parsed.group_code
-
-        # Фильтр по температурному классу (с учетом совместимости)
+            cfg['_group_filter'] = parsed.group_code
         if parsed.temperature_code:
-            # T6 > T5 > T4 > ...
-            filter_config['_temperature_filter'] = parsed.temperature_code
-
-        # Фильтр по температуре для пыли
+            cfg['_temperature_filter'] = parsed.temperature_code
         if parsed.dust_temperature:
-            filter_config['dust_temperature__lte'] = parsed.dust_temperature
-
-        # Суффиксы
-        filter_config['has_x_suffix'] = parsed.has_x if parsed.has_x else None
-        filter_config['has_u_suffix'] = parsed.has_u if parsed.has_u else None
-
-        return filter_config
+            cfg['dust_temperature__lte'] = parsed.dust_temperature
+        cfg['has_x_suffix'] = parsed.has_x or None
+        cfg['has_u_suffix'] = parsed.has_u or None
+        return cfg

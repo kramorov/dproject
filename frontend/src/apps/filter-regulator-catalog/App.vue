@@ -2,7 +2,7 @@
 <template>
   <div class="app">
     <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @select="goToList" @quickselect="goToQuickSelect" @navigate="goToSection" />
-    <CatalogList v-else-if="page === 'list'" :api="api" :labels="labels.list" @select="onSelectItem" @navigate="goToSection" />
+    <EngineerSelection v-else-if="page === 'list'" :api="api" :labels="labels.list" @select="onSelectItem" @navigate="goToSection" />
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" @close="page = 'list'" @navigate="goToSection" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" @select="onSelectItem" @navigate="goToSection" />
     <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="onSelectItem" @navigate="goToSection" />
@@ -10,7 +10,7 @@
 </template>
 <script setup>
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
-import CatalogList from '@/shared/components/catalog/CatalogList.vue'
+import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue'
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'

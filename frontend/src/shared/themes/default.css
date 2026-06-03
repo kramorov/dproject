@@ -123,3 +123,11 @@
   --cat-page-title-weight: 700;
   --cat-page-title-color: var(--cat-text);
 }
+
+/* ── Reusable utility classes ── */
+
+.filter-group-border {
+  border: 1px solid var(--cat-border, #d1d5db);
+  border-radius: var(--cat-radius-md, 8px);
+  padding: 10px 12px;
+}

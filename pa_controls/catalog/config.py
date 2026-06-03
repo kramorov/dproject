@@ -26,6 +26,16 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
             scoped=False,
             show_compatible=True,
         ),
+        'engineer': FilterSet(
+            definitions=[
+                fd_model_line, fd_sensor_variety, fd_points, fd_ip,
+                fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
+                fd_signal_type, fd_exd,
+            ],
+            scoped=False,
+            show_compatible=True,
+        ),
+
         'model_line': FilterSet(
             definitions=[
                 fd_sensor_variety, fd_points, fd_ip,

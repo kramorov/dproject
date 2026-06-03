@@ -6,21 +6,21 @@
     <!-- GEARBOX -->
     <CatalogSection v-else-if="route.catalog === 'gearbox' && route.view === 'lines'" :api="gearboxApi" :labels="labels.gearbox.section" @select-series="brandId => navigate('gearbox', 'brand', brandId)" @select="() => navigate('gearbox', 'list')" @quickselect="() => navigate('gearbox', 'quickselect')" @navigate="() => navigate('gearbox', 'lines')" />
     <CatalogModelLine v-else-if="route.catalog === 'gearbox' && route.view === 'brand'" :api="gearboxApi" :labels="labels.gearbox.brand" id-prop="brand_id" :id-value="route.id" @select="id => navigate('gearbox', 'detail', id)" />
-    <CatalogList v-else-if="route.catalog === 'gearbox' && route.view === 'list'" :api="gearboxApi" :labels="labels.gearbox.list" @select="id => navigate('gearbox', 'detail', id)" @navigate="() => navigate('gearbox', 'lines')" />
+    <EngineerSelection v-else-if="route.catalog === 'gearbox' && route.view === 'list'" :api="gearboxApi" :labels="labels.gearbox.list" @select="id => navigate('gearbox', 'detail', id)" @navigate="() => navigate('gearbox', 'lines')" />
     <CatalogDetail v-else-if="route.catalog === 'gearbox' && route.view === 'detail'" :api="gearboxApi" :labels="labels.gearbox.detail" :id="route.id" @close="() => navigate('gearbox', 'list')" @navigate="() => navigate('gearbox', 'lines')" />
     <QuickSelect v-else-if="route.catalog === 'gearbox' && route.view === 'quickselect'" :api="gearboxApi" :labels="labels.gearbox.quickselect" :filter-labels="labels.gearbox.quickselect.filterLabels" :auto-select-rules="labels.gearbox.quickselect.autoSelectRules" @select="id => navigate('gearbox', 'detail', id)" @navigate="() => navigate('gearbox', 'lines')" />
 
     <!-- FILTER-REGULATOR -->
     <CatalogSection v-else-if="route.catalog === 'filter_regulator' && route.view === 'lines'" :api="frApi" :labels="labels.filter_regulator.section" @select-series="id => navigate('filter_regulator', 'brand', id)" @select="() => navigate('filter_regulator', 'list')" @quickselect="() => navigate('filter_regulator', 'quickselect')" @navigate="() => navigate('filter_regulator', 'lines')" />
     <CatalogModelLine v-else-if="route.catalog === 'filter_regulator' && route.view === 'brand'" :api="frApi" :labels="labels.filter_regulator.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('filter_regulator', 'detail', id)" />
-    <CatalogList v-else-if="route.catalog === 'filter_regulator' && route.view === 'list'" :api="frApi" :labels="labels.filter_regulator.list" @select="id => navigate('filter_regulator', 'detail', id)" @navigate="() => navigate('filter_regulator', 'lines')" />
+    <EngineerSelection v-else-if="route.catalog === 'filter_regulator' && route.view === 'list'" :api="frApi" :labels="labels.filter_regulator.list" @select="id => navigate('filter_regulator', 'detail', id)" @navigate="() => navigate('filter_regulator', 'lines')" />
     <CatalogDetail v-else-if="route.catalog === 'filter_regulator' && route.view === 'detail'" :api="frApi" :labels="labels.filter_regulator.detail" :id="route.id" @close="() => navigate('filter_regulator', 'list')" @navigate="() => navigate('filter_regulator', 'lines')" />
     <QuickSelect v-else-if="route.catalog === 'filter_regulator' && route.view === 'quickselect'" :api="frApi" :labels="labels.filter_regulator.quickselect" :filter-labels="labels.filter_regulator.quickselect.filterLabels" :auto-select-rules="labels.filter_regulator.quickselect.autoSelectRules" @select="id => navigate('filter_regulator', 'detail', id)" @navigate="() => navigate('filter_regulator', 'lines')" />
 
     <!-- LIMIT-SWITCH -->
     <CatalogSection v-else-if="route.catalog === 'limit_switch' && route.view === 'lines'" :api="lsbApi" :labels="labels.limit_switch.section" @select-series="id => navigate('limit_switch', 'brand', id)" @select="() => navigate('limit_switch', 'list')" @quickselect="() => navigate('limit_switch', 'quickselect')" @navigate="() => navigate('limit_switch', 'lines')" />
     <CatalogModelLine v-else-if="route.catalog === 'limit_switch' && route.view === 'brand'" :api="lsbApi" :labels="labels.limit_switch.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('limit_switch', 'detail', id)" />
-    <CatalogList v-else-if="route.catalog === 'limit_switch' && route.view === 'list'" :api="lsbApi" :labels="labels.limit_switch.list" @select="id => navigate('limit_switch', 'detail', id)" @navigate="() => navigate('limit_switch', 'lines')" />
+    <EngineerSelection v-else-if="route.catalog === 'limit_switch' && route.view === 'list'" :api="lsbApi" :labels="labels.limit_switch.list" @select="id => navigate('limit_switch', 'detail', id)" @navigate="() => navigate('limit_switch', 'lines')" />
     <CatalogDetail v-else-if="route.catalog === 'limit_switch' && route.view === 'detail'" :api="lsbApi" :labels="labels.limit_switch.detail" :id="route.id" @close="() => navigate('limit_switch', 'list')" @navigate="() => navigate('limit_switch', 'lines')" />
     <QuickSelect v-else-if="route.catalog === 'limit_switch' && route.view === 'quickselect'" :api="lsbApi" :labels="labels.limit_switch.quickselect" :filter-labels="labels.limit_switch.quickselect.filterLabels" :auto-select-rules="labels.limit_switch.quickselect.autoSelectRules" @select="id => navigate('limit_switch', 'detail', id)" @navigate="() => navigate('limit_switch', 'lines')" />
 
@@ -33,7 +33,7 @@ import { parseHash, navigate } from './router.js'
 import CatalogIndex from './CatalogIndex.vue'
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
-import CatalogList from '@/shared/components/catalog/CatalogList.vue'
+import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue'
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
 import gearboxApi from '@/apps/gearbox-catalog/api'

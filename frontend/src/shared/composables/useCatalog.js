@@ -12,6 +12,7 @@ import { ref, reactive, unref } from 'vue'
  * @param {string}   [opts.filterScope]  ?scope= для getFilters (model_line — без model_line_id/brand_id)
  * @param {Function} [opts.onData]       Callback после загрузки
  * @param {boolean}  [opts.withSearch=true]
+ * @param {string}   [opts.mode]         'engineer' — getEngineer/getEngineerFilters вместо list/getFilters
  */
 export function useCatalog(api, opts = {}) {
   const {
@@ -21,6 +22,7 @@ export function useCatalog(api, opts = {}) {
     filterScope = null,
     onData = null,
     withSearch = true,
+    mode = null,
   } = opts
 
   const items = ref([])
@@ -46,7 +48,7 @@ export function useCatalog(api, opts = {}) {
   async function loadFilters() {
     try {
       const params = filterScope ? { scope: filterScope } : undefined
-      const r = await api.getFilters(params)
+      const r = await (mode === 'engineer' ? api.getEngineerFilters(params) : api.getFilters(params))
       const body = r.data || {}
 
       // Clear stale keys from previous scope before assigning new ones
@@ -135,7 +137,7 @@ export function useCatalog(api, opts = {}) {
         if (v !== '' && v != null) params[k] = v
       }
 
-      const r = await api.list(params)
+      const r = await (mode === 'engineer' ? api.getEngineer(params) : api.list(params))
       const body = r.data || {}
 
       items.value = body.data || []

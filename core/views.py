@@ -606,7 +606,7 @@ class BaseFilterOptionsView(APIView):
     }
 
     def get(self, request):
-        scope = request.query_params.get('scope', 'list')
+        scope = request.query_params.get('scope', getattr(self, 'default_scope', 'list'))
 
         # ── New path: CatalogConfig ──
         if self.catalog_config is not None:
@@ -667,7 +667,11 @@ class BaseFilterOptionsView(APIView):
                         'options': [],
                         'error': str(e),
                     }
-        return Response(result)
+
+            return Response({
+                'filters': result,
+                'show_compatible': filter_set.show_compatible,
+            })
 
 
 class BaseQuickSelectView(APIView):
@@ -817,6 +821,74 @@ class ExdStructureView(APIView):
     def get(self, request):
         from params.exd_models import ExdOption
         return Response(ExdOption.get_structured_choices())
+
+
+class ExdParseView(APIView):
+    """POST /api/core/exd/parse/ — парсинг строки Exd в ID каскада."""
+    permission_classes = []
+
+    def post(self, request):
+        import logging
+        logging.warning(f"[ExdParseView] GOT POST: {request.data}")
+        from core.models.exd_parser import ExdStringParser
+        from params.exd_models import (
+            ExplosionProtectionMethod, ExplosionProtectionType,
+            HazardousGroup, TemperatureClass,
+        )
+
+        exd_string = request.data.get('exd_string', '').strip()
+        if not exd_string:
+            return Response({'error': 'Пустая строка'}, status=400)
+
+        parsed = ExdStringParser.parse(exd_string)
+        print(f"[ExdParseView] input: {exd_string!r}")
+        print(f"[ExdParseView] parsed: {parsed}")
+        if not parsed:
+            return Response({'error': 'Не удалось распознать строку взрывозащиты'}, status=400)
+
+        result = {}
+
+        # Type → ID (primary: type code like 'db', 'ia'. If not found, try starts_with)
+        t = None
+        if parsed.protection_type_code:
+            code = parsed.protection_type_code
+            t = (ExplosionProtectionType.objects.filter(code__iexact=code).first()
+                 or ExplosionProtectionType.objects.filter(code__startswith=code).first())
+        if t:
+            result['type_id'] = t.id
+
+        # Method → ID (from type FK, or direct lookup)
+        if parsed.method_code or t:
+            m = None
+            if t and t.method:
+                m = t.method
+            if not m and parsed.method_code:
+                code = parsed.method_code
+                m = (ExplosionProtectionMethod.objects.filter(code__iexact=code).first()
+                     or ExplosionProtectionMethod.objects.filter(code__icontains=code).first())
+            if m:
+                result['method_id'] = m.id
+            elif not t and parsed.method_code:
+                return Response({'error': f'Метод "{parsed.method_code}" не найден'}, status=400)
+
+        # Group → ID
+        if parsed.group_code:
+            g = HazardousGroup.objects.filter(code=parsed.group_code).first()
+            if g:
+                result['group_id'] = g.id
+            else:
+                return Response({'error': f'Группа "{parsed.group_code}" не найдена'}, status=400)
+
+        # Temperature class → ID
+        if parsed.temperature_code:
+            tc = TemperatureClass.objects.filter(temperature_class=parsed.temperature_code).first()
+            if tc:
+                result['temp_id'] = tc.id
+            else:
+                return Response({'error': f'Темп. класс "{parsed.temperature_code}" не найден'}, status=400)
+
+        print(f"[ExdParseView] returning: {result}", flush=True)
+        return Response(result)
 
 
 class ExdCompatibleView(APIView):

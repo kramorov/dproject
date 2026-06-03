@@ -1,6 +1,68 @@
-# Состояние проекта на 2026-06-02
+# Состояние проекта на 2026-06-03
 
-## Сегодня (2026-06-02) — Скачивание сертификатов, Exd-фильтр, админка БКВ
+## Сегодня (2026-06-03) — EngineerSelection, Exd-каскад, Requirement-модели
+
+### 🏗️ EngineerSelection — выделенный компонент инженерного подбора
+
+- **`EngineerSelection.vue`** — копия `CatalogList.vue`, независимый компонент:
+  - `EngineerProductCard.vue` — горизонтальная карточка товара (изображение слева, спеки + цена справа)
+  - `EngineerFilterBar.vue` — горизонтальная панель фильтров вместо сайдбара (селекты в строку)
+  - CSS `.grid` заменён с `grid repeat(3,1fr)` на `flex column` (карточки в столбец)
+  - Пропс `presetFilters` — предзаполнение фильтров (для потока требований)
+- **`useCatalog.js`** — `mode: 'engineer'` → вызывает `api.getEngineer()` / `api.getEngineerFilters()`
+- **Django API**: `/api/{catalog}/engineer/` + `/api/{catalog}/engineer/filters/`
+  - `gearbox/catalog/views_engineer.py` + `views_engineer_filters.py`
+  - `filter_regulator/catalog/views_engineer.py` + `views_engineer_filters.py`
+  - `pa_controls/catalog/views_engineer.py` + `views_engineer_filters.py`
+- **Config**: `'engineer'` FilterSet в `config.py` каждого каталога (пока копия `'list'`)
+- **URLs**: `gearbox/urls.py`, `filter_regulator/urls.py`, `pa_controls/urls.py` — engineer endpoints
+- **Фронтенд**: `endpoints.js` + `api.js` всех трёх каталогов — `getEngineer()`, `getEngineerFilters()`
+- **App.vue**: все 4 App.vue (gearbox, filter-regulator, limit-switch, widget) — `CatalogList` → `EngineerSelection`
+
+### 💥 Exd-фильтр — каскадный редизайн
+
+- **`ExdFilter.vue`** — полный редизайн:
+  - Селекты: `Ex d` (код метода), `db` (код типа) — без расшифровок
+  - Группа: «Группа среды» (было «Группа опасности среды»)
+  - Все селекты в одну строку, метод шире (100–160px), тип/группа/T-класс уже (70–110px)
+  - Поле «Описание» всегда видно, `min-height: 42px`:
+    - «Все» → «Не указан класс взрывозащиты»
+    - «Общепром.» → «Взрывозащита — нет, Общепромышленное исполнение»
+    - Выбран тип → `Ex db (описание типа), группа среды IIB (описание), T4 (описание), до 135°C`
+  - Тип «перекрывает» метод в описании
+  - Пропс `compact` — для горизонтального фильтр-бара
+  - Пропс `single` — для формы требований (один ID вместо массива)
+- **Текстовое поле парсинга**: ввод строки `Ex db IIC T4` → автозаполнение селектов
+  - `POST /api/core/exd/parse/` — парсер строки → `{method_id, type_id, group_id, temp_id}`
+  - Ошибки красным шрифтом 11px под полем
+- **Фильтрация групп по категории типа**: `GAS` → только газовые группы, `DUST` → только пылевые
+  - `category` добавлен в `get_structured_choices()` API
+  - `ExplosionProtectionType.category` → `GAS`/`DUST`
+- **Баг-фиксы**: `isDustGroup` — сравнение `String(id)` (v-model возвращает строки), все сравнения с `0` → `String(methodId) === '0'`
+- **Стиль**: `.filter-group-border` в `default.css` — переиспользуемая рамка (`border: 1px solid var(--cat-border)`)
+- **Парсер** (`core/models/exd_parser.py`): переписан на regex, upper-case, уровни (Ga-Gc, Da-Dc) и X/U вырезаются до разбора, поддерживает форматы `Ex d IIC T6 Gb`, `ExdbIICT6`
+
+### 📋 Requirement-модели
+
+- **`BaseRequirement`** (abstract) — общие поля: `request_item` (O2O), `ip_protection` (FK), `temp_min`, `temp_max`
+- **`GearboxRequirement`**: + `body_material`, `torque`, `mounting_plate`
+- **`FilterRegulatorRequirement`**: + `body_material`, `flow_rate`, `thread`, `filtration`
+- **`LimitSwitchRequirement`**: + `body_material`, `sensor_variety`, `points`, `exd_protection`, `signal_type`
+- `exd_protection` — только в LimitSwitchRequirement (не в базе)
+- **`to_filter_params()`** — метод на каждом требовании, возвращает словарь query-параметров для EngineerSelection API
+- **API**:
+  - `GET /api/client_requests/requirements/schema/?type=gearbox` — поля + choices
+  - `POST /api/client_requests/requirements/preview/` — dry-run → `filter_params`
+  - `exd_id_override` — обработка sentinel'а `_none_`
+- **`RequirementForm.vue`** — динамическая форма: загружает схему, рендерит поля, для `exd_protection` — каскадный `ExdFilter` в режиме `single`
+- **Тестовая страница**: `/tools/requirements`
+
+### 🔧 Прочее
+
+- `db.sqlite3` — git stash/pull main office-work
+- `BaseFilterOptionsView` — поддержка `default_scope` (для `views_engineer_filters.py`)
+
+## Ранее (2026-06-02) — Скачивание сертификатов, Exd-фильтр, админка БКВ
 
 ### 📥 Имена файлов при скачивании сертификатов и техдокументации
 

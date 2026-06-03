@@ -423,7 +423,7 @@ class ExdOption(models.Model, OptionListToSelectMixin):
                 'name': method.name,
                 'description': method.description,
                 'types': [
-                    {'id': t.id, 'code': t.code, 'name': t.name, 'description': t.description}
+                    {'id': t.id, 'code': t.code, 'name': t.name, 'description': t.get_text_description(), 'category': t.category}
                     for t in types
                 ]
             })

@@ -1,4 +1,5 @@
 # Шаблон нового каталога (Catalog Pattern)
+> Обновлено 2026-06-03: добавлен EngineerSelection, EngineerFilterBar, Requirement-модели
 
 ## Архитектура: CatalogConfig
 
@@ -159,6 +160,16 @@ path('quickselect/', MyQuickSelectView.as_view()),
 ```
 
 ---
+
+## EngineerSelection — отдельный компонент инженерного подбора
+
+`EngineerSelection.vue` — независимый от `CatalogList.vue` компонент:
+- Использует `EngineerFilterBar.vue` (горизонтальная панель фильтров) вместо `FilterSidebar`
+- Использует `EngineerProductCard.vue` (горизонтальная карточка) вместо `ProductCard`
+- `useCatalog(api, { mode: 'engineer' })` → вызывает `api.getEngineer()` / `api.getEngineerFilters()`
+- Пропс `presetFilters` — предзаполнение из Requirement-моделей
+- Django API: `/api/{catalog}/engineer/` + `/api/{catalog}/engineer/filters/`
+- `'engineer'` FilterSet в `config.py` (пока копия `'list'`)
 
 ## Фронтенд
 
