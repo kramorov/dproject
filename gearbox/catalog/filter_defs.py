@@ -6,7 +6,7 @@ These are the same FilterDefinitions previously in gearbox/services/filters.py.
 Kept here for the CatalogConfig; the old location remains for backward compat.
 """
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
-from params.models import IpOption, ClimaticZoneClassifier, ClimaticEquipmentPlacementClassifier
+from params.models import IpOption, ClimaticPlacementCategory, ClimaticZoneCategory
 from params.models import IpOption
 
 # ── Individual filter definitions (named for reuse in FilterSets) ──

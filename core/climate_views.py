@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
-from params.models import ClimaticZoneClassifier, ClimaticEquipmentPlacementClassifier, ClimaticConditions
+from params.models import ClimaticZoneCategory, ClimaticPlacementCategory, ClimaticConditions
 from core.models.climate_parser import ClimateStringParser
 
 
@@ -18,23 +18,20 @@ class ClimateStructureView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        # Климатические зоны (У, ХЛ, УХЛ, Т, ТВ...) — лежат в ClimaticEquipmentPlacementClassifier
         zones = list(
-            ClimaticEquipmentPlacementClassifier.objects
+            ClimaticZoneCategory.objects
             .filter(is_active=True)
             .order_by('sorting_order')
             .values('id', 'code', 'name', 'description')
         )
 
-        # Категории размещения (1–5) — лежат в ClimaticZoneClassifier
         placements = list(
-            ClimaticZoneClassifier.objects
+            ClimaticPlacementCategory.objects
             .filter(is_active=True)
             .order_by('sorting_order')
             .values('id', 'code', 'name', 'description')
         )
 
-        # Все комбинации зона+размещение с температурами
         conditions = list(
             ClimaticConditions.objects
             .filter(is_active=True)
@@ -72,10 +69,9 @@ class ClimateParseView(APIView):
 
         result = {}
 
-        # Ищем зону по коду
         zone = None
         if parsed.zone_code:
-            zone = ClimaticEquipmentPlacementClassifier.objects.filter(
+            zone = ClimaticZoneCategory.objects.filter(
                 code=parsed.zone_code, is_active=True
             ).first()
             if zone:
@@ -83,10 +79,9 @@ class ClimateParseView(APIView):
                 result['zone_code'] = zone.code
                 result['zone_name'] = zone.name
 
-        # Ищем размещение по коду
         placement = None
         if parsed.placement_code:
-            placement = ClimaticZoneClassifier.objects.filter(
+            placement = ClimaticPlacementCategory.objects.filter(
                 code=parsed.placement_code, is_active=True
             ).first()
             if placement:
@@ -94,12 +89,11 @@ class ClimateParseView(APIView):
                 result['placement_code'] = placement.code
                 result['placement_name'] = placement.name
 
-        # Ищем ClimaticConditions для этой комбинации
         cc = None
         if zone and placement:
             cc = ClimaticConditions.objects.filter(
-                climaticPlacement_id=zone.id,   # Внимание: поля перепутаны в БД!
-                climaticZone_id=placement.id,   # climaticPlacement → зона, climaticZone → размещение
+                climaticZone_id=zone.id,
+                climaticPlacement_id=placement.id,
                 is_active=True,
             ).first()
 
@@ -115,6 +109,6 @@ class ClimateParseView(APIView):
                 **result,
             }, status=404)
 
-        result['designation'] = raw  # исходная строка
+        result['designation'] = raw
 
         return Response(result)

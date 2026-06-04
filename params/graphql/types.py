@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from params.models import (
     PowerSupplies , ControlUnitLocationOption , ControlUnitTypeOption , SafetyPositionOption ,
     IpOption , BodyCoatingOption , BlinkerOption , SwitchesParameters , EnvTempParameters ,
-    ClimaticZoneClassifier , ClimaticEquipmentPlacementClassifier , ClimaticConditions ,
+    ClimaticPlacementCategory , ClimaticZoneCategory , ClimaticConditions ,
     DigitalProtocolsSupportOption , MechanicalIndicatorInstalledOption , ControlUnitInstalledOption ,
     ActuatorGearboxOutputType , ActuatorGearBoxCombinationTypes , ValveTypes , HandWheelInstalledOption ,
     OperatingModeOption , MountingPlateTypes , StemShapes , StemSize , ThreadTypes , MeasureUnits ,
@@ -81,15 +81,15 @@ class EnvTempParametersNode(DjangoObjectType) :
         fields = ('id' , 'name' , 'code' , 'min_temp' , 'max_temp' , 'description' , 'sorting_order' , 'is_active')
 
 
-class ClimaticZoneClassifierNode(DjangoObjectType) :
+class ClimaticPlacementCategoryNode(DjangoObjectType) :
     class Meta :
-        model = ClimaticZoneClassifier
+        model = ClimaticPlacementCategory
         fields = ('id' , 'name' , 'code' , 'description' , 'sorting_order' , 'is_active')
 
 
-class ClimaticEquipmentPlacementClassifierNode(DjangoObjectType) :
+class ClimaticZoneCategoryNode(DjangoObjectType) :
     class Meta :
-        model = ClimaticEquipmentPlacementClassifier
+        model = ClimaticZoneCategory
         fields = ('id' , 'name' , 'code' , 'description' , 'sorting_order' , 'is_active')
 
 

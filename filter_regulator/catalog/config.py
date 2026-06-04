@@ -20,7 +20,7 @@ FILTER_REGULATOR_CONFIG = CatalogConfig(
         'list': FilterSet(
             definitions=[
                 fd_model_line, fd_filtration, fd_body_material,
-                fd_flow_rate, fd_thread, fd_temp_min, fd_temp_max, fd_climate, fd_brand,
+                fd_flow_rate, fd_thread, fd_climate, fd_brand,
             ],
             scoped=False,
             show_compatible=True,
@@ -28,7 +28,7 @@ FILTER_REGULATOR_CONFIG = CatalogConfig(
         'engineer': FilterSet(
             definitions=[
                 fd_model_line, fd_filtration, fd_body_material,
-                fd_flow_rate, fd_thread, fd_temp_min, fd_temp_max, fd_climate, fd_brand,
+                fd_flow_rate, fd_thread, fd_climate, fd_brand,
             ],
             scoped=False,
             show_compatible=True,

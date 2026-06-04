@@ -9,7 +9,7 @@ from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, S
     ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
     StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize, CertVariety, CertData, \
     MechanicalIndicatorInstalledOption, SafetyPositionOption, ControlUnitTypeOption, ControlUnitLocationOption, \
-    ClimaticConditions, ClimaticEquipmentPlacementClassifier, ClimaticZoneClassifier, PnVariety, DnVariety, \
+    ClimaticConditions, ClimaticZoneCategory, ClimaticPlacementCategory, PnVariety, DnVariety, \
     BodyColor, OptionVariety, ValveFunctionVariety, CoatingVariety, SealingClass, WarrantyTimePeriodVariety, \
     ValveActuationVariety, PneumaticAirSupplyPressure, PneumaticConnection, ThreadSizeSetItem, ThreadSizeSet, \
     ThreadInnerOuter, LockingMechanism
@@ -436,12 +436,12 @@ class ControlUnitLocationOptionAdmin(admin.ModelAdmin):
     ordering = ['sorting_order']
 
 
-class ClimaticZoneClassifierAdmin(admin.ModelAdmin):
+class ClimaticPlacementCategoryAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'code', 'sorting_order', 'is_active']
     list_editable = ['name', 'code', 'sorting_order', 'is_active']
 
 
-class ClimaticEquipmentPlacementClassifierAdmin(admin.ModelAdmin):
+class ClimaticZoneCategoryAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'code', 'sorting_order', 'description']
     list_editable = ['name', 'code', 'sorting_order']
     ordering = ['sorting_order']
@@ -626,8 +626,8 @@ admin.site.register(CertData)
 admin.site.register(SafetyPositionOption, SafetyPositionOptionAdmin)
 admin.site.register(ControlUnitTypeOption, ControlUnitTypeOptionAdmin)
 admin.site.register(ControlUnitLocationOption, ControlUnitLocationOptionAdmin)
-admin.site.register(ClimaticZoneClassifier, ClimaticZoneClassifierAdmin)
-admin.site.register(ClimaticEquipmentPlacementClassifier, ClimaticEquipmentPlacementClassifierAdmin)
+admin.site.register(ClimaticPlacementCategory, ClimaticPlacementCategoryAdmin)
+admin.site.register(ClimaticZoneCategory, ClimaticZoneCategoryAdmin)
 admin.site.register(ClimaticConditions, ClimaticConditionsAdmin)
 admin.site.register(DnVariety, DnVarietyAdmin)
 admin.site.register(PnVariety, PnVarietyAdmin)

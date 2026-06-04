@@ -623,12 +623,17 @@ class BaseFilterOptionsView(APIView):
             for fd in filter_set.definitions:
                 try:
                     options = fd.get_options(config.model_class, queryset=base_qs)
-                    if options:
+                    # CUSTOM filters (exd_compatible, climate_cascade) may return empty list —
+                    # still include them so frontend renders special UI components
+                    is_custom = fd.data_source_type.value == 'custom'
+                    if options or is_custom:
                         result[fd.param_name] = {
                             'label': fd.label,
                             'order': fd.order,
                             'filter_type': fd.filter_type.value,
                             'options': options,
+                            'default_value': fd.default_value,
+                            'show_code': fd.show_code,
                         }
                 except Exception as e:
                     result[fd.param_name] = {

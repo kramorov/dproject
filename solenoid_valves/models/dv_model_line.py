@@ -1,0 +1,89 @@
+# solenoid_valves/models.py
+
+from django.db import models
+import math
+from django.utils.translation import gettext_lazy as _
+from typing import Dict, List, Optional, Any
+
+from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, ImageGalleryMixin
+from .sv_options import ValveDesign, ValveOperationVariety
+
+from core.models.cert_doc_mixin import CertDocMixin
+from materials.models import WorkingMedium
+from params.models import ThreadSize, ThreadInnerOuter, SealingClass, PowerSupplies, PneumaticConnection
+from producers.models import Brands, Producer
+from electric_actuators.models import CableGlandHolesSet
+from params.exd_models import ExdOption
+from params.models import IpOption
+from sku.models import SKUMixin
+class DirectionalValveModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, StructuredDataMixin, models.Model):
+    """
+    Серия распределительных клапанов
+    1. Это «ДНК» клапана. Если что-то из этого изменится, это будет уже другая серия. (Общие свойства серии) Это «ДНК» клапана. Если что-то из этого изменится, это будет уже другая серия.
+        construction - ValveDesign (Золотниковый / Мембранный).
+        operation - ValveOperationVariety (Прямого / Пилотного действия).
+        working_medium - WorkingMedium (Рабочая среда: Воздух / Газ / Масло).
+        ip protectionClass (IP65, IP67)
+        exd Ex-Protection (Взрывозащита).
+        solenoid_insulation_class (Класс изоляции катушки: H, F).
+        ElectricalSafety (Стандарты IEC/EN).
+    """
+
+    name = models.CharField(max_length=200,
+                            verbose_name=_("Название"),
+                            help_text=_('Текстовое название серии клапанов'))
+    code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код клапана"))
+
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Текстовое описание серии клапанов'))
+    name_template = models.TextField(blank=True, null=True,
+                                     verbose_name=_("Шаблон названия"),
+                                     help_text=_('Шаблон для текстового названия клапана'))
+    description_template = models.TextField(blank=True, null=True,
+                                            verbose_name=_("Шаблон описания"),
+                                            help_text=_('Шаблон для описания клапана'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
+                                    help_text=_('Активно свойство или нет'))
+    producer = models.ForeignKey(Producer, related_name='direction_valve_model_line_producer', blank=True,
+                                 null=True,
+                                 on_delete=models.SET_NULL,
+                                 help_text=_('Производитель клапанов'),
+                                 verbose_name=_("Производитель"))
+    brand = models.ForeignKey(Brands, related_name='direction_valve_model_line_brand', blank=True, null=True,
+                              on_delete=models.SET_NULL,
+                              help_text=_('Бренд клапанов'),
+                              verbose_name=_("Бренд"))
+
+    working_medium = models.ForeignKey(WorkingMedium, related_name='direction_valve_model_line_working_medium',
+                                       blank=True, null=True,
+                                       on_delete=models.SET_NULL, verbose_name=_("Среда"),
+                                       help_text=_("Рабочая среда"))
+    solenoid_insulation_class = models.CharField(max_length=50, blank=True, null=True,
+                                                 verbose_name=_("Класс изоляции"),
+                                                 help_text=_("Класс изоляции катушки: H, F"))
+
+    construction = models.ForeignKey(ValveDesign, related_name='direction_valve_model_line_construction', blank=True,
+                                     null=True,
+                                     on_delete=models.SET_NULL,
+                                     help_text=_('Конструкция'),
+                                     verbose_name=_("Тип конструкции клапана"))
+    operation = models.ForeignKey(ValveOperationVariety,
+                                  related_name='direction_valve_model_line_construction_operation',
+                                  blank=True,
+                                  null=True,
+                                  on_delete=models.SET_NULL,
+                                  help_text=_('Принцип действия'),
+                                  verbose_name=_("Принцип действия клапана"))
+    equipment_type = models.ForeignKey(
+        'core.EquipmentType', on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Тип оборудования"),
+    )
+
+    class Meta:
+        ordering = ['sorting_order', 'code']
+        verbose_name = _('Серия распределительных клапанов')
+        verbose_name_plural = _('Серии распределительных клапанов')

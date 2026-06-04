@@ -239,46 +239,48 @@ class EnvTempParameters(models.Model):
         return self.name
 
 
-class ClimaticZoneClassifier(models.Model, OptionListToSelectMixin):
+class ClimaticPlacementCategory(models.Model, OptionListToSelectMixin):
+    """Категория размещения оборудования (1, 2, 3, 4, 5)."""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
-                            help_text=_("Символьное обозначение типа климатической зоны")
+                            help_text=_("Название категории размещения")
                             )
     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
-                            help_text=_("Код климатической зоны"))
+                            help_text=_("Код категории размещения: 1, 2, 3, 4, 5"))
     description = models.TextField(blank=True, verbose_name=_("Описание"),
-                                   help_text=_('Текстовое описание типа климатической зоны'))
+                                   help_text=_('Текстовое описание категории размещения'))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
     class Meta:
-        verbose_name = _('Классификатор климатической зоны')
-        verbose_name_plural = _('Классификаторы климатических зон')
+        verbose_name = _('Категория размещения оборудования')
+        verbose_name_plural = _('Категории размещения оборудования')
         ordering = ['sorting_order']
 
     def __str__(self):
         return self.name
 
 
-class ClimaticEquipmentPlacementClassifier(models.Model, OptionListToSelectMixin):
+class ClimaticZoneCategory(models.Model, OptionListToSelectMixin):
+    """Климатическая зона (У, ХЛ, УХЛ, Т, ТВ, М, ОМ, В…)."""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
-                            help_text=_("Название категории размещения оборудования")
+                            help_text=_("Название климатической зоны: У, ХЛ, УХЛ, Т...")
                             )
     code = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Код"),
-                            help_text=_("Код категории размещения оборудования"))
+                            help_text=_("Код климатической зоны: u, hl, uhl, t..."))
     description = models.TextField(blank=True, verbose_name=_("Описание"),
-                                   help_text=_('Текстовое описание категории размещения оборудования'))
+                                   help_text=_('Текстовое описание климатической зоны'))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
     class Meta:
-        verbose_name = _('Классификатор размещения оборудования')
-        verbose_name_plural = _('Классификаторы размещения оборудования')
+        verbose_name = _('Климатическая зона')
+        verbose_name_plural = _('Климатические зоны')
         ordering = ['sorting_order']
 
     def __str__(self):
@@ -299,11 +301,13 @@ class ClimaticConditions(models.Model, OptionListToSelectMixin):
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
 
-    climaticZone = models.ForeignKey(ClimaticZoneClassifier, on_delete=models.SET_NULL, null=True,
-                                     verbose_name=_('Климатическая зона'), help_text=_("Тип климатической зоны"))
-    climaticPlacement = models.ForeignKey(ClimaticEquipmentPlacementClassifier, on_delete=models.SET_NULL, null=True,
+    climaticZone = models.ForeignKey(ClimaticZoneCategory, on_delete=models.SET_NULL, null=True,
+                                     verbose_name=_('Климатическая зона'), help_text=_("Климатическая зона по ГОСТ"),
+                                     related_name='climatic_zone_conditions')
+    climaticPlacement = models.ForeignKey(ClimaticPlacementCategory, on_delete=models.SET_NULL, null=True,
                                           verbose_name=_('Категория размещения'),
-                                          help_text=_("Тип климатической зоны"))
+                                          help_text=_("Категория размещения оборудования"),
+                                          related_name='climatic_placement_conditions')
     min_temp_work = models.IntegerField(verbose_name=_("Мин. рабочая температура, °С"),
                                         help_text=_("Значение температуры воздуха при эксплуатации Рабочее, мин, °С"))
     max_temp_work = models.IntegerField(verbose_name=_("Макс. рабочая температура, °С"),

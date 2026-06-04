@@ -1,5 +1,5 @@
 <!-- shared/components/catalog/EngineerFilterBar.vue -->
-<!-- Horizontal filter bar for EngineerSelection. Replaces FilterSidebar. -->
+<!-- Horizontal filter bar for EngineerSelection. Row 1: regular selects, Row 2: Exd + Climate. -->
 <template>
   <div class="eng-filter-bar">
     <!-- Header row: title + actions -->
@@ -14,33 +14,34 @@
       </div>
     </div>
 
-    <!-- Filter chips row -->
-    <div class="eng-filter-bar__chips">
-      <!-- Exd-каскадный фильтр — special handling -->
-      <div v-for="f in sortedFilters" :key="f.key" class="eng-filter-bar__chip">
+    <!-- Row 1: regular filter selects -->
+    <div class="eng-filter-bar__chips" v-if="regularFilters.length">
+      <div v-for="f in regularFilters" :key="f.key" class="eng-filter-bar__chip">
+        <label class="eng-filter-bar__chip-label">{{ f.label }}</label>
+        <span v-if="f.options.length === 1" class="eng-filter-bar__chip-single">{{ f.options[0].name }}</span>
+        <select
+          v-else
+          class="eng-filter-bar__chip-select"
+          v-model="active[f.key]"
+          @change="$emit('change', f.key, active[f.key])"
+        >
+          <option value="">Не указано</option>
+          <option v-for="opt in f.options" :key="opt.id" :value="opt.id">{{ f.show_code && opt.code ? opt.code + ' ' + opt.name : opt.name }}</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Row 2: Exd + Climate (special cascade filters) -->
+    <div class="eng-filter-bar__special" v-if="specialFilters.length">
+      <div v-for="f in specialFilters" :key="f.key" class="eng-filter-bar__special-item">
         <ExdFilter
           v-if="f.filter_type === 'exd_compatible'"
-          compact
           @update:modelValue="ids => onExdChange(ids)"
         />
         <ClimateFilter
           v-else-if="f.filter_type === 'climate_cascade'"
-          compact
           @update:temps="temps => onClimateChange(temps, f.key)"
         />
-        <template v-else>
-          <label class="eng-filter-bar__chip-label">{{ f.label }}</label>
-          <span v-if="f.options.length === 1" class="eng-filter-bar__chip-single">{{ f.options[0].name }}</span>
-          <select
-            v-else
-            class="eng-filter-bar__chip-select"
-            :value="active[f.key] || ''"
-            @change="$emit('change', f.key, $event.target.value)"
-          >
-            <option value="">Не указано</option>
-            <option v-for="opt in f.options" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
-          </select>
-        </template>
       </div>
     </div>
   </div>
@@ -48,7 +49,7 @@
 
 <script setup>
 import { reactive, ref, computed, watch } from 'vue'
-import ExdFilter from './ExdFilter.vue'
+import ExdFilter from '@/shared/components/ExdFilter.vue'
 import ClimateFilter from '@/shared/components/ClimateFilter.vue'
 
 const activeExdIds = ref([])
@@ -65,18 +66,36 @@ const active = reactive({})
 
 watch(() => props.filters, (val) => {
   for (const [k, v] of Object.entries(val)) {
-    active[k] = v
+    // Preserve existing selection, apply default_value only on first load
+    if (active[k] === undefined || active[k] === '' || active[k] === null) {
+      active[k] = v.default_value || ''
+    } else {
+      // Keep existing value (may be filter object from previous state)
+      // active[k] already has correct value
+    }
   }
 }, { deep: true, immediate: true })
 
-const sortedFilters = computed(() => {
+const allFilters = computed(() => {
   const arr = []
   for (const [key, val] of Object.entries(props.filters)) {
-    if (val && val.options) arr.push({ key, ...val })
+    if (val) arr.push({ key, ...val })
   }
   arr.sort((a, b) => (a.order || 99) - (b.order || 99))
   return arr
 })
+
+const regularFilters = computed(() =>
+  allFilters.value.filter(f =>
+    f.filter_type !== 'exd_compatible' && f.filter_type !== 'climate_cascade'
+  )
+)
+
+const specialFilters = computed(() =>
+  allFilters.value.filter(f =>
+    f.filter_type === 'exd_compatible' || f.filter_type === 'climate_cascade'
+  )
+)
 
 const hasActive = computed(() =>
   Object.values(active).some(v => v !== '' && v != null)
@@ -154,12 +173,13 @@ function onClimateChange(temps, key) {
   background: var(--cat-border, #e5e7eb);
 }
 
-/* ── Chips row ── */
+/* ── Row 1: regular chips ── */
 .eng-filter-bar__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: flex-end;
+  margin-bottom: 8px;
 }
 .eng-filter-bar__chip {
   display: flex;
@@ -195,14 +215,17 @@ function onClimateChange(temps, key) {
   border-radius: var(--cat-radius-md, 6px);
 }
 
+/* ── Row 2: special cascade filters (Exd + Climate) ── */
+.eng-filter-bar__special {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .eng-filter-bar__chips {
-    gap: 6px;
-  }
-  .eng-filter-bar__chip-select {
-    min-width: 100px;
-    font-size: var(--cat-text-xs, 12px);
-  }
+  .eng-filter-bar__chips { gap: 6px; }
+  .eng-filter-bar__chip-select { min-width: 100px; font-size: var(--cat-text-xs, 12px); }
+  .eng-filter-bar__special { grid-template-columns: 1fr; }
 }
 </style>

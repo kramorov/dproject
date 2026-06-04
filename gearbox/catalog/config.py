@@ -40,8 +40,6 @@ GEARBOX_CONFIG = CatalogConfig(
         'engineer': FilterSet(
             definitions=[
                 fd_ip,
-                fd_temp_min,
-                fd_temp_max,
                 fd_climate,
                 fd_torque,
                 fd_body_material,

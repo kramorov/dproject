@@ -100,6 +100,8 @@ class FilterDefinition:
             is_parent_filter: bool = False,
             cascade_lookup: str = None,
             cascade_match_fields: List[str] = None,
+            show_code: bool = False,
+            default_value: str = None,
     ):
         self.param_name = param_name
         self.model_field = model_field
@@ -116,6 +118,8 @@ class FilterDefinition:
         self.is_parent_filter = is_parent_filter
         self.cascade_lookup = cascade_lookup
         self.cascade_match_fields = cascade_match_fields or []
+        self.show_code = show_code
+        self.default_value = default_value
 
     # ── Options ──
 

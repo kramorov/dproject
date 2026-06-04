@@ -1,5 +1,5 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-03: EngineerSelection, EngineerProductCard, EngineerFilterBar, ExdFilter, RequirementForm
+> Обновлено 2026-06-04: ExdFilter/ClimateFilter без compact, EngineerFilterBar 2 строки, Solenoid valves models
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -155,7 +155,9 @@ App.vue параметризуется через `labels` + `api`.
 | `pages/admin/WidgetsPage.vue` | /widgets | Виджеты |
 | `pages/ImageProcessorTest.vue` | /tools/image-processor | Тест обработки изображений и PDF (профили) |
 
-### EngineerSelection — инженерный подбор (2026-06-03)
+### EngineerSelection — инженерный подбор (2026-06-03, обновлён 2026-06-04)
+- 2026-06-04: EngineerFilterBar — две строки, default_value в FilterDefinition, code+name в селектах
+- ClimateFilter — компактный вид, t мин/макс в строке с зоной/размещением
 
 Выделенный компонент, независимый от `CatalogList`:
 
@@ -165,7 +167,9 @@ App.vue параметризуется через `labels` + `api`.
 | `catalog/EngineerProductCard.vue` | Горизонтальная карточка (изображение 100px + спеки + цена) |
 | `catalog/EngineerFilterBar.vue` | Горизонтальная панель фильтров (селекты в строку) |
 
-### ExdFilter — каскадный фильтр взрывозащиты (редизайн 2026-06-03)
+### ExdFilter — каскадный фильтр взрывозащиты (редизайн 2026-06-03, обновлён 2026-06-04)
+- 2026-06-04: убран пропс compact, неактивные селекты disabled, заголовок на рамке, max-height описания
+- Селекты: метод (`Ex d`), тип (`db`), группа, T-класс — коды без расшифровок
 
 - Селекты: метод (`Ex d`), тип (`db`), группа, T-класс — коды без расшифровок
 - Все в одну строку, поле «Описание» всегда видно

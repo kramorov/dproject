@@ -730,7 +730,7 @@ class StructuredDataMixin :
 
     def save(self, *args, **kwargs):
         """При сохранении обновляем название и описание из шаблонов, если не указано в параметрах """
-        print(f"[DEBUG] save: name='{self._get_model_name()}'")
+        # print(f"[DEBUG] save: name='{self._get_model_name()}'\")  # silenced 2026-06-04
         super().save(*args, **kwargs)
 
     def _get_model_meta_name(self):

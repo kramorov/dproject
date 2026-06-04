@@ -1,10 +1,9 @@
 <!-- shared/components/ExdFilter.vue -->
 <!-- Каскадный фильтр взрывозащиты: метод → тип → группа → температура. -->
 <template>
-  <div :class="compact ? 'exd-filter exd-filter--compact' : 'exd-filter'">
-    <div class="filter-group-border">
-    <!-- Text input for parsing Exd string -->
-    <div class="exd-parse-row" v-if="!compact">
+  <div class="exd-filter filter-group-border">
+    <span class="exd-title">Взрывозащита</span>
+    <!-- Text input for parsing -->
       <input
         v-model="exdString"
         type="text"
@@ -14,62 +13,54 @@
         @keydown.enter.prevent
         @input="onParseInput"
       />
-    </div>
-    <div class="exd-parse-error" v-if="!compact && parseError">{{ parseError }}</div>
+      <div class="exd-parse-error" v-if="parseError">{{ parseError }}</div>
 
+    <!-- Selects row -->
     <div class="exd-rows">
-    <!-- Метод -->
-    <div class="exd-row">
-      <label v-if="!compact">Метод Ex</label>
-      <select v-model="methodId" @change="onMethodChange">
-        <option :value="null">Все</option>
-        <option :value="0">{{ compact ? 'Общепром.' : 'Общепромышленное (без Ex)' }}</option>
-        <option v-for="m in methods" :key="m.id" :value="m.id">Ex {{ m.code }}</option>
-      </select>
+      <div class="exd-row">
+        <label>Ex</label>
+        <select v-model="methodId" @change="onMethodChange">
+          <option :value="null">Все</option>
+          <option :value="0">Общепром.</option>
+          <option v-for="m in methods" :key="m.id" :value="m.id">Ex {{ m.code }}</option>
+        </select>
+      </div>
+      <div class="exd-row">
+        <label>Тип</label>
+        <select v-model="typeId" @change="onTypeChange" class="exd-sel--narrow"
+                :disabled="!methodId || String(methodId) === '0'">
+          <option :value="null">Тип</option>
+          <option v-for="t in availableTypes" :key="t.id" :value="t.id">{{ t.code }}</option>
+        </select>
+      </div>
+      <div class="exd-row">
+        <label>Группа</label>
+        <select v-model="groupId" @change="onGroupChange" class="exd-sel--narrow"
+                :disabled="!methodId || String(methodId) === '0'">
+          <option :value="null">Группа</option>
+          <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'GAS'" label="Газ">
+            <option v-for="g in gasGroups" :key="g.id" :value="g.id">{{ g.code }}</option>
+          </optgroup>
+          <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'DUST'" label="Пыль">
+            <option v-for="g in dustGroups" :key="g.id" :value="g.id">{{ g.code }}</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="exd-row">
+        <label>T&deg;</label>
+        <select v-model="tempId" @change="onTempChange" class="exd-sel--narrow"
+                :disabled="!methodId || String(methodId) === '0' || isDustGroup">
+          <option :value="null">T-класс</option>
+          <option v-for="t in tempClasses" :key="t.id" :value="t.id">{{ t.code }}</option>
+        </select>
+      </div>
     </div>
 
-    <!-- Тип (только для Ex-методов, не для общепромышленного) -->
-    <div class="exd-row" v-if="methodId && String(methodId) !== '0'">
-      <label v-if="!compact">Тип</label>
-      <select v-model="typeId" @change="onTypeChange" class="exd-sel--narrow">
-        <option :value="null">{{ compact ? 'Тип' : 'Все типы' }}</option>
-        <option v-for="t in availableTypes" :key="t.id" :value="t.id">{{ t.code }}</option>
-      </select>
-    </div>
-
-    <!-- Группа (только для Ex-методов) -->
-    <div class="exd-row" v-if="methodId && String(methodId) !== '0'">
-      <label v-if="!compact">Группа среды</label>
-      <select v-model="groupId" @change="onGroupChange" class="exd-sel--narrow">
-        <option :value="null">{{ compact ? 'Группа' : 'Все группы' }}</option>
-        <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'GAS'" label="Газ">
-          <option v-for="g in gasGroups" :key="g.id" :value="g.id">{{ g.code }}</option>
-        </optgroup>
-        <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'DUST'" label="Пыль">
-          <option v-for="g in dustGroups" :key="g.id" :value="g.id">{{ g.code }}</option>
-        </optgroup>
-      </select>
-    </div>
-
-    <!-- Температура (только для газа, не для общепромышленного) -->
-    <div class="exd-row" v-if="methodId && String(methodId) !== '0' && !isDustGroup">
-      <label v-if="!compact">Темп. класс</label>
-      <select v-model="tempId" @change="onTempChange" class="exd-sel--narrow">
-        <option :value="null">{{ compact ? 'T-класс' : 'Все классы' }}</option>
-        <option v-for="t in tempClasses" :key="t.id" :value="t.id">{{ t.code }}</option>
-      </select>
-    </div>
-    <div class="exd-row exd-dust-note" v-if="!compact && methodId && String(methodId) !== '0' && isDustGroup">
-      <span class="exd-hint">Температурный класс — настраивается в свойствах ExdOption</span>
-    </div>
-
-    </div>
-
-    <!-- Расшифровка -->
-    <div class="exd-row exd-description" v-if="!compact">
-      <label>Описание</label>
+    <!-- Description -->
+    <div class="exd-row exd-description">
+        <label>Описание</label>
       <div class="exd-description-text">{{ exdDescription || 'Не указан класс взрывозащиты' }}</div>
-    </div></div>
+    </div>
 
     <div v-if="loading" class="exd-loading">загрузка...</div>
   </div>
@@ -78,11 +69,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/shared/api'
-
-const props = defineProps({
-  compact: { type: Boolean, default: false },
-  single: { type: Boolean, default: false },
-})
 
 const emit = defineEmits(['update:modelValue'])
 
@@ -137,13 +123,10 @@ const selectedTempClass = computed(() => {
 })
 
 const exdDescription = computed(() => {
-  // «Все» — ничего не выбрано
   if (methodId.value == null) return null
-  // «Общепромышленное»
   if (String(methodId.value) === '0') return 'Взрывозащита — нет, Общепромышленное исполнение'
 
   const parts = []
-  // Метод или Тип: если выбран тип — показываем его вместо метода
   if (selectedType.value) {
     const tDesc = selectedType.value.description || selectedType.value.name || ''
     parts.push(`Ex ${selectedType.value.code}${tDesc ? ' (' + tDesc + ')' : ''}`)
@@ -175,11 +158,11 @@ onMounted(async () => {
 
 async function fetchCompatible() {
   if (String(methodId.value) === '0') {
-    emit('update:modelValue', props.single ? SENTINEL_NONE : [SENTINEL_NONE])
+    emit('update:modelValue', [SENTINEL_NONE])
     return
   }
   if (methodId.value == null) {
-    emit('update:modelValue', props.single ? null : [])
+    emit('update:modelValue', [])
     return
   }
 
@@ -193,11 +176,7 @@ async function fetchCompatible() {
   try {
     const { data } = await api.get('/core/exd/compatible/', { params })
     const ids = data.ids || []
-    if (props.single) {
-      emit('update:modelValue', ids.length === 0 ? SENTINEL_EMPTY : (ids[0] || null))
-    } else {
-      emit('update:modelValue', ids.length === 0 ? [SENTINEL_EMPTY] : ids)
-    }
+    emit('update:modelValue', ids.length === 0 ? [SENTINEL_EMPTY] : ids)
   } catch (e) {
     console.error('[ExdFilter] Compatible fetch failed', e)
     emit('update:modelValue', [SENTINEL_EMPTY])
@@ -224,79 +203,49 @@ async function onParseInput() {
   parseTimer = setTimeout(async () => {
     try {
       const { data } = await api.post('/core/exd/parse/', { exd_string: val })
-      console.log('[ExdFilter] parse result:', data)
-      // Empty result → reset cascade
       if (!data.method_id && !data.type_id && !data.group_id && !data.temp_id) {
         methodId.value = null; typeId.value = null; groupId.value = null; tempId.value = null
         debouncedFetch()
         return
       }
-      if (data.error) {
-        parseError.value = data.error
-        return
-      }
-      // Fill cascade selects
+      if (data.error) { parseError.value = data.error; return }
       if (data.method_id != null) methodId.value = data.method_id
       if (data.type_id != null) typeId.value = data.type_id
       if (data.group_id != null) groupId.value = data.group_id
       if (data.temp_id != null) tempId.value = data.temp_id
-      // Trigger single compatible fetch
       debouncedFetch()
     } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Ошибка парсинга'
-      parseError.value = msg
+      parseError.value = e?.response?.data?.error || e?.message || 'Ошибка парсинга'
     }
   }, 400)
 }
 </script>
 
 <style scoped>
-.exd-filter { display: flex; flex-direction: column; gap: 8px; }
-.exd-filter--compact { flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
-.exd-filter:not(.exd-filter--compact) .exd-rows { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
-.exd-row { display: flex; flex-direction: column; gap: 2px; }
-.exd-filter--compact .exd-row { flex-direction: row; align-items: center; gap: 4px; }
-.exd-filter:not(.exd-filter--compact) .exd-row select { width: auto; min-width: 100px; max-width: 160px; }
-.exd-filter:not(.exd-filter--compact) .exd-row select.exd-sel--narrow { min-width: 70px; max-width: 110px; }
-
-.exd-row label { font-size: var(--cat-text-sm); font-weight: 500; color: var(--cat-muted); }
-.exd-row select { padding: 6px 8px; font-size: var(--cat-text-base); color: var(--cat-text); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }
-.exd-filter--compact .exd-row select { width: auto; padding: 6px 10px; font-size: var(--cat-text-sm, 13px); }
-
-/* ── Parse input ── */
-.exd-parse-row { margin-bottom: 6px; }
-.exd-parse-input {
-  width: 100%;
-  padding: 5px 8px;
-  font-size: var(--cat-text-sm, 13px);
-  font-family: var(--cat-font-mono, monospace);
-  border: 1px solid var(--cat-border, #d1d5db);
-  border-radius: var(--cat-radius-sm, 4px);
-  background: var(--cat-surface, #fff);
-  color: var(--cat-text, #1f2937);
-  outline: none;
+.exd-filter { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.exd-title {
+  position: absolute; top: -8px; left: 10px;
+  font-size: 11px; font-weight: 500; color: var(--cat-muted, #9ca3af);
+  background: var(--cat-surface, #fff); padding: 0 4px;
 }
+.exd-rows { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
+.exd-row { display: flex; flex-direction: column; gap: 1px; }
+.exd-row label { font-size: 11px; font-weight: 500; color: var(--cat-muted, #9ca3af); }
+.exd-row select { padding: 4px 6px; font-size: 12px; color: var(--cat-text, #1f2937); border: 1px solid var(--cat-border, #d1d5db); border-radius: 4px; background: var(--cat-surface, #fff); width: auto; min-width: 80px; }
+.exd-sel--narrow { min-width: 55px !important; }
+.exd-row select:disabled { opacity: .4; cursor: default; }
+
+.exd-parse-input { width: 100%; padding: 4px 6px; font-size: 12px; font-family: var(--cat-font-mono, monospace); border: 1px solid var(--cat-border, #d1d5db); border-radius: 4px; background: var(--cat-surface, #fff); color: var(--cat-text, #1f2937); outline: none; }
 .exd-parse-input:focus { border-color: var(--cat-primary, #2563eb); }
-.exd-parse-input::placeholder { color: var(--cat-muted-light, #cbd5e1); font-family: var(--cat-font-mono, monospace); }
-.exd-parse-error {
-  font-size: 11px;
-  color: #dc2626;
-  margin-bottom: 6px;
-}
+.exd-parse-input::placeholder { color: var(--cat-muted-light, #cbd5e1); }
+.exd-parse-error { font-size: 10px; color: #dc2626; margin-top: 2px; }
 
-.exd-loading { font-size: 12px; color: var(--cat-muted); text-align: center; padding: 4px; }
-.exd-dust-note { padding: 4px 0; }
-.exd-hint { font-size: 12px; color: var(--cat-muted-light); font-style: italic; }
+.exd-loading { font-size: 11px; color: var(--cat-muted, #6b7280); text-align: center; }
 
-/* ── Description ── */
-.exd-description { margin-top: 2px; }
 .exd-description-text {
-  min-height: 42px;
-  font-size: var(--cat-text-sm, 13px);
-  color: var(--cat-text, #1f2937);
-  background: var(--cat-bg, #f3f4f6);
-  padding: 8px 10px;
-  border-radius: var(--cat-radius-md, 6px);
-  line-height: 1.4;
+  font-size: 12px; color: var(--cat-text, #1f2937);
+  background: var(--cat-bg, #f3f4f6); padding: 6px 8px;
+  border-radius: 4px; line-height: 1.4;
+  max-height: 80px; overflow-y: auto;
 }
 </style>

@@ -12,7 +12,7 @@ from params.graphql.types import (
     ActuatorGearBoxCombinationTypesNode, ValveTypesNode, HandWheelInstalledOptionNode,
     OperatingModeOptionNode, MountingPlateTypesNode, StemShapesNode, StemSizeNode,
     ThreadTypesNode, MeasureUnitsNode, ThreadSizeNode, ClimaticConditionsNode,
-    ClimaticEquipmentPlacementClassifierNode, ClimaticZoneClassifierNode,
+    ClimaticZoneCategoryNode, ClimaticPlacementCategoryNode,
     CertDataNode, CertVarietyNode, DnVarietyNode, PnVarietyNode, OptionVarietyNode,
     BodyColorNode, ValveFunctionVarietyNode, ValveActuationVarietyNode,
     SealingClassNode, CoatingVarietyNode, WarrantyTimePeriodVarietyNode
@@ -24,7 +24,7 @@ from params.models import (
     DigitalProtocolsSupportOption, MechanicalIndicatorInstalledOption, ControlUnitInstalledOption,
     ActuatorGearboxOutputType, ActuatorGearBoxCombinationTypes, ValveTypes, HandWheelInstalledOption,
     OperatingModeOption, MountingPlateTypes, StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize,
-    ClimaticZoneClassifier, ClimaticEquipmentPlacementClassifier, ClimaticConditions,
+    ClimaticPlacementCategory, ClimaticZoneCategory, ClimaticConditions,
     CertData, CertVariety, DnVariety, PnVariety, OptionVariety, BodyColor,
     ValveFunctionVariety, ValveActuationVariety, SealingClass, CoatingVariety, WarrantyTimePeriodVariety
 )
@@ -596,7 +596,7 @@ class Query(graphene.ObjectType):
 
     # ClimaticZoneClassifier
     params_climatic_zones = graphene.List(
-        ClimaticZoneClassifierNode,
+        ClimaticPlacementCategoryNode,
         id=graphene.ID(),
         name=graphene.String(),
         code=graphene.String(),
@@ -604,7 +604,7 @@ class Query(graphene.ObjectType):
     )
 
     def resolve_params_climatic_zones(self, info, **kwargs):
-        queryset = ClimaticZoneClassifier.objects.all()
+        queryset = ClimaticPlacementCategory.objects.all()
         if kwargs.get('id'):
             queryset = queryset.filter(id=kwargs['id'])
         if kwargs.get('name'):
@@ -617,7 +617,7 @@ class Query(graphene.ObjectType):
 
     # ClimaticEquipmentPlacementClassifier
     params_climatic_placements = graphene.List(
-        ClimaticEquipmentPlacementClassifierNode,
+        ClimaticZoneCategoryNode,
         id=graphene.ID(),
         name=graphene.String(),
         code=graphene.String(),
@@ -625,7 +625,7 @@ class Query(graphene.ObjectType):
     )
 
     def resolve_params_climatic_placements(self, info, **kwargs):
-        queryset = ClimaticEquipmentPlacementClassifier.objects.all()
+        queryset = ClimaticZoneCategory.objects.all()
         if kwargs.get('id'):
             queryset = queryset.filter(id=kwargs['id'])
         if kwargs.get('name'):

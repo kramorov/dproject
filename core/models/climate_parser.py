@@ -13,7 +13,7 @@ from typing import Optional, Dict
 from dataclasses import dataclass
 
 
-# Маппинг русского обозначения → код в БД (ClimaticEquipmentPlacementClassifier.code)
+# Маппинг русского обозначения → код в БД (ClimaticZoneCategory.code)
 # Сортировка по убыванию длины для жадного матчинга
 _ZONE_NAME_TO_CODE = [
     ('УХЛ', 'uhl'), ('ТВ', 'tv'), ('ТС', 'ts'), ('ТМ', 'tm'),

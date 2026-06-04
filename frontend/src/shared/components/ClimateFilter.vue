@@ -1,10 +1,9 @@
 <!-- shared/components/ClimateFilter.vue -->
-<!-- Каскадный фильтр климатического исполнения (ГОСТ 15150-69): зона → размещение → описание → t°. -->
+<!-- Каскадный фильтр климатического исполнения (ГОСТ 15150-69). -->
 <template>
-  <div :class="compact ? 'exd-filter exd-filter--compact' : 'exd-filter'">
-    <div class="filter-group-border">
-    <!-- Text input for parsing climate string -->
-    <div class="exd-parse-row" v-if="!compact">
+  <div class="exd-filter filter-group-border">
+    <span class="climate-title">Температура</span>
+    <!-- Text input -->
       <input
         v-model="climateString"
         type="text"
@@ -14,46 +13,51 @@
         @keydown.enter.prevent
         @input="onParseInput"
       />
-    </div>
-    <div class="exd-parse-error" v-if="!compact && parseError">{{ parseError }}</div>
+      <div class="exd-parse-error" v-if="parseError">{{ parseError }}</div>
 
-    <div class="exd-rows">
-    <!-- Климатическая зона -->
-    <div class="exd-row">
-      <label v-if="!compact">Клим. зона</label>
-      <select v-model="zoneId" @change="onZoneChange">
-        <option :value="null">{{ compact ? 'Зона' : 'Не указано' }}</option>
-        <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.name }}</option>
-      </select>
+    <!-- Row: zone + placement + temp inputs -->
+    <div class="climate-rows">
+      <div class="exd-row">
+        <label>Зона</label>
+        <select v-model="zoneId" @change="onZoneChange">
+          <option :value="null">—</option>
+          <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.name }}</option>
+        </select>
+      </div>
+      <div class="exd-row">
+        <label>Разм.</label>
+        <select v-model="placementId" @change="onPlacementChange" class="exd-sel--narrow">
+          <option :value="null">—</option>
+          <option v-for="p in availablePlacements" :key="p.id" :value="p.id">{{ p.code }}</option>
+        </select>
+      </div>
+      <div class="exd-row">
+        <label>t мин</label>
+        <input v-model.number="manualMinTemp" type="number" class="climate-temp-input"
+               :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }"
+               @input="onManualTempChange" />
+      </div>
+      <div class="exd-row">
+        <label>t макс</label>
+        <input v-model.number="manualMaxTemp" type="number" class="climate-temp-input"
+               :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }"
+               @input="onManualTempChange" />
+      </div>
     </div>
 
-    <!-- Категория размещения -->
-    <div class="exd-row">
-      <label v-if="!compact">Размещение</label>
-      <select v-model="placementId" @change="onPlacementChange" class="exd-sel--narrow">
-        <option :value="null">{{ compact ? 'Разм.' : 'Не указано' }}</option>
-        <option v-for="p in availablePlacements" :key="p.id" :value="p.id">{{ p.code }}</option>
-      </select>
+    <!-- Description -->
+    <div class="exd-row exd-description">
+        <label>Описание</label>
+        <div class="exd-description-text">{{ climateDescription || 'Не указано климатическое исполнение' }}</div>
     </div>
-    </div>
-
-    <!-- Расшифровка -->
-    <div class="exd-row exd-description" v-if="!compact">
-      <label>Описание</label>
-      <div class="exd-description-text">{{ climateDescription || 'Не указано климатическое исполнение' }}</div>
-    </div></div>
 
     <div v-if="loading" class="exd-loading">загрузка...</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/shared/api'
-
-const props = defineProps({
-  compact: { type: Boolean, default: false },
-})
 
 const emit = defineEmits(['update:temps'])
 
@@ -65,7 +69,8 @@ const placementId = ref(null)
 const loading = ref(false)
 const climateString = ref('')
 const parseError = ref('')
-
+const manualMinTemp = ref(null)
+const manualMaxTemp = ref(null)
 let parseTimer = null
 
 onMounted(async () => {
@@ -74,148 +79,113 @@ onMounted(async () => {
     zones.value = data.zones || []
     placements.value = data.placements || []
     conditions.value = data.conditions || []
-  } catch (e) {
-    console.error('[ClimateFilter] Failed to load structure', e)
-  }
+  } catch (e) { console.error('[ClimateFilter] Failed to load structure', e) }
 })
 
-// Доступные размещения — все (показываем всегда, подсвечиваем невалидные комбинации при выборе)
 const availablePlacements = computed(() => placements.value)
-
-const selectedZone = computed(() =>
-  zoneId.value ? zones.value.find(z => z.id === zoneId.value) : null
-)
-
-const selectedPlacement = computed(() =>
-  placementId.value ? placements.value.find(p => p.id === placementId.value) : null
-)
+const selectedZone = computed(() => zoneId.value ? zones.value.find(z => z.id === zoneId.value) : null)
+const selectedPlacement = computed(() => placementId.value ? placements.value.find(p => p.id === placementId.value) : null)
 
 const matchedCondition = computed(() => {
   if (!zoneId.value || !placementId.value) return null
-  return conditions.value.find(
-    c => c.climaticPlacement_id === zoneId.value && c.climaticZone_id === placementId.value
-  ) || null
+  return conditions.value.find(c => c.climaticZone_id === zoneId.value && c.climaticPlacement_id === placementId.value) || null
 })
 
+const tempsLocked = computed(() => !!(matchedCondition.value || climateString.value.trim()))
+
+watch([matchedCondition, () => climateString.value.trim()], () => {
+  if (matchedCondition.value) {
+    manualMinTemp.value = matchedCondition.value.min_temp_work
+    manualMaxTemp.value = matchedCondition.value.max_temp_work
+  }
+}, { immediate: true })
+
 const climateDescription = computed(() => {
-  if (!zoneId.value) return null
+  if (!zoneId.value && manualMinTemp.value == null && manualMaxTemp.value == null) return null
   const parts = []
   if (selectedZone.value) {
-    const zd = selectedZone.value.description ? ` (${selectedZone.value.description})` : ''
-    parts.push(`${selectedZone.value.name}${zd}`)
+    parts.push(selectedZone.value.name + (selectedZone.value.description ? ` (${selectedZone.value.description})` : ''))
   }
   if (selectedPlacement.value) {
-    const pd = selectedPlacement.value.description ? ` (${selectedPlacement.value.description})` : ''
-    parts.push(`категория размещения ${selectedPlacement.value.code}${pd}`)
+    parts.push(`кат. ${selectedPlacement.value.code}` + (selectedPlacement.value.description ? ` (${selectedPlacement.value.description})` : ''))
   }
   if (matchedCondition.value) {
-    parts.push(
-      `Температура: от ${matchedCondition.value.min_temp_work}°C до ${matchedCondition.value.max_temp_work}°C`
-    )
+    parts.push(`t: ${matchedCondition.value.min_temp_work}…${matchedCondition.value.max_temp_work}°C`)
     if (matchedCondition.value.min_temp_extremal != null) {
-      parts.push(
-        `(предельная: от ${matchedCondition.value.min_temp_extremal}°C до ${matchedCondition.value.max_temp_extremal}°C)`
-      )
+      parts.push(`(пред.: ${matchedCondition.value.min_temp_extremal}…${matchedCondition.value.max_temp_extremal}°C)`)
     }
+  } else if (manualMinTemp.value != null || manualMaxTemp.value != null) {
+    parts.push(`t (вручную): ${manualMinTemp.value ?? '…'}…${manualMaxTemp.value ?? '…'}°C`)
   } else if (zoneId.value && placementId.value) {
-    parts.push('⚠ Комбинация не найдена в базе')
+    parts.push('⚠ Комбинация не найдена')
   }
   return parts.join(', ')
 })
 
 function emitTemps() {
   if (matchedCondition.value) {
-    emit('update:temps', {
-      zone_id: zoneId.value,
-      placement_id: placementId.value,
-      min_temp: matchedCondition.value.min_temp_work,
-      max_temp: matchedCondition.value.max_temp_work,
-      designation: `${selectedZone.value?.name || ''}${selectedPlacement.value?.code || ''}`,
-    })
-  } else {
-    emit('update:temps', null)
-  }
+    emit('update:temps', { zone_id: zoneId.value, placement_id: placementId.value,
+      min_temp: matchedCondition.value.min_temp_work, max_temp: matchedCondition.value.max_temp_work,
+      designation: `${selectedZone.value?.name || ''}${selectedPlacement.value?.code || ''}` })
+  } else if (manualMinTemp.value != null || manualMaxTemp.value != null) {
+    emit('update:temps', { zone_id: zoneId.value, placement_id: placementId.value,
+      min_temp: manualMinTemp.value, max_temp: manualMaxTemp.value, designation: 'вручную' })
+  } else { emit('update:temps', null) }
 }
 
 function onZoneChange() {
+  if (matchedCondition.value) { manualMinTemp.value = matchedCondition.value.min_temp_work; manualMaxTemp.value = matchedCondition.value.max_temp_work }
+  else { manualMinTemp.value = null; manualMaxTemp.value = null }
   emitTemps()
 }
-
 function onPlacementChange() {
+  if (matchedCondition.value) { manualMinTemp.value = matchedCondition.value.min_temp_work; manualMaxTemp.value = matchedCondition.value.max_temp_work }
+  else { manualMinTemp.value = null; manualMaxTemp.value = null }
   emitTemps()
 }
+function onManualTempChange() { if (!tempsLocked.value) emitTemps() }
 
 async function onParseInput() {
-  clearTimeout(parseTimer)
-  parseError.value = ''
+  clearTimeout(parseTimer); parseError.value = ''
   const val = climateString.value.trim()
   if (!val) return
-
   parseTimer = setTimeout(async () => {
     try {
       const { data } = await api.post('/core/climate/parse/', { climate_string: val })
-      if (data.error) {
-        parseError.value = data.error
-        return
-      }
+      if (data.error) { parseError.value = data.error; return }
       if (data.zone_id != null) zoneId.value = data.zone_id
       if (data.placement_id != null) placementId.value = data.placement_id
       emitTemps()
-    } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Ошибка парсинга'
-      parseError.value = msg
-    }
+    } catch (e) { parseError.value = e?.response?.data?.error || e?.message || 'Ошибка парсинга' }
   }, 400)
 }
 </script>
 
 <style scoped>
-/* Переиспользуем стили ExdFilter — классы exd-* уже определены в ExdFilter.vue */
-/* При использовании вместе с ExdFilter стили не дублируются (scoped) */
-.exd-filter { display: flex; flex-direction: column; gap: 8px; }
-.exd-filter--compact { flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
-.exd-filter:not(.exd-filter--compact) .exd-rows { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
-.exd-row { display: flex; flex-direction: column; gap: 2px; }
-.exd-filter--compact .exd-row { flex-direction: row; align-items: center; gap: 4px; }
-.exd-filter:not(.exd-filter--compact) .exd-row select { width: auto; min-width: 100px; max-width: 160px; }
-.exd-filter:not(.exd-filter--compact) .exd-row select.exd-sel--narrow { min-width: 70px; max-width: 110px; }
-
-.exd-row label { font-size: var(--cat-text-sm); font-weight: 500; color: var(--cat-muted); }
-.exd-row select { padding: 6px 8px; font-size: var(--cat-text-base); color: var(--cat-text); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }
-.exd-filter--compact .exd-row select { width: auto; padding: 6px 10px; font-size: var(--cat-text-sm, 13px); }
-
-/* ── Parse input ── */
-.exd-parse-row { margin-bottom: 6px; }
-.exd-parse-input {
-  width: 100%;
-  padding: 5px 8px;
-  font-size: var(--cat-text-sm, 13px);
-  font-family: var(--cat-font-mono, monospace);
-  border: 1px solid var(--cat-border, #d1d5db);
-  border-radius: var(--cat-radius-sm, 4px);
-  background: var(--cat-surface, #fff);
-  color: var(--cat-text, #1f2937);
-  outline: none;
+.exd-filter { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.climate-title {
+  position: absolute; top: -8px; left: 10px;
+  font-size: 11px; font-weight: 500; color: var(--cat-muted, #9ca3af);
+  background: var(--cat-surface, #fff); padding: 0 4px;
 }
+.climate-rows { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: flex-end; justify-content: space-between; }
+.exd-row { display: flex; flex-direction: column; gap: 1px; }
+.exd-row label { font-size: 11px; font-weight: 500; color: var(--cat-muted, #9ca3af); }
+.climate-rows .exd-row { flex: 1; }
+.climate-rows .exd-row select { width: 100%; padding: 4px 6px; font-size: 12px; color: var(--cat-text, #1f2937); border: 1px solid var(--cat-border, #d1d5db); border-radius: 4px; background: var(--cat-surface, #fff); }
+.climate-rows .exd-sel--narrow { min-width: 0; }
+
+.climate-temp-input { width: 100%; box-sizing: border-box; padding: 4px 2px; font-size: 12px; text-align: center; border: 1px solid var(--cat-border, #d1d5db); border-radius: 4px; background: var(--cat-surface, #fff); color: var(--cat-text, #1f2937); outline: none; -moz-appearance: textfield; }
+.climate-temp-input::-webkit-outer-spin-button, .climate-temp-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.climate-temp-input:focus { border-color: var(--cat-primary, #2563eb); }
+.climate-temp-input--locked { background: var(--cat-bg, #f3f4f6); color: var(--cat-muted, #6b7280); cursor: default; }
+
+.exd-parse-input { width: 100%; padding: 4px 6px; font-size: 12px; font-family: var(--cat-font-mono, monospace); border: 1px solid var(--cat-border, #d1d5db); border-radius: 4px; background: var(--cat-surface, #fff); color: var(--cat-text, #1f2937); outline: none; }
 .exd-parse-input:focus { border-color: var(--cat-primary, #2563eb); }
-.exd-parse-input::placeholder { color: var(--cat-muted-light, #cbd5e1); font-family: var(--cat-font-mono, monospace); }
-.exd-parse-error {
-  font-size: 11px;
-  color: #dc2626;
-  margin-bottom: 6px;
-}
+.exd-parse-input::placeholder { color: var(--cat-muted-light, #cbd5e1); }
+.exd-parse-error { font-size: 10px; color: #dc2626; margin-top: 2px; }
 
-.exd-loading { font-size: 12px; color: var(--cat-muted); text-align: center; padding: 4px; }
+.exd-loading { font-size: 11px; color: var(--cat-muted, #6b7280); text-align: center; }
 
-/* ── Description ── */
-.exd-description { margin-top: 2px; }
-.exd-description-text {
-  min-height: 42px;
-  font-size: var(--cat-text-sm, 13px);
-  color: var(--cat-text, #1f2937);
-  background: var(--cat-bg, #f3f4f6);
-  padding: 8px 10px;
-  border-radius: var(--cat-radius-md, 6px);
-  line-height: 1.4;
-}
+.exd-description-text { font-size: 12px; color: var(--cat-text, #1f2937); background: var(--cat-bg, #f3f4f6); padding: 6px 8px; border-radius: 4px; line-height: 1.4; max-height: 80px; overflow-y: auto; }
 </style>

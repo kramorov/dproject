@@ -8,14 +8,16 @@ class PriceConfig(AppConfig):
     verbose_name = _('Цены')
 
     def ready(self):
-        """
-        При старте сервера — обновить курсы ЦБ за сегодня.
-        Если не получилось (нет сети, выходной у ЦБ) — используется
-        последний сохранённый курс из БД.
-        """
-        try:
-            from price.services.cbr_exchange import CBRExchangeService
-            from datetime import date
-            CBRExchangeService.fetch_and_save_rates(date.today())
-        except Exception:
-            pass
+        # Defer exchange rate fetch to post-migrate signal
+        # to avoid "Accessing the database during app initialization" warning
+        from django.db.models.signals import post_migrate
+
+        def fetch_rates_on_startup(sender, **kwargs):
+            try:
+                from price.services.cbr_exchange import CBRExchangeService
+                from datetime import date
+                CBRExchangeService.fetch_and_save_rates(date.today())
+            except Exception:
+                pass
+
+        post_migrate.connect(fetch_rates_on_startup, sender=self)

@@ -6,12 +6,11 @@ from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
-from .models import (
-    DirectionValve , DirectionalValveModelLine , ValveFunction ,
-    ValveActuationVariety , MaterialGeneral , MaterialSpecified ,
-    PowerSupplies , ManualOverride , ThreadSize , PneumaticConnection ,
-    Brands
-)
+from .models import DirectionValve, DirectionalValveModelLine, ValveFunction, ValveActuationVariety, ManualOverride
+from materials.models import MaterialGeneral, MaterialSpecified
+from params.models import PowerSupplies, ThreadSize, PneumaticConnection
+from producers.models import Brands
+
 
 
 def get_used_queryset(model , field_name , filter_field='id' , exclude_null=True) :

@@ -1,4 +1,80 @@
-# Состояние проекта на 2026-06-03
+# Состояние проекта на 2026-06-04
+
+## Сегодня (2026-06-04) — ClimateFilter, ExdFilter редизайн, EngineerFilterBar, переименование climate-моделей
+
+### 🌡️ ClimateFilter — редизайн
+
+- Убран пропс `compact` — всегда компактный вид
+- Строка: зона + размещение + t мин + t макс (4 колонки, flex:1, поровну)
+- Поля t° блокируются (readonly) когда каскад или парсер определили значения
+- Описание всегда видно, max-height: 80px + скролл
+- Заголовок «Температура» на рамке (как legend)
+
+### 💥 ExdFilter — редизайн
+
+- Убран пропс `compact` — всегда компактный вид
+- Селекты: Ex, Тип, Группа, T° — всегда видны, неактивные disabled
+- Заголовок «Взрывозащита» на рамке
+- Описание: max-height: 80px + скролл
+- Парсер: regex, upper-case, вырезание Ga-Dc/X/U
+
+### 🏗️ EngineerFilterBar — две строки
+
+- Row 1: обычные селекты, Row 2: ExdFilter + ClimateFilter (grid 1fr 1fr)
+- `default_value` в FilterDefinition: fd → API → `v.default_value` → `active[k]` (первая загрузка)
+- `fd_points.default_value='2'` для БКВ — подхватывается автоматически
+- Поток: `FilterDefinition(default_value='2')` → `views.py:635` → `EngineerFilterBar:71`
+
+### 📋 Переименование климатических моделей
+
+- `ClimaticZoneClassifier` → `ClimaticPlacementCategory` (категории 1-5)
+- `ClimaticEquipmentPlacementClassifier` → `ClimaticZoneCategory` (зоны У, ХЛ...)
+- FK в ClimaticConditions: climaticZone→зона, climaticPlacement→размещение
+- Миграция 0055: RenameModel + RunSQL (своп FK)
+
+### 🔧 Прочее
+
+- `cbr_exchange.py`: проверка БД перед ЦБ, не запрашиваем повторно
+- `price/apps.py`: post_migrate вместо ready()
+- `core/models/mixins.py`: [DEBUG] save закомментирован
+- CUSTOM-фильтры всегда в API
+- БКВ: новый fd_contact_form, переупорядочены селекты
+- fd_temp_min/max убраны из engineer FilterSet
+
+### 📋 BaseRequirement — абстрактная модель требований
+
+- `client_requests/models/base_requirement.py`: ip_protection, temp_min, temp_max
+- `gearbox_requirement.py`: + body_material, torque, mounting_plate
+- `filter_regulator_requirement.py`: + body_material, flow_rate, thread, filtration
+- `limit_switch_requirement.py`: + body_material, sensor_variety, points, exd_protection, signal_type
+- `exd_protection` только в LimitSwitchRequirement (убрано из базы)
+- `to_filter_params()` → словарь query-параметров для EngineerSelection
+- API: `GET /schema/`, `POST /preview/` (dry-run)
+- `RequirementForm.vue`: динамическая форма, ExdFilter в режиме single
+
+### 🏗️ Solenoid valves — реструктуризация моделей
+
+- `solenoid_valves/models.py` → `models/`:
+  - `sv_options.py` — ManualOverride, ValveActuationVariety, ValveDesign, ValveOperationVariety, ValveFunction, ValvePilotVariety
+  - `dv_model_line.py` — DirectionalValveModelLine
+  - `dv_body.py` — DirectionValveBody
+  - `dv_model_line_item.py` — DirectionValve
+- Убран SmartCatalogMixin из обеих моделей (остался только в cert_doc)
+- FILTER_DEFINITIONS перенесён в `catalog/filter_defs.py`
+- Streamlit-страница удалена (функциональность покрыта)
+
+### 🔧 FilterDefinition — show_code, default_value
+
+- `show_code: bool` — показывать code+name в селектах (используется в fd_contact_form)
+- `default_value: str` — предвыбор в селектах (fd_points.default_value='2')
+- Поток: FilterDefinition → views.py:635 → EngineerFilterBar:71
+
+### 💥 ExdParser — рефакторинг
+
+- Переписан на regex, upper-case
+- Уровни (Ga-Dc) и суффиксы X/U вырезаются до поиска типа/метода
+- Поддержка составных кодов (db, eb, tb, ia, nA…)
+- API: POST /api/core/exd/parse/ → {method_id, type_id, group_id, temp_id}
 
 ## Сегодня (2026-06-03) — EngineerSelection, Exd-каскад, Requirement-модели
 

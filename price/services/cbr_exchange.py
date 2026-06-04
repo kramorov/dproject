@@ -27,17 +27,18 @@ class CBRExchangeService:
 
     @classmethod
     def fetch_and_save_rates(cls, target_date: Optional[date] = None) -> Dict[str, Decimal]:
-        """
-        Получить курсы от ЦБ и сохранить в БД
-
-        Args:
-            target_date: Дата курса (по умолчанию сегодня)
-
-        Returns:
-            Dict {currency_code: rate}
-        """
+        """Получить курсы от ЦБ и сохранить в БД."""
         if target_date is None:
             target_date = date.today()
+
+        # Проверяем — есть ли уже курсы на эту дату в БД
+        existing = ExchangeRate.objects.filter(date=target_date).count()
+        if existing >= len(cls.CURRENCY_MAP):
+            logger.info(
+                "Курсы на %s уже есть в БД (%d записей), не запрашиваем ЦБ",
+                target_date.strftime('%d.%m.%y'), existing
+            )
+            return dict(ExchangeRate.objects.filter(date=target_date).values_list('currency', 'rate_per_one'))
 
         url = cls.CBR_URL
         params = {'date_req': target_date.strftime('%d/%m/%Y')}
@@ -56,7 +57,6 @@ class CBRExchangeService:
                     nominal = int(valute.find('Nominal').text)
                     rate = Decimal(valute.find('Value').text.replace(',', '.'))
 
-                    # Сохраняем в БД
                     ExchangeRate.objects.update_or_create(
                         currency=currency_code,
                         date=target_date,
@@ -67,29 +67,26 @@ class CBRExchangeService:
                     )
                     rates[currency_code] = rate / nominal
 
-            logger.info(f"Курсы на {target_date} сохранены: {rates}")
+            logger.info("Курсы на %s сохранены: %s", target_date, rates)
             return rates
 
         except requests.RequestException as e:
-            logger.error(f"Ошибка получения данных от ЦБ: {e}")
+            logger.error("Ошибка получения данных от ЦБ: %s", e)
             raise
         except ET.ParseError as e:
-            logger.error(f"Ошибка парсинга XML: {e}")
+            logger.error("Ошибка парсинга XML: %s", e)
             raise
         except Exception as e:
-            logger.error(f"Неожиданная ошибка: {e}")
+            logger.error("Неожиданная ошибка: %s", e)
             raise
 
     @classmethod
     def get_rate_for_date(cls, currency: str, target_date: date) -> Optional[Decimal]:
-        """
-        Получить курс на конкретную дату (с кешированием в БД)
-        """
+        """Получить курс на конкретную дату (с кешированием в БД)."""
         try:
             rate = ExchangeRate.objects.get(currency=currency, date=target_date)
             return rate.rate_per_one
         except ExchangeRate.DoesNotExist:
-            # Если нет в БД — пробуем загрузить
             try:
                 rates = cls.fetch_and_save_rates(target_date)
                 return rates.get(currency)
@@ -98,17 +95,11 @@ class CBRExchangeService:
 
     @classmethod
     def update_rates_for_period(cls, start_date: date, end_date: date):
-        """
-        Обновить курсы за период (для бэкфиллинга)
-        """
-
-
+        """Обновить курсы за период (для бэкфиллинга)."""
         current = start_date
         while current <= end_date:
             try:
                 cls.fetch_and_save_rates(current)
             except Exception as e:
-                logger.warning(f"Не удалось загрузить курс на {current}: {e}")
+                logger.warning("Не удалось загрузить курс на %s: %s", current, e)
             current += timedelta(days=1)
-
-

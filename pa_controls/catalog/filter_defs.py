@@ -11,7 +11,7 @@ fd_model_line = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.FOREIGN_KEY,
     label='Серия',
-    order=1,
+    order=7,
 )
 
 fd_sensor_variety = FilterDefinition(
@@ -20,7 +20,7 @@ fd_sensor_variety = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Тип сенсора',
-    order=2,
+    order=1,
 )
 
 fd_points = FilterDefinition(
@@ -30,7 +30,8 @@ fd_points = FilterDefinition(
     data_source_type=DataSourceType.CHOICES,
     choices=[(1, '1 датчик'), (2, '2 датчика'), (3, '3 датчика'), (4, '4 датчика')],
     label='Количество датчиков',
-    order=3,
+    order=4,
+    default_value='2',
 )
 
 fd_ip = FilterDefinition(
@@ -40,7 +41,7 @@ fd_ip = FilterDefinition(
     data_source_type=DataSourceType.GLOBAL_MODEL,
     source_model=IpOption,
     label='IP',
-    order=4,
+    order=5,
 )
 
 fd_temp_min = FilterDefinition(
@@ -49,7 +50,7 @@ fd_temp_min = FilterDefinition(
     filter_type=FilterType.TEMP_MIN,
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от',
-    order=5,
+    order=10,
 )
 
 fd_temp_max = FilterDefinition(
@@ -58,7 +59,7 @@ fd_temp_max = FilterDefinition(
     filter_type=FilterType.TEMP_MAX,
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до',
-    order=6,
+    order=11,
 )
 
 fd_climate = FilterDefinition(
@@ -67,7 +68,7 @@ fd_climate = FilterDefinition(
     filter_type=FilterType.CLIMATE_CASCADE,
     data_source_type=DataSourceType.CUSTOM,
     label='Клим. исполнение',
-    order=7,
+    order=50,
 )
 
 fd_body_material = FilterDefinition(
@@ -76,7 +77,7 @@ fd_body_material = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.FOREIGN_KEY,
     label='Материал корпуса',
-    order=7,
+    order=6,
 )
 
 fd_brand = FilterDefinition(
@@ -94,7 +95,17 @@ fd_signal_type = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Тип сигнала',
-    order=9,
+    order=2,
+)
+
+fd_contact_form = FilterDefinition(
+    param_name='contact_form_id',
+    model_field='primary_sensor__contact_form',
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    label='Форма контактов',
+    order=3,
+    show_code=True,
 )
 
 fd_exd = FilterDefinition(
@@ -103,7 +114,7 @@ fd_exd = FilterDefinition(
     filter_type=FilterType.EXD_COMPATIBLE,
     data_source_type=DataSourceType.CUSTOM,
     label='Взрывозащита',
-    order=10,
+    order=51,
 )
 
 # ── Legacy flat list ──
@@ -112,5 +123,5 @@ LIMIT_SWITCH_FILTER_DEFINITIONS = [
     fd_model_line, fd_sensor_variety, fd_points, fd_ip,
     fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
     fd_climate,
-    fd_signal_type, fd_exd,
+    fd_signal_type, fd_contact_form, fd_exd,
 ]
