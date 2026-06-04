@@ -23,6 +23,16 @@ export const ENDPOINTS = {
     meta: '/filter-regulator/meta/',
   },
 
+  solenoidValves: {
+    catalog: '/solenoid-valves/catalog/',
+    detail: (id) => `/solenoid-valves/catalog/${id}/`,
+    filters: '/solenoid-valves/filters/',
+    engineer: '/solenoid-valves/engineer/',
+    engineerFilters: '/solenoid-valves/engineer/filters/',
+    quickselect: '/solenoid-valves/quickselect/',
+    meta: '/solenoid-valves/meta/',
+  },
+
   limitSwitch: {
     sections: '/pa-controls/sections/',
     catalog: '/pa-controls/catalog/',

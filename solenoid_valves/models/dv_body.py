@@ -6,10 +6,7 @@ from producers.models import Brands
 
 
 class DirectionValveBody(StructuredDataMixin, models.Model):
-    ''' DirectionValveBody - Корпус клапана
-        brand - для фильтрации
-        weight (Масса).
-    '''
+    """Корпус распределительного клапана. Связан с DirectionValve через ForeignKey body."""
     name = models.CharField(max_length=200,
                             verbose_name=_("Название"),
                             help_text=_('Текстовое название корпуса клапана'))

@@ -1,6 +1,33 @@
 # Состояние проекта на 2026-06-04
 
-## Сегодня (2026-06-04) — ClimateFilter, ExdFilter редизайн, EngineerFilterBar, переименование climate-моделей
+## Сегодня (2026-06-04) — Solenoid valves: каталог + фронтенд + виджет + рефакторинг
+
+### 🔀 Solenoid valves — полный каталог по CatalogPattern
+
+- **Модели**: восстановлены потерянные поля `name`/`code` в `DirectionValve`, исправлен `class DirectionValveBody`
+- **Админка**: разбита на 4 файла (`admin/sv_options_admin.py`, `dv_model_line_admin.py`, `dv_body_admin.py`, `dv_model_line_item_admin.py`)
+- Добавлены `image_gallery`, `tech_docs`, `cert_docs` в fieldsets ModelLine и DirectionValve
+- `filter_horizontal` для `tech_docs`/`cert_docs`/`cable_glands_holes`
+- `ManualOverrideAdmin` получил `AdminStructuredDataMixinCopyMixin`
+- Удалён `filters.py` (260 строк django-filter → CatalogConfig), `save_model()` (дублирует TemplateGeneratorMixin), `advanced_search` + старый код
+- Исправлены: `list_editable` без FK, свойства с `model_line=None`, `_get_data_dict` weight, docstrings, N+1, импорты
+- `to_dict()` переписан по контракту `CatalogDictMixin` с секциями gallery/specs/docs/certs
+- `SmartCatalogMixin` возвращён в `DirectionValve` — без него нет `apply_filters_and_split()`
+- `default_value=2` (int) вместо `'2'` (str) в `fd_points` — фикс JS-сравнения в `EngineerFilterBar`
+- `(item.get('sku') or {}).get('code')` — фикс падения при `sku=None`
+
+### 🖥️ Фронтенд: solenoid-valves-catalog + виджет
+
+- `apps/solenoid-valves-catalog/` — api.js, App.vue, main.js, index.html
+- `pages/catalog/SolenoidValvesPage.vue`
+- `shared/endpoints.js` — секция `solenoidValves`
+- `vite.config.js` — точка входа
+- `widget/App.vue` — 5 экранов в виджете
+- `widget/CatalogIndex.vue` — карточка 🔀
+- `router/index.js` — маршрут `/catalog/solenoid-valves`
+- `TopMenu.vue` — пункт в «Пневмоприводы и управление»
+
+## Ранее (2026-06-04) — ClimateFilter, ExdFilter редизайн, EngineerFilterBar, переименование climate-моделей
 
 ### 🌡️ ClimateFilter — редизайн
 

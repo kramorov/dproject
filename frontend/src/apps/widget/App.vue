@@ -24,6 +24,13 @@
     <CatalogDetail v-else-if="route.catalog === 'limit_switch' && route.view === 'detail'" :api="lsbApi" :labels="labels.limit_switch.detail" :id="route.id" @close="() => navigate('limit_switch', 'list')" @navigate="() => navigate('limit_switch', 'lines')" />
     <QuickSelect v-else-if="route.catalog === 'limit_switch' && route.view === 'quickselect'" :api="lsbApi" :labels="labels.limit_switch.quickselect" :filter-labels="labels.limit_switch.quickselect.filterLabels" :auto-select-rules="labels.limit_switch.quickselect.autoSelectRules" @select="id => navigate('limit_switch', 'detail', id)" @navigate="() => navigate('limit_switch', 'lines')" />
 
+    <!-- SOLENOID VALVES -->
+    <CatalogSection v-else-if="route.catalog === 'solenoid_valves' && route.view === 'lines'" :api="svApi" :labels="labels.solenoid_valves.section" @select-series="id => navigate('solenoid_valves', 'brand', id)" @select="() => navigate('solenoid_valves', 'list')" @quickselect="() => navigate('solenoid_valves', 'quickselect')" @navigate="() => navigate('solenoid_valves', 'lines')" />
+    <CatalogModelLine v-else-if="route.catalog === 'solenoid_valves' && route.view === 'brand'" :api="svApi" :labels="labels.solenoid_valves.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('solenoid_valves', 'detail', id)" />
+    <EngineerSelection v-else-if="route.catalog === 'solenoid_valves' && route.view === 'list'" :api="svApi" :labels="labels.solenoid_valves.list" @select="id => navigate('solenoid_valves', 'detail', id)" @navigate="() => navigate('solenoid_valves', 'lines')" />
+    <CatalogDetail v-else-if="route.catalog === 'solenoid_valves' && route.view === 'detail'" :api="svApi" :labels="labels.solenoid_valves.detail" :id="route.id" @close="() => navigate('solenoid_valves', 'list')" @navigate="() => navigate('solenoid_valves', 'lines')" />
+    <QuickSelect v-else-if="route.catalog === 'solenoid_valves' && route.view === 'quickselect'" :api="svApi" :labels="labels.solenoid_valves.quickselect" :filter-labels="labels.solenoid_valves.quickselect.filterLabels" :auto-select-rules="labels.solenoid_valves.quickselect.autoSelectRules" @select="id => navigate('solenoid_valves', 'detail', id)" @navigate="() => navigate('solenoid_valves', 'lines')" />
+
     <div v-else class="not-found"><p>Страница не найдена</p><button @click="navigate('gearbox', 'lines')">Вернуться в каталог</button></div>
   </div>
 </template>
@@ -39,6 +46,7 @@ import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
 import gearboxApi from '@/apps/gearbox-catalog/api'
 import frApi from '@/apps/filter-regulator-catalog/api'
 import lsbApi from '@/apps/limit-switch-catalog/api'
+import svApi from '@/apps/solenoid-valves-catalog/api'
 const props = defineProps({ allowedCatalogs: { type: Array, default: () => ['gearbox'] } })
 const route = ref(parseHash())
 function onHashChange() { route.value = parseHash() }
@@ -63,6 +71,13 @@ const labels = {
     section: { title:'Блоки концевых выключателей', subtitle:'Выберите серию БКВ', breadcrumbs:[{name:'Каталог'}] },
     brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров' },
     list: { title:'БКВ — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
+    detail: { backLabel:'Назад к каталогу' },
+    quickselect: { title:'Быстрый подбор', filterLabels:{}, autoSelectRules:{} },
+  },
+  solenoid_valves: {
+    section: { title:'Распределительные клапаны', subtitle:'Выберите серию клапана', breadcrumbs:[{name:'Каталог'}] },
+    brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров' },
+    list: { title:'Клапаны — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
     detail: { backLabel:'Назад к каталогу' },
     quickselect: { title:'Быстрый подбор', filterLabels:{}, autoSelectRules:{} },
   },

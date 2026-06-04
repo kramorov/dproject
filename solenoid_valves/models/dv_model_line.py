@@ -17,17 +17,7 @@ from params.exd_models import ExdOption
 from params.models import IpOption
 from sku.models import SKUMixin
 class DirectionalValveModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, StructuredDataMixin, models.Model):
-    """
-    Серия распределительных клапанов
-    1. Это «ДНК» клапана. Если что-то из этого изменится, это будет уже другая серия. (Общие свойства серии) Это «ДНК» клапана. Если что-то из этого изменится, это будет уже другая серия.
-        construction - ValveDesign (Золотниковый / Мембранный).
-        operation - ValveOperationVariety (Прямого / Пилотного действия).
-        working_medium - WorkingMedium (Рабочая среда: Воздух / Газ / Масло).
-        ip protectionClass (IP65, IP67)
-        exd Ex-Protection (Взрывозащита).
-        solenoid_insulation_class (Класс изоляции катушки: H, F).
-        ElectricalSafety (Стандарты IEC/EN).
-    """
+    """Серия распределительных клапанов (DNA клапана). Определяет конструкцию, принцип действия, рабочую среду и изоляцию."""
 
     name = models.CharField(max_length=200,
                             verbose_name=_("Название"),

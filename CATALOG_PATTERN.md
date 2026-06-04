@@ -1,5 +1,5 @@
 # Шаблон нового каталога (Catalog Pattern)
-> Обновлено 2026-06-03: добавлен EngineerSelection, EngineerFilterBar, Requirement-модели
+> Обновлено 2026-06-04: solenoid_valves каталог, SmartCatalogMixin обязателен, fix default_value тип
 
 ## Архитектура: CatalogConfig
 
@@ -20,6 +20,8 @@
 ---
 
 ## Бэкенд
+
+> **Важно**: Модель каталога (model_class) **обязана** наследовать SmartCatalogMixin из core.models.smart_catalog_mixin. Без него отсутствует метод pply_filters_and_split(), и API каталога падает.
 
 ### 1. Пакет `catalog/` внутри приложения
 

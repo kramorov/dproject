@@ -1,5 +1,5 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-04: ExdFilter/ClimateFilter без compact, EngineerFilterBar 2 строки, Solenoid valves models
+> Обновлено 2026-06-04: solenoid-valves-catalog приложение, виджет, роутер, TopMenu
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -146,6 +146,7 @@ App.vue параметризуется через `labels` + `api`.
 | `pages/catalog/GearboxPage.vue` | /catalog/gearbox | Ручные дублёры |
 | `pages/catalog/FilterRegulatorPage.vue` | /catalog/filter-regulator | Фильтр-регуляторы |
 | `pages/catalog/LimitSwitchPage.vue` | /catalog/limit-switch | Блоки концевых выключателей |
+| `pages/catalog/SolenoidValvesPage.vue` | /catalog/solenoid-valves | Распределительные клапаны |
 | `pages/auth/LoginMainPage.vue` | /login | Вход |
 | `pages/auth/RegisterMainPage.vue` | /register | Регистрация (заглушка) |
 | `pages/admin/MediaPage.vue` | /admin/media | Медиабиблиотека |

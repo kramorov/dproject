@@ -28,6 +28,7 @@ export default defineConfig({
         'gearbox-catalog': resolve(__dirname, 'src/apps/gearbox-catalog/index.html'),
         'filter-regulator-catalog': resolve(__dirname, 'src/apps/filter-regulator-catalog/index.html'),
         'limit-switch-catalog': resolve(__dirname, 'src/apps/limit-switch-catalog/index.html'),
+        'solenoid-valves-catalog': resolve(__dirname, 'src/apps/solenoid-valves-catalog/index.html'),
         'limit-switch-admin': resolve(__dirname, 'src/apps/limit-switch-admin/index.html'),
         'widget': resolve(__dirname, 'src/apps/widget/index.html'),
       },

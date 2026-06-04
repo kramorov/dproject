@@ -31,7 +31,7 @@ fd_points = FilterDefinition(
     choices=[(1, '1 датчик'), (2, '2 датчика'), (3, '3 датчика'), (4, '4 датчика')],
     label='Количество датчиков',
     order=4,
-    default_value='2',
+    default_value=2,
 )
 
 fd_ip = FilterDefinition(

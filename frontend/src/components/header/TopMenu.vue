@@ -19,6 +19,7 @@ const allItems = [
     { to:'/catalog/gearbox', label:'Ручные дублёры' },
     { to:'/catalog/filter-regulator', label:'Фильтр-регуляторы' },
     { to:'/catalog/limit-switch', label:'Блоки концевых выключателей' },
+    { to:'/catalog/solenoid-valves', label:'Распределительные клапаны' },
   ]},
   { key:'electric', label:'⚡ Электроприводы', children:[
     { to:'/catalog/limit-switch', label:'Блоки концевых выключателей' },
