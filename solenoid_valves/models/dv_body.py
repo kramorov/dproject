@@ -3,9 +3,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from core.models import StructuredDataMixin
 from producers.models import Brands
-from .sv_options import ValveFunction, ValveActuationVariety
 
 
+class DirectionValveBody(StructuredDataMixin, models.Model):
     ''' DirectionValveBody - Корпус клапана
         brand - для фильтрации
         weight (Масса).
@@ -34,4 +34,3 @@ from .sv_options import ValveFunction, ValveActuationVariety
 
     def __str__(self):
         return self.name
-

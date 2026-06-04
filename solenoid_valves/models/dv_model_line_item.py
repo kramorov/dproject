@@ -44,6 +44,11 @@ class DirectionValve(CatalogDictMixin,
 
     '''
 
+    name = models.TextField(
+        verbose_name=_("Название"),
+        help_text=_('Текстовое название клапана'))
+    code = models.CharField(max_length=150, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Код клапана"))
     description = models.TextField(blank=True, verbose_name=_("Описание"),
                                    help_text=_('Текстовое описание разновидности клапана'))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
