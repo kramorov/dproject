@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
+from django.utils import translation
 from django.db.models import Prefetch
 
 from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
@@ -19,28 +20,39 @@ class LimitSwitchBoxDetailView(APIView):
     config = LIMIT_SWITCH_CONFIG
 
     def get(self, request, pk):
-        item = get_object_or_404(
-            self.config.model_class.objects.select_related(
-                *self.config.select_related,
-                'image_gallery', 'model_line__image_gallery',
-            ).prefetch_related(
-                'image_gallery__items__image',
-                'tech_docs',
-                Prefetch(
-                    'additional_sensor',
-                    queryset=SensorComponent.objects.select_related(
-                        'variety', 'signal_type', 'contact_form',
-                        'contact_state', 'brand',
-                    )
+        lang = request.GET.get('lang', 'ru')
+        currency_code = get_currency_code(request)
+
+        with translation.override(lang):
+            item = get_object_or_404(
+                self.config.model_class.objects.select_related(
+                    *self.config.select_related,
+                    'image_gallery', 'model_line__image_gallery',
+                ).prefetch_related(
+                    'image_gallery__items__image',
+                    'tech_docs',
+                    Prefetch(
+                        'additional_sensor',
+                        queryset=SensorComponent.objects.select_related(
+                            'variety', 'signal_type', 'contact_form',
+                            'contact_state', 'brand',
+                        )
+                    ),
+                    'model_line__image_gallery__items__image',
+                    'model_line__tech_docs',
                 ),
-                'model_line__image_gallery__items__image',
-                'model_line__tech_docs',
-            ),
-            pk=pk,
-        )
-        data = item.to_dict()
-        sku_code = item.sku.code if hasattr(item, 'sku') and item.sku else None
-        if sku_code:
-            currency_code = get_currency_code(request)
-            data['price'] = get_display_price(sku_code, currency_code)
+                pk=pk,
+            )
+            data = item.to_dict()
+
+            sku_code = item.sku.code if hasattr(item, 'sku') and item.sku else None
+            if sku_code:
+                data['price'] = get_display_price(sku_code, currency_code)
+
+            data['schema'] = self.config.model_class.build_schema(
+                data,
+                price_data=data.get('price'),
+                category_name=self.config.labels.get('title', ''),
+            )
+
         return Response(data)

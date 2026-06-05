@@ -10,7 +10,7 @@ from solenoid_valves.models.dv_model_line import DirectionalValveModelLine
 from solenoid_valves.catalog.filter_defs import (
     fd_model_line, fd_brand, fd_function, fd_actuation,
     fd_ip, fd_exd, fd_power_supply, fd_kv,
-    fd_body_material, fd_solenoid_body_material, fd_pneumatic_connection,
+    fd_body_material, fd_solenoid_body_material, fd_pneumatic_connection, fd_pneumatic_connection_thread,
     fd_temp_min, fd_temp_max, fd_climate,
 )
 
@@ -47,10 +47,10 @@ SOLENOID_VALVES_CONFIG = CatalogConfig(
         'model_line': FilterSet(
             definitions=[
                 fd_function, fd_actuation,
-                fd_ip, fd_exd, fd_power_supply, fd_kv,
+                fd_ip, fd_exd, fd_power_supply,
                 fd_body_material, fd_solenoid_body_material,
                 fd_pneumatic_connection,
-                fd_temp_min, fd_temp_max, fd_climate,
+                fd_temp_min, fd_temp_max,
             ],
             scoped=True,
             show_compatible=True,
@@ -60,7 +60,9 @@ SOLENOID_VALVES_CONFIG = CatalogConfig(
         'quickselect': FilterSet(
             definitions=[
                 fd_function, fd_actuation,
-                fd_body_material, fd_kv,
+                fd_power_supply, fd_body_material,
+                fd_pneumatic_connection, fd_pneumatic_connection_thread,
+                fd_temp_min, fd_ip, fd_exd,
             ],
             scoped=True,
             show_compatible=False,

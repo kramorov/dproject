@@ -3,7 +3,7 @@
 FilterDefinition objects for the solenoid valves (directional valves) catalog.
 """
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
-from params.models import IpOption, PowerSupplies, PneumaticConnection
+from params.models import IpOption, PowerSupplies, PneumaticConnection, ThreadSize
 from solenoid_valves.models import ValveFunction, ValveActuationVariety
 from materials.models import MaterialGeneral
 
@@ -72,7 +72,7 @@ fd_power_supply = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=PowerSupplies,
-    label='Напряжение',
+    label='Напряжение соленоида',
     order=7,
 )
 
@@ -111,8 +111,18 @@ fd_pneumatic_connection = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=PneumaticConnection,
-    label='Пневмоподключение',
+    label='Пневматическое присоединение',
     order=11,
+)
+
+fd_pneumatic_connection_thread = FilterDefinition(
+    param_name='pneumatic_connection_thread_id',
+    model_field='pneumatic_connection_thread',
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    source_model=ThreadSize,
+    label='Резьба присоединения',
+    order=12,
 )
 
 fd_temp_min = FilterDefinition(
@@ -156,6 +166,7 @@ SOLENOID_VALVES_FILTER_DEFINITIONS = [
     fd_body_material,
     fd_solenoid_body_material,
     fd_pneumatic_connection,
+    fd_pneumatic_connection_thread,
     fd_temp_min,
     fd_temp_max,
     fd_climate,

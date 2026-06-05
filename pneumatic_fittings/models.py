@@ -3,7 +3,8 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict , List , Optional , Any
-from core.models.mixins import StructuredDataMixin , TemplateGeneratorMixin , TemplateMixin , CopyMixin
+from core.models.mixins import StructuredDataMixin , TemplateMixin , CopyMixin
+# TemplateGeneratorMixin удалён из импорта 2026-06-05 — импортировался, но не использовался
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from materials.models import MaterialGeneral
 from params.models import ThreadSize , ThreadInnerOuter , ThreadTypes

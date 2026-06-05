@@ -22,7 +22,13 @@ const labels = {
   list: { title:'Фильтр-регуляторы — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
   detail: { backLabel:'Назад к каталогу', breadcrumbName:'Фильтр-регуляторы' },
   brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Фильтр-регуляторы' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Фильтр-регуляторы', filterLabels:{}, autoSelectRules:{} },
+  quickselect: { title:'Быстрый подбор', breadcrumbName:'Фильтр-регуляторы',
+    filterLabels:{
+      filtration_rating_min:'Тонкость фильтрации, мкм', body_material_id:'Материал корпуса',
+      flow_rate_min:'Расход не менее, л/мин', thread_id:'Резьба портов',
+    },
+    autoSelectRules:{},
+  },
 }
 const { page, selectedId, idValue, goToList, goToBrand, onSelectItem } = useCatalogRouter(api, { idProp:'model_line_id' })
 function goToQuickSelect() { page.value = 'quickselect' }

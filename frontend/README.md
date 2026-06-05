@@ -1,5 +1,5 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-04: solenoid-valves-catalog приложение, виджет, роутер, TopMenu
+> Обновлено 2026-06-05: useCatalog fix (scope), filterLabels для всех каталогов, QuickSelect solenoid_valves
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -35,6 +35,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/catalog/CatalogModelLine.vue` | Товары серии (fixedParams + context + exact/compatible секции) |
 | `shared/components/catalog/CatalogDetail.vue` | Карточка товара |
 | `shared/components/catalog/QuickSelect.vue` | Быстрый подбор (чипсы → карточка) |
+| | ⚠️ Требует `filterLabels` в `labels.quickselect` — иначе показывает сырые ключи |
 | `shared/composables/useCatalog.js` | Логика каталогов: fetchData, пагинация, фильтры, exact/compatible split |
 | `shared/composables/useCatalogRouter.js` | Навигация App.vue каталогов |
 

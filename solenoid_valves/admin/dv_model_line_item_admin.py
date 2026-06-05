@@ -76,11 +76,11 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     form = DirectionValveForm
 
     list_display = ['id',
-        'code', 'exd', 'pneumatic_connection', 'model_line', 'function',
+        'code', 'image_gallery', 'exd', 'pneumatic_connection', 'model_line', 'function',
         'power_supply', 'work_temp_min', 'ip',
         'body_material', 'solenoid_body_material', 'sorting_order',
     ]
-    list_editable = ['sorting_order', 'code']
+    list_editable = ['sorting_order', 'image_gallery', 'code']
     list_select_related = [
         'model_line', 'function', 'actuation', 'power_supply', 'brand',
         'ip', 'exd', 'body_material', 'solenoid_body_material',

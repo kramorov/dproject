@@ -6,7 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 
 from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, ImageGalleryMixin
-from core.models.mixins import TemplateGeneratorMixin, CatalogDictMixin, TemplateMixin, CopyMixin
+from core.models.mixins import TemplateGeneratorMixin, CatalogDictMixin, CopyMixin
+# TemplateMixin удалён — TemplateGeneratorMixin наследует его напрямую (2026-06-05)
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 
 from .dv_model_line import DirectionalValveModelLine
@@ -20,8 +21,8 @@ from sku.models import SKUMixin
 class DirectionValve(CatalogDictMixin,
                      ImageGalleryMixin,
                      TechDocMixin,
-                     TemplateMixin,
                      SKUMixin, CopyMixin, TemplateGeneratorMixin,
+# TemplateMixin убран 2026-06-05 — TemplateGeneratorMixin теперь наследует TemplateMixin
                      SmartCatalogMixin, EquipmentTypeMixin, models.Model):
     """
     Распределительный клапан (конкретный артикул каталога).
@@ -34,7 +35,7 @@ class DirectionValve(CatalogDictMixin,
       - CatalogDictMixin — структурированная сериализация (to_dict/to_values_dict)
       - ImageGalleryMixin — галерея изображений
       - TechDocMixin — техническая документация
-      - TemplateMixin / TemplateGeneratorMixin — шаблоны названий/описаний
+      - TemplateGeneratorMixin (→ TemplateMixin) — шаблоны названий/описаний
       - SKUMixin — учётная номенклатура
       - CopyMixin — копирование в админке
       - EquipmentTypeMixin — тип оборудования
@@ -252,9 +253,13 @@ class DirectionValve(CatalogDictMixin,
         return default_name_template
 
     def _get_default_description_template(self) -> str:
-        default_name_template = "{model_code} Пневмораспределитель {brand} {operation} {construction} функция {function}; тип пневмоприсоединения - {pneumatic_connection}; присоединение {pneumatic_connection_thread}; Kv-{kv} м3/ч; корпус {body_material}({body_material_specified}); катушка {solenoid_body_material}{solenoid_body_material_specified}; уплотнение {sealing_material_specified}; Давление {pressure_range} бар; Темп.окр.среды {temperature_range}°С; отверстие под кабельный ввод {cable_glands_holes},  взрывозащита {exd}; {ip}; Dn {dn} мм; Питание {power_supply}; Мощность холодного/ном/удерж: {power_consumption_start} /  {power_consumption_hot} / {power_consumption_hold}, Вт; Ручной дублер: {manual_override}; макс. плотность рабочей среды {medium_density_max} сСт (мм2/с); Класс изоляции соленоида: {solenoid_insulation_class}; макс 5 циклов/сек; вес {weight}"
+        default_description_template = "{model_code} Пневмораспределитель {brand} {operation} {construction} функция {function}; тип пневмоприсоединения - {pneumatic_connection}; присоединение {pneumatic_connection_thread}; Kv-{kv} м3/ч; корпус {body_material}({body_material_specified}); катушка {solenoid_body_material}{solenoid_body_material_specified}; уплотнение {sealing_material_specified}; Давление {pressure_range} бар; Темп.окр.среды {temperature_range}°С; отверстие под кабельный ввод {cable_glands_holes},  взрывозащита {exd}; {ip}; Dn {dn} мм; Питание {power_supply}; Мощность холодного/ном/удерж: {power_consumption_start} /  {power_consumption_hot} / {power_consumption_hold}, Вт; Ручной дублер: {manual_override}; макс. плотность рабочей среды {medium_density_max} сСт (мм2/с); Класс изоляции соленоида: {solenoid_insulation_class}; макс 5 циклов/сек; вес {weight}"
         return default_description_template
 
+    def _get_title_template_source(self):
+        """Переопределить в модели: вернуть шаблон заголовка или None."""
+        title_template = "{model_code} {function}; {temperature_range}°С; {exd}; {ip}; {power_supply}; {operation}; {construction}"
+        return title_template
     # Замена переменных
     def _get_data_dict(self) -> Dict[str, str]:
         """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
@@ -349,16 +354,34 @@ class DirectionValve(CatalogDictMixin,
         return ' '.join(parts) or self.name or ''
 
     def _get_docs_section(self) -> list:
+        """Техдокументация — инлайн по образцу LimitSwitchBox."""
         docs = []
+        seen = set()
         for doc in self.tech_docs.all():
-            info = self._get_file_info(doc)
-            if info:
-                docs.append(info)
-        if self.model_line:
+            if doc.id not in seen:
+                seen.add(doc.id)
+                has_email = doc.variants.filter(role='email').exists()
+                docs.append({
+                    'id': doc.id,
+                    'name': getattr(doc, 'name', '') or '',
+                    'url': f"/api/media/{doc.id}/download/",
+                    'file_name': getattr(doc, 'file_name', '') or '',
+                    'preview_url': f"/api/media/{doc.id}/view/",
+                    'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
+                })
+        if self.model_line and hasattr(self.model_line, 'tech_docs'):
             for doc in self.model_line.tech_docs.all():
-                info = self._get_file_info(doc)
-                if info and not any(d['id'] == info['id'] for d in docs):
-                    docs.append(info)
+                if doc.id not in seen:
+                    seen.add(doc.id)
+                    has_email = doc.variants.filter(role='email').exists()
+                    docs.append({
+                        'id': doc.id,
+                        'name': getattr(doc, 'name', '') or '',
+                        'url': f"/api/media/{doc.id}/download/",
+                        'file_name': getattr(doc, 'file_name', '') or '',
+                        'preview_url': f"/api/media/{doc.id}/view/",
+                        'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
+                    })
         return docs
 
     def _get_certs_section(self) -> list:
@@ -398,7 +421,7 @@ class DirectionValve(CatalogDictMixin,
             'id': self.id,
             'code': self.code or '',
             'name': self.name or '',
-            'title': self.name or '',
+            'title': self.generate_title() or self.name or '',
             'description': self.description or '',
             'image_alt': self._get_image_alt(),
             'is_active': self.is_active,
@@ -565,7 +588,7 @@ class DirectionValve(CatalogDictMixin,
             'id': self.id,
             'code': self.code or '',
             'name': self.name or '',
-            'title': self.name or '',
+            'title': self.generate_title() or self.name or '',
             'image_alt': self._get_image_alt(),
             'template_vars': tv,
             'values': tv,

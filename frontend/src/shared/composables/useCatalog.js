@@ -47,7 +47,14 @@ export function useCatalog(api, opts = {}) {
   // --- Фильтры ---
   async function loadFilters() {
     try {
-      const params = filterScope ? { scope: filterScope } : undefined
+      const params = filterScope ? { scope: filterScope } : {}
+
+      // Pass fixedParams (e.g. model_line_id) so backend can scope filter options
+      const fp = unref(fixedParams)
+      if (fp) {
+        Object.assign(params, typeof fp === 'function' ? fp() : fp)
+      }
+
       const r = await (mode === 'engineer' ? api.getEngineerFilters(params) : api.getFilters(params))
       const body = r.data || {}
 

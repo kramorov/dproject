@@ -77,3 +77,6 @@ class DirectionalValveModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, E
         ordering = ['sorting_order', 'code']
         verbose_name = _('Серия распределительных клапанов')
         verbose_name_plural = _('Серии распределительных клапанов')
+
+    def __str__(self):
+        return self.name

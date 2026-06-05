@@ -163,6 +163,17 @@ path('quickselect/', MyQuickSelectView.as_view()),
 
 ---
 
+### 7. `views_detail.py` — детальная карточка
+
+> **Обязательные компоненты:**
+> - `translation.override(lang)` — перевод `str(_(...))` в `to_dict()` на язык запроса
+> - `build_schema()` — Schema.org Product для поисковиков (цена, бренд, фото)
+> - `get_display_price()` + `get_currency_code()` — цена в валюте пользователя
+>
+> Образец: `gearbox/catalog/views_detail.py`.
+
+---
+
 ## EngineerSelection — отдельный компонент инженерного подбора
 
 `EngineerSelection.vue` — независимый от `CatalogList.vue` компонент:
@@ -223,6 +234,20 @@ export default {
 - `CatalogModelLine` — товары серии (fixedParams + `?scope=model_line` + exact/compatible)
 - `CatalogDetail` — карточка товара
 - `QuickSelect` — быстрый подбор (чипсы → карточка)
+
+### 2a. `filterLabels` — читаемые названия фильтров QuickSelect
+
+`QuickSelect` берёт лейблы из `props.filterLabels[key]`, иначе показывает сырой ключ (`actuation_id`).
+Обязательно прописать `filterLabels` в `labels.quickselect`:
+
+```javascript
+quickselect: { title:'Быстрый подбор',
+  filterLabels:{
+    actuation_id:'Управление', body_material_id:'Материал корпуса', ...
+  },
+  autoSelectRules:{},
+},
+```
 
 ### 3. Shared-компоненты UI
 

@@ -22,7 +22,13 @@ const labels = {
   list: { title:'Редукторы — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
   detail: { backLabel:'Назад к каталогу', breadcrumbName:'Редукторы' },
   brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Редукторы' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Редукторы', filterLabels:{}, autoSelectRules:{} },
+  quickselect: { title:'Быстрый подбор', breadcrumbName:'Редукторы',
+    filterLabels:{
+      body_material_id:'Материал корпуса', min_work_torque:'Рабочий момент не менее, Нм',
+      mounting_plate_top_id:'Монтажная площадка',
+    },
+    autoSelectRules:{},
+  },
 }
 const { page, selectedId, idValue, goToList, goToBrand, onSelectItem } = useCatalogRouter(api, { idProp:'model_line_id' })
 function goToQuickSelect() { page.value = 'quickselect' }

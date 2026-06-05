@@ -22,7 +22,13 @@ const labels = {
   list: { title:'БКВ — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
   detail: { backLabel:'Назад к каталогу', breadcrumbName:'БКВ' },
   brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'БКВ' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'БКВ', filterLabels:{}, autoSelectRules:{} },
+  quickselect: { title:'Быстрый подбор', breadcrumbName:'БКВ',
+    filterLabels:{
+      sensor_variety_id:'Тип сенсора', points:'Количество датчиков',
+      body_material_id:'Материал корпуса', signal_type_id:'Тип сигнала',
+    },
+    autoSelectRules:{},
+  },
 }
 const { page, selectedId, idValue, goToList, goToBrand, onSelectItem } = useCatalogRouter(api, { idProp:'model_line_id' })
 function goToQuickSelect() { page.value = 'quickselect' }

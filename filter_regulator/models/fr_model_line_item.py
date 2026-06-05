@@ -349,6 +349,7 @@ class FilterRegulator(
             'id': self.id,
             'code': self.code or '',
             'name': self.name or '',
+            'title': self.generate_title() or self.name or '',
             'description': self.description or '',
             'image_alt': self._get_image_alt(),
             'is_active': self.is_active,

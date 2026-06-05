@@ -22,7 +22,15 @@ const labels = {
   list: { title:'Клапаны — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
   detail: { backLabel:'Назад к каталогу', breadcrumbName:'Клапаны' },
   brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Клапаны' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Клапаны', filterLabels:{}, autoSelectRules:{} },
+  quickselect: { title:'Быстрый подбор', breadcrumbName:'Клапаны',
+    filterLabels:{
+      function_id:'Схема', actuation_id:'Управление', power_supply_id:'Напряжение соленоида',
+      body_material_id:'Материал корпуса', pneumatic_connection_id:'Пневматическое присоединение',
+      pneumatic_connection_thread_id:'Резьба присоединения', work_temp_min:'Температура мин., °С',
+      ip_id:'IP', exd_id:'Взрывозащита',
+    },
+    autoSelectRules:{},
+  },
 }
 const { page, selectedId, idValue, goToList, goToBrand, onSelectItem } = useCatalogRouter(api, { idProp:'model_line_id' })
 function goToQuickSelect() { page.value = 'quickselect' }

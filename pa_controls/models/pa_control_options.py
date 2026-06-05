@@ -1,7 +1,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import TemplateFillerMixin, GetChoicesMixin
+from core.models.mixins import GetChoicesMixin
+# TemplateFillerMixin удалён из импорта 2026-06-05 — класс закомментирован,
+# LimitSwitchSensorVariety не использовал ни один его метод.
 
 
 class SignalType(models.Model):
@@ -72,7 +74,9 @@ class ContactForm(models.Model):
     def __str__(self): return f'{self.code} - {self.name}'
 
 
-class LimitSwitchSensorVariety(TemplateFillerMixin, GetChoicesMixin, models.Model):
+class LimitSwitchSensorVariety(GetChoicesMixin, models.Model):
+    # TemplateFillerMixin удалён из наследования 2026-06-05 —
+    # класс закомментирован, модель не использовала его методы.
     """Тип сенсора концевого выключателя (механический, индуктивный, магнитный, пневматический)"""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),

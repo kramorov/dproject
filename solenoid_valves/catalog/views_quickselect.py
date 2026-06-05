@@ -10,7 +10,9 @@ from solenoid_valves.catalog.filter_defs import SOLENOID_VALVES_FILTER_DEFINITIO
 from solenoid_valves.catalog.config import SOLENOID_VALVES_CONFIG
 
 SOLENOID_VALVES_QUICKSELECT_FILTERS = [
-    'function_id', 'actuation_id', 'body_material_id', 'kv_min',
+    'function_id', 'actuation_id', 'power_supply_id',
+    'body_material_id', 'pneumatic_connection_id',
+    'pneumatic_connection_thread_id', 'work_temp_min', 'ip_id', 'exd_id',
 ]
 
 

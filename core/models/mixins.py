@@ -118,6 +118,16 @@ class TemplateMixin:
         return {
             '{model_code}': 'code',
         }
+
+    def _get_model_meta_name(self) -> str:
+        """
+        Возвращает читаемое имя модели для сообщений об ошибках.
+        Перенесено из TemplateFillerMixin при консолидации дублирующих миксинов (2026-06-05).
+        """
+        if hasattr(self, '_meta') and hasattr(self._meta, 'verbose_name'):
+            return self._meta.verbose_name
+        return self.__class__.__name__
+
     # === ИТОГОВЫЕ ШАБЛОНЫ ===
     @property
     def get_extra_params(self, separator: str = "; ", name_value_separator: str = ": ") -> str:
@@ -176,7 +186,7 @@ class TemplateMixin:
 
 
     # === ЗАПОЛНЕНИЕ ШАБЛОНА ===
-    def _fill_template(self, template: str, data_dict: Dict[str, str] = None) -> str:
+    def _fill_template(self, template: str, data_dict: Dict[str, str] = None, hide_code: bool = False) -> str:
         import re
 
         if not template:
@@ -275,77 +285,92 @@ class TemplateMixin:
         super().save(*args, **kwargs)
 
 
-class TemplateFillerMixin:
-    """
-    Миксин для заполнения шаблонов значениями из полей модели.
-    Не требует model_line и других зависимостей.
-    """
+# ══════════════════════════════════════════════════════════════════════════════
+# TemplateFillerMixin — закомментирован 2026-06-05.
+# Причина: _fill_template(), _get_value(), _get_data_dict(), _get_model_meta_name()
+# дублировали те же методы из TemplateMixin. При наличии TemplateMixin в MRO
+# TemplateFillerMixin был недостижим. Единственный прямой пользователь —
+# LimitSwitchSensorVariety — не использовал ни один метод.
+# Код закомментирован, не удалён — удалить после следующего релиза.
+# ══════════════════════════════════════════════════════════════════════════════
+# class TemplateFillerMixin:
+#     """
+#     Миксин для заполнения шаблонов значениями из полей модели.
+#     Не требует model_line и других зависимостей.
+#     """
 
-    def _get_data_dict(self) -> Dict[str, str]:
-        """
-        Должен быть переопределен в модели.
-        Возвращает словарь {плейсхолдер: путь_к_атрибуту}
-        """
-        return {}
+#     def _get_data_dict(self) -> Dict[str, str]:
+#         """
+#         Должен быть переопределен в модели.
+#         Возвращает словарь {плейсхолдер: путь_к_атрибуту}
+#         """
+#         return {}
+#
+#     def _get_value(self, attr_path: str) -> str:
+#         """
+#         Получает значение по вложенному пути.
+#         Поддерживает:
+#         - Обычные поля: 'code'
+#         - Связи через __: 'brand__name'
+#         - JSON поля через .: 'extra_params.material'
+#         """
+#         try:
+#             current = self
+#             # Заменяем . на __ для единообразия
+#             path = attr_path.replace('.', '__')
+#             for part in path.split('__'):
+#                 if hasattr(current, part):
+#                     current = getattr(current, part)
+#                     if current is None:
+#                         return ""
+#                 elif isinstance(current, dict) and part in current:
+#                     current = current.get(part, "")
+#                 else:
+#                     return ""
+#             return str(current) if current is not None else ""
+#         except Exception:
+#             return ""
+#
+#     def _get_model_meta_name(self) -> str:
+#         """Возвращает имя модели для логов"""
+#         return self.__class__.__name__
+#
+#     def _fill_template(self, template_str: str, placeholder_to_attr: Dict[str, str] = None, hide_code: bool = False) -> str:
+#         """
+#         Заполняет шаблон значениями из словаря.
+#
+#         Args:
+#             template_str: шаблон с плейсхолдерами {placeholder}
+#             placeholder_to_attr: словарь соответствий (если None, то используется self._get_data_dict())
+#             hide_code: игнорируется в этом миксине, оставлен для совместимости
+#
+#         Returns:
+#             Заполненная строка
+#         """
+#         if not template_str:
+#             return ""
+#
+#         if placeholder_to_attr is None:
+#             placeholder_to_attr = self._get_data_dict()
+#
+#         result = template_str
+#         for placeholder, attr_path in placeholder_to_attr.items():
+#             value = self._get_value(attr_path)
+#             result = result.replace(placeholder, str(value) if value is not None else "")
+#
+#         return result
 
-    def _get_value(self, attr_path: str) -> str:
-        """
-        Получает значение по вложенному пути.
-        Поддерживает:
-        - Обычные поля: 'code'
-        - Связи через __: 'brand__name'
-        - JSON поля через .: 'extra_params.material'
-        """
-        try:
-            current = self
-            # Заменяем . на __ для единообразия
-            path = attr_path.replace('.', '__')
-            for part in path.split('__'):
-                if hasattr(current, part):
-                    current = getattr(current, part)
-                    if current is None:
-                        return ""
-                elif isinstance(current, dict) and part in current:
-                    current = current.get(part, "")
-                else:
-                    return ""
-            return str(current) if current is not None else ""
-        except Exception:
-            return ""
-    def _get_model_meta_name(self) -> str:
-        """Возвращает имя модели для логов"""
-        return self.__class__.__name__
 
-    def _fill_template(self, template_str: str, placeholder_to_attr: Dict[str, str] = None, hide_code: bool = False) -> str:
-        """
-        Заполняет шаблон значениями из словаря.
-
-        Args:
-            template_str: шаблон с плейсхолдерами {placeholder}
-            placeholder_to_attr: словарь соответствий (если None, то используется self._get_data_dict())
-            hide_code: игнорируется в этом миксине, оставлен для совместимости
-
-        Returns:
-            Заполненная строка
-        """
-        if not template_str:
-            return ""
-
-        if placeholder_to_attr is None:
-            placeholder_to_attr = self._get_data_dict()
-
-        result = template_str
-        for placeholder, attr_path in placeholder_to_attr.items():
-            value = self._get_value(attr_path)
-            result = result.replace(placeholder, str(value) if value is not None else "")
-
-        return result
-
-
-class TemplateGeneratorMixin(TemplateFillerMixin):
+class TemplateGeneratorMixin(TemplateMixin):
     """
     Миксин для генерации названий и описаний из шаблонов model_line.
-    Наследует TemplateFillerMixin для базовой функциональности заполнения.
+
+    Раньше наследовал TemplateFillerMixin. При консолидации дублирующих миксинов
+    (2026-06-05) переключён на TemplateMixin, т.к.:
+    - _fill_template(), _get_value(), _get_data_dict() дублировались
+    - _get_model_meta_name() перенесён в TemplateMixin
+    - TemplateFillerMixin при наличии TemplateMixin в MRO был недостижим
+    - TemplateFillerMixin закомментирован (см. ниже)
     """
 
     def generated_model_name_description(self, name_or_description: str, hide_code: bool = False) -> str:

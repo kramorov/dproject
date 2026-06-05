@@ -1,6 +1,58 @@
-# Состояние проекта на 2026-06-04
+# Состояние проекта на 2026-06-05
 
-## Сегодня (2026-06-04) — Solenoid valves: каталог + фронтенд + виджет + рефакторинг
+## Сегодня (2026-06-05) — Solenoid valves: detail view
+
+### 🔧 views_detail.py — детальная карточка DirectionValve
+
+- **Проблема**: фронтенд вызывал `api.getDetail(id)` → `/solenoid-valves/catalog/{id}/`, но на бэкенде не было ни `views_detail.py`, ни URL `catalog/<int:pk>/`. `CatalogDetail` и виджет падали с 404.
+- **Решение**:
+  - Создан `solenoid_valves/catalog/views_detail.py` — `SolenoidValvesDetailView` по образцу `gearbox/catalog/views_detail.py`
+  - `select_related` + `prefetch_related` из `SOLENOID_VALVES_CONFIG`
+  - `obj.to_dict()` → полная карточка (изображения, спеки, доки, сертификаты)
+  - Цена через `get_display_price(sku_code, currency_code)`
+  - Schema.org Product через `build_schema()`
+  - В `solenoid_valves/urls.py` добавлен импорт и `path('catalog/<int:pk>/', SolenoidValvesDetailView.as_view(), ...)`
+
+### 🧩 useCatalog.js — фикс скоупа фильтров на странице серии
+
+- **Проблема**: `loadFilters()` не передавал `model_line_id` → бэкенд возвращал опции фильтров со всех серий, не только с выбранной
+- **Решение**: `loadFilters()` теперь передаёт `fixedParams` (включая `model_line_id`) вместе со `scope`. Работает для всех каталогов.
+
+### 🏗️ Консолидация TemplateFillerMixin → TemplateMixin
+
+- `_get_model_meta_name()` перенесён в `TemplateMixin` (улучшенная версия с `_meta.verbose_name`)
+- `TemplateGeneratorMixin(TemplateFillerMixin)` → `TemplateGeneratorMixin(TemplateMixin)` — устранено дублирование `_fill_template`, `_get_value`, `_get_data_dict`
+- `TemplateFillerMixin` закомментирован (не удалён)
+- `DirectionValve` — убран прямой `TemplateMixin` из наследования (MRO-конфликт)
+- `LimitSwitchSensorVariety` — убран мёртвый `TemplateFillerMixin`
+- `pneumatic_fittings/models.py` — убран неиспользуемый импорт `TemplateGeneratorMixin`
+- `_fill_template` в `TemplateMixin` — добавлен `hide_code` для совместимости сигнатур
+
+### 📄 Стандартизация detail view
+
+- `pa_controls/catalog/views_detail.py` — добавлены `translation.override(lang)` и `build_schema()`
+- `CATALOG_PATTERN.md` — секция 7 с обязательными компонентами `views_detail.py`
+- `filter_regulator/models/fr_model_line_item.py` — добавлено поле `title` в `to_dict()`
+
+### 🔀 DirectionValve: фикс to_dict и title
+
+- `_get_docs_section()` переписан по образцу `LimitSwitchBox` — инлайн, без `_get_file_info()`
+- `to_dict()` и `to_values_dict()` — `'title': self.generate_title() or self.name or ''` (было `self.name`)
+- `_get_title_template_source()` — шаблон заголовка для карточки
+
+### ⚡ QuickSelect — настройка фильтров
+
+- **solenoid_valves**: добавлены `fd_pneumatic_connection_thread` (ThreadSize), расширен QuickSelect (function, actuation, power_supply, body_material, pneumatic_connection, pneumatic_connection_thread, temp_min, ip, exd), убран kv_min
+- Обновлены label'ы: «Напряжение соленоида», «Пневматическое присоединение», «Резьба присоединения»
+- **Все каталоги**: прописаны `filterLabels` в catalog App.vue и widget App.vue — вместо сырых ключей читаемые названия фильтров
+
+### ⚠️ TODO: рефакторинг GearBox и FilterRegulator — убрать _get_file_info
+
+- `DirectionValve._get_docs_section()` переписан по образцу `LimitSwitchBox` — инлайн, без `_get_file_info()`
+- `GearBox` и `FilterRegulator` всё ещё используют старый паттерн с вынесенным `_get_file_info()` — привести к единому стилю
+- Приоритет: low (работает, но дублирует логику)
+
+## Ранее (2026-06-04) — Solenoid valves: каталог + фронтенд + виджет + рефакторинг
 
 ### 🔀 Solenoid valves — полный каталог по CatalogPattern
 
@@ -52,22 +104,6 @@
 - `fd_points.default_value='2'` для БКВ — подхватывается автоматически
 - Поток: `FilterDefinition(default_value='2')` → `views.py:635` → `EngineerFilterBar:71`
 
-### 📋 Переименование климатических моделей
-
-- `ClimaticZoneClassifier` → `ClimaticPlacementCategory` (категории 1-5)
-- `ClimaticEquipmentPlacementClassifier` → `ClimaticZoneCategory` (зоны У, ХЛ...)
-- FK в ClimaticConditions: climaticZone→зона, climaticPlacement→размещение
-- Миграция 0055: RenameModel + RunSQL (своп FK)
-
-### 🔧 Прочее
-
-- `cbr_exchange.py`: проверка БД перед ЦБ, не запрашиваем повторно
-- `price/apps.py`: post_migrate вместо ready()
-- `core/models/mixins.py`: [DEBUG] save закомментирован
-- CUSTOM-фильтры всегда в API
-- БКВ: новый fd_contact_form, переупорядочены селекты
-- fd_temp_min/max убраны из engineer FilterSet
-
 ### 📋 BaseRequirement — абстрактная модель требований
 
 - `client_requests/models/base_requirement.py`: ip_protection, temp_min, temp_max
@@ -78,32 +114,6 @@
 - `to_filter_params()` → словарь query-параметров для EngineerSelection
 - API: `GET /schema/`, `POST /preview/` (dry-run)
 - `RequirementForm.vue`: динамическая форма, ExdFilter в режиме single
-
-### 🏗️ Solenoid valves — реструктуризация моделей
-
-- `solenoid_valves/models.py` → `models/`:
-  - `sv_options.py` — ManualOverride, ValveActuationVariety, ValveDesign, ValveOperationVariety, ValveFunction, ValvePilotVariety
-  - `dv_model_line.py` — DirectionalValveModelLine
-  - `dv_body.py` — DirectionValveBody
-  - `dv_model_line_item.py` — DirectionValve
-- Убран SmartCatalogMixin из обеих моделей (остался только в cert_doc)
-- FILTER_DEFINITIONS перенесён в `catalog/filter_defs.py`
-- Streamlit-страница удалена (функциональность покрыта)
-
-### 🔧 FilterDefinition — show_code, default_value
-
-- `show_code: bool` — показывать code+name в селектах (используется в fd_contact_form)
-- `default_value: str` — предвыбор в селектах (fd_points.default_value='2')
-- Поток: FilterDefinition → views.py:635 → EngineerFilterBar:71
-
-### 💥 ExdParser — рефакторинг
-
-- Переписан на regex, upper-case
-- Уровни (Ga-Dc) и суффиксы X/U вырезаются до поиска типа/метода
-- Поддержка составных кодов (db, eb, tb, ia, nA…)
-- API: POST /api/core/exd/parse/ → {method_id, type_id, group_id, temp_id}
-
-## Сегодня (2026-06-03) — EngineerSelection, Exd-каскад, Requirement-модели
 
 ### 🏗️ EngineerSelection — выделенный компонент инженерного подбора
 
@@ -180,10 +190,7 @@
 
 ### 🔧 Прочее
 
-- `db.sqlite3` — git stash/pull main office-work
 - `BaseFilterOptionsView` — поддержка `default_scope` (для `views_engineer_filters.py`)
-
-## Ранее (2026-06-02) — Скачивание сертификатов, Exd-фильтр, админка БКВ
 
 ### 📥 Имена файлов при скачивании сертификатов и техдокументации
 
@@ -210,15 +217,6 @@
   - `exd_models.py` — `get_compatible_ids`: `temperature_rating__lte` для пыли (меньше = безопаснее)
   - `BaseFilterOptionsView` — добавлен `filter_type` в ответ API, CUSTOM больше не пропускается
 
-### 🔧 Админка LimitSwitchBox
-
-- Action `regenerate_from_templates` — перегенерация `name`/`description` через `update_from_templates(save=True)`.
-- `TemplateMixin`: `generate_title`/`title_template`/`_get_title_template_source` переопределены в `LimitSwitchBox`.
-
-## 2026-06-01 — Бэкап Cloud.ru, анализ хранилища, автоочистка
-
-## Сегодня (2026-06-01) — Бэкап Cloud.ru, анализ хранилища, автоочистка
-
 ### Инструменты бэкапа и восстановления (`storage_manager/management/commands/`)
 
 - **`backup_cloudru`** — полный бэкап бакета Cloud.ru на локальный диск. Скачивает все объекты с сохранением S3-структуры путей, создаёт `manifest.json` с метаданными (ETag, размер, дата). Повторный запуск докачивает только недостающие файлы. Флаги: `--prefix`, `--output-dir`, `--dry-run`, `--manifest-only`.
@@ -230,23 +228,6 @@
 - Документация: `storage_manager/management/commands/README.md`
 - `storage_manager.apps.StorageManagerConfig` добавлен в `INSTALLED_APPS`
 
-### Результаты анализа (бэкап 2026-06-01: 935 объектов, 357.4 МБ)
-
-| Категория | Оригиналы | Варианты | Preview | Всего |
-|-----------|----------|---------|---------|-------|
-| CERTIFICATE | 56.3 МБ | 9.7 МБ | 0.2 МБ | 66.2 МБ |
-| TECH_DOC | 181.2 МБ | 33.0 МБ | 1.6 МБ | 215.8 МБ |
-| USER_MANUAL | 22.9 МБ | 10.2 МБ | 0.1 МБ | 33.2 МБ |
-| PRODUCT_GALLERY | 6.6 МБ | 1.6 МБ | 0.3 МБ | 8.6 МБ |
-| DRAWING + PHOTO | 1.4 МБ | 0.1 МБ | 0.3 МБ | 1.8 МБ |
-| **Итого** | **268.4** | **54.6** | **2.5** | **325.5** |
-
-- Орфаны: 123 файла `imagecropsession/` (31.8 МБ) — удалены через `cleanup_crop_sessions`
-- Орфанов по БД: 0 (все 935 объектов привязаны)
-- TECH_DOC: 63 элемента, 50 из них — техно-листовки ЯМАЛ (156.3 МБ, не дубли)
-- `preview_file`: 2.5 МБ, 116 записей с дублирующимися файлами (у всех есть MediaVariant)
-- 20 элементов без MediaVariant (7 DRAWING + 13 PHOTO)
-
 ### Автоочистка ImageCropSession
 
 - **`ImageCropSession.delete_files()`** — удаление файлов из Cloud.ru
@@ -254,56 +235,6 @@
 - **`ImageCropView.post()`**: новый режим — сессия удаляется сразу (base64-ответ); старый режим — `original_file` удаляется, results остаются для presigned URL; при ошибке — тоже удаляется
 - **`cleanup_crop_sessions`** — команда для зачистки брошенных сессий (`--hours`, `--all`, `--dry-run`)
 
-## 🔧 В работе: MediaVariant — through-модель вместо JSONField
-
-- **Удалён** `variants = models.JSONField` из `MediaLibraryItem`
-- **Добавлена** `MediaVariant` — through-модель с полями: `media_item` (FK), `role`, `width`, `height`, `format`, `file_path`, `file_size`, `page_num`, `created_at`
-- `unique_together`: `(media_item, role, width, page_num)`
-- **`services.py`** переписан:
-  - `_save_to_storage()` → возвращает `(path, size)`
-  - `_compute_height()` — вычисление высоты по пропорции
-  - `generate_variants()` → создаёт `MediaVariant` через `apps.get_model`
-  - `delete_variants()` → удаляет файлы из Cloud.ru + строки БД
-  - `get_variants_for_api()` → строит словарь из through-строк
-- **`models.py`**:
-  - `save()` → `self.variants.exists()` / `self.variants.all().delete()` + CASCADE
-  - `delete()` → `self.variants.all()` для сбора путей
-  - `get_variants_for_api()` — метод модели, делегирует в `services`
-- ⚠️ **Нужно создать миграцию вручную**: `python manage.py makemigrations media_library --name replace_variants_jsonfield_with_through_model`
-- **`preview_file` — deprecated**: поле оставлено в БД, но код переведён на `MediaVariant`
-  - `preview_url` property → MediaVariant (thumb/card) → preview_file (фолбэк)
-  - `MediaPreviewView` → отдаёт variant из MediaVariant
-  - `admin_recreate_preview` → `delete_variants()` + `generate_variants()`
-  - `admin_detail.py` PUT/PATCH → `delete_variants()` перед заменой файла
-  - `to_dict()` → включает `variants` (get_variants_for_api)
-  - `ImageGalleryMixin._build_image_dict()` → `img.preview_url`
-  - Внешние ссылки (gearbox_catalog, pa_controls, valve_data) → `preview_url`
-- ⚠️ **После проверки — удалить preview_file файлы из Cloud.ru, затем дропнуть поле из БД**
-- **Email PDF** — для PDF-категорий (CERTIFICATE, TECH_DOC, USER_MANUAL) генерируется сжатый комбинированный PDF (email_dpi, JPEG quality=60)
-  - `generate_variants()` разделяет email от постраничных вариантов
-  - Email сохраняется как один `MediaVariant` с `role='email', format='pdf', page_num=1`
-  - `get_variants_for_api()` возвращает `email_pdf` отдельным ключом
-- **Профили**: добавлен `USER_MANUAL` (как TECH_DOC), `PHOTO` (как PRODUCT_GALLERY)
-- **preview_url** — card 400 → thumb 150 → icon 50 → любой
-- **`_detect_mime_type`** — добавлен `.webp`
-- **Фронтенд медиабиблиотеки**:
-  - `MediaEdit` — двухколоночный макет, превью `<iframe>` для PDF, `<img>` для изображений
-  - `MediaVariantsPreview` — показ сгенерированных вариантов
-  - `ImageCropper` — `initialUrl` prop + авто-загрузка существующего изображения
-  - `MediaGrid` — PDF показывают миниатюру (icon 50px) или иконку 📄
-  - `MediaPreviewView` — `?proxy=1` для CORS
-- **Каталоги (gearbox, filter-regulator, pa_controls)**:
-  - `_get_file_info` / `_get_certs_section` — относительные URL, `preview_url`, `email_url`
-  - `FileList.vue` — превью, 👁️ Открыть (DocViewer), 📥 Скачать, 📧 Сжат
-  - `DocViewer.vue` — попап с постраничным просмотром (◀ ▶, клавиатура)
-  - `MediaDownloadView` — поддержка `?variant=email` (прямая отдача PDF)
-  - Конфиги: `prefetch_related('...__image__variants')` во всех трёх
-  - `FilterSidebar` — `color: var(--cat-text)` для select
-  - `CatalogList`/`CatalogModelLine` — `defineEmits(['navigate'])`
-  - `gearbox-catalog/App.vue` — `id-prop="model_line_id"` (был `brand_id`)
-- **Миграция**: `replace_variants_jsonfield_with_through_model` (сделана)
-
-## ⏳ Задачи на потом
 
 ### Кэширование опций фильтров
 - **Проблема**: `BaseFilterOptionsView.get()` вызывает `fd.get_options()` для каждого фильтра.
@@ -330,17 +261,6 @@
   - Защита от копирования изображений: `user-select: none` + `pointer-events: none` на оверлеях
   - Watermark на full-size изображениях (накладывать при отдаче, не хранить)
 - **Приоритет**: уровень 1 — high (до публичного доступа), уровень 2 — medium, уровень 3 — low
-
-### 🖼️ Оптимизация изображений: WebP + ресайз + кроп (план)
-- **WebP-варианты** для каждого изображения: `webp_sm` (150w), `webp_md` (400w), `webp_lg` (800w), `webp_xl` (1600w)
-- **center_crop** для sm/md (квадратные карточки), **thumbnail** для lg/xl (пропорции)
-- **`remove_background`** флаг в модели — нейросеть `rembg` (ONNX/U2Net) для удаления фона
-- **Конвертация при загрузке** (save) — новые файлы сразу получают WebP-варианты
-- **Management command** `generate_webp_variants` — добить существующие (пакетами по 50)
-- **Fallback**: `get_image_urls()` отдаёт WebP если есть, иначе оригинал
-- **Frontend**: `<img srcset="...">` — браузер сам выбирает размер
-- **Экономия**: карточка ~12 KB WebP вместо ~200 KB JPEG
-- **Поля**: `webp_sm/md/lg/xl` (ManagedFileField), `remove_background` (BooleanField)
 
 ### ✂️ Image Cropper — интерактивная обрезка (готово)
 - **Приложение** `image_processor/` — модели, API, сервисы, README
@@ -376,14 +296,10 @@
 - **Профиль**: `TECH_DOC` в `PRESENTATION_PROFILES` уже есть (пустой — только скачивание)
 - **Приоритет**: medium (пока нет техдокументации в базе)
 
----
-
-## Сегодня (2026-05-30) — Профили отображения и PDF-обработка
 
 ### 🏗️ PRESENTATION_PROFILES в MediaCategory
 - Хардкод-словарь профилей по коду категории
 - Категории: PRODUCT_GALLERY, BANNER, CERTIFICATE, TECH_DOC, SCHEMA, DRAWING, DIAGRAM
-- PHOTO переименован в PRODUCT_GALLERY, добавлен BANNER (1200/1920)
 - CERTIFICATE и TECH_DOC: page(600/800), email→сборный PDF(100dpi)
 
 ### 📄 PDF-обработка в image_processor
@@ -407,17 +323,6 @@
 - Фото-категории: интерактивная обрезка → профильные варианты
 - Сравнение исходного/сжатого размера для PDF
 - Blob URL для открытия PDF (Chrome блокирует data: URI)
-
-### 📝 Документация обновлена
-- `image_processor/README.md` — полностью переписан
-- `media_library/README.md` — добавлены профили + variants
-- `frontend/README.md` — ImageCropper + тестовая страница
-- `CATALOG_PATTERN.md` — без изменений (актуален)
-- Анализ защиты Яндекс.Маркета и ВсеИнструменты.ру в SESSION.md
-
----
-
-## Ранее (2026-05-29) — CatalogConfig и Exact/Compatible split
 
 ### 🏗️ CatalogConfig — единая конфигурация каталогов
 - **`core/models/filter_definition.py`** — `FilterType`, `DataSourceType`, `FilterDefinition` вынесены из `smart_catalog_mixin.py`
@@ -468,24 +373,6 @@
 - **`CATALOG_PATTERN.md`** — обновлён (CatalogConfig, api.js fix)
 - **`frontend/README.md`** — обновлён (новые поля useCatalog, FilterSidebar)
 
----
-
-## Ранее (2026-05-28 и раньше)
-
-### 🏗️ ImageGallerySet — наборы изображений
-- **Модели**: `ImageGallerySet` + `ImageGallerySetItem` (through) в `media_library/models.py`
-- **ImageGalleryMixin** переписан: FK `image_gallery` вместо голого M2M `images`
-- Удалены дублирующие методы из gearbox, filter_regulator, pa_controls
-
-### 🔗 CertData.media_item: FK → O2O
-- `media_item = ForeignKey` → `OneToOneField`, каскадное удаление с очисткой облака
-
-### 🗑️ Каскадное удаление с очисткой Cloud.ru
-- `MediaLibraryItem.delete()` удаляет файлы из Cloud.ru через `file_service.delete_file()`
-
-### 🧹 Чистка
-- Raw SQL → ORM, удалены мёртвые сигналы, `images` → `image_gallery` в админках
-
 ### ⚡ Оптимизация каталогов
 - Cloud.ru: `url()` без `head_object` (0 сетевых запросов вместо 120+)
 - `to_values_dict()` лёгкий (без `_get_template_vars()`)
@@ -529,5 +416,4 @@
 | Паттерн каталога | CATALOG_PATTERN.md |
 
 ## ⚠️ Баг codewhale-tui v0.8.47
-
 Паника в `verify.rs:422` на кириллице. `edit_file` — не использовать. `apply_patch` и `write_file` — безопасны.
