@@ -19,7 +19,7 @@
         :class="{ active: i === activeIndex }"
         @click="selectImage(i)"
       >
-        <img :src="img.preview_url || img.url" :alt="img.name || alt" loading="lazy" />
+        <img :src="img.thumb_url || img.preview_url || img.url" :alt="img.name || alt" loading="lazy" />
       </button>
     </div>
   </div>

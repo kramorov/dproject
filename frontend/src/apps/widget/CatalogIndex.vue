@@ -33,9 +33,10 @@ const CATALOG_INFO = {
   filter_regulator: { id: 'filter_regulator', name: 'Фильтр-регуляторы', icon: '🔧', description: 'Фильтры-регуляторы сжатого воздуха' },
   limit_switch:  { id: 'limit_switch',  name: 'Блоки концевых выключателей', icon: '🔌', description: 'Механические, индуктивные, магнитные' },
   solenoid_valves: { id: 'solenoid_valves', name: 'Распределительные клапаны', icon: '🔀', description: '3/2, 5/2, 5/3 — пневмораспределители' },
+  pneumatic_fittings: { id: 'pneumatic_fittings', name: 'Пневматические фитинги', icon: '🔩', description: 'Цанговые, обжимные, резьбовые соединения' },
   pneumatic:   { id: 'pneumatic',   name: 'Пневмоприводы',     icon: '💨', description: 'Поршневые, мембранные, SR/SD' },
   electric:    { id: 'electric',    name: 'Электроприводы',    icon: '⚡', description: 'Многооборотные, неполнооборотные' },
-  fittings:    { id: 'fittings',    name: 'Пневмофитинги',     icon: '🔧', description: 'Фитинги, трубки, клапаны' },
+  // fittings: consolidated into pneumatic_fittings
 }
 
 const catalogList = computed(() =>

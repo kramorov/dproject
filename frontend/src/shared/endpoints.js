@@ -33,6 +33,16 @@ export const ENDPOINTS = {
     meta: '/solenoid-valves/meta/',
   },
 
+  pneumaticFittings: {
+    catalog: '/pneumatic-fittings/catalog/',
+    detail: (id) => `/pneumatic-fittings/catalog/${id}/`,
+    filters: '/pneumatic-fittings/filters/',
+    engineer: '/pneumatic-fittings/engineer/',
+    engineerFilters: '/pneumatic-fittings/engineer/filters/',
+    quickselect: '/pneumatic-fittings/quickselect/',
+    meta: '/pneumatic-fittings/meta/',
+  },
+
   limitSwitch: {
     sections: '/pa-controls/sections/',
     catalog: '/pa-controls/catalog/',

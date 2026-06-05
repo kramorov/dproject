@@ -11,6 +11,8 @@ from django.db import models
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from storage_manager.services import file_service
+
 
 class ImageGalleryMixin(models.Model):
     """
@@ -71,13 +73,38 @@ class ImageGalleryMixin(models.Model):
         ]
 
     def _build_image_dict(self, img) -> dict:
-        """Собрать словарь для одного изображения."""
+        """Собрать словарь для одного изображения.
+
+        url         — card_800 > card_400 > оригинал (полноразмерный показ, галерея)
+        preview_url — card_400 (быстрая загрузка: карточки, начальное состояние галереи)
+        thumb_url   — thumb_150 > thumb_80 > card_400 (миниатюры в галерее)
+        """
+        url = ''
+        preview = ''
+        thumb = ''
+        if img.media_file:
+            preview = img.preview_url or ''
+            # card_800 для полноразмерного показа
+            card_800 = img.variants.filter(role='card', width=800).first()
+            if card_800:
+                url = file_service.get_file_url(card_800.file_path)
+            else:
+                card_400 = img.variants.filter(role='card', width=400).first()
+                url = file_service.get_file_url(card_400.file_path) if card_400 else img.media_file.url
+            # thumb_150 (2x) > thumb_80 > card_400 для миниатюр
+            t150 = img.variants.filter(role='thumb', width=150).first()
+            if t150:
+                thumb = file_service.get_file_url(t150.file_path)
+            else:
+                t80 = img.variants.filter(role='thumb', width=80).first()
+                thumb = file_service.get_file_url(t80.file_path) if t80 else (preview or url)
         return {
             'id': img.id,
             'name': getattr(img, 'name', '') or '',
             'code': getattr(img, 'code', '') or '',
-            'url': img.media_file.url if img.media_file else '',
-            'preview_url': img.preview_url if img.media_file else '',
+            'url': url,
+            'preview_url': preview,
+            'thumb_url': thumb,
             'is_default': getattr(img, 'is_default', False),
         }
 

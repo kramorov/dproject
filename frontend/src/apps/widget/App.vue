@@ -24,6 +24,13 @@
     <CatalogDetail v-else-if="route.catalog === 'limit_switch' && route.view === 'detail'" :api="lsbApi" :labels="labels.limit_switch.detail" :id="route.id" @close="() => navigate('limit_switch', 'list')" @navigate="() => navigate('limit_switch', 'lines')" />
     <QuickSelect v-else-if="route.catalog === 'limit_switch' && route.view === 'quickselect'" :api="lsbApi" :labels="labels.limit_switch.quickselect" :filter-labels="labels.limit_switch.quickselect.filterLabels" :auto-select-rules="labels.limit_switch.quickselect.autoSelectRules" @select="id => navigate('limit_switch', 'detail', id)" @navigate="() => navigate('limit_switch', 'lines')" />
 
+    <!-- PNEUMATIC FITTINGS -->
+    <CatalogSection v-else-if="route.catalog === 'pneumatic_fittings' && route.view === 'lines'" :api="pfApi" :labels="labels.pneumatic_fittings.section" @select-series="id => navigate('pneumatic_fittings', 'brand', id)" @select="() => navigate('pneumatic_fittings', 'list')" @quickselect="() => navigate('pneumatic_fittings', 'quickselect')" @navigate="() => navigate('pneumatic_fittings', 'lines')" />
+    <CatalogModelLine v-else-if="route.catalog === 'pneumatic_fittings' && route.view === 'brand'" :api="pfApi" :labels="labels.pneumatic_fittings.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('pneumatic_fittings', 'detail', id)" />
+    <EngineerSelection v-else-if="route.catalog === 'pneumatic_fittings' && route.view === 'list'" :api="pfApi" :labels="labels.pneumatic_fittings.list" @select="id => navigate('pneumatic_fittings', 'detail', id)" @navigate="() => navigate('pneumatic_fittings', 'lines')" />
+    <CatalogDetail v-else-if="route.catalog === 'pneumatic_fittings' && route.view === 'detail'" :api="pfApi" :labels="labels.pneumatic_fittings.detail" :id="route.id" @close="() => navigate('pneumatic_fittings', 'list')" @navigate="() => navigate('pneumatic_fittings', 'lines')" />
+    <QuickSelect v-else-if="route.catalog === 'pneumatic_fittings' && route.view === 'quickselect'" :api="pfApi" :labels="labels.pneumatic_fittings.quickselect" :filter-labels="labels.pneumatic_fittings.quickselect.filterLabels" :auto-select-rules="labels.pneumatic_fittings.quickselect.autoSelectRules" @select="id => navigate('pneumatic_fittings', 'detail', id)" @navigate="() => navigate('pneumatic_fittings', 'lines')" />
+
     <!-- SOLENOID VALVES -->
     <CatalogSection v-else-if="route.catalog === 'solenoid_valves' && route.view === 'lines'" :api="svApi" :labels="labels.solenoid_valves.section" @select-series="id => navigate('solenoid_valves', 'brand', id)" @select="() => navigate('solenoid_valves', 'list')" @quickselect="() => navigate('solenoid_valves', 'quickselect')" @navigate="() => navigate('solenoid_valves', 'lines')" />
     <CatalogModelLine v-else-if="route.catalog === 'solenoid_valves' && route.view === 'brand'" :api="svApi" :labels="labels.solenoid_valves.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('solenoid_valves', 'detail', id)" />
@@ -47,6 +54,7 @@ import gearboxApi from '@/apps/gearbox-catalog/api'
 import frApi from '@/apps/filter-regulator-catalog/api'
 import lsbApi from '@/apps/limit-switch-catalog/api'
 import svApi from '@/apps/solenoid-valves-catalog/api'
+import pfApi from '@/apps/pneumatic-fittings-catalog/api'
 const props = defineProps({ allowedCatalogs: { type: Array, default: () => ['gearbox'] } })
 const route = ref(parseHash())
 function onHashChange() { route.value = parseHash() }
@@ -103,6 +111,20 @@ const labels = {
         body_material_id:'Материал корпуса', pneumatic_connection_id:'Пневматическое присоединение',
         pneumatic_connection_thread_id:'Резьба присоединения', work_temp_min:'Температура мин., °С',
         ip_id:'IP', exd_id:'Взрывозащита',
+      },
+      autoSelectRules:{},
+    },
+  },
+  pneumatic_fittings: {
+    section: { title:'Пневматические фитинги', subtitle:'Выберите серию фитингов', breadcrumbs:[{name:'Каталог'}] },
+    brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров' },
+    list: { title:'Фитинги — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
+    detail: { backLabel:'Назад к каталогу' },
+    quickselect: { title:'Быстрый подбор',
+      filterLabels:{
+        fitting_variety_id:'Тип фитинга', body_material_id:'Материал корпуса',
+        pipe_material_id:'Материал трубки', pipe_diameter:'Диаметр трубки',
+        thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
       },
       autoSelectRules:{},
     },

@@ -3,12 +3,14 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict , List , Optional , Any
-from core.models.mixins import StructuredDataMixin , TemplateMixin , CopyMixin
+from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin, CatalogDictMixin
+from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
 # TemplateGeneratorMixin удалён из импорта 2026-06-05 — импортировался, но не использовался
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from materials.models import MaterialGeneral
 from params.models import ThreadSize , ThreadInnerOuter , ThreadTypes
 from producers.models import Brands , Producer
+from sku.models import SKUMixin
 
 '''
 Фитинги
@@ -138,9 +140,19 @@ class PneumaticFittingVariety(StructuredDataMixin , models.Model) :
         return self.name
 
 
-class PneumaticFittingModelLine(StructuredDataMixin , CopyMixin , models.Model) :
+class PneumaticFittingModelLine(ImageGalleryMixin, TechDocMixin,
+                                EquipmentTypeMixin,
+                                StructuredDataMixin, CopyMixin, models.Model):
     """
-    Серия пневматических фитингов
+    Серия пневматических фитингов.
+
+    Определяет общие характеристики линейки: производитель, бренд, тип фитинга,
+    материалы корпуса/трубки, рабочие температуры и давления.
+
+    Наследует:
+      - ImageGalleryMixin — галерея изображений серии
+      - TechDocMixin — техническая документация
+      - EquipmentTypeMixin — тип оборудования (для SKU)
     """
 
     name = models.CharField(max_length=100 ,
@@ -232,9 +244,29 @@ class PneumaticFittingModelLine(StructuredDataMixin , CopyMixin , models.Model) 
         return f'{self.pressure_min}..{self.pressure_max}'
 
 
-class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin , CopyMixin , models.Model) :
+class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
+                       ImageGalleryMixin, TechDocMixin,
+                       SKUMixin, EquipmentTypeMixin,
+                       StructuredDataMixin, TemplateMixin, CopyMixin, models.Model):
     """
-    Пневматические фитинги
+    Пневматический фитинг (конкретный артикул каталога).
+
+    Наследует:
+      - CatalogDictMixin — структурированная сериализация (to_dict/to_values_dict)
+      - SmartCatalogMixin — фильтрация, поиск, exact/compatible split
+      - ImageGalleryMixin — галерея изображений
+      - TechDocMixin — техническая документация
+      - SKUMixin — учётная номенклатура (автосинхронизация через save())
+      - EquipmentTypeMixin — тип оборудования
+      - TemplateMixin — шаблоны названий/описаний
+      - CopyMixin — копирование в админке
+
+    Основные поля:
+      - model_line: PneumaticFittingModelLine (серия)
+      - fitting_variety: тип фитинга
+      - pipe_diameter, pipe_material: параметры трубки
+      - thread, thread_inner_outer: резьбовое соединение
+      - body_material: материал корпуса
     """
 
     name = models.CharField(max_length=300 ,
@@ -330,6 +362,17 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
         ordering = ['pipe_diameter' , 'thread']
         verbose_name = _('Пневматический фитинг')
         verbose_name_plural = _('Пневматические фитинги')
+
+    # ── SKUMixin ──
+
+    def get_equipment_type_for_sku(self):
+        """Тип оборудования для SKU — берётся из model_line."""
+        return self.model_line.equipment_type if self.model_line else None
+
+    def save(self, *args, **kwargs):
+        """Сохраняет модель и синхронизирует номенклатуру (SKU)."""
+        super().save(*args, **kwargs)
+        self.sync_sku()
 
     @property
     def temperature_range_display(self) :
@@ -562,6 +605,30 @@ class PneumaticFitting(SmartCatalogMixin , StructuredDataMixin , TemplateMixin ,
         'brand' , 'model_line' , 'fitting_variety' ,
         'body_material' , 'pipe_material' , 'thread' , 'thread_inner_outer'
     ]
+
+    def to_values_dict(self) -> dict:
+        """Облегчённая сериализация для списков."""
+        first_img = self._get_first_image() if hasattr(self, '_get_first_image') else None
+        return {
+            'id': self.id,
+            'code': self.code or '',
+            'name': self.name or '',
+            'title': self.generate_title() if hasattr(self, 'generate_title') else (self.name or ''),
+            'pipe_diameter': self.pipe_diameter,
+            'thread_name': str(self.thread) if self.thread else None,
+            'thread_inner_outer_name': str(self.thread_inner_outer) if self.thread_inner_outer else None,
+            'images': [first_img] if first_img else [],
+            'model_line': {
+                'id': self.model_line.id,
+                'name': self.model_line.name,
+                'code': self.model_line.code,
+            } if self.model_line else None,
+            'sku': {
+                'id': self.sku_id,
+                'code': self.sku.code if self.sku else None,
+                'name': self.sku.name if self.sku else None,
+            } if self.sku_id else None,
+        }
 
     def to_dict(self) -> Dict[str , Any] :
         """

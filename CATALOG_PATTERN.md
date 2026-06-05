@@ -1,5 +1,5 @@
 # Шаблон нового каталога (Catalog Pattern)
-> Обновлено 2026-06-04: solenoid_valves каталог, SmartCatalogMixin обязателен, fix default_value тип
+> Обновлено 2026-06-05: pneumatic_fittings каталог, PriceDocument Excel export/import, SKUMixin fixes
 
 ## Архитектура: CatalogConfig
 

@@ -49,6 +49,7 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     path('api/electric_actuators/', include('electric_actuators.urls')),
     path('api/gearbox/', include('gearbox.urls')),
     path('api/solenoid-valves/', include('solenoid_valves.urls')),
+    path('api/pneumatic-fittings/', include('pneumatic_fittings.urls')),
     path('api/filter-regulator/', include('filter_regulator.urls')),
     path('api/pa-controls/', include('pa_controls.urls')),
     path('api/image-processor/', include('image_processor.urls')),

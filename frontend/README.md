@@ -1,5 +1,5 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-05: useCatalog fix (scope), filterLabels для всех каталогов, QuickSelect solenoid_valves
+> Обновлено 2026-06-05: pneumatic-fittings каталог, ProductCard «Цена по запросу», PriceDocument Excel import/export
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -148,6 +148,7 @@ App.vue параметризуется через `labels` + `api`.
 | `pages/catalog/FilterRegulatorPage.vue` | /catalog/filter-regulator | Фильтр-регуляторы |
 | `pages/catalog/LimitSwitchPage.vue` | /catalog/limit-switch | Блоки концевых выключателей |
 | `pages/catalog/SolenoidValvesPage.vue` | /catalog/solenoid-valves | Распределительные клапаны |
+| `pages/catalog/PneumaticFittingsPage.vue` | /catalog/pneumatic-fittings | Пневматические фитинги |
 | `pages/auth/LoginMainPage.vue` | /login | Вход |
 | `pages/auth/RegisterMainPage.vue` | /register | Регистрация (заглушка) |
 | `pages/admin/MediaPage.vue` | /admin/media | Медиабиблиотека |

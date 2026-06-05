@@ -1,0 +1,37 @@
+<!-- pneumatic-fittings-catalog/App.vue -->
+<template>
+  <div class="app">
+    <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @select="goToList" @quickselect="goToQuickSelect" @navigate="goToSection" />
+    <EngineerSelection v-else-if="page === 'list'" :api="api" :labels="labels.list" @select="onSelectItem" @navigate="goToSection" />
+    <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" @close="page = 'list'" @navigate="goToSection" />
+    <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" @select="onSelectItem" @navigate="goToSection" />
+    <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="onSelectItem" @navigate="goToSection" />
+  </div>
+</template>
+<script setup>
+import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
+import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue'
+import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
+import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
+import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
+import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
+import fittingApi from './api'
+const api = fittingApi
+const labels = {
+  section: { title:'Пневматические фитинги', subtitle:'Выберите серию фитингов', breadcrumbs:[{name:'Каталог'},{name:'Фитинги'}] },
+  list: { title:'Фитинги — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
+  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Фитинги' },
+  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Фитинги' },
+  quickselect: { title:'Быстрый подбор', breadcrumbName:'Фитинги',
+    filterLabels:{
+      fitting_variety_id:'Тип фитинга', body_material_id:'Материал корпуса',
+      pipe_material_id:'Материал трубки', pipe_diameter:'Диаметр трубки',
+      thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
+    },
+    autoSelectRules:{},
+  },
+}
+const { page, selectedId, idValue, goToList, goToBrand, onSelectItem } = useCatalogRouter(api, { idProp:'model_line_id' })
+function goToQuickSelect() { page.value = 'quickselect' }
+function goToSection() { page.value = 'section' }
+</script>

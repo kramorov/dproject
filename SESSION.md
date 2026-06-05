@@ -52,6 +52,41 @@
 - `GearBox` и `FilterRegulator` всё ещё используют старый паттерн с вынесенным `_get_file_info()` — привести к единому стилю
 - Приоритет: low (работает, но дублирует логику)
 
+### 💰 PriceDocument — Excel импорт/экспорт
+
+- **Экспорт**: `GET /api/admin/prices/documents/<id>/export/` → `.xlsx` с колонками `id (SKU)`, `code`, `name`, `price`
+- **Импорт**: `POST /api/admin/prices/documents/<id>/import/` — синхронизация по `id` SKU (создание/обновление цен)
+- **Бэкенд**: `price/services/excel_io.py` (export/import логика), `PriceDocumentExportView` + `PriceDocumentImportView` в `document_detail.py`
+- **Фронтенд**: кнопки «📥 Экспорт Excel» / «📤 Импорт Excel» в `DocumentCard.vue`, `api.js` — `exportDocument`/`importDocument`
+- Импорт только в статусе draft. Импорт — `FormData` (multipart), экспорт — blob → авто-скачивание
+
+### 🏷️ ProductCard — «Цена по запросу»
+
+- `ProductCard.vue` и `EngineerProductCard.vue`: `v-if="price && price.price"` → явная проверка на `null`, `'0'`, `'0.00'`
+- При отсутствии/нулевой цене — «Цена по запросу» курсивом вместо скрытого блока
+
+### 🐛 Баг-фиксы
+
+- **price/admin/exchange_rate.py**: убран `reverse('price:cbr-update')` — namespace `price` не зарегистрирован, URL `cbr-update` не существует
+- **solenoid_valves/…/dv_model_line_item.py**: добавлен `save()` → `sync_sku()` (SKU не создавались)
+- **sku/models/mixins.py**: `equipment_type`/`brand` в standalone-SKU обновляются всегда (не только когда `None`)
+
+### 🔀 DirectionValve — хуки SKUMixin
+
+- `get_equipment_type_for_sku()` → `self.model_line.equipment_type` (было из `EquipmentTypeMixin` напрямую — часто `None`)
+- `get_brand_for_sku()` → `self.model_line.brand`
+
+### 🔩 PneumaticFittings — полный каталог по CatalogPattern
+
+- **Модели**: `PneumaticFitting` + `PneumaticFittingModelLine` — добавлены `SKUMixin`, `ImageGalleryMixin`, `TechDocMixin`, `CatalogDictMixin`, `EquipmentTypeMixin`
+- `save()` → `sync_sku()`, хуки `get_equipment_type_for_sku()`/`get_brand_for_sku()` из `model_line`
+- `to_values_dict()` — лёгкая сериализация для списков
+- **catalog/ пакет**: `filter_defs.py` (10 FilterDefinition), `config.py` (4 FilterSet), `views_filters.py`, `views_list.py`, `views_detail.py`, `views_engineer.py`, `views_engineer_filters.py`, `views_quickselect.py`, `views_meta.py`
+- **urls.py**: 7 эндпоинтов (`catalog/`, `filters/`, `engineer/`, `quickselect/`, `meta/`)
+- **management**: `sync_pf_sku` — команда синхронизации SKU для фитингов
+- **admin**: `PneumaticFittingAdmin` + `PneumaticFittingModelLineAdmin` — добавлены `filter_horizontal` для `tech_docs`, `image_gallery`, `equipment_type`, `sku`, поля в fieldsets
+- **Фронтенд**: `apps/pneumatic-fittings-catalog/` (api.js + App.vue), страница `PneumaticFittingsPage.vue`, маршрут `/catalog/pneumatic-fittings`, widget-интеграция
+
 ## Ранее (2026-06-04) — Solenoid valves: каталог + фронтенд + виджет + рефакторинг
 
 ### 🔀 Solenoid valves — полный каталог по CatalogPattern

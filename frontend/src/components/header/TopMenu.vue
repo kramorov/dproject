@@ -20,6 +20,7 @@ const allItems = [
     { to:'/catalog/filter-regulator', label:'Фильтр-регуляторы' },
     { to:'/catalog/limit-switch', label:'Блоки концевых выключателей' },
     { to:'/catalog/solenoid-valves', label:'Распределительные клапаны' },
+    { to:'/catalog/pneumatic-fittings', label:'Пневматические фитинги' },
   ]},
   { key:'electric', label:'⚡ Электроприводы', children:[
     { to:'/catalog/limit-switch', label:'Блоки концевых выключателей' },
