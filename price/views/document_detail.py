@@ -4,12 +4,16 @@ GET/PUT/DELETE /api/admin/prices/documents/<id>/ — редактировани�
 POST /api/admin/prices/documents/<id>/apply/ — провести (записать цены в PriceHistory)
 POST /api/admin/prices/documents/<id>/unapply/ — отмена проведения
 GET/POST/DELETE /api/admin/prices/documents/<id>/items/ — строки документа
+GET /api/admin/prices/documents/<id>/export/ — экспорт в Excel
+POST /api/admin/prices/documents/<id>/import/ — импорт из Excel
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from django.http import HttpResponse
 from price.models import PriceDocument, PriceDocumentItem, Currency, PriceVariety
+from price.services.excel_io import export_document_to_excel, import_document_from_excel
 
 
 class PriceDocumentDetailView(APIView):
@@ -200,42 +204,102 @@ class PriceDocumentItemView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        data = request.data
-        sku_id = data.get('sku_id')
+        sku_id = request.data.get('sku_id')
         if not sku_id:
             return Response({'error': 'sku_id required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        price_variety = doc.default_price_variety
+        currency = doc.default_currency
+
         item = PriceDocumentItem.objects.create(
             document=doc,
-            sku_id=int(sku_id),
-            price_variety_id=data.get('price_variety_id') or doc.default_price_variety_id,
-            currency_id=data.get('currency_id') or doc.default_currency_id,
-            price=data.get('price', 0),
-            comment=data.get('comment', ''),
-            sorting_order=data.get('sorting_order', 0),
+            sku_id=sku_id,
+            price=request.data.get('price', 0),
+            price_variety=price_variety,
+            currency=currency,
+            comment=request.data.get('comment', ''),
         )
-        return Response({'id': item.id}, status=status.HTTP_201_CREATED)
+
+        return Response({
+            'id': item.id,
+            'sku_id': item.sku_id,
+            'product_code': item.sku.code if item.sku else '',
+            'product_name': item.sku.name if item.sku else '',
+            'price': float(item.price),
+            'price_variety_id': item.price_variety_id,
+            'currency_id': item.currency_id,
+            'comment': item.comment,
+        }, status=status.HTTP_201_CREATED)
 
     def delete(self, request, doc_id):
-        item_id = request.query_params.get('id')
-        if not item_id:
-            return Response({'error': 'id param required'}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
             doc = PriceDocument.objects.get(pk=doc_id)
         except PriceDocument.DoesNotExist:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if doc.status != PriceDocument.Status.DRAFT:
-            return Response(
-                {'error': f'Удаление позиций запрещено. Статус: {doc.get_status_display()}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        item_id = request.query_params.get('id')
+        if not item_id:
+            return Response({'error': 'id required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            item = PriceDocumentItem.objects.get(pk=int(item_id), document_id=doc_id)
+            item = doc.items.get(pk=item_id)
         except PriceDocumentItem.DoesNotExist:
-            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
 
         item.delete()
         return Response({'success': True})
+
+
+class PriceDocumentExportView(APIView):
+    """GET /api/admin/prices/documents/<pk>/export/ — скачать Excel"""
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        try:
+            doc = PriceDocument.objects.get(pk=pk)
+        except PriceDocument.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            output = export_document_to_excel(doc)
+            safe_name = doc.name.replace(' ', '_').replace('/', '-')[:50] if doc.name else 'export'
+            response = HttpResponse(
+                output.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
+            response['Content-Disposition'] = f'attachment; filename="price_doc_{doc.pk}_{safe_name}.xlsx"'
+            return response
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PriceDocumentImportView(APIView):
+    """POST /api/admin/prices/documents/<pk>/import/ — загрузить Excel"""
+    permission_classes = [AllowAny]
+
+    def post(self, request, pk):
+        try:
+            doc = PriceDocument.objects.get(pk=pk)
+        except PriceDocument.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if doc.status != PriceDocument.Status.DRAFT:
+            return Response(
+                {'error': f'Импорт запрещён. Статус: {doc.get_status_display()}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        uploaded = request.FILES.get('file')
+        if not uploaded:
+            return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            result = import_document_from_excel(doc, uploaded)
+            return Response({
+                'success': True,
+                'created': result['created'],
+                'updated': result['updated'],
+                'errors': result['errors'],
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

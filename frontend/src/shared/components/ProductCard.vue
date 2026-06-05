@@ -13,10 +13,11 @@
     <div class="card-body">
       <h3 class="card-title">{{ item.title || item.name || item.code }}</h3>
       <p class="card-code" v-if="item.code">{{ item.code }}</p>
-      <div class="card-price" v-if="price">
+      <div class="card-price" v-if="price && price.price != null && price.price !== '0' && price.price !== '0.00'">
         <span class="price-val">{{ price.price }}</span>
         <span class="price-cur">{{ price.symbol || price.currency }}</span>
       </div>
+      <div class="card-price card-price-request" v-else>Цена по запросу</div>
     </div>
   </div>
 </template>
@@ -60,4 +61,5 @@ const imageFull = computed(() => {
 .card-code { font-size: var(--cat-text-xs); color: var(--cat-muted); font-family: var(--cat-font-mono); margin: 0 0 8px; }
 .price-val { font-size: var(--cat-price-size); font-weight: var(--cat-price-weight); color: var(--cat-price-color); }
 .price-cur { font-size: var(--cat-text-xs); color: var(--cat-muted); margin-left: 2px; }
+.card-price-request { font-size: var(--cat-text-sm, 13px); color: var(--cat-muted, #6b7280); font-style: italic; }
 </style>

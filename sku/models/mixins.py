@@ -150,10 +150,10 @@ class SKUMixin(models.Model):
                 if not sku.description and desc:
                     sku.description = desc
                     update_fields['description'] = sku.description
-                if sku.equipment_type_id is None and eq_type is not None:
+                if sku.equipment_type != eq_type:
                     sku.equipment_type = eq_type
                     update_fields['equipment_type'] = sku.equipment_type
-                if sku.brand_id is None and brand is not None:
+                if sku.brand != brand:
                     sku.brand = brand
                     update_fields['brand'] = sku.brand
                 # source_* — заполняем, т.к. standalone-SKU создавалась без привязки к модели

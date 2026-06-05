@@ -211,12 +211,27 @@ class DirectionValve(CatalogDictMixin,
         models.ForeignKey(CableGlandHolesSet, null=True, blank=True,
                           related_name='direction_valve_cable_glands_holes',
                           on_delete=models.SET_NULL, verbose_name=_("Отверстия КВ"),
-                          help_text=_('Отверстия под кабельные вводы'))
+                           help_text=_('Отверстия под кабельные вводы'))
+
+    def save(self, *args, **kwargs):
+        """Сохраняет модель и синхронизирует номенклатуру (SKU)."""
+        super().save(*args, **kwargs)
+        self.sync_sku()
 
     class Meta:
         ordering = ['sorting_order', 'code']
         verbose_name = _('Распределительный клапан')
         verbose_name_plural = _('Распределительные клапаны')
+
+    # ── SKUMixin ──
+
+    def get_equipment_type_for_sku(self):
+        """Тип оборудования для SKU — берётся из model_line."""
+        return self.model_line.equipment_type if self.model_line else None
+
+    def get_brand_for_sku(self):
+        """Бренд для SKU — берётся из model_line."""
+        return self.model_line.brand if self.model_line else None
 
     @property
     def operation(self):

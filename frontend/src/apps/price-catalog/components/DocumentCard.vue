@@ -95,6 +95,10 @@
         <button v-if="doc?.status==='draft'||doc?.status==='on_approval'" class="btn-s" @click="doApply">Провести</button>
         <button v-if="doc?.status==='posted'" class="btn-w" @click="doUnapply">Отмена проведения</button>
         <button v-if="doc?.status!=='posted'" class="btn-d" @click="doDelete">Удалить</button>
+        <span class="doc-actions-sep"></span>
+        <button class="btn-c" @click="doExportExcel">📥 Экспорт Excel</button>
+        <button v-if="isDraft" class="btn-c" @click="triggerImport">📤 Импорт Excel</button>
+        <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="doImportExcel" />
       </div>
     </div>
   </div>
@@ -209,6 +213,8 @@ const skuEditItem = ref(null)
 const skuForm = reactive({ code: '', name: '', description: '', equipment_type_id: null, brand_id: null, is_active: true })
 const skuEditSaving = ref(false)
 const skuEditErr = ref('')
+
+const fileInput = ref(null)
 
 // Create new SKU
 const showNewSku = ref(false)
@@ -427,6 +433,41 @@ async function savePrice(item) {
   }
 }
 
+// ── Excel export ──
+async function doExportExcel() {
+  try {
+    const r = await priceApi.exportDocument(props.docId)
+    const blob = r.data
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const disposition = r.headers?.['content-disposition'] || ''
+    const m = disposition.match(/filename[^;=\n]*=["']?([^"';\n]*)["']?/)
+    a.download = (m?.[1]) || `price_doc_${props.docId}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (e) { err.value = e.displayMessage||'Export error' }
+}
+
+// ── Excel import ──
+function triggerImport() { fileInput.value?.click() }
+
+async function doImportExcel(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  try {
+    const r = await priceApi.importDocument(props.docId, file)
+    const d = r.data
+    const msg = [`Создано: ${d.created||0}`, `Обновлено: ${d.updated||0}`]
+    if (d.errors?.length) msg.push('Ошибки: ' + d.errors.join('; '))
+    alert(msg.join('\n'))
+    fetchDoc(); emit('changed')
+  } catch (e) { err.value = e.displayMessage||'Import error' }
+  finally { e.target.value = '' }
+}
+
 async function doDeleteItem(itemId) {
   if (!confirm('Удалить позицию?')) return
   try { await priceApi.deleteItem(props.docId, itemId); fetchDoc(); emit('changed') }
@@ -507,4 +548,5 @@ onBeforeUnmount(() => clearTimeout(prodTimer))
 .badge-draft{background:#e5e7eb;color:#374151}
 .badge-approval{background:#fef3c7;color:#92400e}
 .badge-posted{background:#d1fae5;color:#065f46}
+.doc-actions-sep{flex:1}
 </style>

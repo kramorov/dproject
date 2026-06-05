@@ -203,7 +203,6 @@ class ExchangeRateAdmin(ImportExportModelAdmin, admin.ModelAdmin):
     # ======== КАСТОМНЫЙ СПИСОК ========
     def changelist_view(self, request, extra_context=None):
         """Добавляем сегодняшние курсы и кнопку обновления в шапку списка"""
-        from django.urls import reverse
         from datetime import date
 
         extra_context = extra_context or {}
@@ -214,8 +213,7 @@ class ExchangeRateAdmin(ImportExportModelAdmin, admin.ModelAdmin):
         ).order_by('currency')
         extra_context['today'] = date.today()
 
-        # Добавляем URL для быстрого обновления
-        extra_context['cbr_update_url'] = reverse('price:cbr-update')
+        extra_context['cbr_update_url'] = None  # 'price' namespace не зарегистрирован
 
         # ИЗМЕНИТЬ ЭТУ СТРОКУ:
         extra_context['add_rates_url'] = 'add-rates/'  # относительный URL, без reverse
@@ -229,6 +227,4 @@ class ExchangeRateAdmin(ImportExportModelAdmin, admin.ModelAdmin):
         extra_context['last_update'] = last_update
 
         return super().changelist_view(request, extra_context)
-
-
 

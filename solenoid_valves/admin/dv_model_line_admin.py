@@ -62,7 +62,7 @@ class DirectionalValveModelLineAdmin(AdminStructuredDataMixinCopyMixin, admin.Mo
 
     fieldsets = (
         (_('Основная информация'), {
-            'fields': ('name', 'code', 'description')
+            'fields': (('name', 'code', 'equipment_type',),'description')
         }),
         (_('Шаблоны генерации'), {
             'fields': ('name_template', 'description_template'),

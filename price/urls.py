@@ -1,7 +1,10 @@
 # price/urls.py
 from django.urls import path
 
-from price.views.document_detail import PriceDocumentItemView, PriceDocumentDetailView
+from price.views.document_detail import (
+    PriceDocumentItemView, PriceDocumentDetailView,
+    PriceDocumentExportView, PriceDocumentImportView,
+)
 from price.views.document_journal import PriceDocumentListView
 from price.views.price_catalog import PriceCatalogView
 from price.views.price_filters import PriceFilterOptionsView
@@ -16,6 +19,8 @@ urlpatterns_admin = [
     path('documents/<int:pk>/apply/', PriceDocumentDetailView.as_view(), name='price_document_apply'),
     path('documents/<int:pk>/unapply/', PriceDocumentDetailView.as_view(), name='price_document_unapply'),
     path('documents/<int:doc_id>/items/', PriceDocumentItemView.as_view(), name='price_document_items'),
+    path('documents/<int:pk>/export/', PriceDocumentExportView.as_view(), name='price_document_export'),
+    path('documents/<int:pk>/import/', PriceDocumentImportView.as_view(), name='price_document_import'),
 ]
 
 urlpatterns = urlpatterns_admin  # совместимость с include('price.urls')

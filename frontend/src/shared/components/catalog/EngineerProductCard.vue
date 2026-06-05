@@ -23,7 +23,7 @@
         </span>
       </div>
       <div class="eng-card__footer">
-        <div class="eng-card__price" v-if="price">
+        <div class="eng-card__price" v-if="price && price.price != null && price.price !== '0' && price.price !== '0.00'">
           <span class="eng-card__price-val">{{ price.price }}</span>
           <span class="eng-card__price-cur">{{ price.symbol || price.currency }}</span>
         </div>
