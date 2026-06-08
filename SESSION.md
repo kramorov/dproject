@@ -1,6 +1,45 @@
-# Состояние проекта на 2026-06-05
+# Состояние проекта на 2026-06-08
 
-## Сегодня (2026-06-05) — Solenoid valves: detail view
+## Сегодня (2026-06-08) — Конструктор пневмоприводов
+
+### 🏗️ PneumaticActuatorConstructor — модель, API, фронтенд
+
+- **Модель**: `pneumatic_actuators/models/pa_actuator_constructor.py` (~1400 строк)
+  - Прямые FK на реальные опции (params.IpOption, params.ExdOption, ...)
+  - Валидация доступности опций через through-модели из pa_options
+  - `_OPTION_CONFIG` с путями к through-моделям и `through_attr` для извлечения реальной опции
+  - `_get_option_encoding()` — encoding из through-модели для генерации кода (не code реальной опции!)
+  - `get_description_data()` — плоский словарь с данными корпуса (body.get_description_data()), опциями, весом, временем, таблицей моментов
+  - `_generate_tech_description()` — полное описание с HTML-таблицей моментов
+  - `save()`: валидация → дефолты → автогенерация name/code/description → проверка дубликатов
+- **API**: `ConstructorViewSet` в `pneumatic_actuators/api/views_constructor.py`
+  - CRUD через DRF router
+  - `POST /preview/` — генерация кода/описания без сохранения
+  - `GET /options/?model_line_item_id=X` — доступные опции (без привязки к id конструктора)
+  - `GET /model_lines/`, `GET /model-lines/{id}/items/?variety=DA` — каскадные списки
+  - При POST проверяет дубликат → если есть, возвращает существующую (200, не 201)
+- **Админка**: `pneumatic_actuators/admin/pa_constructor_admin.py`
+  - list_display со всеми опциями + превью описания
+  - select_related на все FK
+- **Фронтенд**: `frontend/src/apps/actuator-constructor/`
+  - Двухпанельный layout: слева список с поиском/фильтрами, справа форма
+  - Каскад: серия → DA/SR → модель → опции
+  - Опции автозаполняются дефолтами, единственная опция = disabled + auto-selected
+  - Live preview через `watch` + `POST /preview/` (debounce 300ms)
+  - Модалка с полным техописанием (HTML-таблица, v-html)
+  - Всегда POST (создание нового), старая запись не редактируется
+- **Документация**: `actuator_constructor_pattern.md` — полный паттерн для повторения (электроприводы)
+- **Файлы**: endpoints.js (actuatorConstructor), router (admin/actuator-constructor), TopMenu (🔧 Конструктор приводов), vite.config.js
+
+### 🔧 TODO: Рефакторинг get_description_data в пневмоприводах
+
+- Проверить, чтобы name, description, title для фронта формировались через template-строки (как в других моделях)
+- Проверить избыточность в get_description_data — возможно, лучше сделать как в gearbox/filter_regulator (через TemplateMixin)
+- Приоритет: medium
+
+---
+
+## 2026-06-05 — Solenoid valves: detail view
 
 ### 🔧 views_detail.py — детальная карточка DirectionValve
 

@@ -5,6 +5,7 @@ from .pa_techdata import *
 from .pa_techdata_drawing_item import *
 from .pa_torque import *
 from .pa_actuator_selected import *
+from .pa_actuator_constructor import *
 from .py_options_constants import *
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     'PneumaticCloseTimeParameter',
     'PneumaticWeightParameter',
     'PneumaticActuatorSelected',
+    'PneumaticActuatorConstructor',
     'PneumaticActuatorModelLineItem',
     # '',
 ]

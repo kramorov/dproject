@@ -31,6 +31,7 @@ export default defineConfig({
         'solenoid-valves-catalog': resolve(__dirname, 'src/apps/solenoid-valves-catalog/index.html'),
         'limit-switch-admin': resolve(__dirname, 'src/apps/limit-switch-admin/index.html'),
         'widget': resolve(__dirname, 'src/apps/widget/index.html'),
+        'actuator-constructor': resolve(__dirname, 'src/apps/actuator-constructor/index.html'),
       },
     },
   },

@@ -57,4 +57,17 @@ export const ENDPOINTS = {
   admin: {
     pricesSnapshot: '/admin/prices/snapshot/',
   },
+
+  actuatorConstructor: {
+    list: '/pneumatic_actuators/constructor/',
+    detail: (id) => `/pneumatic_actuators/constructor/${id}/`,
+    options: '/pneumatic_actuators/constructor/options/',
+    preview: '/pneumatic_actuators/constructor/preview/',
+    modelLines: '/pneumatic_actuators/constructor/model_lines/',
+    modelLineItems: (mlId, variety) => {
+      let url = `/pneumatic_actuators/constructor/model-lines/${mlId}/items/`
+      if (variety) url += `?variety=${variety}`
+      return url
+    },
+  },
 }

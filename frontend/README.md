@@ -1,5 +1,5 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-05: pneumatic-fittings каталог, ProductCard «Цена по запросу», PriceDocument Excel import/export
+> Обновлено 2026-06-08: конструктор пневмоприводов, двухпанельный layout, live preview
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -222,6 +222,34 @@ App.vue параметризуется через `labels` + `api`.
 |------|-----------|
 | `services/api.js` | Axios-инстанс + доменные API |
 | `services/axios.js` | Плагин axios для Options API |
+
+## Конструктор пневмоприводов (`src/apps/actuator-constructor/`)
+
+Пошаговый wizard сборки конфигурации привода. Двухпанельный layout.
+
+| Файл | Назначение |
+|---|---|
+| `App.vue` | Главный компонент: левая панель (список + фильтры), правая (форма) |
+| `api.js` | API-клиент: CRUD, preview, options, modelLines, modelLineItems |
+| `main.js` | Монтирование Vue |
+| `index.html` | Точка входа |
+
+### Поток работы
+1. Выбор серии → DA/SR → модель (каскад)
+2. Опции загружаются через `GET /options/?model_line_item_id=X`
+3. Дефолты авто-выбраны, единственная опция = disabled
+4. Live preview через `watch` + `POST /preview/` (debounce 300ms)
+5. Кнопка «📄 Просмотр» → модалка с полным техописанием (HTML-таблица)
+6. Сохранение всегда POST (новая запись), дубликаты не создаются
+
+### Интеграция
+- **Router**: `/admin/actuator-constructor` → `ActuatorConstructorPage.vue` (wrapper)
+- **Menu**: «🔧 Конструктор приводов» в администрировании
+- **Endpoints**: `actuatorConstructor` в `shared/endpoints.js`
+
+Подробнее: `actuator_constructor_pattern.md` в корне проекта.
+
+---
 
 ## Медиафайлы — как работает
 
