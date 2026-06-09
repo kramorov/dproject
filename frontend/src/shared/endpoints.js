@@ -58,7 +58,7 @@ export const ENDPOINTS = {
     pricesSnapshot: '/admin/prices/snapshot/',
   },
 
-  actuatorConstructor: {
+  paConstructor: {
     list: '/pneumatic_actuators/constructor/',
     detail: (id) => `/pneumatic_actuators/constructor/${id}/`,
     options: '/pneumatic_actuators/constructor/options/',
@@ -69,5 +69,14 @@ export const ENDPOINTS = {
       if (variety) url += `?variety=${variety}`
       return url
     },
+  },
+
+  eaConstructor: {
+    list: '/electric_actuators/constructor/',
+    detail: (id) => `/electric_actuators/constructor/${id}/`,
+    options: '/electric_actuators/constructor/options/',
+    preview: '/electric_actuators/constructor/preview/',
+    modelLines: '/electric_actuators/constructor/model_lines/',
+    modelLineItems: (mlId) => `/electric_actuators/constructor/model-lines/${mlId}/items/`,
   },
 }

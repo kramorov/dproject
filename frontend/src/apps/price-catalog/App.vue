@@ -4,6 +4,7 @@
     <div class="tabs">
       <button :class="{act:tab==='catalog'}" @click="tab='catalog'">Каталог цен</button>
       <button :class="{act:tab==='docs'}" @click="tab='docs'">Документы</button>
+      <button :class="{act:tab==='ea'}" @click="tab='ea'">Конфигуратор ЭП</button>
     </div>
 
     <PriceCatalog v-if="tab==='catalog'" />
@@ -21,6 +22,21 @@
         :key="selectedDocId + '-' + docVersion"
       />
     </div>
+
+    <div v-if="tab==='ea'">
+      <EaPriceJournal
+        v-if="!eaDoc.id"
+        @open="eaDoc = $event"
+      />
+      <EaPriceCard
+        v-else
+        :doc-id="eaDoc.id"
+        :is-new="eaDoc.isNew"
+        @close="eaDoc = {}; docVersion++"
+        @changed="docVersion++"
+        :key="'ea-' + eaDoc.id + '-' + docVersion"
+      />
+    </div>
   </div>
 </template>
 
@@ -29,10 +45,13 @@ import { ref, reactive, provide, onMounted } from 'vue'
 import PriceCatalog from './components/PriceCatalog.vue'
 import DocumentJournal from './components/DocumentJournal.vue'
 import DocumentCard from './components/DocumentCard.vue'
+import EaPriceJournal from './components/EaPriceJournal.vue'
+import EaPriceCard from './components/EaPriceCard.vue'
 import priceApi from './api'
 
 const tab = ref('catalog')
 const selectedDocId = ref(null)
+const eaDoc = ref({})
 const docVersion = ref(0)
 
 const opts = reactive({ varieties: [], currencies: [], equipmentTypes: [], brands: [] })

@@ -9,6 +9,7 @@ from .ea_body import *
 from .ea_model_line_item_options import *
 from .ea_model_line_item import *
 from .ea_actuator_selected import *
+from .ea_actuator_constructor import *
 
 __all__ = [
     # все модели, которые должны быть доступны извне
@@ -36,6 +37,7 @@ __all__ = [
     'ElectricActuatorSelected',
     'CableGlandHolesSetBodyOption',
     'ElectricActuatorBodyTable',
-    'ElectricBodyColorOption'
+    'ElectricBodyColorOption',
+    'ElectricActuatorConstructor',
 
 ]

@@ -1,6 +1,137 @@
-# Состояние проекта на 2026-06-08
+# Состояние проекта на 2026-06-09
 
-## Сегодня (2026-06-08) — Конструктор пневмоприводов
+## Сегодня (2026-06-09) — Конструктор электроприводов
+
+### 🏗️ ElectricActuatorConstructor — модель, API, админка
+
+- **Модель**: `electric_actuators/models/ea_actuator_constructor.py` (~1419 строк)
+  - Прямые FK на реальные опции (params.IpOption, params.ExdOption, params.BodyColor, params.SwitchesParameters, ...)
+  - `through_attr=None` для трёх опций: `selected_power_supply` → `ElectricPowerSupplyOption`, `selected_temperature` → `ElectricTemperatureOption`, `selected_turn_angle_option` → `ElectricTurnAngleOption`
+  - `parent_resolver='selected_power_supply'` для `selected_safety_position` и `selected_control_unit_option` — зависят от выбранного напряжения
+  - `_OPTION_CONFIG` с `through_model_path`/`through_attr`/`parent_field`/`parent_resolver` для всех 16 опций
+  - `get_description_data()` — плоский словарь (без StructuredDataMixin/Jinja2)
+  - `_generate_short_description()`, `_generate_tech_description()`, `_generate_html_description()`, `get_structured_data()`
+  - `save()`: `_ensure_valid_options()` → t° синхронизация → name/code/description → дубликаты
+- **API**: `electric_actuators/api/views_constructor.py` (~265 строк)
+  - CRUD через DRF router (`ConstructorViewSet`)
+  - `POST /preview/` — генерация кода/описания без сохранения
+  - `GET /options/?model_line_item_id=X` — доступные опции
+  - `GET /model_lines/`, `GET /model-lines/{id}/items/` — каскадные списки
+  - Дубликат-проверка при POST (200 вместо 201 если существует)
+- **URLs**: `electric_actuators/urls.py` — router на `constructor/`
+- **Миграции**: созданы и применены
+
+### 💰 Конфигуратор цен ЭП (EAPriceConstructor + EAPriceDocument)
+
+- **Модели**:
+  - `EAPriceConstructor` — строка: model_line_item + power_supply + option_field + option_id → surcharge
+  - `EAPriceDocument` — заголовок: name, price_variety FK, currency FK, model_line FK, power_supply FK, status
+  - `post()`/`unpost()` — активация/деактивация строк
+  - `calculate_price()` — расчёт цены для конструктора (стриппинг `selected_` префикса)
+- **API**: `price/views/ea_configurator.py`
+  - `EaPowerSuppliesView` — список напряжений
+  - `EaConfiguratorOptionsView` — модели + опции по напряжению
+  - `EaConfiguratorDocumentView` — CRUD документов + post/unpost
+- **URLs**: `price/urls.py` — `ea-configurator/power-supplies/`, `options/`, `documents/`, `create/`, `post/`, `unpost/`
+- **Админка**: `EAPriceConstructorAdmin` + `EAPriceDocumentAdmin`
+- **Миграции**: `price.0011` — nullable FK (price_variety, currency, model_line)
+
+### 🖥️ Фронтенд: конфигуратор ЭП в price-catalog
+
+- `EaPriceJournal.vue` — журнал документов + форма создания (название, тип цены, валюта, серия, напряжение)
+  - Каскад: серия → `GET /model-lines/{id}/items/` → `GET /options/` → автозаполнение напряжений
+  - Кнопки «Провести»/«Отмена» → post/unpost
+- `EaPriceCard.vue` — матрица model_line_item × опции (encoding из through-моделей, дефолтные скрыты)
+  - Сохранение → `POST /create/` (перезапись строк)
+  - При открытии существующего → восстановление сохранённых значений
+- `App.vue` — вкладка «Конфигуратор ЭП» с `eaDoc` объектом (журнал ↔ редактор)
+- `api.js` — методы: `getEaConfig*`, `postEaConfigDoc`, `unpostEaConfigDoc`, `getModelLines`, `getModelLineItems`, `getConstructorOptions`
+- Загрузка model_lines/options через `fetch()` напрямую (проблема с `import('@/shared/api').default`)
+- Дефолтные опции исключены из матрицы (`opt.is_default`)
+
+### 🐛 Баг-фиксы
+
+- `generated_model_item_code` — `result.strip('.')` убирает trailing dot
+- `loadItem()` — `selected_power_supply` восстанавливается ДО `loadOptions()`
+- `calculate_price()` — стриппинг `selected_` префикса при построении Q-фильтра
+- Селекторы серии/напряжения перенесены в журнал (форма создания) — EaPriceCard не монтировался при `eaDoc={}`
+
+### 📋 План: каталог электроприводов (на будущее)
+
+Архитектура: каталог на базе `ModelLineItem` (десятки моделей), resolve по коду на лету, конструктор для сборки.
+
+```
+ModelLineItem (каталог)          Constructor (сборка)
+  torque_min/max, rotation_speed    все 16 опций
+  чипсы доступных опций            save → код + карточка
+  [Подобрать] → Конструктор        → SKU/PriceDocument → счёт/КП
+  
+Resolve (на лету)
+  /resolve/?code=AR01E005.POTE.220
+  → schema.org, цена, HTML
+```
+
+**Шаги:**
+- [ ] `catalog/filter_defs.py` — FilterDefinition для ModelLineItem (torque, rotation_speed, time)
+- [ ] `catalog/config.py` — CatalogConfig(model_class=ModelLineItem)
+- [ ] `catalog/views_engineer.py` — инженерный подбор
+- [ ] `catalog/views_resolve.py` — resolve кода в карточку
+- [ ] `urls.py` — catalog + engineer + resolve
+- [ ] `EngineerProductCard.vue` — поля EA (torque, rotation_speed, чипсы опций)
+- [ ] `pages/catalog/ElectricActuatorsPage.vue` + router + TopMenu
+
+### 🔧 TODO
+
+- [x] Админка: `electric_actuators/admin/ea_constructor_admin.py` — list_display, fieldsets, select_related
+
+### 📋 План: каталог электроприводов (на будущее)
+
+Архитектура: каталог на базе `ModelLineItem` (десятки моделей), resolve по коду на лету, конструктор для сборки.
+
+```
+ModelLineItem (каталог)          Constructor (сборка)
+  torque_min/max, rotation_speed    все 16 опций
+  чипсы доступных опций            save → код + карточка
+  [Подобрать] → Конструктор        → SKU/PriceDocument → счёт/КП
+  
+Resolve (на лету)
+  /resolve/?code=AR01E005.POTE.220
+  → schema.org, цена, HTML
+```
+
+**Шаги:**
+- [ ] `catalog/filter_defs.py` — FilterDefinition для ModelLineItem (torque, rotation_speed, time)
+- [ ] `catalog/config.py` — CatalogConfig(model_class=ModelLineItem)
+- [ ] `catalog/views_engineer.py` — инженерный подбор
+- [ ] `catalog/views_resolve.py` — resolve кода в карточку
+- [ ] `urls.py` — catalog + engineer + resolve
+- [ ] `EngineerProductCard.vue` — поля EA (torque, rotation_speed, чипсы опций)
+- [ ] `pages/catalog/ElectricActuatorsPage.vue` + router + TopMenu
+
+### 🖥️ Фронтенд: pa-constructor + ea-constructor
+
+- **Переименование**: `apps/actuator-constructor/` → `apps/pa-constructor/`
+  - `index.html`: mount id `#pa-constructor-app`
+  - `main.js`: mount id + comment
+  - `api.js`: ENDPOINTS.paConstructor
+  - `App.vue`: comment
+- **Внешние ссылки обновлены**:
+  - `vite.config.js`: `pa-constructor` + `ea-constructor`
+  - `router/index.js`: `/admin/pa-constructor` + `/admin/ea-constructor`
+  - `TopMenu.vue`: 🔧 Конструктор пневмоприводов + ⚡ Конструктор электроприводов
+  - `endpoints.js`: `paConstructor` (бывш. `actuatorConstructor`) + `eaConstructor`
+  - `pages/admin/PaConstructorPage.vue` (бывш. `ActuatorConstructorPage.vue`)
+- **`apps/ea-constructor/`** — новый мини-апп (4 файла: index.html, main.js, api.js, App.vue)
+  - Каскад: серия → модель → напряжение → опции (без DA/SR)
+  - `api.getOptions(mliId, psId)` — передаёт `power_supply_id` для зависимых опций
+  - `STANDARD_OPTIONS` (13 опций model_line/model_line_item/model_body) + `POWER_DEPENDENT` (2 опции)
+  - Автовыбор питания при 1 опции → автозаполнение safety_position + control_unit
+  - `pages/admin/EaConstructorPage.vue` — страница-обёртка
+- **API**: `options` endpoint обновлён — принимает `?power_supply_id=Y`
+
+---
+
+## 2026-06-08 — Конструктор пневмоприводов
 
 ### 🏗️ PneumaticActuatorConstructor — модель, API, фронтенд
 
@@ -30,6 +161,65 @@
   - Всегда POST (создание нового), старая запись не редактируется
 - **Документация**: `actuator_constructor_pattern.md` — полный паттерн для повторения (электроприводы)
 - **Файлы**: endpoints.js (actuatorConstructor), router (admin/actuator-constructor), TopMenu (🔧 Конструктор приводов), vite.config.js
+
+### 💰 Конфигуратор цен ЭП (EAPriceConstructor + EAPriceDocument)
+
+- **Модели**:
+  - `EAPriceConstructor` — строка: model_line_item + power_supply + option_field + option_id → surcharge
+  - `EAPriceDocument` — заголовок: name, price_variety FK, currency FK, model_line FK, power_supply FK, status
+  - `post()`/`unpost()` — активация/деактивация строк
+  - `calculate_price()` — расчёт цены для конструктора (стриппинг `selected_` префикса)
+- **API**: `price/views/ea_configurator.py`
+  - `EaPowerSuppliesView` — список напряжений
+  - `EaConfiguratorOptionsView` — модели + опции по напряжению
+  - `EaConfiguratorDocumentView` — CRUD документов + post/unpost
+- **URLs**: `price/urls.py` — `ea-configurator/power-supplies/`, `options/`, `documents/`, `create/`, `post/`, `unpost/`
+- **Админка**: `EAPriceConstructorAdmin` + `EAPriceDocumentAdmin`
+- **Миграции**: `price.0011` — nullable FK (price_variety, currency, model_line)
+
+### 🖥️ Фронтенд: конфигуратор ЭП в price-catalog
+
+- `EaPriceJournal.vue` — журнал документов + форма создания (название, тип цены, валюта, серия, напряжение)
+  - Каскад: серия → `GET /model-lines/{id}/items/` → `GET /options/` → автозаполнение напряжений
+  - Кнопки «Провести»/«Отмена» → post/unpost
+- `EaPriceCard.vue` — матрица model_line_item × опции (encoding из through-моделей, дефолтные скрыты)
+  - Сохранение → `POST /create/` (перезапись строк)
+  - При открытии существующего → восстановление сохранённых значений
+- `App.vue` — вкладка «Конфигуратор ЭП» с `eaDoc` объектом (журнал ↔ редактор)
+- `api.js` — методы: `getEaConfig*`, `postEaConfigDoc`, `unpostEaConfigDoc`, `getModelLines`, `getModelLineItems`, `getConstructorOptions`
+- Загрузка model_lines/options через `fetch()` напрямую (проблема с `import('@/shared/api').default`)
+- Дефолтные опции исключены из матрицы (`opt.is_default`)
+
+### 🐛 Баг-фиксы
+
+- `generated_model_item_code` — `result.strip('.')` убирает trailing dot
+- `loadItem()` — `selected_power_supply` восстанавливается ДО `loadOptions()`
+- `calculate_price()` — стриппинг `selected_` префикса при построении Q-фильтра
+- Селекторы серии/напряжения перенесены в журнал (форма создания) — EaPriceCard не монтировался при `eaDoc={}`
+
+### 📋 План: каталог электроприводов (на будущее)
+
+Архитектура: каталог на базе `ModelLineItem` (десятки моделей), resolve по коду на лету, конструктор для сборки.
+
+```
+ModelLineItem (каталог)          Constructor (сборка)
+  torque_min/max, rotation_speed    все 16 опций
+  чипсы доступных опций            save → код + карточка
+  [Подобрать] → Конструктор        → SKU/PriceDocument → счёт/КП
+  
+Resolve (на лету)
+  /resolve/?code=AR01E005.POTE.220
+  → schema.org, цена, HTML
+```
+
+**Шаги:**
+- [ ] `catalog/filter_defs.py` — FilterDefinition для ModelLineItem (torque, rotation_speed, time)
+- [ ] `catalog/config.py` — CatalogConfig(model_class=ModelLineItem)
+- [ ] `catalog/views_engineer.py` — инженерный подбор
+- [ ] `catalog/views_resolve.py` — resolve кода в карточку
+- [ ] `urls.py` — catalog + engineer + resolve
+- [ ] `EngineerProductCard.vue` — поля EA (torque, rotation_speed, чипсы опций)
+- [ ] `pages/catalog/ElectricActuatorsPage.vue` + router + TopMenu
 
 ### 🔧 TODO: Рефакторинг get_description_data в пневмоприводах
 

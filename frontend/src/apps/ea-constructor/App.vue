@@ -1,4 +1,4 @@
-<!-- actuator-constructor/App.vue — двухпанельный конструктор пневмопривода -->
+<!-- ea-constructor/App.vue — двухпанельный конструктор электропривода -->
 <template>
   <div class="constructor-app">
     <!-- Левая панель: список конфигураций + фильтры -->
@@ -40,7 +40,7 @@
       </div>
 
       <div class="form-row">
-        <label>Серия пневмоприводов</label>
+        <label>Серия электроприводов</label>
         <select v-model="form.selected_model_line" @change="onModelLineChange">
           <option :value="null">— выберите серию —</option>
           <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }} ({{ ml.code }})</option>
@@ -48,26 +48,26 @@
       </div>
 
       <div class="form-row" v-if="form.selected_model_line">
-        <label>Вид привода</label>
-        <select v-model="form.selected_variety" @change="onVarietyChange">
-          <option :value="null">— выберите вид —</option>
-          <option value="DA">DA — двойного действия</option>
-          <option value="SR">SR — с возвратной пружиной</option>
+        <label>Модель</label>
+        <select v-model="form.selected_model_line_item" @change="onModelLineItemChange" :disabled="!modelLineItems.length">
+          <option :value="null">— выберите модель —</option>
+          <option v-for="item in modelLineItems" :key="item.id" :value="item.id">{{ item.name }}</option>
         </select>
       </div>
 
-      <div class="form-row" v-if="form.selected_variety">
-        <label>Модель</label>
-        <select v-model="form.selected_model_line_item" @change="onModelLineItemChange">
-          <option :value="null">— выберите модель —</option>
-          <option v-for="item in modelLineItems" :key="item.id" :value="item.id">{{ item.name }}</option>
+      <!-- Напряжение питания — появляется после выбора модели -->
+      <div class="form-row" v-if="form.selected_model_line_item && powerSupplyOptions.length">
+        <label>Напряжение питания</label>
+        <select v-model="form.selected_power_supply" @change="onPowerSupplyChange">
+          <option :value="null">— выберите напряжение —</option>
+          <option v-for="ps in powerSupplyOptions" :key="ps.option_id" :value="ps.option_id">{{ ps.name }}</option>
         </select>
       </div>
 
       <template v-if="form.selected_model_line_item && options">
         <h3>Опции</h3>
         <div class="options-grid">
-          <div class="form-row" v-for="opt in optionFields" :key="opt.key">
+          <div class="form-row" v-for="opt in standardOptionFields" :key="opt.key">
             <label>{{ opt.label }}</label>
             <select v-model="form[opt.key]" :disabled="opt.disabled">
               <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
@@ -76,6 +76,21 @@
             </select>
           </div>
         </div>
+
+        <!-- Зависимые от напряжения опции -->
+        <template v-if="powerDependentOptions.length">
+          <h3>Опции, зависящие от напряжения</h3>
+          <div class="options-grid">
+            <div class="form-row" v-for="opt in powerDependentOptions" :key="opt.key">
+              <label>{{ opt.label }}</label>
+              <select v-model="form[opt.key]" :disabled="opt.disabled">
+                <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
+                  {{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </template>
       </template>
 
       <div class="preview" v-if="previewText">
@@ -126,34 +141,54 @@ const techDescription = ref('')
 const showTechModal = ref(false)
 const saving = ref(false)
 
-// Единый маппинг опций: ключ формы → ключ в ответе API
-const OPTION_MAP = {
-  selected_safety_position: { label: 'Положение безопасности', apiKey: 'safety_positions' },
-  selected_springs_qty:      { label: 'Количество пружин',     apiKey: 'springs_qty_options' },
-  selected_temperature:      { label: 'Температурное исполнение', apiKey: 'temperature_options' },
-  selected_ip:               { label: 'IP защита',             apiKey: 'ip_options' },
-  selected_exd:              { label: 'Взрывозащита',          apiKey: 'exd_options' },
-  selected_body_coating:     { label: 'Покрытие корпуса',      apiKey: 'body_coating_options' },
-  selected_hand_wheel:       { label: 'Ручной дублер',         apiKey: 'hand_wheel_options' },
+// Опции, не зависящие от напряжения (model_line + model_line_item + model_body)
+const STANDARD_OPTIONS = {
+  selected_temperature:              { label: 'Температурное исполнение',    apiKey: 'temperature_options' },
+  selected_ip:                       { label: 'IP защита',                    apiKey: 'ip_options' },
+  selected_exd:                      { label: 'Взрывозащита',                 apiKey: 'exd_options' },
+  selected_body_coating:             { label: 'Покрытие корпуса',             apiKey: 'body_coating_options' },
+  selected_body_color_option:        { label: 'Цвет корпуса',                 apiKey: 'body_color_options' },
+  selected_hand_wheel:               { label: 'Ручной дублер',                apiKey: 'hand_wheel_options' },
+  selected_turn_angle_option:        { label: 'Угол поворота',                apiKey: 'turn_angle_options' },
+  selected_blinker_option:           { label: 'Блинкер',                      apiKey: 'blinker_options' },
+  selected_mechanical_indicator_option: { label: 'Механический индикатор',    apiKey: 'mechanical_indicator_options' },
+  selected_cable_glands_holes:       { label: 'Кабельные вводы',              apiKey: 'cable_glands_holes_options' },
+  selected_end_switches_option:      { label: 'Концевые выключатели',         apiKey: 'end_switches_options' },
+  selected_way_switches_option:      { label: 'Путевые выключатели',          apiKey: 'way_switches_options' },
+  selected_torque_switches_option:   { label: 'Моментные выключатели',        apiKey: 'torque_switches_options' },
+}
+
+// Опции, зависящие от выбранного напряжения
+const POWER_DEPENDENT = {
+  selected_safety_position:      { label: 'Положение безопасности', apiKey: 'safety_position_options' },
+  selected_control_unit_option:  { label: 'Блок управления',         apiKey: 'control_unit_options' },
 }
 
 const filters = reactive({ search: '', model_line: null, model_line_item: null })
 
 const defaultForm = () => ({
   selected_model_line: null,
-  selected_variety: null,
   selected_model_line_item: null,
+  selected_power_supply: null,
   selected_safety_position: null,
-  selected_springs_qty: null,
+  selected_control_unit_option: null,
   selected_temperature: null,
   selected_ip: null,
   selected_exd: null,
   selected_body_coating: null,
+  selected_body_color_option: null,
   selected_hand_wheel: null,
+  selected_turn_angle_option: null,
+  selected_blinker_option: null,
+  selected_mechanical_indicator_option: null,
+  selected_cable_glands_holes: null,
+  selected_end_switches_option: null,
+  selected_way_switches_option: null,
+  selected_torque_switches_option: null,
 })
 
 const form = reactive(defaultForm())
-const canSave = computed(() => form.selected_model_line_item)
+const canSave = computed(() => form.selected_model_line_item && form.selected_power_supply)
 
 const filteredList = computed(() => {
   let list = savedList.value
@@ -162,9 +197,23 @@ const filteredList = computed(() => {
   return list
 })
 
-const optionFields = computed(() => {
+const powerSupplyOptions = computed(() => {
   if (!options.value) return []
-  return Object.entries(OPTION_MAP).map(([key, cfg]) => ({
+  return options.value.power_supply_options || []
+})
+
+const standardOptionFields = computed(() => {
+  if (!options.value) return []
+  return Object.entries(STANDARD_OPTIONS).map(([key, cfg]) => ({
+    key, label: cfg.label,
+    items: options.value[cfg.apiKey] || [],
+    disabled: (options.value[cfg.apiKey] || []).length <= 1,
+  }))
+})
+
+const powerDependentOptions = computed(() => {
+  if (!options.value || !form.selected_power_supply) return []
+  return Object.entries(POWER_DEPENDENT).map(([key, cfg]) => ({
     key, label: cfg.label,
     items: options.value[cfg.apiKey] || [],
     disabled: (options.value[cfg.apiKey] || []).length <= 1,
@@ -188,13 +237,11 @@ async function loadList() {
 }
 
 async function onFilterChange() {
-  // Поиск — клиентский, API не дёргаем
   if (filters.model_line) {
     try { filterModelLineItems.value = (await api.getModelLineItems(filters.model_line)).data }
     catch (e) { filterModelLineItems.value = [] }
     if (!filterModelLineItems.value.find(m => m.id === filters.model_line_item)) filters.model_line_item = null
   } else { filterModelLineItems.value = []; filters.model_line_item = null }
-  // При смене серии/модели грузим список с серверными фильтрами
   if (filters.model_line || filters.model_line_item) await loadList()
 }
 
@@ -208,51 +255,100 @@ async function loadItem(item) {
   try {
     const d = (await api.getDetail(item.id)).data
     form.selected_model_line = d.model_line?.id || null
-    form.selected_variety = null
+    form.selected_model_line_item = null
+    form.selected_power_supply = null
 
     if (form.selected_model_line) {
-      const items = (await api.getModelLineItems(form.selected_model_line)).data
-      modelLineItems.value = items
-      const mli = items.find(i => i.id === d.model_line_item?.id)
-      if (mli?.variety) {
-        form.selected_variety = mli.variety
-        modelLineItems.value = (await api.getModelLineItems(form.selected_model_line, mli.variety)).data
-      }
+      modelLineItems.value = (await api.getModelLineItems(form.selected_model_line)).data
     }
 
     form.selected_model_line_item = d.model_line_item?.id || null
-    for (const key of Object.keys(OPTION_MAP)) {
-      if (d[key]?.id) form[key] = d[key].id
+
+    // Сначала восстанавливаем power_supply, потом грузим опции
+    if (d.selected_power_supply?.id) {
+      form.selected_power_supply = d.selected_power_supply.id
     }
 
-    options.value = (await api.getOptions(form.selected_model_line_item)).data
+    // Загружаем опции (с power_supply_id если есть)
+    if (form.selected_model_line_item) {
+      options.value = (await loadOptions()).data
+      autoFillFromData(d)
+    }
+
     previewText.value = d.description || ''
   } catch (e) { showMessage('Ошибка загрузки', 'error') }
 }
 
-// --- cascade (no draft creation) ---
-async function onModelLineChange() {
-  form.selected_variety = null; form.selected_model_line_item = null
-  modelLineItems.value = []; options.value = null; previewText.value = ''
+function autoFillFromData(d) {
+  // Заполняем стандартные опции
+  for (const key of Object.keys(STANDARD_OPTIONS)) {
+    if (d[key]?.id) form[key] = d[key].id
+  }
+  // Напряжение
+  if (d.selected_power_supply?.id) {
+    form.selected_power_supply = d.selected_power_supply.id
+  }
+  // Зависимые от напряжения
+  if (d.selected_safety_position?.id) form.selected_safety_position = d.selected_safety_position.id
+  if (d.selected_control_unit_option?.id) form.selected_control_unit_option = d.selected_control_unit_option.id
 }
-async function onVarietyChange() {
-  form.selected_model_line_item = null; modelLineItems.value = []; options.value = null; previewText.value = ''
-  if (!form.selected_variety || !form.selected_model_line) return
-  try { modelLineItems.value = (await api.getModelLineItems(form.selected_model_line, form.selected_variety)).data }
+
+// --- cascade ---
+async function onModelLineChange() {
+  form.selected_model_line_item = null; form.selected_power_supply = null
+  modelLineItems.value = []; options.value = null; previewText.value = ''
+  if (!form.selected_model_line) return
+  try { modelLineItems.value = (await api.getModelLineItems(form.selected_model_line)).data }
   catch (e) { showMessage('Ошибка загрузки моделей', 'error') }
 }
+
 async function onModelLineItemChange() {
+  form.selected_power_supply = null
   options.value = null; previewText.value = ''
   if (!form.selected_model_line_item) return
   try {
-    options.value = (await api.getOptions(form.selected_model_line_item)).data
-    autoFillDefaults()
+    options.value = (await loadOptions()).data
+    autoFillStandardDefaults()
   } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
 }
 
-function autoFillDefaults() {
+async function onPowerSupplyChange() {
+  if (!form.selected_model_line_item || !form.selected_power_supply) return
+  try {
+    // Перезагружаем опции с power_supply_id — получаем safety_position + control_unit
+    options.value = (await loadOptions()).data
+    autoFillPowerDependent()
+  } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
+}
+
+async function loadOptions() {
+  const mliId = form.selected_model_line_item
+  const psId = form.selected_power_supply
+  return api.getOptions(mliId, psId)
+}
+
+function autoFillStandardDefaults() {
   if (!options.value) return
-  for (const [key, cfg] of Object.entries(OPTION_MAP)) {
+  for (const [key, cfg] of Object.entries(STANDARD_OPTIONS)) {
+    const items = options.value[cfg.apiKey]
+    if (!items?.length) continue
+    if (items.length === 1) form[key] = items[0].option_id
+    else if (form[key] == null) {
+      const def = items.find(o => o.is_default)
+      if (def) form[key] = def.option_id
+    }
+  }
+  // Автовыбор питания: если одна опция — сразу выбрана
+  const psItems = options.value.power_supply_options
+  if (psItems?.length === 1) {
+    form.selected_power_supply = psItems[0].option_id
+    onPowerSupplyChange()
+  }
+}
+
+function autoFillPowerDependent() {
+  if (!options.value) return
+  for (const [key, cfg] of Object.entries(POWER_DEPENDENT)) {
     const items = options.value[cfg.apiKey]
     if (!items?.length) continue
     if (items.length === 1) form[key] = items[0].option_id

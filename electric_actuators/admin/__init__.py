@@ -9,5 +9,5 @@ from .ea_body_admin import *
 from .ea_model_line_item_admin import *
 from .ea_model_line_item_options_admin import *
 from .ea_actuator_selected_admin import *
-
+from .ea_constructor_admin import *
 

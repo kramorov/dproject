@@ -31,7 +31,8 @@ const allItems = [
     { to:'/admin/price', label:'💰 Цены' },
     { to:'/admin/sku', label:'📦 SKU' },
     { to:'/admin/limit-switch', label:'🔌 БКВ' },
-    { to:'/admin/actuator-constructor', label:'🔧 Конструктор приводов' },
+    { to:'/admin/pa-constructor', label:'🔧 Конструктор пневмоприводов' },
+    { to:'/admin/ea-constructor', label:'⚡ Конструктор электроприводов' },
     { to:'/widgets', label:'📋 Виджеты' },
   ]},
 ]

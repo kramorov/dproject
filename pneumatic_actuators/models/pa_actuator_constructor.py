@@ -874,6 +874,7 @@ class PneumaticActuatorConstructor(models.Model):
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
         result = re.sub(r'\s*\(DA\)', '', result)
+        result = result.strip('.')
 
         return result
 

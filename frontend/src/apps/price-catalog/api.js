@@ -31,4 +31,18 @@ export default {
     fd.append('file', file)
     return api.post(`${B}/documents/${id}/import/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
+
+  // Model lines (shared)
+  getModelLines() { return api.get('/electric_actuators/constructor/model_lines/') },
+  getModelLineItems(mlId) { return api.get(`/electric_actuators/constructor/model-lines/${mlId}/items/`) },
+  getConstructorOptions(params) { return api.get('/electric_actuators/constructor/options/', { params }) },
+
+  // EA Price Configurator
+  getEaConfigOptions(psId) { return api.get(`${B}/ea-configurator/options/`, { params: { power_supply_id: psId } }) },
+  getEaConfigDocs() { return api.get(`${B}/ea-configurator/documents/`) },
+  getEaConfigDoc(id) { return api.get(`${B}/ea-configurator/documents/${id}/`) },
+  createEaConfigDoc(data) { return api.post(`${B}/ea-configurator/create/`, data) },
+  deleteEaConfigDoc(id) { return api.delete(`${B}/ea-configurator/documents/${id}/`) },
+  postEaConfigDoc(id) { return api.post(`${B}/ea-configurator/documents/${id}/post/`) },
+  unpostEaConfigDoc(id) { return api.post(`${B}/ea-configurator/documents/${id}/unpost/`) },
 }

@@ -1,8 +1,8 @@
-// actuator-constructor/api.js
+// pa-constructor/api.js
 import api from '@/shared/api'
 import { ENDPOINTS } from '@/shared/endpoints'
 
-const E = ENDPOINTS.actuatorConstructor
+const E = ENDPOINTS.paConstructor
 
 export default {
   // CRUD
