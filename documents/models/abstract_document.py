@@ -155,6 +155,8 @@ class AbstractDocument(models.Model):
             (cls.Status.DRAFT, cls.Status.DELETED),
             (cls.Status.ON_APPROVAL, cls.Status.DELETED),
             (cls.Status.POSTED, cls.Status.DELETED),
+            # Из удалённых можно восстановить
+            (cls.Status.DELETED, cls.Status.DRAFT),
         }
 
     def can_transition_to(self, new_status):

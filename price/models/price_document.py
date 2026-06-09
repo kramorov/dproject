@@ -2,15 +2,12 @@
 """
 PriceDocument — документ формирования цен.
 
+Наследует AbstractDocument из documents.
+
 Группирует несколько ценовых позиций. При проведении — записывает
 каждую позицию в PriceHistory как актуальную цену товара.
 
 Все позиции привязаны к SKU (справочник номенклатуры).
-
-Статусы:
-    draft       — Черновик (можно редактировать реквизиты и строки)
-    on_approval — На согласовании (реквизиты и строки заблокированы)
-    posted      — Проведён (цены записаны в PriceHistory)
 
 Использование:
     1. Создать документ + строки (черновик)
@@ -20,31 +17,24 @@ PriceDocument — документ формирования цен.
 """
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
-from django.utils.timezone import now
-from core.models import StructuredDataMixin
+from documents.models import AbstractDocument, AbstractDocumentItem
 from .price_history import PriceHistory
 
 
-class PriceDocument(StructuredDataMixin, models.Model):
+class PriceDocument(AbstractDocument):
     """
     Документ формирования цен — заголовок.
 
-    Поля:
-        name — название документа
-        document_date — дата документа
-        description — комментарий
-        status — draft / on_approval / posted
+    Поля (общие — из AbstractDocument):
+        name, code, description, status, document_date,
+        created_at, updated_at, sorting_order, is_active
+
+    Поля (специфичные):
+        default_price_variety — тип цены по умолчанию для строк
+        default_currency      — валюта по умолчанию для строк
     """
 
-    class Status(models.TextChoices):
-        DRAFT = 'draft', _('Черновик')
-        ON_APPROVAL = 'on_approval', _('На согласовании')
-        POSTED = 'posted', _('Проведён')
-
-    name = models.CharField(max_length=200, verbose_name=_("Название документа"))
-
-    document_date = models.DateField(default=now, verbose_name=_("Дата документа"))
-    description = models.TextField(blank=True, verbose_name=_("Комментарий"))
+    NUMERATOR_PREFIX = 'ДОК'
 
     default_price_variety = models.ForeignKey(
         'price.PriceVariety', on_delete=models.PROTECT,
@@ -59,64 +49,36 @@ class PriceDocument(StructuredDataMixin, models.Model):
         help_text=_("Значение по умолчанию для новых строк")
     )
 
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.DRAFT,
-        verbose_name=_("Статус"),
-        help_text=_("Черновик → На согласовании → Проведён")
-    )
-
-    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"))
-    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+    SELECT_RELATED_FIELDS = ['default_price_variety', 'default_currency']
 
     class Meta:
-        ordering = ['-document_date']
         verbose_name = _('Документ цен')
         verbose_name_plural = _('Документы цен')
 
-    def __str__(self):
-        labels = {'draft': '✎', 'on_approval': '⟳', 'posted': '✓'}
-        label = labels.get(self.status, '?')
-        return f"{label} {self.name} ({self.document_date})"
-
-    @property
-    def is_applied(self):
-        return self.status == self.Status.POSTED
-
-    @is_applied.setter
-    def is_applied(self, value):
-        if value:
-            self.status = self.Status.POSTED
-        elif self.status == self.Status.POSTED:
-            self.status = self.Status.DRAFT
-
-    SELECT_RELATED_FIELDS = ['default_price_variety', 'default_currency']
-
     def get_compact_data(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'document_date': self.document_date.isoformat() if self.document_date else None,
-            'description': self.description,
-            'status': self.status,
-            'status_label': self.get_status_display(),
-            'is_applied': self.is_applied,
-            'default_price_variety_id': self.default_price_variety_id,
-            'default_price_variety_name': self.default_price_variety.name if self.default_price_variety else None,
-            'default_currency_id': self.default_currency_id,
-            'default_currency_name': self.default_currency.name if self.default_currency else None,
-            'default_currency_symbol': self.default_currency.symbol if self.default_currency else None,
-            'items_count': self.items.filter(is_active=True).count(),
-            'is_active': self.is_active,
-        }
+        data = super().get_compact_data()
+        data['default_price_variety_id'] = self.default_price_variety_id
+        data['default_price_variety_name'] = (
+            self.default_price_variety.name if self.default_price_variety else None
+        )
+        data['default_currency_id'] = self.default_currency_id
+        data['default_currency_name'] = (
+            self.default_currency.name if self.default_currency else None
+        )
+        data['default_currency_symbol'] = (
+            self.default_currency.symbol if self.default_currency else None
+        )
+        data['items_count'] = self.items.filter(is_active=True).count()
+        return data
+
+    def get_items_related_name(self):
+        return 'items'
 
     @transaction.atomic
-    def apply_prices(self):
+    def register_changes(self):
+        """Провести документ: записать цены в PriceHistory."""
         if self.status == self.Status.POSTED:
             return
-        if self.status == self.Status.ON_APPROVAL:
-            pass
 
         for item in self.items.filter(is_active=True).select_related('sku'):
             if not item.sku:
@@ -141,10 +103,11 @@ class PriceDocument(StructuredDataMixin, models.Model):
             )
 
         self.status = self.Status.POSTED
-        self.save(update_fields=['status'])
+        self.save(update_fields=['status', 'updated_at'])
 
     @transaction.atomic
-    def unapply_prices(self):
+    def unregister_changes(self):
+        """Отменить проведение: удалить цены из PriceHistory."""
         if self.status != self.Status.POSTED:
             return
 
@@ -172,12 +135,26 @@ class PriceDocument(StructuredDataMixin, models.Model):
                 last.save(update_fields=['is_current'])
 
         self.status = self.Status.DRAFT
-        self.save(update_fields=['status'])
+        self.save(update_fields=['status', 'updated_at'])
+
+    # Совместимость со старым кодом
+    apply_prices = register_changes
+    unapply_prices = unregister_changes
+
+    @property
+    def is_applied(self):
+        return self.is_posted
 
 
-class PriceDocumentItem(StructuredDataMixin, models.Model):
+class PriceDocumentItem(AbstractDocumentItem):
     """
     Строка документа цен — одна позиция, привязанная к номенклатуре (SKU).
+
+    Поля (общие — из AbstractDocumentItem):
+        sorting_order, is_active, comment, created_at, updated_at
+
+    Поля (специфичные):
+        document, sku, price_variety, currency, price
     """
     document = models.ForeignKey(
         PriceDocument, on_delete=models.CASCADE,
@@ -204,16 +181,8 @@ class PriceDocumentItem(StructuredDataMixin, models.Model):
         max_digits=12, decimal_places=2,
         verbose_name=_("Цена")
     )
-    comment = models.CharField(
-        max_length=200, blank=True,
-        verbose_name=_("Примечание")
-    )
-
-    sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"))
-    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
     class Meta:
-        ordering = ['sorting_order']
         verbose_name = _('Строка документа цен')
         verbose_name_plural = _('Строки документа цен')
 

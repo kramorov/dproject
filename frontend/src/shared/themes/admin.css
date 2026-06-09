@@ -1,0 +1,131 @@
+/* shared/themes/admin.css — 1С:Предприятие 11 стиль для админской части */
+/* Подключить ПОВЕРХ default.css: <link rel="stylesheet" href="themes/admin.css"> */
+:root {
+  /* ═══ Цвета ═══ */
+  --cat-primary: #5785b5;
+  --cat-primary-hover: #4a76a3;
+  --cat-primary-light: #e8f0f8;
+  --cat-text: #1c1c1c;
+  --cat-text-soft: #3a3a3a;
+  --cat-muted: #7a7a7a;
+  --cat-muted-light: #a0a0a0;
+  --cat-border: #c8c4bc;
+  --cat-border-light: #e0dcd6;
+  --cat-bg: #f5f2ed;
+  --cat-bg-page: #ede9e2;
+  --cat-bg-hover: #fdfcf9;
+  --cat-surface: #ffffff;
+  --cat-overlay: rgba(0,0,0,0.35);
+
+  --cat-price-color: #c0504d;
+  --cat-price-old-color: #a0a0a0;
+
+  /* ═══ Радиусы ═══ */
+  --cat-radius-sm: 2px;
+  --cat-radius-md: 3px;
+  --cat-radius-lg: 4px;
+  --cat-radius-xl: 6px;
+  --cat-radius-2xl: 8px;
+
+  /* ═══ Тени ═══ */
+  --cat-shadow-sm: none;
+  --cat-shadow-card: 0 1px 3px rgba(0,0,0,.08);
+  --cat-shadow-card-hover: 0 2px 6px rgba(0,0,0,.12);
+  --cat-shadow-modal: 0 4px 16px rgba(0,0,0,.15);
+
+  /* ═══ Типографика ═══ */
+  --cat-font: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+  --cat-font-mono: 'Consolas', 'Courier New', monospace;
+  --cat-text-xs: 10px;
+  --cat-text-sm: 11px;
+  --cat-text-base: 12px;
+  --cat-text-md: 13px;
+  --cat-text-lg: 14px;
+  --cat-text-xl: 16px;
+  --cat-text-2xl: 18px;
+  --cat-text-3xl: 20px;
+  --cat-text-4xl: 22px;
+  --cat-text-5xl: 24px;
+
+  /* ═══ Отступы ═══ */
+  --cat-gap-xs: 2px;
+  --cat-gap-sm: 4px;
+  --cat-gap-md: 6px;
+  --cat-gap-lg: 8px;
+  --cat-gap-xl: 12px;
+  --cat-gap-2xl: 16px;
+  --cat-gap-3xl: 20px;
+  --cat-gap-4xl: 24px;
+
+  /* ═══ Компоненты ═══ */
+  --cat-card-bg: var(--cat-surface);
+  --cat-card-image-ratio: 1 / 1;
+  --cat-card-title-size: var(--cat-text-base);
+  --cat-card-title-weight: 600;
+  --cat-card-title-lines: 1;
+  --cat-card-padding: var(--cat-gap-md);
+
+  --cat-gallery-ratio: 1 / 1;
+  --cat-gallery-bg: var(--cat-bg);
+  --cat-thumb-size: 60px;
+  --cat-thumb-gap: var(--cat-gap-sm);
+  --cat-thumb-active-border: var(--cat-primary);
+
+  --cat-header-title-size: var(--cat-text-2xl);
+  --cat-header-title-weight: 700;
+  --cat-header-code-size: var(--cat-text-sm);
+  --cat-header-price-size: var(--cat-text-2xl);
+  --cat-header-price-weight: 700;
+
+  --cat-tab-border-width: 2px;
+  --cat-tab-font-size: var(--cat-text-base);
+  --cat-tab-padding: 6px 16px;
+
+  --cat-specs-row-padding: 2px 0;
+  --cat-specs-label-width: 200px;
+  --cat-specs-stripe-bg: var(--cat-bg);
+  --cat-specs-border: 1px solid var(--cat-border-light);
+
+  --cat-modal-max-width: 600px;
+
+  --cat-pagination-btn-bg: var(--cat-surface);
+
+  --cat-price-size: var(--cat-text-md);
+  --cat-price-weight: 600;
+
+  --cat-dl-btn-bg: var(--cat-primary);
+  --cat-dl-btn-color: #fff;
+
+  --cat-search-height: 26px;
+  --cat-search-font-size: var(--cat-text-sm);
+  --cat-search-radius: var(--cat-radius-sm);
+
+  --cat-filter-select-height: 26px;
+  --cat-filter-label-size: var(--cat-text-xs);
+
+  --cat-grid-gap: var(--cat-gap-md);
+  --cat-grid-columns: 4;
+
+  --cat-page-title-size: var(--cat-text-xl);
+  --cat-page-title-weight: 700;
+  --cat-page-title-color: var(--cat-text);
+
+  /* ═══ 1С-специфичные ═══ */
+  --cat-row-stripe: #fafaf7;
+  --cat-row-hover: #fdfcf9;
+  --cat-row-selected: #cfe2f3;
+  --cat-header-bg: #f0ede6;
+  --cat-header-border: #d8d4cc;
+  --cat-status-draft: #7a7a7a;
+  --cat-status-approval: #c07020;
+  --cat-status-posted: #4a7a4a;
+  --cat-status-deleted: #c0504d;
+  --cat-badge-draft-bg: #e8e6e0;
+  --cat-badge-approval-bg: #fef0e0;
+  --cat-badge-posted-bg: #e0f0e0;
+  --cat-badge-deleted-bg: #fce0e0;
+  --cat-input-bg: #fff;
+  --cat-input-border: #c8c4bc;
+  --cat-input-focus-border: #5785b5;
+  --cat-input-disabled-bg: #f0ede6;
+}

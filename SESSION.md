@@ -1,6 +1,32 @@
 # Состояние проекта на 2026-06-09
 
-## Сегодня (2026-06-09) — Конструктор электроприводов
+## Сегодня (2026-06-09) — Приложение documents + рефакторинг PriceDocument/EAPriceDocument
+
+### 🏗️ Приложение `documents/` — абстрактные документы и журналы
+
+- **Модели:**
+  - `AbstractDocument` — заголовок: `name`, `code`, `description`, `status` (DRAFT/ON_APPROVAL/POSTED/DELETED), `document_date`, `created_at`, `updated_at`
+  - `AbstractDocumentItem` — строка: `sorting_order`, `is_active`, `comment`, `created_at`, `updated_at`
+  - `DocumentNumerator` — `prefix` + `counter` → `get_next_code('ДОК')` → `'ДОК-000042'`
+- **Методы:** `register_changes()`/`unregister_changes()` (контракт enforced), `mark_deleted()` (атомарный, `select_for_update`), `get_available_features()` (авто), `save()` с автонумерацией
+- **Views:** `BaseDocumentJournalView` (FilterDefinition + пагинация), `BaseDocumentDetailView` (CRUD + register/unregister/print/export/import)
+- **Catalog:** `DocumentJournalConfig`, `fd_status`, `fd_date_from`, `fd_date_to`
+- **Admin:** `BaseDocumentAdmin` — `action_mark_deleted`, `action_hard_delete`
+
+### 🔄 Рефакторинг PriceDocument / EAPriceDocument
+
+- `PriceDocument(AbstractDocument)`, `PriceDocumentItem(AbstractDocumentItem)` — убраны общие поля, алиасы `apply_prices`/`unapply_prices`
+- `EAPriceDocument(AbstractDocument)` — алиасы `post`/`unpost`
+- `NUMERATOR_PREFIX`: `'ДОК'` / `'ЦЕН'`
+
+### 🖥️ Фронтенд: типовые компоненты документов
+
+- **Composables:** `useDocumentJournal.js`, `useDocumentCard.js`, `useDocumentItems.js`
+- **Компоненты:** `DocumentJournal.vue`, `DocumentCard.vue`, `DocumentItemsTable.vue`
+- **Переиспользование:** `AppButton`, `BaseButton`, `BaseModal`, `Spinner`
+- **Тема:** `admin.css` — 1С:Предприятие 11, все стили на `var(--cat-*)`
+
+## Ранее (2026-06-09) — Конструктор электроприводов
 
 ### 🏗️ ElectricActuatorConstructor — модель, API, админка
 

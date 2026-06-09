@@ -1,4 +1,5 @@
 # Шаблон нового каталога (Catalog Pattern)
+> Обновлено 2026-06-09: приложение documents, DocumentJournalConfig, рефакторинг PriceDocument/EAPriceDocument
 > Обновлено 2026-06-05: pneumatic_fittings каталог, PriceDocument Excel export/import, SKUMixin fixes
 
 ## Архитектура: CatalogConfig

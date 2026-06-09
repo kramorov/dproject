@@ -1,4 +1,5 @@
 # Frontend — структура проекта
+> Обновлено 2026-06-09: типовые компоненты документов (DocumentJournal, DocumentCard, DocumentItemsTable), тема admin.css (1С 11)
 > Обновлено 2026-06-08: конструктор пневмоприводов, двухпанельный layout, live preview
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
@@ -38,6 +39,13 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | | ⚠️ Требует `filterLabels` в `labels.quickselect` — иначе показывает сырые ключи |
 | `shared/composables/useCatalog.js` | Логика каталогов: fetchData, пагинация, фильтры, exact/compatible split |
 | `shared/composables/useCatalogRouter.js` | Навигация App.vue каталогов |
+| `shared/components/documents/DocumentJournal.vue` | Журнал документов: фильтры, таблица, чекбоксы, batch-операции |
+| `shared/components/documents/DocumentCard.vue` | Карточка документа: реквизиты, слот #items, кнопки действий |
+| `shared/components/documents/DocumentItemsTable.vue` | Табличная часть: ▲▼✕, слоты #headers/#cells, «Добавить строку» |
+| `shared/composables/useDocumentJournal.js` | Логика журнала: список, сортировка, пагинация, batch |
+| `shared/composables/useDocumentCard.js` | Логика карточки: CRUD, register/unregister, print/export/import |
+| `shared/composables/useDocumentItems.js` | Логика строк: reorder с сохранением порядка на сервер |
+| `shared/themes/admin.css` | Тема 1С:Предприятие 11 (Tahoma, компактная) — подключать ПОВЕРХ default.css |
 
 ### `useCatalog.js` — поля и методы
 
