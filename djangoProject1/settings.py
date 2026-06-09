@@ -164,7 +164,8 @@ INSTALLED_APPS = [
     'filter_regulator.apps.FilterRegulatorConfig',
     'gearbox.apps.GearBoxConfig',
     'storage_manager.apps.StorageManagerConfig',
-    'core.apps.CoreConfig'
+    'core.apps.CoreConfig',
+    'documents.apps.DocumentsConfig',
 ]
 
 MIDDLEWARE = [
