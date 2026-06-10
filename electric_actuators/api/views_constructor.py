@@ -176,6 +176,33 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         obj = ElectricActuatorConstructor(**kwargs)
         return Response(obj.get_available_options())
 
+    @action(detail=False, methods=['get'], url_path='power-supplies')
+    def power_supplies(self, request):
+        """Уникальные напряжения для всей серии. ?model_line_id=X"""
+        ml_id = request.query_params.get('model_line_id')
+        if not ml_id:
+            return Response({'error': 'model_line_id required'}, status=400)
+
+        from electric_actuators.models import ElectricPowerSupplyOption
+        ps_options = ElectricPowerSupplyOption.objects.filter(
+            model_line_item__model_line_id=ml_id,
+            is_active=True
+        ).select_related('power_supply').order_by('power_supply__sorting_order')
+
+        seen = set()
+        result = []
+        for opt in ps_options:
+            if opt.power_supply_id not in seen:
+                seen.add(opt.power_supply_id)
+                result.append({
+                    'id': opt.id, 'option_id': opt.id,
+                    'encoding': opt.power_supply.encoding or opt.encoding,
+                    'name': str(opt.power_supply),
+                    'description': opt.power_supply.description or '',
+                    'power_supply_id': opt.power_supply_id,
+                })
+        return Response(result)
+
     @action(detail=False, methods=['get'])
     def model_lines(self, request):
         """Список активных серий электроприводов."""

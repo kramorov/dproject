@@ -1,5 +1,5 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-09: типовые компоненты документов (DocumentJournal, DocumentCard, DocumentItemsTable), тема admin.css (1С 11)
+> Обновлено 2026-06-10: price-catalog → shared DocumentJournal/DocumentCard, EA configurator на SharedDocumentCard + Pandas-экспорт. 2026-06-09: типовые компоненты документов (DocumentJournal, DocumentCard, DocumentItemsTable), тема admin.css (1С 11)
 > Обновлено 2026-06-08: конструктор пневмоприводов, двухпанельный layout, live preview
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.

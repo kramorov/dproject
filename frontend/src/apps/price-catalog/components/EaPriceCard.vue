@@ -1,155 +1,161 @@
-<!-- price-catalog/components/EaPriceCard.vue — редактор документа конфигуратора ЭП -->
 <template>
-  <div>
-    <div class="fl">
-      <button class="btn-c" @click="$emit('close')">← К списку</button>
-      <span class="lbl" v-if="doc">{{ doc.name }} | {{ doc.status_label }}</span>
-    </div>
+  <div class="ea-card-wrap">
+    <button class="btn-back" @click="$emit('close')">← К списку</button>
 
-    <div v-if="loading" class="st">Загрузка... {{ modelLines.length }} серий</div>
+    <div v-if="loading" class="st">Загрузка...</div>
 
-    <!-- Фильтры -->
-    <div class="card">
-      <div class="new-form">
-        <input v-model="form.name" placeholder="Название" class="fi" />
-        <select v-model="form.mlId" @change="onSeriesChange" class="fi">
-          <option :value="null">— серия —</option>
-          <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }} ({{ ml.code }})</option>
-        </select>
-        <select v-model="form.psId" class="fi" :disabled="!form.mlId">
-          <option :value="null">— напряжение —</option>
-          <option v-for="ps in powerSupplies" :key="ps.id" :value="ps.id">{{ ps.name }} ({{ ps.encoding }})</option>
-        </select>
-        <button class="btn" @click="startNew" :disabled="!form.psId">Загрузить модели</button>
-      </div>
-    </div>
+    <SharedDocumentCard
+      v-if="doc"
+      :doc="doc"
+      :loading="false"
+      :saving="saving"
+      :error="error"
+      :form="form"
+      :isDraft="isDraft"
+      :isPosted="isPosted"
+      :isDeleted="false"
+      :features="cardFeatures"
+      :canSave="canSave"
+      :canRegister="canRegister"
+      :canUnregister="canUnregister"
+      :canMarkDeleted="canMarkDeleted"
+      :canRestore="false"
+      :availableExports="availableExports"
+      @save="onSave"
+      @register="register"
+      @unregister="unregister"
+      @mark-deleted="onMarkDeleted"
+      @print="onPrint"
+      @export="onExport"
+      @import-file="onImportFile"
+    >
+      <template #form-extra>
+        <div class="form-extra-row">
+          <span class="fe-label">Тип цены: <strong>{{ doc.price_variety?.name || '—' }}</strong></span>
+          <span class="fe-label">Валюта: <strong>{{ doc.currency?.code || '—' }}</strong></span>
+          <span :class="statusBadgeClass" class="fe-status">{{ statusLabel }}</span>
+        </div>
+      </template>
+      <template #items>
+        <div class="ea-info">
+          <span class="ea-info-item">Серия: <strong>{{ doc.model_line?.name || '—' }}</strong></span>
+          <span class="ea-info-item">Напряжение: <strong>{{ doc.power_supply?.name || '—' }}</strong></span>
+        </div>
 
-    <div v-if="err" class="er">{{ err }}</div>
-    <div v-if="msg" class="msg">{{ msg }}</div>
+        <div v-if="msg" class="msg">{{ msg }}</div>
 
-    <!-- Матрица -->
-    <div v-if="matrix.length" class="matrix-wrap">
-      <div class="fl" style="margin-bottom:8px">
-        <button class="btn" @click="save" :disabled="saving">{{ saving ? 'Сохранение...' : 'Сохранить' }}</button>
-      </div>
-      <table class="mtx">
-        <thead>
-          <tr>
-            <th class="rown">Модель</th>
-            <th class="col-base">Базовая цена</th>
-            <th v-for="col in columns" :key="col.key" class="col-opt">{{ col.label }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in matrix" :key="row.id">
-            <td class="rown">
-              <strong>{{ row.code }}</strong>
-              <div class="sub">{{ row.name }}</div>
-            </td>
-            <td class="col-base">
-              <input v-model.number="row.basePrice" type="number" step="0.01" class="ci" />
-            </td>
-            <td v-for="col in columns" :key="col.key" class="col-opt">
-              <input v-model.number="row.options[col.key]" type="number" step="0.01" class="ci" placeholder="0" />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+        <div v-if="matrix.length" class="matrix-wrap">
+          <table class="mtx">
+            <thead>
+              <tr>
+                <th class="rown-col">Модель</th>
+                <th class="base-col">Базовая цена</th>
+                <th v-for="col in columns" :key="col.key" class="opt-col">{{ col.label }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in matrix" :key="row.id">
+                <td class="rown-col">
+                  <strong>{{ row.label || row.code }}</strong>
+                  <div class="sub">{{ row.name }}</div>
+                </td>
+                <td class="base-col">
+                  <input v-model.number="row.basePrice" type="number" step="0.01" class="ci" :disabled="!isDraft" />
+                </td>
+                <td v-for="col in columns" :key="col.key" class="opt-col">
+                  <input v-model.number="row.options[col.key]" type="number" step="0.01" class="ci" placeholder="0" :disabled="!isDraft || !row._avail.has(col.key)" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else-if="!loading" class="items-empty">Нет моделей для этого напряжения</div>
+      </template>
+    </SharedDocumentCard>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import SharedDocumentCard from '@/shared/components/documents/DocumentCard.vue'
+import { useDocumentCard } from '@/shared/composables/useDocumentCard'
 import priceApi from '../api'
 
 const props = defineProps({
   docId: { type: [Number, String], default: null },
-  isNew: { type: Boolean, default: false },
 })
-const emit = defineEmits(['close', 'changed'])
+const emit = defineEmits(['close'])
 
-const doc = ref(null)
-const loading = ref(false)
-const saving = ref(false)
-const err = ref(null)
-const msg = ref(null)
-const modelLines = ref([])
-const powerSupplies = ref([])
+// ── Card composable ──
+const cardApi = {
+  getDetail: (id) => priceApi.getEaConfigDoc(id),
+  update: () => ({}),
+  register: (id) => priceApi.postEaConfigDoc(id),
+  unregister: (id) => priceApi.unpostEaConfigDoc(id),
+  markDeleted: (id) => priceApi.deleteEaConfigDoc(id),
+}
+
+const card = useDocumentCard(cardApi)
+const {
+  doc, loading: cardLoading, saving, error, form,
+  isDraft, isPosted, canRegister, canUnregister, canMarkDeleted,
+  loadDocument, register, unregister, markDeleted,
+} = card
+
+const cardFeatures = computed(() => ({ print: true, export_excel: true, import: true }))
+const availableExports = computed(() => [{ key: 'excel', label: 'Excel' }])
+
+const statusLabel = computed(() => doc.value?.status_label || doc.value?.status || '')
+const statusBadgeClass = computed(() => 'status-badge status-' + (doc.value?.status || 'draft'))
+
+const canSave = computed(() => isDraft.value && matrix.value.length > 0)
+
+// ── State ──
+const loading = computed(() => cardLoading.value || matrixLoading.value)
 const matrix = ref([])
 const columns = ref([])
+const matrixLoading = ref(false)
+const msg = ref('')
 
-const form = reactive({ name: '', mlId: null, psId: null })
-
+// ── Load ──
 onMounted(async () => {
-  await loadModelLines()
-  if (props.docId && !props.isNew) await loadDoc()
+  if (props.docId) await loadDoc()
 })
 
-async function loadModelLines() {
-  try {
-    const r = await fetch('/api/electric_actuators/constructor/model_lines/')
-    const data = await r.json()
-    modelLines.value = data || []
-    console.log('modelLines loaded:', modelLines.value.length)
-  } catch (e) { console.error('loadModelLines:', e) }
-}
-
 async function loadDoc() {
-  loading.value = true
   try {
-    const r = await priceApi.getEaConfigDoc(props.docId)
-    doc.value = r.data
-    form.name = r.data.name || ''
-    form.mlId = r.data.model_line?.id || null
-    form.psId = r.data.power_supply?.id || null
-    if (form.mlId) await onSeriesChange()
-    if (form.psId) await buildMatrix()
-    fillSaved(r.data.rows || [])
-  } catch (e) { err.value = 'Ошибка загрузки'; console.error(e) }
-  finally { loading.value = false }
-}
-
-async function onSeriesChange() {
-  powerSupplies.value = []
-  form.psId = null
-  if (!form.mlId) return
-  try {
-    const r1 = await fetch(`/api/electric_actuators/constructor/model-lines/${form.mlId}/items/`)
-    const items = await r1.json()
-    if (!items.length) return
-    const r2 = await fetch(`/api/electric_actuators/constructor/options/?model_line_item_id=${items[0].id}`)
-    const opts = await r2.json()
-    if (opts.power_supply_options?.length) {
-      powerSupplies.value = opts.power_supply_options
-    }
-    console.log('powerSupplies loaded:', powerSupplies.value.length)
-  } catch (e) { console.error('onSeriesChange:', e) }
-}
-
-async function startNew() {
-  if (!form.psId) return
-  await buildMatrix()
+    await loadDocument(props.docId)
+    const d = doc.value
+    if (d.power_supply) await buildMatrix()
+    fillSaved(d.rows || [])
+  } catch (e) { error.value = 'Ошибка загрузки'; console.error(e) }
 }
 
 async function buildMatrix() {
-  loading.value = true; err.value = null
+  matrixLoading.value = true; error.value = ''
   try {
-    const r = await priceApi.getEaConfigOptions(form.psId)
+    const psId = doc.value?.power_supply?.id
+    if (!psId) return
+    const r = await priceApi.getEaConfigOptions(psId)
     const items = r.data.model_items || []
     const colMap = new Map()
+    const availByModel = {}
     for (const item of items) {
+      const avail = new Set()
       for (const grp of item.option_groups || []) {
         for (const opt of grp.items || []) {
           if (opt.is_default) continue
           const key = `${grp.field}_${opt.option_id}`
+          avail.add(key)
           if (!colMap.has(key)) {
             colMap.set(key, { key, label: opt.encoding || opt.name?.substring(0, 6) || key })
           }
         }
       }
+      availByModel[item.id] = avail
     }
     columns.value = [...colMap.values()]
+    const psEncoding = r.data.power_supply?.encoding || ''
     matrix.value = items.map(item => {
       const opts = {}
       for (const grp of item.option_groups || []) {
@@ -158,10 +164,11 @@ async function buildMatrix() {
           opts[`${grp.field}_${opt.option_id}`] = 0
         }
       }
-      return { id: item.id, name: item.name, code: item.code, basePrice: 0, options: opts }
+      const label = `${item.model_line_code || ''}${item.code}.${psEncoding}`
+      return { id: item.id, label, name: item.name, code: item.code, basePrice: 0, options: opts, _avail: availByModel[item.id] || new Set() }
     })
-  } catch (e) { err.value = 'Ошибка загрузки'; console.error(e) }
-  finally { loading.value = false }
+  } catch (e) { error.value = 'Ошибка загрузки'; console.error(e) }
+  finally { matrixLoading.value = false }
 }
 
 function fillSaved(rows) {
@@ -178,53 +185,141 @@ function fillSaved(rows) {
   }
 }
 
-async function save() {
-  saving.value = true; err.value = null; msg.value = null
+async function onSave() {
+  saving.value = true; error.value = ''; msg.value = ''
   try {
     const data = {
       name: form.name || doc.value?.name || 'Конфигуратор цен',
       price_variety_id: doc.value?.price_variety?.id,
       currency_id: doc.value?.currency?.id,
-      model_line_id: form.mlId,
-      power_supply_id: form.psId,
+      model_line_id: doc.value?.model_line?.id,
+      power_supply_id: doc.value?.power_supply?.id,
       rows: matrix.value.map(row => ({
         model_line_item_id: row.id,
         base_price: row.basePrice || 0,
         options: Object.fromEntries(
-          Object.entries(row.options).filter(([k, v]) => v > 0)
+          Object.entries(row.options).filter(([k]) => row._avail.has(k) && row.options[k] > 0)
         ),
       })),
     }
-    const r = await priceApi.createEaConfigDoc(data)
-    msg.value = `Сохранено: ${r.data.name} (${r.data.rows_created} строк)`
-    emit('changed')
-  } catch (e) { err.value = 'Ошибка сохранения'; console.error(e) }
+    await priceApi.createEaConfigDoc(data)
+    msg.value = 'Сохранено'
+    emit('close')
+  } catch (e) { error.value = 'Ошибка сохранения'; console.error(e) }
   finally { saving.value = false }
+}
+
+async function onMarkDeleted() {
+  await markDeleted()
+  emit('close')
+}
+
+async function onExport(fmt) {
+  if (fmt !== 'excel' || !doc.value) return
+  try {
+    const r = await priceApi.exportEaConfigDoc(doc.value.id)
+    const blob = r.data
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ea_config_${doc.value.id}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (e) { console.error('Export error:', e) }
+}
+
+async function onImportFile(file) {
+  if (!doc.value) return
+  try {
+    const r = await priceApi.importEaConfigDoc(doc.value.id, file)
+    const { rows, headers } = r.data
+    if (rows?.length) {
+      for (const row of rows) {
+        const label = row['Модель'] || ''
+        const idx = matrix.value.findIndex(m => m.label === label)
+        if (idx >= 0) {
+          matrix.value[idx].basePrice = parseFloat(row['Базовая цена']) || 0
+          for (const h of (headers || [])) {
+            if (matrix.value[idx].options.hasOwnProperty(h) && matrix.value[idx]._avail.has(h)) {
+              matrix.value[idx].options[h] = parseFloat(row[h]) || 0
+            }
+          }
+        }
+      }
+      msg.value = `Импортировано строк: ${rows.length}`
+    }
+  } catch (e) { console.error('Import error:', e) }
+}
+
+async function onPrint() {
+  if (!doc.value) return
+  try {
+    const r = await priceApi.printEaConfigDoc(doc.value.id)
+    const html = r.data?.html || ''
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close() }
+  } catch (e) { console.error('Print error:', e) }
 }
 </script>
 
 <style scoped>
-.lbl { font-size: 13px; color: #6b7280 }
-.card { margin-bottom: 12px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px }
-.new-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
-.fl { display: flex; gap: 8px; align-items: center; margin-bottom: 8px }
-.fi { padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 13px }
-.btn { padding: 4px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; background: #2563eb; color: #fff }
-.btn-c { padding: 4px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; background: #e5e7eb; color: #374151 }
-.er { color: #dc2626; font-size: 12px; margin: 4px 0 }
-.msg { color: #059669; font-size: 13px; margin: 4px 0 }
-.st { text-align: center; padding: 40px; color: #6b7280 }
-.matrix-wrap { overflow-x: auto; max-height: 70vh; overflow-y: auto }
-.mtx { border-collapse: collapse; font-size: 12px; min-width: 100% }
-.mtx th { position: sticky; top: 0; background: #f1f5f9; padding: 6px 4px; border: 1px solid #d1d5db; font-weight: 500; white-space: nowrap; z-index: 1 }
-.mtx td { padding: 4px; border: 1px solid #e5e7eb }
-.rown { min-width: 140px; max-width: 160px }
-.rown strong { display: block; font-size: 13px }
-.rown .sub { font-size: 10px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.col-base { min-width: 90px }
-.col-opt { min-width: 70px }
-.ci { width: 100%; padding: 4px; border: 1px solid transparent; border-radius: 3px; font-size: 12px; text-align: right; box-sizing: border-box }
-.ci:focus { border-color: #2563eb; outline: none; background: #fff }
-.ci:hover { border-color: #d1d5db }
-.ci::placeholder { color: #d1d5db }
+.ea-card-wrap { font-family: var(--cat-font); font-size: var(--cat-text-sm); }
+.btn-back {
+  padding: 2px 10px;
+  border: 1px solid var(--cat-border);
+  border-radius: var(--cat-radius-sm);
+  background: var(--cat-surface);
+  cursor: pointer;
+  font-size: var(--cat-text-sm);
+  font-family: var(--cat-font);
+  margin-bottom: var(--cat-gap-md);
+}
+
+.form-extra-row {
+  display: flex;
+  gap: var(--cat-gap-sm);
+  align-items: flex-end;
+  height: 100%;
+}
+.fe-label { font-size: var(--cat-text-xs); color: var(--cat-muted); }
+.fe-status { margin-left: auto; align-self: center; white-space: nowrap; }
+
+.ea-info {
+  display: flex;
+  gap: var(--cat-gap-md);
+  padding: var(--cat-gap-xs) 0;
+  border-bottom: 1px solid var(--cat-border-light);
+  margin-bottom: var(--cat-gap-sm);
+}
+.ea-info-item { font-size: var(--cat-text-sm); }
+
+.matrix-wrap { overflow-x: auto; max-height: 60vh; overflow-y: auto; }
+.mtx { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.mtx th {
+  position: sticky; top: 0; background: var(--cat-header-bg, #f1f5f9);
+  padding: 4px 4px; border: 1px solid var(--cat-border);
+  font-weight: 600; white-space: nowrap; z-index: 1;
+  font-size: var(--cat-text-xs);
+}
+.mtx td { padding: 2px 4px; border: 1px solid var(--cat-border-light); }
+.rown-col { min-width: 130px; max-width: 160px; }
+.rown-col strong { display: block; font-size: 13px; }
+.rown-col .sub { font-size: 10px; color: var(--cat-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.base-col { min-width: 95px; }
+.opt-col { min-width: 70px; }
+.ci {
+  width: 100%; padding: 3px 4px;
+  border: 1px solid transparent; border-radius: var(--cat-radius-sm);
+  font-size: 12px; text-align: right; box-sizing: border-box;
+  font-family: var(--cat-font); background: var(--cat-input-bg, #fff);
+}
+.ci:focus { border-color: var(--cat-primary); outline: none; }
+.ci:hover { border-color: var(--cat-border); }
+.ci:disabled { background: var(--cat-input-disabled-bg, #f5f5f5); color: var(--cat-muted); cursor: not-allowed; }
+
+.items-empty { text-align: center; padding: var(--cat-gap-xl); color: var(--cat-muted); }
+.st { text-align: center; padding: var(--cat-gap-xl); color: var(--cat-muted); }
+.msg { color: var(--cat-status-posted); font-size: var(--cat-text-sm); margin: var(--cat-gap-xs) 0; }
 </style>

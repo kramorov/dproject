@@ -493,14 +493,15 @@ class ElectricActuatorConstructor(models.Model):
             PowerSupplyModel = self._import_through_model(ps_config)
             ps_through = PowerSupplyModel.objects.filter(
                 model_line_item=mli, is_active=True
-            )
+            ).select_related('power_supply')
             result['power_supply_options'] = [
                 {
                     'id': opt.id, 'option_id': opt.id,
-                    'encoding': opt.encoding,
-                    'name': str(opt),
-                    'description': opt.description or '',
+                    'encoding': opt.power_supply.encoding or opt.encoding,
+                    'name': str(opt.power_supply),
+                    'description': opt.power_supply.description or opt.description or '',
                     'is_default': False,
+                    'power_supply_id': opt.power_supply_id,
                 }
                 for opt in ps_through
             ]

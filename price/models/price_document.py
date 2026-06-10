@@ -34,7 +34,7 @@ class PriceDocument(AbstractDocument):
         default_currency      — валюта по умолчанию для строк
     """
 
-    NUMERATOR_PREFIX = 'ДОК'
+    NUMERATOR_PREFIX = 'ЦЕНА-'
 
     default_price_variety = models.ForeignKey(
         'price.PriceVariety', on_delete=models.PROTECT,

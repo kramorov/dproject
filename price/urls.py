@@ -24,6 +24,9 @@ urlpatterns_admin = [
     path('ea-configurator/create/', EaConfiguratorDocumentView.as_view(), name='ea_configurator_create'),
     path('ea-configurator/documents/<int:doc_id>/post/', EaConfiguratorDocumentView.as_view(), name='ea_configurator_post'),
     path('ea-configurator/documents/<int:doc_id>/unpost/', EaConfiguratorDocumentView.as_view(), name='ea_configurator_unpost'),
+    path('ea-configurator/documents/<int:doc_id>/export/', EaConfiguratorDocumentView.as_view(), name='ea_configurator_export'),
+    path('ea-configurator/documents/<int:doc_id>/import/', EaConfiguratorDocumentView.as_view(), name='ea_configurator_import'),
+    path('ea-configurator/documents/<int:doc_id>/print/', EaConfiguratorDocumentView.as_view(), name='ea_configurator_print'),
 
     # Documents
     path('documents/', PriceDocumentListView.as_view(), name='price_document_list'),

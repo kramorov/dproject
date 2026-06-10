@@ -6,21 +6,35 @@
     <!-- Заголовок -->
     <div class="card-header">
       <div class="header-left">
-        <h2 class="doc-title">{{ doc.name || 'Без названия' }}</h2>
         <span class="doc-code" v-if="doc.code">{{ doc.code }}</span>
-        <span :class="statusBadgeClass">{{ statusLabel }}</span>
       </div>
       <div class="header-right">
+        <div v-if="availableExports.length" class="export-group">
+          <AppButton variant="ghost" @click="showExport = !showExport">📥 Экспорт ▾</AppButton>
+          <div v-if="showExport" class="export-dropdown">
+            <button
+              v-for="exp in availableExports"
+              :key="exp.key"
+              @click="onAction('export', exp.key)"
+              class="dropdown-item"
+            >{{ exp.label }}</button>
+          </div>
+        </div>
+
+        <label v-if="features.import && isDraft" class="import-label">
+          <AppButton variant="ghost" as="span">📤 Импорт</AppButton>
+          <input type="file" hidden @change="onImportFile" accept=".xlsx,.xls,.csv" />
+        </label>
+
         <BaseButton v-if="canSave" variant="primary" :loading="saving" @click="$emit('save')">
           Сохранить
         </BaseButton>
       </div>
     </div>
 
-    <!-- Реквизиты -->
+    <!-- Поля -->
     <div class="card-body">
       <div class="card-section">
-        <h3>Реквизиты</h3>
         <div class="form-grid">
           <label>
             <span>Название</span>
@@ -30,6 +44,9 @@
             <span>Дата</span>
             <input type="date" v-model="form.document_date" :disabled="!isDraft" class="form-input" />
           </label>
+          <slot name="form-extra" :doc="doc" :is-draft="isDraft">
+            <span :class="statusBadgeClass" class="status-badge-inline">{{ statusLabel }}</span>
+          </slot>
           <label class="span-2">
             <span>Комментарий</span>
             <textarea v-model="form.description" :disabled="!isDraft" class="form-input" rows="2"></textarea>
@@ -48,32 +65,13 @@
       <!-- Действия -->
       <div class="card-actions">
         <div class="actions-left">
-          <!-- Статусные -->
           <AppButton v-if="canRegister" variant="primary" :disabled="saving" @click="onAction('register')">✓ Провести</AppButton>
           <AppButton v-if="canUnregister" variant="cancel" :disabled="saving" @click="onAction('unregister')">↩ Отменить проведение</AppButton>
           <AppButton v-if="canMarkDeleted" variant="danger" :disabled="saving" @click="onAction('mark-deleted')">✕ Пометить на удаление</AppButton>
           <AppButton v-if="canRestore" variant="ghost" :disabled="saving" @click="onAction('restore')">↩ Отменить удаление</AppButton>
         </div>
         <div class="actions-right">
-          <!-- Печать / Экспорт / Импорт — только если features разрешают -->
           <AppButton v-if="features.print" variant="ghost" @click="onAction('print')">🖨 Печать</AppButton>
-
-          <div v-if="availableExports.length" class="export-group">
-            <AppButton variant="ghost" @click="showExport = !showExport">📥 Экспорт ▾</AppButton>
-            <div v-if="showExport" class="export-dropdown">
-              <button
-                v-for="exp in availableExports"
-                :key="exp.key"
-                @click="onAction('export', exp.key)"
-                class="dropdown-item"
-              >{{ exp.label }}</button>
-            </div>
-          </div>
-
-          <label v-if="features.import && isDraft" class="import-label">
-            <AppButton variant="ghost" as="span">📤 Импорт</AppButton>
-            <input type="file" hidden @change="onImportFile" accept=".xlsx,.xls,.csv" />
-          </label>
         </div>
       </div>
     </div>
@@ -186,10 +184,11 @@ function onImportFile(e) {
   gap: var(--cat-gap-md);
 }
 .header-left { display: flex; align-items: baseline; gap: var(--cat-gap-sm); flex-wrap: wrap; }
-.doc-title { font-size: var(--cat-header-title-size); font-weight: var(--cat-header-title-weight); margin: 0; }
+.header-right { display: flex; align-items: center; gap: var(--cat-gap-sm); flex-wrap: wrap; }
 .doc-code { font-family: var(--cat-font-mono); font-size: var(--cat-header-code-size); color: var(--cat-muted); background: var(--cat-border-light); padding: 1px 6px; border-radius: var(--cat-radius-sm); }
 
 .status-badge { font-size: var(--cat-text-xs); padding: 1px 8px; border-radius: var(--cat-radius-sm); font-weight: 600; }
+.status-badge-inline { display: inline-flex; align-items: center; align-self: end; padding: 2px 8px; height: 26px; box-sizing: border-box; white-space: nowrap; }
 .status-draft { background: var(--cat-badge-draft-bg); color: var(--cat-status-draft); }
 .status-on_approval { background: var(--cat-badge-approval-bg); color: var(--cat-status-approval); }
 .status-posted { background: var(--cat-badge-posted-bg); color: var(--cat-status-posted); }
@@ -200,7 +199,7 @@ function onImportFile(e) {
 
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: var(--cat-gap-sm);
 }
 .form-grid label { display: flex; flex-direction: column; gap: var(--cat-gap-xs); font-size: var(--cat-text-xs); color: var(--cat-muted); }

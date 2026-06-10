@@ -45,4 +45,11 @@ export default {
   deleteEaConfigDoc(id) { return api.delete(`${B}/ea-configurator/documents/${id}/`) },
   postEaConfigDoc(id) { return api.post(`${B}/ea-configurator/documents/${id}/post/`) },
   unpostEaConfigDoc(id) { return api.post(`${B}/ea-configurator/documents/${id}/unpost/`) },
+  exportEaConfigDoc(id) { return api.get(`${B}/ea-configurator/documents/${id}/export/`, { responseType: 'blob' }) },
+  importEaConfigDoc(id, file) {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api.post(`${B}/ea-configurator/documents/${id}/import/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+  printEaConfigDoc(id) { return api.get(`${B}/ea-configurator/documents/${id}/print/`) },
 }

@@ -2,7 +2,7 @@
 
 Управление ценами, документами формирования цен, правилами скидок/наценок и конфигуратором цен ЭП.
 
-**Дата:** 2026-06-09
+**Дата:** 2026-06-10
 
 ---
 
@@ -83,23 +83,25 @@ POST   /.../<id>/unapply/                           отмена проведе�
 GET    /api/admin/prices/ea-configurator/power-supplies/   список напряжений ЭП
 GET    /api/admin/prices/ea-configurator/options/           опции моделей (?power_supply_id=X)
 GET    /api/admin/prices/ea-configurator/documents/         журнал документов ЭП
-POST   /api/admin/prices/ea-configurator/create/            создать документ + строки
+POST   /api/admin/prices/ea-configurator/create/            создать документ + авто-строки
 GET    /api/admin/prices/ea-configurator/documents/<id>/    детали документа ЭП
-DELETE /api/admin/prices/ea-configurator/documents/<id>/    удалить
+POST   /api/admin/prices/ea-configurator/documents/<id>/post/     провести (unpost+recreate если проведён)
+POST   /api/admin/prices/ea-configurator/documents/<id>/unpost/   отменить проведение
+GET    /api/admin/prices/ea-configurator/documents/<id>/export/   Excel (Pandas)
+POST   /api/admin/prices/ea-configurator/documents/<id>/import/   импорт Excel
+GET    /api/admin/prices/ea-configurator/documents/<id>/print/    HTML для печати
+DELETE /api/admin/prices/ea-configurator/documents/<id>/    мягкое удаление (mark_deleted)
 ```
 
 ### EA Configurator
 
-**options/** — возвращает model_line_item + доступные опции (encoding из through-моделей) для выбранного напряжения.
+**options/** — все модели серии с выбранным напряжением (фильтр по `power_supply_id` из справочника).
 
-**create/** — создаёт EAPriceDocument + EAPriceConstructor строки из матрицы:
-```json
-{
-  "name": "...", "price_variety_id": 1, "currency_id": 1,
-  "model_line_id": 5, "power_supply_id": 12,
-  "rows": [{"model_line_item_id": 42, "base_price": 45000, "options": {"ip_5": 2000, "exd_3": 5000}}]
-}
-```
+**create/** — если нет `rows`, авто-генерирует base-строки для всех моделей серии.
+
+**post/** — если проведён: unpost → удаление старых строк → recreate из `rows` → post (без дубликатов).
+
+**export/import/print** — через Pandas (`_build_matrix_df`), недоступные опции = `—`.
 
 ### Срез цен
 - **GFK:** `?content_type_id=X&object_ids=1,2,3`
@@ -120,7 +122,7 @@ DELETE /api/admin/prices/ea-configurator/documents/<id>/    удалить
 | `views/document_detail.py` | `PriceDocumentItemView` | GET, POST, DELETE |
 | `views/ea_configurator.py` | `EaPowerSuppliesView` | GET |
 | `views/ea_configurator.py` | `EaConfiguratorOptionsView` | GET (?power_supply_id=) |
-| `views/ea_configurator.py` | `EaConfiguratorDocumentView` | GET, POST, DELETE |
+| `views/ea_configurator.py` | `EaConfiguratorDocumentView` | GET, POST, DELETE + export/import/print/post/unpost |
 
 ---
 
@@ -143,19 +145,10 @@ DELETE /api/admin/prices/ea-configurator/documents/<id>/    удалить
 `frontend/src/apps/price-catalog/`
 - **Каталог цен** — фильтры (тип, бренд, вид, валюта, дата)
 - **Документы** — журнал с созданием, редактор с инлайн-редактированием цены
-- **Конфигуратор ЭП** — журнал + редактор:
-  - `EaPriceJournal.vue` — список документов + форма создания (название, тип цены, валюта, серия, напряжение)
-    - Каскад: выбор серии → `GET /electric_actuators/constructor/model-lines/{id}/items/` → `GET /options/` → автозаполнение напряжений
-    - Кнопка «Создать и заполнить» → `POST /create/` → открывается редактор
-    - Клик по строке документа → открывается редактор
-    - Кнопки «Провести»/«Отмена» → `POST /documents/{id}/post/` / `unpost/`
-  - `EaPriceCard.vue` — матрица model_line_item × опции:
-    - Загрузка по `power_supply_id` → `GET /options/?power_supply_id=X`
-    - Колонки: encoding из through-моделей, дефолтные опции скрыты
-    - Сохранение → `POST /create/` (перезаписывает строки EAPriceConstructor)
-    - При открытии существующего документа — восстанавливает сохранённые значения
-  - `api.js` — методы для конфигуратора: `getEaConfigDocs`, `getEaConfigDoc`, `createEaConfigDoc`, `deleteEaConfigDoc`, `postEaConfigDoc`, `unpostEaConfigDoc`
-  - Загрузка model_lines/options через `fetch()` напрямую (минуя `priceApi` с baseURL)
+- **Конфигуратор цен ЭП** — на shared DocumentJournal + DocumentCard:
+  - `EaPriceJournal.vue` — на `SharedDocumentJournal` + `useDocumentJournal`, каскад серия→напряжение через `GET /power-supplies/`
+  - `EaPriceCard.vue` — на `SharedDocumentCard`, серия/напряжение заблокированы, матрица загружается автоматически, export/import/print
+  - `api.js` — `exportEaConfigDoc`, `importEaConfigDoc`, `printEaConfigDoc`
 
 ---
 

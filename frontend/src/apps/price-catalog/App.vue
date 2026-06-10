@@ -3,8 +3,8 @@
     <h1>💰 Цены</h1>
     <div class="tabs">
       <button :class="{act:tab==='catalog'}" @click="tab='catalog'">Каталог цен</button>
-      <button :class="{act:tab==='docs'}" @click="tab='docs'">Документы</button>
-      <button :class="{act:tab==='ea'}" @click="tab='ea'">Конфигуратор ЭП</button>
+      <button :class="{act:tab==='docs'}" @click="tab='docs'">Установка цен</button>
+      <button :class="{act:tab==='ea'}" @click="tab='ea'">Конфигуратор цен ЭП</button>
     </div>
 
     <PriceCatalog v-if="tab==='catalog'" />
@@ -31,9 +31,7 @@
       <EaPriceCard
         v-else
         :doc-id="eaDoc.id"
-        :is-new="eaDoc.isNew"
         @close="eaDoc = {}; docVersion++"
-        @changed="docVersion++"
         :key="'ea-' + eaDoc.id + '-' + docVersion"
       />
     </div>

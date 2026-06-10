@@ -31,7 +31,7 @@ class EAPriceDocument(AbstractDocument):
         price_variety, currency, model_line, power_supply
     """
 
-    NUMERATOR_PREFIX = 'ЦЕН'
+    NUMERATOR_PREFIX = 'EA-CONF'
 
     price_variety = models.ForeignKey(
         'price.PriceVariety', on_delete=models.PROTECT,
