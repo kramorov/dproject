@@ -33,6 +33,7 @@ export default defineConfig({
         'widget': resolve(__dirname, 'src/apps/widget/index.html'),
         'pa-constructor': resolve(__dirname, 'src/apps/pa-constructor/index.html'),
         'ea-constructor': resolve(__dirname, 'src/apps/ea-constructor/index.html'),
+        'ea-admin': resolve(__dirname, 'src/apps/ea-admin/index.html'),
       },
     },
   },

@@ -79,4 +79,10 @@ export const ENDPOINTS = {
     modelLines: '/electric_actuators/constructor/model_lines/',
     modelLineItems: (mlId) => `/electric_actuators/constructor/model-lines/${mlId}/items/`,
   },
+
+  eaAdmin: {
+    matrix: '/electric_actuators/admin/power-supply-matrix/',
+    exportMatrix: '/electric_actuators/admin/power-supply-matrix/export/',
+    importMatrix: '/electric_actuators/admin/power-supply-matrix/import/',
+  },
 }

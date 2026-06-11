@@ -121,6 +121,14 @@ MAIN_SECTIONS = {
             "enabled": True,
             "order": 12
         },
+    "ea_admin": {
+        "title": "⚡ Опции напряжения ЭП",
+        "icon": "🔌",
+        "description": "Администрирование опций напряжения электроприводов",
+        "page": None,
+        "enabled": True,
+        "order": 13
+    },
 }
 
 # Словарь разделов для САЙДБАРА (навигация)
@@ -251,15 +259,14 @@ def get_currency_rates(force_update=False):
     else:
         update_date = today
 
-    result = {
-        "USD": float(rates.get("USD", 0)),
-        "EUR": float(rates.get("EUR", 0)),
-        "CNY": float(rates.get("CNY", 0)),
-        "updated_at": update_date.strftime("%d.%m.%Y")
-    }
+    # Формируем результат
+    result = {}
+    for rate in rates:
+        result[rate.currency_code] = float(rate.rate_to_rub)
+    result["updated_at"] = update_date.strftime("%d.%m.%Y")
 
-    # Кэшируем на 6 часов
-    cache.set(cache_key, result, 21600)
+    # Кэшируем на час
+    cache.set(cache_key, result, 3600)
 
     return result
 
@@ -268,53 +275,64 @@ def render_currency_block():
     """Рендер блока с курсами валют"""
     rates = get_currency_rates()
 
-    with st.container():
-        st.markdown(f"**Курс ЦБ валют на {rates['updated_at']}**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"**USD**<br>{rates['USD']:.2f}", unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"**EUR**<br>{rates['EUR']:.2f}", unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"**CNY**<br>{rates['CNY']:.2f}", unsafe_allow_html=True)
+    if not rates:
+        st.markdown("💱 Курсы валют недоступны")
+        return
 
+    update_date = rates.pop("updated_at", "")
+
+    # Формируем строку с курсами
+    rate_strings = []
+    for currency, rate in rates.items():
+        rate_strings.append(f"**{currency}**: {rate:.2f}₽")
+
+    rates_html = " | ".join(rate_strings)
+    st.markdown(f"""
+    <div style="
+        background-color: #f0f8ff;
+        padding: 8px 15px;
+        border-radius: 8px;
+        font-size: 14px;
+        text-align: right;
+    ">
+        💱 Курсы ЦБ РФ на {update_date}<br>
+        {rates_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ==================== РЕНДЕР САЙДБАРА ====================
 
 def render_sidebar():
-    """Рендер бокового меню"""
+    """Рендер сайдбара с навигацией"""
     with st.sidebar:
-        st.image("https://via.placeholder.com/200x60?text=Pneumatic+System", width='stretch')
-        st.markdown("---")
+        st.markdown("## 🧭 Навигация")
 
-        st.markdown("### 📂 Навигация")
+        sections_list = list(SIDEBAR_SECTIONS.items())
 
-        for section_key, section in SIDEBAR_SECTIONS.items():
+        for section_key, section in sections_list:
             if not section.get("enabled", True):
                 continue
 
             icon = section.get("icon", "📄")
             title = section["title"]
 
-            # Проверяем, есть ли страница для перехода
             if section.get("page") and section["page"] is not None:
-                if st.button(f"{icon} {title}", key=f"sidebar_{section_key}", width='stretch'):
+                if st.sidebar.button(f"{icon} {title}", key=f"sidebar_{section_key}", width='stretch'):
                     st.switch_page(section["page"])
             else:
-                # Неактивная кнопка
-                st.button(f"{icon} {title} 🚧", key=f"sidebar_{section_key}_disabled",
-                          disabled=True, width='stretch',
-                          help="Раздел в разработке")
+                st.sidebar.markdown(f"*{icon} {title}* 🚧")
 
-        st.markdown("---")
-        st.caption(f"Версия 1.0.0\n{datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
+# ==================== РЕНДЕР ГЛАВНОЙ СТРАНИЦЫ ====================
 
 def render_main_sections():
-    """Рендер плиток разделов на главной странице"""
-    st.markdown("### 📦 Разделы системы")
+    """Рендер основной сетки разделов"""
+    st.markdown("## 📋 Доступные разделы")
 
-    # Разбиваем на строки по 3 колонки
     sections_list = list(MAIN_SECTIONS.items())
 
+    # Рендерим по 3 карточки в ряд
     for i in range(0, len(sections_list), 3):
         cols = st.columns(3)
         for j in range(3):

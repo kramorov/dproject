@@ -33,6 +33,7 @@ const allItems = [
     { to:'/admin/limit-switch', label:'🔌 БКВ' },
     { to:'/admin/pa-constructor', label:'🔧 Конструктор пневмоприводов' },
     { to:'/admin/ea-constructor', label:'⚡ Конструктор электроприводов' },
+    { to:'/admin/ea-power-supply', label:'🔌 Опции напряжения ЭП' },
     { to:'/widgets', label:'📋 Виджеты' },
   ]},
 ]
