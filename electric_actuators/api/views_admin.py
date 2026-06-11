@@ -26,7 +26,11 @@ from electric_actuators.models import (
     ElectricActuatorModelLine,
     ElectricActuatorModelLineItem,
 )
-from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
+from electric_actuators.models.ea_model_line_item_options import (
+    ElectricPowerSupplyOption,
+    ElectricControlUnitOption,
+    ElectricSafetyPositionOption,
+)
 from params.models import PowerSupplies
 
 
@@ -335,40 +339,56 @@ def _save_rows(ml_id, rows):
             val = _to_decimal(row.get(f))
             defaults[DB_FIELD_MAP.get(f, f)] = val
 
-        # If all fields are None → delete
+        # If all fields are None/zero → deactivate (не удаляем — CASCADE убьёт ControlUnit и SafetyPosition)
         if not any(defaults.values()):
-            qs = ElectricPowerSupplyOption.objects.filter(
+            updated_count = ElectricPowerSupplyOption.objects.filter(
                 model_line_item_id=mli_id, power_supply_id=ps_id,
-            )
-            if qs.exists():
-                deleted += qs.count()
-                qs.delete()
+            ).update(is_active=False,
+                      motor_current_rated=0, motor_current_starting=0,
+                      motor_power=0, time_to_open=0, time_to_close=0,
+                      torque_min=0, torque_max=0)
+            deleted += updated_count
             continue
 
         defaults['is_active'] = True
-        defaults['encoding'] = ps_encodings.get(ps_id, '')
 
-        obj, is_new = ElectricPowerSupplyOption.objects.update_or_create(
+        # update_or_create падает при дубликатах (нет unique_together) — чистим дубли
+        existing = ElectricPowerSupplyOption.objects.filter(
             model_line_item_id=mli_id,
             power_supply_id=ps_id,
-            defaults=defaults,
-        )
-        if is_new:
-            created += 1
-        else:
+        ).order_by('id')
+        count = existing.count()
+        if count > 1:
+            # Оставляем первую запись, остальные удаляем
+            first = existing.first()
+            dupes = existing.exclude(id=first.id)
+            dupes.delete()
+            deleted += count - 1
+        if count >= 1:
+            first = existing.first()
+            for k, v in defaults.items():
+                setattr(first, k, v)
+            first.save()
             updated += 1
+        else:
+            defaults['encoding'] = ps_encodings.get(ps_id, '')
+            ElectricPowerSupplyOption.objects.create(
+                model_line_item_id=mli_id,
+                power_supply_id=ps_id,
+                **defaults,
+            )
+            created += 1
 
     return created, updated, deleted
 
 
 def _to_decimal(val):
-    """Convert value to Decimal, return None if empty/zero."""
+    """Convert value to Decimal, return None for empty, Decimal('0') for zero."""
     if val is None or val == '':
         return None
     from decimal import Decimal, InvalidOperation
     try:
-        d = Decimal(str(val))
-        return d if d != 0 else None
+        return Decimal(str(val))
     except (InvalidOperation, ValueError):
         return None
 
@@ -380,3 +400,230 @@ def _col_letter(n):
         n, r = divmod(n - 1, 26)
         s = chr(65 + r) + s
     return s
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Copy Control Unit / Safety Position options
+# ═══════════════════════════════════════════════════════════════════════════
+
+class EACopyControlUnitsView(APIView):
+    """GET: список моделей с опциями. POST: копировать опции от модели к модели."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Список model_line_items с их ControlUnit и SafetyPosition + палитра всех опций."""
+        ml_id = request.query_params.get('model_line_id')
+        ps_id = request.query_params.get('power_supply_id')
+        if not ml_id or not ps_id:
+            return Response({'error': 'model_line_id and power_supply_id required'}, status=400)
+
+        models = list(ElectricActuatorModelLineItem.objects.filter(
+            model_line_id=ml_id, is_active=True
+        ).order_by('sorting_order'))
+        mli_ids = [m.id for m in models]
+
+        # Один запрос: все PS-записи для нужного напряжения
+        ps_records = {
+            r.model_line_item_id: r
+            for r in ElectricPowerSupplyOption.objects.filter(
+                model_line_item_id__in=mli_ids, power_supply_id=ps_id, is_active=True
+            )
+        }
+        ps_ids_with_rec = [r.id for r in ps_records.values()]
+
+        # Один запрос: все CU
+        all_cu_records = list(ElectricControlUnitOption.objects.filter(
+            power_supply_option_id__in=ps_ids_with_rec, is_active=True
+        ).select_related('control_unit'))
+        # Один запрос: все SP
+        all_sp_records = list(ElectricSafetyPositionOption.objects.filter(
+            power_supply_option_id__in=ps_ids_with_rec, is_active=True
+        ).select_related('safety_position'))
+
+        # Группируем CU/SP по ps_id
+        cu_by_ps = {}
+        for cu in all_cu_records:
+            cu_by_ps.setdefault(cu.power_supply_option_id, []).append(cu)
+        sp_by_ps = {}
+        for sp in all_sp_records:
+            sp_by_ps.setdefault(sp.power_supply_option_id, []).append(sp)
+
+        # Палитра
+        all_cu, all_sp = {}, {}
+        result = []
+        for mli in models:
+            ps_rec = ps_records.get(mli.id)
+            cu_set, sp_set = {}, {}
+            if ps_rec:
+                for cu in cu_by_ps.get(ps_rec.id, []):
+                    all_cu[cu.control_unit_id] = {
+                        'id': cu.control_unit_id, 'name': cu.control_unit.name, 'encoding': cu.encoding,
+                    }
+                    cu_set[cu.control_unit_id] = {
+                        'id': cu.id, 'encoding': cu.encoding, 'is_default': cu.is_default,
+                    }
+                for sp in sp_by_ps.get(ps_rec.id, []):
+                    all_sp[sp.safety_position_id] = {
+                        'id': sp.safety_position_id, 'name': sp.safety_position.name, 'encoding': sp.encoding,
+                    }
+                    sp_set[sp.safety_position_id] = {
+                        'id': sp.id, 'encoding': sp.encoding, 'is_default': sp.is_default,
+                    }
+            result.append({
+                'id': mli.id, 'name': mli.name,
+                'has_power_supply': ps_rec is not None,
+                'cu': cu_set, 'sp': sp_set,
+            })
+
+        # Добавляем все возможные опции из справочников (даже те, которых нет ни у одной модели)
+        from params.models import ControlUnitInstalledOption, SafetyPositionOption
+        existing_cu_ids = set(all_cu.keys())
+        for opt in ControlUnitInstalledOption.objects.filter(is_active=True):
+            if opt.id not in existing_cu_ids:
+                all_cu[opt.id] = {
+                    'id': opt.id, 'name': opt.name,
+                    'encoding': opt.code or opt.symbolic_code or str(opt.id),
+                }
+        existing_sp_ids = set(all_sp.keys())
+        for opt in SafetyPositionOption.objects.filter(is_active=True):
+            if opt.id not in existing_sp_ids:
+                all_sp[opt.id] = {
+                    'id': opt.id, 'name': opt.name,
+                    'encoding': opt.code or opt.symbolic_code or str(opt.id),
+                }
+
+        return Response({
+            'models': result,
+            'palette': {
+                'control_units': sorted(all_cu.values(), key=lambda x: x['name']),
+                'safety_positions': sorted(all_sp.values(), key=lambda x: x['name']),
+            },
+        })
+
+    @transaction.atomic
+    def post(self, request):
+        """Копировать ControlUnit + SafetyPosition от source_mli_id к target_mli_ids."""
+        source_id = request.data.get('source_mli_id')
+        target_ids = request.data.get('target_mli_ids', [])
+        ps_id = request.data.get('power_supply_id')
+
+        if not source_id or not target_ids or not ps_id:
+            return Response({'error': 'source_mli_id, target_mli_ids, power_supply_id required'}, status=400)
+
+        # Найти source power_supply_option
+        source_ps = ElectricPowerSupplyOption.objects.filter(
+            model_line_item_id=source_id, power_supply_id=ps_id, is_active=True
+        ).first()
+        if not source_ps:
+            return Response({'error': 'Source model has no active power supply option for this voltage'}, status=400)
+
+        source_cus = list(ElectricControlUnitOption.objects.filter(power_supply_option=source_ps))
+        source_sps = list(ElectricSafetyPositionOption.objects.filter(power_supply_option=source_ps))
+
+        created_cu = 0
+        created_sp = 0
+        skipped = 0
+
+        for tid in target_ids:
+            if tid == source_id:
+                continue
+            target_ps = ElectricPowerSupplyOption.objects.filter(
+                model_line_item_id=tid, power_supply_id=ps_id, is_active=True
+            ).first()
+            if not target_ps:
+                skipped += 1
+                continue
+
+            # Удалить старые опции целевой модели
+            ElectricControlUnitOption.objects.filter(power_supply_option=target_ps).delete()
+            ElectricSafetyPositionOption.objects.filter(power_supply_option=target_ps).delete()
+
+            # Скопировать
+            for cu in source_cus:
+                ElectricControlUnitOption.objects.create(
+                    power_supply_option=target_ps,
+                    control_unit=cu.control_unit,
+                    encoding=cu.encoding,
+                    is_default=cu.is_default,
+                    sorting_order=cu.sorting_order,
+                    is_active=True,
+                )
+                created_cu += 1
+            for sp in source_sps:
+                ElectricSafetyPositionOption.objects.create(
+                    power_supply_option=target_ps,
+                    safety_position=sp.safety_position,
+                    encoding=sp.encoding,
+                    is_default=sp.is_default,
+                    sorting_order=sp.sorting_order,
+                    is_active=True,
+                )
+                created_sp += 1
+
+        return Response({
+            'ok': True,
+            'created_control_units': created_cu,
+            'created_safety_positions': created_sp,
+            'skipped_no_power_supply': skipped,
+        })
+
+    @transaction.atomic
+    def patch(self, request):
+        """Обновить CU/SP для одной модели (источник)."""
+        mli_id = request.data.get('model_line_item_id')
+        ps_id = request.data.get('power_supply_id')
+        cus = request.data.get('control_units', [])
+        sps = request.data.get('safety_positions', [])
+
+        if not mli_id or not ps_id:
+            return Response({'error': 'model_line_item_id and power_supply_id required'}, status=400)
+
+        ps_rec = ElectricPowerSupplyOption.objects.filter(
+            model_line_item_id=mli_id, power_supply_id=ps_id, is_active=True
+        ).first()
+        if not ps_rec:
+            return Response({'error': 'No active power supply option for this model+voltage'}, status=400)
+
+        # Validate FK existence
+        cu_ids = [cu.get('control_unit_id') for cu in cus if cu.get('control_unit_id')]
+        sp_ids = [sp.get('safety_position_id') for sp in sps if sp.get('safety_position_id')]
+        from params.models import ControlUnitInstalledOption, SafetyPositionOption
+        valid_cu = set(ControlUnitInstalledOption.objects.filter(id__in=cu_ids).values_list('id', flat=True))
+        valid_sp = set(SafetyPositionOption.objects.filter(id__in=sp_ids).values_list('id', flat=True))
+        invalid_cu = [i for i in cu_ids if i not in valid_cu]
+        invalid_sp = [i for i in sp_ids if i not in valid_sp]
+        if invalid_cu or invalid_sp:
+            return Response({
+                'error': 'Invalid option IDs',
+                'invalid_control_units': invalid_cu,
+                'invalid_safety_positions': invalid_sp,
+            }, status=400)
+
+        # Replace CU
+        ElectricControlUnitOption.objects.filter(power_supply_option=ps_rec).delete()
+        for i, cu in enumerate(cus):
+            ElectricControlUnitOption.objects.create(
+                power_supply_option=ps_rec,
+                control_unit_id=cu.get('control_unit_id'),
+                encoding=cu.get('encoding', ''),
+                is_default=cu.get('is_default', False),
+                sorting_order=i,
+                is_active=True,
+            )
+        # Replace SP
+        ElectricSafetyPositionOption.objects.filter(power_supply_option=ps_rec).delete()
+        for i, sp in enumerate(sps):
+            ElectricSafetyPositionOption.objects.create(
+                power_supply_option=ps_rec,
+                safety_position_id=sp.get('safety_position_id'),
+                encoding=sp.get('encoding', ''),
+                is_default=sp.get('is_default', False),
+                sorting_order=i,
+                is_active=True,
+            )
+
+        return Response({
+            'ok': True,
+            'control_units': len(cus),
+            'safety_positions': len(sps),
+        })

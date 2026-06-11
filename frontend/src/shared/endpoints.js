@@ -84,5 +84,6 @@ export const ENDPOINTS = {
     matrix: '/electric_actuators/admin/power-supply-matrix/',
     exportMatrix: '/electric_actuators/admin/power-supply-matrix/export/',
     importMatrix: '/electric_actuators/admin/power-supply-matrix/import/',
+    copyControlUnits: '/electric_actuators/admin/copy-control-units/',
   },
 }

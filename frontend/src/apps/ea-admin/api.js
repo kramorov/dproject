@@ -27,12 +27,40 @@ export default {
     })
     return r.data
   },
+  /** GET: список моделей с ControlUnit + SafetyPosition */
+  async getControlUnits(modelLineId, powerSupplyId) {
+    const r = await api.get(B.copyControlUnits, {
+      params: { model_line_id: modelLineId, power_supply_id: powerSupplyId },
+    })
+    return r.data
+  },
+  /** PATCH: обновить CU/SP для одной модели (источник) */
+  async updateSourceOptions(mliId, powerSupplyId, controlUnits, safetyPositions) {
+    const r = await api.patch(B.copyControlUnits, {
+      model_line_item_id: mliId,
+      power_supply_id: powerSupplyId,
+      control_units: controlUnits,
+      safety_positions: safetyPositions,
+    })
+    return r.data
+  },
+  /** POST: копировать опции от модели к моделям */
+  async copyControlUnits(sourceMliId, targetMliIds, powerSupplyId) {
+    const r = await api.post(B.copyControlUnits, {
+      source_mli_id: sourceMliId,
+      target_mli_ids: targetMliIds,
+      power_supply_id: powerSupplyId,
+    })
+    return r.data
+  },
   /** Импорт из Excel */
   async importMatrix(modelLineId, file) {
     const formData = new FormData()
     formData.append('model_line_id', modelLineId)
     formData.append('file', file)
-    const r = await api.post(B.importMatrix, formData)
+    const r = await api.post(B.importMatrix, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
     return r.data
   },
 }
