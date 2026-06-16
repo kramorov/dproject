@@ -1711,3 +1711,10 @@ class LockingMechanism(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# ── Модели из отдельных файлов ──
+# Сами классы лежат в feedback_signals.py и turn_counter.py.
+# Импорт здесь нужен только для обнаружения Django.
+from .feedback_signals import FeedbackSignalSet  # noqa: F401 E402
+from .turn_counter import TurnCounterOption      # noqa: F401 E402
