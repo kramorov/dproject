@@ -113,7 +113,7 @@ class EAPriceConstructor(models.Model):
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['model_line_item', 'power_supply', 'option_field', 'option_id', 'price_variety'],
+                fields=['document', 'model_line_item', 'power_supply', 'option_field', 'option_id', 'price_variety'],
                 name='uq_ea_price_row'
             )
         ]

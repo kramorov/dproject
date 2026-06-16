@@ -1,6 +1,9 @@
 <template>
   <div class="ea-card-wrap">
-    <button class="btn-back" @click="$emit('close')">← К списку</button>
+    <div class="ea-top-bar">
+      <button class="btn-back" @click="$emit('close')">← К списку</button>
+      <button v-if="isDraft" class="btn-fill" @click="onFill" :disabled="filling">{{ filling ? 'Заполнение...' : '📥 Заполнить' }}</button>
+    </div>
 
     <div v-if="loading" class="st">Загрузка...</div>
 
@@ -63,7 +66,8 @@
                   <input v-model.number="row.basePrice" type="number" step="0.01" class="ci" :disabled="!isDraft" />
                 </td>
                 <td v-for="col in columns" :key="col.key" class="opt-col">
-                  <input v-model.number="row.options[col.key]" type="number" step="0.01" class="ci" placeholder="0" :disabled="!isDraft || !row._avail.has(col.key)" />
+                  <span v-if="!row._avail.has(col.key)" class="na-cell">—</span>
+                  <input v-else v-model.number="row.options[col.key]" type="number" step="0.01" class="ci" placeholder="0" :disabled="!isDraft" />
                 </td>
               </tr>
             </tbody>
@@ -76,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import SharedDocumentCard from '@/shared/components/documents/DocumentCard.vue'
 import { useDocumentCard } from '@/shared/composables/useDocumentCard'
 import priceApi from '../api'
@@ -90,7 +94,13 @@ const emit = defineEmits(['close'])
 const cardApi = {
   getDetail: (id) => priceApi.getEaConfigDoc(id),
   update: () => ({}),
-  register: (id) => priceApi.postEaConfigDoc(id),
+  register: (id) => {
+    return priceApi.postEaConfigDoc(id, {
+      rows: buildRows(),
+      currency_id: doc.value?.currency?.id,
+      price_variety_id: doc.value?.price_variety?.id,
+    })
+  },
   unregister: (id) => priceApi.unpostEaConfigDoc(id),
   markDeleted: (id) => priceApi.deleteEaConfigDoc(id),
 }
@@ -109,6 +119,18 @@ const statusLabel = computed(() => doc.value?.status_label || doc.value?.status 
 const statusBadgeClass = computed(() => 'status-badge status-' + (doc.value?.status || 'draft'))
 
 const canSave = computed(() => isDraft.value && matrix.value.length > 0)
+const DEFAULT_NAME = 'Конфигуратор цен'
+
+// ── Helpers ──
+function buildRows() {
+  return matrix.value.map(row => ({
+    model_line_item_id: row.id,
+    base_price: row.basePrice || 0,
+    options: Object.fromEntries(
+      Object.entries(row.options).filter(([k]) => row._avail.has(k) && row.options[k] > 0)
+    ),
+  }))
+}
 
 // ── State ──
 const loading = computed(() => cardLoading.value || matrixLoading.value)
@@ -116,6 +138,7 @@ const matrix = ref([])
 const columns = ref([])
 const matrixLoading = ref(false)
 const msg = ref('')
+const filling = ref(false)
 
 // ── Load ──
 onMounted(async () => {
@@ -189,20 +212,18 @@ async function onSave() {
   saving.value = true; error.value = ''; msg.value = ''
   try {
     const data = {
-      name: form.name || doc.value?.name || 'Конфигуратор цен',
+      name: form.name || doc.value?.name || DEFAULT_NAME,
       price_variety_id: doc.value?.price_variety?.id,
       currency_id: doc.value?.currency?.id,
       model_line_id: doc.value?.model_line?.id,
       power_supply_id: doc.value?.power_supply?.id,
-      rows: matrix.value.map(row => ({
-        model_line_item_id: row.id,
-        base_price: row.basePrice || 0,
-        options: Object.fromEntries(
-          Object.entries(row.options).filter(([k]) => row._avail.has(k) && row.options[k] > 0)
-        ),
-      })),
+      rows: buildRows(),
     }
-    await priceApi.createEaConfigDoc(data)
+    if (doc.value?.id) {
+      await priceApi.updateEaConfigDoc(doc.value.id, data)
+    } else {
+      await priceApi.createEaConfigDoc(data)
+    }
     msg.value = 'Сохранено'
     emit('close')
   } catch (e) { error.value = 'Ошибка сохранения'; console.error(e) }
@@ -217,7 +238,15 @@ async function onMarkDeleted() {
 async function onExport(fmt) {
   if (fmt !== 'excel' || !doc.value) return
   try {
-    const r = await priceApi.exportEaConfigDoc(doc.value.id)
+    const rows = matrix.value.map(row => ({
+      model_line_item_id: row.id,
+      label: row.label || row.code,
+      base_price: row.basePrice || 0,
+      options: Object.fromEntries(
+        Object.entries(row.options).filter(([k]) => row._avail.has(k) && row.options[k] > 0)
+      ),
+    }))
+    const r = await priceApi.exportEaConfigDoc(doc.value.id, { rows })
     const blob = r.data
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -234,21 +263,24 @@ async function onImportFile(file) {
   if (!doc.value) return
   try {
     const r = await priceApi.importEaConfigDoc(doc.value.id, file)
-    const { rows, headers } = r.data
+    const { rows } = r.data
     if (rows?.length) {
       for (const row of rows) {
-        const label = row['Модель'] || ''
-        const idx = matrix.value.findIndex(m => m.label === label)
+        const idx = matrix.value.findIndex(m => m.id === row.model_line_item_id)
         if (idx >= 0) {
-          matrix.value[idx].basePrice = parseFloat(row['Базовая цена']) || 0
-          for (const h of (headers || [])) {
-            if (matrix.value[idx].options.hasOwnProperty(h) && matrix.value[idx]._avail.has(h)) {
-              matrix.value[idx].options[h] = parseFloat(row[h]) || 0
-            }
-          }
+          matrix.value[idx].basePrice = row.base_price
+          Object.assign(matrix.value[idx].options, row.options || {})
         }
       }
       msg.value = `Импортировано строк: ${rows.length}`
+
+      // Сохраняем импортированные данные в документ
+      await priceApi.updateEaConfigDoc(doc.value.id, {
+        name: form.name || doc.value?.name || DEFAULT_NAME,
+        currency_id: doc.value?.currency?.id,
+        price_variety_id: doc.value?.price_variety?.id,
+        rows: buildRows(),
+      })
     }
   } catch (e) { console.error('Import error:', e) }
 }
@@ -256,16 +288,52 @@ async function onImportFile(file) {
 async function onPrint() {
   if (!doc.value) return
   try {
-    const r = await priceApi.printEaConfigDoc(doc.value.id)
+    const rows = matrix.value.map(row => ({
+      model_line_item_id: row.id,
+      label: row.label || row.code,
+      base_price: row.basePrice || 0,
+      options: Object.fromEntries(
+        Object.entries(row.options).filter(([k]) => row._avail.has(k) && row.options[k] > 0)
+      ),
+    }))
+    const r = await priceApi.printEaConfigDoc(doc.value.id, { rows })
     const html = r.data?.html || ''
     const w = window.open('', '_blank')
     if (w) { w.document.write(html); w.document.close() }
   } catch (e) { console.error('Print error:', e) }
 }
+
+async function onFill() {
+  if (!doc.value) return
+  filling.value = true; msg.value = ''
+  try {
+    const r = await priceApi.fillEaConfigDoc(doc.value.id)
+    const rows = r.data.rows || []
+    for (const row of rows) {
+      const idx = matrix.value.findIndex(m => m.id === row.model_line_item_id)
+      if (idx >= 0) {
+        matrix.value[idx].basePrice = row.base_price
+        Object.assign(matrix.value[idx].options, row.options || {})
+      }
+    }
+    msg.value = `Заполнено строк: ${rows.length}`
+
+      // Сохраняем заполненные данные в документ
+    await priceApi.updateEaConfigDoc(doc.value.id, {
+      name: form.name || doc.value?.name || DEFAULT_NAME,
+      currency_id: doc.value?.currency?.id,
+      price_variety_id: doc.value?.price_variety?.id,
+      rows: buildRows(),
+    })
+  } catch (e) {
+    msg.value = 'Ошибка заполнения: ' + (e.response?.data?.error || e.message)
+  } finally { filling.value = false }
+}
 </script>
 
 <style scoped>
 .ea-card-wrap { font-family: var(--cat-font); font-size: var(--cat-text-sm); }
+.ea-top-bar { display: flex; gap: var(--cat-gap-sm); margin-bottom: var(--cat-gap-md); }
 .btn-back {
   padding: 2px 10px;
   border: 1px solid var(--cat-border);
@@ -274,8 +342,18 @@ async function onPrint() {
   cursor: pointer;
   font-size: var(--cat-text-sm);
   font-family: var(--cat-font);
-  margin-bottom: var(--cat-gap-md);
 }
+.btn-fill {
+  padding: 2px 10px;
+  border: none;
+  border-radius: var(--cat-radius-sm);
+  background: #059669;
+  color: #fff;
+  cursor: pointer;
+  font-size: var(--cat-text-sm);
+  font-family: var(--cat-font);
+}
+.btn-fill:disabled { opacity: .5; cursor: default; }
 
 .form-extra-row {
   display: flex;

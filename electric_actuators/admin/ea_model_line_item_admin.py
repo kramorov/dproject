@@ -77,6 +77,7 @@ copy_model_line_items_action.short_description = _("Копировать выб�
 class ElectricWaySwitchesOptionInline(admin.TabularInline) :
     """Inline для напряжения питания"""
     model = ElectricWaySwitchesOption
+    fk_name = 'model_line_item'
     extra = 0
     ordering = ['sorting_order']
     fields = ['way_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
@@ -102,6 +103,7 @@ class ElectricWaySwitchesOptionInline(admin.TabularInline) :
 class ElectricEndSwitchesOptionInline(admin.TabularInline) :
     """Inline для напряжения питания"""
     model = ElectricEndSwitchesOption
+    fk_name = 'model_line_item'
     extra = 0
     ordering = ['sorting_order']
     fields = ['end_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
@@ -126,6 +128,7 @@ class ElectricEndSwitchesOptionInline(admin.TabularInline) :
 class ElectricTorqueSwitchesOptionInline(admin.TabularInline) :
     """Inline для напряжения питания"""
     model = ElectricTorqueSwitchesOption
+    fk_name = 'model_line_item'
     extra = 0
     ordering = ['sorting_order']
     fields = ['torque_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']

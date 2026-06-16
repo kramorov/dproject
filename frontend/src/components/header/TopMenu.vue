@@ -34,6 +34,7 @@ const allItems = [
     { to:'/admin/pa-constructor', label:'🔧 Конструктор пневмоприводов' },
     { to:'/admin/ea-constructor', label:'⚡ Конструктор электроприводов' },
     { to:'/admin/ea-power-supply', label:'🔌 Опции напряжения ЭП' },
+    { to:'/admin/ea-switches', label:'🔘 Опции выключателей ЭП' },
     { to:'/widgets', label:'📋 Виджеты' },
   ]},
 ]

@@ -3,7 +3,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .api.views import EAOptionAPIView
 from .api.views_constructor import ConstructorViewSet
-from .api.views_admin import EAPowerSupplyMatrixView, EAPowerSupplyMatrixExportView, EAPowerSupplyMatrixImportView, EACopyControlUnitsView
+from .api.views_admin import EAPowerSupplyMatrixView, EAPowerSupplyMatrixExportView, EAPowerSupplyMatrixImportView, EACopyControlUnitsView, EASwitchesCopyView
 
 router = DefaultRouter()
 router.register(r'constructor', ConstructorViewSet, basename='ea-constructor')
@@ -16,6 +16,7 @@ urlpatterns = [
     path('admin/power-supply-matrix/export/', EAPowerSupplyMatrixExportView.as_view(), name='ea_power_supply_export'),
     path('admin/power-supply-matrix/import/', EAPowerSupplyMatrixImportView.as_view(), name='ea_power_supply_import'),
     path('admin/copy-control-units/', EACopyControlUnitsView.as_view(), name='ea_copy_control_units'),
+    path('admin/copy-switches/', EASwitchesCopyView.as_view(), name='ea_copy_switches'),
     path('options/', EAOptionAPIView.as_view(), name='get_options'),
 path(
         'description/<int:instance_id>/html/',

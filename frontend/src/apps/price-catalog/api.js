@@ -42,14 +42,16 @@ export default {
   getEaConfigDocs() { return api.get(`${B}/ea-configurator/documents/`) },
   getEaConfigDoc(id) { return api.get(`${B}/ea-configurator/documents/${id}/`) },
   createEaConfigDoc(data) { return api.post(`${B}/ea-configurator/create/`, data) },
+  updateEaConfigDoc(id, data) { return api.post(`${B}/ea-configurator/documents/${id}/`, data) },
   deleteEaConfigDoc(id) { return api.delete(`${B}/ea-configurator/documents/${id}/`) },
-  postEaConfigDoc(id) { return api.post(`${B}/ea-configurator/documents/${id}/post/`) },
+  postEaConfigDoc(id, data) { return api.post(`${B}/ea-configurator/documents/${id}/post/`, data || {}) },
   unpostEaConfigDoc(id) { return api.post(`${B}/ea-configurator/documents/${id}/unpost/`) },
-  exportEaConfigDoc(id) { return api.get(`${B}/ea-configurator/documents/${id}/export/`, { responseType: 'blob' }) },
+  exportEaConfigDoc(id, data) { return api.post(`${B}/ea-configurator/documents/${id}/export/`, data || {}, { responseType: 'blob' }) },
   importEaConfigDoc(id, file) {
     const fd = new FormData()
     fd.append('file', file)
     return api.post(`${B}/ea-configurator/documents/${id}/import/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
-  printEaConfigDoc(id) { return api.get(`${B}/ea-configurator/documents/${id}/print/`) },
+  printEaConfigDoc(id, data) { return api.post(`${B}/ea-configurator/documents/${id}/print/`, data || {}) },
+  fillEaConfigDoc(id) { return api.get(`${B}/ea-configurator/documents/${id}/fill/`) },
 }

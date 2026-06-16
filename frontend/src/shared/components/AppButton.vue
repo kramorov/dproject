@@ -1,15 +1,30 @@
 <!-- shared/components/AppButton.vue -->
 <template>
-  <button class="app-btn" :class="variant" :disabled="disabled" @click="$emit('click')">
+  <component
+    :is="as"
+    class="app-btn"
+    :class="variant"
+    :disabled="isButton ? disabled : undefined"
+    @click="onClick"
+  >
     <slot />
-  </button>
+  </component>
 </template>
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   variant: { type: String, default: 'primary' },
   disabled: { type: Boolean, default: false },
+  as: { type: String, default: 'button' },
 })
-defineEmits(['click'])
+const emit = defineEmits(['click'])
+
+const isButton = computed(() => props.as === 'button')
+
+function onClick() {
+  if (isButton.value) emit('click')
+}
 </script>
 <style scoped>
 .app-btn {

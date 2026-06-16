@@ -19,6 +19,7 @@ const routes = [
   { path: '/admin/pa-constructor', component: () => import('../pages/admin/PaConstructorPage.vue'), meta: { title: 'Конструктор пневмоприводов', role: 'admin' } },
   { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор электроприводов', role: 'admin' } },
   { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Опции напряжения ЭП', role: 'admin' } },
+  { path: '/admin/ea-switches', component: () => import('../pages/admin/EaSwitchesAdminPage.vue'), meta: { title: 'Опции выключателей ЭП', role: 'admin' } },
   { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', role: 'admin' } },
   { path: '/tools/image-processor', component: () => import('../pages/ImageProcessorTest.vue'), meta: { title: 'Обрезка изображений' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },

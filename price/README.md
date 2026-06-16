@@ -2,7 +2,7 @@
 
 Управление ценами, документами формирования цен, правилами скидок/наценок и конфигуратором цен ЭП.
 
-**Дата:** 2026-06-10
+**Дата:** 2026-06-16
 
 ---
 
@@ -24,89 +24,94 @@ price/models/
 
 Строка конфигуратора цен. Одна запись = model_line_item + power_supply + option_field + option_id → цена/надбавка.
 
-- `document` — FK на EAPriceDocument (nullable, для привязки к документу)
+- `document` — FK на EAPriceDocument (в UniqueConstraint)
 - `model_line_item` — FK на ElectricActuatorModelLineItem
 - `power_supply` — FK на ElectricPowerSupplyOption
-- `option_field` — имя поля в конструкторе (`ip`, `exd`, `temperature`, ... или `base`)
+- `option_field` — имя поля (`base`, `ip`, `exd`, `temperature`, `control_unit`, `way_switches`, ...)
 - `option_id` — ID опции (NULL для base)
 - `surcharge` — базовая цена или надбавка
 - `currency` — FK на Currency
 - `price_variety` — FK на PriceVariety
-- `is_active` — учитывать при расчёте (True после проведения документа)
+- `is_active` — активна ли для расчёта цены (True после проведения)
 
-`calculate_price(cls, constructor, price_variety_id)` — рассчитать цену для конструктора: один запрос с Q-фильтром, возвращает `{total, currency, base, surcharges}`.
+**UniqueConstraint:** `(document, model_line_item, power_supply, option_field, option_id, price_variety)` — разные документы могут иметь одинаковые строки.
+
+`calculate_price(cls, constructor, price_variety_id)` — один запрос с Q-фильтром по `is_active=True`, возвращает `{total, currency, base, surcharges}`.
 
 ### EAPriceDocument
 
-Заголовок документа конфигуратора цен. Задаёт контекст: тип цены, валюту, серию, напряжение.
+Заголовок документа конфигуратора цен. Наследует AbstractDocument.
 
-- `name` — название документа
-- `document_date` — дата
-- `price_variety` — FK на PriceVariety (РРЦ, опт, ...)
+- `name` — название
+- `price_variety` — FK на PriceVariety
 - `currency` — FK на Currency
-- `model_line` — FK на ElectricActuatorModelLine (серия)
-- `power_supply` — FK на ElectricPowerSupplyOption (напряжение)
-- `status` — draft / on_approval / posted
+- `model_line` — FK на ElectricActuatorModelLine
+- `power_supply` — FK на ElectricPowerSupplyOption
 
-`post()` — провести: активирует все строки EAPriceConstructor.
-`unpost()` — отменить: деактивирует строки.
+**`register_changes()` (post):**
+1. Собирает уникальные комбинации строк документа
+2. Одним batch-update деактивирует (`is_active=False`) конкурирующие строки из других документов
+3. Активирует (`is_active=True`) строки этого документа
+
+**`unregister_changes()` (unpost):**
+1. Удаляет строки документа (`EAPriceConstructor.delete()`)
+2. Статус → DRAFT
 
 ### PriceHistory
 - **Основная связь** — `sku` (FK → SKU, CASCADE). При удалении SKU — каскад.
 - GFK для обратной совместимости
 - `get_current_price_by_sku(sku, variety)` — основной поиск
-- `get_current_price(instance, variety)` — через GFK
-- `get_compact_data()` включает sku_id, sku_code, sku_name
 
 ### PriceDocument + PriceDocumentItem
-Документ формирования цен. **Все позиции привязаны к SKU**.
+Документ формирования цен. Все позиции привязаны к SKU.
 - **Статусы:** draft → on_approval → posted
-- `apply_prices()`: создаёт PriceHistory с name/code из SKU, переводит в posted
-- `unapply_prices()`: удаляет PriceHistory по source_document, восстанавливает is_current у предыдущих, возвращает в draft
+- `apply_prices()`: создаёт PriceHistory, переводит в posted
+- `unapply_prices()`: удаляет PriceHistory по source_document, возвращает в draft
 
 ---
 
 ## API
 
+### Общие цены
 ```
-GET    /api/admin/prices/                            каталог цен
-GET    /api/admin/prices/filters/                    опции (varieties, currencies, equipment_types, brands)
-GET    /api/admin/prices/snapshot/                   срез цен
-GET    /api/admin/prices/documents/                  журнал документов
-POST   /api/admin/prices/documents/                  создать
-GET    /.../<id>/                                    детали + строки
-PUT    /.../<id>/                                    редактировать
-DELETE /.../<id>/                                    удалить
-POST   /.../<id>/apply/                             провести → PriceHistory
-POST   /.../<id>/unapply/                           отмена проведения
-
-GET    /api/admin/prices/ea-configurator/power-supplies/   список напряжений ЭП
-GET    /api/admin/prices/ea-configurator/options/           опции моделей (?power_supply_id=X)
-GET    /api/admin/prices/ea-configurator/documents/         журнал документов ЭП
-POST   /api/admin/prices/ea-configurator/create/            создать документ + авто-строки
-GET    /api/admin/prices/ea-configurator/documents/<id>/    детали документа ЭП
-POST   /api/admin/prices/ea-configurator/documents/<id>/post/     провести (unpost+recreate если проведён)
-POST   /api/admin/prices/ea-configurator/documents/<id>/unpost/   отменить проведение
-GET    /api/admin/prices/ea-configurator/documents/<id>/export/   Excel (Pandas)
-POST   /api/admin/prices/ea-configurator/documents/<id>/import/   импорт Excel
-GET    /api/admin/prices/ea-configurator/documents/<id>/print/    HTML для печати
-DELETE /api/admin/prices/ea-configurator/documents/<id>/    мягкое удаление (mark_deleted)
+GET    /api/admin/prices/                      каталог цен
+GET    /api/admin/prices/filters/              опции (varieties, currencies, equipment_types, brands)
+GET    /api/admin/prices/snapshot/             срез цен
+GET    /api/admin/prices/documents/            журнал документов
+POST   /api/admin/prices/documents/            создать
+GET    /api/admin/prices/documents/<id>/       детали + строки
+PUT    /api/admin/prices/documents/<id>/       редактировать
+DELETE /api/admin/prices/documents/<id>/       удалить
+POST   /api/admin/prices/documents/<id>/apply/    провести → PriceHistory
+POST   /api/admin/prices/documents/<id>/unapply/  отмена проведения
 ```
 
-### EA Configurator
+### EA Price Configurator
+```
+GET    /ea-configurator/power-supplies/            список напряжений ЭП
+GET    /ea-configurator/options/?power_supply_id=X  модели + опции (включая WaySwitches)
+POST   /ea-configurator/create/                     создать документ + авто-строки
+GET    /ea-configurator/documents/                  журнал документов ЭП
+GET    /ea-configurator/documents/<id>/             детали + строки
+POST   /ea-configurator/documents/<id>/             обновить (сохранить) — @transaction.atomic
+POST   /ea-configurator/documents/<id>/post/        провести (отправляет rows + currency_id + price_variety_id)
+POST   /ea-configurator/documents/<id>/unpost/      отменить проведение → удаление строк
+POST   /ea-configurator/documents/<id>/export/      Excel (Pandas) — принимает {rows} или читает БД
+POST   /ea-configurator/documents/<id>/import/      импорт Excel (парсинг на бэкенде)
+POST   /ea-configurator/documents/<id>/print/       HTML для печати — принимает {rows} или читает БД
+GET    /ea-configurator/documents/<id>/fill/        действующие цены (is_active=True, exclude текущий документ)
+DELETE /ea-configurator/documents/<id>/             мягкое удаление (mark_deleted)
+```
 
-**options/** — все модели серии с выбранным напряжением (фильтр по `power_supply_id` из справочника).
+### Особенности
 
-**create/** — если нет `rows`, авто-генерирует base-строки для всех моделей серии.
-
-**post/** — если проведён: unpost → удаление старых строк → recreate из `rows` → post (без дубликатов).
-
-**export/import/print** — через Pandas (`_build_matrix_df`), недоступные опции = `—`.
-
-### Срез цен
-- **GFK:** `?content_type_id=X&object_ids=1,2,3`
-- **Code:** `?code=RD7,RD7.LT`
-- Общие: `price_variety_id`, `currency_id`, `as_of_date`
+- **options/** — возвращает модели серии с выбранным напряжением, включая WaySwitches как отдельную группу опций
+- **create/** — если нет `rows`, авто-генерирует base-строки для всех моделей серии с этим напряжением
+- **post/** (провести) — требует `currency_id` и `price_variety_id` в теле; если DRAFT — удаляет старые строки и создаёт новые
+- **export/print** — принимают `{rows}` от фронтенда (текущая матрица), иначе fallback на БД
+- **import** — парсит Excel на бэкенде (label→mli_id, label→key), возвращает готовые `{model_line_item_id, base_price, options}`
+- **fill** — читает активные строки (`is_active=True`) для той же серии/напряжения/типа/валюты, исключая текущий документ
+- Все методы используют `logger.debug/warning` вместо `print`
 
 ---
 
@@ -121,8 +126,8 @@ DELETE /api/admin/prices/ea-configurator/documents/<id>/    мягкое уда�
 | `views/document_detail.py` | `PriceDocumentDetailView` | GET, PUT, DELETE, POST |
 | `views/document_detail.py` | `PriceDocumentItemView` | GET, POST, DELETE |
 | `views/ea_configurator.py` | `EaPowerSuppliesView` | GET |
-| `views/ea_configurator.py` | `EaConfiguratorOptionsView` | GET (?power_supply_id=) |
-| `views/ea_configurator.py` | `EaConfiguratorDocumentView` | GET, POST, DELETE + export/import/print/post/unpost |
+| `views/ea_configurator.py` | `EaConfiguratorOptionsView` | GET |
+| `views/ea_configurator.py` | `EaConfiguratorDocumentView` | GET (list/detail/fill), POST (create/update/post/unpost/export/import/print) |
 
 ---
 
@@ -132,7 +137,7 @@ DELETE /api/admin/prices/ea-configurator/documents/<id>/    мягкое уда�
 |--------|-------------|
 | Currency | Импорт/экспорт |
 | PriceVariety | Счётчик цен |
-| PriceHistory | Импорт Excel, поиск по SKU, sku_link |
+| PriceHistory | Импорт Excel, поиск по SKU |
 | PriceDocument | Inline-позиции, статус-бейджи |
 | ExchangeRate | Обновление из ЦБ |
 | EAPriceConstructor | list_display: model_line_item, power_supply, option_field, option_id, surcharge, price_variety, is_active |
@@ -143,16 +148,21 @@ DELETE /api/admin/prices/ea-configurator/documents/<id>/    мягкое уда�
 ## Фронтенд
 
 `frontend/src/apps/price-catalog/`
+
 - **Каталог цен** — фильтры (тип, бренд, вид, валюта, дата)
-- **Документы** — журнал с созданием, редактор с инлайн-редактированием цены
-- **Конфигуратор цен ЭП** — на shared DocumentJournal + DocumentCard:
-  - `EaPriceJournal.vue` — на `SharedDocumentJournal` + `useDocumentJournal`, каскад серия→напряжение через `GET /power-supplies/`
-  - `EaPriceCard.vue` — на `SharedDocumentCard`, серия/напряжение заблокированы, матрица загружается автоматически, export/import/print
-  - `api.js` — `exportEaConfigDoc`, `importEaConfigDoc`, `printEaConfigDoc`
+- **Документы** — журнал + редактор с инлайн-редактированием цены
+- **Конфигуратор цен ЭП:**
+  - `EaPriceJournal.vue` — `SharedDocumentJournal`, каскад серия→напряжение
+  - `EaPriceCard.vue` — `SharedDocumentCard`, матрица с WaySwitches, недоступные опции = `—`
+  - `buildRows()` — единая функция сборки строк матрицы
+  - `DEFAULT_NAME` — константа вместо хардкода
+  - Импорт/Заполнить — автосохранение в документ
+  - Экспорт/Печать — отправляют текущую матрицу, не читают БД
+  - `AppButton.vue` — поддержка `as="span"` для кнопки Импорт
 
 ---
 
 ## Что дальше
 
-- Импорт цен из Excel в EAPriceDocument
 - Автоматический расчёт цены через `EAPriceConstructor.calculate_price()`
+- Добавление EndSwitches и TorqueSwitches в конфигуратор (аналогично WaySwitches)

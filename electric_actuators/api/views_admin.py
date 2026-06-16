@@ -31,6 +31,12 @@ from electric_actuators.models.ea_model_line_item_options import (
     ElectricControlUnitOption,
     ElectricSafetyPositionOption,
 )
+
+from electric_actuators.models.ea_options import (
+    ElectricWaySwitchesOption,
+    ElectricEndSwitchesOption,
+    ElectricTorqueSwitchesOption,
+)
 from params.models import PowerSupplies
 
 
@@ -626,4 +632,204 @@ class EACopyControlUnitsView(APIView):
             'ok': True,
             'control_units': len(cus),
             'safety_positions': len(sps),
+        })
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Copy Way / End / Torque Switches options
+# ═══════════════════════════════════════════════════════════════════════════
+
+class EASwitchesCopyView(APIView):
+    """GET: список моделей с их WaySwitches, EndSwitches, TorqueSwitches + палитра.
+       POST: копировать опции от модели к целевым."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        ml_id = request.query_params.get('model_line_id')
+        if not ml_id:
+            return Response({'error': 'model_line_id required'}, status=400)
+
+        models = list(ElectricActuatorModelLineItem.objects.filter(
+            model_line_id=ml_id, is_active=True
+        ).order_by('sorting_order'))
+        mli_ids = [m.id for m in models]
+
+        way_records = list(ElectricWaySwitchesOption.objects.filter(
+            model_line_item_id__in=mli_ids, is_active=True
+        ).select_related('way_switches_option'))
+        end_records = list(ElectricEndSwitchesOption.objects.filter(
+            model_line_item_id__in=mli_ids, is_active=True
+        ).select_related('end_switches_option'))
+        torque_records = list(ElectricTorqueSwitchesOption.objects.filter(
+            model_line_item_id__in=mli_ids, is_active=True
+        ).select_related('torque_switches_option'))
+
+        way_by_mli, end_by_mli, torque_by_mli = {}, {}, {}
+        for r in way_records:
+            way_by_mli.setdefault(r.model_line_item_id, {})[r.way_switches_option_id] = r
+        for r in end_records:
+            end_by_mli.setdefault(r.model_line_item_id, {})[r.end_switches_option_id] = r
+        for r in torque_records:
+            torque_by_mli.setdefault(r.model_line_item_id, {})[r.torque_switches_option_id] = r
+
+        # Palette
+        palette = {}
+        for r in way_records:
+            palette[('way', r.way_switches_option_id)] = {
+                'type': 'way', 'id': r.way_switches_option_id,
+                'name': r.way_switches_option.name,
+                'code': r.way_switches_option.code or '',
+            }
+        for r in end_records:
+            palette[('end', r.end_switches_option_id)] = {
+                'type': 'end', 'id': r.end_switches_option_id,
+                'name': r.end_switches_option.name,
+                'code': r.end_switches_option.code or '',
+            }
+        for r in torque_records:
+            palette[('torque', r.torque_switches_option_id)] = {
+                'type': 'torque', 'id': r.torque_switches_option_id,
+                'name': r.torque_switches_option.name,
+                'code': r.torque_switches_option.code or '',
+            }
+
+        # Add all SwitchesParameters from reference table
+        from params.models import SwitchesParameters
+        existing = {v['id'] for v in palette.values()}
+        for sp in SwitchesParameters.objects.filter(is_active=True):
+            if sp.id not in existing:
+                palette[('ref', sp.id)] = {
+                    'type': 'ref', 'id': sp.id,
+                    'name': sp.name or '', 'code': sp.code or '',
+                }
+
+        result = []
+        for mli in models:
+            way_set = {opt_id: {'id': r.id, 'encoding': r.encoding, 'is_default': r.is_default}
+                       for opt_id, r in way_by_mli.get(mli.id, {}).items()}
+            end_set = {opt_id: {'id': r.id, 'encoding': r.encoding, 'is_default': r.is_default}
+                       for opt_id, r in end_by_mli.get(mli.id, {}).items()}
+            torque_set = {opt_id: {'id': r.id, 'encoding': r.encoding, 'is_default': r.is_default}
+                          for opt_id, r in torque_by_mli.get(mli.id, {}).items()}
+            result.append({
+                'id': mli.id, 'name': mli.name,
+                'way': way_set, 'end': end_set, 'torque': torque_set,
+            })
+
+        return Response({
+            'models': result,
+            'palette': sorted(palette.values(), key=lambda x: (x['type'], x['name'])),
+        })
+
+    @transaction.atomic
+    def post(self, request):
+        source_id = request.data.get('source_mli_id')
+        target_ids = request.data.get('target_mli_ids', [])
+
+        if not source_id or not target_ids:
+            return Response({'error': 'source_mli_id and target_mli_ids required'}, status=400)
+
+        source_way = list(ElectricWaySwitchesOption.objects.filter(
+            model_line_item_id=source_id, is_active=True))
+        source_end = list(ElectricEndSwitchesOption.objects.filter(
+            model_line_item_id=source_id, is_active=True))
+        source_torque = list(ElectricTorqueSwitchesOption.objects.filter(
+            model_line_item_id=source_id, is_active=True))
+
+        created_way = created_end = created_torque = 0
+
+        for tid in target_ids:
+            if tid == source_id:
+                continue
+            ElectricWaySwitchesOption.objects.filter(model_line_item_id=tid).delete()
+            ElectricEndSwitchesOption.objects.filter(model_line_item_id=tid).delete()
+            ElectricTorqueSwitchesOption.objects.filter(model_line_item_id=tid).delete()
+
+            for r in source_way:
+                ElectricWaySwitchesOption.objects.create(
+                    model_line_item_id=tid, way_switches_option=r.way_switches_option,
+                    encoding=r.encoding, is_default=r.is_default,
+                    sorting_order=r.sorting_order, is_active=True)
+                created_way += 1
+            for r in source_end:
+                ElectricEndSwitchesOption.objects.create(
+                    model_line_item_id=tid, end_switches_option=r.end_switches_option,
+                    encoding=r.encoding, is_default=r.is_default,
+                    sorting_order=r.sorting_order, is_active=True)
+                created_end += 1
+            for r in source_torque:
+                ElectricTorqueSwitchesOption.objects.create(
+                    model_line_item_id=tid, torque_switches_option=r.torque_switches_option,
+                    encoding=r.encoding, is_default=r.is_default,
+                    sorting_order=r.sorting_order, is_active=True)
+                created_torque += 1
+
+        return Response({
+            'ok': True,
+            'created_way': created_way,
+            'created_end': created_end,
+            'created_torque': created_torque,
+        })
+
+    @transaction.atomic
+    def patch(self, request):
+        """Обновить Way/End/Torque опции для одной модели (источник)."""
+        mli_id = request.data.get('model_line_item_id')
+        way = request.data.get('way_switches', [])
+        end = request.data.get('end_switches', [])
+        torque = request.data.get('torque_switches', [])
+
+        if not mli_id:
+            return Response({'error': 'model_line_item_id required'}, status=400)
+
+        # Validate FK existence
+        from params.models import SwitchesParameters
+        all_sp_ids = set()
+        for item in way: all_sp_ids.add(item.get('switches_parameter_id'))
+        for item in end: all_sp_ids.add(item.get('switches_parameter_id'))
+        for item in torque: all_sp_ids.add(item.get('switches_parameter_id'))
+        all_sp_ids.discard(None)
+        valid_ids = set(SwitchesParameters.objects.filter(
+            id__in=all_sp_ids, is_active=True
+        ).values_list('id', flat=True))
+        invalid = all_sp_ids - valid_ids
+        if invalid:
+            return Response({'error': 'Invalid switches_parameter_id', 'invalid_ids': list(invalid)}, status=400)
+
+        # Delete old
+        ElectricWaySwitchesOption.objects.filter(model_line_item_id=mli_id).delete()
+        ElectricEndSwitchesOption.objects.filter(model_line_item_id=mli_id).delete()
+        ElectricTorqueSwitchesOption.objects.filter(model_line_item_id=mli_id).delete()
+
+        # Create new
+        for i, item in enumerate(way):
+            ElectricWaySwitchesOption.objects.create(
+                model_line_item_id=mli_id,
+                way_switches_option_id=item['switches_parameter_id'],
+                encoding=item.get('encoding', ''),
+                is_default=item.get('is_default', False),
+                sorting_order=i, is_active=True,
+            )
+        for i, item in enumerate(end):
+            ElectricEndSwitchesOption.objects.create(
+                model_line_item_id=mli_id,
+                end_switches_option_id=item['switches_parameter_id'],
+                encoding=item.get('encoding', ''),
+                is_default=item.get('is_default', False),
+                sorting_order=i, is_active=True,
+            )
+        for i, item in enumerate(torque):
+            ElectricTorqueSwitchesOption.objects.create(
+                model_line_item_id=mli_id,
+                torque_switches_option_id=item['switches_parameter_id'],
+                encoding=item.get('encoding', ''),
+                is_default=item.get('is_default', False),
+                sorting_order=i, is_active=True,
+            )
+
+        return Response({
+            'ok': True,
+            'way_switches': len(way),
+            'end_switches': len(end),
+            'torque_switches': len(torque),
         })

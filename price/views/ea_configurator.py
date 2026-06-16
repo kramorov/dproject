@@ -17,16 +17,21 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
+import logging
 import pandas as pd
 import numpy as np
 from io import BytesIO
+from django.db import transaction
 from django.http import HttpResponse
+
+logger = logging.getLogger(__name__)
 
 from price.models import EAPriceDocument, EAPriceConstructor
 from electric_actuators.models import (
     ElectricActuatorModelLineItem,
     ElectricPowerSupplyOption,
     ElectricActuatorConstructor,
+    ElectricWaySwitchesOption,
 )
 
 
@@ -48,14 +53,14 @@ class EaConfiguratorOptionsView(APIView):
 
     def get(self, request):
         ps_id = request.query_params.get('power_supply_id')
-        print(f'[EaConfiguratorOptions] GET power_supply_id={ps_id!r} (type={type(ps_id).__name__})')
+        logger.debug('EaConfiguratorOptions GET power_supply_id=%r', ps_id)
         if not ps_id:
             return Response({'error': 'power_supply_id required'}, status=400)
 
         try:
             ps = ElectricPowerSupplyOption.objects.get(id=ps_id)
         except ElectricPowerSupplyOption.DoesNotExist:
-            print(f'[EaConfiguratorOptions] power_supply not found for id={ps_id!r}')
+            logger.warning('EaConfiguratorOptions power_supply not found for id=%r', ps_id)
             return Response({'error': 'power_supply not found'}, status=404)
 
         # Все модели серии, у которых есть это напряжение (по справочнику PowerSupplies)
@@ -73,6 +78,15 @@ class EaConfiguratorOptionsView(APIView):
             is_active=True,
         ).select_related('model_line_item')
         ps_by_mli = {p.model_line_item_id: p for p in all_ps}
+
+        # Pre-fetch WaySwitches for model items of this series
+        mli_ids = [item.id for item in model_items]
+        way_by_mli = {}
+        if mli_ids:
+            for ws in ElectricWaySwitchesOption.objects.filter(
+                model_line_item_id__in=mli_ids, is_active=True
+            ).select_related('way_switches_option'):
+                way_by_mli.setdefault(ws.model_line_item_id, []).append(ws)
 
         result = {
             'power_supply': {'id': ps.id, 'name': str(ps), 'encoding': ps.encoding},
@@ -101,6 +115,21 @@ class EaConfiguratorOptionsView(APIView):
                 }
                 option_groups.append(group)
 
+            # WaySwitches — опции путевых выключателей
+            ws_list = way_by_mli.get(item.id, [])
+            if ws_list:
+                option_groups.append({
+                    'field': 'way_switches',
+                    'label': 'way_switches',
+                    'items': [{
+                        'id': ws.id,
+                        'option_id': ws.way_switches_option_id,
+                        'encoding': ws.encoding or '',
+                        'name': ws.way_switches_option.name,
+                        'is_default': ws.is_default,
+                    } for ws in ws_list],
+                })
+
             result['model_items'].append({
                 'id': item.id,
                 'name': item.name,
@@ -126,6 +155,8 @@ class EaConfiguratorDocumentView(APIView):
                 return self._export(request, doc_id)
             if 'print' in url_name:
                 return self._print_doc(request, doc_id)
+            if 'fill' in url_name:
+                return self._fill_prices(request, doc_id)
             return self._get_detail(doc_id)
         return self._list(request)
 
@@ -186,7 +217,8 @@ class EaConfiguratorDocumentView(APIView):
         })
 
     def post(self, request, doc_id=None):
-        """POST /create/ → создать, /documents/{id}/post/ → провести, /documents/{id}/unpost/ → отменить, /import/ → импорт."""
+        """POST /create/ → создать, /documents/{id}/post/ → провести, /unpost/ → отменить, /import/ → импорт.
+           POST /documents/{id}/ → обновить (сохранить) существующий документ."""
         if doc_id is None:
             return self._create(request)
         url_name = request.resolver_match.url_name if request.resolver_match else ''
@@ -194,7 +226,13 @@ class EaConfiguratorDocumentView(APIView):
             return self._unpost(request, doc_id)
         if 'import' in url_name:
             return self._import(request, doc_id)
-        return self._conduct(request, doc_id)
+        if 'export' in url_name:
+            return self._export(request, doc_id)
+        if 'print' in url_name:
+            return self._print_doc(request, doc_id)
+        if 'post' in url_name:
+            return self._conduct(request, doc_id)
+        return self._update(request, doc_id)
 
     def _create(self, request):
         """Создать документ + строки из матрицы."""
@@ -239,6 +277,29 @@ class EaConfiguratorDocumentView(APIView):
                 )
         return Response({'id': doc.id, 'name': doc.name}, status=201)
 
+    @transaction.atomic
+    def _update(self, request, doc_id):
+        """Обновить существующий документ (сохранить строки)."""
+        try:
+            doc = EAPriceDocument.objects.get(id=doc_id)
+        except EAPriceDocument.DoesNotExist:
+            return Response({'error': 'not found'}, status=404)
+
+        if doc.status != EAPriceDocument.Status.DRAFT:
+            return Response({'error': 'Only draft documents can be updated'}, status=400)
+
+        doc.name = request.data.get('name', doc.name)
+        doc.save(update_fields=['name', 'updated_at'])
+
+        rows_data = request.data.get('rows')
+        if rows_data is not None:
+            currency_id = request.data.get('currency_id') or doc.currency_id
+            price_variety_id = request.data.get('price_variety_id') or doc.price_variety_id
+            EAPriceConstructor.objects.filter(document=doc).delete()
+            self._create_rows(doc, rows_data, currency_id, price_variety_id)
+
+        return Response({'id': doc.id, 'name': doc.name})
+
     def _conduct(self, request, doc_id):
         """Провести документ. Если уже проведён — отмена + пересоздание строк."""
         try:
@@ -247,18 +308,23 @@ class EaConfiguratorDocumentView(APIView):
             return Response({'error': 'not found'}, status=404)
 
         rows_data = request.data.get('rows')
+        currency_id = request.data.get('currency_id')
+        price_variety_id = request.data.get('price_variety_id')
+
+        if rows_data and (not currency_id or not price_variety_id):
+            return Response({'error': 'currency_id and price_variety_id required with rows'}, status=400)
 
         # Если уже проведён — отменить, пересоздать строки
         if doc.status == EAPriceDocument.Status.POSTED:
             doc.unpost()
             if rows_data:
                 EAPriceConstructor.objects.filter(document=doc).delete()
-                self._create_rows(doc, rows_data, request.data.get('currency_id'), request.data.get('price_variety_id'))
+                self._create_rows(doc, rows_data, currency_id, price_variety_id)
 
         # Если черновик и есть новые данные — пересоздать строки
         elif rows_data and doc.status == EAPriceDocument.Status.DRAFT:
             EAPriceConstructor.objects.filter(document=doc).delete()
-            self._create_rows(doc, rows_data, request.data.get('currency_id'), request.data.get('price_variety_id'))
+            self._create_rows(doc, rows_data, currency_id, price_variety_id)
 
         doc.post()
         return Response({'ok': True, 'status': doc.status, 'status_label': doc.get_status_display()})
@@ -309,23 +375,34 @@ class EaConfiguratorDocumentView(APIView):
                 )
 
     def _get_option_columns(self, doc):
-        """Get all option column definitions + per-model availability.
-        Returns {columns: [{key, label}], availability: {mli_id: set(key)}}"""
+        """Get all option column definitions + per-model availability + label→mli_id.
+        Returns {columns: [{key, label}], availability: {mli_id: set(key)}, label_to_mli: {str: int}}"""
         if not doc.power_supply:
-            return {'columns': [], 'availability': {}}
+            return {'columns': [], 'availability': {}, 'label_to_mli': {}}
         ps = doc.power_supply
         model_items = ElectricActuatorModelLineItem.objects.filter(
             model_line_id=doc.model_line_id,
             model_line_item_power_supply_option__power_supply_id=ps.power_supply_id,
             is_active=True,
-        ).distinct()
+        ).select_related('model_line').distinct()
         cols = []
         seen = set()
         availability = {}
+        ps_enc = ps.encoding or ''
+        label_to_mli = {}
+        # Pre-fetch power supply options одним запросом
+        mli_ids = [item.id for item in model_items]
+        ps_by_mli = {}
+        if mli_ids:
+            for pso in ElectricPowerSupplyOption.objects.filter(
+                model_line_item_id__in=mli_ids, power_supply_id=ps.power_supply_id, is_active=True
+            ):
+                ps_by_mli[pso.model_line_item_id] = pso
         for item in model_items:
-            item_ps = ElectricPowerSupplyOption.objects.filter(
-                model_line_item=item, power_supply_id=ps.power_supply_id, is_active=True
-            ).first()
+            # label → mli_id (формат как в _build_matrix_df)
+            label_to_mli[f"{item.model_line.code}{item.code}.{ps_enc}"] = item.id
+
+            item_ps = ps_by_mli.get(item.id)
             if not item_ps:
                 continue
             temp = ElectricActuatorConstructor(selected_model_line_item=item, selected_power_supply=item_ps)
@@ -347,7 +424,24 @@ class EaConfiguratorDocumentView(APIView):
                             'label': opt.get('encoding') or k,
                         })
             availability[item.id] = item_keys
-        return {'columns': cols, 'availability': availability}
+
+        # WaySwitches — вне конструктора, привязаны напрямую к model_line_item
+        mli_ids = [item.id for item in model_items]
+        if mli_ids:
+            way_qs = ElectricWaySwitchesOption.objects.filter(
+                model_line_item_id__in=mli_ids, is_active=True
+            ).select_related('way_switches_option')
+            for ws in way_qs:
+                k = f"way_switches_{ws.way_switches_option_id}"
+                if k not in seen:
+                    seen.add(k)
+                    cols.append({
+                        'key': k,
+                        'label': ws.encoding or ws.way_switches_option.code or k,
+                    })
+                availability.setdefault(ws.model_line_item_id, set()).add(k)
+
+        return {'columns': cols, 'availability': availability, 'label_to_mli': label_to_mli}
 
     def _build_matrix_df(self, doc):
         """Build pandas DataFrame from document rows + through-model option columns.
@@ -393,14 +487,44 @@ class EaConfiguratorDocumentView(APIView):
 
         return df
 
+    def _build_matrix_from_rows(self, doc, frontend_rows):
+        """Build pandas DataFrame from frontend-provided rows (same format as matrix)."""
+        col_data = self._get_option_columns(doc)
+        col_defs = col_data['columns']
+        availability = col_data['availability']
+        ps_enc = doc.power_supply.encoding if doc.power_supply else ''
+
+        rows = []
+        for fr in frontend_rows:
+            mli_id = fr.get('model_line_item_id')
+            label = fr.get('label', str(mli_id))
+            row = {'Модель': label, 'Базовая цена': float(fr.get('base_price', 0) or 0)}
+            avail = availability.get(mli_id, set())
+            for c in col_defs:
+                if c['key'] in avail:
+                    row[c['label']] = float((fr.get('options', {}).get(c['key'], 0)) or 0)
+                else:
+                    row[c['label']] = np.nan
+            rows.append(row)
+
+        if not rows:
+            return pd.DataFrame()
+        return pd.DataFrame(rows)
+
     def _export(self, request, doc_id):
-        """GET /documents/{id}/export/ — скачать матрицу как Excel (Pandas)."""
+        """POST /documents/{id}/export/ — скачать матрицу как Excel.
+           Если передан {rows: [...]} — строит из них, иначе из БД."""
         try:
             doc = EAPriceDocument.objects.select_related('power_supply').get(id=doc_id)
         except EAPriceDocument.DoesNotExist:
             return Response({'error': 'not found'}, status=404)
 
-        df = self._build_matrix_df(doc)
+        frontend_rows = request.data.get('rows') if request.method == 'POST' else None
+        if frontend_rows:
+            df = self._build_matrix_from_rows(doc, frontend_rows)
+        else:
+            df = self._build_matrix_df(doc)
+
         if df.empty:
             return Response({'error': 'no rows'}, status=404)
 
@@ -423,13 +547,19 @@ class EaConfiguratorDocumentView(APIView):
         return resp
 
     def _print_doc(self, request, doc_id):
-        """GET /documents/{id}/print/ — HTML для печати (Pandas)."""
+        """POST /documents/{id}/print/ — HTML для печати.
+           Если передан {rows: [...]} — строит из них, иначе из БД."""
         try:
             doc = EAPriceDocument.objects.select_related('model_line', 'price_variety', 'currency', 'power_supply').get(id=doc_id)
         except EAPriceDocument.DoesNotExist:
             return Response({'error': 'not found'}, status=404)
 
-        df = self._build_matrix_df(doc)
+        frontend_rows = request.data.get('rows') if request.method == 'POST' else None
+        if frontend_rows:
+            df = self._build_matrix_from_rows(doc, frontend_rows)
+        else:
+            df = self._build_matrix_df(doc)
+
         table_html = df.to_html(index=False, na_rep='—', classes='mtx', border=0) if not df.empty else '<p>Нет данных</p>'
 
         html = f'''<!DOCTYPE html><html><head><meta charset="utf-8"><title>{doc.name}</title>
@@ -444,7 +574,8 @@ h2{{margin:0 0 4px}}table.mtx{{border-collapse:collapse;width:100%;margin-top:10
         return Response({'html': html})
 
     def _import(self, request, doc_id):
-        """POST /documents/{id}/import/ — загрузить Excel, вернуть данные матрицы (Pandas)."""
+        """POST /documents/{id}/import/ — загрузить Excel, разобрать на бэкенде,
+        вернуть готовые строки: [{model_line_item_id, base_price, options: {key: price}}]."""
         try:
             doc = EAPriceDocument.objects.get(id=doc_id)
         except EAPriceDocument.DoesNotExist:
@@ -454,10 +585,84 @@ h2{{margin:0 0 4px}}table.mtx{{border-collapse:collapse;width:100%;margin-top:10
         if not uploaded:
             return Response({'error': 'No file'}, status=400)
 
-        df = pd.read_excel(uploaded)
-        cols = list(df.columns[2:]) if len(df.columns) > 2 else []
-        rows_data = df.where(pd.notna(df), None).to_dict('records')
-        return Response({'rows': rows_data, 'headers': cols})
+        try:
+            df = pd.read_excel(uploaded)
+        except Exception:
+            return Response({'error': 'Invalid file format'}, status=400)
+
+        if df.empty or 'Модель' not in df.columns or 'Базовая цена' not in df.columns:
+            return Response({'error': 'Invalid file format'}, status=400)
+
+        col_data = self._get_option_columns(doc)
+        label_to_key = {c['label']: c['key'] for c in col_data['columns']}
+        label_to_mli = col_data['label_to_mli']
+
+        option_cols = list(df.columns[2:])
+        result_rows = []
+        for _, excel_row in df.iterrows():
+            model_label = str(excel_row.get('Модель', '')).strip()
+            mli_id = label_to_mli.get(model_label)
+            if not mli_id:
+                continue
+
+            options = {}
+            for col_name in option_cols:
+                val = excel_row[col_name]
+                if pd.isna(val):
+                    continue
+                key = label_to_key.get(str(col_name))
+                if key:
+                    try:
+                        options[key] = float(val)
+                    except (ValueError, TypeError):
+                        pass
+
+            try:
+                base_price = float(excel_row.get('Базовая цена', 0) or 0)
+            except (ValueError, TypeError):
+                base_price = 0.0
+
+            result_rows.append({
+                'model_line_item_id': mli_id,
+                'base_price': base_price,
+                'options': options,
+            })
+
+        return Response({'rows': result_rows})
+
+    def _fill_prices(self, request, doc_id):
+        """GET /documents/{id}/fill/ — действующие цены для заполнения матрицы."""
+        try:
+            doc = EAPriceDocument.objects.get(id=doc_id)
+        except EAPriceDocument.DoesNotExist:
+            return Response({'error': 'not found'}, status=404)
+
+        if not doc.model_line_id or not doc.power_supply_id:
+            return Response({'error': 'document has no series or power supply'}, status=400)
+
+        active_rows = EAPriceConstructor.objects.filter(
+            model_line_item__model_line_id=doc.model_line_id,
+            power_supply=doc.power_supply,
+            price_variety_id=doc.price_variety_id,
+            currency_id=doc.currency_id,
+            is_active=True,
+        ).exclude(document=doc).select_related('model_line_item')
+
+        by_model = {}
+        for row in active_rows:
+            mli_id = row.model_line_item_id
+            if mli_id not in by_model:
+                by_model[mli_id] = {
+                    'model_line_item_id': mli_id,
+                    'base_price': float(row.surcharge) if row.surcharge else 0.0,
+                    'options': {},
+                }
+            if row.option_field == 'base':
+                by_model[mli_id]['base_price'] = float(row.surcharge)
+            else:
+                by_model[mli_id]['options'][f"{row.option_field}_{row.option_id}"] = float(row.surcharge)
+
+        return Response({'rows': list(by_model.values())})
 
     def delete(self, request, doc_id=None):
         """Мягкое удаление (mark_deleted)."""

@@ -73,11 +73,33 @@ class EAPriceDocument(AbstractDocument):
 
     @transaction.atomic
     def register_changes(self):
-        """Провести документ: активировать все строки."""
+        """Провести документ: деактивировать конкурирующие строки (batch), активировать свои."""
         if self.status == self.Status.POSTED:
             return
 
         from .ea_price_constructor import EAPriceConstructor
+        from django.db.models import Q
+        my_rows = list(EAPriceConstructor.objects.filter(document=self))
+        if not my_rows:
+            self.status = self.Status.POSTED
+            self.save(update_fields=['status', 'updated_at'])
+            return
+
+        # Собрать уникальные комбинации для одного batch-update
+        q = Q()
+        for row in my_rows:
+            q |= Q(
+                model_line_item=row.model_line_item,
+                power_supply=row.power_supply,
+                option_field=row.option_field,
+                option_id=row.option_id,
+                price_variety=row.price_variety,
+                is_active=True,
+            )
+        if q:
+            EAPriceConstructor.objects.filter(q).exclude(document=self).update(is_active=False)
+
+        # Активировать строки этого документа
         EAPriceConstructor.objects.filter(document=self).update(is_active=True)
 
         self.status = self.Status.POSTED
@@ -85,12 +107,12 @@ class EAPriceDocument(AbstractDocument):
 
     @transaction.atomic
     def unregister_changes(self):
-        """Отменить проведение: деактивировать строки."""
+        """Отменить проведение: удалить строки, статус → черновик."""
         if self.status != self.Status.POSTED:
             return
 
         from .ea_price_constructor import EAPriceConstructor
-        EAPriceConstructor.objects.filter(document=self).update(is_active=False)
+        EAPriceConstructor.objects.filter(document=self).delete()
 
         self.status = self.Status.DRAFT
         self.save(update_fields=['status', 'updated_at'])
