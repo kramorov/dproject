@@ -1,53 +1,75 @@
-# SESSION.md — состояние на 2026-06-16
+# SESSION.md — состояние на 2026-06-17
 
 ## Контекст
 
-Машина: домашняя (kramo). Ветка: `office-work`.
+Машина: рабочая (s.kramorov). Ветка: `office-work`.
 
-## Текущая задача: рефакторинг датчиков/сигналов электроприводов
+## Выполненные задачи
 
-### Проблема
-Три through-модели (`ElectricWaySwitchesOption`, `ElectricEndSwitchesOption`, `ElectricTorqueSwitchesOption`) привязаны к `model_line_item` и ссылаются на плоский справочник `params.SwitchesParameters` (SPDT/DPDT/нет). Это не отражает реальность:
-- Форма сигнала и тип датчика определяются блоком управления, а не моделью привода
-- Сигналы обратной связи (конец открытия, момент, 4–20 мА, авария…) — это профиль БУ
-- Wiring diagram должна ссылаться на связку БУ+напряжение+сигналы
+### 1. Восстановление `.idea/` после сброса настроек PyCharm
+- Файлы `misc.xml`, `modules.xml`, `djangoProject1.iml`, `vcs.xml`, `encodings.xml`, `.gitignore`, `inspectionProfiles/` восстановлены из истории git (коммит `a22f8f5`)
+- Поправлен жёсткий путь `C:\Users\kramo\...` → `$PROJECT_DIR$` в `dataSources.xml`
+- `.idea/` в `.gitignore` — больше не повторится
 
-### Принятые решения
-1. **Сигналы группируются в наборы** — `FeedbackSignalSet` (M2M на существующие `pa_controls.SensorComponent`)
-2. **Счётчики оборотов — отдельный справочник** — `TurnCounterOption` (тип: мех/эл + max_turns)
-3. **Привязка через through-модели** к `ElectricControlUnitOption` (БУ × напряжение):
-   - `ElectricFeedbackSignalSetOption` — набор сигналов с `is_default` и `encoding`
-   - `ElectricTurnCounterOption` — счётчик с `is_default` и `encoding`
-4. **Каталог vs Конструктор**: каталог показывает сводку (`feature_list` в JSON), конструктор выбирает конкретный набор
+### 2. Обсуждение архитектуры опций и through-моделей
+- Through-модели оправданы для хранения `encoding` и `is_default` на связях
+- Третий уровень вложенности (through под through) не нужен — заменён на FK+M2M на родителе
+- `encoding` должен быть единым для всей серии, но разным у разных производителей
+- Промежуточный шаг: `Allowed*Option` как source of truth encoding на уровне `model_line`
 
-### Что сделано
+### 3. Новые модели params
 
-#### Новые файлы (params/)
-| Файл | Содержит |
-|------|----------|
-| `params/feedback_signals.py` | `FeedbackSignalSet` — M2M на `SensorComponent` |
-| `params/turn_counter.py` | `TurnCounterOption` — тип + `max_turns` (0…32000) |
-| `params/admin_feedback.py` | `FeedbackSignalSetAdmin` |
-| `params/admin_turn_counter.py` | `TurnCounterOptionAdmin` |
+| Файл | Модель | Назначение |
+|------|--------|-----------|
+| `params/signal_role.py` | `SignalRole` | Справочник ролей сигналов (OPEN_LIMIT, CLOSE_LIMIT, ALARM…) |
+| `params/control_unit_signal_profile.py` | `ControlUnitSignalProfile` | Типовой профиль сигналов БУ |
+| `params/control_unit_signal_profile.py` | `ControlUnitSignalProfileEntry` | Запись: роль → датчик (unique_together: profile+role) |
+| `params/admin_signal.py` | Админки | SignalRoleAdmin, ControlUnitSignalProfileAdmin (inline entries) |
 
-#### Изменённые файлы
-| Файл | Что |
-|------|-----|
-| `params/models.py` | +2 строки импорта в конце (для обнаружения Django) |
-| `params/apps.py` | `ready()`: импорт админок (admin_feedback, admin_turn_counter) |
-| `params/__init__.py` | Оставлен пустым |
+Во все три добавлены импорты в `params/models.py` и `params/apps.py`.
 
-### Что ещё нужно сделать
+### 4. Новые модели electric_actuators
 
-- [ ] Создать through-модели в `electric_actuators/models/ea_model_line_item_options.py`:
-  - `ElectricFeedbackSignalSetOption(BaseThroughOption)` — FK: `control_unit_option` + `feedback_signal_set` + `encoding` + `is_default`
-  - `ElectricTurnCounterThroughOption(BaseThroughOption)` — FK: `control_unit_option` + `turn_counter` + `encoding` + `is_default`
-- [ ] Обновить `ElectricControlUnitOption.get_description_data()` — включить сигналы и счётчик
-- [ ] Обновить `ElectricActuatorConstructor._OPTION_CONFIG` — убрать три switch-поля, добавить сигналы/счётчик
-- [ ] Обновить `ElectricActuatorSelected._OPTION_CONFIG` — аналогично
-- [ ] Обновить админку `ElectricControlUnitOptionInline` — добавить inlines для новых through
-- [ ] `makemigrations` + `migrate`
-- [ ] Наполнить справочники (5–7 наборов сигналов, типовые счётчики)
+| Файл | Модель | Назначение |
+|------|--------|-----------|
+| `electric_actuators/models/ea_allowed_options.py` | `AllowedControlUnitOption` | encoding БУ для серии |
+| `electric_actuators/models/ea_allowed_options.py` | `AllowedTurnCounterOption` | encoding счётчика для серии |
+| `electric_actuators/models/ea_allowed_options.py` | `AllowedSignalProfileOption` | encoding профиля сигналов для серии |
+| `electric_actuators/admin/ea_allowed_options_admin.py` | Админки | AllowedControlUnitOptionAdmin, AllowedTurnCounterOptionAdmin, AllowedSignalProfileOptionAdmin |
 
-### Побочная проблема
-`.idea/` отслеживается git (несмотря на `.gitignore`). Нужно `git rm --cached -r .idea/`, но shell заблокирован. Сделать вручную или `/config allow_shell true`.
+### 5. Доработка ElectricControlUnitOption
+
+Добавлены поля:
+- `default_turn_counter` (FK → TurnCounterOption)
+- `allowed_turn_counters` (M2M → TurnCounterOption)
+- `default_signal_profile` (FK → ControlUnitSignalProfile)
+- `allowed_signal_profiles` (M2M → ControlUnitSignalProfile)
+
+Добавлены:
+- `@cached_property resolved_encoding` — читает encoding из `AllowedControlUnitOption`, fallback на собственный
+- `get_description_data()` обновлён — включает encoding, turn_counter, signal_profile
+
+### 6. Исправлены старые баги
+- `ElectricPowerSupplyOption.get_description_data()`: `torque_min`/`torque_max` ссылались на `time_to_close` (исправлено)
+- `ElectricSafetyPositionOption`: неверный docstring (исправлен)
+
+### 7. Обновлена документация
+- `SESSION.md` — этот файл
+- `electric_actuators/README.md` — новый файл с описанием архитектуры приложения
+- Добавлены/обновлены module docstrings в `electric_actuators/`
+
+## Архитектурные решения
+
+1. **Encoding на уровне model_line**: `Allowed*Option` — единый источник истины кодировок для всей серии. Через них model_line_item получает encoding без дублирования.
+2. **is_default остаётся в through-моделях**: уровень model_line_item управляет дефолтами.
+3. **Сигналы через роль+датчик**: `ControlUnitSignalProfileEntry` — гибкая привязка, DPDT обслуживает две роли без проблем.
+4. **Цены → отдельный слой**: `Allowed*Option` — естественная точка привязки цен опций (единая для всех DN серии).
+
+## Следующие шаги
+
+- [ ] Миграции (`makemigrations` + `migrate`) для всех новых моделей
+- [ ] Наполнить справочники: `SignalRole` (5-7 записей), `ControlUnitSignalProfile` (2-3 профиля)
+- [ ] Наполнить `Allowed*Option` для существующих серий
+- [ ] Обновить конфигуратор: `get_available_options()` и `_ensure_valid_options()` под новые поля
+- [ ] Создать `WiringDiagram` — обсудить отдельно
+- [ ] Модель ценообразования на базе `Allowed*Option`

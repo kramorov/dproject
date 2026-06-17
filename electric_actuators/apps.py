@@ -1,3 +1,4 @@
+"""Конфигурация приложения electric_actuators."""
 from django.apps import AppConfig
 
 

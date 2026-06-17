@@ -1,5 +1,17 @@
 # electric_actuators/models/ea_model_line_item_options.py
+"""
+Through-модели опций уровня model_line_item.
+
+Привязываются к конкретной модели в серии (ElectricActuatorModelLineItem)
+и её напряжению питания (ElectricPowerSupplyOption).
+
+Модели:
+    ElectricPowerSupplyOption     — напряжение + моторные параметры
+    ElectricSafetyPositionOption  — положение безопасности
+    ElectricControlUnitOption     — блок управления + счётчики + сигналы
+"""
 from django.db import models
+from django.utils.functional import cached_property
 
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
@@ -12,13 +24,14 @@ from options.models import BaseThroughOptionNoDefault, BaseThroughOption
 import logging
 
 from params.models import PowerSupplies
+from electric_actuators.models.ea_allowed_options import AllowedControlUnitOption
 
 logger = logging.getLogger(__name__)
 
 class ElectricSafetyPositionOption(BaseThroughOption):
-    """Опции покрытия корпуса для пневмоприводов
-       может делаться не на все напряжения и не на все модели - привязываем к напряжению, которое привязывается к
-       model_line_item - подобно ControlUnit"""
+    """Положение безопасности для опции напряжения питания.
+       Привязывается к конкретному напряжению (как ControlUnit),
+       может различаться для разных model_line_item."""
     power_supply_option = models.ForeignKey(
         'ElectricPowerSupplyOption',
         on_delete=models.CASCADE,
@@ -98,6 +111,40 @@ class ElectricControlUnitOption(BaseThroughOption):
         help_text=_("Выбирать этот блок управления по умолчанию")
     )
 
+    # ── Счётчики оборотов ──
+    default_turn_counter = models.ForeignKey(
+        'params.TurnCounterOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='default_for_control_unit_options',
+        verbose_name=_("Счётчик оборотов по умолчанию"),
+        help_text=_("Значение по умолчанию для этой пары БУ×напряжение")
+    )
+    allowed_turn_counters = models.ManyToManyField(
+        'params.TurnCounterOption',
+        blank=True,
+        related_name='allowed_in_control_unit_options',
+        verbose_name=_("Доступные счётчики оборотов"),
+        help_text=_("Все допустимые счётчики для этой пары БУ×напряжение")
+    )
+
+    # ── Профили сигналов ──
+    default_signal_profile = models.ForeignKey(
+        'params.ControlUnitSignalProfile',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='default_for_control_unit_options',
+        verbose_name=_("Профиль сигналов по умолчанию"),
+        help_text=_("Значение по умолчанию для этой пары БУ×напряжение")
+    )
+    allowed_signal_profiles = models.ManyToManyField(
+        'params.ControlUnitSignalProfile',
+        blank=True,
+        related_name='allowed_in_control_unit_options',
+        verbose_name=_("Доступные профили сигналов"),
+        help_text=_("Все допустимые профили сигналов для этой пары БУ×напряжение")
+    )
+
     # Дополнительные технические параметры если нужно
     # power_consumption = models.DecimalField(
     #     max_digits=6, decimal_places=2,
@@ -120,12 +167,46 @@ class ElectricControlUnitOption(BaseThroughOption):
         # logger.debug(f"EA logger get_description_data")
         # print(f"EA model line item print get_description_data")
         data = {
-            'control_unit': {'display_name':'Тип установленного блока управления', 'value':self.control_unit.name if self.control_unit else None,
-                             'description':self.control_unit.description if self.control_unit.description  else None, 'feature_list':self.control_unit.feature_list if self.control_unit.feature_list  else []},
-            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
-            'is_installed': False if self.control_unit.name =='none' else True
+            'control_unit': {
+                'display_name': 'Тип установленного блока управления',
+                'value': self.control_unit.name if self.control_unit else None,
+                'description': self.control_unit.description if self.control_unit else None,
+                'feature_list': self.control_unit.feature_list if self.control_unit else [],
+            },
+            'encoding': {
+                'display_name': 'Кодировка',
+                'value': self.resolved_encoding,
+            },
+            'is_default': {'display_name': 'Стандарт', 'value': self.is_default},
+            'is_installed': False if (self.control_unit and self.control_unit.name == 'none') else True,
+            'default_turn_counter': {
+                'display_name': 'Счётчик оборотов',
+                'value': self.default_turn_counter.name if self.default_turn_counter else None,
+            },
+            'default_signal_profile': {
+                'display_name': 'Профиль сигналов',
+                'value': self.default_signal_profile.name if self.default_signal_profile else None,
+            },
         }
         return data
+
+    @cached_property
+    def resolved_encoding(self) -> str:
+        """Encoding БУ для данной серии — из AllowedControlUnitOption.
+        Если записи нет — собственный encoding (обратная совместимость).
+        Результат кешируется на время жизни объекта.
+        """
+        if not (self.power_supply_option_id and self.control_unit_id):
+            return self.encoding or ''
+        try:
+            ml = self.power_supply_option.model_line_item.model_line
+            allowed = AllowedControlUnitOption.objects.get(
+                model_line=ml, control_unit=self.control_unit
+            )
+            return allowed.encoding
+        except (AllowedControlUnitOption.DoesNotExist, AttributeError):
+            return self.encoding or ''
+
     def clean(self):
         """Валидация перед сохранением"""
         # Убедимся что encoding уникален в рамках power_supply_option
@@ -208,8 +289,8 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
             'motor_power': {'display_name': 'Мощность электродвигателя, кВт', 'value': self.motor_power},
             'time_to_open': {'display_name': 'Время открытия', 'value': self.time_to_open},
             'time_to_close': {'display_name': 'Время закрытия', 'value': self.time_to_close},
-            'torque_min': {'display_name': 'Вращающий момент мин, Нм', 'value': self.time_to_close},
-            'torque_max': {'display_name': 'Вращающий момент макс, Нм', 'value': self.time_to_close},
+            'torque_min': {'display_name': 'Вращающий момент мин, Нм', 'value': self.torque_min},
+            'torque_max': {'display_name': 'Вращающий момент макс, Нм', 'value': self.torque_max},
         }
         return data
 

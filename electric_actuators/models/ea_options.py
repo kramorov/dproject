@@ -1,5 +1,25 @@
-# electric_actuators/models/ea_options.py - ИСПРАВЛЕННЫЙ:
+# electric_actuators/models/ea_options.py
+"""
+Through-модели опций уровня model_line.
 
+Каждая модель связывает серию (ElectricActuatorModelLine) с конкретной
+reference-опцией из params, храня encoding, is_default и sorting_order.
+
+Опции этого уровня едины для всех model_line_item в серии
+(не зависят от напряжения и DN).
+
+Модели:
+    ElectricTemperatureOption      — климатическое исполнение
+    ElectricIpOption               — IP
+    ElectricExdOption              — взрывозащита
+    ElectricBodyCoatingOption      — покрытие корпуса
+    ElectricBodyColorOption        — цвет корпуса
+    ElectricHandWheelOption        — ручной дублёр
+    ElectricTurnAngleOption        — угол поворота
+    ElectricBlinkerOption          — блинкер
+    ElectricMechanicalIndicatorOption — механический индикатор
+    CableGlandHolesSetBodyOption   — кабельные вводы (привязаны к ModelBody)
+"""
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union

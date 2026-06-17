@@ -14,3 +14,4 @@ class ParamsConfig(AppConfig):
         # всех приложений, чтобы избежать циклических импортов.
         from . import admin_feedback    # noqa: F401
         from . import admin_turn_counter  # noqa: F401
+        from . import admin_signal        # noqa: F401
