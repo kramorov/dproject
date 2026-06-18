@@ -6,15 +6,22 @@
 «Конечный Открыто», «Конечный Закрыто», «Момент Открыто»,
 «4-20 мА положение», «Авария», «Готовность» и т.д.
 
-Сами датчики хранятся в pa_controls.SensorComponent.
-Связь роль → датчик — через ControlUnitSignalProfileEntry.
+Выходные роли привязываются к pa_controls.SensorComponent,
+входные — к params.InputSignalSpec.
+Связь роль → датчик/входной сигнал — через ControlUnitSignalProfileEntry.
 """
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import CopyMixin
 
 
-class SignalRole(models.Model):
+class SignalDirection(models.TextChoices):
+    INPUT = 'input', _('Входной (команда приводу)')
+    OUTPUT = 'output', _('Выходной (от привода)')
+
+
+class SignalRole(CopyMixin, models.Model):
     """Роль сигнала в конфигурации БУ.
 
     Примеры:
@@ -50,6 +57,14 @@ class SignalRole(models.Model):
         default=True,
         verbose_name=_("Активно"),
         help_text=_("Показывать ли в списках выбора")
+    )
+    direction = models.CharField(
+        max_length=10,
+        choices=SignalDirection.choices,
+        default=SignalDirection.OUTPUT,
+        verbose_name=_("Направление сигнала"),
+        help_text=_("Входной — команда приводу от контроллера. "
+                    "Выходной — обратная связь от привода.")
     )
 
     class Meta:

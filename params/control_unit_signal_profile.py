@@ -63,8 +63,10 @@ class ControlUnitSignalProfile(OptionListToSelectMixin, models.Model):
     def get_summary(self) -> str:
         """Сводка для каталога: роли и датчики через запятую."""
         items = [
-            f"{entry.signal_role}: {entry.sensor}"
-            for entry in self.entries.select_related('signal_role', 'sensor').all()
+            f"{entry.signal_role}: {entry.input_signal or entry.sensor}"
+            for entry in self.entries.select_related(
+                'signal_role', 'sensor', 'input_signal'
+            ).all()
         ]
         return "; ".join(items) if items else "—"
 
@@ -91,8 +93,16 @@ class ControlUnitSignalProfileEntry(models.Model):
     sensor = models.ForeignKey(
         'pa_controls.SensorComponent',
         on_delete=models.PROTECT,
+        null=True, blank=True,
         verbose_name=_("Датчик"),
-        help_text=_("Конкретный датчик из базы pa_controls")
+        help_text=_("Конкретный датчик из базы pa_controls (только для выходных ролей)")
+    )
+    input_signal = models.ForeignKey(
+        'params.InputSignalSpec',
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        verbose_name=_("Входной сигнал"),
+        help_text=_("Спецификация входного канала БУ (только для входных ролей)")
     )
     is_default_calibration = models.BooleanField(
         default=True,
@@ -107,4 +117,26 @@ class ControlUnitSignalProfileEntry(models.Model):
         ordering = ['profile', 'signal_role__sorting_order']
 
     def __str__(self):
+        if self.input_signal:
+            return f"{self.signal_role} → {self.input_signal}"
         return f"{self.signal_role} → {self.sensor}"
+
+    def clean(self):
+        """Валидация: для входных ролей — input_signal, для выходных — sensor."""
+        from django.core.exceptions import ValidationError
+        if not self.signal_role_id:
+            return
+        # Разрешаем signal_role по коду — direction ещё не загружен
+        if self.signal_role.direction == 'input':
+            if not self.input_signal:
+                raise ValidationError({
+                    'input_signal': _('Для входной роли необходимо указать входной сигнал.')
+                })
+            # sensor опционален для входных ролей (например, резервный датчик)
+        elif self.signal_role.direction == 'output':
+            if not self.sensor:
+                raise ValidationError({
+                    'sensor': _('Для выходной роли необходимо указать датчик.')
+                })
+            # input_signal опционален для выходных ролей
+        super().clean()

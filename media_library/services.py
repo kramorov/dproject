@@ -33,6 +33,30 @@ def _compute_height(orig_size: tuple[int, int], target_width: int) -> int:
     return int(float(orig_size[1]) * target_width / float(orig_size[0]))
 
 
+def _generate_svg_variant(item, content: bytes, is_pdf: bool) -> str:
+    """
+    Сгенерировать SVG для медиаэлемента категорий SCHEMA/DRAWING/DIAGRAM.
+
+    Для PDF — прямое извлечение вектора через PyMuPDF.
+    Для изображений — трассировка через vtracer в ЧБ-режиме.
+    """
+    if is_pdf:
+        from svg_converter.services import pdf_to_svg_direct
+        return pdf_to_svg_direct(content)
+    else:
+        from PIL import Image
+        from io import BytesIO
+        from svg_converter.services import raster_to_svg
+        img = Image.open(BytesIO(content))
+        if img.mode == 'RGBA':
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            bg.paste(img, (0, 0), img)
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        return raster_to_svg(img, mode='bw', threshold=128)
+
+
 def generate_variants(item, source_file=None) -> int:
     """
     Сгенерировать все варианты для MediaLibraryItem согласно профилю категории.
@@ -178,6 +202,24 @@ def generate_variants(item, source_file=None) -> int:
 
         logger.info(f'Сгенерированы варианты изображения: {item.pk}, вариантов: {created}')
 
+    # ── SVG: векторный вариант для схем/чертежей/диаграмм ──
+    if profile.get('svg') and content:
+        try:
+            svg_content = _generate_svg_variant(item, content, is_pdf)
+            if svg_content:
+                path, size = _save_to_storage(
+                    item, BytesIO(svg_content.encode('utf-8')),
+                    'svg', 0, 'svg',
+                )
+                MediaVariant.objects.create(
+                    media_item=item, role='svg', width=0, height=0,
+                    format='svg', file_path=path, file_size=size,
+                )
+                created += 1
+                logger.info(f'Сгенерирован SVG для {item.pk}: {len(svg_content)} символов')
+        except Exception as e:
+            logger.warning(f'Ошибка генерации SVG для {item.pk}: {e}')
+
     return created
 
 
@@ -211,6 +253,8 @@ def get_variants_for_api(item) -> dict:
         email_url = None
         for v in qs:
             if v.page_num is None:
+                if v.role == 'svg':
+                    result['svg'] = file_service.get_file_url(v.file_path)
                 continue
             # email — отдельно, не по страницам
             if v.role == 'email' and v.format == 'pdf':
@@ -230,6 +274,9 @@ def get_variants_for_api(item) -> dict:
     else:
         result = {}
         for v in qs:
+            if v.format == 'svg':
+                result['svg'] = file_service.get_file_url(v.file_path)
+                continue
             if v.role not in result:
                 result[v.role] = {}
             result[v.role][str(v.width)] = file_service.get_file_url(v.file_path)

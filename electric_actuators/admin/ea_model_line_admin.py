@@ -8,6 +8,11 @@ from electric_actuators.models import ElectricTemperatureOption , ElectricIpOpti
     ElectricBlinkerOption , ElectricWaySwitchesOption , ElectricControlUnitInstalledOption , \
     ElectricMechanicalIndicatorOption , ElectricOperatingModeOption , ModelLine , ElectricBodyColorOption
 import logging
+from electric_actuators.models.ea_allowed_options import (
+    AllowedControlUnitOption ,
+    AllowedTurnCounterOption ,
+    AllowedSignalProfileOption ,
+)
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.db import transaction
@@ -90,6 +95,9 @@ def copy_related_options(original_obj, new_obj):
         ('control_unit_options', 'encoding'),
         ('hand_wheel_options', 'encoding'),
         ('mechanical_indicator_options', 'encoding'),
+        ('allowed_control_units', 'encoding'),
+        ('allowed_turn_counters', 'encoding'),
+        ('allowed_signal_profiles', 'encoding'),
         ('operating_mode_options', 'encoding'),
         ('turn_angle_options', 'encoding'),
     ]
@@ -455,6 +463,76 @@ class ElectricBodyCoatingOptionInline(admin.TabularInline) :
         formset.model.__str__ = safe_str
         return formset
 
+
+class AllowedControlUnitOptionInline(admin.TabularInline) :
+    """Inline для разрешённых БУ серии"""
+    model = AllowedControlUnitOption
+    fk_name = 'model_line'
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['control_unit' , 'encoding' , 'is_active' , 'sorting_order']
+    verbose_name = _("Разрешённый БУ")
+    verbose_name_plural = _("Разрешённые БУ для серии")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        original_str = formset.model.__str__
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__ AllowedControlUnitOption: {e}")
+                return "Новая опция"
+        formset.model.__str__ = safe_str
+        return formset
+
+
+class AllowedTurnCounterOptionInline(admin.TabularInline) :
+    """Inline для разрешённых счётчиков серии"""
+    model = AllowedTurnCounterOption
+    fk_name = 'model_line'
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['turn_counter' , 'encoding' , 'is_active' , 'sorting_order']
+    verbose_name = _("Разрешённый счётчик")
+    verbose_name_plural = _("Разрешённые счётчики для серии")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        original_str = formset.model.__str__
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__ AllowedTurnCounterOption: {e}")
+                return "Новая опция"
+        formset.model.__str__ = safe_str
+        return formset
+
+
+class AllowedSignalProfileOptionInline(admin.TabularInline) :
+    """Inline для разрешённых профилей сигналов серии"""
+    model = AllowedSignalProfileOption
+    fk_name = 'model_line'
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['signal_profile' , 'encoding' , 'is_active' , 'sorting_order']
+    verbose_name = _("Разрешённый профиль сигналов")
+    verbose_name_plural = _("Разрешённые профили сигналов для серии")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        original_str = formset.model.__str__
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__ AllowedSignalProfileOption: {e}")
+                return "Новая опция"
+        formset.model.__str__ = safe_str
+        return formset
+
+
 @admin.register(ElectricActuatorModelLine)
 class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
     """Админка для серий пневмоприводов с through-опциями"""
@@ -504,7 +582,10 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         # ElectricControlUnitInstalledOptionInline ,
         # ElectricOperatingModeOptionInline ,  # ДОБАВИТЬ
         ElectricMechanicalIndicatorOptionInline,
-        ElectricBodyColorOptionInline
+        ElectricBodyColorOptionInline ,
+        AllowedControlUnitOptionInline ,
+        AllowedTurnCounterOptionInline ,
+        AllowedSignalProfileOptionInline ,
     ]
     filter_horizontal = ('allowed_operating_mode',)  # ← добавить
     fieldsets = (
@@ -541,6 +622,9 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
             # 'way_switches_options',
             'control_unit_options',
             # 'operating_mode_options',
+            'allowed_control_units',
+            'allowed_turn_counters',
+            'allowed_signal_profiles',
             'mechanical_indicator_options'
         )
 

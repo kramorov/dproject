@@ -166,6 +166,21 @@ python manage.py cleanup_crop_sessions               # старше 1 часа
 python manage.py cleanup_crop_sessions --all          # все
 ```
 
+## SVG-конвертер (svg_converter)
+
+Отдельное приложение для векторной конвертации схем и чертежей в SVG. В отличие от `image_processor` (который делает растровые WebP-варианты), `svg_converter` создаёт масштабируемый вектор.
+
+| Метод | Эндпоинт | Описание |
+|-------|----------|----------|
+| `POST` | `/api/svg-converter/upload/` | Загрузить JPG/PNG/PDF → `session_id` |
+| `POST` | `/api/svg-converter/preview/` | Превью области (JPEG base64) |
+| `POST` | `/api/svg-converter/convert/` | Векторизация + обрезка → SVG |
+
+**PDF**: извлекает вектор напрямую через PyMuPDF (`page.get_svg_image()`), без трассировки.  
+**Растр**: трассировка через vtracer (`colormode='binary'`).
+
+Интегрирован в `media_library/services.py` — генерирует SVG-вариант для категорий SCHEMA/DRAWING/DIAGRAM.
+
 ## Ограничения
 
 - `rembg` (U2Net) хорошо работает на однородном фоне. На сложном — частично.

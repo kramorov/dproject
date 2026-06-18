@@ -12,6 +12,5 @@ class ParamsConfig(AppConfig):
     def ready(self):
         # Админки из отдельных файлов — регистрируются после загрузки
         # всех приложений, чтобы избежать циклических импортов.
-        from . import admin_feedback    # noqa: F401
         from . import admin_turn_counter  # noqa: F401
         from . import admin_signal        # noqa: F401

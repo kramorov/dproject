@@ -922,6 +922,12 @@ class ElectricActuatorConstructor(models.Model):
                 'data': float(ps.motor_current_rated) if ps.motor_current_rated else None,
                 'display_data': f"{ps.motor_current_rated} А" if ps.motor_current_rated else 'Не указано',
             }
+            data['motor_current_starting'] = {
+                'category': 'selected_options',
+                'title': 'Ток пусковой',
+                'data': float(ps.motor_current_starting) if ps.motor_current_starting else None,
+                'display_data': f"{ps.motor_current_starting} А" if ps.motor_current_starting else 'Не указано',
+            }
 
         # safety_position → params.SafetyPositionOption
         sp = self.selected_safety_position
@@ -1148,6 +1154,15 @@ class ElectricActuatorConstructor(models.Model):
         ttc = data.get('time_to_close', {}).get('display_data')
         if tto and ttc and tto != 'Не указано' and ttc != 'Не указано':
             specs.append(f"Время: {tto} / {ttc}")
+        motor_power = data.get('motor_power', {}).get('display_data')
+        if motor_power and motor_power != 'Не указано':
+            specs.append(motor_power)
+        motor_rated = data.get('motor_current_rated', {}).get('display_data')
+        if motor_rated and motor_rated != 'Не указано':
+            specs.append(motor_rated)
+        motor_start = data.get('motor_current_starting', {}).get('display_data')
+        if motor_start and motor_start != 'Не указано':
+            specs.append(f"Iпуск={motor_start}")
         if specs:
             desc_parts.append("Характеристики: " + ", ".join(specs))
 
@@ -1210,6 +1225,7 @@ class ElectricActuatorConstructor(models.Model):
             ('Напряжение питания', data.get('power_supply', {})),
             ('Мощность двигателя', data.get('motor_power', {})),
             ('Ток номинальный', data.get('motor_current_rated', {})),
+            ('Ток пусковой', data.get('motor_current_starting', {})),
             ('Положение безопасности', data.get('safety_position', {})),
             ('Блок управления', data.get('control_unit', {})),
             ('Температурное исполнение', data.get('temperature', {})),

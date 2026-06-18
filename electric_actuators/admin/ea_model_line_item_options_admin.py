@@ -45,13 +45,20 @@ class ElectricControlUnitOptionInline(admin.TabularInline):
     extra = 0
     ordering = ['sorting_order']
 
-    fields = [
-        'control_unit',
-        'encoding',
-        'is_default',
-        'is_active',
-        'sorting_order'
-    ]
+    fields = (
+        'control_unit' ,
+        'encoding' ,
+        'is_default' ,
+        'default_turn_counter' ,
+        'allowed_turn_counters' ,
+        'default_signal_profile' ,
+        'allowed_signal_profiles' ,
+        'is_active' ,
+        'sorting_order' ,
+    )
+
+    autocomplete_fields = ['control_unit' , 'default_turn_counter' , 'default_signal_profile']
+    filter_horizontal = ('allowed_turn_counters' , 'allowed_signal_profiles')
 
     verbose_name = _("Опция блока управления")
     verbose_name_plural = _("Опции блоков управления")

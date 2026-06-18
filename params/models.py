@@ -1714,9 +1714,8 @@ class LockingMechanism(models.Model):
 
 
 # ── Модели из отдельных файлов ──
-# Сами классы лежат в feedback_signals.py и turn_counter.py.
 # Импорт здесь нужен только для обнаружения Django.
-from .feedback_signals import FeedbackSignalSet  # noqa: F401 E402
 from .turn_counter import TurnCounterOption      # noqa: F401 E402
 from .signal_role import SignalRole                      # noqa: F401 E402
+from .input_signal_spec import InputSignalSpec         # noqa: F401 E402
 from .control_unit_signal_profile import ControlUnitSignalProfile, ControlUnitSignalProfileEntry  # noqa: F401 E402

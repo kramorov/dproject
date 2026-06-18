@@ -56,6 +56,9 @@ electric_actuators/
 - `ElectricPowerSupplyOption` — напряжение + моторные параметры (ток, мощность, время, момент)
 - `ElectricSafetyPositionOption` — положение безопасности
 - `ElectricControlUnitOption` — блок управления + счётчики + сигналы
+- `ElectricEndSwitchesOption` — концевые выключатели
+- `ElectricWaySwitchesOption` — путевые выключатели
+- `ElectricTorqueSwitchesOption` — моментные выключатели
 
 ### Кодировки опций
 
@@ -65,6 +68,34 @@ electric_actuators/
 - `AllowedSignalProfileOption` — кодировка профиля сигналов в серии
 
 `is_default` остаётся в through-моделях уровня model_line_item.
+
+### Архитектура сигналов (2026-06-18)
+
+Сигналы делятся на **входные** (команды приводу) и **выходные** (обратная связь).
+
+```
+SignalRole (direction: input | output)
+     │
+     ▼
+ControlUnitSignalProfileEntry
+     ├── signal_role → SignalRole
+     ├── sensor → SensorComponent           (выходные роли)
+     └── input_signal → InputSignalSpec     (входные роли)
+```
+
+| Модель | Приложение | Назначение |
+|--------|-----------|-----------|
+| `SignalRole` | params | Справочник ролей: OPEN_LIMIT, CLOSE_LIMIT, REMOTE_OPEN, ESD… + поле `direction` (input/output) |
+| `InputSignalSpec` | params | Спецификация входного канала БУ: дискретный 24В DC, аналоговый 4-20мА, ESD… |
+| `ControlUnitSignalProfile` | params | Типовой профиль сигналов («Стандартные механические SPDT») |
+| `ControlUnitSignalProfileEntry` | params | Запись: роль → датчик или входной сигнал (unique: profile+role) |
+| `SensorComponent` | pa_controls | Физический датчик: концевик, момéнтник, позиционер (SPDT/DPDT, мех/эл) |
+
+**Входные сигналы** (5 типовых записей): `CU_DI_24V_DC`, `CU_DI_220V_AC`, `CU_DI_ESD_NC`, `CU_AI_4_20MA_PASSIVE`, `CU_AI_4_20MA_ACTIVE`.
+
+**ElectricControlUnitOption** дополнительно хранит:
+- `default_turn_counter` / `allowed_turn_counters` — счётчики оборотов
+- `default_signal_profile` / `allowed_signal_profiles` — профили сигналов для пары БУ×напряжение
 
 ### Конструктор и Selected
 
@@ -93,7 +124,7 @@ electric_actuators/
 
 | Приложение | Назначение |
 |-----------|-----------|
-| `params` | Справочники: PowerSupplies, ControlUnitInstalledOption, IP, Exd, TurnCounterOption, SignalRole, ControlUnitSignalProfile |
+| `params` | Справочники: PowerSupplies, ControlUnitInstalledOption, IP, Exd, TurnCounterOption, SignalRole, InputSignalSpec, ControlUnitSignalProfile |
 | `pa_controls` | Датчики: SensorComponent, SignalType, ContactForm, ContactState |
 | `core` | CatalogConfig, FilterDefinition, SmartCatalogMixin |
 | `price` | Ценообразование |

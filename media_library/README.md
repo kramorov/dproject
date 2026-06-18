@@ -144,7 +144,7 @@ PyMuPDF        # PDF-превью (pip install PyMuPDF)
 | CERTIFICATE | icon(50), page(600), email→PDF(100dpi) | да | 150 |
 | TECH_DOC | icon(50), page(800), email→PDF(100dpi) | да | 150 |
 | BANNER | full(1200,1920) | нет | 72 |
-| SCHEMA/DRAWING/DIAGRAM | icon + card/full | нет | 150 |
+| SCHEMA/DRAWING/DIAGRAM | icon + card/full + **svg** | нет | 150 |
 
 Профиль читается через `item.category.profile` или `MediaCategory.get_profile(code)`.
 
@@ -154,7 +154,7 @@ PyMuPDF        # PDF-превью (pip install PyMuPDF)
 - `generate_variants(item)` — читает `item.category.profile`, вызывает `image_processor`,
   сохраняет файлы в Cloud.ru, создаёт строки `MediaVariant` в БД
 - `delete_variants(item)` — удаляет варианты из облака и БД
-- `get_variants_for_api(item)` — строит словарь {role: {width: url}} из через through-модели
+- `get_variants_for_api(item)` — строит словарь {role: {width: url}} + `svg` (строка URL для векторных схем)
 
 Генерация запускается автоматически при `MediaLibraryItem.save()` для изображений и PDF.
 
@@ -162,7 +162,7 @@ PyMuPDF        # PDF-превью (pip install PyMuPDF)
 
 Заменила `MediaLibraryItem.variants` (JSONField). Поля:
 - `media_item` (FK → MediaLibraryItem, related_name='variants', CASCADE)
-- `role` (icon/thumb/card/page/full/email), `width`, `height`, `format`
+- `role` (icon/thumb/card/page/full/email/svg), `width`, `height`, `format`
 - `file_path`, `file_size`, `page_num` (nullable, для PDF), `created_at`
 - `unique_together`: (media_item, role, width, page_num)
 

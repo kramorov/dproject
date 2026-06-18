@@ -27,6 +27,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/M2MDualList.vue` | M2M-селектор filter_horizontal (две панели + поиск) |
 | `shared/components/JsonFieldsEditor.vue` | Редактор JSON extra_params (таблица + raw JSON) |
 | `shared/components/MediaUploadModal.vue` | Модалка загрузки файла в медиатеку |
+| `apps/media-library/components/SchematicUploadModal.vue` | Модалка «Загрузить схему подключения» (автозаполнение + выделение кода) |
 | `shared/components/BasePicker.vue` | Модальный подбор (fetchFn, filterDefs, columns) |
 | `shared/components/ChipList.vue` | Таблица code+name с чекбоксами и batch-удалением |
 | `shared/components/FkSelect.vue` | Выбор ForeignKey с поиском |
@@ -165,6 +166,7 @@ App.vue параметризуется через `labels` + `api`.
 | `pages/admin/SkuAdminPage.vue` | /admin/sku | Номенклатура |
 | `pages/admin/WidgetsPage.vue` | /widgets | Виджеты |
 | `pages/ImageProcessorTest.vue` | /tools/image-processor | Тест обработки изображений и PDF (профили) |
+| `pages/SvgConverterTest.vue` | /tools/svg-converter | 🔧 Конвертер растров и PDF в SVG (вектор) — vtracer + PyMuPDF |
 
 ### EngineerSelection — инженерный подбор (2026-06-03, обновлён 2026-06-04)
 - 2026-06-04: EngineerFilterBar — две строки, default_value в FilterDefinition, code+name в селектах

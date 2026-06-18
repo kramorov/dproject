@@ -135,6 +135,7 @@ class MediaCategory(models.Model):
             'multi_page': False,
             'render_dpi': 150,
             'keep_alpha': False,
+            'svg': True,
         },
         'DRAWING': {
             'variants': [
@@ -144,6 +145,7 @@ class MediaCategory(models.Model):
             'multi_page': False,
             'render_dpi': 150,
             'keep_alpha': False,
+            'svg': True,
         },
         'USER_MANUAL': {
             'variants': [
@@ -176,6 +178,7 @@ class MediaCategory(models.Model):
             'multi_page': False,
             'render_dpi': 150,
             'keep_alpha': False,
+            'svg': True,
         },
         'PRESENTATION': {
             'variants': [],

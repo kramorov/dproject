@@ -5,6 +5,9 @@
       <button class="btn-primary" @click="showUpload = !showUpload">
         {{ showUpload ? '← К списку' : '+ Загрузить' }}
       </button>
+      <button class="btn-schematic" @click="showSchematicUpload = true">
+        📐 Загрузить схему подключения
+      </button>
     </header>
 
     <MediaUpload
@@ -36,6 +39,15 @@
       @preview="onPreviewFromEdit"
       @copied="onCopied"
     />
+
+    <SchematicUploadModal
+      :show="showSchematicUpload"
+      :categories="categories"
+      :brands="brands"
+      :equipment-types="equipmentTypes"
+      @close="showSchematicUpload = false"
+      @uploaded="onSchematicUploaded"
+    />
   </div>
 </template>
 
@@ -44,6 +56,7 @@ import { ref } from 'vue'
 import MediaGrid from './components/MediaGrid.vue'
 import MediaUpload from './components/MediaUpload.vue'
 import MediaEdit from './components/MediaEdit.vue'
+import SchematicUploadModal from './components/SchematicUploadModal.vue'
 import MediaViewer from '@/shared/components/MediaViewer.vue'
 import mediaApi from './api'
 
@@ -57,6 +70,7 @@ const viewerIndex = ref(0)
 const categories = ref([])
 const brands = ref([])
 const equipmentTypes = ref([])
+const showSchematicUpload = ref(false)
 
 mediaApi.filterOptions('all').then(({ data }) => {
   categories.value = data.category_id || []
@@ -65,6 +79,7 @@ mediaApi.filterOptions('all').then(({ data }) => {
 })
 
 function onUploaded() { showUpload.value = false; gridRef.value?.fetchData() }
+function onSchematicUploaded() { showSchematicUpload.value = false; gridRef.value?.fetchData() }
 function onSelectItem(item) { selectedItem.value = item; editModalVisible.value = true }
 function onPreviewItem(item, index) {
   if (!item.has_file) return
@@ -102,4 +117,6 @@ function onCopied(newItem) {
   padding: 8px 24px; background: #2563eb; color: #fff;
   border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
 }
+.btn-schematic { padding: 8px 24px; background: #059669; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; margin-left: 10px; }
+.btn-schematic:hover { background: #047857; }
 </style>

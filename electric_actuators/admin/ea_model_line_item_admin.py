@@ -12,6 +12,8 @@ from electric_actuators.models.ea_model_line_item import (
     ElectricActuatorModelLineItem ,
 
 )
+from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
+
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +153,38 @@ class ElectricTorqueSwitchesOptionInline(admin.TabularInline) :
         formset.model.__str__ = safe_str
         return formset
 
+
+class ElectricPowerSupplyOptionInline(admin.TabularInline) :
+    """Inline для опций напряжения питания модели"""
+    model = ElectricPowerSupplyOption
+    fk_name = 'model_line_item'
+    extra = 0
+    ordering = ['sorting_order']
+    fields = [
+        'power_supply' ,
+        'encoding' ,
+        'motor_current_rated' ,
+        'motor_current_starting' ,
+        'motor_power' ,
+        'is_active' ,
+        'sorting_order' ,
+    ]
+    verbose_name = _("Напряжение питания")
+    verbose_name_plural = _("Опции напряжения питания")
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        original_str = formset.model.__str__
+        def safe_str(instance):
+            try:
+                return original_str(instance)
+            except Exception as e:
+                logger.debug(f"Ошибка в __str__ ElectricPowerSupplyOption: {e}")
+                return "Новая опция"
+        formset.model.__str__ = safe_str
+        return formset
+
+
 @admin.register(ElectricActuatorModelLineItem)
 class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
     """Админка для моделей в серии электроприводов"""
@@ -202,7 +236,12 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
         }) ,
     )
 
-    inlines = [ElectricEndSwitchesOptionInline,ElectricWaySwitchesOptionInline,ElectricTorqueSwitchesOptionInline]
+    inlines = [
+        ElectricPowerSupplyOptionInline ,
+        ElectricEndSwitchesOptionInline ,
+        ElectricWaySwitchesOptionInline ,
+        ElectricTorqueSwitchesOptionInline ,
+    ]
     # ========== АВТОДОПОЛНЕНИЕ И ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР ==========
     autocomplete_fields = ['model_line' , 'body']
 
