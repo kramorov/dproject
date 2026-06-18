@@ -185,6 +185,7 @@ class PdfToDocxView(APIView):
         pdf_bytes = file.read()
         filename = file.name.rsplit('.', 1)[0]
         strip_images = request.GET.get('strip_images') == '1'
+        ocr = request.GET.get('ocr') == '1'
         preview_only = request.GET.get('preview') == '1'
 
         if preview_only:
@@ -234,7 +235,7 @@ class PdfToDocxView(APIView):
             flush_thread.start()
 
             try:
-                docx_bytes = convert_pdf_to_docx(pdf_bytes, strip_images=strip_images)
+                docx_bytes = convert_pdf_to_docx(pdf_bytes, strip_images=strip_images, ocr=ocr)
                 docx_name = f'pdf_to_docx/{uuid.uuid4().hex}.docx'
                 from django.core.files.base import ContentFile
                 session = SvgConversionSession.objects.create(

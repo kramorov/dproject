@@ -249,7 +249,64 @@ def _add_table_to_docx(doc, table_item: dict):
     p.paragraph_format.space_before = Pt(0)
 
 
-def pdf_to_docx(pdf_bytes: bytes, strip_images: bool = False) -> bytes:
+def _ocr_page_to_text(page_image) -> str:
+    """Распознать текст с изображения страницы через Tesseract (rus+eng)."""
+    try:
+        import pytesseract
+    except ImportError:
+        raise RuntimeError('pytesseract не установлен: pip install pytesseract')
+
+    # Tesseract должен быть установлен отдельно: https://github.com/UB-Mannheim/tesseract/wiki
+    text = pytesseract.image_to_string(page_image, lang='rus+eng')
+    return text
+
+
+def _pdf_to_docx_via_ocr(pdf_bytes: bytes) -> bytes:
+    """PDF → DOCX через OCR (Tesseract). Для сканированных документов."""
+    try:
+        import fitz
+        from docx import Document
+        from docx.shared import Pt, Inches
+    except ImportError as e:
+        raise RuntimeError(f'Не хватает библиотеки: {e}')
+
+    doc = Document()
+    section = doc.sections[0]
+    section.page_width = Inches(8.27)
+    section.page_height = Inches(11.69)
+
+    pdf_doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+
+    for page_num in range(len(pdf_doc)):
+        page = pdf_doc[page_num]
+        # Рендерим страницу в высоком разрешении для OCR
+        pix = page.get_pixmap(dpi=300)
+        img = Image.frombytes('RGB', [pix.width, pix.height], pix.samples)
+
+        text = _ocr_page_to_text(img)
+
+        if page_num > 0:
+            doc.add_page_break()
+
+        for line in text.split('\n'):
+            line = line.strip()
+            if line:
+                p = doc.add_paragraph()
+                run = p.add_run(line)
+                run.font.size = Pt(10)
+                run.font.name = 'Arial'
+            else:
+                doc.add_paragraph()  # пустая строка
+
+    pdf_doc.close()
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def pdf_to_docx(pdf_bytes: bytes, strip_images: bool = False, ocr: bool = False) -> bytes:
     """
     Полный pipeline: PDF → форматированный DOCX.
 
@@ -260,10 +317,14 @@ def pdf_to_docx(pdf_bytes: bytes, strip_images: bool = False) -> bytes:
         pdf_bytes: содержимое PDF-файла
         strip_images: удалить растровые изображения перед конвертацией
                       (полезно для PDF со сканом + OCR-слоем)
+        ocr: использовать Tesseract OCR вместо pdf2docx (для сканов)
 
     Returns:
         DOCX-файл как bytes
     """
+    if ocr:
+        return _pdf_to_docx_via_ocr(pdf_bytes)
+
     # ── Приоритет: pdf2docx (лучшее сохранение структуры) ──
     try:
         result = _pdf_to_docx_via_pdf2docx(pdf_bytes)

@@ -13,7 +13,7 @@
     <div class="status-line" v-if="status">{{ status }}</div>
 
     <div v-if="file && !converting" class="actions">
-      <label class="strip-check"><input type="checkbox" v-model="stripImages" /> Без картинок (для PDF со сканом + OCR)</label>
+      <label class="strip-check"><input type="checkbox" v-model="ocr" /> Распознать сканы (Tesseract OCR)</label>
       <button @click="convert" class="btn-primary">📥 Конвертировать в DOCX</button>
       <button @click="preview" class="btn-secondary">🔍 Превью блоков</button>
     </div>
@@ -33,7 +33,7 @@ const converting = ref(false)
 const status = ref('')
 const downloadUrl = ref('')
 const downloadName = ref('')
-const stripImages = ref(false)
+const ocr = ref(false)
 
 function onFileSelected(e) {
   file.value = e.target.files[0]
@@ -51,7 +51,8 @@ async function convert() {
   form.append('file', file.value)
   const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
   const base = 'http://127.0.0.1:8000/api/svg-converter/to-docx'
-  const url = stripImages.value ? base + '/?strip_images=1' : base + '/'
+  const params = ocr.value ? '?ocr=1' : ''
+  const url = base + '/' + params
 
   try {
     // POST — запустить конвертацию
