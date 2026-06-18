@@ -96,6 +96,16 @@ class ElectricControlUnitOption(BaseThroughOption):
         help_text=_("Тип блока управления")
     )
 
+    control_unit_wiring = models.ForeignKey(
+        'ControlUnitWiring',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='control_unit_options',
+        verbose_name=_("Схема подключения"),
+        help_text=_("Связка БУ+напряжение+профиль+изображение из справочника ControlUnitWiring")
+    )
+
+
     encoding = models.CharField(
         max_length=50,
         verbose_name=_("Кодировка"),
@@ -126,23 +136,6 @@ class ElectricControlUnitOption(BaseThroughOption):
         related_name='allowed_in_control_unit_options',
         verbose_name=_("Доступные счётчики оборотов"),
         help_text=_("Все допустимые счётчики для этой пары БУ×напряжение")
-    )
-
-    # ── Профили сигналов ──
-    default_signal_profile = models.ForeignKey(
-        'params.ControlUnitSignalProfile',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='default_for_control_unit_options',
-        verbose_name=_("Профиль сигналов по умолчанию"),
-        help_text=_("Значение по умолчанию для этой пары БУ×напряжение")
-    )
-    allowed_signal_profiles = models.ManyToManyField(
-        'params.ControlUnitSignalProfile',
-        blank=True,
-        related_name='allowed_in_control_unit_options',
-        verbose_name=_("Доступные профили сигналов"),
-        help_text=_("Все допустимые профили сигналов для этой пары БУ×напряжение")
     )
 
     # Дополнительные технические параметры если нужно
@@ -178,14 +171,17 @@ class ElectricControlUnitOption(BaseThroughOption):
                 'value': self.resolved_encoding,
             },
             'is_default': {'display_name': 'Стандарт', 'value': self.is_default},
-            'is_installed': False if (self.control_unit and self.control_unit.name == 'none') else True,
+            'is_installed': self.control_unit is not None and self.control_unit.name != 'none',
             'default_turn_counter': {
                 'display_name': 'Счётчик оборотов',
                 'value': self.default_turn_counter.name if self.default_turn_counter else None,
             },
-            'default_signal_profile': {
-                'display_name': 'Профиль сигналов',
-                'value': self.default_signal_profile.name if self.default_signal_profile else None,
+            'control_unit_wiring': {
+                'display_name': 'Схема подключения',
+                'value': self.control_unit_wiring.code if self.control_unit_wiring else None,
+                'name': self.control_unit_wiring.name if self.control_unit_wiring else None,
+                'signal_profile': self.control_unit_wiring.signal_profile.name
+                    if (self.control_unit_wiring and self.control_unit_wiring.signal_profile_id) else None,
             },
         }
         return data

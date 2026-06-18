@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .api.views import EAOptionAPIView
 from .api.views_constructor import ConstructorViewSet
 from .api.views_admin import EAPowerSupplyMatrixView, EAPowerSupplyMatrixExportView, EAPowerSupplyMatrixImportView, EACopyControlUnitsView, EASwitchesCopyView
+from .api.views_admin_items import EAModelLineItemListView, EAModelLineItemDetailView, EAAdminWiringsView, EAWiringRefsView
 
 router = DefaultRouter()
 router.register(r'constructor', ConstructorViewSet, basename='ea-constructor')
@@ -17,6 +18,11 @@ urlpatterns = [
     path('admin/power-supply-matrix/import/', EAPowerSupplyMatrixImportView.as_view(), name='ea_power_supply_import'),
     path('admin/copy-control-units/', EACopyControlUnitsView.as_view(), name='ea_copy_control_units'),
     path('admin/copy-switches/', EASwitchesCopyView.as_view(), name='ea_copy_switches'),
+    path('admin/items/', EAModelLineItemListView.as_view(), name='ea_admin_items_list'),
+    path('admin/items/<int:pk>/', EAModelLineItemDetailView.as_view(), name='ea_admin_items_detail'),
+    path('admin/wirings/', EAAdminWiringsView.as_view(), name='ea_admin_wirings'),
+    path('admin/wirings/refs/', EAWiringRefsView.as_view(), name='ea_admin_wirings_refs'),
+    path('admin/wirings/<int:pk>/', EAAdminWiringsView.as_view(), name='ea_admin_wirings_detail'),
     path('options/', EAOptionAPIView.as_view(), name='get_options'),
 path(
         'description/<int:instance_id>/html/',

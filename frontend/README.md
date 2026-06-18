@@ -1,6 +1,8 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-10: price-catalog → shared DocumentJournal/DocumentCard, EA configurator на SharedDocumentCard + Pandas-экспорт. 2026-06-09: типовые компоненты документов (DocumentJournal, DocumentCard, DocumentItemsTable), тема admin.css (1С 11)
-> Обновлено 2026-06-08: конструктор пневмоприводов, двухпанельный layout, live preview
+> Обновлено 2026-06-18: админки ea-model-admin (модели ЭП), ea-wiring-admin (схемы БУ CRUD); ControlUnitWiring API
+> Обновлено 2026-06-10: price-catalog → DocumentJournal/DocumentCard, EA configurator
+> Обновлено 2026-06-09: типовые компоненты документов, тема admin.css
+> Обновлено 2026-06-08: конструктор пневмоприводов, двухпанельный layout
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -142,6 +144,8 @@ App.vue параметризуется через `labels` + `api`.
 | `price-catalog/` | /api/admin/prices/ | /admin/price |
 | `sku-admin/` | /api/admin/sku/ | /admin/sku |
 | `limit-switch-admin/` | /api/core/ + /api/pa-controls/ | /admin/limit-switch |
+| `ea-model-admin/` | /api/electric_actuators/admin/items/ + /wirings/ | /admin/ea-models |
+| `ea-wiring-admin/` | /api/electric_actuators/admin/wirings/ (CRUD) | /admin/ea-wirings |
 
 ### Виджет
 | Приложение | Назначение |
@@ -167,6 +171,8 @@ App.vue параметризуется через `labels` + `api`.
 | `pages/admin/WidgetsPage.vue` | /widgets | Виджеты |
 | `pages/ImageProcessorTest.vue` | /tools/image-processor | Тест обработки изображений и PDF (профили) |
 | `pages/SvgConverterTest.vue` | /tools/svg-converter | 🔧 Конвертер растров и PDF в SVG (вектор) — vtracer + PyMuPDF |
+| `pages/admin/EaModelAdminPage.vue` | /admin/ea-models | Админка моделей ЭП (каскад, карточки напряжений) |
+| `pages/admin/EaWiringAdminPage.vue` | /admin/ea-wirings | CRUD схем подключения БУ |
 
 ### EngineerSelection — инженерный подбор (2026-06-03, обновлён 2026-06-04)
 - 2026-06-04: EngineerFilterBar — две строки, default_value в FilterDefinition, code+name в селектах

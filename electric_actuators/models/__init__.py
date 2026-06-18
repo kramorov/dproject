@@ -21,6 +21,7 @@ from .ea_model_body import *
 from .ea_cg_holes_set import *
 from .ea_actual_actuator import *
 from .ea_wiring_diagram import *
+from .ea_control_unit_wiring import *
 from .ea_options import *
 from .ea_body import *
 from .ea_model_line_item_options import *
@@ -60,5 +61,6 @@ __all__ = [
     'AllowedControlUnitOption',
     'AllowedTurnCounterOption',
     'AllowedSignalProfileOption',
+    'ControlUnitWiring',
 
 ]

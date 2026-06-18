@@ -51,14 +51,14 @@ class ElectricControlUnitOptionInline(admin.TabularInline):
         'is_default' ,
         'default_turn_counter' ,
         'allowed_turn_counters' ,
-        'default_signal_profile' ,
-        'allowed_signal_profiles' ,
+        'control_unit_wiring' ,
         'is_active' ,
         'sorting_order' ,
     )
 
-    autocomplete_fields = ['control_unit' , 'default_turn_counter' , 'default_signal_profile']
-    filter_horizontal = ('allowed_turn_counters' , 'allowed_signal_profiles')
+    autocomplete_fields = ['control_unit' , 'default_turn_counter' , 'control_unit_wiring']
+
+    filter_horizontal = ('allowed_turn_counters',)
 
     verbose_name = _("Опция блока управления")
     verbose_name_plural = _("Опции блоков управления")

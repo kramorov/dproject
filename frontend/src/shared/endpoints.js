@@ -87,4 +87,12 @@ export const ENDPOINTS = {
     copyControlUnits: '/electric_actuators/admin/copy-control-units/',
     copySwitches: '/electric_actuators/admin/copy-switches/',
   },
+
+  eaModelAdmin: {
+    modelLines: '/electric_actuators/constructor/model_lines/',
+    items: '/electric_actuators/admin/items/',
+    itemDetail: (id) => `/electric_actuators/admin/items/${id}/`,
+    wirings: '/electric_actuators/admin/wirings/',
+  },
+
 }
