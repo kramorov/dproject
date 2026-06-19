@@ -35,6 +35,8 @@ const allItems = [
     { to:'/admin/ea-constructor', label:'⚡ Конструктор электроприводов' },
     { to:'/admin/ea-power-supply', label:'🔌 Опции напряжения ЭП' },
     { to:'/admin/ea-switches', label:'🔘 Опции выключателей ЭП' },
+    { to:'/admin/ea-models', label:'📋 Модели ЭП' },
+    { to:'/admin/ea-wirings', label:'🔗 Схемы БУ' },
     { to:'/widgets', label:'📋 Виджеты' },
   ]},
 ]

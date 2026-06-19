@@ -1719,3 +1719,4 @@ from .turn_counter import TurnCounterOption      # noqa: F401 E402
 from .signal_role import SignalRole                      # noqa: F401 E402
 from .input_signal_spec import InputSignalSpec         # noqa: F401 E402
 from .control_unit_signal_profile import ControlUnitSignalProfile, ControlUnitSignalProfileEntry  # noqa: F401 E402
+from .actuator_heater_supply import ActuatorHeaterSupply  # noqa: F401 E402

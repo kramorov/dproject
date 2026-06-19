@@ -3,12 +3,12 @@ from typing import Dict
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import TemplateMixin, GetChoicesMixin
+from core.models.mixins import TemplateMixin, GetChoicesMixin, CopyMixin
 # from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState
 from producers.models import Brands
 
 
-class SensorComponent(TemplateMixin, GetChoicesMixin, models.Model):
+class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, models.Model):
     """База данных конкретных моделей датчиков и трансмиттеров"""
     name = models.CharField(max_length=200,
         verbose_name=_("Название"),

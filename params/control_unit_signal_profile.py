@@ -17,10 +17,10 @@ unique_together = [profile, signal_role] гарантирует, что на о�
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import OptionListToSelectMixin
+from core.models.mixins import OptionListToSelectMixin, CopyMixin
 
 
-class ControlUnitSignalProfile(OptionListToSelectMixin, models.Model):
+class ControlUnitSignalProfile(OptionListToSelectMixin, CopyMixin, models.Model):
     """Типовой профиль сигналов для конфигурации БУ.
 
     Группирует датчики в осмысленные наборы:
@@ -70,6 +70,13 @@ class ControlUnitSignalProfile(OptionListToSelectMixin, models.Model):
         ]
         return "; ".join(items) if items else "—"
 
+    def _copy_custom_relations(self, new_copy):
+        """Копируем записи профиля (entries) в новый профиль."""
+        for entry in self.entries.all():
+            entry.pk = None
+            entry.profile = new_copy
+            entry.save()
+
 
 class ControlUnitSignalProfileEntry(models.Model):
     """Запись в профиле: роль сигнала → конкретный датчик.
@@ -117,26 +124,35 @@ class ControlUnitSignalProfileEntry(models.Model):
         ordering = ['profile', 'signal_role__sorting_order']
 
     def __str__(self):
-        if self.input_signal:
-            return f"{self.signal_role} → {self.input_signal}"
-        return f"{self.signal_role} → {self.sensor}"
+        parts = [str(self.signal_role)]
+        if self.sensor_id:
+            parts.append(str(self.sensor))
+        if self.input_signal_id:
+            parts.append(str(self.input_signal))
+        return ' → '.join(parts)
 
     def clean(self):
-        """Валидация: для входных ролей — input_signal, для выходных — sensor."""
+        """Валидация: для входных ролей — input_signal, для выходных — sensor,
+        для двунаправленных — и то, и другое."""
         from django.core.exceptions import ValidationError
         if not self.signal_role_id:
             return
-        # Разрешаем signal_role по коду — direction ещё не загружен
-        if self.signal_role.direction == 'input':
+        direction = self.signal_role.direction
+        if direction == 'input':
             if not self.input_signal:
                 raise ValidationError({
                     'input_signal': _('Для входной роли необходимо указать входной сигнал.')
                 })
-            # sensor опционален для входных ролей (например, резервный датчик)
-        elif self.signal_role.direction == 'output':
+        elif direction == 'output':
             if not self.sensor:
                 raise ValidationError({
                     'sensor': _('Для выходной роли необходимо указать датчик.')
                 })
-            # input_signal опционален для выходных ролей
+        elif direction == 'bidirectional':
+            if not self.input_signal:
+                raise ValidationError({
+                    'input_signal': _('Для двунаправленного сигнала необходимо указать входной сигнал.')
+                })
+            # sensor не требуется — двунаправленный сигнал (4-20мА+HART)
+            # описывается через InputSignalSpec, а не физический датчик
         super().clean()

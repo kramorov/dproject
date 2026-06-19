@@ -32,21 +32,87 @@ class EAWiringRefsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from params.models import ControlUnitInstalledOption, ControlUnitSignalProfile
+        from params.models import ControlUnitInstalledOption, ControlUnitSignalProfile, SignalRole
+        from params.actuator_heater_supply import ActuatorHeaterSupply
         from media_library.models import MediaLibraryItem
 
         cu = list(ControlUnitInstalledOption.objects.filter(is_active=True).values('id', 'name').order_by('name'))
         ps = list(PowerSupplies.objects.filter(is_active=True).values('id', 'name').order_by('name'))
-        sp = list(ControlUnitSignalProfile.objects.filter(is_active=True).values('id', 'name').order_by('name'))
-        img = list(MediaLibraryItem.objects.filter(
+
+        # Профили сигналов с записями (роль → датчик / входной сигнал)
+        sp_qs = ControlUnitSignalProfile.objects.filter(is_active=True).prefetch_related(
+            'entries__signal_role',
+            'entries__sensor',
+            'entries__input_signal',
+        ).order_by('sorting_order')
+        sp = []
+        for profile in sp_qs:
+            entries = []
+            for e in profile.entries.all():
+                component = None
+                if e.sensor_id:
+                    component = e.sensor.name
+                elif e.input_signal_id:
+                    component = e.input_signal.name
+                entries.append({
+                    'role': e.signal_role.name if e.signal_role_id else '—',
+                    'direction': e.signal_role.direction if e.signal_role_id else '—',
+                    'component': component or '—',
+                })
+            sp.append({
+                'id': profile.id,
+                'name': profile.name,
+                'code': profile.code,
+                'description': profile.description,
+                'entries': entries,
+            })
+
+        # Изображения схем с preview_url и full_url (svg / full 1200 / card 800)
+        img_qs = MediaLibraryItem.objects.filter(
             category__code='SCHEMA', is_active=True
-        ).values('id', 'name', 'code').order_by('name'))
+        ).prefetch_related('variants').only('id', 'name', 'code', 'mime_type').order_by('name')
+        img = []
+        for item in img_qs:
+            try:
+                variants = item.get_variants_for_api()
+            except Exception:
+                variants = {}
+            full_url = None
+            # Плоский формат (изображения без страниц)
+            if 'full' in variants:
+                full_url = variants['full'].get('1600') or variants['full'].get('1920') or variants['full'].get('1200')
+            if not full_url and 'card' in variants:
+                full_url = variants['card'].get('800') or variants['card'].get('400')
+            # Формат pages (PDF): full/card внутри pages[n]
+            if not full_url and 'pages' in variants:
+                for page in variants['pages']:
+                    for role in ('full', 'card', 'page'):
+                        if role in page:
+                            full_url = page[role].get('1600') or page[role].get('1200') or page[role].get('800') or next(iter(page[role].values()), None)
+                            if full_url:
+                                break
+                    if full_url:
+                        break
+            # SVG — только если ничего крупнее не нашлось
+            if not full_url and 'svg' in variants:
+                full_url = variants['svg']
+            img.append({
+                'id': item.id,
+                'name': item.name,
+                'code': item.code,
+                'mime_type': item.mime_type,
+                'preview_url': getattr(item, 'preview_url', None),
+                'full_url': full_url,
+            })
+
+        hs_qs = ActuatorHeaterSupply.objects.filter(is_active=True).values('id', 'name').order_by('sorting_order')
 
         return Response({
             'control_units': [{'id': x['id'], 'name': x['name']} for x in cu],
             'power_supplies': [{'id': x['id'], 'name': x['name']} for x in ps],
-            'signal_profiles': [{'id': x['id'], 'name': x['name']} for x in sp],
-            'schema_images': [{'id': x['id'], 'name': x['name'], 'code': x['code']} for x in img],
+            'signal_profiles': sp,
+            'schema_images': img,
+            'heater_supplies': list(hs_qs),
         })
 
 
@@ -183,16 +249,16 @@ class EAAdminWiringsView(APIView):
         if pk is not None:
             try:
                 w = ControlUnitWiring.objects.select_related(
-                    'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram'
+                    'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram', 'heater_supply'
                 ).get(pk=pk)
             except ControlUnitWiring.DoesNotExist:
                 return Response({'error': 'not found'}, status=404)
             return Response(_serialize_wiring(w))
 
         # Список
-        qs = ControlUnitWiring.objects.filter(is_active=True).select_related(
-            'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram'
-        ).order_by('sorting_order', 'code')
+        qs = ControlUnitWiring.objects.select_related(
+            'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram', 'heater_supply'
+        ).order_by('control_unit__name', 'power_supply__voltage_value', 'sorting_order', 'code')
 
         data = []
         for w in qs:
@@ -201,11 +267,17 @@ class EAAdminWiringsView(APIView):
                 'code': w.code,
                 'name': w.name,
                 'description': w.description,
+                'heater_supply': {
+                    'id': w.heater_supply_id,
+                    'name': w.heater_supply.name if w.heater_supply_id else None,
+                } if w.heater_supply_id else None,
                 'control_unit': {'id': w.control_unit_id, 'name': w.control_unit.name} if w.control_unit_id else None,
                 'power_supply': {'id': w.power_supply_id, 'name': str(w.power_supply)} if w.power_supply_id else None,
                 'signal_profile': {'id': w.signal_profile_id, 'name': w.signal_profile.name} if w.signal_profile_id else None,
                 'wiring_diagram': _serialize_wiring_diagram(w),
                 'cached_json': w.cached_json,
+                'is_active': w.is_active,
+                'sorting_order': w.sorting_order,
             })
         return Response(data)
 
@@ -224,7 +296,7 @@ class EAAdminWiringsView(APIView):
                 return Response({'error': str(e)}, status=400)
             # Перезапросить с select_related, чтобы _serialize_wiring не делал N+1
             copied = ControlUnitWiring.objects.select_related(
-                'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram'
+                'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram', 'heater_supply'
             ).get(pk=copied.pk)
             return Response(_serialize_wiring(copied), status=201)
 
@@ -238,7 +310,7 @@ class EAAdminWiringsView(APIView):
                 sorting_order=request.data.get('sorting_order', 0),
             )
             for fk_field in ['control_unit_id', 'power_supply_id',
-                             'signal_profile_id', 'wiring_diagram_id']:
+                             'signal_profile_id', 'wiring_diagram_id', 'heater_supply_id']:
                 if fk_field in request.data:
                     setattr(w, fk_field, request.data[fk_field] or None)
             w.full_clean()
@@ -249,7 +321,7 @@ class EAAdminWiringsView(APIView):
             return Response({'ok': False, 'errors': str(e)}, status=400)
 
         w = ControlUnitWiring.objects.select_related(
-            'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram'
+            'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram', 'heater_supply'
         ).get(pk=w.pk)
         return Response(_serialize_wiring(w), status=201)
 
@@ -267,7 +339,7 @@ class EAAdminWiringsView(APIView):
             if field in request.data:
                 setattr(w, field, request.data[field])
         for fk_field in ['control_unit_id', 'power_supply_id',
-                         'signal_profile_id', 'wiring_diagram_id']:
+                         'signal_profile_id', 'wiring_diagram_id', 'heater_supply_id']:
             if fk_field in request.data:
                 setattr(w, fk_field, request.data[fk_field] or None)
         try:
@@ -280,7 +352,7 @@ class EAAdminWiringsView(APIView):
 
         try:
             w = ControlUnitWiring.objects.select_related(
-                'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram'
+                'control_unit', 'power_supply', 'signal_profile', 'wiring_diagram', 'heater_supply'
             ).get(pk=w.pk)
         except ControlUnitWiring.DoesNotExist:
             return Response({'ok': True, 'warning': 'updated but could not reload'})
@@ -409,6 +481,7 @@ def _serialize_wiring(w):
         'control_unit': {'id': w.control_unit_id, 'name': w.control_unit.name} if w.control_unit_id else None,
         'power_supply': {'id': w.power_supply_id, 'name': str(w.power_supply)} if w.power_supply_id else None,
         'signal_profile': {'id': w.signal_profile_id, 'name': w.signal_profile.name} if w.signal_profile_id else None,
+        'heater_supply': {'id': w.heater_supply_id, 'name': w.heater_supply.name} if w.heater_supply_id else None,
         'wiring_diagram': _serialize_wiring_diagram(w),
         'cached_json': w.cached_json,
     }

@@ -32,9 +32,10 @@ class InputSignalSpec(models.Model):
         choices=[
             ('discrete', _('Дискретный')),
             ('analog', _('Аналоговый')),
+            ('digital', _('Цифровой')),
         ],
         verbose_name=_("Категория сигнала"),
-        help_text=_("Дискретный (вкл/выкл) или аналоговый (4-20мА, 0-10В)")
+        help_text=_("Дискретный (вкл/выкл), аналоговый (4-20мА, 0-10В) или цифровой (Modbus RTU, HART)")
     )
     electrical_specs = models.CharField(
         max_length=255, blank=True,

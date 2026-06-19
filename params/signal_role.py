@@ -19,6 +19,7 @@ from core.models.mixins import CopyMixin
 class SignalDirection(models.TextChoices):
     INPUT = 'input', _('Входной (команда приводу)')
     OUTPUT = 'output', _('Выходной (от привода)')
+    BIDIRECTIONAL = 'bidirectional', _('Двунаправленный')
 
 
 class SignalRole(CopyMixin, models.Model):
@@ -59,12 +60,13 @@ class SignalRole(CopyMixin, models.Model):
         help_text=_("Показывать ли в списках выбора")
     )
     direction = models.CharField(
-        max_length=10,
+        max_length=15,
         choices=SignalDirection.choices,
         default=SignalDirection.OUTPUT,
         verbose_name=_("Направление сигнала"),
         help_text=_("Входной — команда приводу от контроллера. "
-                    "Выходной — обратная связь от привода.")
+                    "Выходной — обратная связь от привода. "
+                    "Двунаправленный — например, 4-20мА+HART.")
     )
 
     class Meta:

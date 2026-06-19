@@ -1,15 +1,16 @@
 <template>
   <div class="wiring-admin">
     <div class="toolbar">
-      <h2>Схемы подключения БУ (ControlUnitWiring)</h2>
+      <h2>Сигналы управления, обр.связи и схемы БУ (ControlUnitWiring)</h2>
       <div class="spacer"></div>
+      <input v-model="searchQuery" placeholder="Поиск по коду, названию, БУ..." class="search-input" />
       <button class="btn btn-add" @click="openCreate">➕ Новая схема</button>
       <span v-if="loading" class="spinner">⏳</span>
       <span v-if="msg" class="msg" :class="msgType">{{ msg }}</span>
     </div>
 
     <!-- Таблица -->
-    <table class="data-table" v-if="wirings.length">
+    <table class="data-table" v-if="filteredWirings.length">
       <thead>
         <tr>
           <th>Код</th>
@@ -18,12 +19,13 @@
           <th>Напряжение</th>
           <th>Профиль</th>
           <th>Схема</th>
+          <th>Обогрев</th>
           <th>Акт.</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="w in wirings" :key="w.id">
+        <tr v-for="w in filteredWirings" :key="w.id">
           <td class="code">{{ w.code }}</td>
           <td>{{ w.name }}</td>
           <td>{{ w.control_unit?.name || '—' }}</td>
@@ -33,6 +35,7 @@
             <img v-if="w.wiring_diagram?.preview_url" :src="w.wiring_diagram.preview_url" class="thumb" @error="e => e.target.style.display='none'" />
             <span v-else>—</span>
           </td>
+          <td>{{ w.heater_supply?.name || '—' }}</td>
           <td><span :class="['badge', w.is_active ? 'on' : 'off']">{{ w.is_active ? 'Да' : 'Нет' }}</span></td>
           <td class="actions">
             <button class="btn-sm" @click="openEdit(w)">✏️</button>
@@ -45,7 +48,7 @@
     <div v-else-if="!loading" class="empty">Нет записей. Создайте первую схему.</div>
 
     <!-- Модалка: создать / редактировать -->
-    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+    <div v-if="showModal" class="modal-overlay">
       <div class="modal">
         <div class="modal-header">
           <h3>{{ editingId ? 'Редактировать' : 'Новая схема' }}</h3>
@@ -88,12 +91,59 @@
                 <option v-for="sp in signalProfiles" :key="sp.id" :value="sp.id">{{ sp.name }}</option>
               </select>
             </div>
+          </div>
+          <!-- Аккордеон: профиль сигналов -->
+          <div v-if="selectedSignalProfile" class="accordion">
+            <div class="accordion-header" @click="showProfileAccordion = !showProfileAccordion">
+              <span>📋 Профиль сигналов: {{ selectedSignalProfile.name }}</span>
+              <span class="accordion-arrow">{{ showProfileAccordion ? '▾' : '▸' }}</span>
+            </div>
+            <div v-if="showProfileAccordion" class="accordion-body">
+              <p v-if="selectedSignalProfile.description" class="profile-desc">{{ selectedSignalProfile.description }}</p>
+              <table class="profile-table" v-if="selectedSignalProfile.entries?.length">
+                <thead><tr><th>Роль</th><th>Направление</th><th>Компонент</th></tr></thead>
+                <tbody>
+                  <tr v-for="(e, i) in selectedSignalProfile.entries" :key="i">
+                    <td>{{ e.role }}</td>
+                    <td><span :class="['dir-badge', e.direction]">{{ e.direction === 'input' ? 'Вход' : e.direction === 'output' ? 'Выход' : e.direction === 'bidirectional' ? 'Вход/Выход' : e.direction }}</span></td>
+                    <td>{{ e.component }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-else class="empty-entries">Нет записей в профиле</div>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Изображение схемы</label>
+            <input v-model="schemaFilter" placeholder="Фильтр по ключевым словам..." class="field-input field-filter" />
+            <select v-model.number="form.wiring_diagram_id" class="field-input">
+              <option :value="null">— не выбрано —</option>
+              <option v-for="img in filteredSchemaImages" :key="img.id" :value="img.id">{{ img.code || img.name }}</option>
+            </select>
+          </div>
+          <div class="form-row">
             <div class="form-field">
-              <label>Изображение схемы</label>
-              <select v-model.number="form.wiring_diagram_id" class="field-input">
+              <label>Питание обогрева</label>
+              <select v-model.number="form.heater_supply_id" class="field-input">
                 <option :value="null">— не выбрано —</option>
-                <option v-for="img in schemaImages" :key="img.id" :value="img.id">{{ img.code || img.name }}</option>
+                <option v-for="hs in heaterSupplies" :key="hs.id" :value="hs.id">{{ hs.name }}</option>
               </select>
+            </div>
+          </div>
+          <!-- Превью выбранного изображения схемы -->
+          <div v-if="selectedSchemaImage" class="schema-preview">
+            <div class="form-row">
+              <div class="form-field">
+                <label>Название схемы</label>
+                <input :value="selectedSchemaImage.name" readonly class="field-input readonly" @focus="$event.target.select()" />
+              </div>
+              <div class="form-field">
+                <label>Код схемы</label>
+                <input :value="selectedSchemaImage.code" readonly class="field-input readonly" @focus="$event.target.select()" />
+              </div>
+            </div>
+            <div class="schema-thumb-wrap" v-if="selectedSchemaImage.preview_url">
+              <img :src="selectedSchemaImage.preview_url" class="schema-thumb" @click="openSchemaLightbox" @error="e => e.target.style.display='none'" />
             </div>
           </div>
           <div class="form-row">
@@ -119,7 +169,7 @@
     </div>
 
     <!-- Модалка: подтверждение удаления -->
-    <div v-if="deleteTarget" class="modal-overlay" @click.self="deleteTarget=null">
+    <div v-if="deleteTarget" class="modal-overlay">
       <div class="modal modal-sm">
         <div class="modal-header"><h3>Удалить схему?</h3></div>
         <div class="modal-body">
@@ -132,11 +182,30 @@
         </div>
       </div>
     </div>
+
+    <!-- Просмотрщик изображений схем -->
+    <div v-if="schemaViewerShow" class="schema-lightbox" @click="schemaViewerShow=false" @keydown.escape="schemaViewerShow=false">
+      <div class="schema-lightbox-toolbar">
+        <span class="schema-lightbox-title">{{ selectedSchemaImage?.name || 'Схема' }}</span>
+        <button class="schema-lightbox-close" @click.stop="schemaViewerShow=false">&times;</button>
+      </div>
+      <div class="schema-lightbox-body">
+        <img v-if="schemaLightboxSrc"
+          :src="schemaLightboxSrc"
+          :alt="selectedSchemaImage?.name"
+          class="schema-lightbox-img"
+          @error="onSchemaImgError" />
+        <div v-if="schemaImgFailed" class="schema-lightbox-fallback">
+          <p>Большое изображение недоступно</p>
+          <a v-if="selectedSchemaImage?.preview_url" :href="selectedSchemaImage.preview_url" target="_blank">Открыть превью</a>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import api from './api.js'
 
 const wirings = ref([])
@@ -153,11 +222,45 @@ const controlUnits = ref([])
 const powerSupplies = ref([])
 const signalProfiles = ref([])
 const schemaImages = ref([])
+const heaterSupplies = ref([])
+const searchQuery = ref('')
+const schemaFilter = ref('')
 
+// UI state
+const showProfileAccordion = ref(true)
+const schemaViewerShow = ref(false)
+const schemaImgFailed = ref(false)
+const schemaLightboxSrc = ref(null)
+
+// Computed
+const selectedSignalProfile = computed(() => signalProfiles.value.find(p => p.id === form.signal_profile_id) || null)
+const selectedSchemaImage = computed(() => schemaImages.value.find(img => img.id === form.wiring_diagram_id) || null)
+const filteredSchemaImages = computed(() => {
+  const q = schemaFilter.value.toLowerCase().trim()
+  if (!q) return schemaImages.value
+  return schemaImages.value.filter(img =>
+    (img.code || '').toLowerCase().includes(q) ||
+    (img.name || '').toLowerCase().includes(q)
+  )
+})
+const filteredWirings = computed(() => {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return wirings.value
+  return wirings.value.filter(w =>
+    (w.code || '').toLowerCase().includes(q) ||
+    (w.name || '').toLowerCase().includes(q) ||
+    (w.control_unit?.name || '').toLowerCase().includes(q) ||
+    (w.power_supply?.name || '').toLowerCase().includes(q) ||
+    (w.signal_profile?.name || '').toLowerCase().includes(q) ||
+    (w.heater_supply?.name || '').toLowerCase().includes(q) ||
+    (w.wiring_diagram?.code || '').toLowerCase().includes(q) ||
+    (w.wiring_diagram?.name || '').toLowerCase().includes(q)
+  )
+})
 const emptyForm = () => ({
   code: '', name: '', description: '',
   control_unit_id: null, power_supply_id: null,
-  signal_profile_id: null, wiring_diagram_id: null,
+  signal_profile_id: null, wiring_diagram_id: null, heater_supply_id: null,
   is_active: true, sorting_order: 0,
 })
 const form = reactive(emptyForm())
@@ -178,6 +281,7 @@ async function loadRefs() {
     powerSupplies.value = r.power_supplies || []
     signalProfiles.value = r.signal_profiles || []
     schemaImages.value = r.schema_images || []
+    heaterSupplies.value = r.heater_supplies || []
   } catch (e) { /* не критично */ }
 }
 
@@ -185,6 +289,7 @@ function openCreate() {
   Object.assign(form, emptyForm())
   editingId.value = null
   formError.value = ''
+  schemaFilter.value = ''
   showModal.value = true
 }
 
@@ -198,10 +303,12 @@ function openEdit(w) {
     power_supply_id: w.power_supply?.id || null,
     signal_profile_id: w.signal_profile?.id || null,
     wiring_diagram_id: w.wiring_diagram?.id || null,
+    heater_supply_id: w.heater_supply?.id || null,
     is_active: w.is_active,
     sorting_order: w.sorting_order,
   })
   formError.value = ''
+  schemaFilter.value = ''
   showModal.value = true
 }
 
@@ -261,6 +368,34 @@ async function copyWiring(w) {
   finally { saving.value = false }
 }
 
+function openSchemaLightbox() {
+  const img = selectedSchemaImage.value
+  if (!img) return
+  schemaImgFailed.value = false
+  // full_url (svg/full) в приоритете, иначе preview_url
+  schemaLightboxSrc.value = img.full_url || img.preview_url || null
+  schemaViewerShow.value = true
+}
+
+function onSchemaImgError() {
+  const img = selectedSchemaImage.value
+  // fallback: если full_url не загрузился, пробуем preview_url
+  if (schemaLightboxSrc.value && schemaLightboxSrc.value !== img?.preview_url && img?.preview_url) {
+    schemaLightboxSrc.value = img.preview_url
+    return
+  }
+  schemaImgFailed.value = true
+}
+
+// Автозаполнение кода при выборе схемы (только при создании)
+watch(() => form.wiring_diagram_id, (newId) => {
+  if (!newId) return
+  // Не перезаписываем, если код уже задан вручную
+  if (form.code && form.code.trim()) return
+  const img = schemaImages.value.find(i => i.id === newId)
+  if (img?.code) form.code = img.code
+})
+
 onMounted(() => { fetchAll(); loadRefs() })
 </script>
 
@@ -269,6 +404,8 @@ onMounted(() => { fetchAll(); loadRefs() })
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .toolbar h2 { margin: 0; font-size: 18px; }
 .spacer { flex: 1; }
+.search-input { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; width: 240px; }
+.search-input:focus { border-color: #1976d2; outline: none; }
 .spinner { font-size: 18px; }
 .msg { font-size: 13px; padding: 4px 10px; border-radius: 4px; }
 .msg.ok { background: #e6ffe6; color: #2e7d32; }
@@ -311,9 +448,44 @@ onMounted(() => { fetchAll(); loadRefs() })
 .form-field label { font-size: 12px; color: #666; margin-bottom: 3px; font-weight: 500; }
 .field-input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
 .field-input:focus { border-color: #1976d2; outline: none; }
+.field-filter { margin-bottom: 4px; font-size: 12px; }
 .form-row { display: flex; gap: 10px; }
 .form-row .form-field { flex: 1; }
 .checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; padding-top: 18px; }
 .form-error { color: #c62828; font-size: 13px; margin-top: 8px; padding: 6px 10px; background: #ffe6e6; border-radius: 4px; }
 .warn { color: #c62828; font-size: 13px; }
+
+/* Аккордеон профиля сигналов */
+.accordion { margin-top: 8px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+.accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f5f5f5; cursor: pointer; font-size: 13px; font-weight: 500; user-select: none; }
+.accordion-header:hover { background: #eee; }
+.accordion-arrow { font-size: 12px; color: #999; }
+.accordion-body { padding: 10px 12px; background: #fff; }
+.profile-desc { font-size: 12px; color: #666; margin: 0 0 8px; }
+.profile-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.profile-table th { text-align: left; padding: 4px 8px; background: #f9fafb; color: #666; font-weight: 500; border-bottom: 1px solid #e0e0e0; }
+.profile-table td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
+.dir-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+.dir-badge.input { background: #e3f2fd; color: #1565c0; }
+.dir-badge.output { background: #e8f5e9; color: #2e7d32; }
+.dir-badge.bidirectional { background: #f3e5f5; color: #7b1fa2; }
+.empty-entries { font-size: 12px; color: #999; padding: 4px 0; }
+
+/* Превью схемы */
+.schema-preview { margin-top: 10px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; }
+.field-input.readonly { background: #f9fafb; color: #555; cursor: text; user-select: text; }
+.schema-thumb-wrap { margin-top: 8px; text-align: center; }
+.schema-thumb { max-height: 120px; max-width: 100%; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; transition: box-shadow 0.15s; }
+.schema-thumb:hover { box-shadow: 0 0 0 2px #1976d2; }
+
+/* Лайтбокс схемы (быстрый, без iframe) */
+.schema-lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; }
+.schema-lightbox-toolbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: rgba(0,0,0,0.5); color: #fff; font-size: 14px; flex-shrink: 0; }
+.schema-lightbox-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.schema-lightbox-close { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.schema-lightbox-body { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; overflow: auto; }
+.schema-lightbox-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.schema-lightbox-fallback { text-align: center; color: #fff; }
+.schema-lightbox-fallback p { margin: 0 0 12px; font-size: 15px; }
+.schema-lightbox-fallback a { color: #64b5f6; font-size: 14px; }
 </style>

@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
+from core.models.mixins import AdminCopyMixin
 
 from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactState, ContactForm, LimitSwitchBody, \
     SensorComponent
@@ -10,9 +11,10 @@ from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 
 
 @admin.register(SensorComponent)
-class SensorComponentAdmin(admin.ModelAdmin):
+class SensorComponentAdmin(AdminCopyMixin, admin.ModelAdmin):
     """Админка для датчиков (компонентов)"""
 
+    actions = ['copy_selected_objects']
     list_display = ['id',
         'name',
         'code',

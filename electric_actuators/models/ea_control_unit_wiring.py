@@ -46,6 +46,15 @@ class ControlUnitWiring(CopyMixin, models.Model):
         help_text=_("Изображение из медиабиблиотеки (категория «Схема»)")
     )
 
+    heater_supply = models.ForeignKey(
+        'params.ActuatorHeaterSupply',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='control_unit_wirings',
+        verbose_name=_("Питание обогрева"),
+        help_text=_("Вариант питания антиконденсатного обогрева привода")
+    )
+
     name = models.CharField(
         max_length=200,
         verbose_name=_("Название"),
@@ -107,6 +116,10 @@ class ControlUnitWiring(CopyMixin, models.Model):
                 'description': self.signal_profile.description if self.signal_profile_id else None,
             },
             'wiring_diagram': None,
+            'heater_supply': {
+                'id': self.heater_supply_id,
+                'name': self.heater_supply.name if self.heater_supply_id else None,
+            } if self.heater_supply_id else None,
         }
         if self.wiring_diagram_id:
             img = self.wiring_diagram
@@ -121,7 +134,7 @@ class ControlUnitWiring(CopyMixin, models.Model):
 
     def save(self, *args, **kwargs):
         update_fields = kwargs.get('update_fields')
-        fk_fields = {'control_unit_id', 'power_supply_id', 'signal_profile_id', 'wiring_diagram_id'}
+        fk_fields = {'control_unit_id', 'power_supply_id', 'signal_profile_id', 'wiring_diagram_id', 'heater_supply_id'}
         if update_fields is None or fk_fields & set(update_fields) or self.cached_json is None:
             self.refresh_cached_json()
         super().save(*args, **kwargs)
