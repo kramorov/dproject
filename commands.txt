@@ -17,7 +17,6 @@ streamlit run main_page.py
 
 pip install rembg
 
-deepseek login --api-key sk-6dac533475de4e1cb36238915dac2d84
 cd C:\Users\s.kramorov\PycharmProjects\djangoProject1
 cd C:\Users\kramo\PycharmProjects\djangoProject1
 codewhale
@@ -27,6 +26,37 @@ deepseek update
 electric_actuators\README.md
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).
+
+# 1. Авторизация в реестре
+docker login ваш-реестр.cr.cloud.ru -u <Key ID> -p <Key Secret>
+# 2. Сборка образа
+docker build --tag ваш-реестр.cr.cloud.ru/django-app . --platform linux/amd64
+# 3. Загрузка
+docker push ваш-реестр.cr.cloud.ru/django-app:latest
+docker tag demo-equipment:v1 drf-front.cr.cloud.ru/ca62177a-1c49-40f9-9c58-965d01621220/demo-equipment:v1
+docker push drf-front.cr.cloud.ru/ca62177a-1c49-40f9-9c58-965d01621220/demo-equipment:v1
+https://cloud.ru/docs/container-apps-evolution/ug/topics/quickstart
+ca62177a-1c49-40f9-9c58-965d01621220
+`build-demo.bat` — три режима
+ build-demo.bat               REM полный цикл: сборка + push в Cloud.ru
+ build-demo.bat build-only    REM только сборка (без загрузки в облако)
+ build-demo.bat clean         REM удалить временные файлы .dockerignore.bak
+Что делает скрипт
+
+1. Проверяет запущен ли Docker и есть ли db.sqlite3
+2. Временно правит .dockerignore — убирает исключение *.sqlite3, чтобы БД попала в образ. Оригинал сохраняется в .dockerignore.bak
+3. Собирает образ через docker build
+4. Восстанавливает оригинальный .dockerignore
+5. Тегирует образ как cr.cloud.ru/<tenant>/demo-equipment:v1
+6. Пушит в Artifact Registry (при ошибке подсказывает что проверить)
+
+
+Перед первым запуском
+Замени TENANT_ID в скрипте на свой и залогинься в реестр:
+  docker login cr.cloud.ru
+Логин — tenant_id:key_id, пароль — key_secret (те же, что в settings.py для Cloud.ru S3).
+После push
+Открываешь https://console.cloud.ru/container-apps → «Создать» → указываешь образ cr.cloud.ru/.../demo-equipment:v1, порт 8000, 0.2 vCPU / 512 MB → готово.
 
 Из дома:
 git add .

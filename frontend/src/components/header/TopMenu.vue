@@ -15,15 +15,16 @@ import { useAuth } from './useAuth.js'
 const { role, loaded } = useAuth()
 const open = ref(null)
 const allItems = [
-  { key:'pneumatic', label:'🔧 Пневмоприводы и управление', children:[
+  { key:'catalog', label:'📦 Каталог оборудования', children:[
     { to:'/catalog/gearbox', label:'Ручные дублёры' },
     { to:'/catalog/filter-regulator', label:'Фильтр-регуляторы' },
     { to:'/catalog/limit-switch', label:'Блоки концевых выключателей' },
     { to:'/catalog/solenoid-valves', label:'Распределительные клапаны' },
     { to:'/catalog/pneumatic-fittings', label:'Пневматические фитинги' },
   ]},
-  { key:'electric', label:'⚡ Электроприводы', children:[
-    { to:'/catalog/limit-switch', label:'Блоки концевых выключателей' },
+  { key:'configurator', label:'🔧 Конфигуратор оборудования', children:[
+    { to:'/admin/pa-constructor', label:'🔧 Конструктор пневмоприводов' },
+    { to:'/admin/ea-constructor', label:'⚡ Конструктор электроприводов' },
   ]},
   { key:'admin', label:'⚙️ Администрирование', adminOnly:true, children:[
     { to:'/admin/cert-docs', label:'📜 Сертификаты' },
@@ -31,8 +32,6 @@ const allItems = [
     { to:'/admin/price', label:'💰 Цены' },
     { to:'/admin/sku', label:'📦 SKU' },
     { to:'/admin/limit-switch', label:'🔌 БКВ' },
-    { to:'/admin/pa-constructor', label:'🔧 Конструктор пневмоприводов' },
-    { to:'/admin/ea-constructor', label:'⚡ Конструктор электроприводов' },
     { to:'/admin/ea-power-supply', label:'🔌 Опции напряжения ЭП' },
     { to:'/admin/ea-switches', label:'🔘 Опции выключателей ЭП' },
     { to:'/admin/ea-models', label:'📋 Модели ЭП' },

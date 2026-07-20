@@ -1,0 +1,58 @@
+﻿# Git
+.git/
+.gitignore
+
+# Node
+frontend/node_modules/
+nuxt-app/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Build artifacts
+frontend/dist/
+
+# DB (copy at build time if you want demo data)
+
+# Docs & temp
+*.xlsx
+*.docx
+*.pdf
+*.txt
+!requirements-docker.txt
+*.json
+!package.json
+!package-lock.json
+*.zip
+*.rar
+
+# Media
+media/
+media_old/
+media_backup_*/
+staticfiles/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# DeepSeek / AI
+.aider*
+deepseek-tools/
+SESSION.md
+LLM.MD
+
+# System
+.DS_Store
+Thumbs.db
+*.log

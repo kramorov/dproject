@@ -59,6 +59,7 @@ STATIC_URL = '/static/'  # URL для статических файлов
 # Папки, где искать статические файлы
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR , 'static') ,
+    os.path.join(BASE_DIR , 'frontend' , 'dist') ,  # Vite build output
 ]
 # Папка для collectstatic (может быть любой)
 STATIC_ROOT = os.path.join(BASE_DIR , 'staticfiles')  # Директория для сбора статических файлов
@@ -67,22 +68,23 @@ STATIC_ROOT = os.path.join(BASE_DIR , 'staticfiles')  # Директория д�
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&p1sohqzki&0xrh2w8q%2ic^7f2@)z5rj=y^33c(&ou2wsj8%7'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-&p1sohqzki&0xrh2w8q%2ic^7f2@)z5rj=y^33c(&ou2wsj8%7')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = [
     '*' ,  # Для теста (не для продакшена!)
     'localhost' ,
     '127.0.0.1' ,
-    'host.docker.internal'  # Важно!
+    'host.docker.internal' ,  # Важно!
+    '.containerapps.ru' ,      # Cloud.ru Container Apps
 
 ]
 # CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://*.containerapps.ru']
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
 CORS_ALLOWED_ORIGINS = [
@@ -171,6 +173,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware' ,
+    'whitenoise.middleware.WhiteNoiseMiddleware' ,
     'django.contrib.sessions.middleware.SessionMiddleware' ,
     'corsheaders.middleware.CorsMiddleware' ,
     # 'django.middleware.common.CommonMiddleware' ,
