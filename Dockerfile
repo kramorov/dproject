@@ -36,7 +36,7 @@ RUN chmod +x /entrypoint.sh
 
 ENV DJANGO_SETTINGS_MODULE=djangoProject1.settings
 ENV PYTHONUNBUFFERED=1
-ENV DB_PATH=/app/data/db.sqlite3
+ENV DB_PATH=/data/db.sqlite3
 
 EXPOSE 8000
 ENTRYPOINT ["/entrypoint.sh"]

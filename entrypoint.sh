@@ -3,6 +3,13 @@ set -e
 
 # Use external DB path if set, fallback to in-app
 if [ -n "$DB_PATH" ]; then
+    DB_DIR=$(dirname "$DB_PATH")
+    if [ ! -f "$DB_PATH" ]; then
+        echo "DB not found at $DB_PATH, copying from image..."
+        mkdir -p "$DB_DIR"
+        cp /app/db.sqlite3 "$DB_PATH"
+        echo "DB copied to $DB_PATH"
+    fi
     echo "Using DB at $DB_PATH"
 fi
 

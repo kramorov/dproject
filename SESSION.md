@@ -54,7 +54,11 @@
 
 ## Следующие шаги
 
-- [ ] Дождаться деплоя в облаке, проверить `/`, `/admin/`, `/selector/pa`
+- [x] Дождаться деплоя в облаке, проверить `/`, `/admin/`, `/selector/pa`
+- [x] Cloud.ru: том подключён, запись в БД работает
+- [x] `SESSION_ENGINE = signed_cookies` (сессии без записи в БД)
+- [x] `frontend/src/shared/config.js` — `API_URL = ''` (relative URLs)
+- [ ] **Разграничение доступа** — см. [`access.md`](./access.md)
 - [ ] Если OOM — рассмотреть вынос `image_processor` в отдельный Container App
 - [ ] Перенести `cert_manager` M2M-связи в Vue
 - [ ] Переписать запросы клиентов (`request_list` + `request_edit`) на Vue заново
