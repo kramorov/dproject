@@ -1,14 +1,16 @@
-﻿# build-demo.ps1 — Docker image build with demo data & push to Cloud.ru
+# build-demo.ps1 -- Docker image build with demo data & push to Cloud.ru
 #
 # Usage:
 #   .\build-demo.ps1                  full build + push
 #   .\build-demo.ps1 -BuildOnly       build only, skip push
+#   .\build-demo.ps1 -PushOnly        push existing local image (skip build)
 #   .\build-demo.ps1 -Clean           remove temp files
 #
 # Requirements: Docker Desktop running, docker login cr.cloud.ru (once)
 
 param(
     [switch] $BuildOnly,
+    [switch] $PushOnly,
     [switch] $Clean
 )
 
@@ -44,6 +46,39 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "[OK] Docker running"
 
+# ===== Push-only mode: skip build, just tag + push =====
+if ($PushOnly) {
+    Write-Host ""
+    Write-Host "[PUSH-ONLY] Checking local image..."
+    $exists = docker image inspect "${ImageName}:$ImageTag" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Local image ${ImageName}:$ImageTag not found. Run build first." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "[OK] Found ${ImageName}:$ImageTag"
+
+    Write-Host ""
+    Write-Host "[1/2] Tagging for Cloud.ru..."
+    docker tag "${ImageName}:$ImageTag" $FullImage
+    Write-Host "[OK] Tag: $FullImage"
+
+    Write-Host ""
+    Write-Host "[2/2] Pushing to Cloud.ru..."
+    docker push $FullImage
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Push failed. Check docker login $Registry" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Green
+    Write-Host "  PUSH COMPLETE" -ForegroundColor Green
+    Write-Host "============================================" -ForegroundColor Green
+    Write-Host "  Image: $FullImage"
+    Write-Host "============================================" -ForegroundColor Green
+    exit 0
+}
+
 # ===== Check DB =====
 if (-not (Test-Path "db.sqlite3")) {
     Write-Host "[ERROR] db.sqlite3 not found in project root." -ForegroundColor Red
@@ -55,7 +90,7 @@ Write-Host "[OK] db.sqlite3 found ($dbSize)"
 
 # ===== Step 1: prepare .dockerignore (allow sqlite) =====
 Write-Host ""
-Write-Host "[1/4] Preparing .dockerignore (demo mode — DB included)..."
+Write-Host "[1/4] Preparing .dockerignore (demo mode -- DB included)..."
 
 if (-not (Test-Path ".dockerignore.bak")) {
     Copy-Item ".dockerignore" ".dockerignore.bak"

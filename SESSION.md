@@ -1,8 +1,23 @@
-# SESSION.md — состояние на 2026-06-19
+# SESSION.md — состояние на 2026-07-20
 
 ## Контекст
 
 Машина: рабочая (s.kramorov). Ветка: `office-work`.
+
+## Выполненные задачи (2026-07-20)
+
+### Docker-сборка для Cloud.ru Container Apps
+- **Dockerfile** — многоэтапная сборка (Node 20 + Python 3.12)
+- **.dockerignore** / **entrypoint.sh** / **requirements-docker.txt**
+- **build-demo.ps1** — скрипт сборки и загрузки образа
+- **settings.py** — whitenoise, SECRET_KEY/DEBUG из env, поддержка `.containerapps.ru`
+- **frontend/package.json** — добавлены `vue-router`, `axios`
+
+### Редизайн сайта
+- **TopMenu.vue** — «Каталог оборудования» / «Конфигуратор оборудования»
+- **HomePage.vue** — hero-баннер + сетка категорий + блок возможностей
+- **LoginMainPage.vue** — двухпанельный блок: вход + регистрация
+- **RegisterMainPage.vue** — полноценная форма регистрации
 
 ## Выполненные задачи (2026-06-18)
 
@@ -103,3 +118,26 @@
 - [ ] Заполнить electrical_specs для вариантов обогрева
 - [ ] Интегрировать ControlUnitWiring в конфигуратор (get_available_options)
 - [ ] Модель ценообразования на базе Allowed*Option и ControlUnitWiring
+- [ ] **Вычистить streamlit из проекта** (~30 мин)
+
+  **Почему**: при запуске Docker-контейнера `clients/models.py` делает `from project_customers.utils import get_streamlit_customer_user` на уровне модуля. Это триггерит `import streamlit as st` в `utils.py` → контейнер падает, т.к. streamlit не установлен. Добавлять streamlit в продакшен-образ плохо: он тянет ~30 транзитивных зависимостей (altair, protobuf, watchdog, pydeck и др.) и весит >200 MB.
+
+  **Что сделать**:
+
+  1. **Переделать `get_streamlit_customer_user` на нормальную аутентификацию Django** (`project_customers/utils.py`):
+     - Убрать `import streamlit as st` и зависимость от `st.session_state`
+     - Функция должна принимать `request` (как `get_current_customer_user`) и использовать `request.user` вместо стримлит-сессии
+     - После этого — объединить с `get_current_customer_user` в одну функцию или сделать `get_streamlit_customer_user` обёрткой без стримлита
+     - `clear_streamlit_customer_user` — удалить (сессию чистит Django)
+
+  2. **Починить `clients/models.py`**:
+     - Заменить вызовы `get_streamlit_customer_user()` на `get_current_customer_user(request)` или новую функцию
+     - Убедиться, что `request` доступен в местах вызова (строки 76, 113, 141)
+
+  3. **Удалить мёртвые файлы Streamlit** (они не импортируются в Django, можно отдельным коммитом):
+     - `main_page.py`, `main_page_old.py`
+     - `pages/2_editor.py`, `pages/3_brands.py`, `pages/filter_regulator_catalog.py`, `pages/fittings_catalog.py`, `pages/gearbox_catalog.py`, `pages/limit_switch_box_catalog.py`, `pages/pa_selection.py`, `pages/request_edit.py`, `pages/request_item_edit.py`, `pages/request_list.py`
+     - `pages_finished/cert_manager.py`, `pages_finished/media_library_editor.py`
+     - `ui_components/selectors/ui.py`
+
+  4. **После вычистки — убрать `streamlit` из `requirements-docker.txt`** (строка `streamlit==1.57.0`)
