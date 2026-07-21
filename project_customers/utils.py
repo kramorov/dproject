@@ -1,7 +1,6 @@
 # project_customers/utils.py
 from django.apps import apps
 from django.conf import settings
-import streamlit as st
 
 def get_current_customer_user(request) :
     """
@@ -33,41 +32,6 @@ def get_current_customer_user(request) :
 
     return None
 
-
-def get_streamlit_customer_user() :
-    """
-    Получить ProjectCustomerUser для Streamlit
-    Результат кэшируется в st.session_state
-
-    Returns:
-        tuple: (customer_user, customer_company) или (None, None)
-    """
-    # Если в сессии уже есть пользователь - возвращаем его
-    if 'customer_user' in st.session_state and 'customer_company' in st.session_state :
-        return st.session_state.customer_user , st.session_state.customer_company
-
-    ProjectCustomerUser = apps.get_model('project_customers' , 'ProjectCustomerUser')
-
-    # Берем первого пользователя из БД
-    first_user = ProjectCustomerUser.objects.first()
-
-    if first_user :
-        # Сохраняем в сессию
-        st.session_state.customer_user = first_user
-        st.session_state.customer_company = first_user.customer
-        return first_user , first_user.customer
-
-    return None , None
-
-
-def clear_streamlit_customer_user() :
-    """
-    Очистить кэш пользователя в сессии (при выходе)
-    """
-    if 'customer_user' in st.session_state :
-        del st.session_state.customer_user
-    if 'customer_company' in st.session_state :
-        del st.session_state.customer_company
 
 def get_customer_user_by_django_user(django_user) :
     """

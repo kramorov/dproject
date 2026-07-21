@@ -6,12 +6,6 @@ if [ -n "$DB_PATH" ]; then
     echo "Using DB at $DB_PATH"
 fi
 
-# Collect static
-python manage.py collectstatic --noinput
-
-# Migrate
-python manage.py migrate --noinput
-
 # Run
 exec gunicorn djangoProject1.wsgi:application \
     --bind 0.0.0.0:8000 \

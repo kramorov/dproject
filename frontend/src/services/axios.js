@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Устанавливаем базовый URL
-axios.defaults.baseURL = 'http://localhost:8000';
+axios.defaults.baseURL = '';
 
 // Настройка axios (например, заголовки, токены и т.д.)
 axios.defaults.headers.common['Authorization'] = 'Bearer your_token_here';

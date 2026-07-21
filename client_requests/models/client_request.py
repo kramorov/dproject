@@ -9,8 +9,7 @@ from django.utils import timezone
 from clients.models import Company , CompanyPerson
 from djangoProject1.common_models.abstract_models import CreatedAtMixin , UpdatedAtMixin
 from project_customers.models import ProjectCustomer
-from project_customers.utils import get_user_template , \
-    get_streamlit_customer_user
+from project_customers.utils import get_user_template
 
 class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
     """
@@ -287,12 +286,9 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
         customer_user = filters.pop('customer_user' , None) if filters else None
 
         if customer_user is None :
-            customer_user , customer_company = get_streamlit_customer_user()
-        else :
-            customer_company = customer_user.customer
-
-        if not customer_user :
             return cls.objects.none()
+        
+        customer_company = customer_user.customer
 
         # Фильтр по владельцу (только запросы своей компании и пользователя)
         queryset = cls.objects.filter(
@@ -335,7 +331,6 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
         Returns:
             list: список словарей [{'id': id, 'name': name}, ...]
         """
-        from project_customers.utils import get_streamlit_customer_user
         from clients.models import Company
 
         # Получаем пользователя из сессии или используем переданного
@@ -343,9 +338,6 @@ class ClientRequest(CreatedAtMixin , UpdatedAtMixin) :
             customer_user = owner_user
             customer_company = owner_user.customer
         else :
-            customer_user , customer_company = get_streamlit_customer_user()
-
-        if not customer_user :
             return []
 
         # Базовый фильтр

@@ -87,6 +87,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://*.containerapps.ru']
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173" ,  # URL вашего приложения на Vite
     "http://localhost:3000" ,
@@ -214,8 +215,7 @@ REST_FRAMEWORK = {
 TEMPLATES = [
     {
         'BACKEND' : 'django.template.backends.django.DjangoTemplates' ,
-        'DIRS' : [BASE_DIR / 'templates']
-        ,
+        'DIRS' : [BASE_DIR / 'templates', BASE_DIR / 'frontend' / 'dist'],
         'APP_DIRS' : True ,
         'OPTIONS' : {
             'context_processors' : [
@@ -276,50 +276,45 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': 'django_debug.log',
-            'formatter': 'verbose',
-        },
     },
     'root': {
-        'handlers': ['console', 'file'],
+        'handlers': ['console'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'valve_data': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
         },
         'core': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
         },
         'storage_manager': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
         },
         # ДОБАВЬТЕ ЭТОТ ЛОГГЕР
         'pneumatic_actuators': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
         },
         'clients': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
         },
         'client_request': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
         },

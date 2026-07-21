@@ -50,7 +50,7 @@ async function convert() {
   const form = new FormData()
   form.append('file', file.value)
   const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
-  const base = 'http://127.0.0.1:8000/api/svg-converter/to-docx'
+  const base = '/api/svg-converter/to-docx'
   const params = ocr.value ? '?ocr=1' : ''
   const url = base + '/' + params
 
@@ -101,7 +101,7 @@ async function preview() {
   const form = new FormData(); form.append('file', file.value)
   const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
   try {
-    const r = await fetch('http://127.0.0.1:8000/api/svg-converter/to-docx/?preview=1', {
+    const r = await fetch('/api/svg-converter/to-docx/?preview=1', {
       method: 'POST', body: form,
       headers: { 'X-CSRFToken': csrf }, credentials: 'include',
     })

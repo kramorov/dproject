@@ -27,7 +27,9 @@ COPY . .
 COPY --from=frontend /build/dist /app/frontend/dist
 
 # Static + DB directory
-RUN mkdir -p /app/staticfiles /app/data
+RUN mkdir -p /app/staticfiles /app/data && \
+    python manage.py collectstatic --noinput && \
+    python manage.py migrate --noinput
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

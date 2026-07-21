@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.template.defaulttags import url
-from django.urls import path, include
+from django.urls import path, include, re_path
 
 # from media_library.urls import urlpatterns_public
 from .views import GetUrlByNameAPIView
@@ -29,6 +29,7 @@ from core.views import UniversalAPIView
 from media_library.urls import urlpatterns_admin as media_admin_urls, urlpatterns_public
 from cert_doc.urls import urlpatterns_admin as cert_admin_urls
 from price.urls import urlpatterns_admin as price_admin_urls
+from django.views.generic import TemplateView
 
 urlpatterns = [
     path('api/get-url/<str:name>/', GetUrlByNameAPIView.as_view(), name='get_url_by_name'),
@@ -64,6 +65,8 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     # GraphQL
     path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),
 ]
+# SPA catch-all: serve index.html for all non-API/non-admin/non-static paths
+urlpatterns += [re_path(r'^(?!api/|admin/|static/|media/|graphql/).*$', TemplateView.as_view(template_name='index.html'))]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

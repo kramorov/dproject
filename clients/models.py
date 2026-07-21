@@ -2,7 +2,6 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from project_customers.models import ProjectCustomer
-from project_customers.utils import get_streamlit_customer_user
 import logging
 logger = logging.getLogger(__name__)
 
@@ -73,12 +72,9 @@ class Company(models.Model) :
         customer_user = filters.pop('customer_user' , None) if filters else None
 
         if customer_user is None :
-            customer_user , customer_company = get_streamlit_customer_user()
-        else :
-            customer_company = customer_user.customer
-
-        if not customer_user :
             return cls.objects.none()
+        
+        customer_company = customer_user.customer
 
         # Фильтр по владельцу
         queryset = cls.objects.filter(
@@ -110,7 +106,7 @@ class Company(models.Model) :
             customer_user = owner_user
             project_customer = owner_user.customer  # Это должен быть ProjectCustomer
         else :
-            customer_user , project_customer = get_streamlit_customer_user()
+            return []
 
         # if not customer_user or not project_customer :
         #     logger.error(
@@ -138,7 +134,7 @@ class Company(models.Model) :
             customer_user = owner_user
             project_customer = owner_user.customer
         else :
-            customer_user , project_customer = get_streamlit_customer_user()
+            return []
 
         if not customer_user or not project_customer :
             logger.error(f"No customer_user or project_customer found Company.get_person_choices")

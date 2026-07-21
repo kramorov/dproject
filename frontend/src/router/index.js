@@ -27,6 +27,7 @@ const routes = [
   { path: '/tools/svg-converter', component: () => import('../pages/SvgConverterTest.vue'), meta: { title: 'SVG Конвертер' } },
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },
+  { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор пневмопривода' } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
