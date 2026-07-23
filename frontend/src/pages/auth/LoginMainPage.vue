@@ -69,7 +69,7 @@ async function login() {
   if (!u.value || !p.value) { err.value = 'Заполните все поля'; return }
   ld.value = true; err.value = ''
   try {
-    await api.post('/auth/login/', { username: u.value, password: p.value })
+    await api.post('/auth/login/', { login: u.value, password: p.value })
     window.location.href = '/'
   } catch (e) {
     err.value = e.response?.data?.error || e.response?.data?.detail || 'Ошибка входа'

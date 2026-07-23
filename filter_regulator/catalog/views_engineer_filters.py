@@ -4,12 +4,13 @@ GET /api/filter-regulator/engineer/filters/ — filter options for EngineerSelec
 
 Uses BaseFilterOptionsView with FILTER_REGULATOR_CONFIG + default_scope='engineer'.
 """
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from core.views import BaseFilterOptionsView
 from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
 
 
 class FilterRegulatorEngineerFilterOptionsView(BaseFilterOptionsView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
     catalog_config = FILTER_REGULATOR_CONFIG
     default_scope = 'engineer'

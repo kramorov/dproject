@@ -12,7 +12,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuth } from './useAuth.js'
-const { role, loaded } = useAuth()
+const { roles, loaded } = useAuth()
 const open = ref(null)
 const allItems = [
   { key:'catalog', label:'📦 Каталог оборудования', children:[
@@ -37,9 +37,10 @@ const allItems = [
     { to:'/admin/ea-models', label:'📋 Модели ЭП' },
     { to:'/admin/ea-wirings', label:'🔗 Схемы БУ' },
     { to:'/widgets', label:'📋 Виджеты' },
+    { to:'/admin/customers', label:'👥 Клиенты' },
   ]},
 ]
-const visibleItems = computed(() => loaded.value ? allItems.filter(i => !i.adminOnly || role.value === 'admin') : [])
+const visibleItems = computed(() => loaded.value ? allItems.filter(i => !i.adminOnly || roles.value.includes('admin')) : [])
 </script>
 <style scoped>
 .top-menu{display:flex;gap:0;height:100%}

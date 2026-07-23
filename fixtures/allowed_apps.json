@@ -1,0 +1,10 @@
+[
+    {"model": "project_customers.allowedapp", "pk": 1, "fields": {"code": "limit_switch", "name": "Блоки концевых выключателей", "has_brand_filter": true, "is_active": true, "sorting_order": 1}},
+    {"model": "project_customers.allowedapp", "pk": 2, "fields": {"code": "gearbox", "name": "Ручные дублёры", "has_brand_filter": true, "is_active": true, "sorting_order": 2}},
+    {"model": "project_customers.allowedapp", "pk": 3, "fields": {"code": "filter_regulator", "name": "Фильтр-регуляторы", "has_brand_filter": true, "is_active": true, "sorting_order": 3}},
+    {"model": "project_customers.allowedapp", "pk": 4, "fields": {"code": "pneumatic_fittings", "name": "Пневмофитинги", "has_brand_filter": true, "is_active": true, "sorting_order": 4}},
+    {"model": "project_customers.allowedapp", "pk": 5, "fields": {"code": "solenoid_valves", "name": "Распределительные клапаны", "has_brand_filter": true, "is_active": true, "sorting_order": 5}},
+    {"model": "project_customers.allowedapp", "pk": 6, "fields": {"code": "pa_actuators", "name": "Пневмоприводы", "has_brand_filter": true, "is_active": true, "sorting_order": 6}},
+    {"model": "project_customers.allowedapp", "pk": 7, "fields": {"code": "ea_actuators", "name": "Электроприводы", "has_brand_filter": true, "is_active": true, "sorting_order": 7}},
+    {"model": "project_customers.allowedapp", "pk": 8, "fields": {"code": "llm_agent", "name": "LLM-агент", "has_brand_filter": false, "is_active": true, "sorting_order": 8}}
+]

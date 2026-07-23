@@ -18,6 +18,22 @@ class ProjectCustomer(models.Model) :
     email = models.EmailField(blank=True , verbose_name=_("Email"))
     phone = models.CharField(max_length=50 , blank=True , verbose_name=_("Телефон"))
 
+    # Разграничение доступа (Этап 2)
+    visible_sections = models.ManyToManyField(
+        'SiteSection',
+        blank=True,
+        related_name='customers',
+        verbose_name=_("Видимые разделы сайта"),
+        help_text=_("Разделы, доступные пользователям этой организации")
+    )
+    visible_brands = models.ManyToManyField(
+        'producers.Brands',
+        blank=True,
+        related_name='visible_for_customers',
+        verbose_name=_("Видимые бренды"),
+        help_text=_("Бренды, отображаемые на сайте для этой организации")
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

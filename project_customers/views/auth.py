@@ -1,8 +1,10 @@
 """
-POST /api/auth/login/  — аутентификация через Django session
+POST /api/auth/login/  — аутентификация (email + пароль)
 POST /api/auth/logout/ — выход
 GET  /api/auth/me/     — текущий пользователь
 """
+from datetime import date
+
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
@@ -13,34 +15,94 @@ from rest_framework import status
 from project_customers.models.user import ProjectCustomerUser
 
 
+def _get_customer_profile(request):
+    """
+    Получить ProjectCustomerUser из сессии (customer_user_id).
+    Для superuser — возвращает None (используется request.user напрямую).
+    """
+    if request.user.is_superuser:
+        return None
+    profile_id = request.session.get('customer_user_id')
+    if profile_id:
+        try:
+            return ProjectCustomerUser.objects.select_related('customer').get(
+                id=profile_id, is_active=True
+            )
+        except ProjectCustomerUser.DoesNotExist:
+            pass
+    # Fallback: через request.user (для старых сессий)
+    if request.user.is_authenticated:
+        try:
+            return ProjectCustomerUser.objects.select_related('customer').get(
+                user=request.user
+            )
+        except ProjectCustomerUser.DoesNotExist:
+            pass
+    return None
+
+
 class LoginView(APIView):
+    """
+    Аутентификация: email + пароль.
+    CustomerBackend — для клиентских пользователей (email).
+    ModelBackend — для superuser/staff (username).
+    """
     permission_classes = [AllowAny]
 
     @method_decorator(ensure_csrf_cookie)
     def get(self, request):
-        return Response({'csrftoken': request.META.get('CSRF_COOKIE', '')})
+        csrf = request.META.get('CSRF_COOKIE', '')
+        return Response({'csrftoken': csrf})
 
     @method_decorator(ensure_csrf_cookie)
     def post(self, request):
-        username = request.data.get('username', '')
-        password = request.data.get('password', '')
-        user = authenticate(request, username=username, password=password)
+        login_val = request.data.get('login', '').strip()
+        pwd = request.data.get('password', '')
+
+        if not login_val or not pwd:
+            return Response({'error': 'Логин и пароль обязательны'}, status=400)
+
+        # CustomerBackend: аутентификация по login
+        user = authenticate(request, login=login_val, password=pwd)
+        if user is None:
+            # ModelBackend: fallback — username (superuser)
+            user = authenticate(request, username=login_val, password=pwd)
+
         if user is not None:
             login(request, user)
-            role = 'viewer'
-            try:
-                profile = ProjectCustomerUser.objects.get(user=user)
-                role = profile.role
-            except ProjectCustomerUser.DoesNotExist:
-                pass
-            return Response({'username': user.username, 'role': role})
-        return Response({'error': 'Неверный логин или пароль'}, status=400)
+
+            if user.is_superuser:
+                from project_customers.models import SiteSection
+                return Response({
+                    'username': user.username,
+                    'email': user.email,
+                    'roles': ['admin'],
+                    'section_permissions': list(
+                        SiteSection.objects.filter(is_active=True).values_list('code', flat=True)
+                    ),
+                    'customer': '',
+                })
+
+            profile = _get_customer_profile(request)
+            if profile:
+                role_codes = list(profile.roles.values_list('code', flat=True))
+                effective_sections = profile.get_effective_section_permissions()
+                return Response({
+                    'username': profile.get_full_name(),
+                    'email': profile.email,
+                    'roles': role_codes,
+                    'section_permissions': list(effective_sections.values_list('code', flat=True)),
+                    'customer': profile.customer.name,
+                })
+
+        return Response({'error': 'Неверный email или пароль'}, status=400)
 
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        request.session.pop('customer_user_id', None)
         logout(request)
         return Response({'ok': True})
 
@@ -50,17 +112,35 @@ class CurrentUserView(APIView):
 
     def get(self, request):
         user = request.user
-        role = 'admin' if user.is_superuser else 'viewer'
-        customer_name = ''
-        try:
-            profile = ProjectCustomerUser.objects.get(user=user)
-            role = profile.role
-            customer_name = profile.customer.name if profile.customer else ''
-        except ProjectCustomerUser.DoesNotExist:
-            pass
+
+        if user.is_superuser:
+            from project_customers.models import SiteSection
+            return Response({
+                'username': user.username,
+                'email': user.email,
+                'roles': ['admin'],
+                'section_permissions': list(
+                    SiteSection.objects.filter(is_active=True).values_list('code', flat=True)
+                ),
+                'customer': '',
+            })
+
+        profile = _get_customer_profile(request)
+        if profile:
+            role_codes = list(profile.roles.values_list('code', flat=True))
+            effective_sections = profile.get_effective_section_permissions()
+            return Response({
+                'username': profile.get_full_name(),
+                'email': profile.email,
+                'roles': role_codes,
+                'section_permissions': list(effective_sections.values_list('code', flat=True)),
+                'customer': profile.customer.name,
+            })
+
         return Response({
             'username': user.username,
             'email': user.email,
-            'role': role,
-            'customer': customer_name,
+            'roles': [],
+            'section_permissions': [],
+            'customer': '',
         })

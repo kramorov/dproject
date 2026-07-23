@@ -1,0 +1,7 @@
+[
+    {"model": "project_customers.sitesection", "pk": 1, "fields": {"code": "catalog", "name": "Каталог оборудования", "is_active": true, "sorting_order": 1}},
+    {"model": "project_customers.sitesection", "pk": 2, "fields": {"code": "configurator", "name": "Конфигуратор", "is_active": true, "sorting_order": 2}},
+    {"model": "project_customers.sitesection", "pk": 3, "fields": {"code": "requests", "name": "Запросы клиентов", "is_active": true, "sorting_order": 3}},
+    {"model": "project_customers.sitesection", "pk": 4, "fields": {"code": "certificates", "name": "Сертификаты", "is_active": true, "sorting_order": 4}},
+    {"model": "project_customers.sitesection", "pk": 5, "fields": {"code": "llm_agent", "name": "Агент LLM", "is_active": true, "sorting_order": 5}}
+]

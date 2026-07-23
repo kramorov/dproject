@@ -60,6 +60,7 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     path('api/admin/certs/', include(cert_admin_urls)),
     path('api/admin/prices/', include(price_admin_urls)),
     path('api/admin/sku/', include('sku.urls')),
+    path('api/admin/', include('project_customers.admin_urls')),
     path('api/auth/', include('project_customers.auth_urls')),
     path('api/media/', include(urlpatterns_public)),
     # GraphQL

@@ -23,6 +23,7 @@ const routes = [
   { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', role: 'admin' } },
   { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', role: 'admin' } },
   { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', role: 'admin' } },
+  { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', role: 'admin' } },
   { path: '/tools/image-processor', component: () => import('../pages/ImageProcessorTest.vue'), meta: { title: 'Обрезка изображений' } },
   { path: '/tools/svg-converter', component: () => import('../pages/SvgConverterTest.vue'), meta: { title: 'SVG Конвертер' } },
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
@@ -37,7 +38,8 @@ router.beforeEach(async (to, from, next) => {
   if (!requiredRole) return next()
   try {
     const r = await api.get('/auth/me/')
-    if (requiredRole === 'admin' && r.data.role !== 'admin') return next('/login')
+    const roles = r.data.roles || []
+    if (requiredRole === 'admin' && !roles.includes('admin')) return next('/login')
     next()
   } catch (e) { next('/login') }
 })

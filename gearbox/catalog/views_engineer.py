@@ -7,7 +7,7 @@ Uses GEARBOX_CONFIG with scope='engineer'.
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from django.utils import translation
 
 from gearbox.catalog.config import GEARBOX_CONFIG
@@ -16,7 +16,8 @@ from core.utils.catalog_helpers import get_currency_code
 
 
 class GearboxEngineerView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
     config = GEARBOX_CONFIG
 
     def get(self, request):

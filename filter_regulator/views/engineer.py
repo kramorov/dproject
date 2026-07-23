@@ -4,7 +4,7 @@ GET /api/filter-regulator/engineer/ — инженерный каталог с �
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from django.db.models import Count
 
 from filter_regulator.models import FilterRegulator
@@ -13,7 +13,8 @@ from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
 
 
 class EngineerCatalogView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
 
     def get(self, request):
         params = request.query_params
