@@ -76,19 +76,12 @@
     <!-- ========== Требования к приводу ========== -->
     <section class="section">
       <h2>🔧 Требования к приводу</h2>
-      <div class="grid-3">
+      <div class="grid-2">
         <div class="field">
           <label>Серия моделей</label>
           <select v-model="form.model_line_id" @change="onModelLineChange">
             <option :value="null">— Все серии —</option>
             <option v-for="v in refs.model_lines" :key="v.id" :value="v.id">{{ v.name }}</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Модель в серии</label>
-          <select v-model="form.model_line_item_id" :disabled="!form.model_line_id">
-            <option :value="null">— Все модели —</option>
-            <option v-for="v in modelLineItems" :key="v.id" :value="v.id">{{ v.name }}</option>
           </select>
         </div>
         <div class="field">
@@ -214,12 +207,11 @@ export default {
         actuator_varieties: [], safety_positions: [],
         ip_options: [], exd_options: [], coating_options: [], hand_wheel_options: [],
       },
-      modelLineItems: [],
       form: {
         valve_type_id: null, dn_id: null, pn_id: null,
         mounting_plate_id: null, stem_shape_id: null, stem_id: null,
         torque_without_safety: 0, safety_factor: 1.5,
-        model_line_id: null, model_line_item_id: null,
+        model_line_id: null,
         actuator_variety_id: null, safety_position_id: null,
         air_pressure_id: null, ip_id: null, exd_id: null,
         coating_id: null, hand_wheel_id: null,
@@ -261,7 +253,6 @@ export default {
       try {
         const params = {}
         if (this.form.model_line_id) params.model_line_id = this.form.model_line_id
-        if (this.form.model_line_item_id) params.model_line_item_id = this.form.model_line_item_id
         if (this.form.actuator_variety_id) params.actuator_variety_id = this.form.actuator_variety_id
         const { data } = await api.get('/pneumatic_actuators/options/', { params })
         this.actuatorOptions = data
@@ -270,15 +261,7 @@ export default {
       }
     },
     async onModelLineChange() {
-      this.form.model_line_item_id = null
-      if (this.form.model_line_id) {
-        try {
-          const { data } = await api.get(`/pneumatic_actuators/constructor/model-lines/${this.form.model_line_id}/items/`)
-          this.modelLineItems = data || []
-        } catch { this.modelLineItems = [] }
-      } else {
-        this.modelLineItems = []
-      }
+      this.actuatorOptions.safety_positions = []
       await this.loadActuatorOptions()
     },
     onStemShapeChange() {

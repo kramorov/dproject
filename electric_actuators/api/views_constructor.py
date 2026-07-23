@@ -16,7 +16,7 @@ API для конструктора электроприводов (ElectricActu
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from rest_framework.decorators import action
 
 from electric_actuators.models import (
@@ -30,7 +30,8 @@ class ConstructorViewSet(viewsets.ModelViewSet):
     """
     CRUD для конструктора электроприводов.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
     queryset = ElectricActuatorConstructor.objects.filter(is_active=True)
 
     def get_queryset(self):

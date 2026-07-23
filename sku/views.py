@@ -6,7 +6,7 @@ POST /api/admin/sku/batch/  — групповая обработка номен
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from django.db.models import Q
 from .models import SKU
 
@@ -22,7 +22,8 @@ class SkuListView(APIView):
         is_active         — фильтр по активности (true/false)
         limit, offset     — пагинация
     """
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def get(self, request):
         qs = SKU.objects.select_related('equipment_type', 'brand').all()
@@ -93,7 +94,8 @@ class SkuBatchUpdateView(APIView):
 
     Если поле не передано — значение не меняется.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def post(self, request):
         ids = request.data.get('ids')

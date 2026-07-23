@@ -12,7 +12,7 @@ from rest_framework import status
 
 from project_customers.models.customer_api_key import CustomerApiKey
 from project_customers.models.user import ProjectCustomerUser
-from project_customers.views.auth import _get_customer_profile
+from project_customers.utils import get_customer_profile as _get_customer_profile
 
 
 class ApiKeyListView(APIView):

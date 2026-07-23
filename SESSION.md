@@ -1,64 +1,77 @@
-# SESSION.md — состояние на 2026-07-21
+# SESSION.md — состояние на 2026-07-23
 
 ## Контекст
 
 Машина: рабочая (s.kramorov). Ветка: `office-work`.
 
-## Выполненные задачи (2026-07-21)
+## Выполненные задачи (2026-07-23)
 
-### Вычистка streamlit
-- **`project_customers/utils.py`** — удалены `import streamlit`, `get_streamlit_customer_user()`, `clear_streamlit_customer_user()`
-- **`clients/models.py`** — убран импорт streamlit, фолбэки заменены на `return cls.objects.none()` / `return []`
-- **`client_requests/models/client_request.py`** — то же самое
-- **`requirements-docker.txt`** — удалён `streamlit==1.57.0`
-- **Удалены 16 dead-файлов**: `main_page*.py`, `pages/*.py`, `pages_finished/*.py`, `ui_components/selectors/ui.py`
-- **0 `import streamlit`** во всей кодовой базе
+### Разграничение доступа — полная архитектура
+- **`access.md`** — полная документация: модели, схема, сценарии, WordPress-интеграция
+- **7 новых моделей**: `SiteSection`, `AllowedApp`, `Role`, `CustomerAppAccess`, `CustomerEmail`, `CustomerApiKey`, `FavoriteBrand`
+- **Изменены**: `ProjectCustomer` (+`visible_sections`, +`visible_brands`), `ProjectCustomerUser` (убрано `role` CharField, +`roles` M2M, +`section_permissions` M2M, +`login`, +`password`, +`last_login`)
+- **12 миграций** `project_customers`: 0001 → 0012
 
-### SPA catch-all (исправление 404 на `/`)
-- **`djangoProject1/settings.py:217`** — `TEMPLATES.DIRS` += `frontend/dist`
-- **`djangoProject1/urls.py`** — catch-all `re_path(r'^(?!api/|admin/|static/|media/|graphql/).*$', TemplateView.as_view(template_name='index.html'))`
+### Аутентификация
+- **`CustomerBackend`** — аутентификация по `login` + пароль, Role → общий Django User, `customer_user_id` в сессии
+- **`LoginView`** — принимает `{login, password}`, fallback на username для superuser
+- **`CurrentUserView`** — возвращает `roles` (массив) + `section_permissions`
+- **`get_customer_profile()`** — вынесена в `project_customers/utils.py` (устранён циклический импорт)
 
-### SPA assets fix (белый экран — все ассеты = 877 байт)
-- **`frontend/vite.config.js`** — `base: mode === 'production' ? '/static/' : '/'`
-  - В продакшене `index.html` ссылается на `/static/assets/...` → WhiteNoise раздаёт
-  - В dev-режиме `base: '/'` → прокси Vite работает как раньше
+### Права доступа
+- **`SectionAccessPermission`** — DRF BasePermission: `public`, `required_section`, superuser bypass
+- **Защищены**: 6 engineer-вьюх + 5 engineer-filter-вьюх (`configurator`), 16 admin-вьюх (`admin_section`), 4 конструктора (`configurator`)
+- **Публичные**: каталоги (list/filters/detail/quickselect), image-processor, preview/download
+- **Парольные валидаторы** отключены (`AUTH_PASSWORD_VALIDATORS = []`)
 
-### Cloud.ru: PermissionError на лог-файл
-- **`djangoProject1/settings.py`** (LOGGING) — удалён `file` handler, все логгеры → `['console']`
-  - Cloud.ru не даёт писать в `/app/`, только stdout/stderr
+### API-ключи
+- **CRUD**: `GET/POST /api/auth/api-keys/`, `DELETE /api/auth/api-keys/<id>/`
+- **Генерация**: `SHA-256`, raw_key показывается один раз
+- **Lookup**: проверка `access_until`, `is_active`
+- **WordPress**: документация по хранению и прокси-запросам в `access.md`
 
-### Подбор пневмопривода: streamlit → Vue
-- **`pneumatic_actuators/api/views.py`** — `SelectorAPIView`: `GET initial-data/`, `POST search/`
-- **`pneumatic_actuators/urls.py`** — маршруты `/selector/initial-data/`, `/selector/search/`
-- **`frontend/src/pages/PaSelectionPage.vue`** — форма подбора (параметры арматуры → момент → требования → результаты)
-- **`frontend/src/router/index.js`** — маршрут `/selector/pa`
+### Админка клиентов
+- **Бэкенд**: `CustomerAdminView` + `CustomerUserAdminView` + `CustomerKeyAdminView`
+- **Фронтенд**: `CustomerAdminPage.vue` — список + форма редактирования (CRUD для пользователей, ключей, доступа, email)
+- **Справочные API**: `/api/core/sections/`, `/api/core/allowed-apps/`, `/api/core/brands/`, `/api/core/django-users/`
 
-### Аудит удалённых streamlit-страниц
-- **Перенесено**: `pa_selection`, `media_library_editor`, все 4 каталога
-- **Частично**: `cert_manager` — нет M2M-связей сертификатов с модельными линейками
-- **Не перенесено**: `request_list`, `request_edit` (запросы клиентов — будут переписаны заново)
-- **Утеряны** (не было в git): `request_item_edit`, `2_editor`, `3_brands`, `equipment_type_editor`
+### Роли и пользователи
+- **3 предопределённые роли**: `api_user`, `site_user`, `system_admin`
+- **3 Django User**: по одному на роль (общие сессионные обёртки)
+- **Тестовые учётки**: api_user, site_user, archimed_admin (логин = email-префикс)
 
-### Обсуждено: вынос ML-инструментов в отдельный контейнер
-- **Решение**: пока не разделять. Дождаться реальных данных по RAM/OOM в облаке.
-- `rembg` + `onnxruntime` + U2Net (~300 МБ) остаются в основном образе.
-- Архитектура готова к разделению: `image_processor` — отдельное Django-приложение с API.
+### Дизайн сайта
+- **HomePage**: 3 секции (Каталоги, Арматура, Решения), цветные блоки → изображения (WebP), убран «XXX товаров»
+- **TopMenu**: новая структура — Каталоги, Арматура, Решения, Конфигураторы, Заявки, О проекте
+- **Placeholder-страницы** для новых разделов
+- **23 заглушки** WebP 300×200 в `frontend/public/img/catalog/`
+- **Фон карточек** серый `#f3f4f6`
 
-## Состояние деплоя
+### Фронтенд-фиксы
+- `useAuth.js` → `role` → `roles` (массив)
+- `LoginMainPage.vue` → `{login, password}` вместо `{username, password}`
+- `TopMenu.vue` → `roles.value.includes('admin')` + `meta.pro` для (проф)-разделов
+- Инструменты (image-processor, SVG) в меню Администрирования
 
-Образ собран локально (работает), загружается в Cloud.ru Container Apps. Внесённые правки:
-- `vite.config.js` — `base: '/static/'`
-- `settings.py` — LOGGING console-only
-- `settings.py` — TEMPLATES.DIRS + frontend/dist
-- `urls.py` — SPA catch-all
+### Аудит и защита API
+- 20 файлов переведены с `AllowAny` на `SectionAccessPermission`
+- **admin_section**: media_library, cert_doc, price, sku
+- **configurator**: pneumatic_actuators, electric_actuators
+
+## Текущее состояние
+
+- Django check: `System check identified no issues (0 silenced).`
+- Dev-сервер: `127.0.0.1:8000`
+- 3 Django User (kramorov, api_user, site_user, archimed_admin)
+- 4 ProjectCustomerUser
+- 1 ProjectCustomer (Архимед)
 
 ## Следующие шаги
 
-- [x] Дождаться деплоя в облаке, проверить `/`, `/admin/`, `/selector/pa`
-- [x] Cloud.ru: том подключён, запись в БД работает
-- [x] `SESSION_ENGINE = signed_cookies` (сессии без записи в БД)
-- [x] `frontend/src/shared/config.js` — `API_URL = ''` (relative URLs)
-- [ ] **Разграничение доступа** — см. [`access.md`](./access.md)
-- [ ] Если OOM — рассмотреть вынос `image_processor` в отдельный Container App
-- [ ] Перенести `cert_manager` M2M-связи в Vue
-- [ ] Переписать запросы клиентов (`request_list` + `request_edit`) на Vue заново
+- [ ] Наполнить каталоги реальным контентом (арматура, кабельные вводы, позиционеры, etc.)
+- [ ] Реализовать страницы-заглушки (PlaceholderPage → реальные каталоги)
+- [ ] Конфигураторы сборок арматуры с приводами
+- [ ] Заявки клиентов (список, создание)
+- [ ] Заменить placeholder-картинки на реальные фото
+- [ ] Биллинг и лимиты (модель `AccessLimit` уже спроектирована)
+- [ ] Логирование API-запросов и действий пользователей

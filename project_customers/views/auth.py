@@ -12,33 +12,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
-from project_customers.models.user import ProjectCustomerUser
-
-
-def _get_customer_profile(request):
-    """
-    Получить ProjectCustomerUser из сессии (customer_user_id).
-    Для superuser — возвращает None (используется request.user напрямую).
-    """
-    if request.user.is_superuser:
-        return None
-    profile_id = request.session.get('customer_user_id')
-    if profile_id:
-        try:
-            return ProjectCustomerUser.objects.select_related('customer').get(
-                id=profile_id, is_active=True
-            )
-        except ProjectCustomerUser.DoesNotExist:
-            pass
-    # Fallback: через request.user (для старых сессий)
-    if request.user.is_authenticated:
-        try:
-            return ProjectCustomerUser.objects.select_related('customer').get(
-                user=request.user
-            )
-        except ProjectCustomerUser.DoesNotExist:
-            pass
-    return None
+from project_customers.utils import get_customer_profile as _get_customer_profile
 
 
 class LoginView(APIView):

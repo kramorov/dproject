@@ -102,8 +102,8 @@ class SectionAccessPermission(BasePermission):
             return True  # Не указан — пропускаем
 
         # Получаем профиль клиента
-        from project_customers.views.auth import _get_customer_profile
-        profile = _get_customer_profile(request)
+        from project_customers.utils import get_customer_profile
+        profile = get_customer_profile(request)
         if profile is None:
             return False
 

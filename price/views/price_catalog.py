@@ -11,12 +11,13 @@ GET /api/admin/prices/ — каталог цен с фильтрацией.
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from price.models import PriceHistory
 
 
 class PriceCatalogView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def get(self, request):
         qs = PriceHistory.objects.filter(is_active=True).select_related('price_variety', 'currency', 'content_type')

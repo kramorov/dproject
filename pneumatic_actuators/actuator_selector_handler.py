@@ -55,6 +55,15 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
         actuator_variety_id=actuator_variety_id ,
         active_only=True
     )
+    # Deduplicate through-model positions (same name with Стандарт/Опция suffix)
+    seen_names = set()
+    deduped = []
+    for sp in result['safety_positions']:
+        base = sp['name'].rsplit(' (', 1)[0]
+        if base not in seen_names:
+            seen_names.add(base)
+            deduped.append(sp)
+    result['safety_positions'] = deduped
 
     # 3. Температурные опции - задаются вручную, НЕ зависят от модели привода
     # result['temperature_options'] = PneumaticTemperatureOption.get_for_select(active_only=True)

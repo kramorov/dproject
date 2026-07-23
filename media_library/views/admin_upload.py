@@ -18,7 +18,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny  # TODO: вернуть IsAdminUser
+from project_customers.permissions import SectionAccessPermission  # TODO: вернуть IsAdminUser
 
 from media_library.models import MediaLibraryItem, MediaCategory
 from core.models import EquipmentType
@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 
 class MediaAdminUploadView(APIView):
-    permission_classes = [AllowAny]  # TODO: вернуть IsAdminUser
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'  # TODO: вернуть IsAdminUser
 
     def post(self, request):
         logger.info("MediaAdminUploadView POST")

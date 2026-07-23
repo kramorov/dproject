@@ -1,5 +1,5 @@
 # Frontend — структура проекта
-> Обновлено 2026-06-18: админки ea-model-admin (модели ЭП), ea-wiring-admin (схемы БУ CRUD); ControlUnitWiring API
+> Обновлено 2026-07-23: новый HomePage (WebP-картинки), TopMenu (Каталоги/Арматура/Решения), админка клиентов, SectionAccessPermission
 > Обновлено 2026-06-10: price-catalog → DocumentJournal/DocumentCard, EA configurator
 > Обновлено 2026-06-09: типовые компоненты документов, тема admin.css
 > Обновлено 2026-06-08: конструктор пневмоприводов, двухпанельный layout

@@ -15,7 +15,7 @@ GET  /admin/prices/ea-configurator/documents/{id}/
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 
 import logging
 import pandas as pd
@@ -146,7 +146,8 @@ class EaConfiguratorOptionsView(APIView):
 
 class EaConfiguratorDocumentView(APIView):
     """CRUD для документов конфигуратора."""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def get(self, request, doc_id=None):
         if doc_id:

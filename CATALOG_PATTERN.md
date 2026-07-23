@@ -1,6 +1,6 @@
 # Шаблон нового каталога (Catalog Pattern)
-> Обновлено 2026-06-10: PriceDocument/EAPriceDocument переведены на shared DocumentJournal/DocumentCard, экспорт/импорт/печать ЭП через Pandas
-> Обновлено 2026-06-05: pneumatic_fittings каталог, PriceDocument Excel export/import, SKUMixin fixes
+> Обновлено 2026-07-23: SectionAccessPermission для engineer-вьюх, новый HomePage
+> Обновлено 2026-06-10: PriceDocument/EAPriceDocument → shared DocumentJournal/DocumentCard
 
 ## Архитектура: CatalogConfig
 

@@ -10,7 +10,7 @@ GET  /ea/admin/wirings/                   → справочник ControlUnitWi
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
@@ -29,7 +29,8 @@ from params.models import PowerSupplies
 
 class EAWiringRefsView(APIView):
     """Справочные данные для формы ControlUnitWiring."""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
 
     def get(self, request):
         from params.models import ControlUnitInstalledOption, ControlUnitSignalProfile, SignalRole
@@ -118,7 +119,8 @@ class EAWiringRefsView(APIView):
 
 class EAModelLineItemListView(APIView):
     """Список model_line_item с фильтром по model_line."""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
 
     def get(self, request):
         ml_id = request.query_params.get('model_line_id')
@@ -183,7 +185,8 @@ def _get_item_with_prefetch(pk):
 
 class EAModelLineItemDetailView(APIView):
     """GET/PUT одного model_line_item со всеми опциями."""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
 
     def get(self, request, pk):
         try:
@@ -242,7 +245,8 @@ class EAModelLineItemDetailView(APIView):
 
 class EAAdminWiringsView(APIView):
     """Справочник ControlUnitWiring."""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
 
     def get(self, request, pk=None):
         # Детальный запрос: одна запись по pk

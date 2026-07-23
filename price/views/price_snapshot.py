@@ -25,13 +25,14 @@ GET /api/admin/prices/snapshot/ — срез последних цен.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from price.models import PriceHistory
 from django.utils.timezone import now
 
 
 class PriceSnapshotView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def get(self, request):
         ct_id = request.query_params.get('content_type_id')

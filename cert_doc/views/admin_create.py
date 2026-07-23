@@ -29,7 +29,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny  # TODO: IsAdminUser
+from project_customers.permissions import SectionAccessPermission  # TODO: IsAdminUser
 
 from cert_doc.models import CertData, CertVariety
 from producers.models import Brands
@@ -40,7 +40,8 @@ logger = logging.getLogger(__name__)
 
 
 class CertAdminCreateView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def _resolve_fk(self, model, pk, field_name):
         if pk is None:

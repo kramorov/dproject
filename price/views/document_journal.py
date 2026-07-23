@@ -11,13 +11,14 @@ POST /api/admin/prices/documents/ — создать документ.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from price.models import PriceDocument
 from django.utils.timezone import now
 
 
 class PriceDocumentListView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def get(self, request):
         qs = PriceDocument.objects.filter(is_active=True).prefetch_related('items')

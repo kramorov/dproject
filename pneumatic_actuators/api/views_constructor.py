@@ -15,7 +15,7 @@ API для конструктора пневмоприводов (PneumaticActua
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from rest_framework.decorators import action
 
 from pneumatic_actuators.models import (
@@ -29,7 +29,8 @@ class ConstructorViewSet(viewsets.ModelViewSet):
     """
     CRUD для конструктора пневмоприводов.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'configurator'
     queryset = PneumaticActuatorConstructor.objects.filter(is_active=True)
 
     def get_queryset(self):

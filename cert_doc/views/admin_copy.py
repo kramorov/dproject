@@ -17,7 +17,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 
 from cert_doc.models import CertData
 
@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 class CertAdminCopyView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def post(self, request, pk):
         try:

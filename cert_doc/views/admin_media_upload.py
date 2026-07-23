@@ -26,7 +26,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 
 from media_library.models import MediaLibraryItem, MediaCategory
 from core.models import EquipmentType
@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 
 class CertMediaUploadView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def post(self, request):
         uploaded_file = request.FILES.get('file')

@@ -10,14 +10,15 @@ POST /api/admin/prices/documents/<id>/import/ — импорт из Excel
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from project_customers.permissions import SectionAccessPermission
 from django.http import HttpResponse
 from price.models import PriceDocument, PriceDocumentItem, Currency, PriceVariety
 from price.services.excel_io import export_document_to_excel, import_document_from_excel
 
 
 class PriceDocumentDetailView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def _get_doc(self, pk):
         try:
@@ -168,7 +169,8 @@ class PriceDocumentDetailView(APIView):
 
 class PriceDocumentItemView(APIView):
     """GET/POST/DELETE /api/admin/prices/documents/<doc_id>/items/"""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def get(self, request, doc_id):
         try:
@@ -252,7 +254,8 @@ class PriceDocumentItemView(APIView):
 
 class PriceDocumentExportView(APIView):
     """GET /api/admin/prices/documents/<pk>/export/ — скачать Excel"""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def get(self, request, pk):
         try:
@@ -275,7 +278,8 @@ class PriceDocumentExportView(APIView):
 
 class PriceDocumentImportView(APIView):
     """POST /api/admin/prices/documents/<pk>/import/ — загрузить Excel"""
-    permission_classes = [AllowAny]
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
 
     def post(self, request, pk):
         try:

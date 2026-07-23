@@ -1,6 +1,34 @@
 # project_customers/utils.py
 from django.apps import apps
 from django.conf import settings
+from project_customers.models.user import ProjectCustomerUser
+
+
+def get_customer_profile(request):
+    """
+    Получить ProjectCustomerUser из сессии (customer_user_id).
+    Для superuser — возвращает None (используется request.user напрямую).
+    Вынесена из views/auth.py чтобы избежать циклического импорта с permissions.py.
+    """
+    if request.user.is_superuser:
+        return None
+    profile_id = request.session.get('customer_user_id')
+    if profile_id:
+        try:
+            return ProjectCustomerUser.objects.select_related('customer').get(
+                id=profile_id, is_active=True
+            )
+        except ProjectCustomerUser.DoesNotExist:
+            pass
+    # Fallback: через request.user (для старых сессий)
+    if request.user.is_authenticated:
+        try:
+            return ProjectCustomerUser.objects.select_related('customer').get(
+                user=request.user
+            )
+        except ProjectCustomerUser.DoesNotExist:
+            pass
+    return None
 
 def get_current_customer_user(request) :
     """
