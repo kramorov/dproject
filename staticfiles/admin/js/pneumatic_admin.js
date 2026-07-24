@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'selected_temperature': 'temperature_options',
         'selected_ip': 'ip_options',
         'selected_exd': 'exd_options',
-        'selected_body_coating': 'body_coating_options'
+        'selected_body_coating': 'coating_options'
     };
 
     if (modelSelect) {

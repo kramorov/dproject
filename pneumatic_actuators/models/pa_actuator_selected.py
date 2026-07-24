@@ -190,8 +190,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         """
         Минимальные данные для списков и таблиц
         """
-        print(f"=== DEBUG get_compact_data called ===")
-        print(f"Object: {self.id} - {self.name}")
+        logger.debug(f"=== DEBUG get_compact_data called ===")
+        logger.debug(f"Object: {self.id} - {self.name}")
         # Безопасный доступ к метаданным
         model_name = self._get_model_name()
         app_label = self._get_app_label()
@@ -248,8 +248,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         Используем существующую _generate_tech_description для конвертации
         в новый формат
         """
-        print(f"=== DEBUG get_display_data called ===")
-        print(f"View type: {view_type}")
+        logger.debug(f"=== DEBUG get_display_data called ===")
+        logger.debug(f"View type: {view_type}")
         # Используем базовые поля из миксина
         fields = self._get_base_display_fields()
 
@@ -673,103 +673,103 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         logger.debug(f"get_description_data completed, total keys: {len(data)}")
         return data
 
-    def _generate_short_description(self) -> str:
-        """Сгенерировать краткое описание привода из структурированных данных
-        записывается в поле description
-        Основное предполагаемое использование - подставновка в КП в название номенклатуры.
-        """
-        data = self.get_description_data()
-        print(data)
-        desc_parts = []
 
-        # Модель
-        if data['model']['name']:
-            short_description=f"{data['model']['name']}-"
-        else:
-            return "Модель: не выбрана" # Смысла продолжать нет. Удалить строку. Пока оставим для отладки
-        # Базовые свойства
-        short_description+=f"Тип: {data['basic_properties']['default_output_type']} пневмопривод" #Четвертьоборотный
-        if data['basic_properties']['pneumatic_actuator_variety']=='SR':
-            short_description += f" с возвратной пружиной, кол-во пружин {data['selected_options']['springs_qty']['description']};"  # SR
-        else:
-            short_description += f" двойного действия;"  # DA
-        # short_description += f"{data['basic_properties']['pneumatic_actuator_variety']};" # SR
-        # short_description += f"Ручной дублер {data['basic_properties']['default_hand_wheel']};"  # Ручной дублер
-        # Выбранные опции
-        short_description += f" Положение безопасности: {data['selected_options']['safety_position']['description']};"  # NC /NO
-        short_description += f" Темп.исп. {data['selected_options']['temperature']['name']};"  # LT/VLT
-        short_description += f" {data['selected_options']['ip']['name']};"  # ip
-        short_description += f" {data['selected_options']['exd']['name']};"  # exd
-        short_description += f" Покрытие корпуса: {data['selected_options']['body_coating']['name']};"  # exd
-        short_description += f" Ручной дублер на корпусе:{data['selected_options']['hand_wheel']['name']};"
-        # Технические характеристики корпуса
-        short_description += f" Мин/Макс давл.{data['body_specs']['technical_specs']['min_pressure']}/{data['body_specs']['technical_specs']['max_pressure']};"  # min_pressure
-        short_description += f" Расход откр/закр,л:{data['body_specs']['technical_specs']['air_usage_open']}/{data['body_specs']['technical_specs']['air_usage_close']};"  # Расход откр/закр
-
-        # Информация о штоке
-        print(f"Информация о штоке {data['body_specs']['mounting_specs']}")
-        short_description += f" Шток:{data['body_specs']['mounting_specs']['stem']['shape']}/{data['body_specs']['mounting_specs']['stem']['size']};"  # Шток
-        short_description += f" Площадка:{data['body_specs']['mounting_specs']['mounting_plates']};"  # Монтажные площадки
-        short_description += f" Вес:{data['calculated_parameters']['weight']} кг;"  # Вес
-        # Таблица моментов/усилий
-        if 'torque_thrust_table' in data:
-            desc_parts = []
-            table_data = data['torque_thrust_table']
-
-            if isinstance(table_data, dict):
-                table_config = table_data.get('table_config', {})
-                data_by_spring = table_data.get('data', {}).get('by_spring', {})
-
-                if data_by_spring:
-                    visible_fields = table_config.get('visible_fields', [])
-                    pressure_order = table_config.get('pressure_order', [])
-                    spring_order = table_config.get('spring_order', [])
-                    torque_format = table_config.get('format', {}).get('torque', {})
-
-                    # Создаем заголовки
-                    headers = ["Пружины"]
-                    for pressure_code in pressure_order:
+    @staticmethod
+    def _build_torque_rows(data_by_spring, spring_order, pressure_order, visible_fields, torque_format):
+        """Build rows of torque table data — shared by text and HTML formatters."""
+        table_rows = []
+        for spring_code in spring_order:
+            if spring_code in data_by_spring:
+                row = [spring_code]
+                spring_data = data_by_spring[spring_code]
+                pressures_data = spring_data.get('pressures', {})
+                for pressure_code in pressure_order:
+                    if pressure_code in pressures_data:
+                        pressure_values = pressures_data[pressure_code]
                         for field in visible_fields:
-                            headers.append(f"{pressure_code}\n{field.upper()}")
+                            value = pressure_values.get(field)
+                            if value is not None:
+                                precision = torque_format.get('precision', 1)
+                                row.append(f"{value:.{precision}f}")
+                            else:
+                                row.append(None)
+                    else:
+                        for _ in visible_fields:
+                            row.append(None)
+                table_rows.append(row)
+        return table_rows
 
-                    # Создаем строки таблицы
-                    table_rows = []
-                    for spring_code in spring_order:
-                        if spring_code in data_by_spring:
-                            row = [spring_code]
-                            spring_data = data_by_spring[spring_code]
-                            pressures_data = spring_data.get('pressures', {})
+    @staticmethod
+    def _format_torque_table(table_data, fmt='text'):
+        """Format torque table as text (tabulate) or HTML.
+        Returns list of strings (lines) to append to description."""
+        result = []
+        if not table_data or not isinstance(table_data, dict):
+            return result
 
-                            for pressure_code in pressure_order:
-                                if pressure_code in pressures_data:
-                                    pressure_values = pressures_data[pressure_code]
-                                    for field in visible_fields:
-                                        value = pressure_values.get(field)
-                                        if value is not None:
-                                            precision = torque_format.get('precision', 1)
-                                            row.append(f"{value:.{precision}f}")
-                                        else:
-                                            row.append("—")
-                                else:
-                                    for _ in visible_fields:
-                                        row.append("—")
+        table_config = table_data.get('table_config', {})
+        data_by_spring = table_data.get('data', {}).get('by_spring', {})
+        if not data_by_spring:
+            return result
 
-                            table_rows.append(row)
+        visible_fields = table_config.get('visible_fields', [])
+        pressure_order = table_config.get('pressure_order', [])
+        spring_order = table_config.get('spring_order', [])
+        torque_format = table_config.get('format', {}).get('torque', {})
 
-                    # Формируем таблицу
-                    desc_parts.append("\nТаблица моментов:")
-                    desc_parts.append(tabulate(
-                        table_rows,
-                        headers=headers,
-                        tablefmt="grid",
-                        stralign="center",
-                        numalign="center"
-                    ))
+        result.append("\nТаблица моментов:")
 
-                    desc_parts.append(f"\nПримечание: значения в {torque_format.get('unit', 'Нм')}")
-        # short_description+="\n"
-        short_description+="\n".join(desc_parts)
-        return short_description
+        if fmt == 'html':
+            result.append('<table border="1" style="border-collapse: collapse; margin: 10px 0; width: 100%;">')
+            result.append('<thead>')
+            result.append('<tr><th rowspan="2">Пружины</th>')
+            for pressure_code in pressure_order:
+                col_span = len(visible_fields)
+                result.append(f'<th colspan="{col_span}">{pressure_code}</th>')
+            result.append('</tr>')
+            result.append('<tr>')
+            for _ in pressure_order:
+                for field in visible_fields:
+                    result.append(f'<th>{field.upper()}</th>')
+            result.append('</tr>')
+            result.append('</thead>')
+            result.append('<tbody>')
+
+            rows = PneumaticActuatorSelected._build_torque_rows(
+                data_by_spring, spring_order, pressure_order, visible_fields, torque_format)
+            for row in rows:
+                result.append('<tr>')
+                for cell in row:
+                    if cell is None:
+                        result.append('<td>—</td>')
+                    else:
+                        result.append(f'<td>{cell}</td>')
+                result.append('</tr>')
+            result.append('</tbody>')
+            result.append('</table>')
+        else:
+            headers = ["Пружины"]
+            for pressure_code in pressure_order:
+                for field in visible_fields:
+                    headers.append(f"{pressure_code}\n{field.upper()}")
+
+            rows = PneumaticActuatorSelected._build_torque_rows(
+                data_by_spring, spring_order, pressure_order, visible_fields, torque_format)
+            display_rows = []
+            for row in rows:
+                display_rows.append([c if c is not None else "—" for c in row])
+
+            from tabulate import tabulate
+            result.append(tabulate(
+                display_rows,
+                headers=headers,
+                tablefmt="grid",
+                stralign="center",
+                numalign="center"
+            ))
+
+        result.append(f"Примечание: значения в {torque_format.get('unit', 'Нм')}")
+        return result
 
     def _generate_short_description(self) -> str :
         """Сгенерировать краткое описание привода из структурированных данных
@@ -777,7 +777,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         Основное предполагаемое использование - подстановка в КП в название номенклатуры.
         """
         data = self.get_description_data()
-        print(data)
+        logger.debug(data)
 
         # Модель
         model_name = data.get('model_name' , {}).get('data')
@@ -1059,55 +1059,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             data_by_spring = table_data.get('data' , {}).get('by_spring' , {})
 
             if data_by_spring :
-                visible_fields = table_config.get('visible_fields' , [])
-                pressure_order = table_config.get('pressure_order' , [])
-                spring_order = table_config.get('spring_order' , [])
-                torque_format = table_config.get('format' , {}).get('torque' , {})
-
-                desc_parts.append("\nТаблица моментов:")
-
-                # Начинаем HTML таблицу
-                desc_parts.append('<table border="1" style="border-collapse: collapse; margin: 10px 0; width: 100%;">')
-                desc_parts.append('<thead>')
-                desc_parts.append('<tr><th rowspan="2">Пружины</th>')
-
-                for pressure_code in pressure_order :
-                    col_span = len(visible_fields)
-                    desc_parts.append(f'<th colspan="{col_span}">{pressure_code}</th>')
-                desc_parts.append('</tr>')
-
-                desc_parts.append('<tr>')
-                for _ in pressure_order :
-                    for field in visible_fields :
-                        desc_parts.append(f'<th>{field.upper()}</th>')
-                desc_parts.append('</tr>')
-                desc_parts.append('</thead>')
-
-                desc_parts.append('<tbody>')
-                for spring_code in spring_order :
-                    if spring_code in data_by_spring :
-                        desc_parts.append(f'<tr><td>{spring_code}</td>')
-                        spring_data = data_by_spring[spring_code]
-                        pressures_data = spring_data.get('pressures' , {})
-
-                        for pressure_code in pressure_order :
-                            if pressure_code in pressures_data :
-                                pressure_values = pressures_data[pressure_code]
-                                for field in visible_fields :
-                                    value = pressure_values.get(field)
-                                    if value is not None :
-                                        precision = torque_format.get('precision' , 1)
-                                        desc_parts.append(f'<td>{value:.{precision}f}</td>')
-                                    else :
-                                        desc_parts.append('<td>—</td>')
-                            else :
-                                for _ in visible_fields :
-                                    desc_parts.append('<td>—</td>')
-                        desc_parts.append('</tr>')
-                desc_parts.append('</tbody>')
-                desc_parts.append('</table>')
-
-                desc_parts.append(f"Примечание: значения в {torque_format.get('unit' , 'Нм')}")
+                desc_parts.extend(
+                    self._format_torque_table(table_data, fmt='html'))
 
         # Собираем и чистим текст
         full_text = "\n".join(desc_parts)
@@ -1177,44 +1130,44 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             return self.code or ""
 
         # Проверьте, что self.selected_model_line_item здесь еще объект
-        print(f"=== DEBUG generated_model_item_code ===")
-        print(f"self.selected_model_line_item: {self.selected_model_line_item}")
-        print(f"type: {type(self.selected_model_line_item)}")
+        logger.debug(f"=== DEBUG generated_model_item_code ===")
+        logger.debug(f"self.selected_model_line_item: {self.selected_model_line_item}")
+        logger.debug(f"type: {type(self.selected_model_line_item)}")
 
         template = self.selected_model_line_item.model_line.model_item_code_template
         if not template:
-            print(f"Template for {self.selected_model_line_item.model_line} not found. Generating from fallback")
+            logger.debug(f"Template for {self.selected_model_line_item.model_line} not found. Generating from fallback")
             return self._generate_fallback_code()
 
         """Простой рендеринг шаблона - заменяем переменные значениями"""
         result = template
-        print(f"template: {result}")
+        logger.debug(f"template: {result}")
         # Простая замена переменных
-        result = result.replace('{model_code}', self._get_value_old('selected_model_line_item__name'))
+        result = result.replace('{model_code}', self._get_nested_attr('selected_model_line_item__name'))
         # if
-        result = result.replace('{springs_qty}', self._get_value_old('selected_springs_qty__encoding'))
-        result = result.replace('{temperature}', self._get_value_old('selected_temperature__encoding'))
-        result = result.replace('{safety_position}', self._get_value_old('selected_safety_position__encoding'))
-        result = result.replace('{hand_wheel}', self._get_value_old('selected_hand_wheel__encoding'))
-        result = result.replace('{coating}', self._get_value_old('selected_body_coating__encoding'))
-        result = result.replace('{ip}', self._get_value_old('selected_ip__encoding'))
-        result = result.replace('{exd}', self._get_value_old('selected_exd__encoding'))
+        result = result.replace('{springs_qty}', self._get_nested_attr('selected_springs_qty__encoding'))
+        result = result.replace('{temperature}', self._get_nested_attr('selected_temperature__encoding'))
+        result = result.replace('{safety_position}', self._get_nested_attr('selected_safety_position__encoding'))
+        result = result.replace('{hand_wheel}', self._get_nested_attr('selected_hand_wheel__encoding'))
+        result = result.replace('{coating}', self._get_nested_attr('selected_body_coating__encoding'))
+        result = result.replace('{ip}', self._get_nested_attr('selected_ip__encoding'))
+        result = result.replace('{exd}', self._get_nested_attr('selected_exd__encoding'))
 
-        print(f"До очистки: {result}")
+        logger.debug(f"До очистки: {result}")
         # Очистка лишних точек (две точки подряд -> одна точка)
         result = re.sub(r'\.{2,}', '.', result)
-        print(f"две точки подряд -> одна точка: {result}")
+        logger.debug(f"две точки подряд -> одна точка: {result}")
         # Удаляем точку в начале и конце
         result = re.sub(r'\.\s+', ' ', result)  # Заменяет точку и любые пробельные символы после нее
-        print(f"удалили точки в начале и конце: {result}")
+        logger.debug(f"удалили точки в начале и конце: {result}")
         result = re.sub(r'\s*\(DA\)', '', result)  # Удалит (DA) с любым количеством пробелов перед ним
-        print(f"удалили (DA): {result}")
+        logger.debug(f"удалили (DA): {result}")
         # if not self.is_da_model():
         #     result = result + str('('+self._get_value('selected_springs_qty__encoding')+')')
 
         return result
 
-    def _get_value_old(self, field_path: str) -> str:
+    def _get_nested_attr(self, field_path: str) -> str:
         """Простое получение значения поля"""
         try:
             current_obj = self
@@ -1229,20 +1182,20 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация"""
         parts = [
-            self._get_value_old('selected_model__code'),
-            self._get_value_old('selected_springs_qty__encoding'),
-            self._get_value_old('selected_temperature__encoding'),
-            self._get_value_old('selected_safety_position__encoding'),
-            self._get_value_old('selected_hand_wheel__encoding'),
-            self._get_value_old('selected_body_coating__encoding'),
-            self._get_value_old('selected_ip__encoding'),
-            self._get_value_old('selected_exd__encoding'),
+            self._get_nested_attr('selected_model__code'),
+            self._get_nested_attr('selected_springs_qty__encoding'),
+            self._get_nested_attr('selected_temperature__encoding'),
+            self._get_nested_attr('selected_safety_position__encoding'),
+            self._get_nested_attr('selected_hand_wheel__encoding'),
+            self._get_nested_attr('selected_body_coating__encoding'),
+            self._get_nested_attr('selected_ip__encoding'),
+            self._get_nested_attr('selected_exd__encoding'),
         ]
         # Фильтруем пустые значения и соединяем
         return '.'.join(filter(None, parts))
 
     def _adjust_for_duplicate(self):
-        """Настройка для дублирующей конфигурации"""
+        """Добавляет суффикс (copy#NN) к name и code для уникальности дубликата."""
         if not self.name:
             return
 
@@ -1286,6 +1239,13 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
 
     def save(self, *args, **kwargs):
+        """
+        Сохраняет конфигурацию привода.
+
+        Последовательность: _ensure_valid_options → _check_for_duplicates →
+        _adjust_for_duplicate (если дубликат) → clean() → автозаполнение
+        name/code/description → super().save().
+        """
         from django.core.exceptions import ValidationError
 
         # Получаем оригинальный объект
@@ -1402,33 +1362,23 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             return self.selected_model_line_item
 
     def _check_for_duplicates(self):
-        """Проверка на дубликаты в базе данных"""
-        if not self.pk:  # Только для новых записей
-            # Собираем фильтры для всех полей опций
-            filters = {}
+        """Ищет существующую конфигурацию с идентичным набором опций. Возвращает строку-сообщение или None."""
+        filters = {}
 
-            # Используем общую конфигурацию
-            for field_name in self.get_option_fields():
-                field_value = getattr(self, field_name)
-                if field_value:  # Только если значение установлено
-                    filters[field_name] = field_value
-                else:
-                    # Для NULL значений используем __isnull
-                    filters[f'{field_name}__isnull'] = True
+        for field_name in self.get_option_fields():
+            field_value = getattr(self, field_name)
+            if field_value:
+                filters[field_name] = field_value
+            else:
+                filters[f'{field_name}__isnull'] = True
 
-            # Если есть хотя бы одно поле для фильтрации
-            if filters:
-                # Ищем дубликаты
-                from pneumatic_actuators.models  import PneumaticActuatorSelected
-                duplicates = PneumaticActuatorSelected.objects.filter(**filters)
-
-                # Исключаем самого себя если это обновление
-                if self.pk:
-                    duplicates = duplicates.exclude(pk=self.pk)
-
-                if duplicates.exists():
-                    duplicate = duplicates.first()
-                    return f"Найдена похожая конфигурация: {duplicate} (ID: {duplicate.id})"
+        if filters:
+            duplicates = self.__class__.objects.filter(**filters)
+            if self.pk:
+                duplicates = duplicates.exclude(pk=self.pk)
+            if duplicates.exists():
+                duplicate = duplicates.first()
+                return f"Найдена похожая конфигурация: {duplicate} (ID: {duplicate.id})"
 
         return None
 
@@ -1444,57 +1394,33 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 self.description = self._generate_short_description()
 
     def clean(self):
-        """Мягкая валидация выбранных опций"""
-        logger.info("=== MODEL CLEAN DEBUG: Starting validation")
-
+        """Сбрасывает опции, недоступные для выбранной модели (проверка через parent_field: model_line / model_line_item)."""
         if not self.selected_model_line_item:
-            return  # Если модель не выбрана, пропускаем валидацию опций
+            return
 
-        # Используем общую конфигурацию для всех проверок
         for field_name, config in self._OPTION_CONFIG.items():
             field_value = getattr(self, field_name)
-            if field_value:
-                try:
-                    # Импортируем модель опции
-                    option_model = getattr(
-                        __import__('pneumatic_actuators.models.pa_options', fromlist=[config['model_class']]),
-                        config['model_class']
+            if not field_value:
+                continue
+            try:
+                option_model = getattr(
+                    __import__('pneumatic_actuators.models.pa_options', fromlist=[config['model_class']]),
+                    config['model_class']
+                )
+                filter_kwargs = {'id': field_value.id, 'is_active': True}
+                if config['parent_field'] == 'model_line':
+                    if not hasattr(self.selected_model_line_item, 'model_line'):
+                        continue
+                    filter_kwargs['model_line'] = self.selected_model_line_item.model_line
+                else:
+                    filter_kwargs['model_line_item'] = self.selected_model_line_item
+                if not option_model.objects.filter(**filter_kwargs).exists():
+                    setattr(self, field_name, None)
+                    logger.info(
+                        f'Опция {config["label"]} сброшена — недоступна для модели {self.selected_model_line_item}'
                     )
-
-                    # Определяем параметры фильтрации
-                    filter_kwargs = {
-                        'id': field_value.id,
-                        'is_active': True
-                    }
-
-                    # Для разных типов опций разные parent_field
-                    if config['parent_field'] == 'model_line':
-                        # Для temperature, ip, exd, body_coating, hand_wheel
-                        if hasattr(self.selected_model_line_item, 'model_line'):
-                            filter_kwargs['model_line'] = self.selected_model_line_item.model_line
-                        else:
-                            logger.warning(f"Cannot validate {field_name}: model_line not available")
-                            continue
-                    else:
-                        # Для safety_position и springs_qty
-                        filter_kwargs['model_line_item'] = self.selected_model_line_item
-
-                    # Проверяем валидность
-                    valid_option = option_model.objects.filter(**filter_kwargs).exists()
-                    logger.info(f"=== MODEL CLEAN DEBUG: {field_name} valid={valid_option}")
-
-                    if not valid_option:
-                        logger.warning(
-                            f'Выбранная {config["label"]} не доступна для модели {self.selected_model_line_item}. '
-                            f'Будет сброшена при сохранении.'
-                        )
-                        # Мягкая валидация: только предупреждение
-                        # setattr(self, field_name, None)  # Раскомментировать для сброса
-
-                except Exception as e:
-                    logger.error(f"Error validating {field_name}: {e}")
-
-        logger.info("=== MODEL CLEAN DEBUG: Validation completed")
+            except Exception as e:
+                logger.error(f"Error validating {field_name}: {e}")
 
     # Свойства для доступа к доступным опциям
     @property
@@ -1527,25 +1453,31 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
     # @property
     def is_da_model(self):
+        """True если выбранная модель — двойного действия (DA)."""
         return (self.selected_model_line_item.pneumatic_actuator_variety and
                        self.selected_model_line_item.pneumatic_actuator_variety.code == 'DA')
 
     def get_available_options(self) -> Dict[str, List[Dict]]:
-        """Получить все доступные опции для выбранной модели"""
+        """
+        Все доступные опции для выбранной модели.
+
+        Ключи: safety_positions, springs_qty, temperature_options,
+        ip_options, exd_options, coating_options, hand_wheel_options.
+        """
         from pneumatic_actuators.models.pa_options import (
             PneumaticSafetyPositionOption, PneumaticSpringsQtyOption,
             PneumaticTemperatureOption, PneumaticIpOption,
             PneumaticExdOption, PneumaticBodyCoatingOption,PneumaticHandWheelOption
         )
 
-        print(f"=== DEBUG get_available_options ===")
-        print(f"Selected actuator ID: {self.id}")
-        print(f"Selected model: {self.selected_model_line_item}")
-        print(f"Selected model ID: {self.selected_model_line_item.id if self.selected_model_line_item else 'None'}")
-        print(f"Selected model name: {self.selected_model_line_item.name if self.selected_model_line_item else 'None'}")
+        logger.debug(f"=== DEBUG get_available_options ===")
+        logger.debug(f"Selected actuator ID: {self.id}")
+        logger.debug(f"Selected model: {self.selected_model_line_item}")
+        logger.debug(f"Selected model ID: {self.selected_model_line_item.id if self.selected_model_line_item else 'None'}")
+        logger.debug(f"Selected model name: {self.selected_model_line_item.name if self.selected_model_line_item else 'None'}")
 
         if not self.selected_model_line_item:
-            print("=== DEBUG: No selected model - returning empty options")
+            logger.debug("=== DEBUG: No selected model - returning empty options")
             return self._get_empty_options()
 
         try:
@@ -1560,17 +1492,17 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 is_active=True
             ).select_related('springs_qty')
             #
-            print(f"Safety options SQL: {safety_options.query}")
-            print(f"Springs options SQL: {springs_options.query}")
-            print(f"Safety options count: {safety_options.count()}")
-            print(f"Springs options count: {springs_options.count()}")
+            logger.debug(f"Safety options SQL: {safety_options.query}")
+            logger.debug(f"Springs options SQL: {springs_options.query}")
+            logger.debug(f"Safety options count: {safety_options.count()}")
+            logger.debug(f"Springs options count: {springs_options.count()}")
 
             # Выводим найденные опции
             for i , opt in enumerate(safety_options) :
-                print(f"Safety option {i + 1}: {opt.id} - {opt.safety_position.name} - encoding: '{opt.encoding}'")
+                logger.debug(f"Safety option {i + 1}: {opt.id} - {opt.safety_position.name} - encoding: '{opt.encoding}'")
 
             for i , opt in enumerate(springs_options) :
-                print(f"Springs option {i + 1}: {opt.id} - {opt.springs_qty.name} - encoding: '{opt.encoding}'")
+                logger.debug(f"Springs option {i + 1}: {opt.id} - {opt.springs_qty.name} - encoding: '{opt.encoding}'")
 
             # Опции через model_line
             temperature_options = []
@@ -1587,9 +1519,9 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     is_active=True
                 )
                 # ДИАГНОСТИКА temperature_options
-                print(f"🔧 MODEL temperature_options count: {temperature_options.count()}")
+                logger.debug(f"🔧 MODEL temperature_options count: {temperature_options.count()}")
                 for opt in temperature_options:
-                    print(f"🔧   id={opt.id}, encoding={opt.encoding}")
+                    logger.debug(f"🔧   id={opt.id}, encoding={opt.encoding}")
 
                 ip_options = PneumaticIpOption.objects.filter(
                     model_line=self.selected_model_line_item.model_line,
@@ -1660,7 +1592,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                         'is_default': opt.is_default
                     } for opt in exd_options
                 ],
-                'body_coating_options': [
+                'coating_options': [
                     {
                         'id': opt.id,
                         'encoding': opt.encoding,
@@ -1684,22 +1616,22 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             for key, value in result.items():
                 # print(f"=== DEBUG get_available_options: {key}: {len(value)} items")
                 for item in value[:5]:  # Покажем первые 2 элемента каждого типа
-                    print(f"  - {item}")
+                    logger.debug(f"  - {item}")
 
             return result
 
         except Exception as e:
-            print(f"=== DEBUG: Error in get_available_options: {e}")
+            logger.debug(f"=== DEBUG: Error in get_available_options: {e}")
             import traceback
             traceback.print_exc()
             return self._get_empty_options()
 
     def _get_empty_options(self):
-        """Пустые опции"""
+        """Возвращает словарь с пустыми списками для всех типов опций."""
         return {
             'safety_positions': [], 'springs_qty': [],
             'temperature_options': [], 'ip_options': [],
-            'exd_options': [], 'body_coating_options': [], 'hand_wheel_options':[]
+            'exd_options': [], 'coating_options': [], 'hand_wheel_options':[]
         }
 
     def get_weight(self) -> Optional[Decimal]:

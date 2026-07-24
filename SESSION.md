@@ -1,4 +1,4 @@
-# SESSION.md — состояние на 2026-07-23
+# SESSION.md — состояние на 2026-07-24
 
 ## Контекст
 
@@ -57,6 +57,26 @@
 - 20 файлов переведены с `AllowAny` на `SectionAccessPermission`
 - **admin_section**: media_library, cert_doc, price, sku
 - **configurator**: pneumatic_actuators, electric_actuators
+
+## Выполненные задачи (2026-07-24)
+
+### Рефакторинг `pneumatic_actuators` — модель, API, фронтенд
+- **Code Review**: `pa_actuator_selected.py` (1802 строки), `api/views.py`, `PaSelectionPage.vue`, admin, forms, filters
+- **Исправлено 12 issues** (#2-#14 по результатам ревью):
+  - **#2**: `api/views.py` — `OptionAPIView`/`SelectorAPIView` переведены на DRF `APIView` + `permission_classes = [AllowAny]`
+  - **#3**: `_check_for_duplicates()` — убран мёртвый `if self.pk` внутри `if not self.pk`
+  - **#4**: ~50 `print()` заменены на `logger.debug()` по всей модели
+  - **#5**: Дублирование форматирования таблицы моментов устранено — вынесено в `_build_torque_rows()` + `_format_torque_table(fmt='text'|'html')`
+  - **#6**: Ключ `body_coating_options` → `coating_options` в `get_available_options()` + admin JS синхронизированы
+  - **#7**: `clean()` теперь реально сбрасывает невалидные опции через `setattr(field, None)`
+  - **#9**: `PaSelectionPage.vue` — `modelLineItems: []` добавлен в `data()`
+  - **#10**: `_get_value_old` → `_get_nested_attr` переименован
+  - **#11**: `pa_selected_admin.py` — убраны дубли импортов `path`, `format_html`
+  - **#12**: `get_options_view` — добавлен `status=400` при отсутствии `model_id`
+  - **#13**: Убран deprecated `allow_tags = True`
+  - **#14**: `PaSelectionPage.vue` — `searching = true` до валидаций, сброс при early return
+- **Каскад safety_position**: `onVarietyChange()` сбрасывает `safety_position_id` + загружает `loadActuatorOptions()` с фильтрацией по variety. `mounted()` сразу загружает опции.
+- **Докстринги**: 22 новых/уточнённых в `api/views.py`, `admin/pa_selected_admin.py`, `pa_actuator_selected.py`, `actuator_selector_handler.py`
 
 ## Текущее состояние
 

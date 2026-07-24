@@ -3,12 +3,10 @@ from django import forms
 from django.utils.html import format_html
 from django.urls import path
 from django.http import JsonResponse
-from django.db import models  # Добавьте этот импорт
+from django.db import models
 from django.shortcuts import get_object_or_404
-from django.urls import path
 from django.contrib import messages
 from django.http import HttpResponseRedirect
-from django.utils.html import format_html
 
 import json
 
@@ -168,7 +166,6 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
         )
 
     duplicate_button.short_description = "Копия"
-    duplicate_button.allow_tags = True
 
     def generate_description_view(self , request , object_id) :
         """View для генерации описания"""
@@ -196,7 +193,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
         """API для получения опций по модели"""
         model_id = request.GET.get('model_id')
         if not model_id :
-            return JsonResponse({})
+            return JsonResponse({"error": "model_id required"}, status=400)
 
         # Здесь логика получения доступных опций для выбранной модели
         # Возвращаем JSON со списками доступных опций
@@ -259,6 +256,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     generate_description_btn.short_description = "Действия"
 
     def get_queryset(self , request) :
+        """Оптимизирует запросы: select_related для всех FK-опций."""
         return super().get_queryset(request).select_related(
             'selected_model_line_item' ,
             'selected_safety_position' ,
@@ -271,16 +269,19 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
 
     # Методы для отображения в списке
     def selected_model_display(self , obj) :
+        """Читаемое имя выбранной модели привода."""
         return obj.selected_model_line_item.name if obj.selected_model_line_item else "-"
 
     selected_model_display.short_description = "Модель"
 
     def safety_position_display(self , obj) :
+        """Читаемое имя положения безопасности."""
         return obj.selected_safety_position.safety_position if obj.selected_safety_position else "-"
 
     safety_position_display.short_description = "Безопасное положение"
 
     def springs_qty_display(self , obj) :
+        """Читаемое имя количества пружин."""
         return obj.selected_springs_qty.springs_qty if obj.selected_springs_qty else "-"
 
     springs_qty_display.short_description = "Кол-во пружин"
@@ -291,16 +292,19 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
     temperature_display.short_description = "Температура"
 
     def ip_display(self , obj) :
+        """Читаемое имя степени защиты IP."""
         return obj.selected_ip.ip_option if obj.selected_ip else "-"
 
     ip_display.short_description = "IP защита"
 
     def exd_display(self , obj) :
+        """Читаемое имя опции взрывозащиты."""
         return obj.selected_exd.exd_option if obj.selected_exd else "-"
 
     exd_display.short_description = "Взрывозащита"
 
     def body_coating_display(self , obj) :
+        """Читаемое имя покрытия корпуса."""
         return obj.selected_body_coating.body_coating_option if obj.selected_body_coating else "-"
 
     body_coating_display.short_description = "Покрытие"

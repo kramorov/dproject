@@ -1,0 +1,1 @@
+import{E as a}from"./App-DH1T3Zc-.js";import{_ as e,d as o,j as t,o as s}from"./_plugin-vue_export-helper-DvDerfEr.js";import"./endpoints-CaxZyhl8.js";const c={class:"catalog-page"},_={__name:"EaAdminPage",setup(r){return(p,n)=>(s(),o("div",c,[t(a)]))}},f=e(_,[["__scopeId","data-v-77ae8cdf"]]);export{f as default};

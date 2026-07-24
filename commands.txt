@@ -64,6 +64,8 @@ git commit -m "добавлено опции из model_line в  selected_actuat
 git push
 git pull
 
+.\build-demo.ps1 -BuildOnly
+
 ID	Название (Тип)	Код сигнала	Форма контактов (Логика)	Проводов	Пример датчика
 3	NAMUR (Ex/Safety)	NAMUR	SPST (Нормально замкнутый)	2	SJ3,5-SN
 5	Индуктивный PNP	IND_PNP	SPST (Нормально открытый)	3	NBB2-V3-E2

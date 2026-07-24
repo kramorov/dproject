@@ -79,14 +79,14 @@
       <div class="grid-2">
         <div class="field">
           <label>Серия моделей</label>
-          <select v-model="form.model_line_id" @change="onModelLineChange">
+          <select v-model="form.model_line_id">
             <option :value="null">— Все серии —</option>
             <option v-for="v in refs.model_lines" :key="v.id" :value="v.id">{{ v.name }}</option>
           </select>
         </div>
         <div class="field">
           <label>Вид привода (DA/SR)</label>
-          <select v-model="form.actuator_variety_id" @change="onVarietyChange">
+          <select v-model="form.actuator_variety_id">
             <option :value="null">— Выберите —</option>
             <option v-for="v in actuatorVarieties" :key="v.id" :value="v.id">{{ v.name }}</option>
           </select>
@@ -207,6 +207,7 @@ export default {
         actuator_varieties: [], safety_positions: [],
         ip_options: [], exd_options: [], coating_options: [], hand_wheel_options: [],
       },
+      modelLineItems: [],
       form: {
         valve_type_id: null, dn_id: null, pn_id: null,
         mounting_plate_id: null, stem_shape_id: null, stem_id: null,
@@ -237,7 +238,23 @@ export default {
       return this.actuatorOptions.safety_positions || []
     },
   },
-  async mounted() {
+  watch: {
+    'form.model_line_id': {
+      immediate: true,
+      handler() {
+        this.form.actuator_variety_id = null
+        this.form.safety_position_id = null
+        this.actuatorOptions.safety_positions = []
+        this.loadActuatorOptions()
+      },
+    },
+    'form.actuator_variety_id'() {
+      this.form.safety_position_id = null
+      this.actuatorOptions.safety_positions = []
+      this.loadActuatorOptions()
+    },
+  },
+  async created() {
     await this.loadInitialData()
   },
   methods: {
@@ -257,37 +274,30 @@ export default {
         const { data } = await api.get('/pneumatic_actuators/options/', { params })
         this.actuatorOptions = data
       } catch (e) {
-        // silently ignore — options are optional
+        console.error('loadActuatorOptions failed:', e.displayMessage || e.message)
       }
-    },
-    async onModelLineChange() {
-      this.actuatorOptions.safety_positions = []
-      await this.loadActuatorOptions()
     },
     onStemShapeChange() {
       this.form.stem_id = null
     },
-    async onVarietyChange() {
-      await this.loadActuatorOptions()
-    },
     async search() {
+      this.searching = true
       this.error = ''
       this.results = []
 
-      if (!this.form.valve_type_id) { this.error = 'Не выбран тип арматуры'; return }
-      if (!this.form.torque_without_safety || this.form.torque_without_safety <= 0) { this.error = 'Укажите момент без запаса'; return }
-      if (!this.form.air_pressure_id) { this.error = 'Не указано давление в пневмосистеме'; return }
-      if (!this.form.actuator_variety_id) { this.error = 'Не выбран тип привода (DA/SR)'; return }
+      if (!this.form.valve_type_id) { this.error = 'Не выбран тип арматуры'; this.searching = false; return }
+      if (!this.form.torque_without_safety || this.form.torque_without_safety <= 0) { this.error = 'Укажите момент без запаса'; this.searching = false; return }
+      if (!this.form.air_pressure_id) { this.error = 'Не указано давление в пневмосистеме'; this.searching = false; return }
+      if (!this.form.actuator_variety_id) { this.error = 'Не выбран тип привода (DA/SR)'; this.searching = false; return }
 
       const varietyObj = this.actuatorVarieties.find(v => v.id === this.form.actuator_variety_id)
       const actuator_variety_code = varietyObj?.code || 'DA'
 
       if (actuator_variety_code === 'SR' && !this.form.safety_position_id) {
         this.error = 'Для SR привода выберите положение безопасности (NO/NC)'
+        this.searching = false
         return
       }
-
-      this.searching = true
       try {
         const payload = {
           ...this.form,

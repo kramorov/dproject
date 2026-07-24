@@ -1,4 +1,5 @@
 # Frontend — структура проекта
+> Обновлено 2026-07-24: PaSelectionPage — каскад safety_position по variety, debounce поиска, modelLineItems
 > Обновлено 2026-07-23: новый HomePage (WebP-картинки), TopMenu (Каталоги/Арматура/Решения), админка клиентов, SectionAccessPermission
 > Обновлено 2026-06-10: price-catalog → DocumentJournal/DocumentCard, EA configurator
 > Обновлено 2026-06-09: типовые компоненты документов, тема admin.css

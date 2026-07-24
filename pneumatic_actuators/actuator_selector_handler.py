@@ -65,35 +65,29 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
             deduped.append(sp)
     result['safety_positions'] = deduped
 
-    # 3. Температурные опции - задаются вручную, НЕ зависят от модели привода
-    # result['temperature_options'] = PneumaticTemperatureOption.get_for_select(active_only=True)
-
-    # 4. Остальные опции (IP, Exd, покрытие, ручной дублер) - зависят от model_line
-    # option_classes = {
-    #     'ip_options' : PneumaticIpOption ,
-    #     'exd_options' : PneumaticExdOption ,
-    #     'coating_options' : PneumaticBodyCoatingOption ,
-    #     'hand_wheel_options' : PneumaticHandWheelOption
-    # }
-
-    # for key , option_class in option_classes.items() :
-    #     result[key] = option_class.get_for_select(
-    #         model_line_id=model_line_id ,
-    #         model_line_item_id=model_line_item_id ,
-    #         active_only=True
-    #     )
-    #
-    # return result
-    option_classes = {
-        'ip_options' : IpOption ,
-        'exd_options' : ExdOption ,
-        'coating_options' : BodyCoatingOption ,
-        'hand_wheel_options' : HandWheelInstalledOption
-    }
-    for key , option_class in option_classes.items() :
-        result[key] = option_class.get_for_select(
-            active_only=True
-        )
+    # 3. IP, Exd, покрытие, ручной дублер
+    if model_line_id:
+        # Серия выбрана — фильтруем через through-модели (только доступные для серии)
+        option_classes = {
+            'ip_options' : PneumaticIpOption ,
+            'exd_options' : PneumaticExdOption ,
+            'coating_options' : PneumaticBodyCoatingOption ,
+            'hand_wheel_options' : PneumaticHandWheelOption
+        }
+        for key , option_class in option_classes.items() :
+            result[key] = option_class.get_for_select(
+                model_line_id=model_line_id , active_only=True
+            )
+    else:
+        # Серия не выбрана — все уникальные опции из мастер-таблиц
+        option_classes = {
+            'ip_options' : IpOption ,
+            'exd_options' : ExdOption ,
+            'coating_options' : BodyCoatingOption ,
+            'hand_wheel_options' : HandWheelInstalledOption
+        }
+        for key , option_class in option_classes.items() :
+            result[key] = option_class.get_for_select(active_only=True)
 
     return result
 
@@ -276,7 +270,16 @@ def validate_selection_params(params: Dict[str , Any]) -> Tuple[bool , Optional[
 
 def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     """
-    Обрабатывает параметры выбранные на странице подбора привода
+    Обрабатывает параметры подбора привода со страницы PaSelectionPage.
+
+    1. Валидирует входные параметры через validate_selection_params().
+    2. Определяет рабочее давление (air_pressure_id, по умолчанию 6 бар).
+    3. Вызывает BodyThrustTorqueTable.find_suitable_actuators() —
+       поиск подходящих корпусов/пружин по моменту с запасом.
+    4. Логирует все параметры и результаты поиска.
+
+    Returns:
+        Dict с ключами success, search_results (список серий с моделями), total_found.
     """
     import json
     from datetime import datetime

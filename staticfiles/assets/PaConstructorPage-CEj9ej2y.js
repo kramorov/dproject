@@ -1,0 +1,1 @@
+import{P as o}from"./App-DKKHAhxB.js";import{_ as t,d as a,j as e,o as r}from"./_plugin-vue_export-helper-DvDerfEr.js";import"./endpoints-CaxZyhl8.js";const s={class:"catalog-page"},c={__name:"PaConstructorPage",setup(_){return(p,n)=>(r(),a("div",s,[e(o)]))}},f=t(c,[["__scopeId","data-v-97ca3f5d"]]);export{f as default};
