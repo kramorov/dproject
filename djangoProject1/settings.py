@@ -170,6 +170,7 @@ INSTALLED_APPS = [
     'storage_manager.apps.StorageManagerConfig',
     'core.apps.CoreConfig',
     'documents.apps.DocumentsConfig',
+    'ai_assistant.apps.AiAssistantConfig',
 ]
 
 MIDDLEWARE = [

@@ -85,6 +85,9 @@ const allItems = [
     { to:'/tools/image-processor', label:'Обработка изображений' },
     { to:'/tools/svg-converter', label:'SVG Конвертер' },
     { to:'/widgets', label:'Виджеты' },
+    { header:'AI' },
+    { to:'/ai-assistant', label:'AI Ассистент' },
+    { to:'/ai-debug', label:'AI Отладка' },
   ]},
 ]
 

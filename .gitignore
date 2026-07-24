@@ -38,3 +38,4 @@ Thumbs.db
 .aider*
 /media_old/
 /backups/
+.env

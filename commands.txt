@@ -27,36 +27,6 @@ electric_actuators\README.md
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).
 
-# 1. Авторизация в реестре
-docker login ваш-реестр.cr.cloud.ru -u <Key ID> -p <Key Secret>
-# 2. Сборка образа
-docker build --tag ваш-реестр.cr.cloud.ru/django-app . --platform linux/amd64
-# 3. Загрузка
-docker push ваш-реестр.cr.cloud.ru/django-app:latest
-docker tag demo-equipment:v1 drf-front.cr.cloud.ru/ca62177a-1c49-40f9-9c58-965d01621220/demo-equipment:v1
-docker push drf-front.cr.cloud.ru/ca62177a-1c49-40f9-9c58-965d01621220/demo-equipment:v1
-https://cloud.ru/docs/container-apps-evolution/ug/topics/quickstart
-ca62177a-1c49-40f9-9c58-965d01621220
-`build-demo.bat` — три режима
- build-demo.bat               REM полный цикл: сборка + push в Cloud.ru
- build-demo.bat build-only    REM только сборка (без загрузки в облако)
- build-demo.bat clean         REM удалить временные файлы .dockerignore.bak
-Что делает скрипт
-
-1. Проверяет запущен ли Docker и есть ли db.sqlite3
-2. Временно правит .dockerignore — убирает исключение *.sqlite3, чтобы БД попала в образ. Оригинал сохраняется в .dockerignore.bak
-3. Собирает образ через docker build
-4. Восстанавливает оригинальный .dockerignore
-5. Тегирует образ как cr.cloud.ru/<tenant>/demo-equipment:v1
-6. Пушит в Artifact Registry (при ошибке подсказывает что проверить)
-
-
-Перед первым запуском
-Замени TENANT_ID в скрипте на свой и залогинься в реестр:
-  docker login cr.cloud.ru
-Логин — tenant_id:key_id, пароль — key_secret (те же, что в settings.py для Cloud.ru S3).
-После push
-Открываешь https://console.cloud.ru/container-apps → «Создать» → указываешь образ cr.cloud.ru/.../demo-equipment:v1, порт 8000, 0.2 vCPU / 512 MB → готово.
 
 Из дома:
 git add .
@@ -73,32 +43,8 @@ ID	Название (Тип)	Код сигнала	Форма контактов
 1	Герконовый (2-проводной) SPST	MECH_SPST	SPST (Нормально открытый)	2	—
 4	2-проводной бесконтактный	SS_2W	SPST (Нормально открытый)	2	NBB2-V3-Z0
 
-Этап 1: Архитектор (используйте режим /plan)Переключитесь в режим планирования (обычно клавиша Tab или команда в начале промпта: Действуй как Архитектор).
-Попросите его составить подробный план изменений без написания кода.
-Этап 2: Исполнитель (режим Agent)Когда план вас устроит, дайте команду: Следуй утвержденному плану и начни вносить правки.
 Этап 3: Критик (самый важный шаг)После того как код написан, напишите: Забудь предыдущий контекст на секунду. Теперь ты — Senior QA.
 Проверь этот код на наличие SQL-инъекций и проблем с производительностью Django ORM.
-
-Полезные команды для «прокачки»
-@docs: Если ваш проект использует редкие библиотеки, вы можете «скормить» агенту ссылку на документацию, чтобы он не гадал, а знал API.
-@codebase: Используйте этот тег, если хотите, чтобы агент проанализировал весь проект целиком, а не только отдельные файлы.
-Совет: Поскольку у вас платный баланс, не бойтесь просить его «Напиши Unit-тесты для этой модели».
-Это лучший способ заставить «Критика» внутри DeepSeek проверить работу «Исполнителя».
-
-# Однострочник для копирования в COPY_RELATED_FIELDS
-# Получаем список всех ManyToOne связей
-from electric_actuators.models import ElectricPowerSupplyOption
-
-related_names = [
-    field.name
-    for field in ElectricPowerSupplyOption._meta.get_fields()
-    if field.many_to_one
-]
-
-print("COPY_RELATED_FIELDS = [")
-for name in related_names :
-    print(f"    '{name}',")
-print("]")
 
 # Установи UTF-8 кодировку
 git config --global core.quotepath false

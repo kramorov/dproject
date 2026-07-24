@@ -74,6 +74,8 @@ const routes = [
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },
   { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП' } },
+  { path: '/ai-assistant', component: () => import('../pages/AiAssistantPage.vue'), meta: { title: 'AI Ассистент' } },
+  { path: '/ai-debug', component: () => import('../pages/AiDebugPage.vue'), meta: { title: 'AI Отладка', role: 'admin' } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
