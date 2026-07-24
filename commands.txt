@@ -18,7 +18,7 @@ cd C:\Users\s.kramorov\PycharmProjects\djangoProject1
 cd C:\Users\kramo\PycharmProjects\djangoProject1
 codewhale
 npm install -g codewhale-tui
-deepseek update
+
 Прочитай SESSION.md, CATALOG_PATTERN.md, frontend\README.md, image_processor\README.md media_library\README.md продолжай
 electric_actuators\README.md
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
@@ -31,7 +31,7 @@ git commit -m "добавлено опции из model_line в  selected_actuat
 git push
 git pull
 
-.\build-demo.ps1 -BuildOnly
+.\build-demo.ps1 -BuildOnly -PushOnly
 
 ID	Название (Тип)	Код сигнала	Форма контактов (Логика)	Проводов	Пример датчика
 3	NAMUR (Ex/Safety)	NAMUR	SPST (Нормально замкнутый)	2	SJ3,5-SN
@@ -86,107 +86,6 @@ pip freeze --local > requirements.txt
 }
 
 django напиши модель "Запрос клиента": поля "Клиент", "Контактное лицо"; модель "Строки запроса": поле "Название". Строки запроса должны автоматически нумероваться. Строки запроса относятся к модели "Запрос клиента"
-
-
-
-ollama pull codellama:13b  # Запуск через Ollama
-ollama run codellama:13b
-
-
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-model = AutoModelForCausalLM.from_pretrained("bigcode/starcoder2-15b")
-tokenizer = AutoTokenizer.from_pretrained("bigcode/starcoder2-15b")
-
-inputs = tokenizer("Напиши Django View для REST API", return_tensors="pt")
-outputs = model.generate(**inputs)
-print(tokenizer.decode(outputs[0]))
-
-
-Open WebUI (ранее Ollama WebUI) – Лучший вариант
-🔹 Ссылка: GitHub - Open WebUI
-🔹 Особенности:
-
-Полноценный веб-интерфейс для Ollama (аналог ChatGPT)
-
-Поддержка локальных и облачных моделей (Llama 3, CodeLlama, Mistral и др.)
-
-Возможность загрузки документов (PDF, TXT)
-
-Групповые чаты, мультимодальность (если модель поддерживает)
-
-Как установить:
-
-Запустите Ollama локально (ollama serve).
-
-Установите Docker и запустите Open WebUI:
-
-bash
-docker run -d -p 3000:8080 --add-host=host.docker.internal:host-gateway -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
-Откройте http://localhost:3000 в браузере.
-
-Создаем новый проект
-в нем запускаем в терминале:
-npx create-nuxt-app nuxt-apollo-vuetify
- Вручную (если проект уже есть):
-//npm init nuxt-app nuxt-apollo-vuetify
-npm i -D @nuxtjs/apollo@next
-
-Это создает проект nuxt-app
-cd nuxt-app
-Добавляем Apollo (@nuxtjs/apollo)
-Настраиваем Apollo в nuxt.config.js
-export default {
-  modules: [
-    '@nuxtjs/apollo',
-    '@nuxtjs/vuetify'
-  ],
-  apollo: {
-    clientConfigs: {
-      default: {
-        httpEndpoint: 'https://your-graphql-api.com/graphql' // ваш GraphQL-эндпоинт
-      }
-    }
-  }
-}
-
-Проверяем Vuetify
-Если при создании проекта выбрали Vuetify, он уже настроен.
-Если нет — установите:
-npm install @nuxtjs/vuetify
-
-Добавьте в nuxt.config.js:
-export default {
-  modules: ['@nuxtjs/vuetify']
-}
-
-
-npm create nuxt@latest nuxtfrontend
-cd nuxtfrontend
-npx nuxi@latest module add vuetify-nuxt-module
-npm list vuetify
-
-Add vuetify-nuxt-module module to nuxt.config.ts and configure it:
-// Nuxt config file
-import { defineNuxtConfig } from 'nuxt/config'
-
-export default defineNuxtConfig({
-  modules: [
-    'vuetify-nuxt-module'
-  ],
-  vuetify: {
-    moduleOptions: {
-      /* module specific options */
-    },
-    vuetifyOptions: {
-      /* vuetify options */
-    }
-  }
-})
-
-npm install @apollo/client graphql
-npm install -D sass-embedded
-# DOC: https://nuxt.com/modules/vuetify-nuxt-module
 
 Для вашей задачи интеграции каталога сайта с ERP-системой (например, 1С) важно понимать, что BOM бывает двух видов:EBOM (Engineering Bill of Materials) — конструкторская спецификация. Она описывает идеальный состав изделия по чертежам (например: «Винт М5х10 DIN 912 — 4 шт.» без указания конкретного завода-изготовителя винта).MBOM (Manufacturing Bill of Materials) — производственная / закупочная спецификация. Это именно то, что нужно вам. Она содержит конкретные номенклатурные артикулы, которые лежат у вас на складе (например: «Винт М5х10 оцинкованный, поставщик "Крепмаркет", арт. KM-912-510 — 4 шт.»).
 Рассуждай сейчас как конструктор систем. Давай поразмышляем о составной номенклатуре - единица которой состоит из нескольких номенклатурных единиц. Как рассчитывать цену для такой единицы? По логике, цена должна быть суммой цен компонентов. А лучше давай посмотрим шире - я хочу иметь модели сложных единиц в виде EBOM - несколько обобщенный вид и MBOM - детальный состав. Скажем Редуктор может быть просто модель редуктора, а может быть редуктор с адаптацией под другой посадочный размер. Это разные EBOM. Но EBOM может быть разложен до компонентов - редуктор один, адаптации можно собрать из разных компонентов.Или возьмем болт 8*50. С точки зрения потребителя - в комплекте должно быть 4 болта. По факту, могут потребоваться болты из нержавейки или из стали. Болты могут быть разных производителей. Посоветуй, как это организовать. Здесь нужно найти грань между детализацией и обобщением. Для сайта нужны EBOM. Для детальной спецификации и расчета цены или себестоимость нужно делать MBOM. Кроме того, я хочу чтобы MBOM собирался автоматически или при минимальном участии пользователя. Также я сечас подумал, что EBOM могут быть разной степени детализации - скажем, "Дисковый затвор с электроприводом", далее "Дисковый затвор ДУ200 с ЭО", далее "Дисковый затвор ДУ200 Абрадокс с ЭП 220В". С точки зрения архитектуры и сайта - это что-то вроде дерева

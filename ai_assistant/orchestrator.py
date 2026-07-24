@@ -76,6 +76,12 @@ class QueryOrchestrator:
         conversation.intent = "batch"
         conversation.save(update_fields=["status", "intent"])
 
+        total_tokens = llm_result.get("total_tokens", 0) or 0
+        prompt_tokens = llm_result.get("prompt_tokens", 0) or 0
+        completion_tokens = llm_result.get("completion_tokens", 0) or 0
+        reasoning_tokens = llm_result.get("reasoning_tokens", 0) or 0
+        cost = estimate_cost(llm_result.get("model", ""), prompt_tokens, completion_tokens)
+
         return {
             "conversation_id": conversation.id,
             "status": parsed["status"],
@@ -84,6 +90,11 @@ class QueryOrchestrator:
             "tasks": parsed.get("tasks", []),
             "missing_info": parsed.get("missing_info"),
             "reject_reason": parsed.get("reject_reason"),
+            "total_tokens": total_tokens,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "reasoning_tokens": reasoning_tokens,
+            "cost": round(cost, 6),
         }
 
     def _parse_decompose(self, raw: str) -> dict:

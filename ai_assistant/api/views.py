@@ -10,7 +10,7 @@
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework import viewsets
 
 from .serializers import (
@@ -131,15 +131,15 @@ class QuerySampleViewSet(viewsets.ModelViewSet):
     """
     queryset = AIQuerySample.objects.all()
     serializer_class = AIQuerySampleSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
 
 class PromptViewSet(viewsets.ModelViewSet):
     """ViewSet для управления шаблонами промптов (AIPromptTemplate).
 
     Предоставляет CRUD для версионированных промптов. Доступен
-    только администраторам.
+    авторизованным пользователям.
     """
     queryset = AIPromptTemplate.objects.all()
     serializer_class = AIPromptTemplateSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]

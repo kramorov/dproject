@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="debug-page">
     <!-- Левая панель: запросы -->
     <div class="panel queries-panel">
@@ -82,7 +82,7 @@
 
     <!-- Статистика -->
     <div v-if="stats.length" class="stats-bar">
-      <b>Запрос:</b> {{ lastTokens }} токенов, ${{ lastCost.toFixed(6) }}
+      <b>Запрос:</b> {{ lastPromptTokens }}→{{ lastCompletionTokens }} ({{ lastTokens }}) токенов, ${{ lastCost.toFixed(6) }}
       &nbsp;|&nbsp;
       <b>Сессия:</b> {{ stats.length }} запросов, {{ totalTokens }} токенов,
       avg {{ avgTokens }} / запрос, ${{ totalCost.toFixed(4) }} всего
@@ -125,6 +125,8 @@ export default {
   computed: {
     lastTokens() { const s = this.stats.at(-1); return s ? s.tokens : 0 },
     lastCost() { const s = this.stats.at(-1); return s ? s.cost : 0 },
+    lastPromptTokens() { const s = this.stats.at(-1); return s ? (s.prompt_tokens || 0) : 0 },
+    lastCompletionTokens() { const s = this.stats.at(-1); return s ? (s.completion_tokens || 0) : 0 },
     totalTokens() { return this.stats.reduce((a, s) => a + (s.tokens || 0), 0) },
     totalCost() { return this.stats.reduce((a, s) => a + (s.cost || 0), 0) },
     avgTokens() { return this.stats.length ? Math.round(this.totalTokens / this.stats.length) : 0 },
@@ -146,7 +148,7 @@ export default {
         this.analysisText = data.analysis_text
         this.tasks = data.tasks || []
         this.globalReqs = data.global_requirements || {}
-        this.stats.push({ tokens: data.total_tokens || 0, cost: data.total_cost || 0 })
+        this.stats.push({ tokens: data.total_tokens || 0, prompt_tokens: data.prompt_tokens || 0, completion_tokens: data.completion_tokens || 0, cost: data.cost || 0, ts: Date.now() })
       } catch (e) {
         this.analyzeStatus = 'rejected'; this.analysisText = e.displayMessage || e.message || 'Ошибка'
       } finally { this.loading = false }

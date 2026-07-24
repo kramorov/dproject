@@ -1,5 +1,5 @@
 # 1. Читаем файл и загружаем переменные в окружение PowerShell
-Get-Content "D:\drf\drf-docker.env" | ForEach-Object {
+Get-Content "E:\drf\drf-docker.env" | ForEach-Object {
     if ($_ -match '^([^=]+)=(.*)$') {
         $key = $Matches[1].Trim()
         $value = $Matches[2].Trim()
