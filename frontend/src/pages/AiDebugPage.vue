@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="debug-page">
     <!-- Левая панель: запросы -->
     <div class="panel queries-panel">
@@ -49,6 +49,27 @@
         </div>
         <div v-else-if="analyzeStatus === 'rejected'">
           ❌ Отказ: {{ analysisText }}
+        </div>
+      </div>
+
+      <div v-if="treeData && treeData.positions" class="tree-panel">
+        <h4>Дерево подбора</h4>
+        <div v-for="pos in treeData.positions" :key="pos.id" class="tree-position">
+          <div class="tree-node level-1">
+            <strong>📦 {{ pos.description || 'Позиция' }}</strong>
+            <span class="node-status">{{ pos.status || '' }}</span>
+          </div>
+          <div v-if="pos.components" class="tree-children">
+            <TreeNodeDisplay
+              v-for="comp in pos.components"
+              :key="comp.id"
+              :node="comp"
+              :level="2"
+              @select="onNodeSelect"
+              @extract="onNodeExtract"
+              @filter="onNodeFilter"
+            />
+          </div>
         </div>
       </div>
 
@@ -109,9 +130,11 @@
 
 <script>
 import api from '@/shared/api'
+import TreeNodeDisplay from '@/components/TreeNodeDisplay.vue'
 
 export default {
   name: 'AiDebugPage',
+  components: { TreeNodeDisplay },
   data() {
     return {
       queries: [], selectedQuery: null, showQueryModal: false, editingQuery: { id: null, text: '' },
@@ -120,6 +143,11 @@ export default {
       analyzeStatus: '', analysisText: '', tasks: [], globalReqs: {},
       progressLog: [],
       stats: [],
+      treeData: null,
+      conversationId: null,
+      selectedNodeId: null,
+      nodeOptions: [],
+      selectingNodeId: null,
     }
   },
   computed: {
@@ -141,13 +169,15 @@ export default {
 
     async runAnalyze() {
       if (!this.inputText.trim()) return
-      this.loading = true; this.analyzeStatus = ''; this.tasks = []; this.progressLog = []
+      this.loading = true; this.analyzeStatus = ''; this.tasks = []; this.progressLog = []; this.treeData = null
       try {
-        const { data } = await api.post('/ai-assistant/analyze/', { text: this.inputText.trim() })
+        const payload = { text: this.inputText.trim() }
+        if (this.selectedPrompt) payload.prompt_id = this.selectedPrompt.id
+        const { data } = await api.post('/ai-assistant/decompose/', payload)
         this.analyzeStatus = data.status
-        this.analysisText = data.analysis_text
-        this.tasks = data.tasks || []
-        this.globalReqs = data.global_requirements || {}
+        this.analysisText = data.tree ? JSON.stringify(data.tree, null, 2) : ''
+        this.treeData = data.tree
+        this.conversationId = data.conversation_id
         this.stats.push({ tokens: data.total_tokens || 0, prompt_tokens: data.prompt_tokens || 0, completion_tokens: data.completion_tokens || 0, cost: data.cost || 0, ts: Date.now() })
       } catch (e) {
         this.analyzeStatus = 'rejected'; this.analysisText = e.displayMessage || e.message || 'Ошибка'
@@ -170,6 +200,42 @@ export default {
     async deleteQuery(id) { if (!confirm('Удалить?')) return; await api.delete(`/ai-assistant/samples/${id}/`); await this.loadQueries() },
     openPromptModal(p) { this.editingPrompt = p ? { id: p.id, name: p.name, version: p.version, template_text: p.template_text } : { id: null, name: '', version: '1', template_text: '' }; this.showPromptModal = true },
     async savePrompt() { const { id, name, version, template_text } = this.editingPrompt; if (!name) return; if (id) await api.patch(`/ai-assistant/prompts/${id}/`, { name, version, template_text }); else await api.post('/ai-assistant/prompts/', { name, version, template_text }); this.showPromptModal = false; await this.loadPrompts() },
+
+    async onNodeExtract(nodeId) {
+      try {
+        const { data } = await api.post(`/ai-assistant/extract/${nodeId}/`)
+        this.loadTree()
+      } catch (e) {
+        console.error('extract error', e)
+      }
+    },
+    async onNodeFilter(nodeId) {
+      this.selectingNodeId = nodeId
+      try {
+        const { data } = await api.post(`/ai-assistant/filter/${nodeId}/`)
+        this.nodeOptions = data.options || []
+      } catch (e) {
+        console.error('filter error', e)
+      }
+    },
+    async onNodeSelect(nodeId, productType, productId) {
+      try {
+        await api.post(`/ai-assistant/select/${nodeId}/`, {
+          product_type: productType,
+          product_id: productId
+        })
+        this.nodeOptions = []
+        this.selectingNodeId = null
+        this.loadTree()
+      } catch (e) {
+        console.error('select error', e)
+      }
+    },
+    async loadTree() {
+      if (!this.conversationId) return
+      const { data } = await api.get(`/ai-assistant/tree/${this.conversationId}/`)
+      this.treeData = { positions: data.tree }
+    },
   },
 }
 </script>
@@ -220,4 +286,20 @@ export default {
 .modal-actions { display: flex; gap: 8px; margin-top: 12px; }
 .modal-actions button { padding: 6px 16px; font-size: 14px; border: none; border-radius: 5px; background: #2563eb; color: #fff; cursor: pointer; }
 .modal-actions .cancel { background: #94a3b8; }
+
+.tree-panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 10px; }
+.tree-panel h4 { margin: 0 0 8px; font-size: 14px; }
+.tree-position { margin-bottom: 12px; }
+.tree-node { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 4px; }
+.tree-node.level-1 { background: #dbeafe; font-size: 14px; }
+.tree-node.level-2 { background: #f1f5f9; font-size: 13px; margin-left: 16px; }
+.tree-node.level-3 { background: #fff; font-size: 12px; margin-left: 32px; border: 1px solid #e2e8f0; }
+.tree-children { margin-left: 8px; }
+.node-status { font-size: 11px; color: #64748b; margin-left: auto; }
+.node-actions { display: flex; gap: 4px; }
+.node-actions button { padding: 2px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff; cursor: pointer; }
+.options-panel { margin-top: 8px; padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; }
+.option-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+.option-item button { padding: 2px 6px; font-size: 11px; }
+
 </style>

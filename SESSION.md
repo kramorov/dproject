@@ -1,97 +1,49 @@
-# SESSION.md — состояние на 2026-07-24
+# SESSION.md — состояние на 2026-07-26
 
 ## Контекст
 
 Машина: рабочая (s.kramorov). Ветка: `office-work`.
+Git: 11 modified, 31 untracked (тестовые JSON-файлы, debug-скрипты).
 
-## Выполненные задачи (2026-07-23)
+## Выполненные задачи (2026-07-26)
 
-### Разграничение доступа — полная архитектура
-- **`access.md`** — полная документация: модели, схема, сценарии, WordPress-интеграция
-- **7 новых моделей**: `SiteSection`, `AllowedApp`, `Role`, `CustomerAppAccess`, `CustomerEmail`, `CustomerApiKey`, `FavoriteBrand`
-- **Изменены**: `ProjectCustomer` (+`visible_sections`, +`visible_brands`), `ProjectCustomerUser` (убрано `role` CharField, +`roles` M2M, +`section_permissions` M2M, +`login`, +`password`, +`last_login`)
-- **12 миграций** `project_customers`: 0001 → 0012
+### AI Assistant — тесты (45 шт.)
+- **`ai_assistant/test_pipeline.py`** — 45 тестов, все проходят за 2.3 сек
+- Покрытие: 13 моделей (EquipmentType, SelectionNode, CascadeRule, StepConfig, StepConfigOverride, JSONSchema, ...), 8 API-endpoint'ов, TreeProcessor (config, decompose, ebom/mbom, cascade)
+- **`djangoProject1/settings.py`** — добавлен `TEST.NAME` для файловой тестовой БД (без него миграции шли 5+ минут)
+- Запуск: `python manage.py test ai_assistant.test_pipeline --keepdb --verbosity=2`
 
-### Аутентификация
-- **`CustomerBackend`** — аутентификация по `login` + пароль, Role → общий Django User, `customer_user_id` в сессии
-- **`LoginView`** — принимает `{login, password}`, fallback на username для superuser
-- **`CurrentUserView`** — возвращает `roles` (массив) + `section_permissions`
-- **`get_customer_profile()`** — вынесена в `project_customers/utils.py` (устранён циклический импорт)
+### AI Assistant — багфикс
+- **`ai_assistant/services/deepseek_client.py`** строка 113: `reasoning_tokens` default `None` → `0` (причина падения `save_token_usage` на NOT NULL)
 
-### Права доступа
-- **`SectionAccessPermission`** — DRF BasePermission: `public`, `required_section`, superuser bypass
-- **Защищены**: 6 engineer-вьюх + 5 engineer-filter-вьюх (`configurator`), 16 admin-вьюх (`admin_section`), 4 конструктора (`configurator`)
-- **Публичные**: каталоги (list/filters/detail/quickselect), image-processor, preview/download
-- **Парольные валидаторы** отключены (`AUTH_PASSWORD_VALIDATORS = []`)
+### AI Assistant — валидация классификатора на реальных сэмплах
+- Прогнаны 8 сэмплов из `AIQuerySample` через LLM (`deepseek-chat`, промпт `decode v2`)
+- Все 8 классификаций корректны: 3×`ready`, 3×`needs_info`, 2×`rejected`
+- Результаты: `_sample_1.json` … `_sample_8.json`
+- Выявлено: `debug`-роль мапилась на `deepseek-v4-pro` (reasoning-модель, 20-40 сек на запрос) — переключено на `deepseek-chat` для отладки
 
-### API-ключи
-- **CRUD**: `GET/POST /api/auth/api-keys/`, `DELETE /api/auth/api-keys/<id>/`
-- **Генерация**: `SHA-256`, raw_key показывается один раз
-- **Lookup**: проверка `access_until`, `is_active`
-- **WordPress**: документация по хранению и прокси-запросам в `access.md`
+### AI Assistant — документация
+- **`ai-assistant.md`** — полностью переписан (210 строк): архитектура `TreeProcessor` с 6 фазами, 13 моделей с описанием, 8 API-endpoint'ов, настройка промптов/схем через админку, файловая структура
 
-### Админка клиентов
-- **Бэкенд**: `CustomerAdminView` + `CustomerUserAdminView` + `CustomerKeyAdminView`
-- **Фронтенд**: `CustomerAdminPage.vue` — список + форма редактирования (CRUD для пользователей, ключей, доступа, email)
-- **Справочные API**: `/api/core/sections/`, `/api/core/allowed-apps/`, `/api/core/brands/`, `/api/core/django-users/`
-
-### Роли и пользователи
-- **3 предопределённые роли**: `api_user`, `site_user`, `system_admin`
-- **3 Django User**: по одному на роль (общие сессионные обёртки)
-- **Тестовые учётки**: api_user, site_user, archimed_admin (логин = email-префикс)
-
-### Дизайн сайта
-- **HomePage**: 3 секции (Каталоги, Арматура, Решения), цветные блоки → изображения (WebP), убран «XXX товаров»
-- **TopMenu**: новая структура — Каталоги, Арматура, Решения, Конфигураторы, Заявки, О проекте
-- **Placeholder-страницы** для новых разделов
-- **23 заглушки** WebP 300×200 в `frontend/public/img/catalog/`
-- **Фон карточек** серый `#f3f4f6`
-
-### Фронтенд-фиксы
-- `useAuth.js` → `role` → `roles` (массив)
-- `LoginMainPage.vue` → `{login, password}` вместо `{username, password}`
-- `TopMenu.vue` → `roles.value.includes('admin')` + `meta.pro` для (проф)-разделов
-- Инструменты (image-processor, SVG) в меню Администрирования
-
-### Аудит и защита API
-- 20 файлов переведены с `AllowAny` на `SectionAccessPermission`
-- **admin_section**: media_library, cert_doc, price, sku
-- **configurator**: pneumatic_actuators, electric_actuators
-
-## Выполненные задачи (2026-07-24)
-
-### Рефакторинг `pneumatic_actuators` — модель, API, фронтенд
-- **Code Review**: `pa_actuator_selected.py` (1802 строки), `api/views.py`, `PaSelectionPage.vue`, admin, forms, filters
-- **Исправлено 12 issues** (#2-#14 по результатам ревью):
-  - **#2**: `api/views.py` — `OptionAPIView`/`SelectorAPIView` переведены на DRF `APIView` + `permission_classes = [AllowAny]`
-  - **#3**: `_check_for_duplicates()` — убран мёртвый `if self.pk` внутри `if not self.pk`
-  - **#4**: ~50 `print()` заменены на `logger.debug()` по всей модели
-  - **#5**: Дублирование форматирования таблицы моментов устранено — вынесено в `_build_torque_rows()` + `_format_torque_table(fmt='text'|'html')`
-  - **#6**: Ключ `body_coating_options` → `coating_options` в `get_available_options()` + admin JS синхронизированы
-  - **#7**: `clean()` теперь реально сбрасывает невалидные опции через `setattr(field, None)`
-  - **#9**: `PaSelectionPage.vue` — `modelLineItems: []` добавлен в `data()`
-  - **#10**: `_get_value_old` → `_get_nested_attr` переименован
-  - **#11**: `pa_selected_admin.py` — убраны дубли импортов `path`, `format_html`
-  - **#12**: `get_options_view` — добавлен `status=400` при отсутствии `model_id`
-  - **#13**: Убран deprecated `allow_tags = True`
-  - **#14**: `PaSelectionPage.vue` — `searching = true` до валидаций, сброс при early return
-- **Каскад safety_position**: `onVarietyChange()` сбрасывает `safety_position_id` + загружает `loadActuatorOptions()` с фильтрацией по variety. `mounted()` сразу загружает опции.
-- **Докстринги**: 22 новых/уточнённых в `api/views.py`, `admin/pa_selected_admin.py`, `pa_actuator_selected.py`, `actuator_selector_handler.py`
+### Настройка тестовой БД
+- `djangoProject1/settings.py` — `DATABASES['default']['TEST'] = {'NAME': 'test_db.sqlite3'}`
+- Теперь тесты используют файловую БД, миграции применяются один раз, `--keepdb` сохраняет между запусками
 
 ## Текущее состояние
 
-- Django check: `System check identified no issues (0 silenced).`
-- Dev-сервер: `127.0.0.1:8000`
-- 3 Django User (kramorov, api_user, site_user, archimed_admin)
-- 4 ProjectCustomerUser
-- 1 ProjectCustomer (Архимед)
+- Django check: `System check identified 1 issue (0 silenced).` — только warning про `frontend/dist`
+- Модель для debug: `deepseek-chat` (быстро). Вернуть на `deepseek-v4-pro`: `AIProvider.model_mapping['debug'] = 'deepseek-v4-pro'`
+- 8 сэмплов в `AIQuerySample`, не размечены (все `expected_intent=None`)
+- Фаза 1 (decompose) работает на сэмплах, фазы 2-5 не тестировались на реальных данных
+- Остались debug-файлы: `_debug_decompose.py`, `_debug_decompose2.py`, `_run_one.py`, `_sample_*.json`, `_sample_output.txt`
 
 ## Следующие шаги
 
-- [ ] Наполнить каталоги реальным контентом (арматура, кабельные вводы, позиционеры, etc.)
-- [ ] Реализовать страницы-заглушки (PlaceholderPage → реальные каталоги)
+- [ ] Разметить 8 сэмплов (`expected_intent`, `tree_json`, `expected_filters`) для регрессионного тестирования
+- [ ] Прогнать полный конвейер (фазы 2-5) на сэмплах #5, #6, #8 (ready)
+- [ ] Починить `_create_nodes_from_tree` — сейчас падает на `save_token_usage` внутри транзакции
+- [ ] Вернуть `debug → deepseek-v4-pro` после отладки
+- [ ] Прибрать debug-файлы
+- [ ] Наполнить каталоги реальным контентом
 - [ ] Конфигураторы сборок арматуры с приводами
-- [ ] Заявки клиентов (список, создание)
-- [ ] Заменить placeholder-картинки на реальные фото
-- [ ] Биллинг и лимиты (модель `AccessLimit` уже спроектирована)
-- [ ] Логирование API-запросов и действий пользователей
+- [ ] Заявки клиентов

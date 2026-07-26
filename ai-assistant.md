@@ -1,115 +1,130 @@
 # AI Assistant — архитектура и документация
 
-> Последнее обновление: 2026-07-24
+> Последнее обновление: 2026-07-26
 
 ## Общая схема работы
 
 ```
-Пользователь → /ai-debug (фронт) → /api/ai-assistant/analyze/
+Пользователь → /ai-debug (фронт) → POST /api/ai-assistant/decompose/
+                                         │
+                                         ▼
+                               ┌──────────────────┐
+                               │   TreeProcessor   │
+                               │   Фаза 1: decompose│
+                               └────────┬─────────┘
                                         │
-                                        ▼
-                              ┌─────────────────┐
-                              │  QueryOrchestrator│
-                              │  Фаза 1: analyze  │
-                              └────────┬────────┘
-                                       │
-                          ┌────────────┴────────────┐
-                          │   1. Decompose (v4-pro)  │
-                          │   Промпт из БД или код   │
-                          │   Анализ + валидация      │
-                          └────────────┬────────────┘
-                                       │
-                    ┌──────────────────┼──────────────────┐
-                    ▼                  ▼                  ▼
-               ✅ ready          ⚠️ needs_info        ❌ rejected
-          «Всё понятно»     «Уточните: ...»     «Не наша тематика»
+                           ┌────────────┴────────────┐
+                           │   LLM (deepseek-chat)    │
+                           │   Промпт: decode v2      │
+                           │   из StepConfig БД       │
+                           └────────────┬────────────┘
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    ▼                   ▼                   ▼
+               ✅ ready           ⚠️ needs_info         ❌ rejected
+          «Дерево построено»  «Уточните: ...»    «Не наша тематика»
                     │
                     ▼
-          Кнопка «▶ Продолжить»
+          Фаза 2: extract (для каждого узла)
+          Промпт + JSON-схема из StepConfig
                     │
                     ▼
-          POST /api/ai-assistant/execute/
+          Фаза 3: filter (вызов API-фильтра)
+          Эндпоинт из EquipmentType.filter_endpoint
                     │
                     ▼
-              ┌───────────┐
-              │ TaskGraph  │
-              │ Топологич. │
-              │ сортировка │
-              └─────┬─────┘
+          Фаза 4: select (выбор продукта + каскад)
+          CascadeRule: parent_type → child_type
                     │
-         ┌──────────┼──────────┐
-         ▼          ▼          ▼
-    Уровень 1   Уровень 2   Уровень 3
-    (привод,    (БКВ,       (каб.вводы,
-    фильтр)     соленоид)   фитинги)
-         │          │          │
-         ▼          ▼          ▼
-    _run_actuator  _run_bkv  _run_solenoid
-    _pipeline()   (заглушка) (заглушка)
-         │
-         ▼
-    process_selection_params()
-    (существующий подбор)
+                    ▼
+          Фаза 5: compare (требования vs факт)
+          param_semantics из EquipmentType
+                    │
+                    ▼
+          GET /ebom/  +  GET /mbom/
 ```
 
-### Модели DeepSeek
-
-| Этап | Модель | Настройка |
-|------|--------|-----------|
-| Decompose + отладка | `deepseek-v4-pro` | `AI_ASSISTANT_MODEL_DEBUG` |
-| Извлечение фильтров | `deepseek-v4-flash` | `AI_ASSISTANT_MODEL_EXTRACTION` |
-| Классификация | `deepseek-chat` | `AI_ASSISTANT_MODEL_CLASSIFICATION` |
-
-Один API-ключ на все модели. Настройки в `djangoProject1/settings.py`.
-
 ---
 
-## Что уже сделано
+## Модели данных (13)
 
-### Бэкенд
-
-- **Модели** (6): `AIConversation`, `AIMessage` (+ `parent` FK, `context_summary`), `AITokenUsage`, `AIClientProvider`, `AIQuerySample`, `AIPromptTemplate`
-- **API endpoints**:
-  - `POST /api/ai-assistant/analyze/` — Фаза 1: decompose + валидация
-  - `POST /api/ai-assistant/execute/` — Фаза 2: выполнение графа задач
-  - `GET/POST/PATCH/DELETE /api/ai-assistant/samples/` — CRUD семплов запросов
-  - `GET/POST/PATCH/DELETE /api/ai-assistant/prompts/` — CRUD промптов
-- **QueryOrchestrator** — двухфазная обработка
-- **TaskGraph** — граф зависимостей с топологической сортировкой
-- **InstructorClassifier** — классификация запросов
-- **DeepSeekClient** — обёртка над OpenAI API + Instructor
-- **Token tracker** — учёт токенов и стоимости
-- **Schema registry** — DB-first, code-fallback схемы и промпты
-- **Seed command** — `python manage.py seed_ai_prompts --force`
-- **Decompose V2** — промпт в БД, редактируется через админку/фронт
-
-### Фронтенд
-
-- **`/ai-assistant`** (`AiAssistantPage.vue`) — публичная страница: textarea, результат, Pass 0 анализ, Pass 1/2 фильтры, статистика токенов
-- **`/ai-debug`** (`AiDebugPage.vue`) — страница отладки (трёхпанельная):
-  - Левая панель: список запросов, CRUD, кнопка «→» в поле ввода
-  - Центр: textarea + кнопка «Анализировать», статус-панель (ready/needs_info/rejected), прогресс-лог выполнения
-  - Правая панель: список промптов, чекбокс выбора, CRUD
-  - Модальные окна для редактирования запросов и промптов
-  - Статистика: токены за запрос / за сессию, avg, стоимость
-
-### Интеграция
-
-- **Пневмоприводы**: `_run_actuator_pipeline()` → `process_selection_params()` — работает
-- **Остальные типы**: заглушки (`skipped` с сообщением «нет схемы»)
-
----
-
-## Модели данных
+### Конвейер подбора
 
 | Модель | Назначение | Ключевые поля |
-|--------|-----------|---------------|
-| `AIConversation` | Диалог / цепочка запросов | customer, session_key, status, intent, source |
-| `AIMessage` | Одно сообщение | parent (FK→self), role, structured_content, reasoning, context_summary, prompt_used |
-| `AITokenUsage` | Учёт токенов | message (1:1), model, prompt/completion/reasoning tokens, cost_estimate |
-| `AIClientProvider` | AI-провайдер клиента | customer, provider_type, api_url, api_key |
-| `AIQuerySample` | Тестовая выборка | text, response_text, expected_intent, prompt_template FK, comment |
-| `AIPromptTemplate` | Версионируемые промпты | name, version, template_text, schema_json, is_active |
+|---|---|---|
+| `AIConversation` | Сессия подбора | customer, status, intent, selection_tree (JSON-кеш) |
+| `SelectionNode` | Узел дерева подбора | parent (self-FK), equipment_type FK, level, path, status, extract_output, cascade_params, filter_output, selected_product_*, compare_output |
+| `EquipmentType` | Справочник типов оборудования | code, label, level, param_semantics (JSON), filter_endpoint |
+| `CascadeRule` | Правило каскада параметров родитель→ребёнок | parent_type FK, child_type FK, mapping (JSON) |
+
+### Конфигурация шагов
+
+| Модель | Назначение | Ключевые поля |
+|---|---|---|
+| `StepConfig` | Конфигурация шага конвейера | step, equipment_type FK, prompt_template FK, output_schema FK, model_role |
+| `StepConfigOverride` | Переопределение для клиента | customer FK, step_config FK, prompt_template FK, prompt_suffix, model_role |
+| `AIPromptTemplate` | Версионируемый текст промпта | name, version, template_text, is_active |
+| `JSONSchema` | Версионируемая JSON-схема ответа | name, version, schema_json, is_active |
+
+### AI-провайдер
+
+| Модель | Назначение | Ключевые поля |
+|---|---|---|
+| `AIProvider` | Настройки API-провайдера | code, base_url, api_key, model_mapping (JSON), is_active |
+
+### Сообщения и токены
+
+| Модель | Назначение | Ключевые поля |
+|---|---|---|
+| `AIMessage` | Одно сообщение в диалоге | conversation FK, role, content, parent (self-FK), prompt_template FK, intent |
+| `AITokenUsage` | Учёт токенов на сообщение | message (1:1), model, prompt_tokens, completion_tokens, reasoning_tokens |
+
+### Обучающие данные и клиенты
+
+| Модель | Назначение | Ключевые поля |
+|---|---|---|
+| `AIQuerySample` | Сэмпл запроса для отладки/обучения | text, expected_intent, expected_filters, tree_json, final_selections_json, category |
+| `AIClientProvider` | API-ключ клиента (WordPress и др.) | customer FK, provider_type, api_url, api_key |
+
+---
+
+## 6 фаз конвейера
+
+| Фаза | Endpoint | Метод | Описание |
+|---|---|---|---|
+| 1. Decompose | `/api/ai-assistant/decompose/` | POST | Текст → дерево SelectionNode (LLM) |
+| 2. Extract | `/api/ai-assistant/extract/{node_id}/` | POST | Узел → структурированные фильтры (LLM) |
+| 3. Filter | `/api/ai-assistant/filter/{node_id}/` | POST | Фильтры → варианты (API) |
+| 4. Select | `/api/ai-assistant/select/{node_id}/` | POST | Выбор продукта + каскад параметров |
+| 5. Compare | `/api/ai-assistant/compare/{node_id}/` | POST | Требования vs фактические характеристики |
+| — EBOM | `/api/ai-assistant/ebom/{conv_id}/` | GET | Инженерная спецификация (требования) |
+| — MBOM | `/api/ai-assistant/mbom/{conv_id}/` | GET | Производственная спецификация (артикулы) |
+| — Tree | `/api/ai-assistant/tree/{conv_id}/` | GET | Полное дерево подбора |
+
+Плюс legacy-эндпоинты: `analyze/`, `execute/`, `query/`, `run-query/`.
+
+---
+
+## Как настраивать промпты и схемы
+
+Всё хранится в БД, редактируется через **Django Admin** (`/admin/ai_assistant/`):
+
+### Фаза 1 (decompose)
+- **Step Configs** → `decompose / *` → указывает `prompt_template` и `model_role`
+- **AI Prompt Templates** → `decode v2` — текст промпта (можно создать `v3` и переключить StepConfig)
+- JSON-схема не используется (свободный текст, парсится из markdown)
+
+### Фаза 2 (extract) — для каждого типа оборудования своя пара:
+- **Step Configs** → `extract / actuator` → промпт `extract_actuator v1` + схема `actuator_filters v1`
+- Аналогично для: `solenoid`, `bkv`, `cable_gland`, `pneumatic_fitting`, `filter_regulator`
+
+### Выбор модели
+- **AI Providers** → поле `model_mapping` (JSON):
+  ```json
+  {"classification": "deepseek-chat", "extraction": "deepseek-v4-flash", "debug": "deepseek-v4-pro"}
+  ```
+- `DeepSeekClient._model_for(role)` читает этот маппинг при каждом вызове
+- Для переопределения под клиента: **Step Config Overrides**
 
 ---
 
@@ -118,41 +133,78 @@
 ```
 ai_assistant/
 ├── __init__.py
-├── apps.py                          # AiAssistantConfig
-├── models.py                         # 6 моделей
-├── admin.py                          # Админка для всех моделей
-├── urls.py                           # analyze/, execute/, samples/, prompts/
-├── orchestrator.py                   # QueryOrchestrator (двухфазный)
-├── task_manager.py                   # TaskGraph + DECOMPOSE_V2_PROMPT
-├── classifiers/
-│   └── __init__.py                   # InstructorClassifier
-├── schemas/
-│   ├── __init__.py                   # SCHEMA_REGISTRY + get_schema_config()
-│   ├── actuator_selection.py         # JSON Schema + prompt для подбора
-│   └── decompose.py                  # V1 decompose (reference)
-├── services/
+├── apps.py
+├── models/                            # 13 моделей (распакованы из models.py)
+│   ├── __init__.py                    #   реэкспорт всех моделей
+│   ├── ai_conversation.py
+│   ├── ai_message.py
+│   ├── ai_token_usage.py
+│   ├── ai_client_provider.py
+│   ├── ai_provider.py
+│   ├── ai_query_sample.py
+│   ├── ai_prompt_template.py
+│   ├── equipment_type.py
+│   ├── json_schema.py
+│   ├── selection_node.py
+│   ├── cascade_rule.py
+│   ├── step_config.py
+│   └── step_config_override.py
+├── models.py                          #   реэкспорт (обратная совместимость)
+├── admin/                             #   Админка (распакована из admin.py)
 │   ├── __init__.py
-│   ├── deepseek_client.py            # DeepSeekClient + singleton
-│   └── token_tracker.py              # save_token_usage, estimate_cost
+│   ├── admin_ai_conversation.py
+│   ├── admin_ai_message.py
+│   ├── admin_ai_token_usage.py
+│   ├── admin_ai_client_provider.py
+│   ├── admin_ai_provider.py
+│   ├── admin_ai_query_sample.py
+│   ├── admin_ai_prompt_template.py
+│   ├── admin_equipment_type.py
+│   ├── admin_json_schema.py
+│   ├── admin_selection_node.py
+│   ├── admin_cascade_rule.py
+│   ├── admin_step_config.py
+│   └── admin_step_config_override.py
+├── admin.py                           #   реэкспорт
+├── urls.py
 ├── api/
-│   ├── __init__.py
-│   ├── views.py                      # AnalyzeView, ExecuteView, QueryView, ViewSets
+│   ├── views.py                       #   AnalyzeView, DecomposeView, ExtractView, ...
 │   └── serializers.py
-├── prompts/                          # Текстовые копии промптов (dev)
-│   ├── classify.txt
-│   └── actuator_selection.txt
-├── management/
-│   └── commands/
-│       └── seed_ai_prompts.py        # Загрузка промптов в БД
-└── migrations/                       # 5 миграций
+├── services/
+│   ├── tree_processor.py              #   TreeProcessor — центральный сервис (672 строки)
+│   ├── deepseek_client.py             #   DeepSeekClient + get_deepseek_client()
+│   └── token_tracker.py               #   save_token_usage, estimate_cost
+├── classifiers/
+│   └── __init__.py                    #   InstructorClassifier
+├── schemas/
+│   ├── __init__.py                    #   SCHEMA_REGISTRY
+│   └── actuator_selection.py
+├── management/commands/
+│   └── seed_ai_prompts.py
+├── test_pipeline.py                   #   45 тестов (модели + API + TreeProcessor)
+└── migrations/                        #   7 миграций
 ```
+
+Фронтенд: `frontend/src/pages/AiDebugPage.vue` + `frontend/src/components/TreeNodeDisplay.vue`.
 
 ---
 
 ## Как тестировать
 
-1. Запустить Django + Vite dev сервер
-2. Открыть `http://localhost:8000/ai-debug`
-3. Ввести запрос: «подбери пневмопривод для дискового затвора ДУ300 с моментом 150 Нм»
-4. Нажать «Анализировать» → зелёная панель «Всё понятно»
-5. Нажать «▶ Продолжить» → прогресс-лог
+```bash
+# Прогнать тесты (файловая тестовая БД — быстро)
+python manage.py test ai_assistant.test_pipeline --keepdb --verbosity=2
+
+# Прогнать сэмплы через реальный LLM
+python _debug_decompose.py            # все 8 сэмплов → _sample_output.txt
+python _run_one.py 1                  # один сэмпл → _sample_1.json
+
+# Быстро переключить модель (без админки)
+python manage.py shell -c "
+from ai_assistant.models import AIProvider
+p = AIProvider.objects.filter(is_active=True).first()
+p.model_mapping['debug'] = 'deepseek-chat'  # быстро
+p.model_mapping['debug'] = 'deepseek-v4-pro'  # точно
+p.save()
+"
+```

@@ -110,7 +110,7 @@ class DeepSeekClient:
             "reasoning": getattr(msg, "reasoning_content", None),
             "prompt_tokens": usage.prompt_tokens if usage else 0,
             "completion_tokens": usage.completion_tokens if usage else 0,
-            "reasoning_tokens": getattr(usage, "reasoning_tokens", None) if usage else 0,
+            "reasoning_tokens": getattr(usage, "reasoning_tokens", 0) if usage else 0,
             "total_tokens": usage.total_tokens if usage else 0,
             "model": resp.model,
             "latency_ms": int((time.monotonic() - start) * 1000),
