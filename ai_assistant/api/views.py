@@ -1,44 +1,52 @@
-"""API views для AI-ассистента подбора оборудования.
+"""API views РґР»СЏ AI-Р°СЃСЃРёСЃС‚РµРЅС‚Р° РїРѕРґР±РѕСЂР° РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ.
 
-Эндпоинты:
-- /analyze/ — фаза 1: декомпозиция запроса, валидация, план задач.
-- /execute/ — фаза 2: выполнение графа задач.
-- /query/ — однофазный эндпоинт обратной совместимости.
-- /run-query/ — отладочный эндпоинт (только для администраторов).
-- QuerySampleViewSet — CRUD для эталонных запросов.
-- PromptViewSet — CRUD для шаблонов промптов.
+Р­РЅРґРїРѕРёРЅС‚С‹:
+- /analyze/ вЂ” С„Р°Р·Р° 1: РґРµРєРѕРјРїРѕР·РёС†РёСЏ Р·Р°РїСЂРѕСЃР°, РІР°Р»РёРґР°С†РёСЏ, РїР»Р°РЅ Р·Р°РґР°С‡.
+- /execute/ вЂ” С„Р°Р·Р° 2: РІС‹РїРѕР»РЅРµРЅРёРµ РіСЂР°С„Р° Р·Р°РґР°С‡.
+- /query/ вЂ” РѕРґРЅРѕС„Р°Р·РЅС‹Р№ СЌРЅРґРїРѕРёРЅС‚ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё.
+- /run-query/ вЂ” РѕС‚Р»Р°РґРѕС‡РЅС‹Р№ СЌРЅРґРїРѕРёРЅС‚ (С‚РѕР»СЊРєРѕ РґР»СЏ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРѕРІ).
+- QuerySampleViewSet вЂ” CRUD РґР»СЏ СЌС‚Р°Р»РѕРЅРЅС‹С… Р·Р°РїСЂРѕСЃРѕРІ.
+- PromptViewSet вЂ” CRUD РґР»СЏ С€Р°Р±Р»РѕРЅРѕРІ РїСЂРѕРјРїС‚РѕРІ.
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
+from rest_framework.generics import ListAPIView
+from core.models.equipment_type import EquipmentType
+from project_customers.models import ProjectCustomer
 
 from .serializers import (
     QueryRequestSerializer, QueryResponseSerializer,
-    AIQuerySampleSerializer, AIPromptTemplateSerializer,
+    AIQuerySampleSerializer, AIPromptTemplateSerializer, PipelineSkillSerializer, SkillOverrideSerializer, JSONSchemaSerializer,
 )
 from ..orchestrator import QueryOrchestrator
-from ..models import AIQuerySample, AIPromptTemplate, AIConversation, SelectionNode
+from ..models import (
+    AIQuerySample, AIPromptTemplate, AIConversation, SelectionNode,
+    PipelineSkill, SkillOverride, JSONSchema,
+)
 from ..services.tree_processor import TreeProcessor
+from ..services.customer_resolver import resolve_customer
+from ..classifiers import InstructorClassifier
 
 
 class AnalyzeView(APIView):
-    """POST /api/ai-assistant/analyze/ — Фаза 1: decompose + валидация.
+    """POST /api/ai-assistant/analyze/ вЂ” Р¤Р°Р·Р° 1: decompose + РІР°Р»РёРґР°С†РёСЏ.
 
-    Принимает текст запроса пользователя, запускает ``QueryOrchestrator.analyze()``,
-    возвращает статус (ready/needs_info/rejected), план задач и анализ.
+    РџСЂРёРЅРёРјР°РµС‚ С‚РµРєСЃС‚ Р·Р°РїСЂРѕСЃР° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ, Р·Р°РїСѓСЃРєР°РµС‚ ``QueryOrchestrator.analyze()``,
+    РІРѕР·РІСЂР°С‰Р°РµС‚ СЃС‚Р°С‚СѓСЃ (ready/needs_info/rejected), РїР»Р°РЅ Р·Р°РґР°С‡ Рё Р°РЅР°Р»РёР·.
     """
     permission_classes = []
 
     def post(self, request):
-        """Обрабатывает POST-запрос фазы analyze.
+        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ POST-Р·Р°РїСЂРѕСЃ С„Р°Р·С‹ analyze.
 
         Args:
-            request: DRF Request с полем ``text`` в теле.
+            request: DRF Request СЃ РїРѕР»РµРј ``text`` РІ С‚РµР»Рµ.
 
         Returns:
-            Response с результатом ``QueryOrchestrator.analyze()``
-            или ошибкой 400, если поле ``text`` не передано.
+            Response СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј ``QueryOrchestrator.analyze()``
+            РёР»Рё РѕС€РёР±РєРѕР№ 400, РµСЃР»Рё РїРѕР»Рµ ``text`` РЅРµ РїРµСЂРµРґР°РЅРѕ.
         """
         text = request.data.get("text", "")
         if not text:
@@ -48,23 +56,23 @@ class AnalyzeView(APIView):
 
 
 class ExecuteView(APIView):
-    """POST /api/ai-assistant/execute/ — Фаза 2: выполнение графа задач.
+    """POST /api/ai-assistant/execute/ вЂ” Р¤Р°Р·Р° 2: РІС‹РїРѕР»РЅРµРЅРёРµ РіСЂР°С„Р° Р·Р°РґР°С‡.
 
-    Принимает список задач и глобальные требования, запускает
-    ``QueryOrchestrator.execute()``, возвращает progress_log и results.
+    РџСЂРёРЅРёРјР°РµС‚ СЃРїРёСЃРѕРє Р·Р°РґР°С‡ Рё РіР»РѕР±Р°Р»СЊРЅС‹Рµ С‚СЂРµР±РѕРІР°РЅРёСЏ, Р·Р°РїСѓСЃРєР°РµС‚
+    ``QueryOrchestrator.execute()``, РІРѕР·РІСЂР°С‰Р°РµС‚ progress_log Рё results.
     """
     permission_classes = []
 
     def post(self, request):
-        """Обрабатывает POST-запрос фазы execute.
+        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ POST-Р·Р°РїСЂРѕСЃ С„Р°Р·С‹ execute.
 
         Args:
-            request: DRF Request с полями ``tasks`` (список задач)
-                и ``global_requirements`` (опционально).
+            request: DRF Request СЃ РїРѕР»СЏРјРё ``tasks`` (СЃРїРёСЃРѕРє Р·Р°РґР°С‡)
+                Рё ``global_requirements`` (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ).
 
         Returns:
-            Response с progress_log и results или ошибкой 400,
-            если поле ``tasks`` не передано.
+            Response СЃ progress_log Рё results РёР»Рё РѕС€РёР±РєРѕР№ 400,
+            РµСЃР»Рё РїРѕР»Рµ ``tasks`` РЅРµ РїРµСЂРµРґР°РЅРѕ.
         """
         tasks = request.data.get("tasks", [])
         global_reqs = request.data.get("global_requirements", {})
@@ -75,21 +83,21 @@ class ExecuteView(APIView):
 
 
 class QueryView(APIView):
-    """POST /api/ai-assistant/query/ — старый однофазный эндпоинт.
+    """POST /api/ai-assistant/query/ вЂ” СЃС‚Р°СЂС‹Р№ РѕРґРЅРѕС„Р°Р·РЅС‹Р№ СЌРЅРґРїРѕРёРЅС‚.
 
-    Сохранён для обратной совместимости. Делегирует вызов в ``analyze()``.
+    РЎРѕС…СЂР°РЅС‘РЅ РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё. Р”РµР»РµРіРёСЂСѓРµС‚ РІС‹Р·РѕРІ РІ ``analyze()``.
     """
     permission_classes = []
 
     def post(self, request):
-        """Обрабатывает однофазный POST-запрос (совместимость).
+        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ РѕРґРЅРѕС„Р°Р·РЅС‹Р№ POST-Р·Р°РїСЂРѕСЃ (СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚СЊ).
 
         Args:
-            request: DRF Request с полем ``text`` в теле.
+            request: DRF Request СЃ РїРѕР»РµРј ``text`` РІ С‚РµР»Рµ.
 
         Returns:
-            Response с результатом ``QueryOrchestrator.analyze()``
-            или ошибкой 400.
+            Response СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј ``QueryOrchestrator.analyze()``
+            РёР»Рё РѕС€РёР±РєРѕР№ 400.
         """
         text = request.data.get("text", "")
         if not text:
@@ -99,22 +107,22 @@ class QueryView(APIView):
 
 
 class RunQueryView(APIView):
-    """POST /api/ai-assistant/run-query/ — отладочный эндпоинт.
+    """POST /api/ai-assistant/run-query/ вЂ” РѕС‚Р»Р°РґРѕС‡РЅС‹Р№ СЌРЅРґРїРѕРёРЅС‚.
 
-    Доступен только администраторам (``IsAdminUser``). Используется
-    для ручного тестирования decompose-пайплайна без аутентификации клиента.
+    Р”РѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°Рј (``IsAdminUser``). РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ
+    РґР»СЏ СЂСѓС‡РЅРѕРіРѕ С‚РµСЃС‚РёСЂРѕРІР°РЅРёСЏ decompose-РїР°Р№РїР»Р°Р№РЅР° Р±РµР· Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РєР»РёРµРЅС‚Р°.
     """
     permission_classes = [IsAdminUser]
 
     def post(self, request):
-        """Обрабатывает отладочный POST-запрос.
+        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ РѕС‚Р»Р°РґРѕС‡РЅС‹Р№ POST-Р·Р°РїСЂРѕСЃ.
 
         Args:
-            request: DRF Request с полем ``text`` в теле.
+            request: DRF Request СЃ РїРѕР»РµРј ``text`` РІ С‚РµР»Рµ.
 
         Returns:
-            Response с результатом ``QueryOrchestrator.analyze()``
-            или ошибкой 400.
+            Response СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј ``QueryOrchestrator.analyze()``
+            РёР»Рё РѕС€РёР±РєРѕР№ 400.
         """
         text = request.data.get("text", "")
         if not text:
@@ -124,11 +132,11 @@ class RunQueryView(APIView):
 
 
 class QuerySampleViewSet(viewsets.ModelViewSet):
-    """ViewSet для управления эталонными запросами (AIQuerySample).
+    """ViewSet РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ СЌС‚Р°Р»РѕРЅРЅС‹РјРё Р·Р°РїСЂРѕСЃР°РјРё (AIQuerySample).
 
-    Предоставляет стандартные CRUD-операции. Доступен только
-    администраторам. Используется для пополнения и валидации
-    набора тестовых запросов.
+    РџСЂРµРґРѕСЃС‚Р°РІР»СЏРµС‚ СЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ CRUD-РѕРїРµСЂР°С†РёРё. Р”РѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ
+    Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°Рј. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РїРѕРїРѕР»РЅРµРЅРёСЏ Рё РІР°Р»РёРґР°С†РёРё
+    РЅР°Р±РѕСЂР° С‚РµСЃС‚РѕРІС‹С… Р·Р°РїСЂРѕСЃРѕРІ.
     """
     queryset = AIQuerySample.objects.all()
     serializer_class = AIQuerySampleSerializer
@@ -136,10 +144,10 @@ class QuerySampleViewSet(viewsets.ModelViewSet):
 
 
 class PromptViewSet(viewsets.ModelViewSet):
-    """ViewSet для управления шаблонами промптов (AIPromptTemplate).
+    """ViewSet РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ С€Р°Р±Р»РѕРЅР°РјРё РїСЂРѕРјРїС‚РѕРІ (AIPromptTemplate).
 
-    Предоставляет CRUD для версионированных промптов. Доступен
-    авторизованным пользователям.
+    РџСЂРµРґРѕСЃС‚Р°РІР»СЏРµС‚ CRUD РґР»СЏ РІРµСЂСЃРёРѕРЅРёСЂРѕРІР°РЅРЅС‹С… РїСЂРѕРјРїС‚РѕРІ. Р”РѕСЃС‚СѓРїРµРЅ
+    Р°РІС‚РѕСЂРёР·РѕРІР°РЅРЅС‹Рј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј.
     """
     queryset = AIPromptTemplate.objects.all()
     serializer_class = AIPromptTemplateSerializer
@@ -147,10 +155,10 @@ class PromptViewSet(viewsets.ModelViewSet):
 
 
 class DecomposeView(APIView):
-    """POST /api/ai-assistant/decompose/ — Фаза 1: текст → дерево.
+    """POST /api/ai-assistant/decompose/ вЂ” Р¤Р°Р·Р° 1: С‚РµРєСЃС‚ в†’ РґРµСЂРµРІРѕ.
 
-    Принимает текст запроса и опциональный prompt_id (из чекбокса на фронте).
-    Создаёт AIConversation и SelectionNode-дерево через TreeProcessor.
+    РџСЂРёРЅРёРјР°РµС‚ С‚РµРєСЃС‚ Р·Р°РїСЂРѕСЃР° Рё РѕРїС†РёРѕРЅР°Р»СЊРЅС‹Р№ prompt_id (РёР· С‡РµРєР±РѕРєСЃР° РЅР° С„СЂРѕРЅС‚Рµ).
+    РЎРѕР·РґР°С‘С‚ AIConversation Рё SelectionNode-РґРµСЂРµРІРѕ С‡РµСЂРµР· TreeProcessor.
     """
     permission_classes = []
 
@@ -159,17 +167,51 @@ class DecomposeView(APIView):
         if not text:
             return Response({"error": "text required"}, status=400)
         prompt_id = request.data.get("prompt_id")
+        source = request.data.get("source", request.GET.get("source", "web_form"))
+        email = request.data.get("email", "")
+        api_key = request.headers.get("X-Api-Key", "")
 
-        conversation = AIConversation.objects.create(status=AIConversation.PROCESSING)
-        processor = TreeProcessor(conversation)
-        result = processor.decompose(text=text, prompt_id=prompt_id)
-        return Response(result)
+        customer = resolve_customer(source=source, email=email, api_key=api_key)
+
+        # Step 0: classify intent
+        from ..services.deepseek_client import get_deepseek_client
+        classifier = InstructorClassifier(get_deepseek_client())
+        classification = classifier.classify(text)
+
+        conversation = AIConversation.objects.create(
+            status=AIConversation.PROCESSING,
+            source=source,
+            customer=customer,
+            intent=classification.intent,
+        )
+
+        # Route by intent
+        if classification.intent != "selection":
+            conversation.status = AIConversation.COMPLETED
+            conversation.save(update_fields=["status"])
+            return Response({
+                "status": classification.intent,
+                "confidence": classification.confidence,
+                "subtype": classification.subtype,
+                "message": _intent_message(classification.intent),
+                "source": source,
+                "customer": customer.name if customer else None,
+            })
+
+        processor = TreeProcessor(conversation, customer=customer)
+        skill_code = request.data.get("skill_code", "")
+        result = processor.decompose(text=text, prompt_id=prompt_id, skill_code=skill_code)
+        return Response({
+            **result,
+            "source": source,
+            "customer": customer.name if customer else None,
+        })
 
 
 class ExtractView(APIView):
-    """POST /api/ai-assistant/extract/{node_id}/ — Фаза 2: извлечение фильтров.
+    """POST /api/ai-assistant/extract/{node_id}/ вЂ” Р¤Р°Р·Р° 2: РёР·РІР»РµС‡РµРЅРёРµ С„РёР»СЊС‚СЂРѕРІ.
 
-    Для узла дерева запускает extract-промпт, специфичный для типа оборудования.
+    Р”Р»СЏ СѓР·Р»Р° РґРµСЂРµРІР° Р·Р°РїСѓСЃРєР°РµС‚ extract-РїСЂРѕРјРїС‚, СЃРїРµС†РёС„РёС‡РЅС‹Р№ РґР»СЏ С‚РёРїР° РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ.
     """
     permission_classes = []
 
@@ -179,16 +221,16 @@ class ExtractView(APIView):
         except SelectionNode.DoesNotExist:
             return Response({"error": "node not found"}, status=404)
 
-        processor = TreeProcessor(node.conversation)
+        processor = TreeProcessor(node.conversation, customer=node.conversation.customer)
         result = processor.extract(node_id=node.id)
         return Response(result)
 
 
 class FilterView(APIView):
-    """POST /api/ai-assistant/filter/{node_id}/ — Фаза 3: вызов API-фильтра.
+    """POST /api/ai-assistant/filter/{node_id}/ вЂ” Р¤Р°Р·Р° 3: РІС‹Р·РѕРІ API-С„РёР»СЊС‚СЂР°.
 
-    Вызывает фильтр оборудования (эндпоинт из EquipmentType.filter_endpoint)
-    с effective_params узла.
+    Р’С‹Р·С‹РІР°РµС‚ С„РёР»СЊС‚СЂ РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ (СЌРЅРґРїРѕРёРЅС‚ РёР· EquipmentType.filter_endpoint)
+    СЃ effective_params СѓР·Р»Р°.
     """
     permission_classes = []
 
@@ -198,16 +240,16 @@ class FilterView(APIView):
         except SelectionNode.DoesNotExist:
             return Response({"error": "node not found"}, status=404)
 
-        processor = TreeProcessor(node.conversation)
+        processor = TreeProcessor(node.conversation, customer=node.conversation.customer)
         result = processor.filter_node(node_id=node.id)
         return Response(result)
 
 
 class SelectView(APIView):
-    """POST /api/ai-assistant/select/{node_id}/ — Фаза 4: выбор продукта + каскад.
+    """POST /api/ai-assistant/select/{node_id}/ вЂ” Р¤Р°Р·Р° 4: РІС‹Р±РѕСЂ РїСЂРѕРґСѓРєС‚Р° + РєР°СЃРєР°Рґ.
 
-    Принимает {product_type: "...", product_id: N}.
-    Сохраняет выбор и пробрасывает параметры дочерним узлам через CascadeRule.
+    РџСЂРёРЅРёРјР°РµС‚ {product_type: "...", product_id: N}.
+    РЎРѕС…СЂР°РЅСЏРµС‚ РІС‹Р±РѕСЂ Рё РїСЂРѕР±СЂР°СЃС‹РІР°РµС‚ РїР°СЂР°РјРµС‚СЂС‹ РґРѕС‡РµСЂРЅРёРј СѓР·Р»Р°Рј С‡РµСЂРµР· CascadeRule.
     """
     permission_classes = []
 
@@ -222,7 +264,7 @@ class SelectView(APIView):
         except SelectionNode.DoesNotExist:
             return Response({"error": "node not found"}, status=404)
 
-        processor = TreeProcessor(node.conversation)
+        processor = TreeProcessor(node.conversation, customer=node.conversation.customer)
         result = processor.select_product(
             node_id=node.id, product_type=product_type, product_id=int(product_id)
         )
@@ -230,9 +272,9 @@ class SelectView(APIView):
 
 
 class CompareView(APIView):
-    """POST /api/ai-assistant/compare/{node_id}/ — Фаза 5: сравнение требований и факта.
+    """POST /api/ai-assistant/compare/{node_id}/ вЂ” Р¤Р°Р·Р° 5: СЃСЂР°РІРЅРµРЅРёРµ С‚СЂРµР±РѕРІР°РЅРёР№ Рё С„Р°РєС‚Р°.
 
-    Сравнивает extract_output с selected_product_specs по семантике параметров.
+    РЎСЂР°РІРЅРёРІР°РµС‚ extract_output СЃ selected_product_specs РїРѕ СЃРµРјР°РЅС‚РёРєРµ РїР°СЂР°РјРµС‚СЂРѕРІ.
     """
     permission_classes = []
 
@@ -242,15 +284,15 @@ class CompareView(APIView):
         except SelectionNode.DoesNotExist:
             return Response({"error": "node not found"}, status=404)
 
-        processor = TreeProcessor(node.conversation)
+        processor = TreeProcessor(node.conversation, customer=node.conversation.customer)
         result = processor.compare(node_id=node.id)
         return Response(result)
 
 
 class EBOMView(APIView):
-    """GET /api/ai-assistant/ebom/{conversation_id}/ — инженерная спецификация.
+    """GET /api/ai-assistant/ebom/{conversation_id}/ вЂ” РёРЅР¶РµРЅРµСЂРЅР°СЏ СЃРїРµС†РёС„РёРєР°С†РёСЏ.
 
-    Возвращает EBOM: иерархический состав с исходными требованиями.
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ EBOM: РёРµСЂР°СЂС…РёС‡РµСЃРєРёР№ СЃРѕСЃС‚Р°РІ СЃ РёСЃС…РѕРґРЅС‹РјРё С‚СЂРµР±РѕРІР°РЅРёСЏРјРё.
     """
     permission_classes = []
 
@@ -260,14 +302,14 @@ class EBOMView(APIView):
         except AIConversation.DoesNotExist:
             return Response({"error": "conversation not found"}, status=404)
 
-        processor = TreeProcessor(conversation)
+        processor = TreeProcessor(conversation, customer=conversation.customer)
         return Response(processor.build_ebom())
 
 
 class MBOMView(APIView):
-    """GET /api/ai-assistant/mbom/{conversation_id}/ — производственная спецификация.
+    """GET /api/ai-assistant/mbom/{conversation_id}/ вЂ” РїСЂРѕРёР·РІРѕРґСЃС‚РІРµРЅРЅР°СЏ СЃРїРµС†РёС„РёРєР°С†РёСЏ.
 
-    Возвращает MBOM: иерархический состав с артикулами выбранных продуктов.
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ MBOM: РёРµСЂР°СЂС…РёС‡РµСЃРєРёР№ СЃРѕСЃС‚Р°РІ СЃ Р°СЂС‚РёРєСѓР»Р°РјРё РІС‹Р±СЂР°РЅРЅС‹С… РїСЂРѕРґСѓРєС‚РѕРІ.
     """
     permission_classes = []
 
@@ -277,14 +319,14 @@ class MBOMView(APIView):
         except AIConversation.DoesNotExist:
             return Response({"error": "conversation not found"}, status=404)
 
-        processor = TreeProcessor(conversation)
+        processor = TreeProcessor(conversation, customer=conversation.customer)
         return Response(processor.build_mbom())
 
 
 class TreeView(APIView):
-    """GET /api/ai-assistant/tree/{conversation_id}/ — полное дерево подбора.
+    """GET /api/ai-assistant/tree/{conversation_id}/ вЂ” РїРѕР»РЅРѕРµ РґРµСЂРµРІРѕ РїРѕРґР±РѕСЂР°.
 
-    Возвращает все SelectionNode для диалога в виде вложенного дерева.
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ РІСЃРµ SelectionNode РґР»СЏ РґРёР°Р»РѕРіР° РІ РІРёРґРµ РІР»РѕР¶РµРЅРЅРѕРіРѕ РґРµСЂРµРІР°.
     """
     permission_classes = []
 
@@ -326,3 +368,90 @@ class TreeView(APIView):
         if children:
             data["children"] = [self._serialize_node(c) for c in children]
         return data
+
+
+# в”Ђв”Ђ Pipeline Configurator ViewSets в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+
+class PipelineSkillViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    serializer_class = PipelineSkillSerializer
+    queryset = PipelineSkill.objects.select_related("equipment_type", "prompt_template", "output_schema")
+    permission_classes = [IsAdminUser]
+
+class SkillOverrideViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    serializer_class = SkillOverrideSerializer
+    queryset = SkillOverride.objects.select_related("customer", "step_config")
+    permission_classes = [IsAdminUser]
+
+class JSONSchemaViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    serializer_class = JSONSchemaSerializer
+    queryset = JSONSchema.objects.all()
+    permission_classes = [IsAdminUser]
+
+
+
+def _intent_message(intent: str) -> str:
+    """Human-readable message for non-selection intents."""
+    messages = {
+        "price_check": "Запрос цены. Функция в разработке.",
+        "cert_search": "Поиск сертификата. Функция в разработке.",
+        "replacement": "Подбор аналога. Функция в разработке.",
+        "specs": "Характеристики. Функция в разработке.",
+        "catalog": "Каталог. Функция в разработке.",
+        "rejected": "Запрос не относится к тематике арматуры и приводов.",
+        "needs_info": "Недостаточно данных. Уточните параметры.",
+    }
+    return messages.get(intent, "Не удалось определить тип запроса.")
+
+
+# ── Configurator support: EquipmentType & Customer lists ──────
+
+
+class EquipmentTypeListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EquipmentType
+        fields = ["id", "code", "name", "level", "filter_endpoint", "param_semantics", "is_active"]
+
+
+class EquipmentTypeListView(ListAPIView):
+    pagination_class = None
+    queryset = EquipmentType.objects.filter(is_active=True).order_by("level", "name")
+    serializer_class = EquipmentTypeListSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_object(self):
+        return EquipmentType.objects.get(pk=self.kwargs.get("pk"))
+
+    def patch(self, request, pk=None):
+        obj = EquipmentType.objects.get(pk=pk)
+        ser = self.serializer_class(obj, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(ser.data)
+
+
+class CustomerListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectCustomer
+        fields = ["id", "name", "short_name", "email", "is_active"]
+
+
+class ModelRolesView(APIView):
+    permission_classes = [IsAdminUser]
+    def get(self, request):
+        from ..models import AIProvider
+        roles = []
+        for p in AIProvider.objects.filter(is_active=True):
+            for role in (p.model_mapping or {}).keys():
+                if role not in roles:
+                    roles.append(role)
+        return Response(sorted(roles))
+
+
+class CustomerListView(ListAPIView):
+    pagination_class = None
+    queryset = ProjectCustomer.objects.filter(is_active=True).order_by("name")
+    serializer_class = CustomerListSerializer
+    permission_classes = [IsAdminUser]

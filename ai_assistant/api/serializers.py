@@ -3,6 +3,7 @@ from rest_framework import serializers
 from ..models import (
     AIConversation, AIMessage, AITokenUsage,
     AIClientProvider, AIQuerySample, AIPromptTemplate,
+    PipelineSkill, SkillOverride, JSONSchema,
 )
 
 
@@ -33,6 +34,55 @@ class AIQuerySampleSerializer(serializers.ModelSerializer):
 class AIPromptTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIPromptTemplate
+        fields = "__all__"
+
+
+class PipelineSkillSerializer(serializers.ModelSerializer):
+    equipment_type_detail = serializers.SerializerMethodField()
+    prompt_template_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PipelineSkill
+        fields = "__all__"
+
+    def get_equipment_type_detail(self, obj):
+        if obj.equipment_type:
+            return {"id": obj.equipment_type.id, "name": obj.equipment_type.name, "code": obj.equipment_type.code}
+        return None
+
+    def get_prompt_template_detail(self, obj):
+        if obj.prompt_template:
+            return {"id": obj.prompt_template.id, "code": obj.prompt_template.code, "name": obj.prompt_template.name}
+        return None
+
+
+class SkillOverrideSerializer(serializers.ModelSerializer):
+    step_config_detail = serializers.SerializerMethodField()
+    customer_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SkillOverride
+        fields = "__all__"
+
+    def get_step_config_detail(self, obj):
+        if obj.step_config:
+            return {"id": obj.step_config.id, "code": obj.step_config.code, "step": obj.step_config.step}
+        return None
+
+    def get_customer_detail(self, obj):
+        if obj.customer_id:
+            from project_customers.models import ProjectCustomer
+            try:
+                c = ProjectCustomer.objects.get(id=obj.customer_id)
+                return {"id": c.id, "name": c.name}
+            except ProjectCustomer.DoesNotExist:
+                pass
+        return None
+
+
+class JSONSchemaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JSONSchema
         fields = "__all__"
 
 

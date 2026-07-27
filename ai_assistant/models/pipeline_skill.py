@@ -1,17 +1,15 @@
 from django.db import models
 
 
-class StepConfig(models.Model):
-    """Конфигурация одного шага конвейера для конкретного типа оборудования.
+class PipelineSkill(models.Model):
+    """Скилл конвейера подбора — связывает шаг, тип оборудования, промпт и схему.
 
-    Связывает шаг (decompose, extract, filter, ...) и тип оборудования
-    с промптом, JSON-схемой и ролью ИИ-модели. Это центральная таблица,
-    через которую настраивается весь процесс подбора.
+    Skill = что делать (step) + для чего (equipment_type) + как (prompt) + в каком формате (output_schema).
 
     Разрешение конфигурации:
-    1. Ищем StepConfigOverride для клиента.
-    2. Если нет — берём дефолтный StepConfig.
-    3. Если нет StepConfig для пары (step, equipment_type) — шаг пропускается.
+    1. Ищем SkillOverride для клиента.
+    2. Если нет — берём дефолтный PipelineSkill.
+    3. Если нет PipelineSkill для пары (step, equipment_type) — шаг пропускается.
 
     Примеры:
         decompose / *        → decode v2, tree_schema v1, model=debug
@@ -29,13 +27,22 @@ class StepConfig(models.Model):
         ("format", "Format — EBOM + результат"),
     ]
 
+    code = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, db_index=True,
+        help_text=(
+            "Уникальный код скилла. Используется для ссылки на PipelineSkill "
+            "из кода вместо поиска по паре (step, equipment_type). "
+            "Пример: 'decompose_default', 'extract_actuator', 'extract_solenoid'."
+        )
+    )
+
     step = models.CharField(
         max_length=32, choices=STEP_CHOICES, db_index=True,
         help_text="Шаг конвейера"
     )
     equipment_type = models.ForeignKey(
-        "EquipmentType", on_delete=models.CASCADE, null=True, blank=True,
-        related_name="step_configs",
+        "core.EquipmentType", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="ai_step_configs",
         help_text="Тип оборудования (null = общий, для decompose)"
     )
     prompt_template = models.ForeignKey(
@@ -56,13 +63,25 @@ class StepConfig(models.Model):
         default=10,
         help_text="Приоритет (меньше = выше). Используется при нескольких конфигах на один шаг."
     )
+    avg_latency_ms = models.IntegerField(
+        null=True, blank=True,
+        help_text=(
+            "Скользящее среднее времени отклика LLM для этого скилла (мс). "
+            "Рассчитывается по последним 5 запросам. Используется для оценки "
+            "времени ожидания на фронте."
+        )
+    )
+    latency_sample_count = models.IntegerField(
+        default=0,
+        help_text="Количество замеров, использованных для расчёта avg_latency_ms",
+    )
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Step Config"
-        verbose_name_plural = "Step Configs"
+        verbose_name = "Pipeline Skill"
+        verbose_name_plural = "Pipeline Skills"
         ordering = ["step", "priority"]
         unique_together = [("step", "equipment_type")]
 

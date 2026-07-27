@@ -32,6 +32,7 @@ class JSONSchema(models.Model):
             '"required": ["torque_nm"]}'
         )
     )
+    sorting_order = models.IntegerField(default=0, verbose_name="Сортировка", help_text="Порядок сортировки в списке")
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -39,7 +40,7 @@ class JSONSchema(models.Model):
     class Meta:
         verbose_name = "JSON Schema"
         verbose_name_plural = "JSON Schemas"
-        ordering = ["name", "-version"]
+        ordering = ["sorting_order", "name", "-version"]
         unique_together = [("name", "version")]
 
     def __str__(self):

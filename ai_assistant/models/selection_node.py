@@ -64,8 +64,8 @@ class SelectionNode(models.Model):
         help_text="Родительский узел в дереве (null = корень — позиция)"
     )
     equipment_type = models.ForeignKey(
-        "EquipmentType", on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="selection_nodes",
+        "core.EquipmentType", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="ai_selection_nodes",
         help_text="Тип оборудования (null для узла-контейнера без собственного подбора)"
     )
     task_type = models.CharField(

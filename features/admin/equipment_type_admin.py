@@ -27,6 +27,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'level_display',
         'parent_display', 'children_count',
+        'ai_support_display',
         'content_type',
         'sorting_order', 'is_active'
     ]
@@ -39,6 +40,10 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Основная информация', {
             'fields': ('name', 'code', 'description', 'icon')
+        }),
+        ('AI Assistant', {
+            'fields': ('filter_endpoint', 'param_semantics'),
+            'classes': ('collapse',),
         }),
         ('Иерархия', {
             'fields': ('parent', 'level_display', 'hierarchy_visualization'),
@@ -144,6 +149,16 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         return format_html(html)
 
     hierarchy_visualization.short_description = "Визуализация иерархии"
+
+    def ai_support_display(self, obj):
+        """Показывает, участвует ли тип в AI-подборе"""
+        if obj.filter_endpoint:
+            return format_html(
+                '<span style="color: #4CAF50;">🤖 Да</span>'
+            )
+        return format_html('<span style="color: #999;">—</span>')
+
+    ai_support_display.short_description = "AI"
 
     class Media:
         css = {

@@ -1,9 +1,9 @@
 from django.contrib import admin
-from ..models.step_config_override import StepConfigOverride
+from ..models.skill_override import SkillOverride
 
 
-@admin.register(StepConfigOverride)
-class StepConfigOverrideAdmin(admin.ModelAdmin):
+@admin.register(SkillOverride)
+class SkillOverrideAdmin(admin.ModelAdmin):
     list_display = ("customer", "step_config", "model_role", "is_active")
     list_filter = ("is_active",)
     search_fields = ("customer__name",)

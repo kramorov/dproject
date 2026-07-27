@@ -5,9 +5,8 @@ from .admin_ai_client_provider import AIClientProviderAdmin
 from .admin_ai_query_sample import AIQuerySampleAdmin
 from .admin_ai_prompt_template import AIPromptTemplateAdmin
 from .admin_ai_provider import AIProviderAdmin
-from .admin_equipment_type import EquipmentTypeAdmin
 from .admin_json_schema import JSONSchemaAdmin
-from .admin_step_config import StepConfigAdmin
-from .admin_step_config_override import StepConfigOverrideAdmin
+from .admin_pipeline_skill import PipelineSkillAdmin
+from .admin_skill_override import SkillOverrideAdmin
 from .admin_cascade_rule import CascadeRuleAdmin
 from .admin_selection_node import SelectionNodeAdmin

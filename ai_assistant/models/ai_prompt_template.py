@@ -9,6 +9,15 @@ class AIPromptTemplate(models.Model):
     для структурированного вывода через Instructor.
     """
 
+    code = models.CharField(
+        max_length=64, unique=True, db_index=True,
+        help_text=(
+            "Уникальный код шаблона для подстановки в другие шаблоны через {code}. "
+            "Пример: 'system_prompt', 'decompose_v2', 'extract_actuator'. "
+            "Используется в template_text других промптов для композиции."
+        )
+    )
+
     name = models.CharField(max_length=128, db_index=True)
     description = models.TextField(null=True, blank=True)
     template_text = models.TextField()
@@ -20,6 +29,7 @@ class AIPromptTemplate(models.Model):
         blank=True,
         help_text="JSON Schema для structured output (Instructor)",
     )
+    sorting_order = models.IntegerField(default=0, verbose_name="Сортировка", help_text="Порядок сортировки в списке")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -27,7 +37,7 @@ class AIPromptTemplate(models.Model):
     class Meta:
         verbose_name = "AI Prompt Template"
         verbose_name_plural = "AI Prompt Templates"
-        ordering = ["name", "-version"]
+        ordering = ["sorting_order", "name", "-version"]
         unique_together = [("name", "version")]
 
     def __str__(self):

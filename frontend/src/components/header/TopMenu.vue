@@ -88,6 +88,7 @@ const allItems = [
     { header:'AI' },
     { to:'/ai-assistant', label:'AI Ассистент' },
     { to:'/ai-debug', label:'AI Отладка' },
+    { to:'/admin/pipeline-config', label:'Настройка AI Pipeline' },
   ]},
 ]
 

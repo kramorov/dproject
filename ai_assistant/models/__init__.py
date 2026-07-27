@@ -5,10 +5,9 @@ from .ai_client_provider import AIClientProvider
 from .ai_query_sample import AIQuerySample
 from .ai_prompt_template import AIPromptTemplate
 from .ai_provider import AIProvider
-from .equipment_type import EquipmentType
 from .json_schema import JSONSchema
-from .step_config import StepConfig
-from .step_config_override import StepConfigOverride
+from .pipeline_skill import PipelineSkill
+from .skill_override import SkillOverride
 from .cascade_rule import CascadeRule
 from .selection_node import SelectionNode
 
@@ -20,10 +19,9 @@ __all__ = [
     "AIQuerySample",
     "AIPromptTemplate",
     "AIProvider",
-    "EquipmentType",
     "JSONSchema",
-    "StepConfig",
-    "StepConfigOverride",
+    "PipelineSkill",
+    "SkillOverride",
     "CascadeRule",
     "SelectionNode",
 ]

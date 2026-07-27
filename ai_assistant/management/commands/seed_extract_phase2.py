@@ -1,13 +1,14 @@
-"""Seed-команда: создаёт JSONSchema, extract-промпты и привязывает StepConfig.
+"""Seed-команда: создаёт JSONSchema, extract-промпты и привязывает PipelineSkill.
 
 Создаёт:
 - JSONSchema (6 шт) — схемы выхода extract-шага для каждого типа оборудования.
 - AIPromptTemplate (6 шт) — extract-промпты для каждого типа.
-- Обновляет существующие StepConfig (extract/...) — привязывает prompt + schema.
+- Обновляет существующие PipelineSkill (extract/...) — привязывает prompt + schema.
 """
 
 from django.core.management.base import BaseCommand
-from ai_assistant.models import JSONSchema, AIPromptTemplate, StepConfig, EquipmentType
+from core.models.equipment_type import EquipmentType
+from ai_assistant.models import JSONSchema, AIPromptTemplate, PipelineSkill
 
 
 # ── JSON-схемы для Фазы 2 (extract) ──────────────────────────────
@@ -309,7 +310,7 @@ EXTRACT_PROMPTS = {
 
 
 class Command(BaseCommand):
-    help = "Создаёт JSONSchema, extract-промпты и привязывает StepConfig"
+    help = "Создаёт JSONSchema, extract-промпты и привязывает PipelineSkill"
 
     def handle(self, *args, **options):
         self._seed_schemas()
@@ -360,7 +361,7 @@ class Command(BaseCommand):
                 name=EXTRACT_SCHEMAS[code]["name"], version="1"
             ).first()
 
-            sc = StepConfig.objects.filter(
+            sc = PipelineSkill.objects.filter(
                 step="extract", equipment_type=et_map[code]
             ).first()
             if sc:
@@ -368,4 +369,5 @@ class Command(BaseCommand):
                 sc.output_schema = schema
                 sc.model_role = "extraction"
                 sc.save(update_fields=["prompt_template", "output_schema", "model_role"])
-                self.stdout.write(f"  Linked StepConfig: {sc}")
+                self.stdout.write(f"  Linked PipelineSkill: {sc}")
+

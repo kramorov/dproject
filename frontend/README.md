@@ -1,4 +1,5 @@
 # Frontend — структура проекта
+> Обновлено 2026-07-27: AI Assistant — PipelineConfigPage, классификатор интентов
 > Обновлено 2026-07-24: PaSelectionPage — каскад safety_position по variety, debounce поиска, modelLineItems
 > Обновлено 2026-07-23: новый HomePage (WebP-картинки), TopMenu (Каталоги/Арматура/Решения), админка клиентов, SectionAccessPermission
 > Обновлено 2026-06-10: price-catalog → DocumentJournal/DocumentCard, EA configurator
@@ -228,6 +229,18 @@ App.vue параметризуется через `labels` + `api`.
 | `components/header/TopMenu.vue` | Верхнее меню (ролевая модель: admin/user) |
 | `components/header/useAuth.js` | Composable: /auth/me/, роль, загрузка |
 
+
+## AI Assistant (`src/pages/`)
+
+| Файл | Назначение |
+|------|-----------|
+| `pages/AiDebugPage.vue` | Отладка decompose: ввод запроса, просмотр дерева, prompt_id |
+| `pages/AiAssistantPage.vue` | Пользовательский интерфейс AI-подбора |
+| `pages/admin/PipelineConfigPage.vue` | Конфигуратор pipeline: 5 вкладок (Skills, Overrides, Prompts, Schemas, Equipment Types), CRUD, модалки для JSON/текста |
+| `components/TreeNodeDisplay.vue` | Компонент отображения узла дерева подбора |
+
+Роуты: `/ai-assistant`, `/ai-debug`, `/admin/pipeline-config`.
+Меню: Администрирование → AI → Настройка AI Pipeline.
 ## `src/router/index.js`
 
 Все маршруты. Роли: `meta.role = 'admin'` для страниц администрирования.

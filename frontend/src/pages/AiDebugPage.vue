@@ -28,6 +28,8 @@
         </button>
       </div>
 
+      <ProgressBar :running="loading" :duration-sec="estimatedSec" :segments="10" :text="'Анализ и подбор параметров. Займет примерно ' + estimatedSec + ' сек.'" @completed="onProgressDone" />
+
       <div v-if="analyzeStatus" class="status-panel" :class="'status-' + analyzeStatus">
         <div v-if="analyzeStatus === 'ready'">
           ✅ Всё понятно. Найдено {{ tasks.length }} задач.
@@ -52,6 +54,11 @@
         </div>
       </div>
 
+      <div v-if="rawResponse" class="raw-json-panel">
+        <h4 @click="showRawJson = !showRawJson" style="cursor:pointer">{{ showRawJson ? '▼' : '▶' }} Raw JSON ответ</h4>
+        <pre v-if="showRawJson">{{ rawResponse }}</pre>
+      </div>
+
       <div v-if="treeData && treeData.positions" class="tree-panel">
         <h4>Дерево подбора</h4>
         <div v-for="pos in treeData.positions" :key="pos.id" class="tree-position">
@@ -61,6 +68,8 @@
           </div>
           <div v-if="pos.components" class="tree-children">
             <TreeNodeDisplay
+              :equipNameMap="equipNameMap"
+              :extractedParams="extractedParams"
               v-for="comp in pos.components"
               :key="comp.id"
               :node="comp"
@@ -82,26 +91,24 @@
       </div>
     </div>
 
-    <!-- Правая панель: промпты -->
-    <div class="panel prompts-panel">
-      <h3>Промпты</h3>
-      <button class="btn-sm" @click="openPromptModal()">+ Добавить</button>
+        <!-- Правая панель: скиллы -->
+    <div class="panel skills-panel">
+      <h3>Скилл</h3>
       <div class="list">
-        <div v-for="p in prompts" :key="p.id" class="card"
-             :class="{ active: selectedPrompt && selectedPrompt.id === p.id }">
-          <div class="card-id">#{{ p.id }}</div>
+        <div v-for="s in skills" :key="s.id" class="card"
+             :class="{ active: selectedSkill && selectedSkill.id === s.id }">
           <label class="card-label">
             <input type="checkbox"
-                   :checked="selectedPrompt && selectedPrompt.id === p.id"
-                   @change="selectPrompt(p)" />
-            {{ p.name }} v{{ p.version }}
+                   :checked="selectedSkill && selectedSkill.id === s.id"
+                   @change="selectSkill(s)" />
+            {{ s.code || (s.step + ' / ' + (s.equipment_type_detail ? s.equipment_type_detail.name : '*')) }}
           </label>
-          <button class="btn-xs" @click.stop="openPromptModal(p)">✎</button>
+          <div class="card-meta">{{ s.prompt_template_detail ? s.prompt_template_detail.code || 'prompt #' + s.prompt_template : 'no prompt' }}</div>
         </div>
       </div>
     </div>
 
-    <!-- Статистика -->
+<!-- Статистика -->
     <div v-if="stats.length" class="stats-bar">
       <b>Запрос:</b> {{ lastPromptTokens }}→{{ lastCompletionTokens }} ({{ lastTokens }}) токенов, ${{ lastCost.toFixed(6) }}
       &nbsp;|&nbsp;
@@ -131,26 +138,33 @@
 <script>
 import api from '@/shared/api'
 import TreeNodeDisplay from '@/components/TreeNodeDisplay.vue'
+import ProgressBar from '@/components/ProgressBar.vue'
 
 export default {
   name: 'AiDebugPage',
-  components: { TreeNodeDisplay },
+  components: { TreeNodeDisplay, ProgressBar },
   data() {
     return {
       queries: [], selectedQuery: null, showQueryModal: false, editingQuery: { id: null, text: '' },
-      prompts: [], selectedPrompt: null, showPromptModal: false, editingPrompt: { id: null, name: '', version: '1', template_text: '' },
+      skills: [],
+      equipmentTypes: [], selectedSkill: null, showPromptModal: false, editingPrompt: { id: null, name: '', version: '1', template_text: '' },
       inputText: '', loading: false, executing: false,
       analyzeStatus: '', analysisText: '', tasks: [], globalReqs: {},
       progressLog: [],
       stats: [],
       treeData: null,
+      rawResponse: null,
+      showRawJson: false,
       conversationId: null,
+      nodeIds: [], extractedParams: {},
+      estimatedSec: 5, 
       selectedNodeId: null,
       nodeOptions: [],
       selectingNodeId: null,
     }
   },
   computed: {
+    equipNameMap() { const m = {}; this.equipmentTypes.forEach(e => { m[e.code] = e.name }); return m },
     lastTokens() { const s = this.stats.at(-1); return s ? s.tokens : 0 },
     lastCost() { const s = this.stats.at(-1); return s ? s.cost : 0 },
     lastPromptTokens() { const s = this.stats.at(-1); return s ? (s.prompt_tokens || 0) : 0 },
@@ -159,12 +173,15 @@ export default {
     totalCost() { return this.stats.reduce((a, s) => a + (s.cost || 0), 0) },
     avgTokens() { return this.stats.length ? Math.round(this.totalTokens / this.stats.length) : 0 },
   },
-  async mounted() { await this.loadQueries(); await this.loadPrompts() },
+  async mounted() { await this.loadQueries(); await this.loadSkills(); this.loadEquipmentTypes() },
   methods: {
+    onProgressDone() { /* progress finished */ },
+    
     async loadQueries() { const r = await api.get('/ai-assistant/samples/'); this.queries = (r.data && r.data.results) || [] },
-    async loadPrompts() { const r = await api.get('/ai-assistant/prompts/'); this.prompts = (r.data && r.data.results) || [] },
+    async loadEquipmentTypes() { try { const r = await api.get('/ai-assistant/equipment-types/'); this.equipmentTypes = Array.isArray(r.data) ? r.data : (r.data.results || []) } catch { this.equipmentTypes = [] } },
+    async loadSkills() { try { const r = await api.get('/ai-assistant/skills/'); this.skills = Array.isArray(r.data) ? r.data : (r.data.results || []) } catch { this.skills = [] } },
     selectQuery(q) { this.selectedQuery = q },
-    selectPrompt(p) { this.selectedPrompt = (this.selectedPrompt && this.selectedPrompt.id === p.id) ? null : p },
+    selectSkill(s) { this.selectedSkill = (this.selectedSkill && this.selectedSkill.id === s.id) ? null : s; if (s && s.avg_latency_ms) this.estimatedSec = Math.round(s.avg_latency_ms * 1.3 / 1000) || 5 },
     sendToInput(q) { this.inputText = q.text || '' },
 
     async runAnalyze() {
@@ -172,12 +189,13 @@ export default {
       this.loading = true; this.analyzeStatus = ''; this.tasks = []; this.progressLog = []; this.treeData = null
       try {
         const payload = { text: this.inputText.trim() }
-        if (this.selectedPrompt) payload.prompt_id = this.selectedPrompt.id
+        if (this.selectedSkill && this.selectedSkill.code) payload.skill_code = this.selectedSkill.code
         const { data } = await api.post('/ai-assistant/decompose/', payload)
         this.analyzeStatus = data.status
         this.analysisText = data.tree ? JSON.stringify(data.tree, null, 2) : ''
-        this.treeData = data.tree
-        this.conversationId = data.conversation_id
+        this.rawResponse = JSON.stringify(data, null, 2); this.treeData = data.tree
+        this.nodeIds = data.node_ids || []; console.log('nodeIds:', this.nodeIds.length, this.nodeIds); this.conversationId = data.conversation_id
+        this.extractedParams = data.extracted || {}
         this.stats.push({ tokens: data.total_tokens || 0, prompt_tokens: data.prompt_tokens || 0, completion_tokens: data.completion_tokens || 0, cost: data.cost || 0, ts: Date.now() })
       } catch (e) {
         this.analyzeStatus = 'rejected'; this.analysisText = e.displayMessage || e.message || 'Ошибка'
@@ -199,7 +217,7 @@ export default {
     async saveQuery() { const { id, text } = this.editingQuery; if (!text) return; if (id) await api.patch(`/ai-assistant/samples/${id}/`, { text }); else await api.post('/ai-assistant/samples/', { text }); this.showQueryModal = false; await this.loadQueries() },
     async deleteQuery(id) { if (!confirm('Удалить?')) return; await api.delete(`/ai-assistant/samples/${id}/`); await this.loadQueries() },
     openPromptModal(p) { this.editingPrompt = p ? { id: p.id, name: p.name, version: p.version, template_text: p.template_text } : { id: null, name: '', version: '1', template_text: '' }; this.showPromptModal = true },
-    async savePrompt() { const { id, name, version, template_text } = this.editingPrompt; if (!name) return; if (id) await api.patch(`/ai-assistant/prompts/${id}/`, { name, version, template_text }); else await api.post('/ai-assistant/prompts/', { name, version, template_text }); this.showPromptModal = false; await this.loadPrompts() },
+    async savePrompt() { const { id, name, version, template_text } = this.editingPrompt; if (!name) return; if (id) await api.patch(`/ai-assistant/prompts/${id}/`, { name, version, template_text }); else await api.post('/ai-assistant/prompts/', { name, version, template_text }); this.showPromptModal = false; await this.loadSkills(); this.loadEquipmentTypes() },
 
     async onNodeExtract(nodeId) {
       try {
@@ -241,6 +259,7 @@ export default {
 </script>
 
 <style scoped>
+
 .debug-page { display: grid; grid-template-columns: 300px 1fr 280px; grid-template-rows: 1fr auto; gap: 10px; height: calc(100vh - 60px); padding: 10px; }
 .panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; overflow-y: auto; }
 .panel h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }

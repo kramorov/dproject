@@ -1,49 +1,31 @@
-# SESSION.md — состояние на 2026-07-26
+# SESSION.md — 2026-07-27
 
-## Контекст
+## Где остановились
 
-Машина: рабочая (s.kramorov). Ветка: `office-work`.
-Git: 11 modified, 31 untracked (тестовые JSON-файлы, debug-скрипты).
+Две фазы пайплайна работают: decompose строит дерево типов, extract извлекает параметры для каждого узла. Extract вызывается автоматически внутри decompose.
 
-## Выполненные задачи (2026-07-26)
+Decompose v4 (минимальный) + extract-промпты для 9 типов оборудования созданы и привязаны к PipelineSkills через конфигуратор.
 
-### AI Assistant — тесты (45 шт.)
-- **`ai_assistant/test_pipeline.py`** — 45 тестов, все проходят за 2.3 сек
-- Покрытие: 13 моделей (EquipmentType, SelectionNode, CascadeRule, StepConfig, StepConfigOverride, JSONSchema, ...), 8 API-endpoint'ов, TreeProcessor (config, decompose, ebom/mbom, cascade)
-- **`djangoProject1/settings.py`** — добавлен `TEST.NAME` для файловой тестовой БД (без него миграции шли 5+ минут)
-- Запуск: `python manage.py test ai_assistant.test_pipeline --keepdb --verbosity=2`
+## Что работает
 
-### AI Assistant — багфикс
-- **`ai_assistant/services/deepseek_client.py`** строка 113: `reasoning_tokens` default `None` → `0` (причина падения `save_token_usage` на NOT NULL)
+- **Decompose** — `POST /decompose/` → дерево (`id`, `type`, `depends_on`, `quantity`) + auto-extract
+- **Extract** — вызывается из decompose для всех узлов с `equipment_type`, результаты в `data.extracted`
+- **Pipeline Configurator** — `/admin/pipeline-config`: 5 вкладок CRUD, 3 режима JSON (Tree/Table/Raw), селекторы для Equipment Type, Schema, Model Role
+- **Классификатор** — 9 интентов, роутинг в DecomposeView
+- **Прогресс-бар** — компонент `ProgressBar.vue`, текст «Анализ и подбор параметров», расчёт времени из статистики скилла
+- **Логирование** — `AITokenUsage.customer`, `latency_ms`, `PipelineSkill.avg_latency_ms`
+- **Маршрутизация** — `resolve_customer()`: source → ProjectCustomer (anonymous_web, email, api_key)
+- **45 тестов**, 15 миграций
 
-### AI Assistant — валидация классификатора на реальных сэмплах
-- Прогнаны 8 сэмплов из `AIQuerySample` через LLM (`deepseek-chat`, промпт `decode v2`)
-- Все 8 классификаций корректны: 3×`ready`, 3×`needs_info`, 2×`rejected`
-- Результаты: `_sample_1.json` … `_sample_8.json`
-- Выявлено: `debug`-роль мапилась на `deepseek-v4-pro` (reasoning-модель, 20-40 сек на запрос) — переключено на `deepseek-chat` для отладки
+## Что нужно доделать
 
-### AI Assistant — документация
-- **`ai-assistant.md`** — полностью переписан (210 строк): архитектура `TreeProcessor` с 6 фазами, 13 моделей с описанием, 8 API-endpoint'ов, настройка промптов/схем через админку, файловая структура
-
-### Настройка тестовой БД
-- `djangoProject1/settings.py` — `DATABASES['default']['TEST'] = {'NAME': 'test_db.sqlite3'}`
-- Теперь тесты используют файловую БД, миграции применяются один раз, `--keepdb` сохраняет между запусками
-
-## Текущее состояние
-
-- Django check: `System check identified 1 issue (0 silenced).` — только warning про `frontend/dist`
-- Модель для debug: `deepseek-chat` (быстро). Вернуть на `deepseek-v4-pro`: `AIProvider.model_mapping['debug'] = 'deepseek-v4-pro'`
-- 8 сэмплов в `AIQuerySample`, не размечены (все `expected_intent=None`)
-- Фаза 1 (decompose) работает на сэмплах, фазы 2-5 не тестировались на реальных данных
-- Остались debug-файлы: `_debug_decompose.py`, `_debug_decompose2.py`, `_run_one.py`, `_sample_*.json`, `_sample_output.txt`
-
-## Следующие шаги
-
-- [ ] Разметить 8 сэмплов (`expected_intent`, `tree_json`, `expected_filters`) для регрессионного тестирования
-- [ ] Прогнать полный конвейер (фазы 2-5) на сэмплах #5, #6, #8 (ready)
-- [ ] Починить `_create_nodes_from_tree` — сейчас падает на `save_token_usage` внутри транзакции
-- [ ] Вернуть `debug → deepseek-v4-pro` после отладки
-- [ ] Прибрать debug-файлы
+- [ ] Фазы 3-5 (filter → select → compare) — не реализованы, только скелет в tree_processor
+- [ ] Decompose промпт галлюцинирует при нестандартных запросах — нужно улучшить анти-галлюцинационные правила
+- [ ] Extract промпты написаны для 9 типов, но не оттестированы на реальных данных
+- [ ] Улучшить decompose-промпт: для электропривода — извлекать features (limit_switches, etc.)
+- [ ] `mounting-kit` EquipmentType не создан в core
+- [ ] Reverse-миграция core.0004 требует внимания
+- [ ] Разметить 8 AIQuerySample для регрессионного тестирования
 - [ ] Наполнить каталоги реальным контентом
-- [ ] Конфигураторы сборок арматуры с приводами
-- [ ] Заявки клиентов
+- [ ] Конфигураторы сборок арматуры + приводов
+- [ ] Заявки клиентов (client_requests)

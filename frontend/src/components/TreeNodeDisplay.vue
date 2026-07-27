@@ -18,6 +18,15 @@
       </span>
     </div>
 
+        <!-- Extracted params -->
+    <div v-if="extractData && !extractData.error" class="extract-params">
+      <div v-for="(val, key) in extractData" :key="key" class="param-row">
+        <span class="param-key">{{ key }}</span>
+        <span class="param-val">{{ Array.isArray(val) ? val.join(', ') : val }}</span>
+      </div>
+    </div>
+    <div v-if="extractData && extractData.error" class="extract-params error">⚠️ Extract failed</div>
+
     <!-- Options display -->
     <div v-if="showOptions && options.length" class="options-panel">
       <div v-for="opt in options.slice(0, 10)" :key="opt.id || opt.model" class="option-item">
@@ -51,6 +60,8 @@ export default {
   name: 'TreeNodeDisplay',
   props: {
     node: { type: Object, required: true },
+    equipNameMap: { type: Object, default: () => ({}) },
+    extractedParams: { type: Object, default: () => ({}) },
     level: { type: Number, default: 2 },
     options: { type: Array, default: () => [] },
     showOptions: { type: Boolean, default: false },
@@ -65,6 +76,7 @@ export default {
     }
   },
   computed: {
+    extractData() { const r = this.extractedParams[this.node.id]; console.log('extractData node.id:', this.node.id, 'found:', !!r); return r && r.extract_output ? r.extract_output : (r || null) },
     icon() {
       const icons = {
         actuator: '🔧', solenoid: '⚡', bkv: '📟',
@@ -75,7 +87,9 @@ export default {
       return icons[this.node.equipment_type] || '📦'
     },
     nodeLabel() {
-      return this.node.label || this.node.equipment_type || 'Компонент'
+      const t = this.node.type || this.node.equipment_type
+      const name = t ? (this.equipNameMap[t] || t) : t
+      return this.node.label || name || 'Компонент'
     },
     statusText() {
       const labels = {
@@ -124,4 +138,9 @@ export default {
 .option-item { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; font-size: 12px; border-bottom: 1px solid #fef3c7; }
 .option-item button { padding: 2px 8px; font-size: 11px; background: #2563eb; color: #fff; border: none; border-radius: 3px; cursor: pointer; }
 .option-more { font-size: 11px; color: #94a3b8; padding-top: 4px; }
+.extract-params { margin-left: 24px; padding: 4px 8px; font-size: 12px; color: #555; }
+.param-row { display: flex; gap: 8px; padding: 1px 0; }
+.param-key { color: #881391; font-weight: 600; min-width: 140px; }
+.param-val { color: #1a1aa6; }
+.extract-params.error { color: #e53935; }
 </style>

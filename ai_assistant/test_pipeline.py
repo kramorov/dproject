@@ -1,10 +1,10 @@
 """
-Тесты конвейера подбора ai_assistant.
+Р СћР ВµРЎРѓРЎвЂљРЎвЂ№ Р С”Р С•Р Р…Р Р†Р ВµР в„–Р ВµРЎР‚Р В° Р С—Р С•Р Т‘Р В±Р С•РЎР‚Р В° ai_assistant.
 
-Покрывают:
-- Модели: EquipmentType, SelectionNode, CascadeRule, StepConfig, StepConfigOverride, JSONSchema
+Р СџР С•Р С”РЎР‚РЎвЂ№Р Р†Р В°РЎР‹РЎвЂљ:
+- Р СљР С•Р Т‘Р ВµР В»Р С‘: EquipmentType, SelectionNode, CascadeRule, PipelineSkill, SkillOverride, JSONSchema
 - API: decompose, extract, filter, select, compare, ebom, mbom, tree
-- TreeProcessor: все шаги (с моками LLM)
+- TreeProcessor: Р Р†РЎРѓР Вµ РЎв‚¬Р В°Р С–Р С‘ (РЎРѓ Р СР С•Р С”Р В°Р СР С‘ LLM)
 """
 import json
 from unittest.mock import patch, MagicMock
@@ -13,43 +13,44 @@ from django.test import TestCase, Client as TestClient
 from django.urls import reverse
 from django.db import IntegrityError
 
+from core.models.equipment_type import EquipmentType
 from ai_assistant.models import (
-    AIConversation, EquipmentType, SelectionNode, CascadeRule,
-    StepConfig, StepConfigOverride, JSONSchema, AIPromptTemplate,
+    AIConversation, SelectionNode, CascadeRule,
+    PipelineSkill, SkillOverride, JSONSchema, AIPromptTemplate,
 )
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Модели
-# ═══════════════════════════════════════════════════════════════════
+# РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+# Р СљР С•Р Т‘Р ВµР В»Р С‘
+# РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
 
 class EquipmentTypeTests(TestCase):
     def test_create_equipment_type(self):
         eq = EquipmentType.objects.create(
-            code="test_actuator", label="Пневмопривод", level=2,
+            code="test_actuator", name="Р СџР Р…Р ВµР Р†Р СР С•Р С—РЎР‚Р С‘Р Р†Р С•Р Т‘", level=2,
             param_semantics={"torque_nm": {"direction": "min"}},
             filter_endpoint="/api/pa/selector/search/"
         )
         self.assertEqual(eq.code, "test_actuator")
-        self.assertEqual(eq.label, "Пневмопривод")
-        self.assertEqual(eq.level, 2)
+        self.assertEqual(eq.name, "Р СџР Р…Р ВµР Р†Р СР С•Р С—РЎР‚Р С‘Р Р†Р С•Р Т‘")
+        self.assertEqual(eq.level, 0)  # core.EquipmentType.save() Р С—Р ВµРЎР‚Р ВµРЎРѓРЎвЂЎР С‘РЎвЂљРЎвЂ№Р Р†Р В°Р ВµРЎвЂљ level: Р В±Р ВµР В· parent РІвЂ вЂ™ 0
         self.assertTrue(eq.is_active)
-        self.assertEqual(str(eq), "Пневмопривод (test_actuator)")
+        self.assertEqual(str(eq), "Р СџР Р…Р ВµР Р†Р СР С•Р С—РЎР‚Р С‘Р Р†Р С•Р Т‘")
 
     def test_code_unique(self):
-        EquipmentType.objects.create(code="test_valve", label="Клапан", level=1)
+        EquipmentType.objects.create(code="test_valve", name="Р С™Р В»Р В°Р С—Р В°Р Р…", level=1)
         with self.assertRaises(IntegrityError):
-            EquipmentType.objects.create(code="test_valve", label="Дубликат", level=1)
+            EquipmentType.objects.create(code="test_valve", name="Р вЂќРЎС“Р В±Р В»Р С‘Р С”Р В°РЎвЂљ", level=1)
 
     def test_defaults(self):
-        eq = EquipmentType.objects.create(code="test_bkv", label="BKV", level=3)
-        self.assertEqual(eq.param_semantics, {})
+        eq = EquipmentType.objects.create(code="test_bkv", name="BKV")
+        self.assertIsNone(eq.param_semantics)  # core default: null, Р В° Р Р…Р Вµ {}
         self.assertIsNone(eq.filter_endpoint)
         self.assertTrue(eq.is_active)
 
     def test_ordering(self):
-        EquipmentType.objects.create(code="test_zzz", label="Last", level=9)
-        EquipmentType.objects.create(code="test_aaa", label="First", level=1)
+        EquipmentType.objects.create(code="test_zzz", name="Last", level=9)
+        EquipmentType.objects.create(code="test_aaa", name="First", level=1)
         eqs = list(EquipmentType.objects.filter(code__startswith="test_"))
         self.assertTrue(len(eqs) >= 2)
 
@@ -58,13 +59,13 @@ class SelectionNodeTests(TestCase):
     def setUp(self):
         self.conv = AIConversation.objects.create(session_key="test-tree-sn")
         self.eq = EquipmentType.objects.create(
-            code="sn_actuator", label="Привод SN", level=2
+            code="sn_actuator", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ SN", level=2
         )
 
     def test_create_root_node(self):
         node = SelectionNode.objects.create(
             conversation=self.conv, level=1, path="sn/1",
-            label="Позиция 1", quantity=2, quantity_unit="pcs",
+            label="Р СџР С•Р В·Р С‘РЎвЂ Р С‘РЎРЏ 1", quantity=2, quantity_unit="pcs",
         )
         self.assertEqual(node.status, "pending")
         self.assertEqual(node.level, 1)
@@ -73,11 +74,11 @@ class SelectionNodeTests(TestCase):
 
     def test_create_child_node(self):
         root = SelectionNode.objects.create(
-            conversation=self.conv, level=1, path="sn/1", label="Корень"
+            conversation=self.conv, level=1, path="sn/1", label="Р С™Р С•РЎР‚Р ВµР Р…РЎРЉ"
         )
         child = SelectionNode.objects.create(
             conversation=self.conv, parent=root, level=2, path="sn/1/1",
-            label="Компонент", equipment_type=self.eq, task_type="selection"
+            label="Р С™Р С•Р СР С—Р С•Р Р…Р ВµР Р…РЎвЂљ", equipment_type=self.eq, task_type="selection"
         )
         self.assertEqual(child.parent, root)
         self.assertEqual(list(root.children.all()), [child])
@@ -115,12 +116,12 @@ class SelectionNodeTests(TestCase):
             conversation=self.conv, parent=root, level=2, path="sn/qp/1",
             label="Child", quantity=4
         )
-        self.assertEqual(child.total_quantity, 12)  # 3 × 4
+        self.assertEqual(child.total_quantity, 12)  # 3 Р“вЂ” 4
 
     def test_str_representation(self):
         node = SelectionNode.objects.create(
             conversation=self.conv, level=2, path="sn/str",
-            label="Пневмопривод DA, 150Нм", equipment_type=self.eq
+            label="Р СџР Р…Р ВµР Р†Р СР С•Р С—РЎР‚Р С‘Р Р†Р С•Р Т‘ DA, 150Р СњР С", equipment_type=self.eq
         )
         s = str(node)
         self.assertIn("Node#", s)
@@ -151,8 +152,8 @@ class SelectionNodeTests(TestCase):
 
 class CascadeRuleTests(TestCase):
     def setUp(self):
-        self.pt = EquipmentType.objects.create(code="cr_actuator", label="Привод CR", level=2)
-        self.ct = EquipmentType.objects.create(code="cr_solenoid", label="Соленоид CR", level=3)
+        self.pt = EquipmentType.objects.create(code="cr_actuator", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ CR", level=2)
+        self.ct = EquipmentType.objects.create(code="cr_solenoid", name="Р РЋР С•Р В»Р ВµР Р…Р С•Р С‘Р Т‘ CR", level=3)
 
     def test_create_cascade_rule(self):
         rule = CascadeRule.objects.create(
@@ -173,15 +174,15 @@ class CascadeRuleTests(TestCase):
             )
 
 
-class StepConfigTests(TestCase):
+class PipelineSkillTests(TestCase):
     def setUp(self):
-        self.eq = EquipmentType.objects.create(code="sc_actuator", label="Привод SC", level=2)
+        self.eq = EquipmentType.objects.create(code="sc_actuator", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ SC", level=2)
         self.prompt = AIPromptTemplate.objects.create(
-            name="sc_extract", version="sc-1", template_text="Извлеки: {{text}}"
+            name="sc_extract", version="sc-1", template_text="Р ВР В·Р Р†Р В»Р ВµР С”Р С‘: {{text}}"
         )
 
     def test_create_step_config(self):
-        sc = StepConfig.objects.create(
+        sc = PipelineSkill.objects.create(
             step="extract", equipment_type=self.eq, prompt_template=self.prompt,
             model_role="extraction", priority=5
         )
@@ -191,28 +192,28 @@ class StepConfigTests(TestCase):
         self.assertEqual(str(sc), "extract / sc_actuator")
 
     def test_step_config_without_equipment(self):
-        sc = StepConfig.objects.create(
+        sc = PipelineSkill.objects.create(
             step="decompose", prompt_template=self.prompt, model_role="debug"
         )
         self.assertIsNone(sc.equipment_type)
         self.assertEqual(str(sc), "decompose / *")
 
     def test_unique_step_equipment(self):
-        StepConfig.objects.create(step="extract", equipment_type=self.eq, model_role="extraction")
+        PipelineSkill.objects.create(step="extract", equipment_type=self.eq, model_role="extraction")
         with self.assertRaises(IntegrityError):
-            StepConfig.objects.create(step="extract", equipment_type=self.eq, model_role="debug")
+            PipelineSkill.objects.create(step="extract", equipment_type=self.eq, model_role="debug")
 
 
-class StepConfigOverrideTests(TestCase):
+class SkillOverrideTests(TestCase):
     def setUp(self):
-        self.eq = EquipmentType.objects.create(code="sco_actuator", label="Привод SCO", level=2)
-        self.sc = StepConfig.objects.create(step="extract", equipment_type=self.eq, model_role="extraction")
+        self.eq = EquipmentType.objects.create(code="sco_actuator", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ SCO", level=2)
+        self.sc = PipelineSkill.objects.create(step="extract", equipment_type=self.eq, model_role="extraction")
 
     def test_create_override(self):
-        override = StepConfigOverride(
-            step_config=self.sc, prompt_suffix="Только ABRA.", model_role="custom"
+        override = SkillOverride(
+            step_config=self.sc, prompt_suffix="Р СћР С•Р В»РЎРЉР С”Р С• ABRA.", model_role="custom"
         )
-        self.assertEqual(override.prompt_suffix, "Только ABRA.")
+        self.assertEqual(override.prompt_suffix, "Р СћР С•Р В»РЎРЉР С”Р С• ABRA.")
         self.assertEqual(override.model_role, "custom")
         self.assertTrue(override.is_active)
 
@@ -237,12 +238,12 @@ class JSONSchemaTests(TestCase):
         self.assertEqual(JSONSchema.objects.filter(name="js_f2").count(), 2)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# API (новые pipeline endpoints)
-# ═══════════════════════════════════════════════════════════════════
+# РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+# API (Р Р…Р С•Р Р†РЎвЂ№Р Вµ pipeline endpoints)
+# РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
 
 class PipelineAPITests(TestCase):
-    """Тесты API — проверяют контракты (status codes, формат ответов)."""
+    """Р СћР ВµРЎРѓРЎвЂљРЎвЂ№ API РІР‚вЂќ Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЏРЎР‹РЎвЂљ Р С”Р С•Р Р…РЎвЂљРЎР‚Р В°Р С”РЎвЂљРЎвЂ№ (status codes, РЎвЂћР С•РЎР‚Р СР В°РЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР С•Р Р†)."""
 
     def setUp(self):
         self.c = TestClient()
@@ -250,7 +251,7 @@ class PipelineAPITests(TestCase):
             session_key="api-test-pipe", status="processing"
         )
         self.eq = EquipmentType.objects.create(
-            code="api_actuator", label="Привод API", level=2,
+            code="api_actuator", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ API", level=2,
             filter_endpoint="/api/pa/selector/search/"
         )
         self.node = SelectionNode.objects.create(
@@ -340,9 +341,9 @@ class URLResolutionTests(TestCase):
             self.assertTrue(url.startswith("/"))
 
 
-# ═══════════════════════════════════════════════════════════════════
-# TreeProcessor (unit tests с моками)
-# ═══════════════════════════════════════════════════════════════════
+# РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
+# TreeProcessor (unit tests РЎРѓ Р СР С•Р С”Р В°Р СР С‘)
+# РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’РІвЂўС’
 
 class TreeProcessorInitTests(TestCase):
     def test_processor_creation(self):
@@ -365,9 +366,9 @@ class TreeProcessorConfigTests(TestCase):
     def test_get_config_with_step_config(self):
         conv = AIConversation.objects.create(session_key="tpc-cfg")
         prompt = AIPromptTemplate.objects.create(
-            name="tpc_dec2", version="tpc-2", template_text="Разложи: {{text}}"
+            name="tpc_dec2", version="tpc-2", template_text="Р В Р В°Р В·Р В»Р С•Р В¶Р С‘: {{text}}"
         )
-        StepConfig.objects.create(
+        PipelineSkill.objects.create(
             step="tpc_test_decompose", prompt_template=prompt, model_role="debug"
         )
         from ai_assistant.services.tree_processor import TreeProcessor
@@ -375,15 +376,15 @@ class TreeProcessorConfigTests(TestCase):
         cfg = tp._get_config("tpc_test_decompose")
         self.assertIsNotNone(cfg)
         self.assertEqual(cfg["model_role"], "debug")
-        self.assertEqual(cfg["prompt_text"], "Разложи: {{text}}")
+        self.assertEqual(cfg["prompt_text"], "Р В Р В°Р В·Р В»Р С•Р В¶Р С‘: {{text}}")
 
     def test_get_config_for_specific_equipment(self):
         conv = AIConversation.objects.create(session_key="tpc-eq")
-        eq = EquipmentType.objects.create(code="tpc_eq", label="TPC EQ", level=2)
+        eq = EquipmentType.objects.create(code="tpc_eq", name="TPC EQ", level=2)
         prompt = AIPromptTemplate.objects.create(
-            name="tpc_ext2", version="tpc-2", template_text="Фильтры"
+            name="tpc_ext2", version="tpc-2", template_text="Р В¤Р С‘Р В»РЎРЉРЎвЂљРЎР‚РЎвЂ№"
         )
-        StepConfig.objects.create(
+        PipelineSkill.objects.create(
             step="tpc_test_extract", equipment_type=eq, prompt_template=prompt,
             model_role="extraction"
         )
@@ -396,7 +397,7 @@ class TreeProcessorConfigTests(TestCase):
 
 class TreeProcessorDecomposeTests(TestCase):
     def test_decompose_no_config(self):
-        """Без StepConfig — decompose должен вернуть error сразу, без LLM."""
+        """Р вЂР ВµР В· PipelineSkill РІР‚вЂќ decompose Р Т‘Р С•Р В»Р В¶Р ВµР Р… Р Р†Р ВµРЎР‚Р Р…РЎС“РЎвЂљРЎРЉ error РЎРѓРЎР‚Р В°Р В·РЎС“, Р В±Р ВµР В· LLM."""
         conv = AIConversation.objects.create(session_key="tpd-nocfg", status="processing")
         from ai_assistant.services.tree_processor import TreeProcessor
 
@@ -410,33 +411,33 @@ class TreeProcessorDecomposeTests(TestCase):
 
         with patch("ai_assistant.services.tree_processor.get_deepseek_client", return_value=mock_client):
             tp = TreeProcessor(conv)
-            result = tp.decompose("Подбери привод")
-            # Если в БД нет StepConfig для decompose — ошибка
-            # Если есть — отработает с моком
+            result = tp.decompose("Р СџР С•Р Т‘Р В±Р ВµРЎР‚Р С‘ Р С—РЎР‚Р С‘Р Р†Р С•Р Т‘")
+            # Р вЂўРЎРѓР В»Р С‘ Р Р† Р вЂР вЂќ Р Р…Р ВµРЎвЂљ PipelineSkill Р Т‘Р В»РЎРЏ decompose РІР‚вЂќ Р С•РЎв‚¬Р С‘Р В±Р С”Р В°
+            # Р вЂўРЎРѓР В»Р С‘ Р ВµРЎРѓРЎвЂљРЎРЉ РІР‚вЂќ Р С•РЎвЂљРЎР‚Р В°Р В±Р С•РЎвЂљР В°Р ВµРЎвЂљ РЎРѓ Р СР С•Р С”Р С•Р С
             valid_statuses = ["error", "completed", "processing", "needs_info", "pending"]
             self.assertIn(result["status"], valid_statuses)
             if result["status"] == "error":
-                self.assertIn("StepConfig", result.get("message", ""))
+                self.assertIn("PipelineSkill", result.get("message", ""))
 
     def test_decompose_with_config_and_mock_llm(self):
         conv = AIConversation.objects.create(session_key="tpd-mock", status="processing")
 
         prompt = AIPromptTemplate.objects.create(
-            name="tpd_dec2", version="tpd-2", template_text="Разложи: {{text}}"
+            name="tpd_dec2", version="tpd-2", template_text="Р В Р В°Р В·Р В»Р С•Р В¶Р С‘: {{text}}"
         )
-        StepConfig.objects.create(
+        PipelineSkill.objects.create(
             step="tpd_test_decompose", prompt_template=prompt, model_role="debug"
         )
 
         from ai_assistant.services.tree_processor import TreeProcessor
         tp = TreeProcessor(conv)
 
-        # Мокаем LLM-клиент на уровне экземпляра
+        # Р СљР С•Р С”Р В°Р ВµР С LLM-Р С”Р В»Р С‘Р ВµР Р…РЎвЂљ Р Р…Р В° РЎС“РЎР‚Р С•Р Р†Р Р…Р Вµ РЎРЊР С”Р В·Р ВµР СР С—Р В»РЎРЏРЎР‚Р В°
         mock_client = MagicMock()
         mock_client.debug.return_value = {
             "raw_text": json.dumps({
                 "positions": [{
-                    "id": "pos1", "description": "Привод",
+                    "id": "pos1", "description": "Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘",
                     "level": 1, "quantity": 1, "quantity_unit": "pcs",
                     "components": []
                 }]
@@ -450,7 +451,7 @@ class TreeProcessorDecomposeTests(TestCase):
         }
         tp.client = mock_client
 
-        result = tp.decompose("Подбери привод")
+        result = tp.decompose("Р СџР С•Р Т‘Р В±Р ВµРЎР‚Р С‘ Р С—РЎР‚Р С‘Р Р†Р С•Р Т‘")
         self.assertIn("conversation_id", result)
         self.assertEqual(result["conversation_id"], conv.id)
 
@@ -458,15 +459,15 @@ class TreeProcessorDecomposeTests(TestCase):
 class TreeProcessorBuildMethodsTests(TestCase):
     def setUp(self):
         self.conv = AIConversation.objects.create(session_key="tpb-bom")
-        self.eq = EquipmentType.objects.create(code="tpb_eq", label="TPB EQ", level=2)
+        self.eq = EquipmentType.objects.create(code="tpb_eq", name="TPB EQ", level=2)
         self.root = SelectionNode.objects.create(
             conversation=self.conv, level=1, path="tpb/1",
-            label="Позиция 1", quantity=2, quantity_unit="pcs",
+            label="Р СџР С•Р В·Р С‘РЎвЂ Р С‘РЎРЏ 1", quantity=2, quantity_unit="pcs",
             selected_product_type="pa.Actuator", selected_product_id=10,
         )
         self.child = SelectionNode.objects.create(
             conversation=self.conv, parent=self.root,
-            level=2, path="tpb/1/1", label="Соленоид",
+            level=2, path="tpb/1/1", label="Р РЋР С•Р В»Р ВµР Р…Р С•Р С‘Р Т‘",
             quantity=1, quantity_unit="pcs",
             equipment_type=self.eq,
             selected_product_type="sv.Valve", selected_product_id=20,
@@ -480,7 +481,7 @@ class TreeProcessorBuildMethodsTests(TestCase):
         self.assertIn("positions", ebom)
         self.assertEqual(len(ebom["positions"]), 1)
         pos = ebom["positions"][0]
-        self.assertEqual(pos["label"], "Позиция 1")
+        self.assertEqual(pos["label"], "Р СџР С•Р В·Р С‘РЎвЂ Р С‘РЎРЏ 1")
         self.assertEqual(pos["quantity"], 2)
         self.assertIn("items", pos)
         self.assertEqual(len(pos["items"]), 1)
@@ -508,31 +509,31 @@ class TreeProcessorBuildMethodsTests(TestCase):
 class TreeProcessorCascadeTests(TestCase):
     def setUp(self):
         self.conv = AIConversation.objects.create(session_key="tpc-cascade")
-        self.pt = EquipmentType.objects.create(code="tpc_act", label="Привод Cascade", level=2)
-        self.ct = EquipmentType.objects.create(code="tpc_sol", label="Соленоид Cascade", level=3)
+        self.pt = EquipmentType.objects.create(code="tpc_act", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ Cascade", level=2)
+        self.ct = EquipmentType.objects.create(code="tpc_sol", name="Р РЋР С•Р В»Р ВµР Р…Р С•Р С‘Р Т‘ Cascade", level=3)
         CascadeRule.objects.create(
             parent_type=self.pt, child_type=self.ct,
             mapping={"port_size": "connection_size", "voltage": "sv_voltage"}
         )
         self.root = SelectionNode.objects.create(
             conversation=self.conv, level=1, path="tpc/1",
-            label="Привод", equipment_type=self.pt,
+            label="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘", equipment_type=self.pt,
             selected_product_type="pa.Actuator", selected_product_id=5,
             selected_product_specs={"port_size": "G1/4", "voltage": "24V DC", "torque": 150}
         )
         self.child = SelectionNode.objects.create(
             conversation=self.conv, parent=self.root,
-            level=2, path="tpc/1/1", label="Соленоид",
+            level=2, path="tpc/1/1", label="Р РЋР С•Р В»Р ВµР Р…Р С•Р С‘Р Т‘",
             equipment_type=self.ct,
             extract_output={"type": "5/2"}
         )
 
     def test_cascade_params_propagated(self):
-        """Проверяем, что select_product пробрасывает параметры дочернему узлу."""
+        """Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЏР ВµР С, РЎвЂЎРЎвЂљР С• select_product Р С—РЎР‚Р С•Р В±РЎР‚Р В°РЎРѓРЎвЂ№Р Р†Р В°Р ВµРЎвЂљ Р С—Р В°РЎР‚Р В°Р СР ВµРЎвЂљРЎР‚РЎвЂ№ Р Т‘Р С•РЎвЂЎР ВµРЎР‚Р Р…Р ВµР СРЎС“ РЎС“Р В·Р В»РЎС“."""
         from ai_assistant.services.tree_processor import TreeProcessor
         tp = TreeProcessor(self.conv)
 
-        # Мокаем _load_product_specs — нельзя использовать реальный ContentType в тестах
+        # Р СљР С•Р С”Р В°Р ВµР С _load_product_specs РІР‚вЂќ Р Р…Р ВµР В»РЎРЉР В·РЎРЏ Р С‘РЎРѓР С—Р С•Р В»РЎРЉР В·Р С•Р Р†Р В°РЎвЂљРЎРЉ РЎР‚Р ВµР В°Р В»РЎРЉР Р…РЎвЂ№Р в„– ContentType Р Р† РЎвЂљР ВµРЎРѓРЎвЂљР В°РЎвЂ¦
         with patch.object(tp, "_load_product_specs", return_value={
             "port_size": "G1/4", "voltage": "24V DC", "torque": 150
         }):
@@ -552,3 +553,5 @@ class TreeProcessorCascadeTests(TestCase):
         self.assertEqual(params["type"], "5/2")
         self.assertEqual(params["connection_size"], "G1/4")
         self.assertEqual(params["sv_voltage"], "24V DC")
+
+

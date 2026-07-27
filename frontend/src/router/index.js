@@ -67,6 +67,7 @@ const routes = [
   { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', role: 'admin' } },
   { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', role: 'admin' } },
   { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', role: 'admin' } },
+  { path: '/admin/pipeline-config', component: () => import('../pages/admin/PipelineConfigPage.vue'), meta: { title: 'Pipeline Config', role: 'admin' } },
 
   // Инструменты
   { path: '/tools/image-processor', component: () => import('../pages/ImageProcessorTest.vue'), meta: { title: 'Обрезка изображений' } },

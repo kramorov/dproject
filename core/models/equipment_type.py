@@ -42,6 +42,35 @@ class EquipmentType(BaseAbstractModel):
         validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
 
+    # ── AI Assistant: семантика параметров для фазы сравнения ──────────
+    param_semantics = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_("Семантика параметров (AI)"),
+        help_text=_(
+            "Используется AI Assistant (Фаза 5: compare) для определения направления "
+            "сравнения требований пользователя с фактическими характеристиками. "
+            "Пример: {\"torque_nm\": {\"direction\": \"min\", \"label\": \"не менее\"}, "
+            "\"ip\": {\"direction\": \"min\", \"label\": \"не хуже\"}}. "
+            "direction: min (чем больше, тем лучше), max, exact (точное совпадение). "
+            "Заполняется только для типов оборудования, участвующих в AI-подборе."
+        )
+    )
+
+    # ── AI Assistant: API-эндпоинт для фазы фильтрации ──────────────────
+    filter_endpoint = models.CharField(
+        max_length=256,
+        null=True,
+        blank=True,
+        verbose_name=_("API-эндпоинт фильтра (AI)"),
+        help_text=_(
+            "Используется AI Assistant (Фаза 3: filter) — TreeProcessor вызывает этот "
+            "эндпоинт для получения списка вариантов оборудования по извлечённым "
+            "параметрам. Пример: \"/api/pneumatic_actuators/selector/search/\". "
+            "Заполняется только для типов оборудования, участвующих в AI-подборе."
+        )
+    )
+
     class Meta:
         db_table = 'core_equipmenttype'
         verbose_name = _("Тип оборудования")

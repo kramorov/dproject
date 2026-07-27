@@ -22,11 +22,11 @@ class CascadeRule(models.Model):
     """
 
     parent_type = models.ForeignKey(
-        "EquipmentType", on_delete=models.CASCADE, related_name="cascade_rules_from",
+        "core.EquipmentType", on_delete=models.CASCADE, related_name="ai_cascade_rules_from",
         help_text="Родительский тип (откуда берём параметры)"
     )
     child_type = models.ForeignKey(
-        "EquipmentType", on_delete=models.CASCADE, related_name="cascade_rules_to",
+        "core.EquipmentType", on_delete=models.CASCADE, related_name="ai_cascade_rules_to",
         help_text="Дочерний тип (куда пробрасываем параметры)"
     )
     mapping = models.JSONField(

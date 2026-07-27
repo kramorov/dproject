@@ -16,13 +16,14 @@ from typing import Optional
 
 from django.db import transaction
 
+from core.models.equipment_type import EquipmentType
+
 from ai_assistant.models import (
     AIConversation, AIMessage,
-    EquipmentType, StepConfig, StepConfigOverride,
-    CascadeRule, SelectionNode,
+    PipelineSkill, SkillOverride, CascadeRule, SelectionNode,
 )
 from ai_assistant.services.deepseek_client import get_deepseek_client
-from ai_assistant.services.token_tracker import save_token_usage
+from ai_assistant.services.token_tracker import save_token_usage, update_skill_latency
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class TreeProcessor:
 
     # ── Разрешение конфигурации ──────────────────────────────────
 
-    def _get_config(self, step: str, equipment_type: Optional[EquipmentType] = None) -> Optional[dict]:
+    def _get_config(self, step: str = "", equipment_type: Optional[EquipmentType] = None, code: str = "") -> Optional[dict]:
         """Разрешает конфигурацию шага: Override → StepConfig → None.
 
         Args:
@@ -53,14 +54,17 @@ class TreeProcessor:
             prompt_text — или None, если конфигурация не найдена.
         """
 
-        base = StepConfig.objects.filter(
-            step=step, equipment_type=equipment_type, is_active=True
-        ).first()
+        if code:
+            base = PipelineSkill.objects.filter(code=code, is_active=True).first()
+        else:
+            base = PipelineSkill.objects.filter(
+                step=step, equipment_type=equipment_type, is_active=True
+            ).first()
         if not base:
             return None
 
         if self.customer:
-            override = StepConfigOverride.objects.filter(
+            override = SkillOverride.objects.filter(
                 customer=self.customer, step_config=base, is_active=True
             ).first()
             if override:
@@ -68,6 +72,7 @@ class TreeProcessor:
 
         # Return dict for consistent interface (no ORM mutation)
         return {
+            "skill": base,
             "step": base.step,
             "prompt_template": base.prompt_template,
             "model_role": base.model_role,
@@ -75,7 +80,7 @@ class TreeProcessor:
             "prompt_text": base.prompt_template.template_text if base.prompt_template else "",
         }
 
-    def _apply_override(self, base: StepConfig, override: StepConfigOverride) -> dict:
+    def _apply_override(self, base: PipelineSkill, override: SkillOverride) -> dict:
         """Применяет переопределение к конфигурации.
 
         Не мутирует ORM-объекты — возвращает runtime dict.
@@ -90,6 +95,7 @@ class TreeProcessor:
             prompt_text = tmpl.template_text if tmpl else ""
 
         return {
+            "skill": base,
             "step": base.step,
             "prompt_template": tmpl,
             "model_role": model_role,
@@ -99,7 +105,7 @@ class TreeProcessor:
 
     # ── Шаг 1: Decompose ─────────────────────────────────────────
 
-    def decompose(self, text: str, prompt_id: Optional[int] = None) -> dict:
+    def decompose(self, text: str, prompt_id: Optional[int] = None, skill_code: str = "") -> dict:
         """Фаза 1: текст запроса → дерево SelectionNode.
 
         Args:
@@ -116,7 +122,7 @@ class TreeProcessor:
         )
 
         # Загружаем конфигурацию decompose
-        config = self._get_config("decompose")
+        config = self._get_config(code=skill_code) or self._get_config("decompose")
         if not config or not config["prompt_template"]:
             return {"status": "error", "message": "No decompose StepConfig"}
 
@@ -128,17 +134,9 @@ class TreeProcessor:
         if not prompt_template:
             prompt_template = config["prompt_template"]
 
-        system_prompt = self._get_system_prompt()
+        prompt_text = self._resolve_prompt(config["prompt_text"], user_text=text)
 
-        # Safe format — handle missing keys gracefully
-        try:
-            prompt_text = config["prompt_text"].format(
-                system_prompt=system_prompt, user_text=text
-            )
-        except KeyError:
-            prompt_text = config["prompt_text"]
-
-        # LLM call — OUTSIDE transaction (slow, SQLite lock issue)
+                # LLM call — OUTSIDE transaction (slow, SQLite lock issue)
         llm_result = self.client.debug(prompt_text)
 
         raw_text = llm_result.get("raw_text", "")
@@ -149,22 +147,43 @@ class TreeProcessor:
             ai_msg = AIMessage.objects.create(
                 conversation=self.conversation, role="assistant",
                 content=raw_text, prompt_used=prompt_text,
+                latency_ms=llm_result.get("latency_ms"),
                 prompt_template=prompt_template,
                 intent="decompose",
             )
-            save_token_usage(ai_msg, llm_result)
+            save_token_usage(ai_msg, llm_result, customer=self.customer)
 
             # Create SelectionNodes
             nodes = self._create_nodes_from_tree(tree_data)
 
+            # Auto-extract for all component nodes
+            all_nodes = self._all_nodes(nodes)
+            extracted = {}
+            for n in all_nodes:
+                if not n.equipment_type:
+                    continue
+                try:
+                    result = self.extract(node_id=n.id)
+                    extracted[n.decompose_output.get("id") or str(n.id)] = result
+                except Exception as e:
+                    logger.warning(f"Auto-extract failed for node {n.id}: {e}")
+
             # Cache in conversation
+            tree_data["user_text"] = text  # Save for extract phase
             self.conversation.selection_tree = tree_data
             self.conversation.save(update_fields=["selection_tree"])
+
+        # Update skill latency estimate (outside transaction)
+        skill = config.get("skill")
+        if skill:
+            update_skill_latency(skill, llm_result.get("latency_ms"))
 
         return {
             "conversation_id": self.conversation.id,
             "status": "ready" if nodes else "needs_info",
+            "extracted": extracted,
             "tree": tree_data,
+            "node_ids": [{"id": n.id, "type": n.equipment_type.code if n.equipment_type else None, "tree_id": n.decompose_output.get("id") if n.decompose_output else None} for n in self._all_nodes(nodes)],
         }
 
     def _parse_tree_output(self, raw_text: str) -> dict:
@@ -197,8 +216,52 @@ class TreeProcessor:
         except json.JSONDecodeError:
             pass
 
-        # Fallback: return raw text as analysis
+        # Try text tree format
+        return self._parse_text_tree(raw_text)
+
+    def _parse_text_tree(self, raw_text: str) -> dict:
+        """Parse markdown text tree: [id]: type | depends_on: [...] | params."""
+        positions = []
+        global_reqs = {}
+        current_pos = None
+
+        for line in raw_text.split("\n"):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("==="):
+                continue
+            if ":" in stripped and stripped.startswith(("температура", "Exd", "IP", "давление")):
+                key, val = stripped.split(":", 1)
+                global_reqs[key.strip()] = val.strip()
+                continue
+            if stripped.startswith("---") and "ПОЗИЦИЯ" in stripped:
+                current_pos = {"description": "", "components": []}
+                positions.append(current_pos)
+                continue
+            if not current_pos:
+                continue
+            if stripped.startswith(("описание:", "description:")):
+                current_pos["description"] = stripped.split(":", 1)[1].strip()
+                continue
+            m = re.match(r"\[([\w.]+)\]:\s*(\w+)\s*\|\s*depends_on:\s*\[([^\]]*)\]\s*\|?\s*(.*)", stripped)
+            if m:
+                deps = [x.strip() for x in m.group(3).split(",") if x.strip()]
+                current_pos["components"].append({
+                    "id": m.group(1), "type": m.group(2),
+                    "depends_on": deps,
+                    "summary": m.group(4).strip() if m.group(4) else "",
+                })
+
+        if positions:
+            return {"positions": positions, "global_requirements": global_reqs}
         return {"raw_analysis": raw_text, "positions": []}
+
+    def _all_nodes(self, nodes):
+        """Recursively collect all nodes from a list (positions + components)."""
+        result = []
+        for n in nodes:
+            result.append(n)
+            result.extend(self._all_nodes(list(n.children.all())))
+        return result
 
     def _create_nodes_from_tree(self, tree_data: dict) -> list:
         """Создаёт SelectionNode рекурсивно из данных дерева.
@@ -308,27 +371,33 @@ class TreeProcessor:
         node.status = "extracting"
         node.save(update_fields=["status"])
 
-        # Safe format — handle missing keys gracefully
-        try:
-            prompt = config["prompt_text"].format(
+        prompt = self._resolve_prompt(
+            config["prompt_text"],
+                user_text=node.conversation.selection_tree.get("user_text", "") if node.conversation.selection_tree else "",
                 requirements=json.dumps(node.decompose_output or {}, ensure_ascii=False),
                 global_requirements=json.dumps(
                     self.conversation.selection_tree.get("global_requirements", {}) if self.conversation.selection_tree else {},
                     ensure_ascii=False,
                 ),
             )
-        except KeyError:
-            prompt = config["prompt_text"]
 
+        # Use structured output if JSONSchema is configured
         llm_result = self.client.debug(prompt)
 
         raw_text = llm_result.get("raw_text", "")
-        # Try to parse JSON
         try:
             json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw_text)
             filters = json.loads(json_match.group(1) if json_match else raw_text)
         except (json.JSONDecodeError, AttributeError):
             filters = {"raw_output": raw_text}
+        # old schema block removed
+            filters = llm_result if isinstance(llm_result, dict) else {}
+        else:
+            try:
+                json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw_text)
+                filters = json.loads(json_match.group(1) if json_match else raw_text)
+            except (json.JSONDecodeError, AttributeError):
+                filters = {"raw_output": raw_text}
 
         node.extract_output = filters
         node.status = "extracted"
@@ -341,7 +410,12 @@ class TreeProcessor:
             prompt_template=config["prompt_template"],
             intent="extract",
         )
-        save_token_usage(msg, llm_result)
+        save_token_usage(msg, llm_result, customer=self.customer)
+
+        # Update skill latency
+        skill = config.get("skill")
+        if skill:
+            update_skill_latency(skill, llm_result.get("latency_ms"))
 
         return {"status": "extracted", "extract_output": filters}
 
@@ -651,6 +725,24 @@ class TreeProcessor:
         if children:
             item["items"] = [self._node_to_mbom_item(c) for c in children]
         return item
+
+    @staticmethod
+    def _resolve_prompt(template_text: str, **extra) -> str:
+        """Resolve {code} placeholders via AIPromptTemplate + extra kwargs."""
+        from ai_assistant.models import AIPromptTemplate
+        import re
+        placeholders = set(re.findall(r"\{(\w+)\}", template_text))
+        if not placeholders:
+            return template_text
+        templates = {t.code: t.template_text for t in AIPromptTemplate.objects.filter(code__in=placeholders, is_active=True)}
+        result = template_text
+        for ph in placeholders:
+            val = templates.get(ph) or extra.get(ph)
+            if val:
+                result = result.replace("{" + ph + "}", str(val))
+            else:
+                result = result.replace("{" + ph + "}", "{" + ph + "}")  # keep literal
+        return result
 
     def _get_system_prompt(self) -> str:
         """Системный промпт из БД или default."""

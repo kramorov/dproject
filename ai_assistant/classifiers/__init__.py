@@ -1,8 +1,6 @@
 """
-Классификатор запросов на основе DeepSeek API.
-
-Один промпт → completion_with_reasoning → _parse_json → ClassificationResult.
-Instructor используется на уровне deepseek_client для response_schema (опционально).
+Classifier for request intents (selection, price, cert, etc.).
+One prompt → classify → ClassificationResult → route to handler.
 """
 import logging
 from dataclasses import dataclass, field
@@ -11,85 +9,71 @@ from typing import Optional, Dict, Any
 logger = logging.getLogger(__name__)
 
 INTENTS = [
-    "actuator_selection",
-    "price_check",
-    "replacement",
-    "specs",
-    "general",
+    "selection",     # equipment or component selection
+    "price_check",   # price request
+    "cert_search",   # certificate/document search
+    "replacement",   # find replacement/analog
+    "specs",         # technical specs
+    "catalog",       # catalog/literature request
+    "general",       # everything else
+    "rejected",      # not our topic
+    "needs_info",    # missing required data
 ]
 
-CLASSIFIER_PROMPT_TEMPLATE = """Классифицируй запрос пользователя о промышленной трубопроводной арматуре.
+CLASSIFIER_PROMPT_TEMPLATE = """Classify the user request about industrial valves and actuators.
 
-Интенты:
-- actuator_selection: подбор пневмопривода, запрос на подбор привода по параметрам арматуры
-  (момент, диаметр, давление, тип DA/SR, температура и т.д.)
-- price_check: запрос цены, стоимости
-- replacement: подбор аналога, замена существующей модели
-- specs: технические характеристики, размеры, вес, материалы
-- general: всё остальное (приветствие, общий вопрос)
+Intents:
+- selection: equipment selection (actuator, solenoid, BKV, cable gland, fittings, filter-regulator). Includes requests phrased as "выставить счет", "КП", "предложение" when they describe equipment to be selected. Set subtype: "equipment" if standalone, "component" if for customer's valve.
+- price_check: ask price for a SPECIFIC product (by article or model). NOT for "выставить счет на подбор" — that's selection.
+- cert_search: certificate search, compliance documents, Ex-proof certificates
+- replacement: find replacement or analog for an existing model
+- specs: technical specs, dimensions, weight, materials
+- catalog: request for catalog, technical documentation, brochure
+- general: greetings, unrelated questions, context not understood
+- rejected: topic clearly outside industrial valves/actuators
+- needs_info: missing critical parameters (torque, voltage, etc.)
 
-Верни JSON:
+Return JSON:
 {{
-    "intent": "<один из intent>",
+    "intent": "<one of intents>",
     "confidence": 0.0-1.0,
-    "entities": {{}}
+    "entities": {{}},
+    "subtype": "equipment" | "component" | null
 }}
 
-Запрос пользователя:
+User request:
 {user_text}"""
 
 
 @dataclass
 class ClassificationResult:
-    """Результат классификации запроса пользователя.
-
-    Attributes:
-        intent: Определённый интент (actuator_selection, price_check, replacement, specs, general).
-        confidence: Уверенность классификатора (0.0–1.0).
-        entities: Извлечённые сущности запроса (опционально).
-        _usage: Служебная информация об использовании токенов (не отображается в repr).
-    """
     intent: str
     confidence: float
+    subtype: Optional[str] = None  # "equipment" | "component"
     entities: Optional[dict] = None
     _usage: Optional[Dict[str, Any]] = field(default=None, repr=False)
 
 
 class InstructorClassifier:
-    """Классификатор на базе Instructor + DeepSeek."""
+    def __init__(self, client):
+        self.client = client
 
-    def __init__(self, deepseek_client):
-        """Инициализирует классификатор с переданным экземпляром DeepSeekClient.
-
-        Args:
-            deepseek_client: Экземпляр DeepSeekClient для вызовов API.
-        """
-        self.client = deepseek_client
-
-    def classify(self, text: str) -> ClassificationResult:
-        """Классифицирует текст, возвращает intent, confidence, entities и usage."""
+    def classify(self, text: str) -> "ClassificationResult":
         prompt = CLASSIFIER_PROMPT_TEMPLATE.format(user_text=text)
         result = self.client.classify(prompt)
-
         content = result.get("content", {})
         if isinstance(content, dict):
-            intent = content.get("intent", "general")
-            confidence = content.get("confidence", 0.0)
-            entities = content.get("entities", {})
-        else:
-            intent = "general"
-            confidence = 0.0
-            entities = {}
-
-        return ClassificationResult(
-            intent=intent,
-            confidence=confidence,
-            entities=entities,
-            _usage={
-                "model": result.get("model", "unknown"),
-                "prompt_tokens": result.get("prompt_tokens", 0),
-                "completion_tokens": result.get("completion_tokens", 0),
-                "reasoning_tokens": result.get("reasoning_tokens"),
-                "total_tokens": result.get("total_tokens", 0),
-            },
-        )
+            return ClassificationResult(
+                intent=content.get("intent", "general"),
+                confidence=content.get("confidence", 0.0),
+                subtype=content.get("subtype"),
+                entities=content.get("entities", {}),
+                _usage={
+                    "model": result.get("model", "unknown"),
+                    "prompt_tokens": result.get("prompt_tokens", 0),
+                    "completion_tokens": result.get("completion_tokens", 0),
+                    "reasoning_tokens": result.get("reasoning_tokens", 0),
+                    "total_tokens": result.get("total_tokens", 0),
+                },
+            )
+        return ClassificationResult(intent="general", confidence=0.0)
