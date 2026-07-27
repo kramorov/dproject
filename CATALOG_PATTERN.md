@@ -1,51 +1,54 @@
-# Шаблон нового каталога (Catalog Pattern)
-> Обновлено 2026-07-23: SectionAccessPermission для engineer-вьюх, новый HomePage
+# Catalog Pattern — архитектура и шаблон каталога оборудования
+
+> Обновлено 2026-07-27: breadcrumbs с режимами, CatalogActions-табы, parentMode, core/access.py, engineer AllowAny
+> Обновлено 2026-07-23: SectionAccessPermission → catalog_permission_classes(), новый HomePage
 > Обновлено 2026-06-10: PriceDocument/EAPriceDocument → shared DocumentJournal/DocumentCard
 
-## Архитектура: CatalogConfig
+---
 
-Вся конфигурация каталога — в одном месте. Три слоя фильтрации, позитивное определение фильтров на страницу.
+## 1. Концепция
 
-Подробнее: `catalog_concept.md`.
+Каждый каталог оборудования (редукторы, фильтр-регуляторы, БКВ, клапаны, фитинги) строится по единому шаблону. Вся конфигурация — фильтры, scope, ORM-оптимизации, метки, права доступа — собрана в одном месте.
 
-### Ключевые компоненты
+### Три слоя фильтрации
+
+```
+GET /api/gearbox/catalog/?ip_id=5&work_temp_min=-42&show_compatible=true
+
+┌──────────────────────────────────────────────┐
+│ Слой 0: VISIBILITY SCOPE                    │
+│  apply_visibility_scope(queryset, request)   │
+│  → core.access.apply_catalog_visibility()    │
+│  → фильтрация по брендам/сериям (заглушка)   │
+├──────────────────────────────────────────────┤
+│ Слой 1: USER FILTERS                        │
+│  FilterSet.definitions                      │
+│  → итерация FilterDefinition, build_filter_lookup, .filter() │
+├──────────────────────────────────────────────┤
+│ Слой 2: EXACT / COMPATIBLE SPLIT            │
+│  apply_filters_and_split(..., split_mode='auto')            │
+│  → classify_match(obj, requested_value)                     │
+│  → data (точные) + compatible_data (совместимые)            │
+└──────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Ключевые компоненты
 
 | Компонент | Где | Назначение |
 |-----------|-----|-----------|
 | `FilterDefinition` | `core/models/filter_definition.py` | Одно поле фильтра: тип, источник, label |
 | `FilterSet` | `core/models/catalog_config.py` | Набор фильтров для страницы (+ scoped, show_compatible) |
-| `CatalogConfig` | `core/models/catalog_config.py` | Вся конфигурация: FilterSet'ы, ORM, метки |
-| `SmartCatalogMixin.apply_filters_and_split()` | `core/models/smart_catalog_mixin.py` | Фильтрация + exact/compatible split |
+| `CatalogConfig` | `core/models/catalog_config.py` | Вся конфигурация: FilterSet'ы, ORM, метки, visibility |
+| `catalog_permission_classes()` | `core/access.py` | Централизованные права доступа для catalog API |
+| `apply_catalog_visibility()` | `core/access.py` | Централизованная фильтрация queryset по правам |
+| `SmartCatalogMixin` | `core/models/smart_catalog_mixin.py` | `apply_filters_and_split()` + `to_dict()` |
 | `BaseFilterOptionsView` | `core/views.py` | API опций фильтров (через CatalogConfig) |
 
----
-
-## Бэкенд
-
-> **Важно**: Модель каталога (model_class) **обязана** наследовать SmartCatalogMixin из core.models.smart_catalog_mixin. Без него отсутствует метод pply_filters_and_split(), и API каталога падает.
-
-### 1. Пакет `catalog/` внутри приложения
-
-```
-my_equipment/
-├── catalog/
-│   ├── __init__.py          # реэкспорт
-│   ├── filter_defs.py       # именованные FilterDefinition (fd_ip, fd_temp_min, ...)
-│   ├── config.py            # MY_CONFIG = CatalogConfig(...) с тремя FilterSet
-│   ├── views_filters.py     # class MyFilterOptionsView(BaseFilterOptionsView): catalog_config = MY_CONFIG
-│   ├── views_list.py        # CatalogView с apply_filters_and_split
-│   ├── views_detail.py      # DetailView
-│   └── views_sections.py    # SectionView
-├── models/
-├── services/
-└── admin/
-```
-
-### 2. `filter_defs.py` — именованные FilterDefinition
+### 2.1 FilterDefinition
 
 ```python
-from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
-
 fd_ip = FilterDefinition(
     param_name='ip_id',
     model_field='ip',
@@ -55,52 +58,121 @@ fd_ip = FilterDefinition(
     label='IP',
     order=4,
 )
-
-fd_temp_min = FilterDefinition(
-    param_name='work_temp_min',
-    model_field='work_temp_min',
-    filter_type=FilterType.TEMP_MIN,
-    data_source_type=DataSourceType.FIELD_VALUES,
-    label='Температура от, °С',
-    order=5,
-)
-
-# ... остальные fd_*
-
-# Legacy-список для обратной совместимости
-MY_FILTER_DEFINITIONS = [fd_ip, fd_temp_min, ...]
 ```
 
-### 3. `config.py` — CatalogConfig
+Методы:
+- `supports_split()` — может ли фильтр различать exact/compatible
+- `classify_match(obj, value)` — `'exact'`, `'compatible'` или `None`
+- `get_options(model_class, queryset=None)` — опции (scoped если передан queryset)
+
+### 2.2 FilterSet + CatalogConfig
 
 ```python
-from core.models.catalog_config import CatalogConfig, FilterSet
-from my_equipment.models import MyModel, MyModelLine
-from my_equipment.catalog.filter_defs import fd_ip, fd_temp_min, fd_brand, ...
+@dataclass
+class FilterSet:
+    definitions: List[FilterDefinition]
+    scoped: bool            # True = опции ограничены model_line
+    show_compatible: bool   # доступен exact/compatible split
 
+@dataclass
+class CatalogConfig:
+    model_class: type
+    model_line_class: type
+    filter_sets: Dict[str, FilterSet]  # 'list', 'engineer', 'model_line', 'quickselect'
+    select_related: List[str]
+    prefetch_fields: List[str]
+    search_fields: List[str]
+    labels: Dict[str, str]
+
+    def apply_visibility_scope(self, queryset, request) -> QuerySet: ...
+    def get_filter_set(self, scope: str) -> FilterSet: ...
+    def get_scoped_queryset(self, model_line_id=None) -> QuerySet: ...
+```
+
+### 2.3 Access control (`core/access.py`)
+
+Централизованный модуль доступа для всех catalog API. Единая точка входа:
+
+```python
+from core.access import catalog_permission_classes, apply_catalog_visibility
+
+class MyCatalogView(APIView):
+    permission_classes = catalog_permission_classes()  # [AllowAny] — заглушка
+
+    def get(self, request):
+        qs = config.get_scoped_queryset()
+        qs = apply_catalog_visibility(request, qs)     # фильтрация — заглушка
+        ...
+```
+
+`CatalogConfig.apply_visibility_scope()` делегирует в `apply_catalog_visibility()`.
+
+Будущее (access.md §7): фильтрация по `request.customer.visible_brands`, `CustomerApiKey.brand_filters`, `CustomerAppAccess`.
+
+---
+
+## 3. Типы страниц каталога
+
+| Страница | Scope FilterSet | Scoped | Split | Компонент |
+|----------|----------------|--------|-------|-----------|
+| Просмотр по сериям | — | — | — | `CatalogSection` |
+| Инженерный подбор | `'list'` | нет | да | `EngineerSelection` |
+| Страница серии | `'model_line'` | да | да | `CatalogModelLine` |
+| Быстрый подбор | `'quickselect'` | да | нет | `QuickSelect` |
+| Мастер подбора | — | — | — | `WizardPlaceholder` (заглушка) |
+| AI подбор | — | — | — | `AiPlaceholder` (заглушка) |
+| Карточка товара | — | — | — | `CatalogDetail` |
+
+---
+
+## 4. Бэкенд
+
+### 4.1 Пакет `catalog/` внутри приложения
+
+```
+my_equipment/
+├── catalog/
+│   ├── __init__.py          # реэкспорт
+│   ├── filter_defs.py       # именованные FilterDefinition
+│   ├── config.py            # MY_CONFIG = CatalogConfig(...) с FilterSet'ами
+│   ├── views_filters.py     # class MyFilterOptionsView(BaseFilterOptionsView)
+│   ├── views_list.py        # CatalogView с apply_filters_and_split
+│   ├── views_detail.py      # DetailView
+│   ├── views_engineer.py    # EngineerView (mode='engineer')
+│   ├── views_engineer_filters.py  # EngineerFilterOptionsView
+│   └── views_sections.py    # SectionView
+├── models/
+├── services/
+└── admin/
+```
+
+### 4.2 config.py — пример
+
+```python
 MY_CONFIG = CatalogConfig(
     model_class=MyModel,
     model_line_class=MyModelLine,
 
     filter_sets={
-        'list': FilterSet(           # Инженерный подбор
+        'list': FilterSet(
             definitions=[fd_ip, fd_temp_min, fd_temp_max, fd_brand, ...],
-            scoped=False,
-            show_compatible=True,
+            scoped=False, show_compatible=True,
         ),
-        'model_line': FilterSet(     # Страница серии
-            definitions=[fd_ip, fd_temp_min, fd_temp_max, ...],  # без model_line_id, brand_id
-            scoped=True,
-            show_compatible=True,
+        'engineer': FilterSet(
+            definitions=[...],  # обычно копия 'list'
+            scoped=False, show_compatible=True,
         ),
-        'quickselect': FilterSet(    # Быстрый подбор
+        'model_line': FilterSet(
+            definitions=[fd_ip, fd_temp_min, ...],  # без model_line_id, brand_id
+            scoped=True, show_compatible=True,
+        ),
+        'quickselect': FilterSet(
             definitions=[fd_material, fd_torque, ...],
-            scoped=True,
-            show_compatible=False,
+            scoped=True, show_compatible=False,
         ),
     },
 
-    select_related=['model_line', 'model_line__brand', ...],
+    select_related=['model_line', 'model_line__brand', 'image_gallery', ...],
     prefetch_fields=['image_gallery__items__image', ...],
     search_fields=['code', 'name', 'description'],
 
@@ -114,23 +186,13 @@ MY_CONFIG = CatalogConfig(
 )
 ```
 
-### 4. `views_filters.py` — 3 строки
+### 4.3 views_list.py
 
 ```python
-from rest_framework.permissions import AllowAny
-from core.views import BaseFilterOptionsView
-from my_equipment.catalog.config import MY_CONFIG
+from core.access import catalog_permission_classes
 
-class MyFilterOptionsView(BaseFilterOptionsView):
-    permission_classes = [AllowAny]
-    catalog_config = MY_CONFIG
-```
-
-### 5. `views_list.py` — список с фильтрацией
-
-```python
 class MyCatalogView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = catalog_permission_classes()
     config = MY_CONFIG
 
     def get(self, request):
@@ -138,128 +200,133 @@ class MyCatalogView(APIView):
         scope = params.get('scope', 'list')
         filter_set = self.config.get_filter_set(scope)
 
-        # Layer 0: visibility
         qs = self.config.get_scoped_queryset()
-        qs = self.config.apply_visibility_scope(qs, request)
+        qs = self.config.apply_visibility_scope(qs, request)  # → core.access
         qs = qs.select_related(*self.config.select_related)
         qs = qs.prefetch_related(*self.config.prefetch_fields)
 
-        # Layer 1+2: filters + split
         result = self.config.model_class.apply_filters_and_split(
-            params,
-            filter_definitions=filter_set.definitions,
-            base_queryset=qs,
+            params, filter_definitions=filter_set.definitions, base_queryset=qs,
         )
+        # Добавить цены (get_bulk_prices)
         return Response(result)
 ```
 
-### 6. URLs
+### 4.4 views_filters.py
 
 ```python
-path('filters/', MyFilterOptionsView.as_view()),
+class MyFilterOptionsView(BaseFilterOptionsView):
+    permission_classes = catalog_permission_classes()
+    catalog_config = MY_CONFIG
+```
+
+### 4.5 URLs
+
+```python
+path('sections/', MySectionView.as_view()),
 path('catalog/', MyCatalogView.as_view()),
 path('catalog/<int:pk>/', MyDetailView.as_view()),
+path('filters/', MyFilterOptionsView.as_view()),
+path('engineer/', MyEngineerView.as_view()),
+path('engineer/filters/', MyEngineerFilterOptionsView.as_view()),
 path('quickselect/', MyQuickSelectView.as_view()),
+path('meta/', MyMetaView.as_view()),
+```
+
+### 4.6 apply_filters_and_split — формат ответа
+
+```json
+{
+    "data": [...],
+    "total": 42,
+    "filters_applied": {"ip_id": "5"},
+    "limit": 24, "offset": 0,
+    "compatible_data": [...],
+    "exact_count": 12,
+    "compatible_count": 30,
+    "split_filter": "work_temp_min",
+    "split_value": "-42"
+}
 ```
 
 ---
 
-### 7. `views_detail.py` — детальная карточка
+## 5. Фронтенд
 
-> **Обязательные компоненты:**
-> - `translation.override(lang)` — перевод `str(_(...))` в `to_dict()` на язык запроса
-> - `build_schema()` — Schema.org Product для поисковиков (цена, бренд, фото)
-> - `get_display_price()` + `get_currency_code()` — цена в валюте пользователя
->
-> Образец: `gearbox/catalog/views_detail.py`.
-
----
-
-## EngineerSelection — отдельный компонент инженерного подбора
-
-`EngineerSelection.vue` — независимый от `CatalogList.vue` компонент:
-- Использует `EngineerFilterBar.vue` (горизонтальная панель фильтров) вместо `FilterSidebar`
-- Использует `EngineerProductCard.vue` (горизонтальная карточка) вместо `ProductCard`
-- `useCatalog(api, { mode: 'engineer' })` → вызывает `api.getEngineer()` / `api.getEngineerFilters()`
-- Пропс `presetFilters` — предзаполнение из Requirement-моделей
-- Django API: `/api/{catalog}/engineer/` + `/api/{catalog}/engineer/filters/`
-- `'engineer'` FilterSet в `config.py` (пока копия `'list'`)
-
-### Requirement-модели: `get_defaults()` (2026-06-03)
-
-Каждая модель требований определяет `@classmethod get_defaults()` — значения по умолчанию для формы:
-- `BaseRequirement`: все FK/числовые поля → `None` («Не указано»)
-- `LimitSwitchRequirement`: `points: 2`, остальное `None`
-- `GearboxRequirement` / `FilterRegulatorRequirement`: все `None`
-- Schema API: `GET /api/.../requirements/schema/` возвращает `defaults` → фронтенд применяет при загрузке формы.
-- Селекты фильтров: `'Все'` → `'Не указано'` (FilterSidebar, EngineerFilterBar, RequirementForm).
-
-### ClimateFilter — каскадный фильтр климатического исполнения (ГОСТ 15150-69)
-
-Компонент `ClimateFilter.vue` (стили ExdFilter, `compact`-режим):
-- **Селекторы**: климатическая зона (У, ХЛ, УХЛ…) → категория размещения (1–5)
-- **Описание**: расшифровка зоны + размещения + температурный диапазон (рабочий и предельный)
-- **Парсинг**: текстовое поле «УХЛ4» → автозаполнение каскада через `POST /api/core/climate/parse/`
-
-**FilterDefinition** — `fd_climate` (во всех каталогах):
-```python
-fd_climate = FilterDefinition(
-    param_name='climate',
-    model_field='work_temp_min',
-    filter_type=FilterType.CLIMATE_CASCADE,
-    data_source_type=DataSourceType.CUSTOM,
-    label='Клим. исполнение',
-)
-```
-
-## Фронтенд
-
-### 1. `api.js` — ⚠️ getFilters ДОЛЖЕН принимать params
+### 5.1 api.js
 
 ```javascript
+import api from '@/shared/api'
+import { ENDPOINTS } from '@/shared/endpoints'
+const E = ENDPOINTS.limitSwitch
+
 export default {
-  list(params)      { return api.get(E.catalog, { params }) },
-  getDetail(id)     { return api.get(E.detail(id)) },
-  getFilters(params) { return api.get(E.filters, { params }) },  // ← params обязателен!
+  getSections()  { return api.get(E.sections) },
+  list(params)   { return api.get(E.catalog, { params }) },
+  getDetail(id)  { return api.get(E.detail(id)) },
+  getFilters(params) { return api.get(E.filters, { params }) },
+  getEngineer(params) { return api.get(E.engineer, { params }) },
+  getEngineerFilters(params) { return api.get(E.engineerFilters, { params }) },
   getQuickSelect(mlId, filters = {}) {
     return api.get(E.quickselect, { params: { model_line_id: mlId, ...filters } })
   },
 }
 ```
 
-### 2. `App.vue`
+### 5.2 App.vue — структура
 
-Использовать Generic-компоненты из `shared/components/catalog/`:
-- `CatalogSection` — сетка серий + CatalogActions
-- `CatalogList` — инженерный подбор (фильтры + поиск + exact/compatible)
-- `CatalogModelLine` — товары серии (fixedParams + `?scope=model_line` + exact/compatible)
-- `CatalogDetail` — карточка товара
-- `QuickSelect` — быстрый подбор (чипсы → карточка)
-
-### 2a. `filterLabels` — читаемые названия фильтров QuickSelect
-
-`QuickSelect` берёт лейблы из `props.filterLabels[key]`, иначе показывает сырой ключ (`actuation_id`).
-Обязательно прописать `filterLabels` в `labels.quickselect`:
-
-```javascript
-quickselect: { title:'Быстрый подбор',
-  filterLabels:{
-    actuation_id:'Управление', body_material_id:'Материал корпуса', ...
-  },
-  autoSelectRules:{},
-},
+```vue
+<template>
+  <div class="app">
+    <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section"
+      @select-series="goToBrand" @select="goToList" @quickselect="goToQuickSelect"
+      @wizard="goToWizard" @ai="goToAi" @navigate="goToSection" />
+    <EngineerSelection v-else-if="page === 'list'" ... @navigate="goToSection" />
+    <CatalogDetail v-else-if="page === 'detail'" :parent-mode="parentModeName" ... />
+    <CatalogModelLine v-else-if="page === 'brand'" :parent-mode="parentModeName" ... />
+    <QuickSelect v-else-if="page === 'quickselect'" ... />
+    <WizardPlaceholder v-else-if="page === 'wizard'" ... />
+    <AiPlaceholder v-else-if="page === 'ai'" ... />
+  </div>
+</template>
 ```
 
-### 3. Shared-компоненты UI
+Все 7 состояний страницы. `parentModeName` — computed, отслеживает текущий/предыдущий режим для хлебных крошек.
 
-- `PageTitle` — заголовок страницы (title + subtitle + context-чип)
-- `CatalogActions` — кнопки «Инженерный подбор» / «Быстрый подбор»
-- `Breadcrumbs` — все непоследние крошки кликабельны, emit `navigate`
-- `FilterSidebar` — сайдбар фильтров + чекбокс «Показывать совместимые»
-- `ProductCard` — карточка товара с ProgressiveImage
-- `ProductGallery` — галерея с лайтбоксом
+### 5.3 Shared-компоненты каталога
 
-### 4. `useCatalog.js` — общий composable
+| Компонент | Назначение |
+|-----------|-----------|
+| `CatalogSection` | Сетка серий + `CatalogActions` (табы режимов) + `Breadcrumbs` |
+| `CatalogActions` | Табы-переключатели: Просмотр по сериям / Инженерный / Быстрый / Мастер / AI |
+| `EngineerSelection` | Инженерный подбор с `EngineerFilterBar` + `EngineerProductCard` |
+| `CatalogModelLine` | Товары серии (fixedParams + exact/compatible split) |
+| `QuickSelect` | Быстрый подбор (чипсы → карточка) |
+| `CatalogDetail` | Карточка товара через `ProductDetail` |
+| `WizardPlaceholder` | Заглушка «Мастер подбора» |
+| `AiPlaceholder` | Заглушка «AI подбор» |
+| `Breadcrumbs` | Хлебные крошки (3–4 уровня), `to`/`url`/`emit('navigate')` |
+| `PageTitle` | Заголовок (title + subtitle + context-чип) |
+| `ProductDetail` | Оркестратор карточки: `Breadcrumbs` + `ProductGallery` + `ProductHeader` + `ProductTabs` |
+
+### 5.4 Хлебные крошки — структура
+
+| Страница | Крошки |
+|----------|--------|
+| Просмотр по сериям | `🏠 Каталог` → `БКВ` → `Просмотр по сериям` |
+| Серия УРАЛ | `🏠 Каталог` → `БКВ` → `Просмотр по сериям` → `УРАЛ` |
+| Инженерный подбор | `🏠 Каталог` → `БКВ` → `Инженерный подбор` |
+| Быстрый подбор | `🏠 Каталог` → `БКВ` → `Быстрый подбор` |
+| Мастер подбора | `🏠 Каталог` → `БКВ` → `Мастер подбора` |
+| AI подбор | `🏠 Каталог` → `БКВ` → `AI подбор` |
+| Карточка товара | `🏠 Каталог` → `БКВ` → `{откуда пришли}` → `товар` |
+
+- `🏠` = `{ to: '/' }` → router.push (главная)
+- Средние крошки без `to` → `emit('navigate')` → `goToSection()`
+- `ProductDetail` пробрасывает `@navigate` наружу
+- `parentMode` прокидывается в `CatalogModelLine` и `CatalogDetail`
+
+### 5.5 useCatalog.js
 
 ```javascript
 const {
@@ -273,60 +340,60 @@ const {
 } = useCatalog(api, {
   fixedParams,
   filterScope: 'model_line',   // для страницы серии
+  mode: 'engineer',            // для инженерного подбора
   withSearch: true,
 })
 ```
 
 ---
 
-## Чек-лист
-
-- [ ] `catalog/filter_defs.py` — именованные `fd_*` + legacy-список
-- [ ] `catalog/config.py` — `MY_CONFIG` с тремя FilterSet (`list`, `model_line`, `quickselect`)
-- [ ] `model_line` FilterSet: без `model_line_id` и `brand_id`, `scoped=True`
-- [ ] `catalog/views_filters.py` — `catalog_config = MY_CONFIG`
-- [ ] `api.js`: `getFilters(params)` — принимает и передаёт params
-- [ ] CatalogList: `useCatalog(api, { withSearch:true })` — без filterScope
-- [ ] CatalogModelLine: `useCatalog(api, { fixedParams, filterScope:'model_line' })`
-- [ ] `SELECT_RELATED` покрывает все FK, включая `image_gallery`, `model_line__image_gallery`
-- [ ] `prefetch_related('image_gallery__items__image', 'model_line__image_gallery__items__image')`
-- [ ] `apply_filters_and_split` с serializer=`to_values_dict` (лёгкий)
-- [ ] Крошки трёхуровневые: Каталог / Оборудование / Страница
-- [ ] `url()` хранилища (Cloud.ru) **не делает HEAD-запросов** — только `_normalize()`
-- [ ] Удаление вызывает `MediaLibraryItem.delete()` → `file_service.delete_file()` для облака
-
----
-
-## Фильтр взрывозащиты (Exd) — 2026-06-02
-
-### FilterDefinition
+## 6. Exd-фильтр (взрывозащита)
 
 ```python
 fd_exd = FilterDefinition(
-    param_name='exd_id',
-    model_field='exd',
+    param_name='exd_id', model_field='exd',
     filter_type=FilterType.EXD_COMPATIBLE,
     data_source_type=DataSourceType.CUSTOM,
-    label='Взрывозащита',
-    order=10,
+    label='Взрывозащита', order=10,
 )
 ```
 
-### API
+API:
+- `GET /api/core/exd/structure/` — иерархия: methods, gas_groups, dust_groups, temp_classes
+- `GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id=` — совместимые ID
 
-| Эндпоинт | Назначение |
-|----------|-----------|
-| `GET /api/core/exd/structure/` | Иерархия: methods, gas_groups, dust_groups, temperature_classes |
-| `GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id=` | Совместимые ExdOption ID |
+Фронтенд: `ExdFilter.vue` — каскадный компонент. Рендерится в `FilterSidebar` при `filter_type === 'exd_compatible'`.
 
-### Sentinel'ы
+---
 
-| Значение `exd_id` | Фильтр | Описание |
-|-------------------|--------|----------|
-| `_none_` | `exd__isnull=True` | Общепромышленное (без Ex) |
-| `_empty_` | `exd__in=[]` | Ex-метод без совместимых → пустой результат |
-| `5,7,10` | `exd__in=[5,7,10]` | Конкретные совместимые ID |
+## 7. ClimateFilter (климатическое исполнение)
 
-### Фронтенд
+```python
+fd_climate = FilterDefinition(
+    param_name='climate', model_field='work_temp_min',
+    filter_type=FilterType.CLIMATE_CASCADE,
+    data_source_type=DataSourceType.CUSTOM,
+    label='Клим. исполнение',
+)
+```
 
-`ExdFilter.vue` — переиспользуемый каскадный компонент. `FilterSidebar.vue` рендерит его при `filter_type === 'exd_compatible'`. Селекты: Метод → Тип → Группа (газ/пыль) → Темп.класс (только газ). Первый пункт методов — «Общепромышленное».
+Фронтенд: `ClimateFilter.vue` — каскад (зона → размещение), `compact`-режим, парсинг «УХЛ4».
+
+---
+
+## 8. Чек-лист нового каталога
+
+- [ ] `catalog/filter_defs.py` — именованные `fd_*` + legacy-список
+- [ ] `catalog/config.py` — `MY_CONFIG` с FilterSet'ами (`list`, `engineer`, `model_line`, `quickselect`)
+- [ ] `model_line` FilterSet: без `model_line_id` и `brand_id`, `scoped=True`
+- [ ] `catalog/views_*.py` — все view с `permission_classes = catalog_permission_classes()`
+- [ ] `app/urls.py` — все 8 маршрутов (sections, catalog, detail, filters, engineer, engineer/filters, quickselect, meta)
+- [ ] `djangoProject1/urls.py` — `path('api/my-equipment/', include(...))`
+- [ ] `api.js`: `getFilters(params)` — принимает и передаёт params
+- [ ] `App.vue`: все 7 состояний страницы, `@wizard`/`@ai` → `goToSection()`
+- [ ] `labels`: `breadcrumbName` во всех секциях, `wizardTitle`/`aiTitle` для заглушек
+- [ ] `SELECT_RELATED` покрывает все FK, включая `image_gallery`, `model_line__image_gallery`
+- [ ] `prefetch_related('image_gallery__items__image', 'model_line__image_gallery__items__image')`
+- [ ] Крошки 3–4 уровневые с `parentMode`
+- [ ] `endpoints.js` — запись в `ENDPOINTS`
+- [ ] `vite.config.js` — входная точка мини-аппа в `rollupOptions.input`

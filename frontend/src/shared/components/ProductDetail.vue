@@ -1,10 +1,9 @@
 <!-- shared/components/ProductDetail.vue -->
-<!-- Оркестратор страницы товара. Компонует: JsonLd, Breadcrumbs, ProductGallery, ProductHeader, ProductTabs. -->
+<!-- Оркестратор страницы товара. Компонует: JsonLd, ProductGallery, ProductHeader, ProductTabs. -->
 <template>
   <div class="product-detail">
     <span class="debug-tag">ProductDetail</span>
     <JsonLd :schema="product.schema" />
-    <Breadcrumbs :items="breadcrumbs" />
 
     <div class="detail-layout">
       <div class="detail-gallery">
@@ -33,7 +32,6 @@
 <script setup>
 import { computed } from 'vue'
 import JsonLd from './JsonLd.vue'
-import Breadcrumbs from './Breadcrumbs.vue'
 import ProductGallery from './ProductGallery.vue'
 import ProductHeader from './ProductHeader.vue'
 import ProductTabs from './ProductTabs.vue'
@@ -46,14 +44,12 @@ const props = defineProps({
   breadcrumbs: { type: Array, default: () => [] },
 })
 
-// Вкладки: все секции кроме gallery
 const tabItems = computed(() =>
   (props.product.sections || [])
     .filter(s => s.type !== 'gallery')
     .sort((a, b) => (a.order || 99) - (b.order || 99))
 )
 
-// Галерея
 const galleryImages = computed(() => {
   const s = (props.product.sections || []).find(s => s.type === 'gallery')
   return s?.data || []

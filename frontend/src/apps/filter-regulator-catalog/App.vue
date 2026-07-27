@@ -1,7 +1,15 @@
 <!-- filter-regulator-catalog/App.vue -->
 <template>
   <div class="app">
-    <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @select="goToList" @quickselect="goToQuickSelect" @navigate="goToSection" />
+    <CatalogActions
+      :active="activeTab"
+      @section="goToSection"
+      @engineer="goToList"
+      @quickselect="goToQuickSelect"
+      @wizard="goToSection"
+      @ai="goToSection"
+    />
+    <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @navigate="goToSection" />
     <EngineerSelection v-else-if="page === 'list'" :api="api" :labels="labels.list" @select="onSelectItem" @navigate="goToSection" />
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" @close="page = 'list'" @navigate="goToSection" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" @select="onSelectItem" @navigate="goToSection" />
@@ -9,6 +17,8 @@
   </div>
 </template>
 <script setup>
+import { computed } from 'vue'
+import CatalogActions from '@/shared/components/catalog/CatalogActions.vue'
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
 import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue'
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
@@ -18,7 +28,7 @@ import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
 import frApi from './api'
 const api = frApi
 const labels = {
-  section: { title:'Фильтр-регуляторы', subtitle:'Выберите серию фильтр-регулятора', breadcrumbs:[{name:'Каталог'},{name:'Фильтр-регуляторы'}] },
+  section: { title:'Фильтр-регуляторы', subtitle:'Выберите серию фильтр-регулятора', breadcrumbName:'Фильтр-регуляторы' },
   list: { title:'Фильтр-регуляторы — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
   detail: { backLabel:'Назад к каталогу', breadcrumbName:'Фильтр-регуляторы' },
   brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Фильтр-регуляторы' },
@@ -31,6 +41,8 @@ const labels = {
   },
 }
 const { page, selectedId, idValue, goToList, goToBrand, onSelectItem } = useCatalogRouter(api, { idProp:'model_line_id' })
+const tabKeys = { section: 'section', brand: 'section', list: 'engineer', quickselect: 'quickselect' }
+const activeTab = computed(() => tabKeys[page.value] || 'section')
 function goToQuickSelect() { page.value = 'quickselect' }
 function goToSection() { page.value = 'section' }
 </script>

@@ -3,23 +3,21 @@
 <template>
   <div class="qs-page">
     <span class="debug-tag">QuickSelect</span>
-    <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <PageTitle :title="pageTitle" />
     <div class="chip-group" v-if="modelLines.length"><div class="chip-label">Серия</div><div class="chip-row"><button v-for="ml in modelLines" :key="ml.id" class="chip" :class="{active:selectedML===ml.id}" @click="selectSeries(ml.id)">{{ ml.name }}</button></div></div>
     <div v-if="filterGroups.length" class="filter-chips"><div v-for="group in filterGroups" :key="group.key" class="chip-group"><div class="chip-label">{{ group.label }}</div><div class="chip-row"><button v-for="opt in group.options" :key="opt.value||opt.id" class="chip" :class="{active:String(activeFilters[group.key])===String(opt.value??opt.id)}" @click="toggleFilter(group.key,opt.value??opt.id)">{{ opt.label||opt.name }}<span class="chip-count" v-if="opt.count!=null">({{ opt.count }})</span></button></div></div></div>
-    <div v-if="product" class="product-area"><ProductDetail :product="product" :price="product.price" :breadcrumbs="detailBreadcrumbs" /></div>
+    <div v-if="product" class="product-area"><ProductDetail :product="product" :price="product.price" :breadcrumbs="detailBreadcrumbs" @navigate="$emit('navigate', $event)" /></div>
     <div class="empty" v-else-if="loaded">Модель не найдена — измените фильтры</div>
     <Spinner v-else-if="!loaded && modelLines.length" />
   </div>
 </template>
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import ProductDetail from '@/shared/components/ProductDetail.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, brandId:{type:[Number,String],default:null}, filterLabels:{type:Object,default:()=>({})}, autoSelectRules:{type:Object,default:()=>({})} })
-defineEmits(['select'])
+defineEmits(['select','navigate'])
 const modelLines=ref([]); const selectedML=ref(null); const filterGroups=ref([]); const activeFilters=reactive({}); const product=ref(null); const loaded=ref(false)
 const pageTitle=computed(()=>props.labels.title||'Быстрый подбор')
 const eqLabel = computed(() => props.labels.breadcrumbName || 'Каталог')
@@ -29,7 +27,7 @@ const breadcrumbs=computed(()=>[
   { name: 'Быстрый подбор' },
 ])
 const detailBreadcrumbs=computed(()=>[
-  { name: 'Каталог' },
+  { name: 'Каталог', to: '/' },
   { name: eqLabel.value },
   { name: 'Быстрый подбор' },
   { name: product.value?.model_line?.name||'' },

@@ -4,7 +4,7 @@ GET /api/pneumatic-fittings/engineer/ — engineer selection with filters, searc
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from project_customers.permissions import SectionAccessPermission
+from core.access import catalog_permission_classes
 from django.utils import translation
 
 from pneumatic_fittings.catalog.config import PNEUMATIC_FITTINGS_CONFIG
@@ -13,8 +13,8 @@ from core.utils.catalog_helpers import get_currency_code
 
 
 class PneumaticFittingsEngineerView(APIView):
-    permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    permission_classes = catalog_permission_classes()
+    
     config = PNEUMATIC_FITTINGS_CONFIG
 
     def get(self, request):

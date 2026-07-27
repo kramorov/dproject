@@ -4,7 +4,7 @@ GET /api/solenoid-valves/engineer/ — engineer selection with filters, search, 
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from project_customers.permissions import SectionAccessPermission
+from core.access import catalog_permission_classes
 from django.utils import translation
 
 from solenoid_valves.catalog.config import SOLENOID_VALVES_CONFIG
@@ -13,8 +13,8 @@ from core.utils.catalog_helpers import get_currency_code
 
 
 class SolenoidValvesEngineerView(APIView):
-    permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    permission_classes = catalog_permission_classes()
+    
     config = SOLENOID_VALVES_CONFIG
 
     def get(self, request):

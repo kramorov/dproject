@@ -378,7 +378,19 @@ class AccessLimit(models.Model):
 | **3** | Роли | `Role` + миграция, замена `role` CharField → `roles` M2M |
 | **4** | User-level | `FavoriteBrand`, `section_permissions` M2M |
 | **5** | API-ключи | `CustomerApiKey` + `AccessPermission` (DRF) |
+| **0** | ~~Центр. модуль~~ | `core/access.py` — `catalog_permission_classes()` + `apply_catalog_visibility()`. Все 30+ views на едином permission class. Заглушка AllowAny. (2026-07-27) |
 | **6** | Фронтенд | Скрытие разделов по правам, управление пользователями, API-ключи |
+
+---
+
+## Реализация: `core/access.py` (2026-07-27)
+
+Централизованный модуль доступа для catalog API. Две функции:
+
+- **`catalog_permission_classes()`** — возвращает `[AllowAny]`. Заглушка. Все 30+ catalog views на едином permission class.
+- **`apply_catalog_visibility(request, queryset)`** — фильтрация queryset по правам. Заглушка. `CatalogConfig.apply_visibility_scope()` делегирует сюда.
+
+Файл: `core/access.py`. Подробнее: `CATALOG_PATTERN.md` §2.3.
 
 ---
 

@@ -2,23 +2,12 @@
   <div class="site">
     <Header />
     <main class="main">
-      <Breadcrumbs :items="breadcrumbs" />
       <router-view />
     </main>
-
   </div>
 </template>
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import Header from './components/header/Header.vue'
-import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
-const route = useRoute()
-const breadcrumbs = computed(() => {
-  const parts = [{ name: 'Главная', to: '/' }]
-  if (route.meta.title) parts.push({ name: route.meta.title })
-  return parts
-})
 </script>
 <style>
 :root {

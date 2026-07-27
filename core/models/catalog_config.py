@@ -65,8 +65,10 @@ class CatalogConfig:
         )
 
     Visibility scope:
-        Override apply_visibility_scope() to restrict queryset by partner
-        or site settings (allowed brands/series).
+        Delegates to core.access.apply_catalog_visibility() — the centralized
+        access control point for all catalog endpoints.
+        Currently: no restrictions (AllowAny stub).
+        Future: reads request.customer and applies brand/series filters.
     """
 
     # ── Models ──
@@ -90,22 +92,13 @@ class CatalogConfig:
         """
         Restrict queryset to allowed brands/series before user filters.
 
-        Default: no restrictions (all equipment visible).
-
-        TODO: Implement partner/site settings.
-              When CustomerSettings.catalog_scope is available, restrict by:
-                - allowed brand IDs
-                - allowed model_line IDs
-              Example:
-                partner = get_partner_from_request(request)
-                allowed = partner.settings.get('catalog_scope', {})
-                scope = allowed.get('gearbox', {})
-                if scope.get('brands'):
-                    queryset = queryset.filter(model_line__brand_id__in=scope['brands'])
-                if scope.get('series'):
-                    queryset = queryset.filter(model_line_id__in=scope['series'])
+        Delegates to core.access.apply_catalog_visibility().
+        Currently: no restrictions (AllowAny stub).
+        Future: reads request.customer and applies brand/series filters
+                per access.md §7.
         """
-        return queryset
+        from core.access import apply_catalog_visibility
+        return apply_catalog_visibility(request, queryset)
 
     def get_filter_set(self, scope: str) -> FilterSet:
         """Return the FilterSet for a given scope, or the 'list' default."""

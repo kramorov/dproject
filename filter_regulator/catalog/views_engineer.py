@@ -7,7 +7,7 @@ Uses FILTER_REGULATOR_CONFIG with scope='engineer'.
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from project_customers.permissions import SectionAccessPermission
+from core.access import catalog_permission_classes
 from django.utils import translation
 
 from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
@@ -16,8 +16,8 @@ from core.utils.catalog_helpers import get_currency_code
 
 
 class FilterRegulatorEngineerView(APIView):
-    permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    permission_classes = catalog_permission_classes()
+    
     config = FILTER_REGULATOR_CONFIG
 
     def get(self, request):

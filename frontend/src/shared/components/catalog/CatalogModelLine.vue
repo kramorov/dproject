@@ -3,7 +3,6 @@
 <template>
   <div class="catalog-model-line">
     <span class="debug-tag">CatalogModelLine</span>
-    <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <PageTitle :title="labels.title" :context="mlName" context-label="Серия" />
     <p class="page-count" v-if="total">{{ labels.countLabel || 'Товаров:' }} {{ total }}</p>
     <div class="content" v-if="!loading || items.length">
@@ -48,15 +47,23 @@ import FilterSidebar from '@/shared/components/FilterSidebar.vue'
 import ProductCard from '@/shared/components/ProductCard.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 import { useCatalog } from '@/shared/composables/useCatalog.js'
-const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, idProp:{type:String,default:'model_line_id'}, idValue:{type:[Number,String],default:null}, showFilters:{type:Boolean,default:true} })
+const props = defineProps({
+  api: { type: Object, required: true },
+  labels: { type: Object, default: () => ({}) },
+  idProp: { type: String, default: 'model_line_id' },
+  idValue: { type: [Number, String], default: null },
+  showFilters: { type: Boolean, default: true },
+  parentMode: { type: String, default: 'Просмотр по сериям' },
+})
 const emit = defineEmits(['select', 'navigate'])
 const mlName = ref('')
 const fixedParams = computed(() => props.idValue ? { [props.idProp]: props.idValue } : {})
 const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, filterScope:'model_line', withSearch:false, onData(items){ if(items.length&&!mlName.value) mlName.value=items[0]?.model_line?.name||'' } })
 const eqLabel = computed(() => props.labels.breadcrumbName || 'Каталог')
 const breadcrumbs = computed(() => [
-  { name: 'Каталог' },
+  { name: 'Каталог', to: '/' },
   { name: eqLabel.value },
+  { name: props.parentMode },
   { name: mlName.value || 'Серия' },
 ])
 watch(() => props.idValue, (newVal) => {
