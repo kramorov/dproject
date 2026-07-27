@@ -1,14 +1,10 @@
 # Catalog Pattern — архитектура и шаблон каталога оборудования
 
-> Обновлено 2026-07-27: breadcrumbs с режимами, CatalogActions-табы, parentMode, core/access.py, engineer AllowAny
-> Обновлено 2026-07-23: SectionAccessPermission → catalog_permission_classes(), новый HomePage
-> Обновлено 2026-06-10: PriceDocument/EAPriceDocument → shared DocumentJournal/DocumentCard
-
 ---
 
 ## 1. Концепция
 
-Каждый каталог оборудования (редукторы, фильтр-регуляторы, БКВ, клапаны, фитинги) строится по единому шаблону. Вся конфигурация — фильтры, scope, ORM-оптимизации, метки, права доступа — собрана в одном месте.
+Каждый каталог оборудования (редукторы, фильтр-регуляторы, БКВ, клапаны, фитинги) строится по единому шаблону. Вся конфигурация — фильтры, scope, ORM-оптимизации, метки, права доступа, шаблоны отображения — собрана в одном месте.
 
 ### Три слоя фильтрации
 
@@ -41,6 +37,8 @@ GET /api/gearbox/catalog/?ip_id=5&work_temp_min=-42&show_compatible=true
 | `FilterDefinition` | `core/models/filter_definition.py` | Одно поле фильтра: тип, источник, label |
 | `FilterSet` | `core/models/catalog_config.py` | Набор фильтров для страницы (+ scoped, show_compatible) |
 | `CatalogConfig` | `core/models/catalog_config.py` | Вся конфигурация: FilterSet'ы, ORM, метки, visibility |
+| `TemplateFillerMixin` | `core/models/mixins.py` | `generate_title()` / `generate_name()` — заполнение шаблонов |
+| `EquipmentType.title_template` | `core/models/equipment_type.py` | Админно-настраиваемый шаблон заголовка для типа оборудования |
 | `catalog_permission_classes()` | `core/access.py` | Централизованные права доступа для catalog API |
 | `apply_catalog_visibility()` | `core/access.py` | Централизованная фильтрация queryset по правам |
 | `SmartCatalogMixin` | `core/models/smart_catalog_mixin.py` | `apply_filters_and_split()` + `to_dict()` |
@@ -79,7 +77,7 @@ class CatalogConfig:
     model_class: type
     model_line_class: type
     filter_sets: Dict[str, FilterSet]  # 'list', 'engineer', 'model_line', 'quickselect'
-    select_related: List[str]
+    select_related: List[str]           # Включая 'model_line__equipment_type' для шаблонов
     prefetch_fields: List[str]
     search_fields: List[str]
     labels: Dict[str, str]
@@ -91,7 +89,7 @@ class CatalogConfig:
 
 ### 2.3 Access control (`core/access.py`)
 
-Централизованный модуль доступа для всех catalog API. Единая точка входа:
+Единая точка входа для всех catalog API:
 
 ```python
 from core.access import catalog_permission_classes, apply_catalog_visibility
@@ -105,9 +103,20 @@ class MyCatalogView(APIView):
         ...
 ```
 
-`CatalogConfig.apply_visibility_scope()` делегирует в `apply_catalog_visibility()`.
+`CatalogConfig.apply_visibility_scope()` делегирует в `apply_catalog_visibility()`. Будущее: фильтрация по `request.customer.visible_brands`, `CustomerApiKey.brand_filters`.
 
-Будущее (access.md §7): фильтрация по `request.customer.visible_brands`, `CustomerApiKey.brand_filters`, `CustomerAppAccess`.
+### 2.4 Шаблоны отображения (title_template)
+
+`TemplateFillerMixin` генерирует title через цепочку:
+
+```
+EquipmentType.title_template (админка) → _get_title_template_source() (код модели) → _get_default_title_template() ({model_code})
+```
+
+- **Админка**: Django Admin → Типы оборудования → поле «Шаблон заголовка»
+- **Пример для БКВ**: `{model_code} {points} датчика, {sensor_variety}; {ip}, В/з: {exd}; {work_temp_min}..{work_temp_max} °С, корпус: {body_material}`
+- **Плейсхолдеры**: из `_get_data_dict()` модели — `{model_code}`, `{brand}`, `{ip}`, `{exd}`, и т.д.
+- **Производительность**: `select_related('model_line__equipment_type')` в catalog config — без доп. запросов
 
 ---
 
@@ -172,7 +181,7 @@ MY_CONFIG = CatalogConfig(
         ),
     },
 
-    select_related=['model_line', 'model_line__brand', 'image_gallery', ...],
+    select_related=['model_line', 'model_line__brand', 'model_line__equipment_type', ...],
     prefetch_fields=['image_gallery__items__image', ...],
     search_fields=['code', 'name', 'description'],
 
@@ -278,10 +287,10 @@ export default {
 ```vue
 <template>
   <div class="app">
-    <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section"
-      @select-series="goToBrand" @select="goToList" @quickselect="goToQuickSelect"
-      @wizard="goToWizard" @ai="goToAi" @navigate="goToSection" />
-    <EngineerSelection v-else-if="page === 'list'" ... @navigate="goToSection" />
+    <Breadcrumbs :items="breadcrumbs" @navigate="goToSection" />   <!-- всегда видно -->
+    <CatalogActions :active="activeTab" @section="..." @engineer="..." ... />  <!-- всегда видно -->
+    <CatalogSection v-if="page === 'section'" ... />
+    <EngineerSelection v-else-if="page === 'list'" ... />
     <CatalogDetail v-else-if="page === 'detail'" :parent-mode="parentModeName" ... />
     <CatalogModelLine v-else-if="page === 'brand'" :parent-mode="parentModeName" ... />
     <QuickSelect v-else-if="page === 'quickselect'" ... />
@@ -289,41 +298,47 @@ export default {
     <AiPlaceholder v-else-if="page === 'ai'" ... />
   </div>
 </template>
+
+<style scoped>
+.app { max-width: 1200px; margin: 0 auto; }
+</style>
 ```
 
-Все 7 состояний страницы. `parentModeName` — computed, отслеживает текущий/предыдущий режим для хлебных крошек.
+7 состояний страницы. `Breadcrumbs` и `CatalogActions` — всегда видно. `parentModeName` отслеживает текущий/предыдущий режим.
 
 ### 5.3 Shared-компоненты каталога
 
 | Компонент | Назначение |
 |-----------|-----------|
-| `CatalogSection` | Сетка серий + `CatalogActions` (табы режимов) + `Breadcrumbs` |
-| `CatalogActions` | Табы-переключатели: Просмотр по сериям / Инженерный / Быстрый / Мастер / AI |
+| `CatalogSection` | Сетка серий (карточки: «Серия ИМЯ» + описание). Без табов и крошек |
+| `CatalogActions` | Табы: Просмотр по сериям / Инженерный / Быстрый / Мастер / AI |
 | `EngineerSelection` | Инженерный подбор с `EngineerFilterBar` + `EngineerProductCard` |
-| `CatalogModelLine` | Товары серии (fixedParams + exact/compatible split) |
+| `CatalogModelLine` | Товары серии (fixedParams + exact/compatible split). Пропс `parentMode` |
 | `QuickSelect` | Быстрый подбор (чипсы → карточка) |
-| `CatalogDetail` | Карточка товара через `ProductDetail` |
+| `CatalogDetail` | Карточка товара через `ProductDetail`. Пропс `parentMode` |
 | `WizardPlaceholder` | Заглушка «Мастер подбора» |
 | `AiPlaceholder` | Заглушка «AI подбор» |
-| `Breadcrumbs` | Хлебные крошки (3–4 уровня), `to`/`url`/`emit('navigate')` |
+| `Breadcrumbs` | Хлебные крошки (3–4 уровня), `to`/`emit('navigate')` |
 | `PageTitle` | Заголовок (title + subtitle + context-чип) |
-| `ProductDetail` | Оркестратор карточки: `Breadcrumbs` + `ProductGallery` + `ProductHeader` + `ProductTabs` |
+| `ProductDetail` | Оркестратор карточки: `JsonLd` + `ProductGallery` + `ProductHeader` + `ProductTabs` |
 
-### 5.4 Хлебные крошки — структура
+### 5.4 Хлебные крошки
+
+Рендерятся в `App.vue` над табами. Формат:
 
 | Страница | Крошки |
 |----------|--------|
-| Просмотр по сериям | `🏠 Каталог` → `БКВ` → `Просмотр по сериям` |
-| Серия УРАЛ | `🏠 Каталог` → `БКВ` → `Просмотр по сериям` → `УРАЛ` |
-| Инженерный подбор | `🏠 Каталог` → `БКВ` → `Инженерный подбор` |
-| Быстрый подбор | `🏠 Каталог` → `БКВ` → `Быстрый подбор` |
-| Мастер подбора | `🏠 Каталог` → `БКВ` → `Мастер подбора` |
-| AI подбор | `🏠 Каталог` → `БКВ` → `AI подбор` |
-| Карточка товара | `🏠 Каталог` → `БКВ` → `{откуда пришли}` → `товар` |
+| Просмотр по сериям | `🏠 Каталог` → `Оборудование` → `Просмотр по сериям` |
+| Серия УРАЛ | `🏠 Каталог` → `Оборудование` → `Просмотр по сериям` → `УРАЛ` |
+| Инженерный подбор | `🏠 Каталог` → `Оборудование` → `Инженерный подбор` |
+| Быстрый подбор | `🏠 Каталог` → `Оборудование` → `Быстрый подбор` |
+| Мастер подбора | `🏠 Каталог` → `Оборудование` → `Мастер подбора` |
+| AI подбор | `🏠 Каталог` → `Оборудование` → `AI подбор` |
+| Карточка товара | `🏠 Каталог` → `Оборудование` → `{режим}` → `товар` |
 
-- `🏠` = `{ to: '/' }` → router.push (главная)
-- Средние крошки без `to` → `emit('navigate')` → `goToSection()`
-- `ProductDetail` пробрасывает `@navigate` наружу
+- `🏠` = `{ to: '/' }` → router.push
+- Средние крошки → `emit('navigate')` → `goToSection()`
+- Имя серии/товара — через `pageSubtitle` ref + `@title-ready` из sub-компонента
 - `parentMode` прокидывается в `CatalogModelLine` и `CatalogDetail`
 
 ### 5.5 useCatalog.js
@@ -345,6 +360,14 @@ const {
 })
 ```
 
+### 5.6 useCatalogRouter.js
+
+```javascript
+const { page, selectedId, idValue, goToList, goToBrand } = useCatalogRouter(api, { idProp: 'model_line_id' })
+```
+
+Управляет состояниями страницы: section / list / brand / detail / quickselect.
+
 ---
 
 ## 6. Exd-фильтр (взрывозащита)
@@ -359,10 +382,10 @@ fd_exd = FilterDefinition(
 ```
 
 API:
-- `GET /api/core/exd/structure/` — иерархия: methods, gas_groups, dust_groups, temp_classes
+- `GET /api/core/exd/structure/` — иерархия
 - `GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id=` — совместимые ID
 
-Фронтенд: `ExdFilter.vue` — каскадный компонент. Рендерится в `FilterSidebar` при `filter_type === 'exd_compatible'`.
+Фронтенд: `ExdFilter.vue` — каскадный компонент, рендерится в `FilterSidebar`.
 
 ---
 
@@ -377,7 +400,7 @@ fd_climate = FilterDefinition(
 )
 ```
 
-Фронтенд: `ClimateFilter.vue` — каскад (зона → размещение), `compact`-режим, парсинг «УХЛ4».
+Фронтенд: `ClimateFilter.vue` — каскад (зона → размещение).
 
 ---
 
@@ -385,15 +408,24 @@ fd_climate = FilterDefinition(
 
 - [ ] `catalog/filter_defs.py` — именованные `fd_*` + legacy-список
 - [ ] `catalog/config.py` — `MY_CONFIG` с FilterSet'ами (`list`, `engineer`, `model_line`, `quickselect`)
-- [ ] `model_line` FilterSet: без `model_line_id` и `brand_id`, `scoped=True`
+- [ ] `select_related` включает `'model_line__equipment_type'` (для шаблонов)
 - [ ] `catalog/views_*.py` — все view с `permission_classes = catalog_permission_classes()`
-- [ ] `app/urls.py` — все 8 маршрутов (sections, catalog, detail, filters, engineer, engineer/filters, quickselect, meta)
+- [ ] `app/urls.py` — все 8 маршрутов
 - [ ] `djangoProject1/urls.py` — `path('api/my-equipment/', include(...))`
 - [ ] `api.js`: `getFilters(params)` — принимает и передаёт params
-- [ ] `App.vue`: все 7 состояний страницы, `@wizard`/`@ai` → `goToSection()`
+- [ ] `App.vue`: `Breadcrumbs` + `CatalogActions` всегда видны, 7 состояний, `@section/@engineer/...`
 - [ ] `labels`: `breadcrumbName` во всех секциях, `wizardTitle`/`aiTitle` для заглушек
-- [ ] `SELECT_RELATED` покрывает все FK, включая `image_gallery`, `model_line__image_gallery`
-- [ ] `prefetch_related('image_gallery__items__image', 'model_line__image_gallery__items__image')`
-- [ ] Крошки 3–4 уровневые с `parentMode`
+- [ ] Крошки 3–4 уровневые с `parentMode` и `pageSubtitle`
 - [ ] `endpoints.js` — запись в `ENDPOINTS`
 - [ ] `vite.config.js` — входная точка мини-аппа в `rollupOptions.input`
+- [ ] `EquipmentType` в админке: заполнить `title_template` при необходимости
+
+---
+
+## 9. Планы на будущее
+
+- **Фильтрация по брендам/сериям** (`core/access.py`): включить `apply_catalog_visibility()` когда появятся `customer.visible_brands`
+- **Мастер подбора**: wizard пошаговой сборки конфигурации (арматура + привод + БКВ + монтажный комплект)
+- **AI подбор**: интеграция с `ai_assistant` — описание задачи на естественном языке → подобранное оборудование
+- **Мини-аппы для партнёров**: WordPress-плагин с API-ключами (см. `access.md`)
+- **Кэширование фильтров**: scoped filter options делают N+1 запросов — требуется кэш на уровне `CatalogConfig`

@@ -2,7 +2,7 @@
 <!-- DEBUG: CatalogList -->
 <template>
   <div class="catalog-list">
-    <span class="debug-tag">CatalogList</span>
+    <span class="debug-tag" v-if="debug">CatalogList</span>
     <Breadcrumbs :items="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <PageTitle :title="labels.title" />
     <div class="search-bar" v-if="withSearch"><input v-model="search" :placeholder="labels.searchPlaceholder||'Поиск...'" @input="onSearchInput" /></div>
@@ -43,6 +43,7 @@
 </template>
 <script setup>
 import { computed, onMounted } from 'vue'
+import { debug } from '@/shared/config'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import FilterSidebar from '@/shared/components/FilterSidebar.vue'

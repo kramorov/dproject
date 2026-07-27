@@ -42,6 +42,19 @@ class EquipmentType(BaseAbstractModel):
         validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
 
+    # ── Шаблон заголовка ──
+    title_template = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Шаблон заголовка"),
+        help_text=_(
+            "Шаблон для generate_title(). Плейсхолдеры: {model_code}, {brand}, "
+            "{sensor_variety}, {ip}, {exd}, {work_temp_min}, {work_temp_max}, "
+            "{body_material}, {points}, {weight}, и др. из _get_data_dict(). "
+            "Оставьте пустым — используется дефолтный шаблон из кода модели."
+        )
+    )
+
     # ── AI Assistant: семантика параметров для фазы сравнения ──────────
     param_semantics = models.JSONField(
         null=True,
@@ -81,9 +94,7 @@ class EquipmentType(BaseAbstractModel):
         """Получить ID всех потомков (включая вложенные)"""
         from django.db import connection
 
-        # Способ 1: Рекурсивный SQL запрос (если база поддерживает)
         if connection.vendor == 'postgresql':
-            from django.db import connection
             with connection.cursor() as cursor:
                 cursor.execute("""
                     WITH RECURSIVE descendants AS (
@@ -99,7 +110,6 @@ class EquipmentType(BaseAbstractModel):
                 """, [self.id, self.id])
                 return [row[0] for row in cursor.fetchall()]
 
-        # Способ 2: Рекурсивный Python (универсальный, но медленнее для больших деревьев)
         def get_children_ids(parent_id):
             children = EquipmentType.objects.filter(parent_id=parent_id).values_list('id', flat=True)
             result = list(children)
@@ -110,16 +120,13 @@ class EquipmentType(BaseAbstractModel):
         return get_children_ids(self.id)
 
     def get_descendants(self):
-        """Получить всех потомков (включая вложенные)"""
         ids = self.get_descendants_ids()
         return EquipmentType.objects.filter(id__in=ids) if ids else EquipmentType.objects.none()
 
     def get_all_children_ids(self):
-        """Алиас для совместимости (если где-то используется это название)"""
         return self.get_descendants_ids()
 
     def save(self, *args, **kwargs):
-        """Автоматически вычисляем уровень при сохранении"""
         if self.parent:
             self.level = self.parent.level + 1
         else:
@@ -127,7 +134,6 @@ class EquipmentType(BaseAbstractModel):
         super().save(*args, **kwargs)
 
     def get_full_path(self):
-        """Получить полный путь в иерархии"""
         path = []
         current = self
         while current:
@@ -136,7 +142,6 @@ class EquipmentType(BaseAbstractModel):
         return " → ".join(path)
 
     def get_children_count(self):
-        """Количество дочерних элементов"""
         return self.children.count()
 
     # ==================== StructuredDataMixin методы ====================

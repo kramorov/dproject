@@ -71,7 +71,7 @@ SOLENOID_VALVES_CONFIG = CatalogConfig(
 
     select_related=[
         'model_line',
-        'model_line__brand',
+        'model_line__brand', 'model_line__equipment_type',
         'model_line__construction',
         'model_line__operation',
         'model_line__working_medium',

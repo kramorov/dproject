@@ -62,7 +62,6 @@ const emit = defineEmits(['change', 'reset', 'toggleCompatible'])
 
 const active = reactive({})
 
-// Синхронизация внешнего состояния с внутренним
 watch(() => props.filters, (val) => {
   for (const [k, v] of Object.entries(val)) {
     active[k] = v

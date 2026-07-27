@@ -1,10 +1,4 @@
 # Frontend — структура проекта
-> Обновлено 2026-07-27: AI Assistant — PipelineConfigPage, классификатор интентов
-> Обновлено 2026-07-24: PaSelectionPage — каскад safety_position по variety, debounce поиска, modelLineItems
-> Обновлено 2026-07-23: новый HomePage (WebP-картинки), TopMenu (Каталоги/Арматура/Решения), админка клиентов, SectionAccessPermission
-> Обновлено 2026-06-10: price-catalog → DocumentJournal/DocumentCard, EA configurator
-> Обновлено 2026-06-09: типовые компоненты документов, тема admin.css
-> Обновлено 2026-06-08: конструктор пневмоприводов, двухпанельный layout
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
@@ -12,214 +6,137 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 
 | Путь | Назначение |
 |------|-----------|
-| `shared/config.js` | API_URL, API_PREFIX |
+| `shared/config.js` | API_URL, API_PREFIX, флаг `debug` (теги компонентов) |
 | `shared/api.js` | Axios-инстанс (CSRF, withCredentials, перехватчик ошибок) |
 | `shared/endpoints.js` | Единый источник URL API для каталогов |
 | `shared/components/AppButton.vue` | Кнопка (primary/secondary/ghost/danger, disabled) |
+| `shared/components/Breadcrumbs.vue` | Хлебные крошки (to/router.push + emit navigate) |
+| `shared/components/PageTitle.vue` | Заголовок страницы (title + subtitle + context-чип) |
 | `shared/components/ProductCard.vue` | Карточка товара с картинкой и ценой |
 | `shared/components/ProductGallery.vue` | Галерея изображений с лайтбоксом |
-| `shared/components/ProductDetail.vue` | Детальная карточка (секции specs/docs/certs) |
-| `shared/components/FilterSidebar.vue` | Боковая панель фильтров + чекбокс «Показывать совместимые» |
-| `shared/components/Breadcrumbs.vue` | Хлебные крошки |
-| `shared/components/Spinner.vue` | Индикатор загрузки |
-| `shared/components/PageTitle.vue` | Заголовок страницы (title + context-чип) |
-| `shared/components/catalog/CatalogActions.vue` | Кнопки «Инженерный/Быстрый подбор» |
-| `shared/components/MediaViewer.vue` | Просмотрщик медиафайлов (изображения/PDF) |
-| `shared/components/ImageCropper.vue` | Интерактивная обрезка: drag/зум, фон/rembg, профили |
-| `shared/components/ExdFilter.vue` | Каскадный фильтр взрывозащиты (метод→тип→группа→темп.класс) |
-| `shared/components/ClimateFilter.vue` | Каскадный фильтр климатического исполнения (зона→размещение→t°) |
-| `shared/components/M2MDualList.vue` | M2M-селектор filter_horizontal (две панели + поиск) |
-| `shared/components/JsonFieldsEditor.vue` | Редактор JSON extra_params (таблица + raw JSON) |
-| `shared/components/MediaUploadModal.vue` | Модалка загрузки файла в медиатеку |
-| `apps/media-library/components/SchematicUploadModal.vue` | Модалка «Загрузить схему подключения» (автозаполнение + выделение кода) |
-| `shared/components/BasePicker.vue` | Модальный подбор (fetchFn, filterDefs, columns) |
-| `shared/components/ChipList.vue` | Таблица code+name с чекбоксами и batch-удалением |
-| `shared/components/FkSelect.vue` | Выбор ForeignKey с поиском |
-| `shared/components/M2MSelect.vue` | Выбор ManyToMany с чипсами |
-| `shared/components/catalog/CatalogSection.vue` | Сетка серий + CatalogActions |
-| `shared/components/catalog/CatalogList.vue` | Инженерный подбор (фильтры + поиск + exact/compatible секции) |
-| `shared/components/catalog/CatalogModelLine.vue` | Товары серии (fixedParams + context + exact/compatible секции) |
-| `shared/components/catalog/CatalogDetail.vue` | Карточка товара |
-| `shared/components/catalog/QuickSelect.vue` | Быстрый подбор (чипсы → карточка) |
-| | ⚠️ Требует `filterLabels` в `labels.quickselect` — иначе показывает сырые ключи |
-| `shared/composables/useCatalog.js` | Логика каталогов: fetchData, пагинация, фильтры, exact/compatible split |
-| `shared/composables/useCatalogRouter.js` | Навигация App.vue каталогов |
-| `shared/components/documents/DocumentJournal.vue` | Журнал документов: фильтры, таблица, чекбоксы, batch-операции |
-| `shared/components/documents/DocumentCard.vue` | Карточка документа: реквизиты, слот #items, кнопки действий |
-| `shared/components/documents/DocumentItemsTable.vue` | Табличная часть: ▲▼✕, слоты #headers/#cells, «Добавить строку» |
-| `shared/composables/useDocumentJournal.js` | Логика журнала: список, сортировка, пагинация, batch |
-| `shared/composables/useDocumentCard.js` | Логика карточки: CRUD, register/unregister, print/export/import |
-| `shared/composables/useDocumentItems.js` | Логика строк: reorder с сохранением порядка на сервер |
-| `shared/themes/admin.css` | Тема 1С:Предприятие 11 (Tahoma, компактная) — подключать ПОВЕРХ default.css |
+| `shared/components/ProductDetail.vue` | Детальная карточка (JsonLd + Gallery + Header + Tabs) |
+| `shared/components/FilterSidebar.vue` | Сайдбар фильтров (select / ExdFilter / ClimateFilter / совместимые) |
 
-### `useCatalog.js` — поля и методы
-
-```javascript
-const {
-  // State
-  items,                // точные совпадения (или все, если split выключен)
-  compatibleData,       // совместимые (только при showCompatible=true)
-  total,                // общее количество до пагинации
-  exactTotal,           // exact_count на текущей странице
-  compatibleTotal,      // compatible_count на текущей странице
-  splitFilter,          // по какому фильтру разделение
-  loading, limit, offset,
-
-  // Filters
-  filterData,           // reactive: { param_name: { label, order, options } }
-  filtersLoaded,
-  showCompatibleAvailable,  // true если бэкенд поддерживает split
-  showCompatible,       // состояние чекбокса
-  activeFilters,        // { param_name: selectedValue }
-  search,
-
-  // Actions
-  loadFilters(),        // GET /filters/?scope=...
-  fetchData(),          // GET /catalog/ с фильтрами
-  onFilterChange(key, value),
-  toggleCompatible(val), // включить/выключить split
-  resetFilters(),
-  onSearchInput(),
-  goPage(n),
-} = useCatalog(api, {
-  fixedParams,          // { model_line_id: 10 }
-  filterScope: 'model_line',  // ?scope=model_line для страницы серии
-  withSearch: true,
-})
-```
-
-### ExdFilter — каскадный фильтр взрывозащиты (2026-06-02, обновлён 2026-06-03)
-
-Редизайн 2026-06-03:
-- Селекты показывают коды (`Ex d`, `db`) вместо полных названий
-- Все селекты в одну строку, компактные размеры
-- Поле «Описание» всегда видно с динамической расшифровкой
-- Пропсы `compact` (для EngineerFilterBar) и `single` (для RequirementForm)
-- Текстовое поле: ввод `Ex db IIC T4` → автозаполнение каскада через `POST /api/core/exd/parse/`
-- Группы фильтруются по категории типа (GAS/DUST)
-- Стиль `.filter-group-border` в `shared/themes/default.css`
-
-Исходная версия (2026-06-02):
-
-Переиспользуемый компонент для всех каталогов. Заменяет плоский `<select>` для фильтров типа `exd_compatible`.
-
-- **API**: `GET /api/core/exd/structure/` → иерархия (методы, типы, группы газ/пыль, темп.классы)
-- **API**: `GET /api/core/exd/compatible/?method_id=&type_id=&group_id=&temp_id=` → совместимые ExdOption ID
-- **Селекты**: Метод → Тип → Группа (газ/пыль раздельно) → Темп.класс (только для газа)
-- **«Общепромышленное»**: `methodId=0` — первый пункт в селекте методов, ищет модели без Ex
-- **Sentinel'ы**: `_none_` (без Ex) и `_empty_` (нет совместимых) — передаются в `exd_id` как строка
-- **Эмит**: `update:modelValue` — массив ID или `['_none_']`/`['_empty_']` → `FilterSidebar` отправляет в API
-- Интегрирован в `FilterSidebar.vue` — определяется по `filter_type === 'exd_compatible'`
-
-### FilterSidebar — «Показывать совместимые»
-
-Чекбокс виден когда `showCompatibleAvailable=true` (бэкенд вернул `show_compatible: true` в ответе `/filters/`).
-При включении отправляет `show_compatible=true` → бэкенд разделяет ответ на `data` (exact) и `compatible_data`.
-
-### ⚠️ api.js: getFilters ДОЛЖЕН принимать params
-
-```javascript
-// Правильно:
-getFilters(params) { return api.get(E.filters, { params }) }
-
-// Неправильно (params игнорируются → scope не доходит до бэкенда):
-getFilters() { return api.get(E.filters) }
-```
-
-## `src/apps/` — мини-приложения
-
-### Каталоги (для виджета)
-| Приложение | API |
-|-----------|-----|
-| `gearbox-catalog/` | /api/gearbox/ |
-| `filter-regulator-catalog/` | /api/filter-regulator/ |
-| `limit-switch-catalog/` | /api/pa-controls/ |
-
-Все каталоги используют Generic-компоненты из shared/components/catalog/.
-App.vue параметризуется через `labels` + `api`.
-
-### Админка
-| Приложение | API | Страница SPA |
-|-----------|-----|-------------|
-| `media-library/` | /api/media/, /api/core/ | /admin/media |
-| `cert-docs/` | /api/admin/certs/ | /admin/cert-docs |
-| `price-catalog/` | /api/admin/prices/ | /admin/price |
-| `sku-admin/` | /api/admin/sku/ | /admin/sku |
-| `limit-switch-admin/` | /api/core/ + /api/pa-controls/ | /admin/limit-switch |
-| `ea-model-admin/` | /api/electric_actuators/admin/items/ + /wirings/ | /admin/ea-models |
-| `ea-wiring-admin/` | /api/electric_actuators/admin/wirings/ (CRUD) | /admin/ea-wirings |
-
-### Виджет
-| Приложение | Назначение |
-|-----------|-----------|
-| `widget/` | Клиентский hash-роутер для встраивания на сайты партнёров |
-
-## `src/pages/` — страницы SPA
-
-| Путь | Маршрут | Назначение |
-|------|---------|-----------|
-| `pages/HomePage.vue` | / | Главная |
-| `pages/catalog/GearboxPage.vue` | /catalog/gearbox | Ручные дублёры |
-| `pages/catalog/FilterRegulatorPage.vue` | /catalog/filter-regulator | Фильтр-регуляторы |
-| `pages/catalog/LimitSwitchPage.vue` | /catalog/limit-switch | Блоки концевых выключателей |
-| `pages/catalog/SolenoidValvesPage.vue` | /catalog/solenoid-valves | Распределительные клапаны |
-| `pages/catalog/PneumaticFittingsPage.vue` | /catalog/pneumatic-fittings | Пневматические фитинги |
-| `pages/auth/LoginMainPage.vue` | /login | Вход |
-| `pages/auth/RegisterMainPage.vue` | /register | Регистрация (заглушка) |
-| `pages/admin/MediaPage.vue` | /admin/media | Медиабиблиотека |
-| `pages/admin/CertDocsPage.vue` | /admin/cert-docs | Сертификаты |
-| `pages/admin/PriceCatalogPage.vue` | /admin/price | Цены |
-| `pages/admin/SkuAdminPage.vue` | /admin/sku | Номенклатура |
-| `pages/admin/WidgetsPage.vue` | /widgets | Виджеты |
-| `pages/ImageProcessorTest.vue` | /tools/image-processor | Тест обработки изображений и PDF (профили) |
-| `pages/SvgConverterTest.vue` | /tools/svg-converter | 🔧 Конвертер растров и PDF в SVG (вектор) — vtracer + PyMuPDF |
-| `pages/admin/EaModelAdminPage.vue` | /admin/ea-models | Админка моделей ЭП (каскад, карточки напряжений) |
-| `pages/admin/EaWiringAdminPage.vue` | /admin/ea-wirings | CRUD схем подключения БУ |
-
-### EngineerSelection — инженерный подбор (2026-06-03, обновлён 2026-06-04)
-- 2026-06-04: EngineerFilterBar — две строки, default_value в FilterDefinition, code+name в селектах
-- ClimateFilter — компактный вид, t мин/макс в строке с зоной/размещением
-
-Выделенный компонент, независимый от `CatalogList`:
+## `src/shared/components/catalog/` — компоненты каталогов
 
 | Компонент | Назначение |
 |-----------|-----------|
-| `catalog/EngineerSelection.vue` | Страница инженерного подбора (фильтры сверху, карточки списком) |
-| `catalog/EngineerProductCard.vue` | Горизонтальная карточка (изображение 100px + спеки + цена) |
-| `catalog/EngineerFilterBar.vue` | Горизонтальная панель фильтров (селекты в строку) |
+| `CatalogActions.vue` | Табы-переключатели режимов: Просмотр по сериям / Инженерный / Быстрый / Мастер / AI. Пропс `active` |
+| `CatalogSection.vue` | Сетка серий (карточки: «Серия ИМЯ» + описание). Только `selectSeries`, `navigate` |
+| `CatalogModelLine.vue` | Товары серии (fixedParams + exact/compatible split). Пропс `parentMode` |
+| `CatalogDetail.vue` | Карточка товара через `ProductDetail`. Пропс `parentMode` |
+| `CatalogList.vue` | Инженерный подбор с `FilterSidebar` + `ProductCard` |
+| `EngineerSelection.vue` | Инженерный подбор с `EngineerFilterBar` + `EngineerProductCard` |
+| `QuickSelect.vue` | Быстрый подбор (чипсы → карточка). Пропс `filterLabels` |
+| `WizardPlaceholder.vue` | Заглушка «Мастер подбора» (Breadcrumbs + PageTitle + текст) |
+| `AiPlaceholder.vue` | Заглушка «AI подбор» |
+| `CatalogBrand.vue` | Товары бренда (не используется в новых каталогах) |
+| `EngineerFilterBar.vue` | Горизонтальная панель фильтров для `EngineerSelection` |
+| `EngineerProductCard.vue` | Горизонтальная карточка товара для `EngineerSelection` |
 
-### ExdFilter — каскадный фильтр взрывозащиты (редизайн 2026-06-03, обновлён 2026-06-04)
-- 2026-06-04: убран пропс compact, неактивные селекты disabled, заголовок на рамке, max-height описания
-- Селекты: метод (`Ex d`), тип (`db`), группа, T-класс — коды без расшифровок
+### Архитектура каталога (2026-07-27)
 
-- Селекты: метод (`Ex d`), тип (`db`), группа, T-класс — коды без расшифровок
-- Все в одну строку, поле «Описание» всегда видно
-- Пропс `compact` — для горизонтального фильтр-бара, `single` — для формы требований
-- Текстовое поле парсинга: `Ex db IIC T4` → автозаполнение каскада
-- Группы фильтруются по категории типа (GAS/DUST)
-- Стиль `.filter-group-border` в `default.css`
+Каждый каталог — SPA внутри `App.vue`. Управляется через `useCatalogRouter`:
 
-### ClimateFilter — каскадный фильтр климатического исполнения (2026-06-03)
+```
+App.vue
+├── <Breadcrumbs />          ← всегда видно, computed из page + parentMode
+├── <CatalogActions />       ← всегда видно, табы режимов
+├── <CatalogSection />       ← v-if="page === 'section'"
+├── <EngineerSelection />    ← v-else-if="page === 'list'"
+├── <CatalogModelLine />     ← v-else-if="page === 'brand'"
+├── <CatalogDetail />        ← v-else-if="page === 'detail'"
+├── <QuickSelect />          ← v-else-if="page === 'quickselect'"
+├── <WizardPlaceholder />    ← v-else-if="page === 'wizard'"
+└── <AiPlaceholder />        ← v-else-if="page === 'ai'"
+```
+
+7 состояний страницы. `parentModeName` отслеживает текущий/предыдущий режим.
+
+### Хлебные крошки
+
+Вынесены в `App.vue` (единый `<Breadcrumbs>` над табами). Формат:
+
+| Страница | Крошки |
+|----------|--------|
+| Просмотр по сериям | `🏠 Каталог` → `Оборудование` → `Просмотр по сериям` |
+| Инженерный подбор | `🏠 Каталог` → `Оборудование` → `Инженерный подбор` |
+| Серия УРАЛ | `🏠 Каталог` → `Оборудование` → `Просмотр по сериям` → `УРАЛ` |
+| Карточка товара | `🏠 Каталог` → `Оборудование` → `{режим}` → `товар` |
+
+`🏠` = `{ to: '/' }` → router.push. Средние крошки → `emit('navigate')` → `goToSection()`.
+
+### Ширина страниц
+
+Все страницы каталога: `max-width: 1200px; margin: 0 auto` (единообразно, без дёрганья при переключении).
+
+### Debug-теги
+
+`<span class="debug-tag">ComponentName</span>` — видны только при `debug=true` в `shared/config.js`. Флаг выставляется в корневом `App.vue` через `setDebug(import.meta.env.DEV)`. Мини-аппы не импортируют `App.vue` → `debug=false` → теги скрыты.
+
+### `parentMode`
+
+Пропс в `CatalogModelLine` и `CatalogDetail` — имя родительского режима для хлебных крошек. По умолчанию `'Просмотр по сериям'`.
+
+## `src/apps/` — мини-приложения (каталоги)
+
+Каждый каталог — отдельная точка входа в `vite.config.js → rollupOptions.input`:
+
+| Приложение | Путь | Назначение |
+|-----------|------|-----------|
+| `limit-switch-catalog` | `apps/limit-switch-catalog/` | Каталог БКВ |
+| `gearbox-catalog` | `apps/gearbox-catalog/` | Каталог редукторов |
+| `filter-regulator-catalog` | `apps/filter-regulator-catalog/` | Каталог фильтр-регуляторов |
+| `solenoid-valves-catalog` | `apps/solenoid-valves-catalog/` | Каталог клапанов |
+| `pneumatic-fittings-catalog` | `apps/pneumatic-fittings-catalog/` | Каталог фитингов |
+| `price-catalog` | `apps/price-catalog/` | Цены и документы |
+| `media-library` | `apps/media-library/` | Медиабиблиотека |
+| `pa-constructor` | `apps/pa-constructor/` | Конструктор пневмоприводов |
+| `ea-constructor` | `apps/ea-constructor/` | Конструктор электроприводов |
+| `limit-switch-admin` | `apps/limit-switch-admin/` | Админка БКВ |
+| `widget` | `apps/widget/` | Виджет для партнёров |
+
+Структура каждого каталога:
+```
+apps/xxx-catalog/
+├── index.html    ← точка входа Vite
+├── main.js       ← createApp + import default.css
+├── App.vue       ← роутер страниц + Breadcrumbs + CatalogActions
+└── api.js        ← API-клиент → shared/endpoints.js
+```
+
+---
+
+## `src/pages/` — страницы SPA (роутер)
+
+### Каталоги
+
+| Файл | Маршрут |
+|------|---------|
+| `pages/catalog/LimitSwitchPage.vue` | `/catalog/limit-switch` |
+| `pages/catalog/GearboxPage.vue` | `/catalog/gearbox` |
+| `pages/catalog/FilterRegulatorPage.vue` | `/catalog/filter-regulator` |
+| `pages/catalog/SolenoidValvesPage.vue` | `/catalog/solenoid-valves` |
+| `pages/catalog/PneumaticFittingsPage.vue` | `/catalog/pneumatic-fittings` |
+
+Каждая — тонкая обёртка над мини-приложением: `<LimitSwitchCatalogApp />`.
+
+## Shared-компоненты UI (общие)
+
+- `PageTitle` — заголовок страницы (title + subtitle + context-чип)
+- `Breadcrumbs` — все непоследние крошки кликабельны (to/router.push или emit navigate)
+- `FilterSidebar` — сайдбар фильтров + чекбокс «Показывать совместимые», 1 опция → `<span>`
+- `ProductCard` — карточка товара
+- `ProductDetail` — оркестратор карточки (JsonLd + Gallery + Header + Tabs)
+- `ProductGallery` — галерея с лайтбоксом
+- `ExdFilter` — каскадный фильтр взрывозащиты
+- `ClimateFilter` — каскадный фильтр климатического исполнения
+
+### ClimateFilter — каскадный фильтр климатического исполнения
 
 - Селекты: климатическая зона (У, ХЛ, УХЛ…) + категория размещения (1–5)
-- Все в одну строку, поле «Описание» с расшифровкой и рабочими/предельными t°
 - Пропс `compact` — для горизонтального фильтр-бара
 - Текстовое поле парсинга: `УХЛ4` → автозаполнение через `POST /api/core/climate/parse/`
-- Стили: переиспользует CSS-классы ExdFilter (`.exd-filter`, `.exd-row`, `.exd-description-text`)
-- API: `GET /api/core/climate/structure/` — зоны, размещения, условия с температурами
-- Эмит: `update:temps` → `{zone_id, placement_id, min_temp, max_temp, designation}`
-- Интегрирован в `FilterSidebar`, `EngineerFilterBar` (через `filter_type='climate_cascade'`) и `RequirementForm`
-- **`BaseRequirement.climatic_designation`** — хранит исходную строку («УХЛ4») в модели требований
-
-### RequirementForm — форма требований (2026-06-03)
-
-- Динамическая форма: загружает схему через `GET /api/client_requests/requirements/schema/`
-- Для `exd_protection` — каскадный `ExdFilter` в режиме `single`
-- `POST /api/client_requests/requirements/preview/` → `filter_params`
-- **«Не указано»**: селекты показывают `Не указано` вместо `—` (FK-поля) — если поле не выбрано, фильтр не применяется
-- **Defaults**: `schema.defaults` из API применяется при загрузке (`loadSchema`) и сбросе (`resetForm`)
-  - Для БКВ: `points=2`, остальное `null`
-  - Для редуктора и фильтр-регулятора: всё `null`
 
 ## `src/components/` — общие компоненты SPA
 
@@ -229,64 +146,24 @@ App.vue параметризуется через `labels` + `api`.
 | `components/header/TopMenu.vue` | Верхнее меню (ролевая модель: admin/user) |
 | `components/header/useAuth.js` | Composable: /auth/me/, роль, загрузка |
 
-
 ## AI Assistant (`src/pages/`)
 
 | Файл | Назначение |
 |------|-----------|
-| `pages/AiDebugPage.vue` | Отладка decompose: ввод запроса, просмотр дерева, prompt_id |
+| `pages/AiDebugPage.vue` | Отладка decompose |
 | `pages/AiAssistantPage.vue` | Пользовательский интерфейс AI-подбора |
-| `pages/admin/PipelineConfigPage.vue` | Конфигуратор pipeline: 5 вкладок (Skills, Overrides, Prompts, Schemas, Equipment Types), CRUD, модалки для JSON/текста |
-| `components/TreeNodeDisplay.vue` | Компонент отображения узла дерева подбора |
+| `pages/admin/PipelineConfigPage.vue` | Конфигуратор pipeline: 5 вкладок, CRUD |
 
 Роуты: `/ai-assistant`, `/ai-debug`, `/admin/pipeline-config`.
-Меню: Администрирование → AI → Настройка AI Pipeline.
+
 ## `src/router/index.js`
 
-Все маршруты. Роли: `meta.role = 'admin'` для страниц администрирования.
-`beforeEach` — проверка роли через `/api/auth/me/`.
-
-## `src/services/`
-
-| Путь | Назначение |
-|------|-----------|
-| `services/api.js` | Axios-инстанс + доменные API |
-| `services/axios.js` | Плагин axios для Options API |
+Все маршруты. `meta.role = 'admin'` для администрирования. `beforeEach` — проверка `/api/auth/me/`.
 
 ## Конструктор пневмоприводов (`src/apps/actuator-constructor/`)
 
-Пошаговый wizard сборки конфигурации привода. Двухпанельный layout.
+Пошаговый wizard. Подробнее: `actuator_constructor_pattern.md`.
 
-| Файл | Назначение |
-|---|---|
-| `App.vue` | Главный компонент: левая панель (список + фильтры), правая (форма) |
-| `api.js` | API-клиент: CRUD, preview, options, modelLines, modelLineItems |
-| `main.js` | Монтирование Vue |
-| `index.html` | Точка входа |
+## Медиафайлы
 
-### Поток работы
-1. Выбор серии → DA/SR → модель (каскад)
-2. Опции загружаются через `GET /options/?model_line_item_id=X`
-3. Дефолты авто-выбраны, единственная опция = disabled
-4. Live preview через `watch` + `POST /preview/` (debounce 300ms)
-5. Кнопка «📄 Просмотр» → модалка с полным техописанием (HTML-таблица)
-6. Сохранение всегда POST (новая запись), дубликаты не создаются
-
-### Интеграция
-- **Router**: `/admin/actuator-constructor` → `ActuatorConstructorPage.vue` (wrapper)
-- **Menu**: «🔧 Конструктор приводов» в администрировании
-- **Endpoints**: `actuatorConstructor` в `shared/endpoints.js`
-
-Подробнее: `actuator_constructor_pattern.md` в корне проекта.
-
----
-
-## Медиафайлы — как работает
-
-Все изображения/PDF проходят через Django API:
-- `<img src="/api/media/{id}/view/">` → Django MediaPreviewView
-- `MEDIA_SERVE_MODE = 'redirect'` → 302 на presigned URL Cloud.ru
-- Presigned URL содержит tenant_id в `X-Amz-Credential` (SigV4)
-- Браузер качает напрямую с Cloud.ru, минуя Django
-
-Подробнее о проблемах Cloud.ru и опробованных решениях — в `media_library/README.md`.
+Все изображения/PDF через Django API → presigned URL Cloud.ru (SigV4). Подробнее: `media_library/README.md`.

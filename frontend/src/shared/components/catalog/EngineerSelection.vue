@@ -2,7 +2,7 @@
 <!-- DEBUG: EngineerSelection -->
 <template>
   <div class="engineer-selection">
-    <span class="debug-tag">EngineerSelection</span>
+    <span class="debug-tag" v-if="debug">EngineerSelection</span>
     <PageTitle :title="labels.title" />
     <div class="search-bar" v-if="withSearch"><input v-model="search" :placeholder="labels.searchPlaceholder||'Поиск...'" @input="onSearchInput" /></div>
     <EngineerFilterBar
@@ -31,6 +31,7 @@
 </template>
 <script setup>
 import { onMounted } from 'vue'
+import { debug } from '@/shared/config'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import EngineerFilterBar from '@/shared/components/catalog/EngineerFilterBar.vue'
 import EngineerProductCard from '@/shared/components/catalog/EngineerProductCard.vue'

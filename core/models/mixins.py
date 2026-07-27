@@ -100,6 +100,22 @@ class TemplateMixin:
         """Переопределить в модели: вернуть шаблон заголовка или None."""
         return None
 
+    def _get_equipment_type_template(self, field: str) -> str:
+        """Получить шаблон из EquipmentType (админная настройка).
+        Ищет через model_line.equipment_type или прямой equipment_type."""
+        try:
+            et = None
+            ml = getattr(self, 'model_line', None)
+            if ml and hasattr(ml, 'equipment_type_id') and ml.equipment_type_id:
+                et = ml.equipment_type
+            if et is None and hasattr(self, 'equipment_type_id') and self.equipment_type_id:
+                et = self.equipment_type
+            if et is not None:
+                return getattr(et, field, None) or ''
+        except Exception:
+            pass
+        return ''
+
     # === ДЕФОЛТНЫЕ ШАБЛОНЫ ===
     def _get_default_name_template(self) -> str:
         return "{model_code}"
@@ -177,6 +193,9 @@ class TemplateMixin:
     @property
     def title_template(self) -> str:
         """Итоговый шаблон заголовка: source или default."""
+        et = self._get_equipment_type_template('title_template')
+        if et:
+            return et
         return self._get_title_template_source() or self._get_default_title_template()
 
     @property

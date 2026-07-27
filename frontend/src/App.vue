@@ -8,6 +8,8 @@
 </template>
 <script setup>
 import Header from './components/header/Header.vue'
+import { setDebug } from '@/shared/config'
+setDebug(import.meta.env.DEV)
 </script>
 <style>
 :root {

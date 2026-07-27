@@ -56,7 +56,7 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
     },
 
     select_related=[
-        'model_line', 'model_line__brand',
+        'model_line', 'model_line__brand', 'model_line__equipment_type',
         'image_gallery', 'model_line__image_gallery',
         'body', 'sensor_variety', 'primary_sensor',
         'ip', 'body_material', 'body_material_specified', 'sku',

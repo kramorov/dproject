@@ -62,7 +62,7 @@ PNEUMATIC_FITTINGS_CONFIG = CatalogConfig(
 
     select_related=[
         'model_line',
-        'model_line__brand',
+        'model_line__brand', 'model_line__equipment_type',
         'model_line__fitting_variety',
         'fitting_variety',
         'body_material',

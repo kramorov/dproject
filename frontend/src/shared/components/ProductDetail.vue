@@ -2,7 +2,7 @@
 <!-- Оркестратор страницы товара. Компонует: JsonLd, ProductGallery, ProductHeader, ProductTabs. -->
 <template>
   <div class="product-detail">
-    <span class="debug-tag">ProductDetail</span>
+    <span class="debug-tag" v-if="debug">ProductDetail</span>
     <JsonLd :schema="product.schema" />
 
     <div class="detail-layout">
@@ -31,6 +31,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { debug } from '@/shared/config'
 import JsonLd from './JsonLd.vue'
 import ProductGallery from './ProductGallery.vue'
 import ProductHeader from './ProductHeader.vue'

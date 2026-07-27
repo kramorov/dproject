@@ -2,7 +2,7 @@
 <!-- DEBUG: CatalogModelLine -->
 <template>
   <div class="catalog-model-line">
-    <span class="debug-tag">CatalogModelLine</span>
+    <span class="debug-tag" v-if="debug">CatalogModelLine</span>
     <PageTitle :title="labels.title" :context="mlName" context-label="Серия" />
     <p class="page-count" v-if="total">{{ labels.countLabel || 'Товаров:' }} {{ total }}</p>
     <div class="content" v-if="!loading || items.length">
@@ -41,6 +41,7 @@
 </template>
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { debug } from '@/shared/config'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import FilterSidebar from '@/shared/components/FilterSidebar.vue'

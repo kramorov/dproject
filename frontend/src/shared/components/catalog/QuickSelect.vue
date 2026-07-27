@@ -2,7 +2,7 @@
 <!-- DEBUG: QuickSelect -->
 <template>
   <div class="qs-page">
-    <span class="debug-tag">QuickSelect</span>
+    <span class="debug-tag" v-if="debug">QuickSelect</span>
     <PageTitle :title="pageTitle" />
     <div class="chip-group" v-if="modelLines.length"><div class="chip-label">Серия</div><div class="chip-row"><button v-for="ml in modelLines" :key="ml.id" class="chip" :class="{active:selectedML===ml.id}" @click="selectSeries(ml.id)">{{ ml.name }}</button></div></div>
     <div v-if="filterGroups.length" class="filter-chips"><div v-for="group in filterGroups" :key="group.key" class="chip-group"><div class="chip-label">{{ group.label }}</div><div class="chip-row"><button v-for="opt in group.options" :key="opt.value||opt.id" class="chip" :class="{active:String(activeFilters[group.key])===String(opt.value??opt.id)}" @click="toggleFilter(group.key,opt.value??opt.id)">{{ opt.label||opt.name }}<span class="chip-count" v-if="opt.count!=null">({{ opt.count }})</span></button></div></div></div>
@@ -13,6 +13,7 @@
 </template>
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { debug } from '@/shared/config'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import ProductDetail from '@/shared/components/ProductDetail.vue'
 import Spinner from '@/shared/components/Spinner.vue'

@@ -2,7 +2,7 @@
 <!-- DEBUG: CatalogDetail -->
 <template>
   <div class="catalog-detail">
-    <span class="debug-tag">CatalogDetail</span>
+    <span class="debug-tag" v-if="debug">CatalogDetail</span>
     <button class="back-btn" @click="$emit('close')">← {{ labels.backLabel || 'Назад к каталогу' }}</button>
     <ProductDetail v-if="product" :product="product" :price="price" :breadcrumbs="breadcrumbs" @navigate="$emit('navigate', $event)" />
     <Spinner v-else-if="loading" />
@@ -11,6 +11,7 @@
 </template>
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { debug } from '@/shared/config'
 import ProductDetail from '@/shared/components/ProductDetail.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 const props = defineProps({

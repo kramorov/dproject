@@ -52,7 +52,7 @@ FILTER_REGULATOR_CONFIG = CatalogConfig(
     },
 
     select_related=[
-        'model_line', 'model_line__brand', 'model_line__filter_variety',
+        'model_line', 'model_line__brand', 'model_line__equipment_type', 'model_line__filter_variety',
         'body', 'body__thread', 'body__gauge_port_size',
         'body__drain_port_size', 'ip', 'body_material',
     ],

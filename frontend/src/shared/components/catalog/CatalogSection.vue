@@ -2,7 +2,7 @@
 <!-- DEBUG: CatalogSection -->
 <template>
   <div class="catalog-section">
-    <span class="debug-tag">CatalogSection</span>
+    <span class="debug-tag" v-if="debug">CatalogSection</span>
     <PageTitle :title="labels.title" :subtitle="labels.subtitle" />
     <div class="series-grid" v-if="series.length">
       <div v-for="s in series" :key="s.id" class="series-card" @click="$emit('selectSeries', s.id)">
@@ -16,6 +16,7 @@
 </template>
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { debug } from '@/shared/config'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import Spinner from '@/shared/components/Spinner.vue'
