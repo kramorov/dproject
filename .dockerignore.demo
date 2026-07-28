@@ -2,9 +2,8 @@
 .git/
 .gitignore
 
-# Node
-frontend/node_modules/
-nuxt-app/node_modules/
+# Node — all node_modules (root + subdirectories)
+node_modules/
 
 # Python
 __pycache__/
@@ -29,9 +28,15 @@ frontend/dist/
 *.pdf
 *.txt
 !requirements-docker.txt
+
+# JSON — exclude all except package/config files needed for npm/ts build
 *.json
 !package.json
 !package-lock.json
+!tsconfig.json
+!tsconfig.*.json
+
+# Archives
 *.zip
 *.rar
 

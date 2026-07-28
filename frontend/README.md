@@ -23,7 +23,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 |-----------|-----------|
 | `CatalogActions.vue` | Табы-переключатели режимов: Просмотр по сериям / Инженерный / Быстрый / Мастер / AI. Пропс `active` |
 | `CatalogSection.vue` | Сетка серий (карточки: «Серия ИМЯ» + описание). Только `selectSeries`, `navigate` |
-| `CatalogModelLine.vue` | Товары серии (fixedParams + exact/compatible split). Пропс `parentMode` |
+| `CatalogModelLine.vue` | Товары серии. Заголовок: «Серия {code}: {description}». Пропс `parentMode` |
 | `CatalogDetail.vue` | Карточка товара через `ProductDetail`. Пропс `parentMode` |
 | `CatalogList.vue` | Инженерный подбор с `FilterSidebar` + `ProductCard` |
 | `EngineerSelection.vue` | Инженерный подбор с `EngineerFilterBar` + `EngineerProductCard` |
@@ -34,7 +34,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `EngineerFilterBar.vue` | Горизонтальная панель фильтров для `EngineerSelection` |
 | `EngineerProductCard.vue` | Горизонтальная карточка товара для `EngineerSelection` |
 
-### Архитектура каталога (2026-07-27)
+### Архитектура каталога (2026-07-28)
 
 Каждый каталог — SPA внутри `App.vue`. Управляется через `useCatalogRouter`:
 

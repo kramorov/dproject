@@ -500,6 +500,7 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
             'id': self.model_line.id,
             'name': self.model_line.name,
             'code': getattr(self.model_line, 'code', '') or '',
+            'description': self.model_line.description or '',
             'gearbox_variety': self.model_line.gearbox_variety.name if self.model_line.gearbox_variety else None,
             'gearbox_output_variety': self.model_line.gearbox_output_variety.name if self.model_line.gearbox_output_variety else None,
             'brand': {

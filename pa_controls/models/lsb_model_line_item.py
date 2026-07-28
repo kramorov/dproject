@@ -543,6 +543,7 @@ class LsbModelLineItem(CatalogDictMixin,
             'id': ml.id,
             'name': ml.name,
             'code': getattr(ml, 'code', '') or '',
+            'description': ml.description or '',
             'brand': {
                 'id': ml.brand.id,
                 'name': ml.brand.name,

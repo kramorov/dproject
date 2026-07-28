@@ -578,6 +578,7 @@ class DirectionValve(CatalogDictMixin,
             'id': self.model_line.id,
             'name': self.model_line.name,
             'code': getattr(self.model_line, 'code', '') or '',
+            'description': self.model_line.description or '',
             'construction': self.model_line.construction.name if self.model_line.construction else None,
             'operation': self.model_line.operation.name if self.model_line.operation else None,
             'brand': {

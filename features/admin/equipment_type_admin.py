@@ -41,6 +41,10 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         ('Основная информация', {
             'fields': ('name', 'code', 'description', 'icon')
         }),
+        ('Шаблоны отображения', {
+            'fields': ('title_template',),
+            'description': 'Шаблон заголовка карточки товара. Плейсхолдеры: {model_code}, {brand}, {ip}, {exd}, {work_temp_min}, {work_temp_max}, {body_material} и др.',
+        }),
         ('AI Assistant', {
             'fields': ('filter_endpoint', 'param_semantics'),
             'classes': ('collapse',),

@@ -658,7 +658,8 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
             'model_line' : {
                 'id' : self.model_line.id ,
                 'name' : self.model_line.name ,
-                'code' : self.model_line.code
+                'code' : self.model_line.code ,
+                'description': self.model_line.description or ''
             } if self.model_line else None ,
             'fitting_variety' : {
                 'id' : self.fitting_variety.id ,

@@ -42,7 +42,7 @@ onMounted(async () => {
       for (const item of items) {
         const ml = item.model_line
         if (!ml || map[ml.id]) continue
-        map[ml.id] = { id: ml.id, name: ml.name, code: ml.code || '', image: item.images?.[0]?.preview_url || item.images?.[0]?.url || null, count: 0 }
+        map[ml.id] = { id: ml.id, name: ml.name, code: ml.code || '', description: ml.description || '', image: item.images?.[0]?.preview_url || item.images?.[0]?.url || null, count: 0 }
       }
       for (const item of items) {
         const ml = item.model_line

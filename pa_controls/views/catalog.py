@@ -33,6 +33,7 @@ class LimitSwitchBoxSectionView(APIView):
                 'id': ml.id,
                 'name': ml.name,
                 'code': ml.code or '',
+                'description': ml.description or '',
                 'count': ml.count,
                 'image': (
                     img.preview_url if img and img.media_file

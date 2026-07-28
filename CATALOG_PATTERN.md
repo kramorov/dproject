@@ -113,7 +113,7 @@ class MyCatalogView(APIView):
 EquipmentType.title_template (админка) → _get_title_template_source() (код модели) → _get_default_title_template() ({model_code})
 ```
 
-- **Админка**: Django Admin → Типы оборудования → поле «Шаблон заголовка»
+- **Админка**: Django Admin → Типы оборудования → секция «Шаблоны отображения» → поле «Шаблон заголовка»
 - **Пример для БКВ**: `{model_code} {points} датчика, {sensor_variety}; {ip}, В/з: {exd}; {work_temp_min}..{work_temp_max} °С, корпус: {body_material}`
 - **Плейсхолдеры**: из `_get_data_dict()` модели — `{model_code}`, `{brand}`, `{ip}`, `{exd}`, и т.д.
 - **Производительность**: `select_related('model_line__equipment_type')` в catalog config — без доп. запросов
@@ -313,7 +313,7 @@ export default {
 | `CatalogSection` | Сетка серий (карточки: «Серия ИМЯ» + описание). Без табов и крошек |
 | `CatalogActions` | Табы: Просмотр по сериям / Инженерный / Быстрый / Мастер / AI |
 | `EngineerSelection` | Инженерный подбор с `EngineerFilterBar` + `EngineerProductCard` |
-| `CatalogModelLine` | Товары серии (fixedParams + exact/compatible split). Пропс `parentMode` |
+| `CatalogModelLine` | Товары серии. Заголовок: «Серия {code}: {description}». Пропс `parentMode` |
 | `QuickSelect` | Быстрый подбор (чипсы → карточка) |
 | `CatalogDetail` | Карточка товара через `ProductDetail`. Пропс `parentMode` |
 | `WizardPlaceholder` | Заглушка «Мастер подбора» |

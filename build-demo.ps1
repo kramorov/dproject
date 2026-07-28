@@ -107,6 +107,7 @@ Write-Host "[OK] DB included in image"
 Write-Host ""
 Write-Host "[2/4] Building Docker image..."
 
+$env:DOCKER_BUILDKIT = "0"
 docker build -t "${ImageName}:$ImageTag" .
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Build failed" -ForegroundColor Red

@@ -3,7 +3,7 @@
 <template>
   <div class="catalog-model-line">
     <span class="debug-tag" v-if="debug">CatalogModelLine</span>
-    <PageTitle :title="labels.title" :context="mlName" context-label="Серия" />
+    <PageTitle :title="pageTitle" />
     <p class="page-count" v-if="total">{{ labels.countLabel || 'Товаров:' }} {{ total }}</p>
     <div class="content" v-if="!loading || items.length">
       <FilterSidebar
@@ -57,15 +57,23 @@ const props = defineProps({
   parentMode: { type: String, default: 'Просмотр по сериям' },
 })
 const emit = defineEmits(['select', 'navigate'])
-const mlName = ref('')
+const mlCode = ref('')
+const mlDescription = ref('')
+const pageTitle = computed(() => {
+  const code = mlCode.value
+  const desc = mlDescription.value
+  if (code && desc) return `Серия ${code}: ${desc}`
+  if (code) return `Серия ${code}`
+  return 'Серия'
+})
 const fixedParams = computed(() => props.idValue ? { [props.idProp]: props.idValue } : {})
-const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, filterScope:'model_line', withSearch:false, onData(items){ if(items.length&&!mlName.value) mlName.value=items[0]?.model_line?.name||'' } })
+const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, filterScope:'model_line', withSearch:false, onData(items){ if(items.length&&!mlCode.value){ const ml=items[0]?.model_line; if(ml){ mlCode.value=ml.code||''; mlDescription.value=ml.description||'' } } } })
 const eqLabel = computed(() => props.labels.breadcrumbName || 'Каталог')
 const breadcrumbs = computed(() => [
   { name: 'Каталог', to: '/' },
   { name: eqLabel.value },
   { name: props.parentMode },
-  { name: mlName.value || 'Серия' },
+  { name: pageTitle.value },
 ])
 watch(() => props.idValue, (newVal) => {
   if (newVal) {
