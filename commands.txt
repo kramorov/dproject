@@ -1,16 +1,5 @@
 
 пиши как DeepSeek-Coder-V.3.2. Ты - эксперт по DRF. Не выводи весь код, если я специально об этом не попрошу. Показывай исправления и изменения в блоках кода, с указанием в заголовке номера строки, если знаешь этот номер.
-С работы:
-Скачивание:
-
-Отправка:
-git pull main office-work
-git push main office-work       Старое: git push main av-be-master:main
-МАТЕРИАЛИЗОВАННОЕ ПРЕДСТАВЛЕНИЕ
-docker compose up -d
-cp db.sqlite3 "db.sqlite3.backup_$(Get-Date -Format 'yyyyMMdd')"
-
-streamlit run main_page.py
 
 pip install rembg
 
@@ -30,8 +19,8 @@ ai-assistant.md
 Из дома:
 git add .
 git commit -m "добавлено опции из model_line в  selected_actuator"
-git push
-git pull
+git pull main office-work
+git push main office-work       Старое: git push main av-be-master:main
 
 .\build-demo.ps1 -BuildOnly -PushOnly
 
