@@ -1,6 +1,160 @@
-# AI Assistant — архитектура и документация
-
-> Обновлено: 2026-07-27
+ # AI Assistant — архитектура и документация                          
+                                                                      
+ > Последнее обновление: 2026-07-29                                   
+                                                                      
+ ## Общая схема работы                                                
+                                                                      
+ Запрос → Classify (LLM) → intent + types                             
+   → Decompose (LLM) → плоский список [{type, summary}]               
+   → Expand Tree (Python) → CompositionGroup: required/optional/XOR   
+   → Extract (LLM) → для каждого узла: summary → фильтры              
+   → Filter (API) → поиск вариантов                                   
+   → Select → Compare → EBOM/MBOM                                     
+                                                                      
+ ---                                                                  
+                                                                      
+ ## Модели данных                                                     
+                                                                      
+### Конвейер подбора
+ | Модель | Назначение |                                                                  
+ |---|---|                                                                                
+ | `AIConversation` | Сессия: customer FK, source, status, intent, selection_tree |       
+ | `SelectionNode` | Узел дерева: parent, equipment_type (→ core), level, path, status |  
+ | `EquipmentType` | **core.models** — классификатор + правила комплектации + AI-поля |   
+ | `CascadeRule` | Каскад параметров: parent_type → child_type, mapping |                 
+                                                                                          
+ ### Конфигурация скиллов                                                                 
+                                                                                          
+ | Модель | Назначение |                                                                  
+ |---|---|                                                                                
+ | `PipelineSkill` | Скилл: step + equipment_type + prompt + schema + model_role |        
+ | `SkillOverride` | Клиентское переопределение скилла |                                  
+ | `AIPromptTemplate` | Версионируемый промпт (code-based композиция) |                   
+ | `JSONSchema` | Версионируемая JSON-схема |                                             
+                                                                                          
+ ### Сообщения и биллинг                                                                  
+                                                                                          
+ | Модель | Назначение |                                                                  
+ |---|---|                                                                                
+ | `AIMessage` | Сообщение: content, prompt_used, prompt_template, latency_ms |           
+ | `AITokenUsage` | Токены + биллинг: customer, prompt_tokens, cost_estimate, latency_ms |
+                                                                                          
+ ---                                                                                      
+                       ·                                                                  
+ ## Фазы конвейера                                                                        
+                                                                                          
+ | Фаза | Кто | Описание |                                                                
+ |---|---|---|                                                                            
+ | 0. Classify | LLM | intent + types |                                                   
+ | 1. Decompose | LLM | плоский список [{type, summary}] |                                
+ | 1.5 Expand | Python | CompositionGroup → дерево |                                      
+ | 2. Extract | LLM | summary → формальные фильтры |                                      
+ | 3. Filter | API | поиск вариантов |                                                    
+ | 4. Select | LLM/User | выбор продукта |                                                
+    | 5. Compare | Python | param_semantics |                                  
+                                                                               
+    ---                                                                        
+                                                                               
+    ## CompositionGroup — правила комплектации (КОНЦЕПЦИЯ)                     
+                                                                               
+    > Проект: 2026-07-29. Код не написан.                                      
+                                                                               
+    ### Идея                                                                   
+                                                                               
+    ИИ не строит дерево. Он возвращает плоский список типов с параметрами.     
+    Дерево достраивается автоматически по правилам, описанным в EquipmentType. 
+                                                                               
+    ### Модели (планируемые)                                                   
+                                                                               
+▏ EquipmentType — добавляются:                                                 
+▏ ────────────────────────────────────────                                     
+▏ required_children = M2M('self')   # всегда: БКВ → cable_gland                
+▏ optional_children = M2M('self')   # опции: actuator → solenoid | positioner  
+▏                                                                              
+▏ Новая модель:                                                                
+▏ ────────────────────────────────────────                                     
+▏ class CompositionRule(models.Model):                                         
+▏ equipment_type = FK                                                          
+▏ child_type = FK                                                              
+▏ exclusive_group = CharField  # одинаковый group = XOR                        
+▏ default = BooleanField                                                       
+▏ required = BooleanField                                                      
+                                                                               
+    ### Правила (пример)                                                       
+                                                                               
+▏ Пневмопривод:                                                                
+▏ required: [фитинг]                                                           
+▏ Управление (XOR): соленоид (default) | позиционер                            
+▏ Контроль (any): БКВ, фильтр-регулятор                                        
+БКВ:                                                                                           
+required: [кабельный ввод]                                                                     
+                                                                                               
+Сборка "Кран с ЭП":                                                                            
+Арматура (all): ball-valve        ← рекурсия к правилам ball-valve                             
+Привод (all): electro-actuator    ← рекурсия к правилам electro-actuator                       
+                                                                                               
+  ### Почему это лучше free-form decompose                                                     
+                                                                                               
+  - Промпт decompose в 5 раз короче                                                            
+  - Ничего не забывается — required_children гарантирует                                       
+  - XOR исключает некорректные комбинации                                                      
+  - Вложенность через рекурсию правил                                                          
+  - ИИ не строит дерево → парсинг не ломается                                                  
+                                                                                               
+  ---                                                                                          
+                                                                                               
+  ## Маршрутизация запросов                                                                    
+                                                                                               
+  `resolve_customer(source, email, api_key)` — `customer_resolver.py`                          
+                                                                                               
+  | source | Резолвится |                                                                      
+  |---|---|                                                                                    
+  | web_form | anonymous_web |                                                                 
+  | email | ProjectCustomer.email |                                                            
+  | api | CustomerApiKey.lookup() |                                                            
+                                                                                             ><
+  ---                                                                                          
+                                                                                               
+  ## Композиция промптов                                                                       
+                                                                                               
+  `AIPromptTemplate.code` — для `{code}` в template_text. Резолвится через `_resolve_prompt()`.
+                                                                                               
+  ---                                                                                          
+                                                                                               
+  ## Latency tracking                                                                          
+   `PipelineSkill.avg_latency_ms` — скользящее среднее по 5 вызовам. Обновляется после decompose и extract.
+                                                                                                           
+   ---                                                                                                     
+                                                                                                           
+   ## Файловая структура                                                                                   
+                                                                                                           
+ ai_assistant/                                                                                             
+ ├── models/       (ai_conversation, ai_message, ai_token_usage,                                           
+ │                  pipeline_skill, skill_override, json_schema, ...)                                      
+ ├── services/     (tree_processor, deepseek_client, token_tracker,                                        
+ │                  customer_resolver)                                                                     
+ ├── classifiers/  (InstructorClassifier — 9 intents)                                                      
+ ├── api/          (views, serializers)                                                                    
+ ├── admin/        (PipelineSkillAdmin, SkillOverrideAdmin, ...)                                           
+ ├── test_pipeline.py  (45 тестов)                                                                         
+ └── migrations/       (14 миграций)                                                                       
+                                                                                                           
+   Фронтенд: `AiDebugPage.vue`, `PipelineConfigPage.vue`.                                                  
+                                                                                                           
+   ---                                                                                                     
+                                                                                                           
+   ## Как тестировать                                                                                      
+                                                                                                           
+ python manage.py test ai_assistant.test_pipeline --keepdb --verbosity=2                                   
+                                                                                                           
+ Сменить модель                                                                                            
+ ────────────────────────────────────────                                                                  
+ python manage.py shell -c "                                                                               
+ from ai_assistant.models import AIProvider                                                                
+ p = AIProvider.objects.filter(is_active=True).first()                                                     
+ p.model_mapping['debug'] = 'deepseek-chat'                                                                
+ p.save()                                                                                                  
+ "                                                                                                         
 
 ## Общий поток обработки
 
