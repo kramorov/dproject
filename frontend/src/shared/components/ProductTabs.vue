@@ -14,7 +14,8 @@ const props = defineProps({ tabs: { type: Array, default: () => [] }, defaultTab
 const emit = defineEmits(['update:activeTab'])
 const active = ref(props.defaultTab || props.tabs[0]?.key || '')
 watch(active, (val) => emit('update:activeTab', val))
-watch(() => props.defaultTab, (val) => { if (val) active.value = val })
+  watch(() => props.defaultTab, (val) => { if (val) active.value = val })
+  watch(() => props.tabs, (val) => { if (val.length && !active.value) active.value = val[0]?.key || '' })
 </script>
 
 <style scoped>

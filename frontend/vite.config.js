@@ -33,6 +33,8 @@ export default defineConfig(({ mode }) => ({
         'limit-switch-admin': resolve(__dirname, 'src/apps/limit-switch-admin/index.html'),
         'widget': resolve(__dirname, 'src/apps/widget/index.html'),
         'pa-constructor': resolve(__dirname, 'src/apps/pa-constructor/index.html'),
+        'pa-constructor-legacy': resolve(__dirname, 'src/apps/pa-constructor/index_legacy.html'),
+        'pa-catalog': resolve(__dirname, 'src/apps/pa-catalog/index.html'),
         'ea-constructor': resolve(__dirname, 'src/apps/ea-constructor/index.html'),
         'ea-admin': resolve(__dirname, 'src/apps/ea-admin/index.html'),
       },

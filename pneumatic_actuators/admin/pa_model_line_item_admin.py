@@ -88,6 +88,10 @@ class PneumaticActuatorModelLineItemAdmin(admin.ModelAdmin):
                 'body'
             )
         }),
+        (_('Медиа и документы'), {
+            'fields': ('image_gallery', 'tech_docs'),
+            'classes': ('collapse',),
+        }),
     )
 
     def get_queryset(self, request):

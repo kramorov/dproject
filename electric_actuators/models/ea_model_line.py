@@ -682,6 +682,8 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
 
 # ==================== МОДЕЛЬ ДЛЯ СВЯЗИ СЕРТИФИКАТОВ ====================
 
+# TODO: Перейти на CertDocMixin.cert_docs M2M (как БКВ, редукторы, клапаны, пневмоприводы).
+# Через-модель AbstractCertRelation — устаревший подход, удалён в pneumatic_actuators (0033-0034).
 class ElectricActuatorModelLineCertRelation(AbstractCertRelation) :
     """
     Связь сертификатов с сериями электроприводов.

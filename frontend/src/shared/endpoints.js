@@ -95,4 +95,13 @@ export const ENDPOINTS = {
     wirings: '/electric_actuators/admin/wirings/',
   },
 
+  paCatalog: {
+    modelLines: '/pneumatic_actuators/constructor/model_lines/',
+    modelLineItems: (mlId) => `/pneumatic_actuators/constructor/model-lines/${mlId}/items/`,
+    options: '/pneumatic_actuators/constructor/options/',
+    preview: '/pneumatic_actuators/constructor/preview/',
+    search: '/pneumatic_actuators/selector/search/',
+    createSku: '/pneumatic_actuators/constructor/create-sku/',
+  },
+
 }

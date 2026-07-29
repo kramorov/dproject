@@ -1,5 +1,6 @@
 # pneumatic_actuators/models/pa_model_line.py
 
+import re
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.db.models.signals import pre_save , post_save
@@ -9,6 +10,9 @@ from django.core.exceptions import ValidationError
 
 from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin , EquipmentTypeMixin
+from core.models import ImageGalleryMixin, TechDocMixin
+from core.models.cert_doc_mixin import CertDocMixin
+from core.models.mixins import TemplateMixin, CatalogDictMixin
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -22,7 +26,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class PneumaticActuatorModelLine(EquipmentTypeMixin,StructuredDataMixin , models.Model) :
+class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, StructuredDataMixin, models.Model):
     """
     Серия пневмоприводов - DA и SR -
     Объединяет в себе общие для всех моделей серии свойства
@@ -630,11 +634,12 @@ def create_default_options(sender , instance , created , **kwargs) :
 
 
 # ======================================  Модель в серии ==================================
-class PneumaticActuatorModelLineItem(models.Model) :
+class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin, TemplateMixin, models.Model):
     """
     Модель в серии пневмоприводов - DA или SR -
     Объединяет в себе общие для всех моделей серии свойства
-    и доступные опции
+    и доступные опции.
+    Наследует CatalogDictMixin + TemplateMixin для карточки в каталоге.
     """
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,
@@ -736,6 +741,188 @@ class PneumaticActuatorModelLineItem(models.Model) :
     def temperature_range_display(self) :
         """Отображаемый диапазон стандартной температуры из model_line"""
         return self.model_line.temperature_range_display if self.model_line else "Не указано"
+
+    # ==================== CATALOG MIXIN METHODS ====================
+
+    def _get_data_dict(self):
+        """Словарь плейсхолдер -> dotted-путь для TemplateMixin."""
+        return {
+            '{model_code}': 'code',
+            '{brand}': 'model_line__brand',
+            '{body_code}': 'body__code',
+            '{body_name}': 'body__name',
+            '{variety}': 'pneumatic_actuator_variety',
+        }
+
+    def _get_template_vars(self):
+        """Плоский словарь значений для UI и шаблонов."""
+        body = self.body
+        ml = self.model_line
+        variety = self.pneumatic_actuator_variety
+        return {
+            'code': self.code or '',
+            'name': self.name or '',
+            'model_line_name': ml.name if ml else '',
+            'model_line_code': ml.code if ml else '',
+            'brand_name': ml.brand.name if ml and ml.brand else '',
+            'body_name': body.name if body else '',
+            'body_code': body.code if body else '',
+            'variety_name': variety.name if variety else '',
+            'variety_code': variety.code if variety else '',
+            'weight': str(getattr(body, 'weight_spring', '')) if body else '',
+        }
+
+    def _get_model_line_summary(self):
+        """Краткая сводка model_line для to_dict()."""
+        ml = self.model_line
+        if not ml:
+            return None
+        return {
+            'id': ml.id,
+            'name': ml.name,
+            'code': ml.code or '',
+            'description': ml.description or '',
+            'brand': {'id': ml.brand.id, 'name': ml.brand.name} if ml.brand else None,
+        }
+
+    def _get_ml_images(self):
+        """Изображения: сначала item, потом model_line (единый паттерн БКВ)."""
+        # Сначала — свои изображения
+        from_item = self._get_images_section() if hasattr(self, '_get_images_section') else []
+        if from_item:
+            return from_item
+        # Fallback — model_line
+        ml = self.model_line
+        if ml and hasattr(ml, '_get_images_section'):
+            return ml._get_images_section()
+        return []
+
+    def to_dict(self):
+        """Структурированная сериализация для карточки каталога."""
+        tv = self._get_template_vars()
+        return {
+            'id': self.id,
+            'code': self.code or '',
+            'name': self.name or '',
+            'title': self.generate_title(),
+            'description': self.generate_description(),
+            'is_active': self.is_active,
+            'sorting_order': self.sorting_order,
+            'model_line': self._get_model_line_summary(),
+            'sku': self._get_sku_summary(),
+            'template_vars': tv,
+            'sections': [
+                {
+                    'key': 'images', 'title': 'Изображения', 'type': 'gallery',
+                    'order': 0, 'data': self._get_ml_images(),
+                },
+                {
+                    'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
+                    'order': 1, 'groups': [
+                        {
+                            'key': 'general', 'title': 'Основные', 'order': 1,
+                            'fields': [
+                                {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'type': 'text', 'order': 1},
+                                {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'type': 'text', 'order': 2},
+                                {'key': 'variety_name', 'label': 'Тип привода', 'value': tv['variety_name'], 'type': 'text', 'order': 3},
+                                {'key': 'body_name', 'label': 'Корпус', 'value': tv['body_name'], 'type': 'text', 'order': 4},
+                                {'key': 'weight', 'label': 'Вес (кг)', 'value': tv['weight'], 'type': 'number', 'order': 6},
+                            ]
+                        },
+                    ]
+                },
+                {
+                    'key': 'docs', 'title': 'Документация', 'type': 'files',
+                    'order': 2, 'data': self._get_ml_docs(),
+                },
+                {
+                    'key': 'certs', 'title': 'Сертификаты', 'type': 'files',
+                    'order': 3, 'data': self._get_ml_certs(),
+                },
+                {
+                    'key': 'description', 'title': 'Описание', 'type': 'text',
+                    'order': 4, 'data': self.description or '',
+                },
+            ],
+        }
+
+    def _get_ml_docs(self):
+        return self._get_docs_section()
+
+    def _get_ml_certs(self):
+        return self._get_certs_section()
+
+    def _get_docs_section(self) -> list:
+        """Техдокументация: item -> model_line (единый паттерн БКВ)."""
+        docs = []
+        seen = set()
+        for doc in self.tech_docs.all():
+            if doc.media_file and doc.id not in seen:
+                seen.add(doc.id)
+                has_email = doc.variants.filter(role='email').exists()
+                docs.append({
+                    'id': doc.id, 'name': getattr(doc, 'name', '') or '',
+                    'url': f"/api/media/{doc.id}/download/",
+                    'file_name': getattr(doc, 'name', '') or '',
+                    'preview_url': f"/api/media/{doc.id}/view/",
+                    'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
+                })
+        ml = self.model_line
+        if ml and hasattr(ml, 'tech_docs'):
+            for doc in ml.tech_docs.all():
+                if doc.media_file and doc.id not in seen:
+                    seen.add(doc.id)
+                    has_email = doc.variants.filter(role='email').exists()
+                    docs.append({
+                        'id': doc.id, 'name': getattr(doc, 'name', '') or '',
+                        'url': f"/api/media/{doc.id}/download/",
+                        'file_name': getattr(doc, 'name', '') or '',
+                        'preview_url': f"/api/media/{doc.id}/view/",
+                        'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
+                    })
+        return docs
+
+    def _get_sku_summary(self) -> dict:
+        """SKU — заглушка (ленивое создание, SKU пока нет)."""
+        if hasattr(self, 'sku') and self.sku:
+            return {'id': self.sku.id, 'code': self.sku.code, 'name': self.sku.name}
+        return None
+
+    def _get_certs_section(self) -> list:
+        """Сертификаты — из model_line (единый паттерн БКВ)."""
+        ml = self.model_line
+        if not ml:
+            return []
+        # CertDocMixin M2M (единый паттерн)
+        cert_ids = set()
+        if hasattr(ml, 'cert_docs'):
+            cert_ids.update(ml.cert_docs.filter(is_active=True).values_list('id', flat=True))
+        if cert_ids:
+                from cert_doc.models import CertData
+                from urllib.parse import quote
+                certs = []
+                for cert in CertData.objects.filter(id__in=list(cert_ids)).select_related('media_item', 'cert_variety'):
+                    media = getattr(cert, 'media_item', None)
+                    if not media:
+                        continue
+                    has_email = media.variants.filter(role='email').exists()
+                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                    cert_code = getattr(cert, 'code', '') or ''
+                    ml_name = ml.name or ''
+                    base_name = re.sub(r'[\\/*?:<>|]', '_', f"{variety_name} {cert_code} для {ml_name}".strip())
+                    dl_name = f"{base_name}.pdf"
+                    email_name = f"{base_name} (сжат).pdf"
+                    certs.append({
+                        'id': media.id,
+                        'name': getattr(cert, 'name', '') or '',
+                        'file_name': dl_name,
+                        'email_file_name': email_name,
+                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
+                        'preview_url': f"/api/media/{media.id}/view/",
+                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
+                    })
+                return certs
+        return []
 
     # ==================== ФУНКЦИЯ КОПИРОВАНИЯ ====================
 
@@ -1029,22 +1216,3 @@ def create_model_line_item_options(sender , instance , created , **kwargs) :
         default_springs = PneumaticSpringsQtyOption.get_or_create_default(instance)
         logger.info(f"Создана дефолтная опция пружин: {default_springs}")
 #
-
-class PneumaticActuatorModelLineCertRelation(AbstractCertRelation) :
-    """
-    Связь сертификатов с сериями пневмоприводов.
-    """
-    model_line = models.ForeignKey(
-        PneumaticActuatorModelLine ,  # Замените на реальный путь к модели Project
-        on_delete=models.CASCADE ,
-        verbose_name=_("Серия пневмоприводов") ,
-        related_name='cert_data_model_line'
-    )
-
-    class Meta(AbstractCertRelation.Meta) :
-        verbose_name = _("Связь сертификата с серией пневмоприводов")
-        verbose_name_plural = _("Связи сертификатов с сериями пневмоприводов")
-        unique_together = ['cert_data' , 'model_line']
-
-    def get_related_object(self) :
-        return self.model_line

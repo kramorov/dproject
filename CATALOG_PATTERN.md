@@ -321,6 +321,8 @@ export default {
 | `Breadcrumbs` | Хлебные крошки (3–4 уровня), `to`/`emit('navigate')` |
 | `PageTitle` | Заголовок (title + subtitle + context-чип) |
 | `ProductDetail` | Оркестратор карточки: `JsonLd` + `ProductGallery` + `ProductHeader` + `ProductTabs` |
+| `PaQuickSelect` | Конфигуратор пневмоприводов: серия→DA/SR→модель (чипсы) + опции (дропдауны) → `PaProductCard` |
+| `PaProductCard` | Карточка пневмопривода: `ProductDetail` + кнопки [Добавить в корзину] [Просмотр спецификации]. Спецификация — HTML от `_generate_tech_description()` в модалке |
 
 ### 5.4 Хлебные крошки
 
@@ -429,3 +431,4 @@ fd_climate = FilterDefinition(
 - **AI подбор**: интеграция с `ai_assistant` — описание задачи на естественном языке → подобранное оборудование
 - **Мини-аппы для партнёров**: WordPress-плагин с API-ключами (см. `access.md`)
 - **Кэширование фильтров**: scoped filter options делают N+1 запросов — требуется кэш на уровне `CatalogConfig`
+- **Каталог пневмоприводов**: QuickSelect-стиль (не стандартный каталог). SKU — ленивое создание. `PaQuickSelect` + `PaProductCard`. Сертификаты через `CertDocMixin.cert_docs` (единый паттерн)

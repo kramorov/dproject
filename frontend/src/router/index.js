@@ -13,7 +13,7 @@ const routes = [
   // Каталоги оборудования
   { path: '/catalog/pneumatic-fittings', component: () => import('../pages/catalog/PneumaticFittingsPage.vue'), meta: { title: 'Пневмофитинги' } },
   { path: '/catalog/cable-glands', component: PlaceholderPage, props: { title: 'Кабельные вводы' }, meta: { title: 'Кабельные вводы' } },
-  { path: '/catalog/pa-actuators', component: PlaceholderPage, props: { title: 'Пневмоприводы' }, meta: { title: 'Пневмоприводы' } },
+  { path: '/catalog/pa-actuators', component: () => import('../pages/catalog/PaActuatorPage.vue'), meta: { title: 'Пневмоприводы' } },
   { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры' } },
   { path: '/catalog/ea-reducers', component: PlaceholderPage, props: { title: 'Редукторы к ЭП' }, meta: { title: 'Редукторы к ЭП', pro: true } },
   { path: '/catalog/solenoid-valves', component: () => import('../pages/catalog/SolenoidValvesPage.vue'), meta: { title: 'Соленоидные клапаны' } },
@@ -60,6 +60,7 @@ const routes = [
   { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', role: 'admin' } },
   { path: '/admin/limit-switch', component: () => import('../pages/admin/LimitSwitchAdminPage.vue'), meta: { title: 'БКВ', role: 'admin' } },
   { path: '/admin/pa-constructor', component: () => import('../pages/admin/PaConstructorPage.vue'), meta: { title: 'Конструктор ПП', role: 'admin' } },
+  { path: '/admin/pa-constructor-legacy', component: () => import('../pages/admin/PaConstructorLegacyPage.vue'), meta: { title: 'Конструктор ПП Old', role: 'admin' } },
   { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор ЭП', role: 'admin' } },
   { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Напряжения ЭП', role: 'admin' } },
   { path: '/admin/ea-switches', component: () => import('../pages/admin/EaSwitchesAdminPage.vue'), meta: { title: 'Выключатели ЭП', role: 'admin' } },

@@ -1,22 +1,13 @@
 # pneumatic_actuators/admin/pa_model_line_admin.py
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLine , PneumaticActuatorModelLineCertRelation
+from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLine
 from pneumatic_actuators.models.pa_options import (
     PneumaticTemperatureOption,
     PneumaticIpOption,
     PneumaticExdOption,
     PneumaticBodyCoatingOption, PneumaticHandWheelOption
 )
-
-class CertDataInline(admin.TabularInline) :
-    """Inline для температурных опций"""
-    model = PneumaticActuatorModelLineCertRelation
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['cert_data','is_active' , 'sorting_order']
-    verbose_name = _("Сертификат")
-    verbose_name_plural = _("Сертификаты")
 
 
 class PneumaticTemperatureOptionInline(admin.TabularInline) :
@@ -98,6 +89,8 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
 
     ordering = ('sorting_order' , 'name')
 
+    filter_horizontal = ('tech_docs', 'cert_docs')
+
     # Поля для автодополнения
     # autocomplete_fields = [
     #     'brand' ,
@@ -113,7 +106,6 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
         PneumaticExdOptionInline ,
         PneumaticBodyCoatingOptionInline,
         PneumaticHandWheelOptionInline,
-        CertDataInline
     ]
 
     fieldsets = (
@@ -125,6 +117,9 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
         }) ,
         (_('Основные параметры') , {
             'fields' : ('default_output_type' ,)
+        }) ,
+        (_('Медиа и документы') , {
+            'fields' : ('image_gallery', 'tech_docs', 'cert_docs')
         }) ,
         (_('Настройки') , {
             'fields' : ('sorting_order' , 'is_active')

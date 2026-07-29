@@ -1,4 +1,4 @@
-<!-- pa-constructor/App.vue — двухпанельный конструктор пневмопривода -->
+﻿<!-- pa-constructor/App.vue — двухпанельный конструктор пневмопривода -->
 <template>
   <div class="constructor-app">
     <!-- Левая панель: список конфигураций + фильтры -->
@@ -39,29 +39,29 @@
         <h2>Новая конфигурация</h2>
       </div>
 
-      <div class="form-row-inline">
-        <div class="form-row" style="flex:0.7">
-          <label>Серия пневмоприводов</label>
-          <select v-model="form.selected_model_line" @change="onModelLineChange">
-            <option :value="null">— выберите серию —</option>
-            <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }} ({{ ml.code }})</option>
-          </select>
-        </div>
-        <div class="form-row" style="flex:1" v-if="form.selected_model_line">
-          <label>Вид привода</label>
-          <select v-model="form.selected_variety" @change="onVarietyChange">
-            <option :value="null">— выберите вид —</option>
-            <option value="DA">DA — двойного действия</option>
-            <option value="SR">SR — с возвратной пружиной</option>
-          </select>
-        </div>
-        <div class="form-row" style="flex:0.7" v-if="form.selected_variety">
-          <label>Модель</label>
-          <select v-model="form.selected_model_line_item" @change="onModelLineItemChange">
-            <option :value="null">— выберите модель —</option>
-            <option v-for="item in modelLineItems" :key="item.id" :value="item.id">{{ item.name }}</option>
-          </select>
-        </div>
+      <div class="form-row">
+        <label>Серия пневмоприводов</label>
+        <select v-model="form.selected_model_line" @change="onModelLineChange">
+          <option :value="null">— выберите серию —</option>
+          <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }} ({{ ml.code }})</option>
+        </select>
+      </div>
+
+      <div class="form-row" v-if="form.selected_model_line">
+        <label>Вид привода</label>
+        <select v-model="form.selected_variety" @change="onVarietyChange">
+          <option :value="null">— выберите вид —</option>
+          <option value="DA">DA — двойного действия</option>
+          <option value="SR">SR — с возвратной пружиной</option>
+        </select>
+      </div>
+
+      <div class="form-row" v-if="form.selected_variety">
+        <label>Модель</label>
+        <select v-model="form.selected_model_line_item" @change="onModelLineItemChange">
+          <option :value="null">— выберите модель —</option>
+          <option v-for="item in modelLineItems" :key="item.id" :value="item.id">{{ item.name }}</option>
+        </select>
       </div>
 
       <template v-if="form.selected_model_line_item && options">
@@ -78,9 +78,11 @@
         </div>
       </template>
 
-      <!-- Карточка товара -->
-      <div class="preview" v-if="previewData">
-        <PaProductCard :preview="previewData" @add-to-cart="onAddToCart" />
+      <div class="preview" v-if="previewText">
+        <h3>Предпросмотр
+          <button class="btn small" @click="showTechModal = true" v-if="techDescription">📄 Просмотр</button>
+        </h3>
+        <pre class="preview-text">{{ previewText }}</pre>
       </div>
 
       <div class="actions">
@@ -93,13 +95,24 @@
       <div class="message" v-if="message" :class="message.type">{{ message.text }}</div>
     </main>
 
+    <!-- Модалка -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showTechModal" @click.self="showTechModal = false">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Техническое описание</h3>
+            <button class="btn-icon close" @click="showTechModal = false">×</button>
+          </div>
+          <div class="modal-body" v-html="techDescription"></div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import api from './api'
-import PaProductCard from '@/shared/components/catalog/PaProductCard.vue'
 
 const modelLines = ref([])
 const modelLineItems = ref([])
@@ -108,7 +121,9 @@ const savedList = ref([])
 const loadingList = ref(false)
 const options = ref(null)
 const message = ref(null)
-const previewData = ref(null)
+const previewText = ref('')
+const techDescription = ref('')
+const showTechModal = ref(false)
 const saving = ref(false)
 
 // Единый маппинг опций: ключ формы → ключ в ответе API
@@ -211,23 +226,23 @@ async function loadItem(item) {
     }
 
     options.value = (await api.getOptions(form.selected_model_line_item)).data
-    previewData.value = d
+    previewText.value = d.description || ''
   } catch (e) { showMessage('Ошибка загрузки', 'error') }
 }
 
 // --- cascade (no draft creation) ---
 async function onModelLineChange() {
   form.selected_variety = null; form.selected_model_line_item = null
-  modelLineItems.value = []; options.value = null; previewData.value = null
+  modelLineItems.value = []; options.value = null; previewText.value = ''
 }
 async function onVarietyChange() {
-  form.selected_model_line_item = null; modelLineItems.value = []; options.value = null; previewData.value = null
+  form.selected_model_line_item = null; modelLineItems.value = []; options.value = null; previewText.value = ''
   if (!form.selected_variety || !form.selected_model_line) return
   try { modelLineItems.value = (await api.getModelLineItems(form.selected_model_line, form.selected_variety)).data }
   catch (e) { showMessage('Ошибка загрузки моделей', 'error') }
 }
 async function onModelLineItemChange() {
-  options.value = null; previewData.value = null
+  options.value = null; previewText.value = ''
   if (!form.selected_model_line_item) return
   try {
     options.value = (await api.getOptions(form.selected_model_line_item)).data
@@ -254,8 +269,7 @@ async function save() {
   try {
     const res = await api.create({ ...form })
     showMessage(res.status === 201 ? 'Создано: ' + res.data.name : 'Найдена существующая: ' + res.data.name, 'success')
-    // Refresh preview from API to get full to_dict() data
-    try { const pr = await api.preview({ ...form }); previewData.value = pr.data } catch (e) { /* ignore */ }
+    previewText.value = res.data.description || ''
     await loadList()
   } catch (e) {
     const msg = e.response?.data?.detail || 'Ошибка сохранения'
@@ -267,7 +281,7 @@ async function save() {
 function resetForm() {
   Object.assign(form, defaultForm())
   options.value = null; modelLineItems.value = []
-  previewData.value = null
+  previewText.value = ''; techDescription.value = ''
 }
 
 // --- live preview ---
@@ -278,23 +292,11 @@ watch(() => ({ ...form }), () => {
   previewTimer = setTimeout(async () => {
     try {
       const res = await api.preview({ ...form })
-      previewData.value = res.data
+      previewText.value = `${res.data.name}\n${res.data.description}`
+      techDescription.value = res.data.tech_description || ''
     } catch (e) { /* */ }
   }, 300)
 }, { deep: true })
-
-async function onAddToCart() {
-  if (!form.selected_model_line_item) return
-  try {
-    const { data } = await api.createSku({
-      model_line_item_id: form.selected_model_line_item,
-      options: { ...form },
-    })
-    showMessage('SKU создан: ' + (data.code || data.name), 'success')
-  } catch (e) {
-    showMessage('Ошибка: ' + (e.response?.data?.error || e.message), 'error')
-  }
-}
 
 function showMessage(text, type = 'info') {
   message.value = { text, type }
@@ -340,7 +342,6 @@ function showMessage(text, type = 'info') {
 .builder-header h2 { font-size: 18px; margin: 0; }
 h3 { font-size: 15px; color: #555; margin: 16px 0 8px; }
 .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-.form-row-inline { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 12px; }
 .form-row { margin-bottom: 12px; }
 .form-row label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
 .form-row select { width: 100%; padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }

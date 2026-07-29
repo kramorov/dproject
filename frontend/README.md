@@ -33,6 +33,8 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `CatalogBrand.vue` | Товары бренда (не используется в новых каталогах) |
 | `EngineerFilterBar.vue` | Горизонтальная панель фильтров для `EngineerSelection` |
 | `EngineerProductCard.vue` | Горизонтальная карточка товара для `EngineerSelection` |
+| `PaQuickSelect.vue` | Конфигуратор пневмоприводов: серия→DA/SR→модель (чипсы) + опции (дропдауны) → `PaProductCard` |
+| `PaProductCard.vue` | Карточка пневмопривода: `ProductDetail` + [Добавить в корзину] [Просмотр спецификации] |
 
 ### Архитектура каталога (2026-07-28)
 
