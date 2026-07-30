@@ -6,7 +6,7 @@ from django.urls import reverse
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources
 from rangefilter.filters import DateRangeFilter
-from .models import SKU
+from .models import SKU, MBOM, MBOMItem
 
 
 class SKUResource(resources.ModelResource):
@@ -92,3 +92,23 @@ class SKUAdmin(ImportExportModelAdmin, admin.ModelAdmin):
             except Exception:
                 return f'{ct.model} #{obj.source_object_id}'
         return '—'
+
+
+# ── MBOM ──
+
+@admin.register(MBOM)
+class MBOMAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "conversation", "is_active", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "code", "description")
+    ordering = ("-created_at",)
+    raw_id_fields = ("conversation",)
+
+
+@admin.register(MBOMItem)
+class MBOMItemAdmin(admin.ModelAdmin):
+    list_display = ("mbom", "equipment_type", "sku", "quantity", "position")
+    list_filter = ("mbom", "equipment_type")
+    search_fields = ("notes", "equipment_type__name", "sku__code")
+    ordering = ("mbom", "position")
+    raw_id_fields = ("mbom", "parent", "sku")

@@ -15,6 +15,7 @@ from rest_framework import viewsets, serializers
 from rest_framework.generics import ListAPIView
 from core.models.equipment_type import EquipmentType
 from project_customers.models import ProjectCustomer
+from sku.models.mbom import MBOM, MBOMItem
 
 from .serializers import (
     QueryRequestSerializer, QueryResponseSerializer,
@@ -23,7 +24,7 @@ from .serializers import (
 from ..orchestrator import QueryOrchestrator
 from ..models import (
     AIQuerySample, AIPromptTemplate, AIConversation, SelectionNode,
-    PipelineSkill, SkillOverride, JSONSchema,
+    PipelineSkill, SkillOverride, JSONSchema, CompositionGroup,
 )
 from ..services.tree_processor import TreeProcessor
 from ..services.customer_resolver import resolve_customer
@@ -455,3 +456,62 @@ class CustomerListView(ListAPIView):
     queryset = ProjectCustomer.objects.filter(is_active=True).order_by("name")
     serializer_class = CustomerListSerializer
     permission_classes = [IsAdminUser]
+
+
+# ── CompositionGroup CRUD ──
+
+
+class CompositionGroupViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    serializer_class = None  # set in get_serializer_class
+    queryset = CompositionGroup.objects.prefetch_related("equipment_types", "children")
+    permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        from .serializers import CompositionGroupSerializer
+        return CompositionGroupSerializer
+
+
+class CompositionGroupTreeView(APIView):
+    """Получить полное дерево CompositionGroup + EquipmentType."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from .serializers import CompositionGroupTreeSerializer
+        roots = CompositionGroup.objects.filter(parent__isnull=True, is_active=True).order_by("sorting_order", "name")
+        return Response(CompositionGroupTreeSerializer(roots, many=True).data)
+
+
+class EquipmentTypeTreeView(APIView):
+    """Получить дерево EquipmentType (для drag-drop источника)."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from .serializers import EquipmentTypeTreeSerializer
+        roots = EquipmentType.objects.filter(parent__isnull=True, is_active=True).order_by("sorting_order", "name")
+        return Response(EquipmentTypeTreeSerializer(roots, many=True).data)
+
+
+# ── MBOM CRUD ──
+
+class MBOMViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    queryset = MBOM.objects.prefetch_related("items__children", "items__sku", "items__equipment_type")
+    permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        from .serializers import MBOMSerializer
+        return MBOMSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class MBOMItemViewSet(viewsets.ModelViewSet):
+    pagination_class = None
+    queryset = MBOMItem.objects.select_related("equipment_type", "sku", "composition_group")
+    permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        from .serializers import MBOMItemSerializer
+        return MBOMItemSerializer

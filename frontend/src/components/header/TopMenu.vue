@@ -90,6 +90,8 @@ const allItems = [
     { to:'/ai-assistant', label:'AI Ассистент' },
     { to:'/ai-debug', label:'AI Отладка' },
     { to:'/admin/pipeline-config', label:'Настройка AI Pipeline' },
+    { header:'BOM' },
+    { to:'/admin/bom-config', label:'BOM Конструктор' },
   ]},
 ]
 

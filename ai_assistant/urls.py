@@ -5,6 +5,7 @@ from .api.views import (
     AnalyzeView, ExecuteView, QueryView, RunQueryView,
     QuerySampleViewSet, PromptViewSet, ModelRolesView, EquipmentTypeListView, CustomerListView,
     PipelineSkillViewSet, SkillOverrideViewSet, JSONSchemaViewSet,
+    CompositionGroupViewSet, CompositionGroupTreeView, EquipmentTypeTreeView, MBOMViewSet, MBOMItemViewSet,
     DecomposeView, ExtractView, FilterView, SelectView,
     CompareView, EBOMView, MBOMView, TreeView,
 )
@@ -15,6 +16,9 @@ router.register(r"prompts", PromptViewSet, basename="ai-prompt")
 router.register(r"skills", PipelineSkillViewSet, basename="ai-skill")
 router.register(r"overrides", SkillOverrideViewSet, basename="ai-override")
 router.register(r"schemas", JSONSchemaViewSet, basename="ai-schema")
+router.register(r"composition-groups", CompositionGroupViewSet, basename="ai-composition-group")
+router.register(r"mboms", MBOMViewSet, basename="ai-mbom")
+router.register(r"mbom-items", MBOMItemViewSet, basename="ai-mbom-item")
 
 urlpatterns = [
     # Legacy
@@ -40,6 +44,10 @@ urlpatterns = [
     path("ebom/<int:conversation_id>/", EBOMView.as_view(), name="ai-ebom"),
     path("mbom/<int:conversation_id>/", MBOMView.as_view(), name="ai-mbom"),
     path("tree/<int:conversation_id>/", TreeView.as_view(), name="ai-tree"),
+
+    # BOM config
+    path("composition-tree/", CompositionGroupTreeView.as_view(), name="ai-composition-tree"),
+    path("equipment-type-tree/", EquipmentTypeTreeView.as_view(), name="ai-equipment-type-tree"),
 
     path("", include(router.urls)),
 ]

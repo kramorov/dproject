@@ -9,6 +9,7 @@ from .json_schema import JSONSchema
 from .pipeline_skill import PipelineSkill
 from .skill_override import SkillOverride
 from .cascade_rule import CascadeRule
+from .composition_group import CompositionGroup
 from .selection_node import SelectionNode
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "PipelineSkill",
     "SkillOverride",
     "CascadeRule",
+    "CompositionGroup",
     "SelectionNode",
 ]
