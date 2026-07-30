@@ -103,3 +103,24 @@ class LimitSwitchSensorVariety(GetChoicesMixin, models.Model):
 
     def __str__(self):
         return self.name
+
+
+class PointsOption(models.Model):
+    """Количество датчиков (точек переключения) в БКВ"""
+    name = models.CharField(max_length=100, blank=True, null=True,
+                            verbose_name=_("Название"),
+                            help_text=_("Название варианта количества датчиков"))
+    code = models.CharField(max_length=10, blank=True, null=True, verbose_name=_("Код"),
+                            help_text=_("Числовой код (2, 3, 4)"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"),
+                                   help_text=_('Подробное описание конфигурации'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Количество датчиков БКВ")
+        verbose_name_plural = _("Количество датчиков БКВ")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name or f'{self.code} датчика(ов)'

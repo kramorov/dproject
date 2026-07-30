@@ -4,7 +4,7 @@ from .lsb_model_line_item import LsbModelLineItem
 from .lsb_model_line import LimitSwitchModelLine
 from .sensor import SensorComponent
 from .lsb_body import LimitSwitchBody
-from .pa_control_options import SignalType, ContactState, ContactForm, LimitSwitchSensorVariety
+from .pa_control_options import SignalType, ContactState, ContactForm, LimitSwitchSensorVariety, PointsOption
 from .pa_control_mounting import PaControlMountingStandard
 
 __all__ = [

@@ -71,7 +71,7 @@ SKUMixin           — привязка к номенклатуре
 
 - `model_line_id` — серия (EXACT)
 - `sensor_variety_id` — тип сенсора (EXACT)
-- `points` — количество датчиков (EXACT, CHOICES)
+- `points_option_id` — количество датчиков (EXACT, FOREIGN_KEY → PointsOption)
 - `ip_id` — IP (IP_RANK)
 - `work_temp_min/max` — температура (TEMP_MIN/MAX)
 - `body_material_id` — материал корпуса (EXACT)

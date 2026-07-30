@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from core.models.mixins import AdminCopyMixin
 
-from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactState, ContactForm, LimitSwitchBody, \
+from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactState, ContactForm, LimitSwitchBody, PointsOption, \
     SensorComponent
 from pa_controls.models.limit_switch import LimitSwitchBox
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
@@ -229,14 +229,15 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'model_line', 'body', 'sensor_variety',
-        'points', 'ip',
+        'points_option', 'ip',
     ]
     list_filter = [
          'code','sensor_variety',  'model_line',
-        'ip', 'points', 'body',
+        'ip', 'points_option', 'body',
     ]
     search_fields = ['name', 'code', ]
-    list_editable = ['code', 'model_line', 'body','sensor_variety','points',]
+    list_editable = ['code', 'model_line', 'body','sensor_variety',]
+    autocomplete_fields = ['points_option', 'body', 'model_line']
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes','regenerate_from_templates']
     filter_horizontal = ['additional_sensor', 'exd']
@@ -246,7 +247,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     fieldsets = (
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
-                       ( 'points','sensor_variety',),
+                       ( 'points_option','sensor_variety',),
                        ('ip', 'exd'),
                        ('work_temp_min', 'work_temp_max'),)
         }),
@@ -356,3 +357,11 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         self.message_user(request, f"♻️ Обновлено: {updated} из {queryset.count()}", level=messages.SUCCESS)
 
     regenerate_from_templates.short_description = "♻️ Перегенерировать name/description из шаблонов"
+
+@admin.register(PointsOption)
+class PointsOptionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'sorting_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'code']
+    list_editable = ['sorting_order', 'is_active']
+    ordering = ['sorting_order', 'code']

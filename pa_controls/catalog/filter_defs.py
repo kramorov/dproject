@@ -24,11 +24,10 @@ fd_sensor_variety = FilterDefinition(
 )
 
 fd_points = FilterDefinition(
-    param_name='points',
-    model_field='points',
+    param_name='points_option_id',
+    model_field='points_option',
     filter_type=FilterType.EXACT,
-    data_source_type=DataSourceType.CHOICES,
-    choices=[(1, '1 датчик'), (2, '2 датчика'), (3, '3 датчика'), (4, '4 датчика')],
+    data_source_type=DataSourceType.FOREIGN_KEY,
     label='Количество датчиков',
     order=4,
     default_value=2,

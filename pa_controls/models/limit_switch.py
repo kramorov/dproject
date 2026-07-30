@@ -11,7 +11,7 @@ from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, Com
 from core.models.mixins import TemplateMixin, CopyMixin, CatalogDictMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified
-from pa_controls.models.pa_control_options import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState
+from pa_controls.models.pa_control_options import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState, PointsOption
 from pa_controls.models.sensor import SensorComponent
 from pa_controls.models.lsb_body import LimitSwitchBody
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
@@ -90,6 +90,12 @@ class LimitSwitchBox(CatalogDictMixin,
                                  verbose_name=_("Количество датчиков"),
                                  help_text=_("Количество точек переключения (датчиков)")
                                  )
+    points_option = models.ForeignKey(
+        PointsOption, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='limit_switch_boxes',
+        verbose_name=_("Количество датчиков (опция)"),
+        help_text=_("Ссылка на справочник количества датчиков")
+    )
     ip = models.ForeignKey(IpOption, on_delete=models.SET_NULL, null=True,
                            related_name='limit_switch_box_ip',
                            help_text=_('Степень защиты IP'),
@@ -269,7 +275,7 @@ class LimitSwitchBox(CatalogDictMixin,
             '{model_code}': 'code',
             '{brand}': 'model_line__brand__name',
             '{sensor_variety}': 'sensor_variety',
-            '{points}': 'points',
+            '{points}': 'points_option',
             '{body_material}': 'body_material',
             '{body_material_specified}': 'body_material_specified',
             '{weight}': 'body__weight',
@@ -316,11 +322,10 @@ class LimitSwitchBox(CatalogDictMixin,
 
         # Количество датчиков
         FilterDefinition(
-            param_name='points',
-            model_field='points',
+            param_name='points_option_id',
+            model_field='points_option',
             filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.CHOICES,
-            choices=[(1, '1 датчик'), (2, '2 датчика'), (3, '3 датчика'), (4, '4 датчика')],
+            data_source_type=DataSourceType.FOREIGN_KEY,
             label='Количество датчиков',
             order=3
         ),
@@ -418,7 +423,7 @@ class LimitSwitchBox(CatalogDictMixin,
     # Фильтры для быстрого подбора (QuickSelect)
     QUICKSELECT_FILTERS = [
         'sensor_variety_id',
-        'points',
+        'points_option_id',
         'body_material_id',
         'signal_type_id',
     ]
@@ -441,7 +446,7 @@ class LimitSwitchBox(CatalogDictMixin,
             'model_line_name': ml.name if ml else '',
             'brand_name': ml.brand.name if ml and ml.brand else '',
             'sensor_variety': self.sensor_variety.name if self.sensor_variety else '',
-            'points': str(self.points) if self.points else '',
+            'points': self.points_option.name if self.points_option else str(self.points) if self.points else '',
             'ip': self.ip.name if self.ip else '',
             'exd': self.exd_display or '',
             'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
@@ -593,7 +598,7 @@ class LimitSwitchBox(CatalogDictMixin,
                              'type': 'text', 'order': 2},
                             {'key': 'sensor_variety', 'label': 'Тип сенсора', 'value': tv['sensor_variety'], 'unit': '',
                              'type': 'text', 'order': 3},
-                            {'key': 'points', 'label': 'Количество датчиков', 'value': tv['points'], 'unit': '',
+                            {'key': 'points_option_id', 'label': 'Количество датчиков', 'value': tv['points'], 'unit': '',
                              'type': 'number', 'order': 4},
                             {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 5},
                             {'key': 'exd', 'label': 'Взрывозащита', 'value': tv['exd'], 'unit': '', 'type': 'text',
