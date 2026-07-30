@@ -84,6 +84,21 @@ class EquipmentType(BaseAbstractModel):
         )
     )
 
+
+    # ── AI: схема и промпт ──
+    output_schema = models.ForeignKey(
+        "ai_assistant.JSONSchema", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="equipment_types",
+        verbose_name=_("JSON Schema"),
+        help_text=_("JSON-схема выходного формата (extract)"),
+    )
+    prompt_template = models.ForeignKey(
+        "ai_assistant.AIPromptTemplate", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="equipment_types",
+        verbose_name=_("Prompt Template"),
+        help_text=_("Шаблон промпта для extract"),
+    )
+
     class Meta:
         db_table = 'core_equipmenttype'
         verbose_name = _("Тип оборудования")

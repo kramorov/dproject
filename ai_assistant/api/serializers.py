@@ -117,6 +117,8 @@ class CompositionGroupSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "code", "description", "parent",
             "group_type", "sorting_order", "is_active",
+            "output_schema", "output_schema_detail",
+            "prompt_template", "prompt_template_detail",
             "equipment_types", "equipment_types_detail",
             "children", "created_at", "updated_at",
         ]
@@ -124,6 +126,20 @@ class CompositionGroupSerializer(serializers.ModelSerializer):
     def get_children(self, obj):
         children = obj.children.filter(is_active=True).order_by("sorting_order", "name")
         return CompositionGroupSerializer(children, many=True).data
+
+    output_schema_detail = serializers.SerializerMethodField()
+
+    prompt_template_detail = serializers.SerializerMethodField()
+
+    def get_prompt_template_detail(self, obj):
+        if obj.prompt_template:
+            return {"id": obj.prompt_template.id, "name": obj.prompt_template.name, "version": obj.prompt_template.version}
+        return None
+
+    def get_output_schema_detail(self, obj):
+        if obj.output_schema:
+            return {"id": obj.output_schema.id, "name": obj.output_schema.name, "version": obj.output_schema.version}
+        return None
 
     def get_equipment_types_detail(self, obj):
         return [
@@ -151,14 +167,17 @@ class CompositionGroupTreeSerializer(serializers.ModelSerializer):
             obj.equipment_types.filter(is_active=True).order_by("name"),
             many=True,
         ).data
-        # Inject item_type for frontend
         for node in et_nodes:
             node["item_type"] = "equipment_type"
-        # Child composition groups
         cg_nodes = []
         for child in obj.children.filter(is_active=True).order_by("sorting_order", "name"):
             cg_nodes.append(CompositionGroupTreeSerializer(child).data)
-        return et_nodes + cg_nodes
+        ref_nodes = []
+        for ref in obj.references.filter(is_active=True).order_by("sorting_order", "name"):
+            data = CompositionGroupTreeSerializer(ref).data
+            data["item_type"] = "reference"
+            ref_nodes.append(data)
+        return et_nodes + cg_nodes + ref_nodes
 
 
 # ── EquipmentType tree (for drag-drop source) ──

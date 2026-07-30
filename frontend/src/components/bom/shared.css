@@ -1,0 +1,11 @@
+/* Shared styles for BOM tree components */
+.tree-node { user-select: none; }
+.tree-node-header { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; cursor: default; }
+.tree-node-header:hover { background: #f0f4ff; }
+.toggle { cursor: pointer; width: 16px; text-align: center; font-size: 10px; color: #888; flex-shrink: 0; }
+.toggle-spacer { width: 16px; flex-shrink: 0; }
+.node-icon { font-size: 16px; flex-shrink: 0; }
+.node-name { font-weight: 500; flex: 1; }
+.node-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #e8e8e8; color: #666; }
+.badge-composition_group { background: #dbeafe; color: #1e40af; }
+.badge-equipment_type { background: #dcfce7; color: #166534; }

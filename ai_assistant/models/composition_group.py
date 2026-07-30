@@ -61,6 +61,16 @@ class CompositionGroup(models.Model):
         help_text=_("Родительская CompositionGroup для вложенности"),
     )
 
+
+    references = models.ManyToManyField(
+        "self",
+        blank=True,
+        symmetrical=False,
+        related_name="referenced_by",
+        verbose_name="Ссылки на группы",
+        help_text="CompositionGroup, на которые ссылается эта группа (не вложенность)",
+    )
+
     equipment_types = models.ManyToManyField(
         "core.EquipmentType",
         blank=True,
@@ -77,6 +87,20 @@ class CompositionGroup(models.Model):
         help_text=_("required / optional / xor"),
     )
 
+
+    output_schema = models.ForeignKey(
+        "JSONSchema", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="composition_groups",
+        verbose_name=_("JSON Schema"),
+        help_text=_("JSON-схема выходного формата для этой группы (MBOM/подбор)"),
+    )
+
+    prompt_template = models.ForeignKey(
+        "AIPromptTemplate", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="composition_groups",
+        verbose_name=_("Prompt Template"),
+        help_text=_("Шаблон промпта для этой группы (MBOM/подбор)"),
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
 

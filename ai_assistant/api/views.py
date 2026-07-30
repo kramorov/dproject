@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework import viewsets, serializers
+from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
 from core.models.equipment_type import EquipmentType
 from project_customers.models import ProjectCustomer
@@ -463,13 +464,44 @@ class CustomerListView(ListAPIView):
 
 class CompositionGroupViewSet(viewsets.ModelViewSet):
     pagination_class = None
-    serializer_class = None  # set in get_serializer_class
-    queryset = CompositionGroup.objects.prefetch_related("equipment_types", "children")
+    serializer_class = None
+    queryset = CompositionGroup.objects.prefetch_related("equipment_types", "children", "references")
     permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
         from .serializers import CompositionGroupSerializer
         return CompositionGroupSerializer
+
+    @action(detail=True, methods=["post"])
+    def add_reference(self, request, pk=None):
+        group = self.get_object()
+        ref_id = request.data.get("reference_id")
+        if not ref_id:
+            return Response({"error": "reference_id required"}, status=400)
+        if int(ref_id) == group.id:
+            return Response({"error": "Cannot reference self"}, status=400)
+        ref_group = CompositionGroup.objects.filter(id=ref_id, is_active=True).first()
+        if not ref_group:
+            return Response({"error": "Reference group not found"}, status=404)
+        if ref_group.parent_id == group.id:
+            return Response({"error": "Group is already a child, cannot also reference"}, status=400)
+        group.references.add(ref_group)
+        return Response({"ok": True})
+
+    @action(detail=True, methods=["post"])
+    def remove_reference(self, request, pk=None):
+        group = self.get_object()
+        ref_id = request.data.get("reference_id")
+        if not ref_id:
+            return Response({"error": "reference_id required"}, status=400)
+        group.references.remove(ref_id)
+        return Response({"ok": True})
+
+    @action(detail=True, methods=["get"])
+    def referenced_by(self, request, pk=None):
+        group = self.get_object()
+        refs = group.referenced_by.filter(is_active=True).values("id", "name", "code")
+        return Response(list(refs))
 
 
 class CompositionGroupTreeView(APIView):
@@ -515,3 +547,65 @@ class MBOMItemViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         from .serializers import MBOMItemSerializer
         return MBOMItemSerializer
+
+
+
+# ── Schema generation from model FILTER_DEFINITIONS ──
+
+class GenerateSchemaFromModelView(APIView):
+    """Генерирует JSON Schema из FILTER_DEFINITIONS модели оборудования."""
+    permission_classes = [IsAdminUser]
+
+    FILTER_TYPE_MAP = {
+        "exact": "integer", "gte": "number", "lte": "number",
+        "temp_min": "number", "temp_max": "number", "ip_rank": "integer",
+        "icontains": "string", "choice": "integer", "boolean": "boolean",
+        "exd_compatible": "array", "fk_cascade": "integer",
+        "compatible_cascade": "integer", "climate_cascade": "integer",
+        "thread_compatible": "integer", "function_compatible": "integer",
+    }
+
+    def post(self, request):
+        et_id = request.data.get("equipment_type_id")
+        if not et_id:
+            return Response({"error": "equipment_type_id required"}, status=400)
+        try:
+            et = EquipmentType.objects.select_related("content_type").get(id=et_id, is_active=True)
+        except EquipmentType.DoesNotExist:
+            return Response({"error": "EquipmentType not found"}, status=404)
+        ct = et.content_type
+        if not ct:
+            return Response({"error": "EquipmentType has no content_type"}, status=400)
+        try:
+            model_class = ct.model_class()
+        except Exception:
+            return Response({"error": f"Cannot load model: {ct.app_label}.{ct.model}"}, status=400)
+        definitions = getattr(model_class, "FILTER_DEFINITIONS", [])
+        if not definitions:
+            return Response({"error": f"Model has no FILTER_DEFINITIONS"}, status=400)
+
+        properties = {}
+        fields_meta = []
+        for fd in definitions:
+            json_type = self.FILTER_TYPE_MAP.get(fd.filter_type.value, "string")
+            prop = {"type": json_type, "description": fd.label or fd.param_name}
+            if fd.choices:
+                prop["enum"] = [c[0] for c in fd.choices]
+            if json_type == "array":
+                prop["items"] = {"type": "integer"}
+            properties[fd.param_name] = prop
+            fields_meta.append({
+                "param_name": fd.param_name,
+                "label": fd.label or fd.param_name,
+                "type": json_type,
+                "required": False,
+            })
+
+        schema = {"type": "object", "properties": properties, "required": []}
+        return Response({
+            "equipment_type_id": et.id,
+            "equipment_type_name": et.name,
+            "model": f"{ct.app_label}.{ct.model}",
+            "schema_json": schema,
+            "fields": fields_meta,
+        })

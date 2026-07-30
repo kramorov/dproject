@@ -24,6 +24,7 @@ class EquipmentTypeForm(forms.ModelForm):
 @admin.register(EquipmentType)
 class EquipmentTypeAdmin(admin.ModelAdmin):
     form = EquipmentTypeForm
+    actions = ['copy_selected']
     list_display = [
         'name', 'code', 'level_display',
         'parent_display', 'children_count',
@@ -31,7 +32,7 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         'content_type',
         'sorting_order', 'is_active'
     ]
-    list_editable = ['content_type']
+    list_editable = ['sorting_order', 'content_type']
 
     list_filter = ['level', 'is_active']
     search_fields = ['name', 'code', 'description']
@@ -163,6 +164,12 @@ class EquipmentTypeAdmin(admin.ModelAdmin):
         return format_html('<span style="color: #999;">—</span>')
 
     ai_support_display.short_description = "AI"
+
+    @admin.action(description="Копировать выбранные типы оборудования")
+    def copy_selected(self, request, queryset):
+        for et in queryset:
+            et.copy()
+        self.message_user(request, f"Скопировано: {queryset.count()} шт.")
 
     class Media:
         css = {

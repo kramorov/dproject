@@ -6,6 +6,7 @@ from .api.views import (
     QuerySampleViewSet, PromptViewSet, ModelRolesView, EquipmentTypeListView, CustomerListView,
     PipelineSkillViewSet, SkillOverrideViewSet, JSONSchemaViewSet,
     CompositionGroupViewSet, CompositionGroupTreeView, EquipmentTypeTreeView, MBOMViewSet, MBOMItemViewSet,
+    GenerateSchemaFromModelView,
     DecomposeView, ExtractView, FilterView, SelectView,
     CompareView, EBOMView, MBOMView, TreeView,
 )
@@ -32,6 +33,7 @@ urlpatterns = [
     path("extract/<int:node_id>/", ExtractView.as_view(), name="ai-extract"),
     path("filter/<int:node_id>/", FilterView.as_view(), name="ai-filter"),
 
+    path("schemas/generate-from-model/", GenerateSchemaFromModelView.as_view(), name="ai-schema-generate"),
     path("equipment-types/", EquipmentTypeListView.as_view(), name="ai-equipment-types"),
     path("equipment-types/<int:pk>/", EquipmentTypeListView.as_view(), name="ai-equipment-types-detail"),
     path("model-roles/", ModelRolesView.as_view(), name="ai-model-roles"),

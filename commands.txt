@@ -10,7 +10,7 @@ npm install -g codewhale-tui
 
 Прочитай SESSION.md, CATALOG_PATTERN.md, frontend\README.md, image_processor\README.md media_library\README.md продолжай
 electric_actuators\README.md
-ai-assistant.md
+ai-assistant.md cg.md
 
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).
@@ -20,7 +20,7 @@ ai-assistant.md
 git add .
 git commit -m "добавлено опции из model_line в  selected_actuator"
 git pull main office-work
-git push main office-work       Старое: git push main av-be-master:main
+git push main office-work
 
 .\build-demo.ps1 -BuildOnly -PushOnly
 

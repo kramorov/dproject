@@ -1,6 +1,6 @@
 # AI Assistant — архитектура и документация
 
-> Последнее обновление: 2026-07-30
+> Снапшот: 2026-07-30
 
 ## Конвейер подбора
 
@@ -15,7 +15,7 @@
 
 ## Модели
 
-### Конвейер подбора (ai_assistant)
+### Конвейер подбора
 
 | Модель | Назначение |
 |---|---|
@@ -24,8 +24,8 @@
 | `PipelineSkill` | Скилл: step + equipment_type → prompt_template + output_schema + model_role |
 | `SkillOverride` | Клиентское переопределение скилла |
 | `CascadeRule` | Каскад параметров: parent_type → child_type |
-| `AIPromptTemplate` | Версионируемый промпт с подстановкой `{code}` |
-| `JSONSchema` | JSON Schema для structured output |
+| `AIPromptTemplate` | Версионируемый промпт с подстановкой `{code}`. Имеет встроенный `schema_json` |
+| `JSONSchema` | Отдельная версионируемая JSON Schema для structured output. Имя + версия уникальны |
 | `AIMessage` | Сообщение: content, prompt_used, prompt_template FK, latency_ms |
 | `AITokenUsage` | Токины + биллинг |
 | `AIProvider` | API-ключ провайдера, model_mapping |
@@ -36,17 +36,27 @@
 
 | Модель | Модуль | Назначение |
 |---|---|---|
-| `CompositionGroup` | ai_assistant | Группа композиции: parent (self-FK), equipment_types (M2M), group_type (required/optional/xor) |
+| `CompositionGroup` | ai_assistant | Группа композиции: parent (self-FK), equipment_types (M2M), references (M2M), group_type, output_schema FK, prompt_template FK |
 | `MBOM` | sku | Производственная спецификация: customer FK, user FK, conversation FK |
 | `MBOMItem` | sku | Элемент MBOM: parent (self-FK), equipment_type FK, composition_group FK, sku FK, quantity |
 
 ### Классификатор
 
-| Модель | Модуль |
-|---|---|
-| `EquipmentType` | core |
+| Модель | Модуль | Назначение |
+|---|---|---|
+| `EquipmentType` | core | Тип оборудования: parent (self-FK), level, icon, content_type FK, filter_endpoint, param_semantics, title_template, output_schema FK, prompt_template FK |
+
+### Связь схем и промптов с моделями
+
+| Модель | output_schema | prompt_template |
+|---|---|---|
+| `PipelineSkill` | FK → JSONSchema (через пару step+equipment_type) | FK → AIPromptTemplate |
+| `CompositionGroup` | FK → JSONSchema (для группы, MBOM/подбор) | FK → AIPromptTemplate |
+| `EquipmentType` | FK → JSONSchema (для extract) | FK → AIPromptTemplate |
 
 ## API endpoints
+
+Базовый URL: `/api/ai-assistant/`
 
 ### Конвейер
 
@@ -65,10 +75,13 @@
 
 | Endpoint | Метод | Назначение |
 |---|---|---|
-| `/composition-groups/` | CRUD | CompositionGroup |
+| `/composition-groups/` | CRUD | CompositionGroup (включает output_schema, prompt_template) |
+| `/composition-groups/:id/add_reference/` | POST | Добавить ссылку |
+| `/composition-groups/:id/remove_reference/` | POST | Убрать ссылку |
+| `/composition-groups/:id/referenced_by/` | GET | Кто ссылается на группу |
 | `/composition-tree/` | GET | Дерево CompositionGroup + EquipmentType |
 | `/equipment-type-tree/` | GET | Дерево EquipmentType |
-| `/mboms/` | CRUD | MBOM (user автоустанавливается из сессии) |
+| `/mboms/` | CRUD | MBOM |
 | `/mbom-items/` | CRUD | MBOMItem |
 
 ### Конфигурация пайплайна
@@ -79,9 +92,22 @@
 | `/overrides/` | CRUD | SkillOverride |
 | `/prompts/` | CRUD | AIPromptTemplate |
 | `/schemas/` | CRUD | JSONSchema |
+| `/schemas/generate-from-model/` | POST | Генерация JSON Schema из FILTER_DEFINITIONS модели |
 | `/equipment-types/` | GET/PATCH | EquipmentType AI-поля |
 | `/customers/` | GET | ProjectCustomer |
 | `/model-roles/` | GET | Роли из AIProvider.model_mapping |
+
+### Генерация схемы из модели
+
+```
+POST /api/ai-assistant/schemas/generate-from-model/
+{ "equipment_type_id": 3 }
+
+→ читает EquipmentType.content_type → model_class
+→ извлекает FILTER_DEFINITIONS
+→ маппит FilterType в JSON Schema типы (EXACT→integer, TEMP_MIN→number, ...)
+→ возвращает schema_json + fields[]
+```
 
 ## Frontend
 
@@ -91,26 +117,40 @@
 |---|---|---|
 | `/ai-assistant` | AiAssistantPage | Пользовательский интерфейс подбора |
 | `/ai-debug` | AiDebugPage | Отладка: запросы, скиллы, дерево |
-| `/admin/pipeline-config` | PipelineConfigPage | CRUD скиллов, промптов, схем |
-| `/admin/bom-config` | BomConfigPage | BOM Конструктор (3 вкладки) |
+| `/admin/pipeline-config` | PipelineConfigPage | CRUD скиллов, промптов, схем, EquipmentType AI-настроек |
+| `/admin/bom-config` | BomConfigPage | BOM Конструктор + редактор схем |
 
 ### BomConfigPage (`/admin/bom-config`)
 
-Три вкладки:
-- **🌳 Дерево** — раскрывающиеся узлы CompositionGroup + EquipmentType. Двойной клик открывает окно редактирования.
-- **🏗️ Конструктор** — drag-and-drop: слева EquipmentType, справа CompositionGroup. Вложенность групп, удаление элементов.
-- **📋 MBOM** — таблица спецификаций с inline-редактированием.
+Вкладки:
+- **🌳 Дерево** — раскрывающиеся узлы CompositionGroup + EquipmentType
+  - Двойной клик на группе → модалка редактирования (родитель, схема, промпт)
+  - Двойной клик на ET → модалка редактирования (название, код, родитель, уровень, иконка, схема, промпт, кнопка «Взять из модели»)
+  - Двойной клик на ссылке → модалка «Редактирование ссылки» (только смена родителя)
+- **🏗️ Конструктор** — drag-and-drop: слева EquipmentType, справа CompositionGroup
+  - Подсветка цели при наведении (синяя пунктирная рамка)
+  - Drag группы в пустую область → перенос в корень
+  - Drag группы на группу → диалог «Перенести / Сделать ссылку»
+- **📋 MBOM** — таблица спецификаций с inline-редактированием
+
+### Редактор схемы
+
+Вызывается из ET-модалки (✏️) или кнопкой «🔄 Взять из модели». Модалка:
+- Имя схемы, версия
+- Таблица полей с выпадающими списками «Опция» / «Обязательно»
+- Живой JSON-preview
+- Кнопка «Сохранить» → создаёт/обновляет JSONSchema
 
 ### Компоненты
 
-- `TreeNode.vue` — рекурсивное отображение узла дерева
+- `TreeNode.vue` — рекурсивное отображение узла дерева (вкладка Дерево)
+- `CompositionGroupNode.vue` — узел группы: drag-and-drop, подсветка цели, события edit-node/edit-reference/remove-reference
+- `EquipmentTypeNode.vue` — drag-source узел для левой панели
+- `MBOMItemNode.vue` — рекурсивный узел для MBOM-дерева
 - `TreeNodeDisplay.vue` — узел с кнопками фаз (для AiDebugPage)
 - `ProgressBar.vue` — заполняющаяся полоса с расчётом из avg_latency_ms
 - `JsonTableViewer.vue` — табличный просмотр JSON
-
-## Меню
-
-Администрирование → BOM → **BOM Конструктор**
+- `ConfirmDialog.vue` — диалог подтверждения
 
 ## Композиция промптов
 
@@ -136,7 +176,7 @@
 python manage.py test ai_assistant.test_pipeline --keepdb
 
 # Миграции
-python manage.py makemigrations ai_assistant sku
+python manage.py makemigrations ai_assistant sku core
 python manage.py migrate
 
 # Отладка через AiDebugPage
@@ -151,11 +191,66 @@ from ai_assistant.models import AIMessage
 m = AIMessage.objects.filter(intent='decompose').order_by('-id').first()
 print(m.prompt_used)
 "
+
+# Генерация схемы из модели
+curl -X POST /api/ai-assistant/schemas/generate-from-model/ \
+  -H 'Content-Type: application/json' \
+  -d '{"equipment_type_id": 3}'
 ```
 
 ## TODO
 
-- Фаза Compare: сравнение требований пользователя с характеристиками продуктов
-- EBOM/MBOM: сохранение результатов подбора в модели MBOM/MBOMItem
-- Интеграция MBOMViewSet с TreeProcessor для автоматического заполнения MBOMItem
-- Кеширование дерева CompositionGroup + EquipmentType
+### AiCatalogSearch — AI-помощник в каталогах
+
+Компонент на страницах каталогов (LimitSwitchPage, FilterRegulatorPage, ...). Двухшаговый конвейер:
+
+```
+Текст пользователя
+  → Classify (LLM) — определить intent + equipment_type
+    ├── "подбери БКВ IP66"              → intent=search, type=limit_switch
+    ├── "БКВ к приводу артикул XXX"     → intent=search_by_parent, type=limit_switch, зависит от actuator
+    ├── "покажи самый дешевый БКВ"      → intent=search, type=limit_switch, sort=price
+    ├── "нужен БКВ и позиционер"         → intent=multi, types=[limit_switch, positioner]
+    └── "какие датчики лучше?"          → intent=discuss, needs_clarification
+  → Extract (LLM) — использует EquipmentType.prompt_template + output_schema
+  → Filter — применяет извлечённые параметры к каталогу
+```
+
+**Зачем нужен Classify:**
+- Защита от спама и нерелевантных запросов
+- Маршрутизация: поиск по родительскому оборудованию (найти привод → взять параметры → подобрать БКВ)
+- Обработка множественных позиций (decompose)
+- Отсев запросов-обсуждений (нужна уточняющая ветка диалога)
+
+**Эндпоинт:** `POST /api/ai-assistant/catalog-search/`
+
+```json
+// Request
+{
+  "equipment_type_id": 3,
+  "text": "БКВ с индуктивным датчиком IP66, температура -40"
+}
+
+// Response
+{
+  "intent": "search",
+  "filters": {
+    "sensor_variety_id": 2,
+    "ip_id": 5,
+    "work_temp_min": -40
+  },
+  "confidence": 0.92,
+  "explanation": "Индуктивный датчик, IP66, от -40°C"
+}
+```
+
+**PipelineSkills для catalog-search:**
+- `classify / *` → общий classification-промпт, модель=classification
+- `extract / {equipment_type}` → EquipmentType.prompt_template + output_schema
+
+- **Перенос PipelineConfigPage** в BomConfigPage как дополнительная вкладка — единый центр настройки AI
+- **Фаза Compare**: сравнение требований пользователя с характеристиками продуктов
+- **EBOM/MBOM**: сохранение результатов подбора в модели MBOM/MBOMItem
+- **Интеграция MBOMViewSet** с TreeProcessor для автоматического заполнения MBOMItem
+- **Кеширование** дерева CompositionGroup + EquipmentType
+- **Вкладка Schemas** в BomConfigPage — CRUD схем с авто-генерацией из моделей

@@ -1,3 +1,53 @@
+# SESSION.md — 2026-07-30
+
+## Где остановились
+
+AI Pipeline: CompositionGroup и EquipmentType теперь имеют output_schema + prompt_template. BomConfigPage — полноценный редактор BOM с drag-and-drop, редактированием групп/ET/ссылок, редактором схем с авто-генерацией из FILTER_DEFINITIONS. Документация (ai-assistant.md, cg.md) обновлена как снапшот. AiCatalogSearch — спроектирован (classify+extract), реализация отложена.
+
+## Ключевые изменения за сессию
+
+### CompositionGroup & EquipmentType — схемы и промпты
+- **CompositionGroup**: добавлены `output_schema` (FK→JSONSchema) и `prompt_template` (FK→AIPromptTemplate) — миграции 0018, 0019
+- **EquipmentType**: добавлены `output_schema` и `prompt_template` — миграция core.0006
+- **CompositionGroupSerializer**: поля `output_schema`, `output_schema_detail`, `prompt_template`, `prompt_template_detail`
+- Уровни симметричны: PipelineSkill, CompositionGroup, EquipmentType — все имеют схему и промпт
+
+### BomConfigPage — редактор BOM
+- **Вкладка Дерево**: двойной клик на группе → модалка (родитель, JSON Schema, Prompt Template)
+- **Двойной клик на ET** → отдельная модалка: название, код, родитель, уровень, иконка, схема, промпт, кнопка «🔄 Взять из модели»
+- **Двойной клик на ссылке** → модалка «Редактирование ссылки» (только смена родителя)
+- **Родитель в модалке**: выпадающий список всех групп
+- **Drag-and-drop**: подсветка цели (синяя пунктирная рамка), stopPropagation (защита от двойного дропа), drag в корень, drag → диалог «Перенести/Ссылка»
+- **CompositionGroupNode**: edit-reference (отдельное событие для ссылок), remove-reference passthrough с rest-аргументами
+
+### Редактор схем
+- **Модалка**: имя, версия, таблица полей с «Опция»/«Обязательно», живой JSON-preview
+- **Кнопка «Взять из модели»**: вызывает `POST /api/ai-assistant/schemas/generate-from-model/`
+- **Бэкенд**: читает EquipmentType.content_type → model_class → FILTER_DEFINITIONS → JSON Schema
+- Маппинг FilterType → JSON type (EXACT→integer, TEMP_MIN→number, EXD_COMPATIBLE→array, ...)
+
+### Прочие правки
+- **features/admin/equipment_type_admin.py**: `sorting_order` в list_editable
+- **EquipmentType.copy()**: метод на модели, admin action «Копировать выбранные»
+- **core/admin.py**: EquipmentTypeAdmin удалён (был дубликатом с features)
+- **settings.py**: `# 'core' ,` —оказался старым комментом, реальная регистрация на строке 171
+- **BomConfigPage**: `findParentId` исправлен — убран `item_type` фильтр (нет в плоском сериализаторе)
+- **BomConfigPage**: `loadAllGroups`, `loadSchemas`, `loadPrompts`, `loadETsFlat` — загрузка справочников
+
+### Документация
+- **ai-assistant.md**: снапшот — модели, API, фронтенд, TODO (AiCatalogSearch с полной спецификацией)
+- **cg.md**: снапшот — CompositionGroup + EquipmentType, API, фронтенд, TODO
+
+### AiCatalogSearch — спроектирован, не реализован
+Двухшаговый конвейер для страниц каталогов:
+1. **Classify** — определить intent (search / search_by_parent / multi / discuss)
+2. **Extract** — EquipmentType.prompt_template + output_schema → фильтры
+3. **Filter** — применить к каталогу
+
+Эндпоинт: `POST /api/ai-assistant/catalog-search/`. Подробно в ai-assistant.md.
+
+---
+
 # SESSION.md — 2026-07-29
 
 ## Где остановились
