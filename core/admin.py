@@ -1,6 +1,7 @@
 # core/admin.py
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 import json
 
 
@@ -100,3 +101,28 @@ class BaseAdmin(admin.ModelAdmin) :
             return f"Ошибка: {str(e)}"
 
     json_preview.short_description = "JSON данные"
+
+
+# ── SelectionWizard Admin ──
+from core.models.selection_wizard import SelectionWizard
+
+@admin.register(SelectionWizard)
+class SelectionWizardAdmin(admin.ModelAdmin):
+    list_display = ['name', 'equipment_type', 'is_active', 'sorting_order']
+    list_filter = ['is_active', 'equipment_type']
+    search_fields = ['name', 'code', 'equipment_type__name']
+    autocomplete_fields = ['equipment_type']
+
+    fieldsets = (
+        (_('Основное'), {
+            'fields': ('name', 'code', 'description', ('equipment_type', 'is_active'), 'sorting_order'),
+        }),
+        (_('Конфигурация шагов'), {
+            'fields': ('steps_json',),
+            'description': _(
+                'JSON с двумя секциями: "pages" и "filters".<br>'
+                '<b>pages</b>: [{"step_number": 1, "title": "...", "description": "..."}, ...]<br>'
+                '<b>filters</b>: [{"param_name": "...", "page": 1, "order": 1, "label": "...", "default_value": null}, ...]'
+            ),
+        }),
+    )

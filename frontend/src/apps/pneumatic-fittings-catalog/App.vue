@@ -7,7 +7,7 @@
       @section="goToSection"
       @engineer="goToList"
       @quickselect="goToQuickSelect"
-      @wizard="goToSection"
+      @wizard="goToWizard"
       @ai="goToSection"
     />
     <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @navigate="goToSection" />
@@ -15,6 +15,13 @@
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="page = previousPage" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" :parent-mode="parentModeName" @select="id => onSelectItem(id, 'brand')" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="id => onSelectItem(id, 'quickselect')" @navigate="goToSection" />
+    <WizardSelection
+      v-else-if="page === 'wizard'"
+      :equipment-type-id="equipmentTypeId"
+      :labels="labels.wizard"
+      @select="id => onSelectItem(id, 'wizard')"
+      @navigate="goToSection"
+    />
   </div>
 </template>
 <script setup>
@@ -26,9 +33,12 @@ import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
+import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
 import fittingApi from './api'
 const api = fittingApi
+const equipmentTypeId = 9  // Пневмофитинги
+
 const labels = {
   section: { title:'Пневматические фитинги', subtitle:'Выберите серию фитингов', breadcrumbName:'Фитинги' },
   list: { title:'Фитинги — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
@@ -42,6 +52,7 @@ const labels = {
     },
     autoSelectRules:{},
   },
+  wizard: { breadcrumbName:'Пневмофитинги', wizardTitle:'Мастер подбора Пневмофитинги' },
 }
 const { page, selectedId, idValue, goToList, goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
 const previousPage = ref('section')
@@ -63,11 +74,12 @@ const breadcrumbs = computed(() => {
   return items
 })
 
-const tabKeys = { section: 'section', brand: 'section', list: 'engineer', detail:'', quickselect: 'quickselect' }
+const tabKeys = { section: 'section', brand: 'section', list: 'engineer', detail:'', quickselect: 'quickselect', wizard: 'wizard' }
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }
 function goToQuickSelect() { previousPage.value = page.value; page.value = 'quickselect' }
+function goToWizard() { previousPage.value = page.value; page.value = 'wizard' }
 function goToSection() { pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
 </script>
 <style scoped>

@@ -78,6 +78,7 @@ const allItems = [
     { to:'/admin/cert-docs', label:'Сертификаты' },
     { header:'Оборудование' },
     { to:'/admin/limit-switch', label:'БКВ' },
+    { to:'/admin/wizard-config', label:'Мастер подбора' },
     { to:'/admin/ea-power-supply', label:'Опции напряжения ЭП' },
     { to:'/admin/ea-switches', label:'Опции выключателей ЭП' },
     { to:'/admin/ea-models', label:'Модели ЭП' },

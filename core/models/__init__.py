@@ -14,6 +14,7 @@ from django.db.models import Model
 # Импортируем все из модулей для удобного доступа
 from .base import BaseAbstractModel
 from .equipment_type import EquipmentType
+from .selection_wizard import SelectionWizard
 from .equipment_type_mixin import EquipmentTypeMixin
 from .image_gallery_mixin import ImageGalleryMixin
 from .mixins import (
@@ -31,6 +32,7 @@ __all__ = [
 
     # Классификатор
     'EquipmentType',
+    'SelectionWizard',
     'EquipmentTypeMixin',
 
     # Миксины

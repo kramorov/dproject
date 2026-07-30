@@ -2,6 +2,7 @@
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from .views import UniversalAPIView, DebugAPIView, ExdStructureView, ExdParseView, ExdCompatibleView
+from .wizard_views import WizardConfigView, WizardFilterOptionsView, WizardResultsView, WizardModelFiltersView, WizardAdminListView, WizardAdminDetailView, WizardEquipmentTypesView
 from .climate_views import ClimateStructureView, ClimateParseView
 from .ref_views import SectionsView, AllowedAppsView, BrandsView, DjangoUsersView
 
@@ -17,4 +18,15 @@ urlpatterns = [
     path('allowed-apps/', AllowedAppsView.as_view(), name='allowed_apps'),
     path('brands/', BrandsView.as_view(), name='brands'),
     path('django-users/', DjangoUsersView.as_view(), name='django_users'),
+    # Wizard endpoints
+    path('wizard/<int:equipment_type_id>/', WizardConfigView.as_view(), name='wizard_config'),
+    path('wizard/<int:equipment_type_id>/filter-options/', WizardFilterOptionsView.as_view(), name='wizard_filter_options'),
+    path('wizard/<int:equipment_type_id>/results/', WizardResultsView.as_view(), name='wizard_results'),
+    path('wizard/model-filters/', WizardModelFiltersView.as_view(), name='wizard_model_filters'),
+    # Wizard equipment types (admin helper)
+    path('wizard/model-filters/equipment-types/', WizardEquipmentTypesView.as_view(), name='wizard_equipment_types'),
+    path('wizard/model-filters/equipment-types/<int:et_id>/', WizardEquipmentTypesView.as_view(), name='wizard_equipment_type_detail'),
+    # Wizard admin (CRUD)
+    path('wizard/admin/', WizardAdminListView.as_view(), name='wizard_admin_list'),
+    path('wizard/admin/<int:wizard_id>/', WizardAdminDetailView.as_view(), name='wizard_admin_detail'),
 ]

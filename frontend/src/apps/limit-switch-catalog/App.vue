@@ -47,10 +47,11 @@
       @select="id => onSelectItem(id, 'quickselect')"
       @navigate="goToSection"
     />
-    <WizardPlaceholder
+    <WizardSelection
       v-else-if="page === 'wizard'"
+      :equipment-type-id="equipmentTypeId"
       :labels="labels.wizard"
-      eq-name="БКВ"
+      @select="id => onSelectItem(id, 'wizard')"
       @navigate="goToSection"
     />
     <AiPlaceholder
@@ -70,11 +71,12 @@ import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
-import WizardPlaceholder from '@/shared/components/catalog/WizardPlaceholder.vue'
+import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
 import AiPlaceholder from '@/shared/components/catalog/AiPlaceholder.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
 import lsbApi from './api'
 const api = lsbApi
+const equipmentTypeId = 8  // Блок концевых выключателей
 
 const labels = {
   section: { title:'Блоки концевых выключателей', subtitle:'Выберите серию БКВ', breadcrumbName:'БКВ' },

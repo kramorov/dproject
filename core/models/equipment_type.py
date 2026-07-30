@@ -99,6 +99,14 @@ class EquipmentType(BaseAbstractModel):
         help_text=_("Шаблон промпта для extract"),
     )
 
+    # ── Мастер подбора ──
+    active_selection_wizard = models.ForeignKey(
+        'core.SelectionWizard', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='equipment_types',
+        verbose_name=_("Активный мастер подбора"),
+        help_text=_("Мастер подбора для страницы каталога")
+    )
+
     class Meta:
         db_table = 'core_equipmenttype'
         verbose_name = _("Тип оборудования")
