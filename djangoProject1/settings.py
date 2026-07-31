@@ -58,9 +58,13 @@ CLOUDRU_REGION = 'ru-central-1'
 STATIC_URL = '/static/'  # URL для статических файлов
 # Папки, где искать статические файлы
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR , 'static') ,
-    os.path.join(BASE_DIR , 'frontend' , 'dist') ,  # Vite build output
+    os.path.join(BASE_DIR, 'static'),
 ]
+
+# Vite build output - only if the directory exists locally
+_frontend_dist = os.path.join(BASE_DIR, 'frontend', 'dist')
+if os.path.isdir(_frontend_dist):
+    STATICFILES_DIRS.append(_frontend_dist)
 # Папка для collectstatic (может быть любой)
 STATIC_ROOT = os.path.join(BASE_DIR , 'staticfiles')  # Директория для сбора статических файлов
 

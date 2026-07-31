@@ -23,6 +23,7 @@
           :key="s.step_number"
           class="wizard-step-chip"
           :class="{ active: currentStep === i, completed: i < currentStep }"
+          :disabled="i > currentStep && !canProceed"
           @click="goToStep(i)"
         >
           <span class="step-num">{{ s.step_number }}</span>
@@ -102,7 +103,7 @@
           >
             {{ submitting ? 'Подбираем...' : 'Подобрать' }}
           </button>
-          <button v-else class="wizard-btn wizard-btn-next" @click="nextStep">
+          <button v-else class="wizard-btn wizard-btn-next" :disabled="!canProceed" @click="nextStep">
             Дальше →
           </button>
         </div>
@@ -114,26 +115,20 @@
       <div class="wizard-results-header">
         <button class="wizard-btn wizard-btn-back" @click="backToSteps">← К шагам</button>
         <PageTitle :title="`Результаты подбора`" />
-        <div class="results-count">{{ total }} {{ totalLabel }}</div>
       </div>
 
-      <div class="results-grid" v-if="results.length">
-        <EngineerProductCard
-          v-for="item in results"
-          :key="item.id"
-          :item="item"
-          @select="id => $emit('select', id)"
-        />
-      </div>
-      <div class="wizard-empty" v-else-if="!loadingResults">
-        Ничего не найдено. Попробуйте изменить критерии.
-      </div>
-
-      <div class="wizard-pagination" v-if="totalPages > 1">
-        <button :disabled="currentPage <= 1" @click="goResultsPage(currentPage - 1)">← Назад</button>
-        <span>Стр. {{ currentPage }} из {{ totalPages }}</span>
-        <button :disabled="currentPage >= totalPages" @click="goResultsPage(currentPage + 1)">Вперёд →</button>
-      </div>
+      <SelectionResultGrid
+        :items="results"
+        :total="total"
+        :loading="loadingResults"
+        :results-label="totalLabel"
+        :empty-text="'Ничего не найдено. Попробуйте изменить критерии.'"
+        mode="page"
+        :page="currentPage"
+        :total-pages="totalPages"
+        @select="id => $emit('select', id)"
+        @page-change="goResultsPage"
+      />
     </template>
   </div>
 </template>
@@ -143,7 +138,7 @@ import { ref, computed, onMounted } from 'vue'
 import { debug } from '@/shared/config'
 import api from '@/shared/api'
 import PageTitle from '@/shared/components/PageTitle.vue'
-import EngineerProductCard from '@/shared/components/catalog/EngineerProductCard.vue'
+import SelectionResultGrid from '@/shared/components/catalog/SelectionResultGrid.vue'
 import ClimateFilter from '@/shared/components/ClimateFilter.vue'
 import ExdFilter from '@/shared/components/ExdFilter.vue'
 
@@ -177,6 +172,22 @@ const wizardTitle = computed(() => props.labels.wizardTitle || wizardName.value 
 const totalLabel = computed(() => props.labels.countLabel || 'найдено')
 const currentStepData = computed(() => steps.value[currentStep.value] || null)
 const isLastStep = computed(() => currentStep.value >= steps.value.length - 1)
+const canProceed = computed(() => {
+  const step = currentStepData.value
+  if (!step || !step.filters) return false
+  if (step.filters.length === 0) return true
+  return step.filters.every(filter => {
+    // exd_id always filled -- defaults to Общепромышленное
+    if (filter.param_name === 'exd_id') return true
+    // climate requires both temps
+    if (filter.param_name === 'climate') {
+      return selectedValues.value['work_temp_min'] != null
+        && selectedValues.value['work_temp_max'] != null
+    }
+    const val = selectedValues.value[filter.param_name]
+    return val !== undefined && val !== null && val !== ''
+  })
+})
 
 // ── Загрузка конфигурации ──
 onMounted(async () => {
@@ -529,40 +540,5 @@ function backToSteps() {
   gap: 16px;
   margin-bottom: 20px;
   flex-wrap: wrap;
-}
-.results-count {
-  font-size: var(--cat-text-base, 14px);
-  color: var(--cat-muted, #6b7280);
-  margin-left: auto;
-}
-.results-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.wizard-pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-top: 32px;
-  padding: 16px 0;
-}
-.wizard-pagination button {
-  padding: 8px 20px;
-  font-size: var(--cat-text-base, 14px);
-  background: var(--cat-surface, #fff);
-  border: 1px solid var(--cat-border, #d1d5db);
-  border-radius: var(--cat-radius-md, 6px);
-  cursor: pointer;
-  color: var(--cat-text, #1f2937);
-}
-.wizard-pagination button:disabled {
-  opacity: .4;
-  cursor: default;
-}
-.wizard-pagination span {
-  font-size: var(--cat-text-base, 14px);
-  color: var(--cat-muted, #6b7280);
 }
 </style>

@@ -224,6 +224,7 @@ WIZARD_FILTER_REGISTRY = {
 | Файл | Назначение |
 |------|-----------|
 | `src/shared/components/catalog/WizardSelection.vue` | Компонент мастера для страниц каталога |
+| `src/shared/components/catalog/SelectionResultGrid.vue` | Сетка результатов подбора (переиспользуемая) |
 | `src/shared/components/catalog/WizardPlaceholder.vue` | Старая заглушка (больше не используется в каталогах с мастером) |
 | `src/pages/admin/WizardAdminPage.vue` | Админка: создание/редактирование JSON мастеров |
 | `src/router/index.js` | Маршрут `/admin/wizard-config` |
@@ -368,9 +369,9 @@ Smoke-test (`_check.py` — удалён после прогона) через D
 
 ---
 
-## 6. Текущее состояние (2026-07-30)
+## 6. Текущее состояние
 
-### Создано и работает
+### 2026-07-30 — базовая реализация
 - ✅ Модель `SelectionWizard` + миграция
 - ✅ 11 API endpoint'ов (5 публичных + 6 админских)
 - ✅ `wizard_filter_registry.py` — адаптер для моделей без `FILTER_DEFINITIONS`
@@ -380,15 +381,31 @@ Smoke-test (`_check.py` — удалён после прогона) через D
 - ✅ Созданы wizard-записи для всех 5 EquipmentType
 - ✅ Роутер `/admin/wizard-config` + меню TopMenu
 
+### 2026-07-31 — доработки
+- ✅ **`SelectionResultGrid.vue`** — переиспользуемый компонент сетки результатов.
+  Оба режима пагинации: страничный (`page`/`totalPages`) и offset-based
+  (`offset`/`limit`). Используется в `WizardSelection` и `EngineerSelection`.
+- ✅ **`canProceed`** — все фильтры шага обязательны (`.every()`).
+  `exd_id` всегда считается заполненным (по умолчанию «Общепром.»),
+  `climate` требует оба `work_temp_min` и `work_temp_max`.
+- ✅ **Дизейбл чипсов** — будущие шаги неактивны, пока текущий не заполнен.
+- ✅ **`WizardAdminPage.vue` редизайн** — табы шагов, табы фильтров внутри
+  шага, карточка фильтра в одну строку (`param_name | шаг | порядок`).
+  Валидация: уникальность номеров шагов, битые ссылки фильтр→шаг,
+  уникальность `order` в пределах шага. `default_value` — выпадающий
+  список с реальными опциями.
+- ✅ **Сериализация** — `WizardResultsView` использует `to_values_dict()`
+  (как инженерный подбор), а не `to_dict()`. Добавлено обогащение цен
+  через `get_bulk_prices`.
+- ✅ **Меню админки** — перегруппировано: Номенклатура и цены, Клиенты,
+  Оборудование, Настройка системы, Инструменты, AI.
+- ✅ `LimitSwitchModelLineAdmin` / `LimitSwitchBodyAdmin` — `search_fields`
+- ✅ `frontend/dist` в `STATICFILES_DIRS` — условно (только если папка есть)
+
 ### НЕ сделано (потенциальные улучшения)
-- Не добавлен `watch` на смену `equipmentTypeId` в `WizardSelection.vue`
-  (компонент не перезагружается при смене пропса в SPA)
-- Не решена проблема с тестовой БД (`electric_actuators` migration FK)
-- Scoped filter options (фильтрация опций по уже выбранным значениям) —
-  реализована в `_get_scoped_options()`, но фронтенд не перезапрашивает
-  опции при смене выбора на том же шаге
-- Нет индикатора загрузки на уровне шага (только индивидуальные `loadingFilter`)
 - `equipmentTypeId` захардкожен в каждом `App.vue` — при изменении ID в БД сломается
+- Не добавлен `watch` на смену `equipmentTypeId` в `WizardSelection.vue`
+- Нет индикатора загрузки на уровне шага (только индивидуальные `loadingFilter`)
 
 ---
 

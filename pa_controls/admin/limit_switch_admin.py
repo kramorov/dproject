@@ -162,6 +162,7 @@ class LimitSwitchModelLineAdmin(admin.ModelAdmin):
     list_display = ['name', 'code', 'producer', 'brand', 'sorting_order', 'is_active']
     list_filter = ['is_active', 'producer', 'brand']
     list_editable = ['sorting_order', 'is_active']
+    search_fields = ['name', 'code']
     ordering = ['sorting_order', 'name']
     filter_horizontal = ('tech_docs', 'cert_docs')
 
@@ -196,6 +197,7 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
         'name', 'code', 'is_active', 'sorting_order'
     ]
     list_editable = ['sorting_order', 'is_active']
+    search_fields = ['name', 'code']
     ordering = ['sorting_order']
     # Для ManyToMany полей
     filter_horizontal = ['cable_glands_holes', 'mounting']

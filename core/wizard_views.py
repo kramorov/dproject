@@ -29,6 +29,8 @@ from core.models.equipment_type import EquipmentType
 from core.models.selection_wizard import SelectionWizard
 from core.models.filter_definition import FilterType, DataSourceType
 from core.wizard_filter_registry import get_filter_definitions_for_ct
+from price.services.currency_converter import get_bulk_prices
+from core.utils.catalog_helpers import get_currency_code
 
 logger = logging.getLogger(__name__)
 
@@ -288,12 +290,19 @@ class WizardResultsView(WizardModelMixin, APIView):
         items = []
         for obj in items_qs:
             try:
-                items.append(obj.to_dict())
+                items.append(obj.to_values_dict() if hasattr(obj, 'to_values_dict') else obj.to_dict())
             except Exception:
                 try:
                     items.append({'id': obj.id, 'name': str(obj), 'code': getattr(obj, 'code', '')})
                 except Exception:
                     items.append({'id': obj.id, 'name': f'#{obj.id}'})
+
+        # Prices
+        currency_code = get_currency_code(request)
+        sku_codes = [item.get('sku', {}).get('code') for item in items if item.get('sku', {}).get('code')]
+        prices = get_bulk_prices(sku_codes, currency_code) if sku_codes else {}
+        for item in items:
+            item['price'] = prices.get(item.get('sku', {}).get('code'))
 
         return Response({
             'items': items,
