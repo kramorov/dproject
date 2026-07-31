@@ -1,4 +1,4 @@
-/* Shared styles for BOM tree components */
+/* Shared styles for skill tree components */
 .tree-node { user-select: none; }
 .tree-node-header { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; cursor: default; }
 .tree-node-header:hover { background: #f0f4ff; }

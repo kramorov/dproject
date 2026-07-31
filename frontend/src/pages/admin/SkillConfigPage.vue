@@ -1,6 +1,6 @@
 <template>
-  <div class="bom-config">
-    <h1>BOM Configurator</h1>
+  <div class="skill-config">
+    <h1>Skill Configurator</h1>
     <nav class="tabs">
       <button v-for="t in tabs" :key="t.id" :class="{ active: activeTab === t.id }" @click="activeTab = t.id">{{ t.label }}</button>
     </nav>
@@ -264,7 +264,7 @@ import CompositionGroupNode from '@/components/bom/CompositionGroupNode.vue'
 import MBOMItemNode from '@/components/bom/MBOMItemNode.vue'
 
 export default {
-  name: 'BomConfigPage',
+  name: 'SkillConfigPage',
   components: { TreeNode, EquipmentTypeNode, CompositionGroupNode, MBOMItemNode },
   data() {
     return {
@@ -672,7 +672,7 @@ export default {
 </script>
 
 <style scoped>
-.bom-config { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.skill-config { padding: 20px; max-width: 1400px; margin: 0 auto; }
 .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
 .tabs button { padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; border-radius: 4px 4px 0 0; }
 .tabs button.active { background: #fff; border-bottom-color: #fff; font-weight: bold; }

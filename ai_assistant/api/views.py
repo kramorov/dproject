@@ -360,6 +360,7 @@ class TreeView(APIView):
             "status": node.status,
             "status_message": node.status_message,
             "extract_output": node.extract_output,
+            "extract_labels": self._resolve_labels(node),
             "cascade_params": node.cascade_params,
             "filter_output": node.filter_output,
             "selected_product_type": node.selected_product_type,
@@ -370,6 +371,31 @@ class TreeView(APIView):
         if children:
             data["children"] = [self._serialize_node(c) for c in children]
         return data
+
+    def _resolve_labels(self, node) -> dict:
+        """Resolve human-readable labels for extract_output values."""
+        labels = {}
+        eo = node.extract_output or {}
+        if not eo or not node.equipment_type or not node.equipment_type.content_type:
+            return labels
+        from core.wizard_filter_registry import get_filter_definitions_for_ct
+        defs = get_filter_definitions_for_ct(node.equipment_type.content_type_id)
+        if not defs:
+            return labels
+        model_class = node.equipment_type.content_type.model_class()
+        for fd in defs:
+            value = eo.get(fd.param_name)
+            if value is None or value == '':
+                continue
+            try:
+                opts = fd.get_options(model_class) if model_class else []
+                for o in opts:
+                    if o.get('id') == value:
+                        labels[fd.param_name] = o.get('name', str(value))
+                        break
+            except Exception:
+                pass
+        return labels
 
 
 # в”Ђв”Ђ Pipeline Configurator ViewSets в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ

@@ -670,6 +670,30 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                           verbose_name='DA/SR' ,
                           help_text=_('Вид пневмопривода - DA/SR'))
 
+    # ========== КОНФИГУРАЦИЯ ДЛЯ AI-ПАЙПЛАЙНА ==========
+    # Используется для генерации JSON-схем. В наборы фильтров каталогов НЕ включать.
+    from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
+    FILTER_DEFINITIONS = [
+        FilterDefinition(
+            param_name='actuator_variety_id',
+            model_field='pneumatic_actuator_variety',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Тип привода (DA/SR)',
+            order=1,
+            mandatory='yes',
+        ),
+        FilterDefinition(
+            param_name='torque_nm',
+            model_field='body__max_work_torque',
+            filter_type=FilterType.MIN,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Момент не менее, Нм',
+            order=2,
+            mandatory='yes',
+        ),
+    ]
+
     class Meta :
         ordering = ['sorting_order']
         verbose_name = _('Модель пневмопривода')

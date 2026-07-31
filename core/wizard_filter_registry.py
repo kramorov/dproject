@@ -53,6 +53,10 @@ _register('pa_controls', 'limitswitchbox',
 _register('pneumatic_fittings', 'pneumaticfitting',
           'pneumatic_fittings.catalog.filter_defs', 'PNEUMATIC_FITTINGS_FILTER_DEFINITIONS')
 
+# ── PneumaticActuatorModelLineItem (FILTER_DEFINITIONS on class for AI pipeline) ──
+_register('pneumatic_actuators', 'pneumaticactuatormodellineitem',
+          None, None)
+
 
 def get_filter_definitions_for_ct(content_type_id):
     """
@@ -65,6 +69,14 @@ def get_filter_definitions_for_ct(content_type_id):
     if entry is None:
         return None
     import_path, var_name = entry
+    if import_path is None:
+        # FILTER_DEFINITIONS on the model class itself
+        from django.contrib.contenttypes.models import ContentType
+        ct = ContentType.objects.get(id=content_type_id)
+        model_class = ct.model_class()
+        if model_class and hasattr(model_class, 'FILTER_DEFINITIONS'):
+            return model_class.FILTER_DEFINITIONS
+        return None
     import importlib
     module = importlib.import_module(import_path)
     return getattr(module, var_name, [])

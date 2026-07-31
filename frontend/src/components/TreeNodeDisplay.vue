@@ -20,9 +20,9 @@
 
         <!-- Extracted params -->
     <div v-if="extractData && !extractData.error" class="extract-params">
-      <div v-for="(val, key) in extractData" :key="key" class="param-row">
+      <div v-for="(val, key) in extractData" :key="key" class="param-row" v-if="key !== '_labels'">
         <span class="param-key">{{ key }}</span>
-        <span class="param-val">{{ Array.isArray(val) ? val.join(', ') : val }}</span>
+        <span class="param-val">{{ Array.isArray(val) ? val.join(', ') : val }}<template v-if="extractData._labels && extractData._labels[key]"> — {{ extractData._labels[key] }}</template></span>
       </div>
     </div>
     <div v-if="extractData && extractData.error" class="extract-params error">⚠️ Extract failed</div>

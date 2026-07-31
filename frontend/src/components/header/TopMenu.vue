@@ -1,10 +1,17 @@
 <template>
   <div class="top-menu">
-    <div class="menu-item" v-for="item in visibleItems" :key="item.key" @mouseenter="open=item.key" @mouseleave="open=null">
+    <div class="menu-item" v-for="item in visibleItems" :key="item.key" @mouseenter="open=item.key" @mouseleave="open=null; subOpen=null">
       <span class="menu-link has-sub">{{ item.label }} ▾</span>
       <div v-if="item.children && open===item.key" class="dropdown">
-        <template v-for="ch in item.children" :key="ch.to||ch.label">
-          <div v-if="ch.header" class="dropdown-header">{{ ch.header }}</div>
+        <template v-for="ch in item.children" :key="ch.label">
+          <!-- group with sub-dropdown -->
+          <div v-if="ch.children" class="dropdown-group" @mouseenter="subOpen=ch.label" @mouseleave="subOpen=null">
+            <span class="dropdown-item has-sub">{{ ch.label }} ▸</span>
+            <div v-if="subOpen===ch.label" class="sub-dropdown">
+              <router-link v-for="sub in ch.children" :key="sub.to" :to="sub.to" class="dropdown-item">{{ sub.label }}</router-link>
+            </div>
+          </div>
+          <!-- regular link -->
           <router-link v-else :to="ch.to" class="dropdown-item">
             {{ ch.label }}
             <span v-if="ch.pro" class="pro-badge">проф</span>
@@ -19,6 +26,7 @@ import { ref, computed } from 'vue'
 import { useAuth } from './useAuth.js'
 const { roles, loaded } = useAuth()
 const open = ref(null)
+const subOpen = ref(null)
 
 const allItems = [
   { key:'catalog', label:'Каталоги оборудования', children:[
@@ -70,30 +78,36 @@ const allItems = [
     { to:'/about/contacts', label:'Контакты' },
   ]},
   { key:'admin', label:'Администрирование', adminOnly:true, children:[
-    { header:'Номенклатура и цены' },
-    { to:'/admin/price', label:'Цены' },
-    { to:'/admin/sku', label:'SKU' },
-    { to:'/admin/cert-docs', label:'Сертификаты' },
-    { header:'Клиенты' },
-    { to:'/admin/customers', label:'Клиенты' },
-    { header:'Оборудование' },
-    { to:'/admin/limit-switch', label:'БКВ' },
-    { to:'/admin/ea-power-supply', label:'Опции напряжения ЭП' },
-    { to:'/admin/ea-switches', label:'Опции выключателей ЭП' },
-    { to:'/admin/ea-models', label:'Модели ЭП' },
-    { to:'/admin/ea-wirings', label:'Схемы БУ' },
-    { header:'Настройка системы' },
-    { to:'/admin/wizard-config', label:'Мастер подбора' },
-    { to:'/admin/media', label:'Медиабиблиотека' },
-    { header:'Инструменты' },
-    { to:'/tools/image-processor', label:'Обработка изображений' },
-    { to:'/tools/svg-converter', label:'SVG Конвертер' },
-    { to:'/widgets', label:'Виджеты' },
-    { header:'AI' },
-    { to:'/ai-assistant', label:'AI Ассистент' },
-    { to:'/ai-debug', label:'AI Отладка' },
-    { to:'/admin/pipeline-config', label:'Настройка AI Pipeline' },
-    { to:'/admin/bom-config', label:'Skill настройка' },
+    { label:'Номенклатура и цены', children:[
+      { to:'/admin/price', label:'Цены' },
+      { to:'/admin/sku', label:'SKU' },
+      { to:'/admin/cert-docs', label:'Сертификаты' },
+    ]},
+    { label:'Клиенты', children:[
+      { to:'/admin/customers', label:'Клиенты' },
+    ]},
+    { label:'Оборудование', children:[
+      { to:'/admin/limit-switch', label:'БКВ' },
+      { to:'/admin/ea-power-supply', label:'Опции напряжения ЭП' },
+      { to:'/admin/ea-switches', label:'Опции выключателей ЭП' },
+      { to:'/admin/ea-models', label:'Модели ЭП' },
+      { to:'/admin/ea-wirings', label:'Схемы БУ' },
+    ]},
+    { label:'Настройка системы', children:[
+      { to:'/admin/wizard-config', label:'Мастер подбора' },
+      { to:'/admin/media', label:'Медиабиблиотека' },
+    ]},
+    { label:'Инструменты', children:[
+      { to:'/tools/image-processor', label:'Обработка изображений' },
+      { to:'/tools/svg-converter', label:'SVG Конвертер' },
+      { to:'/widgets', label:'Виджеты' },
+    ]},
+    { label:'AI', children:[
+      { to:'/ai-assistant', label:'AI Ассистент' },
+      { to:'/ai-debug', label:'AI Отладка' },
+      { to:'/admin/pipeline-config', label:'Настройка AI Pipeline' },
+      { to:'/admin/skill-config', label:'Skill настройка' },
+    ]},
   ]},
 ]
 
@@ -114,9 +128,11 @@ const visibleItems = computed(() => {
 .menu-link{padding:8px 14px;font-size:13px;color:var(--site-header-text,#fff);text-decoration:none;border-radius:4px;transition:background .15s;cursor:pointer;white-space:nowrap}
 .menu-link:hover,.menu-link.router-link-active{background:rgba(255,255,255,.15)}
 .menu-link.has-sub{cursor:default}
-.dropdown{position:absolute;top:100%;left:0;min-width:280px;background:var(--cat-surface,#fff);border:1px solid var(--cat-border,#e5e7eb);border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.1);z-index:100;padding:4px 0;max-height:70vh;overflow-y:auto}
-.dropdown-header{font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;padding:8px 16px 4px;letter-spacing:.5px}
-.dropdown-item{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;font-size:13px;color:#1f2937;text-decoration:none;transition:background .1s}
+.dropdown{position:absolute;top:100%;left:0;min-width:280px;background:var(--cat-surface,#fff);border:1px solid var(--cat-border,#e5e7eb);border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.1);z-index:100;padding:4px 0;overflow:visible}
+.dropdown-item{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;font-size:13px;color:#1f2937;text-decoration:none;transition:background .1s;white-space:nowrap}
 .dropdown-item:hover{background:#f9fafb}
+.dropdown-item.has-sub{cursor:default}
+.dropdown-group{position:relative}
+.sub-dropdown{position:absolute;left:100%;top:0;min-width:240px;background:var(--cat-surface,#fff);border:1px solid var(--cat-border,#e5e7eb);border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.1);z-index:101;padding:4px 0}
 .pro-badge{font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;margin-left:8px;font-weight:500}
 </style>

@@ -102,6 +102,7 @@ class FilterDefinition:
             cascade_match_fields: List[str] = None,
             show_code: bool = False,
             default_value: str = None,
+            mandatory: str = 'any',
     ):
         self.param_name = param_name
         self.model_field = model_field
@@ -120,6 +121,7 @@ class FilterDefinition:
         self.cascade_match_fields = cascade_match_fields or []
         self.show_code = show_code
         self.default_value = default_value
+        self.mandatory = mandatory
 
     # ── Options ──
 

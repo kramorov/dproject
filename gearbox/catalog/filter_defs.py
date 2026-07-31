@@ -55,6 +55,7 @@ fd_torque = FilterDefinition(
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Рабочий момент не менее, Нм',
     order=7,
+    mandatory='yes',
 )
 
 fd_body_material = FilterDefinition(

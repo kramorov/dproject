@@ -74,6 +74,7 @@ fd_power_supply = FilterDefinition(
     source_model=PowerSupplies,
     label='Напряжение соленоида',
     order=7,
+    mandatory='yes',
 )
 
 fd_kv = FilterDefinition(

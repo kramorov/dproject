@@ -153,6 +153,11 @@ class TreeProcessor:
             )
             save_token_usage(ai_msg, llm_result, customer=self.customer)
 
+            # Cache user_text BEFORE extract (prompts need it for resolution)
+            tree_data["user_text"] = text
+            self.conversation.selection_tree = tree_data
+            self.conversation.save(update_fields=["selection_tree"])
+
             # Create SelectionNodes
             nodes = self._create_nodes_from_tree(tree_data)
 
@@ -164,14 +169,10 @@ class TreeProcessor:
                     continue
                 try:
                     result = self.extract(node_id=n.id)
+                    result["_labels"] = self._resolve_labels(n)
                     extracted[n.decompose_output.get("id") or str(n.id)] = result
                 except Exception as e:
                     logger.warning(f"Auto-extract failed for node {n.id}: {e}")
-
-            # Cache in conversation
-            tree_data["user_text"] = text  # Save for extract phase
-            self.conversation.selection_tree = tree_data
-            self.conversation.save(update_fields=["selection_tree"])
 
         # Update skill latency estimate (outside transaction)
         skill = config.get("skill")
@@ -390,8 +391,6 @@ class TreeProcessor:
             filters = json.loads(json_match.group(1) if json_match else raw_text)
         except (json.JSONDecodeError, AttributeError):
             filters = {"raw_output": raw_text}
-        # old schema block removed
-            filters = llm_result if isinstance(llm_result, dict) else {}
         else:
             try:
                 json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw_text)
@@ -403,6 +402,11 @@ class TreeProcessor:
         node.status = "extracted"
         node.save(update_fields=["extract_output", "status"])
 
+        # Resolve labels for frontend display
+        labels = self._resolve_labels(node)
+        if labels:
+            filters["_labels"] = labels
+
         # Log
         msg = AIMessage.objects.create(
             conversation=self.conversation, role="assistant",
@@ -410,6 +414,15 @@ class TreeProcessor:
             prompt_template=config["prompt_template"],
             intent="extract",
         )
+
+        # Validate mandatory fields
+        missing = self._validate_required(node)
+        if missing:
+            node.status = "needs_info"
+            node.status_message = missing
+            node.save(update_fields=["status", "status_message"])
+            return {"status": "needs_info", "message": missing}
+
         save_token_usage(msg, llm_result, customer=self.customer)
 
         # Update skill latency
@@ -418,6 +431,50 @@ class TreeProcessor:
             update_skill_latency(skill, llm_result.get("latency_ms"))
 
         return {"status": "extracted", "extract_output": filters}
+
+    def _validate_required(self, node) -> str:
+        """Проверяет обязательные поля после extract. Возвращает сообщение или None."""
+        from core.wizard_filter_registry import get_filter_definitions_for_ct
+        if not node.equipment_type or not node.equipment_type.content_type:
+            return None
+        defs = get_filter_definitions_for_ct(node.equipment_type.content_type_id)
+        if not defs:
+            return None
+        missing = []
+        for fd in defs:
+            if getattr(fd, 'mandatory', 'any') != 'yes':
+                continue
+            value = node.extract_output.get(fd.param_name) if node.extract_output else None
+            if value is None or value == '':
+                missing.append(fd.label)
+        if not missing:
+            return None
+        labels = '», «'.join(missing)
+        return f"Не удалось определить: «{labels}» для {node.equipment_type.name}. Уточните запрос."
+
+    def _resolve_labels(self, node) -> dict:
+        labels = {}
+        eo = node.extract_output or {}
+        if not eo or not node.equipment_type or not node.equipment_type.content_type:
+            return labels
+        from core.wizard_filter_registry import get_filter_definitions_for_ct
+        defs = get_filter_definitions_for_ct(node.equipment_type.content_type_id)
+        if not defs:
+            return labels
+        model_class = node.equipment_type.content_type.model_class()
+        for fd in defs:
+            value = eo.get(fd.param_name)
+            if value is None or value == '':
+                continue
+            try:
+                opts = fd.get_options(model_class) if model_class else []
+                for o in opts:
+                    if o.get('id') == value:
+                        labels[fd.param_name] = o.get('name', str(value))
+                        break
+            except:
+                pass
+        return labels
 
     # ── Шаг 3: Filter ────────────────────────────────────────────
 
@@ -477,6 +534,12 @@ class TreeProcessor:
         # Map known endpoints to handler functions
         handler_map = {
             "/api/actuators/search/": "pneumatic_actuators.actuator_selector_handler.process_selection_params",
+            "/api/pneumatic_actuators/selector/search/": "pneumatic_actuators.actuator_selector_handler.process_selection_params",
+            "/api/solenoid_valves/filter/": "ai_assistant.services.filter_handlers.solenoid_valves_filter",
+            "/api/options/bkv/filter/": "ai_assistant.services.filter_handlers.limit_switch_filter",
+            "/api/manual_override/filter/": "ai_assistant.services.filter_handlers.gearbox_filter",
+            "/api/filter_regulator/filter/": "ai_assistant.services.filter_handlers.filter_regulator_filter",
+            "/api/pneumatic_fittings/filter/": "ai_assistant.services.filter_handlers.pneumatic_fittings_filter",
         }
 
         handler_path = handler_map.get(endpoint)
