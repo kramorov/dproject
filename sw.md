@@ -423,3 +423,212 @@ Smoke-test (`_check.py` — удалён после прогона) через D
    - Добавить `<WizardSelection v-else-if="page === 'wizard'" .../>`
    - Добавить `goToWizard()` и `tabKeys`
 5. Фронтенд каталога сам загрузит конфигурацию через API
+
+---
+
+## 8. Профили подбора (FilterProfile) — условные фильтры
+
+> Добавлено 2026-08-03.  
+> Описывает переход от плоской структуры шагов к профилям с условной
+> видимостью фильтров в зависимости от значений branching-фильтра.
+
+### 8.1 Проблема
+
+Текущая структура `steps_json` — плоская: все фильтры шага видны всегда.
+Но для некоторых EquipmentType набор релевантных фильтров зависит от
+выбранного значения.
+
+**Пример — Пневмофитинги:**
+
+```
+fitting_variety_id = «тройник»   → нужны: трубка, резьба
+fitting_variety_id = «глушитель» → нужна: только резьба (трубка не имеет смысла)
+fitting_variety_id = «заглушка»  → нужна: только резьба
+fitting_variety_id = «распределитель» → нужны: трубка, резьба, фитинги, заглушки
+```
+
+Плоская структура показывает все фильтры сразу — пользователь видит
+нерелевантные поля, а на последнем шаге получает 0 результатов, потому
+что заполнил бессмысленный фильтр.
+
+### 8.2 Решение: Профили (FilterProfile)
+
+**Профиль** — именованный набор шагов и фильтров, который активируется
+при выборе определённых значений **branching-фильтра**.
+
+Один EquipmentType может иметь несколько профилей. Профиль ≠ дочерний
+EquipmentType — это надстройка над плоским списком `FILTER_DEFINITIONS`,
+а не новый узел в таксономии.
+
+#### Структура `steps_json` v2
+
+```json
+{
+  "branching_filter": "fitting_variety_id",
+  "common_steps": [
+    {"step_number": 1, "title": "Тип фитинга", "filters": ["fitting_variety_id"]}
+  ],
+  "profiles": [
+    {
+      "id": "tube_fittings",
+      "name": "Трубочные фитинги",
+      "trigger_values": [1, 3, 7],
+      "steps": [
+        {"step_number": 2, "title": "Трубка", "filters": ["pipe_diameter", "pipe_material_id"]},
+        {"step_number": 3, "title": "Резьба", "filters": ["thread_type_id", "thread_id"]}
+      ]
+    },
+    {
+      "id": "silencers_plugs",
+      "name": "Глушители и заглушки",
+      "trigger_values": [5, 9],
+      "steps": [
+        {"step_number": 2, "title": "Резьба", "filters": ["thread_type_id", "thread_id"]}
+      ]
+    }
+  ]
+}
+```
+
+- **`common_steps`** — шаги, видимые всегда (обычно шаг 1: выбор branching-значения)
+- **`branching_filter`** — `param_name` фильтра, значение которого определяет активный профиль
+- **`profiles`** — список профилей. Каждый содержит:
+  - `trigger_values` — ID опций branching-фильтра, при которых профиль активен
+  - `steps` — собственные шаги профиля (показываются после `common_steps`)
+
+#### Как определяется активный профиль
+
+1. Пользователь выбирает значение branching-фильтра (шаг 1)
+2. Фронтенд ищет профиль, у которого `trigger_values` содержит выбранный ID
+3. Если профиль найден — показываются `common_steps` + `steps` профиля
+4. Если не найден — показываются только `common_steps` (fallback)
+5. При смене значения branching-фильтра — профиль переопределяется,
+   нерелевантные выбранные значения сбрасываются
+
+#### Отличие от дерева EquipmentType
+
+| Критерий | Дерево EquipmentType | Профили |
+|---|---|---|
+| Таксономия | Раздувается: каждый вариант → новый тип | Стабильна: один тип = одна модель БД |
+| Комбинаторный взрыв | N branching-фильтров → N×M EquipmentType | N branching-фильтров → N профилей |
+| Админка | N мастеров, каждый со своей конфигурацией | Один мастер, профили внутри |
+| JSON Schema | Плоская для каждого ET | `oneOf`/`if-then` внутри одной схемы |
+
+### 8.3 Scoping опций (уже работает)
+
+**Scoping** — сужение доступных опций фильтра в зависимости от ранее
+выбранных значений. Например: «выбрана трубка из нержавейки → в фитингах
+показываются только совместимые с нержавейкой».
+
+В отличие от профилей (которые управляют **видимостью фильтров**),
+scoping управляет **доступными опциями внутри видимого фильтра**.
+
+#### Текущая реализация
+
+`WizardFilterOptionsView._get_scoped_options()` строит отфильтрованный
+queryset на основе `filters_applied` и возвращает опции только из него.
+Это работает автоматически для всех фильтров, без дополнительной
+конфигурации:
+
+```python
+# core/wizard_views.py, WizardFilterOptionsView._get_scoped_options
+qs = model_class.objects.filter(is_active=True)
+for pn, val in filters_applied.items():
+    if val is None:
+        continue
+    other_fd = self._find_filter_definition(model_class, pn)
+    lookup, converted = other_fd.build_filter_lookup(val)
+    if lookup:
+        qs = qs.filter(**{lookup: converted})
+
+return fd.get_options(model_class, queryset=qs)
+```
+
+**Никаких изменений не требуется.** Фронтенд уже передаёт `filters_applied`
+при каждом запросе `filter-options/`, поэтому опции自动 сужаются.
+
+### 8.4 Использование профилей для JSON Schema (AI)
+
+Текущий `GenerateSchemaFromModelView` строит **плоскую** JSON Schema:
+```json
+{"type": "object", "properties": {...}, "required": [...]}
+```
+
+С профилями схема становится **условной** — через `oneOf` + `if/then/else`.
+Это позволяет AI-пайплайну (фаза extract) понимать, какие поля обязательны
+в зависимости от значения branching-фильтра.
+
+#### Пример сгенерированной схемы
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "fitting_variety_id": {"type": "integer"}
+  },
+  "required": ["fitting_variety_id"],
+  "oneOf": [
+    {
+      "if": {
+        "properties": {"fitting_variety_id": {"enum": [1, 3, 7]}}
+      },
+      "then": {
+        "properties": {
+          "pipe_diameter": {"type": "number"},
+          "pipe_material_id": {"type": "integer"},
+          "thread_type_id": {"type": "integer"},
+          "thread_id": {"type": "integer"}
+        },
+        "required": ["pipe_diameter", "thread_id"]
+      }
+    },
+    {
+      "if": {
+        "properties": {"fitting_variety_id": {"enum": [5, 9]}}
+      },
+      "then": {
+        "properties": {
+          "thread_type_id": {"type": "integer"},
+          "thread_id": {"type": "integer"}
+        },
+        "required": ["thread_id"]
+      }
+    }
+  ]
+}
+```
+
+#### Как это работает в AI-пайплайне
+
+1. **Decompose**: LLM определяет EquipmentType (Пневмофитинги)
+2. **Extract**: LLM получает схему с `oneOf` — она понимает, что поля
+   `pipe_diameter` и `pipe_material_id` нужны только если `fitting_variety_id`
+   попадает в `[1, 3, 7]`
+3. **Validate**: проверка `required` учитывает активную ветку `oneOf`
+4. **Filter**: применяются только те фильтры, которые были извлечены
+   (нерелевантные просто не передаются)
+
+#### Генерация из профилей
+
+`GenerateSchemaFromModelView` при наличии `FilterProfile` для данного
+EquipmentType:
+
+1. Читает `branching_filter` и список профилей
+2. Для каждого профиля строит `then`-ветку:
+   - `properties` — из `FILTER_DEFINITIONS`, отфильтрованных по профилю
+   - `required` — поля с `mandatory='yes'`
+3. Оборачивает в `oneOf` с `if` (условие по `trigger_values`)
+4. Поля из `common_steps` попадают в корневые `properties`
+
+Без профилей — поведение не меняется (плоская схема, обратная совместимость).
+
+### 8.5 План реализации
+
+| № | Шаг | Файлы |
+|---|---|---|
+| 1 | `FilterDefinition.profile_group` — строковый тэг для группировки фильтров | `core/models/filter_definition.py`, `*/catalog/filter_defs.py` |
+| 2 | Модель `FilterProfile` — branching_filter, trigger_values, filter_param_names, steps_json | `core/models/filter_profile.py` (новый), миграция |
+| 3 | `steps_json` v2 — `get_steps()` поддерживает `common_steps` + `profiles` | `core/models/selection_wizard.py` |
+| 4 | `WizardSelection.vue` — `activeProfile`, `visibleSteps`, динамические чипсы | `frontend/src/shared/components/catalog/WizardSelection.vue` |
+| 5 | `WizardAdminPage.vue` — управление профилями | `frontend/src/pages/admin/WizardAdminPage.vue` |
+| 6 | `GenerateSchemaFromModelView` — `oneOf`/`if-then` из профилей | `ai_assistant/api/views.py` |
