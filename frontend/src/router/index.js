@@ -11,11 +11,16 @@ const routes = [
   { path: '/register', component: () => import('../pages/auth/RegisterMainPage.vue'), meta: { title: 'Регистрация' } },
 
   // Каталоги оборудования
+  // Каталоги — индексные страницы
+  { path: '/catalogs/equipment', name: 'catalogs-equipment', component: () => import('../pages/catalog/CatalogEquipmentIndex.vue'), meta: { title: 'Каталоги оборудования' } },
+  { path: '/catalogs/valves', name: 'catalogs-valves', component: () => import('../pages/catalog/CatalogValvesIndex.vue'), meta: { title: 'Каталоги арматуры' } },
+  { path: '/catalogs/solutions', name: 'catalogs-solutions', component: () => import('../pages/catalog/CatalogSolutionsIndex.vue'), meta: { title: 'Каталог готовых решений' } },
+
   { path: '/catalog/pneumatic-fittings', component: () => import('../pages/catalog/PneumaticFittingsPage.vue'), meta: { title: 'Пневмофитинги' } },
   { path: '/catalog/cable-glands', component: PlaceholderPage, props: { title: 'Кабельные вводы' }, meta: { title: 'Кабельные вводы' } },
   { path: '/catalog/pa-actuators', component: () => import('../pages/catalog/PaActuatorPage.vue'), meta: { title: 'Пневмоприводы' } },
   { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры' } },
-  { path: '/catalog/ea-reducers', component: PlaceholderPage, props: { title: 'Редукторы к ЭП' }, meta: { title: 'Редукторы к ЭП', pro: true } },
+  { path: '/catalog/ea-reducers', component: PlaceholderPage, props: { title: 'Редукторы к ЭП' }, meta: { title: 'Редукторы к ЭП' } },
   { path: '/catalog/solenoid-valves', component: () => import('../pages/catalog/SolenoidValvesPage.vue'), meta: { title: 'Соленоидные клапаны' } },
   { path: '/catalog/positioners', component: PlaceholderPage, props: { title: 'Электропневматические позиционеры' }, meta: { title: 'Позиционеры' } },
   { path: '/catalog/limit-switch', component: () => import('../pages/catalog/LimitSwitchPage.vue'), meta: { title: 'БКВ' } },
@@ -41,16 +46,21 @@ const routes = [
   { path: '/solutions/knife-ea', component: PlaceholderPage, props: { title: 'Сборки Шиберных задвижек с Электроприводами' }, meta: { title: 'ШЗ+ЭП' } },
 
   // Конфигураторы (проф)
-  { path: '/configurator/cabinets', component: PlaceholderPage, props: { title: 'Конфигуратор Шкафов управления ЭП' }, meta: { title: 'Шкафы ЭП', pro: true } },
-  { path: '/configurator/ea-reducers', component: PlaceholderPage, props: { title: 'Конфигуратор Редукторов к ЭП' }, meta: { title: 'Редукторы к ЭП', pro: true } },
-  { path: '/configurator/ea-assemblies', component: PlaceholderPage, props: { title: 'Конфигуратор Сборок арматуры с ЭП' }, meta: { title: 'Сборки с ЭП', pro: true } },
-  { path: '/configurator/pa-assemblies', component: PlaceholderPage, props: { title: 'Конфигуратор Сборок арматуры с ПП' }, meta: { title: 'Сборки с ПП', pro: true } },
+  { path: '/configurator/cabinets', component: PlaceholderPage, props: { title: 'Конфигуратор Шкафов управления ЭП' }, meta: { title: 'Шкафы ЭП' } },
+  { path: '/configurator/ea-reducers', component: PlaceholderPage, props: { title: 'Конфигуратор Редукторов к ЭП' }, meta: { title: 'Редукторы к ЭП' } },
+  { path: '/configurator/ea-assemblies', component: PlaceholderPage, props: { title: 'Конфигуратор Сборок арматуры с ЭП' }, meta: { title: 'Сборки с ЭП' } },
+  { path: '/configurator/pa-assemblies', component: PlaceholderPage, props: { title: 'Конфигуратор Сборок арматуры с ПП' }, meta: { title: 'Сборки с ПП' } },
 
   // Заявки (проф)
   { path: '/requests/list', component: PlaceholderPage, props: { title: 'Список заявок' }, meta: { title: 'Заявки', pro: true } },
   { path: '/requests/contractors', component: PlaceholderPage, props: { title: 'Контрагенты' }, meta: { title: 'Контрагенты', pro: true } },
 
   // О проекте
+  { path: '/about', name: 'about', component: () => import('../pages/about/AboutIndex.vue'), meta: { title: 'О проекте' } },
+  { path: '/about/capabilities', name: 'about-capabilities', component: () => import('../pages/about/AboutSection.vue'), meta: { title: 'Возможности системы' } },
+  { path: '/about/benefits-users', name: 'about-benefits-users', component: () => import('../pages/about/AboutSection.vue'), meta: { title: 'Преимущества для пользователей' } },
+  { path: '/about/benefits-types', name: 'about-benefits-types', component: () => import('../pages/about/AboutSection.vue'), meta: { title: 'Преимущества по типам потребителей' } },
+  { path: '/about/architecture', name: 'about-architecture', component: () => import('../pages/about/AboutSection.vue'), meta: { title: 'Архитектура системы' } },
   { path: '/about/contacts', component: PlaceholderPage, props: { title: 'Контакты' }, meta: { title: 'Контакты' } },
 
   // Администрирование

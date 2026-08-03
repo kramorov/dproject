@@ -1,6 +1,6 @@
 <template>
   <header class="site-header">
-    <div class="header-left"><router-link to="/" class="logo">⚙️ Каталог</router-link></div>
+    <div class="header-left"><router-link to="/" class="logo">На главную</router-link></div>
     <nav class="header-nav"><TopMenu /></nav>
     <div class="header-right">
       <template v-if="user">

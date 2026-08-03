@@ -1,14 +1,15 @@
+<!-- pages/HomePage.vue — главная страница -->
 <template>
   <div class="home-page">
     <!-- Hero -->
     <section class="hero">
       <div class="hero-content">
-        <h1 class="hero-title">Промышленное оборудование<br>для трубопроводной арматуры</h1>
+        <h1 class="hero-title">Агрегатор технической информации<br>Трубопроводная арматура и управление арматурой</h1>
         <p class="hero-subtitle">Подбор по параметрам, конфигураторы, сертификаты, документация — всё в одном месте</p>
-        <div class="hero-actions">
-          <router-link to="/catalog/gearbox" class="hero-btn hero-btn-primary">Перейти в каталог</router-link>
-          <router-link to="/login" class="hero-btn hero-btn-outline">Войти</router-link>
-        </div>
+<!--        <div class="hero-actions">-->
+<!--          <router-link to="/catalogs/equipment" class="hero-btn hero-btn-primary">Перейти в каталог</router-link>-->
+<!--          <router-link to="/login" class="hero-btn hero-btn-outline">Войти</router-link>-->
+<!--        </div>-->
       </div>
       <div class="hero-visual">
         <div class="hero-stats">
@@ -19,62 +20,51 @@
       </div>
     </section>
 
-    <!-- Каталоги оборудования -->
-    <section class="categories">
-      <div class="section-header"><h2>Каталоги оборудования</h2></div>
-      <div class="cat-grid">
-        <router-link v-for="cat in catalogItems" :key="cat.to" :to="cat.to" class="cat-card">
-          <div class="cat-img">
-            <img v-if="cat.img" :src="cat.img" :alt="cat.name" class="cat-pic" @error="$event.target.style.display='none'" />
-          </div>
-          <h3 class="cat-name">{{ cat.name }}</h3>
-        </router-link>
-      </div>
-    </section>
-
-    <!-- Арматура -->
-    <section class="categories">
-      <div class="section-header"><h2>Арматура</h2></div>
-      <div class="cat-grid">
-        <router-link v-for="cat in valveItems" :key="cat.to" :to="cat.to" class="cat-card">
-          <div class="cat-img">
-            <img v-if="cat.img" :src="cat.img" :alt="cat.name" class="cat-pic" @error="$event.target.style.display='none'" />
-          </div>
-          <h3 class="cat-name">{{ cat.name }}</h3>
-        </router-link>
-      </div>
-    </section>
-
-    <!-- Готовые решения -->
-    <section class="categories">
-      <div class="section-header"><h2>Готовые решения</h2></div>
-      <div class="cat-grid">
-        <router-link v-for="cat in solutionItems" :key="cat.to" :to="cat.to" class="cat-card">
-          <div class="cat-img">
-            <img v-if="cat.img" :src="cat.img" :alt="cat.name" class="cat-pic" @error="$event.target.style.display='none'" />
-          </div>
-          <h3 class="cat-name">{{ cat.name }}</h3>
-        </router-link>
-      </div>
-    </section>
-
-    <!-- Возможности -->
-    <section class="features">
-      <div class="section-header"><h2>Возможности</h2></div>
-      <div class="feat-grid">
-        <div class="feat-card" v-for="f in features" :key="f.title">
-          <span class="feat-icon">{{ f.icon }}</span>
-          <h3>{{ f.title }}</h3>
-          <p>{{ f.desc }}</p>
+    <!-- О проекте -->
+    <section class="hp-about">
+      <router-link to="/about" class="hp-about-card">
+        <div class="hp-about-bg"></div>
+        <div class="hp-about-body">
+          <h2>О проекте</h2>
+          <p>Агрегатор технической информации: умный поиск, подбор, КП, документация. Узнайте о возможностях и преимуществах системы.</p>
+          <span class="hp-about-link">Подробнее →</span>
         </div>
+      </router-link>
+    </section>
+
+    <!-- Каталоги — 3 плитки в ряд -->
+    <section class="hp-catalogs">
+      <h2>Каталоги</h2>
+      <div class="hp-cat-grid">
+        <router-link to="/catalogs/equipment" class="hp-cat-tile hp-cat-eq">
+          <div class="hp-cat-bg"></div>
+          <div class="hp-cat-body">
+            <h3>Каталоги оборудования</h3>
+            <p>Пневмофитинги, фильтр-регуляторы, кабельные вводы, пневмоприводы, дублёры, клапаны, позиционеры, БКВ, электроприводы, шкафы управления, монтажные комплекты</p>
+          </div>
+        </router-link>
+        <router-link to="/catalogs/valves" class="hp-cat-tile hp-cat-va">
+          <div class="hp-cat-bg"></div>
+          <div class="hp-cat-body">
+            <h3>Каталоги арматуры</h3>
+            <p>Дисковые затворы, шаровые краны, клиновые и шиберные задвижки</p>
+          </div>
+        </router-link>
+        <router-link to="/catalogs/solutions" class="hp-cat-tile hp-cat-so">
+          <div class="hp-cat-bg"></div>
+          <div class="hp-cat-body">
+            <h3>Каталог готовых решений</h3>
+            <p>Сборки арматуры с пневмо- и электроприводами: затворы, краны, задвижки</p>
+          </div>
+        </router-link>
       </div>
     </section>
 
     <!-- CTA -->
     <section class="cta">
       <div class="cta-content">
-        <h2>Не нашли нужное?</h2>
-        <p>Отправьте заявку — подберём оборудование под ваш проект</p>
+<!--        <h2>Не нашли нужное?</h2>-->
+<!--        <p>Отправьте заявку — подберём оборудование под ваш проект</p>-->
         <router-link to="/login" class="hero-btn hero-btn-primary">Войти в личный кабинет</router-link>
       </div>
     </section>
@@ -82,92 +72,112 @@
 </template>
 
 <script setup>
-function img(path) { return `/img/catalog/${path}` }
-
-const catalogItems = [
-  { to:'/catalog/pneumatic-fittings', label:'ПФ', name:'Пневмофитинги', color:'#3b82f6', img:img('pneumatic-fittings.webp') },
-  { to:'/catalog/filter-regulator', label:'ФР', name:'Фильтр-регуляторы', color:'#0ea5e9', img:img('filter-regulator.webp') },
-  { to:'/catalog/cable-glands', label:'КВ', name:'Кабельные вводы', color:'#06b6d4', img:img('cable-glands.webp') },
-  { to:'/catalog/pa-actuators', label:'ПП', name:'Пневмоприводы', color:'#8b5cf6', img:img('pa-actuators.webp') },
-  { to:'/catalog/gearbox', label:'РД', name:'Ручные дублёры', color:'#f59e0b', img:img('gearbox.webp') },
-  { to:'/catalog/ea-reducers', label:'РЭ', name:'Редукторы к ЭП (проф)', color:'#ef4444', img:img('ea-reducers.webp') },
-  { to:'/catalog/solenoid-valves', label:'СК', name:'Соленоидные клапаны', color:'#10b981', img:img('solenoid-valves.webp') },
-  { to:'/catalog/positioners', label:'ЭПП', name:'Электропневматические позиционеры', color:'#6366f1', img:img('positioners.webp') },
-  { to:'/catalog/limit-switch', label:'БКВ', name:'Блоки концевых выключателей', color:'#ec4899', img:img('limit-switch.webp') },
-  { to:'/catalog/ea-actuators', label:'ЭП', name:'Электроприводы', color:'#f97316', img:img('ea-actuators.webp') },
-  { to:'/catalog/ea-cabinets', label:'ШУ', name:'Шкафы управления ЭП (проф)', color:'#d97706', img:img('ea-cabinets.webp') },
-  { to:'/catalog/mounting-kits', label:'МК', name:'Монтажные комплекты и адаптации (проф)', color:'#14b8a6', img:img('mounting-kits.webp') },
-]
-
-const valveItems = [
-  { to:'/catalog/butterfly-valves', label:'ДЗ', name:'Дисковые затворы', color:'#2563eb', img:img('butterfly-valves.webp') },
-  { to:'/catalog/ball-valves', label:'ШК', name:'Шаровые краны', color:'#7c3aed', img:img('ball-valves.webp') },
-  { to:'/catalog/gate-valves', label:'КЗ', name:'Клиновые задвижки', color:'#dc2626', img:img('gate-valves.webp') },
-  { to:'/catalog/knife-gate-valves', label:'ШЗ', name:'Шиберные задвижки', color:'#0891b2', img:img('knife-gate-valves.webp') },
-]
-
-const solutionItems = [
-  { to:'/solutions/butterfly-ea', label:'ДЗ+ЭП', name:'Сборки Затворов дисковых с Электроприводами', color:'#1e40af', img:img('solutions/butterfly-ea.webp') },
-  { to:'/solutions/butterfly-pa', label:'ДЗ+ПП', name:'Сборки Затворов дисковых с Пневмоприводами', color:'#1d4ed8', img:img('solutions/butterfly-pa.webp') },
-  { to:'/solutions/ball-ea', label:'ШК+ЭП', name:'Сборки Кранов шаровых с Электроприводами', color:'#5b21b6', img:img('solutions/ball-ea.webp') },
-  { to:'/solutions/ball-pa', label:'ШК+ПП', name:'Сборки Кранов шаровых с Пневмоприводами', color:'#6d28d9', img:img('solutions/ball-pa.webp') },
-  { to:'/solutions/gate-pa', label:'КЗ+ПП', name:'Сборки Клиновых задвижек с Пневмоприводами', color:'#b91c1c', img:img('solutions/gate-pa.webp') },
-  { to:'/solutions/gate-ea', label:'КЗ+ЭП', name:'Сборки Клиновых задвижек с Электроприводами', color:'#991b1b', img:img('solutions/gate-ea.webp') },
-  { to:'/solutions/knife-ea', label:'ШЗ+ЭП', name:'Сборки Шиберных задвижек с Электроприводами', color:'#155e75', img:img('solutions/knife-ea.webp') },
-  { to:'/solutions/knife-pa', label:'ШЗ+ПП', name:'Сборки Шиберных задвижек с Пневмоприводами', color:'#0e7490', img:img('solutions/knife-pa.webp') },
-]
-
-const features = [
-  { icon:'🎯', title:'Подбор по параметрам', desc:'Фильтры по техническим характеристикам: давление, температура, материал, взрывозащита' },
-  { icon:'⚙️', title:'Конфигураторы', desc:'Пошаговый подбор приводов, редукторов, шкафов управления и сборок' },
-  { icon:'📜', title:'Сертификаты и документация', desc:'Паспорта, сертификаты соответствия, чертежи и инструкции' },
-  { icon:'🤝', title:'Виджеты для партнёров', desc:'Встраивайте каталог на свой сайт — клиенты подбирают оборудование без ухода с вашей страницы' },
-]
+// No data needed — all content is static
 </script>
 
 <style scoped>
-/* Hero */
-.hero{display:flex;align-items:center;justify-content:space-between;gap:48px;padding:48px 40px;background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);border-radius:16px;color:#fff;margin-bottom:48px}
-.hero-content{flex:1;min-width:0}
-.hero-title{font-size:36px;font-weight:800;line-height:1.2;margin:0 0 16px}
-.hero-subtitle{font-size:16px;opacity:.85;margin:0 0 28px;line-height:1.5;max-width:520px}
-.hero-actions{display:flex;gap:12px}
-.hero-btn{display:inline-flex;align-items:center;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;transition:all .15s}
-.hero-btn-primary{background:#fff;color:#1e3a5f}
-.hero-btn-primary:hover{background:#e5e7eb}
-.hero-btn-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4)}
-.hero-btn-outline:hover{background:rgba(255,255,255,.1)}
-.hero-visual{flex-shrink:0}
-.hero-stats{display:flex;gap:32px}
-.hs-item{text-align:center}
-.hs-num{display:block;font-size:40px;font-weight:800;line-height:1}
-.hs-label{display:block;font-size:13px;opacity:.7;margin-top:4px}
+/* === Hero === */
+.home-page { max-width: 1440px; margin: 0 auto; }
+.hero { display: flex; align-items: center; justify-content: space-between; padding: 48px 0; gap: 40px; margin-bottom: 32px; }
+.hero-content { flex: 1; min-width: 0; }
+.hero-title { font-size: 36px; font-weight: 800; color: #1f2937; line-height: 1.2; margin: 0 0 16px; }
+.hero-subtitle { font-size: 17px; color: #6b7280; line-height: 1.5; margin: 0 0 24px; }
+.hero-actions { display: flex; gap: 12px; }
+.hero-btn { padding: 10px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; text-decoration: none; transition: all .15s; }
+.hero-btn-primary { background: #2563eb; color: #fff; }
+.hero-btn-primary:hover { background: #1d4ed8; }
+.hero-btn-outline { border: 1px solid #d1d5db; color: #374151; }
+.hero-btn-outline:hover { border-color: #2563eb; color: #2563eb; }
+.hero-stats { display: flex; gap: 32px; }
+.hs-item { text-align: center; }
+.hs-num { display: block; font-size: 40px; font-weight: 800; line-height: 1; color: #1f2937; }
+.hs-label { display: block; font-size: 13px; color: #6b7280; margin-top: 4px; }
 
-/* Sections */
-.section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:24px}
-.section-header h2{font-size:24px;font-weight:700;color:#1f2937}
+/* === About block === */
+.hp-about { margin-bottom: 36px; }
+.hp-about-card {
+  position: relative; display: block; border-radius: 16px; overflow: hidden;
+  text-decoration: none; min-height: 120px; isolation: isolate;
+  transition: transform .25s, box-shadow .25s;
+}
+.hp-about-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.1); }
+.hp-about-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(135deg, #1e1b4b 0%, #3730a3 100%);
+}
+.hp-about-bg::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 20% 50%, rgba(168,85,247,0.2) 0%, transparent 50%),
+              radial-gradient(circle at 80% 50%, rgba(99,102,241,0.15) 0%, transparent 50%);
+}
+.hp-about-body {
+  position: relative; z-index: 1;
+  padding: 28px 32px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.hp-about-body h2 { font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 6px; }
+.hp-about-body p { font-size: 14px; color: rgba(255,255,255,0.7); margin: 0 0 8px; line-height: 1.5; max-width: 600px; }
+.hp-about-link { font-size: 13px; color: #a855f7; font-weight: 600; }
 
-/* Category grid */
-.categories{margin-bottom:48px}
-.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
-.cat-card{display:flex;flex-direction:column;padding:0 0 12px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;text-decoration:none;transition:box-shadow .15s,border-color .15s,transform .15s;overflow:hidden}
-.cat-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.08);border-color:#2563eb;transform:translateY(-2px)}
-.cat-img{height:100px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;position:relative;overflow:hidden;background:#f3f4f6}
-.cat-pic{width:100%;height:100%;object-fit:contain;position:absolute;top:0;left:0}
-.cat-name{font-size:13px;font-weight:600;color:#1f2937;margin:0;padding:0 10px;line-height:1.3;text-align:center}
+/* === Catalog tiles === */
+.hp-catalogs { margin-bottom: 36px; }
+.hp-catalogs h2 { font-size: 20px; font-weight: 700; color: #1f2937; margin: 0 0 16px; }
+.hp-cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.hp-cat-tile {
+  position: relative; display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 200px; border-radius: 16px; overflow: hidden;
+  text-decoration: none; isolation: isolate;
+  transition: transform .25s, box-shadow .25s;
+}
+.hp-cat-tile:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+.hp-cat-bg { position: absolute; inset: 0; z-index: 0; }
+.hp-cat-body {
+  position: relative; z-index: 1; padding: 20px 22px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.7) 100%);
+}
+.hp-cat-body h3 { font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 4px; }
+.hp-cat-body p { font-size: 12px; color: rgba(255,255,255,0.7); margin: 0; line-height: 1.4; }
 
-/* Features */
-.features{margin-bottom:48px}
-.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-.feat-card{padding:24px;background:#fff;border:1px solid #f3f4f6;border-radius:12px}
-.feat-icon{font-size:32px;display:block;margin-bottom:12px}
-.feat-card h3{font-size:15px;font-weight:600;color:#1f2937;margin:0 0 8px}
-.feat-card p{font-size:13px;color:#6b7280;margin:0;line-height:1.5}
+/* Tile backgrounds */
+.hp-cat-eq .hp-cat-bg {
+  background: linear-gradient(135deg, #3b0764 0%, #7c3aed 100%),
+              radial-gradient(circle at 30% 70%, rgba(168,85,247,0.3) 0%, transparent 40%);
+}
+.hp-cat-eq .hp-cat-bg::after {
+  content: ''; position: absolute; top: 24px; right: 20px;
+  width: 70px; height: 70px; border: 2px solid rgba(255,255,255,0.1); border-radius: 50%;
+  box-shadow: 0 0 0 18px rgba(255,255,255,0.04), 0 0 0 36px rgba(255,255,255,0.02);
+}
+.hp-cat-va .hp-cat-bg {
+  background: linear-gradient(135deg, #042f2e 0%, #0f766e 100%),
+              radial-gradient(circle at 70% 30%, rgba(20,184,166,0.25) 0%, transparent 40%);
+}
+.hp-cat-va .hp-cat-bg::after {
+  content: ''; position: absolute; top: 24px; right: 24px;
+  width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4);
+  box-shadow: -28px 12px 0 rgba(255,255,255,0.2), -56px -4px 0 rgba(255,255,255,0.12);
+}
+.hp-cat-so .hp-cat-bg {
+  background: linear-gradient(135deg, #451a03 0%, #b45309 100%),
+              repeating-linear-gradient(180deg, transparent, transparent 12px, rgba(255,255,255,0.04) 12px, rgba(255,255,255,0.04) 14px);
+}
+.hp-cat-so .hp-cat-bg::after {
+  content: ''; position: absolute; left: 20px; bottom: 45%;
+  width: 40px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.15);
+  box-shadow: 0 14px 0 rgba(255,255,255,0.08), 0 28px 0 rgba(255,255,255,0.04);
+}
 
-/* CTA */
-.cta{background:#f9fafb;border-radius:16px;padding:48px;text-align:center;margin-bottom:48px}
-.cta-content h2{font-size:28px;font-weight:700;color:#1f2937;margin:0 0 8px}
-.cta-content p{font-size:16px;color:#6b7280;margin:0 0 24px}
-.cta .hero-btn-primary{background:#2563eb;color:#fff}
-.cta .hero-btn-primary:hover{background:#1d4ed8}
+/* === CTA === */
+.cta { background: #f9fafb; border-radius: 16px; padding: 40px; text-align: center; }
+.cta-content h2 { font-size: 24px; font-weight: 700; color: #1f2937; margin: 0 0 8px; }
+.cta-content p { font-size: 15px; color: #6b7280; margin: 0 0 20px; }
+.cta .hero-btn-primary { background: #2563eb; color: #fff; }
+.cta .hero-btn-primary:hover { background: #1d4ed8; }
+
+@media (max-width: 768px) {
+  .hero { flex-direction: column; text-align: center; }
+  .hero-stats { justify-content: center; }
+  .hp-cat-grid { grid-template-columns: 1fr; }
+  .hp-cat-tile { min-height: 140px; }
+}
 </style>

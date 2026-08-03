@@ -29,40 +29,15 @@ const open = ref(null)
 const subOpen = ref(null)
 
 const allItems = [
-  { key:'catalog', label:'Каталоги оборудования', children:[
-    { to:'/catalog/pneumatic-fittings', label:'Пневмофитинги' },
-    { to:'/catalog/filter-regulator', label:'Фильтр-регуляторы' },
-    { to:'/catalog/cable-glands', label:'Кабельные вводы' },
-    { to:'/catalog/pa-actuators', label:'Пневмоприводы' },
-    { to:'/catalog/gearbox', label:'Ручные дублёры' },
-    { to:'/catalog/ea-reducers', label:'Редукторы к ЭП', pro:true },
-    { to:'/catalog/solenoid-valves', label:'Соленоидные клапаны' },
-    { to:'/catalog/positioners', label:'Электропневматические позиционеры' },
-    { to:'/catalog/limit-switch', label:'БКВ' },
-    { to:'/catalog/ea-actuators', label:'Электроприводы' },
-    { to:'/catalog/ea-cabinets', label:'Шкафы управления ЭП', pro:true },
-    { to:'/catalog/mounting-kits', label:'Монтажные комплекты и адаптации', pro:true },
+  { key:'catalog', label:'Каталоги', children:[
+    { to:'/catalogs/equipment', label:'Каталоги оборудования' },
+    { to:'/catalogs/valves', label:'Каталоги арматуры' },
+    { to:'/catalogs/solutions', label:'Каталог готовых решений' },
   ]},
-  { key:'valves', label:'Арматура', children:[
-    { to:'/catalog/butterfly-valves', label:'Дисковые затворы' },
-    { to:'/catalog/ball-valves', label:'Шаровые краны' },
-    { to:'/catalog/gate-valves', label:'Клиновые задвижки' },
-    { to:'/catalog/knife-gate-valves', label:'Шиберные задвижки' },
-  ]},
-  { key:'solutions', label:'Готовые решения', children:[
-    { to:'/solutions/butterfly-pa', label:'Сборки Затворов дисковых с Пневмоприводами' },
-    { to:'/solutions/ball-pa', label:'Сборки Кранов шаровых с Пневмоприводами' },
-    { to:'/solutions/gate-pa', label:'Сборки Клиновых задвижек с Пневмоприводами' },
-    { to:'/solutions/knife-pa', label:'Сборки Шиберных задвижек с Пневмоприводами' },
-    { to:'/solutions/butterfly-ea', label:'Сборки Затворов дисковых с Электроприводами' },
-    { to:'/solutions/ball-ea', label:'Сборки Кранов шаровых с Электроприводами' },
-    { to:'/solutions/gate-ea', label:'Сборки Клиновых задвижек с Электроприводами' },
-    { to:'/solutions/knife-ea', label:'Сборки Шиберных задвижек с Электроприводами' },
-  ]},
-  { key:'configurator', label:'Конфигураторы', pro:true, children:[
+  { key:'configurator', label:'Конфигураторы', children:[
     { to:'/selector/pa', label:'Подбор пневмопривода по моменту' },
     { to:'/admin/pa-constructor', label:'Конфигуратор Пневмоприводов' },
-    { to:'/admin/pa-constructor-legacy', label:'Конфигуратор ПП Old' },
+    // { to:'/admin/pa-constructor-legacy', label:'Конфигуратор ПП Old' },
     { to:'/admin/ea-constructor', label:'Конфигуратор Электроприводов' },
     { to:'/configurator/cabinets', label:'Конфигуратор Шкафов управления ЭП' },
     { to:'/configurator/ea-reducers', label:'Конфигуратор Редукторов к ЭП' },
@@ -75,6 +50,11 @@ const allItems = [
     { to:'/requests/contractors', label:'Контрагенты' },
   ]},
   { key:'about', label:'О проекте', children:[
+    { to:'/about', label:'О проекте' },
+    { to:'/about/capabilities', label:'Возможности системы' },
+    { to:'/about/benefits-users', label:'Преимущества для пользователей' },
+    { to:'/about/benefits-types', label:'Преимущества по типам' },
+    { to:'/about/architecture', label:'Архитектура системы' },
     { to:'/about/contacts', label:'Контакты' },
   ]},
   { key:'admin', label:'Администрирование', adminOnly:true, children:[
