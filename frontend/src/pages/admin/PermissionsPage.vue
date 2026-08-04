@@ -7,6 +7,7 @@
     <nav class="tabs">
       <button :class="{ active: tab === 'sections' }" @click="tab = 'sections'">Разделы</button>
       <button :class="{ active: tab === 'matrix' }" @click="tab = 'matrix'">Матрица прав</button>
+      <button :class="{ active: tab === 'groups' }" @click="tab = 'groups'; loadGroups()">Группы</button>
     </nav>
 
     <!-- === TAB 1: SiteSections === -->
@@ -41,6 +42,63 @@
         </tbody>
       </table>
       <div v-else class="loading">Загрузка...</div>
+    </section>
+
+    <!-- === TAB 3: System Groups === -->
+    <section v-if="tab === 'groups'" class="tab-panel">
+      <div class="sel-row">
+        <label>Объекты загружены из реестра (код).</label>
+        <span class="spinner" v-if="loadingGroups">⏳</span>
+        <span v-if="groupSaveMsg" :class="groupSaveErr ? 'err' : 'ok'">{{ groupSaveMsg }}</span>
+      </div>
+      <div v-if="systemGroups.length">
+        <fieldset v-for="g in systemGroups" :key="g.id" style="margin-bottom:24px">
+          <legend>
+            <b>{{ g.name }}</b> <code>{{ g.code }}</code>
+            <span v-if="g.is_default" class="badge-default">по умолч.</span>
+            <span class="badge-count">{{ g.user_count }} польз.</span>
+          </legend>
+          <div class="perm-block" v-if="registryObjects.length">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th class="col-label">Объект</th>
+                  <th v-for="a in ['view','edit','delete','manage']" :key="a" style="width:60px">
+                    <div>{{ a }}</div>
+                    <input type="checkbox"
+                      :checked="allObjectsHaveAction(g, a)"
+                      @change="toggleAllForAction(g, a)"
+                      :disabled="savingGroupId === g.id"
+                      style="margin-top:2px"
+                      title="Все объекты"
+                    />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="obj in registryObjects" :key="obj.codename">
+                  <th class="col-label" :title="obj.codename">{{ obj.name }}</th>
+                  
+                  <td v-for="a in ['view','edit','delete','manage']" :key="a" class="cell-action">
+                    <input type="checkbox"
+                      :checked="hasGroupPerm(g, obj.codename, a)"
+                      @change="toggleGroupPerm(g, obj.codename, a)"
+                      :disabled="savingGroupId === g.id"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="empty">Реестр объектов пуст</div>
+          <div class="actions" style="margin-top:8px">
+            <button class="btn-primary" @click="saveGroup(g)" :disabled="savingGroupId === g.id">
+              {{ savingGroupId === g.id ? 'Сохранение...' : 'Сохранить ' + g.name }}
+            </button>
+          </div>
+        </fieldset>
+      </div>
+      <div v-else class="loading">Нет системных групп</div>
     </section>
 
     <!-- === TAB 2: Permission Matrix === -->
@@ -169,6 +227,9 @@ async function saveSection(code) {
 }
 
 // —— TAB 2: Permission Matrix ——
+// —— TAB 3: System Groups ——
+const systemGroups = ref([])
+const registryObjects = ref([])
 const customers = ref([])
 const selectedCust = ref(null)
 const matrix = ref(null)
@@ -267,6 +328,123 @@ async function saveMatrix() {
   finally { savingMatrix.value = false }
 }
 
+// —— TAB 3: System Groups logic ——
+
+const loadingGroups = ref(false)
+const savingGroupId = ref(null)
+const groupSaveMsg = ref('')
+const groupSaveErr = ref(false)
+
+async function loadGroups() {
+  loadingGroups.value = true
+  try {
+    const [gr, objr] = await Promise.all([
+      api.get('/admin/system-groups/'),
+      api.get('/admin/object-registry/'),
+    ])
+    systemGroups.value = (gr.data.groups || []).map(g => ({
+      ...g,
+      object_permissions: g.object_permissions || {},
+    }))
+    registryObjects.value = objr.data.objects || []
+    groupSaveMsg.value = ''
+  } catch (e) { /* */ }
+  finally { loadingGroups.value = false }
+}
+
+function hasAnyPerm(group, codename) {
+  const perms = group.object_permissions[codename] || []
+  return perms.length > 0
+}
+
+function hasGroupPerm(group, codename, action) {
+  const perms = group.object_permissions[codename] || []
+  return perms.includes(action) || perms.includes('manage')
+}
+
+function toggleGroupPerm(group, codename, action) {
+  if (!group.object_permissions[codename]) {
+    group.object_permissions[codename] = []
+  }
+  const perms = group.object_permissions[codename]
+  if (action === 'manage') {
+    // manage toggles all or none
+    if (perms.includes('manage')) {
+      group.object_permissions[codename] = []
+    } else {
+      group.object_permissions[codename] = ['manage']
+    }
+  } else {
+    const idx = perms.indexOf(action)
+    if (idx >= 0) perms.splice(idx, 1)
+    else perms.push(action)
+    // Remove manage if individual actions are set
+    const mi = perms.indexOf('manage')
+    if (mi >= 0) perms.splice(mi, 1)
+  }
+  groupSaveMsg.value = ''
+}
+
+function toggleAllForObject(group, codename) {
+  const perms = group.object_permissions[codename] || []
+  if (perms.length > 0) {
+    // Has some perms → clear all
+    group.object_permissions[codename] = []
+  } else {
+    // No perms → set all four
+    group.object_permissions[codename] = ['view', 'edit', 'delete', 'manage']
+  }
+  groupSaveMsg.value = ''
+}
+
+function toggleAllRows(group) {
+  for (const obj of registryObjects.value) {
+    const perms = group.object_permissions[obj.codename] || []
+    if (perms.length > 0) group.object_permissions[obj.codename] = []
+    else group.object_permissions[obj.codename] = ['view', 'edit', 'delete', 'manage']
+  }
+  groupSaveMsg.value = ''
+}
+
+function allObjectsHaveAction(group, action) {
+  if (!registryObjects.value.length) return false
+  return registryObjects.value.every(obj => hasGroupPerm(group, obj.codename, action))
+}
+
+function toggleAllForAction(group, action) {
+  const allOn = allObjectsHaveAction(group, action)
+  for (const obj of registryObjects.value) {
+    const perms = group.object_permissions[obj.codename] || []
+    if (allOn) {
+      const idx = perms.indexOf(action)
+      if (idx >= 0) perms.splice(idx, 1)
+      if (perms.length === 0) delete group.object_permissions[obj.codename]
+    } else {
+      if (!group.object_permissions[obj.codename])
+        group.object_permissions[obj.codename] = []
+      if (!group.object_permissions[obj.codename].includes(action))
+        group.object_permissions[obj.codename].push(action)
+    }
+  }
+  groupSaveMsg.value = ''
+}
+
+async function saveGroup(group) {
+  savingGroupId.value = group.id
+  groupSaveMsg.value = ''
+  groupSaveErr.value = false
+  try {
+    await api.put(`/admin/system-groups/${group.id}/`, {
+      object_permissions: group.object_permissions,
+    })
+    groupSaveMsg.value = `Группа "${group.name}" сохранена`
+  } catch (e) {
+    groupSaveMsg.value = 'Ошибка: ' + (e.response?.data?.error || e.message)
+    groupSaveErr.value = true
+  }
+  finally { savingGroupId.value = null }
+}
+
 onMounted(() => {
   loadSections()
   loadCustomers()
@@ -328,4 +506,13 @@ legend { font-weight: 600; font-size: 14px; padding: 0 8px; }
 .spinner { color: var(--cat-muted, #7a7a7a); }
 .err { color: #c0504d; font-size: 13px; }
 .ok { color: #2e7d32; font-size: 13px; }
+
+/* System Groups matrix */
+.matrix-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.matrix-table th, .matrix-table td { border: 1px solid var(--cat-border-light, #e0dcd6); padding: 4px 6px; text-align: center; }
+.matrix-table th { background: var(--cat-bg, #f5f2ed); }
+.matrix-table .col-label { text-align: left; min-width: 180px; }
+.cell-action { width: 50px; }
+.badge-default { font-size: 10px; background: var(--cat-primary-light, #e8f0f8); color: var(--cat-primary, #5785b5); padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+.badge-count { font-size: 10px; color: var(--cat-muted, #7a7a7a); margin-left: 4px; }
 </style>

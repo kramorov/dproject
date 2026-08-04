@@ -1,7 +1,18 @@
 # access.md — Архитектура разграничения доступа
 
-> Спроектировано 2026-07-21. Переработано 2026-07-23.
-> Реализация: Этап 1 начат 2026-07-23.
+> Спроектировано 2026-07-21. Переработано 2026-07-23, 2026-08-04.
+> Реализация: Этап 1 начат 2026-07-23. Переработка: 2026-08-04.
+
+---
+
+## Терминология
+
+| Уровень | Термин | Аналог Windows | Что определяет |
+|---|---|---|---|
+| Системный | **Группа** (SystemGroup) | `Administrators`, `Users` | Что можно **делать** в системе |
+| Организационный | **Роль** (OrgRole) | Кастомные группы в AD | Что **видно** внутри организации |
+
+**XOR-правило:** каждый ресурс (страница, API, кнопка) защищается **либо** системной группой, **либо** организационной ролью — не обоими сразу.
 
 ---
 
@@ -12,250 +23,233 @@
 | Канал | Аутентификация | Для чего | Модель прав |
 |---|---|---|---|
 | **API-ключ** | Заголовок `X-Api-Key` | Мини-аппы на сайтах клиентов, LLM-агент | `CustomerApiKey` → `AllowedApp` + brand filter |
-| **Логин/пароль** | Django-сессия | Пользователи сайта | `ProjectCustomerUser` → `Role` → `SiteSection` |
+| **Логин/пароль** | Django-сессия | Пользователи сайта | `ProjectCustomerUser` → `SystemGroup` (системные) + `OrgRole` → `SiteSection` (организационные) |
 
 Общее правило: **права пользователя ≤ права организации**. Организация задаёт потолок, пользователь/ключ — сужение.
 
 ---
 
-## Обзор моделей
+## Django User — оболочка аутентификации (1:1)
 
-### Существующие (не изменяются)
+Каждый `ProjectCustomerUser` имеет свой персональный Django `User`.
+Это контейнер для логина/пароля/сессии. **Никаких прав в Django.**
+
+```python
+class ProjectCustomerUser(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='customer_profile')
+    # Django User используется ТОЛЬКО для:
+    #   - аутентификации (login + password)
+    #   - Django-сессии (request.user)
+    #   - аудита (created_by = request.user)
+    #
+    # ПРАВА В DJANGO: is_staff=False, is_superuser=False, user_permissions=[],
+    #   groups=[] (все права — через system_groups + org_roles)
+```
+
+### Права Django User
+
+| Поле | Значение | Почему |
+|---|---|---|
+| `is_staff` | `False` | Не пускать в `/admin/` |
+| `is_superuser` | `False` | Не давать системных прав |
+| `user_permissions` | Пусто | Все разрешения через наш слой |
+| `groups` | Пусто | Django groups не используются |
+
+### Создание — автоматическое
+
+При создании `ProjectCustomerUser` Django User создаётся автоматически:
 
 ```
-ProjectCustomer          — организация-клиент (name, is_active, access_until, ...)
-  ├── LegalEntity (1:N)  — юр. лица (ИНН, КПП, банк, ...)
-  ├── CustomerSettings   — нумерация заявок, Bitrix/1C, валюта каталога
-  └── ProjectCustomerUser (1:N) — пользователь (логин/пароль)
-        ├── UserSettings — подпись, уведомления
-        └── UserParameter — key-value параметры
-
-clients.Company          — конечные заказчики (НЕ трогаем, другой слой)
-clients.CompanyPerson    — сотрудники конечных заказчиков
-producers.Brands         — бренды оборудования
+POST /api/admin/customers/<id>/users/  { login: "ivanov", password: "..." }
+  │
+  ├─ User.objects.create_user(username=f'cust_{customer_id}_{login}', password=...)
+  ├─ ProjectCustomerUser.objects.create(user=django_user, customer=..., login=...)
+  └─ Возвращает: { id, login, system_groups, roles, ... }
 ```
 
-### Новые модели (7 штук)
+### Преимущества 1:1
 
-| № | Модель | Назначение | Этап |
-|---|---|---|---|
-| 1 | `SiteSection` | Справочник разделов сайта | 1 |
-| 2 | `AllowedApp` | Справочник типов мини-приложений (API) | 1 |
-| 3 | `Role` | Настраиваемая роль (M2M → SiteSection) | 3 |
-| 4 | `CustomerAppAccess` | Org-level: доступ к мини-приложениям + brand filter | 2 |
-| 5 | `CustomerEmail` | Адреса для уведомлений (заявки, счета, ...) | 2 |
-| 6 | `CustomerApiKey` | API-ключи для мини-приложений | 5 |
-| 7 | `FavoriteBrand` | Любимые бренды пользователя + приоритет | 4 |
-
-### Изменяемые модели
-
-| Модель | Изменение | Этап |
-|---|---|---|
-| `ProjectCustomerUser` | Убрать `role` CharField, добавить `roles` M2M → Role, `section_permissions` M2M → SiteSection, `favorite_brands` M2M → Brands (through FavoriteBrand) | 3, 4 |
-| `ProjectCustomer` | Добавить M2M → SiteSection (видимые разделы), M2M → Brands (видимые бренды) | 2 |
-
-### Будущее (спроектировано, не реализуется сейчас)
-
-| № | Модель | Назначение |
-|---|---|---|
-| — | `AccessLimit` | Лимиты: access_until, max_api_calls, max_concurrent_sessions, max_sessions_per_user, max_tokens, max_disk_mb. GenericForeignKey (Customer / User). |
-| — | `ApiAccessLog` | Лог API-запросов (method, path, status, response_time_ms, IP) |
-| — | `UserActivityLog` | Лог действий пользователей сайта (login, view_page, search, ...) |
+- `request.user` → всегда конкретный человек, не роль
+- `request.user.customer_profile` → быстрый доступ к ProjectCustomerUser
+- Row-level security: `MyModel.objects.filter(owner=request.user)`
+- Аудит: `created_by = ForeignKey(User)` — кто реально создал запись
+- Один аккаунт = одна сущность, без дублирования
 
 ---
 
-## Модель 1: `SiteSection` — разделы сайта
+## Системный уровень: группы и реестр объектов
+
+### Реестр объектов (в коде, не в БД)
+
+Файл: `core/object_registry.py`. Хранит **названия** всех защищаемых объектов. Заполняется декларативно через `register_object()`.
 
 ```python
-class SiteSection(models.Model):
-    """Раздел сайта, доступный пользователям."""
+# core/object_registry.py
+OBJECT_REGISTRY = {}  # {codename: {name, type, parent}}
+
+def register_object(*, codename, name, type, parent=None):
+    OBJECT_REGISTRY[codename] = {...}
+```
+
+Каждое приложение регистрирует свои объекты в `<app>/object_registry.py`:
+
+```python
+# pneumatic_actuators/object_registry.py
+from core.object_registry import register_object
+
+register_object(codename='configurator.pa', name='Конфигуратор пневмоприводов', type='configurator')
+register_object(codename='catalog.pa',       name='Каталог пневмоприводов',     type='catalog')
+register_object(codename='admin.sku',        name='Управление SKU',             type='admin_page')
+```
+
+### Типы объектов
+
+| Тип | Назначение | Пример |
+|---|---|---|
+| `page` | Страница (роут фронтенда) | `/admin/customers` |
+| `api` | API-эндпоинт | `POST /api/admin/site-sections/` |
+| `ui_element` | Кнопка/ссылка/блок | «Удалить клиента» |
+| `configurator` | Конфигуратор (подтип page) | Конфигуратор ПП |
+| `catalog` | Раздел каталога (подтип page) | Ручные дублёры |
+
+### SystemGroup — группа системных прав (в БД)
+
+```python
+class SystemGroup(models.Model):
+    """Именованная группа системных прав (аналог группы Windows)."""
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
-    is_active = models.BooleanField(default=True)
+    object_permissions = models.JSONField(default=dict)
+    # {
+    #   "configurator.pa":   ["view", "edit"],
+    #   "admin.customers":   ["view", "edit", "delete"],
+    #   "catalog.gearbox":   ["view"],
+    # }
+    is_default = models.BooleanField(default=False)
     sorting_order = models.IntegerField(default=0)
 ```
 
-**Значения** (фикстуры):
-- `catalog` — Каталог оборудования
-- `configurator` — Конфигуратор
-- `requests` — Запросы клиентов
-- `certificates` — Сертификаты
-- `llm_agent` — Агент LLM (через сайт)
+### Действия (actions)
 
----
+| Действие | Что означает |
+|---|---|
+| `view` | Видеть/читать |
+| `edit` | Редактировать/создавать |
+| `delete` | Удалять |
+| `manage` | ≡ все три (`view` + `edit` + `delete`) |
 
-## Модель 2: `AllowedApp` — типы мини-приложений (API)
+### Фикстуры: системные группы
 
-```python
-class AllowedApp(models.Model):
-    """Тип мини-приложения для API-доступа (виджеты на сайтах клиентов)."""
-    code = models.CharField(max_length=50, unique=True)
-    name = models.CharField(max_length=100)
-    has_brand_filter = models.BooleanField(default=True)
-    is_active = models.BooleanField(default=True)
-    sorting_order = models.IntegerField(default=0)
-```
-
-**Значения** (фикстуры):
-
-| code | name | has_brand_filter |
+| Группа (code) | Название | Кому |
 |---|---|---|
-| `limit_switch` | Блоки концевых выключателей | true |
-| `gearbox` | Ручные дублёры | true |
-| `filter_regulator` | Фильтр-регуляторы | true |
-| `pneumatic_fittings` | Пневмофитинги | true |
-| `solenoid_valves` | Распределительные клапаны | true |
-| `pa_actuators` | Пневмоприводы | true |
-| `ea_actuators` | Электроприводы | true |
-| `llm_agent` | LLM-агент | **false** |
+| `administrators` | Администраторы | Разработчики, все права |
+| `customer_managers` | Менеджеры клиентов | Управление организациями, пользователями, ключами |
+| `catalog_managers` | Редакторы каталога | SKU, цены, сертификаты |
+| `media_editors` | Редакторы медиа | Медиабиблиотека |
+| `ai_configurators` | AI-инженеры | Настройка pipeline, skills, отладка |
+| `authenticated_users` | Авторизованные пользователи | Маркер (без прав, просто «вошёл») |
 
-`has_brand_filter = false` для `llm_agent` означает, что фильтр по брендам не применяется.
+### Жизненный цикл объекта
+
+| Событие | Поведение |
+|---|---|
+| Новый объект в коде | Автоматически виден в `/admin/permissions`, но прав нет ни у кого (secure by default) |
+| Удалённый объект из кода | Старые права в JSON — мёртвый груз, доступ не дают |
+| Переименован `codename` | Старый ключ — мусор, новый — без прав (выдавать заново) |
 
 ---
 
-## Модель 3: `Role` — настраиваемая роль
+## Организационный уровень: роли и разделы
+
+### OrgRole — роль внутри организации
+
+> `Role.django_user` удалён. Роль больше не содержит ссылку на Django User.
+> Вход — через персональный `ProjectCustomerUser.user` FK (1:1).
 
 ```python
-class Role(models.Model):
-    """Роль пользователя — настраивается администратором клиента."""
-    customer = models.ForeignKey(ProjectCustomer, on_delete=models.CASCADE, related_name='roles')
-    name = models.CharField(max_length=100)
+class OrgRole(models.Model):
+    """Роль внутри организации."""
+    customer = models.ForeignKey(ProjectCustomer, on_delete=models.CASCADE, related_name='org_roles')
     code = models.CharField(max_length=50)
+    name = models.CharField(max_length=100)
     section_permissions = models.ManyToManyField(SiteSection, blank=True)
     is_default = models.BooleanField(default=False)
     sorting_order = models.IntegerField(default=0)
 ```
 
-У каждой организации — свои роли. `is_default` — роль, назначаемая новому пользователю автоматически.
+### SiteSection — разделы сайта (гранулярно)
 
----
+**Было:** `catalog`, `configurator`, `requests`, `certificates`, `llm_agent`
 
-## Модель 4: `CustomerAppAccess` — доступ к мини-приложениям (org-level)
+**Стало (разбито):**
 
-```python
-class CustomerAppAccess(models.Model):
-    """Разрешение организации на мини-приложение + фильтр по брендам."""
-    customer = models.ForeignKey(ProjectCustomer, on_delete=models.CASCADE, related_name='app_access')
-    app = models.ForeignKey(AllowedApp, on_delete=models.CASCADE)
-    brand_filter = models.CharField(
-        max_length=10,
-        choices=[('all', 'Все бренды'), ('selected', 'Выбранные бренды')],
-        default='all'
-    )
-    brands = models.ManyToManyField('producers.Brands', blank=True)
-    is_active = models.BooleanField(default=True)
+| code | Название | Группа |
+|---|---|---|
+| `catalog_gearbox` | Ручные дублёры | catalog |
+| `catalog_pa` | Пневмоприводы | catalog |
+| `catalog_ea` | Электроприводы | catalog |
+| `catalog_lsb` | Блоки концевых выключателей | catalog |
+| `catalog_sv` | Соленоидные клапаны | catalog |
+| `catalog_fr` | Фильтр-регуляторы | catalog |
+| `catalog_pf` | Пневмофитинги | catalog |
+| `catalog_cg` | Кабельные вводы | catalog |
+| `configurator_pa` | Конфигуратор ПП | configurator |
+| `configurator_ea` | Конфигуратор ЭП | configurator |
+| `configurator_cab` | Шкафы управления | configurator |
+| `requests` | Заявки клиентов | requests |
+| `certificates` | Сертификаты | certificates |
+| `llm_agent` | Агент LLM | ai |
 
-    class Meta:
-        unique_together = [['customer', 'app']]
-```
-
-**Логика**:
-- `brand_filter = "all"` — мини-приложение видит все бренды
-- `brand_filter = "selected"` + `brands = [A, B]` — только указанные бренды
-- Для `llm_agent` (`has_brand_filter = false`) поле `brands` не используется
-
----
-
-## Модель 5: `CustomerEmail` — адреса для уведомлений
+Поле `SiteSection.category` группирует разделы (для UI):
 
 ```python
-class CustomerEmail(models.Model):
-    """Email-адреса организации для разных типов уведомлений."""
-    customer = models.ForeignKey(ProjectCustomer, on_delete=models.CASCADE, related_name='notification_emails')
-    email_type = models.CharField(max_length=30, choices=[
-        ('requests', 'Заявки'),
-        ('invoices', 'Счета'),
-        ('support', 'Техподдержка'),
-    ])
-    email = models.EmailField()
-    is_active = models.BooleanField(default=True)
-```
-
----
-
-## Модель 6: `CustomerApiKey` — API-ключи
-
-```python
-class CustomerApiKey(models.Model):
-    """API-ключ для доступа к мини-приложениям."""
-    customer = models.ForeignKey(ProjectCustomer, on_delete=models.CASCADE, related_name='api_keys')
+class SiteSection(models.Model):
+    code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
-    key_hash = models.CharField(max_length=128)       # SHA-256(raw_key)
-    key_prefix = models.CharField(max_length=12)       # "proj_live_"
-
-    allowed_apps = models.ManyToManyField(AllowedApp, blank=True)
-    # Дополнительный фильтр брендов поверх org-level:
-    # {"limit_switch": [1, 3], "gearbox": "all"}
-    brand_filters = models.JSONField(default=dict, blank=True)
-
-    ip_whitelist = models.TextField(blank=True)        # "192.168.1.5, 10.0.0.0/24"
-    access_until = models.DateField(null=True, blank=True)
-
-    # Будущее: своя LLM клиента
-    llm_endpoint = models.URLField(blank=True)
-
+    category = models.CharField(max_length=50, default='catalog')  # ← новое
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_used_at = models.DateTimeField(null=True, blank=True)
-
-    @classmethod
-    def generate_key(cls, customer, name):
-        import secrets, hashlib
-        raw = f"proj_live_{secrets.token_hex(16)}"
-        instance = cls(
-            customer=customer, name=name,
-            key_prefix="proj_live_",
-            key_hash=hashlib.sha256(raw.encode()).hexdigest()
-        )
-        instance._raw_key = raw
-        instance.save()
-        return instance, raw
+    sorting_order = models.IntegerField(default=0)
 ```
 
 ---
 
-## Модель 7: `FavoriteBrand` — любимые бренды пользователя
+## ProjectCustomerUser
 
 ```python
-class FavoriteBrand(models.Model):
-    """Любимый бренд пользователя с приоритетом сортировки."""
-    user = models.ForeignKey(ProjectCustomerUser, on_delete=models.CASCADE, related_name='favorite_brands')
-    brand = models.ForeignKey('producers.Brands', on_delete=models.CASCADE)
-    priority = models.IntegerField(default=0)
+class ProjectCustomerUser(models.Model):
+    # Django User — оболочка аутентификации (1:1, автосоздание)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='customer_profile')
 
-    class Meta:
-        unique_together = [['user', 'brand']]
-        ordering = ['priority', 'brand__name']
-```
+    # СИСТЕМНЫЕ права (не зависят от организации)
+    system_groups = models.ManyToManyField(SystemGroup, blank=True)
 
-Подмножество от видимых брендов организации. Если у пользователя нет записей — показываются все видимые бренды организации.
+    # ОРГАНИЗАЦИОННЫЕ права (per-customer)
+    customer = models.ForeignKey(ProjectCustomer, ...)
+    org_roles = models.ManyToManyField(OrgRole, blank=True)              # было: roles
+    section_permissions = models.ManyToManyField(SiteSection, blank=True) # индивид.
 
----
+    def has_system_perm(self, codename: str, action: str = 'view') -> bool:
+        """Проверить системное право на объект."""
+        for group in self.system_groups.all():
+            perms = group.object_permissions.get(codename, [])
+            if action in perms or 'manage' in perms:
+                return True
+        return False
 
-## Изменения в существующих моделях
+    def get_object_permissions(self) -> dict:
+        """Все системные права пользователя: {codename: [actions]}."""
+        result = {}
+        for group in self.system_groups.all():
+            for obj, actions in group.object_permissions.items():
+                result.setdefault(obj, set()).update(actions)
+        return {k: list(v) for k, v in result.items()}
 
-### `ProjectCustomer` (Этап 2)
-
-```python
-# ДОБАВИТЬ:
-visible_sections = models.ManyToManyField(SiteSection, blank=True, related_name='customers')
-visible_brands = models.ManyToManyField('producers.Brands', blank=True, related_name='visible_for_customers')
-```
-
-### `ProjectCustomerUser` (Этапы 3–4)
-
-```python
-# УБРАТЬ:
-ROLE_ADMIN = 'admin'
-ROLE_USER = 'user'
-ROLE_VIEWER = 'viewer'
-ROLE_CHOICES = [...]
-role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_VIEWER)
-
-# ДОБАВИТЬ:
-roles = models.ManyToManyField(Role, blank=True, related_name='users')
-section_permissions = models.ManyToManyField(SiteSection, blank=True, related_name='users')
-favorite_brands = models.ManyToManyField('producers.Brands', through='FavoriteBrand', blank=True, related_name='favored_by_users')
+    def get_effective_section_permissions(self):
+        """Организационные права: OrgRole + индивид."""
+        from project_customers.models import SiteSection
+        role_sections = SiteSection.objects.filter(orgrole__users=self)
+        individual = self.section_permissions.all()
+        return (role_sections | individual).distinct()
 ```
 
 ---
@@ -263,47 +257,45 @@ favorite_brands = models.ManyToManyField('producers.Brands', through='FavoriteBr
 ## Полная схема связей
 
 ```
-                         ┌─────────────────────┐
-                         │   ProjectCustomer   │
-                         │  + visible_sections │──M2M──┐
-                         │  + visible_brands   │──M2M──│──┐
-                         └──┬──────┬──────┬────┘       │  │
-                            │      │      │            │  │
-              ┌─────────────┘      │      └──────┐     │  │
-              │ 1:N         1:N    │ 1:N         │     │  │
-              ▼              ▼     ▼             ▼     │  │
-   ┌──────────────┐  ┌──────────┐ ┌────────────┐       │  │
-   │    Role      │  │Cust.App  │ │Cust.ApiKey │       │  │
-   │  + sect_perms│  │Access    │ │+ allowed_  │       │  │
-   │    M2M───────│──│─→SiteSec │ │  apps M2M──│──┐    │  │
-   │              │  │+ app FK──│─│─→AllowedApp│  │    │  │
-   │              │  │  Allowed │ │+ brand_    │  │    │  │
-   │              │  │  App     │ │  filters   │  │    │  │
-   │              │  │+ brands──│─│─→(JSON)    │  │    │  │
-   │              │  │  M2M→    │ │            │  │    │  │
-   │              │  │  Brands  │ │            │  │    │  │
-   └──────┬───────┘  └──────────┘ └────────────┘  │    │  │
-          │ M2M                                    │    │  │
-          ▼                                        │    │  │
-   ┌──────────────────┐                            │    │  │
-   │ ProjectCustomer  │                            │    │  │
-   │      User        │                            │    │  │
-   │  + roles M2M     │                            │    │  │
-   │  + sect_perms ───│──M2M───────────────────────┘    │  │
-   │    M2M→SiteSec   │                                 │  │
-   │  + fav_brands ───│──M2M (FavoriteBrand)────────────┘  │
-   │    through       │                                    │
-   │    FavoriteBrand │                                    │
-   └──────────────────┘                                    │
-                                                           │
-         ┌─────────────────────────────────────────────────┘
-         │              ┌──────────────────────────────────┘
-         ▼              ▼
-   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐
-   │SiteSection│   │AllowedApp│   │  Brands  │   │CustomerEmail │
-   │(справочник)│   │(справочник)│  │(существ.)│   │(email_type,  │
-   └──────────┘   └──────────┘   └──────────┘   │ email)       │
-                                                 └──────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    СИСТЕМНЫЙ УРОВЕНЬ                         │
+│                                                             │
+│  SystemGroup (БД)              Object Registry (код)         │
+│  ├─ code: 'administrators'     core/object_registry.py      │
+│  ├─ object_permissions: JSON   ├─ configurator.pa           │
+│  │   {                         ├─ catalog.gearbox           │
+│  │     "admin.customers":      ├─ ai.pipelines              │
+│  │       ["view","edit"],      └─ ...                       │
+│  │     "catalog.gearbox":                                   │
+│  │       ["view"],                                         │
+│  │   }                                                     │
+│  └─ is_default                                              │
+│       │ M2M                                                 │
+│       ▼                                                     │
+│  ProjectCustomerUser.system_groups                          │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                   ОРГАНИЗАЦИОННЫЙ УРОВЕНЬ                    │
+│                                                             │
+│  ProjectCustomer                                             │
+│  ├─ visible_sections M2M → SiteSection (потолок)            │
+│  └─ OrgRole (1:N)                                           │
+│       ├─ section_permissions M2M → SiteSection               │
+│       └─ M2M → ProjectCustomerUser.org_roles                 │
+│                                                             │
+│  SiteSection (справочник)                                    │
+│  ├─ catalog_gearbox, catalog_pa, catalog_lsb, ...           │
+│  ├─ configurator_pa, configurator_ea, configurator_cab      │
+│  ├─ requests, certificates, llm_agent                       │
+│  └─ category (для группировки в UI)                         │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                      ДАННЫЕ (будущее)                        │
+│                                                             │
+│  nomenclature.owner → FK ProjectCustomerUser                │
+│  brand/series visibility → через OrgRole + потолок org       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -311,13 +303,15 @@ favorite_brands = models.ManyToManyField('producers.Brands', through='FavoriteBr
 ## Правило: права пользователя ≤ права организации
 
 ```
-Пользователь видит раздел X
-  ⇔ X ∈ user.effective_section_permissions   (роли ∪ индивид. permissions)
-    И X ∈ customer.visible_sections           (org-level потолок)
+Системный доступ:
+  Пользователь может выполнить действие X над объектом Y
+    ⇔ Y ∈ OBJECT_REGISTRY
+      И X ∈ user.get_object_permissions()[Y]
 
-Пользователь видит бренд B
-  ⇔ B ∈ user.favorite_brands (если заполнены; пусто = все видимые)
-    И B ∈ customer.visible_brands
+Организационный доступ:
+  Пользователь видит раздел X
+    ⇔ X ∈ user.effective_section_permissions   (OrgRole ∪ индивид.)
+      И X ∈ customer.visible_sections           (org-level потолок)
 
 API-ключ даёт доступ к мини-приложению A с брендами [B1, B2]
   ⇔ A ∈ key.allowed_apps
@@ -325,429 +319,185 @@ API-ключ даёт доступ к мини-приложению A с бре�
     И brand_filter из ключа ⊂ brand_filter из CustomerAppAccess
 ```
 
-`effective_section_permissions` пользователя = `section_permissions` (индивидуальные) ∪ объединение `section_permissions` всех его ролей.
-
 ---
 
-## Матрица прав (целевая)
+## Многоуровневая защита данных (multi-tenant)
 
-| Действие | superuser | customer_admin (роль) | customer_user (роль) | API-ключ |
-|---|---|---|---|---|
-| Django admin `/admin/` | ✅ | ✗ | ✗ | ✗ |
-| Создать/управлять Customer | ✅ | ✗ | ✗ | ✗ |
-| Управлять пользователями своего Customer | ✅ | +site section | ✗ | ✗ |
-| Управлять API-ключами своего Customer | ✅ | +site section | ✗ | ✗ |
-| Смотреть каталог | ✅ | +site section | +site section | +allowed_apps |
-| Смотреть цены | ✅ | +site section | +site section | +allowed_apps |
-| Конфигуратор | ✅ | +site section | +site section | ✗ |
-| Создавать запросы клиентов | ✅ | +site section | +site section | ✗ |
-| Сертификаты | ✅ | +site section | +site section | ✗ |
-| LLM-агент (сайт) | ✅ | +site section | +site section | ✗ |
-| LLM-агент (API) | ✗ | ✗ | ✗ | +allowed_apps |
+Ограничение на уровне организации — через фильтрацию queryset'ов по `customer_id`, не через Django-права.
 
----
-
-## Будущая модель: `AccessLimit`
+### CustomerMiddleware
 
 ```python
-class AccessLimit(models.Model):
-    """Лимиты доступа (временные и количественные)."""
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
-    content_object = GenericForeignKey('content_type', 'object_id')
+# project_customers/middleware.py
+class CustomerMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-    access_until = models.DateField(null=True, blank=True)
-    max_api_calls = models.IntegerField(null=True, blank=True)
-    max_concurrent_sessions = models.IntegerField(null=True, blank=True)
-    max_sessions_per_user = models.IntegerField(null=True, blank=True)
-    max_tokens = models.BigIntegerField(null=True, blank=True)
-    max_disk_mb = models.IntegerField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    def __call__(self, request):
+        profile_id = request.session.get('customer_user_id')
+        if profile_id:
+            try:
+                profile = ProjectCustomerUser.objects.select_related('customer').get(
+                    id=profile_id, is_active=True
+                )
+                request.customer_user = profile
+                request.customer = profile.customer
+            except ProjectCustomerUser.DoesNotExist:
+                pass
+        return self.get_response(request)
 ```
 
-Одна запись на организацию = лимиты уровня организации. Одна запись на пользователя = индивидуальные лимиты. Проверка: `min(org_limit, user_limit)`.
+### Три слоя защиты
 
----
-
-## План реализации
-
-| Этап | Содержание | Модели |
+| Слой | Где | Что фильтрует |
 |---|---|---|
-| **1** | Справочники | `SiteSection`, `AllowedApp` + миграции + фикстуры + админка |
-| **2** | Org-level доступ | `CustomerAppAccess`, `CustomerEmail`, M2M `visible_sections`/`visible_brands` на `ProjectCustomer` |
-| **3** | Роли | `Role` + миграция, замена `role` CharField → `roles` M2M |
-| **4** | User-level | `FavoriteBrand`, `section_permissions` M2M |
-| **5** | API-ключи | `CustomerApiKey` + `AccessPermission` (DRF) |
-| **0** | ~~Центр. модуль~~ | `core/access.py` — `catalog_permission_classes()` + `apply_catalog_visibility()`. Все 30+ views на едином permission class. Заглушка AllowAny. (2026-07-27) |
-| **6** | Фронтенд | Скрытие разделов по правам, управление пользователями, API-ключи |
+| **View** | `ViewSet.get_queryset()` | `filter(customer=request.customer)` |
+| **Middleware** | `CustomerMiddleware` | Подставляет `request.customer` из сессии |
+| **API-ключ** | `AccessPermission` | Уже подставляет `request.customer = api_key.customer` |
 
 ---
 
-## Реализация: `core/access.py` (2026-07-27)
+## Проверки на каждом слое
 
-Централизованный модуль доступа для catalog API. Две функции:
-
-- **`catalog_permission_classes()`** — возвращает `[AllowAny]`. Заглушка. Все 30+ catalog views на едином permission class.
-- **`apply_catalog_visibility(request, queryset)`** — фильтрация queryset по правам. Заглушка. `CatalogConfig.apply_visibility_scope()` делегирует сюда.
-
-Файл: `core/access.py`. Подробнее: `CATALOG_PATTERN.md` §2.3.
-
----
-
-## API-ключи: генерация, хранение, передача
-
-### Генерация
-
-Ключ создаётся через админку или API:
-
-```
-POST /api/auth/api-keys/
-{
-  "name": "Виджет НТА-Пром — БКВ",
-  "allowed_apps": ["limit_switch"],
-  "brand_filters": {"limit_switch": [1, 2]},
-  "ip_whitelist": "195.24.68.10",
-  "access_until": "2027-01-01"
-}
-→ {
-    "id": 1,
-    "raw_key": "proj_live_a3f7b2c1d4e5f6a7b8c9d0e1f2a3b4c5",
-    "key_prefix": "proj_live_",
-    "warning": "Сохраните raw_key — он больше не будет показан."
-  }
-```
-
-**`raw_key` показывается ровно один раз.** В БД хранится только `SHA-256(raw_key)`. Потерял ключ — генерируй новый.
-
-### Передача
-
-Ключ передаётся в заголовке `X-Api-Key` **с каждым запросом**. Это не сессия — API-ключ не истекает за время сеанса, он действует пока `is_active=True` и `access_until` не прошёл.
-
-**Почему с каждым запросом, а не с сессией?** API-ключ предназначен для server-to-server взаимодействия. Там нет понятия «сеанс пользователя» — каждый HTTP-запрос самостоятелен.
-
-### Где хранить ключ на стороне клиента
-
-**Никогда не в JS-коде.** Любой посетитель сайта клиента откроет DevTools → увидит ключ → сможет использовать его.
-
-Правильная архитектура:
-
-```
-Браузер → сайт клиента (фронтенд)
-              ↓ fetch('/wp-json/my-plugin/v1/catalog')
-         сервер клиента (WordPress / PHP / Python / Node)
-              ↓ curl + X-Api-Key
-         наш API (Django)
-```
-
-Клиент хранит ключ в `.env` или `wp-config.php` на своём сервере. Его бэкенд проксирует запросы к нашему API, добавляя `X-Api-Key`. Браузер ключа **не видит**.
-
-### Защита
-
-| Механизм | Где | Назначение |
-|---|---|---|
-| `ip_whitelist` | `CustomerApiKey` | Принимать запросы только с IP сервера клиента |
-| `access_until` | `CustomerApiKey` | Автоматическая деактивация после даты |
-| `brand_filters` | `CustomerApiKey` | Сужение видимых брендов (поверх org-level) |
-| `allowed_apps` | `CustomerApiKey` | Только указанные типы мини-приложений |
-| `CustomerAppAccess` | Org-level | Потолок: ключ не может расширить доступ организации |
-
----
-
-## WordPress: хранение ключа и прокси-запросы
-
-### Шаг 1: Сохранить ключ в WordPress
-
-Ключ **не должен** быть в коде плагина или темы. Три варианта хранения:
-
-#### Вариант A: `wp-config.php` (рекомендуемый)
-
-```php
-// wp-config.php — в корне сайта, НЕ в репозитории
-define('ARCHIMED_API_KEY', 'proj_live_a3f7b2c1d4e5f6a7b8c9d0e1f2a3b4c5');
-define('ARCHIMED_API_URL', 'https://наш-сервер.ru/api/widget/');
-```
-
-Плюс: не потеряется при обновлении плагина/темы. Минус: нужен доступ к FTP.
-
-#### Вариант B: Через админку WordPress (плагин)
-
-Создать страницу настроек в админке, где клиент вставляет ключ:
-
-```php
-// В плагине: регистрируем настройку
-add_action('admin_menu', function () {
-    add_options_page('API Архимед', 'API Архимед', 'manage_options', 'archimed-api', 'archimed_api_page');
-});
-
-function archimed_api_page() {
-    if (isset($_POST['api_key'])) {
-        update_option('archimed_api_key', sanitize_text_field($_POST['api_key']));
-        echo '<div class="notice notice-success"><p>Ключ сохранён</p></div>';
-    }
-    $key = get_option('archimed_api_key', '');
-    echo '<div class="wrap">
-        <h1>API Архимед</h1>
-        <form method="post">
-            <input type="password" name="api_key" value="' . esc_attr($key) . '"
-                   placeholder="proj_live_..." style="width:400px" />
-            <p class="submit"><button class="button-primary">Сохранить</button></p>
-        </form>
-    </div>';
-}
-```
-
-Плюс: не нужен FTP. Минус: хранится в БД WordPress (сериализованные опции).
-
-#### Вариант C: Константа в отдельном файле
-
-```php
-// wp-content/api-config.php — загружается в wp-config.php
-// (можно положить ВЫШЕ public_html — недоступен из браузера)
-define('ARCHIMED_API_KEY', 'proj_live_a3f7b2c1...');
-```
-
-```php
-// в wp-config.php:
-if (file_exists(dirname(ABSPATH) . '/api-config.php')) {
-    require_once dirname(ABSPATH) . '/api-config.php';
-}
-```
-
-Плюс: самый безопасный — файл вне document root. Минус: нужен FTP.
-
-### Шаг 2: WordPress-эндпоинт для прокси
-
-Создаём REST API endpoint в WordPress, который принимает запросы от фронтенда и проксирует их на наш сервер:
-
-```php
-// В плагине или functions.php
-add_action('rest_api_init', function () {
-    register_rest_route('archimed/v1', '/catalog/(?P<app>[a-z_]+)', [
-        'methods'  => 'GET',
-        'callback' => 'archimed_proxy_catalog',
-        'permission_callback' => '__return_true', // или проверка авторизации WP
-    ]);
-});
-
-function archimed_proxy_catalog(WP_REST_Request $request) {
-    $app  = $request->get_param('app');      // limit_switch, gearbox, ...
-    $key  = ARCHIMED_API_KEY;
-    $url  = ARCHIMED_API_URL . $app . '/';
-
-    // Прокидываем query-параметры от фронтенда
-    $params = $request->get_params();
-    unset($params['app']);
-    if ($params) {
-        $url .= '?' . http_build_query($params);
-    }
-
-    $response = wp_remote_get($url, [
-        'headers' => ['X-Api-Key' => $key],
-        'timeout' => 15,
-    ]);
-
-    if (is_wp_error($response)) {
-        return new WP_REST_Response(['error' => 'Сервис временно недоступен'], 502);
-    }
-
-    $body = wp_remote_retrieve_body($response);
-    $code = wp_remote_retrieve_response_code($response);
-
-    return new WP_REST_Response(json_decode($body, true), $code);
-}
-```
-
-### Шаг 3: Фронтенд на сайте клиента
-
-JavaScript на странице WordPress обращается к **своему** эндпоинту, а не к нашему API напрямую:
-
-```javascript
-// На сайте клиента (WordPress)
-fetch('/wp-json/archimed/v1/catalog/limit_switch?brand_id=1')
-    .then(res => res.json())
-    .then(data => {
-        // рендерим каталог
-    });
-```
-
-Поток запроса:
-```
-Браузер → /wp-json/archimed/v1/catalog/limit_switch?brand_id=1
-             ↓ (WordPress PHP, добавляет X-Api-Key)
-         GET https://наш-сервер.ru/api/widget/limit_switch/?brand_id=1
-             Header: X-Api-Key: proj_live_a3f7b2c1...
-             ↓
-         Django AccessPermission → проверка → фильтрация → JSON
-             ↓
-         WordPress возвращает JSON как есть
-             ↓
-Браузер ← JSON с данными каталога
-```
-
-### Что получает клиент (WordPress-плагин)
-
-Готовый мини-плагин, который клиент устанавливает себе в WordPress:
-
-```
-wp-content/plugins/archimed-widget/
-├── archimed-widget.php          ← главный файл, регистрирует REST-роуты
-├── admin/settings.php            ← страница настроек (поле для ввода ключа)
-└── public/widget-loader.js       ← JS для фронтенда (fetch к своему эндпоинту)
-```
-
-Клиенту нужно только:
-1. Установить плагин
-2. Вставить ключ в настройках
-3. Добавить шорткод `[archimed_widget app="limit_switch"]` на страницу
-
-Всё остальное плагин делает сам — проксирует запросы с ключом, кэширует на 5 минут (`WP_Transient`).
-
----
-
-## Сценарии
-
-### 1. Мини-апп клиента → API-ключ
-
-```
-GET /api/widget/limit-switch/?brand_id=1
-Header: X-Api-Key: proj_live_a3f7b2c1...
-
-▼ AccessPermission.has_permission()
-
-1. key_hash = sha256(raw_key)
-2. CustomerApiKey.objects.get(key_hash=..., is_active=True)
-3. Проверить access_until (если задан)
-4. Проверить ip_whitelist (если задан)
-5. Проверить allowed_apps → 'limit_switch' в списке?
-6. Проверить CustomerAppAccess: есть ли у customer доступ к 'limit_switch'?
-7. request.api_key = key
-8. request.customer = key.customer
-9. Обновить last_used_at
-
-▼ View.get_queryset()
-
-10. Применить brand_filters из ключа:
-    - Взять brand_filter для 'limit_switch' из key.brand_filters
-    - Если "all" → использовать CustomerAppAccess.brands (org-level)
-    - Если [1, 3] → filter(brand_id__in=[1, 3])
-    - Взять пересечение с CustomerAppAccess.brands
-```
-
-### 2. Пользователь сайта → логин/пароль
-
-```
-POST /api/auth/login/ {username, password}
-
-▼ LoginView.post()
-
-1. Django authenticate(username, password)
-2. ProjectCustomerUser.objects.get(user=user)
-3. Проверить is_active
-4. Проверить customer.is_active и customer.access_until
-5. login(request, user) → Django-сессия
-6. Вернуть {username, role_codes, section_permissions, customer}
-
-▼ Фронтенд
-
-7. Показывает только разделы из section_permissions
-8. customer_admin видит страницу управления пользователями
-```
-
----
-
-## Реализовано — 2026-08-04
-
-### Бэкенд: защита API
-
-**`SectionAccessPermission`** — DRF permission class, проверяет права доступа к разделам сайта.
+### Бэкенд: DRF permission classes
 
 ```python
-class SectionAccessPermission(BasePermission):
+# core/permissions.py
+
+class SystemObjectPermission(BasePermission):
+    """Проверка системного права через реестр объектов."""
     def has_permission(self, request, view):
+        obj = getattr(view, 'required_object', None)
+        action = getattr(view, 'required_action', 'view')
+        if obj is None:
+            return True
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        profile = get_customer_profile(request)
+        if not profile:
+            return False
+        return profile.has_system_perm(obj, action)
+
+
+class OrgSectionPermission(BasePermission):
+    """Проверка организационного доступа через SiteSection."""
+    def has_permission(self, request, view):
+        if getattr(view, 'public', False):
+            return True
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+
         required_section = getattr(view, 'required_section', None)
         if required_section is None:
             return True
+
+        from project_customers.utils import get_customer_profile
         profile = get_customer_profile(request)
         if profile is None:
             return False
-        sections = profile.get_effective_section_permissions()
-        return sections.filter(code=required_section).exists()
+
+        effective = profile.get_effective_section_permissions()
+        return effective.filter(code=required_section).exists()
 ```
 
-Каждый ViewSet задаёт `required_section` как атрибут класса.
+### Фронтенд: роутер
 
-**Маппинг разделов → ViewSet'ы:**
+```javascript
+// XOR: каждый маршрут задаёт ЛИБО object, ЛИБО section
+{ path: '/admin/customers',    meta: { object: 'admin.customers',   action: 'view' } }
+{ path: '/admin/permissions',  meta: { object: 'admin.permissions', action: 'edit' } }
+{ path: '/configurator/pa',    meta: { object: 'configurator.pa',   action: 'view' } }
+{ path: '/catalog/gearbox',    meta: { section: 'catalog_gearbox' } }
 
-| Раздел | ViewSet'ы |
-|---|---|
-| `configurator` | EA ConstructorViewSet, PA ConstructorViewSet, EAPowerSupplyMatrixView, EAModelAdminView, EAWiringAdminView, EASwitchesAdminView |
-| `catalog` | MediaAdminViews, PriceAdminViews, SkuAdminViews, LimitSwitchAdminViews, WidgetsPage |
-| `certificates` | CertAdminViews |
-| `admin_section` | CustomerAdminView, CustomerUserAdminView, CustomerKeyAdminView, PipelineSkillViewSet, SkillOverrideViewSet, WizardAdminView |
+router.beforeEach(async (to, from, next) => {
+  const required = to.meta.object || to.meta.section
+  if (!required) return next()
 
-**Исправленные дыры:**
+  const r = await api.get('/auth/me/')
+  const perms = r.data.object_permissions || {}
+  const sections = r.data.section_permissions || []
 
-| Файл | До | После |
-|---|---|---|
-| `pneumatic_actuators/api/views_constructor.py` | `permission_classes = [AllowAny]` | `[SectionAccessPermission]`, `required_section='configurator'` |
-| `core/views.py` — `UniversalAPIView` | `authentication_classes=[]`, `permission_classes=[]`, `@csrf_exempt` | `[IsAuthenticated, SectionAccessPermission]`, CSRF включён |
+  // Системная проверка: object + action
+  if (to.meta.object) {
+    const allowed = perms[to.meta.object] || []
+    if (!allowed.includes(to.meta.action || 'view')) return next('/login')
+  }
 
-**Новые API-эндпоинты:**
+  // Организационная проверка: section
+  if (to.meta.section && !sections.includes(to.meta.section)) return next('/login')
 
+  next()
+})
 ```
-GET  /api/admin/site-sections/                     — список всех SiteSection
-PUT  /api/admin/site-sections/<code>/               — обновить раздел (name, is_active, sorting_order)
-GET  /api/admin/customers/<cid>/permission-matrix/  — сводная матрица прав:
+
+### Фронтенд: условный рендеринг
+
+```javascript
+// composable usePerms.js
+const { can } = usePerms()
+
+<NavLink v-if="can('admin.customers', 'view')"    to="/admin/customers">Клиенты</NavLink>
+<EditButton v-if="can('configurator.pa', 'edit')"  @click="save" />
+<DeleteButton v-if="can('admin.customers', 'delete')" />
+
+// Стили:
+<div :class="{ readonly: !can('configurator.pa', 'edit') }">
+  <input :disabled="!can('configurator.pa', 'edit')" />
+</div>
 ```
 
-Формат ответа `permission-matrix`:
+### `/auth/me/` — формат ответа
+
 ```json
 {
-  "all_sections": [{"code": "...", "name": "...", ...}],
-  "org_sections": ["catalog", "configurator"],
-  "roles": [{"id": 1, "code": "engineer", "section_permissions": [...], ...}],
-  "users": [{"id": 10, "name": "...", "roles": [...], "role_sections": [...], "individual_sections": [...], "effective_sections": [...]}]
+  "username": "Иванов Иван",
+  "email": "i.ivanov@romashka.ru",
+  "system_groups": ["customer_managers"],
+  "object_permissions": {
+    "admin.customers":     ["view", "edit"],
+    "admin.permissions":   ["view"],
+    "catalog.gearbox":    ["view"]
+  },
+  "org_roles": ["engineer"],
+  "section_permissions": ["catalog_gearbox", "catalog_pa", "configurator_pa"],
+  "customer": "ООО Ромашка"
 }
 ```
 
-`CustomerUserAdminView` теперь поддерживает `section_permissions` в POST/PUT.
+---
 
-### Фронтенд: роутер и страница управления правами
+## Реализовано (существующее, не меняется)
 
-**Роутер** (`frontend/src/router/index.js`):
+Модели: `CustomerApiKey`, `AllowedApp`, `CustomerAppAccess`, `CustomerEmail`, `FavoriteBrand`
 
-- Замена `meta: { role: 'admin' }` → `meta: { section: '<code>' }` для страниц администрирования:
-  - `section: 'catalog'` → media, price, sku, limit-switch, widgets
-  - `section: 'certificates'` → cert-docs
-  - `section: 'configurator'` → pa-constructor, ea-constructor, ea-power-supply, ea-switches, ea-models, ea-wirings, pa-selector
-- `role: 'admin'` остался только для: customers, pipeline-config, skill-config, wizard-config, permissions, ai-debug
-- `beforeEach` проверяет `meta.section` через `/api/auth/me/` → `section_permissions`
-- Admin всегда проходит (isAdmin bypass)
+API-ключи: генерация, хранение (SHA-256), передача (`X-Api-Key`), WordPress-прокси.
 
-**Страница `/admin/permissions`** (`PermissionsPage.vue`):
+`core/access.py`: `catalog_permission_classes()` + `apply_catalog_visibility()` — заглушки `AllowAny`.
 
-- Вкладка «Разделы»: таблица SiteSections — CRUD (переименовать, включить/выключить, порядок)
-- Вкладка «Матрица прав»: выбор организации → матрица чекбоксов:
-  - Потолок организации (visible_sections)
-  - Роли (section_permissions)
-  - Пользователи (individual_sections + role_sections — наследование)
-  - Сохранение: роли одним запросом + индивидуальные для каждого пользователя
+---
 
-**Компонент `PermissionMatrix.vue`**: переиспользуемая матрица (rows × sections):
-- ✓ — checked (зелёный)
-- ◉ — inherited от роли (жёлтый)
-- — — нет прав (серый)
-- Строка «Организация» — потолок прав
+## Этапы реализации (пересмотрено 2026-08-04)
 
-**Меню**: «Администрирование → Настройка системы → Права доступа»
+| Этап | Содержание | Модели/файлы |
+|---|---|---|
+| **1** | Реестр объектов ✓ | `core/object_registry.py`, `<app>/object_registry.py` |
+| **2** | SystemGroup + миграция ✓ | `SystemGroup`, `ProjectCustomerUser.system_groups` |
+| **3** | Разбивка SiteSection ✓ | 11 новых разделов, 2 деактивированы |
+| **4** | 1:1 Django User ✓ | Миграция 0017, `CustomerBackend`, `CustomerMiddleware` |
+| **5** | DRF permission classes ✓ | `SystemObjectPermission`, `OrgSectionPermission` |
+| **6** | `/auth/me/` + Permissions UI ✓ | `CurrentUserView`, `PermissionsPage.vue` |
+| **7** | Фронтенд: роутер + usePerms ✓ | `router/index.js`, `useAuth.js`, `usePerms.js` |
+| **8** | Auto-sync админа ✓ | `core/apps.py` → `post_migrate`, все объекты → `manage` |
+| **9** | API-ключи (без изменений) | `CustomerApiKey` + `AccessPermission` (DRF) |
+| **10** | Role → OrgRole | Переименование модели, `org_roles` M2M |
 
-### Схема: полный цикл аутентификации пользователя
+### На будущее
 
-```
-LOGIN → POST /api/auth/login/
-  → Django сессия + cookie
-  → GET /api/auth/me/ → { username, roles, section_permissions }
-  → Роутер: meta.section ⊆ section_permissions
-  → API-запросы: SectionAccessPermission.required_section ∈ effective_section_permissions
-  → 403 если нет прав
-```
+- `brand_permissions`, `series_permissions` на `OrgRole`
+- `nomenclature.owner` — владелец номенклатуры
+- `AccessLimit` — лимиты (access_until, max_api_calls, ...)
+- `ApiAccessLog` / `UserActivityLog` — логирование

@@ -67,7 +67,15 @@ class ProjectCustomerUser(models.Model):
         verbose_name=_("Последний вход")
     )
 
-    # === Права доступа ===
+    # === Системные права ===
+    system_groups = models.ManyToManyField(
+        'SystemGroup',
+        blank=True,
+        related_name='members',
+        verbose_name=_("Системные группы"),
+    )
+
+    # === Организационные права ===
     roles = models.ManyToManyField(
         'Role',
         blank=True,
@@ -115,7 +123,29 @@ class ProjectCustomerUser(models.Model):
     def check_password(self, raw_password):
         return check_password(raw_password, self.password)
 
+    # === Системные права ===
+
+    def has_system_perm(self, codename: str, action: str = 'view') -> bool:
+        for group in self.system_groups.all():
+            perms = group.object_permissions.get(codename, [])
+            if action in perms or 'manage' in perms:
+                return True
+        return False
+
+    def get_object_permissions(self) -> dict:
+        result = {}
+        for group in self.system_groups.all():
+            for obj, actions in group.object_permissions.items():
+                result.setdefault(obj, set()).update(actions)
+        return {k: list(v) for k, v in result.items()}
+
+    # === Организационные права ===
+
     def get_effective_section_permissions(self):
+        """
+        Effective section permissions = org_roles + individual.
+        Does NOT exceed customer.visible_sections.
+        """
         from project_customers.models import SiteSection
         role_sections = SiteSection.objects.filter(role__users=self)
         individual = self.section_permissions.all()

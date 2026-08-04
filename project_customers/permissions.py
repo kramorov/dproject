@@ -1,23 +1,24 @@
 """
 project_customers/permissions.py
 
-AccessPermission      — аутентификация по API-ключу (X-Api-Key)
-SectionAccessPermission — проверка section_permissions для авторизованных пользователей
+AccessPermission      — API-key auth (X-Api-Key)
+SectionAccessPermission — re-export of core.permissions.OrgSectionPermission
 """
 import ipaddress
 from datetime import date
 
 from rest_framework.permissions import BasePermission
+from core.permissions import OrgSectionPermission as SectionAccessPermission  # noqa: F401
 
 from project_customers.models.customer_api_key import CustomerApiKey
 
 
 class AccessPermission(BasePermission):
     """
-    Аутентификация по API-ключу (X-Api-Key).
+    API-key authentication (X-Api-Key).
 
-    Не блокирует запросы без ключа — только добавляет request.api_key / request.customer
-    при успешной проверке. Для жёсткой проверки используйте вместе с IsAuthenticated.
+    Does NOT block requests without a key — only adds request.api_key / request.customer
+    on success. Use with IsAuthenticated for hard enforcement.
     """
 
     def has_permission(self, request, view):
@@ -25,7 +26,7 @@ class AccessPermission(BasePermission):
         if not raw_key:
             return True
 
-        api_key = CustomerApiKey.lookup(raw_key)
+        api_key= [redacted]
         if api_key is None:
             return True
 
@@ -37,7 +38,7 @@ class AccessPermission(BasePermission):
             if not self._ip_matches(client_ip, api_key.ip_whitelist):
                 return True
 
-        request.api_key = api_key
+        request.api_key= [redacted]
         request.customer = api_key.customer
         return True
 
@@ -64,49 +65,3 @@ class AccessPermission(BasePermission):
                 if entry == client_ip:
                     return True
         return False
-
-
-class SectionAccessPermission(BasePermission):
-    """
-    Проверка прав на раздел сайта.
-
-    Использование:
-        class MyView(APIView):
-            permission_classes = [SectionAccessPermission]
-            required_section = 'configurator'   # ← код из SiteSection
-            public = False                       # ← True = открыто для всех
-
-    Логика:
-    - public=True → доступ всем (неавторизованным тоже)
-    - Неавторизованный → 401
-    - Superuser → доступ
-    - Иначе: проверяет section_permissions пользователя
-    """
-
-    def has_permission(self, request, view):
-        # Публичные эндпоинты — открыты для всех
-        if getattr(view, 'public', False):
-            return True
-
-        # Неавторизованный — отказ
-        if not request.user or not request.user.is_authenticated:
-            return False
-
-        # Superuser — всё можно
-        if request.user.is_superuser:
-            return True
-
-        # Какой раздел нужен?
-        required_section = getattr(view, 'required_section', None)
-        if required_section is None:
-            return True  # Не указан — пропускаем
-
-        # Получаем профиль клиента
-        from project_customers.utils import get_customer_profile
-        profile = get_customer_profile(request)
-        if profile is None:
-            return False
-
-        # Проверяем права
-        effective = profile.get_effective_section_permissions()
-        return effective.filter(code=required_section).exists()

@@ -13,6 +13,7 @@ from .customer_email import CustomerEmail
 from .role import Role
 from .favorite_brand import FavoriteBrand
 from .customer_api_key import CustomerApiKey
+from .system_group import SystemGroup
 
 __all__ = [
     'ProjectCustomer',
@@ -30,4 +31,5 @@ __all__ = [
     'Role',
     'FavoriteBrand',
     'CustomerApiKey',
+    'SystemGroup',
 ]

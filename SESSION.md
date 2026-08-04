@@ -1,82 +1,91 @@
-# SESSION.md — состояние на 2026-08-03
+# SESSION.md — 2026-08-04
 
-## Что сделано за сессию
+## Состояние системы
 
-### Профили подбора (FilterProfile) — проектирование
-- **Проблема**: плоская структура `steps_json` мастера подбора показывает все фильтры шага, даже нерелевантные (например, «трубка» для глушителя)
-- **Решение**: профили — именованные наборы шагов и фильтров, активируемые значениями branching-фильтра (`fitting_variety_id`)
-- **Scoping опций**: уже работает автоматически через `WizardFilterOptionsView._get_scoped_options()` — queryset сам отсекает несовместимые опции. Никаких изменений не требуется
-- **JSON Schema для AI**: профили позволяют генерировать `oneOf`/`if-then` схемы вместо плоских — AI-пайплайн будет понимать, какие поля релевантны в зависимости от branching-значения
-- **От дерева EquipmentType отказались**: профили — надстройка над FILTER_DEFINITIONS, а не новый узел таксономии. Избегаем комбинаторного взрыва EquipmentType
+### Реализовано
 
-### Документация
-- `sw.md` — добавлен раздел **8. Профили подбора (FilterProfile)** (~210 строк):
-  - 8.1 Проблема плоской структуры
-  - 8.2 Решение: Профили (структура `steps_json` v2, отличие от дерева ET)
-  - 8.3 Scoping опций (уже работает)
-  - 8.4 Использование профилей для JSON Schema (AI)
-  - 8.5 План реализации (6 шагов)
+**Системные права (группы + реестр объектов)**
+- `core/object_registry.py` — реестр объектов в коде (24 объекта из 5 приложений)
+- `core/apps.py` — авто-импорт `*/object_registry.py` + `post_migrate` sync `administrators`
+- `SystemGroup` — модель групповых прав с JSON `object_permissions`
+- 3 группы: `administrators` (все права), `authenticated_users` (маркер), `anonymous_users` (прозрачность)
+- `SystemObjectPermission` — DRF permission class
 
-## План реализации (завтра)
+**Организационные права (роли + разделы)**
+- `SiteSection` — 17 разделов (11 новых гранулярных + 6 существующих). Старые `catalog`/`configurator` деактивированы
+- `OrgSectionPermission` — DRF permission class
+- `Role` (OrgRole) — `django_user` удалён, переименование в `OrgRole` pending
 
-| № | Шаг | Файлы |
-|---|---|---|
-| 1 | `FilterDefinition.profile_group` — строковый тэг для группировки фильтров | `core/models/filter_definition.py`, `*/catalog/filter_defs.py` |
-| 2 | Модель `FilterProfile` — branching_filter, trigger_values, filter_param_names, steps_json | `core/models/filter_profile.py` (новый), миграция |
-| 3 | `steps_json` v2 — `get_steps()` поддерживает `common_steps` + `profiles` | `core/models/selection_wizard.py` |
-| 4 | `WizardSelection.vue` — `activeProfile`, `visibleSteps`, динамические чипсы | `frontend/src/shared/components/catalog/WizardSelection.vue` |
-| 5 | `WizardAdminPage.vue` — управление профилями | `frontend/src/pages/admin/WizardAdminPage.vue` |
-| 6 | `GenerateSchemaFromModelView` — `oneOf`/`if-then` из профилей | `ai_assistant/api/views.py` |
+**1:1 Django User**
+- `ProjectCustomerUser.user` — 1:1 связка с Django User
+- `CustomerBackend` — аутентификация через `customer_user.user` (не `role.django_user`)
+- `CustomerUserAdminView` — авто-создание Django User при создании пользователя
+- `CustomerMiddleware` — подставляет `request.customer` из сессии
+- Миграция 0017: `Role.django_user` удалён
 
-### Ключевые файлы (прочитаны, архитектура понятна)
-- `core/models/filter_definition.py` — FilterDefinition, FilterType, DataSourceType, get_options(), build_filter_lookup()
-- `core/models/selection_wizard.py` — SelectionWizard, steps_json, get_steps()
-- `core/wizard_views.py` — все API views: WizardConfigView, WizardFilterOptionsView, WizardResultsView, WizardModelFiltersView, админские CRUD
-- `frontend/src/shared/components/catalog/WizardSelection.vue` — компонент мастера, loadStepFilters, submitWizard, fetchResults
-- `frontend/src/pages/admin/WizardAdminPage.vue` — админка: список, редактор с табами шагов и фильтров
-- `ai_assistant/api/views.py` — GenerateSchemaFromModelView (строит плоскую JSON Schema)
-- `pneumatic_fittings/catalog/filter_defs.py` — 10 плоских FilterDefinition для фитингов
-- `ai_assistant/models/json_schema.py` — модель JSONSchema (schema_json, version)
+**API**
+- `/api/auth/me/` — возвращает `system_groups`, `object_permissions`, `section_permissions`
+- `/api/admin/system-groups/` — CRUD групп
+- `/api/admin/object-registry/` — реестр объектов (из кода)
+- `/api/admin/site-sections/` — CRUD разделов
+- `/api/admin/customers/<id>/permission-matrix/` — матрица прав организации
 
-### Принятые решения
-- **НЕ дерево EquipmentType** — таксономия остаётся стабильной, профили — надстройка
-- **Scoping не требует доработок** — `_get_scoped_options()` уже работает
-- **`profile_group` в FilterDefinition** — минимальное расширение для группировки
-- **`FilterProfile` как отдельная модель** — переиспользование между wizard и AI
-- **Обратная совместимость**: без профилей `steps_json` работает как раньше (плоская структура `{pages, filters}`)
+**Фронтенд**
+- Роутер: единообразные `meta.section` / `meta.object`, `PUBLIC_SECTIONS` для анонимов
+- `PermissionsPage.vue` — 3 вкладки: Разделы, Матрица прав, Группы
+- Вкладка «Группы»: чекбоксы в шапке колонок (выбрать/снять для всех объектов)
+- `useAuth.js` — обновлён (systemGroups, objectPermissions)
+- `usePerms.js` — новый shared composable (`can()`, `canSeeSection()`, `isAdmin`)
+- PA-конструкторы перенесены: `/admin/pa-constructor*` → `/configurator/pa*`
+- AI-вкладка исправлена в 5 каталогах
 
----
+### Не сделано
 
-## Предыдущая сессия: 2026-07-31
+- **Role → OrgRole** — переименование модели и M2M поля
+- **`brand_permissions` / `series_permissions`** на `OrgRole`
+- **`nomenclature.owner`** — владелец номенклатуры
+- **Замена `SectionAccessPermission` → `OrgSectionPermission`** в ViewSet'ах (алиас работает)
+- **Row-level security** в ViewSet'ах (queryset filter по customer)
+- **Тесты Django** — написаны но не прогоняются (слишком много миграций для test DB)
 
-### Что сделано
+### База данных
 
-#### Меню и SkillConfigPage
-- `TopMenu.vue` — Администрирование: 6 групп с вылетающим подменю вправо
-- `BomConfigPage.vue` → `SkillConfigPage.vue`
-- Роутер: `/admin/bom-config` → `/admin/skill-config`
+- Организации: `Система` (id=12), `Архимед` (id=1), `Неавторизованный пользователь` (id=10)
+- Пользователь `kramorov` (id=1) → организация `Система` → группа `administrators`
+- SystemGroup: `administrators` (24 объекта manage), `authenticated_users`, `anonymous_users`
+- SiteSection: 17 разделов
 
-#### Bugfix: утечка отладки
-- `tree_processor.py:394` — удалена строка `filters = llm_result`
+### Ключевые файлы сессии
 
-#### filter_handlers.py
-- Новый модуль `ai_assistant/services/filter_handlers.py`
-- Хендлеры: solenoid_valves, limit_switch, gearbox, filter_regulator, pneumatic_fittings
+| Файл | Статус |
+|---|---|
+| `access.md` | Актуален |
+| `core/object_registry.py` | Новый |
+| `core/permissions.py` | Новый |
+| `core/apps.py` | Изменён (post_migrate sync) |
+| `project_customers/models/system_group.py` | Новый |
+| `project_customers/models/user.py` | Изменён (system_groups, user 1:1) |
+| `project_customers/models/role.py` | Изменён (django_user удалён) |
+| `project_customers/models/site_section.py` | Изменён (category) |
+| `project_customers/backends.py` | Переписан (1:1) |
+| `project_customers/permissions.py` | Изменён (реэкспорт) |
+| `project_customers/middleware.py` | Новый |
+| `project_customers/views/auth.py` | Изменён (object_permissions для superuser) |
+| `project_customers/views/admin_permissions.py` | Изменён (SystemGroup + ObjectRegistry views) |
+| `project_customers/views/admin_customers.py` | Изменён (авто-создание Django User) |
+| `project_customers/admin/role_admin.py` | Изменён (django_user убран) |
+| `frontend/src/router/index.js` | Изменён (единообразные meta, PUBLIC_SECTIONS) |
+| `frontend/src/pages/admin/PermissionsPage.vue` | Изменён (вкладка Группы) |
+| `frontend/src/shared/composables/usePerms.js` | Новый |
+| `frontend/src/components/header/useAuth.js` | Изменён |
+| `*/object_registry.py` (5 файлов) | Новые |
 
-#### FilterDefinition.mandatory
-- Добавлен параметр `mandatory='any'`
-- Размечены mandatory поля для solenoid_valves, gearbox, pneumatic_actuators
+### Миграции
 
-#### JSON-схемы и промпты v2
-- Ключи полей = FilterDefinition.param_name
-- Опции из БД, mandatory поля в required
-
-#### Валидация обязательных полей
-- `tree_processor._validate_required()`
-
-### Осталось с 2026-07-31
-1. Унифицировать filter_handlers.py или FILTER_DEFINITIONS
-2. Генерация JSON-схем из модели (обёртка generate_extract_config)
-3. mandatory на фронте каталогов
-4. Неполный filter type mapping (FUNCTION_COMPATIBLE, CLIMATE_CASCADE, THREAD_COMPATIBLE)
-5. Протестировать AI-пайплайн с v2-промптами
+```
+0013_system_group              — CreateModel SystemGroup
+0014_system_group_related_name — AlterField related_name='members'
+0015_split_site_sections       — Data: 11 новых SiteSection
+0016_site_section_category     — AddField category + populate
+0017_remove_role_django_user   — RemoveField django_user
+```

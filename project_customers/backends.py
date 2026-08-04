@@ -1,10 +1,9 @@
 """
 CustomerBackend — аутентификация пользователей клиента по логину + пароль.
 
-Используется вместе с ModelBackend:
-- CustomerBackend: аутентифицирует ProjectCustomerUser (login + пароль)
-  → логин через общий Django User роли → customer_user_id в сессии
-- ModelBackend: аутентифицирует Django User (username + пароль, superuser/staff)
+1:1 связка: ProjectCustomerUser.user → Django User (персональный для каждого).
+Django User используется только для аутентификации и сессии.
+Все права — через system_groups + org_roles.
 """
 from datetime import date
 
@@ -15,9 +14,9 @@ from django.utils.timezone import now
 
 class CustomerBackend(ModelBackend):
     """
-    Аутентификация клиентского пользователя по логину.
+    Аутентификация клиентского пользователя по login.
 
-    Роль → один общий Django User. Все пользователи с этой ролью логинятся через него.
+    Связка 1:1: ProjectCustomerUser.user → Django User.
     Идентификация конкретного человека — через customer_user_id в сессии.
     """
 
@@ -29,10 +28,8 @@ class CustomerBackend(ModelBackend):
 
         try:
             customer_user = ProjectCustomerUser.objects.select_related(
-                'customer'
-            ).prefetch_related('roles__django_user').get(
-                login=login, is_active=True
-            )
+                'customer', 'user'
+            ).get(login=login, is_active=True)
         except ProjectCustomerUser.DoesNotExist:
             return None
 
@@ -45,13 +42,7 @@ class CustomerBackend(ModelBackend):
         if customer.access_until and customer.access_until < date.today():
             return None
 
-        # Ищем роль с привязанным Django User (первая найденная)
-        django_user = None
-        for role in customer_user.roles.all():
-            if role.django_user_id:
-                django_user = role.django_user
-                break
-
+        django_user = customer_user.user
         if django_user is None:
             return None
         if not django_user.is_active:

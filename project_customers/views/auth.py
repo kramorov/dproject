@@ -47,7 +47,10 @@ class LoginView(APIView):
 
             if user.is_superuser:
                 from project_customers.models import SiteSection
+                from core.object_registry import OBJECT_REGISTRY
                 return Response({
+                    'system_groups': ['administrators'],
+                    'object_permissions': {c: ['manage'] for c in OBJECT_REGISTRY},
                     'username': user.username,
                     'email': user.email,
                     'roles': ['admin'],
@@ -62,6 +65,8 @@ class LoginView(APIView):
                 role_codes = list(profile.roles.values_list('code', flat=True))
                 effective_sections = profile.get_effective_section_permissions()
                 return Response({
+                    'system_groups': list(profile.system_groups.values_list('code', flat=True)),
+                    'object_permissions': profile.get_object_permissions(),
                     'username': profile.get_full_name(),
                     'email': profile.email,
                     'roles': role_codes,
@@ -89,7 +94,10 @@ class CurrentUserView(APIView):
 
         if user.is_superuser:
             from project_customers.models import SiteSection
+            from core.object_registry import OBJECT_REGISTRY
             return Response({
+                'system_groups': ['administrators'],
+                'object_permissions': {c: ['manage'] for c in OBJECT_REGISTRY},
                 'username': user.username,
                 'email': user.email,
                 'roles': ['admin'],
@@ -103,12 +111,16 @@ class CurrentUserView(APIView):
         if profile:
             role_codes = list(profile.roles.values_list('code', flat=True))
             effective_sections = profile.get_effective_section_permissions()
+            system_groups = list(profile.system_groups.values_list('code', flat=True))
+            object_perms = profile.get_object_permissions()
             return Response({
                 'username': profile.get_full_name(),
                 'email': profile.email,
                 'roles': role_codes,
                 'section_permissions': list(effective_sections.values_list('code', flat=True)),
                 'customer': profile.customer.name,
+                'system_groups': system_groups,
+                'object_permissions': object_perms,
             })
 
         return Response({
@@ -117,4 +129,6 @@ class CurrentUserView(APIView):
             'roles': [],
             'section_permissions': [],
             'customer': '',
+            'system_groups': [],
+            'object_permissions': {},
         })

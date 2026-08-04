@@ -28,15 +28,9 @@ class Role(models.Model):
         blank=True,
         verbose_name=_("Доступ к разделам сайта")
     )
-    # Django User — общий для всех пользователей с этой ролью (сессионная обёртка)
-    django_user = models.ForeignKey(
-        'auth.User',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='shared_roles',
-        verbose_name=_("Django User роли"),
-        help_text=_("Один на роль. Все пользователи с этой ролью логинятся через него.")
-    )
+    # django_user удалён (2026-08-04).
+    # Вход — через персональный ProjectCustomerUser.user FK (1:1).
+
     is_default = models.BooleanField(
         default=False,
         verbose_name=_("По умолчанию"),

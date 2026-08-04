@@ -105,6 +105,87 @@ class MyCatalogView(APIView):
 
 `CatalogConfig.apply_visibility_scope()` делегирует в `apply_catalog_visibility()`. Будущее: фильтрация по `request.customer.visible_brands`, `CustomerApiKey.brand_filters`.
 
+### 2.3.1 Видимость страниц каталога (роутер + разделы)
+
+Видимость страниц каталога для пользователей регулируется через **Section → OrgRole** (организационный уровень).
+Подробнее: [`access.md`](access.md).
+
+```
+Страница /catalog/gearbox  →  meta: { section: 'catalog_gearbox' }
+    │
+    ├─ Неавторизован → PUBLIC_SECTIONS.includes('catalog_gearbox') → доступ
+    └─ Авторизован   → /auth/me/ → section_permissions.includes('catalog_gearbox') → доступ
+```
+
+**Публичные разделы** (видны всем, включая неавторизованных):
+- `catalog_gearbox`, `catalog_pa`, `catalog_ea`, `catalog_lsb`
+- `catalog_sv`, `catalog_fr`, `catalog_pf`, `catalog_cg`
+
+**Закрытые разделы** (только для авторизованных с соответствующей OrgRole):
+- `configurator_pa`, `configurator_ea`, `configurator_cab`
+- `requests`, `certificates`, `llm_agent`
+
+### 2.3.2 Видимость данных внутри каталога (бренды, серии)
+
+`apply_catalog_visibility()` в `core/access.py` — точка расширения для фильтрации queryset.
+Будущая реализация:
+
+```python
+def apply_catalog_visibility(request, queryset):
+    customer = getattr(request, 'customer', None)
+    if customer is None:
+        return queryset  # аноним: полный каталог
+    # Фильтр по видимым брендам организации
+    visible_brands = customer.visible_brands.all()
+    if visible_brands.exists():
+        queryset = queryset.filter(model_line__brand__in=visible_brands)
+    return queryset
+```
+
+### 2.3.3 Shared visibility composable (`usePerms`)
+
+Вынесен в `frontend/src/shared/composables/usePerms.js`:
+
+```javascript
+// usePerms.js — единая точка проверки прав на фронтенде
+import { ref } from 'vue'
+import api from '@/shared/api'
+
+const perms = ref({})  // { codename: [actions] }
+const loaded = ref(false)
+
+export function usePerms() {
+  if (!loaded.value) {
+    api.get('/auth/me/').then(r => {
+      perms.value = r.data.object_permissions || {}
+      loaded.value = true
+    })
+  }
+  return {
+    can: (codename, action = 'view') => {
+      const allowed = perms.value[codename] || []
+      return allowed.includes(action) || allowed.includes('manage')
+    },
+    canAny: (...pairs) => pairs.some(([c, a]) => /* ... */),
+  }
+}
+```
+
+Использование в компонентах:
+```vue
+<template>
+  <button v-if="can('admin.media', 'edit')">Загрузить</button>
+  <div :class="{ readonly: !can('configurator.pa', 'edit') }">
+    <input :disabled="!can('configurator.pa', 'edit')" />
+  </div>
+</template>
+
+<script setup>
+import { usePerms } from '@/shared/composables/usePerms'
+const { can } = usePerms()
+</script>
+```
+
 ### 2.4 Шаблоны отображения (title_template)
 
 `TemplateFillerMixin` генерирует title через цепочку:

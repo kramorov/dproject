@@ -1,14 +1,18 @@
 """
-GET  /api/admin/site-sections/              — список всех SiteSection
-PUT  /api/admin/site-sections/<code>/       — обновить SiteSection (is_active, name, sorting_order)
+GET  /api/admin/site-sections/                        — список SiteSection
+PUT  /api/admin/site-sections/<code>/                 — обновить SiteSection
 
-GET  /api/admin/customers/<cid>/permission-matrix/  — сводная матрица прав:
-       org-level потолок + роли + пользователи + эффективные права
+GET  /api/admin/system-groups/                        — список SystemGroup
+PUT  /api/admin/system-groups/<id>/                   — обновить SystemGroup
+GET  /api/admin/object-registry/                      — OBJECT_REGISTRY (код)
+
+GET  /api/admin/customers/<cid>/permission-matrix/    — матрица прав org
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Prefetch
+from core.object_registry import get_registry_as_list
 from project_customers.permissions import SectionAccessPermission
 from project_customers.models import (
     ProjectCustomer, ProjectCustomerUser, Role,
@@ -53,6 +57,61 @@ class SiteSectionListView(APIView):
             'is_active': sec.is_active,
             'sorting_order': sec.sorting_order,
         })
+
+
+class SystemGroupListView(APIView):
+    """List all SystemGroups + update individual group."""
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
+
+    def get(self, request):
+        from project_customers.models import SystemGroup
+        groups = SystemGroup.objects.order_by('sorting_order', 'code')
+        return Response({
+            'groups': [
+                {
+                    'id': g.id,
+                    'code': g.code,
+                    'name': g.name,
+                    'object_permissions': g.object_permissions,
+                    'is_default': g.is_default,
+                    'sorting_order': g.sorting_order,
+                    'user_count': g.members.count(),
+                }
+                for g in groups
+            ]
+        })
+
+    def put(self, request, group_id=None):
+        """Update a SystemGroup by id."""
+        if not group_id:
+            return Response({'error': 'group_id required'}, status=400)
+        from project_customers.models import SystemGroup
+        try:
+            group = SystemGroup.objects.get(pk=group_id)
+        except SystemGroup.DoesNotExist:
+            return Response({'error': 'Group not found'}, status=404)
+        for field in ('name', 'object_permissions', 'is_default', 'sorting_order'):
+            if field in request.data:
+                setattr(group, field, request.data[field])
+        group.save()
+        return Response({
+            'id': group.id,
+            'code': group.code,
+            'name': group.name,
+            'object_permissions': group.object_permissions,
+            'is_default': group.is_default,
+            'sorting_order': group.sorting_order,
+        })
+
+
+class ObjectRegistryView(APIView):
+    """Expose the in-code OBJECT_REGISTRY for the frontend."""
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'
+
+    def get(self, request):
+        return Response({'objects': get_registry_as_list()})
 
 
 class PermissionMatrixView(APIView):

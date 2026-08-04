@@ -8,7 +8,7 @@
       @engineer="goToList"
       @quickselect="goToQuickSelect"
       @wizard="goToWizard"
-      @ai="goToSection"
+      @ai="goToAi"
     />
     <KeepAlive :key="cacheEpoch">
     <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @navigate="goToSection" />
@@ -23,6 +23,11 @@
       @select="id => onSelectItem(id, 'wizard')"
       @navigate="goToSection"
     />
+    <AiPlaceholder
+      v-else-if="page === 'ai'"
+      :labels="labels.ai || {}"
+      eq-name="Пневмофитинги"
+    />
     </KeepAlive>
   </div>
 </template>
@@ -35,6 +40,7 @@ import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
+import AiPlaceholder from '@/shared/components/catalog/AiPlaceholder.vue'
 import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
 import fittingApi from './api'
@@ -84,6 +90,7 @@ function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
 
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }
 function goToQuickSelect() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'quickselect' }
+function goToAi() { previousPage.value = page.value; page.value = 'ai' }
 function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'wizard' }
 function goToSection() { cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
 </script>

@@ -30,7 +30,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
     CRUD для конструктора пневмоприводов.
     """
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'configurator_pa'
     queryset = PneumaticActuatorConstructor.objects.filter(is_active=True)
 
     def get_queryset(self):

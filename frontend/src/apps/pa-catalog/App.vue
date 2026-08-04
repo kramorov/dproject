@@ -8,7 +8,7 @@
       @engineer="goToEngineer"
       @quickselect="goToQuickSelect"
       @wizard="goToSection"
-      @ai="goToSection"
+      @ai="goToAi"
     />
 
     <!-- Просмотр по сериям -->

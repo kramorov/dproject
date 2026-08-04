@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from project_customers.permissions import SectionAccessPermission
 from project_customers.models import (
-    ProjectCustomer, ProjectCustomerUser, Role, CustomerApiKey,
+    ProjectCustomer, ProjectCustomerUser, Role, SystemGroup, CustomerApiKey,
     CustomerAppAccess, CustomerEmail, SiteSection, AllowedApp,
 )
 
@@ -42,8 +42,8 @@ class CustomerAdminView(APIView):
     def _get_detail(self, pk):
         try:
             c = ProjectCustomer.objects.prefetch_related(
-                'users__roles', 'users__section_permissions',
-                'roles__section_permissions', 'roles__django_user',
+                'users__roles', 'users__section_permissions', 'users__system_groups',
+                'roles__section_permissions',
                 'api_keys__allowed_apps',
                 'app_access__app', 'app_access__brands',
                 'notification_emails',
@@ -69,11 +69,11 @@ class CustomerAdminView(APIView):
                 'is_active': u.is_active,
                 'roles': list(u.roles.values_list('code', flat=True)),
                 'section_permissions': list(u.section_permissions.values_list('code', flat=True)),
+                'system_groups': list(u.system_groups.values_list('code', flat=True)),
             } for u in c.users.all()],
             'roles': [{
                 'id': r.id, 'code': r.code, 'name': r.name,
                 'is_default': r.is_default,
-                'django_user': r.django_user.username if r.django_user else None,
                 'section_permissions': list(r.section_permissions.values_list('code', flat=True)),
             } for r in c.roles.all()],
             'api_keys': [{
@@ -211,8 +211,20 @@ class CustomerUserAdminView(APIView):
         login_val = request.data.get('login', '').strip()
         if not login_val:
             return Response({'error': 'Логин обязателен'}, status=400)
-        user = ProjectCustomerUser.objects.create(
-            customer=c, login=login_val,
+
+        # Auto-create Django User (1:1 shell for authentication)
+        from django.contrib.auth.models import User as DjangoUser
+        username = f'cust_{cid}_{login_val}'
+        django_user, _ = DjangoUser.objects.get_or_create(
+            username=username,
+            defaults={'is_staff': False, 'is_superuser': False}
+        )
+        if not django_user.is_active:
+            django_user.is_active = True
+            django_user.save()
+
+        profile = ProjectCustomerUser.objects.create(
+            customer=c, login=login_val, user=django_user,
             first_name=request.data.get('first_name', ''),
             last_name=request.data.get('last_name', ''),
             email=request.data.get('email', ''),
@@ -222,17 +234,22 @@ class CustomerUserAdminView(APIView):
         )
         pwd = request.data.get('password', '')
         if pwd:
-            user.set_password(pwd)
+            profile.set_password(pwd)
+            django_user.set_password(pwd)  # sync Django User password
+            django_user.save()
         role_codes = request.data.get('roles', [])
         if role_codes:
-            user.roles.set(Role.objects.filter(customer=c, code__in=role_codes))
+            profile.roles.set(Role.objects.filter(customer=c, code__in=role_codes))
+        system_group_codes = request.data.get('system_groups', [])
+        if system_group_codes:
+            profile.system_groups.set(SystemGroup.objects.filter(code__in=system_group_codes))
         section_codes = request.data.get('section_permissions', [])
         if section_codes:
-            user.section_permissions.set(
+            profile.section_permissions.set(
                 SiteSection.objects.filter(code__in=section_codes)
             )
-        user.save()
-        return Response({'id': user.id, 'login': user.login}, status=201)
+        profile.save()
+        return Response({'id': profile.id, 'login': profile.login}, status=201)
 
     def put(self, request, cid):
         uid = request.data.get('id')
@@ -248,8 +265,21 @@ class CustomerUserAdminView(APIView):
         pwd = request.data.get('password', '')
         if pwd:
             user.set_password(pwd)
+            if user.user_id:
+                user.user.set_password(pwd)
+                user.user.save()
         if 'roles' in request.data:
             user.roles.set(Role.objects.filter(customer_id=cid, code__in=request.data['roles']))
+        if 'system_groups' in request.data:
+            import logging
+            logger = logging.getLogger(__name__)
+            codes = request.data['system_groups']
+            groups = SystemGroup.objects.filter(code__in=codes)
+            found_codes = set(groups.values_list('code', flat=True))
+            missing = set(codes) - found_codes
+            if missing:
+                logger.warning(f'Unknown system_groups for user {uid}: {missing}')
+            user.system_groups.set(groups)
         if 'section_permissions' in request.data:
             user.section_permissions.set(
                 SiteSection.objects.filter(code__in=request.data['section_permissions'])

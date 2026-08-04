@@ -3,7 +3,7 @@ from project_customers.views.admin_customers import (
     CustomerAdminView, CustomerUserAdminView, CustomerKeyAdminView,
 )
 from project_customers.views.admin_permissions import (
-    SiteSectionListView, PermissionMatrixView,
+    SiteSectionListView, PermissionMatrixView, SystemGroupListView, ObjectRegistryView,
 )
 
 urlpatterns = [
@@ -14,4 +14,7 @@ urlpatterns = [
     path('customers/<int:cid>/permission-matrix/', PermissionMatrixView.as_view(), name='admin_permission_matrix'),
     path('site-sections/', SiteSectionListView.as_view(), name='admin_site_sections_list'),
     path('site-sections/<str:code>/', SiteSectionListView.as_view(), name='admin_site_sections_detail'),
+    path('system-groups/', SystemGroupListView.as_view(), name='admin_system_groups_list'),
+    path('system-groups/<int:group_id>/', SystemGroupListView.as_view(), name='admin_system_groups_detail'),
+    path('object-registry/', ObjectRegistryView.as_view(), name='admin_object_registry'),
 ]

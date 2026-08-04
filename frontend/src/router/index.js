@@ -5,6 +5,13 @@ import api from '@/shared/api'
 
 const Placeholder = (title) => ({ template: '<PlaceholderPage :title="title" />', components: { PlaceholderPage }, data: () => ({ title }) })
 
+
+// Sections accessible without authentication (public catalog pages)
+const PUBLIC_SECTIONS = [
+  'catalog_gearbox', 'catalog_pa', 'catalog_ea', 'catalog_lsb',
+  'catalog_sv', 'catalog_fr', 'catalog_pf', 'catalog_cg',
+]
+
 const routes = [
   { path: '/', name: 'home', component: HomePage, meta: { title: 'Главная' } },
   { path: '/login', component: () => import('../pages/auth/LoginMainPage.vue'), meta: { title: 'Вход' } },
@@ -16,18 +23,18 @@ const routes = [
   { path: '/catalogs/valves', name: 'catalogs-valves', component: () => import('../pages/catalog/CatalogValvesIndex.vue'), meta: { title: 'Каталоги арматуры' } },
   { path: '/catalogs/solutions', name: 'catalogs-solutions', component: () => import('../pages/catalog/CatalogSolutionsIndex.vue'), meta: { title: 'Каталог готовых решений' } },
 
-  { path: '/catalog/pneumatic-fittings', component: () => import('../pages/catalog/PneumaticFittingsPage.vue'), meta: { title: 'Пневмофитинги' } },
-  { path: '/catalog/cable-glands', component: PlaceholderPage, props: { title: 'Кабельные вводы' }, meta: { title: 'Кабельные вводы' } },
-  { path: '/catalog/pa-actuators', component: () => import('../pages/catalog/PaActuatorPage.vue'), meta: { title: 'Пневмоприводы' } },
-  { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры' } },
+  { path: '/catalog/pneumatic-fittings', component: () => import('../pages/catalog/PneumaticFittingsPage.vue'), meta: { title: 'Пневмофитинги', section: 'catalog_pf' } },
+  { path: '/catalog/cable-glands', component: PlaceholderPage, props: { title: 'Кабельные вводы' }, meta: { title: 'Кабельные вводы', section: 'catalog_cg' } },
+  { path: '/catalog/pa-actuators', component: () => import('../pages/catalog/PaActuatorPage.vue'), meta: { title: 'Пневмоприводы', section: 'catalog_pa' } },
+  { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры', section: 'catalog_gearbox' } },
   { path: '/catalog/ea-reducers', component: PlaceholderPage, props: { title: 'Редукторы к ЭП' }, meta: { title: 'Редукторы к ЭП' } },
-  { path: '/catalog/solenoid-valves', component: () => import('../pages/catalog/SolenoidValvesPage.vue'), meta: { title: 'Соленоидные клапаны' } },
+  { path: '/catalog/solenoid-valves', component: () => import('../pages/catalog/SolenoidValvesPage.vue'), meta: { title: 'Соленоидные клапаны', section: 'catalog_sv' } },
   { path: '/catalog/positioners', component: PlaceholderPage, props: { title: 'Электропневматические позиционеры' }, meta: { title: 'Позиционеры' } },
-  { path: '/catalog/limit-switch', component: () => import('../pages/catalog/LimitSwitchPage.vue'), meta: { title: 'БКВ' } },
-  { path: '/catalog/ea-actuators', component: PlaceholderPage, props: { title: 'Электроприводы' }, meta: { title: 'Электроприводы' } },
+  { path: '/catalog/limit-switch', component: () => import('../pages/catalog/LimitSwitchPage.vue'), meta: { title: 'БКВ', section: 'catalog_lsb' } },
+  { path: '/catalog/ea-actuators', component: PlaceholderPage, props: { title: 'Электроприводы' }, meta: { title: 'Электроприводы', section: 'catalog_ea' } },
   { path: '/catalog/ea-cabinets', component: PlaceholderPage, props: { title: 'Шкафы управления ЭП' }, meta: { title: 'Шкафы управления ЭП', pro: true } },
   { path: '/catalog/mounting-kits', component: PlaceholderPage, props: { title: 'Монтажные комплекты и адаптации' }, meta: { title: 'Монтажные комплекты', pro: true } },
-  { path: '/catalog/filter-regulator', component: () => import('../pages/catalog/FilterRegulatorPage.vue'), meta: { title: 'Фильтр-регуляторы' } },
+  { path: '/catalog/filter-regulator', component: () => import('../pages/catalog/FilterRegulatorPage.vue'), meta: { title: 'Фильтр-регуляторы', section: 'catalog_fr' } },
 
   // Арматура
   { path: '/catalog/butterfly-valves', component: PlaceholderPage, props: { title: 'Дисковые затворы' }, meta: { title: 'Дисковые затворы' } },
@@ -64,53 +71,72 @@ const routes = [
   { path: '/about/contacts', component: PlaceholderPage, props: { title: 'Контакты' }, meta: { title: 'Контакты' } },
 
   // Администрирование — разделы каталога (catalog)
-  { path: '/admin/media', component: () => import('../pages/admin/MediaPage.vue'), meta: { title: 'Медиабиблиотека', section: 'catalog' } },
+  { path: '/admin/media', component: () => import('../pages/admin/MediaPage.vue'), meta: { title: 'Медиабиблиотека', section: 'admin_section' } },
   { path: '/admin/cert-docs', component: () => import('../pages/admin/CertDocsPage.vue'), meta: { title: 'Сертификаты', section: 'certificates' } },
-  { path: '/admin/price', component: () => import('../pages/admin/PriceCatalogPage.vue'), meta: { title: 'Цены', section: 'catalog' } },
-  { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', section: 'catalog' } },
-  { path: '/admin/limit-switch', component: () => import('../pages/admin/LimitSwitchAdminPage.vue'), meta: { title: 'БКВ', section: 'catalog' } },
-  { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', section: 'catalog' } },
+  { path: '/admin/price', component: () => import('../pages/admin/PriceCatalogPage.vue'), meta: { title: 'Цены', section: 'admin_section' } },
+  { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', section: 'admin_section' } },
+  { path: '/admin/limit-switch', component: () => import('../pages/admin/LimitSwitchAdminPage.vue'), meta: { title: 'БКВ', section: 'admin_section' } },
+  { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', section: 'admin_section' } },
 
   // Администрирование — конфигураторы (configurator)
-  { path: '/admin/pa-constructor', component: () => import('../pages/admin/PaConstructorPage.vue'), meta: { title: 'Конструктор ПП', section: 'configurator' } },
-  { path: '/admin/pa-constructor-legacy', component: () => import('../pages/admin/PaConstructorLegacyPage.vue'), meta: { title: 'Конструктор ПП Old', section: 'configurator' } },
-  { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор ЭП', section: 'configurator' } },
-  { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Напряжения ЭП', section: 'configurator' } },
-  { path: '/admin/ea-switches', component: () => import('../pages/admin/EaSwitchesAdminPage.vue'), meta: { title: 'Выключатели ЭП', section: 'configurator' } },
-  { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', section: 'configurator' } },
-  { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', section: 'configurator' } },
+  { path: '/configurator/pa', component: () => import('../pages/admin/PaConstructorPage.vue'), meta: { title: 'Конструктор ПП', section: 'configurator_pa' } },
+  { path: '/configurator/pa-legacy', component: () => import('../pages/admin/PaConstructorLegacyPage.vue'), meta: { title: 'Конструктор ПП Old', section: 'configurator_pa' } },
+  { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор ЭП', section: 'configurator_ea' } },
+  { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Напряжения ЭП', section: 'configurator_ea' } },
+  { path: '/admin/ea-switches', component: () => import('../pages/admin/EaSwitchesAdminPage.vue'), meta: { title: 'Выключатели ЭП', section: 'configurator_ea' } },
+  { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', section: 'configurator_ea' } },
+  { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', section: 'configurator_ea' } },
 
   // Администрирование — только для admin/staff
-  { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', role: 'admin' } },
-  { path: '/admin/pipeline-config', component: () => import('../pages/admin/PipelineConfigPage.vue'), meta: { title: 'Pipeline Config', role: 'admin' } },
-  { path: '/admin/skill-config', component: () => import('../pages/admin/SkillConfigPage.vue'), meta: { title: 'Skill Config', role: 'admin' } },
-  { path: '/admin/wizard-config', component: () => import('../pages/admin/WizardAdminPage.vue'), meta: { title: 'Мастер подбора', role: 'admin' } },
-  { path: '/admin/permissions', component: () => import('../pages/admin/PermissionsPage.vue'), meta: { title: 'Права доступа', role: 'admin' } },
+  { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', object: 'admin.customers', action: 'edit' } },
+  { path: '/admin/pipeline-config', component: () => import('../pages/admin/PipelineConfigPage.vue'), meta: { title: 'Pipeline Config', object: 'ai.pipelines', action: 'edit' } },
+  { path: '/admin/skill-config', component: () => import('../pages/admin/SkillConfigPage.vue'), meta: { title: 'Skill Config', object: 'ai.skills', action: 'edit' } },
+  { path: '/admin/wizard-config', component: () => import('../pages/admin/WizardAdminPage.vue'), meta: { title: 'Мастер подбора', object: 'ai.wizard', action: 'edit' } },
+  { path: '/admin/permissions', component: () => import('../pages/admin/PermissionsPage.vue'), meta: { title: 'Права доступа', object: 'admin.permissions', action: 'edit' } },
 
   // Инструменты
   { path: '/tools/image-processor', component: () => import('../pages/ImageProcessorTest.vue'), meta: { title: 'Обрезка изображений' } },
   { path: '/tools/svg-converter', component: () => import('../pages/SvgConverterTest.vue'), meta: { title: 'SVG Конвертер' } },
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },
-  { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП', section: 'configurator' } },
+  { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП', section: 'configurator_pa' } },
   { path: '/ai-assistant', component: () => import('../pages/AiAssistantPage.vue'), meta: { title: 'AI Ассистент' } },
-  { path: '/ai-debug', component: () => import('../pages/AiDebugPage.vue'), meta: { title: 'AI Отладка', role: 'admin' } },
+  { path: '/ai-debug', component: () => import('../pages/AiDebugPage.vue'), meta: { title: 'AI Отладка', object: 'ai.debug', action: 'view' } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
 
 router.beforeEach(async (to, from, next) => {
+  const requiredObject = to.meta.object
+  const requiredAction = to.meta.action || 'view'
   const requiredRole = to.meta.role
   const requiredSection = to.meta.section
   const proOnly = to.meta.pro
-  if (!requiredRole && !requiredSection && !proOnly) return next()
+  if (!requiredObject && !requiredRole && !requiredSection && !proOnly) return next()
+
+  // Try to get user info; unauthenticated -> only PUBLIC_SECTIONS allowed
+  let r
   try {
-    const r = await api.get('/auth/me/')
+    r = await api.get('/auth/me/')
+  } catch (e) {
+    if (requiredSection && PUBLIC_SECTIONS.includes(requiredSection)) return next()
+    if (!requiredObject && !requiredRole && !proOnly) return next()
+    return next('/login')
+  }
+
+  try {
+    const objPerms = r.data.object_permissions || {}
     const roles = r.data.roles || []
     const sections = r.data.section_permissions || []
-    const isAdmin = roles.some(r => r === 'admin' || r === 'system_admin')
-    // admin/system_admin всегда проходят
+    const systemGroups = r.data.system_groups || []
+    // TODO: remove roles check after OrgRole migration is complete (access.md §4)
+    const isAdmin = systemGroups.includes('administrators') || roles.some(r => r === 'admin' || r === 'system_admin')
+    // admin/system_admin always pass
     if (isAdmin) return next()
+    if (requiredObject) {
+      const allowed = objPerms[requiredObject] || []
+      if (!allowed.includes(requiredAction) && !allowed.includes('manage')) return next('/login')
+    }
     if (requiredRole === 'admin' && !isAdmin) return next('/login')
     if (requiredSection && !sections.includes(requiredSection)) return next('/login')
     if (proOnly && roles.length === 0) return next('/login')

@@ -31,7 +31,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
     CRUD для конструктора электроприводов.
     """
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'configurator_ea'
     queryset = ElectricActuatorConstructor.objects.filter(is_active=True)
 
     def get_queryset(self):

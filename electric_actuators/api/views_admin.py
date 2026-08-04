@@ -111,7 +111,7 @@ def _get_valid_mli_ids(ml_id: int):
 class EAPowerSupplyMatrixView(APIView):
     """Bulk edit power supply options for all models in a series."""
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'configurator_ea'
 
     def get(self, request):
         ml_id = request.query_params.get('model_line_id')
@@ -176,7 +176,7 @@ class EAPowerSupplyMatrixView(APIView):
 class EAPowerSupplyMatrixExportView(APIView):
     """Export matrix as Excel file."""
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'configurator_ea'
 
     def get(self, request):
         import pandas as pd  # lazy — не ломает URLs при отсутствии pandas
@@ -228,7 +228,7 @@ class EAPowerSupplyMatrixExportView(APIView):
 class EAPowerSupplyMatrixImportView(APIView):
     """Import matrix from uploaded Excel file."""
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'configurator_ea'
 
     @transaction.atomic
     def post(self, request):
@@ -418,7 +418,7 @@ def _col_letter(n):
 class EACopyControlUnitsView(APIView):
     """GET: список моделей с опциями. POST: копировать опции от модели к модели."""
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'configurator_ea'
 
     def get(self, request):
         """Список model_line_items с их ControlUnit и SafetyPosition + палитра всех опций."""
@@ -647,7 +647,7 @@ class EASwitchesCopyView(APIView):
     """GET: список моделей с их WaySwitches, EndSwitches, TorqueSwitches + палитра.
        POST: копировать опции от модели к целевым."""
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'configurator_ea'
 
     def get(self, request):
         ml_id = request.query_params.get('model_line_id')

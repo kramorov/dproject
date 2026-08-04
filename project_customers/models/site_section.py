@@ -27,6 +27,12 @@ class SiteSection(models.Model):
         default=0,
         verbose_name=_("Порядок сортировки")
     )
+    category = models.CharField(
+        max_length=50,
+        default='',
+        verbose_name=_("Категория"),
+        help_text=_("Группировка разделов в UI (catalog, configurator, admin, ai)")
+    )
 
     class Meta:
         verbose_name = _("Раздел сайта")

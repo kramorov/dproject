@@ -187,6 +187,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware' ,
     'django.contrib.messages.middleware.MessageMiddleware' ,
     'django.middleware.locale.LocaleMiddleware' ,
+    'project_customers.middleware.CustomerMiddleware' ,
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware' ,
 ]
 

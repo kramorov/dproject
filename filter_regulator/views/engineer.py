@@ -14,7 +14,7 @@ from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
 
 class EngineerCatalogView(APIView):
     permission_classes = [SectionAccessPermission]
-    required_section = 'configurator'
+    required_section = 'catalog_fr'
 
     def get(self, request):
         params = request.query_params
