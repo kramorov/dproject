@@ -23,7 +23,7 @@ from ai_assistant.models import (
     PipelineSkill, SkillOverride, CascadeRule, SelectionNode,
 )
 from ai_assistant.services.deepseek_client import get_deepseek_client
-from ai_assistant.services.token_tracker import save_token_usage, update_skill_latency
+from ai_assistant.services.token_tracker import save_token_usage, update_skill_latency, estimate_cost
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +169,9 @@ class TreeProcessor:
                     continue
                 try:
                     result = self.extract(node_id=n.id)
-                    result["_labels"] = self._resolve_labels(n)
+                    resolved_labels = self._resolve_labels(n)
+                    result["_field_labels"] = resolved_labels.pop('_field_labels', {})
+                    result["_labels"] = resolved_labels
                     extracted[n.decompose_output.get("id") or str(n.id)] = result
                 except Exception as e:
                     logger.warning(f"Auto-extract failed for node {n.id}: {e}")
@@ -183,6 +185,11 @@ class TreeProcessor:
             "conversation_id": self.conversation.id,
             "status": "ready" if nodes else "needs_info",
             "extracted": extracted,
+            "tokens": llm_result.get("total_tokens", 0),
+            "prompt_tokens": llm_result.get("prompt_tokens", 0),
+            "completion_tokens": llm_result.get("completion_tokens", 0),
+            "cost": estimate_cost(llm_result.get("model", "deepseek"), llm_result.get("prompt_tokens", 0), llm_result.get("completion_tokens", 0)),
+            "tasks": _safe_task_list(self._all_nodes(nodes)),
             "tree": tree_data,
             "node_ids": [{"id": n.id, "type": n.equipment_type.code if n.equipment_type else None, "tree_id": n.decompose_output.get("id") if n.decompose_output else None} for n in self._all_nodes(nodes)],
         }
@@ -404,6 +411,7 @@ class TreeProcessor:
 
         # Resolve labels for frontend display
         labels = self._resolve_labels(node)
+        filters["_field_labels"] = labels.pop('_field_labels', {}) if labels else {}
         if labels:
             filters["_labels"] = labels
 
@@ -454,15 +462,17 @@ class TreeProcessor:
 
     def _resolve_labels(self, node) -> dict:
         labels = {}
+        field_labels = {}
         eo = node.extract_output or {}
         if not eo or not node.equipment_type or not node.equipment_type.content_type:
-            return labels
+            return {'_field_labels': field_labels}
         from core.wizard_filter_registry import get_filter_definitions_for_ct
         defs = get_filter_definitions_for_ct(node.equipment_type.content_type_id)
         if not defs:
-            return labels
+            return {'_field_labels': field_labels}
         model_class = node.equipment_type.content_type.model_class()
         for fd in defs:
+            field_labels[fd.param_name] = fd.label or fd.param_name
             value = eo.get(fd.param_name)
             if value is None or value == '':
                 continue
@@ -474,6 +484,7 @@ class TreeProcessor:
                         break
             except:
                 pass
+        labels['_field_labels'] = field_labels
         return labels
 
     # ── Шаг 3: Filter ────────────────────────────────────────────
@@ -814,6 +825,18 @@ class TreeProcessor:
             name="system_prompt", is_active=True
         ).first()
         return tmpl.template_text if tmpl else "Ты — AI-ассистент компании АБРА."
+
+
+def _safe_task_list(all_nodes) -> list:
+    """Safely build task list from already-collected nodes."""
+    result = []
+    for n in all_nodes:
+        decode = n.decompose_output or {}
+        eq_code = n.equipment_type.code if n.equipment_type else "?"
+        summary = decode.get("description") or (n.equipment_type.name if n.equipment_type else "")
+        depends = decode.get("depends_on", []) if isinstance(decode, dict) else []
+        result.append({"id": n.id, "type": eq_code, "summary": summary, "depends_on": depends})
+    return result
 
 
 def _collect_codes(tree_data: dict, codes: set) -> None:

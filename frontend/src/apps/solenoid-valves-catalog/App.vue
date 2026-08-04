@@ -10,6 +10,7 @@
       @wizard="goToWizard"
       @ai="goToSection"
     />
+    <KeepAlive :key="cacheEpoch">
     <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @navigate="goToSection" />
     <EngineerSelection v-else-if="page === 'list'" :api="api" :labels="labels.list" @select="id => onSelectItem(id, 'list')" @navigate="goToSection" />
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="page = previousPage" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
@@ -22,6 +23,7 @@
       @select="id => onSelectItem(id, 'wizard')"
       @navigate="goToSection"
     />
+    </KeepAlive>
   </div>
 </template>
 <script setup>
@@ -55,7 +57,8 @@ const labels = {
   },
   wizard: { breadcrumbName:'Соленоидные клапаны', wizardTitle:'Мастер подбора Соленоидные клапаны' },
 }
-const { page, selectedId, idValue, goToList, goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
+const cacheEpoch = ref(0)
+const { page, selectedId, idValue, goToList: _goToList, goToBrand: _goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
 const previousPage = ref('section')
 const pageSubtitle = ref('')
 
@@ -76,12 +79,14 @@ const breadcrumbs = computed(() => {
 })
 
 const tabKeys = { section: 'section', brand: 'section', list: 'engineer', detail:'', quickselect: 'quickselect', wizard: 'wizard' }
+function goToList() { cacheEpoch.value++; _goToList() }
+function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }
-function goToQuickSelect() { previousPage.value = page.value; page.value = 'quickselect' }
-function goToWizard() { previousPage.value = page.value; page.value = 'wizard' }
-function goToSection() { pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
+function goToQuickSelect() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'quickselect' }
+function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'wizard' }
+function goToSection() { cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
 </script>
 <style scoped>
 .app { max-width: 1200px; margin: 0 auto; }

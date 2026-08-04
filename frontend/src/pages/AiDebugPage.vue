@@ -91,8 +91,8 @@
       </div>
     </div>
 
-        <!-- Правая панель: скиллы -->
-    <div class="panel skills-panel">
+        <!-- Правая панель: скиллы — временно скрыта, decompose_v4 используется по умолчанию -->
+    <div v-if="false" class="panel skills-panel">
       <h3>Скилл</h3>
       <div class="list">
         <div v-for="s in skills" :key="s.id" class="card"
@@ -179,7 +179,14 @@ export default {
     
     async loadQueries() { const r = await api.get('/ai-assistant/samples/'); this.queries = (r.data && r.data.results) || [] },
     async loadEquipmentTypes() { try { const r = await api.get('/ai-assistant/equipment-types/'); this.equipmentTypes = Array.isArray(r.data) ? r.data : (r.data.results || []) } catch { this.equipmentTypes = [] } },
-    async loadSkills() { try { const r = await api.get('/ai-assistant/skills/'); this.skills = Array.isArray(r.data) ? r.data : (r.data.results || []) } catch { this.skills = [] } },
+    async loadSkills() {
+      try {
+        const r = await api.get('/ai-assistant/skills/')
+        this.skills = Array.isArray(r.data) ? r.data : (r.data.results || [])
+        const d4 = this.skills.find(s => s.code === 'decompose_v4')
+        if (d4) { this.selectedSkill = d4; if (d4.avg_latency_ms) this.estimatedSec = Math.round(d4.avg_latency_ms * 1.3 / 1000) || 5 }
+      } catch { this.skills = [] }
+    },
     selectQuery(q) { this.selectedQuery = q },
     selectSkill(s) { this.selectedSkill = (this.selectedSkill && this.selectedSkill.id === s.id) ? null : s; if (s && s.avg_latency_ms) this.estimatedSec = Math.round(s.avg_latency_ms * 1.3 / 1000) || 5 },
     sendToInput(q) { this.inputText = q.text || '' },
@@ -196,7 +203,8 @@ export default {
         this.rawResponse = JSON.stringify(data, null, 2); this.treeData = data.tree
         this.nodeIds = data.node_ids || []; console.log('nodeIds:', this.nodeIds.length, this.nodeIds); this.conversationId = data.conversation_id
         this.extractedParams = data.extracted || {}
-        this.stats.push({ tokens: data.total_tokens || 0, prompt_tokens: data.prompt_tokens || 0, completion_tokens: data.completion_tokens || 0, cost: data.cost || 0, ts: Date.now() })
+        this.tasks = data.tasks || []
+        this.stats.push({ tokens: data.tokens || 0, prompt_tokens: data.prompt_tokens || 0, completion_tokens: data.completion_tokens || 0, cost: data.cost || 0, ts: Date.now() })
       } catch (e) {
         this.analyzeStatus = 'rejected'; this.analysisText = e.displayMessage || e.message || 'Ошибка'
       } finally { this.loading = false }
@@ -276,7 +284,7 @@ export default {
 .btn-xs.del { color: #dc2626; border-color: #dc2626; }
 .center { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .input-area { display: flex; gap: 8px; }
-.center textarea { flex: 1; height: 60px; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 6px; resize: vertical; }
+.center textarea { flex: 1; height: 120px; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 6px; resize: vertical; }
 .center button { padding: 8px 16px; background: #2563eb; color: #fff; border: none; border-radius: 6px; white-space: nowrap; cursor: pointer; }
 .center button:disabled { background: #94a3b8; cursor: default; }
 .status-panel { padding: 12px; border-radius: 8px; font-size: 14px; }
@@ -308,15 +316,14 @@ export default {
 
 .tree-panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 10px; }
 .tree-panel h4 { margin: 0 0 8px; font-size: 14px; }
-.tree-position { margin-bottom: 12px; }
-.tree-node { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 4px; }
-.tree-node.level-1 { background: #dbeafe; font-size: 14px; }
-.tree-node.level-2 { background: #f1f5f9; font-size: 13px; margin-left: 16px; }
-.tree-node.level-3 { background: #fff; font-size: 12px; margin-left: 32px; border: 1px solid #e2e8f0; }
+.tree-position { margin-bottom: 16px; }
+.tree-node { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; border-left: 3px solid transparent; }
+.tree-node.level-1 { background: #dbeafe; font-size: 14px; font-weight: 600; border-left-color: #3b82f6; }
+.tree-node.level-2 { background: #f1f5f9; font-size: 13px; }
+.tree-node.level-3 { background: #fff; font-size: 12px; border: 1px solid #e2e8f0; }
 .tree-children { margin-left: 8px; }
-.node-status { font-size: 11px; color: #64748b; margin-left: auto; }
+.node-status { font-size: 11px; color: #64748b; }
 .node-actions { display: flex; gap: 4px; }
-.node-actions button { padding: 2px 8px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff; cursor: pointer; }
 .options-panel { margin-top: 8px; padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; }
 .option-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
 .option-item button { padding: 2px 6px; font-size: 11px; }

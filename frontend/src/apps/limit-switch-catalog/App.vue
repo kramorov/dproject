@@ -10,7 +10,7 @@
       @wizard="goToWizard"
       @ai="goToAi"
     />
-    <CatalogSection
+    <KeepAlive :key="cacheEpoch"><CatalogSection
       v-if="page === 'section'"
       :api="api" :labels="labels.section"
       @select-series="goToBrand"
@@ -60,6 +60,7 @@
       eq-name="БКВ"
       @navigate="goToSection"
     />
+    </KeepAlive>
   </div>
 </template>
 <script setup>
@@ -91,7 +92,8 @@ const labels = {
   ai: { breadcrumbName:'БКВ', aiTitle:'AI подбор БКВ' },
 }
 
-const { page, selectedId, idValue, goToList, goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
+const cacheEpoch = ref(0)
+const { page, selectedId, idValue, goToList: _goToList, goToBrand: _goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
 const previousPage = ref('section')
 const pageSubtitle = ref('')
 
@@ -114,11 +116,13 @@ const breadcrumbs = computed(() => {
 const tabKeys = { section:'section', brand:'section', list:'engineer', detail:'', quickselect:'quickselect', wizard:'wizard', ai:'ai' }
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
+function goToList() { cacheEpoch.value++; _goToList() }
+function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }
-function goToQuickSelect() { previousPage.value = page.value; page.value = 'quickselect' }
-function goToWizard() { previousPage.value = page.value; page.value = 'wizard' }
+function goToQuickSelect() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'quickselect' }
+function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'wizard' }
 function goToAi() { previousPage.value = page.value; page.value = 'ai' }
-function goToSection() { pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
+function goToSection() { cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
 </script>
 <style scoped>
 .app { max-width: 1200px; margin: 0 auto; }

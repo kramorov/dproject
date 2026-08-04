@@ -63,31 +63,36 @@ const routes = [
   { path: '/about/architecture', name: 'about-architecture', component: () => import('../pages/about/AboutSection.vue'), meta: { title: 'Архитектура системы' } },
   { path: '/about/contacts', component: PlaceholderPage, props: { title: 'Контакты' }, meta: { title: 'Контакты' } },
 
-  // Администрирование
-  { path: '/admin/media', component: () => import('../pages/admin/MediaPage.vue'), meta: { title: 'Медиабиблиотека', role: 'admin' } },
-  { path: '/admin/cert-docs', component: () => import('../pages/admin/CertDocsPage.vue'), meta: { title: 'Сертификаты', role: 'admin' } },
-  { path: '/admin/price', component: () => import('../pages/admin/PriceCatalogPage.vue'), meta: { title: 'Цены', role: 'admin' } },
-  { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', role: 'admin' } },
-  { path: '/admin/limit-switch', component: () => import('../pages/admin/LimitSwitchAdminPage.vue'), meta: { title: 'БКВ', role: 'admin' } },
-  { path: '/admin/pa-constructor', component: () => import('../pages/admin/PaConstructorPage.vue'), meta: { title: 'Конструктор ПП', role: 'admin' } },
-  { path: '/admin/pa-constructor-legacy', component: () => import('../pages/admin/PaConstructorLegacyPage.vue'), meta: { title: 'Конструктор ПП Old', role: 'admin' } },
-  { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор ЭП', role: 'admin' } },
-  { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Напряжения ЭП', role: 'admin' } },
-  { path: '/admin/ea-switches', component: () => import('../pages/admin/EaSwitchesAdminPage.vue'), meta: { title: 'Выключатели ЭП', role: 'admin' } },
-  { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', role: 'admin' } },
-  { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', role: 'admin' } },
-  { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', role: 'admin' } },
+  // Администрирование — разделы каталога (catalog)
+  { path: '/admin/media', component: () => import('../pages/admin/MediaPage.vue'), meta: { title: 'Медиабиблиотека', section: 'catalog' } },
+  { path: '/admin/cert-docs', component: () => import('../pages/admin/CertDocsPage.vue'), meta: { title: 'Сертификаты', section: 'certificates' } },
+  { path: '/admin/price', component: () => import('../pages/admin/PriceCatalogPage.vue'), meta: { title: 'Цены', section: 'catalog' } },
+  { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', section: 'catalog' } },
+  { path: '/admin/limit-switch', component: () => import('../pages/admin/LimitSwitchAdminPage.vue'), meta: { title: 'БКВ', section: 'catalog' } },
+  { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', section: 'catalog' } },
+
+  // Администрирование — конфигураторы (configurator)
+  { path: '/admin/pa-constructor', component: () => import('../pages/admin/PaConstructorPage.vue'), meta: { title: 'Конструктор ПП', section: 'configurator' } },
+  { path: '/admin/pa-constructor-legacy', component: () => import('../pages/admin/PaConstructorLegacyPage.vue'), meta: { title: 'Конструктор ПП Old', section: 'configurator' } },
+  { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор ЭП', section: 'configurator' } },
+  { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Напряжения ЭП', section: 'configurator' } },
+  { path: '/admin/ea-switches', component: () => import('../pages/admin/EaSwitchesAdminPage.vue'), meta: { title: 'Выключатели ЭП', section: 'configurator' } },
+  { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', section: 'configurator' } },
+  { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', section: 'configurator' } },
+
+  // Администрирование — только для admin/staff
   { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', role: 'admin' } },
   { path: '/admin/pipeline-config', component: () => import('../pages/admin/PipelineConfigPage.vue'), meta: { title: 'Pipeline Config', role: 'admin' } },
   { path: '/admin/skill-config', component: () => import('../pages/admin/SkillConfigPage.vue'), meta: { title: 'Skill Config', role: 'admin' } },
   { path: '/admin/wizard-config', component: () => import('../pages/admin/WizardAdminPage.vue'), meta: { title: 'Мастер подбора', role: 'admin' } },
+  { path: '/admin/permissions', component: () => import('../pages/admin/PermissionsPage.vue'), meta: { title: 'Права доступа', role: 'admin' } },
 
   // Инструменты
   { path: '/tools/image-processor', component: () => import('../pages/ImageProcessorTest.vue'), meta: { title: 'Обрезка изображений' } },
   { path: '/tools/svg-converter', component: () => import('../pages/SvgConverterTest.vue'), meta: { title: 'SVG Конвертер' } },
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },
-  { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП' } },
+  { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП', section: 'configurator' } },
   { path: '/ai-assistant', component: () => import('../pages/AiAssistantPage.vue'), meta: { title: 'AI Ассистент' } },
   { path: '/ai-debug', component: () => import('../pages/AiDebugPage.vue'), meta: { title: 'AI Отладка', role: 'admin' } },
 ]
@@ -96,13 +101,18 @@ const router = createRouter({ history: createWebHistory(), routes })
 
 router.beforeEach(async (to, from, next) => {
   const requiredRole = to.meta.role
+  const requiredSection = to.meta.section
   const proOnly = to.meta.pro
-  if (!requiredRole && !proOnly) return next()
+  if (!requiredRole && !requiredSection && !proOnly) return next()
   try {
     const r = await api.get('/auth/me/')
     const roles = r.data.roles || []
+    const sections = r.data.section_permissions || []
     const isAdmin = roles.some(r => r === 'admin' || r === 'system_admin')
+    // admin/system_admin всегда проходят
+    if (isAdmin) return next()
     if (requiredRole === 'admin' && !isAdmin) return next('/login')
+    if (requiredSection && !sections.includes(requiredSection)) return next('/login')
     if (proOnly && roles.length === 0) return next('/login')
     next()
   } catch (e) { next('/login') }

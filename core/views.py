@@ -1,21 +1,19 @@
 from rest_framework.views import APIView
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from django.apps import apps
 from django.db.models import Q
 from .serializers import get_model_serializer , get_model_field_info , get_app_models
+from project_customers.permissions import SectionAccessPermission
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class UniversalAPIView(APIView) :
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [IsAuthenticated, SectionAccessPermission]
     """
     Универсальная вьюха для работы с любыми моделями.
     Поддерживает StructuredDataMixin методы.

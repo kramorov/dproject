@@ -226,6 +226,11 @@ class CustomerUserAdminView(APIView):
         role_codes = request.data.get('roles', [])
         if role_codes:
             user.roles.set(Role.objects.filter(customer=c, code__in=role_codes))
+        section_codes = request.data.get('section_permissions', [])
+        if section_codes:
+            user.section_permissions.set(
+                SiteSection.objects.filter(code__in=section_codes)
+            )
         user.save()
         return Response({'id': user.id, 'login': user.login}, status=201)
 
@@ -245,6 +250,10 @@ class CustomerUserAdminView(APIView):
             user.set_password(pwd)
         if 'roles' in request.data:
             user.roles.set(Role.objects.filter(customer_id=cid, code__in=request.data['roles']))
+        if 'section_permissions' in request.data:
+            user.section_permissions.set(
+                SiteSection.objects.filter(code__in=request.data['section_permissions'])
+            )
         user.save()
         return Response({'ok': True})
 

@@ -652,3 +652,102 @@ POST /api/auth/login/ {username, password}
 7. Показывает только разделы из section_permissions
 8. customer_admin видит страницу управления пользователями
 ```
+
+---
+
+## Реализовано — 2026-08-04
+
+### Бэкенд: защита API
+
+**`SectionAccessPermission`** — DRF permission class, проверяет права доступа к разделам сайта.
+
+```python
+class SectionAccessPermission(BasePermission):
+    def has_permission(self, request, view):
+        required_section = getattr(view, 'required_section', None)
+        if required_section is None:
+            return True
+        profile = get_customer_profile(request)
+        if profile is None:
+            return False
+        sections = profile.get_effective_section_permissions()
+        return sections.filter(code=required_section).exists()
+```
+
+Каждый ViewSet задаёт `required_section` как атрибут класса.
+
+**Маппинг разделов → ViewSet'ы:**
+
+| Раздел | ViewSet'ы |
+|---|---|
+| `configurator` | EA ConstructorViewSet, PA ConstructorViewSet, EAPowerSupplyMatrixView, EAModelAdminView, EAWiringAdminView, EASwitchesAdminView |
+| `catalog` | MediaAdminViews, PriceAdminViews, SkuAdminViews, LimitSwitchAdminViews, WidgetsPage |
+| `certificates` | CertAdminViews |
+| `admin_section` | CustomerAdminView, CustomerUserAdminView, CustomerKeyAdminView, PipelineSkillViewSet, SkillOverrideViewSet, WizardAdminView |
+
+**Исправленные дыры:**
+
+| Файл | До | После |
+|---|---|---|
+| `pneumatic_actuators/api/views_constructor.py` | `permission_classes = [AllowAny]` | `[SectionAccessPermission]`, `required_section='configurator'` |
+| `core/views.py` — `UniversalAPIView` | `authentication_classes=[]`, `permission_classes=[]`, `@csrf_exempt` | `[IsAuthenticated, SectionAccessPermission]`, CSRF включён |
+
+**Новые API-эндпоинты:**
+
+```
+GET  /api/admin/site-sections/                     — список всех SiteSection
+PUT  /api/admin/site-sections/<code>/               — обновить раздел (name, is_active, sorting_order)
+GET  /api/admin/customers/<cid>/permission-matrix/  — сводная матрица прав:
+```
+
+Формат ответа `permission-matrix`:
+```json
+{
+  "all_sections": [{"code": "...", "name": "...", ...}],
+  "org_sections": ["catalog", "configurator"],
+  "roles": [{"id": 1, "code": "engineer", "section_permissions": [...], ...}],
+  "users": [{"id": 10, "name": "...", "roles": [...], "role_sections": [...], "individual_sections": [...], "effective_sections": [...]}]
+}
+```
+
+`CustomerUserAdminView` теперь поддерживает `section_permissions` в POST/PUT.
+
+### Фронтенд: роутер и страница управления правами
+
+**Роутер** (`frontend/src/router/index.js`):
+
+- Замена `meta: { role: 'admin' }` → `meta: { section: '<code>' }` для страниц администрирования:
+  - `section: 'catalog'` → media, price, sku, limit-switch, widgets
+  - `section: 'certificates'` → cert-docs
+  - `section: 'configurator'` → pa-constructor, ea-constructor, ea-power-supply, ea-switches, ea-models, ea-wirings, pa-selector
+- `role: 'admin'` остался только для: customers, pipeline-config, skill-config, wizard-config, permissions, ai-debug
+- `beforeEach` проверяет `meta.section` через `/api/auth/me/` → `section_permissions`
+- Admin всегда проходит (isAdmin bypass)
+
+**Страница `/admin/permissions`** (`PermissionsPage.vue`):
+
+- Вкладка «Разделы»: таблица SiteSections — CRUD (переименовать, включить/выключить, порядок)
+- Вкладка «Матрица прав»: выбор организации → матрица чекбоксов:
+  - Потолок организации (visible_sections)
+  - Роли (section_permissions)
+  - Пользователи (individual_sections + role_sections — наследование)
+  - Сохранение: роли одним запросом + индивидуальные для каждого пользователя
+
+**Компонент `PermissionMatrix.vue`**: переиспользуемая матрица (rows × sections):
+- ✓ — checked (зелёный)
+- ◉ — inherited от роли (жёлтый)
+- — — нет прав (серый)
+- Строка «Организация» — потолок прав
+
+**Меню**: «Администрирование → Настройка системы → Права доступа»
+
+### Схема: полный цикл аутентификации пользователя
+
+```
+LOGIN → POST /api/auth/login/
+  → Django сессия + cookie
+  → GET /api/auth/me/ → { username, roles, section_permissions }
+  → Роутер: meta.section ⊆ section_permissions
+  → API-запросы: SectionAccessPermission.required_section ∈ effective_section_permissions
+  → 403 если нет прав
+```
