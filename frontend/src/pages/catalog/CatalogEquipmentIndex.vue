@@ -17,7 +17,7 @@
 <script setup>
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 
-function img(path) { return `/img/catalog/${path}` }
+function img(path) { return `${import.meta.env.BASE_URL}img/catalog/${path}` }
 
 const breadcrumbs = [
   { name: 'Главная', to: '/' },
