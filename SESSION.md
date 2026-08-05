@@ -1,91 +1,84 @@
-# SESSION.md — 2026-08-04
+# SESSION.md — 2026-08-05
 
-## Состояние системы
+> Обновлено 2026-08-05 19:00
 
-### Реализовано
+## Что сделано в сессии
 
-**Системные права (группы + реестр объектов)**
-- `core/object_registry.py` — реестр объектов в коде (24 объекта из 5 приложений)
-- `core/apps.py` — авто-импорт `*/object_registry.py` + `post_migrate` sync `administrators`
-- `SystemGroup` — модель групповых прав с JSON `object_permissions`
-- 3 группы: `administrators` (все права), `authenticated_users` (маркер), `anonymous_users` (прозрачность)
-- `SystemObjectPermission` — DRF permission class
+### Доступ: anonymous_users + роутер
+- `CurrentUserView`: `AllowAny`, для анонимов возвращает права из `anonymous_users` SystemGroup
+- `OrgSectionPermission` + `SystemObjectPermission`: проверяют `anonymous_users` для неавторизованных
+- HTTP → action маппинг: GET→view, POST→edit, DELETE→delete
+- `ObjectDef.section_code` — явный маппинг на SiteSection (для catalog_fr, catalog_sv, catalog_pf, catalog_lsb)
+- `core/utils/permission_helpers.py` — кешированный `get_anonymous_group()` + инвалидация по сигналу SystemGroup
+- `core/apps.py` — `_sync_anonymous_permissions`: `view` на catalog + configurator, `_connect_cache_invalidation`
+- Роутер: убран `PUBLIC_SECTIONS`, `proOnly`, `requiredRole`. Единый `ensurePerms()` через `usePerms.js`
+- `ai_assistant/api/views.py`: `QuerySampleViewSet`/`PromptViewSet` → `SystemObjectPermission` (для ai-debug)
+- `usePerms.js`: `ensurePerms()` async, общий `loadPromise`, `roles` ref
+- `WizardSelection.vue`: авто-выбор единственной опции, пропуск фильтров с 0 опций, guard `!= null`
+- `TopMenu.vue`: пункт «AI» верхнего уровня с «AI Отладка»
+- `solenoid_valves/catalog/config.py`: `fd_pneumatic_connection_thread` добавлен в list/engineer
+- `ai_assistant/object_registry.py`: добавлен `ai.question_graph`
+- `access.md`: обновлён (anonymous_users, section_code, DRF, роутер, этапы)
+- `CATALOG_PATTERN.md`: обновлён (PUBLIC_SECTIONS → anonymous_users)
 
-**Организационные права (роли + разделы)**
-- `SiteSection` — 17 разделов (11 новых гранулярных + 6 существующих). Старые `catalog`/`configurator` деактивированы
-- `OrgSectionPermission` — DRF permission class
-- `Role` (OrgRole) — `django_user` удалён, переименование в `OrgRole` pending
+### QuestionGraph — граф вопросов-ответов
+- Модель: `core/models/question_graph.py` (+ миграция 0008)
+- API: `core/question_graph_views.py` (config, advance с sub_pages, results, admin CRUD, to-wizard converter)
+- URLs: `core/urls.py` (admin/ перед <str:code>/)
+- Management: `load_question_graph.py` — граф фитингов с branching (трубка vs без трубки)
+- Frontend: `QuestionGraphWizard.vue`, `QuestionGraphDemo.vue`, `QuestionGraphAdmin.vue`
+- `WizardAdminPage.vue`: вкладка «📊 Граф» + запрет сохранения пустого графа
+- `App.vue` (фитинги): `graphAvailable` → граф или плоский wizard
+- Скоупинг через `FilterDefinition.build_filter_lookup()` + cross-FK `_FIELD_LOOKUP`
+- `set()` для SQLite (`.distinct()` не работает с JOIN)
 
-**1:1 Django User**
-- `ProjectCustomerUser.user` — 1:1 связка с Django User
-- `CustomerBackend` — аутентификация через `customer_user.user` (не `role.django_user`)
-- `CustomerUserAdminView` — авто-создание Django User при создании пользователя
-- `CustomerMiddleware` — подставляет `request.customer` из сессии
-- Миграция 0017: `Role.django_user` удалён
+### Мастер подбора (WizardSelection)
+- Wizard для фитингов: `thread_id` на отдельный шаг 3
+- Авто-выбор при 1 опции
+- Пропуск фильтров с 0 опций (глушитель → pipe_diameter)
+- `WizardSelection.vue` guard: `!= null`
 
-**API**
-- `/api/auth/me/` — возвращает `system_groups`, `object_permissions`, `section_permissions`
-- `/api/admin/system-groups/` — CRUD групп
-- `/api/admin/object-registry/` — реестр объектов (из кода)
-- `/api/admin/site-sections/` — CRUD разделов
-- `/api/admin/customers/<id>/permission-matrix/` — матрица прав организации
+## Состояние БД
+- `QuestionGraph`: 1 запись (`pneumatic_fittings`, et=fittings)
+- `SiteSection`: добавлена `selector_pa`
+- `SelectionWizard`: для fittings обновлён (4 шага, thread_id отдельно)
 
-**Фронтенд**
-- Роутер: единообразные `meta.section` / `meta.object`, `PUBLIC_SECTIONS` для анонимов
-- `PermissionsPage.vue` — 3 вкладки: Разделы, Матрица прав, Группы
-- Вкладка «Группы»: чекбоксы в шапке колонок (выбрать/снять для всех объектов)
-- `useAuth.js` — обновлён (systemGroups, objectPermissions)
-- `usePerms.js` — новый shared composable (`can()`, `canSeeSection()`, `isAdmin`)
-- PA-конструкторы перенесены: `/admin/pa-constructor*` → `/configurator/pa*`
-- AI-вкладка исправлена в 5 каталогах
-
-### Не сделано
-
-- **Role → OrgRole** — переименование модели и M2M поля
-- **`brand_permissions` / `series_permissions`** на `OrgRole`
-- **`nomenclature.owner`** — владелец номенклатуры
-- **Замена `SectionAccessPermission` → `OrgSectionPermission`** в ViewSet'ах (алиас работает)
-- **Row-level security** в ViewSet'ах (queryset filter по customer)
-- **Тесты Django** — написаны но не прогоняются (слишком много миграций для test DB)
-
-### База данных
-
-- Организации: `Система` (id=12), `Архимед` (id=1), `Неавторизованный пользователь` (id=10)
-- Пользователь `kramorov` (id=1) → организация `Система` → группа `administrators`
-- SystemGroup: `administrators` (24 объекта manage), `authenticated_users`, `anonymous_users`
-- SiteSection: 17 разделов
-
-### Ключевые файлы сессии
+## Ключевые файлы сессии
 
 | Файл | Статус |
 |---|---|
-| `access.md` | Актуален |
-| `core/object_registry.py` | Новый |
-| `core/permissions.py` | Новый |
-| `core/apps.py` | Изменён (post_migrate sync) |
-| `project_customers/models/system_group.py` | Новый |
-| `project_customers/models/user.py` | Изменён (system_groups, user 1:1) |
-| `project_customers/models/role.py` | Изменён (django_user удалён) |
-| `project_customers/models/site_section.py` | Изменён (category) |
-| `project_customers/backends.py` | Переписан (1:1) |
-| `project_customers/permissions.py` | Изменён (реэкспорт) |
-| `project_customers/middleware.py` | Новый |
-| `project_customers/views/auth.py` | Изменён (object_permissions для superuser) |
-| `project_customers/views/admin_permissions.py` | Изменён (SystemGroup + ObjectRegistry views) |
-| `project_customers/views/admin_customers.py` | Изменён (авто-создание Django User) |
-| `project_customers/admin/role_admin.py` | Изменён (django_user убран) |
-| `frontend/src/router/index.js` | Изменён (единообразные meta, PUBLIC_SECTIONS) |
-| `frontend/src/pages/admin/PermissionsPage.vue` | Изменён (вкладка Группы) |
-| `frontend/src/shared/composables/usePerms.js` | Новый |
-| `frontend/src/components/header/useAuth.js` | Изменён |
-| `*/object_registry.py` (5 файлов) | Новые |
+| `core/permissions.py` | Изменён (anonymous_users в обоих классах) |
+| `core/apps.py` | Изменён (add sync_anonymous_permissions + cache_invalidation) |
+| `core/object_registry.py` | Изменён (ObjectDef.section_code) |
+| `core/utils/permission_helpers.py` | Новый |
+| `core/models/question_graph.py` | Новый |
+| `core/question_graph_views.py` | Новый |
+| `core/migrations/0008_question_graph.py` | Новый |
+| `core/management/commands/load_question_graph.py` | Новый |
+| `core/urls.py` | Изменён (question-graph routes) |
+| `core/wizard_views.py` | Не изменён |
+| `project_customers/views/auth.py` | Изменён (AllowAny + anonymous) |
+| `pneumatic_actuators/object_registry.py` | Изменён (section_code для 4 каталогов) |
+| `ai_assistant/object_registry.py` | Изменён (ai.question_graph) |
+| `ai_assistant/api/views.py` | Изменён (SystemObjectPermission) |
+| `solenoid_valves/catalog/config.py` | Изменён (+thread filter) |
+| `frontend/src/router/index.js` | Изменён (PUBLIC_SECTIONS, proOnly удалены) |
+| `frontend/src/shared/composables/usePerms.js` | Изменён (ensurePerms) |
+| `frontend/src/shared/components/catalog/WizardSelection.vue` | Изменён (auto-select, skip empty, guard) |
+| `frontend/src/shared/components/catalog/QuestionGraphWizard.vue` | Новый |
+| `frontend/src/pages/QuestionGraphDemo.vue` | Новый |
+| `frontend/src/pages/admin/QuestionGraphAdmin.vue` | Новый |
+| `frontend/src/pages/admin/WizardAdminPage.vue` | Изменён (вкладка Граф) |
+| `frontend/src/apps/pneumatic-fittings-catalog/App.vue` | Изменён (graphAvailable) |
+| `access.md` | Обновлён |
+| `CATALOG_PATTERN.md` | Обновлён |
+| `sw.md` | Обновлён (раздел 9: QuestionGraph) |
 
-### Миграции
+## Задачи на будущее
 
-```
-0013_system_group              — CreateModel SystemGroup
-0014_system_group_related_name — AlterField related_name='members'
-0015_split_site_sections       — Data: 11 новых SiteSection
-0016_site_section_category     — AddField category + populate
-0017_remove_role_django_user   — RemoveField django_user
-```
+- [ ] **Совмещённый фильтр по резьбе** — тип + размер в одном визуальном блоке (для инженерного фильтра и мастера)
+- [ ] **Дизайн QuestionGraphWizard** — привести к стилю WizardSelection (radio-кнопки вместо чипсов)
+- [ ] **Граф для БКВ** — branching на sensor_variety
+- [ ] **Графы для остальных каталогов** — directional-valve, manual-override, fr (по необходимости)
+- [ ] **Constraint-граф** — граф связей типов оборудования как over-arch (стратегическая цель)
+- [ ] **Прикрутить граф ко всем каталогам** — единообразный `goToWizard()` с проверкой graphAvailable

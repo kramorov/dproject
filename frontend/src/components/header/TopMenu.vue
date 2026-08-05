@@ -14,7 +14,6 @@
           <!-- regular link -->
           <router-link v-else :to="ch.to" class="dropdown-item">
             {{ ch.label }}
-            <span v-if="ch.pro" class="pro-badge">проф</span>
           </router-link>
         </template>
       </div>
@@ -44,7 +43,10 @@ const allItems = [
     { to:'/configurator/ea-assemblies', label:'Конфигуратор Сборок арматуры с ЭП' },
     { to:'/configurator/pa-assemblies', label:'Конфигуратор Сборок арматуры с ПП' },
   ]},
-  { key:'requests', label:'Заявки клиентов', pro:true, children:[
+  { key:'ai', label:'AI', children:[
+    { to:'/ai-debug', label:'AI Отладка' },
+  ]},
+  { key:'requests', label:'Заявки клиентов', children:[
     { to:'/requests/list', label:'Список заявок' },
     { to:'/admin/customers', label:'Клиенты' },
     { to:'/requests/contractors', label:'Контрагенты' },
@@ -95,10 +97,8 @@ const allItems = [
 const visibleItems = computed(() => {
   if (!loaded.value) return []
   const isAdmin = roles.value.some(r => r === 'admin' || r === 'system_admin')
-  const isAuth = roles.value.length > 0 && !isAdmin
   return allItems.filter(item => {
     if (item.adminOnly) return isAdmin
-    if (item.pro) return isAuth || isAdmin
     return true
   })
 })
@@ -115,5 +115,4 @@ const visibleItems = computed(() => {
 .dropdown-item.has-sub{cursor:default}
 .dropdown-group{position:relative}
 .sub-dropdown{position:absolute;left:100%;top:0;min-width:240px;background:var(--cat-surface,#fff);border:1px solid var(--cat-border,#e5e7eb);border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.1);z-index:101;padding:4px 0}
-.pro-badge{font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;margin-left:8px;font-weight:500}
 </style>

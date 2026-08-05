@@ -177,6 +177,9 @@ const canProceed = computed(() => {
   if (!step || !step.filters) return false
   if (step.filters.length === 0) return true
   return step.filters.every(filter => {
+    // skip filters with no available options (e.g. pipe_diameter for silencers)
+    const opts = filterOptions.value[filter.param_name]
+    if (opts !== undefined && opts.length === 0) return true
     // exd_id always filled -- defaults to Общепромышленное
     if (filter.param_name === 'exd_id') return true
     // climate requires both temps
@@ -212,7 +215,7 @@ async function loadStepFilters(stepIndex) {
   if (!step || !step.filters) return
 
   for (const filter of step.filters) {
-    if (filterOptions.value[filter.param_name]) continue  // уже загружено
+    if (filterOptions.value[filter.param_name] != null) continue  // уже загружено
 
     // ClimateFilter и ExdFilter загружают данные самостоятельно
     if (filter.param_name === 'climate' || filter.param_name === 'exd_id') {
@@ -235,6 +238,8 @@ async function loadStepFilters(stepIndex) {
         if (match) {
           selectedValues.value[filter.param_name] = match.id || match.value
         }
+      } else if ((data.options || []).length === 1) {
+        selectedValues.value[filter.param_name] = data.options[0].id || data.options[0].value
       }
     } catch (e) {
       console.error(`[WizardSelection] Failed to load options for ${filter.param_name}:`, e)

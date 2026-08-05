@@ -11,6 +11,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from core.permissions import SystemObjectPermission
 from rest_framework import viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
@@ -142,7 +143,8 @@ class QuerySampleViewSet(viewsets.ModelViewSet):
     """
     queryset = AIQuerySample.objects.all()
     serializer_class = AIQuerySampleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [SystemObjectPermission]
+    required_object = 'ai.debug'
 
 
 class PromptViewSet(viewsets.ModelViewSet):
@@ -153,7 +155,8 @@ class PromptViewSet(viewsets.ModelViewSet):
     """
     queryset = AIPromptTemplate.objects.all()
     serializer_class = AIPromptTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [SystemObjectPermission]
+    required_object = 'ai.debug'
 
 
 class DecomposeView(APIView):

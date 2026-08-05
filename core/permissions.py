@@ -2,6 +2,7 @@
 core/permissions.py — DRF permission classes.
 
 SystemObjectPermission  — system-level: checks group object_permissions
+                        Also checks anonymous_users SystemGroup for unauthenticated users.
 OrgSectionPermission    — organization-level: checks SiteSection access
 """
 from rest_framework.permissions import BasePermission
@@ -26,6 +27,13 @@ class SystemObjectPermission(BasePermission):
             return True  # Not a system-protected endpoint
 
         if not request.user.is_authenticated:
+            # Check anonymous_users SystemGroup
+            from core.utils.permission_helpers import get_anonymous_group
+            anon_group = get_anonymous_group()
+            if anon_group:
+                perms = anon_group.object_permissions.get(obj, [])
+                if action in perms or 'manage' in perms:
+                    return True
             return False
 
         if request.user.is_superuser:
@@ -42,6 +50,7 @@ class SystemObjectPermission(BasePermission):
 class OrgSectionPermission(BasePermission):
     """
     Organization-level permission check via SiteSection.
+    Also checks anonymous_users SystemGroup for unauthenticated users.
 
     Usage:
         class MyView(APIView):
@@ -55,8 +64,35 @@ class OrgSectionPermission(BasePermission):
         if getattr(view, 'public', False):
             return True
 
-        # Not authenticated
+        # Not authenticated — check anonymous_users SystemGroup
         if not request.user or not request.user.is_authenticated:
+            required_section = getattr(view, 'required_section', None)
+            if not required_section:
+                return False
+
+            # Map HTTP method to required action
+            method = request.method
+            if method in ('GET', 'HEAD', 'OPTIONS'):
+                required_action = 'view'
+            elif method in ('POST', 'PUT', 'PATCH'):
+                required_action = 'edit'
+            elif method == 'DELETE':
+                required_action = 'delete'
+            else:
+                return False
+
+            from core.utils.permission_helpers import get_anonymous_group
+            anon_group = get_anonymous_group()
+            if anon_group:
+                # Find matching object codename via registry (section_code or fallback)
+                from core.object_registry import OBJECT_REGISTRY
+                for codename, obj_def in OBJECT_REGISTRY.items():
+                    expected = obj_def.section_code or codename.replace('.', '_')
+                    if expected == required_section:
+                        perms = anon_group.object_permissions.get(codename, [])
+                        if required_action in perms or 'manage' in perms:
+                            return True
+                        break
             return False
 
         # Superuser — all access

@@ -1,7 +1,7 @@
 """
 POST /api/auth/login/  — аутентификация (email + пароль)
 POST /api/auth/logout/ — выход
-GET  /api/auth/me/     — текущий пользователь
+GET  /api/auth/me/     — текущий пользователь (включая права anonymous_users для неавторизованных)
 """
 from datetime import date
 
@@ -87,10 +87,46 @@ class LogoutView(APIView):
 
 
 class CurrentUserView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         user = request.user
+
+        # Anonymous user — return anonymous_users SystemGroup permissions
+        if not user.is_authenticated:
+            from core.utils.permission_helpers import get_anonymous_group
+            anon_group = get_anonymous_group()
+            if anon_group:
+                obj_perms = anon_group.object_permissions or {}
+            else:
+                obj_perms = {}
+
+            # Derive section_permissions from object codenames -> SiteSection codes
+            section_codes = []
+            if obj_perms:
+                from project_customers.models import SiteSection
+                active_sections = set(
+                    SiteSection.objects.filter(is_active=True).values_list('code', flat=True)
+                )
+                from core.object_registry import OBJECT_REGISTRY
+                for codename, actions in obj_perms.items():
+                    if 'view' in actions or 'manage' in actions:
+                        obj_def = OBJECT_REGISTRY.get(codename)
+                        if obj_def and obj_def.section_code:
+                            section_code = obj_def.section_code
+                        else:
+                            section_code = codename.replace('.', '_')
+                        if section_code in active_sections:
+                            section_codes.append(section_code)
+
+            return Response({
+                'username': '',
+                'email': '',
+                'roles': [],
+                'section_permissions': section_codes,
+                'system_groups': ['anonymous_users'],
+                'object_permissions': obj_perms,
+            })
 
         if user.is_superuser:
             from project_customers.models import SiteSection

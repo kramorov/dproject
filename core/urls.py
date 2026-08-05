@@ -3,6 +3,7 @@ from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from .views import UniversalAPIView, DebugAPIView, ExdStructureView, ExdParseView, ExdCompatibleView
 from .wizard_views import WizardConfigView, WizardFilterOptionsView, WizardResultsView, WizardModelFiltersView, WizardAdminListView, WizardAdminDetailView, WizardEquipmentTypesView
+from .question_graph_views import QuestionGraphConfigView, QuestionGraphAdvanceView, QuestionGraphResultsView, QuestionGraphAdminListView, QuestionGraphAdminDetailView, QuestionGraphToWizardView
 from .climate_views import ClimateStructureView, ClimateParseView
 from .ref_views import SectionsView, AllowedAppsView, BrandsView, DjangoUsersView
 
@@ -29,4 +30,11 @@ urlpatterns = [
     # Wizard admin (CRUD)
     path('wizard/admin/', WizardAdminListView.as_view(), name='wizard_admin_list'),
     path('wizard/admin/<int:wizard_id>/', WizardAdminDetailView.as_view(), name='wizard_admin_detail'),
+    # QuestionGraph endpoints
+    path('question-graph/admin/', QuestionGraphAdminListView.as_view(), name='question_graph_admin_list'),
+    path('question-graph/admin/<int:graph_id>/', QuestionGraphAdminDetailView.as_view(), name='question_graph_admin_detail'),
+    path('question-graph/<str:code>/', QuestionGraphConfigView.as_view(), name='question_graph_config'),
+    path('question-graph/<str:code>/advance/', QuestionGraphAdvanceView.as_view(), name='question_graph_advance'),
+    path('question-graph/<str:code>/results/', QuestionGraphResultsView.as_view(), name='question_graph_results'),
+    path('question-graph/<str:code>/to-wizard/', QuestionGraphToWizardView.as_view(), name='question_graph_to_wizard'),
 ]

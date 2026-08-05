@@ -632,3 +632,83 @@ EquipmentType:
 | 4 | `WizardSelection.vue` — `activeProfile`, `visibleSteps`, динамические чипсы | `frontend/src/shared/components/catalog/WizardSelection.vue` |
 | 5 | `WizardAdminPage.vue` — управление профилями | `frontend/src/pages/admin/WizardAdminPage.vue` |
 | 6 | `GenerateSchemaFromModelView` — `oneOf`/`if-then` из профилей | `ai_assistant/api/views.py` |
+
+---
+
+## 9. QuestionGraph — граф вопросов-ответов (2026-08-05)
+
+> Альтернатива `FilterProfile`. Вместо плоских шагов с условной видимостью —
+> граф, где узлы = вопросы, рёбра = переходы, `branches` = ветвление по ответу.
+
+### 9.1 Модель
+
+```python
+# core/models/question_graph.py
+class QuestionGraph(BaseAbstractModel):
+    equipment_type = FK(EquipmentType)
+    code = CharField(unique=True)
+    name = CharField()
+    graph_json = JSONField(default=dict)
+    # {
+    #   "entry_node": "fitting_variety",
+    #   "nodes": {
+    #     "fitting_variety": {
+    #       "question": "Тип фитинга",
+    #       "param_name": "fitting_variety_id",
+    #       "branches": {"1": "pipe_params", "3": "thread_params", ...}
+    #     },
+    #     "pipe_params": {
+    #       "question": "Трубка",
+    #       "param_names": ["pipe_diameter", "pipe_material_id"]
+    #     },
+    #     "thread_params": {
+    #       "question": "Резьба",
+    #       "pages": [
+    #         {"title": "Тип резьбы", "param_names": ["thread_type_id"]},
+    #         {"title": "Размер резьбы", "param_names": ["thread_id"]},
+    #         {"title": "Нар/внут", "param_names": ["thread_inner_outer_id"]}
+    #       ]
+    #     }
+    #   },
+    #   "edges": [
+    #     {"from": "pipe_params", "to": "thread_params"},
+    #     {"from": "thread_params", "to": "material_params"}
+    #   ]
+    # }
+```
+
+### 9.2 API
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| `GET` | `/api/core/question-graph/<code>/` | Граф + опции entry-узла |
+| `POST` | `.../<code>/advance/` | Ответ → следующий узел/подстраница |
+| `POST` | `.../<code>/results/` | Поиск моделей по накопленным фильтрам |
+| `POST` | `.../<code>/to-wizard/` | Конвертер: граф → SelectionWizard |
+| `GET/POST` | `/api/core/question-graph/admin/` | CRUD графов |
+| `GET/PUT/DELETE` | `.../admin/<id>/` | CRUD одного графа |
+
+### 9.3 Frontend
+
+- `QuestionGraphWizard.vue` — компонент для страниц каталога (чипсы, подстраницы, back-навигация)
+- `QuestionGraphDemo.vue` — отладочная страница `/demo/question-graph`
+- `QuestionGraphAdmin.vue` — админка `/admin/question-graph` (JSON-редактор + превью)
+- `WizardAdminPage.vue` — вкладка «📊 Граф» (загрузка/сохранение графа для типа оборудования)
+
+### 9.4 Интеграция в каталоги
+
+`App.vue` фитингов: при `onMounted` проверяет наличие графа → `graphAvailable`.
+`goToWizard()`: если граф есть → `page='graph'`, иначе → `page='wizard'`.
+
+### 9.5 Скоупинг
+
+Опции фильтров скоупятся через `FilterDefinition.build_filter_lookup()`
+(включая `THREAD_COMPATIBLE`). Cross-FK поля (`thread_type_id`) маппятся
+через `_FIELD_LOOKUP`.
+
+### 9.6 TODO
+
+- Дизайн `QuestionGraphWizard` привести к стилю `WizardSelection` (radio-кнопки вместо чипсов)
+- Совмещённый фильтр по резьбе (тип + размер в одном визуальном блоке)
+- Графы для БКВ (sensor_variety branching)
+- Графы для остальных каталогов по необходимости

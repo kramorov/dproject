@@ -1,16 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '../pages/HomePage.vue'
 import PlaceholderPage from '../pages/PlaceholderPage.vue'
-import api from '@/shared/api'
+import { ensurePerms, usePerms } from '@/shared/composables/usePerms'
 
 const Placeholder = (title) => ({ template: '<PlaceholderPage :title="title" />', components: { PlaceholderPage }, data: () => ({ title }) })
-
-
-// Sections accessible without authentication (public catalog pages)
-const PUBLIC_SECTIONS = [
-  'catalog_gearbox', 'catalog_pa', 'catalog_ea', 'catalog_lsb',
-  'catalog_sv', 'catalog_fr', 'catalog_pf', 'catalog_cg',
-]
 
 const routes = [
   { path: '/', name: 'home', component: HomePage, meta: { title: 'Главная' } },
@@ -32,8 +25,8 @@ const routes = [
   { path: '/catalog/positioners', component: PlaceholderPage, props: { title: 'Электропневматические позиционеры' }, meta: { title: 'Позиционеры' } },
   { path: '/catalog/limit-switch', component: () => import('../pages/catalog/LimitSwitchPage.vue'), meta: { title: 'БКВ', section: 'catalog_lsb' } },
   { path: '/catalog/ea-actuators', component: PlaceholderPage, props: { title: 'Электроприводы' }, meta: { title: 'Электроприводы', section: 'catalog_ea' } },
-  { path: '/catalog/ea-cabinets', component: PlaceholderPage, props: { title: 'Шкафы управления ЭП' }, meta: { title: 'Шкафы управления ЭП', pro: true } },
-  { path: '/catalog/mounting-kits', component: PlaceholderPage, props: { title: 'Монтажные комплекты и адаптации' }, meta: { title: 'Монтажные комплекты', pro: true } },
+  { path: '/catalog/ea-cabinets', component: PlaceholderPage, props: { title: 'Шкафы управления ЭП' }, meta: { title: 'Шкафы управления ЭП' } },
+  { path: '/catalog/mounting-kits', component: PlaceholderPage, props: { title: 'Монтажные комплекты и адаптации' }, meta: { title: 'Монтажные комплекты' } },
   { path: '/catalog/filter-regulator', component: () => import('../pages/catalog/FilterRegulatorPage.vue'), meta: { title: 'Фильтр-регуляторы', section: 'catalog_fr' } },
 
   // Арматура
@@ -59,8 +52,8 @@ const routes = [
   { path: '/configurator/pa-assemblies', component: PlaceholderPage, props: { title: 'Конфигуратор Сборок арматуры с ПП' }, meta: { title: 'Сборки с ПП' } },
 
   // Заявки (проф)
-  { path: '/requests/list', component: PlaceholderPage, props: { title: 'Список заявок' }, meta: { title: 'Заявки', pro: true } },
-  { path: '/requests/contractors', component: PlaceholderPage, props: { title: 'Контрагенты' }, meta: { title: 'Контрагенты', pro: true } },
+  { path: '/requests/list', component: PlaceholderPage, props: { title: 'Список заявок' }, meta: { title: 'Заявки' } },
+  { path: '/requests/contractors', component: PlaceholderPage, props: { title: 'Контрагенты' }, meta: { title: 'Контрагенты' } },
 
   // О проекте
   { path: '/about', name: 'about', component: () => import('../pages/about/AboutIndex.vue'), meta: { title: 'О проекте' } },
@@ -92,6 +85,7 @@ const routes = [
   { path: '/admin/pipeline-config', component: () => import('../pages/admin/PipelineConfigPage.vue'), meta: { title: 'Pipeline Config', object: 'ai.pipelines', action: 'edit' } },
   { path: '/admin/skill-config', component: () => import('../pages/admin/SkillConfigPage.vue'), meta: { title: 'Skill Config', object: 'ai.skills', action: 'edit' } },
   { path: '/admin/wizard-config', component: () => import('../pages/admin/WizardAdminPage.vue'), meta: { title: 'Мастер подбора', object: 'ai.wizard', action: 'edit' } },
+  { path: '/admin/question-graph', component: () => import('../pages/admin/QuestionGraphAdmin.vue'), meta: { title: 'Граф вопросов-ответов', object: 'ai.question_graph', action: 'edit' } },
   { path: '/admin/permissions', component: () => import('../pages/admin/PermissionsPage.vue'), meta: { title: 'Права доступа', object: 'admin.permissions', action: 'edit' } },
 
   // Инструменты
@@ -99,9 +93,10 @@ const routes = [
   { path: '/tools/svg-converter', component: () => import('../pages/SvgConverterTest.vue'), meta: { title: 'SVG Конвертер' } },
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },
-  { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП', section: 'configurator_pa' } },
+  { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП', section: 'selector_pa' } },
   { path: '/ai-assistant', component: () => import('../pages/AiAssistantPage.vue'), meta: { title: 'AI Ассистент' } },
   { path: '/ai-debug', component: () => import('../pages/AiDebugPage.vue'), meta: { title: 'AI Отладка', object: 'ai.debug', action: 'view' } },
+  { path: '/demo/question-graph', component: () => import('../pages/QuestionGraphDemo.vue'), meta: { title: 'Граф вопросов-ответов' } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
@@ -109,39 +104,24 @@ const router = createRouter({ history: createWebHistory(), routes })
 router.beforeEach(async (to, from, next) => {
   const requiredObject = to.meta.object
   const requiredAction = to.meta.action || 'view'
-  const requiredRole = to.meta.role
   const requiredSection = to.meta.section
-  const proOnly = to.meta.pro
-  if (!requiredObject && !requiredRole && !requiredSection && !proOnly) return next()
+  if (!requiredObject && !requiredSection) return next()
 
-  // Try to get user info; unauthenticated -> only PUBLIC_SECTIONS allowed
-  let r
+  // Single permission load — shared with usePerms(), no double request
   try {
-    r = await api.get('/auth/me/')
-  } catch (e) {
-    if (requiredSection && PUBLIC_SECTIONS.includes(requiredSection)) return next()
-    if (!requiredObject && !requiredRole && !proOnly) return next()
-    return next('/login')
-  }
+    await ensurePerms()
+    const { objectPerms, sectionPerms, systemGroups } = usePerms()
 
-  try {
-    const objPerms = r.data.object_permissions || {}
-    const roles = r.data.roles || []
-    const sections = r.data.section_permissions || []
-    const systemGroups = r.data.system_groups || []
-    // TODO: remove roles check after OrgRole migration is complete (access.md §4)
-    const isAdmin = systemGroups.includes('administrators') || roles.some(r => r === 'admin' || r === 'system_admin')
-    // admin/system_admin always pass
-    if (isAdmin) return next()
+    if (systemGroups.value.includes('administrators')) return next()
     if (requiredObject) {
-      const allowed = objPerms[requiredObject] || []
+      const allowed = objectPerms.value[requiredObject] || []
       if (!allowed.includes(requiredAction) && !allowed.includes('manage')) return next('/login')
     }
-    if (requiredRole === 'admin' && !isAdmin) return next('/login')
-    if (requiredSection && !sections.includes(requiredSection)) return next('/login')
-    if (proOnly && roles.length === 0) return next('/login')
+    if (requiredSection && !sectionPerms.value.includes(requiredSection)) return next('/login')
     next()
-  } catch (e) { next('/login') }
+  } catch (e) {
+    next('/login')
+  }
 })
 
 export default router

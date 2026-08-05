@@ -1,37 +1,62 @@
 // shared/composables/usePerms.js
-// Единая точка проверки прав на фронтенде.
-// Используется роутером (beforeEach) и компонентами (v-if, :disabled, :class).
+// Single point of permission loading for router (async) and components (reactive).
 import { ref } from 'vue'
 import api from '@/shared/api'
 
 const objectPerms = ref({})   // { codename: [actions] }
 const sectionPerms = ref([])  // [section codes]
 const systemGroups = ref([])
+const roles = ref([])         // [OrgRole codes]
 const loaded = ref(false)
-let fetching = false
+let loadPromise = null
 
-export function usePerms() {
-  if (!loaded.value && !fetching) {
-    fetching = true
-    api.get('/auth/me/').then(r => {
+/**
+ * Load permissions from /auth/me/. Idempotent — subsequent calls return
+ * the same promise while loading, or resolve immediately if already loaded.
+ *
+ * Usage in router.beforeEach:
+ *   await ensurePerms()
+ *   const { objectPerms, sectionPerms, systemGroups } = usePerms()
+ */
+export async function ensurePerms() {
+  if (loaded.value) return
+  if (loadPromise) return loadPromise
+
+  loadPromise = api.get('/auth/me/')
+    .then(r => {
       objectPerms.value = r.data.object_permissions || {}
       sectionPerms.value = r.data.section_permissions || []
       systemGroups.value = r.data.system_groups || []
-    }).catch(() => {
-      // Not authenticated — empty permissions
+      roles.value = r.data.roles || []
+    })
+    .catch(() => {
       objectPerms.value = {}
       sectionPerms.value = []
       systemGroups.value = []
-    }).finally(() => {
-      loaded.value = true
-      fetching = false
+      roles.value = []
     })
+    .finally(() => {
+      loaded.value = true
+      loadPromise = null
+    })
+
+  return loadPromise
+}
+
+/**
+ * Reactive composable for components (v-if, :disabled, :class).
+ * Fires ensurePerms() lazily on first call — no need to await in components.
+ */
+export function usePerms() {
+  if (!loaded.value && !loadPromise) {
+    ensurePerms()
   }
 
   return {
     objectPerms,
     sectionPerms,
     systemGroups,
+    roles,
 
     /** Check system permission: can('admin.media', 'edit') */
     can(codename, action = 'view') {

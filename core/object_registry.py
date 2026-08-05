@@ -27,6 +27,7 @@ class ObjectDef:
     name: str
     type: str          # 'page' | 'api' | 'ui_element' | 'configurator' | 'catalog' | 'admin_page'
     parent: Optional[str] = None
+    section_code: Optional[str] = None  # explicit SiteSection code (default: codename.replace('.', '_'))
 
 
 # Canonical registry: {codename: ObjectDef}
@@ -39,6 +40,7 @@ def register_object(
     name: str,
     type: str,
     parent: Optional[str] = None,
+    section_code: Optional[str] = None,
 ) -> ObjectDef:
     """
     Register a system object in the canonical registry.
@@ -46,7 +48,7 @@ def register_object(
     Called from <app>/object_registry.py at import time.
     Duplicate codenames are silently overwritten (last registration wins).
     """
-    obj = ObjectDef(codename=codename, name=name, type=type, parent=parent)
+    obj = ObjectDef(codename=codename, name=name, type=type, parent=parent, section_code=section_code)
     OBJECT_REGISTRY[codename] = obj
     return obj
 

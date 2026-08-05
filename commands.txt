@@ -3,12 +3,16 @@ pip install rembg
 
 cd C:\Users\s.kramorov\PycharmProjects\djangoProject1
 cd C:\Users\kramo\PycharmProjects\djangoProject1
+C:\Users\s.kramorov\AppData\Local\Programs\Python\djangoProject1\Scripts\python.exe C:\Users\s.kramorov\PycharmProjects\djangoProject1\manage.py runserver localhost:8000
+
+cd frontend                                                                                                               npm run dev 
+
 codewhale run --continue
 npm install -g codewhale-tui
 
 Прочитай SESSION.md, CATALOG_PATTERN.md, frontend\README.md, image_processor\README.md media_library\README.md продолжай
 electric_actuators\README.md
-ai-assistant.md cg.md
+ai-assistant.md cg.md access.md
 
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).

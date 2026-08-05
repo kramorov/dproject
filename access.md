@@ -1,7 +1,7 @@
 # access.md — Архитектура разграничения доступа
 
-> Спроектировано 2026-07-21. Переработано 2026-07-23, 2026-08-04.
-> Реализация: Этап 1 начат 2026-07-23. Переработка: 2026-08-04.
+> Спроектировано 2026-07-21. Переработано 2026-07-23, 2026-08-04, 2026-08-05.
+> Реализация: завершена 2026-08-05.
 
 ---
 
@@ -85,9 +85,9 @@ POST /api/admin/customers/<id>/users/  { login: "ivanov", password: "..." }
 
 ```python
 # core/object_registry.py
-OBJECT_REGISTRY = {}  # {codename: {name, type, parent}}
+OBJECT_REGISTRY = {}  # {codename: ObjectDef(name, type, parent, section_code)}
 
-def register_object(*, codename, name, type, parent=None):
+def register_object(*, codename, name, type, parent=None, section_code=None):
     OBJECT_REGISTRY[codename] = {...}
 ```
 
@@ -99,8 +99,12 @@ from core.object_registry import register_object
 
 register_object(codename='configurator.pa', name='Конфигуратор пневмоприводов', type='configurator')
 register_object(codename='catalog.pa',       name='Каталог пневмоприводов',     type='catalog')
+register_object(codename='catalog.filter_regulator', name='Каталог фильтр-регуляторов', type='catalog', section_code='catalog_fr')
 register_object(codename='admin.sku',        name='Управление SKU',             type='admin_page')
 ```
+
+Если `section_code` не задан, он вычисляется как `codename.replace('.', '_')`.
+Нужен для объектов, где codename не совпадает с кодом SiteSection (например, `catalog.filter_regulator` → `catalog_fr`).
 
 ### Типы объектов
 
@@ -147,6 +151,7 @@ class SystemGroup(models.Model):
 | `catalog_managers` | Редакторы каталога | SKU, цены, сертификаты |
 | `media_editors` | Редакторы медиа | Медиабиблиотека |
 | `ai_configurators` | AI-инженеры | Настройка pipeline, skills, отладка |
+| `anonymous_users` | Неавторизованные пользователи | Все неавторизованные (view на catalog + configurator, автосинк) |
 | `authenticated_users` | Авторизованные пользователи | Маркер (без прав, просто «вошёл») |
 
 ### Жизненный цикл объекта
@@ -196,6 +201,7 @@ class OrgRole(models.Model):
 | `configurator_pa` | Конфигуратор ПП | configurator |
 | `configurator_ea` | Конфигуратор ЭП | configurator |
 | `configurator_cab` | Шкафы управления | configurator |
+| `selector_pa` | Подбор пневмопривода | configurator |
 | `requests` | Заявки клиентов | requests |
 | `certificates` | Сертификаты | certificates |
 | `llm_agent` | Агент LLM | ai |
@@ -365,13 +371,20 @@ class CustomerMiddleware:
 # core/permissions.py
 
 class SystemObjectPermission(BasePermission):
-    """Проверка системного права через реестр объектов."""
+    """Проверка системного права через реестр объектов.
+    Для неавторизованных — проверяет anonymous_users SystemGroup."""
     def has_permission(self, request, view):
         obj = getattr(view, 'required_object', None)
         action = getattr(view, 'required_action', 'view')
         if obj is None:
             return True
         if not request.user.is_authenticated:
+            from core.utils.permission_helpers import get_anonymous_group
+            anon = get_anonymous_group()
+            if anon:
+                perms = anon.object_permissions.get(obj, [])
+                if action in perms or 'manage' in perms:
+                    return True
             return False
         if request.user.is_superuser:
             return True
@@ -382,24 +395,38 @@ class SystemObjectPermission(BasePermission):
 
 
 class OrgSectionPermission(BasePermission):
-    """Проверка организационного доступа через SiteSection."""
+    """Проверка организационного доступа через SiteSection.
+    Для неавторизованных — проверяет anonymous_users SystemGroup
+    с маппингом HTTP-метода в действие (GET→view, POST→edit, DELETE→delete)."""
     def has_permission(self, request, view):
         if getattr(view, 'public', False):
             return True
         if not request.user.is_authenticated:
+            required_section = getattr(view, 'required_section', None)
+            if required_section:
+                method = request.method
+                if method in ('GET', 'HEAD', 'OPTIONS'): required_action = 'view'
+                elif method in ('POST', 'PUT', 'PATCH'):  required_action = 'edit'
+                elif method == 'DELETE':                   required_action = 'delete'
+                else:                                      return False
+                from core.utils.permission_helpers import get_anonymous_group
+                anon = get_anonymous_group()
+                if anon:
+                    from core.object_registry import OBJECT_REGISTRY
+                    for cn, obj in OBJECT_REGISTRY.items():
+                        if (obj.section_code or cn.replace('.', '_')) == required_section:
+                            perms = anon.object_permissions.get(cn, [])
+                            return required_action in perms or 'manage' in perms
             return False
         if request.user.is_superuser:
             return True
-
         required_section = getattr(view, 'required_section', None)
         if required_section is None:
             return True
-
         from project_customers.utils import get_customer_profile
         profile = get_customer_profile(request)
         if profile is None:
             return False
-
         effective = profile.get_effective_section_permissions()
         return effective.filter(code=required_section).exists()
 ```
@@ -408,31 +435,33 @@ class OrgSectionPermission(BasePermission):
 
 ```javascript
 // XOR: каждый маршрут задаёт ЛИБО object, ЛИБО section
-{ path: '/admin/customers',    meta: { object: 'admin.customers',   action: 'view' } }
-{ path: '/admin/permissions',  meta: { object: 'admin.permissions', action: 'edit' } }
-{ path: '/configurator/pa',    meta: { object: 'configurator.pa',   action: 'view' } }
+{ path: '/admin/customers',    meta: { object: 'admin.customers',   action: 'edit' } }
+{ path: '/configurator/pa',    meta: { section: 'configurator_pa' } }
 { path: '/catalog/gearbox',    meta: { section: 'catalog_gearbox' } }
 
 router.beforeEach(async (to, from, next) => {
-  const required = to.meta.object || to.meta.section
-  if (!required) return next()
+  const requiredObject = to.meta.object
+  const requiredSection = to.meta.section
+  if (!requiredObject && !requiredSection) return next()
 
-  const r = await api.get('/auth/me/')
-  const perms = r.data.object_permissions || {}
-  const sections = r.data.section_permissions || []
+  // Единый вызов /auth/me/ через ensurePerms() (общий кеш с usePerms)
+  await ensurePerms()
+  const { objectPerms, sectionPerms, systemGroups } = usePerms()
 
-  // Системная проверка: object + action
-  if (to.meta.object) {
-    const allowed = perms[to.meta.object] || []
-    if (!allowed.includes(to.meta.action || 'view')) return next('/login')
+  if (systemGroups.value.includes('administrators')) return next()
+  if (requiredObject) {
+    const allowed = objectPerms.value[requiredObject] || []
+    if (!allowed.includes(to.meta.action || 'view') && !allowed.includes('manage'))
+      return next('/login')
   }
-
-  // Организационная проверка: section
-  if (to.meta.section && !sections.includes(to.meta.section)) return next('/login')
-
+  if (requiredSection && !sectionPerms.value.includes(requiredSection))
+    return next('/login')
   next()
 })
 ```
+> Неавторизованные пользователи получают права через `anonymous_users` SystemGroup.
+> `/auth/me/` всегда возвращает permissions (AllowAny) — для анонимов из `anonymous_users`.
+> Никакого хардкода PUBLIC_SECTIONS на фронте — всё управляется через админку.
 
 ### Фронтенд: условный рендеринг
 
@@ -453,18 +482,32 @@ const { can } = usePerms()
 ### `/auth/me/` — формат ответа
 
 ```json
+// Авторизованный пользователь:
 {
   "username": "Иванов Иван",
   "email": "i.ivanov@romashka.ru",
   "system_groups": ["customer_managers"],
   "object_permissions": {
     "admin.customers":     ["view", "edit"],
-    "admin.permissions":   ["view"],
     "catalog.gearbox":    ["view"]
   },
-  "org_roles": ["engineer"],
+  "roles": ["engineer"],
   "section_permissions": ["catalog_gearbox", "catalog_pa", "configurator_pa"],
   "customer": "ООО Ромашка"
+}
+
+// Неавторизованный (из anonymous_users SystemGroup):
+{
+  "username": "",
+  "email": "",
+  "system_groups": ["anonymous_users"],
+  "object_permissions": {
+    "catalog.gearbox":    ["view"],
+    "catalog.pa":         ["view"],
+    "configurator.pa":    ["view", "edit"]
+  },
+  "roles": [],
+  "section_permissions": ["catalog_gearbox", "catalog_pa", "configurator_pa"]
 }
 ```
 
@@ -488,12 +531,15 @@ API-ключи: генерация, хранение (SHA-256), передача
 | **2** | SystemGroup + миграция ✓ | `SystemGroup`, `ProjectCustomerUser.system_groups` |
 | **3** | Разбивка SiteSection ✓ | 11 новых разделов, 2 деактивированы |
 | **4** | 1:1 Django User ✓ | Миграция 0017, `CustomerBackend`, `CustomerMiddleware` |
-| **5** | DRF permission classes ✓ | `SystemObjectPermission`, `OrgSectionPermission` |
-| **6** | `/auth/me/` + Permissions UI ✓ | `CurrentUserView`, `PermissionsPage.vue` |
-| **7** | Фронтенд: роутер + usePerms ✓ | `router/index.js`, `useAuth.js`, `usePerms.js` |
-| **8** | Auto-sync админа ✓ | `core/apps.py` → `post_migrate`, все объекты → `manage` |
+| **5** | DRF permission classes ✓ | `SystemObjectPermission`, `OrgSectionPermission` (оба с поддержкой anonymous_users) |
+| **6** | `/auth/me/` + Permissions UI ✓ | `CurrentUserView` (AllowAny, возвращает права anonymous_users), `PermissionsPage.vue` |
+| **7** | Фронтенд: роутер + usePerms ✓ | `router/index.js` (без PUBLIC_SECTIONS), `usePerms.js` (ensurePerms) |
+| **8** | Auto-sync админа + anonymous_users ✓ | `core/apps.py` → `post_migrate`, admins→manage, anon→view на catalog/configurator |
 | **9** | API-ключи (без изменений) | `CustomerApiKey` + `AccessPermission` (DRF) |
-| **10** | Role → OrgRole | Переименование модели, `org_roles` M2M |
+| **10** | Role → OrgRole ✓ | Переименование модели, `org_roles` M2M |
+| **11** | Кеширование + инвалидация ✓ | `core/utils/permission_helpers.py` (lru_cache), сигнал на SystemGroup |
+| **12** | `selector_pa` SiteSection ✓ | Отдельная секция для подбора ПП, не зависит от configurator_pa |
+| **13** | Убран `pro`/`proOnly`/`PUBLIC_SECTIONS` ✓ | Легаси, заменено на anonymous_users SystemGroup |
 
 ### На будущее
 

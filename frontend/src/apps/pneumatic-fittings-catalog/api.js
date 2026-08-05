@@ -14,5 +14,8 @@ export default {
   getQuickSelect(mlId, filters = {}) {
     return api.get(E.quickselect, { params: { model_line_id: mlId, ...filters } })
   },
+  getQuickSelectNoSeries(filters = {}) {
+    return api.get(E.quickselect, { params: filters })
+  },
   getMeta()      { return api.get(E.meta) },
 }

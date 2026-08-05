@@ -51,6 +51,13 @@
         </button>
       </div>
 
+      <!-- ═══ Табы редактора: Шаги / Граф ═══ -->
+      <div class="wa-tabs wa-tabs-main">
+        <button class="wa-tab" :class="{ active: editorTab === 'steps' }" @click="editorTab = 'steps'">📋 Шаги</button>
+        <button class="wa-tab" :class="{ active: editorTab === 'graph' }" @click="editorTab = 'graph'; loadGraphForET()">📊 Граф</button>
+      </div>
+
+      <div v-if="editorTab === 'steps'">
       <!-- ═══ Табы шагов ═══ -->
       <h3>Шаги</h3>
       <div class="wa-tabs">
@@ -148,6 +155,39 @@
         </div>
       </div>
 
+      </div><!-- editorTab === 'steps' -->
+
+      <!-- ═══ Вкладка Граф ═══ -->
+      <div v-if="editorTab === 'graph'" class="wa-graph-panel">
+        <div v-if="!graphId" class="wa-empty">
+          Граф не найден для этого типа оборудования.
+          <button class="wa-btn-primary" @click="createGraphForET">Создать граф</button>
+        </div>
+
+        <div v-else>
+          <textarea v-model="graphJsonText" class="wa-textarea wa-json-editor" rows="16"
+            placeholder='{"entry_node": "...", "nodes": {...}, "edges": [...]}'></textarea>
+          <div v-if="graphJsonError" class="wa-error">{{ graphJsonError }}</div>
+
+          <!-- Preview -->
+          <div v-if="graphPreview" class="wa-graph-preview">
+            <strong>Узлы:</strong>
+            <div v-for="(node, nid) in graphPreview.nodes" :key="nid" class="wa-node-chip">
+              <b>{{ nid }}</b>: {{ node.question }}
+              <span v-if="node.pages">({{ node.pages.length }} стр.)</span>
+            </div>
+            <strong>Рёбра:</strong>
+            <span v-for="(e, ei) in graphPreview.edges" :key="ei" class="wa-edge-chip">{{ e.from }}→{{ e.to }}</span>
+          </div>
+
+          <div class="wa-actions" style="margin-top:0.5rem">
+            <button class="wa-btn-primary" @click="saveGraph">💾 Сохранить граф</button>
+            <button class="wa-btn-accent" @click="generateFromGraph">⚙ Сгенерировать шаги</button>
+          </div>
+          <div v-if="graphMsg" :class="graphMsgError ? 'wa-error' : 'wa-success'">{{ graphMsg }}</div>
+        </div>
+      </div>
+
       <div class="wa-actions">
         <button class="wa-btn-primary" @click="saveWizard" :disabled="saving">{{ saving ? 'Сохранение...' : '💾 Сохранить' }}</button>
         <button class="wa-btn-secondary" @click="cancelEdit">Отмена</button>
@@ -172,7 +212,15 @@ const saving = ref(false)
 const saveError = ref('')
 const activePageTab = ref(0)
 const activeFilterTab = ref(0)
-const filterOptionValues = ref({})  // { param_name: [{id, name}, ...] }
+const filterOptionValues = ref({})
+
+// -- Graph tab state --
+const editorTab = ref('steps')
+const graphId = ref(null)
+const graphJsonText = ref('{}')
+const graphJsonError = ref('')
+const graphMsg = ref('')
+const graphMsgError = ref(false)
 
 const form = reactive({
   id: null,
@@ -474,6 +522,81 @@ async function deleteWizard(id) {
     console.error('Delete error:', e)
   }
 }
+
+// -- Graph tab functions --
+
+const graphPreview = computed(() => {
+  try { return JSON.parse(graphJsonText.value) } catch { return null }
+})
+
+async function loadGraphForET() {
+  if (!form.equipment_type_id) return
+  try {
+    const { data } = await api.get('/core/question-graph/admin/')
+    const match = data.find(g => g.equipment_type_id == form.equipment_type_id)
+    if (match) {
+      graphId.value = match.id
+      graphCode.value = match.code
+      const { data: detail } = await api.get(`/core/question-graph/admin/${match.id}/`)
+      graphJsonText.value = JSON.stringify(detail.graph_json || {}, null, 2)
+      graphMsg.value = ''
+    } else {
+      graphId.value = null
+      graphJsonText.value = '{}'
+    }
+  } catch (e) { console.error(e) }
+}
+
+async function createGraphForET() {
+  if (!form.equipment_type_id) return
+  try {
+    const { data } = await api.post('/core/question-graph/admin/', {
+      code: form.code || 'graph_' + Date.now(),
+      name: form.name || 'Граф',
+      equipment_type_id: form.equipment_type_id,
+      graph_json: { entry_node: '', nodes: {}, edges: [] },
+      is_active: true,
+    })
+    graphId.value = data.id
+    graphCode.value = data.code
+    graphJsonText.value = JSON.stringify({ entry_node: '', nodes: {}, edges: [] }, null, 2)
+    graphMsg.value = 'Граф создан'
+    graphMsgError.value = false
+  } catch (e) {
+    graphMsg.value = 'Ошибка: ' + (e.response?.data?.error || e.message)
+    graphMsgError.value = true
+  }
+}
+
+async function saveGraph() {
+  if (!graphId.value || !graphPreview.value) return
+  const nodes = graphPreview.value.nodes || {}
+  if (!Object.keys(nodes).length) {
+    graphMsg.value = 'Ошибка: граф не содержит узлов'
+    graphMsgError.value = true
+    return
+  }
+  try {
+    await api.put(`/core/question-graph/admin/${graphId.value}/`, { graph_json: graphPreview.value })
+    graphMsg.value = 'Граф сохранён'
+    graphMsgError.value = false
+  } catch (e) { graphMsg.value = 'Ошибка: ' + e.message; graphMsgError.value = true }
+}
+
+async function generateFromGraph() {
+  if (!graphCode.value) return
+  try {
+    const { data } = await api.post(`/core/question-graph/${graphCode.value}/to-wizard/`)
+    form.pages = data.pages || []
+    form.filters = data.filters || []
+    editorTab.value = 'steps'
+    graphMsg.value = `Шаги сгенерированы: ${data.pages.length} страниц, ${data.filters.length} фильтров`
+    graphMsgError.value = false
+  } catch (e) {
+    graphMsg.value = 'Ошибка: ' + (e.response?.data?.error || e.message)
+    graphMsgError.value = true
+  }
+}
 </script>
 
 <style scoped>
@@ -540,4 +663,12 @@ h4 { font-size: 14px; margin: 16px 0 8px; color: #6b7280; }
 .wa-btn-danger { padding: 2px 8px; background: #fff; color: #ef4444; border: 1px solid #fca5a5; border-radius: 4px; font-size: 12px; cursor: pointer; }
 
 .wa-error { margin-top: 12px; padding: 8px 16px; background: #fef2f2; color: #dc2626; border-radius: 6px; font-size: 13px; }
+.wa-btn-accent { padding: 8px 20px; background: #059669; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+.wa-success { margin-top: 12px; padding: 8px 16px; background: #ecfdf5; color: #065f46; border-radius: 6px; font-size: 13px; }
+.wa-tabs-main { margin-bottom: 16px; }
+.wa-json-editor { font-family: monospace; font-size: 13px; }
+.wa-graph-preview { margin: 8px 0; padding: 10px; background: #fafafa; border-radius: 6px; }
+.wa-node-chip { display: inline-block; margin: 2px 4px; padding: 2px 8px; background: #e0e7ff; border-radius: 4px; font-size: 12px; }
+.wa-node-chip b { color: #4338ca; }
+.wa-edge-chip { display: inline-block; margin: 2px 4px; padding: 2px 6px; background: #fce7f3; border-radius: 4px; font-size: 11px; color: #9d174d; }
 </style>

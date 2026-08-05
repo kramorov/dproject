@@ -113,17 +113,19 @@ class MyCatalogView(APIView):
 ```
 Страница /catalog/gearbox  →  meta: { section: 'catalog_gearbox' }
     │
-    ├─ Неавторизован → PUBLIC_SECTIONS.includes('catalog_gearbox') → доступ
-    └─ Авторизован   → /auth/me/ → section_permissions.includes('catalog_gearbox') → доступ
+    ├─ Неавторизован → /auth/me/ → section_permissions из anonymous_users SystemGroup → доступ
+    └─ Авторизован   → /auth/me/ → section_permissions из OrgRole + SystemGroup → доступ
 ```
 
-**Публичные разделы** (видны всем, включая неавторизованных):
+**Права неавторизованных** управляются через `anonymous_users` SystemGroup в админке
+(автосинк даёт `view` на все catalog + configurator объекты при `post_migrate`).
+
+**Разделы каталога** (защищены через `section` в meta роутера):
 - `catalog_gearbox`, `catalog_pa`, `catalog_ea`, `catalog_lsb`
 - `catalog_sv`, `catalog_fr`, `catalog_pf`, `catalog_cg`
-
-**Закрытые разделы** (только для авторизованных с соответствующей OrgRole):
-- `configurator_pa`, `configurator_ea`, `configurator_cab`
+- `configurator_pa`, `configurator_ea`, `configurator_cab`, `selector_pa`
 - `requests`, `certificates`, `llm_agent`
+- `admin_section` (администрирование)
 
 ### 2.3.2 Видимость данных внутри каталога (бренды, серии)
 
@@ -513,3 +515,20 @@ fd_climate = FilterDefinition(
 - **Мини-аппы для партнёров**: WordPress-плагин с API-ключами (см. `access.md`)
 - **Кэширование фильтров**: scoped filter options делают N+1 запросов — требуется кэш на уровне `CatalogConfig`
 - **Каталог пневмоприводов**: QuickSelect-стиль (не стандартный каталог). SKU — ленивое создание. `PaQuickSelect` + `PaProductCard`. Сертификаты через `CertDocMixin.cert_docs` (единый паттерн)
+
+
+### 2.7 QuickSelectNoSeries — быстрый подбор без серий
+
+Для каталогов, где фильтрация по сериям не нужна (пневмофитинги), используется
+отдельный компонент `QuickSelectNoSeries.vue` вместо `QuickSelect.vue`.
+
+**Отличия от QuickSelect:**
+- Нет чипсов «Серия» и внутренней фильтрации по model_line_id
+- Сразу загружает фильтры по всем товарам кросс-серийно
+- Бэкенд (`BaseQuickSelectView`) не требует `model_line_id` — опциональный параметр
+- Первая группа чипсов — `fitting_variety_id` («Тип фитинга»)
+
+**Файлы:**
+- `frontend/src/shared/components/catalog/QuickSelectNoSeries.vue` — компонент
+- `pneumatic_fittings/catalog/views_quickselect.py` — переопределённый `get()` без требования model_line_id
+- `frontend/src/apps/pneumatic-fittings-catalog/api.js` — `getQuickSelectNoSeries(filters)`
