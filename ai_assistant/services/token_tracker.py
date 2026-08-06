@@ -7,12 +7,11 @@ MAX_LATENCY_SAMPLES = 5
 
 
 def save_token_usage(message, usage_data, customer=None):
-    """Create AITokenUsage for an AIMessage."""
     from ..models import AITokenUsage
     lat = usage_data.get("latency_ms")
     if lat is None:
         lat = getattr(message, "latency_ms", None)
-    obj = AITokenUsage(
+    t = AITokenUsage(
         message=message,
         customer=customer,
         model=usage_data.get("model", "unknown"),
@@ -23,23 +22,23 @@ def save_token_usage(message, usage_data, customer=None):
         cost_estimate=usage_data.get("cost_estimate"),
         latency_ms=lat,
     )
-    obj.save()
-    return obj
+    t.save()
+    return t
 
 
-def estimate_cost(model, prompt_tokens, completion_tokens):
+def estimate_cost(model, pt, ct):
     if "deepseek" in model.lower():
-        return (prompt_tokens / 1_000_000) * 2.0 + (completion_tokens / 1_000_000) * 8.0
+        return (pt / 1_000_000) * 2.0 + (ct / 1_000_000) * 8.0
     return 0.0
 
 
 def update_skill_latency(skill, lat):
     if lat is None:
         return
-    old = skill.avg_latency_ms or 0
+    old_avg = skill.avg_latency_ms or 0
     cnt = min(skill.latency_sample_count or 0, MAX_LATENCY_SAMPLES - 1)
-    new = round((old * cnt + lat) / (cnt + 1))
-    skill.avg_latency_ms = new
+    new_avg = round((old_avg * cnt + lat) / (cnt + 1))
+    skill.avg_latency_ms = new_avg
     skill.latency_sample_count = cnt + 1
     skill.save(update_fields=["avg_latency_ms", "latency_sample_count"])
 

@@ -532,3 +532,31 @@ fd_climate = FilterDefinition(
 - `frontend/src/shared/components/catalog/QuickSelectNoSeries.vue` — компонент
 - `pneumatic_fittings/catalog/views_quickselect.py` — переопределённый `get()` без требования model_line_id
 - `frontend/src/apps/pneumatic-fittings-catalog/api.js` — `getQuickSelectNoSeries(filters)`
+
+---
+
+## 10. CatalogWizardAdapter — единый мастер подбора
+
+`GET /api/core/catalog-wizard/<code>/` — возвращает `{type: 'graph'|'flat', config: {...}}`.
+Приоритет: graph (если есть `QuestionGraph`) → flat (fallback на `SelectionWizard`).
+
+**Фронтенд:** `useCatalogWizard(code)` в каждом `App.vue`.
+При появлении графа для любого каталога — автоматическое переключение без изменений в коде.
+
+**QuestionGraphWizard** — radio-кнопки (как WizardSelection), подстраницы, `filterLabels`, авто-выбор.
+
+**Графы:** `pneumatic_fittings` (fitting_variety branching), `lsb` (sensor_variety branching).
+
+---
+
+## 11. CatalogConfig — единый источник фильтров
+
+Все каталоги переведены на `CatalogConfig` из `core/models/catalog_config.py`.
+`FilterDefinition` задаётся в `catalog/filter_defs.py`, `FilterSet` — в `catalog/config.py`.
+
+**Миграция (2026-08-06):**
+- `ai_assistant/services/filter_handlers.py` — 5 хендлеров: `filter_defs` → `config.get_filter_set("engineer").definitions`
+- `*/views/quickselect.py` (4 каталога) — `config.get_filter_set("quickselect").definitions`
+- `filter_regulator/views/engineer.py` — `config.get_filter_set("engineer").definitions`
+
+Старая схема `FILTER_DEFINITIONS` сохранена в `filter_defs.py` для обратной совместимости (wizard_registry, engineer views), но новые потребители используют только `CatalogConfig`.

@@ -922,3 +922,52 @@ class ExdCompatibleView(APIView):
             return Response({'ids': sorted(ids)})
         except Exception as e:
             return Response({'error': str(e), 'ids': []}, status=400)
+
+
+class AiSchemaView(APIView):
+    """GET /api/core/ai-schema/<code>/ — AI metadata for equipment type."""
+    permission_classes = []
+
+    def get(self, request, code):
+        from core.models.equipment_type import EquipmentType
+        try:
+            et = EquipmentType.objects.get(code=code)
+        except EquipmentType.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
+
+        # Get filter definitions for hints
+        hints = list(et.ai_hints) if et.ai_hints else []
+
+        # If no hints configured, generate from catalog config
+        if not hints:
+            hints = self._generate_hints(et)
+
+        return Response({
+            'equipment_type': et.code,
+            'title': et.ai_title or et.name,
+            'description': et.ai_description or '',
+            'placeholder': et.ai_placeholder or 'Опишите, какое оборудование вам нужно...',
+            'hints': hints,
+        })
+
+    @staticmethod
+    def _generate_hints(et):
+        """Auto-generate hints from catalog FilterSet definitions."""
+        hints = []
+        try:
+            from core.wizard_filter_registry import get_filter_definitions_for_ct
+            ct = et.content_type
+            if ct:
+                model_class = ct.model_class()
+                if model_class:
+                    defs = get_filter_definitions_for_ct(ct.id, model_class)
+                    if defs:
+                        for fd in defs[:8]:
+                            hints.append({
+                                'id': fd.param_name,
+                                'label': fd.label or fd.param_name,
+                                'param_name': fd.param_name,
+                            })
+        except Exception:
+            pass
+        return hints

@@ -690,15 +690,17 @@ class QuestionGraph(BaseAbstractModel):
 
 ### 9.3 Frontend
 
-- `QuestionGraphWizard.vue` — компонент для страниц каталога (чипсы, подстраницы, back-навигация)
+- `QuestionGraphWizard.vue` — компонент для страниц каталога (radio-кнопки, подстраницы, back-навигация, `filterLabels`, авто-выбор)
+- `useCatalogWizard.js` — фронтенд-адаптер (`type: 'graph'|'flat'`)
 - `QuestionGraphDemo.vue` — отладочная страница `/demo/question-graph`
 - `QuestionGraphAdmin.vue` — админка `/admin/question-graph` (JSON-редактор + превью)
-- `WizardAdminPage.vue` — вкладка «📊 Граф» (загрузка/сохранение графа для типа оборудования)
+- `WizardAdminPage.vue` — вкладка «📊 Граф» (CRUD графов, конвертер в wizard)
 
 ### 9.4 Интеграция в каталоги
 
-`App.vue` фитингов: при `onMounted` проверяет наличие графа → `graphAvailable`.
-`goToWizard()`: если граф есть → `page='graph'`, иначе → `page='wizard'`.
+Единый endpoint `CatalogWizardAdapterView` (`GET /api/core/catalog-wizard/<code>/`):
+приоритет граф → fallback плоский wizard. Все 5 каталогов используют `useCatalogWizard`
+в `App.vue`. При появлении графа для любого каталога — автоматическое переключение.
 
 ### 9.5 Скоупинг
 
@@ -706,9 +708,19 @@ class QuestionGraph(BaseAbstractModel):
 (включая `THREAD_COMPATIBLE`). Cross-FK поля (`thread_type_id`) маппятся
 через `_FIELD_LOOKUP`.
 
-### 9.6 TODO
+### 9.6 `default_value` и авто-выбор
 
-- Дизайн `QuestionGraphWizard` привести к стилю `WizardSelection` (radio-кнопки вместо чипсов)
+Узлы/подстраницы поддерживают `"default_value": {"param_name": value}`.
+`QuestionGraphWizard` авто-применяет defaults и авто-выбирает единственную опцию.
+
+### 9.7 Графы
+
+| Код | Каталог | Узлы | Branching |
+|---|---|---|---|
+| `pneumatic_fittings` | Пневмофитинги | fitting_variety → pipe_params/thread_params → material_params | по типу фитинга |
+| `lsb` | БКВ | sensor_variety → common_params → protection_params | по типу датчика |
+
+### 9.8 TODO
+
 - Совмещённый фильтр по резьбе (тип + размер в одном визуальном блоке)
-- Графы для БКВ (sensor_variety branching)
-- Графы для остальных каталогов по необходимости
+- Графы для остальных каталогов при необходимости branching'а

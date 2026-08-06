@@ -33,15 +33,13 @@
       </div>
       <div class="exd-row">
         <label>t мин</label>
-        <input v-model.number="manualMinTemp" type="number" class="climate-temp-input"
-               :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }"
-               @input="onManualTempChange" />
+        <input v-model="manualMinTemp" type="number" class="climate-temp-input"
+               :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }" />
       </div>
       <div class="exd-row">
         <label>t макс</label>
-        <input v-model.number="manualMaxTemp" type="number" class="climate-temp-input"
-               :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }"
-               @input="onManualTempChange" />
+        <input v-model="manualMaxTemp" type="number" class="climate-temp-input"
+               :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }" />
       </div>
     </div>
 
@@ -129,7 +127,7 @@ function emitTemps() {
       designation: `${selectedZone.value?.name || ''}${selectedPlacement.value?.code || ''}` })
   } else if (manualMinTemp.value != null || manualMaxTemp.value != null) {
     emit('update:temps', { zone_id: zoneId.value, placement_id: placementId.value,
-      min_temp: manualMinTemp.value, max_temp: manualMaxTemp.value, designation: 'вручную' })
+      min_temp: Number(manualMinTemp.value), max_temp: Number(manualMaxTemp.value), designation: 'вручную' })
   } else { emit('update:temps', null) }
 }
 
@@ -143,7 +141,7 @@ function onPlacementChange() {
   else { manualMinTemp.value = null; manualMaxTemp.value = null }
   emitTemps()
 }
-function onManualTempChange() { if (!tempsLocked.value) emitTemps() }
+watch([manualMinTemp, manualMaxTemp], () => { if (!tempsLocked.value) emitTemps() })
 
 async function onParseInput() {
   clearTimeout(parseTimer); parseError.value = ''

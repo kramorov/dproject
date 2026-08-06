@@ -1,50 +1,62 @@
 <template>
   <div class="qg-wizard">
-    <!-- Progress -->
-    <div v-if="!terminal && node" class="qg-progress">
-      {{ pageTitle }} — {{ subPage + 1 }}/{{ totalSubPages }}
-    </div>
-
-    <!-- Question -->
-    <div v-if="!terminal && node" class="qg-card">
-      <h3>{{ pageTitle || node.question }}</h3>
-      <p v-if="node.description" class="qg-desc">{{ node.description }}</p>
-
-      <div v-for="pn in currentParamNames" :key="pn" class="qg-options">
-        <div class="qg-label">{{ pn }}</div>
-        <div v-if="options[pn]">
-          <div
-            v-for="opt in options[pn]"
-            :key="opt.id"
-            class="qg-chip"
-            :class="{ active: answers[pn] === opt.id }"
-            @click="selectOption(pn, opt.id)"
-          >
-            {{ opt.name }}
-          </div>
-        </div>
-        <input
-          v-else
-          v-model.number="answers[pn]"
-          type="text"
-          class="qg-input"
-          :placeholder="pn"
-          @keyup.enter="advance"
-        />
+    <div v-if="!terminal && node">
+      <!-- Step indicator -->
+      <div class="qg-stepper">
+        <span class="qg-step-label">{{ pageTitle }}</span>
+        <span class="qg-step-counter" v-if="totalSubPages > 1">{{ subPage + 1 }}/{{ totalSubPages }}</span>
       </div>
 
-      <div class="qg-nav">
-        <button v-if="subPage > 0" class="qg-back" @click="goBack">← Назад</button>
-        <button class="qg-next" :disabled="!canAdvance" @click="advance">
-          {{ isLastSubPage ? 'Далее →' : 'Далее →' }}
-        </button>
+      <div class="qg-card">
+        <p v-if="node.description" class="qg-desc">{{ node.description }}</p>
+
+        <div v-for="pn in currentParamNames" :key="pn" class="qg-field">
+          <label class="qg-label">{{ filterLabels[pn] || pn }}</label>
+
+          <!-- Select for option lists -->
+          <div v-if="options[pn] && options[pn].length > 0" class="qg-radio-group">
+            <div
+              v-for="opt in options[pn]"
+              :key="opt.id"
+              class="qg-radio"
+              :class="{ selected: answers[pn] === opt.id }"
+              @click="selectOption(pn, opt.id)"
+            >
+              <span class="qg-radio-dot" />
+              {{ opt.name }}
+            </div>
+          </div>
+
+          <!-- Text input for numeric/text params -->
+          <input
+            v-else
+            v-model.number="answers[pn]"
+            type="text"
+            class="qg-input"
+            :placeholder="'Введите ' + (filterLabels[pn] || pn)"
+            @keyup.enter="advance"
+          />
+
+          <!-- Empty options -->
+          <div v-if="options[pn] && options[pn].length === 0" class="qg-empty">
+            Нет доступных вариантов
+          </div>
+        </div>
+
+        <div class="qg-nav">
+          <button v-if="subPage > 0" class="qg-back" @click="goBack">← Назад</button>
+          <span v-else />
+          <button class="qg-next" :disabled="!canAdvance" @click="advance">
+            {{ isLastSubPage ? 'Показать результаты' : 'Далее →' }}
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Results -->
     <div v-if="terminal" class="qg-results">
       <h3>Результаты подбора</h3>
-      <p>{{ total }} {{ totalLabel }}</p>
+      <p class="qg-count">{{ total }} {{ totalLabel }}</p>
       <div class="qg-grid">
         <div v-for="item in results" :key="item.id" class="qg-item" @click="$emit('select', item.id)">
           <strong>{{ item.code || item.name }}</strong>
@@ -63,12 +75,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import api from '@/shared/api'
 
 const props = defineProps({
   graphCode: { type: String, required: true },
   totalLabel: { type: String, default: 'найдено' },
+  filterLabels: { type: Object, default: () => ({}) },
 })
 
 defineEmits(['select', 'navigate'])
@@ -85,7 +98,6 @@ const pageTitle = ref('')
 const error = ref('')
 
 const history = ref([])
-
 const results = ref([])
 const total = ref(0)
 const page = ref(1)
@@ -108,7 +120,6 @@ const canAdvance = computed(() => {
   const pns = currentParamNames.value
   if (!pns.length) return false
   return pns.every(pn => {
-    // skip filters with no available options
     const opts = options.value[pn]
     if (opts !== undefined && opts.length === 0) return true
     const v = answers.value[pn]
@@ -119,19 +130,51 @@ const canAdvance = computed(() => {
 onMounted(async () => {
   try {
     const { data } = await api.get(`/core/question-graph/${props.graphCode}/`)
-    nodeId.value = data.entry_node_id
-    node.value = data.entry_node
-    options.value = data.entry_options || {}
-    subPage.value = data.sub_page || 0
-    totalSubPages.value = data.total_sub_pages || 1
-    pageTitle.value = data.page_title || data.entry_node?.question || ''
+    applyGraphConfig(data)
   } catch (e) {
     error.value = 'Ошибка загрузки: ' + (e.response?.data?.error || e.message)
   }
 })
 
+function applyGraphConfig(data) {
+  nodeId.value = data.entry_node_id
+  node.value = data.entry_node
+  options.value = data.entry_options || {}
+  subPage.value = data.sub_page || 0
+  totalSubPages.value = data.total_sub_pages || 1
+  pageTitle.value = data.page_title || data.entry_node?.question || ''
+  if (data.entry_node?.default_value) {
+    node.value = { ...node.value, default_value: data.entry_node.default_value }
+  }
+  autoApplyDefaults()
+  nextTick(() => autoSelectSingle())
+}
+
 function selectOption(paramName, value) {
   answers.value = { ...answers.value, [paramName]: value }
+}
+
+function autoSelectSingle() {
+  let changed = false
+  for (const pn of currentParamNames.value) {
+    const optList = options.value[pn]
+    if (optList && optList.length === 1 && (answers.value[pn] === undefined || answers.value[pn] === null)) {
+      selectOption(pn, optList[0].id)
+      changed = true
+    }
+  }
+  return changed
+}
+
+function autoApplyDefaults() {
+  if (!node.value) return
+  const defs = node.value.default_value
+  if (!defs || !Object.keys(defs).length) return
+  for (const [pn, val] of Object.entries(defs)) {
+    if (answers.value[pn] === undefined || answers.value[pn] === null) {
+      answers.value = { ...answers.value, [pn]: val }
+    }
+  }
 }
 
 async function advance() {
@@ -149,13 +192,7 @@ async function advance() {
       filtersApplied.value = data.filters_applied
       await loadResults(1)
     } else {
-      nodeId.value = data.node_id
-      node.value = data.node
-      options.value = data.options || {}
-      filtersApplied.value = data.filters_applied
-      subPage.value = data.sub_page || 0
-      totalSubPages.value = data.total_sub_pages || 1
-      pageTitle.value = data.page_title || data.node?.question || ''
+      applyGraphConfig(data)
       answers.value = {}
     }
   } catch (e) {
@@ -188,23 +225,32 @@ async function loadResults(p) {
 </script>
 
 <style scoped>
-.qg-wizard { max-width: 800px; margin: 0 auto; padding: 1rem; }
-.qg-progress { color: #666; margin-bottom: 1rem; font-size: 0.9rem; }
-.qg-card { background: #f8f9fa; border-radius: 12px; padding: 2rem; margin-bottom: 1rem; }
-.qg-card h3 { margin: 0 0 0.5rem; }
-.qg-desc { color: #666; margin-bottom: 1.5rem; }
-.qg-options { margin-bottom: 1.5rem; }
-.qg-label { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; color: #555; }
-.qg-chip { display: inline-block; padding: 0.5rem 1rem; margin: 0.25rem; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.15s; user-select: none; }
-.qg-chip:hover { border-color: #999; }
-.qg-chip.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
-.qg-input { padding: 0.5rem; border: 2px solid #ddd; border-radius: 8px; width: 200px; font-size: 1rem; }
-.qg-input:focus { border-color: #2563eb; outline: none; }
-.qg-nav { display: flex; justify-content: space-between; margin-top: 1.5rem; }
-.qg-back { padding: 0.75rem 1.5rem; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-.qg-next { padding: 0.75rem 2rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-.qg-next:disabled { background: #ccc; cursor: not-allowed; }
-.qg-results h3 { margin: 1rem 0 0.5rem; }
+.qg-wizard { max-width: 600px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, sans-serif; }
+.qg-stepper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.qg-step-label { font-size: 1.1rem; font-weight: 600; color: #1e293b; }
+.qg-step-counter { font-size: 0.85rem; color: #94a3b8; }
+.qg-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2rem; }
+.qg-desc { color: #64748b; margin-bottom: 1.5rem; line-height: 1.5; }
+.qg-field { margin-bottom: 1.5rem; }
+.qg-label { display: block; font-weight: 600; margin-bottom: 0.75rem; font-size: 0.95rem; color: #334155; }
+.qg-radio-group { display: flex; flex-direction: column; gap: 1px; background: #e2e8f0; border-radius: 8px; overflow: hidden; }
+.qg-radio { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; background: #fff; cursor: pointer; transition: background 0.15s; user-select: none; font-size: 0.95rem; }
+.qg-radio:hover { background: #f1f5f9; }
+.qg-radio.selected { background: #eff6ff; color: #1d4ed8; font-weight: 500; }
+.qg-radio.selected .qg-radio-dot { border-color: #3b82f6; background: #3b82f6; }
+.qg-radio-dot { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 50%; flex-shrink: 0; transition: all 0.15s; }
+.qg-radio.selected .qg-radio-dot { border-color: #3b82f6; box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 9px #3b82f6; }
+.qg-input { width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
+.qg-input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.qg-empty { color: #94a3b8; padding: 0.5rem 0; font-size: 0.9rem; }
+.qg-nav { display: flex; justify-content: space-between; margin-top: 2rem; }
+.qg-back { padding: 0.75rem 1.5rem; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+.qg-back:hover { background: #e2e8f0; }
+.qg-next { padding: 0.75rem 2rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 500; cursor: pointer; }
+.qg-next:disabled { background: #cbd5e1; cursor: not-allowed; }
+.qg-results { margin-top: 1rem; }
+.qg-results h3 { margin-bottom: 0.5rem; }
+.qg-count { color: #64748b; margin-bottom: 1rem; }
 .qg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; margin: 1rem 0; }
 .qg-item { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 0.75rem; cursor: pointer; }
 .qg-item strong { display: block; }

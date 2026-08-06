@@ -3,7 +3,10 @@
   <div class="srg">
     <span class="debug-tag" v-if="debug">SelectionResultGrid</span>
     <!-- Счётчик -->
-    <div class="srg-info" v-if="!loading">{{ resultsLabel }} {{ total }}</div>
+    <div class="srg-info">
+      <span class="srg-spinner" v-if="loading" />
+      <span v-else>{{ resultsLabel }} {{ total }}</span>
+    </div>
 
     <!-- Основной список -->
     <section v-if="items.length" class="srg-section">
@@ -142,4 +145,14 @@ defineEmits(['select', 'page-change', 'offset-change'])
   font-size: var(--cat-text-base, 14px);
   color: var(--cat-muted, #6b7280);
 }
+
+.srg-spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid var(--cat-border, #e5e7eb);
+  border-top-color: var(--cat-primary, #2563eb);
+  border-radius: 50%;
+  animation: srg-spin 0.6s linear infinite;
+}
+@keyframes srg-spin { to { transform: rotate(360deg); } }
 </style>

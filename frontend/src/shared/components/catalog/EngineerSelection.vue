@@ -10,6 +10,7 @@
       :filters="filterData"
       :show-compatible="showCompatible"
       :show-compatible-toggle="showCompatibleAvailable"
+      :graph-code="graphCode"
       @change="onFilterChange"
       @reset="resetFilters"
       @toggle-compatible="toggleCompatible"
@@ -41,7 +42,7 @@ import EngineerFilterBar from '@/shared/components/catalog/EngineerFilterBar.vue
 import EngineerProductCard from '@/shared/components/catalog/EngineerProductCard.vue'
 import SelectionResultGrid from '@/shared/components/catalog/SelectionResultGrid.vue'
 import { useCatalog } from '@/shared/composables/useCatalog.js'
-const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, withSearch:{type:Boolean,default:true}, fixedParams:{type:[Object,Function],default:null}, presetFilters:{type:Object,default:null} })
+const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, withSearch:{type:Boolean,default:true}, fixedParams:{type:[Object,Function],default:null}, presetFilters:{type:Object,default:null}, graphCode:{type:String,default:''} })
 defineEmits(['select', 'navigate'])
 const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible,search, activeFilters, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters, onSearchInput,goPage } = useCatalog(props.api,{ mode:'engineer', withSearch:props.withSearch, fixedParams:props.fixedParams })
 onMounted(async()=>{

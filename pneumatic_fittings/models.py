@@ -615,6 +615,18 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
             'name': self.name or '',
             'title': self.generate_title() if hasattr(self, 'generate_title') else (self.name or ''),
             'pipe_diameter': self.pipe_diameter,
+            'fitting_variety': {
+                'id': self.fitting_variety.id,
+                'name': self.fitting_variety.name,
+            } if self.fitting_variety else None,
+            'body_material': {
+                'id': self.body_material.id,
+                'name': self.body_material.name,
+            } if self.body_material else None,
+            'pipe_material': {
+                'id': self.pipe_material.id,
+                'name': self.pipe_material.name,
+            } if self.pipe_material else None,
             'thread_name': str(self.thread) if self.thread else None,
             'thread_inner_outer_name': str(self.thread_inner_outer) if self.thread_inner_outer else None,
             'images': [first_img] if first_img else [],

@@ -148,3 +148,18 @@
 # class CertDataViewSet(viewsets.ModelViewSet):
 #     queryset = CertData.objects.all()
 #     serializer_class = CertDataSerializer
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from params.models import ThreadTypes, ThreadSize
+
+
+class ThreadFilterOptionsView(APIView):
+    """GET /api/params/thread-filter/options/ — thread types and sizes."""
+    permission_classes = []
+
+    def get(self, request):
+        types = [{"id": t.pk, "name": str(t)} for t in ThreadTypes.objects.all().order_by("name")]
+        sizes = [{"id": s.pk, "name": str(s), "thread_type_id": s.thread_type_id} for s in ThreadSize.objects.all().order_by("sorting_order")]
+        return Response({"types": types, "sizes": sizes})

@@ -16,7 +16,11 @@
 
     <!-- Row 1: regular filter selects -->
     <div class="eng-filter-bar__chips" v-if="regularFilters.length">
-      <div v-for="f in regularFilters" :key="f.key" class="eng-filter-bar__chip">
+      <!-- Thread combined filter (type + size) -->
+      <div v-if="hasThreadPair" class="eng-filter-bar__chip eng-filter-bar__thread">
+        <ThreadFilter @change="onThreadChange" />
+      </div>
+      <div v-for="f in regularFilters" :key="f.key" class="eng-filter-bar__chip" v-show="!isThreadFilter(f.key) && isVisible(f.key)">
         <label class="eng-filter-bar__chip-label">{{ f.label }}</label>
         <span v-if="f.options.length === 1" class="eng-filter-bar__chip-single">{{ f.options[0].name }}</span>
         <select
@@ -51,6 +55,7 @@
 import { reactive, ref, computed, watch } from 'vue'
 import ExdFilter from '@/shared/components/ExdFilter.vue'
 import ClimateFilter from '@/shared/components/ClimateFilter.vue'
+import ThreadFilter from '@/shared/components/ThreadFilter.vue'
 
 const activeExdIds = ref([])
 
@@ -112,12 +117,44 @@ function onExdChange(ids) {
   }
 }
 
+const THREAD_KEYS = ['thread_type_id', 'thread_id']
+const hasThreadPair = computed(() => THREAD_KEYS.every(k => k in props.filters))
+function isThreadFilter(key) { return THREAD_KEYS.includes(key) }
+function onThreadChange(v) { if (v.thread_type_id != null) emit('change', 'thread_type_id', v.thread_type_id); if (v.thread_id != null) emit('change', 'thread_id', v.thread_id) }
+
 function onClimateChange(temps, key) {
   if (temps) {
     emit('change', 'work_temp_min', temps.min_temp)
     emit('change', 'work_temp_max', temps.max_temp)
   }
 }
+import api from '@/shared/api'
+
+const visibleParams = ref(null)
+function isVisible(key) {
+  if (visibleParams.value === null) return true
+  if (THREAD_KEYS.includes(key)) return hasThreadPair.value && visibleParams.value.has(key)
+  return visibleParams.value.has(key)
+}
+
+let visibilityTimer = null
+watch(() => ({ ...active }), () => {
+  if (!props.graphCode) return
+  clearTimeout(visibilityTimer)
+  visibilityTimer = setTimeout(async () => {
+    try {
+      const params = new URLSearchParams()
+      for (const [k, v] of Object.entries(active)) {
+        if (v) params.append(k, v)
+      }
+      const { data } = await api.get(`/core/question-graph/${props.graphCode}/visible-params/?${params}`)
+      visibleParams.value = new Set(data.visible || [])
+    } catch (e) {
+      visibleParams.value = null
+    }
+  }, 200)
+}, { deep: true })
+
 </script>
 
 <style scoped>

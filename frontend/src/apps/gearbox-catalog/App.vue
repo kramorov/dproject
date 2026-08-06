@@ -16,6 +16,7 @@
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="page = previousPage" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" :parent-mode="parentModeName" @select="id => onSelectItem(id, 'brand')" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="id => onSelectItem(id, 'quickselect')" @navigate="goToSection" />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'manual-override'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -23,7 +24,7 @@
       @select="id => onSelectItem(id, 'wizard')"
       @navigate="goToSection"
     />
-    <AiPlaceholder
+    <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
       :labels="labels.ai || {}"
       eq-name="Ручные дублёры"
@@ -32,7 +33,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import CatalogActions from '@/shared/components/catalog/CatalogActions.vue'
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
@@ -40,13 +41,16 @@ import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
-import AiPlaceholder from '@/shared/components/catalog/AiPlaceholder.vue'
+import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
+import { useCatalogWizard } from '@/shared/composables/useCatalogWizard'
+import QuestionGraphWizard from '@/shared/components/catalog/QuestionGraphWizard.vue'
 import gearboxApi from './api'
 const api = gearboxApi
 const equipmentTypeId = 10  // Редукторы
 
+const eqCode = 'manual-override'
 const labels = {
   section: { title:'Редукторы', subtitle:'Выберите серию редуктора', breadcrumbName:'Редукторы' },
   list: { title:'Редукторы — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
@@ -62,6 +66,7 @@ const labels = {
   wizard: { breadcrumbName:'Редукторы', wizardTitle:'Мастер подбора Редукторы' },
 }
 const cacheEpoch = ref(0)
+const graphAvailable = ref(false)
 const { page, selectedId, idValue, goToList: _goToList, goToBrand: _goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
 const previousPage = ref('section')
 const pageSubtitle = ref('')
@@ -87,10 +92,17 @@ const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function goToList() { cacheEpoch.value++; _goToList() }
 function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
+
+onMounted(async () => {
+  try {
+    const { type } = await useCatalogWizard('manual-override')
+    graphAvailable.value = type === 'graph'
+  } catch { }
+})
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }
 function goToQuickSelect() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'quickselect' }
 function goToAi() { previousPage.value = page.value; page.value = 'ai' }
-function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'wizard' }
+function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = graphAvailable.value ? 'graph' : 'wizard' }
 function goToSection() { cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
 </script>
 <style scoped>

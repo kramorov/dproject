@@ -85,6 +85,12 @@ class EquipmentType(BaseAbstractModel):
     )
 
 
+    # ── AI Catalog Schema ──
+    ai_title = models.CharField(max_length=200, blank=True, default="", verbose_name="AI title")
+    ai_description = models.TextField(blank=True, default="", verbose_name="AI description")
+    ai_placeholder = models.CharField(max_length=200, blank=True, default="", verbose_name="AI placeholder")
+    ai_hints = models.JSONField(blank=True, default=list, verbose_name="AI hints")
+
     # ── AI: схема и промпт ──
     output_schema = models.ForeignKey(
         "ai_assistant.JSONSchema", on_delete=models.SET_NULL, null=True, blank=True,

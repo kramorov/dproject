@@ -206,6 +206,7 @@ class QuestionGraphAdvanceView(APIView):
                 'sub_page': next_sub,
                 'total_sub_pages': len(pages),
                 'page_title': next_page.get('title', node.get('question', '')),
+                'default_value': next_page.get('default_value', {}),
             })
 
         # All sub-pages done → move to next node
@@ -236,6 +237,7 @@ class QuestionGraphAdvanceView(APIView):
             'sub_page': 0,
             'total_sub_pages': len(next_pages),
             'page_title': next_pages[0].get('title', next_node.get('question', '')) if next_pages else next_node.get('question', ''),
+            'default_value': next_pages[0].get('default_value', {}) if next_pages else {},
         })
 
 
@@ -455,3 +457,109 @@ def _get_node_id(graph, node) -> str | None:
         if n is node:
             return nid
     return None
+
+
+# ═══ Catalog Wizard Adapter ═══
+
+class CatalogWizardAdapterView(APIView):
+    """GET /api/core/catalog-wizard/<code>/ — unified wizard config (graph or flat)."""
+    permission_classes = []
+
+    def get(self, request, code):
+        # 1. Try graph
+        try:
+            graph = QuestionGraph.objects.get(code=code, is_active=True)
+        except QuestionGraph.DoesNotExist:
+            graph = None
+
+        if graph:
+            return self._graph_config(graph)
+
+        # 2. Fallback to flat wizard
+        return self._flat_config(code)
+
+    def _graph_config(self, graph):
+        entry_node = graph.get_entry_node()
+        if not entry_node:
+            return Response({'type': 'graph', 'error': 'No entry node'}, status=400)
+
+        pages = _get_node_pages(entry_node)
+        return Response({
+            'type': 'graph',
+            'config': {
+                'graph_code': graph.code,
+                'graph_name': graph.name,
+                'entry_node_id': graph.graph_json.get('entry_node'),
+                'entry_node': entry_node,
+                'graph_json': graph.graph_json,
+                'sub_page': 0,
+                'total_sub_pages': len(pages),
+                'page_title': pages[0]['title'] if pages else entry_node.get('question', ''),
+            }
+        })
+
+    def _flat_config(self, code):
+        try:
+            from core.models.equipment_type import EquipmentType
+            et = EquipmentType.objects.get(code=code)
+        except EquipmentType.DoesNotExist:
+            return Response({'error': f'Equipment type not found: {code}'}, status=404)
+
+        wizard = SelectionWizard.objects.filter(equipment_type=et, is_active=True).first()
+        if wizard:
+            pages = wizard.steps_json.get('pages', [])
+            filters = wizard.steps_json.get('filters', [])
+            return Response({
+                'type': 'flat',
+                'config': {
+                    'wizard_id': wizard.id,
+                    'name': wizard.name,
+                    'pages': pages,
+                    'filters': filters,
+                }
+            })
+        return Response({
+            'type': 'flat',
+            'config': {
+                'wizard_id': None,
+                'name': et.name,
+                'pages': [],
+                'filters': [],
+                'warning': 'No wizard or graph configured for this equipment type'
+            }
+        })
+class QuestionGraphVisibleParamsView(APIView):
+    permission_classes = []
+
+    def get(self, request, code):
+        try:
+            graph = QuestionGraph.objects.get(code=code, is_active=True)
+        except QuestionGraph.DoesNotExist:
+            return Response({"visible": []})
+        filters = {}
+        for k, v in request.query_params.items():
+            if v:
+                try: filters[k] = int(v)
+                except ValueError: filters[k] = v
+        visible = set()
+        visited = set()
+        cid = graph.graph_json.get("entry_node")
+        while cid and cid not in visited:
+            visited.add(cid)
+            node = graph.get_node(cid)
+            if not node: break
+            for page in _get_node_pages(node):
+                for pn in page.get("param_names", []):
+                    visible.add(pn)
+            pns = node.get("param_names") or ([node["param_name"]] if node.get("param_name") else [])
+            branches = node.get("branches", {})
+            if branches and pns:
+                val = filters.get(pns[0])
+                cid = branches.get(str(val)) if val is not None else branches.get("__default__")
+            else:
+                found = False
+                for e in graph.graph_json.get("edges", []):
+                    if e.get("from") == cid:
+                        cid = e["to"]; found = True; break
+                if not found: break
+        return Response({"visible": list(visible)})

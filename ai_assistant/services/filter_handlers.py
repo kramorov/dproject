@@ -71,38 +71,38 @@ def _apply_filters(model_class, filter_definitions, params: dict, limit: int = 1
 # ── Solenoid valves ──
 
 def solenoid_valves_filter(params: dict) -> dict:
-    from solenoid_valves.catalog.filter_defs import SOLENOID_VALVES_FILTER_DEFINITIONS
+    from solenoid_valves.catalog.config import SOLENOID_VALVES_CONFIG
     from solenoid_valves.models import DirectionValve
-    return _apply_filters(DirectionValve, SOLENOID_VALVES_FILTER_DEFINITIONS, params)
+    return _apply_filters(DirectionValve, SOLENOID_VALVES_CONFIG.get_filter_set("engineer").definitions, params)
 
 
 # ── Limit switch box ──
 
 def limit_switch_filter(params: dict) -> dict:
-    from pa_controls.catalog.filter_defs import LIMIT_SWITCH_FILTER_DEFINITIONS
+    from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
     from pa_controls.models.limit_switch import LimitSwitchBox
-    return _apply_filters(LimitSwitchBox, LIMIT_SWITCH_FILTER_DEFINITIONS, params)
+    return _apply_filters(LimitSwitchBox, LIMIT_SWITCH_CONFIG.get_filter_set("engineer").definitions, params)
 
 
 # ── Gearbox ──
 
 def gearbox_filter(params: dict) -> dict:
-    from gearbox.catalog.filter_defs import GEARBOX_FILTER_DEFINITIONS
+    from gearbox.catalog.config import GEARBOX_CONFIG
     from gearbox.models import GearBox
-    return _apply_filters(GearBox, GEARBOX_FILTER_DEFINITIONS, params)
+    return _apply_filters(GearBox, GEARBOX_CONFIG.get_filter_set("engineer").definitions, params)
 
 
 # ── Filter regulator ──
 
 def filter_regulator_filter(params: dict) -> dict:
-    from filter_regulator.catalog.filter_defs import FILTER_REGULATOR_FILTER_DEFINITIONS
+    from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
     from filter_regulator.models import FilterRegulator
-    return _apply_filters(FilterRegulator, FILTER_REGULATOR_FILTER_DEFINITIONS, params)
+    return _apply_filters(FilterRegulator, FILTER_REGULATOR_CONFIG.get_filter_set("engineer").definitions, params)
 
 
 # ── Pneumatic fittings ──
 
 def pneumatic_fittings_filter(params: dict) -> dict:
-    from pneumatic_fittings.catalog.filter_defs import PNEUMATIC_FITTINGS_FILTER_DEFINITIONS
+    from pneumatic_fittings.catalog.config import PNEUMATIC_FITTINGS_CONFIG
     from pneumatic_fittings.models import PneumaticFitting
-    return _apply_filters(PneumaticFitting, PNEUMATIC_FITTINGS_FILTER_DEFINITIONS, params)
+    return _apply_filters(PneumaticFitting, PNEUMATIC_FITTINGS_CONFIG.get_filter_set("engineer").definitions, params)

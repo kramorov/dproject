@@ -91,6 +91,22 @@ const specs = computed(() => {
   if (i.points != null) {
     result.push({ label: 'Контакты', value: i.points })
   }
+  // Fitting variety (pneumatic fittings)
+  if (i.fitting_variety) {
+    result.push({ label: 'Тип фитинга', value: typeof i.fitting_variety === 'object' ? (i.fitting_variety.name || '') : String(i.fitting_variety) })
+  }
+  // Thread name (pneumatic fittings use thread_name)
+  if (i.thread_name) {
+    result.push({ label: 'Резьба', value: String(i.thread_name) })
+  }
+  // Thread inner/outer (pneumatic fittings)
+  if (i.thread_inner_outer_name) {
+    result.push({ label: 'Нар./внут.', value: String(i.thread_inner_outer_name) })
+  }
+  // Pipe material (pneumatic fittings)
+  if (i.pipe_material) {
+    result.push({ label: 'Материал трубки', value: typeof i.pipe_material === 'object' ? (i.pipe_material.name || '') : String(i.pipe_material) })
+  }
 
   return result
 })

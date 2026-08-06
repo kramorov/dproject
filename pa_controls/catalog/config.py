@@ -30,7 +30,7 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
         'engineer': FilterSet(
             definitions=[
                 fd_model_line, fd_sensor_variety, fd_points, fd_ip,
-                fd_body_material, fd_brand,
+                fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
                 fd_signal_type, fd_contact_form, fd_exd, fd_climate,
             ],
             scoped=False,

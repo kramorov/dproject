@@ -51,6 +51,16 @@ fd_thread = FilterDefinition(
     order=5,
 )
 
+fd_thread_type = FilterDefinition(
+    param_name="thread_type_id",
+    model_field="body__thread__thread_type",
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    label="Тип резьбы",
+    order=6,
+    is_parent_filter=True,
+)
+
 fd_temp_min = FilterDefinition(
     param_name='work_temp_min',
     model_field='work_temp_min',

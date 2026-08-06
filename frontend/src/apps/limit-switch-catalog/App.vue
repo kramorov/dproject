@@ -47,6 +47,7 @@
       @select="id => onSelectItem(id, 'quickselect')"
       @navigate="goToSection"
     />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'lsb'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -54,7 +55,7 @@
       @select="id => onSelectItem(id, 'wizard')"
       @navigate="goToSection"
     />
-    <AiPlaceholder
+    <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
       :labels="labels.ai"
       eq-name="БКВ"
@@ -64,7 +65,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import CatalogActions from '@/shared/components/catalog/CatalogActions.vue'
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
@@ -73,12 +74,15 @@ import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
 import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
-import AiPlaceholder from '@/shared/components/catalog/AiPlaceholder.vue'
+import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
+import { useCatalogWizard } from '@/shared/composables/useCatalogWizard'
+import QuestionGraphWizard from '@/shared/components/catalog/QuestionGraphWizard.vue'
 import lsbApi from './api'
 const api = lsbApi
 const equipmentTypeId = 8  // Блок концевых выключателей
 
+const eqCode = 'lsb'
 const labels = {
   section: { title:'Блоки концевых выключателей', subtitle:'Выберите серию БКВ', breadcrumbName:'БКВ' },
   list: { title:'БКВ — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено', breadcrumbName:'БКВ' },
@@ -93,6 +97,7 @@ const labels = {
 }
 
 const cacheEpoch = ref(0)
+const graphAvailable = ref(false)
 const { page, selectedId, idValue, goToList: _goToList, goToBrand: _goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
 const previousPage = ref('section')
 const pageSubtitle = ref('')
@@ -118,9 +123,16 @@ const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function goToList() { cacheEpoch.value++; _goToList() }
 function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
+
+onMounted(async () => {
+  try {
+    const { type } = await useCatalogWizard('lsb')
+    graphAvailable.value = type === 'graph'
+  } catch { }
+})
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }
 function goToQuickSelect() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'quickselect' }
-function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'wizard' }
+function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = graphAvailable.value ? 'graph' : 'wizard' }
 function goToAi() { previousPage.value = page.value; page.value = 'ai' }
 function goToSection() { cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
 </script>

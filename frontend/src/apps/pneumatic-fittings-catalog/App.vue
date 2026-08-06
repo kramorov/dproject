@@ -12,7 +12,7 @@
     />
     <KeepAlive :key="cacheEpoch">
     <CatalogSection v-if="page === 'section'" :api="api" :labels="labels.section" @select-series="goToBrand" @navigate="goToSection" />
-    <EngineerSelection v-else-if="page === 'list'" :api="api" :labels="labels.list" @select="id => onSelectItem(id, 'list')" @navigate="goToSection" />
+    <EngineerSelection v-else-if="page === 'list'" :api="api" :labels="labels.list" :graph-code="graphCode" @select="id => onSelectItem(id, 'list')" @navigate="goToSection" /> 
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="page = previousPage" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" :parent-mode="parentModeName" @select="id => onSelectItem(id, 'brand')" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <QuickSelectNoSeries v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="id => onSelectItem(id, 'quickselect')" @navigate="goToSection" />
@@ -24,7 +24,7 @@
       @select="id => onSelectItem(id, 'wizard')"
       @navigate="goToSection"
     />
-    <AiPlaceholder
+    <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
       :labels="labels.ai || {}"
       eq-name="Пневмофитинги"
@@ -41,15 +41,18 @@ import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelectNoSeries from '@/shared/components/catalog/QuickSelectNoSeries.vue'
-import AiPlaceholder from '@/shared/components/catalog/AiPlaceholder.vue'
+import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
 import QuestionGraphWizard from '@/shared/components/catalog/QuestionGraphWizard.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
 import fittingApi from './api'
 import globalApi from '@/shared/api'
+import { useCatalogWizard } from '@/shared/composables/useCatalogWizard'
 const api = fittingApi
 const equipmentTypeId = 9  // Пневмофитинги
 
+const eqCode = 'fittings'
+const graphCode = 'pneumatic_fittings'
 const labels = {
   section: { title:'Пневматические фитинги', subtitle:'Выберите серию фитингов', breadcrumbName:'Фитинги' },
   list: { title:'Фитинги — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
@@ -94,7 +97,10 @@ function goToList() { cacheEpoch.value++; _goToList() }
 function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
 
 onMounted(async () => {
-  try { await globalApi.get('/core/question-graph/pneumatic_fittings/'); graphAvailable.value = true } catch { }
+  try {
+    const { type } = await useCatalogWizard('pneumatic_fittings')
+    graphAvailable.value = type === 'graph'
+  } catch { }
 })
 
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }

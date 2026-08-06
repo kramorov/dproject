@@ -7,7 +7,7 @@ from filter_regulator.models import FilterRegulator
 from filter_regulator.models.fr_model_line import FilterRegulatorModelLine
 from filter_regulator.catalog.filter_defs import (
     fd_model_line, fd_filtration, fd_body_material, fd_flow_rate,
-    fd_thread, fd_temp_min, fd_temp_max, fd_brand,
+    fd_thread, fd_thread_type, fd_temp_min, fd_temp_max, fd_brand,
     fd_climate,
 )
 
@@ -20,27 +20,27 @@ FILTER_REGULATOR_CONFIG = CatalogConfig(
         'list': FilterSet(
             definitions=[
                 fd_model_line, fd_filtration, fd_body_material,
-                fd_flow_rate, fd_thread, fd_climate, fd_brand,
+                fd_flow_rate, fd_thread, fd_temp_min, fd_temp_max, fd_climate, fd_brand,
             ],
             scoped=False,
-            show_compatible=True,
+            show_compatible=False,
         ),
         'engineer': FilterSet(
             definitions=[
                 fd_model_line, fd_filtration, fd_body_material,
-                fd_flow_rate, fd_thread, fd_climate, fd_brand,
+                fd_flow_rate, fd_thread, fd_temp_min, fd_temp_max, fd_climate, fd_brand,
             ],
             scoped=False,
-            show_compatible=True,
+            show_compatible=False,
         ),
 
         'model_line': FilterSet(
             definitions=[
                 fd_filtration, fd_body_material,
-                fd_flow_rate, fd_thread, fd_temp_min, fd_temp_max, fd_climate,
+                fd_flow_rate, fd_thread, fd_climate,
             ],
             scoped=True,
-            show_compatible=True,
+            show_compatible=False,
         ),
         'quickselect': FilterSet(
             definitions=[
