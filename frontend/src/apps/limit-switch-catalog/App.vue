@@ -102,7 +102,7 @@ const { page, selectedId, idValue, goToList: _goToList, goToBrand: _goToBrand } 
 const previousPage = ref('section')
 const pageSubtitle = ref('')
 
-const modeNames = { section:'Просмотр по сериям', list:'Инженерный подбор', brand:'Просмотр по сериям', detail:'', quickselect:'Быстрый подбор', wizard:'Мастер подбора', ai:'AI подбор' }
+const modeNames = { section:'Просмотр по сериям', list:'Инженерный подбор', brand:'Просмотр по сериям', detail:'', quickselect:'Быстрый подбор', wizard:'Мастер подбора', graph:'Мастер подбора', ai:'AI подбор' }
 const parentModeName = computed(() => {
   if (page.value === 'detail') return modeNames[previousPage.value] || 'Просмотр по сериям'
   if (page.value === 'brand') return 'Просмотр по сериям'
@@ -118,7 +118,7 @@ const breadcrumbs = computed(() => {
   return items
 })
 
-const tabKeys = { section:'section', brand:'section', list:'engineer', detail:'', quickselect:'quickselect', wizard:'wizard', ai:'ai' }
+const tabKeys = { section:'section', brand:'section', list:'engineer', detail:'', quickselect:'quickselect', wizard:'wizard', graph:'wizard', ai:'ai' }
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function goToList() { cacheEpoch.value++; _goToList() }

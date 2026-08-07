@@ -57,28 +57,12 @@ class QuestionGraph(BaseAbstractModel):
 
     def get_next_node(self, current_node_id: str, answer_value: str | None = None) -> dict | None:
         """
-        Определить следующий узел на основе текущего узла и ответа.
-
-        Если у узла есть branches — выбирает ветку по answer_value.
-        Иначе идёт по edges графа.
+        Определить следующий узел.
+        Поддерживает page-узлы (рёбра) и branch-узлы (conditions).
         """
-        node = self.get_node(current_node_id)
-        if not node:
-            return None
-
-        # Проверяем branching
-        branches = node.get('branches', {})
-        if branches and answer_value is not None:
-            next_id = branches.get(str(answer_value)) or branches.get('__default__')
-            if next_id:
-                return self.get_node(next_id)
-
-        # Fallback: ищем ребро в edges
-        edges = self.graph_json.get('edges', [])
-        for edge in edges:
-            if edge.get('from') == current_node_id:
-                return self.get_node(edge['to'])
-
+        next_id = self._get_next_node_id(current_node_id, answer_value)
+        if next_id:
+            return self.get_node(next_id)
         return None
 
     def resolve_path(self, answers: dict[str, str]) -> list[str]:
@@ -101,15 +85,30 @@ class QuestionGraph(BaseAbstractModel):
         return path
 
     def _get_next_node_id(self, node_id: str, answer_value: str | None = None) -> str | None:
-        """Вернуть ID следующего узла (без загрузки полного узла)."""
+        """Вернуть ID следующего узла."""
         node = self.graph_json.get('nodes', {}).get(node_id)
         if not node:
             return None
 
+        # branch-узел: match_values → match_target, иначе else_target
+        if node.get('type') == 'branch':
+            match_values = node.get('match_values', [])
+            if match_values and answer_value is not None:
+                if str(answer_value) in [str(v) for v in match_values]:
+                    return node.get('match_target') or node.get('else_target')
+                else:
+                    return node.get('else_target') or node.get('match_target')
+            # Fallback: первый не-пустой target
+            return node.get('match_target') or node.get('else_target')
+
+        # Старый формат: branches внутри page-узла
         branches = node.get('branches', {})
         if branches and answer_value is not None:
             return branches.get(str(answer_value)) or branches.get('__default__')
 
+        # page-узел: next_node, затем рёбра
+        if node.get('next_node'):
+            return node['next_node']
         for edge in self.graph_json.get('edges', []):
             if edge.get('from') == node_id:
                 return edge['to']

@@ -24,198 +24,51 @@
 
 ## 2. Модели данных
 
-### 2.1 `SelectionWizard` (`core/models/selection_wizard.py`)
+### 2.1 `QuestionGraph` (`core/models/question_graph.py`)
 
-```python
-class SelectionWizard(BaseAbstractModel):
-    equipment_type = FK(EquipmentType, CASCADE, related_name='selection_wizards')
-    steps_json = JSONField(default=dict)
-```
-
-**`steps_json`** — JSON из двух секций:
+**`graph_json`** — граф с двумя типами узлов:
 
 ```json
-{
-  "pages": [
-    {"step_number": 1, "title": "Заголовок шага", "description": "Описание"},
-    {"step_number": 2, ...}
-  ],
-  "filters": [
-    {
-      "param_name": "sensor_variety_id",
-      "page": 1,
-      "order": 1,
-      "label": "Тип сенсора",
-      "default_value": null
-    },
-    ...
-  ]
-}
+{"entry_node":"page_variety","nodes":{"page_variety":{"type":"page","name":"Выбор типа","params":[{"title":"Тип","param_name":"fitting_variety_id","order":1}],"next_node":"branch_variety"},"branch_variety":{"type":"branch","name":"По типу","param_name":"fitting_variety_id","match_values":["1","2"],"match_target":"page_pipe","else_target":"page_thread"}},"edges":[{"from":"page_variety","to":"branch_variety"}]}
 ```
 
-- **`pages`** — шаги мастера: номер, заголовок, описание.
-- **`filters`** — фильтры: ссылка на `param_name` из `FILTER_DEFINITIONS` модели,
-  номер шага (`page`), порядок (`order`), заголовок для UI (`label`),
-  значение по умолчанию (`default_value`).
+- **page-узел**: `name`, `params` (список {title, param_name, order}), `next_node`
+- **branch-узел**: `name`, `param_name`, `match_values`, `match_target`, `else_target`
+- **`_get_next_node_id`**: branch проверяет match_values; page: next_node → edges
 
-Метод `get_steps()` группирует фильтры по `page`, сортирует внутри по `order`,
-и возвращает список шагов в формате, готовом для фронтенда:
-```python
-[
-  {
-    "step_number": 1,
-    "title": "...",
-    "description": "...",
-    "filters": [{"param_name": "...", "label": "...", ...}, ...]
-  },
-  ...
-]
-```
-
-### 2.2 `EquipmentType.active_selection_wizard`
-
-```python
-class EquipmentType(BaseAbstractModel):
-    active_selection_wizard = FK(SelectionWizard, SET_NULL, null=True,
-                                 related_name='equipment_types')
-```
-
-Один EquipmentType может иметь один активный мастер. Связь через
-`active_selection_wizard` — именно её проверяет API при запросе конфигурации.
-
-### 2.3 `FilterDefinition` (`core/models/filter_definition.py`)
-
-Декларативное описание одного фильтра. Существует в двух местах:
-1. **На классе модели** — `LimitSwitchBox.FILTER_DEFINITIONS = [...]`
-2. **В catalog/filter_defs.py** — `GEARBOX_FILTER_DEFINITIONS = [...]`
-
-Мастеру нужен `param_name` для поиска FilterDefinition и вызова
-`fd.get_options(model_class)`, `fd.build_filter_lookup(value)`.
-
-### 2.4 `wizard_filter_registry.py` — реестр для моделей без FILTER_DEFINITIONS
-
-Некоторые модели (GearBox, DirectionValve, FilterRegulator) хранят
-`FilterDefinition` только в `catalog/filter_defs.py`, а не как атрибут класса.
-Реестр связывает `content_type_id` с путём импорта:
-
-```python
-WIZARD_FILTER_REGISTRY = {
-    275: ('gearbox.catalog.filter_defs', 'GEARBOX_FILTER_DEFINITIONS'),   # GearBox
-    227: ('solenoid_valves.catalog.filter_defs', 'SOLENOID_VALVES_FILTER_DEFINITIONS'),  # DirectionValve
-    270: ('filter_regulator.catalog.filter_defs', 'FILTER_REGULATOR_FILTER_DEFINITIONS'), # FilterRegulator
-}
-```
-
-Функция `get_filter_definitions_for_ct(content_type_id)` делает ленивый
-`importlib.import_module` и возвращает список `FilterDefinition`.
-Не модифицирует существующие модели — только читает их `catalog/filter_defs.py`.
-
----
+### 2.2 `SelectionWizard` — устарел
 
 ## 3. Бэкенд API
 
-### 3.1 Структура файлов
+### 3.1 Файлы
 
 | Файл | Назначение |
 |------|-----------|
-| `core/models/selection_wizard.py` | Модель `SelectionWizard` |
-| `core/models/equipment_type.py` | Поле `active_selection_wizard` |
-| `core/wizard_views.py` | Все API views (публичные + админские) |
-| `core/wizard_filter_registry.py` | Реестр фильтров для моделей без `FILTER_DEFINITIONS` |
-| `core/urls.py` | Маршруты `/api/core/wizard/...` |
-| `core/admin.py` | Django Admin регистрация `SelectionWizard` |
-| `core/migrations/0007_selectionwizard_and_more.py` | Миграция |
+| `core/models/question_graph.py` | Модель `QuestionGraph` |
+| `core/question_graph_views.py` | API: config, advance, results |
+| `core/wizard_filter_registry.py` | Реестр FilterDefinition |
+| `core/management/commands/load_question_graph.py` | Загрузка графов |
 
-### 3.2 Список endpoint'ов
+### 3.2 Endpoint'ы
 
-#### Публичные (permission = `catalog_permission_classes()` → `AllowAny`)
+| Метод | Путь | Назначение |
+|-------|------|-----------|
+| `GET` | `/api/core/question-graph/<code>/` | Конфигурация: entry_node + опции |
+| `POST` | `.../<code>/advance/` | Переход к следующему узлу |
+| `POST` | `.../<code>/results/` | Результаты подбора |
+| `GET/POST/PUT/DELETE` | `.../admin/...` | CRUD графов |
 
-| # | Метод | Путь | Назначение |
-|---|-------|------|-----------|
-| 1 | `GET` | `/api/core/wizard/<equipment_type_id>/` | Конфигурация мастера (шаги + фильтры) |
-| 2 | `POST` | `.../<equipment_type_id>/filter-options/` | Опции фильтра с полем `description` |
-| 3 | `POST` | `.../<equipment_type_id>/results/` | Подбор: пагинированный список моделей |
-| 4 | `GET` | `/api/core/wizard/model-filters/?content_type_id=X` | FILTER_DEFINITIONS модели (для админки) |
+### 3.3 Логика advance
 
-#### Админские (permission = `IsAuthenticated` + `IsAdminOrSuperuser`)
+1. Для page-узла: сохраняет ответы в `accumulated`
+2. Для branch-узла: `branch_val = accumulated[param_name]`
+3. `graph._get_next_node_id(node_id, branch_val)`
+4. Нет следующего → `terminal: true`
+5. Иначе → опции через `_get_options_for_page_node`
 
-| # | Метод | Путь | Назначение |
-|---|-------|------|-----------|
-| 5 | `GET` | `/api/core/wizard/admin/` | Список всех мастеров |
-| 6 | `POST` | `/api/core/wizard/admin/` | Создать мастера |
-| 7 | `GET` | `/api/core/wizard/admin/<id>/` | Получить одного |
-| 8 | `PUT` | `/api/core/wizard/admin/<id>/` | Обновить |
-| 9 | `DELETE` | `/api/core/wizard/admin/<id>/` | Удалить |
-| 10 | `GET` | `/api/core/wizard/model-filters/equipment-types/` | Список EquipmentType (для админки) |
-| 11 | `GET` | `.../equipment-types/<id>/` | content_type_id одного EquipmentType |
+### 3.4 Cross-FK
 
-### 3.3 Ключевые классы в `core/wizard_views.py`
-
-**`WizardModelMixin`** — общие методы:
-- `_get_equipment_type(id)` — EquipmentType или None
-- `_get_model_class(et)` — класс модели Django через `et.content_type.model_class()`
-- `_find_filter_definition(model_class, param_name)` — сначала ищет в `model_class.FILTER_DEFINITIONS`, затем fallback в `wizard_filter_registry`
-- `_get_definitions_from_registry(model_class)` — ленивый импорт через `ContentType.objects.get_for_model()`
-
-**`WizardConfigView(WizardModelMixin, APIView)`** — эндпоинт 1:
-- Берёт `et.active_selection_wizard`
-- Вызывает `wizard.get_steps()` → JSON со сгруппированными шагами
-
-**`WizardFilterOptionsView(WizardModelMixin, APIView)`** — эндпоинт 2:
-- Принимает `param_name` и опционально `filters_applied`
-- `_get_scoped_options()` — если переданы `filters_applied`, строит scoped queryset
-  (применяет уже выбранные фильтры кроме текущего) и вызывает `fd.get_options(model_class, queryset=qs)`
-- `_enrich_options()` — добавляет поле `description` к каждой опции:
-  - Для FK/GLOBAL_MODEL: загружает связанные объекты, берёт `obj.description`
-  - Для FIELD_VALUES/CHOICES: `description = name`
-
-**`WizardResultsView(WizardModelMixin, APIView)`** — эндпоинт 3:
-- Принимает `filters_applied`, `page`, `page_size`
-- Строит queryset, применяет фильтры через `fd.build_filter_lookup(value)`
-- `select_related` из `model.SELECT_RELATED_FIELDS`
-- Сериализация: `obj.to_dict()` с fallback на `{id, name, code}`
-- Пагинация: offset = (page-1) * page_size
-
-**`WizardModelFiltersView(APIView)`** — эндпоинт 4:
-- Берёт `content_type_id`, получает модель
-- Ищет `FILTER_DEFINITIONS` на модели или через реестр
-- Возвращает список `{param_name, label, filter_type, ...}`
-
-**`WizardAdminListView(APIView)`** — эндпоинты 5, 6:
-- GET: список всех `SelectionWizard` с `select_related('equipment_type')`
-- POST: создаёт мастера (валидация: name не пустой, `equipment_type_id` существует)
-
-**`WizardAdminDetailView(APIView)`** — эндпоинты 7, 8, 9:
-- GET/PUT/DELETE одного мастера
-- PUT: обновляет переданные поля, валидация name, обработка `IntegrityError`
-
-**`WizardEquipmentTypesView(APIView)`** — эндпоинты 10, 11:
-- GET без ID: список всех активных EquipmentType с `content_type_id`
-- GET с ID: `content_type_id` одного EquipmentType
-
-**`IsAdminOrSuperuser(BasePermission)`**:
-- Проверяет `user.is_authenticated` и `user.is_superuser or user.is_staff`
-- Соответствует тому, как `CurrentUserView` возвращает `roles: ['admin']`
-
-### 3.4 Как фильтры попадают в wizard (важно!)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Модели с FILTER_DEFINITIONS на классе (LimitSwitchBox,      │
-│ PneumaticFitting):                                          │
-│   model.FILTER_DEFINITIONS → WizardModelMixin читает напрямую│
-├─────────────────────────────────────────────────────────────┤
-│ Модели без FILTER_DEFINITIONS (GearBox, DirectionValve,     │
-│ FilterRegulator):                                           │
-│   wizard_filter_registry.py → ленивый importlib.import_module│
-│   → catalog/filter_defs.py → XXX_FILTER_DEFINITIONS         │
-└─────────────────────────────────────────────────────────────┘
-```
-
-Оба пути возвращают список `FilterDefinition` объектов, которые используются
-для `get_options()`, `build_filter_lookup()`, и отображения в админке.
-
----
+`_resolve_cross_fk_field` ищет `model_field` с `__` (например `body__thread`) через `FilterDefinition` или wizard-реестр.
 
 ## 4. Фронтенд
 
@@ -409,231 +262,19 @@ Smoke-test (`_check.py` — удалён после прогона) через D
 
 ---
 
-## 7. Как добавить мастер для нового каталога
+## 7. Как добавить мастер
 
-1. Убедиться, что модель каталога имеет `FILTER_DEFINITIONS` (на классе или через реестр)
-2. В EquipmentType указать `content_type` на правильную модель
-3. Через админку (`/admin/wizard-config`) создать `SelectionWizard`:
-   - Выбрать EquipmentType → нажать «Заполнить из модели»
-   - Сгруппировать фильтры по шагам
-   - Сохранить
-4. В `App.vue` каталога:
-   - Добавить `const equipmentTypeId = <ID>`
-   - Импортировать `WizardSelection`
-   - Добавить `<WizardSelection v-else-if="page === 'wizard'" .../>`
-   - Добавить `goToWizard()` и `tabKeys`
-5. Фронтенд каталога сам загрузит конфигурацию через API
+1. Модель должна иметь `FILTER_DEFINITIONS` или запись в реестре
+2. Создать граф через `/admin/wizard-config` или `load_question_graph.py`
+3. В `App.vue`: `graph-code="'<code>'"` + `goToWizard()`
 
----
+## 8. От профилей к графу
 
-## 8. Профили подбора (FilterProfile) — условные фильтры
+Старый `SelectionWizard` с `steps_json` был плоским. QuestionGraph заменил шаги и профили:
 
-> Добавлено 2026-08-03.  
-> Описывает переход от плоской структуры шагов к профилям с условной
-> видимостью фильтров в зависимости от значений branching-фильтра.
-
-### 8.1 Проблема
-
-Текущая структура `steps_json` — плоская: все фильтры шага видны всегда.
-Но для некоторых EquipmentType набор релевантных фильтров зависит от
-выбранного значения.
-
-**Пример — Пневмофитинги:**
-
-```
-fitting_variety_id = «тройник»   → нужны: трубка, резьба
-fitting_variety_id = «глушитель» → нужна: только резьба (трубка не имеет смысла)
-fitting_variety_id = «заглушка»  → нужна: только резьба
-fitting_variety_id = «распределитель» → нужны: трубка, резьба, фитинги, заглушки
-```
-
-Плоская структура показывает все фильтры сразу — пользователь видит
-нерелевантные поля, а на последнем шаге получает 0 результатов, потому
-что заполнил бессмысленный фильтр.
-
-### 8.2 Решение: Профили (FilterProfile)
-
-**Профиль** — именованный набор шагов и фильтров, который активируется
-при выборе определённых значений **branching-фильтра**.
-
-Один EquipmentType может иметь несколько профилей. Профиль ≠ дочерний
-EquipmentType — это надстройка над плоским списком `FILTER_DEFINITIONS`,
-а не новый узел в таксономии.
-
-#### Структура `steps_json` v2
-
-```json
-{
-  "branching_filter": "fitting_variety_id",
-  "common_steps": [
-    {"step_number": 1, "title": "Тип фитинга", "filters": ["fitting_variety_id"]}
-  ],
-  "profiles": [
-    {
-      "id": "tube_fittings",
-      "name": "Трубочные фитинги",
-      "trigger_values": [1, 3, 7],
-      "steps": [
-        {"step_number": 2, "title": "Трубка", "filters": ["pipe_diameter", "pipe_material_id"]},
-        {"step_number": 3, "title": "Резьба", "filters": ["thread_type_id", "thread_id"]}
-      ]
-    },
-    {
-      "id": "silencers_plugs",
-      "name": "Глушители и заглушки",
-      "trigger_values": [5, 9],
-      "steps": [
-        {"step_number": 2, "title": "Резьба", "filters": ["thread_type_id", "thread_id"]}
-      ]
-    }
-  ]
-}
-```
-
-- **`common_steps`** — шаги, видимые всегда (обычно шаг 1: выбор branching-значения)
-- **`branching_filter`** — `param_name` фильтра, значение которого определяет активный профиль
-- **`profiles`** — список профилей. Каждый содержит:
-  - `trigger_values` — ID опций branching-фильтра, при которых профиль активен
-  - `steps` — собственные шаги профиля (показываются после `common_steps`)
-
-#### Как определяется активный профиль
-
-1. Пользователь выбирает значение branching-фильтра (шаг 1)
-2. Фронтенд ищет профиль, у которого `trigger_values` содержит выбранный ID
-3. Если профиль найден — показываются `common_steps` + `steps` профиля
-4. Если не найден — показываются только `common_steps` (fallback)
-5. При смене значения branching-фильтра — профиль переопределяется,
-   нерелевантные выбранные значения сбрасываются
-
-#### Отличие от дерева EquipmentType
-
-| Критерий | Дерево EquipmentType | Профили |
-|---|---|---|
-| Таксономия | Раздувается: каждый вариант → новый тип | Стабильна: один тип = одна модель БД |
-| Комбинаторный взрыв | N branching-фильтров → N×M EquipmentType | N branching-фильтров → N профилей |
-| Админка | N мастеров, каждый со своей конфигурацией | Один мастер, профили внутри |
-| JSON Schema | Плоская для каждого ET | `oneOf`/`if-then` внутри одной схемы |
-
-### 8.3 Scoping опций (уже работает)
-
-**Scoping** — сужение доступных опций фильтра в зависимости от ранее
-выбранных значений. Например: «выбрана трубка из нержавейки → в фитингах
-показываются только совместимые с нержавейкой».
-
-В отличие от профилей (которые управляют **видимостью фильтров**),
-scoping управляет **доступными опциями внутри видимого фильтра**.
-
-#### Текущая реализация
-
-`WizardFilterOptionsView._get_scoped_options()` строит отфильтрованный
-queryset на основе `filters_applied` и возвращает опции только из него.
-Это работает автоматически для всех фильтров, без дополнительной
-конфигурации:
-
-```python
-# core/wizard_views.py, WizardFilterOptionsView._get_scoped_options
-qs = model_class.objects.filter(is_active=True)
-for pn, val in filters_applied.items():
-    if val is None:
-        continue
-    other_fd = self._find_filter_definition(model_class, pn)
-    lookup, converted = other_fd.build_filter_lookup(val)
-    if lookup:
-        qs = qs.filter(**{lookup: converted})
-
-return fd.get_options(model_class, queryset=qs)
-```
-
-**Никаких изменений не требуется.** Фронтенд уже передаёт `filters_applied`
-при каждом запросе `filter-options/`, поэтому опции自动 сужаются.
-
-### 8.4 Использование профилей для JSON Schema (AI)
-
-Текущий `GenerateSchemaFromModelView` строит **плоскую** JSON Schema:
-```json
-{"type": "object", "properties": {...}, "required": [...]}
-```
-
-С профилями схема становится **условной** — через `oneOf` + `if/then/else`.
-Это позволяет AI-пайплайну (фаза extract) понимать, какие поля обязательны
-в зависимости от значения branching-фильтра.
-
-#### Пример сгенерированной схемы
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "fitting_variety_id": {"type": "integer"}
-  },
-  "required": ["fitting_variety_id"],
-  "oneOf": [
-    {
-      "if": {
-        "properties": {"fitting_variety_id": {"enum": [1, 3, 7]}}
-      },
-      "then": {
-        "properties": {
-          "pipe_diameter": {"type": "number"},
-          "pipe_material_id": {"type": "integer"},
-          "thread_type_id": {"type": "integer"},
-          "thread_id": {"type": "integer"}
-        },
-        "required": ["pipe_diameter", "thread_id"]
-      }
-    },
-    {
-      "if": {
-        "properties": {"fitting_variety_id": {"enum": [5, 9]}}
-      },
-      "then": {
-        "properties": {
-          "thread_type_id": {"type": "integer"},
-          "thread_id": {"type": "integer"}
-        },
-        "required": ["thread_id"]
-      }
-    }
-  ]
-}
-```
-
-#### Как это работает в AI-пайплайне
-
-1. **Decompose**: LLM определяет EquipmentType (Пневмофитинги)
-2. **Extract**: LLM получает схему с `oneOf` — она понимает, что поля
-   `pipe_diameter` и `pipe_material_id` нужны только если `fitting_variety_id`
-   попадает в `[1, 3, 7]`
-3. **Validate**: проверка `required` учитывает активную ветку `oneOf`
-4. **Filter**: применяются только те фильтры, которые были извлечены
-   (нерелевантные просто не передаются)
-
-#### Генерация из профилей
-
-`GenerateSchemaFromModelView` при наличии `FilterProfile` для данного
-EquipmentType:
-
-1. Читает `branching_filter` и список профилей
-2. Для каждого профиля строит `then`-ветку:
-   - `properties` — из `FILTER_DEFINITIONS`, отфильтрованных по профилю
-   - `required` — поля с `mandatory='yes'`
-3. Оборачивает в `oneOf` с `if` (условие по `trigger_values`)
-4. Поля из `common_steps` попадают в корневые `properties`
-
-Без профилей — поведение не меняется (плоская схема, обратная совместимость).
-
-### 8.5 План реализации
-
-| № | Шаг | Файлы |
-|---|---|---|
-| 1 | `FilterDefinition.profile_group` — строковый тэг для группировки фильтров | `core/models/filter_definition.py`, `*/catalog/filter_defs.py` |
-| 2 | Модель `FilterProfile` — branching_filter, trigger_values, filter_param_names, steps_json | `core/models/filter_profile.py` (новый), миграция |
-| 3 | `steps_json` v2 — `get_steps()` поддерживает `common_steps` + `profiles` | `core/models/selection_wizard.py` |
-| 4 | `WizardSelection.vue` — `activeProfile`, `visibleSteps`, динамические чипсы | `frontend/src/shared/components/catalog/WizardSelection.vue` |
-| 5 | `WizardAdminPage.vue` — управление профилями | `frontend/src/pages/admin/WizardAdminPage.vue` |
-| 6 | `GenerateSchemaFromModelView` — `oneOf`/`if-then` из профилей | `ai_assistant/api/views.py` |
-
----
+- **page-узлы** — аналоги шагов: список параметров
+- **branch-узлы** — ветвление: `match_values` → `match_target` (ДА), иначе → `else_target`
+- Vue Flow — визуальный редактор вместо номеров шагов
 
 ## 9. QuestionGraph — граф вопросов-ответов (2026-08-05)
 
@@ -723,4 +364,29 @@ class QuestionGraph(BaseAbstractModel):
 ### 9.8 TODO
 
 - Совмещённый фильтр по резьбе (тип + размер в одном визуальном блоке)
-- Графы для остальных каталогов при необходимости branching'а
+- Графы для остальных каталогов при необходимости branching'а## 5. Фронтенд
+
+### 5.1 Компоненты
+
+| Компонент | Назначение |
+|-----------|-----------|
+| `QuestionGraphWizard.vue` | Мастер подбора: radio-кнопки, авто-переход branch |
+| `QuestionGraphAdmin.vue` | Админка: список + редактор |
+| `QuestionGraphFlow.vue` | Визуальный редактор (Vue Flow) |
+| `PageNode.vue` / `BranchNode.vue` | Карточки узлов на холсте |
+| `PageNodeForm.vue` / `BranchNodeForm.vue` | Попапы редактирования |
+
+### 5.2 Архитектура QuestionGraphFlow
+
+- **`liveJson`** — реактивная копия `graphJson`, единственный источник
+- **`renderFlow()`** — `liveJson` → Vue Flow nodes/edges
+- **`watch(liveJson, renderFlow, {deep:true, immediate:true})`** — авто-перерисовка
+- Попапы читают/пишут напрямую в `liveJson`
+- «Записать в БД» → `emit('save', liveJson)` → API
+- Позиции: `_x`/`_y` в JSON
+
+### 5.3 Каталоги (единообразный `goToWizard()`)
+
+`pneumatic-fittings`, `limit-switch`, `solenoid-valves`, `filter-regulator`, `gearbox`
+
+

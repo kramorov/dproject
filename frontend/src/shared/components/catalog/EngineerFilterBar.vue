@@ -137,22 +137,24 @@ function isVisible(key) {
   return visibleParams.value.has(key)
 }
 
-let visibilityTimer = null
-watch(() => ({ ...active }), () => {
+watch(() => ({ ...active }), async () => {
   if (!props.graphCode) return
-  clearTimeout(visibilityTimer)
-  visibilityTimer = setTimeout(async () => {
-    try {
-      const params = new URLSearchParams()
-      for (const [k, v] of Object.entries(active)) {
-        if (v) params.append(k, v)
-      }
-      const { data } = await api.get(`/core/question-graph/${props.graphCode}/visible-params/?${params}`)
-      visibleParams.value = new Set(data.visible || [])
-    } catch (e) {
-      visibleParams.value = null
+  try {
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(active)) {
+      if (v) params.append(k, v)
     }
-  }, 200)
+    const { data } = await api.get(`/core/question-graph/${props.graphCode}/visible-params/?${params}`)
+    visibleParams.value = new Set(data.visible || [])
+    for (const key of Object.keys(active)) {
+      if (!visibleParams.value.has(key) && active[key]) {
+        active[key] = ''
+        emit('change', key, '')
+      }
+    }
+  } catch (e) {
+    visibleParams.value = null
+  }
 }, { deep: true })
 
 </script>

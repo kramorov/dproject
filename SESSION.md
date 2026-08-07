@@ -1,84 +1,71 @@
-# SESSION.md — 2026-08-05
+# SESSION.md — 2026-08-07
 
-> Обновлено 2026-08-05 19:00
+> Обновлено 2026-08-07
 
 ## Что сделано в сессии
 
-### Доступ: anonymous_users + роутер
-- `CurrentUserView`: `AllowAny`, для анонимов возвращает права из `anonymous_users` SystemGroup
-- `OrgSectionPermission` + `SystemObjectPermission`: проверяют `anonymous_users` для неавторизованных
-- HTTP → action маппинг: GET→view, POST→edit, DELETE→delete
-- `ObjectDef.section_code` — явный маппинг на SiteSection (для catalog_fr, catalog_sv, catalog_pf, catalog_lsb)
-- `core/utils/permission_helpers.py` — кешированный `get_anonymous_group()` + инвалидация по сигналу SystemGroup
-- `core/apps.py` — `_sync_anonymous_permissions`: `view` на catalog + configurator, `_connect_cache_invalidation`
-- Роутер: убран `PUBLIC_SECTIONS`, `proOnly`, `requiredRole`. Единый `ensurePerms()` через `usePerms.js`
-- `ai_assistant/api/views.py`: `QuerySampleViewSet`/`PromptViewSet` → `SystemObjectPermission` (для ai-debug)
-- `usePerms.js`: `ensurePerms()` async, общий `loadPromise`, `roles` ref
-- `WizardSelection.vue`: авто-выбор единственной опции, пропуск фильтров с 0 опций, guard `!= null`
-- `TopMenu.vue`: пункт «AI» верхнего уровня с «AI Отладка»
-- `solenoid_valves/catalog/config.py`: `fd_pneumatic_connection_thread` добавлен в list/engineer
-- `ai_assistant/object_registry.py`: добавлен `ai.question_graph`
-- `access.md`: обновлён (anonymous_users, section_code, DRF, роутер, этапы)
-- `CATALOG_PATTERN.md`: обновлён (PUBLIC_SECTIONS → anonymous_users)
+### QuestionGraph — визуальный редактор (Vue Flow)
+- **QuestionGraphFlow.vue** — полный визуальный редактор графа на Vue Flow (`@vue-flow/core`)
+  - Два типа узлов: `PageNode` (синий) и `BranchNode` (фиолетовый)
+  - Перетаскивание, соединение рёбрами, авто-расстановка сверху-вниз
+  - `liveJson` — единственный реактивный источник истины
+  - `renderFlow()` — конвертирует `liveJson` → Vue Flow nodes/edges
+  - Позиции сохраняются как `_x`/`_y` в JSON
+- **PageNodeForm.vue** — попап редактирования page-узла: название, параметры (title/param_name/order), следующий узел, входной узел
+- **BranchNodeForm.vue** — попап редактирования branch-узла: название, param_name, match_values (с загрузкой опций), match_target/else_target
+- **QuestionGraphAdmin.vue** — админка: список графов + редактор с двумя вкладками (визуальный / JSON)
+- Все селекторы «Следующий узел» / «Если ДА/НЕТ → узел» показывают все узлы из `liveJson`
+- Попапы не закрываются по клику вне — только кнопками Сохранить/Отмена/✕
 
-### QuestionGraph — граф вопросов-ответов
-- Модель: `core/models/question_graph.py` (+ миграция 0008)
-- API: `core/question_graph_views.py` (config, advance с sub_pages, results, admin CRUD, to-wizard converter)
-- URLs: `core/urls.py` (admin/ перед <str:code>/)
-- Management: `load_question_graph.py` — граф фитингов с branching (трубка vs без трубки)
-- Frontend: `QuestionGraphWizard.vue`, `QuestionGraphDemo.vue`, `QuestionGraphAdmin.vue`
-- `WizardAdminPage.vue`: вкладка «📊 Граф» + запрет сохранения пустого графа
-- `App.vue` (фитинги): `graphAvailable` → граф или плоский wizard
-- Скоупинг через `FilterDefinition.build_filter_lookup()` + cross-FK `_FIELD_LOOKUP`
-- `set()` для SQLite (`.distinct()` не работает с JOIN)
+### QuestionGraphWizard — radio-кнопки
+- Заменён дизайн: кастомные div-radio → нативные `<input type="radio">` как в WizardSelection
+- Добавлен авто-переход для branch-узлов (без параметров — сразу advance)
+- Исправлен баг: advance возвращал `node_id`/`node`/`options` вместо `entry_node_id`/`entry_node`/`entry_options`
 
-### Мастер подбора (WizardSelection)
-- Wizard для фитингов: `thread_id` на отдельный шаг 3
-- Авто-выбор при 1 опции
-- Пропуск фильтров с 0 опций (глушитель → pipe_diameter)
-- `WizardSelection.vue` guard: `!= null`
+### Графы для всех 5 каталогов
+- `pneumatic_fittings`: page_variety → branch_variety → page_pipe/page_thread → page_material
+- `lsb`: page_sensor → branch_sensor → page_common → page_temp
+- `directional-valve`: плоский граф (все параметры в одном узле)
+- `fr`: плоский граф (исправлены невалидные param_names)
+- `manual-override`: плоский граф
+- Все загружены через `load_question_graph.py` в новом формате (page + branch)
 
-## Состояние БД
-- `QuestionGraph`: 1 запись (`pneumatic_fittings`, et=fittings)
-- `SiteSection`: добавлена `selector_pa`
-- `SelectionWizard`: для fittings обновлён (4 шага, thread_id отдельно)
+### Бэкенд
+- **`question_graph_views.py`**: `_resolve_cross_fk_field` — поиск cross-FK model_field через wizard-реестр (для `thread_id` в FR)
+- **`question_graph.py`** (модель): `_get_next_node_id` поддерживает `type: "branch"` (match_values → match_target/else_target) и `type: "page"` (next_node → edges)
+- Ответы advance: поля переименованы в `entry_node_id`/`entry_node`/`entry_options`
+- Мелкие правки param_names в графах
+
+### Каталоги — единообразный goToWizard()
+- Во все 5 каталогов добавлены `graph: 'wizard'` в `tabKeys` и `graph: 'Мастер подбора'` в `modeNames`
+
+### Документация
+- `sw.md` обновлён: разделы 2-8 переписаны под QuestionGraph-архитектуру
 
 ## Ключевые файлы сессии
 
 | Файл | Статус |
 |---|---|
-| `core/permissions.py` | Изменён (anonymous_users в обоих классах) |
-| `core/apps.py` | Изменён (add sync_anonymous_permissions + cache_invalidation) |
-| `core/object_registry.py` | Изменён (ObjectDef.section_code) |
-| `core/utils/permission_helpers.py` | Новый |
-| `core/models/question_graph.py` | Новый |
-| `core/question_graph_views.py` | Новый |
-| `core/migrations/0008_question_graph.py` | Новый |
-| `core/management/commands/load_question_graph.py` | Новый |
-| `core/urls.py` | Изменён (question-graph routes) |
-| `core/wizard_views.py` | Не изменён |
-| `project_customers/views/auth.py` | Изменён (AllowAny + anonymous) |
-| `pneumatic_actuators/object_registry.py` | Изменён (section_code для 4 каталогов) |
-| `ai_assistant/object_registry.py` | Изменён (ai.question_graph) |
-| `ai_assistant/api/views.py` | Изменён (SystemObjectPermission) |
-| `solenoid_valves/catalog/config.py` | Изменён (+thread filter) |
-| `frontend/src/router/index.js` | Изменён (PUBLIC_SECTIONS, proOnly удалены) |
-| `frontend/src/shared/composables/usePerms.js` | Изменён (ensurePerms) |
-| `frontend/src/shared/components/catalog/WizardSelection.vue` | Изменён (auto-select, skip empty, guard) |
-| `frontend/src/shared/components/catalog/QuestionGraphWizard.vue` | Новый |
-| `frontend/src/pages/QuestionGraphDemo.vue` | Новый |
-| `frontend/src/pages/admin/QuestionGraphAdmin.vue` | Новый |
-| `frontend/src/pages/admin/WizardAdminPage.vue` | Изменён (вкладка Граф) |
-| `frontend/src/apps/pneumatic-fittings-catalog/App.vue` | Изменён (graphAvailable) |
-| `access.md` | Обновлён |
-| `CATALOG_PATTERN.md` | Обновлён |
-| `sw.md` | Обновлён (раздел 9: QuestionGraph) |
+| `frontend/src/shared/components/catalog/QuestionGraphFlow.vue` | Переписан |
+| `frontend/src/shared/components/catalog/PageNodeForm.vue` | Новый |
+| `frontend/src/shared/components/catalog/BranchNodeForm.vue` | Новый |
+| `frontend/src/shared/components/catalog/PageNode.vue` | Новый (markRaw) |
+| `frontend/src/shared/components/catalog/BranchNode.vue` | Новый (markRaw) |
+| `frontend/src/shared/components/catalog/QuestionGraphWizard.vue` | Изменён (radio-дизайн, авто-advance) |
+| `frontend/src/pages/admin/QuestionGraphAdmin.vue` | Изменён (визуальный + JSON вкладки) |
+| `core/models/question_graph.py` | Изменён (branch match_values/match_target/else_target) |
+| `core/question_graph_views.py` | Изменён (cross-FK, entry_node_id fix, page_node options) |
+| `core/management/commands/load_question_graph.py` | Переписан (5 графов в новом формате) |
+| `frontend/src/apps/solenoid-valves-catalog/App.vue` | Изменён (tabKeys/modeNames) |
+| `frontend/src/apps/filter-regulator-catalog/App.vue` | Изменён (tabKeys/modeNames) |
+| `frontend/src/apps/gearbox-catalog/App.vue` | Изменён (tabKeys/modeNames) |
+| `frontend/src/apps/limit-switch-catalog/App.vue` | Изменён (tabKeys/modeNames) |
+| `sw.md` | Обновлён |
+| `package.json` (frontend) | Добавлен `@vue-flow/core` |
 
 ## Задачи на будущее
 
-- [ ] **Совмещённый фильтр по резьбе** — тип + размер в одном визуальном блоке (для инженерного фильтра и мастера)
-- [ ] **Дизайн QuestionGraphWizard** — привести к стилю WizardSelection (radio-кнопки вместо чипсов)
-- [ ] **Граф для БКВ** — branching на sensor_variety
-- [ ] **Графы для остальных каталогов** — directional-valve, manual-override, fr (по необходимости)
-- [ ] **Constraint-граф** — граф связей типов оборудования как over-arch (стратегическая цель)
-- [ ] **Прикрутить граф ко всем каталогам** — единообразный `goToWizard()` с проверкой graphAvailable
+- [ ] **Совмещённый фильтр по резьбе** — тип + размер в одном визуальном блоке
+- [ ] **Constraint-граф** — граф связей типов оборудования (стратегическая цель)
+- [ ] **Удаление QuestionNode.vue** (больше не используется)
+- [ ] **Удаление QuestionGraphDemo.vue** (больше не используется)

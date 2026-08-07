@@ -3,7 +3,7 @@
     <h1>Графы вопросов-ответов</h1>
 
     <!-- Список -->
-    <section class="qg-section">
+    <section class="qg-section" v-if="!editing">
       <table class="qg-table" v-if="graphs.length">
         <thead><tr><th>Код</th><th>Название</th><th>Тип оборудования</th><th>Активен</th><th></th></tr></thead>
         <tbody>
@@ -26,51 +26,56 @@
 
     <!-- Редактор -->
     <section class="qg-section" v-if="editing">
-      <h2>{{ isNew ? 'Новый граф' : 'Редактирование' }}</h2>
-      <div class="qg-form-group">
-        <label>Код</label><input v-model="form.code" class="qg-input" />
-      </div>
-      <div class="qg-form-group">
-        <label>Название</label><input v-model="form.name" class="qg-input" />
-      </div>
-      <div class="qg-form-group">
-        <label>Тип оборудования</label>
-        <select v-model="form.equipment_type_id" class="qg-input">
-          <option :value="null">— выберите —</option>
-          <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
-        </select>
-      </div>
-      <div class="qg-form-group">
-        <label><input type="checkbox" v-model="form.is_active" /> Активен</label>
-      </div>
-
-      <!-- Graph JSON editor -->
-      <h3>Граф (JSON)</h3>
-      <textarea v-model="graphJsonText" class="qg-json-editor" rows="20" placeholder='{"entry_node": "...", "nodes": {...}, "edges": [...]}'></textarea>
-      <div v-if="jsonError" class="qg-error">{{ jsonError }}</div>
-
-      <!-- Preview -->
-      <div v-if="parsedGraph" class="qg-preview">
-        <h4>Узлы:</h4>
-        <div v-for="(node, nid) in parsedGraph.nodes" :key="nid" class="qg-node-card">
-          <strong>{{ nid }}</strong>
-          <span class="qg-node-question">{{ node.question }}</span>
-          <span v-if="node.param_name">param: {{ node.param_name }}</span>
-          <span v-if="node.param_names">params: {{ node.param_names.join(', ') }}</span>
-          <span v-if="node.pages">страниц: {{ node.pages.length }}</span>
-          <span v-if="node.branches">веток: {{ Object.keys(node.branches).length }}</span>
-        </div>
-        <h4>Рёбра:</h4>
-        <div v-for="(e, ei) in parsedGraph.edges" :key="ei" class="qg-edge">
-          {{ e.from }} → {{ e.to }}
+      <div class="qg-editor-header">
+        <h2>{{ isNew ? 'Новый граф' : 'Редактирование: ' + form.name }}</h2>
+        <div class="qg-editor-tabs">
+          <button class="qg-tab" :class="{ active: editorTab === 'visual' }" @click="editorTab = 'visual'">🎨 Визуальный</button>
+          <button class="qg-tab" :class="{ active: editorTab === 'json' }" @click="editorTab = 'json'">{ } JSON</button>
         </div>
       </div>
 
-      <div class="qg-actions">
-        <button class="qg-btn-primary" @click="saveGraph">💾 Сохранить</button>
-        <button class="qg-btn-accent" v-if="!isNew" @click="convertToWizard(form.code)">⚙ Сгенерировать мастера</button>
-        <button @click="cancelEdit">Отмена</button>
+      <!-- Meta -->
+      <div class="qg-meta-row">
+        <div class="qg-form-group qg-inline">
+          <label>Код</label><input v-model="form.code" class="qg-input" />
+        </div>
+        <div class="qg-form-group qg-inline">
+          <label>Название</label><input v-model="form.name" class="qg-input" />
+        </div>
+        <div class="qg-form-group qg-inline">
+          <label>Тип оборудования</label>
+          <select v-model="form.equipment_type_id" class="qg-input">
+            <option :value="null">— выберите —</option>
+            <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
+          </select>
+        </div>
+        <div class="qg-form-group qg-inline qg-checkbox">
+          <label><input type="checkbox" v-model="form.is_active" /> Активен</label>
+        </div>
       </div>
+
+      <!-- Visual editor -->
+      <div v-if="editorTab === 'visual'" class="qg-flow-wrap">
+        <QuestionGraphFlow
+          :graph-json="liveGraphJson"
+          :graph-code="form.code"
+          @update:graph-json="onGraphUpdate"
+          @save="saveGraph"
+          @close="cancelEdit"
+        />
+      </div>
+
+      <!-- JSON fallback -->
+      <div v-else class="qg-json-fallback">
+        <textarea v-model="graphJsonText" class="qg-json-editor" rows="20" placeholder='{"entry_node": "...", "nodes": {...}, "edges": [...]}'></textarea>
+        <div v-if="jsonError" class="qg-error">{{ jsonError }}</div>
+        <div class="qg-actions">
+          <button class="qg-btn-primary" @click="saveFromJson">💾 Сохранить</button>
+          <button class="qg-btn-accent" v-if="!isNew" @click="convertToWizard(form.code)">⚙ Сгенерировать мастера</button>
+          <button @click="cancelEdit">Отмена</button>
+        </div>
+      </div>
+
       <div v-if="saveMsg" class="qg-msg" :class="{ error: saveError }">{{ saveMsg }}</div>
     </section>
   </div>
@@ -79,6 +84,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/shared/api'
+import QuestionGraphFlow from '@/shared/components/catalog/QuestionGraphFlow.vue'
 
 const graphs = ref([])
 const equipmentTypes = ref([])
@@ -87,22 +93,13 @@ const isNew = ref(true)
 const saveMsg = ref('')
 const saveError = ref(false)
 const jsonError = ref('')
+const editorTab = ref('visual')
 
 const form = ref({
   id: null, code: '', name: '', equipment_type_id: null, is_active: true,
 })
 const graphJsonText = ref('{}')
-
-const parsedGraph = computed(() => {
-  try {
-    const g = JSON.parse(graphJsonText.value)
-    jsonError.value = ''
-    return g
-  } catch (e) {
-    jsonError.value = e.message
-    return null
-  }
-})
+const liveGraphJson = ref({ nodes: {}, edges: [], entry_node: '' })
 
 onMounted(async () => {
   await loadGraphs()
@@ -125,11 +122,11 @@ async function loadEquipmentTypes() {
 
 function newGraph() {
   form.value = { id: null, code: '', name: '', equipment_type_id: null, is_active: true }
-  graphJsonText.value = JSON.stringify({
-    entry_node: '', nodes: {}, edges: []
-  }, null, 2)
+  liveGraphJson.value = { entry_node: '', nodes: {}, edges: [] }
+  graphJsonText.value = JSON.stringify(liveGraphJson.value, null, 2)
   isNew.value = true
   editing.value = true
+  editorTab.value = 'visual'
   saveMsg.value = ''
 }
 
@@ -140,9 +137,11 @@ async function editGraph(g) {
       id: data.id, code: data.code, name: data.name,
       equipment_type_id: data.equipment_type_id, is_active: data.is_active,
     }
-    graphJsonText.value = JSON.stringify(data.graph_json || {}, null, 2)
+    liveGraphJson.value = data.graph_json || { nodes: {}, edges: [], entry_node: '' }
+    graphJsonText.value = JSON.stringify(liveGraphJson.value, null, 2)
     isNew.value = false
     editing.value = true
+    editorTab.value = 'visual'
     saveMsg.value = ''
   } catch (e) { console.error(e) }
 }
@@ -152,15 +151,19 @@ function cancelEdit() {
   saveMsg.value = ''
 }
 
-async function saveGraph() {
-  if (!parsedGraph.value) return
+function onGraphUpdate(gj) {
+  liveGraphJson.value = gj
+  graphJsonText.value = JSON.stringify(gj, null, 2)
+}
+
+async function saveGraph(gj) {
   saveMsg.value = ''
   saveError.value = false
+  const payload = {
+    ...form.value,
+    graph_json: gj || liveGraphJson.value,
+  }
   try {
-    const payload = {
-      ...form.value,
-      graph_json: parsedGraph.value,
-    }
     if (isNew.value) {
       const { data } = await api.post('/core/question-graph/admin/', payload)
       form.value.id = data.id
@@ -173,6 +176,17 @@ async function saveGraph() {
   } catch (e) {
     saveMsg.value = 'Ошибка: ' + (e.response?.data?.error || e.message)
     saveError.value = true
+  }
+}
+
+async function saveFromJson() {
+  try {
+    const gj = JSON.parse(graphJsonText.value)
+    jsonError.value = ''
+    liveGraphJson.value = gj
+    await saveGraph(gj)
+  } catch (e) {
+    jsonError.value = 'Ошибка JSON: ' + e.message
   }
 }
 
@@ -198,28 +212,35 @@ async function convertToWizard(code) {
 </script>
 
 <style scoped>
-.qg-admin { max-width: 900px; margin: 0 auto; padding: 1rem; }
-.qg-section { margin-bottom: 2rem; }
-.qg-table { width: 100%; border-collapse: collapse; }
-.qg-table th, .qg-table td { padding: 0.5rem; border: 1px solid #ddd; text-align: left; }
-.qg-empty { color: #999; padding: 1rem 0; }
-.qg-form-group { margin-bottom: 1rem; }
-.qg-form-group label { display: block; margin-bottom: 0.25rem; font-weight: 600; }
-.qg-input { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
-.qg-json-editor { width: 100%; font-family: monospace; font-size: 0.85rem; border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem; }
-.qg-node-card { background: #f8f9fa; border-radius: 6px; padding: 0.5rem; margin: 0.25rem 0; }
-.qg-node-card strong { margin-right: 1rem; color: #2563eb; }
-.qg-node-question { color: #555; }
-.qg-node-card span { margin-right: 1rem; font-size: 0.85rem; color: #888; }
-.qg-edge { padding: 0.25rem 0.5rem; color: #666; font-size: 0.9rem; }
-.qg-preview { margin-top: 1rem; background: #fafafa; border-radius: 8px; padding: 1rem; }
-.qg-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
-.qg-btn-primary { background: #2563eb; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-.qg-btn-danger { color: #dc2626; }
-.qg-btn-accent { background: #059669; color: #fff; border: none; padding: 0.25rem 0.75rem; border-radius: 4px; cursor: pointer; }
-.qg-msg { padding: 0.5rem; margin-top: 0.5rem; border-radius: 6px; background: #dcfce7; color: #166534; }
+.qg-admin { max-width: 1400px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 22px; margin: 0 0 20px; }
+.qg-section { margin-bottom: 32px; }
+.qg-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+.qg-table th, .qg-table td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
+.qg-table th { background: #f8fafc; font-weight: 600; }
+.qg-empty { color: #94a3b8; padding: 24px 0; }
+.qg-btn-primary { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.qg-btn-danger { background: #dc2626; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 4px; }
+.qg-btn-accent { background: #7c3aed; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 4px; }
+.qg-editor-header { display: flex; align-items: center; gap: 24px; margin-bottom: 16px; }
+.qg-editor-header h2 { margin: 0; font-size: 18px; }
+.qg-editor-tabs { display: flex; gap: 4px; }
+.qg-tab { padding: 6px 14px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.qg-tab.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.qg-meta-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+.qg-form-group { display: flex; flex-direction: column; gap: 4px; }
+.qg-form-group label { font-size: 12px; font-weight: 600; color: #475569; }
+.qg-form-group.qg-inline { flex-direction: column; }
+.qg-form-group.qg-checkbox { flex-direction: row; align-items: center; margin-top: 8px; }
+.qg-input { padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; min-width: 160px; }
+.qg-input:focus { border-color: #2563eb; outline: none; }
+.qg-flow-wrap { height: 650px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.qg-json-fallback { margin-top: 12px; }
+.qg-json-editor { width: 100%; font-family: monospace; font-size: 13px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; }
+.qg-error { color: #dc2626; font-size: 13px; margin-top: 4px; }
+.qg-msg { font-size: 14px; padding: 8px 12px; border-radius: 6px; margin-top: 8px; }
+.qg-msg:not(.error) { background: #dcfce7; color: #166534; }
 .qg-msg.error { background: #fee2e2; color: #991b1b; }
-.qg-error { color: #dc2626; font-size: 0.9rem; }
-button { padding: 0.25rem 0.75rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; margin-right: 0.25rem; }
-button:hover { background: #f0f0f0; }
+.qg-actions { display: flex; gap: 8px; margin-top: 12px; }
+button { font-size: 13px; padding: 6px 12px; border-radius: 5px; cursor: pointer; border: 1px solid #d1d5db; background: #fff; }
 </style>

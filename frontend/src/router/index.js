@@ -84,7 +84,7 @@ const routes = [
   { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', object: 'admin.customers', action: 'edit' } },
   { path: '/admin/pipeline-config', component: () => import('../pages/admin/PipelineConfigPage.vue'), meta: { title: 'Pipeline Config', object: 'ai.pipelines', action: 'edit' } },
   { path: '/admin/skill-config', component: () => import('../pages/admin/SkillConfigPage.vue'), meta: { title: 'Skill Config', object: 'ai.skills', action: 'edit' } },
-  { path: '/admin/wizard-config', component: () => import('../pages/admin/WizardAdminPage.vue'), meta: { title: 'Мастер подбора', object: 'ai.wizard', action: 'edit' } },
+  { path: '/admin/wizard-config', component: () => import('../pages/admin/QuestionGraphAdmin.vue'), meta: { title: 'Мастер подбора', object: 'ai.wizard', action: 'edit' } },
   { path: '/admin/question-graph', component: () => import('../pages/admin/QuestionGraphAdmin.vue'), meta: { title: 'Граф вопросов-ответов', object: 'ai.question_graph', action: 'edit' } },
   { path: '/admin/permissions', component: () => import('../pages/admin/PermissionsPage.vue'), meta: { title: 'Права доступа', object: 'admin.permissions', action: 'edit' } },
 

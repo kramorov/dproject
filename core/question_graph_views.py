@@ -34,6 +34,44 @@ def _find_filter_def(model_class, param_name):
     return None
 
 
+def _get_options_for_page_node(graph, node, accumulated):
+    """Get options for all params in a page node."""
+    opts = {}
+    for p in node.get('params', []):
+        pn = p.get('param_name')
+        if pn:
+            o = _get_options_for_param(graph.equipment_type, pn, accumulated)
+            if o:
+                opts[pn] = o
+    # Backward compat: old format param_names
+    for pn in node.get('param_names', []):
+        if pn not in opts:
+            o = _get_options_for_param(graph.equipment_type, pn, accumulated)
+            if o:
+                opts[pn] = o
+    return opts
+
+def _resolve_cross_fk_field(model_class, param_name):
+    """Look up cross-FK model_field from FilterDefinition or wizard registry."""
+    # Try model's own FILTER_DEFINITIONS
+    if hasattr(model_class, 'FILTER_DEFINITIONS'):
+        for fd in model_class.FILTER_DEFINITIONS:
+            if fd.param_name == param_name and '__' in (fd.model_field or ''):
+                return fd.model_field
+    # Try wizard filter registry
+    try:
+        from django.contrib.contenttypes.models import ContentType
+        from core.wizard_filter_registry import get_filter_definitions_for_ct
+        ct = ContentType.objects.get_for_model(model_class)
+        defs = get_filter_definitions_for_ct(ct.id)
+        if defs:
+            for d in defs:
+                if d.param_name == param_name:
+                    return d.model_field
+    except Exception:
+        pass
+    return None
+
 def _get_options_for_param(equipment_type, param_name, filters_applied=None):
     """Get available option values for a filter param_name from the model's data."""
     filters_applied = filters_applied or {}
@@ -58,10 +96,14 @@ def _get_options_for_param(equipment_type, param_name, filters_applied=None):
             except Exception:
                 pass
 
-    # Resolve field lookup (handles cross-FK params like thread_type_id)
-    field_lookup = _FIELD_LOOKUP.get(param_name, param_name.replace('_id', ''))
+    # Resolve field lookup: use FilterDefinition model_field for cross-FK params
+    fd_model_field = _resolve_cross_fk_field(model_class, param_name)
+    if fd_model_field and '__' in fd_model_field:
+        field_lookup = fd_model_field
+    else:
+        field_lookup = _FIELD_LOOKUP.get(param_name, param_name.replace('_id', ''))
 
-    # For dotted lookups (e.g., thread__thread_type), get distinct values from qs
+    # For dotted lookups (e.g., body__thread), get distinct values from qs
     if '__' in field_lookup:
         ids = qs.values_list(field_lookup, flat=True).distinct()
         ids = sorted(set(v for v in ids if v is not None and v != ''))
@@ -136,13 +178,7 @@ class QuestionGraphConfigView(APIView):
         if not entry_node:
             return Response({'error': 'No entry node'}, status=400)
 
-        pages = _get_node_pages(entry_node)
-        entry_options = {}
-        if pages:
-            for pn in pages[0].get('param_names', []):
-                opts = _get_options_for_param(graph.equipment_type, pn)
-                if opts:
-                    entry_options[pn] = opts
+        entry_options = _get_options_for_page_node(graph, entry_node, {})
 
         return Response({
             'graph_code': graph.code,
@@ -152,8 +188,8 @@ class QuestionGraphConfigView(APIView):
             'entry_options': entry_options,
             'graph_json': graph.graph_json,
             'sub_page': 0,
-            'total_sub_pages': len(pages),
-            'page_title': pages[0]['title'] if pages else entry_node.get('question', ''),
+            'total_sub_pages': 1,
+            'page_title': entry_node.get('name', entry_node.get('question', '')),
         })
 
 
@@ -199,9 +235,9 @@ class QuestionGraphAdvanceView(APIView):
 
             return Response({
                 'terminal': False,
-                'node_id': current_node_id,
-                'node': node,
-                'options': next_options,
+                'entry_node_id': current_node_id,
+                'entry_node': node,
+                'entry_options': next_options,
                 'filters_applied': accumulated,
                 'sub_page': next_sub,
                 'total_sub_pages': len(pages),
@@ -209,35 +245,46 @@ class QuestionGraphAdvanceView(APIView):
                 'default_value': next_page.get('default_value', {}),
             })
 
-        # All sub-pages done → move to next node
-        branching_param = (pages[0].get('param_names', [None])[0]) if pages else node.get('param_name')
-        branching_value = answers.get(branching_param) if branching_param else None
-        next_node = graph.get_next_node(current_node_id, branching_value)
+        # All sub-pages done → collect answers and move to next node
+        # For page nodes: save all params, then follow edges
+        if node.get('type') != 'branch':
+            for p in node.get('params', []):
+                pn = p.get('param_name')
+                if pn and pn in answers and answers[pn] is not None:
+                    accumulated[pn] = answers[pn]
+        # Also save old-format answers
+        for pn, val in answers.items():
+            if val is not None:
+                accumulated[pn] = val
 
+        # Navigate: branch node uses answer value, page node uses edges
+        branch_val = None
+        if node.get('type') == 'branch':
+            branch_val = accumulated.get(node.get('param_name'))
+        else:
+            # For old format: check branching_param
+            branching_param = (pages[0].get('param_names', [None])[0]) if pages else node.get('param_name')
+            if branching_param:
+                branch_val = answers.get(branching_param)
+
+        next_node = graph.get_next_node(current_node_id, branch_val)
         if next_node is None:
             return Response({
                 'terminal': True,
                 'filters_applied': accumulated,
             })
 
-        next_pages = _get_node_pages(next_node)
-        next_options = {}
-        if next_pages:
-            for pn in next_pages[0].get('param_names', []):
-                opts = _get_options_for_param(graph.equipment_type, pn, accumulated)
-                if opts:
-                    next_options[pn] = opts
+        next_options = _get_options_for_page_node(graph, next_node, accumulated)
 
         return Response({
             'terminal': False,
-            'node_id': _get_node_id(graph, next_node),
-            'node': next_node,
-            'options': next_options,
+            'entry_node_id': _get_node_id(graph, next_node),
+            'entry_node': next_node,
+            'entry_options': next_options,
             'filters_applied': accumulated,
             'sub_page': 0,
-            'total_sub_pages': len(next_pages),
-            'page_title': next_pages[0].get('title', next_node.get('question', '')) if next_pages else next_node.get('question', ''),
-            'default_value': next_pages[0].get('default_value', {}) if next_pages else {},
+            'total_sub_pages': 1,
+            'page_title': next_node.get('name', next_node.get('question', '')),
         })
 
 

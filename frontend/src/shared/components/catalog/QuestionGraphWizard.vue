@@ -10,21 +10,34 @@
       <div class="qg-card">
         <p v-if="node.description" class="qg-desc">{{ node.description }}</p>
 
-        <div v-for="pn in currentParamNames" :key="pn" class="qg-field">
-          <label class="qg-label">{{ filterLabels[pn] || pn }}</label>
+        <div v-for="pn in currentParamNames" :key="pn" class="qg-filter-group">
+          <h3 class="qg-label">{{ filterLabels[pn] || pn }}</h3>
 
-          <!-- Select for option lists -->
-          <div v-if="options[pn] && options[pn].length > 0" class="qg-radio-group">
-            <div
+          <!-- Radio options for select lists -->
+          <div v-if="options[pn] && options[pn].length > 0" class="filter-options">
+            <label
               v-for="opt in options[pn]"
               :key="opt.id"
-              class="qg-radio"
+              class="filter-option"
               :class="{ selected: answers[pn] === opt.id }"
-              @click="selectOption(pn, opt.id)"
             >
-              <span class="qg-radio-dot" />
-              {{ opt.name }}
-            </div>
+              <input
+                type="radio"
+                :name="pn"
+                :value="opt.id"
+                :checked="answers[pn] === opt.id"
+                @change="selectOption(pn, opt.id)"
+              />
+              <div class="option-content">
+                <strong class="option-name">{{ opt.name }}</strong>
+                <span class="option-desc" v-if="opt.description && opt.description !== opt.name">{{ opt.description }}</span>
+              </div>
+            </label>
+          </div>
+
+          <!-- Empty options -->
+          <div v-else-if="options[pn] && options[pn].length === 0" class="filter-empty">
+            Нет доступных вариантов
           </div>
 
           <!-- Text input for numeric/text params -->
@@ -36,11 +49,6 @@
             :placeholder="'Введите ' + (filterLabels[pn] || pn)"
             @keyup.enter="advance"
           />
-
-          <!-- Empty options -->
-          <div v-if="options[pn] && options[pn].length === 0" class="qg-empty">
-            Нет доступных вариантов
-          </div>
         </div>
 
         <div class="qg-nav">
@@ -118,7 +126,7 @@ const currentParamNames = computed(() => {
 
 const canAdvance = computed(() => {
   const pns = currentParamNames.value
-  if (!pns.length) return false
+  if (!pns.length) return true  // branch/pass-through node — auto-advance
   return pns.every(pn => {
     const opts = options.value[pn]
     if (opts !== undefined && opts.length === 0) return true
@@ -225,29 +233,47 @@ async function loadResults(p) {
 </script>
 
 <style scoped>
-.qg-wizard { max-width: 600px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, sans-serif; }
+.qg-wizard { max-width: 700px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, sans-serif; }
 .qg-stepper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .qg-step-label { font-size: 1.1rem; font-weight: 600; color: #1e293b; }
 .qg-step-counter { font-size: 0.85rem; color: #94a3b8; }
 .qg-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2rem; }
 .qg-desc { color: #64748b; margin-bottom: 1.5rem; line-height: 1.5; }
-.qg-field { margin-bottom: 1.5rem; }
-.qg-label { display: block; font-weight: 600; margin-bottom: 0.75rem; font-size: 0.95rem; color: #334155; }
-.qg-radio-group { display: flex; flex-direction: column; gap: 1px; background: #e2e8f0; border-radius: 8px; overflow: hidden; }
-.qg-radio { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; background: #fff; cursor: pointer; transition: background 0.15s; user-select: none; font-size: 0.95rem; }
-.qg-radio:hover { background: #f1f5f9; }
-.qg-radio.selected { background: #eff6ff; color: #1d4ed8; font-weight: 500; }
-.qg-radio.selected .qg-radio-dot { border-color: #3b82f6; background: #3b82f6; }
-.qg-radio-dot { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 50%; flex-shrink: 0; transition: all 0.15s; }
-.qg-radio.selected .qg-radio-dot { border-color: #3b82f6; box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 9px #3b82f6; }
+
+/* Filter groups — match WizardSelection */
+.qg-filter-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: #fff;
+  margin-bottom: 16px;
+}
+.qg-label { font-size: 14px; font-weight: 600; color: #1f2937; margin: 0 0 12px; }
+
+/* Radio options — same as WizardSelection */
+.filter-options { display: flex; flex-direction: column; gap: 4px; }
+.filter-option {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px; border-radius: 6px; cursor: pointer;
+  transition: background .12s; border: 1px solid transparent;
+}
+.filter-option:hover { background: #f9fafb; }
+.filter-option.selected { background: rgba(37, 99, 235, 0.06); border-color: #2563eb; }
+.filter-option input[type="radio"] { margin-top: 4px; accent-color: #2563eb; flex-shrink: 0; }
+.option-content { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.option-name { font-size: 14px; font-weight: 500; color: #1f2937; }
+.option-desc { font-size: 13px; color: #6b7280; line-height: 1.4; }
+
 .qg-input { width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
 .qg-input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-.qg-empty { color: #94a3b8; padding: 0.5rem 0; font-size: 0.9rem; }
+.filter-empty { font-size: 13px; color: #9ca3af; padding: 8px 0; }
+
 .qg-nav { display: flex; justify-content: space-between; margin-top: 2rem; }
 .qg-back { padding: 0.75rem 1.5rem; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
 .qg-back:hover { background: #e2e8f0; }
 .qg-next { padding: 0.75rem 2rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 500; cursor: pointer; }
 .qg-next:disabled { background: #cbd5e1; cursor: not-allowed; }
+
 .qg-results { margin-top: 1rem; }
 .qg-results h3 { margin-bottom: 0.5rem; }
 .qg-count { color: #64748b; margin-bottom: 1rem; }
