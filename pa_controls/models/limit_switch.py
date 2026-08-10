@@ -330,22 +330,24 @@ class LimitSwitchBox(CatalogDictMixin,
             order=3
         ),
 
-        # IP (с ранжированием)
+        # IP (ParameterRule)
         FilterDefinition(
             param_name='ip_id',
             model_field='ip',
             filter_type=FilterType.IP_RANK,
+            parameter_rule_code='ip',
             data_source_type=DataSourceType.GLOBAL_MODEL,
             source_model=IpOption,
             label='IP',
             order=4
         ),
 
-        # Температура
+        # Температура (ParameterRule)
         FilterDefinition(
             param_name='work_temp_min',
             model_field='work_temp_min',
             filter_type=FilterType.TEMP_MIN,
+            parameter_rule_code='temperature_min',
             data_source_type=DataSourceType.FIELD_VALUES,
             label='Температура от',
             order=5
@@ -354,6 +356,7 @@ class LimitSwitchBox(CatalogDictMixin,
             param_name='work_temp_max',
             model_field='work_temp_max',
             filter_type=FilterType.TEMP_MAX,
+            parameter_rule_code='temperature_max',
             data_source_type=DataSourceType.FIELD_VALUES,
             label='Температура до',
             order=6
@@ -399,11 +402,13 @@ class LimitSwitchBox(CatalogDictMixin,
             label='Тип сигнала',
             order=9
         ),
+        # Exd (ParameterRule)
         FilterDefinition(
             param_name='exd_id',
-            model_field='exd',  # имя ManyToMany поля
+            model_field='exd',
             filter_type=FilterType.EXD_COMPATIBLE,
-            data_source_type=DataSourceType.CUSTOM,  # опции не автоматические
+            parameter_rule_code='exd',
+            data_source_type=DataSourceType.CUSTOM,
             label='Взрывозащита',
             order=10
         ),
@@ -426,6 +431,9 @@ class LimitSwitchBox(CatalogDictMixin,
         'points_option_id',
         'body_material_id',
         'signal_type_id',
+        'exd_id',
+        'work_temp_min',
+        'work_temp_max',
     ]
 
     SELECT_RELATED_FIELDS = [

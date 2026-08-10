@@ -30,6 +30,7 @@ class FilterSet:
     definitions: List[FilterDefinition]
     scoped: bool = False
     show_compatible: bool = False
+    defaults: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

@@ -175,6 +175,8 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'documents.apps.DocumentsConfig',
     'ai_assistant.apps.AiAssistantConfig',
+    'configurator.apps.ConfiguratorConfig',
+    'cart.apps.CartConfig',
 ]
 
 MIDDLEWARE = [

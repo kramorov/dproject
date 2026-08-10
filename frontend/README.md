@@ -15,7 +15,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `shared/components/ProductCard.vue` | Карточка товара с картинкой и ценой |
 | `shared/components/ProductGallery.vue` | Галерея изображений с лайтбоксом |
 | `shared/components/ProductDetail.vue` | Детальная карточка (JsonLd + Gallery + Header + Tabs) |
-| `shared/components/FilterSidebar.vue` | Сайдбар фильтров (select / ExdFilter / ClimateFilter / совместимые) |
+| `shared/components/FilterSidebar.vue` | Сайдбар фильтров (select / ExdFilter / ClimateFilter / совместимые). temp_min/max скрыты если есть ClimateFilter |
 
 ## `src/shared/components/catalog/` — компоненты каталогов
 
@@ -27,7 +27,7 @@ Vue 3 + Vite. Мини-приложения в `src/apps/`, переисполь
 | `CatalogDetail.vue` | Карточка товара через `ProductDetail`. Пропс `parentMode` |
 | `CatalogList.vue` | Инженерный подбор с `FilterSidebar` + `ProductCard` |
 | `EngineerSelection.vue` | Инженерный подбор с `EngineerFilterBar` + `EngineerProductCard` |
-| `QuickSelect.vue` | Быстрый подбор (чипсы → карточка). Пропс `filterLabels` |
+| `QuickSelect.vue` | Быстрый подбор (чипсы → карточка). Defaults и labels из API (`data.defaults`, `data.filter_labels`). Стратегии: `first`, `min`, `max` |
 | `WizardPlaceholder.vue` | Заглушка «Мастер подбора» (Breadcrumbs + PageTitle + текст) |
 | `AiPlaceholder.vue` | Заглушка «AI подбор» |
 | `CatalogBrand.vue` | Товары бренда (не используется в новых каталогах) |
@@ -137,8 +137,10 @@ apps/xxx-catalog/
 ### ClimateFilter — каскадный фильтр климатического исполнения
 
 - Селекты: климатическая зона (У, ХЛ, УХЛ…) + категория размещения (1–5)
-- Пропс `compact` — для горизонтального фильтр-бара
+- Ручной ввод температуры с debounce 400ms (не шлёт запрос на каждом символе)
+- Незаполненные поля не эмитятся (было `Number(null) = 0`)
 - Текстовое поле парсинга: `УХЛ4` → автозаполнение через `POST /api/core/climate/parse/`
+- Если `fd_climate` (climate_cascade) есть в FilterSet → temp_min/temp_max-селекты скрыты
 
 ## `src/components/` — общие компоненты SPA
 

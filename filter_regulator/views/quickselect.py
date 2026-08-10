@@ -25,3 +25,4 @@ class FilterRegulatorQuickSelectView(BaseQuickSelectView):
         'filtration_rating_min': 'max',
         'flow_rate_min': 'min',
     }
+    catalog_config = FILTER_REGULATOR_CONFIG

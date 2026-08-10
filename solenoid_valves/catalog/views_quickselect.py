@@ -25,3 +25,4 @@ class SolenoidValvesQuickSelectView(BaseQuickSelectView):
     select_related = SOLENOID_VALVES_CONFIG.select_related
     prefetch_fields = SOLENOID_VALVES_CONFIG.prefetch_fields
     auto_select_rules = {}
+    catalog_config = SOLENOID_VALVES_CONFIG

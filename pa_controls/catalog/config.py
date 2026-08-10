@@ -8,8 +8,7 @@ from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 from pa_controls.catalog.filter_defs import (
     fd_model_line, fd_sensor_variety, fd_points, fd_ip,
     fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
-    fd_signal_type, fd_contact_form, fd_exd,
-    fd_climate,
+    fd_signal_type, fd_contact_form, fd_exd, fd_climate,
 )
 
 
@@ -21,7 +20,7 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
         'list': FilterSet(
             definitions=[
                 fd_model_line, fd_sensor_variety, fd_points, fd_ip,
-                fd_body_material, fd_brand,
+                fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
                 fd_signal_type, fd_contact_form, fd_exd, fd_climate,
             ],
             scoped=False,
@@ -49,9 +48,19 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
         'quickselect': FilterSet(
             definitions=[
                 fd_sensor_variety, fd_points, fd_body_material, fd_signal_type,
+                fd_exd, fd_temp_min, fd_temp_max,
             ],
             scoped=True,
             show_compatible=False,
+            defaults={
+                'sensor_variety_id': 'first',
+                'points_option_id': 'first',
+                'body_material_id': 'first',
+                'signal_type_id': 'first',
+                'exd_id': 'first',
+                'work_temp_min': 'first',
+                'work_temp_max': 'first',
+            },
         ),
     },
 

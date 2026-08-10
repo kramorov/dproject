@@ -90,9 +90,14 @@ const allFilters = computed(() => {
   return arr
 })
 
+const hasClimateFilter = computed(() =>
+  allFilters.value.some(f => f.filter_type === 'climate_cascade')
+)
+
 const regularFilters = computed(() =>
   allFilters.value.filter(f =>
     f.filter_type !== 'exd_compatible' && f.filter_type !== 'climate_cascade'
+    && !(hasClimateFilter.value && (f.filter_type === 'temp_min' || f.filter_type === 'temp_max'))
   )
 )
 
@@ -124,8 +129,8 @@ function onThreadChange(v) { if (v.thread_type_id != null) emit('change', 'threa
 
 function onClimateChange(temps, key) {
   if (temps) {
-    emit('change', 'work_temp_min', temps.min_temp)
-    emit('change', 'work_temp_max', temps.max_temp)
+    if (temps.min_temp != null) emit('change', 'work_temp_min', temps.min_temp)
+    if (temps.max_temp != null) emit('change', 'work_temp_max', temps.max_temp)
   }
 }
 import api from '@/shared/api'

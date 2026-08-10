@@ -23,3 +23,4 @@ class GearboxQuickSelectView(BaseQuickSelectView):
     select_related = GEARBOX_CONFIG.select_related
     prefetch_fields = GEARBOX_CONFIG.prefetch_fields
     auto_select_rules = {}
+    catalog_config = GEARBOX_CONFIG

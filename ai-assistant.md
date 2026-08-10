@@ -366,6 +366,35 @@ print(r['total'], 'results')
 
 ---
 
+## Интеграция с Configurator (ParameterRule)
+
+С 2026-08-07 фильтры AI-пайплайна переводятся на декларативную систему правил
+через `configurator`. Подробно: [`configurator.md`](configurator.md).
+
+### Что изменилось
+
+- `FilterType.PARAMETER_RULE` + `parameter_rule_code` в `FilterDefinition` —
+  фильтр делегирует построение lookup'а в `ParameterRule`
+- `build_filter_lookup` проверяет `parameter_rule_code` до жёстко закодированной логики `FilterType`
+- `configurator/services/parameter_filter.py` — движок: `_build_q_from_parameter_rule` (ORM lookup) и `apply_parameter_rules` (Q-фильтр)
+- Для БКВ (lsb): `fd_ip`, `fd_temp_min`, `fd_temp_max`, `fd_exd` переведены на `ParameterRule`
+- `limit_switch_filter_v2` в `filter_handlers.py` — AI-фильтр через `apply_parameter_rules`
+- `configurator/admin.py` — админка для всех моделей (ParameterRule, ParameterBinding, PropagationRule, DerivationRule, etc.)
+
+### Модели configurator
+
+| Модель | Назначение |
+|---|---|
+| `AssemblyRequirements` | Контейнер сессии подбора |
+| `ComponentRequirement` | Требования + результат для одного типа |
+| `PropagationRule` | Источник значения параметра (user/global/parent/derived) |
+| `DerivationRule` | Каскад от выбранной модели |
+| `ParameterRule` | Семантика сравнения (exact/directional/hierarchy/compatible/subset/composite) |
+| `ParameterBinding` | Привязка ParameterRule к EquipmentType |
+| `FittingPattern` + `FittingPatternItem` | Генерация позиций фитингов |
+
+---
+
 ## TODO
 
 - **Унифицировать filter_handlers.py или FILTER_DEFINITIONS** — сейчас хендлеры дублируют логику Q-фильтров, а CatalogConfig/SmartCatalogMixin уже умеют это делать. Либо перевести хендлеры на вызов существующих фильтров, либо добавить во все модели FILTER_DEFINITIONS.

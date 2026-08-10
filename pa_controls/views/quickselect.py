@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from core.views import BaseQuickSelectView
 from pa_controls.models.limit_switch import LimitSwitchBox
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
+from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
 
 
 class LimitSwitchBoxQuickSelectView(BaseQuickSelectView):
@@ -19,3 +20,4 @@ class LimitSwitchBoxQuickSelectView(BaseQuickSelectView):
     select_related = LimitSwitchBox.SELECT_RELATED_FIELDS
     prefetch_fields = None
     auto_select_rules = {}
+    catalog_config = LIMIT_SWITCH_CONFIG

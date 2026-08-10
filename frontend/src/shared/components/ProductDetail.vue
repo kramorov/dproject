@@ -12,6 +12,9 @@
 
       <div class="detail-info">
         <ProductHeader :name="product.title || product.name" :code="product.code" :price="price" />
+        <div class="detail-actions" v-if="product.sku?.id">
+          <AddToCartButton :skuId="product.sku.id" />
+        </div>
 
         <ProductTabs :tabs="tabItems">
           <template #default="{ activeTab }">
@@ -38,6 +41,7 @@ import ProductHeader from './ProductHeader.vue'
 import ProductTabs from './ProductTabs.vue'
 import TabSpecs from './TabSpecs.vue'
 import FileList from './FileList.vue'
+import AddToCartButton from './AddToCartButton.vue'
 
 const props = defineProps({
   product: { type: Object, required: true },
@@ -62,6 +66,7 @@ const galleryImages = computed(() => {
 .detail-layout { display: flex; gap: 32px; margin-top: 16px; }
 .detail-gallery { width: 460px; flex-shrink: 0; }
 .detail-info { flex: 1; min-width: 0; }
+.detail-actions { margin: 12px 0; }
 .section-text { font-size: var(--cat-text-base); line-height: 1.6; color: var(--cat-text-soft); }
 
 @media (max-width: 768px) {

@@ -37,7 +37,8 @@ FILTER_REGULATOR_CONFIG = CatalogConfig(
         'model_line': FilterSet(
             definitions=[
                 fd_filtration, fd_body_material,
-                fd_flow_rate, fd_thread, fd_climate,
+                fd_flow_rate, fd_thread,
+                fd_temp_min, fd_temp_max, fd_climate,
             ],
             scoped=True,
             show_compatible=False,
@@ -48,6 +49,12 @@ FILTER_REGULATOR_CONFIG = CatalogConfig(
             ],
             scoped=True,
             show_compatible=False,
+            defaults={
+                'filtration_rating_min': 'first',
+                'body_material_id': 'first',
+                'flow_rate_min': 'first',
+                'thread_id': 'first',
+            },
         ),
     },
 

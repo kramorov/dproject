@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import api from '@/shared/api'
 
 const emit = defineEmits(['update:temps'])
@@ -70,6 +70,7 @@ const parseError = ref('')
 const manualMinTemp = ref(null)
 const manualMaxTemp = ref(null)
 let parseTimer = null
+let tempEmitTimer = null
 
 onMounted(async () => {
   try {
@@ -126,22 +127,49 @@ function emitTemps() {
       min_temp: matchedCondition.value.min_temp_work, max_temp: matchedCondition.value.max_temp_work,
       designation: `${selectedZone.value?.name || ''}${selectedPlacement.value?.code || ''}` })
   } else if (manualMinTemp.value != null || manualMaxTemp.value != null) {
-    emit('update:temps', { zone_id: zoneId.value, placement_id: placementId.value,
-      min_temp: Number(manualMinTemp.value), max_temp: Number(manualMaxTemp.value), designation: 'вручную' })
+    const temps = { zone_id: zoneId.value, placement_id: placementId.value, designation: 'вручную' }
+    if (manualMinTemp.value != null) temps.min_temp = Number(manualMinTemp.value)
+    if (manualMaxTemp.value != null) temps.max_temp = Number(manualMaxTemp.value)
+    emit('update:temps', temps)
   } else { emit('update:temps', null) }
 }
 
-function onZoneChange() {
-  if (matchedCondition.value) { manualMinTemp.value = matchedCondition.value.min_temp_work; manualMaxTemp.value = matchedCondition.value.max_temp_work }
-  else { manualMinTemp.value = null; manualMaxTemp.value = null }
+async function onZoneChange() {
+  await nextTick()
+  if (matchedCondition.value) {
+    manualMinTemp.value = matchedCondition.value.min_temp_work
+    manualMaxTemp.value = matchedCondition.value.max_temp_work
+  } else if (!placementId.value) {
+    // placement not yet selected — keep current temps, don't reset
+  } else {
+    manualMinTemp.value = null
+    manualMaxTemp.value = null
+  }
   emitTemps()
 }
-function onPlacementChange() {
-  if (matchedCondition.value) { manualMinTemp.value = matchedCondition.value.min_temp_work; manualMaxTemp.value = matchedCondition.value.max_temp_work }
-  else { manualMinTemp.value = null; manualMaxTemp.value = null }
+async function onPlacementChange() {
+  await nextTick()
+  if (matchedCondition.value) {
+    manualMinTemp.value = matchedCondition.value.min_temp_work
+    manualMaxTemp.value = matchedCondition.value.max_temp_work
+  } else {
+    manualMinTemp.value = null
+    manualMaxTemp.value = null
+  }
   emitTemps()
 }
-watch([manualMinTemp, manualMaxTemp], () => { if (!tempsLocked.value) emitTemps() })
+watch([manualMinTemp, manualMaxTemp], () => {
+  if (tempsLocked.value) return
+  clearTimeout(tempEmitTimer)
+  tempEmitTimer = setTimeout(() => emitTemps(), 400)
+})
+watch(matchedCondition, (mc) => {
+  if (mc) {
+    manualMinTemp.value = mc.min_temp_work
+    manualMaxTemp.value = mc.max_temp_work
+    emitTemps()
+  }
+})
 
 async function onParseInput() {
   clearTimeout(parseTimer); parseError.value = ''

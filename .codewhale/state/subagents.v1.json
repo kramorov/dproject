@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "snapshot_sequence": 142,
+  "snapshot_sequence": 177,
   "agents": [],
   "coordination": {
     "schema_version": 1,
-    "sequence": 10,
+    "sequence": 11,
     "decisions": [],
     "write_claims": [
       {
@@ -105,6 +105,14 @@
         "deduplicated": 0,
         "omitted": 0,
         "sequence": 10
+      },
+      {
+        "child_id": "agent_c9ece705",
+        "decision_ids": [],
+        "projected_bytes": 0,
+        "deduplicated": 0,
+        "omitted": 0,
+        "sequence": 11
       }
     ],
     "contentions": []

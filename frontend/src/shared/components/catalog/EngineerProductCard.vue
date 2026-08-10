@@ -23,6 +23,9 @@
         </span>
       </div>
       <div class="eng-card__footer">
+        <div class="eng-card__cart" v-if="item.sku_id" @click.stop>
+          <AddToCartButton :skuId="item.sku_id" />
+        </div>
         <div class="eng-card__price" v-if="price && price.price != null && price.price !== '0' && price.price !== '0.00'">
           <span class="eng-card__price-val">{{ price.price }}</span>
           <span class="eng-card__price-cur">{{ price.symbol || price.currency }}</span>
@@ -36,6 +39,7 @@
 <script setup>
 import { computed } from 'vue'
 import ProgressiveImage from '@/shared/components/ProgressiveImage.vue'
+import AddToCartButton from '@/shared/components/AddToCartButton.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -204,9 +208,15 @@ const specs = computed(() => {
   font-weight: 500;
 }
 
-/* ── Footer (price) ── */
+/* ── Footer (cart + price) ── */
 .eng-card__footer {
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.eng-card__cart {
+  flex-shrink: 0;
 }
 .eng-card__price {
   display: inline-flex;

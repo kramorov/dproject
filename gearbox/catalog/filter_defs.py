@@ -6,7 +6,6 @@ These are the same FilterDefinitions previously in gearbox/services/filters.py.
 Kept here for the CatalogConfig; the old location remains for backward compat.
 """
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
-from params.models import IpOption, ClimaticPlacementCategory, ClimaticZoneCategory
 from params.models import IpOption
 
 # ── Individual filter definitions (named for reuse in FilterSets) ──
@@ -14,7 +13,8 @@ from params.models import IpOption
 fd_ip = FilterDefinition(
     param_name='ip_id',
     model_field='ip',
-    filter_type=FilterType.IP_RANK,
+    filter_type=FilterType.IP_RANK,            # frontend: IP rank UI
+    parameter_rule_code='ip',                  # backend: ParameterRule 'ip'
     data_source_type=DataSourceType.GLOBAL_MODEL,
     source_model=IpOption,
     label='IP',
@@ -24,7 +24,8 @@ fd_ip = FilterDefinition(
 fd_temp_min = FilterDefinition(
     param_name='work_temp_min',
     model_field='work_temp_min',
-    filter_type=FilterType.TEMP_MIN,
+    filter_type=FilterType.TEMP_MIN,            # frontend: temperature slider
+    parameter_rule_code='temperature_min',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от, °С',
     order=5,
@@ -33,7 +34,8 @@ fd_temp_min = FilterDefinition(
 fd_temp_max = FilterDefinition(
     param_name='work_temp_max',
     model_field='work_temp_max',
-    filter_type=FilterType.TEMP_MAX,
+    filter_type=FilterType.TEMP_MAX,            # frontend: temperature slider
+    parameter_rule_code='temperature_max',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до, °С',
     order=6,

@@ -84,6 +84,20 @@ def limit_switch_filter(params: dict) -> dict:
     return _apply_filters(LimitSwitchBox, LIMIT_SWITCH_CONFIG.get_filter_set("engineer").definitions, params)
 
 
+# ── Limit switch box (ParameterRule-based, v2) ──
+
+def limit_switch_filter_v2(params: dict) -> dict:
+    """БКВ фильтр на основе ParameterRule (configurator).
+
+    Использует ParameterBinding → ParameterRule для определения
+    семантики сравнения (directional, hierarchy, subset) вместо
+    жёстко закодированных FilterType в _apply_filters.
+    """
+    from pa_controls.models.limit_switch import LimitSwitchBox
+    from configurator.services.parameter_filter import apply_parameter_rules
+    return apply_parameter_rules(LimitSwitchBox, "lsb", params)
+
+
 # ── Gearbox ──
 
 def gearbox_filter(params: dict) -> dict:

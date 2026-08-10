@@ -704,6 +704,7 @@ class BaseQuickSelectView(APIView):
     select_related = None
     prefetch_fields = None
     auto_select_rules = {}
+    catalog_config = None
 
     def get(self, request):
         params = request.query_params
@@ -741,22 +742,32 @@ class BaseQuickSelectView(APIView):
 
         # Опции фильтров с подсчётом
         filters_out = {}
+        filter_labels = {}
         for fd in (self.filter_definitions or []):
             if fd.param_name not in (self.quickselect_filters or []):
                 continue
             options = self._get_filter_options(qs, fd)
             if options:
                 filters_out[fd.param_name] = options
+                filter_labels[fd.param_name] = fd.label
 
         ml_info = None
         if model_line_id and self.model_line_model:
             ml_info = self._get_model_line_info(model_line_id)
+
+        defaults = {}
+        if self.catalog_config:
+            qs_fs = self.catalog_config.filter_sets.get('quickselect')
+            if qs_fs:
+                defaults = qs_fs.defaults
 
         return Response({
             'model_line': ml_info,
             'total': qs.count(),
             'items': items,
             'filters': filters_out,
+            'filter_labels': filter_labels,
+            'defaults': defaults,
         })
 
     def _get_filter_options(self, qs, fd):
@@ -765,7 +776,8 @@ class BaseQuickSelectView(APIView):
         from django.db.models import Count
         field_name = fd.model_field
 
-        if fd.filter_type in (_FT.EXACT,):
+        if fd.filter_type in (_FT.EXACT, _FT.EXD_COMPATIBLE, _FT.IP_RANK):
+            import logging; _log = logging.getLogger('qs_filter')
             try:
                 parts = field_name.split('__')
                 rel_model = self.model_class
@@ -774,12 +786,15 @@ class BaseQuickSelectView(APIView):
                     if fld.is_relation:
                         rel_model = fld.remote_field.model
 
+                # FK: field_id, M2M: field__id
+                id_field = f'{field_name}__id' if getattr(fld, 'many_to_many', False) else f'{field_name}_id'
+
                 rows = (
-                    qs.values(f'{field_name}_id')
-                    .annotate(count=Count('id'))
-                    .order_by(f'{field_name}_id')
+                    qs.values(id_field)
+                    .annotate(count=Count('id', distinct=True))
+                    .order_by(id_field)
                 )
-                ids = [r[f'{field_name}_id'] for r in rows if r[f'{field_name}_id'] is not None]
+                ids = [r[id_field] for r in rows if r[id_field] is not None]
                 if not ids:
                     return []
 
@@ -789,9 +804,10 @@ class BaseQuickSelectView(APIView):
                 return [
                     {'id': oid, 'name': str(obj_map[oid]), 'count': row['count']}
                     for row in rows
-                    if (oid := row[f'{field_name}_id']) and oid in obj_map
+                    if (oid := row[id_field]) and oid in obj_map
                 ]
-            except Exception:
+            except Exception as e:
+                import logging; logging.getLogger('qs_filter').warning(f'_get_filter_options failed for {fd.param_name}: {e}', exc_info=True)
                 return []
 
         elif fd.filter_type in (_FT.MIN,):
@@ -799,6 +815,28 @@ class BaseQuickSelectView(APIView):
                 qs.values_list(field_name, flat=True)
                 .distinct()
                 .order_by(field_name)
+            )
+            return [
+                {'value': v, 'label': str(v), 'count': qs.filter(**{f'{field_name}__gte': v}).count()}
+                for v in values if v is not None
+            ]
+
+        elif fd.filter_type in (_FT.TEMP_MIN,):
+            values = (
+                qs.values_list(field_name, flat=True)
+                .distinct()
+                .order_by(field_name)
+            )
+            return [
+                {'value': v, 'label': str(v), 'count': qs.filter(**{f'{field_name}__lte': v}).count()}
+                for v in values if v is not None
+            ]
+
+        elif fd.filter_type in (_FT.TEMP_MAX,):
+            values = (
+                qs.values_list(field_name, flat=True)
+                .distinct()
+                .order_by(f'-{field_name}')
             )
             return [
                 {'value': v, 'label': str(v), 'count': qs.filter(**{f'{field_name}__gte': v}).count()}

@@ -18,6 +18,9 @@
         <span class="price-cur">{{ price.symbol || price.currency }}</span>
       </div>
       <div class="card-price card-price-request" v-else>Цена по запросу</div>
+      <div class="card-actions-row" v-if="skuId != null">
+        <AddToCartButton :skuId="skuId" />
+      </div>
     </div>
   </div>
 </template>
@@ -25,10 +28,12 @@
 <script setup>
 import { computed } from 'vue'
 import ProgressiveImage from '@/shared/components/ProgressiveImage.vue'
+import AddToCartButton from '@/shared/components/AddToCartButton.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
   price: { type: Object, default: null },
+  skuId: { type: Number, default: null },
 })
 
 const emit = defineEmits(['select'])

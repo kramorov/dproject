@@ -11,6 +11,12 @@ const routes = [
   { path: '/register', component: () => import('../pages/auth/RegisterMainPage.vue'), meta: { title: 'Регистрация' } },
 
   // Каталоги оборудования
+  // Корзина и избранное
+  { path: '/cart', component: () => import('../pages/CartListPage.vue'), meta: { title: 'Корзины' } },
+  { path: '/cart/:id', component: () => import('../pages/CartDetailPage.vue'), meta: { title: 'Корзина' } },
+  { path: '/favorites', component: () => import('../pages/FavoritesPage.vue'), meta: { title: 'Избранное' } },
+  { path: '/product/:id', component: () => import('../pages/ProductPage.vue'), meta: { title: 'Товар' } },
+
   // Каталоги — индексные страницы
   { path: '/catalogs/equipment', name: 'catalogs-equipment', component: () => import('../pages/catalog/CatalogEquipmentIndex.vue'), meta: { title: 'Каталоги оборудования' } },
   { path: '/catalogs/valves', name: 'catalogs-valves', component: () => import('../pages/catalog/CatalogValvesIndex.vue'), meta: { title: 'Каталоги арматуры' } },

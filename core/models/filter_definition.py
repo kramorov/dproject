@@ -39,6 +39,7 @@ class FilterType(Enum):
     CLIMATE_CASCADE = "climate_cascade"
     THREAD_COMPATIBLE = "thread_compatible"
     FUNCTION_COMPATIBLE = "function_compatible"
+    PARAMETER_RULE = "parameter_rule"
 
 
 class DataSourceType(Enum):
@@ -103,6 +104,7 @@ class FilterDefinition:
             show_code: bool = False,
             default_value: str = None,
             mandatory: str = 'any',
+            parameter_rule_code: str = None,
     ):
         self.param_name = param_name
         self.model_field = model_field
@@ -122,6 +124,7 @@ class FilterDefinition:
         self.show_code = show_code
         self.default_value = default_value
         self.mandatory = mandatory
+        self.parameter_rule_code = parameter_rule_code
 
     # ── Options ──
 
@@ -261,7 +264,42 @@ class FilterDefinition:
     # ── Filter lookup ──
 
     def build_filter_lookup(self, value: Any) -> tuple:
-        """Build a Django ORM lookup tuple from a user-supplied value."""
+        """Build a Django ORM lookup tuple from a user-supplied value.
+
+        If parameter_rule_code is set, delegates to ParameterRule regardless
+        of filter_type — the rule's match_type determines the lookup.
+        """
+
+        # ParameterRule delegation (priority over filter_type)
+        if self.parameter_rule_code:
+            try:
+                from configurator.models import ParameterRule
+                from configurator.services.parameter_filter import _build_q_from_parameter_rule
+                rule = ParameterRule.objects.get(code=self.parameter_rule_code, is_active=True)
+
+                # Resolve FK value for subset/hierarchy match_types:
+                # the frontend sends an FK ID (e.g., IpOption id=5),
+                # but the rule needs the actual rank (ip_rank=66).
+                resolved_value = value
+                if rule.match_type in ('subset', 'hierarchy') and self.source_model:
+                    try:
+                        obj = self.source_model.objects.get(id=int(value))
+                        rank_field = rule.match_config.get('field', 'ip_rank')
+                        resolved_value = getattr(obj, rank_field, value)
+                    except Exception:
+                        pass  # keep original value if resolution fails
+
+                result = _build_q_from_parameter_rule(rule, self.model_field, resolved_value)
+                if result is not None:
+                    return result
+            except Exception:
+                import traceback
+                import logging
+                logging.getLogger("filter_definition").warning(
+                    f"ParameterRule delegation failed for code='{self.parameter_rule_code}': "
+                    f"{traceback.format_exc()}"
+                )
+            # Fall through to filter_type logic on failure
 
         if self.filter_type == FilterType.TEMP_MIN:
             return f"{self.model_field}__lte", value
@@ -422,6 +460,25 @@ class FilterDefinition:
                         return f'{self.model_field}__in', ids
                 return f'{self.model_field}', value_int
             except Exception:
+                return None, None
+        elif self.filter_type == FilterType.PARAMETER_RULE:
+            if not self.parameter_rule_code:
+                return None, None
+            try:
+                from configurator.models import ParameterRule
+                from configurator.services.parameter_filter import _build_q_from_parameter_rule
+                rule = ParameterRule.objects.get(code=self.parameter_rule_code, is_active=True)
+                result = _build_q_from_parameter_rule(rule, self.model_field, value)
+                if result is not None:
+                    return result
+                return None, None
+            except Exception:
+                import traceback
+                import logging
+                logging.getLogger("filter_definition").error(
+                    f"PARAMETER_RULE failed for code='{self.parameter_rule_code}': "
+                    f"{traceback.format_exc()}"
+                )
                 return None, None
 
         return f"{self.model_field}", value

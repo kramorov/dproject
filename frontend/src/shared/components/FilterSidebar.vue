@@ -21,7 +21,7 @@
         v-else-if="f.filter_type === 'climate_cascade'"
         @update:temps="temps => onClimateChange(temps, f.key)"
       />
-      <template v-else>
+      <template v-else-if="!hasClimateFilter || (f.filter_type !== 'temp_min' && f.filter_type !== 'temp_max')">
         <label>{{ f.label }}</label>
         <span v-if="f.options.length === 1" class="filter-single-value">{{ f.options[0].name }}</span>
         <select v-else v-model="active[f.key]" @change="$emit('change', f.key, active[f.key])">
@@ -81,6 +81,10 @@ const hasActive = computed(() =>
   Object.values(active).some(v => v !== '' && v != null)
 )
 
+const hasClimateFilter = computed(() =>
+  sortedFilters.value.some(f => f.filter_type === 'climate_cascade')
+)
+
 function onExdChange(ids) {
   activeExdIds.value = ids
   if (!ids.length) {
@@ -94,8 +98,8 @@ function onExdChange(ids) {
 
 function onClimateChange(temps, key) {
   if (temps) {
-    emit('change', 'work_temp_min', temps.min_temp)
-    emit('change', 'work_temp_max', temps.max_temp)
+    if (temps.min_temp != null) emit('change', 'work_temp_min', temps.min_temp)
+    if (temps.max_temp != null) emit('change', 'work_temp_max', temps.max_temp)
   }
 }
 </script>

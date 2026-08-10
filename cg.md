@@ -159,3 +159,4 @@ EquipmentType (core)
 - **Перенос PipelineConfigPage** в BomConfigPage как вкладка — единый центр настройки AI
 - **AiCatalogSearch** — AI-помощник на страницах каталогов: текстовый ввод → extract фильтров → применение
 - **Валидация parent** на фронте — исключать саму группу и потомков из списка родителей (сейчас на бэкенде)
+- **Интеграция с configurator** — ParameterRule + ParameterBinding для EquipmentType в каталогах (см. [`configurator.md`](configurator.md))
