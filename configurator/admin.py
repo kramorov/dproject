@@ -9,6 +9,8 @@ from configurator.models import (
     ParameterBinding,
     FittingPattern,
     FittingPatternItem,
+    ParameterSource,
+    EquipmentTypeParameter,
 )
 
 
@@ -219,5 +221,51 @@ class FittingPatternItemAdmin(admin.ModelAdmin):
         }),
         ("Конфигурация", {
             "fields": ("config", "order"),
+        }),
+    )
+
+
+# ── ParameterSource ──
+
+@admin.register(ParameterSource)
+class ParameterSourceAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("code", "name")
+
+
+# ── EquipmentTypeParameter ──
+
+@admin.register(EquipmentTypeParameter)
+class EquipmentTypeParameterAdmin(admin.ModelAdmin):
+    list_display = ("code", "equipment_type", "param_name", "is_required", "is_active")
+    list_filter = ("is_required", "is_active", "equipment_type")
+    search_fields = ("code", "param_name", "equipment_type__code")
+    list_editable = ("is_active",)
+    autocomplete_fields = ("equipment_type", "parameter_rule")
+    fieldsets = (
+        (None, {
+            "fields": ("code", "equipment_type", "param_name", "label", "field_type"),
+        }),
+        ("Каталог (FilterDefinition)", {
+            "fields": ("filter_type", "data_source_type", "options_source", "options_config"),
+        }),
+        ("Модель продукта", {
+            "fields": ("product_model", "product_model_ref", "field_path"),
+        }),
+        ("Обязательность", {
+            "fields": ("is_required", "required_condition", "priority"),
+        }),
+        ("Сравнение", {
+            "fields": ("parameter_rule",),
+        }),
+        ("Семантика (AI)", {
+            "fields": ("param_type", "unit", "description", "enum_values", "ai_extraction_hint"),
+        }),
+        ("Опции формы", {
+            "fields": ("options_source", "options_config"),
+        }),
+        ("Служебное", {
+            "fields": ("sorting_order", "is_active"),
         }),
     )

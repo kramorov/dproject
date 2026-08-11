@@ -78,6 +78,7 @@ const allItems = [
     { label:'Настройка системы', children:[
       { to:'/admin/wizard-config', label:'Мастер подбора' },
       { to:'/admin/media', label:'Медиабиблиотека' },
+      { to:'/admin/configurator-rules', label:'Правила конфигуратора' },
       { to:'/admin/permissions', label:'Права доступа' },
     ]},
     { label:'Инструменты', children:[

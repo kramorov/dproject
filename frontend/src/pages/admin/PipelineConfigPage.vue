@@ -71,87 +71,110 @@
       </div>
     </section>
 
-    <!-- JSON Schemas -->
+    <!-- Generated JSON Schemas (from EquipmentTypeParameter) -->
     <section v-show="activeTab === 'schemas'" class="section">
-      <h2>JSON Schemas <button class="btn-add" @click="addSchema">+ Add</button></h2>
-      <table>
-        <thead><tr><th>#</th><th>Name</th><th>Version</th><th>Active</th><th></th></tr></thead>
-        <tbody>
-          <tr v-for="(s, i) in schemas" :key="i">
-            <td><input v-model="s.sorting_order" class="cell-input" size="3" /></td>
-            <td><input v-model="s.name" class="cell-input" /></td>
-            <td><input v-model="s.version" class="cell-input" size="6" /></td>
-            <td><input type="checkbox" v-model="s.is_active" /></td>
-            <td>
-              <button class="btn-edit" @click="editingSchema = s">Edit JSON</button>
-              <button class="btn-save-sm" @click="saveSchema(s)">💾</button>
-              <button class="btn-del" @click="deleteSchema(s.id)">✕</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="editingSchema" class="modal-overlay" @click.self="editingSchema = null">
-        <div class="modal modal-wide">
-          <h3>{{ editingSchema.name }} v{{ editingSchema.version }}</h3>
-          <div v-if="(editingSchema._viewMode || 'tree') === 'tree'" class="json-tree-view">
-            <vue-json-pretty :data="safeParseJSON(editingSchema.schema_json_text)" :deep="3" showLineNumber />
-          </div>
-          <div v-else-if="editingSchema._viewMode === 'table'" class="json-tree-view">
-            <JsonTableViewer :data="safeParseJSON(editingSchema.schema_json_text)" />
-          </div>
-          <div v-else>
-            <textarea v-model="editingSchema.schema_json_text" rows="18" class="prompt-editor" :class="{ invalid: editingSchema._jsonError }"></textarea>
-            <div v-if="editingSchema._jsonError" class="json-error">{{ editingSchema._jsonError }}</div>
-          </div>
-          <div class="modal-actions" style="justify-content: space-between">
-            <div>
-              <button class="btn-mode" :class="{ active: (editingSchema._viewMode || 'tree') === 'tree' }" @click="editingSchema._viewMode = 'tree'">Tree</button>
-              <button class="btn-mode" :class="{ active: editingSchema._viewMode === 'table' }" @click="editingSchema._viewMode = 'table'">Table</button>
-              <button class="btn-mode" :class="{ active: editingSchema._viewMode === 'raw' }" @click="editingSchema._viewMode = 'raw'">Raw</button>
-              <button class="btn-edit" @click="formatJSON(editingSchema, 'schema_json_text')">Format</button>
-            </div>
-            <div>
-              <button class="btn-save" @click="saveSchema(editingSchema); editingSchema = null">Save</button>
-              <button @click="editingSchema = null">Cancel</button>
-            </div>
-          </div>
+      <h2>Generated JSON Schemas</h2>
+      <p class="hint" style="margin-bottom:12px">
+        Схемы генерируются автоматически из
+        <a href="#" @click.prevent="activeTab='equipment'">Equipment Parameters</a>.
+        Выберите тип оборудования:
+      </p>
+      <div class="schema-gen-row">
+        <select v-model="schemaEtId" style="width:220px">
+          <option :value="null">— Выберите тип —</option>
+          <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }} ({{ et.code }})</option>
+        </select>
+        <select v-model="schemaVariant" style="width:140px">
+          <option value="ai">AI (LLM)</option>
+          <option value="configurator">Configurator</option>
+        </select>
+        <button class="btn-add" @click="generateSchema()" :disabled="!schemaEtId">Generate</button>
+      </div>
+
+      <div v-if="generatedSchema" style="margin-top:16px">
+        <div class="json-tree-view">
+          <vue-json-pretty :data="generatedSchema" :deep="3" showLineNumber />
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn-edit" @click="copySchema()">Copy JSON</button>
+          <span class="hint">{{ generatedSchemaName }}</span>
         </div>
       </div>
+      <div v-else-if="schemaEtId" class="empty" style="margin-top:12px">Нажмите Generate</div>
+      <div v-else class="empty" style="margin-top:12px">Выберите тип оборудования и нажмите Generate</div>
+
+
     </section>
 
-    <!-- Equipment Types -->
+    <!-- Equipment Types (split layout) -->
     <section v-show="activeTab === 'equipment'" class="section">
-      <h2>Equipment Types — AI Settings</h2>
-      <table>
-        <thead><tr><th>Code</th><th>Name</th><th>Filter Endpoint</th><th>Param Semantics</th><th></th></tr></thead>
-        <tbody>
-          <tr v-for="(et, i) in equipmentTypes" :key="i">
-            <td>{{ et.code }}</td><td>{{ et.name }}</td>
-            <td><input v-model="et.filter_endpoint" class="cell-input" /></td>
-            <td><button class="btn-edit" @click="editingEquipSemantics = et">Edit</button></td>
-            <td><button class="btn-save-sm" @click="saveEquipment(et)">💾</button></td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="editingEquipSemantics" class="modal-overlay" @click.self="editingEquipSemantics = null">
-        <div class="modal modal-wide">
-          <h3>{{ editingEquipSemantics.name }} — param_semantics</h3>
-          <div v-if="!editingEquipSemantics._showRaw" class="json-tree-view">
-            <JsonTableViewer :data="safeParseJSON(editingEquipSemantics.param_semantics_text)" />
-          </div>
-          <div v-else>
-            <textarea v-model="editingEquipSemantics.param_semantics_text" rows="14" class="prompt-editor" :class="{ invalid: editingEquipSemantics._jsonError }"></textarea>
-            <div v-if="editingEquipSemantics._jsonError" class="json-error">{{ editingEquipSemantics._jsonError }}</div>
-          </div>
-          <div v-if="editingEquipSemantics._jsonError" class="json-error">{{ editingEquipSemantics._jsonError }}</div>
-          <div class="modal-actions" style="justify-content: space-between">
-            <button class="btn-edit" @click="editingEquipSemantics._showRaw = !editingEquipSemantics._showRaw">{{ editingEquipSemantics._showRaw ? 'Tree view' : 'Edit raw' }}</button>
-              <button class="btn-edit" @click="formatJSON(editingEquipSemantics, 'param_semantics_text')">Format JSON</button>
-            <div>
-              <button class="btn-save" @click="saveEquipment(editingEquipSemantics); editingEquipSemantics = null">Save</button>
-              <button @click="editingEquipSemantics = null">Cancel</button>
+      <h2>Equipment Types</h2>
+      <div class="split-layout">
+        <!-- Left: equipment types list -->
+        <div class="left-panel">
+          <ul class="et-list">
+            <li v-for="et in equipmentTypes" :key="et.id"
+                :class="{ active: selectedEtId === et.id }"
+                @click="selectEquipmentType(et)">
+              <code>{{ et.code }}</code> {{ et.name }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Right: editor for selected type -->
+        <div class="right-panel" v-if="selectedEt">
+          <!-- Basic info -->
+          <div class="et-info">
+            <strong>{{ selectedEt.name }}</strong> <code>{{ selectedEt.code }}</code>
+            <div class="field-row">
+              <label>Filter Endpoint:</label>
+              <input v-model="selectedEt.filter_endpoint" class="cell-input" style="width:auto;flex:1" />
             </div>
+            <button class="btn-save-sm" @click="saveEquipment(selectedEt)">💾 Save</button>
           </div>
+
+          <!-- param_semantics -->
+          <div class="param-section">
+            <h4>param_semantics</h4>
+            <div class="editor-row">
+              <textarea v-model="selectedEt.param_semantics_text" rows="8" class="prompt-editor"
+                        :class="{ invalid: selectedEt._jsonError }"></textarea>
+              <div class="editor-actions">
+                <button class="btn-edit" @click="formatJSON(selectedEt, 'param_semantics_text')">Format</button>
+                <button class="btn-save-sm" @click="saveEquipment(selectedEt)">💾</button>
+              </div>
+            </div>
+            <div v-if="selectedEt._jsonError" class="json-error">{{ selectedEt._jsonError }}</div>
+            <JsonTableViewer :data="safeParseJSON(selectedEt.param_semantics_text)" />
+          </div>
+
+          <!-- Equipment Parameters -->
+          <div class="param-section">
+            <h4>Equipment Parameters ({{ filteredParams.length }})</h4>
+            <table>
+              <thead><tr><th>Param</th><th>Path</th><th>Type</th><th>Unit</th><th>Filter</th><th>Source</th><th>Req</th><th>Active</th><th></th></tr></thead>
+              <tbody>
+                <tr v-for="p in filteredParams" :key="p.id">
+                  <td><input v-model="p.param_name" class="cell-input" /></td>
+                  <td><input v-model="p.field_path" class="cell-input" /></td>
+                  <td><select v-model="p.param_type"><option value="">—</option><option value="integer">int</option><option value="decimal">dec</option><option value="choice">choice</option><option value="boolean">bool</option><option value="string">str</option></select></td>
+                  <td><input v-model="p.unit" class="cell-input" style="width:50px" /></td>
+                  <td><code style="font-size:11px">{{ p.filter_type || '-' }}</code></td>
+                  <td><code style="font-size:11px">{{ p.data_source_type || '-' }}</code></td>
+                  <td><input type="checkbox" v-model="p.is_required" /></td>
+                  <td><input type="checkbox" v-model="p.is_active" /></td>
+                  <td><button class="btn-save-sm" @click="saveParam(p)">💾</button></td>
+                </tr>
+                <tr v-if="!filteredParams.length"><td colspan="7" class="empty">No parameters yet</td></tr>
+              </tbody>
+            </table>
+            <button class="btn-add" @click="addParam()" style="margin-top:8px">+ Add Parameter</button>
+          </div>
+        </div>
+
+        <!-- No type selected -->
+        <div class="right-panel" v-else>
+          <div class="empty">Выберите тип оборудования слева</div>
         </div>
       </div>
     </section>
@@ -168,7 +191,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/shared/api'
 import JsonTableViewer from '@/components/JsonTableViewer.vue'
 import VueJsonPretty from 'vue-json-pretty'
@@ -185,7 +208,11 @@ const STEP_CHOICES = [['decompose','Decompose'],['extract','Extract'],['filter',
 
 const skills = ref([]); const overrides = ref([]); const promptTemplates = ref([])
 const schemas = ref([]); const equipmentTypes = ref([]); const modelRoles = ref([]); const customers = ref([])
-const editingPrompt = ref(null); const editingSchema = ref(null); const editingEquipSemantics = ref(null)
+const equipmentParams = ref([])
+const selectedEt = ref(null); const selectedEtId = ref(null)
+const schemaEtId = ref(null); const schemaVariant = ref('ai')
+const generatedSchema = ref(null); const generatedSchemaName = ref('')
+const editingPrompt = ref(null); const editingSchema = ref(null)
 
 onMounted(async () => {
   const safe = p => p.then(r => {
@@ -206,6 +233,8 @@ onMounted(async () => {
   schemas.value = schemasRaw.map(s => ({ ...s, schema_json_text: JSON.stringify(s.schema_json, null, 2) }))
   equipmentTypes.value = equipmentRaw.map(e => ({ ...e, param_semantics_text: JSON.stringify(e.param_semantics || {}, null, 2) }))
   modelRoles.value = rolesResp; customers.value = customersRaw
+  const paramsResp = await safe(api.get('/configurator/admin/equipment-type-parameters/'))
+  equipmentParams.value = Array.isArray(paramsResp) ? paramsResp : (paramsResp.results || [])
 })
 
 async function saveSkill(s) {
@@ -234,6 +263,51 @@ async function deleteSchema(id) { if (confirm('Delete?')) { await api.delete(`/a
 async function saveEquipment(et) {
   try { et.param_semantics = JSON.parse(et.param_semantics_text) } catch (e) { alert('Invalid JSON'); return }
   await api.patch(`/ai-assistant/equipment-types/${et.id}/`, { param_semantics: et.param_semantics, filter_endpoint: et.filter_endpoint })
+}
+async function saveParam(p) { await api.patch(`/configurator/admin/equipment-type-parameters/${p.id}/`, p) }
+
+const filteredParams = computed(() => {
+  if (!selectedEtId.value) return []
+  return equipmentParams.value.filter(p => p.equipment_type === selectedEtId.value)
+})
+
+function selectEquipmentType(et) {
+  selectedEt.value = et
+  selectedEtId.value = et.id
+}
+
+async function addParam() {
+  if (!selectedEtId.value) return
+  const newP = {
+    equipment_type: selectedEtId.value,
+    param_name: 'new_param',
+    field_path: 'new_param',
+    field_type: 'choice',
+    is_required: false,
+    allow_override: true,
+    is_active: true,
+    sorting_order: filteredParams.value.length,
+  }
+  try {
+    const { data } = await api.post('/configurator/admin/equipment-type-parameters/', newP)
+    equipmentParams.value.push(data)
+  } catch (e) { alert('Failed to create parameter: ' + (e.response?.data?.detail || e.message)) }
+}
+
+async function generateSchema() {
+  if (!schemaEtId.value) return
+  try {
+    const variant = schemaVariant.value || 'ai'
+    const { data } = await api.get(`/configurator/admin/equipment-type-parameters/schema/?equipment_type=${schemaEtId.value}&variant=${variant}`)
+    generatedSchema.value = data.schema
+    generatedSchemaName.value = `${data.equipment_type} — ${data.name} [${variant}]`
+  } catch (e) { console.warn('Schema generation failed', e) }
+}
+
+function copySchema() {
+  if (!generatedSchema.value) return
+  navigator.clipboard.writeText(JSON.stringify(generatedSchema.value, null, 2))
+    .then(() => alert('Скопировано в буфер'))
 }
 
 function safeParseJSON(text) { try { return JSON.parse(text) } catch { return {} } }
@@ -281,4 +355,28 @@ select { padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size
 .json-tree-view { max-height: 60vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 8px; background: #fafafa; }
 .json-error { color: #e53935; font-size: 12px; margin-top: -8px; margin-bottom: 8px; padding: 4px 8px; background: #ffebee; border-radius: 3px; }
 .prompt-editor.invalid { border-color: #e53935; background: #fff8f8; }
+
+.split-layout { display: flex; gap: 16px; min-height: 50vh; }
+.left-panel { width: 220px; min-width: 180px; border-right: 1px solid #eee; padding-right: 12px; }
+.right-panel { flex: 1; min-width: 0; overflow-y: auto; }
+
+.et-list { list-style: none; padding: 0; margin: 0; }
+.et-list li { padding: 8px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+.et-list li:hover { background: #f0f4ff; }
+.et-list li.active { background: #e3edff; font-weight: 600; }
+.et-list li code { font-size: 11px; color: #888; display: block; }
+
+.et-info { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+.et-info strong { font-size: 16px; display: block; margin-bottom: 4px; }
+.et-info code { font-size: 12px; color: #888; }
+
+.param-section { margin-top: 16px; }
+.param-section h4 { font-size: 14px; color: #555; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 4px; }
+
+.field-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.field-row label { font-size: 12px; color: #666; white-space: nowrap; }
+
+.editor-row { display: flex; gap: 8px; align-items: flex-start; }
+.editor-row textarea { flex: 1; }
+.editor-actions { display: flex; flex-direction: column; gap: 4px; }
 </style>

@@ -26,8 +26,10 @@ class ComponentRequirement(models.Model):
     equipment_type = models.ForeignKey(
         "core.EquipmentType",
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="component_requirements",
-        help_text="Тип оборудования (пневмопривод, соленоид, ...)",
+        help_text="Тип оборудования (null для виртуальных узлов без ET)",
     )
     composition_group_node = models.ForeignKey(
         "ai_assistant.CompositionGroup",

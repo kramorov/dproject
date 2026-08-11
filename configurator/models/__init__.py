@@ -5,6 +5,8 @@ from .derivation_rule import DerivationRule
 from .parameter_rule import ParameterRule
 from .parameter_binding import ParameterBinding
 from .fitting_pattern import FittingPattern, FittingPatternItem
+from .parameter_source import ParameterSource
+from .equipment_type_parameter import EquipmentTypeParameter
 
 __all__ = [
     "AssemblyRequirements",
@@ -15,4 +17,6 @@ __all__ = [
     "ParameterBinding",
     "FittingPattern",
     "FittingPatternItem",
+    "ParameterSource",
+    "EquipmentTypeParameter",
 ]

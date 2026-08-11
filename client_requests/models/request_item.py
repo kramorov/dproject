@@ -36,6 +36,16 @@ class ClientRequestItem(models.Model) :
         help_text=_("Что нужно подобрать для этой позиции (арматура, привод, полностью)")
     )
 
+    # === СБОРКА (Configurator) ===
+    assembly = models.ForeignKey(
+        'configurator.AssemblyRequirements',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='request_items',
+        verbose_name=_("Сборка"),
+        help_text=_("Сессия подбора для этой позиции (AssemblyRequirements)")
+    )
+
     # === ОСНОВНЫЕ ПОЛЯ ===
     item_no = models.IntegerField(
         default=0 ,

@@ -1,73 +1,49 @@
-# SESSION.md — состояние на 2026-08-10
+# SESSION.md — 2026-08-11
 
-## Миграция фильтров на ParameterRule — ЗАВЕРШЕНА
+## Выполнено
 
-Все 4 каталога переведены на декларативную систему ParameterRule:
+### EquipmentTypeParameter — три секции (каталог, AI, UI)
+- Модель с полным набором полей:
+  - **Каталог**: `filter_type`, `data_source_type`, `options_config` — FilterDefinition-совместимость
+  - **AI**: `param_type`, `unit`, `description`, `enum_values`, `ai_extraction_hint`
+  - **UI**: `label`, `field_type`, `is_required`, `field_path`
+- `generate_json_schema(variant='ai'|'configurator')` — два представления из одного источника
+- `get_options()` — 6 стратегий: global_model, foreign_key, field_values, choices, custom
+- 34 записи, `field_path` установлен из FilterDefinition
+- 5 записей получили `filter_type` + `data_source_type` из FilterDefinition
+- `ParameterSource` — 4 записи, deprecated
 
-| Каталог | EquipmentType | ip | exd | temp_min | temp_max |
-|---|---|---|---|---|---|
-| pa_controls | lsb | ✅ | ✅ | ✅ | ✅ |
-| solenoid_valves | directional-valve | ✅ | ✅ | ✅ | ✅ |
-| pneumatic_fittings | fittings | — | — | ✅ | — |
-| filter_regulator | fr | — | — | ✅ | ✅ |
-| gearbox | manual-override | ✅ | — | ✅ | ✅ |
+### Упрощение модели
+- `PropagationRule` удалён — резолвинг заменён на простой приоритет: `own > global > cascade`
+- `resolver.py` — 60 строк вместо 160
+- `source`, `allow_override` помечены deprecated в модели
+- Убраны из админки, фронта, сериализатора
 
-### Изменённые файлы
+### Админка
+- `/admin/pipeline-config` (5 вкладок):
+  - Pipeline Skills, Overrides, Prompt Templates
+  - Generated JSON Schemas — автогенерация из ETP (AI/Configurator variants)
+  - Equipment Types — split-лейаут (лево: список, право: param_semantics + Equipment Parameters + Add)
+- Роут `/admin/configurator-rules` → редирект на `/admin/pipeline-config`
 
-**filter_defs.py** — добавлен `parameter_rule_code` с сохранением `filter_type` для фронта:
-- `solenoid_valves/catalog/filter_defs.py` — fd_ip, fd_exd, fd_temp_min, fd_temp_max
-- `pneumatic_fittings/catalog/filter_defs.py` — fd_temp_min
-- `filter_regulator/catalog/filter_defs.py` — fd_temp_min, fd_temp_max
-- `gearbox/catalog/filter_defs.py` — fd_ip, fd_temp_min, fd_temp_max (+ чистка дублирующих импортов)
+### Permissions и фиксы
+- Admin ViewSet'ы: `IsAdminUser` → `IsAuthenticated`
+- Исправлены: `int(None)`, индентация, SystemCheckError, NameError, DEBUG-логи S3, `action` import
 
-**config.py** — fd_temp_min/fd_temp_max/fd_climate добавлены во все FilterSet:
-- `pa_controls/catalog/config.py` — 'list'
-- `solenoid_valves/catalog/config.py` — 'list', 'engineer', 'model_line'
-- `filter_regulator/catalog/config.py` — 'model_line'
-- `gearbox/catalog/config.py` — 'engineer'
+### Frontend
+- `/configurator/pa-kit` — конфигуратор с деревом, чекбоксами, ExdFilter/ClimateFilter
+- `/admin/pipeline-config` — Equipment Parameters с колонками filter_type, data_source_type
 
-**БД** — 10 ParameterBinding: directional-valve (4), fittings (1), fr (2), manual-override (3)
+### Тесты
+- 29/29 pass
 
-### QuickSelect — defaults из FilterSet
+## TODO (следующая сессия)
 
-`FilterSet.defaults` (новое поле) — единый источник дефолтных значений чипсов:
-
-```python
-'quickselect': FilterSet(
-    definitions=[...],
-    defaults={'sensor_variety_id': 'first', 'work_temp_min': 'first', ...},
-)
-```
-
-Стратегии: `'first'` (первая опция из API), `'min'` (минимальное значение), `'max'`.
-
-**Изменения:**
-- `core/models/catalog_config.py` — поле `defaults` в `FilterSet`
-- `core/views.py`:
-  - `_get_filter_options`: обработка TEMP_MIN, TEMP_MAX, EXD_COMPATIBLE (M2M)
-  - `BaseQuickSelectView`: `catalog_config` → читает `defaults` из FilterSet → возвращает в API
-  - M2M fix: `row[id_field]` вместо `row[f'{field_name}_id']`
-- 4 × `config.py` — `defaults` во всех quickselect FilterSet
-- 4 × `views/quickselect.py` — добавлен `catalog_config`
-- `pa_controls/models/limit_switch.py` — `exd_id` в QUICKSELECT_FILTERS
-
-### Фронт
-
-**ClimateFilter.vue:**
-- Debounce 400ms на ручной ввод температуры
-- `Number(null)` fix: незаполненные поля не эмитятся (было `0`)
-
-**FilterSidebar.vue + EngineerFilterBar.vue:**
-- `hasClimateFilter` — скрывать temp_min/temp_max-селекты только если `fd_climate` есть в наборе
-- `onClimateChange` — проверка `!= null` перед emit
-
-**QuickSelect.vue:**
-- `defaults` из API (`data.defaults`) вместо `props.autoSelectRules`
-- `filter_labels` из API (`data.filter_labels`) вместо `props.filterLabels`
-- Стратегия `'first'`
-
-## Ближайшие задачи
-
-1. **Инженерный compatible через ParameterRule** — показывать «близкие» варианты с relaxation (step/percentage)
-2. **Полный Selection Engine** — requirement_resolver + пошаговый подбор
-3. **FittingPattern** — генерация позиций фитингов
+1. EquipmentTypeParameter для pneumatic-actuator (12-15 записей)
+2. selectProduct для PA → каскад на соленоид/БКВ/каб.ввод (DerivationRule)
+3. Фитинги — FittingPattern
+4. Перенести PipelineSkill.output_schema с JSONSchema на EquipmentType
+5. Интеграция с AI — PipelineSkill → авто-заполнение требований
+6. MBOM/EBOM endpoint
+7. Версионирование позиций (ClientRequestItem v1 → v2)
+8. Миграция каталогов с FilterDefinition на ETP

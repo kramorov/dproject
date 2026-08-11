@@ -47,6 +47,7 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     # path('api/clients/', include('clients.urls')),
     path('api/cart/', include('cart.urls')),
     path('api/client_requests/', include('client_requests.urls')),
+    path('api/configurator/', include('configurator.urls')),
     path('api/pneumatic_actuators/', include('pneumatic_actuators.urls')),
     path('api/ai-assistant/', include('ai_assistant.urls')),
     path('api/electric_actuators/', include('electric_actuators.urls')),

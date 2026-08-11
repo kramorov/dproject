@@ -69,11 +69,8 @@ class FileService :
         """
         Получение URL файла
         """
-        logger.debug(f"Запрос URL для файла: {file_path}")
-
         try :
             url = self.storage.url(file_path)
-            logger.debug(f"Получен URL: {url}")
             return url
         except Exception as e :
             logger.error(f"Ошибка при получении URL для файла {file_path}: {str(e)}")

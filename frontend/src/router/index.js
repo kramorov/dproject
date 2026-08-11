@@ -86,6 +86,9 @@ const routes = [
   { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', section: 'configurator_ea' } },
   { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', section: 'configurator_ea' } },
 
+  // Администрирование — Настройка системы
+  { path: '/admin/configurator-rules', redirect: '/admin/pipeline-config' },
+
   // Администрирование — только для admin/staff
   { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', object: 'admin.customers', action: 'edit' } },
   { path: '/admin/pipeline-config', component: () => import('../pages/admin/PipelineConfigPage.vue'), meta: { title: 'Pipeline Config', object: 'ai.pipelines', action: 'edit' } },
@@ -100,6 +103,7 @@ const routes = [
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },
   { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП', section: 'selector_pa' } },
+  { path: '/configurator/pa-kit', component: () => import('../pages/ConfiguratorPaKitPage.vue'), meta: { title: 'Конфигуратор ПП' } },
   { path: '/ai-assistant', component: () => import('../pages/AiAssistantPage.vue'), meta: { title: 'AI Ассистент' } },
   { path: '/ai-debug', component: () => import('../pages/AiDebugPage.vue'), meta: { title: 'AI Отладка', object: 'ai.debug', action: 'view' } },
   { path: '/demo/question-graph', component: () => import('../pages/QuestionGraphDemo.vue'), meta: { title: 'Граф вопросов-ответов' } },
