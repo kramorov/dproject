@@ -3,22 +3,20 @@
 Создаёт:
 - EquipmentType: actuator, solenoid, bkv, cable_gland, pneumatic_fitting,
   filter_regulator, manual_override, mounting_kit.
-- CascadeRule: правила каскада параметров между типами.
 - StepConfig: конфигурации шагов (decompose, extract, filter).
 """
 
 from django.core.management.base import BaseCommand
 from ai_assistant.models import (
-    EquipmentType, CascadeRule, StepConfig, AIPromptTemplate, JSONSchema,
+    EquipmentType, StepConfig, AIPromptTemplate, JSONSchema,
 )
 
 
 class Command(BaseCommand):
-    help = "Заполняет справочники EquipmentType, CascadeRule и StepConfig"
+    help = "Заполняет справочники EquipmentType и StepConfig"
 
     def handle(self, *args, **options):
         self._seed_equipment_types()
-        self._seed_cascade_rules()
         self._seed_step_configs()
         self.stdout.write(self.style.SUCCESS("Pipeline seed done."))
 
@@ -80,55 +78,6 @@ class Command(BaseCommand):
             )
             verb = "Created" if created else "Exists"
             self.stdout.write(f"  {verb} EquipmentType: {obj}")
-
-    def _seed_cascade_rules(self):
-        et = {e.code: e for e in EquipmentType.objects.all()}
-        rules = [
-            # actuator → solenoid: порты, namur, расход
-            ("actuator", "solenoid", {
-                "port_size_npt": "connection_size",
-                "namur_interface": "mounting_type",
-                "air_consumption_nl_per_cycle": "flow_rate_min",
-            }),
-            # actuator → bkv: фланец крепления
-            ("actuator", "bkv", {
-                "mounting_flange": "flange_size",
-            }),
-            # actuator → manual_override
-            ("actuator", "manual_override", {
-                "mounting_flange": "flange_size",
-            }),
-            # actuator → mounting_kit
-            ("actuator", "mounting_kit", {
-                "mounting_flange": "flange_size",
-            }),
-            # solenoid → cable_gland: размер резьбы
-            ("solenoid", "cable_gland", {
-                "thread_size": "thread_size",
-            }),
-            # bkv → cable_gland
-            ("bkv", "cable_gland", {
-                "thread_size": "thread_size",
-            }),
-            # solenoid → pneumatic_fitting
-            ("solenoid", "pneumatic_fitting", {
-                "connection_size": "connection_size",
-            }),
-        ]
-        for parent_code, child_code, mapping in rules:
-            if parent_code in et and child_code in et:
-                obj, created = CascadeRule.objects.get_or_create(
-                    parent_type=et[parent_code],
-                    child_type=et[child_code],
-                    defaults={"mapping": mapping},
-                )
-                verb = "Created" if created else "Exists"
-                self.stdout.write(f"  {verb} CascadeRule: {obj}")
-            else:
-                self.stdout.write(
-                    f"  SKIP CascadeRule {parent_code}→{child_code}: type missing"
-                )
-
     def _seed_step_configs(self):
         decompose_prompt = AIPromptTemplate.objects.filter(
             name="decode", is_active=True

@@ -116,7 +116,7 @@ class SelectionNode(models.Model):
     # ── Каскад от родителя (добавляется при select родителя) ──
     cascade_params = models.JSONField(
         null=True, blank=True,
-        help_text="Параметры, проброшенные от выбора родительского продукта через CascadeRule"
+        help_text="Параметры, проброшенные от выбора родительского продукта через DerivationRule"
     )
 
     # ── Шаг 3: Filter ──

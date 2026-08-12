@@ -15,11 +15,12 @@ from configurator.api.views import (
     FilterSchemaView,
 )
 from configurator.api.admin_views import (
-    PropagationRuleViewSet,
     ParameterRuleViewSet,
     ParameterBindingViewSet,
     DerivationRuleViewSet,
     EquipmentTypeParameterViewSet,
+    ModelFieldSnapshotViewSet,
+    ParameterCatalogViewSet,
 )
 
 urlpatterns = [
@@ -41,9 +42,10 @@ urlpatterns = [
 
 # ── Admin CRUD ──
 router = DefaultRouter()
-router.register(r'admin/propagation-rules', PropagationRuleViewSet, basename='admin_propagation_rule')
 router.register(r'admin/parameter-rules', ParameterRuleViewSet, basename='admin_parameter_rule')
 router.register(r'admin/parameter-bindings', ParameterBindingViewSet, basename='admin_parameter_binding')
 router.register(r'admin/derivation-rules', DerivationRuleViewSet, basename='admin_derivation_rule')
 router.register(r'admin/equipment-type-parameters', EquipmentTypeParameterViewSet, basename='admin_equipment_type_parameter')
+router.register(r'admin/field-snapshots', ModelFieldSnapshotViewSet, basename='admin_field_snapshot')
+router.register(r'admin/parameter-catalog', ParameterCatalogViewSet, basename='admin_parameter_catalog')
 urlpatterns += router.urls

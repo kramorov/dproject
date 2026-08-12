@@ -3,7 +3,6 @@ from django.contrib import admin
 from configurator.models import (
     AssemblyRequirements,
     ComponentRequirement,
-    PropagationRule,
     DerivationRule,
     ParameterRule,
     ParameterBinding,
@@ -11,6 +10,8 @@ from configurator.models import (
     FittingPatternItem,
     ParameterSource,
     EquipmentTypeParameter,
+    ModelFieldSnapshot,
+    ParameterCatalog,
 )
 
 
@@ -69,31 +70,6 @@ class ComponentRequirementAdmin(admin.ModelAdmin):
         }),
         ("Служебное", {
             "fields": ("created_at", "updated_at"),
-        }),
-    )
-
-
-# ── PropagationRule ──
-
-@admin.register(PropagationRule)
-class PropagationRuleAdmin(admin.ModelAdmin):
-    list_display = ("code", "equipment_type", "param_name", "source", "is_mandatory", "is_active")
-    list_filter = ("source", "is_mandatory", "is_active")
-    search_fields = ("code", "param_name", "equipment_type__code")
-    list_editable = ("is_active",)
-    autocomplete_fields = ("equipment_type",)
-    fieldsets = (
-        (None, {
-            "fields": ("code", "equipment_type", "param_name"),
-        }),
-        ("Источник", {
-            "fields": ("source", "source_param", "allow_override"),
-        }),
-        ("Обязательность", {
-            "fields": ("is_mandatory", "mandatory_condition"),
-        }),
-        ("Приоритет", {
-            "fields": ("priority", "is_active"),
         }),
     )
 
@@ -262,10 +238,50 @@ class EquipmentTypeParameterAdmin(admin.ModelAdmin):
         ("Семантика (AI)", {
             "fields": ("param_type", "unit", "description", "enum_values", "ai_extraction_hint"),
         }),
-        ("Опции формы", {
-            "fields": ("options_source", "options_config"),
-        }),
+        #("Опции формы", {
+        #    "fields": ("options_source", "options_config"),
+        #}),
         ("Служебное", {
             "fields": ("sorting_order", "is_active"),
         }),
     )
+
+
+# ── ModelFieldSnapshot ──
+
+@admin.register(ModelFieldSnapshot)
+class ModelFieldSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("field_path", "equipment_type", "param_name", "field_type", "depth", "is_active")
+    list_filter = ("equipment_type", "field_type", "depth", "is_active")
+    search_fields = ("field_path", "param_name__code", "param_name__name", "equipment_type__code")
+    list_editable = ("is_active",)
+    autocomplete_fields = ("equipment_type", "param_name")
+    readonly_fields = ("field_path", "field_type", "target_model", "source_model", "depth",
+                       "filter_type", "data_source_type", "created_at", "updated_at")
+    fieldsets = (
+        (None, {
+            "fields": ("equipment_type", "field_path", "param_name"),
+        }),
+        ("Интроспекция (read-only)", {
+            "fields": ("field_type", "target_model", "source_model", "depth"),
+        }),
+        ("Инференция (read-only)", {
+            "fields": ("filter_type", "data_source_type"),
+        }),
+        ("Статус", {
+            "fields": ("is_active",),
+        }),
+        ("Служебное", {
+            "fields": ("created_at", "updated_at"),
+        }),
+    )
+
+
+# ── ParameterCatalog ──
+
+@admin.register(ParameterCatalog)
+class ParameterCatalogAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "namespace", "is_active")
+    list_filter = ("namespace", "is_active")
+    search_fields = ("code", "name", "namespace")
+    list_editable = ("name", "namespace", "is_active")

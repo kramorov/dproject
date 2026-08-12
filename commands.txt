@@ -12,11 +12,14 @@ npm install -g codewhale-tui
 
 Прочитай SESSION.md, CATALOG_PATTERN.md, frontend\README.md, image_processor\README.md media_library\README.md продолжай
 electric_actuators\README.md
-ai-assistant.md cg.md access.md configurator.md  
+ai-assistant.md 
+cg.md access.md configurator.md  
+ARCHITECTURE_PLAN.md
 
 Обнови SESSION.md. Добавь информацию о том, что ты сделал и изменил в текущую сессию. А также другую информацию, которая поможет тебе войти в курс проекта в следующей сессии.
 Добавь туда же дату и время обновления (куда-то в начале файла).
 
+обнови описания в ARCHITECTURE_PLAN.md configurator.md ai-assistant.md SESSION.md 
 
 Из дома:
 git add .
@@ -34,7 +37,7 @@ ID	Название (Тип)	Код сигнала	Форма контактов
 4	2-проводной бесконтактный	SS_2W	SPST (Нормально открытый)	2	NBB2-V3-Z0
 
 Этап 3: Критик (самый важный шаг)После того как код написан, напишите: Забудь предыдущий контекст на секунду. Теперь ты — Senior QA.
-Проверь этот код на наличие SQL-инъекций и проблем с производительностью Django ORM.
+Chief System Architect / Chief Design Engineer
 
 # Установи UTF-8 кодировку
 git config --global core.quotepath false

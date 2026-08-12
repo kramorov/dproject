@@ -20,7 +20,7 @@ from core.models.equipment_type import EquipmentType
 
 from ai_assistant.models import (
     AIConversation, AIMessage,
-    PipelineSkill, SkillOverride, CascadeRule, SelectionNode,
+    PipelineSkill, SkillOverride, SelectionNode,
 )
 from ai_assistant.services.deepseek_client import get_deepseek_client
 from ai_assistant.services.token_tracker import save_token_usage, update_skill_latency, estimate_cost
@@ -441,48 +441,53 @@ class TreeProcessor:
         return {"status": "extracted", "extract_output": filters}
 
     def _validate_required(self, node) -> str:
-        """Проверяет обязательные поля после extract. Возвращает сообщение или None."""
-        from core.wizard_filter_registry import get_filter_definitions_for_ct
-        if not node.equipment_type or not node.equipment_type.content_type:
+        """Проверяет обязательные поля после extract через EquipmentTypeParameter.is_required."""
+        if not node.equipment_type:
             return None
-        defs = get_filter_definitions_for_ct(node.equipment_type.content_type_id)
-        if not defs:
+        from configurator.models import EquipmentTypeParameter
+        etp_params = EquipmentTypeParameter.objects.filter(
+            equipment_type=node.equipment_type,
+            is_required=True,
+            is_active=True,
+        )
+        if not etp_params:
             return None
         missing = []
-        for fd in defs:
-            if getattr(fd, 'mandatory', 'any') != 'yes':
-                continue
-            value = node.extract_output.get(fd.param_name) if node.extract_output else None
+        for p in etp_params:
+            value = node.extract_output.get(p.param_name) if node.extract_output else None
             if value is None or value == '':
-                missing.append(fd.label)
+                missing.append(p.label or p.param_name)
         if not missing:
             return None
         labels = '», «'.join(missing)
         return f"Не удалось определить: «{labels}» для {node.equipment_type.name}. Уточните запрос."
 
     def _resolve_labels(self, node) -> dict:
+        """Разрешает ID в человекочитаемые значения через EquipmentTypeParameter.get_options()."""
         labels = {}
         field_labels = {}
         eo = node.extract_output or {}
-        if not eo or not node.equipment_type or not node.equipment_type.content_type:
+        if not eo or not node.equipment_type:
             return {'_field_labels': field_labels}
-        from core.wizard_filter_registry import get_filter_definitions_for_ct
-        defs = get_filter_definitions_for_ct(node.equipment_type.content_type_id)
-        if not defs:
+        from configurator.models import EquipmentTypeParameter
+        etp_params = EquipmentTypeParameter.objects.filter(
+            equipment_type=node.equipment_type,
+            is_active=True,
+        )
+        if not etp_params:
             return {'_field_labels': field_labels}
-        model_class = node.equipment_type.content_type.model_class()
-        for fd in defs:
-            field_labels[fd.param_name] = fd.label or fd.param_name
-            value = eo.get(fd.param_name)
+        for p in etp_params:
+            field_labels[p.param_name] = p.label or p.param_name
+            value = eo.get(p.param_name)
             if value is None or value == '':
                 continue
             try:
-                opts = fd.get_options(model_class) if model_class else []
+                opts = p.get_options()
                 for o in opts:
                     if o.get('id') == value:
-                        labels[fd.param_name] = o.get('name', str(value))
+                        labels[p.param_name] = o.get('name', str(value))
                         break
-            except:
+            except Exception:
                 pass
         labels['_field_labels'] = field_labels
         return labels
@@ -601,23 +606,19 @@ class TreeProcessor:
             "selected_product_specs", "status",
         ])
 
-        # Каскад: для каждого дочернего узла
+        # Каскад: единое ядро resolve_derivation_params (DerivationRule)
+        from configurator.services.cascade import resolve_derivation_params
         cascaded = []
         for child in node.children.all():
             if not child.equipment_type:
                 continue
-            rule = CascadeRule.objects.filter(
-                parent_type=node.equipment_type,
-                child_type=child.equipment_type,
-                is_active=True,
-            ).first()
-            if not rule:
-                continue
 
-            cascade_params = {}
-            for src_field, dst_field in rule.mapping.items():
-                if src_field in specs:
-                    cascade_params[dst_field] = specs[src_field]
+            cascade_params = resolve_derivation_params(
+                source_type=node.equipment_type,
+                target_type=child.equipment_type,
+                source_specs=specs,
+                product_id=product_id,
+            )
 
             if cascade_params:
                 child.cascade_params = cascade_params

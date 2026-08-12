@@ -23,7 +23,6 @@ from .serializers import (
     QueryRequestSerializer, QueryResponseSerializer,
     AIQuerySampleSerializer, AIPromptTemplateSerializer, PipelineSkillSerializer, SkillOverrideSerializer, JSONSchemaSerializer,
 )
-from ..orchestrator import QueryOrchestrator
 from ..models import (
     AIQuerySample, AIPromptTemplate, AIConversation, SelectionNode,
     PipelineSkill, SkillOverride, JSONSchema, CompositionGroup,
@@ -31,108 +30,6 @@ from ..models import (
 from ..services.tree_processor import TreeProcessor
 from ..services.customer_resolver import resolve_customer
 from ..classifiers import InstructorClassifier
-
-
-class AnalyzeView(APIView):
-    """POST /api/ai-assistant/analyze/ вЂ” Р¤Р°Р·Р° 1: decompose + РІР°Р»РёРґР°С†РёСЏ.
-
-    РџСЂРёРЅРёРјР°РµС‚ С‚РµРєСЃС‚ Р·Р°РїСЂРѕСЃР° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ, Р·Р°РїСѓСЃРєР°РµС‚ ``QueryOrchestrator.analyze()``,
-    РІРѕР·РІСЂР°С‰Р°РµС‚ СЃС‚Р°С‚СѓСЃ (ready/needs_info/rejected), РїР»Р°РЅ Р·Р°РґР°С‡ Рё Р°РЅР°Р»РёР·.
-    """
-    permission_classes = []
-
-    def post(self, request):
-        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ POST-Р·Р°РїСЂРѕСЃ С„Р°Р·С‹ analyze.
-
-        Args:
-            request: DRF Request СЃ РїРѕР»РµРј ``text`` РІ С‚РµР»Рµ.
-
-        Returns:
-            Response СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј ``QueryOrchestrator.analyze()``
-            РёР»Рё РѕС€РёР±РєРѕР№ 400, РµСЃР»Рё РїРѕР»Рµ ``text`` РЅРµ РїРµСЂРµРґР°РЅРѕ.
-        """
-        text = request.data.get("text", "")
-        if not text:
-            return Response({"error": "text required"}, status=400)
-        result = QueryOrchestrator().analyze(text=text)
-        return Response(result)
-
-
-class ExecuteView(APIView):
-    """POST /api/ai-assistant/execute/ вЂ” Р¤Р°Р·Р° 2: РІС‹РїРѕР»РЅРµРЅРёРµ РіСЂР°С„Р° Р·Р°РґР°С‡.
-
-    РџСЂРёРЅРёРјР°РµС‚ СЃРїРёСЃРѕРє Р·Р°РґР°С‡ Рё РіР»РѕР±Р°Р»СЊРЅС‹Рµ С‚СЂРµР±РѕРІР°РЅРёСЏ, Р·Р°РїСѓСЃРєР°РµС‚
-    ``QueryOrchestrator.execute()``, РІРѕР·РІСЂР°С‰Р°РµС‚ progress_log Рё results.
-    """
-    permission_classes = []
-
-    def post(self, request):
-        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ POST-Р·Р°РїСЂРѕСЃ С„Р°Р·С‹ execute.
-
-        Args:
-            request: DRF Request СЃ РїРѕР»СЏРјРё ``tasks`` (СЃРїРёСЃРѕРє Р·Р°РґР°С‡)
-                Рё ``global_requirements`` (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ).
-
-        Returns:
-            Response СЃ progress_log Рё results РёР»Рё РѕС€РёР±РєРѕР№ 400,
-            РµСЃР»Рё РїРѕР»Рµ ``tasks`` РЅРµ РїРµСЂРµРґР°РЅРѕ.
-        """
-        tasks = request.data.get("tasks", [])
-        global_reqs = request.data.get("global_requirements", {})
-        if not tasks:
-            return Response({"error": "tasks required"}, status=400)
-        result = QueryOrchestrator().execute(tasks=tasks, global_reqs=global_reqs)
-        return Response(result)
-
-
-class QueryView(APIView):
-    """POST /api/ai-assistant/query/ вЂ” СЃС‚Р°СЂС‹Р№ РѕРґРЅРѕС„Р°Р·РЅС‹Р№ СЌРЅРґРїРѕРёРЅС‚.
-
-    РЎРѕС…СЂР°РЅС‘РЅ РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё. Р”РµР»РµРіРёСЂСѓРµС‚ РІС‹Р·РѕРІ РІ ``analyze()``.
-    """
-    permission_classes = []
-
-    def post(self, request):
-        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ РѕРґРЅРѕС„Р°Р·РЅС‹Р№ POST-Р·Р°РїСЂРѕСЃ (СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚СЊ).
-
-        Args:
-            request: DRF Request СЃ РїРѕР»РµРј ``text`` РІ С‚РµР»Рµ.
-
-        Returns:
-            Response СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј ``QueryOrchestrator.analyze()``
-            РёР»Рё РѕС€РёР±РєРѕР№ 400.
-        """
-        text = request.data.get("text", "")
-        if not text:
-            return Response({"error": "text required"}, status=400)
-        result = QueryOrchestrator().analyze(text=text)
-        return Response(result)
-
-
-class RunQueryView(APIView):
-    """POST /api/ai-assistant/run-query/ вЂ” РѕС‚Р»Р°РґРѕС‡РЅС‹Р№ СЌРЅРґРїРѕРёРЅС‚.
-
-    Р”РѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°Рј (``IsAdminUser``). РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ
-    РґР»СЏ СЂСѓС‡РЅРѕРіРѕ С‚РµСЃС‚РёСЂРѕРІР°РЅРёСЏ decompose-РїР°Р№РїР»Р°Р№РЅР° Р±РµР· Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РєР»РёРµРЅС‚Р°.
-    """
-    permission_classes = [IsAdminUser]
-
-    def post(self, request):
-        """РћР±СЂР°Р±Р°С‚С‹РІР°РµС‚ РѕС‚Р»Р°РґРѕС‡РЅС‹Р№ POST-Р·Р°РїСЂРѕСЃ.
-
-        Args:
-            request: DRF Request СЃ РїРѕР»РµРј ``text`` РІ С‚РµР»Рµ.
-
-        Returns:
-            Response СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј ``QueryOrchestrator.analyze()``
-            РёР»Рё РѕС€РёР±РєРѕР№ 400.
-        """
-        text = request.data.get("text", "")
-        if not text:
-            return Response({"error": "text required"}, status=400)
-        result = QueryOrchestrator().analyze(text=text)
-        return Response(result)
-
 
 class QuerySampleViewSet(viewsets.ModelViewSet):
     """ViewSet РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ СЌС‚Р°Р»РѕРЅРЅС‹РјРё Р·Р°РїСЂРѕСЃР°РјРё (AIQuerySample).
@@ -146,7 +43,6 @@ class QuerySampleViewSet(viewsets.ModelViewSet):
     permission_classes = [SystemObjectPermission]
     required_object = 'ai.debug'
 
-
 class PromptViewSet(viewsets.ModelViewSet):
     """ViewSet РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ С€Р°Р±Р»РѕРЅР°РјРё РїСЂРѕРјРїС‚РѕРІ (AIPromptTemplate).
 
@@ -157,7 +53,6 @@ class PromptViewSet(viewsets.ModelViewSet):
     serializer_class = AIPromptTemplateSerializer
     permission_classes = [SystemObjectPermission]
     required_object = 'ai.debug'
-
 
 class DecomposeView(APIView):
     """POST /api/ai-assistant/decompose/ вЂ” Р¤Р°Р·Р° 1: С‚РµРєСЃС‚ в†’ РґРµСЂРµРІРѕ.
@@ -212,7 +107,6 @@ class DecomposeView(APIView):
             "customer": customer.name if customer else None,
         })
 
-
 class ExtractView(APIView):
     """POST /api/ai-assistant/extract/{node_id}/ вЂ” Р¤Р°Р·Р° 2: РёР·РІР»РµС‡РµРЅРёРµ С„РёР»СЊС‚СЂРѕРІ.
 
@@ -229,7 +123,6 @@ class ExtractView(APIView):
         processor = TreeProcessor(node.conversation, customer=node.conversation.customer)
         result = processor.extract(node_id=node.id)
         return Response(result)
-
 
 class FilterView(APIView):
     """POST /api/ai-assistant/filter/{node_id}/ вЂ” Р¤Р°Р·Р° 3: РІС‹Р·РѕРІ API-С„РёР»СЊС‚СЂР°.
@@ -249,12 +142,11 @@ class FilterView(APIView):
         result = processor.filter_node(node_id=node.id)
         return Response(result)
 
-
 class SelectView(APIView):
     """POST /api/ai-assistant/select/{node_id}/ вЂ” Р¤Р°Р·Р° 4: РІС‹Р±РѕСЂ РїСЂРѕРґСѓРєС‚Р° + РєР°СЃРєР°Рґ.
 
     РџСЂРёРЅРёРјР°РµС‚ {product_type: "...", product_id: N}.
-    РЎРѕС…СЂР°РЅСЏРµС‚ РІС‹Р±РѕСЂ Рё РїСЂРѕР±СЂР°СЃС‹РІР°РµС‚ РїР°СЂР°РјРµС‚СЂС‹ РґРѕС‡РµСЂРЅРёРј СѓР·Р»Р°Рј С‡РµСЂРµР· CascadeRule.
+    РЎРѕС…СЂР°РЅСЏРµС‚ РІС‹Р±РѕСЂ Рё РїСЂРѕР±СЂР°СЃС‹РІР°РµС‚ РїР°СЂР°РјРµС‚СЂС‹ РґРѕС‡РµСЂРЅРёРј СѓР·Р»Р°Рј С‡РµСЂРµР· DerivationRule.
     """
     permission_classes = []
 
@@ -275,7 +167,6 @@ class SelectView(APIView):
         )
         return Response(result)
 
-
 class CompareView(APIView):
     """POST /api/ai-assistant/compare/{node_id}/ вЂ” Р¤Р°Р·Р° 5: СЃСЂР°РІРЅРµРЅРёРµ С‚СЂРµР±РѕРІР°РЅРёР№ Рё С„Р°РєС‚Р°.
 
@@ -293,7 +184,6 @@ class CompareView(APIView):
         result = processor.compare(node_id=node.id)
         return Response(result)
 
-
 class EBOMView(APIView):
     """GET /api/ai-assistant/ebom/{conversation_id}/ вЂ” РёРЅР¶РµРЅРµСЂРЅР°СЏ СЃРїРµС†РёС„РёРєР°С†РёСЏ.
 
@@ -310,7 +200,6 @@ class EBOMView(APIView):
         processor = TreeProcessor(conversation, customer=conversation.customer)
         return Response(processor.build_ebom())
 
-
 class MBOMView(APIView):
     """GET /api/ai-assistant/mbom/{conversation_id}/ вЂ” РїСЂРѕРёР·РІРѕРґСЃС‚РІРµРЅРЅР°СЏ СЃРїРµС†РёС„РёРєР°С†РёСЏ.
 
@@ -326,7 +215,6 @@ class MBOMView(APIView):
 
         processor = TreeProcessor(conversation, customer=conversation.customer)
         return Response(processor.build_mbom())
-
 
 class TreeView(APIView):
     """GET /api/ai-assistant/tree/{conversation_id}/ вЂ” РїРѕР»РЅРѕРµ РґРµСЂРµРІРѕ РїРѕРґР±РѕСЂР°.
@@ -376,30 +264,31 @@ class TreeView(APIView):
         return data
 
     def _resolve_labels(self, node) -> dict:
-        """Resolve human-readable labels for extract_output values."""
+        """Resolve human-readable labels via EquipmentTypeParameter.get_options()."""
         labels = {}
         eo = node.extract_output or {}
-        if not eo or not node.equipment_type or not node.equipment_type.content_type:
+        if not eo or not node.equipment_type:
             return labels
-        from core.wizard_filter_registry import get_filter_definitions_for_ct
-        defs = get_filter_definitions_for_ct(node.equipment_type.content_type_id)
-        if not defs:
+        from configurator.models import EquipmentTypeParameter
+        etp_params = EquipmentTypeParameter.objects.filter(
+            equipment_type=node.equipment_type,
+            is_active=True,
+        )
+        if not etp_params:
             return labels
-        model_class = node.equipment_type.content_type.model_class()
-        for fd in defs:
-            value = eo.get(fd.param_name)
+        for p in etp_params:
+            value = eo.get(p.param_name)
             if value is None or value == '':
                 continue
             try:
-                opts = fd.get_options(model_class) if model_class else []
+                opts = p.get_options()
                 for o in opts:
                     if o.get('id') == value:
-                        labels[fd.param_name] = o.get('name', str(value))
+                        labels[p.param_name] = o.get('name', str(value))
                         break
             except Exception:
                 pass
         return labels
-
 
 # в”Ђв”Ђ Pipeline Configurator ViewSets в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
@@ -421,8 +310,6 @@ class JSONSchemaViewSet(viewsets.ModelViewSet):
     queryset = JSONSchema.objects.all()
     permission_classes = [IsAdminUser]
 
-
-
 def _intent_message(intent: str) -> str:
     """Human-readable message for non-selection intents."""
     messages = {
@@ -436,15 +323,12 @@ def _intent_message(intent: str) -> str:
     }
     return messages.get(intent, "Не удалось определить тип запроса.")
 
-
 # ── Configurator support: EquipmentType & Customer lists ──────
-
 
 class EquipmentTypeListSerializer(serializers.ModelSerializer):
     class Meta:
         model = EquipmentType
         fields = ["id", "code", "name", "level", "filter_endpoint", "param_semantics", "is_active"]
-
 
 class EquipmentTypeListView(ListAPIView):
     pagination_class = None
@@ -462,12 +346,10 @@ class EquipmentTypeListView(ListAPIView):
         ser.save()
         return Response(ser.data)
 
-
 class CustomerListSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectCustomer
         fields = ["id", "name", "short_name", "email", "is_active"]
-
 
 class ModelRolesView(APIView):
     permission_classes = [IsAdminUser]
@@ -480,16 +362,13 @@ class ModelRolesView(APIView):
                     roles.append(role)
         return Response(sorted(roles))
 
-
 class CustomerListView(ListAPIView):
     pagination_class = None
     queryset = ProjectCustomer.objects.filter(is_active=True).order_by("name")
     serializer_class = CustomerListSerializer
     permission_classes = [IsAdminUser]
 
-
 # ── CompositionGroup CRUD ──
-
 
 class CompositionGroupViewSet(viewsets.ModelViewSet):
     pagination_class = None
@@ -532,7 +411,6 @@ class CompositionGroupViewSet(viewsets.ModelViewSet):
         refs = group.referenced_by.filter(is_active=True).values("id", "name", "code")
         return Response(list(refs))
 
-
 class CompositionGroupTreeView(APIView):
     """Получить полное дерево CompositionGroup + EquipmentType."""
     permission_classes = [IsAdminUser]
@@ -542,7 +420,6 @@ class CompositionGroupTreeView(APIView):
         roots = CompositionGroup.objects.filter(parent__isnull=True, is_active=True).order_by("sorting_order", "name")
         return Response(CompositionGroupTreeSerializer(roots, many=True).data)
 
-
 class EquipmentTypeTreeView(APIView):
     """Получить дерево EquipmentType (для drag-drop источника)."""
     permission_classes = [IsAdminUser]
@@ -551,7 +428,6 @@ class EquipmentTypeTreeView(APIView):
         from .serializers import EquipmentTypeTreeSerializer
         roots = EquipmentType.objects.filter(parent__isnull=True, is_active=True).order_by("sorting_order", "name")
         return Response(EquipmentTypeTreeSerializer(roots, many=True).data)
-
 
 # ── MBOM CRUD ──
 
@@ -567,7 +443,6 @@ class MBOMViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-
 class MBOMItemViewSet(viewsets.ModelViewSet):
     pagination_class = None
     queryset = MBOMItem.objects.select_related("equipment_type", "sku", "composition_group")
@@ -577,64 +452,4 @@ class MBOMItemViewSet(viewsets.ModelViewSet):
         from .serializers import MBOMItemSerializer
         return MBOMItemSerializer
 
-
-
 # ── Schema generation from model FILTER_DEFINITIONS ──
-
-class GenerateSchemaFromModelView(APIView):
-    """Генерирует JSON Schema из FILTER_DEFINITIONS модели оборудования."""
-    permission_classes = [IsAdminUser]
-
-    FILTER_TYPE_MAP = {
-        "exact": "integer", "gte": "number", "lte": "number",
-        "temp_min": "number", "temp_max": "number", "ip_rank": "integer",
-        "icontains": "string", "choice": "integer", "boolean": "boolean",
-        "exd_compatible": "array", "fk_cascade": "integer",
-        "compatible_cascade": "integer", "climate_cascade": "integer",
-        "thread_compatible": "integer", "function_compatible": "integer",
-    }
-
-    def post(self, request):
-        et_id = request.data.get("equipment_type_id")
-        if not et_id:
-            return Response({"error": "equipment_type_id required"}, status=400)
-        try:
-            et = EquipmentType.objects.select_related("content_type").get(id=et_id, is_active=True)
-        except EquipmentType.DoesNotExist:
-            return Response({"error": "EquipmentType not found"}, status=404)
-        ct = et.content_type
-        if not ct:
-            return Response({"error": "EquipmentType has no content_type"}, status=400)
-        try:
-            model_class = ct.model_class()
-        except Exception:
-            return Response({"error": f"Cannot load model: {ct.app_label}.{ct.model}"}, status=400)
-        definitions = getattr(model_class, "FILTER_DEFINITIONS", [])
-        if not definitions:
-            return Response({"error": f"Model has no FILTER_DEFINITIONS"}, status=400)
-
-        properties = {}
-        fields_meta = []
-        for fd in definitions:
-            json_type = self.FILTER_TYPE_MAP.get(fd.filter_type.value, "string")
-            prop = {"type": json_type, "description": fd.label or fd.param_name}
-            if fd.choices:
-                prop["enum"] = [c[0] for c in fd.choices]
-            if json_type == "array":
-                prop["items"] = {"type": "integer"}
-            properties[fd.param_name] = prop
-            fields_meta.append({
-                "param_name": fd.param_name,
-                "label": fd.label or fd.param_name,
-                "type": json_type,
-                "required": False,
-            })
-
-        schema = {"type": "object", "properties": properties, "required": []}
-        return Response({
-            "equipment_type_id": et.id,
-            "equipment_type_name": et.name,
-            "model": f"{ct.app_label}.{ct.model}",
-            "schema_json": schema,
-            "fields": fields_meta,
-        })

@@ -6,22 +6,12 @@ configurator/api/admin_serializers.py
 from rest_framework import serializers
 from configurator.models import (
     EquipmentTypeParameter,
-    PropagationRule,
     ParameterRule,
     ParameterBinding,
     DerivationRule,
+    ModelFieldSnapshot,
+    ParameterCatalog,
 )
-
-
-class PropagationRuleSerializer(serializers.ModelSerializer):
-    equipment_type_code = serializers.SerializerMethodField()
-
-    class Meta:
-        model = PropagationRule
-        fields = '__all__'
-
-    def get_equipment_type_code(self, obj):
-        return obj.equipment_type.code if obj.equipment_type else None
 
 
 class ParameterRuleSerializer(serializers.ModelSerializer):
@@ -73,3 +63,20 @@ class EquipmentTypeParameterSerializer(serializers.ModelSerializer):
 
     def get_rule_code(self, obj):
         return obj.parameter_rule.code if obj.parameter_rule else None
+
+
+class ModelFieldSnapshotSerializer(serializers.ModelSerializer):
+    equipment_type_code = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ModelFieldSnapshot
+        fields = '__all__'
+
+    def get_equipment_type_code(self, obj):
+        return obj.equipment_type.code if obj.equipment_type else None
+
+
+class ParameterCatalogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ParameterCatalog
+        fields = '__all__'

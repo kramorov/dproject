@@ -129,43 +129,49 @@
             <div class="field-row">
               <label>Filter Endpoint:</label>
               <input v-model="selectedEt.filter_endpoint" class="cell-input" style="width:auto;flex:1" />
+              <button class="btn-save-sm" @click="saveEquipment(selectedEt)">💾</button>
             </div>
-            <button class="btn-save-sm" @click="saveEquipment(selectedEt)">💾 Save</button>
           </div>
 
-          <!-- param_semantics -->
+          <!-- Equipment Parameters — inline editing + legacy JSON view -->
           <div class="param-section">
-            <h4>param_semantics</h4>
-            <div class="editor-row">
-              <textarea v-model="selectedEt.param_semantics_text" rows="8" class="prompt-editor"
-                        :class="{ invalid: selectedEt._jsonError }"></textarea>
-              <div class="editor-actions">
-                <button class="btn-edit" @click="formatJSON(selectedEt, 'param_semantics_text')">Format</button>
-                <button class="btn-save-sm" @click="saveEquipment(selectedEt)">💾</button>
-              </div>
-            </div>
-            <div v-if="selectedEt._jsonError" class="json-error">{{ selectedEt._jsonError }}</div>
-            <JsonTableViewer :data="safeParseJSON(selectedEt.param_semantics_text)" />
-          </div>
+            <h4>Параметры ({{ filteredParams.length }})</h4>
 
-          <!-- Equipment Parameters -->
-          <div class="param-section">
-            <h4>Equipment Parameters ({{ filteredParams.length }})</h4>
+            <!-- Legacy: param_semantics JSON (read-only shadow) -->
+            <details class="legacy-section">
+              <summary>📄 param_semantics (JSON — только для чтения, генерируется из Compare/Label)</summary>
+              <textarea :value="generatedSemanticsJSON" rows="6" class="prompt-editor" readonly
+                        style="background:#f5f5f5;color:#888;cursor:default"></textarea>
+              <div class="info-hint-inline">Этот JSON сгенерирован из колонок Compare/Label. Редактируйте значения в строках таблицы ниже.</div>
+            </details>
+
+            <div class="info-bar">
+              ⓘ Редактируйте <strong>compare_direction</strong> и <strong>compare_label</strong> прямо в строках таблицы.
+            </div>
             <table>
-              <thead><tr><th>Param</th><th>Path</th><th>Type</th><th>Unit</th><th>Filter</th><th>Source</th><th>Req</th><th>Active</th><th></th></tr></thead>
+              <thead><tr>
+                <th>Param</th><th>Path</th><th>Type</th><th>Unit</th>
+                <th>Compare</th><th>Label</th>
+                <th>Req</th><th>Act</th><th></th>
+              </tr></thead>
               <tbody>
                 <tr v-for="p in filteredParams" :key="p.id">
                   <td><input v-model="p.param_name" class="cell-input" /></td>
                   <td><input v-model="p.field_path" class="cell-input" /></td>
                   <td><select v-model="p.param_type"><option value="">—</option><option value="integer">int</option><option value="decimal">dec</option><option value="choice">choice</option><option value="boolean">bool</option><option value="string">str</option></select></td>
                   <td><input v-model="p.unit" class="cell-input" style="width:50px" /></td>
-                  <td><code style="font-size:11px">{{ p.filter_type || '-' }}</code></td>
-                  <td><code style="font-size:11px">{{ p.data_source_type || '-' }}</code></td>
+                  <td><select v-model="p.compare_direction" @change="saveParam(p)">
+                    <option value="">—</option>
+                    <option value="min">Min ↑</option>
+                    <option value="max">Max ↓</option>
+                    <option value="exact">Exact =</option>
+                  </select></td>
+                  <td><input v-model="p.compare_label" class="cell-input" style="width:90px" placeholder="не менее" @change="saveParam(p)" /></td>
                   <td><input type="checkbox" v-model="p.is_required" /></td>
                   <td><input type="checkbox" v-model="p.is_active" /></td>
                   <td><button class="btn-save-sm" @click="saveParam(p)">💾</button></td>
                 </tr>
-                <tr v-if="!filteredParams.length"><td colspan="7" class="empty">No parameters yet</td></tr>
+                <tr v-if="!filteredParams.length"><td colspan="9" class="empty">No parameters yet</td></tr>
               </tbody>
             </table>
             <button class="btn-add" @click="addParam()" style="margin-top:8px">+ Add Parameter</button>

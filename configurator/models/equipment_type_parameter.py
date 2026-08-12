@@ -169,6 +169,22 @@ class EquipmentTypeParameter(models.Model):
     )
 
     # ── Семантика параметра (бывший param_semantics JSON) ──
+    compare_direction = models.CharField(
+        max_length=8,
+        choices=[
+            ("min", _("Min — чем больше, тем лучше")),
+            ("max", _("Max — чем меньше, тем лучше")),
+            ("exact", _("Exact — точное совпадение")),
+        ],
+        blank=True, null=True,
+        verbose_name=_("Направление сравнения"),
+        help_text=_("Как сравнивать требование с фактом: min (момент, IP), max (темп.), exact (резьба)"),
+    )
+    compare_label = models.CharField(
+        max_length=64, blank=True, null=True,
+        verbose_name=_("Метка сравнения"),
+        help_text=_("'не менее', 'не хуже', 'не выше' — для AI-промптов"),
+    )
     param_type = models.CharField(
         max_length=16,
         choices=[
@@ -296,13 +312,20 @@ class EquipmentTypeParameter(models.Model):
 
         Стратегия выбирается по data_source_type.
         context: 'ai' или 'user' — влияет на стратегию (AI получает все опции).
-        """
-        model_class = self.product_model_class
-        if not model_class:
-            return []
 
+        NOTE: product_model required only for strategies that introspect the model
+        (foreign_key, field_values, choices). global_model and custom use other sources.
+        """
         dst = self.data_source_type or 'global_model'
         cfg = self.options_config or {}
+
+        # Only gate on model_class for strategies that need it
+        model_strategies = {'foreign_key', 'field_values', 'unique_field_values', 'choices'}
+        model_class = None
+        if dst in model_strategies:
+            model_class = self.product_model_class
+            if not model_class:
+                return []
 
         try:
             if dst == 'foreign_key':

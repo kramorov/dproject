@@ -36,6 +36,7 @@ const allItems = [
   { key:'configurator', label:'Конфигураторы', children:[
     { to:'/selector/pa', label:'Подбор пневмопривода по моменту' },
     { to:'/configurator/pa', label:'Конфигуратор Пневмоприводов' },
+    { to:'/configurator/pa-kit', label:'Конфигуратор сборки (ETP)' },
     // { to:'/configurator/pa-legacy', label:'Конфигуратор ПП Old' },
     { to:'/admin/ea-constructor', label:'Конфигуратор Электроприводов' },
     { to:'/configurator/cabinets', label:'Конфигуратор Шкафов управления ЭП' },

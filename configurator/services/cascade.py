@@ -3,15 +3,18 @@ configurator/services/cascade.py
 
 Каскад параметров после выбора продукта.
 
+Единая точка входа: `cascade_after_select(component)`.
+
 1. DerivationRule: пробрасывает значения полей выбранного продукта
    в cascade_params дочерних ComponentRequirement.
 2. FittingPattern: создаёт новые ComponentRequirement для фитингов
    на основе контекста монтажа.
 
-Вызывается после select_product():
-    cascade_after_select(component)
-    → дочерние компоненты получают cascade_params
-    → создаются CR для фитингов (если применимо)
+Ядро каскада — `resolve_derivation_params(...)` — чистая функция,
+которая по паре (source_type, target_type) вычисляет словарь
+{target_param: value}. Её переиспользуют оба дерева подбора:
+- ComponentRequirement (configurator) — через cascade_after_select;
+- SelectionNode (ai_assistant) — через TreeProcessor.select_product.
 """
 from __future__ import annotations
 
@@ -31,14 +34,60 @@ from configurator.services.resolver import resolve_effective_requirements
 logger = logging.getLogger(__name__)
 
 
+def resolve_derivation_params(
+    source_type,
+    target_type,
+    source_specs: dict,
+    product_id: Optional[int] = None,
+) -> dict:
+    """
+    Вычисляет cascade_params для пары типов (source_type → target_type).
+
+    Это общее ядро каскада — не зависит от модели дерева (ComponentRequirement
+    или SelectionNode). Переиспользуется обоими каскадами.
+
+    Args:
+        source_type: EquipmentType источника (родитель).
+        target_type: EquipmentType приёмника (ребёнок).
+        source_specs: dict характеристик выбранного продукта (плоский __dict__
+            или вложенный по `__` путям).
+        product_id: ID выбранного продукта — для fallback в БД, если значение
+            не найдено в source_specs.
+
+    Returns:
+        {target_param: value} — значения, проброшенные из источника. Пустой dict,
+        если правил для пары нет или ни одно не сработало.
+    """
+    rules = DerivationRule.objects.filter(
+        source_type=source_type,
+        target_type=target_type,
+        is_active=True,
+    ).order_by("priority")
+
+    params: dict[str, object] = {}
+    for rule in rules:
+        # Условие срабатывания
+        if rule.condition and not _check_condition(rule.condition, source_specs):
+            continue
+
+        # Значение из спецификации продукта (вложенные пути через __)
+        value = _get_nested_value(source_specs, rule.source_product_field)
+
+        # Fallback: напрямую из БД продукта
+        if value is None and product_id is not None:
+            value = _fetch_product_field(source_type, product_id, rule.source_product_field)
+
+        if value is not None:
+            params[rule.target_param] = _apply_transform(value, rule.transform)
+
+    return params
+
+
 def cascade_after_select(component: ComponentRequirement) -> dict:
     """
     Выполняет каскад после выбора продукта в component.
 
-    1. DerivationRule: source_type → target_type
-       Берёт значение source_product_field из выбранного продукта,
-       записывает в cascade_params дочернего компонента.
-
+    1. DerivationRule: source_type → target_type.
     2. FittingPattern: создаёт новые ComponentRequirement для фитингов.
 
     Returns:
@@ -53,13 +102,7 @@ def cascade_after_select(component: ComponentRequirement) -> dict:
         return result
 
     # ── 1. DerivationRule cascade ──
-    rules = DerivationRule.objects.filter(
-        source_type=component.equipment_type,
-        is_active=True,
-    ).select_related('target_type')
-
-    if rules:
-        result['derived_params'] = _apply_derivation_rules(component, rules)
+    result['derived_params'] = _apply_derivation_rules(component)
 
     # ── 2. FittingPattern ──
     patterns = FittingPattern.objects.filter(
@@ -73,60 +116,47 @@ def cascade_after_select(component: ComponentRequirement) -> dict:
     return result
 
 
-def _apply_derivation_rules(
-    component: ComponentRequirement,
-    rules: list[DerivationRule],
-) -> dict[int, dict]:
+def _apply_derivation_rules(component: ComponentRequirement) -> dict[int, dict]:
     """
-    Применяет DerivationRule: пробрасывает значения в дочерние компоненты.
+    Применяет DerivationRule: для каждого дочернего компонента вычисляет
+    cascade_params через resolve_derivation_params.
     """
-    # Получаем значения из выбранного продукта
     source_specs = component.selected_product_specs or {}
-    product_field_values: dict[str, object] = {}
-
-    for rule in rules:
-        # Проверяем condition
-        if rule.condition and not _check_condition(rule.condition, source_specs):
-            continue
-
-        # Получаем значение поля из продукта
-        field_name = rule.source_product_field
-        value = _get_nested_value(source_specs, field_name)
-        if value is None:
-            # Пробуем получить напрямую из БД
-            value = _fetch_product_field(component, field_name)
-
-        if value is not None:
-            # Применяем transform
-            value = _apply_transform(value, rule.transform)
-            product_field_values[rule.target_param] = value
-
-    if not product_field_values:
-        return {}
-
-    # Находим дочерние компоненты с target_type
     assembly = component.assembly
+
     child_crs = assembly.components.filter(
         parent=component,
-        equipment_type__in=[r.target_type for r in rules],
         status__in=['pending', 'requirements_filled'],
-    )
+    ).select_related('equipment_type')
 
     result = {}
     for child in child_crs:
+        if not child.equipment_type:
+            continue
+
+        params = resolve_derivation_params(
+            source_type=component.equipment_type,
+            target_type=child.equipment_type,
+            source_specs=source_specs,
+            product_id=component.selected_product_id,
+        )
+        if not params:
+            continue
+
         child_cascade = child.cascade_params or {}
-        child_cascade.update(product_field_values)
+        child_cascade.update(params)
         child.cascade_params = child_cascade
         child.save(update_fields=['cascade_params'])
-        result[child.id] = dict(product_field_values)
+        result[child.id] = dict(params)
 
         # Пересчитываем effective_requirements
         resolve_effective_requirements(child)
 
-    logger.info(
-        "Derivation cascade: CR #%d → %d children, params=%s",
-        component.id, len(result), list(product_field_values.keys()),
-    )
+    if result:
+        logger.info(
+            "Derivation cascade: CR #%d → %d children",
+            component.id, len(result),
+        )
     return result
 
 
@@ -140,7 +170,7 @@ def _apply_fitting_patterns(
     assembly = component.assembly
     created_count = 0
 
-    # Определяем максимальный path для новых компонентов
+    # Определяем максимальный order для новых компонентов
     max_order = assembly.components.aggregate(
         max_order=models.Max('order')
     )['max_order'] or 0
@@ -210,14 +240,16 @@ def _apply_transform(value, transform: Optional[dict]) -> object:
     return mapping.get(str(value), value)
 
 
-def _fetch_product_field(component: ComponentRequirement, field_name: str) -> Optional[object]:
+def _fetch_product_field(source_type, product_id: int, field_name: str) -> Optional[object]:
     """Получает значение поля напрямую из БД продукта."""
     try:
-        model_class = get_product_model_class(component.equipment_type)
-        obj = model_class.objects.filter(id=component.selected_product_id).first()
+        model_class = get_product_model_class(source_type)
+        if model_class is None:
+            return None
+        obj = model_class.objects.filter(id=product_id).first()
         if obj:
             return _get_nested_attr(obj, field_name)
-    except (KeyError, Exception):
+    except Exception:
         pass
     return None
 
@@ -247,4 +279,3 @@ def _get_nested_value(data: dict, path: str) -> Optional[object]:
         if value is None:
             return None
     return value
-

@@ -7,6 +7,8 @@ from .parameter_binding import ParameterBinding
 from .fitting_pattern import FittingPattern, FittingPatternItem
 from .parameter_source import ParameterSource
 from .equipment_type_parameter import EquipmentTypeParameter
+from .model_field_snapshot import ModelFieldSnapshot
+from .parameter_catalog import ParameterCatalog
 
 __all__ = [
     "AssemblyRequirements",
@@ -19,4 +21,6 @@ __all__ = [
     "FittingPatternItem",
     "ParameterSource",
     "EquipmentTypeParameter",
+    "ModelFieldSnapshot",
+    "ParameterCatalog",
 ]

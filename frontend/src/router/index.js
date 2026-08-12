@@ -87,7 +87,7 @@ const routes = [
   { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', section: 'configurator_ea' } },
 
   // Администрирование — Настройка системы
-  { path: '/admin/configurator-rules', redirect: '/admin/pipeline-config' },
+  { path: '/admin/configurator-rules', component: () => import('../pages/admin/ConfiguratorRulesPage.vue'), meta: { title: 'Правила конфигуратора', object: 'configurator.rules', action: 'edit' } },
 
   // Администрирование — только для admin/staff
   { path: '/admin/customers', component: () => import('../pages/admin/CustomerAdminPage.vue'), meta: { title: 'Клиенты', object: 'admin.customers', action: 'edit' } },

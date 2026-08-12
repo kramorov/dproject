@@ -9,8 +9,7 @@ from django.core.management.base import BaseCommand
 
 from ai_assistant.schemas import SCHEMA_REGISTRY
 from ai_assistant.schemas.actuator_selection import ACTUATOR_SELECTION_SCHEMA, ACTUATOR_SELECTION_PROMPT_TEMPLATE
-from ai_assistant.schemas.decompose import SYSTEM_PROMPT_ABRA, SYSTEM_PROMPT_DEFAULT
-from ai_assistant.task_manager import DECOMPOSE_V2_PROMPT
+from ai_assistant.schemas.decompose import SYSTEM_PROMPT_ABRA, SYSTEM_PROMPT_DEFAULT, DECOMPOSE_PROMPT_TEMPLATE
 from ai_assistant.models import AIPromptTemplate
 
 
@@ -41,7 +40,7 @@ class Command(BaseCommand):
                 "intent": "decompose",
                 "schema_name": "decompose",
                 "description": "Pass 0: текстовый анализ запроса",
-                "template_text": DECOMPOSE_V2_PROMPT,
+                "template_text": DECOMPOSE_PROMPT_TEMPLATE,
                 "schema_json": None,
             },
             {

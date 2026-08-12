@@ -2,11 +2,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .api.views import (
-    AnalyzeView, ExecuteView, QueryView, RunQueryView,
     QuerySampleViewSet, PromptViewSet, ModelRolesView, EquipmentTypeListView, CustomerListView,
     PipelineSkillViewSet, SkillOverrideViewSet, JSONSchemaViewSet,
     CompositionGroupViewSet, CompositionGroupTreeView, EquipmentTypeTreeView, MBOMViewSet, MBOMItemViewSet,
-    GenerateSchemaFromModelView,
     DecomposeView, ExtractView, FilterView, SelectView,
     CompareView, EBOMView, MBOMView, TreeView,
 )
@@ -22,18 +20,11 @@ router.register(r"mboms", MBOMViewSet, basename="ai-mbom")
 router.register(r"mbom-items", MBOMItemViewSet, basename="ai-mbom-item")
 
 urlpatterns = [
-    # Legacy
-    path("analyze/", AnalyzeView.as_view(), name="ai-analyze"),
-    path("execute/", ExecuteView.as_view(), name="ai-execute"),
-    path("query/", QueryView.as_view(), name="ai-query"),
-    path("run-query/", RunQueryView.as_view(), name="ai-run-query"),
-
     # Pipeline steps
     path("decompose/", DecomposeView.as_view(), name="ai-decompose"),
     path("extract/<int:node_id>/", ExtractView.as_view(), name="ai-extract"),
     path("filter/<int:node_id>/", FilterView.as_view(), name="ai-filter"),
 
-    path("schemas/generate-from-model/", GenerateSchemaFromModelView.as_view(), name="ai-schema-generate"),
     path("equipment-types/", EquipmentTypeListView.as_view(), name="ai-equipment-types"),
     path("equipment-types/<int:pk>/", EquipmentTypeListView.as_view(), name="ai-equipment-types-detail"),
     path("model-roles/", ModelRolesView.as_view(), name="ai-model-roles"),

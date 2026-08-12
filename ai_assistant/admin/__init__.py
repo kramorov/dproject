@@ -8,6 +8,5 @@ from .admin_ai_provider import AIProviderAdmin
 from .admin_json_schema import JSONSchemaAdmin
 from .admin_pipeline_skill import PipelineSkillAdmin
 from .admin_skill_override import SkillOverrideAdmin
-from .admin_cascade_rule import CascadeRuleAdmin
 from .admin_composition_group import CompositionGroupAdmin
 from .admin_selection_node import SelectionNodeAdmin

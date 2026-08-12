@@ -604,12 +604,14 @@ export default {
       const et = this.editingET
       if (!et || !et.id) return
       try {
-        const { data } = await api.post('/ai-assistant/schemas/generate-from-model/', { equipment_type_id: et.id })
+        const { data } = await api.get(`/configurator/admin/equipment-type-parameters/schema/?equipment_type=${et.id}&variant=ai`)
         this.editingSchema = {
           _name: (et.code || 'schema') + '_v1',
           _version: '1',
-          _fields: data.fields || [],
-          schema_json: data.schema_json,
+          _fields: Object.entries(data.schema?.properties || {}).map(([k, v]) => ({
+            param_name: k, label: v.title || k, type: v.type, required: (data.schema?.required || []).includes(k)
+          })),
+          schema_json: data.schema,
           _generatedFrom: et.id,
         }
       } catch (e) { alert('Ошибка: ' + (e.displayMessage || e.message)) }

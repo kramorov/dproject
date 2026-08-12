@@ -2,7 +2,7 @@
 Р СћР ВµРЎРѓРЎвЂљРЎвЂ№ Р С”Р С•Р Р…Р Р†Р ВµР в„–Р ВµРЎР‚Р В° Р С—Р С•Р Т‘Р В±Р С•РЎР‚Р В° ai_assistant.
 
 Р СџР С•Р С”РЎР‚РЎвЂ№Р Р†Р В°РЎР‹РЎвЂљ:
-- Р СљР С•Р Т‘Р ВµР В»Р С‘: EquipmentType, SelectionNode, CascadeRule, PipelineSkill, SkillOverride, JSONSchema
+- Р СљР С•Р Т‘Р ВµР В»Р С‘: EquipmentType, SelectionNode, PipelineSkill, SkillOverride, JSONSchema
 - API: decompose, extract, filter, select, compare, ebom, mbom, tree
 - TreeProcessor: Р Р†РЎРѓР Вµ РЎв‚¬Р В°Р С–Р С‘ (РЎРѓ Р СР С•Р С”Р В°Р СР С‘ LLM)
 """
@@ -15,7 +15,7 @@ from django.db import IntegrityError
 
 from core.models.equipment_type import EquipmentType
 from ai_assistant.models import (
-    AIConversation, SelectionNode, CascadeRule,
+    AIConversation, SelectionNode,
     PipelineSkill, SkillOverride, JSONSchema, AIPromptTemplate,
 )
 
@@ -148,30 +148,6 @@ class SelectionNodeTests(TestCase):
         node.refresh_from_db()
         self.assertEqual(node.selected_product_id, 42)
         self.assertTrue(node.compare_output["match"])
-
-
-class CascadeRuleTests(TestCase):
-    def setUp(self):
-        self.pt = EquipmentType.objects.create(code="cr_actuator", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ CR", level=2)
-        self.ct = EquipmentType.objects.create(code="cr_solenoid", name="Р РЋР С•Р В»Р ВµР Р…Р С•Р С‘Р Т‘ CR", level=3)
-
-    def test_create_cascade_rule(self):
-        rule = CascadeRule.objects.create(
-            parent_type=self.pt, child_type=self.ct,
-            mapping={"port_size_npt": "connection_size"}
-        )
-        self.assertEqual(rule.mapping["port_size_npt"], "connection_size")
-        self.assertTrue(rule.is_active)
-        self.assertEqual(str(rule), "cr_actuator → cr_solenoid")
-
-    def test_unique_parent_child(self):
-        CascadeRule.objects.create(
-            parent_type=self.pt, child_type=self.ct, mapping={"a": "b"}
-        )
-        with self.assertRaises(IntegrityError):
-            CascadeRule.objects.create(
-                parent_type=self.pt, child_type=self.ct, mapping={"c": "d"}
-            )
 
 
 class PipelineSkillTests(TestCase):
@@ -511,10 +487,6 @@ class TreeProcessorCascadeTests(TestCase):
         self.conv = AIConversation.objects.create(session_key="tpc-cascade")
         self.pt = EquipmentType.objects.create(code="tpc_act", name="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘ Cascade", level=2)
         self.ct = EquipmentType.objects.create(code="tpc_sol", name="Р РЋР С•Р В»Р ВµР Р…Р С•Р С‘Р Т‘ Cascade", level=3)
-        CascadeRule.objects.create(
-            parent_type=self.pt, child_type=self.ct,
-            mapping={"port_size": "connection_size", "voltage": "sv_voltage"}
-        )
         self.root = SelectionNode.objects.create(
             conversation=self.conv, level=1, path="tpc/1",
             label="Р СџРЎР‚Р С‘Р Р†Р С•Р Т‘", equipment_type=self.pt,

@@ -211,14 +211,9 @@ export default {
     },
 
     async runExecute() {
-      if (!this.tasks.length) return
-      this.executing = true; this.progressLog = []
-      try {
-        const { data } = await api.post('/ai-assistant/execute/', { tasks: this.tasks, global_requirements: this.globalReqs })
-        this.progressLog = data.progress_log || []
-      } catch (e) {
-        this.progressLog = [{ status: 'error', message: e.displayMessage || e.message || 'Ошибка' }]
-      } finally { this.executing = false }
+      // DEPRECATED: old /execute/ removed. Use new pipeline: decompose → per-node extract/filter.
+      // This method kept as no-op for backward compatibility of the debug UI.
+      this.progressLog = [{ status: 'info', message: 'Old /execute/ deprecated. Use Decompose → Extract → Filter pipeline instead.' }]
     },
 
     openQueryModal(q) { this.editingQuery = q ? { id: q.id, text: q.text } : { id: null, text: '' }; this.showQueryModal = true },

@@ -16,8 +16,8 @@ register_object(
 )
 
 register_object(
-    codename='configurator.propagation_rules',
-    name='Правила наследования (PropagationRule)',
+    codename='configurator.equipment_type_parameters',
+    name='Параметры типов оборудования (ETP)',
     type='admin_page',
     parent='configurator.rules',
     section_code='admin_section',
@@ -42,6 +42,22 @@ register_object(
 register_object(
     codename='configurator.derivation_rules',
     name='Правила каскада (DerivationRule)',
+    type='admin_page',
+    parent='configurator.rules',
+    section_code='admin_section',
+)
+
+register_object(
+    codename='configurator.field_snapshots',
+    name='Снимки полей моделей (ModelFieldSnapshot)',
+    type='admin_page',
+    parent='configurator.rules',
+    section_code='admin_section',
+)
+
+register_object(
+    codename='configurator.parameter_catalog',
+    name='Каталог параметров (ParameterCatalog)',
     type='admin_page',
     parent='configurator.rules',
     section_code='admin_section',

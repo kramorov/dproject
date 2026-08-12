@@ -91,20 +91,6 @@ class EquipmentType(BaseAbstractModel):
     ai_placeholder = models.CharField(max_length=200, blank=True, default="", verbose_name="AI placeholder")
     ai_hints = models.JSONField(blank=True, default=list, verbose_name="AI hints")
 
-    # ── AI: схема и промпт ──
-    output_schema = models.ForeignKey(
-        "ai_assistant.JSONSchema", on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="equipment_types",
-        verbose_name=_("JSON Schema"),
-        help_text=_("JSON-схема выходного формата (extract)"),
-    )
-    prompt_template = models.ForeignKey(
-        "ai_assistant.AIPromptTemplate", on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="equipment_types",
-        verbose_name=_("Prompt Template"),
-        help_text=_("Шаблон промпта для extract"),
-    )
-
     # ── Мастер подбора ──
     active_selection_wizard = models.ForeignKey(
         'core.SelectionWizard', on_delete=models.SET_NULL, null=True, blank=True,
