@@ -23,8 +23,8 @@ from typing import Optional
 
 from django.db import models
 
+from assemblies.models import ComponentRequirement
 from configurator.models import (
-    ComponentRequirement,
     DerivationRule,
     FittingPattern,
 )
@@ -98,7 +98,7 @@ def cascade_after_select(component: ComponentRequirement) -> dict:
         'fittings_created': 0,
     }
 
-    if not component.selected_product_id or not component.equipment_type:
+    if not component.selected_sku_id or not component.equipment_type:
         return result
 
     # ── 1. DerivationRule cascade ──
@@ -122,6 +122,7 @@ def _apply_derivation_rules(component: ComponentRequirement) -> dict[int, dict]:
     cascade_params через resolve_derivation_params.
     """
     source_specs = component.selected_product_specs or {}
+    product_id = _sku_product_id(component.selected_sku)
     assembly = component.assembly
 
     child_crs = assembly.components.filter(
@@ -138,7 +139,7 @@ def _apply_derivation_rules(component: ComponentRequirement) -> dict[int, dict]:
             source_type=component.equipment_type,
             target_type=child.equipment_type,
             source_specs=source_specs,
-            product_id=component.selected_product_id,
+            product_id=product_id,
         )
         if not params:
             continue
@@ -238,6 +239,13 @@ def _apply_transform(value, transform: Optional[dict]) -> object:
         return value
     mapping = transform.get('map', {})
     return mapping.get(str(value), value)
+
+
+def _sku_product_id(sku) -> Optional[int]:
+    """Резолвит id продукта из SKU (через source_content_type + source_object_id)."""
+    if sku and sku.source_content_type_id and sku.source_object_id:
+        return sku.source_object_id
+    return None
 
 
 def _fetch_product_field(source_type, product_id: int, field_name: str) -> Optional[object]:

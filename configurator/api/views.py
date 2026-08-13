@@ -27,7 +27,7 @@ from django.shortcuts import get_object_or_404
 
 from ai_assistant.models import CompositionGroup
 from core.models import EquipmentType
-from configurator.models import (
+from assemblies.models import (
     AssemblyRequirements,
     ComponentRequirement,
 )
@@ -38,6 +38,7 @@ from configurator.services.resolver import (
 )
 from configurator.services.filter_engine import filter_by_requirements, select_product
 from configurator.services.cascade import cascade_after_select
+from assemblies.services import fork_assembly, fixate
 from configurator.api.serializers import (
     AssemblyRequirementsSerializer,
     AssemblyRequirementsCreateSerializer,
@@ -52,9 +53,19 @@ from configurator.api.serializers import (
 
 
 class AssemblyListView(APIView):
-    """POST /api/configurator/assemblies/ — создать сборку."""
+    """GET/POST /api/configurator/assemblies/ — список / создать сборку."""
 
     permission_classes = [AllowAny]
+
+    def get(self, request):
+        qs = AssemblyRequirements.objects.select_related('composition_group').order_by('-created_at')
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        template = request.query_params.get('is_template')
+        if template is not None:
+            qs = qs.filter(is_template=template in ('1', 'true', 'True'))
+        return Response(AssemblyRequirementsSerializer(qs, many=True).data)
 
     def post(self, request):
         serializer = AssemblyRequirementsCreateSerializer(data=request.data)
@@ -83,9 +94,6 @@ class AssemblyListView(APIView):
         # Применяем global_requirements
         if assembly.global_requirements:
             resolve_all_components(assembly)
-
-        assembly.status = 'in_progress'
-        assembly.save(update_fields=['status'])
 
         result = AssemblyRequirementsSerializer(assembly).data
         return Response(result, status=status.HTTP_201_CREATED)
@@ -130,6 +138,44 @@ class AssemblyExpandView(APIView):
         return Response(AssemblyRequirementsSerializer(assembly).data)
 
 
+class AssemblyForkView(APIView):
+    """POST /api/configurator/assemblies/{id}/fork/ — клонировать сборку."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request, pk):
+        assembly = get_object_or_404(AssemblyRequirements, pk=pk)
+        for_requirements_change = request.data.get('for_requirements_change', False)
+        requirement_version_id = request.data.get('requirement_version_id')
+
+        new_requirement_version = None
+        if requirement_version_id:
+            from client_requests.models import ClientRequestItem
+            new_requirement_version = get_object_or_404(ClientRequestItem, pk=requirement_version_id)
+
+        clone = fork_assembly(
+            assembly,
+            for_requirements_change=for_requirements_change,
+            new_requirement_version=new_requirement_version,
+        )
+        return Response(AssemblyRequirementsSerializer(clone).data, status=status.HTTP_201_CREATED)
+
+
+class AssemblyFixateView(APIView):
+    """POST /api/configurator/assemblies/{id}/fixate/ — закрепить сборку."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request, pk):
+        assembly = get_object_or_404(AssemblyRequirements, pk=pk)
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        try:
+            fixate(assembly, user=user, comment=request.data.get('comment', ''))
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(AssemblyRequirementsSerializer(assembly).data)
+
+
 class AssemblyBomView(APIView):
     """GET /api/configurator/assemblies/{id}/bom/ — MBOM/EBOM."""
 
@@ -149,8 +195,8 @@ class AssemblyBomView(APIView):
                 'equipment_type': cr.equipment_type.code if cr.equipment_type else None,
                 'equipment_name': cr.equipment_type.name if cr.equipment_type else None,
                 'path': cr.path,
-                'product_type': cr.selected_product_type,
-                'product_id': cr.selected_product_id,
+                'sku_id': cr.selected_sku_id,
+                'sku_code': cr.selected_sku.code if cr.selected_sku else None,
                 'product_name': cr.selected_product_specs.get('name', '') if cr.selected_product_specs else '',
                 'product_code': cr.selected_product_specs.get('code', '') if cr.selected_product_specs else '',
             })

@@ -1,14 +1,12 @@
 """Админ-классы для моделей configurator."""
 from django.contrib import admin
+from assemblies.models import AssemblyRequirements, ComponentRequirement
 from configurator.models import (
-    AssemblyRequirements,
-    ComponentRequirement,
     DerivationRule,
     ParameterRule,
     ParameterBinding,
     FittingPattern,
     FittingPatternItem,
-    ParameterSource,
     EquipmentTypeParameter,
     ModelFieldSnapshot,
     ParameterCatalog,
@@ -62,7 +60,7 @@ class ComponentRequirementAdmin(admin.ModelAdmin):
         ("Результат подбора", {
             "fields": (
                 "filter_results",
-                "selected_product_type", "selected_product_id", "selected_product_specs",
+                "selected_sku", "selected_product_specs",
             ),
         }),
         ("Статус", {
@@ -199,15 +197,6 @@ class FittingPatternItemAdmin(admin.ModelAdmin):
             "fields": ("config", "order"),
         }),
     )
-
-
-# ── ParameterSource ──
-
-@admin.register(ParameterSource)
-class ParameterSourceAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "is_active")
-    list_filter = ("is_active",)
-    search_fields = ("code", "name")
 
 
 # ── EquipmentTypeParameter ──

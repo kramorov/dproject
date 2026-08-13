@@ -185,6 +185,99 @@
       </div>
     </section>
 
+    <!-- EquipmentType classifier CRUD -->
+    <section v-show="activeTab === 'classifier'" class="section">
+      <h2>Классификатор (EquipmentType) <button class="btn-add" @click="addEquipmentType">+ Add</button></h2>
+      <table>
+        <thead><tr><th>Code</th><th>Name</th><th>Level</th><th>Parent</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="(et, i) in classifierTypes" :key="et.id || i">
+            <td><input v-model="et.code" class="cell-input" /></td>
+            <td><input v-model="et.name" class="cell-input" /></td>
+            <td><input v-model="et.level" class="cell-input" size="4" /></td>
+            <td><select v-model="et.parent"><option :value="null">—</option><option v-for="p in classifierTypes" :key="p.id" :value="p.id">{{ p.code }}</option></select></td>
+            <td><input type="checkbox" v-model="et.is_active" /></td>
+            <td><button class="btn-save-sm" @click="saveEquipmentType(et)">💾</button><button class="btn-del" @click="deleteEquipmentType(et.id)">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Fitting Patterns CRUD -->
+    <section v-show="activeTab === 'fitting'" class="section">
+      <h2>Fitting Patterns <button class="btn-add" @click="addFittingPattern">+ Add</button></h2>
+      <table>
+        <thead><tr><th>Code</th><th>Name</th><th>Applies to</th><th>Condition (JSON)</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="(f, i) in fittingPatterns" :key="f.id || i">
+            <td><input v-model="f.code" class="cell-input" /></td>
+            <td><input v-model="f.name" class="cell-input" /></td>
+            <td><select v-model="f.applies_to"><option :value="null">—</option><option v-for="et in classifierTypes" :key="et.id" :value="et.id">{{ et.code }}</option></select></td>
+            <td><input v-model="f.condition_text" class="cell-input" placeholder='{"mounting":"namur"}' /></td>
+            <td><input type="checkbox" v-model="f.is_active" /></td>
+            <td><button class="btn-save-sm" @click="saveFittingPattern(f)">💾</button><button class="btn-del" @click="deleteFittingPattern(f.id)">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ParameterRule CRUD -->
+    <section v-show="activeTab === 'param-rules'" class="section">
+      <h2>Parameter Rules <button class="btn-add" @click="addParameterRule">+ Add</button></h2>
+      <table>
+        <thead><tr><th>Code</th><th>Name</th><th>Match</th><th>Hardness</th><th>Relax</th><th>Priority</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="(r, i) in parameterRules" :key="r.id || i">
+            <td><input v-model="r.code" class="cell-input" /></td>
+            <td><input v-model="r.name" class="cell-input" /></td>
+            <td><select v-model="r.match_type"><option v-for="m in MATCH_TYPES" :key="m" :value="m">{{ m }}</option></select></td>
+            <td><select v-model="r.hardness"><option value="hard">hard</option><option value="soft">soft</option></select></td>
+            <td><select v-model="r.relaxation_strategy"><option v-for="x in RELAX" :key="x" :value="x">{{ x }}</option></select></td>
+            <td><input v-model="r.priority" class="cell-input" size="4" /></td>
+            <td><input type="checkbox" v-model="r.is_active" /></td>
+            <td><button class="btn-save-sm" @click="saveParameterRule(r)">💾</button><button class="btn-del" @click="deleteParameterRule(r.id)">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ParameterBinding CRUD -->
+    <section v-show="activeTab === 'bindings'" class="section">
+      <h2>Parameter Bindings <button class="btn-add" @click="addParameterBinding">+ Add</button></h2>
+      <table>
+        <thead><tr><th>Rule</th><th>Type</th><th>Param</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="(b, i) in parameterBindings" :key="b.id || i">
+            <td><select v-model="b.rule"><option :value="null">—</option><option v-for="r in parameterRules" :key="r.id" :value="r.id">{{ r.code }}</option></select></td>
+            <td><select v-model="b.equipment_type"><option :value="null">—</option><option v-for="et in classifierTypes" :key="et.id" :value="et.id">{{ et.code }}</option></select></td>
+            <td><input v-model="b.param_name" class="cell-input" /></td>
+            <td><input type="checkbox" v-model="b.is_active" /></td>
+            <td><button class="btn-save-sm" @click="saveParameterBinding(b)">💾</button><button class="btn-del" @click="deleteParameterBinding(b.id)">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- DerivationRule CRUD -->
+    <section v-show="activeTab === 'derivation'" class="section">
+      <h2>Derivation Rules <button class="btn-add" @click="addDerivationRule">+ Add</button></h2>
+      <table>
+        <thead><tr><th>Code</th><th>Source</th><th>Field</th><th>Target</th><th>Param</th><th>Priority</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="(d, i) in derivationRules" :key="d.id || i">
+            <td><input v-model="d.code" class="cell-input" /></td>
+            <td><select v-model="d.source_type"><option :value="null">—</option><option v-for="et in classifierTypes" :key="et.id" :value="et.id">{{ et.code }}</option></select></td>
+            <td><input v-model="d.source_product_field" class="cell-input" /></td>
+            <td><select v-model="d.target_type"><option :value="null">—</option><option v-for="et in classifierTypes" :key="et.id" :value="et.id">{{ et.code }}</option></select></td>
+            <td><input v-model="d.target_param" class="cell-input" /></td>
+            <td><input v-model="d.priority" class="cell-input" size="4" /></td>
+            <td><input type="checkbox" v-model="d.is_active" /></td>
+            <td><button class="btn-save-sm" @click="saveDerivationRule(d)">💾</button><button class="btn-del" @click="deleteDerivationRule(d.id)">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
     <!-- Estimated Latency -->
     <section v-show="activeTab === 'skills'" class="section latency-section">
       <h3>Estimated Response Times</h3>
@@ -208,6 +301,11 @@ const tabs = [
   { id: 'skills', label: 'Pipeline Skills' }, { id: 'overrides', label: 'Overrides' },
   { id: 'prompts', label: 'Prompt Templates' }, { id: 'schemas', label: 'JSON Schemas' },
   { id: 'equipment', label: 'Equipment Types' },
+  { id: 'classifier', label: 'Классификатор' },
+  { id: 'fitting', label: 'Fitting Patterns' },
+  { id: 'param-rules', label: 'Parameter Rules' },
+  { id: 'bindings', label: 'Bindings' },
+  { id: 'derivation', label: 'Derivation Rules' },
 ]
 
 const STEP_CHOICES = [['decompose','Decompose'],['extract','Extract'],['filter','Filter'],['select','Select'],['compare','Compare'],['format','Format']]
@@ -219,6 +317,10 @@ const selectedEt = ref(null); const selectedEtId = ref(null)
 const schemaEtId = ref(null); const schemaVariant = ref('ai')
 const generatedSchema = ref(null); const generatedSchemaName = ref('')
 const editingPrompt = ref(null); const editingSchema = ref(null)
+const classifierTypes = ref([]); const fittingPatterns = ref([])
+const parameterRules = ref([]); const parameterBindings = ref([]); const derivationRules = ref([])
+const MATCH_TYPES = ['exact','directional','hierarchy','compatible','subset','composite']
+const RELAX = ['none','step','percentage','compatible','any']
 
 onMounted(async () => {
   const safe = p => p.then(r => {
@@ -241,6 +343,16 @@ onMounted(async () => {
   modelRoles.value = rolesResp; customers.value = customersRaw
   const paramsResp = await safe(api.get('/configurator/admin/equipment-type-parameters/'))
   equipmentParams.value = Array.isArray(paramsResp) ? paramsResp : (paramsResp.results || [])
+  const classifierResp = await safe(api.get('/configurator/admin/equipment-types/'))
+  classifierTypes.value = Array.isArray(classifierResp) ? classifierResp : (classifierResp.results || [])
+  const fittingResp = await safe(api.get('/configurator/admin/fitting-patterns/'))
+  fittingPatterns.value = (Array.isArray(fittingResp) ? fittingResp : (fittingResp.results || [])).map(f => ({ ...f, condition_text: JSON.stringify(f.condition || {}) }))
+  const prResp = await safe(api.get('/configurator/admin/parameter-rules/'))
+  parameterRules.value = Array.isArray(prResp) ? prResp : (prResp.results || [])
+  const pbResp = await safe(api.get('/configurator/admin/parameter-bindings/'))
+  parameterBindings.value = Array.isArray(pbResp) ? pbResp : (pbResp.results || [])
+  const drResp = await safe(api.get('/configurator/admin/derivation-rules/'))
+  derivationRules.value = Array.isArray(drResp) ? drResp : (drResp.results || [])
 })
 
 async function saveSkill(s) {
@@ -271,6 +383,44 @@ async function saveEquipment(et) {
   await api.patch(`/ai-assistant/equipment-types/${et.id}/`, { param_semantics: et.param_semantics, filter_endpoint: et.filter_endpoint })
 }
 async function saveParam(p) { await api.patch(`/configurator/admin/equipment-type-parameters/${p.id}/`, p) }
+
+async function saveEquipmentType(et) {
+  const p = { code: et.code, name: et.name, level: et.level || 0, parent: et.parent || null, is_active: et.is_active }
+  if (et.id) { await api.patch(`/configurator/admin/equipment-types/${et.id}/`, p) }
+  else { const { data } = await api.post('/configurator/admin/equipment-types/', p); et.id = data.id }
+}
+async function addEquipmentType() { classifierTypes.value.push({ code: 'new', name: 'new', level: 0, parent: null, is_active: true }) }
+async function deleteEquipmentType(id) { if (confirm('Delete?')) { await api.delete(`/configurator/admin/equipment-types/${id}/`); classifierTypes.value = classifierTypes.value.filter(e => e.id !== id) } }
+
+async function saveFittingPattern(f) {
+  if (!f.applies_to) { alert('Выберите тип оборудования (Applies to)'); return }
+  try { f.condition = f.condition_text ? JSON.parse(f.condition_text) : {} } catch (e) { alert('Invalid JSON in condition'); return }
+  const p = { code: f.code, name: f.name, applies_to: f.applies_to || null, condition: f.condition, is_active: f.is_active }
+  if (f.id) { await api.patch(`/configurator/admin/fitting-patterns/${f.id}/`, p) }
+  else { const { data } = await api.post('/configurator/admin/fitting-patterns/', p); f.id = data.id }
+}
+async function addFittingPattern() { fittingPatterns.value.push({ code: 'new', name: 'new', applies_to: classifierTypes.value[0]?.id || null, condition_text: '{}', condition: {}, is_active: true }) }
+async function deleteFittingPattern(id) { if (confirm('Delete?')) { await api.delete(`/configurator/admin/fitting-patterns/${id}/`); fittingPatterns.value = fittingPatterns.value.filter(f => f.id !== id) } }
+
+async function saveParameterRule(r) { if (r.id) await api.patch(`/configurator/admin/parameter-rules/${r.id}/`, r); else { const { data } = await api.post('/configurator/admin/parameter-rules/', r); r.id = data.id } }
+async function addParameterRule() { parameterRules.value.push({ code: 'new', name: 'new', match_type: 'exact', hardness: 'soft', relaxation_strategy: 'none', priority: 0, is_active: true }) }
+async function deleteParameterRule(id) { if (confirm('Delete?')) { await api.delete(`/configurator/admin/parameter-rules/${id}/`); parameterRules.value = parameterRules.value.filter(x => x.id !== id) } }
+
+async function saveParameterBinding(b) {
+  if (!b.rule || !b.equipment_type) { alert('Выберите Rule и Type'); return }
+  const p = { rule: b.rule, equipment_type: b.equipment_type, param_name: b.param_name, is_active: b.is_active }
+  if (b.id) await api.patch(`/configurator/admin/parameter-bindings/${b.id}/`, p); else { const { data } = await api.post('/configurator/admin/parameter-bindings/', p); b.id = data.id }
+}
+async function addParameterBinding() { parameterBindings.value.push({ rule: null, equipment_type: null, param_name: '', is_active: true }) }
+async function deleteParameterBinding(id) { if (confirm('Delete?')) { await api.delete(`/configurator/admin/parameter-bindings/${id}/`); parameterBindings.value = parameterBindings.value.filter(x => x.id !== id) } }
+
+async function saveDerivationRule(d) {
+  if (!d.source_type || !d.target_type) { alert('Выберите Source и Target'); return }
+  const p = { code: d.code, source_type: d.source_type, source_product_field: d.source_product_field, target_type: d.target_type, target_param: d.target_param, priority: d.priority || 0, is_active: d.is_active }
+  if (d.id) await api.patch(`/configurator/admin/derivation-rules/${d.id}/`, p); else { const { data } = await api.post('/configurator/admin/derivation-rules/', p); d.id = data.id }
+}
+async function addDerivationRule() { derivationRules.value.push({ code: 'new', source_type: null, source_product_field: '', target_type: null, target_param: '', priority: 0, is_active: true }) }
+async function deleteDerivationRule(id) { if (confirm('Delete?')) { await api.delete(`/configurator/admin/derivation-rules/${id}/`); derivationRules.value = derivationRules.value.filter(x => x.id !== id) } }
 
 const filteredParams = computed(() => {
   if (!selectedEtId.value) return []

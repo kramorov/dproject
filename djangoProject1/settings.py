@@ -175,6 +175,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'documents.apps.DocumentsConfig',
     'ai_assistant.apps.AiAssistantConfig',
+    'assemblies.apps.AssembliesConfig',
     'configurator.apps.ConfiguratorConfig',
     'cart.apps.CartConfig',
 ]

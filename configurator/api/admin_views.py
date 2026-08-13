@@ -14,11 +14,14 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from core.permissions import SystemObjectPermission
+from core.models import EquipmentType
 from configurator.models import (
     ParameterRule,
     ParameterBinding,
     DerivationRule,
     EquipmentTypeParameter,
+    FittingPattern,
+    FittingPatternItem,
     ModelFieldSnapshot,
     ParameterCatalog,
 )
@@ -27,6 +30,9 @@ from .admin_serializers import (
     ParameterBindingSerializer,
     DerivationRuleSerializer,
     EquipmentTypeParameterSerializer,
+    FittingPatternSerializer,
+    FittingPatternItemSerializer,
+    EquipmentTypeSerializer,
     ModelFieldSnapshotSerializer,
     ParameterCatalogSerializer,
 )
@@ -110,3 +116,34 @@ class ParameterCatalogViewSet(viewsets.ModelViewSet):
     required_action = 'edit'
     search_fields = ['code', 'name', 'namespace']
     filterset_fields = ['namespace', 'is_active']
+
+
+class FittingPatternViewSet(viewsets.ModelViewSet):
+    """CRUD для FittingPattern."""
+    queryset = FittingPattern.objects.select_related('applies_to').order_by('code')
+    serializer_class = FittingPatternSerializer
+    permission_classes = [SystemObjectPermission]
+    required_object = 'configurator.rules'
+    required_action = 'edit'
+    search_fields = ['code', 'name', 'applies_to__code']
+
+
+class FittingPatternItemViewSet(viewsets.ModelViewSet):
+    """CRUD для FittingPatternItem."""
+    queryset = FittingPatternItem.objects.select_related('pattern', 'equipment_type').order_by('pattern__code', 'order')
+    serializer_class = FittingPatternItemSerializer
+    permission_classes = [SystemObjectPermission]
+    required_object = 'configurator.rules'
+    required_action = 'edit'
+    search_fields = ['pattern__code', 'equipment_type__code']
+
+
+class EquipmentTypeViewSet(viewsets.ModelViewSet):
+    """CRUD для EquipmentType (классификатор)."""
+    queryset = EquipmentType.objects.all().order_by('level', 'sorting_order', 'code')
+    serializer_class = EquipmentTypeSerializer
+    permission_classes = [SystemObjectPermission]
+    required_object = 'configurator.rules'
+    required_action = 'edit'
+    search_fields = ['code', 'name']
+    filterset_fields = ['level', 'is_active']

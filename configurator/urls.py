@@ -8,6 +8,8 @@ from configurator.api.views import (
     AssemblyDetailView,
     AssemblyExpandView,
     AssemblyBomView,
+    AssemblyForkView,
+    AssemblyFixateView,
     ComponentDetailView,
     ComponentRequirementsView,
     ComponentFilterView,
@@ -19,6 +21,9 @@ from configurator.api.admin_views import (
     ParameterBindingViewSet,
     DerivationRuleViewSet,
     EquipmentTypeParameterViewSet,
+    FittingPatternViewSet,
+    FittingPatternItemViewSet,
+    EquipmentTypeViewSet,
     ModelFieldSnapshotViewSet,
     ParameterCatalogViewSet,
 )
@@ -29,6 +34,8 @@ urlpatterns = [
     path('assemblies/<int:pk>/', AssemblyDetailView.as_view(), name='configurator_assembly_detail'),
     path('assemblies/<int:pk>/expand/', AssemblyExpandView.as_view(), name='configurator_assembly_expand'),
     path('assemblies/<int:pk>/bom/', AssemblyBomView.as_view(), name='configurator_assembly_bom'),
+    path('assemblies/<int:pk>/fork/', AssemblyForkView.as_view(), name='configurator_assembly_fork'),
+    path('assemblies/<int:pk>/fixate/', AssemblyFixateView.as_view(), name='configurator_assembly_fixate'),
 
     # Components
     path('components/<int:pk>/', ComponentDetailView.as_view(), name='configurator_component_detail'),
@@ -48,4 +55,7 @@ router.register(r'admin/derivation-rules', DerivationRuleViewSet, basename='admi
 router.register(r'admin/equipment-type-parameters', EquipmentTypeParameterViewSet, basename='admin_equipment_type_parameter')
 router.register(r'admin/field-snapshots', ModelFieldSnapshotViewSet, basename='admin_field_snapshot')
 router.register(r'admin/parameter-catalog', ParameterCatalogViewSet, basename='admin_parameter_catalog')
+router.register(r'admin/fitting-patterns', FittingPatternViewSet, basename='admin_fitting_pattern')
+router.register(r'admin/fitting-pattern-items', FittingPatternItemViewSet, basename='admin_fitting_pattern_item')
+router.register(r'admin/equipment-types', EquipmentTypeViewSet, basename='admin_equipment_type')
 urlpatterns += router.urls

@@ -16,7 +16,7 @@ from typing import Optional
 from django.db import transaction
 
 from ai_assistant.models import CompositionGroup
-from configurator.models import AssemblyRequirements, ComponentRequirement
+from assemblies.models import AssemblyRequirements, ComponentRequirement
 
 logger = logging.getLogger(__name__)
 

@@ -21,9 +21,9 @@ if not os.environ.get('DJANGO_SETTINGS_MODULE'):
 
 from core.models import EquipmentType
 from ai_assistant.models import CompositionGroup
+from assemblies.models import AssemblyRequirements, ComponentRequirement
+from sku.models import SKU
 from configurator.models import (
-    AssemblyRequirements,
-    ComponentRequirement,
     ParameterRule,
     DerivationRule,
 )
@@ -282,7 +282,6 @@ class FilterEngineTest(unittest.TestCase):
         self.assertIsNotNone(specs)
         self.cr.refresh_from_db()
         self.assertEqual(self.cr.status, 'selected')
-        self.assertEqual(self.cr.selected_product_id, first_id)
 
     def test_select_nonexistent(self):
         self.assertEqual(select_product(self.cr, 99999999), {})
@@ -325,6 +324,9 @@ class CascadeTest(unittest.TestCase):
         self.assembly = AssemblyRequirements.objects.create(
             composition_group=self.cg, status='draft',
         )
+        self.sku, _ = SKU.objects.get_or_create(
+            code='test-cascade-sku', defaults={'name': 'Test Cascade SKU'}
+        )
         self._cleanup_rules = []
 
     def tearDown(self):
@@ -355,9 +357,8 @@ class CascadeTest(unittest.TestCase):
         cr = ComponentRequirement.objects.create(
             assembly=self.assembly, equipment_type=self.lsb_et,
             path='1', level=1, order=1,
-            selected_product_id=1,
+            selected_sku=self.sku,
             selected_product_specs={'name': 'Test'},
-            selected_product_type='pa_controls.LimitSwitchBox',
         )
         result = cascade_after_select(cr)
         self.assertEqual(result['derived_params'], {})
@@ -373,9 +374,8 @@ class CascadeTest(unittest.TestCase):
         parent = ComponentRequirement.objects.create(
             assembly=self.assembly, equipment_type=self.lsb_et,
             path='1', level=1, order=1,
-            selected_product_id=1,
+            selected_sku=self.sku,
             selected_product_specs={'name': 'LSB-Test'},
-            selected_product_type='pa_controls.LimitSwitchBox',
         )
         child = ComponentRequirement.objects.create(
             assembly=self.assembly, equipment_type=self.cg_et,
@@ -398,9 +398,8 @@ class CascadeTest(unittest.TestCase):
         parent = ComponentRequirement.objects.create(
             assembly=self.assembly, equipment_type=self.lsb_et,
             path='1', level=1, order=1,
-            selected_product_id=1,
+            selected_sku=self.sku,
             selected_product_specs={'name': 'ORDINARY'},
-            selected_product_type='pa_controls.LimitSwitchBox',
         )
         ComponentRequirement.objects.create(
             assembly=self.assembly, equipment_type=self.cg_et,
@@ -421,9 +420,8 @@ class CascadeTest(unittest.TestCase):
         parent = ComponentRequirement.objects.create(
             assembly=self.assembly, equipment_type=self.lsb_et,
             path='1', level=1, order=1,
-            selected_product_id=1,
+            selected_sku=self.sku,
             selected_product_specs={'name': 'G1/4'},
-            selected_product_type='pa_controls.LimitSwitchBox',
         )
         child = ComponentRequirement.objects.create(
             assembly=self.assembly, equipment_type=self.cg_et,

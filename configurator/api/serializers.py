@@ -5,7 +5,7 @@ configurator/api/serializers.py
 """
 from rest_framework import serializers
 
-from configurator.models import (
+from assemblies.models import (
     AssemblyRequirements,
     ComponentRequirement,
 )
@@ -29,12 +29,12 @@ class ComponentRequirementSerializer(serializers.ModelSerializer):
             'path',
             'level',
             'order',
+            'included',
             'own_requirements',
             'effective_requirements',
             'cascade_params',
             'filter_results',
-            'selected_product_type',
-            'selected_product_id',
+            'selected_sku',
             'selected_product_specs',
             'status',
             'composition_group_node',
@@ -42,8 +42,8 @@ class ComponentRequirementSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'effective_requirements', 'cascade_params',
-            'filter_results', 'selected_product_type',
-            'selected_product_id', 'selected_product_specs',
+            'filter_results', 'selected_sku',
+            'selected_product_specs',
             'path', 'level',
         ]
 
@@ -66,7 +66,7 @@ class ComponentRequirementUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ComponentRequirement
-        fields = ['own_requirements', 'status']
+        fields = ['own_requirements', 'status', 'included', 'selected_sku']
 
 
 class AssemblyRequirementsSerializer(serializers.ModelSerializer):
@@ -84,11 +84,20 @@ class AssemblyRequirementsSerializer(serializers.ModelSerializer):
             'composition_group_code',
             'global_requirements',
             'status',
+            'revision',
+            'parent_assembly',
+            'is_template',
+            'requirement_version',
+            'fixed_at',
+            'fixation_comment',
             'created_at',
             'updated_at',
             'components',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'revision', 'parent_assembly',
+            'fixed_at', 'created_at', 'updated_at',
+        ]
 
     def get_composition_group_code(self, obj):
         return obj.composition_group.code if obj.composition_group else None

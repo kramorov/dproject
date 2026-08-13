@@ -8,10 +8,6 @@ from .request_snapshot import RequestSnapshot
 from .request_change_log import RequestChangeLog
 from .request_file import RequestFile
 from .comments import CommentType, ClientRequestComment, RequestItemComment
-from .base_requirement import BaseRequirement
-from .gearbox_requirement import GearboxRequirement
-from .filter_regulator_requirement import FilterRegulatorRequirement
-from .limit_switch_requirement import LimitSwitchRequirement
 
 __all__ = [
     'ClientRequestStatus',
@@ -25,8 +21,4 @@ __all__ = [
     'CommentType',
     'ClientRequestComment',
     'RequestItemComment',
-    'BaseRequirement',
-    'GearboxRequirement',
-    'FilterRegulatorRequirement',
-    'LimitSwitchRequirement',
 ]

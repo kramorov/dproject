@@ -16,10 +16,8 @@ from typing import Any
 
 from django.db.models import Q, Model, QuerySet
 
-from configurator.models import (
-    ComponentRequirement,
-    ParameterBinding,
-)
+from assemblies.models import ComponentRequirement
+from configurator.models import ParameterBinding
 from configurator.services.parameter_filter import _build_q_from_binding
 from configurator.services.registry import get_product_model_class
 
@@ -147,13 +145,11 @@ def select_product(
             'spring_margin': match.get('spring_margin'),
             'model_line': match.get('model_line'),
         }
-        component.selected_product_type = 'pneumatic_actuators.PneumaticActuatorBody'
-        component.selected_product_id = product_id
+        component.selected_sku = _resolve_sku(code=specs.get('code') or specs.get('body_code'))
         component.selected_product_specs = specs
         component.status = 'selected'
         component.save(update_fields=[
-            'selected_product_type', 'selected_product_id',
-            'selected_product_specs', 'status',
+            'selected_sku', 'selected_product_specs', 'status',
         ])
         return specs
 
@@ -169,18 +165,30 @@ def select_product(
         return {}
 
     specs = _serialize_candidate(obj, [])
-    component.selected_product_type = f"{model_class._meta.app_label}.{model_class.__name__}"
-    component.selected_product_id = product_id
+    component.selected_sku = _resolve_sku(obj)
     component.selected_product_specs = specs
     component.status = 'selected'
     component.save(update_fields=[
-        'selected_product_type', 'selected_product_id',
-        'selected_product_specs', 'status',
+        'selected_sku', 'selected_product_specs', 'status',
     ])
     return specs
 
 
 # ── Private helpers ──
+
+
+def _resolve_sku(obj=None, *, code=None):
+    """Резолвит SKU для выбранного продукта: через .sku (SKUMixin) или по коду."""
+    from sku.models import SKU
+    sku = None
+    if obj is not None:
+        sku = getattr(obj, 'sku', None)
+        if sku and getattr(sku, 'id', None):
+            return sku
+        code = code or getattr(obj, 'code', None)
+    if code:
+        return SKU.objects.filter(code=code).first()
+    return None
 
 
 def _load_bindings(equipment_type) -> dict[str, ParameterBinding]:

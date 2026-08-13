@@ -15,10 +15,8 @@ from __future__ import annotations
 
 import logging
 
-from configurator.models import (
-    ComponentRequirement,
-    EquipmentTypeParameter,
-)
+from assemblies.models import ComponentRequirement
+from configurator.models import EquipmentTypeParameter
 
 logger = logging.getLogger(__name__)
 

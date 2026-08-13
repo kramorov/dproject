@@ -137,16 +137,6 @@ class EquipmentTypeParameter(models.Model):
         help_text=_("Выше = важнее при scoring"),
     )
 
-    # ── Deprecated (будет удалено) ──
-    source = models.ForeignKey(
-        "ParameterSource",
-        on_delete=models.PROTECT,
-        null=True, blank=True,
-        verbose_name=_("Источник (deprecated)"),
-    )
-    source_param = models.CharField(max_length=128, blank=True, null=True)
-    allow_override = models.BooleanField(default=True)
-
     # ── Семантика сравнения (бывший ParameterBinding) ──
     parameter_rule = models.ForeignKey(
         "ParameterRule",
@@ -234,12 +224,11 @@ class EquipmentTypeParameter(models.Model):
             ),
         ]
         indexes = [
-            models.Index(fields=["equipment_type", "source"]),
             models.Index(fields=["equipment_type", "is_active"]),
         ]
 
     def __str__(self):
-        return f"{self.equipment_type.code}.{self.param_name} ← {self.source.code if self.source else '?'}"
+        return f"{self.equipment_type.code}.{self.param_name}"
 
     @property
     def product_model_class(self):

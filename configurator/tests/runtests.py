@@ -7,6 +7,8 @@ Standalone test runner — avoids Django TestCase DB setup entirely.
 import os
 import sys
 import time
+import shutil
+import atexit
 import traceback
 import unittest
 
@@ -18,11 +20,28 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'djangoProject1.settings')
 import django
 from django.conf import settings
 
-_test_db_path = os.path.join(_PROJECT_ROOT, 'configurator_test_db.sqlite3')
-if not os.path.exists(_test_db_path):
-    print(f"ERROR: Test DB not found at {_test_db_path}")
+_working_db = os.path.join(_PROJECT_ROOT, 'db.sqlite3')
+if not os.path.exists(_working_db):
+    print(f"ERROR: Working DB not found at {_working_db}")
     sys.exit(1)
-print(f"Using test database: {_test_db_path}")
+
+_test_db_path = os.path.join(_PROJECT_ROOT, '_test_db_copy.sqlite3')
+shutil.copy2(_working_db, _test_db_path)
+
+def _cleanup():
+    try:
+        from django.db import connections
+        connections.close_all()
+    except Exception:
+        pass
+    try:
+        if os.path.exists(_test_db_path):
+            os.remove(_test_db_path)
+    except OSError:
+        pass
+
+atexit.register(_cleanup)
+print(f"Using working DB copy: {_test_db_path}")
 
 settings.DATABASES['default']['NAME'] = _test_db_path
 settings.DATABASES['default']['TEST'] = {'NAME': _test_db_path, 'MIRROR': None}

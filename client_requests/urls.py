@@ -1,8 +1,17 @@
 # client_requests/urls.py
-from django.urls import path
-from client_requests.views.requirement_api import RequirementsSchemaView, RequirementsPreviewView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 
-urlpatterns = [
-    path('requirements/schema/', RequirementsSchemaView.as_view(), name='requirements_schema'),
-    path('requirements/preview/', RequirementsPreviewView.as_view(), name='requirements_preview'),
-]
+from client_requests.api.views import (
+    ClientRequestViewSet,
+    ClientRequestItemViewSet,
+    RequestItemTypeViewSet,
+)
+
+router = DefaultRouter()
+router.register(r'requests', ClientRequestViewSet, basename='cr-request')
+router.register(r'items', ClientRequestItemViewSet, basename='cr-item')
+router.register(r'item-types', RequestItemTypeViewSet, basename='cr-item-type')
+
+urlpatterns = []
+urlpatterns += router.urls

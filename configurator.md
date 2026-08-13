@@ -20,7 +20,26 @@
     ├── DerivationRule: межтиповой fallback (actuator.port → solenoid.connection)
     ├── ParameterRule: семантика сравнения (exact, directional, hierarchy, subset)
     └── ParameterBinding: привязка ParameterRule к EquipmentType.param_name
+
+УРОВЕНЬ 4: Сборка (AssemblyRequirements) — результат подбора
+    ├── Структура (CompositionGroup) + требования (по ETP) + выбранные SKU
+    ├── Жизненный цикл: draft → fixed; изменения — fork
+    └── Связь с требованиями: requirement_version (сборка → требования)
 ```
+
+## Сборка (AssemblyRequirements) — результат подбора
+
+`AssemblyRequirements` + `ComponentRequirement` — **результат** конфигурации:
+структура из типов, требования (по ETP) и выбранные позиции (`selected_sku`).
+
+- `draft` — рабочая версия (mutable, не версионируется).
+- `fixed` — закреплённая версия («сделали КП / счёт / в работу»), immutable.
+- Изменения — `fork()`: полное копирование в новый draft (не дельта).
+- Связь с требованиями: `AssemblyRequirements.requirement_version` (сборка → требования; у шаблона null).
+- `fixate()` допустим только когда все узлы в терминальном статусе (`selected`/`skipped`); `included` помечает «нужен/не нужен».
+- Хранится в отдельном приложении **`assemblies`** (не в `configurator`).
+
+Подробно о связке «сборки ↔ заказы клиентов»: [`assy.md`](assy.md). Пошаговый план: [`EXECUTION_PLAN.md`](EXECUTION_PLAN.md).
 
 ## EquipmentTypeParameter — три секции
 
@@ -106,6 +125,32 @@ ParameterRule: code, match_type, hardness, relaxation_strategy
 ParameterBinding: rule → ParameterRule, equipment_type → EquipmentType, param_name: str
 ```
 
+### AssemblyRequirements (сборка)
+```
+AssemblyRequirements
+├── requirement_version → FK(ClientRequestItem)   # какие требования; null у шаблона
+├── composition_group → FK (шаблон структуры)
+├── root_node → FK (точка входа)
+├── global_requirements: JSON (валидируется по ETP)
+├── status: draft | fixed
+├── revision: int (итерация состава внутри одного requirement_version)
+├── parent_assembly → self-FK (состав-линия: только внутри одних требований)
+├── is_template: bool
+└── components → ComponentRequirement (дерево)
+```
+
+### ComponentRequirement (узел сборки)
+```
+ComponentRequirement
+├── assembly → FK
+├── equipment_type → FK
+├── parent → self-FK, path, level, order
+├── included: bool (нужен/не нужен; False → skipped)
+├── own/effective/cascade_params (по ETP)
+├── filter_results: JSON
+└── selected_sku → FK(SKU)   (базовый тип; composite = null)
+```
+
 ## API endpoints
 
 ```
@@ -146,3 +191,7 @@ GET    /api/configurator/admin/equipment-type-parameters/schema/?equipment_type=
 - ✅ `field_path` — установлен из FilterDefinition
 - ✅ `filter_type` + `data_source_type` — мигрированы из FilterDefinition (5 записей)
 - ✅ `PropagationRule` + `ParameterSource` — deprecated, удалены из resolver/админки/фронта
+- ✅ `AssemblyRequirements` + `ComponentRequirement` — модели готовы, связь `requirement_version` (сборка → требования)
+- ⏳ Перенос `AssemblyRequirements` + `ComponentRequirement` в приложение `assemblies`
+- ⏳ Жизненный цикл сборки (`draft → fixed`, fork), `included`, терминальные статусы — в [`EXECUTION_PLAN.md`](EXECUTION_PLAN.md)
+- ⏳ `ComponentRequirement.selected_*` → `selected_sku = FK(SKU)`; требования типизируются по ETP
