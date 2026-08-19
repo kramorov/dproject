@@ -112,7 +112,7 @@ class PneumaticActuatorBody(models.Model) :
                                          verbose_name=_("Расход откр, л'") ,
                                          help_text=_(
                                              'Расход воздуха пневмоприводом за цикл открытия, л'))
-    air_usage_close = models.DecimalField(max_digits=4 , decimal_places=2 ,
+    air_usage_close = models.DecimalField(max_digits=10 , decimal_places=2 ,
                                           blank=True , null=True ,
                                           verbose_name=_("Расход закр, л'") ,
                                           help_text=_(
