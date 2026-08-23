@@ -41,30 +41,34 @@ class FK_CascadeFilterTest(TestCase):
         cls.brand = Brands.objects.create(
             name='_TEST_FK_CASCADE_BRAND', code='_TFCB'
         )
+        from core.models import EquipmentType
+        cls.eq_type, _ = EquipmentType.objects.get_or_create(
+            code='_TFCB', defaults={'name': '_TEST_FK_CASCADE_EQ'}
+        )
         cls.line = PneumaticFittingModelLine.objects.create(
-            name='_Test Line', code='_TL', brand=cls.brand
+            name='_Test Line', code='_TL', brand=cls.brand, equipment_type=cls.eq_type
         )
 
         # Фитинги
         cls.fit_g34 = PneumaticFitting.objects.create(
             name='_Fit G 3/4', code='_F_G34',
-            model_line=cls.line, brand=cls.brand, thread=cls.g_34
+            model_line=cls.line, equipment_type=cls.eq_type, thread=cls.g_34
         )
         cls.fit_r34 = PneumaticFitting.objects.create(
             name='_Fit R 3/4', code='_F_R34',
-            model_line=cls.line, brand=cls.brand, thread=cls.r_34
+            model_line=cls.line, equipment_type=cls.eq_type, thread=cls.r_34
         )
         cls.fit_g18 = PneumaticFitting.objects.create(
             name='_Fit G 1/8', code='_F_G18',
-            model_line=cls.line, brand=cls.brand, thread=cls.g_18
+            model_line=cls.line, equipment_type=cls.eq_type, thread=cls.g_18
         )
         cls.fit_r18 = PneumaticFitting.objects.create(
             name='_Fit R 1/8', code='_F_R18',
-            model_line=cls.line, brand=cls.brand, thread=cls.r_18
+            model_line=cls.line, equipment_type=cls.eq_type, thread=cls.r_18
         )
         cls.fit_npt14 = PneumaticFitting.objects.create(
             name='_Fit NPT 1/4', code='_F_N14',
-            model_line=cls.line, brand=cls.brand, thread=cls.npt_14
+            model_line=cls.line, equipment_type=cls.eq_type, thread=cls.npt_14
         )
 
     # =================================================================

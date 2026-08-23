@@ -11,7 +11,7 @@ from producers.models import Brands
 # ── Individual filter definitions ──
 
 fd_model_line = FilterDefinition(
-    param_name='fitting_model_line_id',
+    param_name='model_line_id',
     model_field='model_line',
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
@@ -107,6 +107,17 @@ fd_temp_min = FilterDefinition(
 )
 
 
+fd_swivel = FilterDefinition(
+    param_name='swivel',
+    model_field='model_line__is_swivel',
+    filter_type=FilterType.BOOLEAN,
+    data_source_type=DataSourceType.CHOICES,
+    choices=[('true', 'Поворотный'), ('false', 'Неповоротный')],
+    label='Поворотность',
+    order=11,
+)
+
+
 # ── Legacy flat list ──
 
 PNEUMATIC_FITTINGS_FILTER_DEFINITIONS = [
@@ -120,4 +131,5 @@ PNEUMATIC_FITTINGS_FILTER_DEFINITIONS = [
     fd_thread,
     fd_thread_inner_outer,
     fd_temp_min,
+    fd_swivel,
 ]

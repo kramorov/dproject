@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from typing import Dict , List , Optional , Any
 from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin, CatalogDictMixin
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
+from core.models.cert_doc_mixin import CertDocMixin
 # TemplateGeneratorMixin удалён из импорта 2026-06-05 — импортировался, но не использовался
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from materials.models import MaterialGeneral
@@ -77,11 +78,6 @@ class FittingShape(StructuredDataMixin , models.Model) :
     code = models.SlugField(max_length=50 , unique=True , verbose_name=_("Код"))
     description = models.TextField(blank=True , verbose_name=_("Краткое описание"))
     help_text_content = models.TextField(blank=True , verbose_name=_("Особенности применения"))
-    is_swivel = models.BooleanField(
-        default=False ,
-        verbose_name=_("Поворотный") ,
-        help_text=_("Можно ли вращать корпус относительно резьбовой части")
-    )
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
@@ -141,6 +137,7 @@ class PneumaticFittingVariety(StructuredDataMixin , models.Model) :
 
 
 class PneumaticFittingModelLine(ImageGalleryMixin, TechDocMixin,
+                                CertDocMixin,
                                 EquipmentTypeMixin,
                                 StructuredDataMixin, CopyMixin, models.Model):
     """
@@ -180,50 +177,16 @@ class PneumaticFittingModelLine(ImageGalleryMixin, TechDocMixin,
                               on_delete=models.SET_NULL ,
                               help_text=_('Бренд фитингов') ,
                               verbose_name=_("Бренд"))
-    fitting_variety = models.ForeignKey(PneumaticFittingVariety , related_name='pneumatic_fitting_model_line_variety' ,
-                                        blank=True ,
-                                        null=True ,
-                                        on_delete=models.SET_NULL ,
-                                        help_text=_('Тип фитинга') ,
-                                        verbose_name=_("Тип"))
+    is_swivel = models.BooleanField(default=False ,
+                                    verbose_name=_("Поворотный") ,
+                                    help_text=_('Поворотное исполнение серии фитингов'))
 
-    body_material = models.ForeignKey(MaterialGeneral , related_name='pneumatic_fitting_model_line_body_material' ,
-                                      blank=True ,
-                                      null=True ,
-                                      on_delete=models.SET_NULL ,
-                                      help_text=_('Корпус') ,
-                                      verbose_name=_('Тип материала корпуса'))
-    pipe_material = models.ForeignKey(MaterialGeneral , related_name='pneumatic_fitting_model_line_pipe_material' ,
-                                      blank=True ,
-                                      null=True ,
-                                      on_delete=models.SET_NULL ,
-                                      help_text=_('Трубка') ,
-                                      verbose_name=_('Тип материала трубки'))
 
     #     body_material_specified = models.ForeignKey(MaterialSpecified, related_name='valve_line_body_material',
     #                                                 blank=True, null=True,
     #                                                 on_delete=models.SET_NULL,
     #                                                 help_text=_('Материал корпуса арматуры'),
     #                                                 verbose_name=_('Материал корпуса'))
-    work_temp_min = models.IntegerField(
-        null=True , blank=True , default=-40 ,
-        help_text=_('Минимальная рабочая температура, °С') ,
-        verbose_name=_('Т раб.мин, °С')
-    )
-    work_temp_max = models.IntegerField(
-        null=True , blank=True , default=120 ,
-        help_text=_('Максимальная рабочая температура, °С') ,
-        verbose_name=_('Т раб.макс, °С'))
-
-    pressure_min = models.DecimalField(decimal_places=2 , max_digits=6 ,
-                                       null=True , blank=True , default=0 ,
-                                       help_text=_('Минимальное рабочее давление, бар') ,
-                                       verbose_name=_('P раб.мин, бар'))
-
-    pressure_max = models.DecimalField(decimal_places=2 , max_digits=6 ,
-                                       null=True , blank=True , default=40 ,
-                                       help_text=_('Максимальное рабочее давление, бар') ,
-                                       verbose_name=_('P раб.макс, бар'))
 
     class Meta :
         ordering = ['brand' , 'code']
@@ -233,15 +196,6 @@ class PneumaticFittingModelLine(ImageGalleryMixin, TechDocMixin,
     def __str__(self) :
         return self.name
 
-    @property
-    def temperature_range_display(self) :
-        """Отображаемый диапазон рабочих температур"""
-        return f'{self.work_temp_min}..{self.work_temp_max}'
-
-    @property
-    def pressure_range_display(self) :
-        """Отображаемый диапазон рабочих температур"""
-        return f'{self.pressure_min}..{self.pressure_max}'
 
 
 class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
@@ -280,14 +234,6 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
                                     help_text=_('Активно свойство или нет'))
-    producer = models.ForeignKey(Producer , related_name='pneumatic_fitting_producer' , blank=True , null=True ,
-                                 on_delete=models.SET_NULL ,
-                                 help_text=_('Производитель фитингов') ,
-                                 verbose_name=_("Производитель"))
-    brand = models.ForeignKey(Brands , related_name='pneumatic_fitting_brand' , blank=True , null=True ,
-                              on_delete=models.SET_NULL ,
-                              help_text=_('Бренд фитингов') ,
-                              verbose_name=_("Бренд"))
 
     model_line = models.ForeignKey(PneumaticFittingModelLine , related_name='pneumatic_fitting_model_line_new' ,
                                    blank=True ,
@@ -353,6 +299,15 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
         verbose_name=_("Рабочее давление") ,
         help_text=_('Максимальное рабочее давление (бар)')
     )
+
+    pressure_min = models.DecimalField(decimal_places=2 , max_digits=6 ,
+                                       null=True , blank=True ,
+                                       help_text=_('Минимальное рабочее давление, бар') ,
+                                       verbose_name=_('P раб.мин, бар'))
+    pressure_max = models.DecimalField(decimal_places=2 , max_digits=6 ,
+                                       null=True , blank=True ,
+                                       help_text=_('Максимальное рабочее давление, бар') ,
+                                       verbose_name=_('P раб.макс, бар'))
     temp_min = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.мин") ,
                                         help_text=_('Минимальная температура окружающей среды'))
     temp_max = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Темп.макс") ,
@@ -369,6 +324,10 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
         """Тип оборудования для SKU — берётся из model_line."""
         return self.model_line.equipment_type if self.model_line else None
 
+    def get_brand_for_sku(self):
+        """Бренд для SKU — берётся из model_line."""
+        return self.model_line.brand if self.model_line else None
+
     def save(self, *args, **kwargs):
         """Сохраняет модель и синхронизирует номенклатуру (SKU)."""
         super().save(*args, **kwargs)
@@ -377,27 +336,40 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
     @property
     def temperature_range_display(self) :
         """Отображаемый диапазон рабочих температур"""
-        return f'{self.model_line.work_temp_min}..{self.model_line.work_temp_max}'
+        if self.temp_min is not None and self.temp_max is not None :
+            return f'{self.temp_min}..{self.temp_max}'
+        return ''
 
     @property
     def pressure_range_display(self) :
-        """Отображаемый диапазон рабочих температур"""
-        return f'{self.model_line.pressure_min}..{self.model_line.pressure_max}'
+        """Отображаемый диапазон рабочих давлений"""
+        if self.pressure_min is not None and self.pressure_max is not None :
+            return f'{self.pressure_min}..{self.pressure_max}'
+        if self.operating_pressure is not None :
+            return str(self.operating_pressure)
+        return ''
+
+    @property
+    def swivel_display(self) :
+        """Текстовое обозначение поворотности для шаблонов."""
+        if self.model_line is None :
+            return ''
+        return 'поворотный' if self.model_line.is_swivel else 'неповоротный'
 
     def _get_name_template_source(self) :
         """Переопределить в модели: вернуть шаблон названия или None."""
-        return self.model_line.name_template or None
+        return self.model_line.name_template if self.model_line else None
 
     def _get_description_template_source(self) :
         """Переопределить в модели: вернуть шаблон описания или None."""
-        return self.model_line.description_template or None
+        return self.model_line.description_template if self.model_line else None
 
     def _get_default_name_template(self) -> str :
-        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Исп. {exd} Т.окр. {work_temp_min}..{work_temp_max} °С"
+        default_description_template = "{model_code} {fitting_variety} {brand}"
         return default_description_template
 
     def _get_default_description_template(self) -> str :
-        default_description_template = "{model_code} {fitting_variety} {brand}, {thread_inner_outer} резьба {thread}, цанговый зажим для трубки из металла наружн.диам. {pipe_diameter} мм, Т раб. {temperature_range} °С, Р раб. {pressure_range} бар, корпус - Нержавеющая сталь 304, в сборе с уплотнительным кольцом, трубки для присоединения: нержавеющая сталь, медь"
+        default_description_template = "{model_code} {fitting_variety} {brand}, {thread_inner_outer} резьба {thread}, Т раб. {temperature_range} °С, Р раб. {pressure_range} бар"
         return default_description_template
 
     def _get_data_dict(self) -> Dict[str , str] :
@@ -414,6 +386,7 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
             '{fitting_variety}' : 'fitting_variety__name' ,
             '{shape}' : 'fitting_variety__fixation_method' ,
             '{fixation_method}' : 'fitting_variety__fixation_method' ,
+            '{swivel}' : 'swivel_display' ,
             '{pressure_range}' : 'pressure_range_display' ,
             '{pipe_diameter}' : 'pipe_diameter' ,
             '{thread}' : 'thread' ,
@@ -512,14 +485,14 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
         # --- Прямые ForeignKey ---
         FilterDefinition(
             param_name='brand_id' ,
-            model_field='brand' ,
+            model_field='model_line__brand' ,
             filter_type=FilterType.EXACT ,
             data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
             label='Бренд' ,
             order=1
         ) ,
         FilterDefinition(
-            param_name='fitting_model_line_id' ,
+            param_name='model_line_id' ,
             model_field='model_line' ,
             filter_type=FilterType.EXACT ,
             data_source_type=DataSourceType.UNIQUE_FIELD_VALUES ,
@@ -598,11 +571,22 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
             label='Мин. температура (≤)' ,
             order=10
         ) ,
+
+        # --- Поворотность ---
+        FilterDefinition(
+            param_name='swivel' ,
+            model_field='model_line__is_swivel' ,
+            filter_type=FilterType.BOOLEAN ,
+            data_source_type=DataSourceType.CHOICES ,
+            choices=[('true', 'Поворотный'), ('false', 'Неповоротный')] ,
+            label='Поворотность' ,
+            order=11
+        ) ,
     ]
 
     SEARCH_FIELDS = ['code']  # только поиск по коду
     SELECT_RELATED_FIELDS = [
-        'brand' , 'model_line' , 'fitting_variety' ,
+        'model_line__brand' , 'model_line' , 'fitting_variety' ,
         'body_material' , 'pipe_material' , 'thread' , 'thread_inner_outer'
     ]
 
@@ -642,6 +626,115 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
             } if self.sku_id else None,
         }
 
+    def _safe_m2m(self, method_name):
+        try:
+            return getattr(self, method_name)()
+        except Exception:
+            import logging
+            logging.getLogger('pneumatic_fittings').warning(
+                'Section %s failed for PneumaticFitting #%s', method_name, self.pk, exc_info=True)
+            return []
+
+    def _get_docs_section(self) -> list:
+        docs = []
+        seen = set()
+        for doc in self.tech_docs.all():
+            if doc.media_file and doc.id not in seen:
+                seen.add(doc.id)
+                has_email = doc.variants.filter(role='email').exists()
+                docs.append({
+                    'id': doc.id, 'name': getattr(doc, 'name', '') or '',
+                    'url': f"/api/media/{doc.id}/download/",
+                    'file_name': getattr(doc, 'name', '') or '',
+                    'preview_url': f"/api/media/{doc.id}/view/",
+                    'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
+                })
+        if self.model_line and hasattr(self.model_line, 'tech_docs'):
+            for doc in self.model_line.tech_docs.all():
+                if doc.media_file and doc.id not in seen:
+                    seen.add(doc.id)
+                    has_email = doc.variants.filter(role='email').exists()
+                    docs.append({
+                        'id': doc.id, 'name': getattr(doc, 'name', '') or '',
+                        'url': f"/api/media/{doc.id}/download/",
+                        'file_name': getattr(doc, 'name', '') or '',
+                        'preview_url': f"/api/media/{doc.id}/view/",
+                        'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
+                    })
+        return docs
+
+    def _get_certs_section(self) -> list:
+        certs = []
+        if self.model_line and hasattr(self.model_line, 'cert_docs'):
+            cert_ids = list(
+                self.model_line.cert_docs
+                .filter(is_active=True)
+                .values_list('id', flat=True)
+            )
+            if cert_ids:
+                from cert_doc.models import CertData
+                from urllib.parse import quote
+                import re as _re
+                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item', 'cert_variety'):
+                    media = getattr(cert, 'media_item', None)
+                    if not media:
+                        continue
+                    has_email = media.variants.filter(role='email').exists()
+                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                    cert_code = getattr(cert, 'code', '') or ''
+                    ml_name = self.model_line.name if self.model_line else ''
+                    base_name = _re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {cert_code} для {ml_name}".strip())
+                    dl_name = f"{base_name}.pdf"
+                    email_name = f"{base_name} (сжат).pdf"
+                    certs.append({
+                        'id': media.id,
+                        'name': getattr(cert, 'name', '') or '',
+                        'file_name': dl_name,
+                        'email_file_name': email_name,
+                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
+                        'preview_url': f"/api/media/{media.id}/view/",
+                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
+                    })
+        return certs
+
+    def _build_detail_sections(self) -> list:
+        specs_fields = []
+
+        def f(key, label, value, unit='', type_='text'):
+            return {'key': key, 'label': label, 'value': value, 'unit': unit,
+                    'type': type_, 'order': len(specs_fields) + 1}
+
+        specs_fields.append(f('model_line', 'Серия', self.model_line.name if self.model_line else ''))
+        specs_fields.append(f('brand', 'Бренд', self.model_line.brand.name if self.model_line and self.model_line.brand else ''))
+        specs_fields.append(f('fitting_variety', 'Тип фитинга', str(self.fitting_variety) if self.fitting_variety else ''))
+        specs_fields.append(f('thread', 'Резьба', str(self.thread) if self.thread else ''))
+        specs_fields.append(f('thread_inner_outer', 'Резьба нар/внутр', str(self.thread_inner_outer) if self.thread_inner_outer else ''))
+        specs_fields.append(f('pipe_diameter', 'Диаметр трубки, мм', self.pipe_diameter if self.pipe_diameter is not None else '', type_='number'))
+        specs_fields.append(f('body_material', 'Материал корпуса', str(self.body_material) if self.body_material else ''))
+        specs_fields.append(f('pipe_material', 'Материал трубки', str(self.pipe_material) if self.pipe_material else ''))
+        specs_fields.append(f('temperature', 'Т раб., °С', self.temperature_range_display))
+        specs_fields.append(f('pressure', 'Р раб., бар', self.pressure_range_display))
+
+        silencer_fields = []
+        if self.flow_rate is not None:
+            silencer_fields.append({'key': 'flow_rate', 'label': 'Пропускная способность, Нл/мин', 'value': str(self.flow_rate), 'unit': '', 'type': 'number', 'order': 1})
+        if self.noise_level is not None:
+            silencer_fields.append({'key': 'noise_level', 'label': 'Уровень шума, дБ', 'value': str(self.noise_level), 'unit': '', 'type': 'number', 'order': 2})
+        if self.operating_pressure is not None:
+            silencer_fields.append({'key': 'operating_pressure', 'label': 'P раб.макс, бар', 'value': str(self.operating_pressure), 'unit': '', 'type': 'number', 'order': 3})
+
+        groups = [{'key': 'general', 'title': 'Основные', 'order': 1, 'fields': specs_fields}]
+        if silencer_fields:
+            groups.append({'key': 'silencer', 'title': 'Глушитель', 'order': 2, 'fields': silencer_fields})
+
+        return [
+            {'key': 'images', 'title': 'Изображения', 'type': 'gallery', 'order': 1, 'data': self._safe_m2m('_get_images_section')},
+            {'key': 'specs', 'title': 'Характеристики', 'type': 'specs', 'order': 2, 'groups': groups},
+            {'key': 'docs', 'title': 'Документация', 'type': 'files', 'order': 3, 'data': self._safe_m2m('_get_docs_section')},
+            {'key': 'certs', 'title': 'Сертификаты', 'type': 'files', 'order': 4, 'data': self._safe_m2m('_get_certs_section')},
+            {'key': 'description', 'title': 'Описание', 'type': 'text', 'order': 5, 'data': self.description or ''},
+        ]
+
     def to_dict(self) -> Dict[str , Any] :
         """
         Конвертировать объект в словарь для API
@@ -663,10 +756,10 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
             'is_active' : self.is_active ,
             'sorting_order' : self.sorting_order ,
             'brand' : {
-                'id' : self.brand.id ,
-                'name' : self.brand.name ,
-                'code' : self.brand.code
-            } if self.brand else None ,
+                'id' : self.model_line.brand.id ,
+                'name' : self.model_line.brand.name ,
+                'code' : self.model_line.brand.code
+            } if self.model_line and self.model_line.brand else None ,
             'model_line' : {
                 'id' : self.model_line.id ,
                 'name' : self.model_line.name ,
@@ -701,4 +794,6 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
                 'name' : self.thread_inner_outer.name ,
                 'code' : self.thread_inner_outer.code
             } if self.thread_inner_outer else None ,
+
+            'sections' : self._build_detail_sections() ,
         }

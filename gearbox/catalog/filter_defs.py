@@ -10,6 +10,15 @@ from params.models import IpOption
 
 # ── Individual filter definitions (named for reuse in FilterSets) ──
 
+fd_model_line = FilterDefinition(
+    param_name='model_line_id',
+    model_field='model_line',
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    label='Серия',
+    order=1,
+)
+
 fd_ip = FilterDefinition(
     param_name='ip_id',
     model_field='ip',

@@ -4,9 +4,10 @@ pip install rembg
 cd C:\Users\s.kramorov\PycharmProjects\djangoProject1
 cd C:\Users\kramo\PycharmProjects\djangoProject1
 C:\Users\s.kramorov\AppData\Local\Programs\Python\djangoProject1\Scripts\python.exe C:\Users\s.kramorov\PycharmProjects\djangoProject1\manage.py runserver localhost:8000
+"C:\Program Files\Python312\python.exe" C:\Users\kramo\PycharmProjects\djangoProject1\manage.py runserver localhost:8000
 C:\Users\notebook\PycharmProjects\dproject\venv\Scripts\python.exe C:\Users\notebook\PycharmProjects\dproject\manage.py runserver localhost:8000 
 cd C:\Users\s.kramorov\PycharmProjects\djangoProject1\frontend
-0npm run dev
+npm run dev
 
 codewhale run --continue
 npm install -g codewhale-tui

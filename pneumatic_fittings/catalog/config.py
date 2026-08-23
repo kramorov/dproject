@@ -10,6 +10,7 @@ from pneumatic_fittings.catalog.filter_defs import (
     fd_model_line, fd_brand, fd_fitting_variety,
     fd_body_material, fd_pipe_material, fd_pipe_diameter,
     fd_thread_type, fd_thread, fd_thread_inner_outer, fd_temp_min,
+    fd_swivel,
 )
 
 
@@ -24,6 +25,7 @@ PNEUMATIC_FITTINGS_CONFIG = CatalogConfig(
                 fd_body_material, fd_pipe_material, fd_pipe_diameter,
                 fd_thread_type, fd_thread, fd_thread_inner_outer,
                 fd_temp_min,
+                fd_swivel,
             ],
             scoped=False,
             show_compatible=True,
@@ -35,6 +37,7 @@ PNEUMATIC_FITTINGS_CONFIG = CatalogConfig(
                 fd_body_material, fd_pipe_material, fd_pipe_diameter,
                 fd_thread_type, fd_thread, fd_thread_inner_outer,
                 fd_temp_min,
+                fd_swivel,
             ],
             scoped=False,
             show_compatible=True,
@@ -63,14 +66,11 @@ PNEUMATIC_FITTINGS_CONFIG = CatalogConfig(
     select_related=[
         'model_line',
         'model_line__brand', 'model_line__equipment_type',
-        'model_line__fitting_variety',
         'fitting_variety',
         'body_material',
         'pipe_material',
         'thread',
         'thread_inner_outer',
-        'brand',
-        'producer',
         'sku',
     ],
     prefetch_fields=[

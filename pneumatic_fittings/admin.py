@@ -40,12 +40,12 @@ class PneumaticFittingForm(forms.ModelForm):
 class PneumaticFittingAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     form = PneumaticFittingForm
     list_display = [
-        'name', 'code', 'brand', 'image_gallery',
+        'name', 'code', 'model_line__brand', 'image_gallery',
         'pipe_diameter', 'thread', 'thread_inner_outer', 'sorting_order', 'is_active'
     ]
-    list_editable = ['code', 'brand', 'pipe_diameter', 'thread', 'sorting_order', 'is_active']
+    list_editable = ['code', 'pipe_diameter', 'thread', 'sorting_order', 'is_active']
     list_filter = [
-        'brand', 'model_line__code', 'fitting_variety',
+        'model_line__brand', 'model_line__code', 'fitting_variety',
         'body_material', 'pipe_material', 'pipe_diameter', 'thread', 'thread_inner_outer'
     ]
     search_fields = ['name', 'code', 'description']
@@ -54,8 +54,9 @@ class PneumaticFittingAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
     fieldsets = (
         (_('Основная информация'), {
             'fields': ('name', ('code', 'fitting_variety', 'model_line'),
-                        ('producer', 'brand', 'body_material'),
+                        ('body_material',),
                         ('pipe_material', 'pipe_diameter'), ('thread', 'thread_inner_outer'),
+                        ('pressure_min', 'pressure_max'),
                         ('description', 'sorting_order', 'is_active'))
         }),
         (_('Для глушителей'), {
@@ -75,7 +76,7 @@ class PneumaticFittingAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'producer', 'brand', 'fitting_variety',
+            'model_line', 'fitting_variety',
             'body_material', 'pipe_material', 'thread'
         )
 
@@ -119,36 +120,31 @@ class PneumaticFittingModelLineForm(forms.ModelForm):
 class PneumaticFittingModelLineAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     form = PneumaticFittingModelLineForm
     list_display = [
-        'name', 'code', 'brand', 'fitting_variety',
-        'pipe_material', 'body_material', 'sorting_order', 'is_active'
+        'name', 'code', 'brand', 'is_swivel',
+        'sorting_order', 'is_active'
     ]
     list_editable = ['sorting_order', 'is_active']
     list_filter = [
-        'brand', 'fitting_variety',
-        'body_material', 'pipe_material',
+        'brand',
     ]
-    filter_horizontal = ('tech_docs',)
+    filter_horizontal = ('tech_docs', 'cert_docs')
 
     fieldsets = (
         (_('Основная информация'), {
-            'fields': ('name', ('code', 'fitting_variety', 'equipment_type'),
-                        ('producer', 'brand'),
-                        ('pipe_material', 'body_material'),
-                        ('work_temp_min', 'work_temp_max'),
-                        ('pressure_min', 'pressure_max'),
+            'fields': ('name', ('code', 'equipment_type'),
+                        ('producer', 'brand', 'is_swivel'),
                         'name_template',
                         'description_template',
                         'description', ('sorting_order', 'is_active'))
         }),
         (_('Изображения и документация'), {
-            'fields': ('image_gallery', 'tech_docs'),
+            'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
         }),
     )
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'producer', 'brand', 'fitting_variety',
-            'body_material', 'pipe_material'
+            'producer', 'brand',
         )
 
     actions = ['copy_selected_fitting_model_line']
@@ -167,8 +163,8 @@ class PneumaticFittingModelLineAdmin(AdminStructuredDataMixinCopyMixin, admin.Mo
 
 @admin.register(FittingShape)
 class FittingShapeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'code', 'is_swivel', 'sorting_order', 'is_active')
-    list_editable = ['name', 'code', 'is_swivel', 'sorting_order', 'is_active']
+    list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
+    list_editable = ['name', 'code', 'sorting_order', 'is_active']
     fieldsets = (
         (None, {
             'fields': ('name', 'code', 'is_active', 'sorting_order')

@@ -301,6 +301,15 @@ class FilterDefinition:
                 )
             # Fall through to filter_type logic on failure
 
+        if self.filter_type == FilterType.BOOLEAN:
+            if isinstance(value, bool):
+                return f"{self.model_field}", value
+            s = str(value).strip().lower()
+            if s in ('true', '1', 'yes', 'on'):
+                return f"{self.model_field}", True
+            if s in ('false', '0', 'no', 'off'):
+                return f"{self.model_field}", False
+            return None, None
         if self.filter_type == FilterType.TEMP_MIN:
             return f"{self.model_field}__lte", value
         elif self.filter_type == FilterType.TEMP_MAX:

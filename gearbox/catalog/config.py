@@ -9,7 +9,7 @@ from core.models.catalog_config import CatalogConfig, FilterSet
 from gearbox.models import GearBox
 from gearbox.models.gb_model_line import GearBoxModelLine
 from gearbox.catalog.filter_defs import (
-    fd_ip, fd_temp_min, fd_temp_max, fd_torque,
+    fd_model_line, fd_ip, fd_temp_min, fd_temp_max, fd_torque,
     fd_body_material, fd_brand, fd_mounting_plate,
     fd_climate,
 )
@@ -23,6 +23,7 @@ GEARBOX_CONFIG = CatalogConfig(
         # ── Engineering Selection: max filters, global values ──
         'list': FilterSet(
             definitions=[
+                fd_model_line,
                 fd_ip,
                 fd_temp_min,
                 fd_temp_max,
@@ -39,6 +40,7 @@ GEARBOX_CONFIG = CatalogConfig(
         # ── Series page: no brand, values scoped to model_line ──
         'engineer': FilterSet(
             definitions=[
+                fd_model_line,
                 fd_ip,
                 fd_temp_min, fd_temp_max,
                 fd_climate,
