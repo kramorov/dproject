@@ -251,7 +251,7 @@ class SmartCatalogMixin(models.Model):
                 filters_applied[fd.param_name] = value
 
                 # Remember the LAST splittable filter for classification
-                if fd.supports_split():
+                if fd.supports_split() and not getattr(fd, 'is_parent_filter', False):
                     split_fd = fd
                     split_raw_value = value
 

@@ -31,6 +31,20 @@
     <CatalogDetail v-else-if="route.catalog === 'pneumatic_fittings' && route.view === 'detail'" :api="pfApi" :labels="labels.pneumatic_fittings.detail" :id="route.id" @close="() => navigate('pneumatic_fittings', 'list')" @navigate="() => navigate('pneumatic_fittings', 'lines')" />
     <QuickSelect v-else-if="route.catalog === 'pneumatic_fittings' && route.view === 'quickselect'" :api="pfApi" :labels="labels.pneumatic_fittings.quickselect" :filter-labels="labels.pneumatic_fittings.quickselect.filterLabels" :auto-select-rules="labels.pneumatic_fittings.quickselect.autoSelectRules" @select="id => navigate('pneumatic_fittings', 'detail', id)" @navigate="() => navigate('pneumatic_fittings', 'lines')" />
 
+    <!-- PNEUMATIC SILENCERS -->
+    <CatalogSection v-else-if="route.catalog === 'pneumatic_silencers' && route.view === 'lines'" :api="silencerApi" :labels="labels.pneumatic_silencers.section" @select-series="id => navigate('pneumatic_silencers', 'brand', id)" @select="() => navigate('pneumatic_silencers', 'list')" @quickselect="() => navigate('pneumatic_silencers', 'quickselect')" @navigate="() => navigate('pneumatic_silencers', 'lines')" />
+    <CatalogModelLine v-else-if="route.catalog === 'pneumatic_silencers' && route.view === 'brand'" :api="silencerApi" :labels="labels.pneumatic_silencers.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('pneumatic_silencers', 'detail', id)" />
+    <EngineerSelection v-else-if="route.catalog === 'pneumatic_silencers' && route.view === 'list'" :api="silencerApi" :labels="labels.pneumatic_silencers.list" @select="id => navigate('pneumatic_silencers', 'detail', id)" @navigate="() => navigate('pneumatic_silencers', 'lines')" />
+    <CatalogDetail v-else-if="route.catalog === 'pneumatic_silencers' && route.view === 'detail'" :api="silencerApi" :labels="labels.pneumatic_silencers.detail" :id="route.id" @close="() => navigate('pneumatic_silencers', 'list')" @navigate="() => navigate('pneumatic_silencers', 'lines')" />
+    <QuickSelect v-else-if="route.catalog === 'pneumatic_silencers' && route.view === 'quickselect'" :api="silencerApi" :labels="labels.pneumatic_silencers.quickselect" :filter-labels="labels.pneumatic_silencers.quickselect.filterLabels" :auto-select-rules="labels.pneumatic_silencers.quickselect.autoSelectRules" @select="id => navigate('pneumatic_silencers', 'detail', id)" @navigate="() => navigate('pneumatic_silencers', 'lines')" />
+
+    <!-- PNEUMATIC PLUGS -->
+    <CatalogSection v-else-if="route.catalog === 'pneumatic_plugs' && route.view === 'lines'" :api="plugApi" :labels="labels.pneumatic_plugs.section" @select-series="id => navigate('pneumatic_plugs', 'brand', id)" @select="() => navigate('pneumatic_plugs', 'list')" @quickselect="() => navigate('pneumatic_plugs', 'quickselect')" @navigate="() => navigate('pneumatic_plugs', 'lines')" />
+    <CatalogModelLine v-else-if="route.catalog === 'pneumatic_plugs' && route.view === 'brand'" :api="plugApi" :labels="labels.pneumatic_plugs.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('pneumatic_plugs', 'detail', id)" />
+    <EngineerSelection v-else-if="route.catalog === 'pneumatic_plugs' && route.view === 'list'" :api="plugApi" :labels="labels.pneumatic_plugs.list" @select="id => navigate('pneumatic_plugs', 'detail', id)" @navigate="() => navigate('pneumatic_plugs', 'lines')" />
+    <CatalogDetail v-else-if="route.catalog === 'pneumatic_plugs' && route.view === 'detail'" :api="plugApi" :labels="labels.pneumatic_plugs.detail" :id="route.id" @close="() => navigate('pneumatic_plugs', 'list')" @navigate="() => navigate('pneumatic_plugs', 'lines')" />
+    <QuickSelect v-else-if="route.catalog === 'pneumatic_plugs' && route.view === 'quickselect'" :api="plugApi" :labels="labels.pneumatic_plugs.quickselect" :filter-labels="labels.pneumatic_plugs.quickselect.filterLabels" :auto-select-rules="labels.pneumatic_plugs.quickselect.autoSelectRules" @select="id => navigate('pneumatic_plugs', 'detail', id)" @navigate="() => navigate('pneumatic_plugs', 'lines')" />
+
     <!-- SOLENOID VALVES -->
     <CatalogSection v-else-if="route.catalog === 'solenoid_valves' && route.view === 'lines'" :api="svApi" :labels="labels.solenoid_valves.section" @select-series="id => navigate('solenoid_valves', 'brand', id)" @select="() => navigate('solenoid_valves', 'list')" @quickselect="() => navigate('solenoid_valves', 'quickselect')" @navigate="() => navigate('solenoid_valves', 'lines')" />
     <CatalogModelLine v-else-if="route.catalog === 'solenoid_valves' && route.view === 'brand'" :api="svApi" :labels="labels.solenoid_valves.brand" id-prop="model_line_id" :id-value="route.id" @select="id => navigate('solenoid_valves', 'detail', id)" />
@@ -55,6 +69,8 @@ import frApi from '@/apps/filter-regulator-catalog/api'
 import lsbApi from '@/apps/limit-switch-catalog/api'
 import svApi from '@/apps/solenoid-valves-catalog/api'
 import pfApi from '@/apps/pneumatic-fittings-catalog/api'
+import silencerApi from '@/apps/pneumatic-silencers-catalog/api'
+import plugApi from '@/apps/pneumatic-plugs-catalog/api'
 const props = defineProps({ allowedCatalogs: { type: Array, default: () => ['gearbox'] } })
 const route = ref(parseHash())
 function onHashChange() { route.value = parseHash() }
@@ -125,6 +141,32 @@ const labels = {
         fitting_variety_id:'Тип фитинга', body_material_id:'Материал корпуса',
         pipe_material_id:'Материал трубки', pipe_diameter:'Диаметр трубки',
         thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
+      },
+      autoSelectRules:{},
+    },
+  },
+  pneumatic_silencers: {
+    section: { title:'Глушители пневматические', subtitle:'Выберите серию глушителей', breadcrumbs:[{name:'Каталог'}] },
+    brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров' },
+    list: { title:'Глушители — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
+    detail: { backLabel:'Назад к каталогу' },
+    quickselect: { title:'Быстрый подбор',
+      filterLabels:{
+        thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
+        body_material_id:'Материал корпуса',
+      },
+      autoSelectRules:{},
+    },
+  },
+  pneumatic_plugs: {
+    section: { title:'Заглушки пневматические', subtitle:'Выберите серию заглушек', breadcrumbs:[{name:'Каталог'}] },
+    brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров' },
+    list: { title:'Заглушки — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
+    detail: { backLabel:'Назад к каталогу' },
+    quickselect: { title:'Быстрый подбор',
+      filterLabels:{
+        thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
+        body_material_id:'Материал корпуса',
       },
       autoSelectRules:{},
     },

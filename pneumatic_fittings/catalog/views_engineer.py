@@ -7,7 +7,11 @@ from rest_framework.response import Response
 from core.access import catalog_permission_classes
 from django.utils import translation
 
-from pneumatic_fittings.catalog.config import PNEUMATIC_FITTINGS_CONFIG
+from pneumatic_fittings.catalog.config import (
+    PNEUMATIC_FITTINGS_CONFIG,
+    PNEUMATIC_SILENCERS_CONFIG,
+    PNEUMATIC_PLUGS_CONFIG,
+)
 from price.services.currency_converter import get_bulk_prices
 from core.utils.catalog_helpers import get_currency_code
 
@@ -59,3 +63,15 @@ class PneumaticFittingsEngineerView(APIView):
             result['currency'] = currency_code
 
         return Response(result)
+
+
+class PneumaticSilencersEngineerView(PneumaticFittingsEngineerView):
+    """Инженерный подбор глушителей — тот же механизм, другой вид."""
+
+    config = PNEUMATIC_SILENCERS_CONFIG
+
+
+class PneumaticPlugsEngineerView(PneumaticFittingsEngineerView):
+    """Инженерный подбор заглушек — тот же механизм, другой вид."""
+
+    config = PNEUMATIC_PLUGS_CONFIG

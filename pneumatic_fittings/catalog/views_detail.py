@@ -8,7 +8,11 @@ from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from django.utils import translation
 
-from pneumatic_fittings.catalog.config import PNEUMATIC_FITTINGS_CONFIG
+from pneumatic_fittings.catalog.config import (
+    PNEUMATIC_FITTINGS_CONFIG,
+    PNEUMATIC_SILENCERS_CONFIG,
+    PNEUMATIC_PLUGS_CONFIG,
+)
 from price.services.currency_converter import get_display_price
 from core.utils.catalog_helpers import get_currency_code
 
@@ -23,7 +27,7 @@ class PneumaticFittingsDetailView(APIView):
 
         with translation.override(lang):
             obj = get_object_or_404(
-                self.config.model_class.objects
+                self.config.get_scoped_queryset()
                 .select_related(*self.config.select_related)
                 .prefetch_related(*self.config.prefetch_fields),
                 pk=pk,
@@ -43,3 +47,15 @@ class PneumaticFittingsDetailView(APIView):
             )
 
         return Response(data)
+
+
+class PneumaticSilencersDetailView(PneumaticFittingsDetailView):
+    """Карточка глушителя — детали только в пределах вида каталога."""
+
+    config = PNEUMATIC_SILENCERS_CONFIG
+
+
+class PneumaticPlugsDetailView(PneumaticFittingsDetailView):
+    """Карточка заглушки — детали только в пределах вида каталога."""
+
+    config = PNEUMATIC_PLUGS_CONFIG

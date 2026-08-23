@@ -40,12 +40,12 @@ class PneumaticFittingForm(forms.ModelForm):
 class PneumaticFittingAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     form = PneumaticFittingForm
     list_display = [
-        'name', 'code', 'model_line__brand', 'image_gallery',
+        'name', 'code', 'equipment_type', 'model_line__brand', 'image_gallery',
         'pipe_diameter', 'thread', 'thread_inner_outer', 'sorting_order', 'is_active'
     ]
     list_editable = ['code', 'pipe_diameter', 'thread', 'sorting_order', 'is_active']
     list_filter = [
-        'model_line__brand', 'model_line__code', 'fitting_variety',
+        'equipment_type', 'model_line__brand', 'model_line__code', 'fitting_variety',
         'body_material', 'pipe_material', 'pipe_diameter', 'thread', 'thread_inner_outer'
     ]
     search_fields = ['name', 'code', 'description']
@@ -59,9 +59,6 @@ class PneumaticFittingAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
                         ('pressure_min', 'pressure_max'),
                         ('description', 'sorting_order', 'is_active'))
         }),
-        (_('Для глушителей'), {
-            'fields': (('flow_rate', 'noise_level', 'operating_pressure')),
-        }),
         (_('Изображения и документация'), {
             'fields': ('image_gallery', 'tech_docs'),
         }),
@@ -74,10 +71,27 @@ class PneumaticFittingAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
         }),
     )
 
+    silencer_fieldset = (
+        _('Для глушителей'),
+        {'fields': (('flow_rate', 'noise_level', 'operating_pressure'))},
+    )
+
+    def get_fieldsets(self, request, obj=None):
+        """Глушительные поля показываем только у глушителей (вид = тип оборудования)."""
+        fieldsets = list(self.fieldsets)
+        is_silencer = (
+            obj is not None
+            and obj.equipment_type_id is not None
+            and obj.equipment_type.code == 'fitting-silencer'
+        )
+        if is_silencer:
+            fieldsets.insert(1, self.silencer_fieldset)
+        return fieldsets
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
             'model_line', 'fitting_variety',
-            'body_material', 'pipe_material', 'thread'
+            'body_material', 'pipe_material', 'thread', 'equipment_type'
         )
 
     actions = ['copy_selected_fittings']

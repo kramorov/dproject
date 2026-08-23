@@ -13,18 +13,24 @@
   </div>
 </template>
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   active: { type: String, default: 'section' },
+  // Опциональный набор вкладок: [{key, label, event}]. По умолчанию — все 5.
+  tabs: { type: Array, default: null },
 })
 defineEmits(['section', 'engineer', 'quickselect', 'wizard', 'ai'])
 
-const tabs = [
+const allTabs = [
   { key: 'section',    label: 'Просмотр по сериям', event: 'section' },
   { key: 'engineer',   label: 'Инженерный подбор',  event: 'engineer' },
   { key: 'quickselect',label: 'Быстрый подбор',     event: 'quickselect' },
   { key: 'wizard',     label: 'Мастер подбора',     event: 'wizard' },
   { key: 'ai',         label: 'AI подбор',          event: 'ai' },
 ]
+
+const tabs = computed(() => (props.tabs && props.tabs.length ? props.tabs : allTabs))
 </script>
 <style scoped>
 .catalog-actions {

@@ -786,6 +786,19 @@ class BaseQuickSelectView(APIView):
                     if fld.is_relation:
                         rel_model = fld.remote_field.model
 
+                # Обычное (не FK) поле или FK — см. ветки ниже
+                if not fld.is_relation:
+                    # Обычное поле (не FK), например pipe_diameter: опции — сами значения
+                    values = (
+                        qs.values_list(field_name, flat=True)
+                        .distinct()
+                        .order_by(field_name)
+                    )
+                    return [
+                        {'value': v, 'label': str(v), 'count': qs.filter(**{field_name: v}).count()}
+                        for v in values if v is not None
+                    ]
+
                 # FK: field_id, M2M: field__id
                 id_field = f'{field_name}__id' if getattr(fld, 'many_to_many', False) else f'{field_name}_id'
 

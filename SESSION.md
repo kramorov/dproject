@@ -11,7 +11,77 @@
 - Ревью-фиксы внесены: лог в _safe_m2m, cert_docs filter_horizontal, косметика, equipment_type в test_fk_cascade.
 - test_db.sqlite3 удалён (D в git) — закоммитить удаление + .gitignore.
 
-## ПЛАН: разделение на три модели
+## РЕШЕНИЕ (2026-08-23): три отдельных каталога над одной моделью (БЕЗ разделения моделей)
+
+> Итог обсуждения: разделение на три модели (план S1–S6 ниже) ОТМЕНЕНО.
+> Вместо этого — три отдельных каталога над одной моделью PneumaticFitting
+> (вид = equipment_type серии, вид ↔ серия = 1:1, проверено на данных):
+>   1. /api/pneumatic-fittings/   + /catalog/pneumatic-fittings    — трубка-резьба (128 шт.)
+>   2. /api/pneumatic-silencers/  + /catalog/pneumatic-silencers   — глушители (25 шт.)
+>   3. /api/pneumatic-plugs/      + /catalog/pneumatic-plugs       — заглушки (4 шт.)
+> Каждый каталог: свой CatalogConfig (KindCatalogConfig с kind_code), свои наборы
+> фильтров (трубка — 11, глушитель/заглушка — 7), свой фронт-апп (клоны
+> pneumatic-fittings-catalog, вкладки: серии/инженерный/быстрый подбор, без
+> мастера/AI). AI и конфигуратор не затронуты (параметры поиска как раньше).
+
+## ВЫПОЛНЕНО (2026-08-23, ветка office-work, НЕ закоммичено)
+
+- Бэкенд: config.py (KindCatalogConfig + 3 конфига), views_common.py (KindFilterOptionsMixin),
+  подклассы Silencer/Plug во всех views, quickselect на config-скопе, detail на kind-скопе,
+  urls.py (3 набора маршрутов) + include в djangoProject1/urls.py.
+- Меню: object_registry +2 записи (catalog_sil, catalog_plug). Корзина: маппинг
+  equipment_type.code → URL каталога.
+- Фронт: endpoints.js (+2 блока), CatalogActions.vue (опц. prop tabs), клоны
+  pneumatic-silencers-catalog и pneumatic-plugs-catalog, page-компоненты, роуты
+  (+2), карточки в CatalogEquipmentIndex (фитинги переименованы в «Фитинги резьба-трубка»).
+- Тесты: pneumatic_fittings/tests/test_kind_catalogs.py (9 тестов на скоупинг) — ВСЕ ЗЕЛЁНЫЕ.
+  Запуск: python manage.py test ... --settings pneumatic_fittings.tests.settings --keepdb
+  (тестим по копии рабочей БД test_db_copy.sqlite3, копия обновлена 2026-08-23).
+- test_fk_cascade: ИСПРАВЛЕНО (2026-08-23, 10/10 зелёные). Причины падений:
+  (1) баг кода — parent-фильтр типа резьбы игнорировал совместимые типы
+  (core/models/filter_definition.py: теперь get_compatible_ids, G → G+R, как в каскадных опциях);
+  (2) тест не учитывал сплит exact/compatible — совместимые позиции лежат в compatible_data.
+  Обновлены 2 теста (G34/G18) на проверку data + compatible_data.
+- Проверено: manage.py check OK, makemigrations --check OK (нет изменений модели),
+  смоук API: SIL 25/7 фильтров, PLUG 4, TUBE 128/11 фильтров, quickselect/detail по видам,
+  фронт-сборка (vite build) OK.
+
+## РЕВЬЮ-ФИКСЫ (2026-08-23, сделаны 1–5)
+
+1. Виджет (frontend/src/apps/widget/): добавлены каталоги pneumatic_silencers/plugs
+   (роуты, labels, api-импорты, карточки в CatalogIndex; фитинги переименованы).
+2. apply_filters_and_split: parent-фильтры исключены из сплита
+   (smart_catalog_mixin: supports_split() and not is_parent_filter) — при
+   show_compatible=true данные больше не уезжают целиком в compatible_data.
+3. Корзина: вид берётся с серии (model_line.equipment_type) с фолбэком на артикул —
+   как в SKU и каталогах.
+4. AI-хэндлер фитингов: _apply_filters получил base_queryset; pneumatic_fittings_filter
+   ищет только вид трубка-резьба (KindCatalogConfig.get_scoped_queryset).
+   Проверено: AI по серии глушителя → 0, по серии трубки → позиции.
+5. _get_filter_options (core/views): обычные (не FK) поля отдают опции как
+   {value,label,count} — починило «Диаметр трубки» в быстром подборе (было 4 опции).
+- Тесты после фиксов: test_kind_catalogs 9/9, test_fk_cascade 10/10 (по отдельности).
+- ОГРАНИЧЕНИЕ ХАРНЕССА (предсуществующее): прогон двух тест-модулей одной командой
+  падает на ВТОРОМ классе («Cannot operate on a closed database») — кастомный раннер
+  (NoFKCheckRunner + MIGRATE=False + --keepdb) закрывает соединение между классами.
+  Запускать модули по отдельности. Файлы сами по себе зелёные (проверено в обоих порядках).
+
+## ФИКСЫ ПО ВТОРОМУ РЕВЬЮ (2026-08-23, сделаны 1,3,4)
+
+1. AI-хэндлер: total теперь реальное число совпадений (count до среза лимита),
+   а не len(options) — было 100 при 128 трубных (filter_handlers._apply_filters).
+3. Админка PneumaticFitting: глушительные поля показываются только у глушителей
+   (get_fieldsets по equipment_type), в список добавлены equipment_type (display+filter),
+   select_related расширен. Без миграций.
+4. Валидация целостности: PneumaticFitting.clean() запрещает рассинхрон
+   item.equipment_type != model_line.equipment_type (вид = свойство серии).
+   Данные чистые (0 рассинхронов). Действует в админке (full_clean), save() не трогает.
+- 6 (Streamlit-страницы) — по решению владельца больше не нужны, не проверялись.
+- Проверено: py_compile, manage.py check, makemigrations --check (без изменений схемы),
+  смоук: AI total=128, fieldsets silencer/tube различаются, clean() поднимает/пропускает,
+  тесты 9/9 и 10/10.
+
+## ПЛАН (ОТМЕНЁН): разделение на три модели
 
 Принцип: PneumaticFitting остаётся (резьба-трубка, 130), добавляются PneumaticSilencer (25) и PneumaticPlug (4). Серия общая. Каталог один, с тремя классами.
 

@@ -43,6 +43,24 @@ export const ENDPOINTS = {
     meta: '/pneumatic-fittings/meta/',
   },
 
+  pneumaticSilencers: {
+    catalog: '/pneumatic-silencers/catalog/',
+    detail: (id) => `/pneumatic-silencers/catalog/${id}/`,
+    filters: '/pneumatic-silencers/filters/',
+    engineer: '/pneumatic-silencers/engineer/',
+    engineerFilters: '/pneumatic-silencers/engineer/filters/',
+    quickselect: '/pneumatic-silencers/quickselect/',
+  },
+
+  pneumaticPlugs: {
+    catalog: '/pneumatic-plugs/catalog/',
+    detail: (id) => `/pneumatic-plugs/catalog/${id}/`,
+    filters: '/pneumatic-plugs/filters/',
+    engineer: '/pneumatic-plugs/engineer/',
+    engineerFilters: '/pneumatic-plugs/engineer/filters/',
+    quickselect: '/pneumatic-plugs/quickselect/',
+  },
+
   limitSwitch: {
     sections: '/pa-controls/sections/',
     catalog: '/pa-controls/catalog/',

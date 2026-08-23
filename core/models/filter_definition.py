@@ -423,7 +423,10 @@ class FilterDefinition:
                 value_int = int(value)
                 if self.is_parent_filter:
                     thread_type = ThreadTypes.objects.filter(id=value_int).first()
-                    compatible_type_ids = [value_int]
+                    if thread_type is not None:
+                        compatible_type_ids = thread_type.get_compatible_ids()
+                    else:
+                        compatible_type_ids = [value_int]
                     child_ids = list(
                         ThreadSize.objects.filter(thread_type__in=compatible_type_ids)
                         .values_list('id', flat=True)

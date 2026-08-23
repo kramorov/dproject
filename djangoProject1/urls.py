@@ -30,6 +30,7 @@ from media_library.urls import urlpatterns_admin as media_admin_urls, urlpattern
 from cert_doc.urls import urlpatterns_admin as cert_admin_urls
 from price.urls import urlpatterns_admin as price_admin_urls
 from django.views.generic import TemplateView
+from pneumatic_fittings.urls import fittings_urlpatterns, silencers_urlpatterns, plugs_urlpatterns
 
 urlpatterns = [
     path('api/get-url/<str:name>/', GetUrlByNameAPIView.as_view(), name='get_url_by_name'),
@@ -53,7 +54,9 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     path('api/electric_actuators/', include('electric_actuators.urls')),
     path('api/gearbox/', include('gearbox.urls')),
     path('api/solenoid-valves/', include('solenoid_valves.urls')),
-    path('api/pneumatic-fittings/', include('pneumatic_fittings.urls')),
+    path('api/pneumatic-fittings/', include(fittings_urlpatterns)),
+    path('api/pneumatic-silencers/', include(silencers_urlpatterns)),
+    path('api/pneumatic-plugs/', include(plugs_urlpatterns)),
     path('api/filter-regulator/', include('filter_regulator.urls')),
     path('api/pa-controls/', include('pa_controls.urls')),
     path('api/image-processor/', include('image_processor.urls')),

@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 
-def _apply_filters(model_class, filter_definitions, params: dict, limit: int = 100):
+def _apply_filters(model_class, filter_definitions, params: dict, limit: int = 100, base_queryset=None):
     """
     Применяет FilterDefinition к модели и возвращает результаты.
     
@@ -25,7 +25,7 @@ def _apply_filters(model_class, filter_definitions, params: dict, limit: int = 1
     """
     from django.db.models import Q
     
-    qs = model_class.objects.filter(is_active=True)
+    qs = base_queryset if base_queryset is not None else model_class.objects.filter(is_active=True)
     q_filters = Q()
     
     for fd in filter_definitions:
@@ -54,7 +54,9 @@ def _apply_filters(model_class, filter_definitions, params: dict, limit: int = 1
         except Exception as e:
             logger.warning(f"Filter {fd.param_name}={value} failed: {e}")
     
-    qs = qs.filter(q_filters)[:limit]
+    qs = qs.filter(q_filters)
+    total = qs.count()  # полное число совпадений (до лимита)
+    qs = qs[:limit]
     
     # Serialize
     options = []
@@ -65,7 +67,7 @@ def _apply_filters(model_class, filter_definitions, params: dict, limit: int = 1
             'code': getattr(obj, 'code', ''),
         })
     
-    return {'options': options, 'total': len(options)}
+    return {'options': options, 'total': total}
 
 
 # ── Solenoid valves ──
@@ -119,4 +121,11 @@ def filter_regulator_filter(params: dict) -> dict:
 def pneumatic_fittings_filter(params: dict) -> dict:
     from pneumatic_fittings.catalog.config import PNEUMATIC_FITTINGS_CONFIG
     from pneumatic_fittings.models import PneumaticFitting
-    return _apply_filters(PneumaticFitting, PNEUMATIC_FITTINGS_CONFIG.get_filter_set("engineer").definitions, params)
+    return _apply_filters(
+        PneumaticFitting,
+        PNEUMATIC_FITTINGS_CONFIG.get_filter_set("engineer").definitions,
+        params,
+        # Каталог фитингов разделён по видам: AI-подбор в каталоге трубок
+        # ищет только вид 'fitting-thread-pipe' (KindCatalogConfig).
+        base_queryset=PNEUMATIC_FITTINGS_CONFIG.get_scoped_queryset(),
+    )

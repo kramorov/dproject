@@ -397,6 +397,15 @@ _CATALOG_API_MAP = {
 }
 
 
+# Приоритетный маппинг: equipment_type.code → catalog API prefix.
+# Для фитингов вид уточняет каталог (резьба-трубка / глушитель / заглушка).
+_CATALOG_API_MAP_BY_EQUIPMENT_TYPE = {
+    'fitting-thread-pipe': '/api/pneumatic-fittings/catalog/',
+    'fitting-silencer': '/api/pneumatic-silencers/catalog/',
+    'fitting-plug': '/api/pneumatic-plugs/catalog/',
+}
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def item_detail(request, item_id):
@@ -417,7 +426,9 @@ def item_detail(request, item_id):
 
     # Определить catalog API URL по app_label модели-источника
     app_label = source._meta.app_label
-    api_prefix = _CATALOG_API_MAP.get(app_label)
+    ml_eq = getattr(getattr(source, 'model_line', None), 'equipment_type', None)
+    eq_code = getattr(ml_eq, 'code', None) or getattr(getattr(source, 'equipment_type', None), 'code', None)
+    api_prefix = _CATALOG_API_MAP_BY_EQUIPMENT_TYPE.get(eq_code) or _CATALOG_API_MAP.get(app_label)
     if not api_prefix:
         return Response({'error': f'No catalog API for {app_label}'}, status=status.HTTP_404_NOT_FOUND)
 

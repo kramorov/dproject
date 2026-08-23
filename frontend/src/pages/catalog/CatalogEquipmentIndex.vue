@@ -25,7 +25,9 @@ const breadcrumbs = [
 ]
 
 const items = [
-  { to:'/catalog/pneumatic-fittings', name:'Пневмофитинги', img:img('pneumatic-fittings.webp') },
+  { to:'/catalog/pneumatic-fittings', name:'Фитинги резьба-трубка', img:img('pneumatic-fittings.webp') },
+  { to:'/catalog/pneumatic-silencers', name:'Глушители пневматические' },
+  { to:'/catalog/pneumatic-plugs', name:'Заглушки пневматические' },
   { to:'/catalog/filter-regulator', name:'Фильтр-регуляторы', img:img('filter-regulator.webp') },
   { to:'/catalog/cable-glands', name:'Кабельные вводы', img:img('cable-glands.webp') },
   { to:'/catalog/pa-actuators', name:'Пневмоприводы', img:img('pa-actuators.webp') },

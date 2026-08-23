@@ -2,6 +2,7 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 from typing import Dict , List , Optional , Any
 from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin, CatalogDictMixin
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
@@ -332,6 +333,19 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
         """Сохраняет модель и синхронизирует номенклатуру (SKU)."""
         super().save(*args, **kwargs)
         self.sync_sku()
+
+    def clean(self):
+        """Вид артикула должен совпадать с видом серии (вид = свойство серии)."""
+        super().clean()
+        if self.model_line_id and self.equipment_type_id:
+            ml_eq = self.model_line.equipment_type if self.model_line else None
+            if ml_eq is not None and ml_eq.pk != self.equipment_type_id:
+                raise ValidationError({
+                    'equipment_type': _(
+                        'Тип оборудования артикула (%(item)s) не совпадает с типом серии (%(line)s). '
+                        'Вид определяется серией — исправьте серию или тип артикула.'
+                    ) % {'item': self.equipment_type.code, 'line': ml_eq.code},
+                })
 
     @property
     def temperature_range_display(self) :

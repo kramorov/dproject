@@ -102,16 +102,20 @@ class FK_CascadeFilterTest(TestCase):
     # =================================================================
 
     def test_thread_G34_returns_G34_and_R34_only(self):
-        """G 3/4 → G 3/4 + R 3/4, НЕ G 1/8, НЕ NPT"""
+        """G 3/4 → точное G 3/4 + совместимое R 3/4, НЕ G 1/8, НЕ NPT"""
         result = self._filter({'thread_id': self.g_34.id})
-        codes = {r['code'] for r in result['data']}
-        self.assertEqual(codes, {'_F_G34', '_F_R34'})
+        exact = {r['code'] for r in result['data']}
+        compatible = {r['code'] for r in result.get('compatible_data', [])}
+        self.assertEqual(exact, {'_F_G34'})
+        self.assertEqual(compatible, {'_F_R34'})
 
     def test_thread_G18_returns_G18_and_R18_only(self):
-        """G 1/8 → G 1/8 + R 1/8, НЕ G 3/4"""
+        """G 1/8 → точное G 1/8 + совместимое R 1/8, НЕ G 3/4"""
         result = self._filter({'thread_id': self.g_18.id})
-        codes = {r['code'] for r in result['data']}
-        self.assertEqual(codes, {'_F_G18', '_F_R18'})
+        exact = {r['code'] for r in result['data']}
+        compatible = {r['code'] for r in result.get('compatible_data', [])}
+        self.assertEqual(exact, {'_F_G18'})
+        self.assertEqual(compatible, {'_F_R18'})
 
     def test_thread_NPT14_returns_only_NPT14(self):
         """NPT 1/4 без аналогов → только сам"""

@@ -33,7 +33,9 @@ const CATALOG_INFO = {
   filter_regulator: { id: 'filter_regulator', name: 'Фильтр-регуляторы', icon: '🔧', description: 'Фильтры-регуляторы сжатого воздуха' },
   limit_switch:  { id: 'limit_switch',  name: 'Блоки концевых выключателей', icon: '🔌', description: 'Механические, индуктивные, магнитные' },
   solenoid_valves: { id: 'solenoid_valves', name: 'Распределительные клапаны', icon: '🔀', description: '3/2, 5/2, 5/3 — пневмораспределители' },
-  pneumatic_fittings: { id: 'pneumatic_fittings', name: 'Пневматические фитинги', icon: '🔩', description: 'Цанговые, обжимные, резьбовые соединения' },
+  pneumatic_fittings: { id: 'pneumatic_fittings', name: 'Фитинги резьба-трубка', icon: '🔩', description: 'Цанговые, обжимные, резьбовые соединения' },
+  pneumatic_silencers: { id: 'pneumatic_silencers', name: 'Глушители пневматические', icon: '🔇', description: 'Глушители выхлопа пневмосистем' },
+  pneumatic_plugs: { id: 'pneumatic_plugs', name: 'Заглушки пневматические', icon: '🔒', description: 'Заглушки пневматических линий' },
   pneumatic:   { id: 'pneumatic',   name: 'Пневмоприводы',     icon: '💨', description: 'Поршневые, мембранные, SR/SD' },
   electric:    { id: 'electric',    name: 'Электроприводы',    icon: '⚡', description: 'Многооборотные, неполнооборотные' },
   // fittings: consolidated into pneumatic_fittings
