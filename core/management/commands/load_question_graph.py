@@ -14,16 +14,16 @@ class Command(BaseCommand):
         et = EquipmentType.objects.filter(code='fittings').first()
         if et:
             graph_json = {
-                "entry_node": "page_variety",
+                "entry_node": "page_equipment",
                 "nodes": {
-                    "page_variety": {
-                        "type": "page", "name": "Выбор типа",
-                        "params": [{"title": "Тип фитинга", "param_name": "fitting_variety_id", "order": 1}],
+                    "page_equipment": {
+                        "type": "page", "name": "Вид фитинга",
+                        "params": [{"title": "Вид фитинга", "param_name": "equipment_type_id", "order": 1}],
                         "_x": 80, "_y": 60,
                     },
-                    "branch_variety": {
-                        "type": "branch", "name": "По типу фитинга", "param_name": "fitting_variety_id",
-                        "match_values": ["1", "2", "5", "6", "7", "8", "9", "10"],
+                    "branch_equipment": {
+                        "type": "branch", "name": "По виду фитинга", "param_name": "equipment_type_id",
+                        "match_values": ["17"],
                         "match_target": "page_pipe",
                         "else_target": "page_thread",
                         "_x": 80, "_y": 240,
@@ -55,9 +55,9 @@ class Command(BaseCommand):
                     },
                 },
                 "edges": [
-                    {"from": "page_variety", "to": "branch_variety"},
-                    {"from": "branch_variety", "to": "page_pipe", "label": ""},
-                    {"from": "branch_variety", "to": "page_thread", "label": ""},
+                    {"from": "page_equipment", "to": "branch_equipment"},
+                    {"from": "branch_equipment", "to": "page_pipe", "label": ""},
+                    {"from": "branch_equipment", "to": "page_thread", "label": ""},
                     {"from": "page_pipe", "to": "page_thread"},
                     {"from": "page_thread", "to": "page_material"},
                 ],

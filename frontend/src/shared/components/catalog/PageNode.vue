@@ -6,6 +6,7 @@
     </div>
     <div v-if="data.isEntry" class="pn-entry-badge">▸ ВХОД</div>
     <div class="pn-body">
+      <div v-if="data.description" class="pn-desc">{{ data.description }}</div>
       <div v-for="p in data.params" :key="p.order || p.param_name" class="pn-param">
         <span class="pn-order">{{ p.order }}</span>
         <span class="pn-title">{{ p.title || p.param_name }}</span>
@@ -32,6 +33,7 @@ defineProps({ id: String, data: Object })
 .pn-param { display: flex; align-items: center; gap: 6px; padding: 3px 6px; background: #f8fafc; border-radius: 4px; }
 .pn-order { font-size: 10px; color: #94a3b8; font-weight: 600; min-width: 16px; }
 .pn-title { font-size: 12px; color: #334155; flex: 1; }
+.pn-desc { font-size: 11px; color: #64748b; padding: 2px 4px 4px; line-height: 1.3; }
 .pn-param-name { font-size: 10px; color: #0369a1; font-family: monospace; background: #f0f9ff; padding: 1px 4px; border-radius: 3px; }
 .pn-empty { font-size: 11px; color: #94a3b8; padding: 4px; }
 </style>

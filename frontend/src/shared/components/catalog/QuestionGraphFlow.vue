@@ -173,15 +173,27 @@ function onNodeClick({ node }) {
 
 // ── Page save → write to liveJson → re-render ──
 function onPageSave(data) {
-  liveJson.value.nodes[data.id] = {
-    ...liveJson.value.nodes[data.id],
+  const existing = liveJson.value.nodes[data.id] || {}
+  const node = {
+    ...existing,
     type: 'page',
     name: data.name,
     next_node: data.next_node,
     params: data.params,
-    _x: liveJson.value.nodes[data.id]?._x,
-    _y: liveJson.value.nodes[data.id]?._y,
+    _x: existing._x,
+    _y: existing._y,
   }
+  if (data.description) {
+    node.description = data.description
+  } else {
+    delete node.description
+  }
+  if (data.default_value && Object.keys(data.default_value).length) {
+    node.default_value = data.default_value
+  } else {
+    delete node.default_value
+  }
+  liveJson.value.nodes[data.id] = node
 
   // Sync edges: remove old outgoing, add new
   const oldEdges = liveJson.value.edges || []

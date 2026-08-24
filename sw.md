@@ -2,6 +2,7 @@
 
 > Создано 2026-07-30.  
 > Описывает бэкенд и фронтенд мастера пошагового подбора оборудования.
+> Обновлено 2026-08-24 (см. раздел 10).
 
 ---
 
@@ -32,7 +33,8 @@
 {"entry_node":"page_variety","nodes":{"page_variety":{"type":"page","name":"Выбор типа","params":[{"title":"Тип","param_name":"fitting_variety_id","order":1}],"next_node":"branch_variety"},"branch_variety":{"type":"branch","name":"По типу","param_name":"fitting_variety_id","match_values":["1","2"],"match_target":"page_pipe","else_target":"page_thread"}},"edges":[{"from":"page_variety","to":"branch_variety"}]}
 ```
 
-- **page-узел**: `name`, `params` (список {title, param_name, order}), `next_node`
+- **page-узел**: `name`, `params` (список {title, param_name, order}), `next_node`,
+  опционально `description` (описание вопроса) и `default_value` ({param_name: значение})
 - **branch-узел**: `name`, `param_name`, `match_values`, `match_target`, `else_target`
 - **`_get_next_node_id`**: branch проверяет match_values; page: next_node → edges
 
@@ -61,14 +63,22 @@
 ### 3.3 Логика advance
 
 1. Для page-узла: сохраняет ответы в `accumulated`
-2. Для branch-узла: `branch_val = accumulated[param_name]`
-3. `graph._get_next_node_id(node_id, branch_val)`
+2. `graph._get_next_node_id(node_id, branch_val)`
+3. **branch-узлы пропускаются молча** (цикл с защитой `seen`): ветвление резолвится
+   по `accumulated[param_name]`, мастер получает сразу следующую страницу
 4. Нет следующего → `terminal: true`
 5. Иначе → опции через `_get_options_for_page_node`
 
 ### 3.4 Cross-FK
 
 `_resolve_cross_fk_field` ищет `model_field` с `__` (например `body__thread`) через `FilterDefinition` или wizard-реестр.
+
+### 3.5 Опции и результаты (2026-08-24)
+
+- `_get_options_for_param` обогащает FK-опции полем `description` из справочника
+  (батч-запрос `pk__in`, без N+1).
+- `QuestionGraphResultsView` возвращает полные карточки (`to_values_dict`/`to_dict`)
+  с ценами (`get_bulk_prices`); порядок страницы сохраняется при re-fetch с `select_related`.
 
 ## 4. Фронтенд
 
@@ -83,7 +93,7 @@
 | `src/router/index.js` | Маршрут `/admin/wizard-config` |
 | `src/components/header/TopMenu.vue` | Пункт меню «Мастер подбора» |
 
-### 4.2 `WizardSelection.vue` — компонент мастера
+### 4.2 `WizardSelection.vue` — плоский мастер (устарел; каталоги используют графовый `QuestionGraphWizard.vue`)
 
 **Пропсы:**
 - `equipmentTypeId` (Number, required) — ID EquipmentType для API-запроса
@@ -364,7 +374,9 @@ class QuestionGraph(BaseAbstractModel):
 ### 9.8 TODO
 
 - Совмещённый фильтр по резьбе (тип + размер в одном визуальном блоке)
-- Графы для остальных каталогов при необходимости branching'а## 5. Фронтенд
+- (выполнено 2026-08-24) Графы есть у всех 5 каталогов
+
+## 5. Фронтенд
 
 ### 5.1 Компоненты
 
@@ -389,4 +401,38 @@ class QuestionGraph(BaseAbstractModel):
 
 `pneumatic-fittings`, `limit-switch`, `solenoid-valves`, `filter-regulator`, `gearbox`
 
+---
+
+## 10. Обновление 2026-08-24 — графовый мастер (основной)
+
+Причина поломки мастера: `QuestionGraphWizard.vue` не читал формат узлов
+`params: [{title, param_name, order}]`, в котором лежали все 5 графов (с 07.08) —
+вопросы не рендерились. Бэкенд был исправен. Что сделано:
+
+- **Формат `params`**: `currentParamNames` читает `params`; подписи вопросов —
+  из `title` (`paramTitles`). Старые форматы (`pages`/`param_names`/`param_name`)
+  по-прежнему поддерживаются.
+- **Ветвления не показываются**: `advance` пропускает branch-узлы и отдаёт сразу
+  страницу (резолв по `accumulated[param_name]`, защита от циклов).
+- **Описания**: FK-опции обогащаются `description` (батч `pk__in`); у вопросов —
+  поле `description` (редактор `PageNodeForm` → textarea, карточка `PageNode`).
+  В граф фитингов возвращены исторические описания узлов.
+- **Дефолтные значения**: поле «дефолт» в `PageNodeForm` → `node.default_value`;
+  мастер автоприменяет их (`autoApplyDefaults`, числовые строки → числа для
+  строгого сравнения с `opt.id`).
+- **Результаты**: `SelectionResultGrid` (`EngineerProductCard`, как в фильтрах)
+  вместо простых карточек; бэкенд отдаёт полные карточки с ценами; кнопка
+  «← К шагам» возвращает к последнему вопросу.
+- **Навигация**: «← Назад» видна между шагами (по истории); история хранит полное
+  состояние узла и снимок `filtersApplied` — возврат при смене ветки не тащит
+  устаревшие фильтры.
+- **Накопление фильтров**: фронт обновляет `filtersApplied` из каждого ответа
+  `advance` — раньше в результаты попадали только фильтры последней страницы.
+- **Кнопка шага**: «Далее →» на промежуточных страницах, «Показать результаты» —
+  только на последней (`hasNextNode` по `graph_json`).
+- **Тесты**: `core/tests/test_question_graph_options.py` — 6 тестов (опции с
+  description, формат params, пропуск ветвлений, полная карточка результатов).
+- **Граф фитингов** (2026-08-24): первый шаг и ветвление — по типу оборудования
+  (`equipment_type_id`: 17 трубка-резьба → параметры трубки; 24 глушитель / 25
+  заглушка → резьба). `load_question_graph.py` синхронизирован.
 

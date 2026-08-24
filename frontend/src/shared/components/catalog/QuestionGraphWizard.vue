@@ -11,7 +11,7 @@
         <p v-if="node.description" class="qg-desc">{{ node.description }}</p>
 
         <div v-for="pn in currentParamNames" :key="pn" class="qg-filter-group">
-          <h3 class="qg-label">{{ filterLabels[pn] || pn }}</h3>
+          <h3 class="qg-label">{{ paramTitles[pn] || filterLabels[pn] || pn }}</h3>
 
           <!-- Radio options for select lists -->
           <div v-if="options[pn] && options[pn].length > 0" class="filter-options">
@@ -52,10 +52,10 @@
         </div>
 
         <div class="qg-nav">
-          <button v-if="subPage > 0" class="qg-back" @click="goBack">← Назад</button>
+          <button v-if="history.length" class="qg-back" @click="goBack">← Назад</button>
           <span v-else />
           <button class="qg-next" :disabled="!canAdvance" @click="advance">
-            {{ isLastSubPage ? 'Показать результаты' : 'Далее →' }}
+            {{ isLastSubPage && !hasNextNode ? 'Показать результаты' : 'Далее →' }}
           </button>
         </div>
       </div>
@@ -63,19 +63,22 @@
 
     <!-- Results -->
     <div v-if="terminal" class="qg-results">
-      <h3>Результаты подбора</h3>
-      <p class="qg-count">{{ total }} {{ totalLabel }}</p>
-      <div class="qg-grid">
-        <div v-for="item in results" :key="item.id" class="qg-item" @click="$emit('select', item.id)">
-          <strong>{{ item.code || item.name }}</strong>
-          <span>{{ item.name }}</span>
-        </div>
+      <div class="qg-results-header">
+        <button class="qg-back" @click="backToSteps">← К шагам</button>
+        <h3>Результаты подбора</h3>
       </div>
-      <div class="qg-pagination" v-if="totalPages > 1">
-        <button :disabled="page <= 1" @click="loadResults(page - 1)">←</button>
-        <span>Стр. {{ page }} из {{ totalPages }}</span>
-        <button :disabled="page >= totalPages" @click="loadResults(page + 1)">→</button>
-      </div>
+      <SelectionResultGrid
+        :items="results"
+        :total="total"
+        :loading="false"
+        :results-label="totalLabel"
+        :empty-text="'Ничего не найдено. Попробуйте изменить критерии.'"
+        mode="page"
+        :page="page"
+        :total-pages="totalPages"
+        @select="id => $emit('select', id)"
+        @page-change="loadResults"
+      />
     </div>
 
     <div v-if="error" class="qg-error">{{ error }}</div>
@@ -85,6 +88,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import api from '@/shared/api'
+import SelectionResultGrid from '@/shared/components/catalog/SelectionResultGrid.vue'
 
 const props = defineProps({
   graphCode: { type: String, required: true },
@@ -96,6 +100,7 @@ defineEmits(['select', 'navigate'])
 
 const node = ref(null)
 const nodeId = ref(null)
+const graphJson = ref({})
 const options = ref({})
 const answers = ref({})
 const filtersApplied = ref({})
@@ -119,9 +124,32 @@ const currentParamNames = computed(() => {
   if (pages && subPage.value < pages.length) {
     return pages[subPage.value].param_names || []
   }
+  // Новый формат узла: params: [{title, param_name, order}]
+  if (node.value.params && node.value.params.length) {
+    return node.value.params.map(p => p.param_name).filter(Boolean)
+  }
   if (node.value.param_name) return [node.value.param_name]
   if (node.value.param_names) return node.value.param_names
   return []
+})
+
+const paramTitles = computed(() => {
+  const map = {}
+  if (node.value && node.value.params) {
+    for (const p of node.value.params) {
+      if (p.param_name && p.title) map[p.param_name] = p.title
+    }
+  }
+  return map
+})
+
+const hasNextNode = computed(() => {
+  if (!node.value) return false
+  const n = node.value
+  if (n.type === 'branch') return Boolean(n.match_target || n.else_target)
+  if (n.next_node) return true
+  const edges = (graphJson.value && graphJson.value.edges) || []
+  return edges.some(e => e.from === nodeId.value)
 })
 
 const canAdvance = computed(() => {
@@ -147,6 +175,7 @@ onMounted(async () => {
 function applyGraphConfig(data) {
   nodeId.value = data.entry_node_id
   node.value = data.entry_node
+  graphJson.value = data.graph_json || {}
   options.value = data.entry_options || {}
   subPage.value = data.sub_page || 0
   totalSubPages.value = data.total_sub_pages || 1
@@ -180,7 +209,12 @@ function autoApplyDefaults() {
   if (!defs || !Object.keys(defs).length) return
   for (const [pn, val] of Object.entries(defs)) {
     if (answers.value[pn] === undefined || answers.value[pn] === null) {
-      answers.value = { ...answers.value, [pn]: val }
+      // Приводим числовые строки к числам, чтобы совпадало с opt.id (===)
+      const num = Number(val)
+      const coerced = val !== '' && val !== null && Number.isFinite(num) && String(num) === String(val).trim()
+        ? num
+        : val
+      answers.value = { ...answers.value, [pn]: coerced }
     }
   }
 }
@@ -188,7 +222,16 @@ function autoApplyDefaults() {
 async function advance() {
   if (!nodeId.value) return
   try {
-    history.value.push({ nodeId: nodeId.value, answers: { ...answers.value }, subPage: subPage.value })
+    history.value.push({
+      nodeId: nodeId.value,
+      node: node.value,
+      options: { ...options.value },
+      answers: { ...answers.value },
+      subPage: subPage.value,
+      pageTitle: pageTitle.value,
+      totalSubPages: totalSubPages.value,
+      filtersApplied: { ...filtersApplied.value },
+    })
     const { data } = await api.post(`/core/question-graph/${props.graphCode}/advance/`, {
       node_id: nodeId.value,
       answers: answers.value,
@@ -202,6 +245,7 @@ async function advance() {
     } else {
       applyGraphConfig(data)
       answers.value = {}
+      filtersApplied.value = data.filters_applied || {}
     }
   } catch (e) {
     error.value = 'Ошибка: ' + (e.response?.data?.error || e.message)
@@ -212,8 +256,20 @@ function goBack() {
   const prev = history.value.pop()
   if (!prev) return
   nodeId.value = prev.nodeId
+  node.value = prev.node
+  options.value = prev.options || {}
   answers.value = prev.answers
   subPage.value = prev.subPage
+  pageTitle.value = prev.pageTitle || ''
+  totalSubPages.value = prev.totalSubPages || 1
+  filtersApplied.value = prev.filtersApplied || {}
+}
+
+function backToSteps() {
+  terminal.value = false
+  results.value = []
+  total.value = 0
+  goBack()
 }
 
 async function loadResults(p) {
@@ -233,7 +289,7 @@ async function loadResults(p) {
 </script>
 
 <style scoped>
-.qg-wizard { max-width: 700px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, sans-serif; }
+.qg-wizard { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, sans-serif; }
 .qg-stepper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .qg-step-label { font-size: 1.1rem; font-weight: 600; color: #1e293b; }
 .qg-step-counter { font-size: 0.85rem; color: #94a3b8; }
@@ -276,10 +332,7 @@ async function loadResults(p) {
 
 .qg-results { margin-top: 1rem; }
 .qg-results h3 { margin-bottom: 0.5rem; }
-.qg-count { color: #64748b; margin-bottom: 1rem; }
-.qg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; margin: 1rem 0; }
-.qg-item { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 0.75rem; cursor: pointer; }
-.qg-item strong { display: block; }
-.qg-pagination { display: flex; gap: 1rem; align-items: center; justify-content: center; margin-top: 1rem; }
+.qg-results-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.qg-results-header h3 { margin: 0; }
 .qg-error { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 1rem; color: #991b1b; margin-top: 1rem; }
 </style>

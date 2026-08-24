@@ -13,12 +13,19 @@
         </div>
 
         <div class="pnf-field">
+          <label>Описание вопроса</label>
+          <textarea v-model="form.description" class="pnf-input" rows="2"
+            placeholder="Например: Выберите тип пневматического фитинга"></textarea>
+        </div>
+
+        <div class="pnf-field">
           <label>Вопросы</label>
           <div class="pnf-params-list">
             <div v-for="(p, i) in form.params" :key="i" class="pnf-param-row">
               <span class="pnf-order">{{ p.order || i + 1 }}</span>
               <input v-model="p.title" class="pnf-input pnf-input-sm" placeholder="Заголовок вопроса" />
               <input v-model="p.param_name" class="pnf-input pnf-input-sm" placeholder="param_name" />
+              <input v-model="form.default_value[p.param_name]" class="pnf-input pnf-input-xs" placeholder="дефолт" title="Значение по умолчанию (id для списков, число для числовых)" />
               <button class="pnf-btn-del" @click="form.params.splice(i,1)">✕</button>
             </div>
           </div>
@@ -64,6 +71,8 @@ function initForm() {
   return {
     id: props.node.id,
     name: d.name || '',
+    description: d.description || '',
+    default_value: { ...(d.default_value || {}) },
     params: (d.params || []).map(p => ({ ...p })),
     next_node: props.nextNode || d.next_node || '',
     isEntry: props.isEntry,
@@ -74,6 +83,15 @@ function onSave() {
   emit('save', {
     id: props.node.id,
     name: form.value.name,
+    description: form.value.description,
+    default_value: (() => {
+      const map = {}
+      for (const p of form.value.params) {
+        const v = (form.value.default_value || {})[p.param_name]
+        if (p.param_name && v !== undefined && v !== null && v !== '') map[p.param_name] = v
+      }
+      return map
+    })(),
     params: form.value.params.map((p, i) => ({ ...p, order: p.order || i + 1 })),
     next_node: form.value.next_node,
     isEntry: form.value.isEntry,
@@ -93,6 +111,7 @@ function onSave() {
 .pnf-input { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
 .pnf-input:focus { border-color: #2563eb; outline: none; }
 .pnf-input-sm { flex: 1; }
+.pnf-input-xs { flex: 0 0 90px; min-width: 70px; }
 .pnf-params-list { display: flex; flex-direction: column; gap: 4px; }
 .pnf-param-row { display: flex; gap: 6px; align-items: center; }
 .pnf-order { width: 22px; text-align: center; font-size: 12px; font-weight: 600; color: #94a3b8; }

@@ -30,7 +30,7 @@
         <!-- Compatible matches -->
         <section v-if="compatibleData.length" class="result-section">
           <h3 class="section-title">
-            🔗 Выполняют условия ({{ compatibleTotal }})
+            🔗 Совместимые ({{ compatibleTotal }})
           </h3>
           <div class="grid"><ProductCard v-for="item in compatibleData" :key="'c-'+item.id" :item="item" :price="item.price||null" @select="id=>$emit('select',id)" /></div>
         </section>

@@ -723,23 +723,42 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
         specs_fields.append(f('fitting_variety', 'Тип фитинга', str(self.fitting_variety) if self.fitting_variety else ''))
         specs_fields.append(f('thread', 'Резьба', str(self.thread) if self.thread else ''))
         specs_fields.append(f('thread_inner_outer', 'Резьба нар/внутр', str(self.thread_inner_outer) if self.thread_inner_outer else ''))
-        specs_fields.append(f('pipe_diameter', 'Диаметр трубки, мм', self.pipe_diameter if self.pipe_diameter is not None else '', type_='number'))
-        specs_fields.append(f('body_material', 'Материал корпуса', str(self.body_material) if self.body_material else ''))
-        specs_fields.append(f('pipe_material', 'Материал трубки', str(self.pipe_material) if self.pipe_material else ''))
-        specs_fields.append(f('temperature', 'Т раб., °С', self.temperature_range_display))
-        specs_fields.append(f('pressure', 'Р раб., бар', self.pressure_range_display))
+        specs_fields.append(
+            f('body_material' , 'Материал корпуса' , str(self.body_material) if self.body_material else ''))
+        specs_fields.append(f('temperature' , 'Т раб., °С' , self.temperature_range_display))
+        silencer_plug = ['fitting-silencer' , 'fitting-plug']
+        if not self.equipment_type.code in silencer_plug:
+            specs_fields.append(f('pipe_diameter', 'Диаметр трубки, мм', self.pipe_diameter if self.pipe_diameter is not None else '', type_='number'))
+            specs_fields.append(f('pipe_material' , 'Материал трубки' , str(self.pipe_material) if self.pipe_material else ''))
+            specs_fields.append(f('pressure' , 'Р раб., бар' , self.pressure_range_display))
+        else:
+            if self.operating_pressure is not None :
+                specs_fields.append({'key' : 'operating_pressure' , 'label' : 'P раб.макс, бар' ,
+                                     'value' : str(self.operating_pressure) , 'unit' : '' , 'type' : 'number' ,
+                                     'order' : 3})
+            if self.flow_rate is not None :
+                specs_fields.append(
+                    {'key' : 'flow_rate' , 'label' : 'Пропускная способность, Нл/мин' , 'value' : str(self.flow_rate) ,
+                     'unit' : '' , 'type' : 'number' , 'order' : 1})
+            if self.noise_level is not None :
+                specs_fields.append(
+                    {'key' : 'noise_level' , 'label' : 'Уровень шума, дБ' , 'value' : str(self.noise_level) ,
+                     'unit' : '' , 'type' : 'number' , 'order' : 2})
 
-        silencer_fields = []
-        if self.flow_rate is not None:
-            silencer_fields.append({'key': 'flow_rate', 'label': 'Пропускная способность, Нл/мин', 'value': str(self.flow_rate), 'unit': '', 'type': 'number', 'order': 1})
-        if self.noise_level is not None:
-            silencer_fields.append({'key': 'noise_level', 'label': 'Уровень шума, дБ', 'value': str(self.noise_level), 'unit': '', 'type': 'number', 'order': 2})
-        if self.operating_pressure is not None:
-            silencer_fields.append({'key': 'operating_pressure', 'label': 'P раб.макс, бар', 'value': str(self.operating_pressure), 'unit': '', 'type': 'number', 'order': 3})
 
+        #
+        #
+        # silencer_fields = []
+        # if self.flow_rate is not None:
+        #     silencer_fields.append({'key': 'flow_rate', 'label': 'Пропускная способность, Нл/мин', 'value': str(self.flow_rate), 'unit': '', 'type': 'number', 'order': 1})
+        # if self.noise_level is not None:
+        #     silencer_fields.append({'key': 'noise_level', 'label': 'Уровень шума, дБ', 'value': str(self.noise_level), 'unit': '', 'type': 'number', 'order': 2})
+        # if self.operating_pressure is not None:
+        #     silencer_fields.append({'key': 'operating_pressure', 'label': 'P раб.макс, бар', 'value': str(self.operating_pressure), 'unit': '', 'type': 'number', 'order': 3})
+        #
         groups = [{'key': 'general', 'title': 'Основные', 'order': 1, 'fields': specs_fields}]
-        if silencer_fields:
-            groups.append({'key': 'silencer', 'title': 'Глушитель', 'order': 2, 'fields': silencer_fields})
+        # if silencer_fields:
+        #     groups.append({'key': 'silencer', 'title': 'Глушитель', 'order': 2, 'fields': silencer_fields})
 
         return [
             {'key': 'images', 'title': 'Изображения', 'type': 'gallery', 'order': 1, 'data': self._safe_m2m('_get_images_section')},

@@ -1,6 +1,8 @@
 """API views for QuestionGraph — question-based selection wizard with sub-pages."""
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from price.services.currency_converter import get_bulk_prices
+from core.utils.catalog_helpers import get_currency_code
 
 from core.models.question_graph import QuestionGraph
 from core.models.selection_wizard import SelectionWizard
@@ -121,7 +123,13 @@ def _get_options_for_param(equipment_type, param_name, filters_applied=None):
                 rel_model = None
                 break
         if rel_model and hasattr(rel_model, 'objects'):
-            return [{'id': v, 'name': str(o)} for v in ids if (o := rel_model.objects.filter(pk=v).first())]
+            obj_map = {o.pk: o for o in rel_model.objects.filter(pk__in=ids)}
+            options = []
+            for v in ids:
+                o = obj_map.get(v)
+                if o:
+                    options.append({'id': v, 'name': str(o), 'description': getattr(o, 'description', '') or ''})
+            return options
         return [{'id': v, 'name': str(v)} for v in ids]
 
     if not hasattr(model_class, field_lookup):
@@ -140,7 +148,7 @@ def _get_options_for_param(equipment_type, param_name, filters_applied=None):
         related_model = field_obj.remote_field.model
         fk_ids = qs.values_list(param_name, flat=True).distinct()
         options = related_model.objects.filter(pk__in=fk_ids).order_by('name')
-        return [{'id': o.pk, 'name': str(o)} for o in options]
+        return [{'id': o.pk, 'name': str(o), 'description': getattr(o, 'description', '') or ''} for o in options]
     else:
         values = qs.values_list(param_name, flat=True).distinct().order_by(param_name)
         return [{'id': v, 'name': str(v)} for v in values if v is not None]
@@ -268,6 +276,15 @@ class QuestionGraphAdvanceView(APIView):
                 branch_val = answers.get(branching_param)
 
         next_node = graph.get_next_node(current_node_id, branch_val)
+        # Пропускаем branch-узлы: это переходы, а не вопросы мастера.
+        # Идём по ответу на param_name ветвления до ближайшей страницы.
+        seen = set()
+        while next_node is not None and next_node.get('type') == 'branch':
+            nid = _get_node_id(graph, next_node)
+            if not nid or nid in seen:
+                break
+            seen.add(nid)
+            next_node = graph.get_next_node(nid, accumulated.get(next_node.get('param_name')))
         if next_node is None:
             return Response({
                 'terminal': True,
@@ -334,21 +351,31 @@ class QuestionGraphResultsView(APIView):
 
         select_fields = getattr(model_class, 'SELECT_RELATED_FIELDS', None)
         if select_fields:
-            items = model_class.objects.filter(pk__in=[i.pk for i in items]).select_related(*select_fields)
+            order = {i.pk: n for n, i in enumerate(items)}
+            items = model_class.objects.filter(pk__in=list(order)).select_related(*select_fields)
+            items = sorted(items, key=lambda o: order[o.pk])
 
         results = []
         for item in items:
-            d = {'id': item.pk, 'name': str(item)}
-            if hasattr(item, 'code'):
-                d['code'] = item.code
-            results.append(d)
+            try:
+                results.append(item.to_values_dict() if hasattr(item, 'to_values_dict') else item.to_dict())
+            except Exception:
+                results.append({'id': item.pk, 'name': str(item)})
+
+        # Prices — как в плоском мастере (WizardResultsView)
+        currency_code = get_currency_code(request)
+        sku_codes = [r.get('sku', {}).get('code') for r in results if isinstance(r.get('sku'), dict) and r['sku'].get('code')]
+        prices = get_bulk_prices(sku_codes, currency_code) if sku_codes else {}
+        for r in results:
+            if isinstance(r.get('sku'), dict):
+                r['price'] = prices.get(r['sku'].get('code'))
 
         return Response({
             'results': results,
             'total': total,
             'page': page,
             'page_size': page_size,
-            'total_pages': (total + page_size - 1) // page_size if total else 0,
+            'total_pages': max(1, (total + page_size - 1) // page_size) if total > 0 else 0,
         })
 
 
