@@ -5,13 +5,26 @@ from .limit_switch_admin import (
 
 )
 from .pa_control_mounting_admin import PaControlMountingStandardAdmin
+from .positioner_admin import (
+    ActingTypeAdmin,
+    LeverOptionAdmin,
+    SmartCapabilityOptionAdmin,
+    SmartCapabilitySetAdmin,
+    PosiModelLineAdmin,
+    PosiModelLineItemAdmin,
+)
 
 __all__ = [
     'LimitSwitchSensorVarietyAdmin',
     'LimitSwitchModelLineAdmin',
     'PaControlMountingStandardAdmin',
     'LimitSwitchBodyAdmin',
-    'LimitSwitchBoxAdmin'
-
+    'LimitSwitchBoxAdmin',
+    'ActingTypeAdmin',
+    'LeverOptionAdmin',
+    'SmartCapabilityOptionAdmin',
+    'SmartCapabilitySetAdmin',
+    'PosiModelLineAdmin',
+    'PosiModelLineItemAdmin',
 ]
 

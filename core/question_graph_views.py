@@ -345,6 +345,9 @@ class QuestionGraphResultsView(APIView):
             except Exception:
                 pass
 
+        # JOIN-фильтры (профиль сигналов) — убираем дубликаты строк
+        qs = qs.distinct()
+
         total = qs.count()
         offset = (page - 1) * page_size
         items = list(qs[offset:offset + page_size])

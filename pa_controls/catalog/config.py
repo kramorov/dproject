@@ -9,6 +9,7 @@ from pa_controls.catalog.filter_defs import (
     fd_model_line, fd_sensor_variety, fd_points, fd_ip,
     fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
     fd_signal_type, fd_contact_form, fd_exd, fd_climate,
+    fd_visual_indicator,
 )
 
 
@@ -21,7 +22,8 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
             definitions=[
                 fd_model_line, fd_sensor_variety, fd_points, fd_ip,
                 fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
-                fd_signal_type, fd_contact_form, fd_exd, fd_climate,
+                fd_signal_type, fd_contact_form, fd_visual_indicator,
+                fd_exd, fd_climate,
             ],
             scoped=False,
             show_compatible=True,
@@ -30,7 +32,8 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
             definitions=[
                 fd_model_line, fd_sensor_variety, fd_points, fd_ip,
                 fd_temp_min, fd_temp_max, fd_body_material, fd_brand,
-                fd_signal_type, fd_contact_form, fd_exd, fd_climate,
+                fd_signal_type, fd_contact_form, fd_visual_indicator,
+                fd_exd, fd_climate,
             ],
             scoped=False,
             show_compatible=True,
@@ -40,7 +43,8 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
             definitions=[
                 fd_sensor_variety, fd_points, fd_ip,
                 fd_temp_min, fd_temp_max, fd_body_material,
-                fd_signal_type, fd_exd, fd_climate,
+                fd_signal_type, fd_visual_indicator,
+                fd_exd, fd_climate,
             ],
             scoped=True,
             show_compatible=True,
@@ -48,7 +52,7 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
         'quickselect': FilterSet(
             definitions=[
                 fd_sensor_variety, fd_points, fd_body_material, fd_signal_type,
-                fd_exd, fd_temp_min, fd_temp_max,
+                fd_visual_indicator, fd_exd, fd_temp_min, fd_temp_max,
             ],
             scoped=True,
             show_compatible=False,
@@ -67,7 +71,8 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
     select_related=[
         'model_line', 'model_line__brand', 'model_line__equipment_type',
         'image_gallery', 'model_line__image_gallery',
-        'body', 'sensor_variety', 'primary_sensor',
+        'body', 'sensor_variety', 'primary_sensor', 'signal_profile',
+        'visual_indicator_type',
         'ip', 'body_material', 'body_material_specified', 'sku',
     ],
     prefetch_fields=[
@@ -75,6 +80,9 @@ LIMIT_SWITCH_CONFIG = CatalogConfig(
         'image_gallery__items__image',
         'model_line__image_gallery__items__image__variants',
         'model_line__image_gallery__items__image',
+        'signal_profile__entries__signal_role',
+        'signal_profile__entries__sensor__signal_type',
+        'signal_profile__entries__input_signal',
     ],
     search_fields=['code', 'name', 'description'],
 

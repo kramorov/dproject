@@ -71,6 +71,7 @@ export const refsApi = {
   async sensorVarieties(){ return fetchAll('pa_controls.LimitSwitchSensorVariety') },
   async sensors()        { return fetchAll('pa_controls.SensorComponent') },
   async signalTypes()    { return fetchAll('pa_controls.SignalType') },
+  async visualIndicators() { return fetchAll('pa_controls.VisualIndicatorType') },
   async ipOptions()      { return fetchAll('params.IpOption') },
   async exdOptions()     { return fetchAll('params.ExdOption') },
   async bodyMaterials()  { return fetchAll('materials.MaterialGeneral') },

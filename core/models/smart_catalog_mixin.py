@@ -255,6 +255,10 @@ class SmartCatalogMixin(models.Model):
                     split_fd = fd
                     split_raw_value = value
 
+        # Фильтры могут идти через JOIN (например, профиль сигналов) —
+        # убираем дубликаты строк до поиска и пагинации
+        queryset = queryset.distinct()
+
         # ── Text search ──
         search_text = params.get('search', '').strip()
         if search_text:

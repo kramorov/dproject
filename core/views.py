@@ -738,6 +738,9 @@ class BaseQuickSelectView(APIView):
             if lookup and converted is not None:
                 qs = qs.filter(**{lookup: converted})
 
+        # Фильтры через JOIN (профиль сигналов) — убираем дубликаты
+        qs = qs.distinct()
+
         items = [obj.to_dict() for obj in qs[:50]]
 
         # Опции фильтров с подсчётом

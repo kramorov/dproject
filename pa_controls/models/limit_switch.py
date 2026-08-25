@@ -77,13 +77,15 @@ class LimitSwitchBox(CatalogDictMixin,
         help_text=_("Основной датчик"),
         related_name='limit_switch_boxes_primary_sensor'  # обратная связь от датчика к корпусам
     )
-    # Добавляем Many-to-Many связь с дополнительными датчиками
-    additional_sensor = models.ManyToManyField(
-        SensorComponent,
-        blank=True,
-        verbose_name=_("Датчики дополнительные"),
-        help_text=_("Дополнительные датчики"),
-        related_name='limit_switch_boxes_additional_sensor'  # обратная связь от датчика к корпусам
+
+    # Расширенный состав сигналов: роли → датчики (выходные сигналы БКВ)
+    signal_profile = models.ForeignKey(
+        'params.ControlUnitSignalProfile',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='limit_switch_boxes',
+        verbose_name=_("Профиль сигналов"),
+        help_text=_("Расширенный состав сигналов БКВ: роль (Открыто/Закрыто/Промежуточное) → датчик")
     )
 
     points = models.IntegerField(default=2,
@@ -135,7 +137,14 @@ class LimitSwitchBox(CatalogDictMixin,
     # Дополнительные характеристики
     is_pneumatic = models.BooleanField(default=False, verbose_name=_("Пневматический"))
     has_namur_interface = models.BooleanField(default=False, verbose_name=_("NAMUR интерфейс"))
-    has_visual_indicator = models.BooleanField(default=False, verbose_name=_("Визуальный индикатор"))
+    visual_indicator_type = models.ForeignKey(
+        'pa_controls.VisualIndicatorType',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='limit_switch_boxes',
+        verbose_name=_("Вид визуального индикатора"),
+        help_text=_("Вид купола-индикатора положения на корпусе БКВ")
+    )
 
     # ВСЁ остальное в JSON
     extra_params = models.JSONField(
@@ -180,9 +189,31 @@ class LimitSwitchBox(CatalogDictMixin,
         super().save(*args, **kwargs)
         self.sync_sku()
 
+    def copy(self, suffix=' Копия', **kwargs):
+        """Копия с гарантией уникальности кода и SKU.
+
+        SKU привязывается по коду (sync_sku), поэтому повторные копии
+        должны получать уникальный код: при конфликте перебираем
+        «Копия 2», «Копия 3»… и подчищаем «сироту» от неудачной попытки.
+        """
+        from django.db import IntegrityError
+
+        attempt = 0
+        while True:
+            s = suffix if attempt == 0 else f' Копия {attempt + 1}'
+            try:
+                return super().copy(suffix=s, **kwargs)
+            except IntegrityError:
+                attempt += 1
+                if attempt > 100:
+                    raise
+                # Неудачная попытка могла оставить вставленную коробку без SKU
+                LimitSwitchBox.objects.filter(
+                    code=f"{self.code}{s}", sku__isnull=True
+                ).delete()
+
     def _copy_custom_relations(self, new_copy):
         new_copy.exd.set(self.exd.all())
-        new_copy.additional_sensor.set(self.additional_sensor.all())
 
     @property
     def exd_display(self):
@@ -201,73 +232,108 @@ class LimitSwitchBox(CatalogDictMixin,
         return self.model_line.description_template or None
 
     def _get_default_name_template(self) -> str:
-        default_description_template = "{model_code} Блок концевых выключателей {brand};  {points} датчика, тип датчика: {sensor_variety}; {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Датчик: {sensors}, Отверстия под КВ:{cable_glands_holes}, вес {weight} кг."
+        default_description_template = "{model_code} Блок концевых выключателей {brand};  {points}, тип датчика: {sensor_variety}; {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, вес {weight} кг."
         return default_description_template
 
     def _get_default_description_template(self) -> str:
-        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points} датчика, тип датчика: {sensor_variety}, {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}, вес {weight}кг. Датчики: {sensors_description}"
+        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points}, тип датчика: {sensor_variety}, {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}, вес {weight}кг. Сигналы: {signal_profile_summary}"
         return default_description_template
 
     def _get_title_template_source(self):
         """Переопределить в модели: вернуть шаблон заголовка или None."""
-        title_template = "{model_code} {points} датчика, {sensor_variety}; {ip}, В/з: {exd}; {work_temp_min}..{work_temp_max} °С, корпус: {body_material}"
+        title_template = "{model_code} {points}, {sensor_variety}; {ip}, В/з: {exd}; {work_temp_min}..{work_temp_max} °С, корпус: {body_material}"
         return title_template
 
     @property
     def get_primary_sensor_contact_form(self) -> str:
         return '' if self.primary_sensor.contact_form.code == 'NONE' else self.primary_sensor.contact_form
 
-    @property
-    def get_sensors_signal_types_list(self) -> str:
-        codes = []
-        if self.primary_sensor and self.primary_sensor.signal_type:
-            codes.append(self.primary_sensor.signal_type.name)
-        for sensor in self.additional_sensor.all():
-            if sensor.signal_type:
-                codes.append(sensor.signal_type.name)
-
-        if not codes:
-            return ""
-        if len(codes) == 1:
-            return codes[0]
-        return "+".join(codes[:-1]) + " + " + codes[-1]
+    @staticmethod
+    def _sensor_signal_marker(sensor) -> str:
+        """Маркер сигнала датчика: SPDT/DPDT/SPST или тип сигнала (аналоговый)."""
+        if sensor.contact_form_id and sensor.contact_form.code != 'NONE':
+            return sensor.contact_form.code
+        if sensor.signal_type_id:
+            return sensor.signal_type.name
+        return ''
 
     @property
-    def get_sensors_description_list(self) -> str:
-        """
-        Возвращает  список поля description датчиков.
-        Разделитель - символ "+"
-        """
-        sensor_components = self.additional_sensor.all()
-        if not sensor_components:
-            return ""
+    def get_signal_profile_summary(self) -> str:
+        """Текстовая сводка сигналов для описания.
 
-        names = [item.description for item in sensor_components]
-        if len(names) == 1:
-            return names[0]
-        elif len(names) == 2:
-            return f"{names[0]}; + {names[1]}"
+        Формат:
+          Вых. Открыто — SPDT; Вых. Закрыто — SPDT; … Датчик: <код> - <характеристики>
+        Маркер роли: код формы контактов (SPDT/DPDT/SPST), для аналоговых —
+        тип сигнала. Характеристики датчика — как в поле «Доп. датчики».
+
+        Без профиля — legacy-состав из primary_sensor (fallback).
+        """
+        if self.signal_profile_id:
+            entries = self.signal_profile.entries.select_related(
+                'signal_role', 'sensor__signal_type', 'sensor__contact_form',
+                'input_signal',
+            ).all()
+            parts = []
+            sensors = []
+            seen_sensors = set()
+            for e in entries:
+                if e.sensor_id:
+                    marker = self._sensor_signal_marker(e.sensor)
+                    if e.signal_role_id:
+                        parts.append(f"{e.signal_role.name} — {marker}" if marker else str(e.signal_role))
+                    if e.sensor.id not in seen_sensors:
+                        seen_sensors.add(e.sensor.id)
+                        sensors.append(e.sensor)
+                elif e.input_signal_id:
+                    if e.signal_role_id:
+                        parts.append(f"{e.signal_role.name} — {e.input_signal.name}")
+            for sensor in sensors:
+                parts.append(f"Датчик: {sensor.generate_name()}")
+            return "; ".join(parts) if parts else "—"
+
+        # Fallback: старый состав (первичный датчик)
+        parts = []
+        if self.primary_sensor:
+            component = self.primary_sensor.name
+            if self.primary_sensor.signal_type_id:
+                component += f" ({self.primary_sensor.signal_type.name})"
+            parts.append(component)
+        return "; ".join(parts) if parts else "—"
+
+    def get_signal_feedback_data(self):
+        """Два блока для карточки: сигналы обратной связи + уникальные датчики.
+
+        Возвращает (signals, sensors):
+          signals — список [(имя_роли, маркер)] по записям профиля;
+          sensors — уникальные датчики без дублей, в порядке ролей.
+        Без профиля — legacy: датчик из primary_sensor.
+        """
+        signals = []
+        sensors = []
+        if self.signal_profile_id:
+            entries = self.signal_profile.entries.select_related(
+                'signal_role', 'sensor__signal_type', 'sensor__contact_form',
+                'input_signal',
+            ).all()
+            seen_sensors = set()
+            for e in entries:
+                if e.sensor_id:
+                    signals.append((
+                        e.signal_role.name if e.signal_role_id else '—',
+                        self._sensor_signal_marker(e.sensor),
+                    ))
+                    if e.sensor.id not in seen_sensors:
+                        seen_sensors.add(e.sensor.id)
+                        sensors.append(e.sensor)
+                elif e.input_signal_id:
+                    signals.append((
+                        e.signal_role.name if e.signal_role_id else '—',
+                        e.input_signal.name,
+                    ))
         else:
-            return ", ".join(names[:-1]) + f" + {names[-1]}"
-
-    @property
-    def get_additional_sensors_names_list(self) -> str:
-        """
-        Возвращает текстовый список датчиков.
-        Разделитель - символ "+"
-        """
-        sensor_components = self.additional_sensor.all()
-        if not sensor_components:
-            return ""
-
-        names = [item.generate_name() for item in sensor_components]
-
-        if len(names) == 1:
-            return names[0]
-        elif len(names) == 2:
-            return f"{names[0]}; + {names[1]}"
-        else:
-            return ", ".join(names[:-1]) + f" + {names[-1]}"
+            if self.primary_sensor:
+                sensors.append(self.primary_sensor)
+        return signals, sensors
 
     def _get_data_dict(self) -> Dict[str, str]:
         """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
@@ -292,9 +358,7 @@ class LimitSwitchBox(CatalogDictMixin,
             '{primary_sensor_contact_state}': 'primary_sensor__contact_state',
             '{primary_sensor_contact_form}': 'get_primary_sensor_contact_form',
             # '{primary_sensor}': 'primary_sensor__description',
-            '{sensors}': 'get_additional_sensors_names_list',
-            '{signals}': 'get_sensors_signal_types_list',
-            '{sensors_description}': 'get_sensors_description_list',
+            '{signal_profile_summary}': 'get_signal_profile_summary',
         }
 
     # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
@@ -396,11 +460,20 @@ class LimitSwitchBox(CatalogDictMixin,
         # Для ForeignKey полей - используем UNIQUE_FIELD_VALUES (только используемые)
         FilterDefinition(
             param_name='signal_type_id',
-            model_field='primary_sensor__signal_type',
+            model_field='signal_profile__entries__sensor__signal_type',
             filter_type=FilterType.EXACT,
             data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,  # ← только используемые
             label='Тип сигнала',
             order=9
+        ),
+        # Вид визуального индикатора
+        FilterDefinition(
+            param_name='visual_indicator_type_id',
+            model_field='visual_indicator_type',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Вид визуального индикатора',
+            order=10
         ),
         # Exd (ParameterRule)
         FilterDefinition(
@@ -431,6 +504,7 @@ class LimitSwitchBox(CatalogDictMixin,
         'points_option_id',
         'body_material_id',
         'signal_type_id',
+        'visual_indicator_type_id',
         'exd_id',
         'work_temp_min',
         'work_temp_max',
@@ -439,7 +513,7 @@ class LimitSwitchBox(CatalogDictMixin,
     SELECT_RELATED_FIELDS = [
         'model_line', 'model_line__brand', 'sensor_variety',
         'image_gallery', 'model_line__image_gallery',
-        'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type',
+        'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type', 'signal_profile', 'visual_indicator_type',
     ]
 
     # ========== СЕРИАЛИЗАЦИЯ (CatalogDictMixin) ==========
@@ -467,12 +541,10 @@ class LimitSwitchBox(CatalogDictMixin,
             'mounting': body.mounting_list_text if body and body.mounting_list_text else '',
             'is_pneumatic': 'Да' if self.is_pneumatic else 'Нет',
             'has_namur_interface': 'Да' if self.has_namur_interface else 'Нет',
-            'has_visual_indicator': 'Да' if self.has_visual_indicator else 'Нет',
+            'visual_indicator_type': self.visual_indicator_type.name if self.visual_indicator_type_id else '',
             'primary_sensor': self.primary_sensor.name if self.primary_sensor else '',
             'primary_sensor_signal_type': self.primary_sensor.signal_type.name if self.primary_sensor and self.primary_sensor.signal_type else '',
-            'sensors': self.get_additional_sensors_names_list or '',
-            'sensors_description': self.get_sensors_description_list or '',
-            'signals': self.get_sensors_signal_types_list or '',
+            'signal_profile_summary': self.get_signal_profile_summary or '',
             'cert_description': self.get_cert_docs_description() or '',
         }
 
@@ -578,6 +650,7 @@ class LimitSwitchBox(CatalogDictMixin,
     def to_dict(self) -> dict:
         """Структурированная сериализация БКВ (CatalogDictMixin)."""
         tv = self._get_template_vars()
+        signals, sensors = self.get_signal_feedback_data()
         return {
             'id': self.id,
             'code': self.code or '',
@@ -617,8 +690,8 @@ class LimitSwitchBox(CatalogDictMixin,
                             #  'type': 'text', 'order': 7},
                             # {'key': 'has_namur_interface', 'label': 'NAMUR интерфейс',
                             #  'value': tv['has_namur_interface'], 'unit': '', 'type': 'text', 'order': 8},
-                            {'key': 'has_visual_indicator', 'label': 'Визуальный индикатор',
-                             'value': tv['has_visual_indicator'], 'unit': '', 'type': 'text', 'order': 9},
+                            {'key': 'visual_indicator_type', 'label': 'Визуальный индикатор',
+                             'value': tv['visual_indicator_type'], 'unit': '', 'type': 'text', 'order': 9},
                         ]
                     },
                     {
@@ -637,17 +710,20 @@ class LimitSwitchBox(CatalogDictMixin,
                         ]
                     },
                     {
-                        'key': 'sensors', 'title': 'Датчики', 'order': 2,
+                        'key': 'signals_feedback', 'title': 'Сигналы обратной связи', 'order': 2,
                         'fields': [
-                            {'key': 'primary_sensor', 'label': 'Основной датчик', 'value': tv['primary_sensor'],
-                             'unit': '', 'type': 'text', 'order': 1},
-                            {'key': 'primary_sensor_signal_type', 'label': 'Тип сигнала',
-                             'value': tv['primary_sensor_signal_type'], 'unit': '', 'type': 'text', 'order': 2},
-                            {'key': 'sensors', 'label': 'Доп. датчики', 'value': tv['sensors'], 'unit': '',
-                             'type': 'text', 'order': 3},
-                            {'key': 'signals', 'label': 'Типы сигналов', 'value': tv['signals'], 'unit': '',
-                             'type': 'text', 'order': 4},
-                        ]
+                            {'key': f'role_{i}', 'label': f'{name}:', 'value': marker,
+                             'unit': '', 'type': 'text', 'order': i + 1}
+                            for i, (name, marker) in enumerate(signals)
+                        ],
+                    },
+                    {
+                        'key': 'sensors', 'title': 'Датчики', 'order': 3,
+                        'fields': [
+                            {'key': f'sensor_{i}', 'label': 'Датчик',
+                             'value': sensor.generate_name(), 'unit': '', 'type': 'text', 'order': i + 1}
+                            for i, sensor in enumerate(sensors)
+                        ],
                     },
 
                 ]

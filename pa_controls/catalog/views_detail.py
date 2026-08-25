@@ -7,10 +7,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from django.utils import translation
-from django.db.models import Prefetch
 
 from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
-from pa_controls.models.sensor import SensorComponent
 from price.services.currency_converter import get_display_price
 from core.utils.catalog_helpers import get_currency_code
 
@@ -31,13 +29,9 @@ class LimitSwitchBoxDetailView(APIView):
                 ).prefetch_related(
                     'image_gallery__items__image',
                     'tech_docs',
-                    Prefetch(
-                        'additional_sensor',
-                        queryset=SensorComponent.objects.select_related(
-                            'variety', 'signal_type', 'contact_form',
-                            'contact_state', 'brand',
-                        )
-                    ),
+                    'signal_profile__entries__signal_role',
+                    'signal_profile__entries__sensor__signal_type',
+                    'signal_profile__entries__input_signal',
                     'model_line__image_gallery__items__image',
                     'model_line__tech_docs',
                 ),

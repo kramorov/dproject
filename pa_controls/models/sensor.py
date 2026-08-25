@@ -89,7 +89,6 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, models.Model):
 
     @property
     def get_brand_name(self):
-        print(f'get_brand_name self.brand.name {self.brand.name }')
         return self.brand.name if self.brand else "OEM"
 
     def _get_data_dict(self) -> Dict[str , str] :

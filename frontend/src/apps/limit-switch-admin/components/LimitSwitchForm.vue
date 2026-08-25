@@ -55,7 +55,21 @@
     <div class="lsf-row">
       <div class="fg"><FkSelect v-model="form.primary_sensor_id" :options="opts.sensors" label="Основной датчик" placeholder="—" /></div>
     </div>
-    <div class="fg fw"><M2MSelect v-model="form.additional_sensor_ids" :options="opts.sensors" label="Доп. датчики" placeholder="—" /></div>
+    <div class="fg fw"><FkSelect v-model="form.signal_profile_id" :options="signalProfileOptions" label="Профиль сигналов" placeholder="—" /></div>
+    <div v-if="selectedSignalProfile" class="lsf-profile">
+      <div class="lsf-profile-head">
+        {{ selectedSignalProfile.name }}
+        <span class="lsf-profile-code">{{ selectedSignalProfile.code }}</span>
+      </div>
+      <div v-if="selectedSignalProfile.entries && selectedSignalProfile.entries.length" class="lsf-profile-entries">
+        <div v-for="(e, i) in selectedSignalProfile.entries" :key="i" class="lsf-profile-row">
+          <span class="lsf-role">{{ e.role }}</span>
+          <span class="lsf-dir" :class="'dir-' + e.direction">{{ e.direction === 'input' ? 'Вход' : e.direction === 'output' ? 'Выход' : e.direction === 'bidirectional' ? 'Вх/Вых' : e.direction }}</span>
+          <span class="lsf-comp">{{ e.component }}</span>
+        </div>
+      </div>
+      <div v-else class="lsf-empty">Нет записей в профиле</div>
+    </div>
 
     <!-- Взрывозащита -->
     <h4 class="lsf-sec">Взрывозащита и флаги</h4>
@@ -63,7 +77,7 @@
     <div class="lsf-row-3">
       <label class="chk"><input type="checkbox" v-model="form.is_pneumatic" /> Пневматический</label>
       <label class="chk"><input type="checkbox" v-model="form.has_namur_interface" /> NAMUR интерфейс</label>
-      <label class="chk"><input type="checkbox" v-model="form.has_visual_indicator" /> Визуальный индикатор</label>
+      <div class="fg"><FkSelect v-model="form.visual_indicator_type_id" :options="opts.visualIndicators" label="Вид визуального индикатора" placeholder="—" /></div>
     </div>
       </div>
 
@@ -104,9 +118,8 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue'
+import { reactive, ref, watch, onMounted, computed } from 'vue'
 import FkSelect from '@/shared/components/FkSelect.vue'
-import M2MSelect from '@/shared/components/M2MSelect.vue'
 import M2MDualList from '@/shared/components/M2MDualList.vue'
 import JsonFieldsEditor from '@/shared/components/JsonFieldsEditor.vue'
 import BasePicker from '@/shared/components/BasePicker.vue'
@@ -128,24 +141,32 @@ const techDocItems = ref([])
 const opts = reactive({
   modelLines: [], bodies: [], sensorVarieties: [], sensors: [],
   ipOptions: [], exdOptions: [], bodyMaterials: [], specifiedMaterials: [],
-  imageGalleries: [],
+  imageGalleries: [], signalProfiles: [], visualIndicators: [],
 })
 
 const form = reactive({
   name: '', code: '', description: '', sorting_order: 0, is_active: true,
   model_line_id: null, body_id: null,
   sensor_variety_id: null, points: 2,
-  primary_sensor_id: null, additional_sensor_ids: [],
+  primary_sensor_id: null, signal_profile_id: null,
   ip_id: null, exd_ids: [],
   work_temp_min: -40, work_temp_max: 120,
   body_material_id: null, body_material_specified_id: null,
-  is_pneumatic: false, has_namur_interface: false, has_visual_indicator: false,
+  is_pneumatic: false, has_namur_interface: false,
+  visual_indicator_type_id: null,
   image_gallery_id: null,
   extra_params: [],
 })
 
 function extractId(v) { return v && typeof v === 'object' ? v.id : v || null }
 function extractIds(arr) { return (arr || []).map(v => typeof v === 'object' ? v.id : v) }
+
+const signalProfileOptions = computed(() =>
+  opts.signalProfiles.map(p => ({ id: p.id, name: p.name }))
+)
+const selectedSignalProfile = computed(() =>
+  opts.signalProfiles.find(p => p.id === form.signal_profile_id) || null
+)
 
 watch(() => props.item, (val) => {
   if (val) {
@@ -159,7 +180,7 @@ watch(() => props.item, (val) => {
     form.sensor_variety_id = extractId(val.sensor_variety)
     form.points = val.points || 2
     form.primary_sensor_id = extractId(val.primary_sensor)
-    form.additional_sensor_ids = extractIds(val.additional_sensor)
+    form.signal_profile_id = extractId(val.signal_profile)
     form.ip_id = extractId(val.ip)
     form.exd_ids = extractIds(val.exd) || []
     form.work_temp_min = val.work_temp_min ?? -40
@@ -168,7 +189,7 @@ watch(() => props.item, (val) => {
     form.body_material_specified_id = extractId(val.body_material_specified)
     form.is_pneumatic = !!val.is_pneumatic
     form.has_namur_interface = !!val.has_namur_interface
-    form.has_visual_indicator = !!val.has_visual_indicator
+    form.visual_indicator_type_id = extractId(val.visual_indicator_type)
     form.image_gallery_id = extractId(val.image_gallery)
     form.extra_params = Array.isArray(val.extra_params) ? val.extra_params : []
   } else {
@@ -176,11 +197,12 @@ watch(() => props.item, (val) => {
       name: '', code: '', description: '', sorting_order: 0, is_active: true,
       model_line_id: null, body_id: null,
       sensor_variety_id: null, points: 2,
-      primary_sensor_id: null, additional_sensor_ids: [],
+      primary_sensor_id: null, signal_profile_id: null,
       ip_id: null, exd_ids: [],
       work_temp_min: -40, work_temp_max: 120,
       body_material_id: null, body_material_specified_id: null,
-      is_pneumatic: false, has_namur_interface: false, has_visual_indicator: false,
+      is_pneumatic: false, has_namur_interface: false,
+      visual_indicator_type_id: null,
       image_gallery_id: null,
       extra_params: [],
     })
@@ -199,7 +221,7 @@ function getFormData() {
     sensor_variety_id: form.sensor_variety_id || null,
     points: form.points,
     primary_sensor_id: form.primary_sensor_id || null,
-    additional_sensor: form.additional_sensor_ids,
+    signal_profile_id: form.signal_profile_id || null,
     ip_id: form.ip_id || null,
     exd: form.exd_ids,
     image_gallery_id: form.image_gallery_id || null,
@@ -210,7 +232,7 @@ function getFormData() {
     body_material_specified_id: form.body_material_specified_id || null,
     is_pneumatic: form.is_pneumatic,
     has_namur_interface: form.has_namur_interface,
-    has_visual_indicator: form.has_visual_indicator,
+    visual_indicator_type_id: form.visual_indicator_type_id || null,
     extra_params: form.extra_params,
   }
 }
@@ -255,16 +277,22 @@ watch(() => props.item, (val) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  const [ml, bd, sv, sn, ip, ex, bm, sm, ig] = await Promise.all([
+  const [ml, bd, sv, sn, ip, ex, bm, sm, ig, vi] = await Promise.all([
     refsApi.modelLines(), refsApi.bodies(), refsApi.sensorVarieties(),
     refsApi.sensors(), refsApi.ipOptions(), refsApi.exdOptions(),
     refsApi.bodyMaterials(), refsApi.specifiedMaterials(),
     api.get('/core/', { params: { model: 'media_library.ImageGallerySet', fmt: 'compact', limit: 200 } }).then(r => (r.data?.data || [])),
+    refsApi.visualIndicators(),
   ])
   opts.modelLines = ml; opts.bodies = bd; opts.sensorVarieties = sv
   opts.sensors = sn; opts.ipOptions = ip; opts.exdOptions = ex
   opts.bodyMaterials = bm; opts.specifiedMaterials = sm
   opts.imageGalleries = ig.map(g => ({ id: g.id, name: g.name || g.code || `#${g.id}` }))
+  opts.visualIndicators = vi
+  try {
+    const sp = await api.get('/pa-controls/signal-profiles/')
+    opts.signalProfiles = Array.isArray(sp.data) ? sp.data : (sp.data?.data || [])
+  } catch (e) { opts.signalProfiles = [] }
   ready.value = true
 })
 </script>
@@ -291,4 +319,16 @@ onMounted(async () => {
 .lsf-media-label { font-weight: 500; font-size: 13px; color: #374151; }
 .btn-new { padding: 4px 14px; background: #2563eb; color: #fff; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; }
 .btn-new:hover { background: #1d4ed8; }
+.lsf-profile { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 10px; background: #f9fafb; }
+.lsf-profile-head { font-size: 13px; font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 8px; }
+.lsf-profile-code { font-size: 11px; color: #6b7280; font-weight: 400; }
+.lsf-profile-entries { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.lsf-profile-row { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1.6fr); gap: 8px; font-size: 12px; align-items: baseline; }
+.lsf-role { color: #374151; }
+.lsf-comp { color: #6b7280; }
+.lsf-dir { font-size: 10px; padding: 1px 6px; border-radius: 10px; background: #e5e7eb; color: #374151; white-space: nowrap; }
+.lsf-dir.dir-output { background: #dbeafe; color: #1d4ed8; }
+.lsf-dir.dir-input { background: #fef3c7; color: #92400e; }
+.lsf-dir.dir-bidirectional { background: #ede9fe; color: #5b21b6; }
+.lsf-empty { font-size: 12px; color: #9ca3af; margin-top: 4px; }
 </style>

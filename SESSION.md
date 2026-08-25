@@ -1,6 +1,59 @@
-# SESSION.md — Состояние и план (2026-08-24)
+# SESSION.md — Состояние и план
 
-## СЕССИЯ 2026-08-24: Мастер подбора — починка и доработки (НЕ закоммичено)
+## СЕССИЯ 2026-08-25: БКВ — профили сигналов, визуальные индикаторы; модели позиционеров (ветка office-work, НЕ закоммичено)
+
+### БКВ (pa_controls.LimitSwitchBox)
+- Добавлен FK `signal_profile → params.ControlUnitSignalProfile` (миграция 0036).
+  Роль `OUTPUT_WAY_SWITCH_X2` «Вых. 2 промежуточных положения (2 датчика)» — params/0069.
+- Перенос данных: команда `pa_controls/management/commands/backfill_lsb_signal_profiles.py`
+  (dry-run по умолчанию, `--apply`, `--force`, идемпотентна). Итог: **22 профиля** с кодами по
+  артикулам ЯМАЛ/УРАЛ (2M1, 2D0, 2N4/2N5/2N7/2N8, 2R8/2R9, 2E0/2E5, 3M1…4R9), **58 записей**,
+  все 99 коробок привязаны. Дубль (трансмиттер+NAMUR) слит — коробки 91/92/93 → 2E5.
+- Описания: плейсхолдер `{signal_profile_summary}` («Вых. Открыто — SPDT; … Датчик: <полная
+  характеристика>»), баг «датчика датчика» починен (default-шаблоны + 4 серии ЯМАЛ/УРАЛ/APL/АМУР
+  + `core_equipmenttype.title_template` для lsb), в конце описания «Сигналы: …».
+- Карточка: секция «Характеристики» из двух блоков — «Сигналы обратной связи» (роль: маркер)
+  и «Датчики» (уникальные датчики с полной характеристикой, без привязки к ролям).
+- Поиск/фильтры: fd_signal_type переведён на `signal_profile__entries__sensor__signal_type`;
+  `distinct()` после JOIN-фильтров добавлен в `smart_catalog_mixin.apply_filters_and_split`,
+  `BaseQuickSelectView` и `QuestionGraphResultsView` (core). Правило configurator `way_points`
+  (directional, direction=max → points >= 3) для запросов «промежуточное положение».
+- Визуальные индикаторы: справочник `VisualIndicatorType` (0037 + 3 записи DOME-*), FK на коробку
+  (0038, флаг has_visual_indicator удалён), разметка по сериям (ЯМАЛ/УРАЛ/АМУР — GREEN-RED, APL —
+  BLACK-RED), фильтр `fd_visual_indicator` во всех наборах + QUICKSELECT_FILTERS, фронт-форма.
+- `additional_sensor` удалён (0041): методы/плейсхолдеры/tv/префетчи/админка/фронт вычищены.
+- Копирование: `CopyMixin` больше не копирует OneToOne `sku` (core/models/mixins.py),
+  `LimitSwitchBox.copy()` перебирает «Копия 2/3…» при конфликте кода и подчищает сирот.
+- Правки БКВ-фильтра сигналов затрагивают общий движок (см. выше) — тесты каталогов зелёные.
+
+### Позиционеры (новое)
+- `pa_controls/models/posi_options.py` — справочники: ActingType (LINEAR/ROTARY),
+  LeverOption (6 рычагов), SmartCapabilityOption (16, seed по Tissin TS700 / Emerson DVC6200 /
+  Siemens PS2 + NONE), SmartCapabilitySet (4 набора: SMART-NONE, TISSIN-TS700, SIEMENS-PS2,
+  EMERSON-DVC6200). Seed-константы SMART_CAPABILITY_SEED / SMART_CAPABILITY_SET_SEED.
+- `pa_controls/models/posi_model_line.py` — PosiModelLine (material/weight/DA-SR/давления/
+  exd-M2M/смарт-набор/шаблоны) + 8 through-опций серии (acting_type, КВ, пневмо-резьба,
+  пневмоприсоединение, рычаг, температура, профиль сигналов, тревога=профиль).
+- `pa_controls/models/positioner_item.py` — PosiModelLineItem: FK-опции, наследование из серии
+  (материал/вес/давления/пневмопривод/смарт-набор), дефолтный профиль POS-STD-4-20
+  (вход 4-20 мА, data-миграция 0040) подставляется в save().
+- Миграции 0039 (схема) + 0040 (seed: справочники, наборы, POS-STD-4-20 с ролью INPUT_POSITION →
+  CU_AI_4_20MA_PASSIVE). Админка `pa_controls/admin/positioner_admin.py` (справочники, серия
+  с 8 inline, item; autocomplete/raw_id по наличию search_fields у целевых админок).
+- Удалено устаревшее/неиспользуемое: `LsbModelLineItem` (0042 DeleteModel, 0 записей, нигде не
+  использовался) и `pa_controls/models/positioner.py` (полностью закомментированное наследие).
+- Докстринги всех новых моделей расширены.
+
+### Осталось
+- Каталоги/вьюхи/фильтры позиционера (FILTER_DEFINITIONS, CatalogConfig, views, фронт) — согласовать.
+- Визуальный осмотр форм БКВ/позиционеров в браузере.
+- Закоммитить ветку office-work (14+ новых файлов, 16 изменённых).
+
+---
+
+## АРХИВ (ниже — предыдущие сессии, 2026-08-24 и ранее)
+
+# СЕССИЯ 2026-08-24: Мастер подбора — починка и доработки (НЕ закоммичено)
 
 Причина поломки: фронт-компонент `QuestionGraphWizard.vue` не умел читать формат
 узлов `params: [{title, param_name, order}]`, в котором лежали все 5 графов

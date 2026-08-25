@@ -148,7 +148,7 @@ fd_brand = FilterDefinition(
 
 fd_signal_type = FilterDefinition(
     param_name='signal_type_id',
-    model_field='primary_sensor__signal_type',
+    model_field='signal_profile__entries__sensor__signal_type',
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Тип сигнала',
@@ -165,10 +165,19 @@ fd_contact_form = FilterDefinition(
     show_code=True,
 )
 
+fd_visual_indicator = FilterDefinition(
+    param_name='visual_indicator_type_id',
+    model_field='visual_indicator_type',
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    label='Вид визуального индикатора',
+    order=4,
+)
+
 LIMIT_SWITCH_FILTER_DEFINITIONS = [
     fd_model_line, fd_sensor_variety, fd_points,
     fd_ip, fd_temp_min, fd_temp_max,
     fd_body_material, fd_brand,
-    fd_signal_type, fd_contact_form,
+    fd_signal_type, fd_contact_form, fd_visual_indicator,
     fd_exd,
 ]

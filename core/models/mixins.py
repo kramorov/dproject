@@ -1634,6 +1634,10 @@ class CopyMixin:
                 else:
                     setattr(copied_obj, field_name, None)
 
+            # OneToOne на SKU не копируем — sync_sku() пересоздаст привязку
+            elif field_name == 'sku':
+                setattr(copied_obj, field_name, None)
+
             # Копируем остальные поля
             else:
                 value = getattr(self, field_name)

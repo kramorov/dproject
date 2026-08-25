@@ -5,7 +5,7 @@ from django.contrib import messages
 from core.models.mixins import AdminCopyMixin
 
 from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactState, ContactForm, LimitSwitchBody, PointsOption, \
-    SensorComponent
+    SensorComponent, VisualIndicatorType
 from pa_controls.models.limit_switch import LimitSwitchBox
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 
@@ -231,18 +231,18 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'model_line', 'body', 'sensor_variety',
-        'points_option', 'ip',
+        'points_option', 'ip', 'signal_profile',
     ]
     list_filter = [
          'code','sensor_variety',  'model_line',
-        'ip', 'points_option', 'body',
+        'ip', 'points_option', 'body', 'signal_profile',
     ]
     search_fields = ['name', 'code', ]
     list_editable = ['code', 'model_line', 'body','sensor_variety',]
-    autocomplete_fields = ['points_option', 'body', 'model_line']
+    autocomplete_fields = ['points_option', 'body', 'model_line', 'signal_profile', 'visual_indicator_type']
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes','regenerate_from_templates']
-    filter_horizontal = ['additional_sensor', 'exd']
+    filter_horizontal = ['exd']
     # raw_id_fields = ['images', 'tech_docs']
 
 
@@ -261,10 +261,10 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
             'fields': (('body_material', 'body_material_specified'), 'body')
         }),
         (_('Датчики') , {
-            'fields' : ('primary_sensor' , 'additional_sensor')
+            'fields' : ('primary_sensor' , 'signal_profile')
         }) ,
         (_('Дополнительные опции'), {
-            'fields': (('is_pneumatic', 'has_namur_interface', 'has_visual_indicator'),)
+            'fields': (('is_pneumatic', 'has_namur_interface', 'visual_indicator_type'),)
         }),
         (_('Изображения и технички'), {
             'fields': ('image_gallery',),
@@ -292,6 +292,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related(
             'model_line', 'sensor_variety', 'ip',
             'body_material', 'body_material_specified', 'body', 'primary_sensor',
+            'signal_profile', 'visual_indicator_type',
         )
 
     def get_exd_display(self, obj):
@@ -366,4 +367,13 @@ class PointsOptionAdmin(admin.ModelAdmin):
     list_filter = ['is_active']
     search_fields = ['name', 'code']
     list_editable = ['sorting_order', 'is_active']
+    ordering = ['sorting_order', 'code']
+
+
+@admin.register(VisualIndicatorType)
+class VisualIndicatorTypeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'sorting_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'code']
+    list_editable = ['code', 'sorting_order', 'is_active']
     ordering = ['sorting_order', 'code']
