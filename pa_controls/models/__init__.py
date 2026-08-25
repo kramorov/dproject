@@ -8,6 +8,7 @@ from .pa_control_mounting import PaControlMountingStandard
 from .visual_indicator import VisualIndicatorType
 from .posi_options import ActingType, LeverOption, SmartCapabilityOption, SmartCapabilitySet
 from .posi_model_line import PosiModelLine
+from .posi_body_connections import PosiBodyConnections
 from .positioner_item import PosiModelLineItem
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     'SmartCapabilitySet',
     'PosiModelLine',
     'PosiModelLineItem',
+    'PosiBodyConnections',
 ]

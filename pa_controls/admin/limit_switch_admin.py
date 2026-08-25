@@ -159,7 +159,7 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
 
 @admin.register(LimitSwitchModelLine)
 class LimitSwitchModelLineAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'producer', 'brand', 'sorting_order', 'is_active']
+    list_display = ['name', 'code', 'brand', 'sorting_order', 'is_active']
     list_filter = ['is_active', 'producer', 'brand']
     list_editable = ['sorting_order', 'is_active']
     search_fields = ['name', 'code']

@@ -12,6 +12,7 @@ from .positioner_admin import (
     SmartCapabilitySetAdmin,
     PosiModelLineAdmin,
     PosiModelLineItemAdmin,
+    PosiBodyConnectionsAdmin,
 )
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     'SmartCapabilitySetAdmin',
     'PosiModelLineAdmin',
     'PosiModelLineItemAdmin',
+    'PosiBodyConnectionsAdmin',
 ]
 

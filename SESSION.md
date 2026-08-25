@@ -1,6 +1,6 @@
 # SESSION.md — Состояние и план
 
-## СЕССИЯ 2026-08-25: БКВ — профили сигналов, визуальные индикаторы; модели позиционеров (ветка office-work, НЕ закоммичено)
+## СЕССИЯ 2026-08-25: БКВ — профили сигналов, визуальные индикаторы; позиционеры — PosiBodyConnections, рычаги, Ex-ограничения, копирование (ветка office-work, НЕ закоммичено)
 
 ### БКВ (pa_controls.LimitSwitchBox)
 - Добавлен FK `signal_profile → params.ControlUnitSignalProfile` (миграция 0036).
@@ -26,28 +26,37 @@
   `LimitSwitchBox.copy()` перебирает «Копия 2/3…» при конфликте кода и подчищает сирот.
 - Правки БКВ-фильтра сигналов затрагивают общий движок (см. выше) — тесты каталогов зелёные.
 
-### Позиционеры (новое)
-- `pa_controls/models/posi_options.py` — справочники: ActingType (LINEAR/ROTARY),
-  LeverOption (6 рычагов), SmartCapabilityOption (16, seed по Tissin TS700 / Emerson DVC6200 /
-  Siemens PS2 + NONE), SmartCapabilitySet (4 набора: SMART-NONE, TISSIN-TS700, SIEMENS-PS2,
-  EMERSON-DVC6200). Seed-константы SMART_CAPABILITY_SEED / SMART_CAPABILITY_SET_SEED.
-- `pa_controls/models/posi_model_line.py` — PosiModelLine (material/weight/DA-SR/давления/
-  exd-M2M/смарт-набор/шаблоны) + 8 through-опций серии (acting_type, КВ, пневмо-резьба,
-  пневмоприсоединение, рычаг, температура, профиль сигналов, тревога=профиль).
-- `pa_controls/models/positioner_item.py` — PosiModelLineItem: FK-опции, наследование из серии
-  (материал/вес/давления/пневмопривод/смарт-набор), дефолтный профиль POS-STD-4-20
-  (вход 4-20 мА, data-миграция 0040) подставляется в save().
-- Миграции 0039 (схема) + 0040 (seed: справочники, наборы, POS-STD-4-20 с ролью INPUT_POSITION →
-  CU_AI_4_20MA_PASSIVE). Админка `pa_controls/admin/positioner_admin.py` (справочники, серия
-  с 8 inline, item; autocomplete/raw_id по наличию search_fields у целевых админок).
-- Удалено устаревшее/неиспользуемое: `LsbModelLineItem` (0042 DeleteModel, 0 записей, нигде не
-  использовался) и `pa_controls/models/positioner.py` (полностью закомментированное наследие).
-- Докстринги всех новых моделей расширены.
+### Позиционеры (дополнено в этой сессии: присоединения корпуса, рычаги, Ex, копирование)
+- `pa_controls/models/posi_body_connections.py` (новый файл) — PosiBodyConnections: thread_in/
+  thread_out (FK params.ThreadSize) + cable_gland_hole (FK params.ThreadSize, одно отверстие КВ).
+- `posi_model_line.py` — три старые опции (отверстия КВ, пневмо-резьба, пневмоприсоединение)
+  заменены одной PosiBodyConnectionOption (model_line + body_connection + encoding/is_default);
+  флаги only_non_ex «только общепром» на PosiBodyConnectionOption, PosiTemperatureOption,
+  PosiSignalProfileOption (миграция 0049).
+- `positioner_item.py` — item: FK body_connection вместо cable_glands_holes / pneumatic_connection /
+  pneumatic_connection_thread (миграция 0047); шаблоны и сериализация обновлены ({body_connection});
+  clean() + переиспользуемый get_ex_only_conflicts(): рычаг ↔ тип позиционера, Ex → запрет опций
+  с only_non_ex (профиль/корпус/температура). Метод готов для конфигуратора (не подключён).
+- `posi_options.py` — LeverOption: acting_type FK (LINEAR/ROTARY) + stroke_min/stroke_max мм вместо
+  length_mm (миграция 0048 с data-переносом); clean(): ход штока только для линейного типа.
+- Копирование серии: action «Копировать серии со всеми опциями» в PosiModelLineAdmin
+  (copy_posi_model_line + _copy_posi_options): все поля (JSON deepcopy), M2M (exd/техдоки/сертификаты/
+  галерея), все through-опции с кодировками, name/code + «(Копия)». Проверено тестом.
+- Датчики и профили обратной связи (data-миграция 0050): датчики Tissin POSI-PT-420
+  (трансмиттер 4-20мА, TRANS/ANALOG/NONE) и POSI-LS-SPDT (MECH/DRY/SPDT/CO); 9 профилей
+  POSI-TS-* (вход INPUT_POSITION→CU_AI_4_20MA_PASSIVE + обратная связь: PT через
+  OUTPUT_CURRENT_POSITION, HART через HART_POS→HART, LS через OUTPUT_OPEN/CLOSE→SPDT;
+  Ex-варианты — отдельными кодами, датчики те же). Пункты 1 и 4 каталога объединены в POSI-TS-PT.
+- Миграции 0043–0050 применены к db.sqlite3; check и makemigrations --check — чисто;
+  БКВ (limit_switch/lsb_body) и ЭП не затронуты.
 
 ### Осталось
+- Данные серии TS900 (в админке): проставить флаги only_non_ex — обратная связь 1/2/4/7 (PT/HART),
+  High temperature -20…120°C, Ex-несовместимые корпуса; решить про флаг профиля №3 (HART+PT).
+- Конфигуратор: использовать get_ex_only_conflicts()/флаги only_non_ex (метод готов, не подключён).
 - Каталоги/вьюхи/фильтры позиционера (FILTER_DEFINITIONS, CatalogConfig, views, фронт) — согласовать.
 - Визуальный осмотр форм БКВ/позиционеров в браузере.
-- Закоммитить ветку office-work (14+ новых файлов, 16 изменённых).
+- Закоммитить ветку office-work (9 modified + 9 untracked: миграции 0043–0050 + posi_body_connections.py).
 
 ---
 

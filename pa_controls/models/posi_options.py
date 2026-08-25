@@ -62,16 +62,18 @@ class ActingType(models.Model):
 
 
 class LeverOption(models.Model):
-    """Длина и тип рычага позиционера.
+    """Рычаг позиционера: тип (линейный/ротационный) + диапазон хода штока.
 
     Справочник опций. Использование:
       - PosiModelLine через PosiLeverOption (разрешённые рычаги серии, encoding);
       - PosiModelLineItem.lever — выбранный рычаг для модели.
 
-    length_mm — длина в миллиметрах (у вращающихся может быть пустой, например NAMUR).
+    acting_type — тип позиционера (линейный или ротационный).
+    stroke_min_mm / stroke_max_mm — мин. и макс. ход штока в миллиметрах
+    (у ротационных может быть пустой, например NAMUR или вилочковый M6).
 
-    Стартовые записи: Линейный 10~/40~/70~/100~, Вращающийся M6×39L (Вилочковый),
-    Вращающийся NAMUR.
+    Стартовые записи: Линейный 10~80, Линейный 40~/70~/100~,
+    Вращающийся M6×39L (Вилочковый), Вращающийся NAMUR.
     """
     name = models.CharField(
         max_length=200,
@@ -83,11 +85,24 @@ class LeverOption(models.Model):
         verbose_name=_("Код"),
         help_text=_("Уникальный код, например LEVER-100-STRAIGHT")
     )
-    length_mm = models.DecimalField(
+    acting_type = models.ForeignKey(
+        ActingType,
+        on_delete=models.PROTECT,
+        related_name='lever_options',
+        verbose_name=_("Тип позиционера"),
+        help_text=_("Линейный или ротационный")
+    )
+    stroke_min_mm = models.DecimalField(
         max_digits=6, decimal_places=1,
         null=True, blank=True,
-        verbose_name=_("Длина, мм"),
-        help_text=_("Длина рычага в миллиметрах")
+        verbose_name=_("Мин. ход штока, мм"),
+        help_text=_("Минимальный ход штока в миллиметрах (только для линейного типа)")
+    )
+    stroke_max_mm = models.DecimalField(
+        max_digits=6, decimal_places=1,
+        null=True, blank=True,
+        verbose_name=_("Макс. ход штока, мм"),
+        help_text=_("Максимальный ход штока в миллиметрах (только для линейного типа)")
     )
     description = models.TextField(
         blank=True,
@@ -108,10 +123,24 @@ class LeverOption(models.Model):
     class Meta:
         verbose_name = _("Рычаг позиционера")
         verbose_name_plural = _("Рычаги позиционеров")
-        ordering = ['length_mm', 'sorting_order', 'code']
+        ordering = ['acting_type', 'stroke_min_mm', 'sorting_order', 'code']
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        """Валидация: мин./макс. ход штока задаётся только для линейного типа."""
+        from django.core.exceptions import ValidationError
+
+        if self.acting_type_id and self.acting_type.code != 'LINEAR':
+            errors = {}
+            if self.stroke_min_mm is not None:
+                errors['stroke_min_mm'] = _('Ход штока имеет смысл только для линейного типа.')
+            if self.stroke_max_mm is not None:
+                errors['stroke_max_mm'] = _('Ход штока имеет смысл только для линейного типа.')
+            if errors:
+                raise ValidationError(errors)
+        super().clean()
 
 
 class SmartCapabilityOption(models.Model):

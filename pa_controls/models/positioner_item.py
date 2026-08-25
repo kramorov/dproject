@@ -34,8 +34,7 @@ class PosiModelLineItem(CatalogDictMixin,
     и описаний, сериализация для каталога (to_dict/to_values_dict).
 
     Выбранные опции — FK-полями (варианты из through-моделей серии):
-      acting_type, exd, cable_glands_holes (резьба КВ),
-      pneumatic_connection + pneumatic_connection_thread (пневмо),
+      acting_type, exd, body_connection (присоединения корпуса),
       lever (рычаг), alarm и signal_profile (профили сигналов), ip.
 
     Наследование из серии:
@@ -79,21 +78,11 @@ class PosiModelLineItem(CatalogDictMixin,
                             blank=True, null=True, on_delete=models.SET_NULL,
                             help_text=_('Степень взрывозащиты'),
                             verbose_name=_("Взрывозащита"))
-    cable_glands_holes = models.ForeignKey(
-        'electric_actuators.CableGlandHolesSet', related_name='positioner_items',
+    body_connection = models.ForeignKey(
+        'pa_controls.PosiBodyConnections', related_name='positioner_items',
         blank=True, null=True, on_delete=models.SET_NULL,
-        help_text=_('Резьба под кабельные вводы'),
-        verbose_name=_("Отверстия КВ"))
-    pneumatic_connection = models.ForeignKey(
-        'params.PneumaticConnection', related_name='positioner_items',
-        blank=True, null=True, on_delete=models.SET_NULL,
-        help_text=_('Тип пневмоприсоединения'),
-        verbose_name=_("Пневмоприсоединение"))
-    pneumatic_connection_thread = models.ForeignKey(
-        'params.ThreadSize', related_name='positioner_items',
-        blank=True, null=True, on_delete=models.SET_NULL,
-        help_text=_('Резьба под пневмоприсоединение'),
-        verbose_name=_("Резьба пневмовыхода"))
+        help_text=_('Присоединения корпуса: резьбы пневмовхода/выхода и отверстие КВ'),
+        verbose_name=_("Присоединения корпуса"))
     lever = models.ForeignKey(LeverOption, related_name='positioner_items',
                               blank=True, null=True, on_delete=models.SET_NULL,
                               help_text=_('Длина и тип рычага'),
@@ -147,6 +136,81 @@ class PosiModelLineItem(CatalogDictMixin,
     def get_brand_for_sku(self):
         return self.model_line.brand if self.model_line else None
 
+    def clean(self):
+        """Валидация опций item.
+
+        - рычаг должен соответствовать типу позиционера;
+        - варианты с флагом «Только общепром» запрещены при взрывозащите.
+        """
+        from django.core.exceptions import ValidationError
+
+        errors = {}
+        if (self.acting_type_id and self.lever_id
+                and self.lever.acting_type_id
+                and self.lever.acting_type_id != self.acting_type_id):
+            errors['lever'] = _('Рычаг не соответствует типу позиционера: '
+                                'для линейного нужен линейный рычаг, '
+                                'для ротационного — ротационный.')
+        for conflict in self.get_ex_only_conflicts():
+            errors.setdefault(conflict['field'], conflict['message'])
+        if errors:
+            raise ValidationError(errors)
+        super().clean()
+
+    def get_ex_only_conflicts(self) -> list:
+        """Конфликты «Только общепром» при выбранной взрывозащите.
+
+        Если у item выбрана взрывозащита (exd с непустым code — у строки
+        «общепром» code пустой), проверяет through-опции серии с флагом
+        only_non_ex: профиль обратной связи, присоединения корпуса,
+        температурное исполнение.
+
+        Возвращает список конфликтов: [{'field': ..., 'message': ...}].
+        Используется clean() (админка/формы) и может вызываться
+        конфигуратором/API напрямую.
+        """
+        if not (self.exd_id and self.exd and self.exd.code):
+            return []
+
+        conflicts = []
+        if self.signal_profile_id and self.model_line_id:
+            if self.model_line.signal_profile_options.filter(
+                signal_profile_id=self.signal_profile_id,
+                only_non_ex=True,
+            ).exists():
+                conflicts.append({
+                    'field': 'signal_profile',
+                    'message': _('Выбранный профиль обратной связи доступен '
+                                 'только в общепромышленном исполнении.'),
+                })
+
+        if self.body_connection_id and self.model_line_id:
+            if self.model_line.body_connection_options.filter(
+                body_connection_id=self.body_connection_id,
+                only_non_ex=True,
+            ).exists():
+                conflicts.append({
+                    'field': 'body_connection',
+                    'message': _('Выбранные присоединения корпуса доступны '
+                                 'только в общепромышленном исполнении.'),
+                })
+
+        if (self.model_line_id
+                and self.work_temp_min is not None
+                and self.work_temp_max is not None):
+            if self.model_line.temperature_options.filter(
+                work_temp_min=self.work_temp_min,
+                work_temp_max=self.work_temp_max,
+                only_non_ex=True,
+            ).exists():
+                conflicts.append({
+                    'field': 'work_temp_min',
+                    'message': _('Выбранное температурное исполнение доступно '
+                                 'только в общепромышленном варианте.'),
+                })
+
+        return conflicts
+
     def save(self, *args, **kwargs):
         # Для всех моделей по умолчанию — входной 4-20 мА (стандартный профиль)
         if not self.signal_profile_id and not kwargs.get('skip_default_signal_profile'):
@@ -169,15 +233,14 @@ class PosiModelLineItem(CatalogDictMixin,
 
     def _get_default_name_template(self) -> str:
         return ("{model_code} Позиционер {brand}, {acting_type}; {exd}; "
-                "Т.окр. {work_temp_min}..{work_temp_max} °С; КВ: {cable_glands_holes}; "
-                "Пневмо: {pneumatic_connection} {pneumatic_connection_thread}; Рычаг: {lever}; "
+                "Т.окр. {work_temp_min}..{work_temp_max} °С; Присоединения: {body_connection}; "
+                "Рычаг: {lever}; "
                 "Материал корпуса: {body_material}")
 
     def _get_default_description_template(self) -> str:
         return ("{model_code} Позиционер {brand}, {acting_type}; {exd}; {ip}; "
                 "Т.окр. {work_temp_min}..{work_temp_max} °С; "
-                "Отверстия КВ: {cable_glands_holes}; "
-                "Пневмоприсоединение: {pneumatic_connection} {pneumatic_connection_thread}; "
+                "Присоединения корпуса: {body_connection}; "
                 "Рычаг: {lever}; Материал корпуса: {body_material}, вес {weight} кг; "
                 "Питание: {supply_pressure_range} бар; "
                 "Пневмопривод: {actuator_action}; "
@@ -194,9 +257,7 @@ class PosiModelLineItem(CatalogDictMixin,
             '{acting_type}': 'acting_type',
             '{exd}': 'exd',
             '{ip}': 'ip',
-            '{cable_glands_holes}': 'cable_glands_holes',
-            '{pneumatic_connection}': 'pneumatic_connection',
-            '{pneumatic_connection_thread}': 'pneumatic_connection_thread',
+            '{body_connection}': 'body_connection',
             '{lever}': 'lever',
             '{alarm}': 'alarm',
             '{body_material}': 'get_body_material',
@@ -290,9 +351,7 @@ class PosiModelLineItem(CatalogDictMixin,
             'acting_type': self.acting_type.name if self.acting_type else '',
             'exd': self.exd.name if self.exd else '',
             'ip': self.ip.name if self.ip else '',
-            'cable_glands_holes': self.cable_glands_holes.name if self.cable_glands_holes_id else '',
-            'pneumatic_connection': self.pneumatic_connection.name if self.pneumatic_connection_id else '',
-            'pneumatic_connection_thread': self.pneumatic_connection_thread.name if self.pneumatic_connection_thread_id else '',
+            'body_connection': self.body_connection.name if self.body_connection_id else '',
             'lever': self.lever.name if self.lever else '',
             'alarm': self.alarm.name if self.alarm else '',
             'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
@@ -348,16 +407,12 @@ class PosiModelLineItem(CatalogDictMixin,
                         {
                             'key': 'connections', 'title': 'Присоединения', 'order': 2,
                             'fields': [
-                                {'key': 'cable_glands_holes', 'label': 'Отверстия КВ', 'value': tv['cable_glands_holes'],
+                                {'key': 'body_connection', 'label': 'Присоединения корпуса', 'value': tv['body_connection'],
                                  'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'pneumatic_connection', 'label': 'Пневмоприсоединение',
-                                 'value': tv['pneumatic_connection'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'pneumatic_connection_thread', 'label': 'Резьба пневмовыхода',
-                                 'value': tv['pneumatic_connection_thread'], 'unit': '', 'type': 'text', 'order': 3},
                                 {'key': 'lever', 'label': 'Рычаг', 'value': tv['lever'],
-                                 'unit': '', 'type': 'text', 'order': 4},
+                                 'unit': '', 'type': 'text', 'order': 2},
                                 {'key': 'supply_pressure', 'label': 'Давление питания', 'value': tv['supply_pressure'],
-                                 'unit': 'бар', 'type': 'text', 'order': 5},
+                                 'unit': 'бар', 'type': 'text', 'order': 3},
                             ]
                         },
                         {

@@ -9,10 +9,8 @@
 
 Опции:
     PosiActingTypeOption          — тип действия (линейный/ротационный)
-    PosiCableGlandHolesOption     — резьба под кабельные вводы
-    PosiPneumaticThreadOption     — резьба под пневмоприсоединение
-    PosiPneumaticConnectionOption — тип пневмоприсоединения
-    PosiLeverOption               — длина и тип рычага
+    PosiBodyConnectionOption      — присоединения корпуса (резьбы пневмовхода/выхода + отверстие КВ)
+    PosiLeverOption               — рычаг (тип + диапазон хода штока)
     PosiTemperatureOption         — температурное исполнение (мин/макс)
     PosiSignalProfileOption       — профиль сигналов (обратная связь)
     PosiAlarmOption               — сигнал тревоги (профиль сигналов с ролью «Авария»)
@@ -31,9 +29,7 @@ from materials.models import MaterialGeneral
 from options.models import (
     BaseThroughOption,
     BaseTemperatureThroughOption,
-    CableGlandHolesSetThroughOption,
 )
-from params.models import ThreadSizeThroughOption
 
 from .posi_options import ActingType, LeverOption, SmartCapabilitySet
 
@@ -185,82 +181,45 @@ class PosiActingTypeOption(BaseThroughOption):
         return f"{self.model_line} → {self.acting_type} ({self.encoding})"
 
 
-class PosiCableGlandHolesOption(CableGlandHolesSetThroughOption):
-    """Резьба под кабельные вводы, разрешённая для серии.
+class PosiBodyConnectionOption(BaseThroughOption):
+    """Присоединения корпуса, разрешённые для серии.
 
-    Наследует CableGlandHolesSetThroughOption (FK cg_set на набор отверстий КВ).
+    Связывает серию со справочником PosiBodyConnections (резьбы
+    пневмовхода/выхода + отверстие под кабельный ввод). Заменяет
+    PosiPneumaticThreadOption, PosiPneumaticConnectionOption и
+    PosiCableGlandHolesOption.
+
+    only_non_ex — вариант доступен только в общепромышленном исполнении
+    (запрещён при выборе взрывозащиты).
     """
     model_line = models.ForeignKey(
         PosiModelLine, on_delete=models.CASCADE,
-        related_name='cable_glands_holes_options',
+        related_name='body_connection_options',
         verbose_name=_("Серия позиционеров")
+    )
+    body_connection = models.ForeignKey(
+        'pa_controls.PosiBodyConnections', on_delete=models.CASCADE,
+        related_name='model_line_options',
+        verbose_name=_("Присоединения корпуса")
+    )
+    only_non_ex = models.BooleanField(
+        default=False,
+        verbose_name=_("Только общепром"),
+        help_text=_('Вариант недоступен при выборе взрывозащиты')
     )
 
     class Meta:
-        verbose_name = _("Отверстия КВ для серии позиционеров")
-        verbose_name_plural = _("Отверстия КВ для серий позиционеров")
+        verbose_name = _("Присоединения корпуса для серии позиционеров")
+        verbose_name_plural = _("Присоединения корпусов для серий позиционеров")
         ordering = ['is_default', 'sorting_order']
+        unique_together = ['model_line', 'body_connection']
 
     @classmethod
     def _get_parent_field_name(cls):
         return 'model_line'
 
     def __str__(self):
-        return f"{self.model_line} → {self.cg_set} ({self.encoding})"
-
-
-class PosiPneumaticThreadOption(ThreadSizeThroughOption):
-    """Резьба под пневмоприсоединение, разрешённая для серии.
-
-    Наследует ThreadSizeThroughOption (FK thread_size на params.ThreadSize).
-    """
-    model_line = models.ForeignKey(
-        PosiModelLine, on_delete=models.CASCADE,
-        related_name='pneumatic_thread_options',
-        verbose_name=_("Серия позиционеров")
-    )
-
-    class Meta:
-        verbose_name = _("Резьба пневмоприсоединения для серии позиционеров")
-        verbose_name_plural = _("Резьбы пневмоприсоединения для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'thread_size']
-
-    @classmethod
-    def _get_parent_field_name(cls):
-        return 'model_line'
-
-    def __str__(self):
-        return f"{self.model_line} → {self.thread_size} ({self.encoding})"
-
-
-class PosiPneumaticConnectionOption(BaseThroughOption):
-    """Тип пневмоприсоединения, разрешённый для серии (params.PneumaticConnection).
-
-    Пара с PosiPneumaticThreadOption: тип + резьба пневмовыхода.
-    """
-    model_line = models.ForeignKey(
-        PosiModelLine, on_delete=models.CASCADE,
-        related_name='pneumatic_connection_options',
-        verbose_name=_("Серия позиционеров")
-    )
-    pneumatic_connection = models.ForeignKey(
-        'params.PneumaticConnection', on_delete=models.CASCADE,
-        verbose_name=_("Пневмоприсоединение")
-    )
-
-    class Meta:
-        verbose_name = _("Пневмоприсоединение для серии позиционеров")
-        verbose_name_plural = _("Пневмоприсоединения для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'pneumatic_connection']
-
-    @classmethod
-    def _get_parent_field_name(cls):
-        return 'model_line'
-
-    def __str__(self):
-        return f"{self.model_line} → {self.pneumatic_connection} ({self.encoding})"
+        return f"{self.model_line} → {self.body_connection} ({self.encoding})"
 
 
 class PosiLeverOption(BaseThroughOption):
@@ -297,11 +256,19 @@ class PosiTemperatureOption(BaseTemperatureThroughOption):
 
     Диапазон хранится прямо в опции (work_temp_min/work_temp_max) — как в ЭП.
     У item температура выносится полями work_temp_min/max.
+
+    only_non_ex — исполнение доступно только в общепромышленном варианте
+    (например, High temperature -20…120°C запрещено для Ex).
     """
     model_line = models.ForeignKey(
         PosiModelLine, on_delete=models.CASCADE,
         related_name='temperature_options',
         verbose_name=_("Серия позиционеров")
+    )
+    only_non_ex = models.BooleanField(
+        default=False,
+        verbose_name=_("Только общепром"),
+        help_text=_('Вариант недоступен при выборе взрывозащиты')
     )
 
     class Meta:
@@ -323,6 +290,9 @@ class PosiSignalProfileOption(BaseThroughOption):
     FK на params.ControlUnitSignalProfile: вход 4-20/HART + обратная связь.
     Для всех моделей по умолчанию подставляется POS-STD-4-20 (вход 4-20 мА) —
     см. PosiModelLineItem.save().
+
+    only_non_ex — вариант обратной связи доступен только в общепромышленном
+    исполнении (например, Position transmitter и HART запрещены для Ex).
     """
     model_line = models.ForeignKey(
         PosiModelLine, on_delete=models.CASCADE,
@@ -332,6 +302,11 @@ class PosiSignalProfileOption(BaseThroughOption):
     signal_profile = models.ForeignKey(
         'params.ControlUnitSignalProfile', on_delete=models.CASCADE,
         verbose_name=_("Профиль сигналов")
+    )
+    only_non_ex = models.BooleanField(
+        default=False,
+        verbose_name=_("Только общепром"),
+        help_text=_('Вариант недоступен при выборе взрывозащиты')
     )
 
     class Meta:
