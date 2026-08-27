@@ -412,5 +412,9 @@ class PosiExdOption(BaseThroughOption):
             })
 
     def __str__(self):
+        if self.pk is None:
+            # Удалённая/несохранённая строка: M2M-менеджер требует pk,
+            # а repr() в сообщении его ValueError рекурсивно зовёт __str__.
+            return f"{self.encoding or '—'} (удалено)"
         values = ', '.join(e.name for e in self.exd_options.all()) or '—'
         return f"{self.model_line} → {self.encoding}: {values}"

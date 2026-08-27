@@ -98,6 +98,10 @@ class EttOpenTime(models.Model):
                                          help_text='Название таблицы в документе, где описан этот параметр')
 
     def __str__(self):
+        if self.pk is None:
+            # Удалённая/несохранённая запись: M2M-менеджер требует pk,
+            # а repr() в сообщении его ValueError рекурсивно зовёт __str__.
+            return 'EttOpenTime (удалено)'
         return f'{self.mtr_type} Dn от {self.dn_from} до (включительно) {self.dn_up_to}'
 
 
