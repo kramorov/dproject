@@ -43,3 +43,6 @@ Thumbs.db
 # Test DB artifacts (раннеры делают копию db.sqlite3)
 configurator_test_db.sqlite3
 _test_db_copy.sqlite3
+
+# Codewhale agent harness state
+.codewhale/

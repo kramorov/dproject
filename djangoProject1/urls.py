@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.template.defaulttags import url
+from djangoProject1.admin_site import grouped_admin_site
 from django.urls import path, include, re_path
 
 # from media_library.urls import urlpatterns_public
@@ -34,7 +35,7 @@ from pneumatic_fittings.urls import fittings_urlpatterns, silencers_urlpatterns,
 
 urlpatterns = [
     path('api/get-url/<str:name>/', GetUrlByNameAPIView.as_view(), name='get_url_by_name'),
-    path('admin/', admin.site.urls),
+    path('admin/', grouped_admin_site.urls),
     path('api/core/', include('core.urls')),  # Универсальный API - ТОЛЬКО ЭТОТ
 path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой маршрут
     # path('api/params/', include('params.urls')),  # Включаем URL-ы из приложения params

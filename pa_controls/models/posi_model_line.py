@@ -351,3 +351,66 @@ class PosiAlarmOption(BaseThroughOption):
 
     def __str__(self):
         return f"{self.model_line} → {self.alarm} ({self.encoding})"
+
+
+class PosiExdOption(BaseThroughOption):
+    """Взрывозащита, разрешённая для серии позиционеров.
+
+    Одна строка = одна КОДИРОВКА (опция выбора), внутри — M2M видов взрывозащиты:
+      * «Общепромышленное» — строка со своим encoding (например 'R'),
+        M2M пустой (или ссылка на запись «Общепром» справочника);
+      * «Ex» — строка с encoding 'Ex', в M2M — все доступные виды Exd
+        (разная взрывозащита может делить один encoding).
+
+    Кодировка уникальна в пределах серии (валидация BaseThroughOption),
+    а виды Exd внутри кодировки перечислены M2M — поиск/фильтры по
+    конкретному виду работают через exd_options__exd_options.
+    """
+    model_line = models.ForeignKey(
+        PosiModelLine, on_delete=models.CASCADE,
+        related_name='exd_options',
+        verbose_name=_("Серия позиционеров")
+    )
+    exd_options = models.ManyToManyField(
+        'params.ExdOption',
+        blank=True,
+        related_name='posi_model_line_exd_option_rows',
+        verbose_name=_("Виды взрывозащиты")
+    )
+
+    class Meta:
+        verbose_name = _("Взрывозащита для серии позиционеров")
+        verbose_name_plural = _("Взрывозащита для серий позиционеров")
+        ordering = ['is_default', 'sorting_order']
+
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line'
+
+    def validate_unique_encoding(self) -> None:
+        """Одна строка на кодировку в пределах серии.
+
+        Базовая реализация пропускает НЕсохранённые объекты (adding) — для
+        M2M-схемы это дыра, поэтому проверяем и при создании, и при правке:
+        непустой encoding не должен повторяться в другой строке серии.
+        """
+        from django.core.exceptions import ValidationError as _ValidationError
+
+        if not (self.encoding and self.encoding.strip()):
+            return
+        parent = getattr(self, self._get_parent_field_name(), None)
+        if parent is None or getattr(parent, 'pk', None) is None:
+            return
+        existing = self.__class__.objects.filter(
+            **{self._get_parent_field_name(): parent, 'encoding': self.encoding}
+        ).exclude(pk=self.pk)
+        if existing.exists():
+            raise _ValidationError({
+                'encoding': _('Кодировка "%(encoding)s" уже используется '
+                              'в этой серии — добавьте вид в существующую строку.') % {
+                    'encoding': self.encoding}
+            })
+
+    def __str__(self):
+        values = ', '.join(e.name for e in self.exd_options.all()) or '—'
+        return f"{self.model_line} → {self.encoding}: {values}"

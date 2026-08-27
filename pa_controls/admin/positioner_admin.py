@@ -24,6 +24,7 @@ from pa_controls.models.posi_model_line import (
     PosiTemperatureOption,
     PosiSignalProfileOption,
     PosiAlarmOption,
+    PosiExdOption,
 )
 
 
@@ -37,6 +38,7 @@ POSI_MODEL_LINE_OPTION_RELATED_NAMES = [
     'temperature_options',
     'signal_profile_options',
     'alarm_options',
+    'exd_options',
 ]
 
 
@@ -237,6 +239,13 @@ class PosiAlarmOptionInline(admin.TabularInline):
     fields = ['alarm', 'encoding', 'is_default', 'sorting_order', 'is_active']
 
 
+class PosiExdOptionInline(admin.TabularInline):
+    model = PosiExdOption
+    extra = 0
+    fields = ['exd_options', 'encoding', 'is_default', 'sorting_order', 'is_active']
+    filter_horizontal = ['exd_options']
+
+
 # ── Серия ──
 
 @admin.register(PosiModelLine)
@@ -247,7 +256,7 @@ class PosiModelLineAdmin(admin.ModelAdmin):
     list_editable = ['code', 'actuator_action', 'is_active']
     autocomplete_fields = ['smart_capability_set']
     # raw_id_fields = ['brand', 'producer', 'body_material']
-    filter_horizontal = ['exd']
+    filter_horizontal = ['exd', 'tech_docs', 'cert_docs']
     ordering = ['sorting_order', 'code']
     actions = [copy_posi_model_line, 'delete_selected']
     inlines = [
@@ -257,6 +266,7 @@ class PosiModelLineAdmin(admin.ModelAdmin):
         PosiTemperatureOptionInline,
         PosiSignalProfileOptionInline,
         PosiAlarmOptionInline,
+        PosiExdOptionInline,
     ]
     fieldsets = (
         (_('Основная информация'), {
@@ -272,6 +282,9 @@ class PosiModelLineAdmin(admin.ModelAdmin):
         }),
         (_('Шаблоны'), {
             'fields': ('name_template', 'description_template'),
+        }),
+        (_('Изображения и технички'), {
+            'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
         }),
         (_('Дополнительно'), {
             'fields': ('extra_params', 'sorting_order', 'is_active'),

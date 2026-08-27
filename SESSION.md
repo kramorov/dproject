@@ -1,5 +1,71 @@
 # SESSION.md — Состояние и план
 
+## СЕССИЯ 2026-08-26: Админка — логические блоки на главной странице (НЕ закоммичено)
+
+- `djangoProject1/admin_site.py` (новый) — `GroupedAdminSite`: главная `/admin/` группирует 238 моделей
+  по 29 логическим разделам (`ADMIN_BLOCKS`: id, заголовок, описание) через словарь
+  `ADMIN_MODEL_BLOCK` (`(app_label, ObjectName)` → id раздела). Модели вне словаря попадают
+  в раздел «Новые модели» (рендерится только если непустой) — переносить вручную.
+- Реестр ModelAdmin'ов переносится из `admin.site` целиком в `grouped_admin_site` (name='admin') —
+  страницы моделей, инлайны, действия и права не меняются; меняется только индекс.
+- `templates/admin/grouped_index.html` (новый) — шаблон индекса (extends admin/base_site.html,
+  тема admin_interface сохраняется): caption раздела + описание, сайдбар recent actions.
+- `djangoProject1/urls.py` — `path('admin/', grouped_admin_site.urls)` вместо admin.site.urls.
+- Разделы: арматура, электроприводы (+опции ETT), пневмоприводы, фитинги, фильтры-регуляторы,
+  соленоидные клапаны, редукторы, кабельные вводы, БКВ, позиционеры, сигналы и профили
+  (ControlUnitSignalProfile / SignalRole / InputSignalSpec), Ex, резьбы, климатика, управление,
+  покрытия, справочники, материалы, сертификаты, медиа, бренды, цены, конфигуратор, SKU,
+  заявки, клиенты, AI, система. SmartCapability* — в позиционерах.
+- Проверено: `manage.py check` OK; 238 реестровых = 238 в словаре (stale: 0); GET /admin/ 200,
+  29 разделов, 238 строк; changelist ControlUnitSignalProfile 200; «Новые модели» появляется
+  при удалении маппинга и исчезает при восстановлении (смоук-скриптами, удалены).
+- Как добавить модель: запись в `ADMIN_MODEL_BLOCK`; новый раздел — кортеж в `ADMIN_BLOCKS`.
+- Фиксы по ревью (2026-08-26, вечер):
+  * `get_app_list` проставляет `model['origin_app']` — шаблон использует его для id/aria-describedby
+    (уникальные id: в блоке «Сертификаты» сосуществуют cert_doc.CertData и params.CertData).
+  * При переносе реестра `ModelAdmin.admin_site` переуказывается на grouped_admin_site — кастомные
+    страницы моделей (admin_view/each_context) видят сгруппированный список вместо плоского.
+  * При старте warning в лог, если в ADMIN_MODEL_BLOCK есть ключи отсутствующие в реестре.
+  * Удалены мёртвые дубли valve_data: admin.py, admin_valve_line.py, admin_valve_model_data_table.py,
+    admin_valve_model_kv_data_table.py (autodiscover импортирует пакет valve_data/admin/; корневые
+    файлы нигде не импортировались). valveline/valvemodeldatatable/valvemodelkvdatatable — 200.
+  * Удалён также легаси-модуль `valve_data/valve_series_admin.py` (старые EAV-модели, нигде
+    не импортировался, ссылок на его классы нет).
+  * Замечено (не трогал): такие же «файл admin.py + пакет admin/» есть у electric_actuators,
+    features, pneumatic_actuators — файлы там затенены пакетами.
+- Данные: добавлена роль сигнала `OUTPUT_ALARM_2` («Вых. Авария 2», output, sorting 21, id 25)
+  — для профиля POSI-TS-ALARM (id 45), которому нужны 2 одинаковых отдельных сигнала АВАРМ
+  (защита unique_together profile+signal_role обходится отдельной ролью, код не менялся).
+- Данные: создан профиль сигналов «Нет сигнала» (code `NONE`, id 46, sorting 999, БЕЗ записей)
+  — выражает отсутствие сигнала (опция «нет Аварии» и т.п.): пустой профиль, все сводки
+  корректно дают «—». Вешать через PosiAlarmOption (серия→тревога+encoding) или signal_profile.
+- Позиционеры, шаг 1 (exd-опции): новая through-модель `PosiExdOption` (posi_model_line.py,
+  миграция 0051 применена, перегенерирована): model_line + encoding/is_default/sorting/is_active
+  + **M2M exd_options → params.ExdOption** — одна строка = одна КОДИРОВКА (например 'Ex'),
+  внутри M2M — все виды Exd с этим кодом; «Общепром» — отдельная строка (например 'R')
+  с пустым M2M. validate_unique_encoding переопределён: кодировка уникальна на серию И при
+  создании (базовая проверка пропускает adding). Смоук: 'Ex'+2 вида ок, дубль 'Ex' отклонён,
+  'R' пустой ок. Инлайн PosiExdOptionInline (filter_horizontal exd_options); 'exd_options'
+  в POSI_MODEL_LINE_OPTION_RELATED_NAMES (копирование). Админка серии: добавлен fieldset
+  «Изображения и технички» (image_gallery, tech_docs, cert_docs) + filter_horizontal — как в БКВ. Старый M2M PosiModelLine.exd ПОКА
+  НЕ тронут (следующий шаг: удаление, валидация item, фильтры). ВАЖНО: в справочнике
+  ExdOption НЕТ записи «Общепромышленное» — создать при необходимости; пользователь создаёт
+  строки серий сам.
+- Медиабиблиотека, удаление фона (rembg): ОТКАЧЕНО по решению владельца (2026-08-26, вечер).
+  Вся переделка (асинхронный прогрев/поллинг, синглтон-сессия, downscale, кэш на сессии,
+  миграция image_processor 0004, эндпоинты /warm/ и /rembg-status/, правки ImageCropper.vue)
+  возвращена к состоянию git: `git checkout` 5 файлов, удалена untracked-миграция 0004,
+  `migrate image_processor 0003` (колонки bg_* удалены), frontend пересобран, check OK.
+- ЗАДАЧА НА ЗАВТРА (изображения): после отката И рестарта сервера таймаут остался — падает
+  даже на маленьких изображениях, которые обрабатывались ранее. Диагностика: модель цела
+  (u2net.onnx 167.84 МБ, pooch не перекачивает), импорт rembg в полном Django-окружении
+  (manage.py shell, 299 объектов) ~0.6с, реальный `_remove_background` 400×400 = 3.5с →
+  проблема НЕ в rembg. Подозрение: Cloud.ru (чтение оригинала/сохранение вариантов в
+  /preview/ и /crop/) или среда долгоживущего серверного процесса. Скрипт `_diag_remove.py`
+  оставлен в корне: `python manage.py shell -c "exec(open('_diag_remove.py', encoding='utf-8').read())"`
+  — прогнать в окружении сервера и сравнить время. Если и там быстро — копать хранилище
+  (file_service/Cloud.ru), иначе — серверный процесс.
+
 ## СЕССИЯ 2026-08-25: БКВ — профили сигналов, визуальные индикаторы; позиционеры — PosiBodyConnections, рычаги, Ex-ограничения, копирование (ветка office-work, НЕ закоммичено)
 
 ### БКВ (pa_controls.LimitSwitchBox)
