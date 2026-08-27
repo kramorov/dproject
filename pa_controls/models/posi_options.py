@@ -16,6 +16,8 @@ SMART_CAPABILITY_SEED — стартовое наполнение справоч
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from core.models.mixins import CopyMixin
+
 
 class ActingType(models.Model):
     """Тип действия позиционера: линейный или ротационный.
@@ -190,7 +192,7 @@ class SmartCapabilityOption(models.Model):
         return self.name
 
 
-class SmartCapabilitySet(models.Model):
+class SmartCapabilitySet(CopyMixin, models.Model):
     """Набор смарт-возможностей.
 
     Серия (PosiModelLine.smart_capability_set) и модель

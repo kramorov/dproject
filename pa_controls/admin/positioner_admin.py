@@ -8,6 +8,8 @@ from django.contrib import messages
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 
+from core.models.mixins import AdminCopyMixin
+
 from pa_controls.models import (
     ActingType,
     LeverOption,
@@ -170,7 +172,8 @@ class SmartCapabilityOptionAdmin(admin.ModelAdmin):
 
 
 @admin.register(SmartCapabilitySet)
-class SmartCapabilitySetAdmin(admin.ModelAdmin):
+class SmartCapabilitySetAdmin(AdminCopyMixin, admin.ModelAdmin):
+    actions = ['copy_selected_objects']
     list_display = ['name', 'code', 'sorting_order', 'is_active']
     list_filter = ['is_active']
     search_fields = ['name', 'code']
