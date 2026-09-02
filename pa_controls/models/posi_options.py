@@ -23,7 +23,7 @@ class ActingType(models.Model):
     """Тип действия позиционера: линейный или ротационный.
 
     Справочник опций. Использование:
-      - PosiModelLine через PosiActingTypeOption (разрешённые типы серии, encoding);
+      - PosiModelLine.acting_type — прямой FK (тип действия серии, 2026-09-01);
       - PosiModelLineItem.acting_type — выбранное значение для модели.
 
     Стартовые записи (data-миграция): LINEAR «Линейный», ROTARY «Ротационный».
@@ -125,7 +125,7 @@ class LeverOption(models.Model):
     class Meta:
         verbose_name = _("Рычаг позиционера")
         verbose_name_plural = _("Рычаги позиционеров")
-        ordering = ['acting_type', 'stroke_min_mm', 'sorting_order', 'code']
+        ordering = ['sorting_order', 'code']
 
     def __str__(self):
         return self.name
@@ -149,7 +149,9 @@ class SmartCapabilityOption(models.Model):
     """Возможность смарт-позиционера: диагностика, HART, LCD, автонастройка и т.д.
 
     Единый справочник возможностей — наборы (SmartCapabilitySet) собираются из
-    этих записей и привязываются к серии/модели через FK smart_capability_set.
+    этих записей и привязываются к through-опции «Профиль сигналов»
+    (PosiSignalProfileOption.smart_capability_set) или к модели
+    (PosiModelLineItem.smart_capability_set — переопределение).
 
     Вывод всегда сортируется по sorting_order, code. Специальная запись
     «Нет смарт возможностей» (code=NONE) выражает отсутствие возможностей.
@@ -195,10 +197,10 @@ class SmartCapabilityOption(models.Model):
 class SmartCapabilitySet(CopyMixin, models.Model):
     """Набор смарт-возможностей.
 
-    Серия (PosiModelLine.smart_capability_set) и модель
-    (PosiModelLineItem.smart_capability_set) привязывают готовый набор —
-    так проще редактировать и сравнивать составы. У модели набор не обязателен:
-    если не задан, наследуется от серии (см. PosiModelLineItem.get_smart_capability_set).
+    Набор привязывается к through-опции «Профиль сигналов»
+    (PosiSignalProfileOption.smart_capability_set): выбрали профиль — получили его набор.
+    У модели (PosiModelLineItem.smart_capability_set) набор не обязателен:
+    если не задан, берётся от опции профиля (см. PosiModelLineItem.get_smart_capability_set).
 
     Отдельный набор «Нет смарт возможностей» (SMART-NONE, только запись NONE)
     выражает явное отсутствие возможностей — вместо пустого набора.

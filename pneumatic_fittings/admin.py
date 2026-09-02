@@ -4,6 +4,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminStructuredDataMixinCopyMixin
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from .models import PneumaticFittingVariety, PneumaticFitting, PneumaticFittingModelLine, FittingShape, \
     FittingFixationMethod
 
@@ -131,7 +132,8 @@ class PneumaticFittingModelLineForm(forms.ModelForm):
 
 
 @admin.register(PneumaticFittingModelLine)
-class PneumaticFittingModelLineAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
+class PneumaticFittingModelLineAdmin(TemplatePlaceholdersAdminMixin, AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
+    template_item_model = PneumaticFitting
     form = PneumaticFittingModelLineForm
     list_display = [
         'name', 'code', 'brand', 'is_swivel',

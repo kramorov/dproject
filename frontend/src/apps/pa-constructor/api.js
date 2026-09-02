@@ -15,6 +15,7 @@ export default {
   // Options & preview
   getOptions(mliId)      { return api.get(E.options, { params: { model_line_item_id: mliId } }) },
   preview(data)          { return api.post(E.preview, data) },
+  createSku(data)        { return api.post(E.createSku, data) },
 
   // Cascading selects
   getModelLines()        { return api.get(E.modelLines) },

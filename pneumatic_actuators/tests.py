@@ -1,163 +1,13 @@
 """
-Tests for pneumatic_actuators SKU service and CatalogDictMixin.
+Tests for pneumatic_actuators SKU service (переработаны 2026-09-01).
+
+SKU теперь создаётся из эталонной модели PneumaticActuatorItem
+(через SKUMixin.sync_sku()), а не как standalone-запись.
 """
 from django.test import TestCase
 
-from pneumatic_actuators.services.sku_service import (
-    _safe_code, build_pa_sku_code, build_pa_sku_name, get_or_create_sku,
-)
+from pneumatic_actuators.services.sku_service import get_or_create_sku
 
-
-# ═══════════════════════════════════════════════════════════════════
-# _safe_code unit tests
-# ═══════════════════════════════════════════════════════════════════
-
-class SafeCodeTests(TestCase):
-
-    def test_none_returns_empty_string(self):
-        self.assertEqual(_safe_code(None), '')
-
-    def test_int_returns_str(self):
-        self.assertEqual(_safe_code(12), '12')
-        self.assertEqual(_safe_code(0), '0')
-        self.assertEqual(_safe_code(-5), '-5')
-
-    def test_float_returns_str(self):
-        self.assertEqual(_safe_code(3.14), '3.14')
-
-    def test_string_returns_string(self):
-        self.assertEqual(_safe_code('hello'), 'hello')
-
-    def test_object_with_encoding(self):
-        class Opt:
-            encoding = 'NC'
-            code = 'nc'
-        self.assertEqual(_safe_code(Opt()), 'NC')
-
-    def test_object_with_code_only(self):
-        class Opt:
-            code = 'IP67'
-        self.assertEqual(_safe_code(Opt()), 'IP67')
-
-    def test_object_with_name_only(self):
-        class Opt:
-            name = 'Standard'
-        self.assertEqual(_safe_code(Opt()), 'Standard')
-
-    def test_plain_object_returns_str(self):
-        class Unknown:
-            pass
-        s = _safe_code(Unknown())
-        self.assertIn('Unknown', s)
-
-    def test_empty_encoding_uses_code(self):
-        class Opt:
-            encoding = ''
-            code = 'DA'
-        self.assertEqual(_safe_code(Opt()), 'DA')
-
-
-# ═══════════════════════════════════════════════════════════════════
-# build_pa_sku_code tests
-# ═══════════════════════════════════════════════════════════════════
-
-class BuildPaSkuCodeTests(TestCase):
-
-    def setUp(self):
-        # Mock model_line_item
-        class FakeItem:
-            code = 'PA52SR20'
-            name = 'PA52SR20 Name'
-        self.item = FakeItem()
-
-    def test_no_options_returns_item_code(self):
-        code = build_pa_sku_code(self.item, {})
-        self.assertEqual(code, 'PA52SR20')
-
-    def test_with_int_options(self):
-        code = build_pa_sku_code(self.item, {
-            'springs_qty': 12,
-            'temperature': 3,
-            'ip': 1,
-        })
-        self.assertEqual(code, 'PA52SR20-12-3-1')
-
-    def test_with_string_options(self):
-        code = build_pa_sku_code(self.item, {
-            'springs_qty': '12',
-            'ip': 'IP67',
-            'exd': 'ExdIICT6',
-        })
-        self.assertEqual(code, 'PA52SR20-12-IP67-ExdIICT6')
-
-    def test_skips_none_values(self):
-        code = build_pa_sku_code(self.item, {
-            'springs_qty': 12,
-            'temperature': None,
-            'ip': 'IP67',
-        })
-        self.assertEqual(code, 'PA52SR20-12-IP67')
-
-    def test_falls_back_to_name_when_no_code(self):
-        class FakeItemNoCode:
-            code = None
-            name = 'PA52SR20 Name'
-        code = build_pa_sku_code(FakeItemNoCode(), {'ip': 'IP67'})
-        self.assertEqual(code, 'PA52SR20 Name-IP67')
-
-
-# ═══════════════════════════════════════════════════════════════════
-# build_pa_sku_name tests
-# ═══════════════════════════════════════════════════════════════════
-
-class BuildPaSkuNameTests(TestCase):
-
-    def setUp(self):
-        class FakeVariety:
-            name = 'SR'
-        class FakeBody:
-            torque_at_6bar = 200
-            weight = 15
-        class FakeModelLine:
-            pass
-        class FakeItem:
-            code = 'PA52SR20'
-            name = 'PA52SR20'
-            model_line = FakeModelLine()
-            body = FakeBody()
-            pneumatic_actuator_variety = FakeVariety()
-        self.item = FakeItem()
-
-    def test_basic_name_with_variety_and_torque(self):
-        name = build_pa_sku_name(self.item, {'springs_qty': 12})
-        self.assertIn('PA52SR20', name)
-        self.assertIn('SR', name)
-        self.assertIn('200 Нм', name)
-        self.assertIn('12', name)
-
-    def test_name_without_body(self):
-        class FakeItemNoBody:
-            code = 'PA52SR20'
-            name = 'PA52SR20'
-            model_line = None
-            body = None
-            pneumatic_actuator_variety = None
-        name = build_pa_sku_name(FakeItemNoBody(), {})
-        self.assertEqual(name, 'PA52SR20')
-
-    def test_name_includes_all_option_labels(self):
-        name = build_pa_sku_name(self.item, {
-            'springs_qty': 12,
-            'temperature': 'Low',
-            'ip': 'IP67',
-        })
-        self.assertIn('пружин 12', name.lower())
-        self.assertIn('IP67', name)
-
-
-# ═══════════════════════════════════════════════════════════════════
-# get_or_create_sku integration test
-# ═══════════════════════════════════════════════════════════════════
 
 class GetOrCreateSkuTests(TestCase):
 
@@ -169,50 +19,81 @@ class GetOrCreateSkuTests(TestCase):
             PneumaticActuatorModelLineItem,
         )
 
-        # Create minimal EquipmentType
         self.equipment_type = EquipmentType.objects.create(
             name='Пневмопривод', code='PA', level=1,
         )
-
-        # Create brand
         self.brand = Brands.objects.create(name='TestBrand', code='TB')
-
-        # Create model line
         self.model_line = PneumaticActuatorModelLine.objects.create(
             name='Test Series', code='TS',
             brand=self.brand,
             equipment_type=self.equipment_type,
         )
-
-        # Create model line item (minimal)
         self.item = PneumaticActuatorModelLineItem.objects.create(
             name='Test Item', code='TI-01',
             model_line=self.model_line,
             is_active=True,
         )
 
-    def test_creates_sku_first_time(self):
-        from sku.models.sku import SKU
+    def test_creates_sku_via_reference_model(self):
+        from sku.models import SKU
+        from pneumatic_actuators.models import PneumaticActuatorItem
+
         initial_count = SKU.objects.count()
-        sku = get_or_create_sku(self.item, {'springs_qty': 12, 'ip': 'IP67'})
+        sku = get_or_create_sku(self.item, {})
+
         self.assertEqual(SKU.objects.count(), initial_count + 1)
-        self.assertTrue(sku.code.startswith('TI-01'))
-        self.assertIn('IP67', sku.code)
+        # fallback-код: из source-мостика (legacy item.code)
+        self.assertEqual(sku.code, 'TI-01')
         self.assertEqual(sku.equipment_type, self.equipment_type)
         self.assertEqual(sku.brand, self.brand)
-        self.assertTrue(sku.is_active)
+        self.assertEqual(sku.source_content_type.model_class(), PneumaticActuatorItem)
 
-    def test_returns_existing_sku_on_duplicate(self):
-        from sku.models.sku import SKU
-        sku1 = get_or_create_sku(self.item, {'springs_qty': 8})
+        item_row = PneumaticActuatorItem.objects.get(source_model_line_item=self.item)
+        self.assertEqual(item_row.code, 'TI-01')
+        self.assertEqual(item_row.sku, sku)
+
+    def test_dedup_same_options(self):
+        from sku.models import SKU
+
+        sku1 = get_or_create_sku(self.item, {})
         count_after_first = SKU.objects.count()
-        sku2 = get_or_create_sku(self.item, {'springs_qty': 8})
+        sku2 = get_or_create_sku(self.item, {})
         self.assertEqual(SKU.objects.count(), count_after_first)
         self.assertEqual(sku1.id, sku2.id)
 
-    def test_different_options_create_different_skus(self):
-        from sku.models.sku import SKU
-        sku1 = get_or_create_sku(self.item, {'springs_qty': 12})
-        sku2 = get_or_create_sku(self.item, {'springs_qty': 8})
-        self.assertNotEqual(sku1.code, sku2.code)
+    def test_option_encoding_in_code(self):
+        from pneumatic_actuators.models import PneumaticActuatorSpringsQty
+        from pneumatic_actuators.models.pa_options import PneumaticSpringsQtyOption
+
+        springs12 = PneumaticActuatorSpringsQty.objects.create(name='12 пружин', code='SP12')
+        springs8 = PneumaticActuatorSpringsQty.objects.create(name='8 пружин', code='SP8')
+        PneumaticSpringsQtyOption.objects.create(
+            model_line_item=self.item, springs_qty=springs12, encoding='12', is_default=True,
+        )
+        PneumaticSpringsQtyOption.objects.create(
+            model_line_item=self.item, springs_qty=springs8, encoding='8', is_default=False,
+        )
+
+        sku1 = get_or_create_sku(self.item, {'springs_qty': springs12.id})
+        sku2 = get_or_create_sku(self.item, {'springs_qty': springs8.id})
+        # fallback-код: bridge-код + encoding из through-модели
+        self.assertEqual(sku1.code, 'TI-01.12')
+        self.assertEqual(sku2.code, 'TI-01.8')
         self.assertNotEqual(sku1.id, sku2.id)
+
+    def test_template_code_used_when_present(self):
+        self.model_line.model_item_code_template = 'MOD.{model_code}.{springs_qty}'
+        self.model_line.save(update_fields=['model_item_code_template'])
+
+        sku = get_or_create_sku(self.item, {})
+        # {springs_qty} пустой → хвостовая точка срезается очисткой
+        self.assertEqual(sku.code, 'MOD.TI-01')
+
+    def test_model_line_name_template_applied_to_sku_name(self):
+        self.model_line.name_template = 'TPL {model_code}'
+        self.model_line.description_template = 'TPL-D {model_code}'
+        self.model_line.save(update_fields=['name_template', 'description_template'])
+
+        sku = get_or_create_sku(self.item, {})
+        self.assertTrue(sku.name.startswith('TPL TI-01'))
+        self.assertEqual(sku.description, 'TPL-D TI-01')

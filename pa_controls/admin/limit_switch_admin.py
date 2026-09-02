@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from core.models.mixins import AdminCopyMixin
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 
 from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactState, ContactForm, LimitSwitchBody, PointsOption, \
     SensorComponent, VisualIndicatorType
@@ -158,7 +159,8 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
 
 
 @admin.register(LimitSwitchModelLine)
-class LimitSwitchModelLineAdmin(admin.ModelAdmin):
+class LimitSwitchModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
+    template_item_model = LimitSwitchBox
     list_display = ['name', 'code', 'brand', 'sorting_order', 'is_active']
     list_filter = ['is_active', 'producer', 'brand']
     list_editable = ['sorting_order', 'is_active']

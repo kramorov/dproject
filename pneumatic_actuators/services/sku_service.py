@@ -1,169 +1,164 @@
 # pneumatic_actuators/services/sku_service.py
 """
-SKU-сервис для пневмоприводов.
+SKU-сервис пневмоприводов (переработан 2026-09-01).
 
-Ленивое создание SKU: только при реальном заказе (корзина, счёт, конструктор).
-Не при save() модели.
+SKU создаётся из ЭТАЛОННОЙ модели PneumaticActuatorItem (единый путь
+SKUMixin.sync_sku(), как в остальных каталогах), а не как standalone-запись:
 
-Использование:
-    from pneumatic_actuators.services.sku_service import get_or_create_sku
+    get_or_create_sku(model_line_item, options)
+        → материализует конфигурацию в PneumaticActuatorItem
+          (code генерируется из model_line.model_item_code_template,
+           name/description — из шаблонов серии)
+        → item.save() → sync_sku() создаёт/подхватывает SKU по коду
+        → возвращает SKU (со связью source_* на item).
 
-    sku = get_or_create_sku(
-        model_line_item=item,
-        options={
-            'springs_qty': spring_option,
-            'temperature': temp_option,
-            'safety_position': safety_option,
-            'ip': ip_option,
-            'exd': exd_option,
-            'body_coating': coating_option,
-            'hand_wheel': hw_option,
-        }
-    )
+Повторный вызов с теми же опциями возвращает ТУ ЖЕ SKU (item ищется
+по source_model_line_item + выбранным опциям).
+
+Старый API (build_pa_sku_code/build_pa_sku_name/_safe_code) удалён —
+логика артикула теперь живёт в PneumaticActuatorItem.generated_model_item_code.
 """
+
 import logging
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
-from django.db import transaction
+from django.apps import apps
+from django.db import IntegrityError, transaction
 
-from sku.models.sku import SKU
-from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+from sku.models import SKU
 
 logger = logging.getLogger(__name__)
 
+# Ключ опции (из фронтенда) → поле эталонной модели
+_FIELD_BY_KEY = {
+    'springs_qty': 'selected_springs_qty',
+    'temperature': 'selected_temperature',
+    'safety_position': 'selected_safety_position',
+    'ip': 'selected_ip',
+    'exd': 'selected_exd',
+    'body_coating': 'selected_body_coating',
+    'hand_wheel': 'selected_hand_wheel',
+}
 
-def build_pa_sku_code(model_line_item: PneumaticActuatorModelLineItem, options: Dict[str, Any]) -> str:
+# Ключ опции → модель реальной опции ('app_label.ModelName')
+_MODEL_BY_KEY = {
+    'springs_qty': 'pneumatic_actuators.PneumaticActuatorSpringsQty',
+    'temperature': 'pneumatic_actuators.PneumaticTemperatureOption',
+    'safety_position': 'params.SafetyPositionOption',
+    'ip': 'params.IpOption',
+    'exd': 'params.ExdOption',
+    'body_coating': 'params.BodyCoatingOption',
+    'hand_wheel': 'params.HandWheelInstalledOption',
+}
+
+
+def _resolve_option(model_path: str, value: Any) -> Optional[Any]:
+    """Разрешить значение опции в объект реальной опции (или None).
+
+    Принимает: None/'' → None; экземпляр модели → как есть; id (int/str) → объект.
     """
-    Собрать уникальный код SKU из model_line_item + опций.
+    if value is None or value == '':
+        return None
+    model = apps.get_model(*model_path.rsplit('.', 1))
+    if isinstance(value, model):
+        return value
+    try:
+        return model.objects.filter(pk=value).first()
+    except (ValueError, TypeError):
+        logger.warning(f"Не удалось разрешить опцию {model_path} по значению {value!r}")
+        return None
 
-    Формат: {item_code}-{springs}-{temp}-{safety}-{ip}-{exd}-{coating}-{wheel}
 
-    Пример: PA52SR20-12-NC-IP67-ExdIICT6-Std-NoHW
+def get_or_create_sku(model_line_item, options: Optional[Dict[str, Any]] = None) -> SKU:
     """
-    parts = [model_line_item.code or model_line_item.name]
-
-    # Опции в фиксированном порядке
-    option_keys = [
-        'springs_qty', 'temperature', 'safety_position',
-        'ip', 'exd', 'body_coating', 'hand_wheel',
-    ]
-
-    for key in option_keys:
-        opt = options.get(key)
-        if opt is None:
-            continue
-        code = _safe_code(opt)
-        if code:
-            parts.append(code)
-
-    return '-'.join(parts)
-
-
-def build_pa_sku_name(model_line_item: PneumaticActuatorModelLineItem, options: Dict[str, Any]) -> str:
-    """
-    Собрать читаемое наименование SKU.
-    """
-    ml = model_line_item.model_line
-    body = model_line_item.body
-    variety = model_line_item.pneumatic_actuator_variety
-
-    name = f"{model_line_item.name or model_line_item.code}"
-
-    if variety:
-        name += f", {variety.name}"
-
-    if body and hasattr(body, 'torque_at_6bar') and body.torque_at_6bar:
-        name += f", {body.torque_at_6bar} Нм при 6 бар"
-
-    for key, label in [
-        ('springs_qty', 'пружин'),
-        ('temperature', 't°'),
-        ('safety_position', ''),
-        ('ip', ''),
-        ('exd', ''),
-        ('body_coating', ''),
-        ('hand_wheel', ''),
-    ]:
-        opt = options.get(key)
-        if opt is None:
-            continue
-        val = str(opt) if opt else ''
-        if val:
-            name += f", {label} {val}" if label else f", {val}"
-
-    return name
-
-
-def get_or_create_sku(
-    model_line_item: PneumaticActuatorModelLineItem,
-    options: Dict[str, Any],
-) -> SKU:
-    """
-    Получить или создать SKU для заданной конфигурации.
+    Получить или создать SKU для конфигурации пневмопривода.
 
     Args:
-        model_line_item: базовая модель (body + variety)
-        options: dict с выбранными опциями (springs_qty, temperature, ...)
+        model_line_item: PneumaticActuatorModelLineItem (legacy, из create-sku
+            endpoint) либо уже созданный PneumaticActuatorItem.
+        options: {'springs_qty': id, 'temperature': id, 'safety_position': id,
+                  'ip': id, 'exd': id, 'body_coating': id, 'hand_wheel': id}
+                 — ID реальных опций (как шлёт фронтенд).
 
     Returns:
-        SKU instance (созданный или существующий)
+        SKU, привязанный к эталонной модели (source_* → PneumaticActuatorItem).
     """
-    ml = model_line_item.model_line
+    from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
+    from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLineItem
 
-    code = build_pa_sku_code(model_line_item, options)
-    name = build_pa_sku_name(model_line_item, options)
+    options = options or {}
 
-    equipment_type = ml.equipment_type if ml else None
-    brand = ml.brand if ml else None
+    if isinstance(model_line_item, PneumaticActuatorItem):
+        item = model_line_item
+        if not item.sku_id:
+            item.save()
+        item.refresh_from_db()
+        return item.sku
 
-    # Описание с параметрами
-    desc_parts = [
-        f"Пневмопривод {model_line_item.name}",
-    ]
-    for key, label in [
-        ('springs_qty', 'Кол-во пружин'),
-        ('temperature', 'Температура'),
-        ('safety_position', 'Положение безопасности'),
-        ('ip', 'IP'),
-        ('exd', 'Взрывозащита'),
-        ('body_coating', 'Покрытие'),
-        ('hand_wheel', 'Ручной дублёр'),
-    ]:
-        opt = options.get(key)
-        if opt is not None:
-            desc_parts.append(f"{label}: {opt}")
+    if not isinstance(model_line_item, PneumaticActuatorModelLineItem):
+        raise TypeError(
+            'model_line_item должен быть PneumaticActuatorModelLineItem '
+            'или PneumaticActuatorItem'
+        )
 
-    description = '; '.join(desc_parts)
+    kwargs = {
+        'source_model_line_item': model_line_item,
+        'model_line': model_line_item.model_line,
+        'body': model_line_item.body,
+        'pneumatic_actuator_variety': model_line_item.pneumatic_actuator_variety,
+    }
+    for key, field in _FIELD_BY_KEY.items():
+        kwargs[field] = _resolve_option(_MODEL_BY_KEY[key], options.get(key))
+
+    # Артикул однозначно определяет SKU. Разные пути входа (сохранение формы
+    # конструктора с автодефолтами vs create-sku с частичным набором опций)
+    # могут давать одинаковый code при разных наборах опций — дедуплицируем
+    # СНАЧАЛА по коду, а не по kwargs (иначе второй item попытается привязать
+    # уже занятую OneToOne SKU → UNIQUE violation).
+    code = None
+    try:
+        probe = PneumaticActuatorItem(**kwargs)
+        code = probe.generated_model_item_code or None
+    except Exception:
+        logger.exception('Не удалось вычислить артикул для дедупликации')
+        code = None
 
     with transaction.atomic():
-        sku, created = SKU.objects.get_or_create(
-            code=code,
-            defaults={
-                'name': name,
-                'description': description,
-                'equipment_type': equipment_type,
-                'brand': brand,
-                'is_active': True,
-            }
-        )
+        if code:
+            existing = PneumaticActuatorItem.objects.filter(code=code).first()
+            if existing:
+                if not existing.sku_id:
+                    existing.save()
+                existing.refresh_from_db()
+                return existing.sku
+
+        try:
+            # get_or_create вызывает item.save() → автогенерация code/name/description
+            # + sync_sku() (SKUMixin). Тот же набор опций → тот же item → та же SKU.
+            item, created = PneumaticActuatorItem.objects.get_or_create(**kwargs)
+        except IntegrityError:
+            # Конкуренция/повторный code: другой item уже занял SKU — берём его
+            if code:
+                item = PneumaticActuatorItem.objects.filter(code=code).first()
+                if item is None:
+                    raise
+            else:
+                raise
+
         if created:
-            logger.info(f"SKU created: {code} — {name}")
-        else:
-            logger.debug(f"SKU already exists: {code}")
+            logger.info(f"PneumaticActuatorItem создан: {item.code} (source={model_line_item.pk})")
+        if not item.sku_id:
+            # item без SKU (например, сохранён со skip) — досинхронизировать
+            try:
+                item.save()
+            except IntegrityError:
+                # SKU с таким code уже привязана к другому item'у — берём его
+                if code:
+                    item = PneumaticActuatorItem.objects.filter(code=code).first()
+                    if item is None:
+                        raise
+                else:
+                    raise
 
-    return sku
-
-
-def _safe_code(opt) -> str:
-    """Извлечь короткий код из опции (объект, строка или ID/int)."""
-    if opt is None:
-        return ''
-    if isinstance(opt, (int, float)):
-        return str(opt)
-    if hasattr(opt, 'encoding') and opt.encoding:
-        return opt.encoding
-    if hasattr(opt, 'code'):
-        return opt.code or ''
-    if hasattr(opt, 'name'):
-        return opt.name or ''
-    return str(opt)
+    item.refresh_from_db()
+    return item.sku

@@ -154,6 +154,7 @@ ADMIN_MODEL_BLOCK = {
     ('pneumatic_actuators', 'PneumaticActuatorBody'): 'pneumatic_actuators',
     ('pneumatic_actuators', 'PneumaticActuatorBodyTable'): 'pneumatic_actuators',
     ('pneumatic_actuators', 'PneumaticActuatorConstructionVariety'): 'pneumatic_actuators',
+    ('pneumatic_actuators', 'PneumaticActuatorItem'): 'pneumatic_actuators',
     ('pneumatic_actuators', 'PneumaticActuatorModelLine'): 'pneumatic_actuators',
     ('pneumatic_actuators', 'PneumaticActuatorModelLineItem'): 'pneumatic_actuators',
     ('pneumatic_actuators', 'PneumaticActuatorSelected'): 'pneumatic_actuators',

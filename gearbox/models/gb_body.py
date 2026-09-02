@@ -4,13 +4,13 @@ from typing import Dict, List, Any
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin , TemplateMixin
+from core.models.mixins import CopyMixin
 from gearbox.models.gb_model_line import GearBoxModelLine
 from gearbox.models.gb_options import OverrideMechanism , TransmissionVariety
 from params.models import StemSize , StemShapes , MountingPlateTypes
 
 
-class GearBoxBody(CopyMixin, TemplateMixin, models.Model):
+class GearBoxBody(CopyMixin, models.Model):
     """
     Корпус редуктора — механические характеристики.
 
@@ -19,7 +19,7 @@ class GearBoxBody(CopyMixin, TemplateMixin, models.Model):
     рабочий, выходной), усилие и диаметр штурвала, присоединения
     (монтажные площадки ISO 5211/5210, штоки сверху/снизу), вес.
 
-    Наследует ``CopyMixin`` и ``TemplateMixin``.
+    Наследует ``CopyMixin``.
     """
     name = models.CharField(max_length=50 , blank=True ,
                             verbose_name=_("Название") ,

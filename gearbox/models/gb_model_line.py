@@ -6,7 +6,6 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import ImageGalleryMixin , TechDocMixin , EquipmentTypeMixin
 from core.models.cert_doc_mixin import CertDocMixin
-from core.models.mixins import CopyMixin, TemplateMixin
 from params.models import ActuatorGearboxOutputType
 from producers.models import Brands
 

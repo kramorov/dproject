@@ -6,8 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 
 from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, ImageGalleryMixin
-from core.models.mixins import TemplateGeneratorMixin, CatalogDictMixin, CopyMixin
-# TemplateMixin удалён — TemplateGeneratorMixin наследует его напрямую (2026-06-05)
+from core.models.mixins import TemplateMixin, CatalogDictMixin, CopyMixin
+# TemplateGeneratorMixin удалён 2026-09-01 — DirectionValve использует единый TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 
 from .dv_model_line import DirectionalValveModelLine
@@ -21,8 +21,7 @@ from sku.models import SKUMixin
 class DirectionValve(CatalogDictMixin,
                      ImageGalleryMixin,
                      TechDocMixin,
-                     SKUMixin, CopyMixin, TemplateGeneratorMixin,
-# TemplateMixin убран 2026-06-05 — TemplateGeneratorMixin теперь наследует TemplateMixin
+                     SKUMixin, CopyMixin, TemplateMixin,
                      SmartCatalogMixin, EquipmentTypeMixin, models.Model):
     """
     Распределительный клапан (конкретный артикул каталога).
@@ -35,7 +34,7 @@ class DirectionValve(CatalogDictMixin,
       - CatalogDictMixin — структурированная сериализация (to_dict/to_values_dict)
       - ImageGalleryMixin — галерея изображений
       - TechDocMixin — техническая документация
-      - TemplateGeneratorMixin (→ TemplateMixin) — шаблоны названий/описаний
+      - TemplateMixin — шаблоны названий/описаний (единый контракт)
       - SKUMixin — учётная номенклатура
       - CopyMixin — копирование в админке
       - EquipmentTypeMixin — тип оборудования
@@ -275,6 +274,18 @@ class DirectionValve(CatalogDictMixin,
         """Переопределить в модели: вернуть шаблон заголовка или None."""
         title_template = "{model_code} {function}; {temperature_range}°С; {exd}; {ip}; {power_supply}; {operation}; {construction}"
         return title_template
+
+    def _get_name_template_source(self):
+        """Шаблон названия из model_line (единый контракт, 2026-09-01)."""
+        if not self.model_line:
+            return None
+        return self.model_line.name_template or None
+
+    def _get_description_template_source(self):
+        """Шаблон описания из model_line (единый контракт, 2026-09-01)."""
+        if not self.model_line:
+            return None
+        return self.model_line.description_template or None
     # Замена переменных
     def _get_data_dict(self) -> Dict[str, str]:
         """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""

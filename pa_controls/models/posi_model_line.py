@@ -8,7 +8,6 @@
 Из разрешённых опций серии собирается PosiModelLineItem.
 
 Опции:
-    PosiActingTypeOption          — тип действия (линейный/ротационный)
     PosiBodyConnectionOption      — присоединения корпуса (резьбы пневмовхода/выхода + отверстие КВ)
     PosiLeverOption               — рычаг (тип + диапазон хода штока)
     PosiTemperatureOption         — температурное исполнение (мин/макс)
@@ -75,6 +74,13 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
     description_template = models.TextField(blank=True, null=True,
                                             verbose_name=_("Шаблон описания"),
                                             help_text=_('Шаблон для описания позиционера'))
+    model_item_code_template = models.CharField(
+        max_length=500, blank=True, null=True,
+        verbose_name=_("Шаблон артикула"),
+        help_text=_('Шаблон артикула (паттерн электроприводов). Плейсхолдеры: '
+                    '{model_code}, {acting_type}, {body_connection}, {lever}, '
+                    '{temperature}, {signal_profile}, {alarm}, {exd}, {ip}, {smart}'),
+    )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Сортировка"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
@@ -103,6 +109,13 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
         help_text=_('Материал корпуса (есть серии, отличающиеся только материалом)'),
         verbose_name=_("Материал корпуса")
     )
+    # Тип действия — прямой FK на справочник (перенесён из through-опции, 2026-09-01)
+    acting_type = models.ForeignKey(
+        ActingType, related_name='posi_model_lines',
+        blank=True, null=True, on_delete=models.SET_NULL,
+        help_text=_('Тип действия серии (линейный/ротационный)'),
+        verbose_name=_("Тип действия")
+    )
     weight = models.DecimalField(
         max_digits=6, decimal_places=2,
         null=True, blank=True,
@@ -126,13 +139,8 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
         null=True, blank=True,
         verbose_name=_("Макс. давление питания (бар)")
     )
-    # Смарт-возможности — единый справочник, набор привязывается к серии
-    smart_capability_set = models.ForeignKey(
-        SmartCapabilitySet,
-        related_name='posi_model_lines',
-        blank=True, null=True, on_delete=models.SET_NULL,
-        verbose_name=_("Набор смарт-возможностей")
-    )
+    # smart_capability_set перенесён (2026-09-01) в through-опцию «Профиль сигналов»
+    # PosiSignalProfileOption.smart_capability_set — возможности привязываются к опции.
 
     extra_params = models.JSONField(default=dict, blank=True,
                                     verbose_name=_("Параметры"),
@@ -151,34 +159,8 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
 # ============================================================
 # THROUGH-ОПЦИИ УРОВНЯ СЕРИИ (как в электроприводах)
 # ============================================================
-
-class PosiActingTypeOption(BaseThroughOption):
-    """Тип действия (линейный/ротационный), разрешённый для серии.
-
-    Through-модель уровня серии: model_line + acting_type + encoding/is_default.
-    """
-    model_line = models.ForeignKey(
-        PosiModelLine, on_delete=models.CASCADE,
-        related_name='acting_type_options',
-        verbose_name=_("Серия позиционеров")
-    )
-    acting_type = models.ForeignKey(
-        ActingType, on_delete=models.CASCADE,
-        verbose_name=_("Тип действия")
-    )
-
-    class Meta:
-        verbose_name = _("Тип действия для серии позиционеров")
-        verbose_name_plural = _("Типы действия для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'acting_type']
-
-    @classmethod
-    def _get_parent_field_name(cls):
-        return 'model_line'
-
-    def __str__(self):
-        return f"{self.model_line} → {self.acting_type} ({self.encoding})"
+# PosiActingTypeOption удалена 2026-09-01: тип действия перенесён в PosiModelLine
+# (прямой FK acting_type — выбирается из справочника ActingType).
 
 
 class PosiBodyConnectionOption(BaseThroughOption):
@@ -211,7 +193,7 @@ class PosiBodyConnectionOption(BaseThroughOption):
     class Meta:
         verbose_name = _("Присоединения корпуса для серии позиционеров")
         verbose_name_plural = _("Присоединения корпусов для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
+        ordering = ['sorting_order']
         unique_together = ['model_line', 'body_connection']
 
     @classmethod
@@ -240,7 +222,7 @@ class PosiLeverOption(BaseThroughOption):
     class Meta:
         verbose_name = _("Рычаг для серии позиционеров")
         verbose_name_plural = _("Рычаги для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
+        ordering = ['sorting_order']
         unique_together = ['model_line', 'lever']
 
     @classmethod
@@ -274,7 +256,7 @@ class PosiTemperatureOption(BaseTemperatureThroughOption):
     class Meta:
         verbose_name = _("Температурная опция серии позиционеров")
         verbose_name_plural = _("Температурные опции серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
+        ordering = ['sorting_order']
 
     @classmethod
     def _get_parent_field_name(cls):
@@ -308,12 +290,23 @@ class PosiSignalProfileOption(BaseThroughOption):
         verbose_name=_("Только общепром"),
         help_text=_('Вариант недоступен при выборе взрывозащиты')
     )
+    # Набор смарт-возможностей привязывается к опции (перенесён с серии, 2026-09-01)
+    smart_capability_set = models.ForeignKey(
+        SmartCapabilitySet,
+        related_name='signal_profile_options',
+        blank=True, null=True, on_delete=models.SET_NULL,
+        verbose_name=_("Набор смарт-возможностей"),
+        help_text=_('Возможности смарт-позиционера для этого профиля сигналов')
+    )
 
     class Meta:
         verbose_name = _("Профиль сигналов для серии позиционеров")
         verbose_name_plural = _("Профили сигналов для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'signal_profile']
+        ordering = ['sorting_order']
+        # Уникальность: серия + профиль + набор смарт-возможностей (2026-09-01)
+        # — один и тот же профиль можно повторить с другим набором возможностей.
+        # NB: NULL в smart_capability_set трактуется как «разные» значения (SQL-семантика).
+        unique_together = ['model_line', 'signal_profile', 'smart_capability_set']
 
     @classmethod
     def _get_parent_field_name(cls):
@@ -342,7 +335,7 @@ class PosiAlarmOption(BaseThroughOption):
     class Meta:
         verbose_name = _("Сигнал тревоги для серии позиционеров")
         verbose_name_plural = _("Сигналы тревоги для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
+        ordering = ['sorting_order']
         unique_together = ['model_line', 'alarm']
 
     @classmethod
@@ -381,7 +374,7 @@ class PosiExdOption(BaseThroughOption):
     class Meta:
         verbose_name = _("Взрывозащита для серии позиционеров")
         verbose_name_plural = _("Взрывозащита для серий позиционеров")
-        ordering = ['is_default', 'sorting_order']
+        ordering = ['sorting_order']
 
     @classmethod
     def _get_parent_field_name(cls):

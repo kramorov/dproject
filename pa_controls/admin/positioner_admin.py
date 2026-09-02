@@ -9,6 +9,7 @@ from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminCopyMixin
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 
 from pa_controls.models import (
     ActingType,
@@ -20,7 +21,6 @@ from pa_controls.models import (
     PosiBodyConnections,
 )
 from pa_controls.models.posi_model_line import (
-    PosiActingTypeOption,
     PosiBodyConnectionOption,
     PosiLeverOption,
     PosiTemperatureOption,
@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 # Related names through-опций уровня серии — копируются вместе с серией
 POSI_MODEL_LINE_OPTION_RELATED_NAMES = [
-    'acting_type_options',
     'body_connection_options',
     'lever_options',
     'temperature_options',
@@ -205,12 +204,6 @@ class PosiBodyConnectionsAdmin(admin.ModelAdmin):
 
 # ── Inline-опции серии ──
 
-class PosiActingTypeOptionInline(admin.TabularInline):
-    model = PosiActingTypeOption
-    extra = 0
-    fields = ['acting_type', 'encoding', 'is_default', 'sorting_order', 'is_active']
-
-
 class PosiBodyConnectionOptionInline(admin.TabularInline):
     model = PosiBodyConnectionOption
     extra = 0
@@ -233,7 +226,7 @@ class PosiTemperatureOptionInline(admin.TabularInline):
 class PosiSignalProfileOptionInline(admin.TabularInline):
     model = PosiSignalProfileOption
     extra = 0
-    fields = ['signal_profile', 'encoding', 'is_default', 'only_non_ex', 'sorting_order', 'is_active']
+    fields = ['signal_profile', 'smart_capability_set', 'encoding', 'is_default', 'only_non_ex', 'sorting_order', 'is_active']
 
 
 class PosiAlarmOptionInline(admin.TabularInline):
@@ -252,18 +245,19 @@ class PosiExdOptionInline(admin.TabularInline):
 # ── Серия ──
 
 @admin.register(PosiModelLine)
-class PosiModelLineAdmin(admin.ModelAdmin):
+class PosiModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
+    template_item_model = PosiModelLineItem
+    template_placeholders_fieldset = _('Шаблоны')  # блок плейсхолдеров — рядом с шаблонами
     list_display = ['name', 'code', 'brand', 'actuator_action', 'body_material', 'is_active']
     list_filter = ['code','brand',  'body_material', 'is_active']
     search_fields = ['name', 'code']
     list_editable = ['code', 'actuator_action', 'is_active']
-    autocomplete_fields = ['smart_capability_set']
+    # autocomplete_fields = ['smart_capability_set']  # перенесён в through-опцию «Профиль сигналов»
     # raw_id_fields = ['brand', 'producer', 'body_material']
     filter_horizontal = ['exd', 'tech_docs', 'cert_docs']
     ordering = ['sorting_order', 'code']
     actions = [copy_posi_model_line, 'delete_selected']
     inlines = [
-        PosiActingTypeOptionInline,
         PosiBodyConnectionOptionInline,
         PosiLeverOptionInline,
         PosiTemperatureOptionInline,
@@ -273,18 +267,18 @@ class PosiModelLineAdmin(admin.ModelAdmin):
     ]
     fieldsets = (
         (_('Основная информация'), {
-            'fields': ('name', 'code', 'equipment_type', ('brand', 'producer'), 'description'),
+            'fields': (('name', 'code'), ('equipment_type','acting_type', 'actuator_action'), ('brand', 'producer'), 'description'),
         }),
         (_('Характеристики'), {
-            'fields': ('body_material', 'weight',
+            'fields': (('body_material',  'weight'),
                        ('supply_pressure_min', 'supply_pressure_max'),
-                       'actuator_action'),
+                       ),
         }),
-        (_('Взрывозащита и смарт-возможности'), {
-            'fields': ('exd', 'smart_capability_set'),
+        (_('Взрывозащита'), {
+            'fields': ('exd',),
         }),
         (_('Шаблоны'), {
-            'fields': ('name_template', 'description_template'),
+            'fields': ('name_template', 'description_template', 'model_item_code_template'),
         }),
         (_('Изображения и технички'), {
             'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
@@ -312,7 +306,7 @@ class PosiModelLineItemAdmin(admin.ModelAdmin):
     ordering = ['sorting_order', 'code']
     fieldsets = (
         (_('Основная информация'), {
-            'fields': ('name', 'code', 'model_line', 'description'),
+            'fields': (('name', 'code'), 'model_line', 'description'),
         }),
         (_('Опции'), {
             'fields': ('acting_type', 'exd', 'ip',

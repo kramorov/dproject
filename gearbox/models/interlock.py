@@ -4,13 +4,13 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.mixins import CopyMixin
 
 from pa_controls.models import LimitSwitchSensorVariety, SensorComponent
 from params.models import IpOption
 
 
-class GearBoxInterlock(CopyMixin, TemplateMixin, models.Model):
+class GearBoxInterlock(CopyMixin, models.Model):
     """
     Блокировка/интерлок редуктора.
 
@@ -20,7 +20,7 @@ class GearBoxInterlock(CopyMixin, TemplateMixin, models.Model):
     - Количество точек переключения (``interlock_points``, обычно 2 для SIL)
     - Степень защиты IP (``interlock_ip``) и взрывозащита (``interlock_exd``)
 
-    Наследует ``CopyMixin`` и ``TemplateMixin``.
+    Наследует ``CopyMixin``.
     """
     name = models.TextField(blank=True,
                             verbose_name=_("Название"),

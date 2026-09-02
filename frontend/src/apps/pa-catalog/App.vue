@@ -141,6 +141,11 @@ onMounted(async () => {
     ])
     modelLines.value = mlRes.data || []
     pressures.value = initRes.data?.air_pressure || []
+    // Предвыбор давления по умолчанию (6 бар), чтобы запрос подбора был валиден
+    if (!selectorForm.value.pressure_id && pressures.value.length) {
+      const def = pressures.value.find(p => p.is_default) || pressures.value[0]
+      selectorForm.value.pressure_id = def ? def.id : null
+    }
   } catch (e) { console.error(e) }
   loadingML.value = false
 })
@@ -164,13 +169,18 @@ async function runSearch() {
   searching.value = true
   try {
     const { data } = await api.search({
-      torque_without_safety: selectorForm.value.torque,
-      safety_factor: selectorForm.value.safety,
-      air_pressure_id: selectorForm.value.pressure_id,
-      actuator_variety_code: selectorForm.value.variety,
+      torque_without_safety: Number(selectorForm.value.torque) || 0,
+      safety_factor: Number(selectorForm.value.safety) || 1.5,
+      air_pressure_id: selectorForm.value.pressure_id ?? null,
+      actuator_variety_code: selectorForm.value.variety || 'DA',
     })
-    searchResults.value = data.search_results || []
-  } catch (e) { console.error(e) }
+    if (data?.success) {
+      searchResults.value = data.search_results || []
+    } else {
+      console.warn('Поиск не выполнен:', data?.error)
+      searchResults.value = []
+    }
+  } catch (e) { console.error(e); searchResults.value = [] }
   searching.value = false
 }
 

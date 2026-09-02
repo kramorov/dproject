@@ -3,11 +3,14 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from filter_regulator.models import FilterRegulatorModelLine
+from filter_regulator.models.fr_model_line_item import FilterRegulator
 
 
 @admin.register(FilterRegulatorModelLine)
-class FilterRegulatorModelLineAdmin(admin.ModelAdmin):
+class FilterRegulatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
+    template_item_model = FilterRegulator
     list_display = ('name', 'code', 'brand', 'is_active', 'sorting_order')
     list_filter = ('is_active', 'brand', 'body_material', 'bowl_material')
     search_fields = ('name', 'code', 'brand__name')

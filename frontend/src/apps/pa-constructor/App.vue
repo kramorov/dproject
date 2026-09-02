@@ -122,6 +122,24 @@ const OPTION_MAP = {
   selected_hand_wheel:       { label: 'Ручной дублер',         apiKey: 'hand_wheel_options' },
 }
 
+// Ключи формы → ключи опций для create-sku (sku_service ждёт springs_qty, temperature, ...)
+const SKU_OPTION_KEYS = {
+  selected_safety_position: 'safety_position',
+  selected_springs_qty: 'springs_qty',
+  selected_temperature: 'temperature',
+  selected_ip: 'ip',
+  selected_exd: 'exd',
+  selected_body_coating: 'body_coating',
+  selected_hand_wheel: 'hand_wheel',
+}
+function buildSkuOptionsPayload() {
+  const opts = {}
+  for (const [formKey, apiKey] of Object.entries(SKU_OPTION_KEYS)) {
+    if (form[formKey] != null) opts[apiKey] = form[formKey]
+  }
+  return opts
+}
+
 const filters = reactive({ search: '', model_line: null, model_line_item: null })
 
 const defaultForm = () => ({
@@ -253,7 +271,11 @@ async function save() {
   saving.value = true
   try {
     const res = await api.create({ ...form })
-    showMessage(res.status === 201 ? 'Создано: ' + res.data.name : 'Найдена существующая: ' + res.data.name, 'success')
+    const sku = res.data?.sku
+    const msg = sku
+      ? 'Создано: ' + (res.data.name || '') + ' | SKU: ' + sku.code
+      : (res.status === 201 ? 'Создано: ' + res.data.name : 'Найдена существующая: ' + res.data.name)
+    showMessage(msg, 'success')
     // Refresh preview from API to get full to_dict() data
     try { const pr = await api.preview({ ...form }); previewData.value = pr.data } catch (e) { /* ignore */ }
     await loadList()
@@ -288,7 +310,7 @@ async function onAddToCart() {
   try {
     const { data } = await api.createSku({
       model_line_item_id: form.selected_model_line_item,
-      options: { ...form },
+      options: buildSkuOptionsPayload(),
     })
     showMessage('SKU создан: ' + (data.code || data.name), 'success')
   } catch (e) {

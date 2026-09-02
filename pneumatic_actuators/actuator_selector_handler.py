@@ -213,6 +213,39 @@ def get_initial_data() -> Dict[str, Any]:
     }
 
 
+def _normalize_selection_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Приводит параметры подбора к внутреннему контракту (2026-09-01):
+    - torque_with_safety = torque_without_safety * safety_factor (если явный не задан);
+    - air_pressure_id: по умолчанию 13 (6 бар);
+    - actuator_variety_code: из code или из id; по умолчанию 'DA'.
+    Принимает как формат фронтенда (torque_without_safety + safety_factor),
+    так и legacy-формат (готовый torque_with_safety).
+    """
+    p = dict(params)
+
+    if not p.get('torque_with_safety'):
+        try:
+            tws = float(p.get('torque_without_safety') or 0)
+            sf = float(p.get('safety_factor') or 0)
+        except (TypeError, ValueError):
+            tws = sf = 0
+        p['torque_with_safety'] = tws * sf
+
+    if not p.get('air_pressure_id'):
+        p['air_pressure_id'] = 13  # 6 бар по умолчанию
+
+    if not p.get('actuator_variety_code'):
+        if p.get('actuator_variety_id'):
+            from pneumatic_actuators.models import PneumaticActuatorVariety
+            variety = PneumaticActuatorVariety.objects.filter(id=p['actuator_variety_id']).first()
+            p['actuator_variety_code'] = variety.code if variety else 'DA'
+        else:
+            p['actuator_variety_code'] = 'DA'
+
+    return p
+
+
 def validate_selection_params(params: Dict[str , Any]) -> Tuple[bool , Optional[str] , Optional[str] , List[str]] :
     """
     Валидация параметров подбора привода
@@ -230,27 +263,28 @@ def validate_selection_params(params: Dict[str , Any]) -> Tuple[bool , Optional[
     errors = []
     error_fields = []
 
-    # 1. Проверка типа арматуры
-    if not params.get('valve_type_id') or params.get('valve_type_id') == 0 :
-        errors.append("Не выбран тип арматуры")
-        error_fields.append('valve_type_id')
+    # 1. Тип арматуры — необязателен: в поиске find_suitable_actuators() не используется
+    #    (оставлен в контракте для совместимости с PaSelectionPage).
 
-    # 2. Проверка момента с запасом
-    torque_with_safety = params.get('torque_with_safety' , 0)
+    # 2. Проверка момента с запасом (нормализован из torque_without_safety * safety_factor)
+    try:
+        torque_with_safety = float(params.get('torque_with_safety') or 0)
+    except (TypeError, ValueError):
+        torque_with_safety = 0
     if not torque_with_safety or torque_with_safety <= 0 :
-        errors.append("Не указан момент с запасом (должен быть больше 0)")
+        errors.append("Не указан момент с запасом (нужны torque_with_safety или torque_without_safety + safety_factor)")
         error_fields.append('torque_with_safety')
 
-    # 2A. Проверка управляющего давления
+    # 2A. Проверка управляющего давления (нормализовано: по умолчанию 6 бар)
     if not params.get('air_pressure_id') or params.get('air_pressure_id') == 0:
         errors.append("Не указано давление в пневмосистеме")
         error_fields.append('air_pressure_id')
 
-    # 3. Проверка типа привода DA/SR
-    actuator_variety_id = params.get('actuator_variety_id')
-    if not actuator_variety_id or actuator_variety_id == 0 :
+    # 3. Проверка типа привода DA/SR (code или id — нормализовано)
+    actuator_variety_code = params.get('actuator_variety_code')
+    if not actuator_variety_code:
         errors.append("Не выбран тип привода (DA/SR)")
-        error_fields.append('actuator_variety_id')
+        error_fields.append('actuator_variety_code')
 
     # 4. Если привод SR - проверка положения безопасности
     actuator_variety_code = params.get('actuator_variety_code')
@@ -283,6 +317,9 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     """
     import json
     from datetime import datetime
+
+    # Нормализация входных параметров (torque_without_safety * safety_factor и т.д.)
+    params = _normalize_selection_params(params)
 
     # Валидация
     is_valid , error_field , error_message , error_fields = validate_selection_params(params)
@@ -333,8 +370,6 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     print("=" * 60 + "\n")
 
     work_pressure_id = params.get('air_pressure_id')
-    if not work_pressure_id :
-        work_pressure_id = 13  # 6 бар по умолчанию
 
     torque_with_safety = float(params.get('torque_with_safety' , 0))
     actuator_variety_code = params.get('actuator_variety_code' , 'DA')

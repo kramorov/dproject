@@ -82,6 +82,7 @@ export const ENDPOINTS = {
     options: '/pneumatic_actuators/constructor/options/',
     preview: '/pneumatic_actuators/constructor/preview/',
     modelLines: '/pneumatic_actuators/constructor/model_lines/',
+    createSku: '/pneumatic_actuators/constructor/create-sku/',
     modelLineItems: (mlId, variety) => {
       let url = `/pneumatic_actuators/constructor/model-lines/${mlId}/items/`
       if (variety) url += `?variety=${variety}`
@@ -120,6 +121,8 @@ export const ENDPOINTS = {
     preview: '/pneumatic_actuators/constructor/preview/',
     search: '/pneumatic_actuators/selector/search/',
     createSku: '/pneumatic_actuators/constructor/create-sku/',
+    items: '/pneumatic_actuators/items/',
+    itemDetail: (id) => `/pneumatic_actuators/items/${id}/`,
   },
 
 }

@@ -304,6 +304,80 @@ class TemplateMixin:
         super().save(*args, **kwargs)
 
 
+    # === ГЕНЕРАЦИЯ ИЗ ШАБЛОНОВ MODEL_LINE (консолидировано из TemplateGeneratorMixin 2026-09-01) ===
+
+    def generated_model_name_description(self, name_or_description: str, hide_code: bool = False) -> str:
+        """Сгенерировать название или описание по шаблону из model_line."""
+        model_name = self._get_model_meta_name()
+        if not getattr(self, 'model_line', None):
+            return self.name or ""
+        if name_or_description == 'name':
+            template = self.model_line.name_template
+            if not template or not template.strip():
+                template = self._get_default_name_template()
+                if not template or not template.strip():
+                    logger.error(f'Ошибка при формировании названия в {model_name} - нет шаблона')
+                    return self.name or ""
+        else:
+            template = self.model_line.description_template
+            if not template or not template.strip():
+                template = self._get_default_description_template()
+                if not template or not template.strip():
+                    logger.error(f'Ошибка при формировании описания в {model_name} - нет шаблона')
+                    return self.description or ""
+        placeholder_to_attr = self._get_data_dict()
+        return self._fill_template(template, placeholder_to_attr, hide_code)
+
+    def _process_m2m_field(self, related_manager, item_template: str, separator: str = ", ",
+                           last_separator: str = None) -> str:
+        """Универсальная обработка M2M полей в шаблонах."""
+        items = related_manager.all()
+        if not items:
+            return ""
+        result_items = []
+        for item in items:
+            if hasattr(item, '_fill_template'):
+                result_items.append(item._fill_template(item_template))
+            else:
+                filled = item_template
+                for attr in ['name', 'code', 'full_code', 'description']:
+                    if f'{{{attr}}}' in filled:
+                        value = getattr(item, attr, '')
+                        filled = filled.replace(f'{{{attr}}}', str(value) if value else '')
+                result_items.append(filled)
+        if len(result_items) == 1:
+            return result_items[0]
+        if len(result_items) == 2 and last_separator:
+            return f"{result_items[0]} {last_separator} {result_items[1]}"
+        if len(result_items) > 2 and last_separator:
+            return f"{', '.join(result_items[:-1])} {last_separator} {result_items[-1]}"
+        return separator.join(result_items)
+
+    def update_name_from_template(self):
+        """Обновить название из шаблона model_line."""
+        if getattr(self, 'model_line', None) and self.model_line.name_template:
+            generated_name = self.generated_model_name_description('name')
+            if generated_name:
+                self.name = generated_name
+                return True
+        return False
+
+    def update_description_from_template(self):
+        """Обновить описание из шаблона model_line."""
+        if getattr(self, 'model_line', None) and self.model_line.description_template:
+            generated_description = self.generated_model_name_description('description')
+            if generated_description:
+                self.description = generated_description
+                return True
+        return False
+
+    def update_name_and_description_from_templates(self):
+        """Обновить название и описание из шаблонов model_line."""
+        name_updated = self.update_name_from_template()
+        description_updated = self.update_description_from_template()
+        return name_updated or description_updated
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TemplateFillerMixin — закомментирован 2026-06-05.
 # Причина: _fill_template(), _get_value(), _get_data_dict(), _get_model_meta_name()
@@ -378,184 +452,6 @@ class TemplateMixin:
 #             result = result.replace(placeholder, str(value) if value is not None else "")
 #
 #         return result
-
-
-class TemplateGeneratorMixin(TemplateMixin):
-    """
-    Миксин для генерации названий и описаний из шаблонов model_line.
-
-    Раньше наследовал TemplateFillerMixin. При консолидации дублирующих миксинов
-    (2026-06-05) переключён на TemplateMixin, т.к.:
-    - _fill_template(), _get_value(), _get_data_dict() дублировались
-    - _get_model_meta_name() перенесён в TemplateMixin
-    - TemplateFillerMixin при наличии TemplateMixin в MRO был недостижим
-    - TemplateFillerMixin закомментирован (см. ниже)
-    """
-
-    def generated_model_name_description(self, name_or_description: str, hide_code: bool = False) -> str:
-        """
-        Сгенерировать название или описание по шаблону из model_line
-
-        Args:
-            name_or_description: 'name' или 'description' - что генерировать
-            hide_code: скрыть model_code при генерации
-        """
-        model_name = self._get_model_meta_name()
-
-        if not self.model_line:
-            return self.name or ""
-
-        # Выбираем шаблон
-        if name_or_description == 'name':
-            template = self.model_line.name_template
-            if not template or not template.strip():
-                template = self._get_default_name_template()
-                if not template or not template.strip():
-                    logger.error(
-                        f'Ошибка при формировании названия в {model_name} - '
-                        f'нет шаблона названия (ни в model_line, ни дефолтного)'
-                    )
-                    return self.name or ""
-        else:
-            template = self.model_line.description_template
-            if not template or not template.strip():
-                template = self._get_default_description_template()
-                if not template or not template.strip():
-                    logger.error(
-                        f'Ошибка при формировании описания в {model_name} - '
-                        f'нет шаблона описания (ни в model_line, ни дефолтного)'
-                    )
-                    return self.description or ""
-
-        # Получаем словарь соответствий
-        placeholder_to_attr = self._get_data_dict()
-
-        # Заполняем шаблон
-        result = self._fill_template(template, placeholder_to_attr, hide_code)
-
-        return result
-
-    def _process_m2m_field(self, related_manager, item_template: str, separator: str = ", ",
-                           last_separator: str = None) -> str:
-        """
-        Универсальный метод для обработки M2M полей
-
-        Args:
-            related_manager: related менеджер M2M поля (например, self.sensor_components)
-            item_template: шаблон для каждого элемента (например '{name}', '{code} {name}')
-            separator: разделитель между элементами
-            last_separator: последний разделитель (если None, то используется separator)
-
-        Returns:
-            Строка с объединенными элементами
-        """
-        import logging
-        logger = logging.getLogger(__name__)
-
-        logger.debug(f"_process_m2m_field: начало обработки")
-        logger.debug(f"  item_template: {item_template}")
-        logger.debug(f"  separator: {separator}")
-        logger.debug(f"  last_separator: {last_separator}")
-
-        items = related_manager.all()
-        logger.debug(f"  количество items: {items.count()}")
-
-        if not items:
-            logger.debug("  items пуст, возвращаем пустую строку")
-            return ""
-
-        result_items = []
-        for idx, item in enumerate(items):
-            logger.debug(f"  обработка item {idx}: {item}")
-            logger.debug(f"    тип item: {type(item).__name__}")
-
-            # Если у элемента есть метод _fill_template - используем его
-            if hasattr(item, '_fill_template'):
-                logger.debug(f"    у item есть _fill_template")
-                filled = item._fill_template(item_template)
-                logger.debug(f"    filled после _fill_template: {filled}")
-            else:
-                logger.debug(f"    у item НЕТ _fill_template, используем простую подстановку")
-                # Простая подстановка для обычных моделей
-                filled = item_template
-                for attr in ['name', 'code', 'full_code', 'description']:
-                    if f'{{{attr}}}' in filled:
-                        value = getattr(item, attr, '')
-                        filled = filled.replace(f'{{{attr}}}', str(value) if value else '')
-                        logger.debug(f"      заменен {{{attr}}} на '{value}'")
-                logger.debug(f"    filled после простой подстановки: {filled}")
-
-            result_items.append(filled)
-
-        # Объединяем с разделителями
-        if len(result_items) == 1:
-            result = result_items[0]
-            logger.debug(f"  один элемент, результат: {result}")
-            return result
-        elif len(result_items) == 2 and last_separator:
-            result = f"{result_items[0]} {last_separator} {result_items[1]}"
-            logger.debug(f"  два элемента с last_separator, результат: {result}")
-            return result
-        elif len(result_items) > 2 and last_separator:
-            result = f"{', '.join(result_items[:-1])} {last_separator} {result_items[-1]}"
-            logger.debug(f"  больше двух элементов с last_separator, результат: {result}")
-            return result
-        else:
-            result = separator.join(result_items)
-            logger.debug(f"  объединение с separator, результат: {result}")
-            return result
-
-
-
-    def _get_default_name_template(self) -> str:
-        """Должен быть переопределен в модели"""
-        return "{model_code}"
-
-    def _get_default_description_template(self) -> str:
-        """Должен быть переопределен в модели"""
-        return "{model_code}"
-
-    def _get_data_dict(self) -> Dict[str, str]:
-        """
-        Должен быть переопределен в модели.
-        Возвращает словарь соответствий плейсхолдеров и путей к атрибутам.
-        """
-        return {
-            '{model_code}': 'code',
-        }
-
-    def update_name_from_template(self):
-        """Обновить название из шаблона"""
-        print(f'update_name_from_template from TemplateGeneratorMixin')
-        if self.model_line and self.model_line.name_template:
-            generated_name = self.generated_model_name_description('name')
-            if generated_name:
-                self.name = generated_name
-                return True
-        return False
-
-    def update_description_from_template(self):
-        """Обновить описание из шаблона"""
-        if self.model_line and self.model_line.description_template:
-            generated_description = self.generated_model_name_description('description')
-            if generated_description:
-                self.description = generated_description
-                return True
-        return False
-
-    def update_name_and_description_from_templates(self):
-        """Обновить название и описание из шаблонов"""
-        name_updated = self.update_name_from_template()
-        description_updated = self.update_description_from_template()
-        return name_updated or description_updated
-
-    def save(self, *args, **kwargs):
-        """При сохранении обновляем название и описание из шаблонов, если не указано в параметрах skip_auto_generate=True"""
-        skip_auto_generate = kwargs.pop('skip_auto_generate', False)
-        # print(f'save from TemplateGeneratorMixin. skip_auto_generate={skip_auto_generate}')
-        if not skip_auto_generate:
-            self.update_name_and_description_from_templates()
-        super().save(*args, **kwargs)
 
 
 #

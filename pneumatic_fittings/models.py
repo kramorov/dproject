@@ -7,7 +7,6 @@ from typing import Dict , List , Optional , Any
 from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin, CatalogDictMixin
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
 from core.models.cert_doc_mixin import CertDocMixin
-# TemplateGeneratorMixin удалён из импорта 2026-06-05 — импортировался, но не использовался
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from materials.models import MaterialGeneral
 from params.models import ThreadSize , ThreadInnerOuter , ThreadTypes
@@ -611,7 +610,7 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
             'id': self.id,
             'code': self.code or '',
             'name': self.name or '',
-            'title': self.generate_title() if hasattr(self, 'generate_title') else (self.name or ''),
+            'title': self.generate_title(),
             'pipe_diameter': self.pipe_diameter,
             'fitting_variety': {
                 'id': self.fitting_variety.id,

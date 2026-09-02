@@ -6,6 +6,8 @@ PosiModelLineItem — модель позиционера (собирается 
 сериализация для каталога. Опции берутся из through-моделей PosiModelLine
 (разрешённые варианты серии), в item хранятся выбранные значения.
 """
+import re
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -42,8 +44,9 @@ class PosiModelLineItem(CatalogDictMixin,
         из серии: есть серии, отличающиеся только материалом, вес зависит от него);
       - supply_pressure_min/max — свойство get_supply_pressure_range (из серии);
       - actuator_action — свойство get_actuator_action_display_text (DA/SR/оба);
-      - smart_capability_set — если у модели не задан, берётся от серии
-        (get_smart_capability_set / get_smart_capabilities, сортировка по sorting_order).
+      - smart_capability_set — если у модели не задан, берётся от опции
+        «Профиль сигналов» (PosiSignalProfileOption.smart_capability_set;
+        get_smart_capability_set / get_smart_capabilities, сортировка по sorting_order).
 
     Сигналы: для всех моделей по умолчанию подставляется профиль POS-STD-4-20
     (вход 4-20 мА) — см. save() и DEFAULT_SIGNAL_PROFILE_CODE; отключить можно
@@ -220,8 +223,113 @@ class PosiModelLineItem(CatalogDictMixin,
             ).first()
             if default_profile:
                 self.signal_profile = default_profile
+        # Артикул генерируется из model_line.model_item_code_template, если не задан
+        if not self.code:
+            self.code = self.generated_model_item_code or None
         super().save(*args, **kwargs)
         self.sync_sku()
+
+    # ── Артикул (паттерн электроприводов/пневмоприводов: шаблон на серии +
+    #    encodings through-опций) ──
+
+    @property
+    def generated_model_item_code(self) -> str:
+        """Артикул по шаблону model_line.model_item_code_template."""
+        template = getattr(self.model_line, 'model_item_code_template', None) if self.model_line else None
+        if not template:
+            return self._generate_fallback_code()
+        result = self._fill_template(template, self._get_code_data_dict())
+        result = re.sub(r'\.{2,}', '.', result)
+        result = re.sub(r'\.\s+', ' ', result)
+        return result.strip('. ')
+
+    def _get_code_data_dict(self):
+        """Плейсхолдер артикула → имя свойства с encoding."""
+        return {
+            '{model_code}': 'model_line__code',
+            '{acting_type}': 'acting_type_encoding',
+            '{body_connection}': 'body_connection_encoding',
+            '{lever}': 'lever_encoding',
+            '{temperature}': 'temperature_encoding',
+            '{signal_profile}': 'signal_profile_encoding',
+            '{alarm}': 'alarm_encoding',
+            '{exd}': 'exd_encoding',
+            '{ip}': 'ip_code',
+            '{smart}': 'smart_code',
+        }
+
+    def _generate_fallback_code(self) -> str:
+        parts = [
+            self.model_line.code if self.model_line else '',
+            self.acting_type_encoding, self.body_connection_encoding, self.lever_encoding,
+            self.temperature_encoding, self.signal_profile_encoding, self.alarm_encoding,
+            self.exd_encoding, self.ip_code, self.smart_code,
+        ]
+        return '.'.join(filter(None, parts))
+
+    def _get_option_encoding(self, through_model_name: str, through_attr: str, value) -> str:
+        """Encoding through-опции серии для выбранного значения item'а."""
+        if not (self.model_line_id and value):
+            return ''
+        from . import posi_model_line as pml
+        model = getattr(pml, through_model_name)
+        row = model.objects.filter(
+            model_line_id=self.model_line_id, **{through_attr: value}
+        ).first()
+        return row.encoding if row and row.encoding else ''
+
+    @property
+    def acting_type_encoding(self) -> str:
+        """Тип действия — прямой FK: code справочника (свой у модели или от серии)."""
+        at = self.acting_type or (self.model_line.acting_type if self.model_line else None)
+        return at.code if at else ''
+
+    @property
+    def body_connection_encoding(self) -> str:
+        return self._get_option_encoding('PosiBodyConnectionOption', 'body_connection', self.body_connection)
+
+    @property
+    def lever_encoding(self) -> str:
+        return self._get_option_encoding('PosiLeverOption', 'lever', self.lever)
+
+    @property
+    def temperature_encoding(self) -> str:
+        """У модели нет выбранной температуры — берём дефолтную опцию серии."""
+        from .posi_model_line import PosiTemperatureOption
+        if not self.model_line_id:
+            return ''
+        opt = (PosiTemperatureOption.objects
+               .filter(model_line_id=self.model_line_id, is_active=True)
+               .order_by('-is_default', 'sorting_order').first())
+        return opt.encoding if opt and opt.encoding else ''
+
+    @property
+    def signal_profile_encoding(self) -> str:
+        return self._get_option_encoding('PosiSignalProfileOption', 'signal_profile', self.signal_profile)
+
+    @property
+    def alarm_encoding(self) -> str:
+        return self._get_option_encoding('PosiAlarmOption', 'alarm', self.alarm)
+
+    @property
+    def exd_encoding(self) -> str:
+        """PosiExdOption хранит M2M exd_options → encoding."""
+        from .posi_model_line import PosiExdOption
+        if not (self.model_line_id and self.exd_id):
+            return ''
+        opt = PosiExdOption.objects.filter(
+            model_line_id=self.model_line_id, exd_options=self.exd
+        ).first()
+        return opt.encoding if opt and opt.encoding else ''
+
+    @property
+    def ip_code(self) -> str:
+        return self.ip.code if self.ip else ''
+
+    @property
+    def smart_code(self) -> str:
+        s = self.get_smart_capability_set()
+        return (s.code or '') if s else ''
 
     # ── Шаблоны (TemplateMixin) ──
 
@@ -244,7 +352,8 @@ class PosiModelLineItem(CatalogDictMixin,
                 "Рычаг: {lever}; Материал корпуса: {body_material}, вес {weight} кг; "
                 "Питание: {supply_pressure_range} бар; "
                 "Пневмопривод: {actuator_action}; "
-                "Сигнал тревоги: {alarm}. Сигналы: {signal_profile_summary}")
+                "Сигнал тревоги: {alarm}. Сигналы: {signal_profile_summary}; "
+                "Смарт-возможности: {smart_capabilities}")
 
     def _get_title_template_source(self):
         return "{model_code} Позиционер {brand}, {acting_type}; {exd}; {ip}"
@@ -254,7 +363,7 @@ class PosiModelLineItem(CatalogDictMixin,
         return {
             '{model_code}': 'code',
             '{brand}': 'model_line__brand__name',
-            '{acting_type}': 'acting_type',
+            '{acting_type}': 'get_acting_type',
             '{exd}': 'exd',
             '{ip}': 'ip',
             '{body_connection}': 'body_connection',
@@ -267,7 +376,13 @@ class PosiModelLineItem(CatalogDictMixin,
             '{work_temp_max}': 'work_temp_max',
             '{supply_pressure_range}': 'get_supply_pressure_range',
             '{signal_profile_summary}': 'get_signal_profile_summary',
+            '{smart_capabilities}': 'get_smart_capabilities_display',
         }
+
+    @property
+    def get_acting_type(self):
+        """Тип действия: свой у модели, иначе — от серии (FK)."""
+        return self.acting_type or (self.model_line.acting_type if self.model_line else None)
 
     # ── Свойства, читающие характеристики из серии ──
 
@@ -303,11 +418,17 @@ class PosiModelLineItem(CatalogDictMixin,
         return f"{parts[0]}..{parts[1]}"
 
     def get_smart_capability_set(self):
-        """Набор смарт-возможностей: свой у модели, иначе — от серии."""
+        """Набор смарт-возможностей: свой у модели, иначе — от опции «Профиль сигналов»."""
         if self.smart_capability_set_id:
             return self.smart_capability_set
-        if self.model_line_id:
-            return self.model_line.smart_capability_set
+        if self.model_line_id and self.signal_profile_id:
+            from .posi_model_line import PosiSignalProfileOption
+            option = PosiSignalProfileOption.objects.filter(
+                model_line_id=self.model_line_id,
+                signal_profile_id=self.signal_profile_id,
+            ).select_related('smart_capability_set').first()
+            if option:
+                return option.smart_capability_set
         return None
 
     def get_smart_capabilities(self):
@@ -316,6 +437,11 @@ class PosiModelLineItem(CatalogDictMixin,
         if not capability_set:
             return []
         return list(capability_set.get_capabilities())
+
+    @property
+    def get_smart_capabilities_display(self) -> str:
+        """Текстовая сводка смарт-возможностей для шаблонов ({smart_capabilities})."""
+        return "; ".join(c.name for c in self.get_smart_capabilities())
 
     @property
     def get_signal_profile_summary(self) -> str:

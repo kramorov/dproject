@@ -1,7 +1,9 @@
 # pneumatic_actuators/admin/pa_model_line_admin.py
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLine
+from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
 from pneumatic_actuators.models.pa_options import (
     PneumaticTemperatureOption,
     PneumaticIpOption,
@@ -59,8 +61,10 @@ class PneumaticBodyCoatingOptionInline(admin.TabularInline) :
 
 
 @admin.register(PneumaticActuatorModelLine)
-class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
+class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin) :
     """Админка для серий пневмоприводов с through-опциями"""
+
+    template_item_model = PneumaticActuatorItem
 
     list_display = (
         'name' ,
@@ -112,7 +116,8 @@ class PneumaticActuatorModelLineAdmin(admin.ModelAdmin) :
         (_('Основная информация') , {
             'fields' : (
                 ('name' , 'code' , 'brand' , 'equipment_type',
-                'pneumatic_actuator_construction_variety'), 'model_item_code_template', 'description'
+                'pneumatic_actuator_construction_variety'), 'model_item_code_template',
+                ('name_template', 'description_template'), 'description'
             )
         }) ,
         (_('Основные параметры') , {

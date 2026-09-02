@@ -12,7 +12,7 @@ from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin , EquipmentTypeMixin
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.cert_doc_mixin import CertDocMixin
-from core.models.mixins import TemplateMixin, CatalogDictMixin
+from core.models.mixins import CatalogDictMixin
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -39,6 +39,14 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
                             help_text=_("Код серии приводов"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание модели корпуса привода'))
+    # Шаблоны текста каталога — единый контракт с DV/LSB/FR/GB/PF (2026-08-31).
+    # Используются PneumaticActuatorItem (TemplateMixin._get_name_template_source).
+    name_template = models.TextField(blank=True , null=True ,
+                                     verbose_name=_("Шаблон названия") ,
+                                     help_text=_('Шаблон для текстового названия пневмопривода'))
+    description_template = models.TextField(blank=True , null=True ,
+                                            verbose_name=_("Шаблон описания") ,
+                                            help_text=_('Шаблон для описания пневмопривода'))
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
@@ -634,12 +642,14 @@ def create_default_options(sender , instance , created , **kwargs) :
 
 
 # ======================================  Модель в серии ==================================
-class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin, TemplateMixin, models.Model):
+class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin, models.Model):
     """
     Модель в серии пневмоприводов - DA или SR -
     Объединяет в себе общие для всех моделей серии свойства
     и доступные опции.
-    Наследует CatalogDictMixin + TemplateMixin для карточки в каталоге.
+    LEGACY (2026-09-01): TemplateMixin снят — шаблоны/генерация живут
+    в эталонной модели PneumaticActuatorItem; карточка отдаёт хранимые
+    name/description.
     """
     name = models.CharField(max_length=200 ,
                             verbose_name=_("Название") ,
@@ -648,6 +658,9 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                             help_text=_("Код модели"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание модели'))
+    # name_template/description_template удалены 2026-08-31:
+    # поля-тени затеняли одноимённые property TemplateMixin и не были мигрированы.
+    # Шаблоны теперь живут на PneumaticActuatorModelLine (см. pa_item.py).
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
@@ -669,6 +682,12 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                           on_delete=models.SET_NULL ,
                           verbose_name='DA/SR' ,
                           help_text=_('Вид пневмопривода - DA/SR'))
+    # ВСЁ остальное в JSON
+    extra_params = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Параметры") ,
+        help_text=_("signal_type, resistance, range и т.д.")
+    )
 
     # ========== КОНФИГУРАЦИЯ ДЛЯ AI-ПАЙПЛАЙНА ==========
     # Используется для генерации JSON-схем. В наборы фильтров каталогов НЕ включать.
@@ -768,16 +787,6 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
 
     # ==================== CATALOG MIXIN METHODS ====================
 
-    def _get_data_dict(self):
-        """Словарь плейсхолдер -> dotted-путь для TemplateMixin."""
-        return {
-            '{model_code}': 'code',
-            '{brand}': 'model_line__brand',
-            '{body_code}': 'body__code',
-            '{body_name}': 'body__name',
-            '{variety}': 'pneumatic_actuator_variety',
-        }
-
     def _get_template_vars(self):
         """Плоский словарь значений для UI и шаблонов."""
         body = self.body
@@ -828,8 +837,8 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
             'id': self.id,
             'code': self.code or '',
             'name': self.name or '',
-            'title': self.generate_title(),
-            'description': self.generate_description(),
+            'title': self.name or '',
+            'description': self.description or '',
             'is_active': self.is_active,
             'sorting_order': self.sorting_order,
             'model_line': self._get_model_line_summary(),

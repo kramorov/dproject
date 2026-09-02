@@ -4,8 +4,6 @@ from typing import Dict
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin, TemplateMixin
-
 class OverrideMechanism(models.Model):
     """Справочник механизмов отключения/дублирования для редукторов
     Declutchable Lever (Эксцентриковый рычаг): Самый частый вариант для пневмоприводов.

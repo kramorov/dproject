@@ -4,7 +4,9 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminStructuredDataMixinCopyMixin
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from solenoid_valves.models import DirectionalValveModelLine
+from solenoid_valves.models.dv_model_line_item import DirectionValve
 
 
 class DirectionalValveModelLineForm(forms.ModelForm):
@@ -44,8 +46,9 @@ class DirectionalValveModelLineForm(forms.ModelForm):
 
 
 @admin.register(DirectionalValveModelLine)
-class DirectionalValveModelLineAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
+class DirectionalValveModelLineAdmin(TemplatePlaceholdersAdminMixin, AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     """Админка для серии распределительных клапанов (DNA клапана)"""
+    template_item_model = DirectionValve
     form = DirectionalValveModelLineForm
 
     list_display = [

@@ -80,6 +80,59 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             is_active=request.data.get('is_active', True),
         )
 
+    def _materialize_item(self, obj):
+        """
+        Записать конфигурацию конструктора в эталонную PneumaticActuatorItem + SKU.
+
+        Constructor — только форма: результат записи — item каталога
+        (автогенерация code/name/description из шаблонов серии) и SKU,
+        созданный из него через SKUMixin.sync_sku().
+
+        Returns:
+            (item, sku) или (None, None) при ошибке/отсутствии модели.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        from pneumatic_actuators.services.sku_service import get_or_create_sku
+        from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
+
+        if not obj.selected_model_line_item_id:
+            return None, None
+
+        options = {
+            'springs_qty': obj.selected_springs_qty_id,
+            'temperature': obj.selected_temperature_id,
+            'safety_position': obj.selected_safety_position_id,
+            'ip': obj.selected_ip_id,
+            'exd': obj.selected_exd_id,
+            'body_coating': obj.selected_body_coating_id,
+            'hand_wheel': obj.selected_hand_wheel_id,
+        }
+        try:
+            sku = get_or_create_sku(obj.selected_model_line_item, options)
+        except Exception as e:
+            logger.error(f"Материализация item не удалась: {e}")
+            return None, None
+
+        item = None
+        if sku and sku.source_content_type_id and sku.source_object_id:
+            item = PneumaticActuatorItem.objects.filter(pk=sku.source_object_id).first()
+        return item, sku
+
+    def _attach_item_sku(self, data, obj):
+        """Добавить в ответ item (to_dict) и sku (кратко)."""
+        item, sku = self._materialize_item(obj)
+        data['item'] = item.to_dict() if item else None
+        if sku:
+            data['sku'] = {
+                'id': sku.id, 'code': sku.code, 'name': sku.name,
+                'description': sku.description,
+            }
+        else:
+            data['sku'] = None
+        return data
+
     def create(self, request, *args, **kwargs):
         obj = self._build_from_request(request)
         # Проверка дубликата: если конфигурация уже существует — возвращаем её
@@ -98,9 +151,13 @@ class ConstructorViewSet(viewsets.ModelViewSet):
                 is_active=True,
             ).first()
             if existing:
-                return Response(self._serialize_detail(existing), status=status.HTTP_200_OK)
+                data = self._serialize_detail(existing)
+                data = self._attach_item_sku(data, existing)
+                return Response(data, status=status.HTTP_200_OK)
         obj.save()
-        return Response(self._serialize_detail(obj), status=status.HTTP_201_CREATED)
+        data = self._serialize_detail(obj)
+        data = self._attach_item_sku(data, obj)
+        return Response(data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         obj = self.get_object()
@@ -118,7 +175,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         if 'is_active' in request.data:
             obj.is_active = request.data['is_active']
         obj.save()
-        return Response(self._serialize_detail(obj))
+        data = self._serialize_detail(obj)
+        data = self._attach_item_sku(data, obj)
+        return Response(data)
 
     def destroy(self, request, *args, **kwargs):
         obj = self.get_object()
