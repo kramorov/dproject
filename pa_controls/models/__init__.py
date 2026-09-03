@@ -10,6 +10,7 @@ from .posi_options import ActingType, LeverOption, SmartCapabilityOption, SmartC
 from .posi_model_line import PosiModelLine
 from .posi_body_connections import PosiBodyConnections
 from .positioner_item import PosiModelLineItem
+from .posi_constructor import PositionerConstructor
 
 __all__ = [
     'PaControlMountingStandard',
@@ -30,4 +31,5 @@ __all__ = [
     'PosiModelLine',
     'PosiModelLineItem',
     'PosiBodyConnections',
+    'PositionerConstructor',
 ]

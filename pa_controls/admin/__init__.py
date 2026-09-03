@@ -14,6 +14,7 @@ from .positioner_admin import (
     PosiModelLineItemAdmin,
     PosiBodyConnectionsAdmin,
 )
+from .posi_constructor_admin import PositionerConstructorAdmin
 
 __all__ = [
     'LimitSwitchSensorVarietyAdmin',
@@ -28,5 +29,6 @@ __all__ = [
     'PosiModelLineAdmin',
     'PosiModelLineItemAdmin',
     'PosiBodyConnectionsAdmin',
+    'PositionerConstructorAdmin',
 ]
 

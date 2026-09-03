@@ -292,7 +292,8 @@ class PosiModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
 # ── Модель (item) ──
 
 @admin.register(PosiModelLineItem)
-class PosiModelLineItemAdmin(admin.ModelAdmin):
+class PosiModelLineItemAdmin(AdminCopyMixin, admin.ModelAdmin):
+    actions = ['copy_selected_objects']
     list_display = ['name', 'code', 'model_line', 'acting_type', 'exd', 'is_active']
     list_filter = ['model_line', 'acting_type', 'exd', 'is_active']
     search_fields = ['name', 'code']

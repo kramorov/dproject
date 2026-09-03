@@ -229,6 +229,50 @@ class PosiModelLineItem(CatalogDictMixin,
         super().save(*args, **kwargs)
         self.sync_sku()
 
+    def copy(self, suffix=' Копия', **kwargs):
+        """Копия item-а с уникальным кодом и SKU.
+
+        Имя и описание не трогаем: TemplateMixin.save() перегенерирует их
+        из шаблона серии при сохранении (skip_auto_generate не передаём),
+        и код с суффиксом попадает в имя через плейсхолдер {model_code}.
+
+        SKU привязывается по коду (sync_sku), поэтому повторные копии
+        должны получать уникальный код: перебираем «Копия», «Копия 2»…
+        Проверка занятости SKU выполняется до сохранения, а каждая попытка
+        — в отдельном atomic-блоке, чтобы IntegrityError не ломала внешнюю
+        транзакцию (например, при массовом импорте).
+        """
+        from django.db import IntegrityError, transaction
+
+        from sku.models import SKU
+
+        base_code = self.code or self.name or ''
+
+        attempt = 0
+        while True:
+            s = suffix if attempt == 0 else f'{suffix} {attempt + 1}'
+
+            # Код занят (SKU уже существует) — пробуем следующий суффикс
+            if SKU.objects.filter(code=f'{base_code}{s}').exists():
+                attempt += 1
+                if attempt > 100:
+                    raise RuntimeError('Не удалось подобрать уникальный код копии')
+                continue
+
+            try:
+                with transaction.atomic():
+                    new_obj = super().copy(suffix=s, **kwargs)
+                return new_obj
+            except IntegrityError:
+                # Страховка от гонок: суффикс успел занять другой процесс
+                attempt += 1
+                if attempt > 100:
+                    raise
+                with transaction.atomic():
+                    PosiModelLineItem.objects.filter(
+                        code=f'{base_code}{s}', sku__isnull=True
+                    ).delete()
+
     # ── Артикул (паттерн электроприводов/пневмоприводов: шаблон на серии +
     #    encodings through-опций) ──
 
@@ -294,18 +338,50 @@ class PosiModelLineItem(CatalogDictMixin,
 
     @property
     def temperature_encoding(self) -> str:
-        """У модели нет выбранной температуры — берём дефолтную опцию серии."""
+        """Температурная опция, выбранная для item.
+
+        Опция ищется по work_temp_min/max item'а (конструктор сохраняет
+        выбранный диапазон); если диапазон не задан или не найден —
+        дефолтная опция серии (is_default, фолбэк — первая активная).
+        """
         from .posi_model_line import PosiTemperatureOption
         if not self.model_line_id:
             return ''
-        opt = (PosiTemperatureOption.objects
-               .filter(model_line_id=self.model_line_id, is_active=True)
-               .order_by('-is_default', 'sorting_order').first())
+        qs = PosiTemperatureOption.objects.filter(
+            model_line_id=self.model_line_id, is_active=True
+        )
+        opt = None
+        if self.work_temp_min is not None and self.work_temp_max is not None:
+            opt = (qs.filter(work_temp_min=self.work_temp_min,
+                             work_temp_max=self.work_temp_max)
+                   .order_by('-is_default', 'sorting_order').first())
+        if not opt:
+            opt = qs.order_by('-is_default', 'sorting_order').first()
         return opt.encoding if opt and opt.encoding else ''
 
     @property
     def signal_profile_encoding(self) -> str:
-        return self._get_option_encoding('PosiSignalProfileOption', 'signal_profile', self.signal_profile)
+        """Encoding профиля сигналов.
+
+        Один профиль может повторяться в серии с разными наборами
+        смарт-возможностей (и encodings) — предпочитаем through-строку,
+        чей smart_capability_set совпадает с item'ом; иначе первая строка.
+        """
+        if not (self.model_line_id and self.signal_profile_id):
+            return ''
+        from .posi_model_line import PosiSignalProfileOption
+        qs = PosiSignalProfileOption.objects.filter(
+            model_line_id=self.model_line_id,
+            signal_profile_id=self.signal_profile_id,
+        )
+        row = None
+        if self.smart_capability_set_id:
+            row = qs.filter(
+                smart_capability_set_id=self.smart_capability_set_id
+            ).first()
+        if not row:
+            row = qs.first()
+        return row.encoding if row and row.encoding else ''
 
     @property
     def alarm_encoding(self) -> str:
@@ -358,6 +434,26 @@ class PosiModelLineItem(CatalogDictMixin,
     def _get_title_template_source(self):
         return "{model_code} Позиционер {brand}, {acting_type}; {exd}; {ip}"
 
+    # ── Резьбы присоединений корпуса (для шаблонов и каталога) ──
+
+    @property
+    def get_pneumatic_connection_in(self) -> str:
+        """Резьба пневмовхода (входное отверстие пневмоподключения)."""
+        bc = self.body_connection
+        return str(bc.thread_in) if bc and bc.thread_in else ''
+
+    @property
+    def get_pneumatic_connection_out(self) -> str:
+        """Резьба пневмовыхода (выходное отверстие пневмоподключения)."""
+        bc = self.body_connection
+        return str(bc.thread_out) if bc and bc.thread_out else ''
+
+    @property
+    def get_cable_gland_hole(self) -> str:
+        """Резьба отверстия под кабельный ввод."""
+        bc = self.body_connection
+        return str(bc.cable_gland_hole) if bc and bc.cable_gland_hole else ''
+
     def _get_data_dict(self) -> dict:
         """Словарь соответствий плейсхолдеров и атрибутов."""
         return {
@@ -367,6 +463,9 @@ class PosiModelLineItem(CatalogDictMixin,
             '{exd}': 'exd',
             '{ip}': 'ip',
             '{body_connection}': 'body_connection',
+            '{pneumatic_connection_in}': 'get_pneumatic_connection_in',
+            '{pneumatic_connection_out}': 'get_pneumatic_connection_out',
+            '{cable_gland_hole}': 'get_cable_gland_hole',
             '{lever}': 'lever',
             '{alarm}': 'alarm',
             '{body_material}': 'get_body_material',
@@ -468,6 +567,76 @@ class PosiModelLineItem(CatalogDictMixin,
 
     # ── Сериализация каталога ──
 
+    @staticmethod
+    def _safe_m2m(instance, method_name):
+        """Безопасный вызов секций M2M: на несохранённом инстансе (превью)
+        M2M-менеджер требует pk — возвращаем [] (паттерн БКВ)."""
+        try:
+            return getattr(instance, method_name)()
+        except Exception:
+            return []
+
+    def _build_doc_dict(self, doc) -> dict:
+        has_email = doc.variants.filter(role='email').exists()
+        return {
+            'id': doc.id, 'name': getattr(doc, 'name', '') or '',
+            'url': f"/api/media/{doc.id}/download/",
+            'file_name': getattr(doc, 'name', '') or '',
+            'preview_url': f"/api/media/{doc.id}/view/",
+            'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
+        }
+
+    def _get_docs_section(self) -> list:
+        """Тех. документация: своя → из серии (дедуп по id), паттерн БКВ."""
+        docs = []
+        seen = set()
+        for doc in self.tech_docs.all():
+            if doc.media_file and doc.id not in seen:
+                seen.add(doc.id)
+                docs.append(self._build_doc_dict(doc))
+        if self.model_line and hasattr(self.model_line, 'tech_docs'):
+            for doc in self.model_line.tech_docs.all():
+                if doc.media_file and doc.id not in seen:
+                    seen.add(doc.id)
+                    docs.append(self._build_doc_dict(doc))
+        return docs
+
+    def _get_certs_section(self) -> list:
+        """Сертификаты — из серии (у позиции нет своего поля), паттерн БКВ."""
+        certs = []
+        if self.model_line and hasattr(self.model_line, 'cert_docs'):
+            cert_ids = list(
+                self.model_line.cert_docs
+                .filter(is_active=True)
+                .values_list('id', flat=True)
+            )
+            if cert_ids:
+                from urllib.parse import quote
+                from cert_doc.models import CertData
+                for cert in CertData.objects.filter(id__in=cert_ids).select_related(
+                        'media_item', 'cert_variety'):
+                    media = getattr(cert, 'media_item', None)
+                    if not media:
+                        continue
+                    has_email = media.variants.filter(role='email').exists()
+                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                    cert_code = getattr(cert, 'code', '') or ''
+                    ml_name = self.model_line.name if self.model_line else ''
+                    base_name = re.sub(r'[\\/*?:"<>|]', '_',
+                                       f"{variety_name} {cert_code} для {ml_name}".strip())
+                    dl_name = f"{base_name}.pdf"
+                    email_name = f"{base_name} (сжат).pdf"
+                    certs.append({
+                        'id': media.id,
+                        'name': getattr(cert, 'name', '') or '',
+                        'file_name': dl_name,
+                        'email_file_name': email_name,
+                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
+                        'preview_url': f"/api/media/{media.id}/view/",
+                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
+                    })
+        return certs
+
     def to_dict(self) -> dict:
         tv = {
             'code': self.code or '',
@@ -478,6 +647,9 @@ class PosiModelLineItem(CatalogDictMixin,
             'exd': self.exd.name if self.exd else '',
             'ip': self.ip.name if self.ip else '',
             'body_connection': self.body_connection.name if self.body_connection_id else '',
+            'pneumatic_connection_in': self.get_pneumatic_connection_in,
+            'pneumatic_connection_out': self.get_pneumatic_connection_out,
+            'cable_gland_hole': self.get_cable_gland_hole,
             'lever': self.lever.name if self.lever else '',
             'alarm': self.alarm.name if self.alarm else '',
             'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
@@ -502,6 +674,10 @@ class PosiModelLineItem(CatalogDictMixin,
                    if hasattr(self, 'sku') and self.sku else None,
             'template_vars': tv,
             'sections': [
+                {
+                    'key': 'images', 'title': 'Изображения', 'type': 'gallery',
+                    'order': 0, 'data': self._safe_m2m(self, '_get_images_section'),
+                },
                 {
                     'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
                     'order': 1, 'groups': [
@@ -556,11 +732,15 @@ class PosiModelLineItem(CatalogDictMixin,
                 },
                 {
                     'key': 'docs', 'title': 'Документация', 'type': 'files',
-                    'order': 2, 'data': []
+                    'order': 2, 'data': self._safe_m2m(self, '_get_docs_section'),
+                },
+                {
+                    'key': 'certs', 'title': 'Сертификаты', 'type': 'files',
+                    'order': 3, 'data': self._safe_m2m(self, '_get_certs_section'),
                 },
                 {
                     'key': 'description', 'title': 'Описание', 'type': 'text',
-                    'order': 3, 'data': self.description or '',
+                    'order': 4, 'data': self.description or '',
                 },
             ],
         }

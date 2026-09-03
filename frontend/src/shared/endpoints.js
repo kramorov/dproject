@@ -90,6 +90,15 @@ export const ENDPOINTS = {
     },
   },
 
+  posiConstructor: {
+    list: '/pa-controls/constructor/',
+    detail: (id) => `/pa-controls/constructor/${id}/`,
+    options: '/pa-controls/constructor/options/',
+    preview: '/pa-controls/constructor/preview/',
+    actingTypes: '/pa-controls/constructor/acting-types/',
+    modelLines: '/pa-controls/constructor/model-lines/',
+  },
+
   eaConstructor: {
     list: '/electric_actuators/constructor/',
     detail: (id) => `/electric_actuators/constructor/${id}/`,

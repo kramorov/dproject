@@ -82,6 +82,7 @@ const routes = [
 
   // Администрирование — конфигураторы (configurator)
   { path: '/configurator/pa', component: () => import('../pages/admin/PaConstructorPage.vue'), meta: { title: 'Конструктор ПП', section: 'configurator_pa' } },
+  { path: '/admin/posi-constructor', component: () => import('../pages/admin/PosiConstructorPage.vue'), meta: { title: 'Конструктор Позиционеров', section: 'configurator_pa' } },
   { path: '/configurator/pa-legacy', component: () => import('../pages/admin/PaConstructorLegacyPage.vue'), meta: { title: 'Конструктор ПП Old', section: 'configurator_pa' } },
   { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор ЭП', section: 'configurator_ea' } },
   { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Напряжения ЭП', section: 'configurator_ea' } },
