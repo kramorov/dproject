@@ -82,10 +82,17 @@
         </div>
       </template>
 
-      <!-- Предупреждения (only_non_ex при выборе Ex) -->
+      <!-- Предупреждения от бэка (несовместимость опций со взрывозащитой) -->
       <div class="warnings" v-if="previewWarnings.length">
         <div v-for="(w, i) in previewWarnings" :key="i" class="warning">
           ⚠ {{ w.message }}
+        </div>
+      </div>
+
+      <!-- Предупреждения о сбросе опций «только общепром» -->
+      <div class="warnings" v-if="exdResetWarnings.length">
+        <div v-for="(w, i) in exdResetWarnings" :key="i" class="warning">
+          ⚠ {{ w }}
         </div>
       </div>
 
@@ -121,6 +128,7 @@ const options = ref(null)
 const message = ref(null)
 const previewData = ref(null)
 const previewWarnings = ref([])
+const exdResetWarnings = ref([])
 const saving = ref(false)
 
 // Единый маппинг опций: ключ формы → ключ ответа options + какой id использовать
@@ -165,12 +173,19 @@ const filteredList = computed(() => {
 
 const optionFields = computed(() => {
   if (!options.value) return []
-  return Object.entries(OPTION_MAP).map(([key, cfg]) => ({
-    key, label: cfg.label,
-    items: options.value[cfg.apiKey] || [],
-    valueKey: cfg.valueKey,
-    disabled: (options.value[cfg.apiKey] || []).length <= 1,
-  }))
+  return Object.entries(OPTION_MAP).map(([key, cfg]) => {
+    const allItems = options.value[cfg.apiKey] || []
+    const items = allItems.filter(o => {
+      if (isExMode.value) return o.availability !== 'non_ex'
+      return o.availability !== 'ex'
+    })
+    return {
+      key, label: cfg.label,
+      items,
+      valueKey: cfg.valueKey,
+      disabled: items.length <= 1,
+    }
+  })
 })
 
 const exdRows = computed(() => options.value?.exd_options || [])
@@ -193,7 +208,8 @@ function optionLabel(opt, o) {
   } else if (o.encoding) {
     label += ` [${o.encoding}]`
   }
-  if (o.only_non_ex && isExMode.value) label += ' ⛔ (только общепром)'
+  if (o.availability === 'non_ex') label += ' (только общепром)'
+  if (o.availability === 'ex') label += ' (только Ex)'
   return label
 }
 
@@ -255,6 +271,7 @@ async function loadItem(item) {
     form.selected_exd_row = d.selected_exd_row?.id || null
     form.selected_exd = d.selected_exd?.id || null
     previewWarnings.value = []
+    exdResetWarnings.value = []
     previewData.value = d.item ? { ...d.item, sku: d.sku, tech_description: null } : null
   } catch (e) { showMessage('Ошибка загрузки', 'error') }
 }
@@ -283,12 +300,33 @@ async function onModelLineChange() {
 function onExdRowChange() {
   const row = selectedExdRow.value
   form.selected_exd = row?.variants?.[0]?.option_id || null
+  resetExdIncompatibleOptions()
+}
+
+function resetExdIncompatibleOptions() {
+  if (!options.value) return
+  const warnings = []
+  const forbidden = isExMode.value ? 'non_ex' : 'ex'
+  for (const [key, cfg] of Object.entries(OPTION_MAP)) {
+    const allItems = options.value[cfg.apiKey] || []
+    const selectedId = form[key]
+    if (selectedId == null) continue
+    const selected = allItems.find(o => o[cfg.valueKey] === selectedId)
+    if (!selected || selected.availability !== forbidden) continue
+    const replacement = allItems.find(o => o.availability !== forbidden && o.is_default)
+      || allItems.find(o => o.availability !== forbidden)
+    form[key] = replacement ? replacement[cfg.valueKey] : null
+    const modeLabel = forbidden === 'non_ex' ? 'общепромышленном исполнении' : 'взрывозащищённом исполнении (Ex)'
+    warnings.push(`${cfg.label}: «${selected.name}» доступна только в ${modeLabel} — сброшено${replacement ? ' на «' + replacement.name + '»' : ''}.`)
+  }
+  exdResetWarnings.value = warnings
 }
 
 function clearOptions() {
   options.value = null
   previewData.value = null
   previewWarnings.value = []
+  exdResetWarnings.value = []
   form.selected_body_connection = null
   form.selected_lever = null
   form.selected_temperature = null
@@ -320,6 +358,7 @@ function autoFillDefaults() {
       form.selected_exd = row.variants?.[0]?.option_id || null
     }
   }
+  resetExdIncompatibleOptions()
 }
 
 // --- сохранение ---
@@ -335,6 +374,7 @@ async function save() {
     showMessage(base + (sku ? ' | SKU: ' + sku.code : ''), 'success')
     previewData.value = res.data.item ? { ...res.data.item, sku: res.data.sku } : null
     previewWarnings.value = []
+    exdResetWarnings.value = []
     await loadList()
   } catch (e) {
     const detail = e.response?.data?.error || e.displayMessage || 'Ошибка сохранения'

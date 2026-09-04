@@ -36,14 +36,16 @@ class PosiModelLineItem(CatalogDictMixin,
     и описаний, сериализация для каталога (to_dict/to_values_dict).
 
     Выбранные опции — FK-полями (варианты из through-моделей серии):
-      acting_type, exd, body_connection (присоединения корпуса),
-      lever (рычаг), alarm и signal_profile (профили сигналов), ip.
+      acting_type, body_connection (присоединения корпуса),
+      lever (рычаг), alarm и signal_profile (профили сигналов);
+      exd_options — M2M видов взрывозащиты (копируется из PosiExdOption серии).
 
     Наследование из серии:
       - body_material и weight — свойства get_body_material/get_weight (по ссылке
         из серии: есть серии, отличающиеся только материалом, вес зависит от него);
       - supply_pressure_min/max — свойство get_supply_pressure_range (из серии);
       - actuator_action — свойство get_actuator_action_display_text (DA/SR/оба);
+      - ip — степень защиты IP (из серии PosiModelLine.ip);
       - smart_capability_set — если у модели не задан, берётся от опции
         «Профиль сигналов» (PosiSignalProfileOption.smart_capability_set;
         get_smart_capability_set / get_smart_capabilities, сортировка по sorting_order).
@@ -77,10 +79,13 @@ class PosiModelLineItem(CatalogDictMixin,
                                     blank=True, null=True, on_delete=models.SET_NULL,
                                     help_text=_('Линейный или ротационный'),
                                     verbose_name=_("Тип действия"))
-    exd = models.ForeignKey('params.ExdOption', related_name='positioner_items',
-                            blank=True, null=True, on_delete=models.SET_NULL,
-                            help_text=_('Степень взрывозащиты'),
-                            verbose_name=_("Взрывозащита"))
+    exd_options = models.ManyToManyField(
+        'params.ExdOption',
+        blank=True,
+        related_name='positioner_items',
+        help_text=_('Виды взрывозащиты (копируется из PosiExdOption серии)'),
+        verbose_name=_("Виды взрывозащиты")
+    )
     body_connection = models.ForeignKey(
         'pa_controls.PosiBodyConnections', related_name='positioner_items',
         blank=True, null=True, on_delete=models.SET_NULL,
@@ -102,10 +107,6 @@ class PosiModelLineItem(CatalogDictMixin,
         verbose_name=_("Профиль сигналов"))
 
     # ── Характеристики ──
-    ip = models.ForeignKey('params.IpOption', related_name='positioner_items',
-                           blank=True, null=True, on_delete=models.SET_NULL,
-                           help_text=_('Степень защиты IP'),
-                           verbose_name=_("IP"))
     work_temp_min = models.IntegerField(null=True, blank=True, default=-40,
                                         help_text=_('Минимальная рабочая температура, °С'),
                                         verbose_name=_('Т раб.мин, °С'))
@@ -161,60 +162,58 @@ class PosiModelLineItem(CatalogDictMixin,
         super().clean()
 
     def get_ex_only_conflicts(self) -> list:
-        """Конфликты «Только общепром» при выбранной взрывозащите.
+        """Конфликты опций по доступности взрывозащиты.
 
-        Если у item выбрана взрывозащита (exd с непустым code — у строки
-        «общепром» code пустой), проверяет through-опции серии с флагом
-        only_non_ex: профиль обратной связи, присоединения корпуса,
-        температурное исполнение.
+        При выбранной взрывозащите (Ex) недоступны опции с
+        exd_availability='non_ex'; в общепромышленном исполнении недоступны
+        опции с exd_availability='ex'. Проверяет through-опции серии:
+        профиль обратной связи, присоединения корпуса, температурное исполнение.
 
         Возвращает список конфликтов: [{'field': ..., 'message': ...}].
         Используется clean() (админка/формы) и может вызываться
         конфигуратором/API напрямую.
         """
-        if not (self.exd_id and self.exd and self.exd.code):
-            return []
-
         conflicts = []
-        if self.signal_profile_id and self.model_line_id:
+        if not self.model_line_id:
+            return conflicts
+
+        is_ex = self.has_exd()
+        availability = 'non_ex' if is_ex else 'ex'
+        if is_ex:
+            signal_msg = _('Выбранный профиль обратной связи доступен только в общепромышленном исполнении.')
+            body_msg = _('Выбранные присоединения корпуса доступны только в общепромышленном исполнении.')
+            temp_msg = _('Выбранное температурное исполнение доступно только в общепромышленном варианте.')
+        else:
+            signal_msg = _('Выбранный профиль обратной связи доступен только во взрывозащищённом исполнении (Ex).')
+            body_msg = _('Выбранные присоединения корпуса доступны только во взрывозащищённом исполнении (Ex).')
+            temp_msg = _('Выбранное температурное исполнение доступно только во взрывозащищённом варианте (Ex).')
+
+        if self.signal_profile_id:
             if self.model_line.signal_profile_options.filter(
                 signal_profile_id=self.signal_profile_id,
-                only_non_ex=True,
+                exd_availability=availability,
             ).exists():
-                conflicts.append({
-                    'field': 'signal_profile',
-                    'message': _('Выбранный профиль обратной связи доступен '
-                                 'только в общепромышленном исполнении.'),
-                })
+                conflicts.append({'field': 'signal_profile', 'message': signal_msg})
 
-        if self.body_connection_id and self.model_line_id:
+        if self.body_connection_id:
             if self.model_line.body_connection_options.filter(
                 body_connection_id=self.body_connection_id,
-                only_non_ex=True,
+                exd_availability=availability,
             ).exists():
-                conflicts.append({
-                    'field': 'body_connection',
-                    'message': _('Выбранные присоединения корпуса доступны '
-                                 'только в общепромышленном исполнении.'),
-                })
+                conflicts.append({'field': 'body_connection', 'message': body_msg})
 
-        if (self.model_line_id
-                and self.work_temp_min is not None
-                and self.work_temp_max is not None):
+        if self.work_temp_min is not None and self.work_temp_max is not None:
             if self.model_line.temperature_options.filter(
                 work_temp_min=self.work_temp_min,
                 work_temp_max=self.work_temp_max,
-                only_non_ex=True,
+                exd_availability=availability,
             ).exists():
-                conflicts.append({
-                    'field': 'work_temp_min',
-                    'message': _('Выбранное температурное исполнение доступно '
-                                 'только в общепромышленном варианте.'),
-                })
+                conflicts.append({'field': 'work_temp_min', 'message': temp_msg})
 
         return conflicts
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         # Для всех моделей по умолчанию — входной 4-20 мА (стандартный профиль)
         if not self.signal_profile_id and not kwargs.get('skip_default_signal_profile'):
             from params.models import ControlUnitSignalProfile
@@ -227,7 +226,26 @@ class PosiModelLineItem(CatalogDictMixin,
         if not self.code:
             self.code = self.generated_model_item_code or None
         super().save(*args, **kwargs)
+        if is_new and self.model_line_id:
+            self._sync_exd_options_from_model_line()
         self.sync_sku()
+
+    def _sync_exd_options_from_model_line(self):
+        """Скопировать в item.exd_options список видов строки взрывозащиты серии.
+
+        Для item без явно выбранной строки берём строку по умолчанию
+        (is_default=True, фолбэк — первая активная).
+        """
+        from .posi_model_line import PosiExdOption
+        row = (PosiExdOption.objects.filter(
+                   model_line_id=self.model_line_id, is_active=True, is_default=True
+               ).first()
+               or PosiExdOption.objects.filter(
+                   model_line_id=self.model_line_id, is_active=True
+               ).first())
+        if row is None:
+            return
+        self.exd_options.set(row.exd_options.all())
 
     def copy(self, suffix=' Копия', **kwargs):
         """Копия item-а с уникальным кодом и SKU.
@@ -389,18 +407,36 @@ class PosiModelLineItem(CatalogDictMixin,
 
     @property
     def exd_encoding(self) -> str:
-        """PosiExdOption хранит M2M exd_options → encoding."""
-        from .posi_model_line import PosiExdOption
-        if not (self.model_line_id and self.exd_id):
+        """Кодировка взрывозащиты для артикула.
+
+        Конструктор передаёт выбранную through-строку через `_selected_exd_row`.
+        Для сохранённого item строка не хранится — выводим кодировку из
+        through-строк серии: если есть Ex-виды — строка с непустым M2M,
+        иначе строка «общепром» (пустой M2M).
+        """
+        row = getattr(self, '_selected_exd_row', None)
+        if row is not None:
+            return row.encoding or ''
+        if not self.model_line_id:
             return ''
-        opt = PosiExdOption.objects.filter(
-            model_line_id=self.model_line_id, exd_options=self.exd
-        ).first()
-        return opt.encoding if opt and opt.encoding else ''
+        from .posi_model_line import PosiExdOption
+        exd_ids = {v.id for v in self.get_exd_options()}
+        rows = PosiExdOption.objects.filter(
+            model_line_id=self.model_line_id, is_active=True
+        ).prefetch_related('exd_options')
+        if exd_ids:
+            for row in rows:
+                if row.exd_options.filter(id__in=exd_ids).exists():
+                    return row.encoding or ''
+        else:
+            for row in rows:
+                if not row.exd_options.exists():
+                    return row.encoding or ''
+        return ''
 
     @property
     def ip_code(self) -> str:
-        return self.ip.code if self.ip else ''
+        return self.model_line.ip.code if self.model_line and self.model_line.ip else ''
 
     @property
     def smart_code(self) -> str:
@@ -454,14 +490,124 @@ class PosiModelLineItem(CatalogDictMixin,
         bc = self.body_connection
         return str(bc.cable_gland_hole) if bc and bc.cable_gland_hole else ''
 
+    def get_exd_options(self):
+        """Эффективный список видов взрывозащиты item'а.
+
+        Источник — выбранная through-строка PosiExdOption:
+          * превью/конструктор передаёт её через `_selected_exd_row`;
+          * сохранённый item берёт из денормализованного M2M exd_options;
+          * фолбэк — строка серии по умолчанию (is_default, иначе первая активная).
+        """
+        related = (
+            'explosion_protection_class', 'hazardous_group',
+            'temperature_class', 'explosion_protection_level',
+        )
+        row = getattr(self, '_selected_exd_row', None)
+        if row is not None:
+            return list(row.exd_options.all().select_related(*related))
+        if self.pk:
+            return list(self.exd_options.all().select_related(*related))
+        if not self.model_line_id:
+            return []
+        from .posi_model_line import PosiExdOption
+        row = (PosiExdOption.objects.filter(
+                   model_line_id=self.model_line_id, is_active=True, is_default=True
+               ).first()
+               or PosiExdOption.objects.filter(
+                   model_line_id=self.model_line_id, is_active=True
+               ).first())
+        if row is None:
+            return []
+        return list(row.exd_options.all().select_related(*related))
+
+    def has_exd(self) -> bool:
+        """Выбран ли взрывозащищённый вариант (есть виды с непустым code)."""
+        return any(bool(v.code) for v in self.get_exd_options())
+
+    @staticmethod
+    def _exd_group_key(exd):
+        """Ключ группы «одинаковые степени, разная температура» (без X/U)."""
+        return (
+            exd.explosion_protection_class_id,
+            exd.hazardous_group_id,
+            exd.explosion_protection_level_id,
+        )
+
+    @staticmethod
+    def _exd_temperature_token(exd) -> str:
+        gas_temps = {'T1', 'T2', 'T3', 'T4', 'T5', 'T6'}
+        if exd.temperature_class_id:
+            code = exd.temperature_class.code
+            return code if code in gas_temps else f'{code}°C'
+        if exd.dust_temperature is not None:
+            return f'T{exd.dust_temperature}°C'
+        return ''
+
+    @classmethod
+    def _format_exd_group(cls, exds) -> str:
+        """Одна группа: Ex db IIB T5/T6 (X/U — один раз на группу)."""
+        first = exds[0]
+        parts = []
+        if first.explosion_protection_class_id:
+            parts.append(str(first.explosion_protection_class))
+        if first.hazardous_group_id:
+            parts.append(str(first.hazardous_group))
+        temps = []
+        for exd in exds:
+            token = cls._exd_temperature_token(exd)
+            if token and token not in temps:
+                temps.append(token)
+        if temps:
+            parts.append('/'.join(temps))
+        if first.explosion_protection_level_id:
+            parts.append(str(first.explosion_protection_level))
+        if any(exd.has_x_suffix for exd in exds):
+            parts.append('X')
+        if any(exd.has_u_suffix for exd in exds):
+            parts.append('U')
+        return ' '.join(parts)
+
+    @property
+    def get_exd_list(self) -> str:
+        """Полный список видов взрывозащиты (текст).
+
+        Одинаковые степени с разными температурными классами объединяются:
+        «Ex db IIB T5» и «Ex db IIB T6» → «Ex db IIB T5/T6».
+        """
+        groups = {}
+        order = []
+        for exd in self.get_exd_options():
+            if not exd.explosion_protection_class_id:
+                continue
+            key = self._exd_group_key(exd)
+            if key not in groups:
+                groups[key] = []
+                order.append(key)
+            groups[key].append(exd)
+        return ', '.join(self._format_exd_group(groups[key]) for key in order)
+
+    @property
+    def get_exd_short_list(self) -> str:
+        """Уникальные виды взрывозащиты, например «Ex d / Ex ia»."""
+        seen = set()
+        result = []
+        for exd in self.get_exd_options():
+            if not exd.explosion_protection_class_id:
+                continue
+            name = str(exd.explosion_protection_class)
+            if name and name not in seen:
+                seen.add(name)
+                result.append(name)
+        return ' / '.join(result)
+
     def _get_data_dict(self) -> dict:
         """Словарь соответствий плейсхолдеров и атрибутов."""
         return {
             '{model_code}': 'code',
             '{brand}': 'model_line__brand__name',
             '{acting_type}': 'get_acting_type',
-            '{exd}': 'exd',
-            '{ip}': 'ip',
+            '{exd}': 'get_exd_list',
+            '{ip}': 'model_line__ip',
             '{body_connection}': 'body_connection',
             '{pneumatic_connection_in}': 'get_pneumatic_connection_in',
             '{pneumatic_connection_out}': 'get_pneumatic_connection_out',
@@ -475,6 +621,7 @@ class PosiModelLineItem(CatalogDictMixin,
             '{work_temp_max}': 'work_temp_max',
             '{supply_pressure_range}': 'get_supply_pressure_range',
             '{signal_profile_summary}': 'get_signal_profile_summary',
+            '{alarm_signal_profile_summary}': 'get_alarm_signal_profile_summary',
             '{smart_capabilities}': 'get_smart_capabilities_display',
         }
 
@@ -547,6 +694,29 @@ class PosiModelLineItem(CatalogDictMixin,
         """Текстовая сводка сигналов по профилю (как в БКВ)."""
         if self.signal_profile_id:
             entries = self.signal_profile.entries.select_related(
+                'signal_role', 'sensor__signal_type', 'sensor__contact_form',
+                'input_signal',
+            ).all()
+            parts = []
+            for e in entries:
+                if e.sensor_id:
+                    if e.sensor.contact_form_id and e.sensor.contact_form.code != 'NONE':
+                        marker = e.sensor.contact_form.code
+                    elif e.sensor.signal_type_id:
+                        marker = e.sensor.signal_type.name
+                    else:
+                        marker = None
+                    parts.append(f"{e.signal_role.name} — {marker}" if (marker and e.signal_role_id) else (str(e.signal_role) if e.signal_role_id else '—'))
+                elif e.input_signal_id:
+                    parts.append(f"{e.signal_role.name} — {e.input_signal.name}" if e.signal_role_id else e.input_signal.name)
+            return "; ".join(parts) if parts else "—"
+        return "—"
+
+    @property
+    def get_alarm_signal_profile_summary(self) -> str:
+        """Текстовая сводка сигналов по профилю тревоги (аналог get_signal_profile_summary)."""
+        if self.alarm_id:
+            entries = self.alarm.entries.select_related(
                 'signal_role', 'sensor__signal_type', 'sensor__contact_form',
                 'input_signal',
             ).all()
@@ -644,8 +814,8 @@ class PosiModelLineItem(CatalogDictMixin,
             'model_line_name': self.model_line.name if self.model_line else '',
             'brand_name': self.model_line.brand.name if self.model_line and self.model_line.brand else '',
             'acting_type': self.acting_type.name if self.acting_type else '',
-            'exd': self.exd.name if self.exd else '',
-            'ip': self.ip.name if self.ip else '',
+            'exd': self.get_exd_list,
+            'ip': self.model_line.ip.name if self.model_line and self.model_line.ip else '',
             'body_connection': self.body_connection.name if self.body_connection_id else '',
             'pneumatic_connection_in': self.get_pneumatic_connection_in,
             'pneumatic_connection_out': self.get_pneumatic_connection_out,
@@ -660,6 +830,7 @@ class PosiModelLineItem(CatalogDictMixin,
             'supply_pressure': self.get_supply_pressure_range,
             'signal_profile': self.signal_profile.name if self.signal_profile_id else '',
             'signal_profile_summary': self.get_signal_profile_summary,
+            'alarm_signal_profile_summary': self.get_alarm_signal_profile_summary,
         }
         return {
             'id': self.id,
@@ -709,12 +880,18 @@ class PosiModelLineItem(CatalogDictMixin,
                         {
                             'key': 'connections', 'title': 'Присоединения', 'order': 2,
                             'fields': [
-                                {'key': 'body_connection', 'label': 'Присоединения корпуса', 'value': tv['body_connection'],
+                                {'key': 'pneumatic_connection_in', 'label': 'Пневмоподключение вход', 'value': tv['pneumatic_connection_in'],
                                  'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'lever', 'label': 'Рычаг', 'value': tv['lever'],
+                                {'key': 'pneumatic_connection_out', 'label': 'Пневмоподключение выход',
+                                 'value': tv['pneumatic_connection_out'],
                                  'unit': '', 'type': 'text', 'order': 2},
+                                {'key': 'cable_gland_hole', 'label': 'Отверстие под кабельный ввод',
+                                 'value': tv['cable_gland_hole'],
+                                 'unit': '', 'type': 'text', 'order': 3},
+                                {'key': 'lever', 'label': 'Рычаг', 'value': tv['lever'],
+                                 'unit': '', 'type': 'text', 'order': 4},
                                 {'key': 'supply_pressure', 'label': 'Давление питания', 'value': tv['supply_pressure'],
-                                 'unit': 'бар', 'type': 'text', 'order': 3},
+                                 'unit': 'бар', 'type': 'text', 'order': 5},
                             ]
                         },
                         {
@@ -726,6 +903,8 @@ class PosiModelLineItem(CatalogDictMixin,
                                  'value': tv['signal_profile_summary'], 'unit': '', 'type': 'text', 'order': 2},
                                 {'key': 'alarm', 'label': 'Сигнал тревоги', 'value': tv['alarm'],
                                  'unit': '', 'type': 'text', 'order': 3},
+                                {'key': 'alarm_signal_profile_summary', 'label': 'Сигнал тревоги (по ролям)',
+                                 'value': tv['alarm_signal_profile_summary'], 'unit': '', 'type': 'text', 'order': 4},
                             ]
                         },
                     ]

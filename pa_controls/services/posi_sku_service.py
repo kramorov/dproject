@@ -27,7 +27,11 @@ logger = logging.getLogger(__name__)
 
 
 def build_item_kwargs(constructor) -> dict:
-    """kwargs PosiModelLineItem из выбранных опций формы конструктора."""
+    """kwargs PosiModelLineItem из выбранных опций формы конструктора.
+
+    Взрывозащита (exd_options) — M2M, в kwargs не входит: проставляется
+    отдельно после создания (см. build_item_exd_options / materialize).
+    """
     return {
         'model_line': constructor.selected_model_line,
         'acting_type': (constructor.selected_model_line.acting_type
@@ -39,14 +43,23 @@ def build_item_kwargs(constructor) -> dict:
         'signal_profile': constructor.selected_signal_profile,
         'smart_capability_set': constructor.selected_smart_capability_set,
         'alarm': constructor.selected_alarm,
-        'exd': constructor.selected_exd,
     }
 
 
-def _probe_code(kwargs: dict) -> Optional[str]:
+def build_item_exd_options(constructor) -> list:
+    """Список id видов Exd выбранной through-строки PosiExdOption."""
+    row = constructor.selected_exd_row
+    if row is None:
+        return []
+    return list(row.exd_options.values_list('id', flat=True))
+
+
+def _probe_code(kwargs: dict, constructor=None) -> Optional[str]:
     """Артикул конфигурации без сохранения (для дедупликации по коду)."""
     try:
         probe = PosiModelLineItem(**kwargs)
+        if constructor is not None:
+            probe._selected_exd_row = constructor.selected_exd_row
         return probe.generated_model_item_code or None
     except Exception:
         logger.exception('Не удалось вычислить артикул позиционера для дедупликации')
@@ -71,15 +84,23 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
         raise ValidationError({'selected_model_line': 'Серия позиционеров не выбрана.'})
 
     kwargs = build_item_kwargs(constructor)
+    exd_ids = build_item_exd_options(constructor)
 
-    # Валидация комбинаций ДО сохранения: рычаг/тип, «только общепром» (item.clean())
+    # Валидация комбинаций ДО сохранения: рычаг/тип, «только общепром» (item.clean()).
+    # Взрывозащита для валидации берётся из through-строк серии (get_exd_options),
+    # а для артикула передаём выбранную кодировку через _selected_exd_row.
     probe = PosiModelLineItem(**kwargs)
+    probe._selected_exd_row = constructor.selected_exd_row
     probe.clean()
 
     # Артикул однозначно определяет SKU. Дедуплицируем СНАЧАЛА по коду, а не
     # по kwargs (иначе второй item попытается привязать уже занятую OneToOne
     # SKU → UNIQUE violation) — паттерн sku_service ПП.
-    code = _probe_code(kwargs)
+    code = _probe_code(kwargs, constructor)
+
+    lookup_kwargs = dict(kwargs)
+    if code:
+        lookup_kwargs['code'] = code
 
     with transaction.atomic():
         if code:
@@ -90,13 +111,14 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
                     existing.save()
                 if not existing.sku_id:
                     existing.save()
+                existing.exd_options.set(exd_ids)
                 existing.refresh_from_db()
                 return existing, getattr(existing, 'sku', None)
 
         try:
             # get_or_create вызывает item.save() → автогенерация
             # code/name/description + sync_sku() (SKUMixin).
-            item, created = PosiModelLineItem.objects.get_or_create(**kwargs)
+            item, created = PosiModelLineItem.objects.get_or_create(**lookup_kwargs)
         except IntegrityError:
             # Конкуренция/повторный code: другой item уже занял SKU — берём его
             if code:
@@ -111,6 +133,8 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
         elif not item.is_active:
             item.is_active = True
             item.save()
+
+        item.exd_options.set(exd_ids)
 
         if not item.sku_id:
             # item без SKU (например, сохранён со skip) — досинхронизировать

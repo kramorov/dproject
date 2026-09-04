@@ -258,7 +258,7 @@ class PositionerConstructor(models.Model):
             signal_profiles, alarms, exd_options.
 
         Каждая запись: id (through-строка), option_id (реальная опция),
-        encoding, name, description, is_default, only_non_ex (где применимо).
+        encoding, name, description, is_default, availability (где применимо).
         Для signal_profiles дополнительно smart_capability_set_id и capabilities.
         Для exd_options — variants (M2M видов Exd внутри кодировки).
         """
@@ -284,7 +284,7 @@ class PositionerConstructor(models.Model):
                 'name': str(row.body_connection),
                 'description': row.description or '',
                 'is_default': row.is_default,
-                'only_non_ex': row.only_non_ex,
+                'availability': row.exd_availability,
             })
 
         # Рычаги — только подходящие типу действия серии
@@ -315,7 +315,7 @@ class PositionerConstructor(models.Model):
                 'work_temp_max': row.work_temp_max,
                 'description': row.description or '',
                 'is_default': row.is_default,
-                'only_non_ex': row.only_non_ex,
+                'availability': row.exd_availability,
             })
 
         for row in PosiSignalProfileOption.objects.filter(
@@ -328,13 +328,13 @@ class PositionerConstructor(models.Model):
                 'id': row.id,
                 'option_id': row.signal_profile_id,
                 'encoding': row.encoding or '',
-                'name': str(row.signal_profile),
+                'name': row.name or str(row.signal_profile),
                 'smart_capability_set_id': row.smart_capability_set_id,
                 'capabilities': capabilities,
                 'capabilities_display': '; '.join(capabilities),
                 'description': row.description or '',
                 'is_default': row.is_default,
-                'only_non_ex': row.only_non_ex,
+                'availability': row.exd_availability,
             })
 
         for row in PosiAlarmOption.objects.filter(
@@ -528,8 +528,10 @@ class PositionerConstructor(models.Model):
             signal_profile=self.selected_signal_profile,
             smart_capability_set=self.selected_smart_capability_set,
             alarm=self.selected_alarm,
-            exd=self.selected_exd,
         )
+        # Взрывозащита в item теперь M2M (копируется из PosiExdOption серии),
+        # а для артикула ({exd}) передаём выбранную through-строку.
+        item._selected_exd_row = self.selected_exd_row
         item.code = item.generated_model_item_code
         item.name = item.generated_model_name_description('name') or ''
         item.description = item.generated_model_name_description('description') or ''
@@ -583,6 +585,7 @@ class PositionerConstructor(models.Model):
             'Профиль сигналов': tv.get('signal_profile', ''),
             'Сигналы (по ролям)': tv.get('signal_profile_summary', ''),
             'Сигнал тревоги': tv.get('alarm', ''),
+            'Сигнал тревоги (по ролям)': tv.get('alarm_signal_profile_summary', ''),
             'Смарт-возможности': tv.get('smart_capabilities', ''),
         }
         return {k: v for k, v in data.items() if v}

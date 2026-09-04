@@ -14,7 +14,7 @@
     PosiSignalProfileOption       — профиль сигналов (обратная связь)
     PosiAlarmOption               — сигнал тревоги (профиль сигналов с ролью «Авария»)
 
-Взрывозащита — не through-опция, а список значений (M2M) на самой серии.
+Взрывозащита — through-опция PosiExdOption (M2M видов внутри кодировки).
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -33,6 +33,13 @@ from options.models import (
 from .posi_options import ActingType, LeverOption, SmartCapabilitySet
 
 
+class ExdAvailability(models.TextChoices):
+    """Доступность опции по взрывозащите."""
+    BOTH = 'both', _('Для обоих исполнений')
+    NON_EX = 'non_ex', _('Только общепром')
+    EX = 'ex', _('Только Ex')
+
+
 class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin,
                     SmartCatalogMixin, StructuredDataMixin, models.Model):
     """Серия позиционеров (аналог LimitSwitchModelLine для БКВ).
@@ -42,7 +49,7 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
       - weight — вес, кг (зависит от материала);
       - actuator_action — для каких пневмоприводов: DA / SR / оба (TextChoices ActuatorAction);
       - supply_pressure_min/max — диапазон давления питания, бар;
-      - exd — список доступных степеней взрывозащиты (M2M, не through-опция);
+      - ip — степень защиты IP (перенесён с item, 2026-09-04);
       - smart_capability_set — набор смарт-возможностей (FK);
       - extra_params — air_consumption, linearity, hysteresis и пр. в JSON.
 
@@ -93,21 +100,18 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
                               on_delete=models.SET_NULL,
                               help_text=_('Бренд позиционеров'),
                               verbose_name=_("Бренд"))
-    # Взрывозащита — список значений серии (не through-опция)
-    exd = models.ManyToManyField(
-        'params.ExdOption',
-        blank=True,
-        related_name='+',
-        help_text=_('Список доступных степеней взрывозащиты серии'),
-        verbose_name=_("Взрывозащита")
-    )
-
     # ── Характеристики серии ──
     body_material = models.ForeignKey(
         MaterialGeneral, related_name='posi_model_line_body_material',
         blank=True, null=True, on_delete=models.SET_NULL,
         help_text=_('Материал корпуса (есть серии, отличающиеся только материалом)'),
         verbose_name=_("Материал корпуса")
+    )
+    ip = models.ForeignKey(
+        'params.IpOption', related_name='posi_model_line_ip',
+        blank=True, null=True, on_delete=models.SET_NULL,
+        help_text=_('Степень защиты IP'),
+        verbose_name=_("IP")
     )
     # Тип действия — прямой FK на справочник (перенесён из through-опции, 2026-09-01)
     acting_type = models.ForeignKey(
@@ -171,8 +175,8 @@ class PosiBodyConnectionOption(BaseThroughOption):
     PosiPneumaticThreadOption, PosiPneumaticConnectionOption и
     PosiCableGlandHolesOption.
 
-    only_non_ex — вариант доступен только в общепромышленном исполнении
-    (запрещён при выборе взрывозащиты).
+    exd_availability — доступность варианта по взрывозащите:
+    both (оба), non_ex (только общепром), ex (только Ex).
     """
     model_line = models.ForeignKey(
         PosiModelLine, on_delete=models.CASCADE,
@@ -184,10 +188,12 @@ class PosiBodyConnectionOption(BaseThroughOption):
         related_name='model_line_options',
         verbose_name=_("Присоединения корпуса")
     )
-    only_non_ex = models.BooleanField(
-        default=False,
-        verbose_name=_("Только общепром"),
-        help_text=_('Вариант недоступен при выборе взрывозащиты')
+    exd_availability = models.CharField(
+        max_length=10,
+        choices=ExdAvailability.choices,
+        default=ExdAvailability.BOTH,
+        verbose_name=_("Доступность по взрывозащите"),
+        help_text=_('Для каких исполнений доступен вариант')
     )
 
     class Meta:
@@ -239,18 +245,20 @@ class PosiTemperatureOption(BaseTemperatureThroughOption):
     Диапазон хранится прямо в опции (work_temp_min/work_temp_max) — как в ЭП.
     У item температура выносится полями work_temp_min/max.
 
-    only_non_ex — исполнение доступно только в общепромышленном варианте
-    (например, High temperature -20…120°C запрещено для Ex).
+    exd_availability — доступность исполнения по взрывозащите:
+    both (оба), non_ex (только общепром), ex (только Ex).
     """
     model_line = models.ForeignKey(
         PosiModelLine, on_delete=models.CASCADE,
         related_name='temperature_options',
         verbose_name=_("Серия позиционеров")
     )
-    only_non_ex = models.BooleanField(
-        default=False,
-        verbose_name=_("Только общепром"),
-        help_text=_('Вариант недоступен при выборе взрывозащиты')
+    exd_availability = models.CharField(
+        max_length=10,
+        choices=ExdAvailability.choices,
+        default=ExdAvailability.BOTH,
+        verbose_name=_("Доступность по взрывозащите"),
+        help_text=_('Для каких исполнений доступен вариант')
     )
 
     class Meta:
@@ -273,9 +281,12 @@ class PosiSignalProfileOption(BaseThroughOption):
     Для всех моделей по умолчанию подставляется POS-STD-4-20 (вход 4-20 мА) —
     см. PosiModelLineItem.save().
 
-    only_non_ex — вариант обратной связи доступен только в общепромышленном
-    исполнении (например, Position transmitter и HART запрещены для Ex).
+    exd_availability — доступность варианта обратной связи по взрывозащите:
+    both (оба), non_ex (только общепром), ex (только Ex).
     """
+    name = models.CharField(max_length=200, blank=True, null=True,
+                            verbose_name=_("Название"),
+                            help_text=_("Нащвание опции"))
     model_line = models.ForeignKey(
         PosiModelLine, on_delete=models.CASCADE,
         related_name='signal_profile_options',
@@ -285,10 +296,12 @@ class PosiSignalProfileOption(BaseThroughOption):
         'params.ControlUnitSignalProfile', on_delete=models.CASCADE,
         verbose_name=_("Профиль сигналов")
     )
-    only_non_ex = models.BooleanField(
-        default=False,
-        verbose_name=_("Только общепром"),
-        help_text=_('Вариант недоступен при выборе взрывозащиты')
+    exd_availability = models.CharField(
+        max_length=10,
+        choices=ExdAvailability.choices,
+        default=ExdAvailability.BOTH,
+        verbose_name=_("Доступность по взрывозащите"),
+        help_text=_('Для каких исполнений доступен вариант')
     )
     # Набор смарт-возможностей привязывается к опции (перенесён с серии, 2026-09-01)
     smart_capability_set = models.ForeignKey(
@@ -298,7 +311,16 @@ class PosiSignalProfileOption(BaseThroughOption):
         verbose_name=_("Набор смарт-возможностей"),
         help_text=_('Возможности смарт-позиционера для этого профиля сигналов')
     )
-
+    # Набор специфических для опций изображений, привязывается к опции
+    #TODO добавить к выбору изображений просмотр изображения в опции. Если здесь есть - используем изображение из опции.
+    image_gallery = models.ForeignKey(
+        'media_library.ImageGallerySet',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        verbose_name=_("Галерея изображений"),
+        help_text=_("Набор изображений")
+    )
     class Meta:
         verbose_name = _("Профиль сигналов для серии позиционеров")
         verbose_name_plural = _("Профили сигналов для серий позиционеров")

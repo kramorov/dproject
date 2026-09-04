@@ -46,7 +46,7 @@ POSI_MODEL_LINE_OPTION_RELATED_NAMES = [
 def copy_posi_model_line(modeladmin, request, queryset):
     """Копировать выбранные серии позиционеров со всеми опциями и их кодировками.
 
-    Глубокая копия: основные поля, M2M (exd, техдоки, сертификаты, галерея),
+    Глубокая копия: основные поля, M2M (техдоки, сертификаты, галерея),
     все through-опции уровня серии (acting_type, body_connection, lever,
     temperature, signal_profile, alarm) с сохранением encoding.
     """
@@ -78,7 +78,7 @@ def copy_posi_model_line(modeladmin, request, queryset):
 
                 new_obj.save()
 
-                # M2M-поля (exd, техдоки, сертификаты, изображения галереи)
+                # M2M-поля (техдоки, сертификаты, изображения галереи)
                 for m2m_field in original_obj._meta.many_to_many:
                     getattr(new_obj, m2m_field.name).set(
                         getattr(original_obj, m2m_field.name).all()
@@ -207,7 +207,7 @@ class PosiBodyConnectionsAdmin(admin.ModelAdmin):
 class PosiBodyConnectionOptionInline(admin.TabularInline):
     model = PosiBodyConnectionOption
     extra = 0
-    fields = ['body_connection', 'encoding', 'is_default', 'only_non_ex', 'sorting_order', 'is_active']
+    fields = ['body_connection', 'encoding', 'is_default', 'exd_availability', 'sorting_order', 'is_active']
 
 
 class PosiLeverOptionInline(admin.TabularInline):
@@ -219,14 +219,14 @@ class PosiLeverOptionInline(admin.TabularInline):
 class PosiTemperatureOptionInline(admin.TabularInline):
     model = PosiTemperatureOption
     extra = 0
-    fields = ['work_temp_min', 'work_temp_max', 'encoding', 'is_default', 'only_non_ex',
+    fields = ['work_temp_min', 'work_temp_max', 'encoding', 'is_default', 'exd_availability',
               'sorting_order', 'is_active']
 
 
 class PosiSignalProfileOptionInline(admin.TabularInline):
     model = PosiSignalProfileOption
     extra = 0
-    fields = ['signal_profile', 'smart_capability_set', 'encoding', 'is_default', 'only_non_ex', 'sorting_order', 'is_active']
+    fields = ['name','signal_profile', 'smart_capability_set', 'encoding', 'is_default', 'exd_availability', 'image_gallery','sorting_order', 'is_active']
 
 
 class PosiAlarmOptionInline(admin.TabularInline):
@@ -254,7 +254,7 @@ class PosiModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
     list_editable = ['code', 'actuator_action', 'is_active']
     # autocomplete_fields = ['smart_capability_set']  # перенесён в through-опцию «Профиль сигналов»
     # raw_id_fields = ['brand', 'producer', 'body_material']
-    filter_horizontal = ['exd', 'tech_docs', 'cert_docs']
+    filter_horizontal = ['tech_docs', 'cert_docs']
     ordering = ['sorting_order', 'code']
     actions = [copy_posi_model_line, 'delete_selected']
     inlines = [
@@ -272,10 +272,8 @@ class PosiModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
         (_('Характеристики'), {
             'fields': (('body_material',  'weight'),
                        ('supply_pressure_min', 'supply_pressure_max'),
+                       ('ip',),
                        ),
-        }),
-        (_('Взрывозащита'), {
-            'fields': ('exd',),
         }),
         (_('Шаблоны'), {
             'fields': ('name_template', 'description_template', 'model_item_code_template'),
@@ -294,23 +292,30 @@ class PosiModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
 @admin.register(PosiModelLineItem)
 class PosiModelLineItemAdmin(AdminCopyMixin, admin.ModelAdmin):
     actions = ['copy_selected_objects']
-    list_display = ['name', 'code', 'model_line', 'acting_type', 'exd', 'is_active']
-    list_filter = ['model_line', 'acting_type', 'exd', 'is_active']
+    list_display = ['name', 'code', 'model_line', 'acting_type', 'exd_short_list', 'is_active']
+    list_filter = ['model_line', 'acting_type', 'is_active']
     search_fields = ['name', 'code']
     autocomplete_fields = [
-        'model_line', 'acting_type', 'exd', 'ip', 'lever', 'body_connection', 'smart_capability_set',
+        'model_line', 'acting_type', 'lever', 'body_connection', 'smart_capability_set',
     ]
+    readonly_fields = ['exd_options']
     # raw_id_fields = [
     #     'body_connection',
     #     'alarm', 'signal_profile',
     # ]
     ordering = ['sorting_order', 'code']
+
+    def exd_short_list(self, obj):
+        return obj.get_exd_short_list
+
+    exd_short_list.short_description = _('Взрывозащита')
+
     fieldsets = (
         (_('Основная информация'), {
             'fields': (('name', 'code'), 'model_line', 'description'),
         }),
         (_('Опции'), {
-            'fields': ('acting_type', 'exd', 'ip',
+            'fields': ('acting_type', 'exd_options',
                        'body_connection',
                        'lever', ('work_temp_min', 'work_temp_max')),
         }),
