@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-01. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-07. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо).
 
 ---
@@ -20,10 +20,16 @@
   списками ключей (`NAME/CODE/VARS/SPEC_FIELD_KEYS`), сериализация —
   `CatalogSerializerMixin` (`core/models/catalog_serializer.py`). Подробно: `template_mixin.md` §7.
   Пилоты: `PosiModelLineItem`, `LimitSwitchBox` (списковые поля `signals`/`sensors` → JSON).
+  Переведены на реестр 2026-09-07: `DirectionValve`, `FilterRegulator`, `GearBox`,
+  `PneumaticFitting` (точечное переопределение `_get_spec_sections()` — состав спеков
+  по виду оборудования), `PneumaticActuatorItem` (единственная с `CODE_FIELD_KEYS`/
+  `code_path` для автогенерации артикула). Реестры — в `*_fields.py` рядом с моделями.
+  На ручном `_get_data_dict()` осталась `SensorComponent`.
 
 **Модели на контракте** (8 активных): `DirectionValve`, `LimitSwitchBox`, `PosiModelLineItem`,
 `FilterRegulator`, `GearBox`, `PneumaticFitting`, `PneumaticActuatorItem`, `SensorComponent`
-(шаблон с опции `variety`). У всех определён `_get_data_dict`.
+(шаблон с опции `variety`). У `SensorComponent` — ручной `_get_data_dict`; у остальных
+семи словари выводятся из `TEMPLATE_FIELDS`.
 
 **Legacy** (не удалять без подтверждения): `PneumaticActuatorModelLineItem` — миксин снят,
 `to_dict` отдаёт хранимые name/description; `PneumaticActuatorSelected`,
@@ -114,6 +120,15 @@
   конфигурации серии — шаблон обязан различать конфигурации.
 - `item.sku` в памяти сразу после `save()` — `None` (SKUMixin обновляет связь через
   queryset) — стандартно, использовать `refresh_from_db()`.
+- **Каталоги на едином сериализаторе** (2026-09-07): `to_dict`/`to_values_dict` пяти
+  каталогов теперь из `CatalogSerializerMixin` — форма API изменилась (особенно PF:
+  вложенные объекты карточки → стандартная схема `template_vars`+секции); фронт
+  фитингов/глушителей/заглушек ждёт адаптации. Списки GB/PF стали тяжелее
+  (полный `to_dict` на элемент); метки реестров — без gettext (мультиязычность —
+  отдельная задача).
+- **Устаревшие имена DV в БД**: шаблон серии RP в БД без `{brand}`, имена записей —
+  старые (с брендом); перегенерация `regenerate_catalog_descriptions` их обновит —
+  пока не запускалась (кроме FR: 0 изменений).
 - `ai/ai` (JSON-артефакт лога сессий) отслеживается git → мусорный diff; желательно
   добавить в `.gitignore`.
 
@@ -124,10 +139,11 @@
 1. **Расшифровка кода артикула → характеристики**: ввод кода → конфигуратор с
    проставленными (распознанными) опциями; разбор по `model_item_code_template` серии
    + encodings through-опций (у разных серий наборы отличаются).
-2. **Дополнить `_get_data_dict`**: PF — `body_material`, `pipe_material`, `pressure_min/max`,
-   `temp_min/max`; LSB — `is_pneumatic`, `has_namur_interface`, `visual_indicator_type`;
-   FR — `ip`, `has_shut_off_valve`; PA item — характеристики корпуса, `model_line_name/code`;
-   GB — `body_material`.
+2. **Расширить реестры плейсхолдеров**: PF — выполнено 2026-09-07 (`body_material`,
+   `pipe_material`, `pressure_min/max`, `temp_min/max` добавлены в реестр). Осталось:
+   LSB — `is_pneumatic`, `has_namur_interface`, `visual_indicator_type`;
+   FR — `ip`, `has_shut_off_valve`; PA item — характеристики корпуса,
+   `model_line_name/code`; GB — `body_material`.
 3. **Фронт**: сверстать список/карточки для `paCatalog.items` (REST готов).
 4. **P8-остаток**: перенос логики Selected/Constructor в сервисы; удаление Selected,
    Constructor, legacy `PneumaticActuatorModelLineItem` и мостика `source_model_line_item` —

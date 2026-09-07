@@ -8,13 +8,14 @@
 - Шаблоны name_template / description_template живут на model_line
   (PneumaticActuatorModelLine, поля добавляются отдельным шагом);
 - Item переопределяет _get_name_template_source / _get_description_template_source
-  → model_line, _get_default_* (fallback) и _get_data_dict (плейсхолдер → путь);
+  → model_line, _get_default_* (fallback); словари плейсхолдеров выводятся из
+  реестра TEMPLATE_FIELDS (pa_item_fields.py);
 - Автогенерация name/description — в TemplateMixin.save()
   (пропускается флагом skip_auto_generate=True);
 - save() = super().save() + sync_sku() — SKU создаётся из ЭТОЙ модели
   через SKUMixin (стандартный путь, как в остальных каталогах);
 - Артикул (code) рендерится из model_line.model_item_code_template
-  через _fill_template + _get_code_data_dict (encoding опций из through-моделей).
+  через _fill_template + CODE_FIELD_KEYS реестра (encoding опций из through-моделей).
 
 Старые модели (PneumaticActuatorSelected, PneumaticActuatorConstructor,
 PneumaticActuatorModelLineItem) НЕ удаляются — используются для отладки
@@ -30,14 +31,15 @@ item-уровневых опций (safety_position / springs_qty), у кото�
 import importlib
 import logging
 import re
-from typing import Dict, Any, Optional
+from typing import Optional
 
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
-from core.models.mixins import CopyMixin, TemplateMixin, CatalogDictMixin
+from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
 from sku.models import SKUMixin
@@ -46,12 +48,13 @@ from .pa_body import PneumaticActuatorBody
 from .pa_model_line import PneumaticActuatorModelLine, PneumaticActuatorModelLineItem
 from .pa_params import PneumaticActuatorVariety, PneumaticActuatorSpringsQty
 from .pa_options import PneumaticTemperatureOption
+from .pa_item_fields import PA_ITEM_TEMPLATE_FIELDS
 
 logger = logging.getLogger(__name__)
 
 
 class PneumaticActuatorItem(
-    CatalogDictMixin,
+    CatalogSerializerMixin,
     ImageGalleryMixin,
     TechDocMixin,
     SKUMixin,
@@ -69,6 +72,39 @@ class PneumaticActuatorItem(
     name/description генерируются из шаблонов model_line при сохранении;
     SKU создаётся/обновляется из этой модели через SKUMixin.sync_sku().
     """
+
+    # ── Реестр полей (единый источник правды) — pa_item_fields.py ──
+    TEMPLATE_FIELDS = PA_ITEM_TEMPLATE_FIELDS
+
+    # Серия обязана объявлять шаблоны названия/описания и артикула (catalog.W001).
+    required_model_line_fields = (
+        'name_template', 'description_template', 'model_item_code_template',
+    )
+
+    # Составы словарей (по ключам реестра).
+    NAME_FIELD_KEYS = (
+        'code', 'brand_name', 'variety_name', 'body_name', 'body_code',
+        'weight', 'safety_position', 'springs_qty', 'temperature',
+        'ip', 'exd', 'coating', 'hand_wheel',
+    )
+
+    CODE_FIELD_KEYS = (
+        'code', 'springs_qty', 'temperature', 'safety_position',
+        'hand_wheel', 'coating', 'ip', 'exd',
+    )
+
+    VARS_FIELD_KEYS = (
+        'code', 'name', 'model_line_name', 'model_line_code', 'brand_name',
+        'body_name', 'body_code', 'variety_name', 'variety_code', 'weight',
+    )
+
+    SPEC_FIELD_KEYS = (
+        'model_line_name', 'brand_name', 'variety_name', 'body_name', 'weight',
+    )
+
+    SPEC_GROUP_TITLES = {
+        'general': 'Основные',
+    }
 
     name = models.TextField(
         blank=True,
@@ -304,24 +340,6 @@ class PneumaticActuatorItem(
             "Вес {weight} кг"
         )
 
-    def _get_data_dict(self) -> Dict[str, str]:
-        """Словарь плейсхолдер → путь (для TemplateMixin)."""
-        return {
-            '{model_code}': 'code',
-            '{brand}': 'model_line__brand',
-            '{variety}': 'pneumatic_actuator_variety',
-            '{body_code}': 'body__code',
-            '{body_name}': 'body__name',
-            '{safety_position}': 'selected_safety_position',
-            '{springs_qty}': 'selected_springs_qty',
-            '{temperature}': 'selected_temperature',
-            '{ip}': 'selected_ip',
-            '{exd}': 'selected_exd',
-            '{coating}': 'selected_body_coating',
-            '{hand_wheel}': 'selected_hand_wheel',
-            '{weight}': 'calculated_weight',
-        }
-
     # ═══════════════════════════════════════════════════════════════
     # Артикул: рендер model_line.model_item_code_template
     # ═══════════════════════════════════════════════════════════════
@@ -346,19 +364,6 @@ class PneumaticActuatorItem(
         result = re.sub(r'\.\s+', ' ', result)
         result = re.sub(r'\s*\(DA\)', '', result)
         return result.strip('. ')
-
-    def _get_code_data_dict(self) -> Dict[str, str]:
-        """Плейсхолдер артикула → имя @property/поля с encoding."""
-        return {
-            '{model_code}': 'base_model_code',
-            '{springs_qty}': 'springs_qty_encoding',
-            '{temperature}': 'temperature_encoding',
-            '{safety_position}': 'safety_position_encoding',
-            '{hand_wheel}': 'hand_wheel_encoding',
-            '{coating}': 'coating_encoding',
-            '{ip}': 'ip_encoding',
-            '{exd}': 'exd_encoding',
-        }
 
     @property
     def base_model_code(self) -> str:
@@ -483,120 +488,15 @@ class PneumaticActuatorItem(
             return None
 
     # ═══════════════════════════════════════════════════════════════
-    # CatalogDictMixin — сериализация для карточки каталога
+    # CatalogSerializerMixin — галерея с fallback на изображения серии
     # ═══════════════════════════════════════════════════════════════
 
-    def _get_template_vars(self) -> Dict[str, str]:
-        """Плоский словарь строковых значений для UI и шаблонов."""
-        body = self.body
-        ml = self.model_line
-        variety = self.pneumatic_actuator_variety
-        return {
-            'code': self.code or '',
-            'name': self.name or '',
-            'model_line_name': ml.name if ml else '',
-            'model_line_code': ml.code if ml else '',
-            'brand_name': ml.brand.name if ml and ml.brand else '',
-            'body_name': body.name if body else '',
-            'body_code': body.code if body else '',
-            'variety_name': variety.name if variety else '',
-            'variety_code': variety.code if variety else '',
-            'weight': str(self.calculated_weight) if self.calculated_weight is not None else '',
-        }
-
-    def _get_model_line_summary(self) -> dict:
-        ml = self.model_line
-        if not ml:
-            return None
-        return {
-            'id': ml.id,
-            'name': ml.name,
-            'code': ml.code or '',
-            'description': ml.description or '',
-            'brand': {'id': ml.brand.id, 'name': ml.brand.name} if ml.brand else None,
-        }
-
-    def _get_sku_summary(self) -> dict:
-        """SKU — реальная запись (SKUMixin.sync_sku)."""
-        if not self.sku:
-            return None
-        return {'id': self.sku.id, 'code': self.sku.code, 'name': self.sku.name}
-
-    def _get_ml_images(self):
+    def _get_images_section(self):
         """Изображения: сначала item, затем model_line (единый паттерн БКВ)."""
-        from_item = self._get_images_section() if hasattr(self, '_get_images_section') else []
+        from_item = super()._get_images_section()
         if from_item:
             return from_item
         ml = self.model_line
         if ml and hasattr(ml, '_get_images_section'):
             return ml._get_images_section()
         return []
-
-    def _get_ml_docs(self):
-        return self._get_docs_section() if hasattr(self, '_get_docs_section') else []
-
-    def _get_ml_certs(self):
-        return self._get_certs_section() if hasattr(self, '_get_certs_section') else []
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Структурированная сериализация для карточки каталога."""
-        tv = self._get_template_vars()
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'description': self.generate_description(),
-            'is_active': self.is_active,
-            'sorting_order': self.sorting_order,
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
-            'template_vars': tv,
-            'sections': [
-                {
-                    'key': 'images', 'title': 'Изображения', 'type': 'gallery',
-                    'order': 0, 'data': self._get_ml_images(),
-                },
-                {
-                    'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
-                    'order': 1, 'groups': [
-                        {
-                            'key': 'general', 'title': 'Основные', 'order': 1,
-                            'fields': [
-                                {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'type': 'text', 'order': 1},
-                                {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'type': 'text', 'order': 2},
-                                {'key': 'variety_name', 'label': 'Тип привода', 'value': tv['variety_name'], 'type': 'text', 'order': 3},
-                                {'key': 'body_name', 'label': 'Корпус', 'value': tv['body_name'], 'type': 'text', 'order': 4},
-                                {'key': 'weight', 'label': 'Вес (кг)', 'value': tv['weight'], 'type': 'number', 'order': 6},
-                            ],
-                        },
-                    ],
-                },
-                {
-                    'key': 'docs', 'title': 'Документация', 'type': 'files',
-                    'order': 2, 'data': self._get_ml_docs(),
-                },
-                {
-                    'key': 'certs', 'title': 'Сертификаты', 'type': 'files',
-                    'order': 3, 'data': self._get_ml_certs(),
-                },
-                {
-                    'key': 'description', 'title': 'Описание', 'type': 'text',
-                    'order': 4, 'data': self.description or '',
-                },
-            ],
-        }
-
-    def to_values_dict(self) -> dict:
-        """Облегчённая сериализация для списков каталога."""
-        tv = self._get_template_vars()
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title() or self.name or '',
-            'template_vars': tv,
-            'values': tv,
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
-        }

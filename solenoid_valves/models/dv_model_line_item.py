@@ -3,22 +3,23 @@
 from django.db import models
 import math
 from django.utils.translation import gettext_lazy as _
-from typing import Dict, List, Optional, Any
 
 from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, ImageGalleryMixin
-from core.models.mixins import TemplateMixin, CatalogDictMixin, CopyMixin
+from core.models.mixins import TemplateMixin, CopyMixin
+from core.models.catalog_serializer import CatalogSerializerMixin
 # TemplateGeneratorMixin удалён 2026-09-01 — DirectionValve использует единый TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 
 from .dv_model_line import DirectionalValveModelLine
 from .dv_body import DirectionValveBody
 from .sv_options import ValveFunction, ValveActuationVariety, ManualOverride
+from .dv_item_fields import DV_ITEM_TEMPLATE_FIELDS
 from materials.models import MaterialGeneral, MaterialSpecified
 from params.models import PowerSupplies, PneumaticConnection, ThreadSize
 from producers.models import Brands, Producer
 from electric_actuators.models import CableGlandHolesSet
 from sku.models import SKUMixin
-class DirectionValve(CatalogDictMixin,
+class DirectionValve(CatalogSerializerMixin,
                      ImageGalleryMixin,
                      TechDocMixin,
                      SKUMixin, CopyMixin, TemplateMixin,
@@ -31,7 +32,7 @@ class DirectionValve(CatalogDictMixin,
 
     Наследует:
       - SmartCatalogMixin — фильтрация, поиск, exact/compatible split
-      - CatalogDictMixin — структурированная сериализация (to_dict/to_values_dict)
+      - CatalogSerializerMixin — структурированная сериализация (to_dict/to_values_dict)
       - ImageGalleryMixin — галерея изображений
       - TechDocMixin — техническая документация
       - TemplateMixin — шаблоны названий/описаний (единый контракт)
@@ -51,6 +52,58 @@ class DirectionValve(CatalogDictMixin,
       - ip, exd: защита
       - pneumatic_connection, pneumatic_connection_thread, cable_glands_holes: присоединения
     """
+
+    # ── Реестр полей (единый источник правды) — dv_item_fields.py ──
+    TEMPLATE_FIELDS = DV_ITEM_TEMPLATE_FIELDS
+
+    # Составы словарей (по ключам реестра).
+    NAME_FIELD_KEYS = (
+        'code', 'brand_name', 'function', 'actuation', 'construction',
+        'operation', 'manual_override', 'working_medium', 'kv', 'dn',
+        'pressure_min', 'pressure_max', 'pressure_range',
+        'body_material', 'body_material_specified', 'sealing_material_specified',
+        'solenoid_body_material', 'solenoid_body_material_specified', 'weight',
+        'pneumatic_connection', 'pneumatic_connection_thread', 'cable_glands_holes',
+        'power_supply', 'power_consumption_start', 'power_consumption_hot',
+        'power_consumption_hold', 'solenoid_insulation_class', 'ip', 'exd',
+        'temperature_range', 'medium_density_max', 'work_temp_min', 'work_temp_max',
+    )
+
+    VARS_FIELD_KEYS = (
+        'code', 'name', 'model_line_name', 'brand_name', 'function',
+        'actuation', 'construction', 'operation', 'working_medium',
+        'solenoid_insulation_class', 'manual_override', 'kv', 'dn', 'ip', 'exd',
+        'power_supply', 'power_consumption_start', 'power_consumption_hot',
+        'power_consumption_hold', 'body_material', 'body_material_specified',
+        'sealing_material_specified', 'solenoid_body_material',
+        'solenoid_body_material_specified', 'pneumatic_connection',
+        'pneumatic_connection_thread', 'cable_glands_holes',
+        'pressure_min', 'pressure_max', 'medium_density_max', 'weight',
+        'work_temp_min', 'work_temp_max', 'temperature_range', 'pressure_range',
+    )
+
+    SPEC_FIELD_KEYS = (
+        'model_line_name', 'brand_name', 'function', 'actuation', 'construction',
+        'operation', 'manual_override', 'working_medium', 'kv', 'dn',
+        'pressure_min', 'pressure_max', 'pressure_range',
+        'body_material', 'body_material_specified', 'sealing_material_specified',
+        'solenoid_body_material', 'solenoid_body_material_specified', 'weight',
+        'pneumatic_connection', 'pneumatic_connection_thread', 'cable_glands_holes',
+        'power_supply', 'power_consumption_start', 'power_consumption_hot',
+        'power_consumption_hold', 'solenoid_insulation_class', 'ip', 'exd',
+        'temperature_range', 'medium_density_max',
+    )
+
+    SPEC_GROUP_TITLES = {
+        'general': 'Основные',
+        'flow': 'Пропускная способность',
+        'pressure': 'Давление',
+        'body': 'Корпус и материалы',
+        'connections': 'Присоединения',
+        'electric': 'Электрические параметры',
+        'protection': 'Защита',
+        'conditions': 'Условия эксплуатации',
+    }
 
     name = models.TextField(
         verbose_name=_("Название"),
@@ -286,301 +339,6 @@ class DirectionValve(CatalogDictMixin,
         if not self.model_line:
             return None
         return self.model_line.description_template or None
-    # Замена переменных
-    def _get_data_dict(self) -> Dict[str, str]:
-        """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
-        return {
-            '{model_code}': 'code',
-            '{brand}': 'model_line__brand',
-            '{function}': 'function',
-            '{operation}': 'operation',
-            '{actuation}': 'actuation',
-            '{construction}': 'construction',
-            '{solenoid_insulation_class}': 'solenoid_insulation_class',
-            '{pneumatic_connection}': 'pneumatic_connection',
-            '{pneumatic_connection_thread}': 'pneumatic_connection_thread',
-            '{kv}': 'kv',
-            '{body_material}': 'body_material',
-            '{body_material_specified}': 'body_material_specified',
-            '{solenoid_body_material}': 'solenoid_body_material',
-            '{solenoid_body_material_specified}': 'solenoid_body_material_specified',
-            '{sealing_material_specified}': 'sealing_material_specified',
-            '{pressure_min}': 'pressure_min',
-            '{pressure_max}': 'pressure_max',
-            '{dn}': 'dn',
-            '{power_supply}': 'power_supply',
-            '{power_consumption_start}': 'power_consumption_start',
-            '{power_consumption_hot}': 'power_consumption_hot',
-            '{power_consumption_hold}': 'power_consumption_hold',
-            '{medium_density_max}': 'medium_density_max',
-            '{working_medium}': 'working_medium',
-            '{manual_override}': 'manual_override',
-            '{temperature_range}': 'temperature_range_display',
-            '{pressure_range}': 'pressure_range_display',
-            '{weight}': 'weight',
-            '{cable_glands_holes}': 'cable_glands_holes',
-            '{work_temp_min}': 'work_temp_min',
-            '{work_temp_max}': 'work_temp_max',
-            '{exd}': 'exd',
-            '{ip}': 'ip',
-        }
-
-    # ═══════════════════════════════════════════════════════════════
-    # CatalogDictMixin — to_dict / to_values_dict / helpers
-    # ═══════════════════════════════════════════════════════════════
-
-    def _get_template_vars(self) -> Dict[str, str]:
-        """Единый источник строковых значений для UI и шаблонов."""
-        return {
-            'code': self.code or '',
-            'name': self.name or '',
-            'model_line_name': self.model_line.name if self.model_line else '',
-            'brand_name': self.brand.name if self.brand else '',
-            'function': self.function.name if self.function else '',
-            'actuation': self.actuation.name if self.actuation else '',
-            'construction': self.construction if self.model_line else '',
-            'operation': self.operation if self.model_line else '',
-            'working_medium': self.working_medium if self.model_line else '',
-            'solenoid_insulation_class': self.solenoid_insulation_class if self.model_line else '',
-            'manual_override': self.manual_override.name if self.manual_override else '',
-            'kv': str(self.kv) if self.kv else '',
-            'dn': str(self.dn) if self.dn else '',
-            'ip': self.ip.name if self.ip else '',
-            'exd': self.exd.name if self.exd else '',
-            'power_supply': self.power_supply.name if self.power_supply else '',
-            'power_consumption_start': str(self.power_consumption_start) if self.power_consumption_start else '',
-            'power_consumption_hot': str(self.power_consumption_hot) if self.power_consumption_hot else '',
-            'power_consumption_hold': str(self.power_consumption_hold) if self.power_consumption_hold else '',
-            'body_material': self.body_material.name if self.body_material else '',
-            'body_material_specified': self.body_material_specified.name if self.body_material_specified else '',
-            'sealing_material_specified': self.sealing_material_specified.name if self.sealing_material_specified else '',
-            'solenoid_body_material': self.solenoid_body_material.name if self.solenoid_body_material else '',
-            'solenoid_body_material_specified': self.solenoid_body_material_specified.name if self.solenoid_body_material_specified else '',
-            'pneumatic_connection': self.pneumatic_connection.name if self.pneumatic_connection else '',
-            'pneumatic_connection_thread': self.pneumatic_connection_thread.name if self.pneumatic_connection_thread else '',
-            'cable_glands_holes': str(self.cable_glands_holes) if self.cable_glands_holes else '',
-            'pressure_min': str(self.pressure_min) if self.pressure_min else '',
-            'pressure_max': str(self.pressure_max) if self.pressure_max else '',
-            'medium_density_max': str(self.medium_density_max) if self.medium_density_max else '',
-            'weight': str(self.weight) if self.weight else '',
-            'work_temp_min': str(self.work_temp_min) if self.work_temp_min is not None else '',
-            'work_temp_max': str(self.work_temp_max) if self.work_temp_max is not None else '',
-            'temperature_range': self.temperature_range_display or '',
-            'pressure_range': self.pressure_range_display or '',
-        }
-
-    def _get_image_alt(self) -> str:
-        parts = []
-        if self.model_line:
-            parts.append(self.model_line.name)
-        if self.function:
-            parts.append(self.function.name)
-        if self.code:
-            parts.append(self.code)
-        return ' '.join(parts) or self.name or ''
-
-    def _get_docs_section(self) -> list:
-        """Техдокументация — инлайн по образцу LimitSwitchBox."""
-        docs = []
-        seen = set()
-        for doc in self.tech_docs.all():
-            if doc.id not in seen:
-                seen.add(doc.id)
-                has_email = doc.variants.filter(role='email').exists()
-                docs.append({
-                    'id': doc.id,
-                    'name': getattr(doc, 'name', '') or '',
-                    'url': f"/api/media/{doc.id}/download/",
-                    'file_name': getattr(doc, 'file_name', '') or '',
-                    'preview_url': f"/api/media/{doc.id}/view/",
-                    'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-                })
-        if self.model_line and hasattr(self.model_line, 'tech_docs'):
-            for doc in self.model_line.tech_docs.all():
-                if doc.id not in seen:
-                    seen.add(doc.id)
-                    has_email = doc.variants.filter(role='email').exists()
-                    docs.append({
-                        'id': doc.id,
-                        'name': getattr(doc, 'name', '') or '',
-                        'url': f"/api/media/{doc.id}/download/",
-                        'file_name': getattr(doc, 'file_name', '') or '',
-                        'preview_url': f"/api/media/{doc.id}/view/",
-                        'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-                    })
-        return docs
-
-    def _get_certs_section(self) -> list:
-        import re
-        certs = []
-        if not (self.model_line and hasattr(self.model_line, 'cert_docs')):
-            return certs
-        for cert in self.model_line.cert_docs.select_related('media_item', 'cert_variety').all():
-            try:
-                media = getattr(cert, 'media_item', None)
-                if not media:
-                    continue
-                has_email = media.variants.filter(role='email').exists()
-                variety_name = str(cert.cert_variety) if cert.cert_variety else ''
-                ml_name = self.model_line.name if self.model_line else ''
-                code = getattr(cert, 'code', '') or ''
-                base_name = re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {code} для {ml_name}".strip())
-                dl_name = f"{base_name}.pdf"
-                email_name = f"{base_name} (сжат).pdf"
-                from urllib.parse import quote
-                certs.append({
-                    'id': media.id,
-                    'name': getattr(cert, 'name', '') or '',
-                    'file_name': dl_name,
-                    'email_file_name': email_name,
-                    'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
-                    'preview_url': f"/api/media/{media.id}/view/",
-                    'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
-                })
-            except Exception:
-                continue
-        return certs
-
-    def to_dict(self) -> Dict[str, Any]:
-        tv = self._get_template_vars()
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title() or self.name or '',
-            'description': self.description or '',
-            'image_alt': self._get_image_alt(),
-            'is_active': self.is_active,
-            'sorting_order': self.sorting_order,
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
-            'template_vars': tv,
-            'sections': [
-                {
-                    'key': 'images',
-                    'title': str(_('Изображения')),
-                    'type': 'gallery',
-                    'order': 1,
-                    'data': self._get_images_section(),
-                },
-                {
-                    'key': 'specs',
-                    'title': str(_('Характеристики')),
-                    'type': 'specs',
-                    'order': 2,
-                    'groups': [
-                        {
-                            'key': 'general',
-                            'title': str(_('Основные')),
-                            'order': 1,
-                            'fields': [
-                                {'key': 'model_line_name', 'label': str(_('Серия')), 'value': tv['model_line_name'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'brand_name', 'label': str(_('Бренд')), 'value': tv['brand_name'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'function', 'label': str(_('Схема')), 'value': tv['function'], 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'actuation', 'label': str(_('Управление')), 'value': tv['actuation'], 'unit': '', 'type': 'text', 'order': 4},
-                                {'key': 'construction', 'label': str(_('Конструкция')), 'value': tv['construction'], 'unit': '', 'type': 'text', 'order': 5},
-                                {'key': 'operation', 'label': str(_('Принцип действия')), 'value': tv['operation'], 'unit': '', 'type': 'text', 'order': 6},
-                                {'key': 'manual_override', 'label': str(_('Ручной дублер')), 'value': tv['manual_override'], 'unit': '', 'type': 'text', 'order': 7},
-                                {'key': 'working_medium', 'label': str(_('Рабочая среда')), 'value': tv['working_medium'], 'unit': '', 'type': 'text', 'order': 8},
-                            ]
-                        },
-                        {
-                            'key': 'flow',
-                            'title': str(_('Пропускная способность')),
-                            'order': 2,
-                            'fields': [
-                                {'key': 'kv', 'label': 'Kv', 'value': tv['kv'], 'unit': str(_('м³/ч')), 'type': 'number', 'order': 1},
-                                {'key': 'dn', 'label': 'DN', 'value': tv['dn'], 'unit': str(_('мм')), 'type': 'number', 'order': 2},
-                            ]
-                        },
-                        {
-                            'key': 'pressure',
-                            'title': str(_('Давление')),
-                            'order': 3,
-                            'fields': [
-                                {'key': 'pressure_min', 'label': str(_('Мин. давление')), 'value': tv['pressure_min'], 'unit': str(_('бар')), 'type': 'number', 'order': 1},
-                                {'key': 'pressure_max', 'label': str(_('Макс. давление')), 'value': tv['pressure_max'], 'unit': str(_('бар')), 'type': 'number', 'order': 2},
-                                {'key': 'pressure_range', 'label': str(_('Диапазон')), 'value': tv['pressure_range'], 'unit': '', 'type': 'text', 'order': 3},
-                            ]
-                        },
-                        {
-                            'key': 'body',
-                            'title': str(_('Корпус и материалы')),
-                            'order': 4,
-                            'fields': [
-                                {'key': 'body_material', 'label': str(_('Материал корпуса')), 'value': tv['body_material'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'body_material_specified', 'label': str(_('Марка корпуса')), 'value': tv['body_material_specified'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'sealing_material_specified', 'label': str(_('Уплотнение')), 'value': tv['sealing_material_specified'], 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'solenoid_body_material', 'label': str(_('Материал соленоида')), 'value': tv['solenoid_body_material'], 'unit': '', 'type': 'text', 'order': 4},
-                                {'key': 'solenoid_body_material_specified', 'label': str(_('Марка соленоида')), 'value': tv['solenoid_body_material_specified'], 'unit': '', 'type': 'text', 'order': 5},
-                                {'key': 'weight', 'label': str(_('Вес')), 'value': tv['weight'], 'unit': str(_('кг')), 'type': 'number', 'order': 6},
-                            ]
-                        },
-                        {
-                            'key': 'connections',
-                            'title': str(_('Присоединения')),
-                            'order': 5,
-                            'fields': [
-                                {'key': 'pneumatic_connection', 'label': str(_('Пневмоприсоединение')), 'value': tv['pneumatic_connection'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'pneumatic_connection_thread', 'label': str(_('Резьба')), 'value': tv['pneumatic_connection_thread'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'cable_glands_holes', 'label': str(_('Отверстия КВ')), 'value': tv['cable_glands_holes'], 'unit': '', 'type': 'text', 'order': 3},
-                            ]
-                        },
-                        {
-                            'key': 'electric',
-                            'title': str(_('Электрические параметры')),
-                            'order': 6,
-                            'fields': [
-                                {'key': 'power_supply', 'label': str(_('Напряжение')), 'value': tv['power_supply'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'power_consumption_start', 'label': str(_('Мощность пусковая')), 'value': tv['power_consumption_start'], 'unit': str(_('Вт')), 'type': 'number', 'order': 2},
-                                {'key': 'power_consumption_hot', 'label': str(_('Мощность номинальная')), 'value': tv['power_consumption_hot'], 'unit': str(_('Вт')), 'type': 'number', 'order': 3},
-                                {'key': 'power_consumption_hold', 'label': str(_('Мощность удержания')), 'value': tv['power_consumption_hold'], 'unit': str(_('Вт')), 'type': 'number', 'order': 4},
-                                {'key': 'solenoid_insulation_class', 'label': str(_('Класс изоляции')), 'value': tv['solenoid_insulation_class'], 'unit': '', 'type': 'text', 'order': 5},
-                            ]
-                        },
-                        {
-                            'key': 'protection',
-                            'title': str(_('Защита')),
-                            'order': 7,
-                            'fields': [
-                                {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'exd', 'label': 'Ex', 'value': tv['exd'], 'unit': '', 'type': 'text', 'order': 2},
-                            ]
-                        },
-                        {
-                            'key': 'conditions',
-                            'title': str(_('Условия эксплуатации')),
-                            'order': 8,
-                            'fields': [
-                                {'key': 'temperature_range', 'label': str(_('Рабочая температура')), 'value': tv['temperature_range'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'medium_density_max', 'label': str(_('Макс. вязкость')), 'value': tv['medium_density_max'], 'unit': str(_('сСт')), 'type': 'number', 'order': 2},
-                            ]
-                        },
-                    ]
-                },
-                {
-                    'key': 'docs',
-                    'title': str(_('Документация')),
-                    'type': 'files',
-                    'order': 3,
-                    'data': self._get_docs_section(),
-                },
-                {
-                    'key': 'certs',
-                    'title': str(_('Сертификаты')),
-                    'type': 'files',
-                    'order': 4,
-                    'data': self._get_certs_section(),
-                },
-                {
-                    'key': 'description',
-                    'title': str(_('Описание')),
-                    'type': 'text',
-                    'order': 5,
-                    'data': self.description or '',
-                },
-            ],
-        }
 
     def _get_model_line_summary(self) -> dict:
         if not self.model_line:
@@ -596,32 +354,6 @@ class DirectionValve(CatalogDictMixin,
                 'id': self.model_line.brand.id,
                 'name': self.model_line.brand.name,
             } if self.model_line.brand else None,
-        }
-
-    def _get_sku_summary(self) -> dict:
-        if not hasattr(self, 'sku') or not self.sku:
-            return None
-        return {
-            'id': self.sku.id,
-            'code': self.sku.code,
-            'name': self.sku.name,
-        }
-
-    def to_values_dict(self) -> dict:
-        """Облегчённая сериализация для списков."""
-        first_img = self._get_first_image()
-        tv = {'code': self.code or '', 'name': self.name or ''}
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title() or self.name or '',
-            'image_alt': self._get_image_alt(),
-            'template_vars': tv,
-            'values': tv,
-            'images': [first_img] if first_img else [],
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
         }
 
     def __str__(self):

@@ -3,8 +3,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-from typing import Dict , List , Optional , Any
-from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin, CatalogDictMixin
+from typing import Dict , List
+from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin
+from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
@@ -12,6 +13,7 @@ from materials.models import MaterialGeneral
 from params.models import ThreadSize , ThreadInnerOuter , ThreadTypes
 from producers.models import Brands , Producer
 from sku.models import SKUMixin
+from pneumatic_fittings.pf_item_fields import PF_ITEM_TEMPLATE_FIELDS
 
 '''
 Фитинги
@@ -198,7 +200,7 @@ class PneumaticFittingModelLine(ImageGalleryMixin, TechDocMixin,
 
 
 
-class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
+class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
                        ImageGalleryMixin, TechDocMixin,
                        SKUMixin, EquipmentTypeMixin,
                        StructuredDataMixin, TemplateMixin, CopyMixin, models.Model):
@@ -206,7 +208,7 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
     Пневматический фитинг (конкретный артикул каталога).
 
     Наследует:
-      - CatalogDictMixin — структурированная сериализация (to_dict/to_values_dict)
+      - CatalogSerializerMixin — структурированная сериализация (to_dict/to_values_dict)
       - SmartCatalogMixin — фильтрация, поиск, exact/compatible split
       - ImageGalleryMixin — галерея изображений
       - TechDocMixin — техническая документация
@@ -222,6 +224,40 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
       - thread, thread_inner_outer: резьбовое соединение
       - body_material: материал корпуса
     """
+
+    # ── Реестр полей (единый источник правды) — pf_item_fields.py ──
+    TEMPLATE_FIELDS = PF_ITEM_TEMPLATE_FIELDS
+
+    # Составы словарей (по ключам реестра).
+    NAME_FIELD_KEYS = (
+        'code', 'brand_name', 'temperature_range', 'fitting_variety',
+        'shape', 'fixation_method', 'swivel', 'pressure_range',
+        'pipe_diameter', 'thread', 'thread_inner_outer',
+        'operating_pressure', 'noise_level', 'flow_rate',
+        'body_material', 'pipe_material', 'pressure_min', 'pressure_max',
+        'temp_min', 'temp_max',
+    )
+
+    VARS_FIELD_KEYS = (
+        'code', 'name', 'model_line_name', 'brand_name', 'fitting_variety',
+        'thread', 'thread_inner_outer', 'body_material', 'temperature_range',
+        'swivel', 'pipe_diameter', 'pipe_material', 'pressure_range',
+        'flow_rate', 'noise_level', 'operating_pressure',
+        'pressure_min', 'pressure_max', 'temp_min', 'temp_max',
+    )
+
+    SPEC_FIELD_KEYS = (
+        'model_line_name', 'brand_name', 'fitting_variety', 'thread',
+        'thread_inner_outer', 'body_material', 'temperature_range',
+        'pipe_diameter', 'pipe_material', 'pressure_range',
+        'flow_rate', 'noise_level', 'operating_pressure',
+    )
+
+    SPEC_GROUP_TITLES = {
+        'general': 'Основные',
+        'pipe': 'Трубка и давление',
+        'silencer': 'Параметры глушителя',
+    }
 
     name = models.CharField(max_length=300 ,
                             verbose_name=_("Название") ,
@@ -385,29 +421,31 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
         default_description_template = "{model_code} {fitting_variety} {brand}, {thread_inner_outer} резьба {thread}, Т раб. {temperature_range} °С, Р раб. {pressure_range} бар"
         return default_description_template
 
-    def _get_data_dict(self) -> Dict[str , str] :
-        """Получить словарь соответствий плейсхолдеров и атрибутов для замены
-        Шаблон названия:
+    # Виды оборудования, для которых показываются параметры глушителя
+    # (вместо полей трубки и давления).
+    SILENCER_PLUG_EQUIPMENT_CODES = ('fitting-silencer', 'fitting-plug')
 
-        Шаблон описания
+    def _get_spec_sections(self, fields=None):
+        """Характеристики: базовая группа + поля трубки или глушителя по виду.
 
+        Группа ``pipe`` — только для фитингов, ``silencer`` — только для
+        глушителей/заглушек; пустые параметры глушителя не выводятся
+        (как в старой `_build_detail_sections`).
         """
-        return {
-            '{model_code}' : 'code' ,
-            '{brand}' : 'model_line__brand' ,
-            '{temperature_range}' : 'temperature_range_display' ,
-            '{fitting_variety}' : 'fitting_variety__name' ,
-            '{shape}' : 'fitting_variety__fixation_method' ,
-            '{fixation_method}' : 'fitting_variety__fixation_method' ,
-            '{swivel}' : 'swivel_display' ,
-            '{pressure_range}' : 'pressure_range_display' ,
-            '{pipe_diameter}' : 'pipe_diameter' ,
-            '{thread}' : 'thread' ,
-            '{thread_inner_outer}' : 'thread_inner_outer' ,
-            '{operating_pressure}' : 'operating_pressure' ,
-            '{noise_level}' : 'noise_level' ,
-            '{flow_rate}' : 'flow_rate' ,
-        }
+        sections = super()._get_spec_sections(fields=fields)
+        # Вид определяет серия (каталоги скоупятся по model_line__equipment_type),
+        # а не артикул: чтение item.equipment_type дало бы N+1 на списках.
+        ml_et = self.model_line.equipment_type if getattr(self, 'model_line_id', None) else None
+        code = (ml_et.code if ml_et else '') or ''
+        is_silencer_plug = code in self.SILENCER_PLUG_EQUIPMENT_CODES
+        exclude = 'pipe' if is_silencer_plug else 'silencer'
+        sections = [s for s in sections if s['key'] != exclude]
+        if is_silencer_plug:
+            for s in sections:
+                if s['key'] == 'silencer':
+                    s['fields'] = [fld for fld in s['fields'] if fld['value'] not in ('', None)]
+        # Пустые группы (например, глушитель без данных) не выводим
+        return [s for s in sections if s.get('fields')]
 
     def __str__(self) :
         return self.name
@@ -602,230 +640,3 @@ class PneumaticFitting(CatalogDictMixin, SmartCatalogMixin,
         'model_line__brand' , 'model_line' , 'fitting_variety' ,
         'body_material' , 'pipe_material' , 'thread' , 'thread_inner_outer'
     ]
-
-    def to_values_dict(self) -> dict:
-        """Облегчённая сериализация для списков."""
-        first_img = self._get_first_image() if hasattr(self, '_get_first_image') else None
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'pipe_diameter': self.pipe_diameter,
-            'fitting_variety': {
-                'id': self.fitting_variety.id,
-                'name': self.fitting_variety.name,
-            } if self.fitting_variety else None,
-            'body_material': {
-                'id': self.body_material.id,
-                'name': self.body_material.name,
-            } if self.body_material else None,
-            'pipe_material': {
-                'id': self.pipe_material.id,
-                'name': self.pipe_material.name,
-            } if self.pipe_material else None,
-            'thread_name': str(self.thread) if self.thread else None,
-            'thread_inner_outer_name': str(self.thread_inner_outer) if self.thread_inner_outer else None,
-            'images': [first_img] if first_img else [],
-            'model_line': {
-                'id': self.model_line.id,
-                'name': self.model_line.name,
-                'code': self.model_line.code,
-            } if self.model_line else None,
-            'sku': {
-                'id': self.sku_id,
-                'code': self.sku.code if self.sku else None,
-                'name': self.sku.name if self.sku else None,
-            } if self.sku_id else None,
-        }
-
-    def _safe_m2m(self, method_name):
-        try:
-            return getattr(self, method_name)()
-        except Exception:
-            import logging
-            logging.getLogger('pneumatic_fittings').warning(
-                'Section %s failed for PneumaticFitting #%s', method_name, self.pk, exc_info=True)
-            return []
-
-    def _get_docs_section(self) -> list:
-        docs = []
-        seen = set()
-        for doc in self.tech_docs.all():
-            if doc.media_file and doc.id not in seen:
-                seen.add(doc.id)
-                has_email = doc.variants.filter(role='email').exists()
-                docs.append({
-                    'id': doc.id, 'name': getattr(doc, 'name', '') or '',
-                    'url': f"/api/media/{doc.id}/download/",
-                    'file_name': getattr(doc, 'name', '') or '',
-                    'preview_url': f"/api/media/{doc.id}/view/",
-                    'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-                })
-        if self.model_line and hasattr(self.model_line, 'tech_docs'):
-            for doc in self.model_line.tech_docs.all():
-                if doc.media_file and doc.id not in seen:
-                    seen.add(doc.id)
-                    has_email = doc.variants.filter(role='email').exists()
-                    docs.append({
-                        'id': doc.id, 'name': getattr(doc, 'name', '') or '',
-                        'url': f"/api/media/{doc.id}/download/",
-                        'file_name': getattr(doc, 'name', '') or '',
-                        'preview_url': f"/api/media/{doc.id}/view/",
-                        'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-                    })
-        return docs
-
-    def _get_certs_section(self) -> list:
-        certs = []
-        if self.model_line and hasattr(self.model_line, 'cert_docs'):
-            cert_ids = list(
-                self.model_line.cert_docs
-                .filter(is_active=True)
-                .values_list('id', flat=True)
-            )
-            if cert_ids:
-                from cert_doc.models import CertData
-                from urllib.parse import quote
-                import re as _re
-                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item', 'cert_variety'):
-                    media = getattr(cert, 'media_item', None)
-                    if not media:
-                        continue
-                    has_email = media.variants.filter(role='email').exists()
-                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
-                    cert_code = getattr(cert, 'code', '') or ''
-                    ml_name = self.model_line.name if self.model_line else ''
-                    base_name = _re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {cert_code} для {ml_name}".strip())
-                    dl_name = f"{base_name}.pdf"
-                    email_name = f"{base_name} (сжат).pdf"
-                    certs.append({
-                        'id': media.id,
-                        'name': getattr(cert, 'name', '') or '',
-                        'file_name': dl_name,
-                        'email_file_name': email_name,
-                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
-                        'preview_url': f"/api/media/{media.id}/view/",
-                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
-                    })
-        return certs
-
-    def _build_detail_sections(self) -> list:
-        specs_fields = []
-
-        def f(key, label, value, unit='', type_='text'):
-            return {'key': key, 'label': label, 'value': value, 'unit': unit,
-                    'type': type_, 'order': len(specs_fields) + 1}
-
-        specs_fields.append(f('model_line', 'Серия', self.model_line.name if self.model_line else ''))
-        specs_fields.append(f('brand', 'Бренд', self.model_line.brand.name if self.model_line and self.model_line.brand else ''))
-        specs_fields.append(f('fitting_variety', 'Тип фитинга', str(self.fitting_variety) if self.fitting_variety else ''))
-        specs_fields.append(f('thread', 'Резьба', str(self.thread) if self.thread else ''))
-        specs_fields.append(f('thread_inner_outer', 'Резьба нар/внутр', str(self.thread_inner_outer) if self.thread_inner_outer else ''))
-        specs_fields.append(
-            f('body_material' , 'Материал корпуса' , str(self.body_material) if self.body_material else ''))
-        specs_fields.append(f('temperature' , 'Т раб., °С' , self.temperature_range_display))
-        silencer_plug = ['fitting-silencer' , 'fitting-plug']
-        if not self.equipment_type.code in silencer_plug:
-            specs_fields.append(f('pipe_diameter', 'Диаметр трубки, мм', self.pipe_diameter if self.pipe_diameter is not None else '', type_='number'))
-            specs_fields.append(f('pipe_material' , 'Материал трубки' , str(self.pipe_material) if self.pipe_material else ''))
-            specs_fields.append(f('pressure' , 'Р раб., бар' , self.pressure_range_display))
-        else:
-            if self.operating_pressure is not None :
-                specs_fields.append({'key' : 'operating_pressure' , 'label' : 'P раб.макс, бар' ,
-                                     'value' : str(self.operating_pressure) , 'unit' : '' , 'type' : 'number' ,
-                                     'order' : 3})
-            if self.flow_rate is not None :
-                specs_fields.append(
-                    {'key' : 'flow_rate' , 'label' : 'Пропускная способность, Нл/мин' , 'value' : str(self.flow_rate) ,
-                     'unit' : '' , 'type' : 'number' , 'order' : 1})
-            if self.noise_level is not None :
-                specs_fields.append(
-                    {'key' : 'noise_level' , 'label' : 'Уровень шума, дБ' , 'value' : str(self.noise_level) ,
-                     'unit' : '' , 'type' : 'number' , 'order' : 2})
-
-
-        #
-        #
-        # silencer_fields = []
-        # if self.flow_rate is not None:
-        #     silencer_fields.append({'key': 'flow_rate', 'label': 'Пропускная способность, Нл/мин', 'value': str(self.flow_rate), 'unit': '', 'type': 'number', 'order': 1})
-        # if self.noise_level is not None:
-        #     silencer_fields.append({'key': 'noise_level', 'label': 'Уровень шума, дБ', 'value': str(self.noise_level), 'unit': '', 'type': 'number', 'order': 2})
-        # if self.operating_pressure is not None:
-        #     silencer_fields.append({'key': 'operating_pressure', 'label': 'P раб.макс, бар', 'value': str(self.operating_pressure), 'unit': '', 'type': 'number', 'order': 3})
-        #
-        groups = [{'key': 'general', 'title': 'Основные', 'order': 1, 'fields': specs_fields}]
-        # if silencer_fields:
-        #     groups.append({'key': 'silencer', 'title': 'Глушитель', 'order': 2, 'fields': silencer_fields})
-
-        return [
-            {'key': 'images', 'title': 'Изображения', 'type': 'gallery', 'order': 1, 'data': self._safe_m2m('_get_images_section')},
-            {'key': 'specs', 'title': 'Характеристики', 'type': 'specs', 'order': 2, 'groups': groups},
-            {'key': 'docs', 'title': 'Документация', 'type': 'files', 'order': 3, 'data': self._safe_m2m('_get_docs_section')},
-            {'key': 'certs', 'title': 'Сертификаты', 'type': 'files', 'order': 4, 'data': self._safe_m2m('_get_certs_section')},
-            {'key': 'description', 'title': 'Описание', 'type': 'text', 'order': 5, 'data': self.description or ''},
-        ]
-
-    def to_dict(self) -> Dict[str , Any] :
-        """
-        Конвертировать объект в словарь для API
-
-        Returns:
-            Dict: структурированные данные фитинга
-        """
-        return {
-            'id' : self.id ,
-            'name' : self.name ,
-            'code' : self.code ,
-            'description' : self.description ,
-            'temp_min' : self.temp_min ,
-            'temp_max' : self.temp_max ,
-            'pipe_diameter' : self.pipe_diameter ,
-            'flow_rate' : float(self.flow_rate) if self.flow_rate else None ,
-            'noise_level' : float(self.noise_level) if self.noise_level else None ,
-            'operating_pressure' : float(self.operating_pressure) if self.operating_pressure else None ,
-            'is_active' : self.is_active ,
-            'sorting_order' : self.sorting_order ,
-            'brand' : {
-                'id' : self.model_line.brand.id ,
-                'name' : self.model_line.brand.name ,
-                'code' : self.model_line.brand.code
-            } if self.model_line and self.model_line.brand else None ,
-            'model_line' : {
-                'id' : self.model_line.id ,
-                'name' : self.model_line.name ,
-                'code' : self.model_line.code ,
-                'description': self.model_line.description or ''
-            } if self.model_line else None ,
-            'fitting_variety' : {
-                'id' : self.fitting_variety.id ,
-                'name' : self.fitting_variety.name ,
-                'code' : self.fitting_variety.code
-            } if self.fitting_variety else None ,
-            'body_material' : {
-                'id' : self.body_material.id ,
-                'name' : self.body_material.name
-            } if self.body_material else None ,
-            'pipe_material' : {
-                'id' : self.pipe_material.id ,
-                'name' : self.pipe_material.name
-            } if self.pipe_material else None ,
-            'thread' : {
-                'id' : self.thread.id ,
-                'name' : self.thread.name ,
-                'code' : self.thread.code ,
-                'thread_type' : {  # ← новый блок
-                    'id' : self.thread.thread_type.id ,
-                    'name' : self.thread.thread_type.name ,
-                    'code' : self.thread.thread_type.code
-                } if self.thread and self.thread.thread_type else None
-            } if self.thread else None ,
-            'thread_inner_outer' : {
-                'id' : self.thread_inner_outer.id ,
-                'name' : self.thread_inner_outer.name ,
-                'code' : self.thread_inner_outer.code
-            } if self.thread_inner_outer else None ,
-
-            'sections' : self._build_detail_sections() ,
-        }

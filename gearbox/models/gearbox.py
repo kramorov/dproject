@@ -1,19 +1,19 @@
 # gearbox/models/gearbox.py
-import re
-from typing import Dict, List, Any
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from core.models import ImageGalleryMixin, TechDocMixin
-from core.models.mixins import CatalogDictMixin, CopyMixin, TemplateMixin
+from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
+from gearbox.models.gb_item_fields import GB_ITEM_TEMPLATE_FIELDS
 from materials.models import MaterialGeneral
 from params.models import LockingMechanism, IpOption, MountingPlateTypes
 from sku.models import SKUMixin
 
 
-class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, ImageGalleryMixin, TechDocMixin, SKUMixin, models.Model):
+class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, ImageGalleryMixin, TechDocMixin, SKUMixin, models.Model):
     """
     Модель редуктора (каталог).
 
@@ -28,6 +28,45 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
     Если у конкретного редуктора нет своих изображений, страница каталога
     подхватывает их из ``GearBoxModelLine.images``.
     """
+
+    # ── Реестр полей (единый источник правды) — gb_item_fields.py ──
+    TEMPLATE_FIELDS = GB_ITEM_TEMPLATE_FIELDS
+
+    # Составы словарей (по ключам реестра).
+    NAME_FIELD_KEYS = (
+        'code', 'brand_name', 'body_material', 'ip', 'override_mechanism',
+        'locking_mechanism', 'is_declutchable', 'transmission_variety',
+        'reduction_ratio', 'max_output_torque', 'max_input_torque', 'weight',
+        'handwheel_diameter', 'handwheel_force_nominal', 'interlock',
+        'work_temp_min', 'work_temp_max', 'gearbox_output_variety',
+        'gearbox_variety', 'turn_angle', 'turn_tuning_limit',
+        'mechanical_advantage', 'max_stem_diameter_bottom', 'stem_height_bottom',
+        'stem_size_bottom', 'stem_shape_bottom', 'mounting_plate_bottom_list_text',
+        'stem_height_top', 'stem_size_top', 'stem_shape_top',
+        'mounting_plate_top_list_text', 'efficiency', 'amplification_factor',
+    )
+
+    VARS_FIELD_KEYS = (
+        'code', 'name', 'model_line_name', 'brand_name', 'body_material',
+        'reduction_ratio', 'max_output_torque', 'max_input_torque', 'weight',
+        'ip', 'work_temp_min', 'work_temp_max', 'is_declutchable',
+        'override_mechanism', 'locking_mechanism', 'transmission_variety',
+        'handwheel_diameter', 'handwheel_force_nominal', 'interlock', 'work_temp',
+    )
+
+    SPEC_FIELD_KEYS = (
+        'model_line_name', 'brand_name', 'body_material', 'ip',
+        'override_mechanism', 'locking_mechanism', 'is_declutchable',
+        'transmission_variety', 'reduction_ratio', 'max_output_torque',
+        'max_input_torque', 'weight', 'handwheel_diameter', 'work_temp',
+    )
+
+    SPEC_GROUP_TITLES = {
+        'general': 'Основные',
+        'body': 'Корпус',
+        'conditions': 'Условия эксплуатации',
+    }
+
     name = models.TextField(blank=True,
                             verbose_name=_("Название"),
                             help_text=_('Текстовое название модели редуктора'))
@@ -154,6 +193,13 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
     def is_declutchable_display(self):
         return dict(self.DECLUTCHABLE_CHOICES).get(self.is_declutchable, '')
 
+    @property
+    def work_temp_display(self):
+        """Диапазон рабочей температуры для отображения."""
+        if self.work_temp_min is None:
+            return ''
+        return f'{self.work_temp_min}...+{self.work_temp_max} °С'
+
     def copy(self):
         """
         Создаёт копию редуктора.
@@ -164,52 +210,6 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
         """
         copied_obj = super().copy(suffix=" Копия", reset_fields=['sorting_order', 'is_active'])
         return copied_obj
-
-    def _get_data_dict(self) -> Dict[str, str]:
-        """
-        Словарь плейсхолдер → путь к атрибуту для шаблонов названия/описания.
-
-        Используется ``TemplateMixin`` для подстановки значений в шаблоны
-        ``name_template`` и ``description_template`` из model_line.
-
-        Ключи — плейсхолдеры вида ``{model_code}``, значения — dotted-пути
-        к атрибутам модели (поддерживает ``__`` для связанных полей).
-        """
-        return {
-            '{model_code}': 'code',
-            '{brand}': 'model_line__brand',
-            '{gearbox_output_variety}': 'model_line__gearbox_output_variety',
-            '{gearbox_variety}': 'model_line__gearbox_variety',
-            '{turn_angle}': 'model_line__turn_angle',
-            '{turn_tuning_limit}': 'model_line__turn_tuning_limit',
-            '{weight}': 'body__weight',
-            '{mechanical_advantage}': 'body__mechanical_advantage',
-            '{max_stem_diameter_bottom}': 'body__max_stem_diameter_bottom',
-            '{stem_height_bottom}': 'body__stem_height_bottom',
-            '{stem_size_bottom}': 'body__stem_size_bottom',
-            '{stem_shape_bottom}': 'body__stem_shape_bottom',
-            '{mounting_plate_bottom_list_text}': 'body__mounting_plate_bottom_list_text',
-            '{stem_height_top}': 'body__stem_height_top',
-            '{stem_size_top}': 'body__stem_size_top',
-            '{stem_shape_top}': 'body__stem_shape_top',
-            '{mounting_plate_top_list_text}': 'body__mounting_plate_top_list_text',
-            '{handwheel_diameter}': 'body__handwheel_diameter',
-            '{handwheel_force_nominal}': 'body__handwheel_force_nominal',
-            '{max_output_torque}': 'body__max_output_torque',
-            '{max_input_torque}': 'body__max_input_torque',
-            '{efficiency}': 'body__efficiency',
-            '{amplification_factor}': 'body__amplification_factor',
-            '{reduction_ratio_text}': 'body__reduction_ratio_text',
-            '{transmission_variety}': 'body__transmission_variety',
-            '{interlock}': 'interlock',
-            '{ip}': 'ip',
-            '{locking_mechanism}': 'locking_mechanism',
-            '{is_declutchable}': 'is_declutchable_display',
-            '{override_mechanism}': 'override_mechanism',
-            '{body_material_text}': 'body_material_text',
-            '{work_temp_min}': 'work_temp_min',
-            '{work_temp_max}': 'work_temp_max',
-        }
 
     def _get_name_template_source(self):
         """
@@ -247,251 +247,6 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
         """
         return "{model_code} {brand} {gearbox_variety} {gearbox_output_variety}"
 
-    # FILTER_DEFINITIONS, M2M_FILTER_CONFIG, SEARCH_FIELDS
-    # перенесены в gearbox/services/filters.py
-
-    def _get_image_url(self, img):
-        return CatalogDictMixin._get_image_url(self, img)
-
-    def _get_file_info(self, doc):
-        """Информация о файле — URL для скачивания, превью, email-вариант."""
-        if not doc:
-            return None
-        try:
-            from django.conf import settings
-            has_email = doc.variants.filter(role='email').exists()
-            return {
-                'id': doc.id,
-                'name': getattr(doc, 'name', '') or '',
-                'url': f"/api/media/{doc.id}/download/",
-                'file_name': getattr(doc, 'file_name', '') or '',
-                'preview_url': f"/api/media/{doc.id}/view/",
-                'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-            }
-        except Exception:
-            return None
-
-    def _get_image_alt(self) -> str:
-        """Alt-текст для изображений."""
-        parts = []
-        if self.model_line:
-            if self.model_line.gearbox_output_variety:
-                parts.append(self.model_line.gearbox_output_variety.name)
-            if self.model_line.gearbox_variety:
-                parts.append(self.model_line.gearbox_variety.name)
-        if self.code:
-            parts.append(self.code)
-        return ' '.join(parts) or self.name or ''
-
-    def _get_template_vars(self) -> Dict[str, str]:
-        """
-        Единый источник готовых строковых значений для шаблонов и UI.
-
-        ИСПОЛЬЗУЕТСЯ:
-        - ``to_dict()`` — поля в ``sections[].groups[].fields[].value``
-          берутся отсюда, а не из атрибутов модели напрямую.
-          Это гарантирует, что label и value не расходятся.
-        - Будущий шаблонизатор описаний (Jinja2) — рендерит через ``template_vars``.
-
-        НЕ ПУТАТЬ с ``_get_data_dict()``:
-        - ``_get_data_dict()`` — плейсхолдер → dotted-путь (для TemplateMixin)
-        - ``_get_template_vars()`` — ключ → готовая строка (для UI и шаблонов)
-        """
-        body = self.body
-        return {
-            'code': self.code or '',
-            'name': self.name or '',
-            'model_line_name': self.model_line.name if self.model_line else '',
-            'brand_name': self.model_line.brand.name if self.model_line and self.model_line.brand else '',
-            'body_material': self.body_material_text or '',
-            'reduction_ratio': body.reduction_ratio_text if body and body.reduction_ratio_text else '',
-            'max_output_torque': str(body.max_output_torque) if body and body.max_output_torque else '',
-            'max_input_torque': str(body.max_input_torque) if body and body.max_input_torque else '',
-            'weight': str(body.weight) if body and body.weight else '',
-            'ip': self.ip.name if self.ip else '',
-            'work_temp_min': str(self.work_temp_min) if self.work_temp_min is not None else '',
-            'work_temp_max': str(self.work_temp_max) if self.work_temp_max is not None else '',
-            'is_declutchable': self.is_declutchable_display or '',
-            'override_mechanism': self.override_mechanism.name if self.override_mechanism else '',
-            'locking_mechanism': self.locking_mechanism.name if self.locking_mechanism else '',
-            'transmission_variety': body.transmission_variety.name if body and body.transmission_variety else '',
-            'handwheel_diameter': str(body.handwheel_diameter) if body and body.handwheel_diameter else '',
-            'handwheel_force_nominal': str(body.handwheel_force_nominal) if body and body.handwheel_force_nominal else '',
-            'interlock': self.interlock.name if self.interlock else '',
-            # Составное поле — для секции «Условия эксплуатации» в to_dict()
-            'work_temp': (
-                f"{self.work_temp_min}...+{self.work_temp_max} °С"
-                if self.work_temp_min is not None else ''
-            ),
-        }
-
-    def _get_docs_section(self) -> list:
-        """Секция документов."""
-        docs = []
-        for doc in self.tech_docs.all():
-            info = self._get_file_info(doc)
-            if info:
-                docs.append(info)
-        if self.model_line:
-            for doc in self.model_line.tech_docs.all():
-                info = self._get_file_info(doc)
-                if info and not any(d['id'] == info['id'] for d in docs):
-                    docs.append(info)
-        return docs
-
-    def _get_certs_section(self) -> list:
-        """
-        Секция сертификатов.
-
-        CertData имеет поля ``name``, ``code``, ``media_item`` (FK на MediaLibraryItem).
-        В отличие от tech_docs (у которых ``title``/``media_file``), здесь
-        title = cert.name, file_name = cert.code, url = /api/media/{media_item.id}/download/
-        """
-        certs = []
-        if not (self.model_line and hasattr(self.model_line, 'cert_docs')):
-            return certs
-
-        for cert in self.model_line.cert_docs.select_related('media_item', 'cert_variety').all():
-            from django.conf import settings
-            base = getattr(settings, 'MEDIA_API_BASE', 'http://localhost:8000')
-            try:
-                title = getattr(cert, 'name', '') or ''
-                code = getattr(cert, 'code', '') or ''
-                media = getattr(cert, 'media_item', None)
-                if not media:
-                    continue
-
-                has_email = media.variants.filter(role='email').exists()
-                variety_name = str(cert.cert_variety) if cert.cert_variety else ''
-                ml_name = self.model_line.name if self.model_line else ''
-                base_name = re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {code} для {ml_name}".strip())
-                dl_name = f"{base_name}.pdf"
-                email_name = f"{base_name} (сжат).pdf"
-                from urllib.parse import quote
-                certs.append({
-                    'id': media.id,
-                    'name': title,
-                    'file_name': dl_name,
-                    'email_file_name': email_name,
-                    'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
-                    'preview_url': f"/api/media/{media.id}/view/",
-                    'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
-                })
-            except Exception:
-                continue
-        return certs
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Структурированная сериализация редуктора (CatalogDictMixin).
-
-        ВСЕ значения полей в ``sections[].groups[].fields[].value`` берутся
-        из ``_get_template_vars()`` — единого источника строковых значений.
-        При добавлении нового поля:
-          1. Добавить ключ в ``_get_template_vars()``
-          2. Добавить запись в fields[] с тем же key и label
-
-        Возвращает:
-            - template_vars — плоский словарь для шаблонов
-            - sections — список секций: gallery, specs, docs, certs, description
-            - model_line, sku — сводки связанных объектов
-        """
-        tv = self._get_template_vars()
-
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'description': self.description or '',
-            'image_alt': self._get_image_alt(),
-            'is_active': self.is_active,
-            'sorting_order': self.sorting_order,
-
-            # ── Сводки связанных объектов ──
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
-
-            # ── Плоский словарь для шаблонов ──
-            'template_vars': tv,
-
-            # ── Секции ──
-            'sections': [
-                {
-                    'key': 'images',
-                    'title': str(_('\u0418\u0437\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u044f')),
-                    'type': 'gallery',
-                    'order': 1,
-                    'data': self._get_images_section(),
-                },
-                {
-                    'key': 'specs',
-                    'title': str(_('\u0425\u0430\u0440\u0430\u043a\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043a\u0438')),
-                    'type': 'specs',
-                    'order': 2,
-                    'groups': [
-                        {
-                            'key': 'general',
-                            'title': str(_('\u041e\u0441\u043d\u043e\u0432\u043d\u044b\u0435')),
-                            'order': 1,
-                            'fields': [
-                                # Все value — из tv, не из self.xxx напрямую
-                                {'key': 'model_line_name', 'label': str(_('\u0421\u0435\u0440\u0438\u044f')), 'value': tv['model_line_name'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'brand_name', 'label': str(_('\u0411\u0440\u0435\u043d\u0434')), 'value': tv['brand_name'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'body_material', 'label': str(_('\u041c\u0430\u0442\u0435\u0440\u0438\u0430\u043b \u043a\u043e\u0440\u043f\u0443\u0441\u0430')), 'value': tv['body_material'], 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'ip', 'label': str(_('IP')), 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 4},
-                                {'key': 'override_mechanism', 'label': str(_('\u041c\u0435\u0445\u0430\u043d\u0438\u0437\u043c \u043e\u0442\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f')), 'value': tv['override_mechanism'], 'unit': '', 'type': 'text', 'order': 5},
-                                {'key': 'locking_mechanism', 'label': str(_('\u041c\u0435\u0445\u0430\u043d\u0438\u0437\u043c \u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0438')), 'value': tv['locking_mechanism'], 'unit': '', 'type': 'text', 'order': 6},
-                                {'key': 'is_declutchable', 'label': str(_('\u0420\u0430\u0441\u0446\u0435\u043f\u043b\u044f\u0435\u043c\u044b\u0439')), 'value': tv['is_declutchable'], 'unit': '', 'type': 'text', 'order': 7},
-                            ]
-                        },
-                        {
-                            'key': 'body',
-                            'title': str(_('\u041a\u043e\u0440\u043f\u0443\u0441')),
-                            'order': 2,
-                            'fields': [
-                                {'key': 'transmission_variety', 'label': str(_('\u0422\u0438\u043f \u043f\u0435\u0440\u0435\u0434\u0430\u0447\u0438')), 'value': tv['transmission_variety'], 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'reduction_ratio', 'label': str(_('\u041f\u0435\u0440\u0435\u0434\u0430\u0442\u043e\u0447\u043d\u043e\u0435 \u0447\u0438\u0441\u043b\u043e')), 'value': tv['reduction_ratio'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'max_output_torque', 'label': str(_('\u041c\u0430\u043a\u0441. \u043c\u043e\u043c\u0435\u043d\u0442 \u043d\u0430 \u0432\u044b\u0445\u043e\u0434\u0435')), 'value': tv['max_output_torque'], 'unit': str(_('\u041d\u043c')), 'type': 'number', 'order': 3},
-                                {'key': 'max_input_torque', 'label': str(_('\u041c\u0430\u043a\u0441. \u0432\u0445\u043e\u0434\u043d\u043e\u0439 \u043c\u043e\u043c\u0435\u043d\u0442')), 'value': tv['max_input_torque'], 'unit': str(_('\u041d\u043c')), 'type': 'number', 'order': 4},
-                                {'key': 'weight', 'label': str(_('\u0412\u0435\u0441')), 'value': tv['weight'], 'unit': str(_('\u043a\u0433')), 'type': 'number', 'order': 5},
-                                {'key': 'handwheel_diameter', 'label': str(_('\u0414\u0438\u0430\u043c\u0435\u0442\u0440 \u0448\u0442\u0443\u0440\u0432\u0430\u043b\u0430')), 'value': tv['handwheel_diameter'], 'unit': str(_('\u043c\u043c')), 'type': 'number', 'order': 6},
-                            ]
-                        },
-                        {
-                            'key': 'conditions',
-                            'title': str(_('\u0423\u0441\u043b\u043e\u0432\u0438\u044f \u044d\u043a\u0441\u043f\u043b\u0443\u0430\u0442\u0430\u0446\u0438\u0438')),
-                            'order': 3,
-                            'fields': [
-                                {'key': 'work_temp', 'label': str(_('\u0420\u0430\u0431\u043e\u0447\u0430\u044f \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430')), 'value': tv['work_temp'], 'unit': '', 'type': 'text', 'order': 1},
-                            ]
-                        },
-                    ]
-                },
-                {
-                    'key': 'docs',
-                    'title': str(_('\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f')),
-                    'type': 'files',
-                    'order': 3,
-                    'data': self._get_docs_section(),
-                },
-                {
-                    'key': 'certs',
-                    'title': str(_('\u0421\u0435\u0440\u0442\u0438\u0444\u0438\u043a\u0430\u0442\u044b')),
-                    'type': 'files',
-                    'order': 4,
-                    'data': self._get_certs_section(),
-                },
-                {
-                    'key': 'description',
-                    'title': str(_('\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435')),
-                    'type': 'text',
-                    'order': 5,
-                    'data': self.description or '',
-                },
-            ],
-        }
-
     def _get_model_line_summary(self) -> dict:
         """Краткая сводка model_line."""
         if not self.model_line:
@@ -507,42 +262,4 @@ class GearBox(CatalogDictMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, Ima
                 'id': self.model_line.brand.id,
                 'name': self.model_line.brand.name,
             } if self.model_line.brand else None,
-        }
-
-    def _get_sku_summary(self) -> dict:
-        """Краткая сводка SKU (для цен)."""
-        if not hasattr(self, 'sku') or not self.sku:
-            return None
-        return {
-            'id': self.sku.id,
-            'code': self.sku.code,
-            'name': self.sku.name,
-        }
-
-    # ── Оптимизированные сериализаторы ──
-
-    def to_values_dict(self) -> dict:
-        """
-        Облегчённая сериализация для списков — НЕ вызывает to_dict().
-
-        В отличие от ``CatalogDictMixin.to_values_dict()``, не строит
-        секции (sections), а собирает только нужное для карточек:
-        значения полей, первое изображение, model_line, sku.
-
-        Это убирает задержку при фильтрации/пагинации на больших списках.
-        """
-        first_img = self._get_first_image()
-        tv = {'code': self.code or '', 'name': self.name or ''}
-
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'image_alt': self._get_image_alt(),
-            'template_vars': tv,
-            'values': tv,
-            'images': [first_img] if first_img else [],
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
         }

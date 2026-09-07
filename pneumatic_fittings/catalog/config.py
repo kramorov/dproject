@@ -90,7 +90,8 @@ _PREFETCH_COMMON = [
 _SELECT_RELATED_COMMON = [
     'model_line',
     'model_line__brand', 'model_line__equipment_type',
-    'body_material',
+    'fitting_variety',
+    'body_material', 'pipe_material',
     'thread',
     'thread_inner_outer',
     'sku',

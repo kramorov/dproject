@@ -5,6 +5,8 @@
 > Эталонные реализации: `DirectionValve` (solenoid_valves), `FilterRegulator`,
 > `GearBox`, `PneumaticFitting`, `LimitSwitchBox`, `PosiModelLineItem`,
 > `PneumaticActuatorItem` (pneumatic_actuators, включая опции и автогенерацию артикула).
+> Все перечисленные модели, кроме `SensorComponent`, переведены на реестр
+> `TEMPLATE_FIELDS` (см. §7; файлы `*_fields.py` в приложениях).
 
 ---
 
@@ -13,7 +15,7 @@
 Один механизм для всех каталогов:
 
 - **Шаблоны текста живут на серии** (`model_line`): поля `name_template`, `description_template`.
-- **Артикул каталога** (item) отвечает только за **словарь подстановок** `_get_data_dict()` — «плейсхолдер → путь к характеристике».
+- **Артикул каталога** (item) отвечает только за **словарь подстановок** `_get_data_dict()` — «плейсхолдер → путь к характеристике». Новый код описывает поля декларативно в реестре `TEMPLATE_FIELDS`, из которого словарь выводится автоматически (см. §7).
 - **Генерация выполняется при сохранении** (`save()` → `TemplateMixin.save()`), результат записывается в поля `name`/`description` и может быть отредактирован шаблоном в любой момент.
 
 Цепочка источника шаблона (приоритет сверху вниз):
@@ -403,8 +405,10 @@ class MyItem(CatalogSerializerMixin, ..., TemplateMixin, ...):
 
 `core/models/catalog_serializer.py` — `CatalogSerializerMixin(CatalogDictMixin)`:
 единый каркас `to_dict()`/`to_values_dict()` и общие секции (галерея,
-характеристики, документация, сертификаты, описание). Модель переопределяет
-`_get_template_vars()` и `_get_spec_sections()`.
+характеристики, документация, сертификаты, описание). `_get_template_vars()`
+и `_get_spec_sections()` выводятся из реестра; переопределять их нужно только
+для динамических секций (примеры: `LimitSwitchBox` — сигналы/датчики через
+`resolver`-поля; `PneumaticFitting` — состав спеков по виду оборудования).
 
 System checks:
 
@@ -414,20 +418,31 @@ System checks:
 - `catalog.E003` — модель с `CatalogSerializerMixin` обязана объявить непустой
   `TEMPLATE_FIELDS`.
 
-### 7.4. Что ещё не сделано (полный переход)
+### 7.4. Статус перехода (2026-09-07)
 
-> ⚠️ Отдельный, более аккуратный шаг.
+Полный переход выполнен для семи моделей:
 
-Для полного перехода сериализации на реестр (чтобы `_get_template_vars()` и
-`_get_spec_sections()` тоже выводились из `TEMPLATE_FIELDS`, а не переопределялись
-на модели) нужно:
+- Пилоты (реестр + `CatalogSerializerMixin`): `PosiModelLineItem`,
+  `LimitSwitchBox` (динамические секции через `resolver`-поля `signals`/`sensors`).
+- Переведены 2026-09-07: `DirectionValve`, `FilterRegulator`, `GearBox`,
+  `PneumaticFitting` (точечное переопределение `_get_spec_sections()` — состав
+  спеков зависит от вида оборудования), `PneumaticActuatorItem` (единственная
+  с `CODE_FIELD_KEYS`/`code_path` для автогенерации артикула).
+- Реестры вынесены в `*_fields.py` рядом с моделями:
+  `dv_item_fields.py`, `fr_item_fields.py`, `gb_item_fields.py`,
+  `pf_item_fields.py`, `pa_item_fields.py`.
 
-1. добавить в записи реестра метаданные `label`, `unit`, `type`, `order`, `group`;
-2. задать `SPEC_FIELD_KEYS` (и при необходимости `VARS_FIELD_KEYS`);
-3. удалить модельные переопределения `_get_template_vars()` / `_get_spec_sections()`.
+Порядок перевода (эталон для новых каталогов):
 
-Особенно аккуратно это делать для БКВ (`LimitSwitchBox`): там есть динамические
-секции «Сигналы обратной связи» и «Датчики» (формируются из `signals`/`sensors`,
-а не простыми `path`-полями) — для них понадобятся `resolver`-поля либо точечное
-переопределение `_get_spec_sections()`.
+1. вынести в реестр все поля с метаданными `label`/`unit`/`type`/`order`/`group`;
+2. задать `NAME/VARS/SPEC_FIELD_KEYS` (и `CODE_FIELD_KEYS` при шаблоне артикула),
+   для артикула — ещё `required_model_line_fields` с `model_item_code_template`;
+3. заменить `CatalogDictMixin` на `CatalogSerializerMixin` и удалить модельные
+   переопределения `_get_data_dict()` / `_get_code_data_dict()` /
+   `_get_template_vars()` / `_get_spec_sections()` / `to_dict()` /
+   `to_values_dict()` (точечные переопределения — только для динамики,
+   например `PneumaticFitting._get_spec_sections()`).
+
+На ручном `_get_data_dict()` осталась `SensorComponent` (шаблон с опции
+`variety`) — перевод отдельным шагом.
 
