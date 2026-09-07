@@ -339,4 +339,95 @@ class MyItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin, SKUMixin,
 | `_process_m2m_field(manager, item_template)` | склейка M2M-значений в шаблоне |
 | `save(skip_auto_generate=...)` | автогенерация при сохранении |
 
-Связанные механизмы: `SKUMixin` (SKU из модели), `CatalogDictMixin` (`to_dict`/`to_values_dict`), `CopyMixin`/`AdminCopyMixin` (копирование), `EquipmentType.title_template` (глобальный title), management-команда `regenerate_catalog_descriptions`.
+Связанные механизмы: `SKUMixin` (SKU из модели), `CatalogSerializerMixin`/`CatalogDictMixin` (`to_dict`/`to_values_dict`), `TemplateFieldSpec` + `TEMPLATE_FIELDS` (реестр полей), `CopyMixin`/`AdminCopyMixin` (копирование), `EquipmentType.title_template` (глобальный title), management-команда `regenerate_catalog_descriptions`, system checks `catalog.W001` и `catalog.E003`.
+
+---
+
+## 7. Реестр полей (`TEMPLATE_FIELDS`) — единый источник правды
+
+Новый рекомендуемый способ описания полей вместо ручного `_get_data_dict()` /
+`_get_code_data_dict()`: декларативный реестр, из которого нужные словари
+выводятся автоматически.
+
+### 7.1. Схема поля
+
+`core/models/template_fields.py` — `TemplateFieldSpec` (frozen dataclass):
+
+| Поле | Назначение |
+|---|---|
+| `key` | канонический ключ (для `template_vars`/`specs`) |
+| `placeholder` | `'{exd}'` в шаблонах |
+| `path` | путь к display-значению (имя/описание/vars/specs) |
+| `code_path` | путь к encoding-значению (артикул) |
+| `resolver` | callable на модели вместо `path` (для сложных значений) |
+| `label` / `unit` / `type` / `order` / `group` | метаданные для секций характеристик |
+
+Реестр можно выносить в отдельный файл `*_fields.py` и импортировать в модель:
+
+```python
+# my_app/my_item_fields.py
+MY_ITEM_TEMPLATE_FIELDS = (
+    {'key': 'code', 'placeholder': '{model_code}', 'path': 'code', 'code_path': 'model_line__code'},
+    {'key': 'brand', 'placeholder': '{brand}', 'path': 'model_line__brand__name'},
+    {'key': 'exd_list', 'placeholder': '{exd}', 'path': 'get_exd_list', 'code_path': 'exd_encoding'},
+    {'key': 'exd_short', 'placeholder': '{exd_short}', 'path': 'get_exd_short_list'},
+)
+```
+
+### 7.2. Составы словарей — списки ключей
+
+Каждый вариант значения — отдельный ключ реестра (например, `exd_list`,
+`exd_short`). В модель задаются списки, какие ключи идут в какой словарь:
+
+```python
+class MyItem(CatalogSerializerMixin, ..., TemplateMixin, ...):
+    TEMPLATE_FIELDS = MY_ITEM_TEMPLATE_FIELDS
+
+    NAME_FIELD_KEYS = ('code', 'brand', 'exd_list', 'exd_short', ...)   # имя/описание
+    CODE_FIELD_KEYS = ('code', 'exd_list', ...)                          # артикул
+    VARS_FIELD_KEYS = ('code', 'brand', 'exd_list', ...)                 # template_vars
+    SPEC_FIELD_KEYS = ('brand', 'exd_list', ...)                         # specs-секции
+```
+
+Производные методы строят словари из этих списков:
+
+- `_get_data_dict()` → `NAME_FIELD_KEYS` (дефолт: все поля с `path`);
+- `_get_code_data_dict()` → `CODE_FIELD_KEYS` (дефолт: все поля с `code_path`, фолбэк `path`);
+- `_get_template_vars(fields=None)` → `VARS_FIELD_KEYS` (дефолт: все поля с `path`);
+- `_get_spec_sections(fields=None)` → `SPEC_FIELD_KEYS` (дефолт: все поля с `group`).
+
+Значения резолвятся лениво и мемоизируются на инстансе (`_resolve_field()`),
+поэтому лишние поля не вычисляются; `fields=` даёт проекцию для MCP.
+
+### 7.3. Сериализация каталога
+
+`core/models/catalog_serializer.py` — `CatalogSerializerMixin(CatalogDictMixin)`:
+единый каркас `to_dict()`/`to_values_dict()` и общие секции (галерея,
+характеристики, документация, сертификаты, описание). Модель переопределяет
+`_get_template_vars()` и `_get_spec_sections()`.
+
+System checks:
+
+- `catalog.W001` — у модели серии (`model_line`) должны быть поля из
+  `required_model_line_fields` (по умолчанию `name_template`, `description_template`;
+  для артикула с шаблоном кода — ещё `model_item_code_template`).
+- `catalog.E003` — модель с `CatalogSerializerMixin` обязана объявить непустой
+  `TEMPLATE_FIELDS`.
+
+### 7.4. Что ещё не сделано (полный переход)
+
+> ⚠️ Отдельный, более аккуратный шаг.
+
+Для полного перехода сериализации на реестр (чтобы `_get_template_vars()` и
+`_get_spec_sections()` тоже выводились из `TEMPLATE_FIELDS`, а не переопределялись
+на модели) нужно:
+
+1. добавить в записи реестра метаданные `label`, `unit`, `type`, `order`, `group`;
+2. задать `SPEC_FIELD_KEYS` (и при необходимости `VARS_FIELD_KEYS`);
+3. удалить модельные переопределения `_get_template_vars()` / `_get_spec_sections()`.
+
+Особенно аккуратно это делать для БКВ (`LimitSwitchBox`): там есть динамические
+секции «Сигналы обратной связи» и «Датчики» (формируются из `signals`/`sensors`,
+а не простыми `path`-полями) — для них понадобятся `resolver`-поля либо точечное
+переопределение `_get_spec_sections()`.
+

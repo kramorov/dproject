@@ -12,24 +12,28 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from core.models import TechDocMixin, ImageGalleryMixin
-from core.models.mixins import TemplateMixin, CopyMixin, CatalogDictMixin
+from core.models.mixins import TemplateMixin, CopyMixin
+from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from sku.models import SKUMixin
 
+from options.models import ExdOptionsConsumerMixin
+
 from .posi_model_line import PosiModelLine
 from .posi_options import ActingType, LeverOption, SmartCapabilitySet
+from .posi_item_fields import POSI_ITEM_TEMPLATE_FIELDS
 
 
 # Стандартный профиль сигналов позиционера: вход 4-20 мА (добавляется по умолчанию)
 DEFAULT_SIGNAL_PROFILE_CODE = 'POS-STD-4-20'
 
 
-class PosiModelLineItem(CatalogDictMixin,
+class PosiModelLineItem(CatalogSerializerMixin,
                         ImageGalleryMixin,
                         TechDocMixin,
                         SmartCatalogMixin,
                         TemplateMixin,
-                        SKUMixin, CopyMixin, models.Model):
+                        SKUMixin, CopyMixin, ExdOptionsConsumerMixin, models.Model):
     """Модель позиционера (артикул каталога), собранная из опций серии.
 
     Основа — структура БКВ (LimitSwitchBox): те же миксины, шаблоны названий
@@ -56,6 +60,51 @@ class PosiModelLineItem(CatalogDictMixin,
 
     air_consumption, linearity, hysteresis — в extra_params серии, в item их нет.
     """
+
+    required_model_line_fields = (
+        'name_template', 'description_template', 'model_item_code_template',
+    )
+
+    # Реестр полей вынесен в posi_item_fields.py.
+    TEMPLATE_FIELDS = POSI_ITEM_TEMPLATE_FIELDS
+
+    # Составы словарей (по ключам реестра).
+    NAME_FIELD_KEYS = (
+        'code', 'brand_name', 'acting_type', 'exd', 'exd_short', 'ip',
+        'body_connection', 'pneumatic_connection', 'cable_gland_hole',
+        'lever', 'alarm', 'body_material', 'weight', 'actuator_action',
+        'work_temp_min', 'work_temp_max', 'supply_pressure',
+        'signal_profile_summary', 'alarm_signal_profile_summary',
+        'smart_capabilities',
+    )
+
+    CODE_FIELD_KEYS = (
+        'code', 'acting_type', 'body_connection', 'lever', 'temperature',
+        'signal_profile', 'alarm', 'exd', 'ip', 'smart',
+    )
+
+    VARS_FIELD_KEYS = (
+        'code', 'name', 'model_line_name', 'brand_name', 'acting_type',
+        'exd', 'ip', 'body_connection', 'pneumatic_connection',
+        'cable_gland_hole', 'lever', 'alarm', 'work_temp', 'body_material',
+        'weight', 'actuator_action', 'smart_capabilities', 'supply_pressure',
+        'signal_profile', 'signal_profile_summary',
+        'alarm_signal_profile_summary',
+    )
+
+    SPEC_FIELD_KEYS = (
+        'model_line_name', 'brand_name', 'acting_type', 'exd', 'ip',
+        'work_temp', 'body_material', 'weight', 'actuator_action',
+        'smart_capabilities', 'pneumatic_connection', 'cable_gland_hole',
+        'lever', 'supply_pressure', 'signal_profile',
+        'signal_profile_summary', 'alarm', 'alarm_signal_profile_summary',
+    )
+
+    SPEC_GROUP_TITLES = {
+        'general': 'Основные',
+        'connections': 'Присоединения',
+        'signals': 'Сигналы',
+    }
 
     name = models.TextField(verbose_name=_("Название"),
                             help_text=_('Текстовое название позиционера'))
@@ -230,23 +279,6 @@ class PosiModelLineItem(CatalogDictMixin,
             self._sync_exd_options_from_model_line()
         self.sync_sku()
 
-    def _sync_exd_options_from_model_line(self):
-        """Скопировать в item.exd_options список видов строки взрывозащиты серии.
-
-        Для item без явно выбранной строки берём строку по умолчанию
-        (is_default=True, фолбэк — первая активная).
-        """
-        from .posi_model_line import PosiExdOption
-        row = (PosiExdOption.objects.filter(
-                   model_line_id=self.model_line_id, is_active=True, is_default=True
-               ).first()
-               or PosiExdOption.objects.filter(
-                   model_line_id=self.model_line_id, is_active=True
-               ).first())
-        if row is None:
-            return
-        self.exd_options.set(row.exd_options.all())
-
     def copy(self, suffix=' Копия', **kwargs):
         """Копия item-а с уникальным кодом и SKU.
 
@@ -304,21 +336,6 @@ class PosiModelLineItem(CatalogDictMixin,
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
         return result.strip('. ')
-
-    def _get_code_data_dict(self):
-        """Плейсхолдер артикула → имя свойства с encoding."""
-        return {
-            '{model_code}': 'model_line__code',
-            '{acting_type}': 'acting_type_encoding',
-            '{body_connection}': 'body_connection_encoding',
-            '{lever}': 'lever_encoding',
-            '{temperature}': 'temperature_encoding',
-            '{signal_profile}': 'signal_profile_encoding',
-            '{alarm}': 'alarm_encoding',
-            '{exd}': 'exd_encoding',
-            '{ip}': 'ip_code',
-            '{smart}': 'smart_code',
-        }
 
     def _generate_fallback_code(self) -> str:
         parts = [
@@ -406,35 +423,6 @@ class PosiModelLineItem(CatalogDictMixin,
         return self._get_option_encoding('PosiAlarmOption', 'alarm', self.alarm)
 
     @property
-    def exd_encoding(self) -> str:
-        """Кодировка взрывозащиты для артикула.
-
-        Конструктор передаёт выбранную through-строку через `_selected_exd_row`.
-        Для сохранённого item строка не хранится — выводим кодировку из
-        through-строк серии: если есть Ex-виды — строка с непустым M2M,
-        иначе строка «общепром» (пустой M2M).
-        """
-        row = getattr(self, '_selected_exd_row', None)
-        if row is not None:
-            return row.encoding or ''
-        if not self.model_line_id:
-            return ''
-        from .posi_model_line import PosiExdOption
-        exd_ids = {v.id for v in self.get_exd_options()}
-        rows = PosiExdOption.objects.filter(
-            model_line_id=self.model_line_id, is_active=True
-        ).prefetch_related('exd_options')
-        if exd_ids:
-            for row in rows:
-                if row.exd_options.filter(id__in=exd_ids).exists():
-                    return row.encoding or ''
-        else:
-            for row in rows:
-                if not row.exd_options.exists():
-                    return row.encoding or ''
-        return ''
-
-    @property
     def ip_code(self) -> str:
         return self.model_line.ip.code if self.model_line and self.model_line.ip else ''
 
@@ -484,140 +472,6 @@ class PosiModelLineItem(CatalogDictMixin,
         bc = self.body_connection
         return str(bc.cable_gland_hole) if bc and bc.cable_gland_hole else ''
 
-    def get_exd_options(self):
-        """Эффективный список видов взрывозащиты item'а.
-
-        Источник — выбранная through-строка PosiExdOption:
-          * превью/конструктор передаёт её через `_selected_exd_row`;
-          * сохранённый item берёт из денормализованного M2M exd_options;
-          * фолбэк — строка серии по умолчанию (is_default, иначе первая активная).
-        """
-        related = (
-            'explosion_protection_class', 'hazardous_group',
-            'temperature_class', 'explosion_protection_level',
-        )
-        row = getattr(self, '_selected_exd_row', None)
-        if row is not None:
-            return list(row.exd_options.all().select_related(*related))
-        if self.pk:
-            return list(self.exd_options.all().select_related(*related))
-        if not self.model_line_id:
-            return []
-        from .posi_model_line import PosiExdOption
-        row = (PosiExdOption.objects.filter(
-                   model_line_id=self.model_line_id, is_active=True, is_default=True
-               ).first()
-               or PosiExdOption.objects.filter(
-                   model_line_id=self.model_line_id, is_active=True
-               ).first())
-        if row is None:
-            return []
-        return list(row.exd_options.all().select_related(*related))
-
-    def has_exd(self) -> bool:
-        """Выбран ли взрывозащищённый вариант (есть виды с непустым code)."""
-        return any(bool(v.code) for v in self.get_exd_options())
-
-    @staticmethod
-    def _exd_group_key(exd):
-        """Ключ группы «одинаковые степени, разная температура» (без X/U)."""
-        return (
-            exd.explosion_protection_class_id,
-            exd.hazardous_group_id,
-            exd.explosion_protection_level_id,
-        )
-
-    @staticmethod
-    def _exd_temperature_token(exd) -> str:
-        gas_temps = {'T1', 'T2', 'T3', 'T4', 'T5', 'T6'}
-        if exd.temperature_class_id:
-            code = exd.temperature_class.code
-            return code if code in gas_temps else f'{code}°C'
-        if exd.dust_temperature is not None:
-            return f'T{exd.dust_temperature}°C'
-        return ''
-
-    @classmethod
-    def _format_exd_group(cls, exds) -> str:
-        """Одна группа: Ex db IIB T5/T6 (X/U — один раз на группу)."""
-        first = exds[0]
-        parts = []
-        if first.explosion_protection_class_id:
-            parts.append(str(first.explosion_protection_class))
-        if first.hazardous_group_id:
-            parts.append(str(first.hazardous_group))
-        temps = []
-        for exd in exds:
-            token = cls._exd_temperature_token(exd)
-            if token and token not in temps:
-                temps.append(token)
-        if temps:
-            parts.append('/'.join(temps))
-        if first.explosion_protection_level_id:
-            parts.append(str(first.explosion_protection_level))
-        if any(exd.has_x_suffix for exd in exds):
-            parts.append('X')
-        if any(exd.has_u_suffix for exd in exds):
-            parts.append('U')
-        return ' '.join(parts)
-
-    @property
-    def get_exd_list(self) -> str:
-        """Полный список видов взрывозащиты (текст).
-
-        Одинаковые степени с разными температурными классами объединяются:
-        «Ex db IIB T5» и «Ex db IIB T6» → «Ex db IIB T5/T6».
-        """
-        groups = {}
-        order = []
-        for exd in self.get_exd_options():
-            if not exd.explosion_protection_class_id:
-                continue
-            key = self._exd_group_key(exd)
-            if key not in groups:
-                groups[key] = []
-                order.append(key)
-            groups[key].append(exd)
-        return ', '.join(self._format_exd_group(groups[key]) for key in order)
-
-    @property
-    def get_exd_short_list(self) -> str:
-        """Уникальные виды взрывозащиты, например «Ex d / Ex ia»."""
-        seen = set()
-        result = []
-        for exd in self.get_exd_options():
-            if not exd.explosion_protection_class_id:
-                continue
-            name = str(exd.explosion_protection_class)
-            if name and name not in seen:
-                seen.add(name)
-                result.append(name)
-        return ' / '.join(result)
-
-    def _get_data_dict(self) -> dict:
-        """Словарь соответствий плейсхолдеров и атрибутов."""
-        return {
-            '{model_code}': 'code',
-            '{brand}': 'model_line__brand__name',
-            '{acting_type}': 'get_acting_type',
-            '{exd}': 'get_exd_list',
-            '{ip}': 'model_line__ip',
-            '{body_connection}': 'body_connection',
-            '{pneumatic_connection}': 'get_pneumatic_connection',
-            '{cable_gland_hole}': 'get_cable_gland_hole',
-            '{lever}': 'lever',
-            '{alarm}': 'alarm',
-            '{body_material}': 'get_body_material',
-            '{weight}': 'get_weight',
-            '{actuator_action}': 'get_actuator_action_display_text',
-            '{work_temp_min}': 'work_temp_min',
-            '{work_temp_max}': 'work_temp_max',
-            '{supply_pressure_range}': 'get_supply_pressure_range',
-            '{signal_profile_summary}': 'get_signal_profile_summary',
-            '{alarm_signal_profile_summary}': 'get_alarm_signal_profile_summary',
-            '{smart_capabilities}': 'get_smart_capabilities_display',
-        }
-
     @property
     def get_acting_type(self):
         """Тип действия: свой у модели, иначе — от серии (FK)."""
@@ -655,6 +509,13 @@ class PosiModelLineItem(CatalogDictMixin,
         parts = [str(ml.supply_pressure_min) if ml.supply_pressure_min is not None else '—',
                  str(ml.supply_pressure_max) if ml.supply_pressure_max is not None else '—']
         return f"{parts[0]}..{parts[1]}"
+
+    @property
+    def get_work_temp_display(self) -> str:
+        """Диапазон рабочей температуры для отображения."""
+        if self.work_temp_min is None:
+            return ''
+        return f'{self.work_temp_min}...+{self.work_temp_max} °С'
 
     def get_smart_capability_set(self):
         """Набор смарт-возможностей: свой у модели, иначе — от опции «Профиль сигналов»."""
@@ -728,199 +589,4 @@ class PosiModelLineItem(CatalogDictMixin,
             return "; ".join(parts) if parts else "—"
         return "—"
 
-    # ── Сериализация каталога ──
 
-    @staticmethod
-    def _safe_m2m(instance, method_name):
-        """Безопасный вызов секций M2M: на несохранённом инстансе (превью)
-        M2M-менеджер требует pk — возвращаем [] (паттерн БКВ)."""
-        try:
-            return getattr(instance, method_name)()
-        except Exception:
-            return []
-
-    def _build_doc_dict(self, doc) -> dict:
-        has_email = doc.variants.filter(role='email').exists()
-        return {
-            'id': doc.id, 'name': getattr(doc, 'name', '') or '',
-            'url': f"/api/media/{doc.id}/download/",
-            'file_name': getattr(doc, 'name', '') or '',
-            'preview_url': f"/api/media/{doc.id}/view/",
-            'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-        }
-
-    def _get_docs_section(self) -> list:
-        """Тех. документация: своя → из серии (дедуп по id), паттерн БКВ."""
-        docs = []
-        seen = set()
-        for doc in self.tech_docs.all():
-            if doc.media_file and doc.id not in seen:
-                seen.add(doc.id)
-                docs.append(self._build_doc_dict(doc))
-        if self.model_line and hasattr(self.model_line, 'tech_docs'):
-            for doc in self.model_line.tech_docs.all():
-                if doc.media_file and doc.id not in seen:
-                    seen.add(doc.id)
-                    docs.append(self._build_doc_dict(doc))
-        return docs
-
-    def _get_certs_section(self) -> list:
-        """Сертификаты — из серии (у позиции нет своего поля), паттерн БКВ."""
-        certs = []
-        if self.model_line and hasattr(self.model_line, 'cert_docs'):
-            cert_ids = list(
-                self.model_line.cert_docs
-                .filter(is_active=True)
-                .values_list('id', flat=True)
-            )
-            if cert_ids:
-                from urllib.parse import quote
-                from cert_doc.models import CertData
-                for cert in CertData.objects.filter(id__in=cert_ids).select_related(
-                        'media_item', 'cert_variety'):
-                    media = getattr(cert, 'media_item', None)
-                    if not media:
-                        continue
-                    has_email = media.variants.filter(role='email').exists()
-                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
-                    cert_code = getattr(cert, 'code', '') or ''
-                    ml_name = self.model_line.name if self.model_line else ''
-                    base_name = re.sub(r'[\\/*?:"<>|]', '_',
-                                       f"{variety_name} {cert_code} для {ml_name}".strip())
-                    dl_name = f"{base_name}.pdf"
-                    email_name = f"{base_name} (сжат).pdf"
-                    certs.append({
-                        'id': media.id,
-                        'name': getattr(cert, 'name', '') or '',
-                        'file_name': dl_name,
-                        'email_file_name': email_name,
-                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
-                        'preview_url': f"/api/media/{media.id}/view/",
-                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
-                    })
-        return certs
-
-    def to_dict(self) -> dict:
-        tv = {
-            'code': self.code or '',
-            'name': self.name or '',
-            'model_line_name': self.model_line.name if self.model_line else '',
-            'brand_name': self.model_line.brand.name if self.model_line and self.model_line.brand else '',
-            'acting_type': self.acting_type.name if self.acting_type else '',
-            'exd': self.get_exd_list,
-            'ip': self.model_line.ip.name if self.model_line and self.model_line.ip else '',
-            'body_connection': self.body_connection.name if self.body_connection_id else '',
-            'pneumatic_connection': self.get_pneumatic_connection,
-            'cable_gland_hole': self.get_cable_gland_hole,
-            'lever': self.lever.name if self.lever else '',
-            'alarm': self.alarm.name if self.alarm else '',
-            'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
-            'body_material': self.get_body_material.name if self.get_body_material else '',
-            'weight': str(self.get_weight) if self.get_weight is not None else '',
-            'actuator_action': self.get_actuator_action_display_text,
-            'smart_capabilities': "; ".join(c.name for c in self.get_smart_capabilities()),
-            'supply_pressure': self.get_supply_pressure_range,
-            'signal_profile': self.signal_profile.name if self.signal_profile_id else '',
-            'signal_profile_summary': self.get_signal_profile_summary,
-            'alarm_signal_profile_summary': self.get_alarm_signal_profile_summary,
-        }
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'description': self.description or '',
-            'is_active': self.is_active,
-            'sorting_order': self.sorting_order,
-            'model_line': {'id': self.model_line.id, 'name': self.model_line.name} if self.model_line else None,
-            'sku': {'id': self.sku.id, 'code': self.sku.code, 'name': self.sku.name}
-                   if hasattr(self, 'sku') and self.sku else None,
-            'template_vars': tv,
-            'sections': [
-                {
-                    'key': 'images', 'title': 'Изображения', 'type': 'gallery',
-                    'order': 0, 'data': self._safe_m2m(self, '_get_images_section'),
-                },
-                {
-                    'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
-                    'order': 1, 'groups': [
-                        {
-                            'key': 'general', 'title': 'Основные', 'order': 1,
-                            'fields': [
-                                {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'],
-                                 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'],
-                                 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'acting_type', 'label': 'Тип действия', 'value': tv['acting_type'],
-                                 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'exd', 'label': 'Взрывозащита', 'value': tv['exd'],
-                                 'unit': '', 'type': 'text', 'order': 4},
-                                {'key': 'ip', 'label': 'IP', 'value': tv['ip'],
-                                 'unit': '', 'type': 'text', 'order': 5},
-                                {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'],
-                                 'unit': '', 'type': 'text', 'order': 6},
-                                {'key': 'body_material', 'label': 'Материал корпуса', 'value': tv['body_material'],
-                                 'unit': '', 'type': 'text', 'order': 7},
-                                {'key': 'weight', 'label': 'Вес', 'value': tv['weight'],
-                                 'unit': 'кг', 'type': 'number', 'order': 8},
-                                {'key': 'actuator_action', 'label': 'Пневмопривод', 'value': tv['actuator_action'],
-                                 'unit': '', 'type': 'text', 'order': 9},
-                                {'key': 'smart_capabilities', 'label': 'Возможности',
-                                 'value': tv['smart_capabilities'], 'unit': '', 'type': 'text', 'order': 10},
-                            ]
-                        },
-                        {
-                            'key': 'connections', 'title': 'Присоединения', 'order': 2,
-                            'fields': [
-                                {'key': 'pneumatic_connection', 'label': 'Пневмоподключение',
-                                 'value': tv['pneumatic_connection'],
-                                 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'cable_gland_hole', 'label': 'Отверстие под кабельный ввод',
-                                 'value': tv['cable_gland_hole'],
-                                 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'lever', 'label': 'Рычаг', 'value': tv['lever'],
-                                 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'supply_pressure', 'label': 'Давление питания', 'value': tv['supply_pressure'],
-                                 'unit': 'бар', 'type': 'text', 'order': 4},
-                            ]
-                        },
-                        {
-                            'key': 'signals', 'title': 'Сигналы', 'order': 3,
-                            'fields': [
-                                {'key': 'signal_profile', 'label': 'Профиль сигналов', 'value': tv['signal_profile'],
-                                 'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'signal_profile_summary', 'label': 'Сигналы (по ролям)',
-                                 'value': tv['signal_profile_summary'], 'unit': '', 'type': 'text', 'order': 2},
-                                {'key': 'alarm', 'label': 'Сигнал тревоги', 'value': tv['alarm'],
-                                 'unit': '', 'type': 'text', 'order': 3},
-                                {'key': 'alarm_signal_profile_summary', 'label': 'Сигнал тревоги (по ролям)',
-                                 'value': tv['alarm_signal_profile_summary'], 'unit': '', 'type': 'text', 'order': 4},
-                            ]
-                        },
-                    ]
-                },
-                {
-                    'key': 'docs', 'title': 'Документация', 'type': 'files',
-                    'order': 2, 'data': self._safe_m2m(self, '_get_docs_section'),
-                },
-                {
-                    'key': 'certs', 'title': 'Сертификаты', 'type': 'files',
-                    'order': 3, 'data': self._safe_m2m(self, '_get_certs_section'),
-                },
-                {
-                    'key': 'description', 'title': 'Описание', 'type': 'text',
-                    'order': 4, 'data': self.description or '',
-                },
-            ],
-        }
-
-    def to_values_dict(self) -> dict:
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'model_line': {'id': self.model_line.id, 'name': self.model_line.name} if self.model_line else None,
-            'sku': {'id': self.sku.id, 'code': self.sku.code, 'name': self.sku.name}
-                   if hasattr(self, 'sku') and self.sku else None,
-        }

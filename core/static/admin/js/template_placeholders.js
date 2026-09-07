@@ -39,9 +39,10 @@
   document.addEventListener('DOMContentLoaded', function () {
     var nameField = document.getElementById('id_name_template');
     var descField = document.getElementById('id_description_template');
+	var codeTemplateField = document.getElementById('model_item_code_template');
     var lastFocused = nameField || descField;
 
-    [nameField, descField].forEach(function (f) {
+    [nameField, descField, codeTemplateField].forEach(function (f) {
       if (!f) return;
       f.addEventListener('focus', function () { lastFocused = f; });
     });

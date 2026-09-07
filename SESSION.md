@@ -14,6 +14,12 @@
 - Генерация name/description происходит в `save()` (флаг `skip_auto_generate=True` отключает).
 - Title: цепочка `_get_title_template_source` → `EquipmentType.title_template` → `{model_code}`.
 - SKU создаётся из артикула через `SKUMixin.sync_sku()` (в `save()` после `super().save()`).
+- **Реестр полей (новое, 2026-09-07)**: `TEMPLATE_FIELDS` + `TemplateFieldSpec`
+  (`core/models/template_fields.py`) — единый источник правды для `_get_data_dict`,
+  `_get_code_data_dict`, `_get_template_vars`, `_get_spec_sections`; составы словарей —
+  списками ключей (`NAME/CODE/VARS/SPEC_FIELD_KEYS`), сериализация —
+  `CatalogSerializerMixin` (`core/models/catalog_serializer.py`). Подробно: `template_mixin.md` §7.
+  Пилоты: `PosiModelLineItem`, `LimitSwitchBox` (списковые поля `signals`/`sensors` → JSON).
 
 **Модели на контракте** (8 активных): `DirectionValve`, `LimitSwitchBox`, `PosiModelLineItem`,
 `FilterRegulator`, `GearBox`, `PneumaticFitting`, `PneumaticActuatorItem`, `SensorComponent`
@@ -128,6 +134,15 @@
    **после подтверждения**.
 5. `ai/ai` в `.gitignore` / перестать отслеживать.
 6. Коммит контрольной точки текущего состояния (46 файлов рабочего дерева).
+7. **Согласовать реестр полей с assy.md/cg.md**: проанализировать, как новый
+   `TEMPLATE_FIELDS` + `TemplateFieldSpec` (`key/placeholder/path/name_path/code_path/
+   resolver/label/unit/type/order/group`) и `CatalogSerializerMixin` (`to_dict`/
+   `to_values_dict`/`_get_spec_sections`) соотносятся с понятиями `EquipmentType`/
+   `CompositionGroup` из `cg.md` и сборочными требованиями/позициями из `assy.md`.
+   Цель: единая JSON-схема поля (для MCP) как мост между карточкой каталога и структурой
+   сборки/позиций; определить, какие `key`/`group`/`type` должны быть общими (EquipmentType)
+   и как списковые поля (`signals`/`sensors`) лягут в состав сборки. Результат — правки
+   реестра и/или `template_mixin.md`.
 
 ---
 

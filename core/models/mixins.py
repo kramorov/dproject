@@ -1,5 +1,9 @@
 # core/models/mixins.py
 from django.db import models
+from django.apps import apps
+from django.core import checks
+from django.core.exceptions import FieldDoesNotExist
+from .template_fields import TemplateFieldSpec
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.contrib import admin
@@ -18,6 +22,26 @@ class TemplateMixin:
     Миксин для генерации названий и описаний из шаблонов.
     Включает в себя методы получения значений по путям (_get_value).
     """
+
+    # Имя FK на модель серии (источник шаблонов). Для моделей без серии поле
+    # отсутствует — system check пропускает их.
+    model_line_field = 'model_line'
+
+    # Поля, которые должны быть объявлены у модели серии. По умолчанию — общий
+    # минимум (name/description). Модели с генерацией артикула добавляют
+    # 'model_item_code_template' (например, PosiModelLineItem).
+    required_model_line_fields = ('name_template', 'description_template')
+
+    # Единый реестр полей и составы словарей (переопределяются в модели).
+    TEMPLATE_FIELDS = ()
+    NAME_FIELD_KEYS = None    # имя/описание; дефолт — все поля с path
+    CODE_FIELD_KEYS = None    # артикул; дефолт — все поля с code_path (фолбэк path)
+    VARS_FIELD_KEYS = None    # template_vars; дефолт — все поля с path
+    SPEC_FIELD_KEYS = None    # specs-секции; дефолт — все поля с group
+
+    def _get_model_line(self):
+        """Вернуть объект серии (источник шаблонов) или None."""
+        return getattr(self, self.model_line_field, None)
 
     # === МЕТОДЫ ПОЛУЧЕНИЯ ЗНАЧЕНИЙ (поля, связи, JSON) ===
     def _get_value(self, field_path: str) -> str:
@@ -58,10 +82,8 @@ class TemplateMixin:
                         current_obj = current_obj.get(json_key, '')
                         # print(f"  Извлечено из dict: '{current_obj}'")
                     else:
-                        print(f"  ОШИБКА: Объект не dict (тип: {type(current_obj).__name__})")
                         return ""
                 else:
-                    print(f"  ОШИБКА: Нет атрибута '{json_field}' у {type(current_obj).__name__}")
                     return ""
             else:
                 # print(f"  Обычное поле: '{part}'")
@@ -72,12 +94,8 @@ class TemplateMixin:
                     # print(f"  Тип значения: {type(current_obj).__name__}")
 
                     if current_obj is None:
-                        print(f"  Значение None, возвращаем пустую строку")
                         return ""
                 else:
-                    print(f"  ОШИБКА: Нет атрибута '{part}' у {type(current_obj).__name__}")
-                    print(
-                        f"  Доступные атрибуты: {[attr for attr in dir(current_obj) if not attr.startswith('_')][:10]}...")
                     return ""
 
         result = str(current_obj) if current_obj is not None else ""
@@ -128,12 +146,83 @@ class TemplateMixin:
         return "{model_code}"
 
 
+    # === РЕЕСТР ПОЛЕЙ (единый источник правды) ===
+    # Модель объявляет TEMPLATE_FIELDS (список TemplateFieldSpec или dict'ов),
+    # а составы словарей задаёт списками ключей NAME/CODE/VARS/SPEC_FIELD_KEYS.
+    def _get_field_specs(self, fields=None) -> list:
+        """Нормализованные и закэшированные спецификации полей.
+
+        ``fields`` — опциональное подмножество ключей (для проекции).
+        Нормализация выполняется один раз и кэшируется на классе.
+        """
+        cls = self.__class__
+        cached = vars(cls).get('_normalized_field_specs')
+        if cached is None:
+            raw = getattr(cls, 'TEMPLATE_FIELDS', None) or ()
+            normalized = []
+            for i, spec in enumerate(raw):
+                if isinstance(spec, TemplateFieldSpec):
+                    normalized.append(spec)
+                else:
+                    try:
+                        normalized.append(TemplateFieldSpec.from_dict(spec))
+                    except (TypeError, ValueError) as e:
+                        raise ValueError(
+                            f"{cls.__name__}.TEMPLATE_FIELDS[{i}]: {e}"
+                        ) from e
+            cached = tuple(normalized)
+            setattr(cls, '_normalized_field_specs', cached)
+        specs = list(cached)
+        if fields is not None:
+            wanted = set(fields)
+            specs = [f for f in specs if f.key in wanted]
+        return specs
+
+    def _lookup_specs(self, keys):
+        """Спецификации по списку ключей (в порядке ``keys``)."""
+        if not keys:
+            return []
+        by_key = {f.key: f for f in self._get_field_specs()}
+        missing = [k for k in keys if k not in by_key]
+        if missing:
+            logger.warning(
+                f"{self.__class__.__name__}: ключи не найдены в TEMPLATE_FIELDS: {missing}"
+            )
+        return [by_key[k] for k in keys if k in by_key]
+
+    def _resolve_field(self, spec):
+        """Лениво вычислить значение поля с мемоизацией на инстансе.
+
+        Резолвит ``resolver`` (callable) или ``path`` (атрибутный путь).
+        Повторный доступ к тому же ключу берётся из ``_field_cache``.
+        """
+        cache = getattr(self, '_field_cache', None)
+        if cache is None:
+            cache = self._field_cache = {}
+        key = spec.key or spec.placeholder
+        if key in cache:
+            return cache[key]
+        if spec.resolver:
+            value = getattr(self, spec.resolver)()
+        elif spec.path:
+            value = self._get_value(spec.path)
+        else:
+            value = ''
+        cache[key] = value
+        return value
+
     # === СЛОВАРЬ ДЛЯ ПОДСТАНОВКИ ===
     def _get_data_dict(self) -> Dict[str, str]:
-        """Переопределить в модели: вернуть словарь {плейсхолдер: значение/путь}."""
-        return {
-            '{model_code}': 'code',
-        }
+        """Плейсхолдер → путь для имени/описания.
+
+        Использует ``NAME_FIELD_KEYS``; если список не задан — все поля с ``path``.
+        """
+        keys = getattr(self, 'NAME_FIELD_KEYS', None)
+        specs = self._lookup_specs(keys) if keys is not None else self._get_field_specs()
+        result = {f.placeholder: (f.name_path or f.path) for f in specs if (f.name_path or f.path)}
+        if result:
+            return result
+        return {'{model_code}': 'code'}
 
     def _get_model_meta_name(self) -> str:
         """
@@ -306,6 +395,37 @@ class TemplateMixin:
 
     # === ГЕНЕРАЦИЯ ИЗ ШАБЛОНОВ MODEL_LINE (консолидировано из TemplateGeneratorMixin 2026-09-01) ===
 
+    def _get_code_data_dict(self) -> Dict[str, str]:
+        """Плейсхолдер артикула → путь к encoding-значению.
+
+        Использует только поля с ``code_path``. Если ``CODE_FIELD_KEYS`` задан —
+        берутся эти ключи; иначе — все поля реестра с ``code_path``. Без реестра —
+        legacy-фолбэк на ``_get_data_dict()``.
+        """
+        keys = getattr(self, 'CODE_FIELD_KEYS', None)
+        if keys is not None:
+            return {f.placeholder: f.code_path for f in self._lookup_specs(keys) if f.code_path}
+        specs = self._get_field_specs()
+        if not specs:
+            return self._get_data_dict()
+        return {f.placeholder: f.code_path for f in specs if f.code_path}
+
+    @property
+    def generated_model_item_code(self) -> str:
+        """Артикул по шаблону ``model_line.model_item_code_template``.
+
+        Если шаблон не задан — возвращает fallback-код (по умолчанию '').
+        """
+        ml = self._get_model_line()
+        template = getattr(ml, 'model_item_code_template', None) if ml else None
+        if not template:
+            return self._generate_fallback_code()
+        return self._fill_template(template, self._get_code_data_dict())
+
+    def _generate_fallback_code(self) -> str:
+        """Fallback-артикул при отсутствии шаблона; переопределяется в модели."""
+        return ''
+
     def generated_model_name_description(self, name_or_description: str, hide_code: bool = False) -> str:
         """Сгенерировать название или описание по шаблону из model_line."""
         model_name = self._get_model_meta_name()
@@ -376,6 +496,45 @@ class TemplateMixin:
         name_updated = self.update_name_from_template()
         description_updated = self.update_description_from_template()
         return name_updated or description_updated
+
+
+@checks.register('catalog')
+def check_template_model_line_fields(app_configs, **kwargs):
+    """Проверяет, что модель серии объявляет требуемые шаблонные поля.
+
+    Для каждой модели с ``TemplateMixin`` и объявленным FK на серию
+    (``model_line_field``) проверяются поля из ``required_model_line_fields``.
+    Модели без поля серии (например, SensorComponent) пропускаются.
+    """
+    errors = []
+    for model in apps.get_models():
+        if not issubclass(model, TemplateMixin) or model._meta.abstract:
+            continue
+        ml_field_name = getattr(model, 'model_line_field', 'model_line')
+        try:
+            field = model._meta.get_field(ml_field_name)
+        except FieldDoesNotExist:
+            continue
+        related = field.remote_field.model
+        try:
+            related_model = apps.get_model(related) if isinstance(related, str) else related
+        except LookupError:
+            continue
+        required = getattr(model, 'required_model_line_fields', ())
+        missing = [
+            name for name in required
+            if not any(f.name == name for f in related_model._meta.fields)
+        ]
+        if missing:
+            errors.append(checks.Warning(
+                f"Модель серии {related_model.__name__} должна определять поля: "
+                f"{', '.join(missing)} (требуется для {model.__name__}).",
+                hint=(f"Добавьте недостающие поля в {related_model.__name__} или "
+                      f"скорректируйте {model.__name__}.required_model_line_fields."),
+                obj=model,
+                id='catalog.W001',
+            ))
+    return errors
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1705,7 +1864,8 @@ class CatalogDictMixin:
             "id": data.get("id"),
             "code": data.get("code"),
             "name": data.get("name"),
-            "image_alt": data.get("image_alt", ""),
+            "title": data.get("title"),
+            "image_alt": data.get("image_alt") or data.get("name", ""),
             "template_vars": data.get("template_vars", {}),
             "values": values,
             "images": next(

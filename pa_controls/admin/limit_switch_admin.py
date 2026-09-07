@@ -8,7 +8,7 @@ from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactState, ContactForm, LimitSwitchBody, PointsOption, \
     SensorComponent, VisualIndicatorType
 from pa_controls.models.limit_switch import LimitSwitchBox
-from pa_controls.models.lsb_model_line import LimitSwitchModelLine
+from pa_controls.models.lsb_model_line import LimitSwitchModelLine, LimitSwitchExdOption
 
 
 @admin.register(SensorComponent)
@@ -158,6 +158,13 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
     short_description.short_description = _('Краткое описание')
 
 
+class LimitSwitchExdOptionInline(admin.TabularInline):
+    model = LimitSwitchExdOption
+    extra = 0
+    fields = ['exd_options', 'encoding', 'is_default', 'sorting_order', 'is_active']
+    filter_horizontal = ['exd_options']
+
+
 @admin.register(LimitSwitchModelLine)
 class LimitSwitchModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
     template_item_model = LimitSwitchBox
@@ -167,6 +174,7 @@ class LimitSwitchModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin
     search_fields = ['name', 'code']
     ordering = ['sorting_order', 'name']
     filter_horizontal = ('tech_docs', 'cert_docs')
+    inlines = [LimitSwitchExdOptionInline]
 
     fieldsets = (
         (_('Основная информация'), {
@@ -233,7 +241,7 @@ class LimitSwitchBodyAdmin(admin.ModelAdmin):
 class LimitSwitchBoxAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'code', 'model_line', 'body', 'sensor_variety',
-        'points_option', 'ip', 'signal_profile',
+        'points_option', 'ip', 'signal_profile', 'exd_grouped',
     ]
     list_filter = [
          'code','sensor_variety',  'model_line',
@@ -244,7 +252,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     autocomplete_fields = ['points_option', 'body', 'model_line', 'signal_profile', 'visual_indicator_type']
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes','regenerate_from_templates']
-    filter_horizontal = ['exd']
+    readonly_fields = ['exd_grouped']
     # raw_id_fields = ['images', 'tech_docs']
 
 
@@ -252,7 +260,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
                        ( 'points_option','sensor_variety',),
-                       ('ip', 'exd'),
+                       ('ip', 'exd_grouped'),
                        ('work_temp_min', 'work_temp_max'),)
         }),
         (_('Описание'), {
@@ -297,11 +305,11 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
             'signal_profile', 'visual_indicator_type',
         )
 
-    def get_exd_display(self, obj):
-        """Возвращает отображаемую маркировку взрывозащиты"""
-        return ", ".join(e.name for e in obj.exd.all()) or "-"
+    def exd_grouped(self, obj):
+        """Группированная маркировка взрывозащиты (как у позиционера)."""
+        return obj.exd_display
 
-    get_exd_display.short_description = _("Взрывозащита")
+    exd_grouped.short_description = _("Взрывозащита")
 
     def copy_selected_boxes(self, request, queryset):
         """

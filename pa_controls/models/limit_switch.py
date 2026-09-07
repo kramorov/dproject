@@ -8,14 +8,17 @@ import logging
 
 from core.models import TechDocMixin, ImageGalleryMixin
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
-from core.models.mixins import TemplateMixin, CopyMixin, CatalogDictMixin
+from core.models.mixins import TemplateMixin, CopyMixin
+from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified
 from pa_controls.models.pa_control_options import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState, PointsOption
 from pa_controls.models.sensor import SensorComponent
 from pa_controls.models.lsb_body import LimitSwitchBody
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
+from pa_controls.models.lsb_item_fields import LSB_ITEM_TEMPLATE_FIELDS
 from params.exd_models import ExdOption
+from options.models import ExdOptionsConsumerMixin
 from sku.models import SKUMixin
 
 # from pa_controls.models import PaControlMountingStandard
@@ -28,12 +31,12 @@ from params.models import IpOption
 # ============================================================
 # БЛОК КОНЦЕВЫХ ВЫКЛЮЧАТЕЛЕЙ (Limit Switch Box)
 # ============================================================
-class LimitSwitchBox(CatalogDictMixin,
+class LimitSwitchBox(CatalogSerializerMixin,
                      ImageGalleryMixin,
                      TechDocMixin,
                      SmartCatalogMixin,
                      TemplateMixin,
-                     SKUMixin, CopyMixin, models.Model):
+                     SKUMixin, CopyMixin, ExdOptionsConsumerMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -41,6 +44,40 @@ class LimitSwitchBox(CatalogDictMixin,
         3 точки - три датчика (открыто, закрыто, промежуточное положение)
         4 точки - четыре датчика (два промежуточных положения + концевые)
     """
+    exd_through_model = 'pa_controls.LimitSwitchExdOption'
+    exd_m2m_field = 'exd'
+
+    TEMPLATE_FIELDS = LSB_ITEM_TEMPLATE_FIELDS
+    NAME_FIELD_KEYS = (
+        'code', 'brand_name', 'sensor_variety', 'points', 'body_material',
+        'body_material_specified', 'weight', 'cable_glands_holes', 'mounting',
+        'work_temp_min', 'work_temp_max', 'exd', 'ip', 'primary_sensor',
+        'primary_sensor_signal_type', 'primary_sensor_contact_state',
+        'primary_sensor_contact_form', 'signal_profile_summary',
+    )
+
+    VARS_FIELD_KEYS = (
+        'code', 'name', 'model_line_name', 'brand_name', 'sensor_variety',
+        'points', 'ip', 'exd', 'work_temp', 'work_temp_min', 'work_temp_max',
+        'body_material', 'body_material_specified', 'weight',
+        'cable_glands_holes', 'mounting', 'is_pneumatic', 'has_namur_interface',
+        'visual_indicator_type', 'primary_sensor', 'primary_sensor_signal_type',
+        'signal_profile_summary', 'cert_description', 'signals', 'sensors',
+    )
+
+    SPEC_FIELD_KEYS = (
+        'model_line_name', 'brand_name', 'sensor_variety', 'points', 'ip',
+        'exd', 'work_temp', 'visual_indicator_type', 'body_material', 'weight',
+        'cable_glands_holes', 'mounting', 'signals', 'sensors',
+    )
+
+    SPEC_GROUP_TITLES = {
+        'general': 'Основные',
+        'body': 'Корпус',
+        'signals_feedback': 'Сигналы обратной связи',
+        'sensors': 'Датчики',
+    }
+
     name = models.TextField(
         verbose_name=_("Название"),
         help_text=_('Текстовое название БКВ'))
@@ -186,7 +223,10 @@ class LimitSwitchBox(CatalogDictMixin,
         Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
         или «подхватывает» существующую по коду, обогащая её полями модели.
         """
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+        if is_new and self.model_line_id:
+            self._sync_exd_options_from_model_line()
         self.sync_sku()
 
     def copy(self, suffix=' Копия', **kwargs):
@@ -214,14 +254,6 @@ class LimitSwitchBox(CatalogDictMixin,
 
     def _copy_custom_relations(self, new_copy):
         new_copy.exd.set(self.exd.all())
-
-    @property
-    def exd_display(self):
-        """Возвращает отображаемую маркировку взрывозащиты"""
-        names = [e.name for e in self.exd.all() if e.name]
-        if not names:
-            return "Нет"
-        return ", ".join(names)
 
     def _get_name_template_source(self):
         """Переопределить в модели: вернуть шаблон названия или None."""
@@ -334,32 +366,6 @@ class LimitSwitchBox(CatalogDictMixin,
             if self.primary_sensor:
                 sensors.append(self.primary_sensor)
         return signals, sensors
-
-    def _get_data_dict(self) -> Dict[str, str]:
-        """Получить словарь соответствий плейсхолдеров и атрибутов для замены"""
-        return {
-            '{model_code}': 'code',
-            '{brand}': 'model_line__brand__name',
-            '{sensor_variety}': 'sensor_variety',
-            '{points}': 'points_option',
-            '{body_material}': 'body_material',
-            '{body_material_specified}': 'body_material_specified',
-            '{weight}': 'body__weight',
-            '{cable_glands_holes}': 'body__cable_glands_holes_list_text',
-            '{mounting}': 'body__mounting_list_text',
-            '{work_temp_min}': 'work_temp_min',
-            '{work_temp_max}': 'work_temp_max',
-            '{exd}': 'exd_display',
-            '{ip}': 'ip',
-            # M2M поле - вызов метода get_sensors_list с подшаблоном
-            # В подшаблоне можно использовать поля из SensorComponent (name, brand, signal_type, electrical_specs и т.д.)
-            '{primary_sensor}': 'primary_sensor__description',
-            '{primary_sensor_signal_type}': 'primary_sensor__signal_type',
-            '{primary_sensor_contact_state}': 'primary_sensor__contact_state',
-            '{primary_sensor_contact_form}': 'get_primary_sensor_contact_form',
-            # '{primary_sensor}': 'primary_sensor__description',
-            '{signal_profile_summary}': 'get_signal_profile_summary',
-        }
 
     # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
 
@@ -516,246 +522,51 @@ class LimitSwitchBox(CatalogDictMixin,
         'ip', 'body_material', 'primary_sensor', 'primary_sensor__signal_type', 'signal_profile', 'visual_indicator_type',
     ]
 
-    # ========== СЕРИАЛИЗАЦИЯ (CatalogDictMixin) ==========
+    # ========== СЕРИАЛИЗАЦИЯ (реестр) ==========
 
-    def _get_template_vars(self) -> dict:
-        """Единый источник строковых значений для шаблонов и секций."""
-        ml = self.model_line
+    # ── Вычисляемые display-значения (для реестра) ──
+
+    @property
+    def get_points_display(self) -> str:
+        """Количество датчиков: название опции, иначе числовое значение."""
+        if self.points_option:
+            return self.points_option.name
+        return str(self.points) if self.points else ''
+
+    @property
+    def get_work_temp_display(self) -> str:
+        """Диапазон рабочей температуры для отображения."""
+        if self.work_temp_min is None:
+            return ''
+        return f'{self.work_temp_min}...+{self.work_temp_max} °С'
+
+    @property
+    def get_weight_display(self) -> str:
+        """Вес из корпуса."""
         body = self.body
-        return {
-            'code': self.code or '',
-            'name': self.name or '',
-            'model_line_name': ml.name if ml else '',
-            'brand_name': ml.brand.name if ml and ml.brand else '',
-            'sensor_variety': self.sensor_variety.name if self.sensor_variety else '',
-            'points': self.points_option.name if self.points_option else str(self.points) if self.points else '',
-            'ip': self.ip.name if self.ip else '',
-            'exd': self.exd_display or '',
-            'work_temp': f'{self.work_temp_min}...+{self.work_temp_max} °С' if self.work_temp_min is not None else '',
-            'work_temp_min': str(self.work_temp_min) if self.work_temp_min is not None else '',
-            'work_temp_max': str(self.work_temp_max) if self.work_temp_max is not None else '',
-            'body_material': self.body_material.name if self.body_material else '',
-            'body_material_specified': self.body_material_specified.name if self.body_material_specified else '',
-            'weight': str(body.weight) if body and body.weight else '',
-            'cable_glands_holes': body.cable_glands_holes_list_text if body and body.cable_glands_holes_list_text else '',
-            'mounting': body.mounting_list_text if body and body.mounting_list_text else '',
-            'is_pneumatic': 'Да' if self.is_pneumatic else 'Нет',
-            'has_namur_interface': 'Да' if self.has_namur_interface else 'Нет',
-            'visual_indicator_type': self.visual_indicator_type.name if self.visual_indicator_type_id else '',
-            'primary_sensor': self.primary_sensor.name if self.primary_sensor else '',
-            'primary_sensor_signal_type': self.primary_sensor.signal_type.name if self.primary_sensor and self.primary_sensor.signal_type else '',
-            'signal_profile_summary': self.get_signal_profile_summary or '',
-            'cert_description': self.get_cert_docs_description() or '',
-        }
+        return str(body.weight) if body and body.weight else ''
 
-    @staticmethod
-    def _safe_m2m(instance, method_name):
-        try:
-            return getattr(instance, method_name)()
-        except Exception:
-            return []
+    @property
+    def get_is_pneumatic_display(self) -> str:
+        return 'Да' if self.is_pneumatic else 'Нет'
 
-    def _get_docs_section(self) -> list:
-        docs = []
-        seen = set()
-        for doc in self.tech_docs.all():
-            if doc.media_file and doc.id not in seen:
-                seen.add(doc.id)
-                has_email = doc.variants.filter(role='email').exists()
-                docs.append({
-                    'id': doc.id, 'name': getattr(doc, 'name', '') or '',
-                    'url': f"/api/media/{doc.id}/download/",
-                    'file_name': getattr(doc, 'name', '') or '',
-                    'preview_url': f"/api/media/{doc.id}/view/",
-                    'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-                })
-        if self.model_line and hasattr(self.model_line, 'tech_docs'):
-            for doc in self.model_line.tech_docs.all():
-                if doc.media_file and doc.id not in seen:
-                    seen.add(doc.id)
-                    has_email = doc.variants.filter(role='email').exists()
-                    docs.append({
-                        'id': doc.id, 'name': getattr(doc, 'name', '') or '',
-                        'url': f"/api/media/{doc.id}/download/",
-                        'file_name': getattr(doc, 'name', '') or '',
-                        'preview_url': f"/api/media/{doc.id}/view/",
-                        'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
-                    })
-        return docs
+    @property
+    def get_has_namur_interface_display(self) -> str:
+        return 'Да' if self.has_namur_interface else 'Нет'
 
-    def _get_certs_section(self) -> list:
-        certs = []
-        if self.model_line and hasattr(self.model_line, 'cert_docs'):
-            # Было: raw SQL в обход ошибки — сейчас работает через ORM
-            # with connection.cursor() as c:
-            #     c.execute(
-            #         'SELECT certdata_id FROM pa_controls_limitswitchmodelline_cert_docs WHERE limitswitchmodelline_id = %s',
-            #         [self.model_line.pk]
-            #     )
-            #     cert_ids = [row[0] for row in c.fetchall()]
-            cert_ids = list(
-                self.model_line.cert_docs
-                .filter(is_active=True)
-                .values_list('id', flat=True)
-            )
-            if cert_ids:
-                from cert_doc.models import CertData
-                for cert in CertData.objects.filter(id__in=cert_ids).select_related('media_item', 'cert_variety'):
-                    media = getattr(cert, 'media_item', None)
-                    if not media:
-                        continue
-                    has_email = media.variants.filter(role='email').exists()
-                    from urllib.parse import quote
-                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
-                    cert_code = getattr(cert, 'code', '') or ''
-                    ml_name = self.model_line.name if self.model_line else ''
-                    base_name = re.sub(r'[\\/*?:"<>|]', '_', f"{variety_name} {cert_code} для {ml_name}".strip())
-                    dl_name = f"{base_name}.pdf"
-                    email_name = f"{base_name} (сжат).pdf"
-                    certs.append({
-                        'id': media.id,
-                        'name': getattr(cert, 'name', '') or '',
-                        'file_name': dl_name,
-                        'email_file_name': email_name,
-                        'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
-                        'preview_url': f"/api/media/{media.id}/view/",
-                        'email_url': f"/api/media/{media.id}/download/?variant=email&filename={quote(email_name)}" if has_email else None,
-                    })
-        return certs
+    @property
+    def get_cert_docs_description_display(self) -> str:
+        """Описание сертификатов (property-обёртка над методом микса)."""
+        return self.get_cert_docs_description() or ''
 
-    def _get_model_line_summary(self) -> dict:
-        if not self.model_line:
-            return None
-        ml = self.model_line
-        return {
-            'id': ml.id,
-            'name': ml.name,
-            'code': getattr(ml, 'code', '') or '',
-            'description': ml.description or '',
-            'brand': {
-                'id': ml.brand.id,
-                'name': ml.brand.name,
-            } if ml.brand else None,
-        }
+    # ── Структурированные значения (JSON/MCP) ──
 
-    def _get_sku_summary(self) -> dict:
-        if not hasattr(self, 'sku') or not self.sku:
-            return None
-        return {
-            'id': self.sku.id,
-            'code': self.sku.code,
-            'name': self.sku.name,
-        }
+    def get_signals_data(self) -> list:
+        """Сигналы обратной связи → список {name, marker}."""
+        signals, _ = self.get_signal_feedback_data()
+        return [{'name': name, 'marker': marker} for name, marker in signals]
 
-    def to_dict(self) -> dict:
-        """Структурированная сериализация БКВ (CatalogDictMixin)."""
-        tv = self._get_template_vars()
-        signals, sensors = self.get_signal_feedback_data()
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'description': self.description or '',
-            'is_active': self.is_active,
-            'sorting_order': self.sorting_order,
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
-            'template_vars': tv,
-            'sections': [
-                {
-                    'key': 'images', 'title': 'Изображения', 'type': 'gallery',
-                    'order': 1, 'data': self._safe_m2m(self, '_get_images_section')
-                },
-                {
-                    'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
-                    'order': 2, 'groups': [
-                    {
-                        'key': 'general', 'title': 'Основные', 'order': 1,
-                        'fields': [
-                            {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'unit': '',
-                             'type': 'text', 'order': 1},
-                            {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'unit': '',
-                             'type': 'text', 'order': 2},
-                            {'key': 'sensor_variety', 'label': 'Тип сенсора', 'value': tv['sensor_variety'], 'unit': '',
-                             'type': 'text', 'order': 3},
-                            {'key': 'points_option_id', 'label': 'Количество датчиков', 'value': tv['points'], 'unit': '',
-                             'type': 'number', 'order': 4},
-                            {'key': 'ip', 'label': 'IP', 'value': tv['ip'], 'unit': '', 'type': 'text', 'order': 5},
-                            {'key': 'exd', 'label': 'Взрывозащита', 'value': tv['exd'], 'unit': '', 'type': 'text',
-                             'order': 6},
-                            {'key': 'work_temp', 'label': 'Рабочая температура', 'value': tv['work_temp'], 'unit': '',
-                             'type': 'text', 'order': 7},
-                            # {'key': 'is_pneumatic', 'label': 'Пневматический', 'value': tv['is_pneumatic'], 'unit': '',
-                            #  'type': 'text', 'order': 7},
-                            # {'key': 'has_namur_interface', 'label': 'NAMUR интерфейс',
-                            #  'value': tv['has_namur_interface'], 'unit': '', 'type': 'text', 'order': 8},
-                            {'key': 'visual_indicator_type', 'label': 'Визуальный индикатор',
-                             'value': tv['visual_indicator_type'], 'unit': '', 'type': 'text', 'order': 9},
-                        ]
-                    },
-                    {
-                        'key': 'body', 'title': 'Корпус', 'order': 3,
-                        'fields': [
-                            {'key': 'body_material', 'label': 'Материал корпуса', 'value': tv['body_material'],
-                             'unit': '', 'type': 'text', 'order': 1},
-                            # {'key': 'body_material_specified', 'label': 'Материал (уточн.)',
-                            #  'value': tv['body_material_specified'], 'unit': '', 'type': 'text', 'order': 2},
-                            {'key': 'weight', 'label': 'Вес', 'value': tv['weight'], 'unit': 'кг', 'type': 'number',
-                             'order': 3},
-                            {'key': 'cable_glands_holes', 'label': 'Отверстия под КВ',
-                             'value': tv['cable_glands_holes'], 'unit': '', 'type': 'text', 'order': 4},
-                            {'key': 'mounting', 'label': 'Монтаж', 'value': tv['mounting'], 'unit': '', 'type': 'text',
-                             'order': 5},
-                        ]
-                    },
-                    {
-                        'key': 'signals_feedback', 'title': 'Сигналы обратной связи', 'order': 2,
-                        'fields': [
-                            {'key': f'role_{i}', 'label': f'{name}:', 'value': marker,
-                             'unit': '', 'type': 'text', 'order': i + 1}
-                            for i, (name, marker) in enumerate(signals)
-                        ],
-                    },
-                    {
-                        'key': 'sensors', 'title': 'Датчики', 'order': 3,
-                        'fields': [
-                            {'key': f'sensor_{i}', 'label': 'Датчик',
-                             'value': sensor.generate_name(), 'unit': '', 'type': 'text', 'order': i + 1}
-                            for i, sensor in enumerate(sensors)
-                        ],
-                    },
-
-                ]
-                },
-                {
-                    'key': 'docs', 'title': 'Документация', 'type': 'files',
-                    'order': 3, 'data': self._safe_m2m(self, '_get_docs_section')
-                },
-                {
-                    'key': 'certs', 'title': 'Сертификаты', 'type': 'files',
-                    'order': 4, 'data': self._safe_m2m(self, '_get_certs_section')
-                },
-                {
-                    'key': 'description', 'title': 'Описание', 'type': 'text',
-                    'order': 5, 'data': self.description or '',
-                },
-            ],
-        }
-
-    def to_values_dict(self) -> dict:
-        """Облегчённая сериализация для списков (без шаблонов, одно фото)."""
-        first_img = self._get_first_image()
-        tv = {'code': self.code or '', 'name': self.name or ''}
-        return {
-            'id': self.id,
-            'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'image_alt': self.name or '',
-            'template_vars': tv,
-            'values': tv,
-            'images': [first_img] if first_img else [],
-            'model_line': self._get_model_line_summary(),
-            'sku': self._get_sku_summary(),
-        }
+    def get_sensors_data(self) -> list:
+        """Датчики → список {name}."""
+        _, sensors = self.get_signal_feedback_data()
+        return [{'name': sensor.generate_name()} for sensor in sensors]

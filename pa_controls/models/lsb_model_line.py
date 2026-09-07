@@ -6,6 +6,7 @@ from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, I
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from producers.models import Producer, Brands
+from options.models import BaseM2MExdThroughOption
 
 
 class LimitSwitchModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,EquipmentTypeMixin, SmartCatalogMixin,  StructuredDataMixin, models.Model):
@@ -80,3 +81,37 @@ class LimitSwitchModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,Equipme
             {'id': cert.id, 'code': cert.code or '', 'name': cert.name or ''}
             for cert in self.cert_docs.all()
         ]
+
+
+class LimitSwitchExdOption(BaseM2MExdThroughOption):
+    """Взрывозащита, разрешённая для серии БКВ.
+
+    Through-строка уровня серии ``LimitSwitchModelLine`` по схеме M2M
+    (аналог ``PosiExdOption`` у позиционеров):
+
+      * одна строка = одна КОДИРОВКА (опция выбора для артикула);
+      * внутри кодировки через M2M ``exd_options`` перечислены все виды
+        ``params.ExdOption``, которые её разделяют;
+      * «общепром» представляется строкой с пустым M2M, «Ex» — строкой
+        с непустым M2M.
+
+    Поле ``exd_options`` наследуется из ``BaseM2MExdThroughOption`` и получает
+    обратное имя ``limitswitchexdoption_exd_rows`` на ``params.ExdOption``.
+
+    Значения копируются в ``LimitSwitchBox.exd`` при сохранении нового БКВ
+    (см. ``ExdOptionsConsumerMixin._sync_exd_options_from_model_line``).
+    """
+    model_line = models.ForeignKey(
+        LimitSwitchModelLine, on_delete=models.CASCADE,
+        related_name='exd_options',
+        verbose_name=_("Серия БКВ")
+    )
+
+    class Meta:
+        verbose_name = _("Взрывозащита для серии БКВ")
+        verbose_name_plural = _("Взрывозащита для серий БКВ")
+        ordering = ['sorting_order']
+
+    @classmethod
+    def _get_parent_field_name(cls):
+        return 'model_line'

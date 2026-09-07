@@ -657,6 +657,334 @@ class BaseExdThroughOption(BaseThroughOption) :
     def __str__(self) :
         return self.get_display_name()
 
+
+class ExdFormattingMixin:
+    """Форматирование и признаки взрывозащиты (Exd). Без полей — только поведение.
+
+    Общий слой для двух потребителей списка видов взрывозащиты:
+
+    * through-строка ``BaseM2MExdThroughOption`` — одна строка = одна кодировка,
+      внутри которой M2M видов;
+    * item/каталог (``ExdOptionsConsumerMixin``) — виды денормализованы в M2M-поле
+      и копируются из through-строки серии.
+
+    Миксин не наследует ``models.Model``, поэтому подмешивается и к моделям, и к
+    обычным классам. Он рассчитывает, что на объекте есть M2M-поле с видами,
+    имя которого задаётся атрибутом ``exd_m2m_field`` (по умолчанию ``'exd_options'``;
+    например, у ``LimitSwitchBox`` это ``'exd'``).
+
+    ``EXD_RELATED`` — кортеж связанных справочников для ``select_related``, чтобы
+    форматирование не порождало N+1 запросов.
+
+    Точки расширения:
+      * ``get_exd_options()`` — эффективный список видов; по умолчанию читает M2M,
+        потребитель переопределяет под ``_selected_exd_row`` и фолбэк на строку серии;
+      * ``has_exd()`` — признак взрывозащищённого исполнения;
+      * ``get_exd_list`` / ``get_exd_short_list`` — текстовые представления
+        (полное с группировкой температур / короткое уникальных видов).
+    """
+
+    EXD_RELATED = (
+        'explosion_protection_class', 'hazardous_group',
+        'temperature_class', 'explosion_protection_level',
+    )
+    exd_m2m_field = 'exd_options'   # имя M2M-поля на объекте (item/строка)
+
+    def _get_exd_m2m(self):
+        """Менеджер M2M-поля с видами взрывозащиты для текущего объекта."""
+        return getattr(self, self.exd_m2m_field)
+
+    def get_exd_options(self):
+        """Эффективный список ``ExdOption`` с подгруженными справочниками.
+
+        Базовая реализация читает M2M-поле напрямую. ``ExdOptionsConsumerMixin``
+        переопределяет метод, добавляя источник через ``_selected_exd_row``
+        и фолбэк на строку серии по умолчанию.
+        """
+        return list(self._get_exd_m2m().all().select_related(*self.EXD_RELATED))
+
+    def has_exd(self) -> bool:
+        """Выбрано ли взрывозащищённое исполнение.
+
+        True, если среди эффективных видов есть хотя бы один с непустым ``code``.
+        Для «общепром»-строк M2M пуст либо заполнен записью без кода — вернёт False.
+        """
+        return any(bool(v.code) for v in self.get_exd_options())
+
+    @staticmethod
+    def _exd_group_key(exd):
+        """Ключ группы «одинаковые степени, разная температура» (без X/U)."""
+        return (
+            exd.explosion_protection_class_id,
+            exd.hazardous_group_id,
+            exd.explosion_protection_level_id,
+        )
+
+    @staticmethod
+    def _exd_temperature_token(exd) -> str:
+        gas_temps = {'T1', 'T2', 'T3', 'T4', 'T5', 'T6'}
+        if exd.temperature_class_id:
+            code = exd.temperature_class.code
+            return code if code in gas_temps else f'{code}°C'
+        if exd.dust_temperature is not None:
+            return f'T{exd.dust_temperature}°C'
+        return ''
+
+    @classmethod
+    def _format_exd_group(cls, exds) -> str:
+        """Одна группа: Ex db IIB T5/T6 (X/U — один раз на группу)."""
+        first = exds[0]
+        parts = []
+        if first.explosion_protection_class_id:
+            parts.append(str(first.explosion_protection_class))
+        if first.hazardous_group_id:
+            parts.append(str(first.hazardous_group))
+        temps = []
+        for exd in exds:
+            token = cls._exd_temperature_token(exd)
+            if token and token not in temps:
+                temps.append(token)
+        if temps:
+            parts.append('/'.join(temps))
+        if first.explosion_protection_level_id:
+            parts.append(str(first.explosion_protection_level))
+        if any(exd.has_x_suffix for exd in exds):
+            parts.append('X')
+        if any(exd.has_u_suffix for exd in exds):
+            parts.append('U')
+        return ' '.join(parts)
+
+    @property
+    def get_exd_list(self) -> str:
+        """Полный список видов взрывозащиты (текст).
+
+        Одинаковые степени с разными температурными классами объединяются:
+        «Ex db IIB T5» и «Ex db IIB T6» → «Ex db IIB T5/T6».
+        """
+        groups = {}
+        order = []
+        for exd in self.get_exd_options():
+            if not exd.explosion_protection_class_id:
+                continue
+            key = self._exd_group_key(exd)
+            if key not in groups:
+                groups[key] = []
+                order.append(key)
+            groups[key].append(exd)
+        return ', '.join(self._format_exd_group(groups[key]) for key in order)
+
+    @property
+    def get_exd_short_list(self) -> str:
+        """Уникальные виды взрывозащиты, например «Ex d / Ex ia»."""
+        seen = set()
+        result = []
+        for exd in self.get_exd_options():
+            if not exd.explosion_protection_class_id:
+                continue
+            name = str(exd.explosion_protection_class)
+            if name and name not in seen:
+                seen.add(name)
+                result.append(name)
+        return ' / '.join(result)
+
+
+class BaseM2MExdThroughOption(BaseThroughOption, ExdFormattingMixin):
+    """Абстрактная through-строка взрывозащиты: одна строка = одна кодировка.
+
+    В отличие от FK-схемы ``BaseExdThroughOption`` (одна строка = один вид
+    ``ExdOption``), здесь внутри одной кодировки перечислено несколько видов
+    через M2M ``exd_options``:
+
+      * «Общепром» — строка с собственным encoding, M2M пустой (или ссылка на
+        запись «общепром» справочника);
+      * «Ex» — строка с encoding 'Ex', в M2M — все доступные виды Exd, которые
+        делят этот encoding.
+
+    Кодировка уникальна в пределах родительской серии (``validate_unique_encoding``),
+    поэтому один encoding нельзя завести дважды — виды добавляются в существующую
+    строку.
+
+    Поле ``exd_options`` объявлено здесь с ``related_name='%(class)s_exd_rows'``,
+    чтобы у каждого подкласса был уникальный обратный доступ с ``params.ExdOption``.
+
+    Контракт подкласса:
+      * объявить ``model_line = models.ForeignKey(...)`` на свою серию;
+      * задать ``Meta.verbose_name`` / ``Meta.verbose_name_plural``;
+      * при необходимости переопределить ``_get_parent_field_name()``
+        (по умолчанию автоопределяется первый FK).
+    """
+
+    exd_options = models.ManyToManyField(
+        'params.ExdOption',
+        blank=True,
+        related_name='%(class)s_exd_rows',
+        verbose_name=_('Виды взрывозащиты'),
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['sorting_order']
+
+    def validate_unique_encoding(self) -> None:
+        """Одна строка на кодировку в пределах родителя (серии).
+
+        Базовая реализация пропускает НЕсохранённые объекты (adding) — для
+        M2M-схемы это дыра, поэтому проверяем и при создании, и при правке.
+        """
+        if not (self.encoding and self.encoding.strip()):
+            return
+        parent = getattr(self, self._get_parent_field_name(), None)
+        if parent is None or getattr(parent, 'pk', None) is None:
+            return
+        existing = self.__class__.objects.filter(
+            **{self._get_parent_field_name(): parent, 'encoding': self.encoding}
+        ).exclude(pk=self.pk)
+        if existing.exists():
+            raise ValidationError({
+                'encoding': _('Кодировка "%(encoding)s" уже используется '
+                              'в этой серии — добавьте вид в существующую строку.') % {
+                    'encoding': self.encoding}
+            })
+
+    def get_display_name(self) -> str:
+        """Читаемое имя строки: «Серия → encoding: виды».
+
+        Для несохранённой/удалённой строки M2M-менеджер требует pk, поэтому
+        возвращаем только encoding с пометкой «(удалено)» — это защищает от
+        рекурсивного ``__str__`` при ошибках M2M.
+        """
+        if self.pk is None:
+            return f"{self.encoding or '—'} (удалено)"
+        values = ', '.join(e.name for e in self.exd_options.all()) or '—'
+        parent = self._get_parent_object()
+        return f"{parent} → {self.encoding}: {values}"
+
+    def __str__(self) -> str:
+        return self.get_display_name()
+
+    @classmethod
+    def get_effective_row(cls, parent=None, parent_id=None):
+        """Эффективная строка взрывозащиты для родителя (серии).
+
+        Приоритет: активная строка с ``is_default=True``; если её нет — первая
+        активная. ``parent`` и ``parent_id`` взаимоисключаемы; если передан
+        ``parent_id``, лишний запрос к родителю не делается. Возвращает ``None``,
+        если родитель не задан или подходящих строк нет.
+        """
+        parent_field = cls._get_parent_field_name()
+        if not parent_field:
+            return None
+        qs = cls.objects.filter(is_active=True)
+        if parent_id is not None:
+            qs = qs.filter(**{f'{parent_field}_id': parent_id})
+        elif parent is not None:
+            qs = qs.filter(**{parent_field: parent})
+        else:
+            return None
+        return qs.filter(is_default=True).first() or qs.first()
+
+
+class ExdOptionsConsumerMixin(ExdFormattingMixin):
+    """Поведение item'а: денормализованный M2M взрывозащиты и синхронизация.
+
+    Подмешивается к каталоговой модели (``PosiModelLineItem``, ``LimitSwitchBox``),
+    у которой есть M2M-поле с видами ``params.ExdOption`` и FK на серию. Источник
+    истины — through-строка серии (``BaseM2MExdThroughOption``); M2M item'а —
+    денормализованная копия, поддерживаемая в актуальном состоянии при создании.
+
+    Настройки через атрибуты класса:
+      * ``exd_through_model`` — строка ``'app.Model'`` через-модели серии
+        (ленивая загрузка через ``apps.get_model``, без циклических импортов);
+      * ``exd_parent_field`` — имя FK на серию у item'а (по умолчанию ``'model_line'``);
+      * ``exd_m2m_field`` — имя M2M-поля с видами (из ``ExdFormattingMixin``,
+        по умолчанию ``'exd_options'``, у БКВ — ``'exd'``).
+
+    Динамический атрибут ``_selected_exd_row`` (ставится конструктором/превью)
+    позволяет показать несохранённому item'у кодировку и список видов выбранной
+    строки до сохранения.
+    """
+
+    exd_through_model = 'pa_controls.PosiExdOption'
+    exd_parent_field = 'model_line'
+
+    @classmethod
+    def _get_exd_through_model(cls):
+        """Лениво резолвит through-модель из ``exd_through_model``."""
+        from django.apps import apps
+        return apps.get_model(cls.exd_through_model)
+
+    def get_exd_options(self):
+        """Эффективный список видов взрывозащиты для item'а.
+
+        Источники (по приоритету):
+          1. ``_selected_exd_row`` — через-строка, переданная конструктором/превью;
+          2. денормализованный M2M item'а (для сохранённого объекта);
+          3. строка серии по умолчанию (``is_default``, фолбэк — первая активная).
+
+        Для всех путей подгружаются связанные справочники из ``EXD_RELATED``.
+        """
+        row = getattr(self, '_selected_exd_row', None)
+        if row is not None:
+            return list(row.exd_options.all().select_related(*self.EXD_RELATED))
+        if self.pk:
+            return list(self._get_exd_m2m().all().select_related(*self.EXD_RELATED))
+        parent_id = getattr(self, f'{self.exd_parent_field}_id', None)
+        if not parent_id:
+            return []
+        row = self._get_exd_through_model().get_effective_row(parent_id=parent_id)
+        return list(row.exd_options.all().select_related(*self.EXD_RELATED)) if row else []
+
+    def _sync_exd_options_from_model_line(self):
+        """Скопировать в M2M item'а виды из эффективной строки серии.
+
+        Вызывается при создании item'а, чтобы денормализованное поле совпадало
+        с through-строкой по умолчанию (``is_default``, иначе первая активная).
+        """
+        parent_id = getattr(self, f'{self.exd_parent_field}_id', None)
+        row = self._get_exd_through_model().get_effective_row(parent_id=parent_id)
+        if row is None:
+            return
+        self._get_exd_m2m().set(row.exd_options.all())
+
+    @property
+    def exd_encoding(self) -> str:
+        """Кодировка взрывозащиты для артикула.
+
+        Для превью берётся encoding переданной ``_selected_exd_row``. Для
+        сохранённого item строка не хранится — кодировка выводится по набору
+        видов: если есть Ex-виды, ищем строку с непустым M2M, иначе строку
+        «общепром» с пустым M2M.
+        """
+        row = getattr(self, '_selected_exd_row', None)
+        if row is not None:
+            return row.encoding or ''
+        parent_id = getattr(self, f'{self.exd_parent_field}_id', None)
+        if not parent_id:
+            return ''
+        exd_ids = {v.id for v in self.get_exd_options()}
+        rows = self._get_exd_through_model().objects.filter(
+            **{f'{self.exd_parent_field}_id': parent_id}, is_active=True
+        ).prefetch_related('exd_options')
+        if exd_ids:
+            for row in rows:
+                if row.exd_options.filter(id__in=exd_ids).exists():
+                    return row.encoding or ''
+        else:
+            for row in rows:
+                if not row.exd_options.exists():
+                    return row.encoding or ''
+        return ''
+
+    @property
+    def exd_display(self) -> str:
+        """Группированное текстовое представление, «Нет» для общепром-исполнения.
+
+        Удобно для шаблонов каталога и админки: пустой список (нет видов с
+        кодом) отображается как «Нет».
+        """
+        return self.get_exd_list or 'Нет'
+
+
 class BaseColorThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций Exd"""
     color_option = models.ForeignKey(
