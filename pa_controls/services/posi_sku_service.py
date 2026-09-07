@@ -31,6 +31,10 @@ def build_item_kwargs(constructor) -> dict:
 
     Взрывозащита (exd_options) — M2M, в kwargs не входит: проставляется
     отдельно после создания (см. build_item_exd_options / materialize).
+
+    image_gallery — по правилу привязки галереи: галерея выбранной опции
+    «Профиль сигналов» (если задана), иначе None → карточка отображает
+    галерею серии (фолбэк ImageGalleryMixin._gallery).
     """
     return {
         'model_line': constructor.selected_model_line,
@@ -43,6 +47,7 @@ def build_item_kwargs(constructor) -> dict:
         'signal_profile': constructor.selected_signal_profile,
         'smart_capability_set': constructor.selected_smart_capability_set,
         'alarm': constructor.selected_alarm,
+        'image_gallery': constructor.get_image_gallery(),
     }
 
 
@@ -85,6 +90,8 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
 
     kwargs = build_item_kwargs(constructor)
     exd_ids = build_item_exd_options(constructor)
+    gallery = kwargs.get('image_gallery')
+    gallery_id = gallery.id if gallery else None
 
     # Валидация комбинаций ДО сохранения: рычаг/тип, «только общепром» (item.clean()).
     # Взрывозащита для валидации берётся из through-строк серии (get_exd_options),
@@ -99,6 +106,10 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
     code = _probe_code(kwargs, constructor)
 
     lookup_kwargs = dict(kwargs)
+    # Галерея не участвует в дедупликации: она производная от опции профиля
+    # сигналов и синхронизируется отдельно (иначе get_or_create размножал бы
+    # item'ы при смене галереи опции).
+    lookup_kwargs.pop('image_gallery', None)
     if code:
         lookup_kwargs['code'] = code
 
@@ -111,6 +122,9 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
                     existing.save()
                 if not existing.sku_id:
                     existing.save()
+                if existing.image_gallery_id != gallery_id:
+                    existing.image_gallery = gallery
+                    existing.save()
                 existing.exd_options.set(exd_ids)
                 existing.refresh_from_db()
                 return existing, getattr(existing, 'sku', None)
@@ -118,7 +132,10 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
         try:
             # get_or_create вызывает item.save() → автогенерация
             # code/name/description + sync_sku() (SKUMixin).
-            item, created = PosiModelLineItem.objects.get_or_create(**lookup_kwargs)
+            # Галерея попадает только в defaults (создание), не в lookup.
+            item, created = PosiModelLineItem.objects.get_or_create(
+                defaults=kwargs, **lookup_kwargs
+            )
         except IntegrityError:
             # Конкуренция/повторный code: другой item уже занял SKU — берём его
             if code:
@@ -130,9 +147,18 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
 
         if created:
             logger.info(f"PosiModelLineItem создан: {item.code} (series={constructor.selected_model_line_id})")
-        elif not item.is_active:
-            item.is_active = True
-            item.save()
+        else:
+            needs_save = False
+            if not item.is_active:
+                item.is_active = True
+                needs_save = True
+            # Правило привязки галереи: у опции профиля сигналов появилась/сменилась
+            # галерея — прописываем в карточку; исчезла — очищаем (фолбэк на серию)
+            if item.image_gallery_id != gallery_id:
+                item.image_gallery = gallery
+                needs_save = True
+            if needs_save:
+                item.save()
 
         item.exd_options.set(exd_ids)
 

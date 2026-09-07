@@ -12,6 +12,7 @@ from django import forms
 from .models import MediaCategory ,MediaLibraryItem
 from .models import ImageGallerySet, ImageGallerySetItem, MediaVariant
 from .services import delete_variants, generate_variants
+from core.models.mixins import AdminCopyMixin
 
 logger = logging.getLogger(__name__)
 
@@ -623,12 +624,12 @@ class ImageGallerySetItemInline(admin.TabularInline):
 
 
 @admin.register(ImageGallerySet)
-class ImageGallerySetAdmin(admin.ModelAdmin):
+class ImageGallerySetAdmin(AdminCopyMixin, admin.ModelAdmin):
     list_display = ('name', 'code', 'sorting_order', 'items_count')
     search_fields = ('name', 'code', 'keywords')
     inlines = [ImageGallerySetItemInline]
+    actions = ['copy_selected_objects']
 
     @admin.display(description="Изображений")
     def items_count(self, obj):
         return obj.items.count()
-        return super().has_delete_permission(request , obj)

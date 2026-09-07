@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
+from core.models.mixins import CopyMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from producers.models import Brands
 from storage_manager.fields import ManagedFileField
@@ -964,8 +965,15 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
 # ImageGallerySet — набор изображений с порядком и default
 # ═══════════════════════════════════════════════════════════════
 
-class ImageGallerySet(models.Model):
-    """Именованный набор изображений — одна запись = одна конфигурация галереи."""
+class ImageGallerySet(CopyMixin, models.Model):
+    """
+    Именованный набор изображений — одна запись = одна конфигурация галереи.
+
+    Наследует ``CopyMixin``: метод ``copy()`` создаёт копию набора
+    (к полю ``code`` добавляется суффикс « Копия», ``sorting_order`` сбрасывается
+    в 0). Элементы набора (ImageGallerySetItem) копируются с сохранением
+    порядка и флага «По умолчанию».
+    """
     name = models.CharField(max_length=200, verbose_name=_("Название"))
     code = models.CharField(max_length=150, blank=True, null=True, verbose_name=_("Код"))
     keywords = models.CharField(max_length=500, blank=True, verbose_name=_("Ключевые слова"),
@@ -998,9 +1006,42 @@ class ImageGallerySet(models.Model):
         first = self.items.first()
         return first.image if first else None
 
+    # ═══════════════════════════════════════════════════════════════
+    # CopyMixin — копирование набора в админке
+    # ═══════════════════════════════════════════════════════════════
+
+    def copy(self, suffix=" Копия", **kwargs):
+        """
+        Создаёт копию набора изображений.
+
+        Переопределяет ``CopyMixin.copy()``: элементы набора пересоздаются
+        через through-модель, чтобы сохранить ``sorting_order`` и ``is_default``
+        (стандартный ``.set()`` базового миксина копирует связи без этих полей).
+        """
+        copied = super().copy(suffix=suffix, reset_fields=['sorting_order'], **kwargs)
+
+        # Пересоздаём элементы набора с сохранением порядка и флага «По умолчанию»
+        copied.items.all().delete()
+        for item in self.items.all():
+            ImageGallerySetItem.objects.create(
+                gallery_set=copied,
+                image=item.image,
+                sorting_order=item.sorting_order,
+                is_default=item.is_default,
+            )
+
+        return copied
+
 
 class ImageGallerySetItem(models.Model):
-    """Through-модель: набор ↔ изображение с дополнительными полями."""
+    """
+    Through-модель: набор ↔ изображение с дополнительными полями.
+
+    ⚠️  Ограничение поля image (limit_choices_to):
+        принимаются только MediaLibraryItem с категорией 'PRODUCT_GALLERY'
+        («Галерея товара»). Сертификаты, техдокументация и прочие категории
+        сюда добавить нельзя.
+    """
     gallery_set = models.ForeignKey(
         ImageGallerySet, on_delete=models.CASCADE,
         related_name='items',
@@ -1009,6 +1050,7 @@ class ImageGallerySetItem(models.Model):
     image = models.ForeignKey(
         'media_library.MediaLibraryItem', on_delete=models.CASCADE,
         related_name='+',
+        limit_choices_to={'category__code': 'PRODUCT_GALLERY'},
         verbose_name=_("Изображение"),
     )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок"))

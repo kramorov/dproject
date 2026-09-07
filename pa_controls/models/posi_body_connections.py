@@ -2,12 +2,14 @@
 """
 Присоединения корпуса позиционера (PosiBodyConnections).
 
-Справочник объединяет пару «резьба входа + резьба выхода» для пневмоподключения
-корпуса позиционера (по образцу PneumaticActuatorBody для пневмоприводов):
+Справочник объединяет резьбу пневмоподключения и отверстие под кабельный ввод
+(по образцу PneumaticActuatorBody для пневмоприводов):
 
-    thread_in      — резьба входного отверстия (params.ThreadSize)
-    thread_out     — резьба выходного отверстия (params.ThreadSize)
+    pneumatic_thread — резьба пневмоподключения (params.ThreadSize)
     cable_gland_hole — резьба отверстия под кабельный ввод (params.ThreadSize)
+
+Разделение на «вход/выход» у позиционера не имеет смысла (оба отверстия одной
+резьбы) — до 2026-09 поля thread_in/thread_out заменены единым pneumatic_thread.
 
 К серии позиционеров (PosiModelLine) привязывается через through-модель
 PosiBodyConnectionOption (см. posi_model_line.py) вместо двух прежних опций
@@ -18,7 +20,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class PosiBodyConnections(models.Model):
-    """Присоединения корпуса позиционера: резьбы пневмовхода/выхода + отверстие КВ."""
+    """Присоединения корпуса позиционера: резьба пневмоподключения + отверстие КВ."""
 
     name = models.CharField(
         max_length=200,
@@ -35,19 +37,12 @@ class PosiBodyConnections(models.Model):
         verbose_name=_("Описание"),
         help_text=_('Текстовое описание варианта присоединений')
     )
-    thread_in = models.ForeignKey(
+    pneumatic_thread = models.ForeignKey(
         'params.ThreadSize',
         on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='posi_body_connections_thread_in',
-        verbose_name=_("Пневмовход"),
-        help_text=_('Резьба входного отверстия для пневмоподключения')
-    )
-    thread_out = models.ForeignKey(
-        'params.ThreadSize',
-        on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='posi_body_connections_thread_out',
-        verbose_name=_("Пневмовыход"),
-        help_text=_('Резьба выходного отверстия для пневмоподключения')
+        related_name='posi_body_connections_pneumatic_thread',
+        verbose_name=_("Резьба пневмоподключения"),
+        help_text=_('Резьба отверстия для пневмоподключения')
     )
     cable_gland_hole = models.ForeignKey(
         'params.ThreadSize',

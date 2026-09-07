@@ -362,6 +362,8 @@ def _signal_profile_option_dict(row):
         'signal_profile': _fk_dict(row.signal_profile),
         'smart_capability_set': _fk_dict(row.smart_capability_set),
         'is_default': row.is_default,
+        # Галерея опции: если задана — прописывается в карточку товара
+        'image_gallery': _fk_dict(row.image_gallery) if row.image_gallery_id else None,
     }
 
 

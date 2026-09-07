@@ -19,12 +19,13 @@ class PositionerConstructorAdmin(admin.ModelAdmin):
         'selected_model_line', 'selected_body_connection', 'selected_lever',
         'selected_temperature', 'selected_signal_profile', 'selected_alarm',
         'selected_exd_row', 'selected_exd',
+        'image_gallery_display',
         'is_unique', 'is_active', 'description_preview',
     ]
     list_filter = ['is_active', 'is_unique', 'selected_model_line']
     search_fields = ['name', 'code', 'description']
     autocomplete_fields = ['selected_model_line']
-    readonly_fields = ['name', 'code', 'is_unique']
+    readonly_fields = ['name', 'code', 'is_unique', 'image_gallery_display']
     list_select_related = [
         'selected_model_line',
         'selected_body_connection',
@@ -54,7 +55,29 @@ class PositionerConstructorAdmin(admin.ModelAdmin):
                 ('is_unique', 'is_active', 'sorting_order'),
             ),
         }),
+        (_('Изображения'), {
+            'fields': ('image_gallery_display',),
+            'classes': ('wide',),
+            'description': _(
+                'Галерея, которая пойдёт в карточку товара: из опции «Профиль сигналов», '
+                'если задана; иначе — галерея серии позиционеров.'
+            ),
+        }),
     )
+
+    def image_gallery_display(self, obj):
+        """Эффективная галерея карточки: опция профиля сигналов → галерея серии."""
+        g = obj.get_image_gallery()
+        source = _('галерея опции «Профиль сигналов»')
+        if not g:
+            ml = obj.selected_model_line
+            g = ml.image_gallery if ml else None
+            source = _('галерея серии')
+        if not g:
+            return '—'
+        return f'{g.name or g.code or g.pk} ({source})'
+
+    image_gallery_display.short_description = _('Галерея (карточка)')
 
     def description_preview(self, obj):
         return (obj.description or '')[:120]

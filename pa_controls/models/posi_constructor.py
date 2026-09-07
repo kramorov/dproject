@@ -59,6 +59,25 @@ from .positioner_item import PosiModelLineItem
 logger = logging.getLogger(__name__)
 
 
+def _gallery_summary_dict(gallery):
+    """Краткое описание галереи для API конструктора.
+
+    {id, name, preview_url} — preview_url берётся из default-изображения
+    набора (или пустая строка). None → галерея не задана.
+    """
+    if not gallery:
+        return None
+    preview_url = ''
+    img = gallery.get_default_image()
+    if img is not None:
+        preview_url = getattr(img, 'preview_url', '') or ''
+    return {
+        'id': gallery.id,
+        'name': gallery.name or gallery.code or '',
+        'preview_url': preview_url,
+    }
+
+
 class PositionerConstructor(models.Model):
     """Сохранённая конфигурация конструктора позиционеров (форма).
 
@@ -83,7 +102,7 @@ class PositionerConstructor(models.Model):
         related_name='posi_constructor_body_connections',
         on_delete=models.SET_NULL, null=True, blank=True,
         verbose_name=_('Присоединения корпуса'),
-        help_text=_('Резьбы пневмовхода/выхода + отверстие под КВ'),
+        help_text=_('Резьба пневмоподключения + отверстие под КВ'),
     )
     selected_lever = models.ForeignKey(
         LeverOption,
@@ -320,7 +339,9 @@ class PositionerConstructor(models.Model):
 
         for row in PosiSignalProfileOption.objects.filter(
             model_line=ml, is_active=True
-        ).select_related('signal_profile', 'smart_capability_set'):
+        ).select_related(
+            'signal_profile', 'smart_capability_set', 'image_gallery'
+        ).prefetch_related('image_gallery__items__image'):
             capabilities = []
             if row.smart_capability_set_id:
                 capabilities = [c.name for c in row.smart_capability_set.get_capabilities()]
@@ -335,6 +356,9 @@ class PositionerConstructor(models.Model):
                 'description': row.description or '',
                 'is_default': row.is_default,
                 'availability': row.exd_availability,
+                # Галерея опции: если задана — пойдёт в карточку товара
+                # (правило get_image_gallery: опция → фолбэк галерея серии)
+                'image_gallery': _gallery_summary_dict(row.image_gallery),
             })
 
         for row in PosiAlarmOption.objects.filter(
@@ -510,6 +534,22 @@ class PositionerConstructor(models.Model):
     # ПРЕВЬЮ: ВРЕМЕННЫЙ ITEM (единый источник генерации кода)
     # ──────────────────────────────────────────────────────────────────
 
+    def get_image_gallery(self):
+        """
+        Галерея для карточки товара по правилу привязки:
+
+            * если у выбранной through-опции «Профиль сигналов» задана
+              галерея (PosiSignalProfileOption.image_gallery) — возвращаем её,
+              и именно она прописывается в карточку (item.image_gallery);
+            * если нет — возвращаем None: карточка работает по старому
+              правилу — отображается галерея серии позиционеров
+              (фолбэк ImageGalleryMixin._gallery: item → model_line).
+        """
+        row = self.selected_signal_profile_option
+        if row is not None and row.image_gallery_id:
+            return row.image_gallery
+        return None
+
     def build_preview_item(self) -> Optional[PosiModelLineItem]:
         """Временный PosiModelLineItem из опций формы (без сохранения).
 
@@ -528,6 +568,7 @@ class PositionerConstructor(models.Model):
             signal_profile=self.selected_signal_profile,
             smart_capability_set=self.selected_smart_capability_set,
             alarm=self.selected_alarm,
+            image_gallery=self.get_image_gallery(),
         )
         # Взрывозащита в item теперь M2M (копируется из PosiExdOption серии),
         # а для артикула ({exd}) передаём выбранную through-строку.

@@ -183,7 +183,7 @@ class SmartCapabilitySetAdmin(AdminCopyMixin, admin.ModelAdmin):
 
 @admin.register(PosiBodyConnections)
 class PosiBodyConnectionsAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'thread_in', 'thread_out', 'cable_gland_hole',
+    list_display = ['name', 'code', 'pneumatic_thread', 'cable_gland_hole',
                     'sorting_order', 'is_active']
     list_filter = ['is_active']
     search_fields = ['name', 'code']
@@ -194,7 +194,7 @@ class PosiBodyConnectionsAdmin(admin.ModelAdmin):
             'fields': ('name', 'code', 'description'),
         }),
         (_('Присоединения'), {
-            'fields': ('thread_in', 'thread_out', 'cable_gland_hole'),
+            'fields': ('pneumatic_thread', 'cable_gland_hole'),
         }),
         (_('Настройки'), {
             'fields': ('sorting_order', 'is_active'),

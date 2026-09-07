@@ -80,6 +80,23 @@
             </select>
           </div>
         </div>
+
+        <!-- Галерея выбранной опции «Профиль сигналов» — пойдёт в карточку товара -->
+        <div class="gallery-note">
+          <template v-if="selectedSignalProfileGallery">
+            <img
+              v-if="selectedSignalProfileGallery.preview_url"
+              :src="selectedSignalProfileGallery.preview_url"
+              alt=""
+              class="gallery-thumb"
+            />
+            <span>
+              В карточку пойдёт галерея опции:
+              <b>{{ selectedSignalProfileGallery.name || '—' }}</b>
+            </span>
+          </template>
+          <span v-else>У опции «Профиль сигналов» нет своей галереи — карточка покажет галерею серии.</span>
+        </div>
       </template>
 
       <!-- Предупреждения от бэка (несовместимость опций со взрывозащитой) -->
@@ -189,6 +206,13 @@ const optionFields = computed(() => {
 })
 
 const exdRows = computed(() => options.value?.exd_options || [])
+
+// Галерея выбранной through-опции «Профиль сигналов» (image_gallery в options.signal_profiles)
+const selectedSignalProfileGallery = computed(() => {
+  const items = options.value?.signal_profiles || []
+  const row = items.find(o => o.id === form.selected_signal_profile_option)
+  return row?.image_gallery || null
+})
 
 const selectedExdRow = computed(() =>
   exdRows.value.find(r => r.id === form.selected_exd_row) || null)
@@ -446,6 +470,8 @@ function showMessage(text, type = 'info') {
 .builder-header h2 { font-size: 18px; margin: 0; }
 h3 { font-size: 15px; color: #555; margin: 16px 0 8px; }
 .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.gallery-note { display: flex; align-items: center; gap: 10px; margin: 10px 0; padding: 8px 12px; background: #f4f7ff; border: 1px solid #d7e3ff; border-radius: 8px; font-size: 13px; color: #334; }
+.gallery-thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; border: 1px solid #dde; background: #fff; flex-shrink: 0; }
 .form-row-inline { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 12px; }
 .form-row { margin-bottom: 12px; }
 .form-row label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }

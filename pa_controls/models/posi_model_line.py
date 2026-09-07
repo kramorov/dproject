@@ -170,8 +170,8 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
 class PosiBodyConnectionOption(BaseThroughOption):
     """Присоединения корпуса, разрешённые для серии.
 
-    Связывает серию со справочником PosiBodyConnections (резьбы
-    пневмовхода/выхода + отверстие под кабельный ввод). Заменяет
+    Связывает серию со справочником PosiBodyConnections (резьба
+    пневмоподключения + отверстие под кабельный ввод). Заменяет
     PosiPneumaticThreadOption, PosiPneumaticConnectionOption и
     PosiCableGlandHolesOption.
 

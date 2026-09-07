@@ -473,16 +473,10 @@ class PosiModelLineItem(CatalogDictMixin,
     # ── Резьбы присоединений корпуса (для шаблонов и каталога) ──
 
     @property
-    def get_pneumatic_connection_in(self) -> str:
-        """Резьба пневмовхода (входное отверстие пневмоподключения)."""
+    def get_pneumatic_connection(self) -> str:
+        """Резьба пневмоподключения (единая для входа/выхода)."""
         bc = self.body_connection
-        return str(bc.thread_in) if bc and bc.thread_in else ''
-
-    @property
-    def get_pneumatic_connection_out(self) -> str:
-        """Резьба пневмовыхода (выходное отверстие пневмоподключения)."""
-        bc = self.body_connection
-        return str(bc.thread_out) if bc and bc.thread_out else ''
+        return str(bc.pneumatic_thread) if bc and bc.pneumatic_thread else ''
 
     @property
     def get_cable_gland_hole(self) -> str:
@@ -609,8 +603,7 @@ class PosiModelLineItem(CatalogDictMixin,
             '{exd}': 'get_exd_list',
             '{ip}': 'model_line__ip',
             '{body_connection}': 'body_connection',
-            '{pneumatic_connection_in}': 'get_pneumatic_connection_in',
-            '{pneumatic_connection_out}': 'get_pneumatic_connection_out',
+            '{pneumatic_connection}': 'get_pneumatic_connection',
             '{cable_gland_hole}': 'get_cable_gland_hole',
             '{lever}': 'lever',
             '{alarm}': 'alarm',
@@ -817,8 +810,7 @@ class PosiModelLineItem(CatalogDictMixin,
             'exd': self.get_exd_list,
             'ip': self.model_line.ip.name if self.model_line and self.model_line.ip else '',
             'body_connection': self.body_connection.name if self.body_connection_id else '',
-            'pneumatic_connection_in': self.get_pneumatic_connection_in,
-            'pneumatic_connection_out': self.get_pneumatic_connection_out,
+            'pneumatic_connection': self.get_pneumatic_connection,
             'cable_gland_hole': self.get_cable_gland_hole,
             'lever': self.lever.name if self.lever else '',
             'alarm': self.alarm.name if self.alarm else '',
@@ -880,18 +872,16 @@ class PosiModelLineItem(CatalogDictMixin,
                         {
                             'key': 'connections', 'title': 'Присоединения', 'order': 2,
                             'fields': [
-                                {'key': 'pneumatic_connection_in', 'label': 'Пневмоподключение вход', 'value': tv['pneumatic_connection_in'],
+                                {'key': 'pneumatic_connection', 'label': 'Пневмоподключение',
+                                 'value': tv['pneumatic_connection'],
                                  'unit': '', 'type': 'text', 'order': 1},
-                                {'key': 'pneumatic_connection_out', 'label': 'Пневмоподключение выход',
-                                 'value': tv['pneumatic_connection_out'],
-                                 'unit': '', 'type': 'text', 'order': 2},
                                 {'key': 'cable_gland_hole', 'label': 'Отверстие под кабельный ввод',
                                  'value': tv['cable_gland_hole'],
-                                 'unit': '', 'type': 'text', 'order': 3},
+                                 'unit': '', 'type': 'text', 'order': 2},
                                 {'key': 'lever', 'label': 'Рычаг', 'value': tv['lever'],
-                                 'unit': '', 'type': 'text', 'order': 4},
+                                 'unit': '', 'type': 'text', 'order': 3},
                                 {'key': 'supply_pressure', 'label': 'Давление питания', 'value': tv['supply_pressure'],
-                                 'unit': 'бар', 'type': 'text', 'order': 5},
+                                 'unit': 'бар', 'type': 'text', 'order': 4},
                             ]
                         },
                         {
