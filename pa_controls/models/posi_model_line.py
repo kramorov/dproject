@@ -85,9 +85,7 @@ class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentType
     model_item_code_template = models.CharField(
         max_length=500, blank=True, null=True,
         verbose_name=_("Шаблон артикула"),
-        help_text=_('Шаблон артикула (паттерн электроприводов). Плейсхолдеры: '
-                    '{model_code}, {acting_type}, {body_connection}, {lever}, '
-                    '{temperature}, {signal_profile}, {alarm}, {exd}, {ip}, {smart}'),
+        help_text=_('Шаблон артикула '),
     )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Сортировка"),
                                         help_text=_('Порядок сортировки в списке'))

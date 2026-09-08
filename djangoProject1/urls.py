@@ -21,9 +21,7 @@ from django.urls import path, include, re_path
 
 # from media_library.urls import urlpatterns_public
 from .views import GetUrlByNameAPIView
-from graphene_django.views import GraphQLView
-from .graphql_api.schema import schema  # Импорт вашей GraphQL-схемы
-from django.views.decorators.csrf import csrf_exempt
+  # Импорт вашей GraphQL-схемы
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import UniversalAPIView
@@ -43,7 +41,6 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     # path('api/electric_actuators/', include('electric_actuators.urls')),  # Включаем URL-ы из приложения electric_actuators
     # path('data/', include('data_processor.urls')),  # Включаем URL-ы из приложения electric_actuators
     # path('api/process-string-with-model-name/', StringProcessorView.as_view(), name='process_string'),
-    # path('cg/', include('cable_glands.urls')),
     # path('ett/', include('ett.urls')),
     # path('api/valve-data/', include('valve_data.urls')),
     # path('api/clients/', include('clients.urls')),
@@ -70,11 +67,9 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     path('api/admin/', include('project_customers.admin_urls')),
     path('api/auth/', include('project_customers.auth_urls')),
     path('api/media/', include(urlpatterns_public)),
-    # GraphQL
-    path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),
 ]
 # SPA catch-all: serve index.html for all non-API/non-admin/non-static paths
-urlpatterns += [re_path(r'^(?!api/|admin/|static/|media/|graphql/).*$', TemplateView.as_view(template_name='index.html'))]
+urlpatterns += [re_path(r'^(?!api/|admin/|static/|media/).*$', TemplateView.as_view(template_name='index.html'))]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

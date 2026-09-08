@@ -5,6 +5,16 @@ from typing import List, Optional, Tuple, Any, Dict, Union
 
 
 class MetalSleeve( models.Model):
+    """Тип/диаметр металлорукава (справочник).
+
+    name — обозначение (например «РЗЦХ 12», «РЗЦП 12»), code — код,
+    description — описание. Выбирается множественно на устройстве подключения
+    металлорукава (CableGlandMetalSleeveBody.metal_sleeve) — определяет
+    совместимость «крепление ↔ металлорукав».
+
+    Метод create_copy() создаёт копию записи (используется действием админки
+    «Скопировать выбранные металлорукава»).
+    """
     name = models.CharField(max_length=200,
                             verbose_name=_("Название"),
                             help_text=_('Название металлорукава'))

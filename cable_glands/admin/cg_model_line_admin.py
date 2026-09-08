@@ -1,109 +1,83 @@
 # cable_glands/admin/cg_model_line_admin.py
-from django import forms
 from django.contrib import admin
-from django.utils.html import format_html
-from django.http import HttpResponse
-from django.contrib import messages
-from django.shortcuts import render
-from django.urls import path  # Импортируем path
+from django.utils.translation import gettext_lazy as _
 
-# from producers.models import Producer
-import logging
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
+from core.models.mixins import AdminCopyMixin
 
-from cable_glands.models import CableGlandModelLine
+from cable_glands.models import CableGland, CableGlandModelLine
 
-# Получаем логгер
-logger = logging.getLogger(__name__)
-
-
-class CableGlandModelLineAdminForm(forms.ModelForm):
-    class Meta:
-        model = CableGlandModelLine
-        fields = '__all__'
-        # widgets = {
-        #     'ip': forms.SelectMultiple(),
-        #     'exd': forms.SelectMultiple(),
-        # }
-        widgets = {
-            'for_armored_cable' : forms.CheckboxInput() ,
-            'for_metal_sleeve_cable' : forms.CheckboxInput() ,
-            'for_pipelines_cable' : forms.CheckboxInput() ,
-            'thread_external' : forms.CheckboxInput() ,
-            'thread_internal' : forms.CheckboxInput() ,
-        }
-    def save(self, commit=True):
-        # Сохраняем объект без ManyToMany полей
-        instance = super().save(commit=False)
-
-        if commit:
-            # Сохраняем объект, чтобы получить ID
-            instance.save()
-
-            # Теперь можем сохранить связи ManyToMany
-            self.save_m2m()
-
-        return instance
 
 @admin.register(CableGlandModelLine)
-class CableGlandModelLineAdmin(admin.ModelAdmin):
-    form = CableGlandModelLineAdminForm
-    list_display = ['id', 'name','code','brand', 'cable_gland_type',
-                    'for_armored_cable', 'for_metal_sleeve_cable', 'for_pipelines_cable', 'thread_external',
-                    'thread_internal', 'temp_min', 'temp_max','sorting_order', 'is_active']
-    # list_editable = ('name','code','sorting_order', 'is_active')
-    list_filter = ('name', 'brand', 'cable_gland_type')
-    # search_fields = ['name', 'cable_gland_type', 'ip', 'exd', 'for_armored_cable',
-    #                  'for_metal_sleeve_cable']
-    fieldsets = (
-        ('Общая информация', {
-            'fields': (('name', 'code', 'cable_gland_type', 'brand'),
-                        ('for_armored_cable', 'for_metal_sleeve_cable', 'for_pipelines_cable',),
-                        ('thread_external', 'thread_internal'),
-                        ('temp_min', 'temp_max'))
-        }),
-        ('ГОСТ, Описание', {
-            'fields': ('gost', 'description')
+class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
+    """Админка серии кабельных вводов.
 
-        }),
-        ('ip', {'fields':('ip', 'exd')}),
+    Шаблоны name_template/description_template/model_item_code_template живут
+    здесь; справочник плейсхолдеров строится по _get_data_dict() артикула
+    (template_item_model=CableGland).
+    """
+
+    template_item_model = CableGland
+    template_placeholders_fieldset = _('Шаблоны названия, описания и артикула')
+
+    actions = ['copy_selected_objects']
+
+    list_display = (
+        'id', 'name', 'code', 'brand',
+        'ip', 'exd_display',
+        'for_armored_cable', 'for_metal_sleeve_cable', 'for_pipelines_cable',
+        'temp_min', 'temp_max', 'sorting_order', 'is_active',
     )
-    filter_horizontal = ('ip','exd',)  # Это добавит горизонтальные чекбоксы для поля "ip"
-    # ordering = ['name', 'voltage', ]
+    list_editable = ('sorting_order', 'is_active')
+    list_filter = ('is_active', 'brand')
+    search_fields = ('name', 'code', 'brand__name')
+    ordering = ('sorting_order', 'name')
 
+    filter_horizontal = ('exd', 'tech_docs', 'cert_docs')
 
-    def show_full_description_popup(self, request, pk):
-        logger.debug('Это отладочное сообщение show_full_description_popup (CableGlandModelLineAdmin)')
-        obj = self.get_object(request, pk)
-        full_description = obj.get_full_description()
+    fieldsets = (
+        (_('Общая информация'), {
+            'fields': (
+                ('name', 'code', 'brand', 'producer'),
+                ('equipment_type', 'ip'),
+                ('for_armored_cable', 'for_metal_sleeve_cable', 'for_pipelines_cable'),
+                ('thread_external', 'thread_internal'),
+                ('temp_min', 'temp_max'),
+            ),
+        }),
+        (_('Шаблоны названия, описания и артикула'), {
+            'fields': (
+                ('name_template', 'description_template'),
+                'model_item_code_template',
+            ),
+            'description': _('Шаблоны серии: {model_code}, {brand}, {thread}, '
+                             '{body_material} — по справочнику плейсхолдеров ниже.'),
+        }),
+        (_('ГОСТ, Описание'), {
+            'fields': ('gost', 'description'),
+        }),
+        (_('Медиа и документы'), {
+            'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
+        }),
+        (_('Настройки'), {
+            'fields': ('sorting_order', 'is_active', 'extra_params'),
+        }),
+    )
 
-        context = {
-            'full_description': full_description,
-            'object': obj,
-            'subtitle': 'Some subtitle value',  # Здесь добавляем subtitle
-        }
+    def exd_display(self, obj):
+        """Отображение взрывозащиты в списке (разделитель ' / ')."""
+        try:
+            items = list(obj.exd.all())
+        except Exception:
+            items = []
+        if not items:
+            return '-'
+        return ' / '.join(str(x) for x in items)
 
-        return render(request, 'admin/full_description_popup.html', context)
+    exd_display.short_description = _('Взрывозащита')
 
-    # def get_urls(self):
-    #     urls = super().get_urls()
-    #     custom_urls = [
-    #         path('show_description/<int:pk>/', self.show_full_description_popup),
-    #     ]
-    #     print("Свои URLs для CableGlandModelLineAdmin : ", custom_urls)  # Print custom URLs to verify
-    #     return custom_urls + urls
-
-    def get_urls(self) :
-        # Get the default admin URLs
-        urls = super().get_urls()
-
-        # Define custom URLs for your admin
-        custom_urls = [
-            path(
-                'show_description/<int:pk>/' ,  # URL pattern
-                self.show_full_description_popup ,  # View that handles the URL
-                name='show_full_description_popup' ,  # Optional name for the URL
-            ) ,
-        ]
-
-        # Combine custom URLs with the default admin URLs
-        return custom_urls + urls
+    def get_queryset(self, request):
+        """Оптимизация запросов списка серий."""
+        return super().get_queryset(request).select_related(
+            'brand', 'producer', 'ip', 'equipment_type',
+        ).prefetch_related('exd')

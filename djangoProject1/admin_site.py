@@ -193,10 +193,14 @@ ADMIN_MODEL_BLOCK = {
     ('gearbox', 'OverrideMechanism'): 'gearboxes',
     ('gearbox', 'TransmissionVariety'): 'gearboxes',
     # --- Кабельные вводы ---
+    ('cable_glands', 'CableGland'): 'cable_glands',
     ('cable_glands', 'CableGlandBody'): 'cable_glands',
     ('cable_glands', 'CableGlandBodyMaterial'): 'cable_glands',
     ('cable_glands', 'CableGlandItemType'): 'cable_glands',
+    ('cable_glands', 'CableGlandMetalSleeveBody'): 'cable_glands',
     ('cable_glands', 'CableGlandModelLine'): 'cable_glands',
+    ('cable_glands', 'CableGlandModelLineItem'): 'cable_glands',
+    ('cable_glands', 'MetalSleeve'): 'cable_glands',
     # --- БКВ ---
     ('pa_controls', 'LimitSwitchBox'): 'lsb',
     ('pa_controls', 'LimitSwitchBody'): 'lsb',

@@ -4,6 +4,17 @@ from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 
 class CableGlandItemType(models.Model):
+    """Тип кабельного ввода (справочник).
+
+    Исторический классификатор назначения изделия: кабельный ввод, адаптер,
+    заглушка, кольцо заземления и т.п. text_description — краткое обозначение,
+    использовавшееся в старых текстовых описаниях.
+
+    В текущей структуре серия (CableGlandModelLine) на этот справочник НЕ
+    ссылается — единственным типом серии является equipment_type
+    (core.EquipmentType, для SKU/каталога). Модель сохранена для данных;
+    решение об удалении или переносе признака на другую модель — открыто.
+    """
     text_description = models.CharField(max_length=200)
     name = models.CharField(max_length=255,
                             verbose_name=_("Название"),
@@ -26,6 +37,13 @@ class CableGlandItemType(models.Model):
 
 
 class CableGlandBodyMaterial( models.Model):
+    """Материал корпуса кабельного ввода (справочник).
+
+    name — название материала (латунь, нерж., никелированная сталь...),
+    code — символьный код для артикулов (body_material артикула CableGland:
+    path/name в реестре и code_path при автогенерации кода),
+    text_description — полное наименование для старых описаний.
+    """
     text_description = models.CharField(max_length=200)
     name = models.CharField(max_length=50,
                             verbose_name=_("Название"),

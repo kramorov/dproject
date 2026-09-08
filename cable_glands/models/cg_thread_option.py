@@ -10,7 +10,19 @@ from params.models import ThreadSizeThroughOption
 
 
 class CableGlandThreadOption(ThreadSizeThroughOption):
-    """Опции типов и размеров резьб для корпуса кабельного ввода"""
+    """Разрешённая резьба для корпуса кабельного ввода (через-модель).
+
+    Связывает корпус (CableGlandBody) со справочником ThreadSize (params):
+    перечень резьб (метрическая / NPT / G и т.п.), доступных для данного
+    корпуса. unique_together (cable_gland_body, thread_size) — каждая резьба
+    для корпуса задаётся один раз.
+
+    Поля inherited от ThreadSizeThroughOption/BaseThroughOption: thread_size,
+    encoding (кодировка опции — резерв для артикулов), is_default,
+    is_active, sorting_order. Отображается inline в админке корпуса
+    (CableGlandBodyAdmin); копируется вместе с корпусом
+    (CableGlandBody._copy_custom_relations).
+    """
     cable_gland_body = models.ForeignKey(
         'CableGlandBody',
         on_delete=models.CASCADE,

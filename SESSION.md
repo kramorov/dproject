@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-07. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-08. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо).
 
 ---
@@ -160,12 +160,101 @@
    и как списковые поля (`signals`/`sensors`) лягут в состав сборки. Результат — правки
    реестра и/или `template_mixin.md`.
 
+## 8. Кабельные вводы (cable_glands) — рефакторинг под каталог
+
+**Статус: модели + админки зафиксированы; миграция пересоздана, НЕ применена.**
+
+### Структура (3 уровня, паттерн пневмо/электроприводов)
+
+- **`CableGlandModelLine`** — серия: `ImageGalleryMixin, TechDocMixin, CertDocMixin,
+  EquipmentTypeMixin, CopyMixin, StructuredDataMixin`. Шаблоны `name_template` /
+  `description_template` / `model_item_code_template`. `equipment_type` — **единственный тип
+  на серии** (nullable, `SET_NULL` — переходный, ужесточить до PROTECT после заполнения;
+  FK `cable_gland_type` → `CableGlandItemType` **удалён**). `ip` — **одиночный FK**
+  (был M2M; эталон Posi). `exd` — M2M; **убран `default=1`** (это и был «баг Django»:
+  конструирование серии падало) и **убран raw-SQL обход** `exd_all/exd_*`. Удалены
+  `CableGlandMaterialOption` (копия резьбовой) и `get_full_description`.
+- **`CableGlandModelLineItem`** — «модель в серии»: `model_line`/`body`/
+  `metal_sleeve_body`/`weight`, `CopyMixin`. TemplateMixin НЕ наследует.
+- **`CableGland`** (`cg_actual.py`, была не зарегистрирована!) — **артикул каталога**:
+  `TemplateMixin, CopyMixin, ImageGalleryMixin, TechDocMixin, SKUMixin`. FK `model_line` →
+  серия (денормализуется из `model_line_item` в `save()`), `model_line_item`, `thread` →
+  `ThreadSize` (классом! строка `'ThreadSize'` без app_label не резолвилась), `body_material`.
+  `update_name/update_description` не затирают ручные name/description без кода и без
+  шаблона серии; `code` обязателен в админке до автогенерации (guard в
+  `CableGlandAdminForm`); временный `_get_data_dict` (будет заменён реестром). SKU —
+  `sync_sku()` в save.
+- Справочники: `CableGlandBody` (+ опции резьбы `CableGlandThreadOption`),
+  `CableGlandMetalSleeveBody` (+ M2M `MetalSleeve`), `CableGlandBodyMaterial`,
+  `CableGlandModelLineCertRelation`. `CableGlandItemType` **оставлен без потребителей**
+  (админка есть) — решить: удалить или перенести признак «ввод/адаптер/заглушка/кольцо».
+- Починены конфликты `related_name` (`cg_metal_sleeve_body_brand`, `cg_material_body`
+  [модель удалена], дублей больше нет).
+
+### Админки (cable_glands/admin) — все переписаны
+
+- `CopyMixin` на 5 моделях + `AdminCopyMixin` c `copy_selected_objects` на 5 админках:
+  `CableGlandModelLine`, `CableGlandModelLineItem`, `CableGlandBody`
+  (хук `_copy_custom_relations` дублирует `CableGlandThreadOption`),
+  `CableGlandMetalSleeveBody`, `CableGland`. M2M копируются `.set()`, `sku` сбрасывается.
+- Серия: `TemplatePlaceholdersAdminMixin` (`template_item_model=CableGland`,
+  `template_placeholders_fieldset=«Шаблоны названия, описания и артикула»`).
+- Удалён мёртвый `cg_item_admin.py` (импортировал несуществующий `CableGlandItem`);
+  добавлен `cg_actual_admin.py`; `MetalSleeve` и `CableGlandMetalSleeveBody` получили админки.
+
+### Миграции и БД
+
+- Цепочка `0001…0007` удалена (разошлась с моделями — не было RenameModel и т.п.),
+  **пересоздана `0001_initial.py`** (10 моделей).
+- **Применена 2026-09-08**: в dev-БД `db.sqlite3` удалены все старые таблицы
+  `cable_glands_*` (12 шт., включая `cableglanditem*`, M2M `ip`) и ОБЕ устаревшие
+  цепочки истории (старая `0002_remove…/0008_…` + `0002_metalsleeve…/0007_…`),
+  затем `migrate cable_glands --skip-checks` → `cable_glands.0001_initial` OK.
+  Данные cable_glands в dev-БД утеряны (дампы `cable_glands-02-26.json` — под старую
+  схему, не применимы) — нужен повторный ввод по новой структуре.
+- Живой смоук пройден: создание серии/корпуса/«модели в серии»/артикула, генерация
+  name из шаблона серии, денормализация `model_line` из `model_line_item`, SKU,
+  копирование артикула/серии/корпуса (с дублированием `CableGlandThreadOption`).
+
+- Внимание: у моделей, наследующих и `CopyMixin`, и `StructuredDataMixin`, `CopyMixin`
+  должен стоять РАНЬШЕ в bases (иначе побеждает `StructuredDataMixin.copy` без сохранения;
+  исправлено для `CableGlandBody`/`CableGlandMetalSleeveBody`).
+
+### Блокеры / остаток
+
+- **GraphQL убран (2026-09-08)**: root `djangoProject1/urls.py` больше не импортирует
+  `graphql_api.schema` и не монтирует `/graphql/`; `graphql_api/schema.py` очищен от
+  `cableGlandsSchema`; удалены legacy-файлы cable_glands: `graphql/*`, `serializers.py`,
+  `views.py`, `urls.py` (были мёртвыми ссылками на `CableGlandItem`).
+  `manage.py check` → **System check identified no issues** (runserver/check разблокированы).
+- L1–L4 закрыты: `get_temp_range_display`/`get_cable_diameter_display` не выводят `None`
+  (диаметр фильтрует нули-дефолты); дефолтные шаблоны name/description без висячих
+  разделителей; `CableGland.code` — `unique=True` (миграция 0003 применена; дубликат кода
+  → IntegrityError).
+- **Шаг 3 — РЕЕСТР ГОТОВ**: `cable_glands/models/cg_item_fields.py`
+  (`CG_ITEM_TEMPLATE_FIELDS`); артикул переведён на `CatalogSerializerMixin` +
+  `SmartCatalogMixin`; `NAME/CODE/VARS/SPEC_FIELD_KEYS`, `SPEC_GROUP_TITLES`;
+  временный `_get_data_dict` удалён; **автогенерация артикула активна**
+  (`model_item_code_template` серии + encodings `thread__code`/`body_material__code`/
+  `model_line_item__code`; пример: `ABRA.DN100.NPT-1_4.BR`); display-свойства
+  `get_exd_display/get_cable_diameter_display/get_temp_range_display/
+  get_cable_flags_display`; `required_model_line_fields` включает
+  `model_item_code_template`; guard «код обязателен» в админке снят.
+  Миграция `0002_alter_...` применена (help_text/verbose); дальнейших изменений
+  модели нет (`makemigrations --check` — No changes).
+- **Поиск** по `thread/exd/ip/⌀ кабеля/флагам/temp/brand` — позже (анализ проведён:
+  нужен плоский артикул, thread-кодировки, exd через денормализованную M2M на артикуле).
+- Ограничение копирования: повторное копирование → одинаковый код «X Копия» → конфликт
+  SKU; при необходимости — перебор суффиксов как у Posi.
+
 ---
 
-## 8. Как продолжить с другой машины
+## 9. Как продолжить с другой машины
 
 - `git pull`/переключение ветки; зависимости не менялись.
 - Миграции применены (`manage.py migrate` — no-op); dev-БД — `db.sqlite3`.
+  cable_glands: применена свежая `0001_initial` (2026-09-08), старые данные
+  приложения в dev-БД утеряны.
 - Фронт: при необходимости `npm --prefix frontend run build`.
 - Проверки: `manage.py check` + смоук-скрипты (тест-БД не работает, см. п. 6).
 - Документация контракта: `template_mixin.md`.

@@ -14,8 +14,11 @@ from params.exd_models import ExdOption
 
 
 class CableGlandModelLineCertRelation(AbstractCertRelation) :
-    """
-    Связь сертификатов с сериями пневмоприводов.
+    """Связь сертификатов (cert_doc) с серией кабельных вводов.
+
+    Через-модель M2M «серия ↔ сертификаты»: поле cert_docs серии
+    CableGlandModelLine (добавляется CertDocMixin) строится на этой связи.
+    unique_together (cert_data, model_line) — один сертификат на серию один раз.
     """
     model_line = models.ForeignKey(
         CableGlandModelLine ,  # Замените на реальный путь к модели Project

@@ -4,17 +4,53 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 # from typing import List, Optional, Tuple, Any, Dict, Union
 
-from core.models import StructuredDataMixin
-from producers.models import Brands
+from core.models import StructuredDataMixin, ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
+from core.models.cert_doc_mixin import CertDocMixin
+from core.models.mixins import CopyMixin
+from producers.models import Brands, Producer
 
 from params.models import IpOption
 from params.exd_models import ExdOption
 
 
-class CableGlandModelLine(StructuredDataMixin, models.Model):
-    """
-    Description - Описание Кабельные вводы для всех типов гибкого кабеля круглого сечения, осна-
-                    щенные фитингом с трубной резьбой
+class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
+                          EquipmentTypeMixin, CopyMixin,
+                          StructuredDataMixin, models.Model):
+    """Серия кабельных вводов (model line) — «семейство» изделий.
+
+    Роль в иерархии каталога:
+
+        CableGlandModelLine (серия)                  ← эта модель
+          └─ CableGlandModelLineItem («модель в серии»: корпус + крепление МР + вес)
+               └─ CableGland (артикул каталога: + резьба + материал корпуса)
+
+    На серии живут ОБЩИЕ атрибуты (наследуются всеми артикулами):
+      * brand / producer — бренд и производитель;
+      * equipment_type — тип оборудования (для SKU/каталога; единственный тип
+        на серии, переходно nullable — ужесточить до PROTECT после заполнения);
+      * ip — степень защиты IP (одиночный FK на params.IpOption, эталон Posi);
+      * exd — виды взрывозащиты (M2M на params.ExdOption);
+      * for_armored_cable / for_metal_sleeve_cable / for_pipelines_cable — тип
+        кабеля, для которого предназначена серия;
+      * thread_external / thread_internal — исполнение резьбы присоединения;
+      * temp_min / temp_max — диапазон рабочей температуры окружающей среды;
+      * gost — соответствие ГОСТ/ТУ/стандартам; extra_params — прочие (JSON).
+
+    Размерная геометрия и варианты резьб относятся НЕ к серии, а к корпусу
+    (CableGlandBody) и «модели в серии» (CableGlandModelLineItem) — см. их
+    докстринги.
+
+    Шаблоны текста каталога (контракт TemplateMixin, template_mixin.md):
+      * name_template / description_template — шаблоны названия и описания
+        артикулов (CableGland);
+      * model_item_code_template — шаблон автогенерации артикула (code).
+    Плейсхолдеры берутся из реестра CableGland.TEMPLATE_FIELDS
+    (cg_item_fields.py); в админке серии их показывает
+    TemplatePlaceholdersAdminMixin.
+
+    Миксины: ImageGalleryMixin / TechDocMixin / CertDocMixin /
+    EquipmentTypeMixin (медиа, документация, сертификаты, тип оборудования),
+    CopyMixin (копирование серии вместе с M2M-связями) и StructuredDataMixin.
     """
     name = models.CharField(max_length=200,
                             verbose_name=_("Название"),
@@ -27,19 +63,37 @@ class CableGlandModelLine(StructuredDataMixin, models.Model):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
-
-
+    name_template = models.TextField(blank=True, null=True,
+                                     verbose_name=_("Шаблон названия"),
+                                     help_text=_('Шаблон для текстового названия серии КВ'))
+    description_template = models.TextField(blank=True, null=True,
+                                            verbose_name=_("Шаблон описания"),
+                                            help_text=_('Шаблон для описания КВ'))
+    model_item_code_template = models.CharField(
+        max_length=500, blank=True, null=True,
+        verbose_name=_("Шаблон артикула"),
+        help_text=_('Шаблон артикула'),
+    )
+    producer = models.ForeignKey(Producer, related_name='cg_model_line_producer', blank=True,
+                                 null=True, on_delete=models.SET_NULL,
+                                 help_text=_('Производитель КВ'),
+                                 verbose_name=_("Производитель"))
     brand = models.ForeignKey(Brands, blank=True, null=True, on_delete=models.SET_NULL, verbose_name=_("Бренд"),
-                              related_name='cable_gland_brand', help_text=_('Бренд (производитель) кабельных вводов'))
-    cable_gland_type = models.ForeignKey(
-        'CableGlandItemType',
+                              help_text=_('Бренд (производитель) КВ'))
+    # Переопределение EquipmentTypeMixin: на переходный период поле
+    # необязательное (SET_NULL); после заполнения данных — ужесточить
+    # до PROTECT/обязательного (эталон: PosiModelLine).
+    equipment_type = models.ForeignKey(
+        'core.EquipmentType',
         blank=True, null=True, on_delete=models.SET_NULL,
-        verbose_name=_("Тип"),
-        related_name='cable_gland_type', help_text=_('Тип КВ'))
-    ip = models.ManyToManyField(IpOption, blank=True, default=1, related_name='cable_gland_model_line_ip',
-                                verbose_name=_("IP"),
-                                help_text=_('Степень защиты IP (можно выбрать несколько)'))
-    exd = models.ManyToManyField(ExdOption, blank=True, default=1, verbose_name=_("Взрывозащита"),
+        limit_choices_to={'is_active': True},
+        verbose_name=_("Тип оборудования"),
+        help_text=_('Тип оборудования для SKU/каталога'))
+    ip = models.ForeignKey(IpOption, blank=True, null=True, on_delete=models.SET_NULL,
+                           related_name='cable_gland_model_line_ip',
+                           verbose_name=_("IP"),
+                           help_text=_('Степень защиты IP'))
+    exd = models.ManyToManyField(ExdOption, blank=True, verbose_name=_("Взрывозащита"),
                                  related_name='cable_gland_model_line_exd', help_text=_('Тип взрывозащиты'))
     for_armored_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Бронированный кабель"),
                                             help_text=_('Для бронированного кабеля'))
@@ -57,62 +111,14 @@ class CableGlandModelLine(StructuredDataMixin, models.Model):
                                         help_text=_('Максимальная температура окружающей среды'))
     gost = models.CharField(max_length=1000, blank=True, null=True, verbose_name=_("ГОСТ"),
                             help_text=_('Соответствие ГОСТ, ТУ, другим стандартам - перечень'))
-
-    def get_full_description(self):
-        result_table = []
-        # result_table.extend([
-        #     {'param_name': 'description',
-        #      'param_text': 'Описание', 'param_value': '' + self.description + ' Производитель:' + self.brand.name},
-        #     {'param_name': 'ip',
-        #      'param_text': 'Исполнение IP', 'param_value': \
-        #          ' / '.join([ip.code for ip in sorted(self.ip.all(), key=lambda ip: ip.code)])},
-        #     {'param_name': 'exd',
-        #      'param_text': 'Взрывозащита', 'param_value': ' / '.join(
-        #         [exd.description for exd in sorted(self.exd.all(), key=lambda exd: exd.description)])},
-        #     {'param_name': 'gost',
-        #      'param_text': 'Соответствие ГОСТ, ТУ, другим стандартам', 'param_value': self.gost},
-        # ])
-        return result_table
+    extra_params = models.JSONField(default=dict, blank=True,
+                                    verbose_name=_("Параметры"),
+                                    help_text=_("Дополнительные параметры серии"))
 
     class Meta:
         verbose_name = _("Серия кабельных вводов")
         verbose_name_plural = _("Серии кабельных вводов")
         ordering = ['sorting_order']
-
-    # --- Обход бага Django: M2M к ExdOption (.all/.exists/.set не работают) ---
-    @property
-    def exd_all(self):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute(
-                'SELECT exdoption_id FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s',
-                [self.pk]
-            )
-            ids = [r[0] for r in c.fetchall()]
-        return ExdOption.objects.filter(id__in=ids) if ids else ExdOption.objects.none()
-
-    def exd_exists(self):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute(
-                'SELECT 1 FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s LIMIT 1',
-                [self.pk]
-            )
-            return c.fetchone() is not None
-
-    def exd_get_ids(self):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute('SELECT exdoption_id FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s', [self.pk])
-            return [r[0] for r in c.fetchall()]
-
-    def exd_set_ids(self, exd_ids):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute('DELETE FROM cable_glands_cableglandmodelline_exd WHERE cableglandmodelline_id = %s', [self.pk])
-            for eid in exd_ids:
-                c.execute('INSERT INTO cable_glands_cableglandmodelline_exd (cableglandmodelline_id, exdoption_id) VALUES (%s, %s)', [self.pk, eid])
-    # --- конец обхода ---
 
     def __str__(self):
         return self.code
