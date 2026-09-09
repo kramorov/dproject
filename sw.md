@@ -2,7 +2,81 @@
 
 > Создано 2026-07-30.  
 > Описывает бэкенд и фронтенд мастера пошагового подбора оборудования.
-> Обновлено 2026-08-24 (см. раздел 10).
+> Обновлено 2026-08-24 (см. раздел 10).  
+> Обновлено 2026-09-09: QuestionGraph восстановлен и снова основной мастер — см. раздел 0.
+
+---
+
+## 0. Зачем QuestionGraph и где используется (актуально на 2026-09-09)
+
+**QuestionGraph — основной мастер подбора** для всех пяти каталогов
+(`pneumatic-fittings`, `limit-switch`, `solenoid-valves`, `filter-regulator`, `gearbox`).
+
+### Зачем он нужен
+
+QuestionGraph решает задачу **пошагового подбора с ветвлениями по ответам**:
+последовательность вопросов, в которой следующий вопрос зависит от выбранного ответа
+(branch-узлы). Плоский `SelectionWizard` (шаги из `steps_json`) ветвлений не умеет —
+он остаётся fallback'ом (`type: 'flat'`) для каталогов, у которых нет графа.
+
+Граф дополнительно даёт то, чего нет в плоском мастере:
+- **ветвление по ответу**: у фитингов тип 17 «трубка-резьба» → параметры трубки,
+  иначе → параметры резьбы; у БКВ — по типу датчика;
+- **название + описание каждой опции** (radio-кнопки с описанием);
+- **подстраницы** (`pages`) внутри узла и **`default_value`** (авто-выбор опции).
+
+### Где используется
+
+Бэкенд:
+- `core/models/question_graph.py` — модель и логика обхода графа
+  (`get_entry_node`, `get_next_node`, `_get_next_node_id`, `resolve_path`);
+- `core/question_graph_views.py` — API: `QuestionGraphConfigView`, `AdvanceView`,
+  `ResultsView`, `AdminListView`/`AdminDetailView`, `ToWizardView` (конвертер
+  граф → плоский мастер), `VisibleParamsView` и `CatalogWizardAdapterView`
+  (единая точка входа каталогов: отдаёт `type: 'graph'`, если граф есть);
+- `core/urls.py` — маршруты `question-graph/*` и `catalog-wizard/<code>/`;
+- `core/management/commands/load_question_graph.py` — сид: пересоздаёт графы
+  для всех 5 каталогов (`pneumatic_fittings`, `lsb`, `directional-valve`, `fr`,
+  `manual-override`); это единственный источник данных графов;
+- `core/tests/test_question_graph_options.py` — тесты опций графового мастера.
+
+Фронтенд:
+- `useCatalogWizard.js` — вызывается каждым каталогом при загрузке
+  (`GET /core/catalog-wizard/<code>/`); при `type: 'graph'` вкладка мастера ведёт
+  в графовый мастер;
+- `QuestionGraphWizard.vue` — сам мастер (radio-шаги, авто-переход branch),
+  подключён во всех 5 `App.vue` (ветка `page === 'graph'`);
+- `QuestionGraphAdmin.vue` — админка графов (роуты `/admin/question-graph`
+  и `/admin/wizard-config`);
+- `QuestionGraphFlow.vue` + `PageNode.vue`/`BranchNode.vue`/`PageNodeForm.vue`/
+  `BranchNodeForm.vue` — визуальный редактор графа (Vue Flow);
+- `QuestionGraphDemo.vue` — демо `/demo/question-graph`.
+
+### Инцидент 2026-09-08: таблица удалена по ошибке, 09-09 восстановлена
+
+- 2026-09-08: в коммит «cg rewritten» попала миграция `0012_delete_questiongraph`
+  (сгенерирована Django в 11:40). Таблица `core_questiongraph` была удалена,
+  хотя код графа не трогали: все `question-graph/*`-эндпоинты отдавали 500
+  (`OperationalError` не ловился — в коде только `except DoesNotExist`),
+  а фронт молча падал в плоский мастер (try/catch в `onMounted` каталогов).
+- 2026-09-09: восстановлено — `core/migrations/0013_questiongraph.py`
+  (CreateModel после `0012`) применена, `load_question_graph` пересоздал 5 графов.
+  `/api/core/catalog-wizard/<code>/` снова отдаёт `type: 'graph'`,
+  `makemigrations --check` чистый.
+
+### ЛОВУШКА makemigrations (как появилась 0012)
+
+`QuestionGraph` **не экспортируется** из `core/models/__init__.py` — модель регистрируется
+в реестре Django только через побочный импорт URLconf (`djangoProject1/urls.py` →
+`core/urls.py` → `core/question_graph_views.py`). Следствия:
+
+- `python manage.py makemigrations` — системные проверки импортируют URLconf →
+  модель видна → миграции генерируются корректно.
+- **`call_command('makemigrations')` из шелла/скрипта/консоли IDE — НЕЛЬЗЯ**:
+  по умолчанию `skip_checks=True`, URLconf не импортируется, модель «не видна»,
+  и autodetector генерирует `DeleteModel QuestionGraph` — так и родилась `0012`.
+- Правило: makemigrations запускать только через `manage.py`
+  (или с явным `skip_checks=False`).
 
 ---
 
@@ -38,7 +112,7 @@
 - **branch-узел**: `name`, `param_name`, `match_values`, `match_target`, `else_target`
 - **`_get_next_node_id`**: branch проверяет match_values; page: next_node → edges
 
-### 2.2 `SelectionWizard` — устарел
+### 2.2 `SelectionWizard` — плоский fallback (для каталогов без графа)
 
 ## 3. Бэкенд API
 

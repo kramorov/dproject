@@ -61,6 +61,13 @@ class CableGlandModelLineItem(CopyMixin, models.Model):
         'CableGlandMetalSleeveBody', blank=True, null=True,
         on_delete=models.SET_NULL,
         verbose_name=_("Крепление МР"), help_text=_('Модель устройства для подключения металлорукава'))
+    cable_diameter_outer_min = models.DecimalField(max_digits = 5, decimal_places =1, default=0, blank=True, null=True,  verbose_name=_("Мин внешний диаметр (броня)"),
+                                                            help_text='Минимальный внешний диаметр обжимаемого кабеля (Здесь '
+                                                                      'указываем значения для бронирования)')
+    cable_diameter_outer_max = models.DecimalField(max_digits = 5, decimal_places =1, default=0, blank=True, null=True, verbose_name=_("Макс внешний диаметр (броня)"),
+                                                            help_text='Максимальный внешний диаметр обжимаемого кабеля (Здесь '
+                                                                      'указываем значения для бронирования)')
+    
     weight =models.DecimalField(max_digits = 5, decimal_places =3, default=0, blank=True, null=True, verbose_name=_("Вес,кг"),
                                                 help_text='Вес,кг')
     # cable_gland_body_material = models.ForeignKey(

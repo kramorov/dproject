@@ -131,6 +131,10 @@
   пока не запускалась (кроме FR: 0 изменений).
 - `ai/ai` (JSON-артефакт лога сессий) отслеживается git → мусорный diff; желательно
   добавить в `.gitignore`.
+- **Ловушка makemigrations + QuestionGraph** (подробно: `sw.md` §0): модель регистрируется
+  только через импорт URLconf; `call_command('makemigrations')` из шелла (по умолчанию
+  `skip_checks=True`) «не видит» модель и генерирует `DeleteModel` — так появилась
+  `0012_delete_questiongraph` (2026-09-08). Макмиграции запускать только через `manage.py`.
 
 ---
 
@@ -159,21 +163,15 @@
    сборки/позиций; определить, какие `key`/`group`/`type` должны быть общими (EquipmentType)
    и как списковые поля (`signals`/`sensors`) лягут в состав сборки. Результат — правки
    реестра и/или `template_mixin.md`.
-8. **Фикс 500 на `/api/core/catalog-wizard/<code>/`** — `CatalogWizardAdapterView`
-   (`core/question_graph_views.py:541`) сначала дёргает `QuestionGraph.objects.get(...)`,
-   но таблица `core_questiongraph` удалена миграцией `0012_delete_questiongraph`
-   (вылетает `OperationalError`, а не `DoesNotExist` → 500). Все 5 каталогов уже работают
-   через `SelectionWizard` (активные строки: `lsb`, `directional-valve`, `manual-override`,
-   `fr`, `fittings`). Сделать: убрать graph-ветку из адаптера, оставить только
-   `_flat_config` (SelectionWizard) — тогда `/catalog-wizard/<code>/` вернёт `type: 'flat'`.
-9. **Полная зачистка QuestionGraph** (старая схема, заменена SelectionWizard): модель
-   `core/models/question_graph.py`, `core/question_graph_views.py`, роуты `question-graph/*`
-   и `catalog-wizard/*` в `core/urls.py`, команда `core/management/commands/load_question_graph.py`,
-   тест `core/tests/test_question_graph_options.py`; фронт: `QuestionGraphWizard.vue`,
-   `QuestionGraphAdmin.vue`, `QuestionGraphDemo.vue`, `BranchNodeForm.vue`, а также graph-ветки
-   в 5 каталогах (`graphAvailable`/`page==='graph'`/`QuestionGraphWizard` в App.vue) и
-   `useCatalogWizard.js` — перевести на flat-only. Миграцию `0012_delete_questiongraph`
-   оставить как есть (таблица уже удалена).
+8. **Закрыто 2026-09-09 — восстановлением QuestionGraph** (было: фикс 500 на
+   `/api/core/catalog-wizard/<code>/`): применена `core/migrations/0013_questiongraph.py`
+   (CreateModel после `0012`), `load_question_graph` пересоздал 5 графов
+   (`pneumatic_fittings`, `lsb`, `directional-valve`, `fr`, `manual-override`);
+   адаптер снова отдаёт `type: 'graph'`, 500 ушёл, `makemigrations --check` чистый.
+   Подробности и ловушка makemigrations: `sw.md` §0.
+9. ~~Полная зачистка QuestionGraph~~ — **отменено 2026-09-09**: QuestionGraph восстановлен
+   (см. п. 8) и остаётся основным мастером; плоский `SelectionWizard` — fallback.
+   Зачем нужен граф и где используется: `sw.md` §0.
 
 ## 8. Кабельные вводы (cable_glands) — рефакторинг под каталог
 
@@ -273,6 +271,8 @@
 - Миграции применены (`manage.py migrate` — no-op); dev-БД — `db.sqlite3`.
   cable_glands: применена свежая `0001_initial` (2026-09-08), старые данные
   приложения в dev-БД утеряны.
+- QuestionGraph: `manage.py migrate core` (применит `0013_questiongraph`) + сид
+  `manage.py load_question_graph` (пересоздаёт 5 графов для 5 каталогов).
 - Фронт: при необходимости `npm --prefix frontend run build`.
 - Проверки: `manage.py check` + смоук-скрипты (тест-БД не работает, см. п. 6).
 - Документация контракта: `template_mixin.md`.

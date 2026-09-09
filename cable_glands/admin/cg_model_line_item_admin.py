@@ -27,10 +27,10 @@ class CableGlandModelLineItemAdmin(AdminCopyMixin, admin.ModelAdmin):
     fieldsets = (
         (_('Общая информация'), {
             'fields': (
-                'model_line',
+                ('model_line','name', 'code'),
                 ('body', 'metal_sleeve_body'),
                 'weight',
-                ('name', 'code'),
+                ('cable_diameter_outer_min','cable_diameter_outer_max'),
                 'description',
             ),
         }),
