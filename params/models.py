@@ -4,7 +4,7 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
-from core.models.mixins import StructuredDataMixin, OptionListToSelectMixin
+from core.models.mixins import StructuredDataMixin, OptionListToSelectMixin, CopyMixin
 from options.models import BaseThroughOption
 
 from .exd_models import ExdOption,  TemperatureClass, ExplosionProtectionType, \
@@ -940,7 +940,7 @@ class MeasureUnits(models.Model):
         return self.name
 
 
-class ThreadSize(models.Model, OptionListToSelectMixin):
+class ThreadSize(models.Model, CopyMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа и размера резьбы")

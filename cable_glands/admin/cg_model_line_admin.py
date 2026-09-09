@@ -5,7 +5,28 @@ from django.utils.translation import gettext_lazy as _
 from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from core.models.mixins import AdminCopyMixin
 
-from cable_glands.models import CableGland, CableGlandModelLine
+from cable_glands.models import CableGland, CableGlandModelLine, CableGlandBodyMaterialOption, CableGlandExdOption
+
+
+class CableGlandBodyMaterialOptionInline(admin.TabularInline):
+    """Inline опций материала корпуса (through-таблица CableGlandModelLine в†” CableGlandBodyMaterial)."""
+    model = CableGlandBodyMaterialOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['body_material', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    verbose_name = _("Опция материала корпуса")
+    verbose_name_plural = _("Опции материала корпуса")
+
+
+class CableGlandExdOptionInline(admin.TabularInline):
+    """Inline опций взрывозащиты (through-строка CableGlandModelLine в†” ExdOption)."""
+    model = CableGlandExdOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['exd_options', 'encoding', 'is_default', 'sorting_order', 'is_active']
+    filter_horizontal = ['exd_options']
+    verbose_name = _("Опция взрывозащиты")
+    verbose_name_plural = _("Опции взрывозащиты")
 
 
 @admin.register(CableGlandModelLine)
@@ -33,7 +54,9 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
     search_fields = ('name', 'code', 'brand__name')
     ordering = ('sorting_order', 'name')
 
-    filter_horizontal = ('exd', 'tech_docs', 'cert_docs')
+    filter_horizontal = ('tech_docs', 'cert_docs')
+
+    inlines = [CableGlandBodyMaterialOptionInline, CableGlandExdOptionInline]
 
     fieldsets = (
         (_('Общая информация'), {
@@ -67,9 +90,12 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
     def exd_display(self, obj):
         """Отображение взрывозащиты в списке (разделитель ' / ')."""
         try:
-            items = list(obj.exd.all())
+            row = CableGlandExdOption.get_effective_row(parent_id=obj.pk)
         except Exception:
-            items = []
+            row = None
+        if row is None:
+            return '-'
+        items = list(row.exd_options.all())
         if not items:
             return '-'
         return ' / '.join(str(x) for x in items)
@@ -80,4 +106,4 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
         """Оптимизация запросов списка серий."""
         return super().get_queryset(request).select_related(
             'brand', 'producer', 'ip', 'equipment_type',
-        ).prefetch_related('exd')
+        ).prefetch_related('exd_options__exd_options')

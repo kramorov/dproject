@@ -10,7 +10,6 @@ from core.models.mixins import CopyMixin
 from producers.models import Brands, Producer
 
 from params.models import IpOption
-from params.exd_models import ExdOption
 
 
 class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
@@ -29,7 +28,7 @@ class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
       * equipment_type — тип оборудования (для SKU/каталога; единственный тип
         на серии, переходно nullable — ужесточить до PROTECT после заполнения);
       * ip — степень защиты IP (одиночный FK на params.IpOption, эталон Posi);
-      * exd — виды взрывозащиты (M2M на params.ExdOption);
+      * exd — виды взрывозащиты (through-строка CableGlandExdOption: кодировка + M2M ExdOption);
       * for_armored_cable / for_metal_sleeve_cable / for_pipelines_cable — тип
         кабеля, для которого предназначена серия;
       * thread_external / thread_internal — исполнение резьбы присоединения;
@@ -93,8 +92,6 @@ class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
                            related_name='cable_gland_model_line_ip',
                            verbose_name=_("IP"),
                            help_text=_('Степень защиты IP'))
-    exd = models.ManyToManyField(ExdOption, blank=True, verbose_name=_("Взрывозащита"),
-                                 related_name='cable_gland_model_line_exd', help_text=_('Тип взрывозащиты'))
     for_armored_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Бронированный кабель"),
                                             help_text=_('Для бронированного кабеля'))
     for_metal_sleeve_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Металлорукав"),

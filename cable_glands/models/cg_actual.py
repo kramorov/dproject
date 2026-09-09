@@ -207,15 +207,18 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     @property
     def get_exd_display(self) -> str:
-        """Взрывозащита серии (M2M) — через ' / '."""
+        """Взрывозащита серии из through-строки (CableGlandExdOption) — через ' / '."""
         if not self.model_line_id:
             return ''
+        from .cg_exd_option import CableGlandExdOption
         try:
-            qs = self.model_line.exd.all()
+            row = CableGlandExdOption.get_effective_row(parent_id=self.model_line_id)
         except Exception:
             return ''
+        if row is None:
+            return ''
         items = []
-        for x in qs:
+        for x in row.exd_options.all():
             items.append(x.code or x.name or x.description or str(x))
         return ' / '.join(items)
 

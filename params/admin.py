@@ -4,6 +4,8 @@ from django.utils.translation import gettext_lazy as _
 from django import forms
 import json
 
+from core.models.mixins import AdminCopyMixin
+
 from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
     EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
     ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
@@ -412,10 +414,11 @@ class ThreadTypesAdmin(admin.ModelAdmin):
     ordering = ['sorting_order']
 
 
-class ThreadSizeAdmin(admin.ModelAdmin):
+class ThreadSizeAdmin(AdminCopyMixin, admin.ModelAdmin):
     list_display = ['id', 'name', 'code', 'sorting_order', 'is_active']
     list_editable = ['name', 'code', 'sorting_order', 'is_active']
     ordering = ['sorting_order']
+    actions = ['copy_selected_objects']
 
 
 class SafetyPositionOptionAdmin(admin.ModelAdmin):

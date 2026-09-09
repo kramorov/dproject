@@ -55,6 +55,9 @@ class CableGlandBody(CopyMixin, StructuredDataMixin, models.Model):
         verbose_name_plural = _("Корпуса кабельных вводов")
         ordering = ['sorting_order']
 
+    def __str__(self):
+        return self.name
+
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'cable_gland_body'
@@ -116,6 +119,9 @@ class CableGlandMetalSleeveBody(CopyMixin, StructuredDataMixin, models.Model):
         verbose_name = _("Устройство для подключения металлорукава")
         verbose_name_plural = _("Устройства для подключения металлорукава")
         ordering = ['sorting_order']
+
+    def __str__(self):
+        return self.name
 
     @property
     def metal_sleeve_display(self):

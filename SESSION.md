@@ -159,10 +159,25 @@
    сборки/позиций; определить, какие `key`/`group`/`type` должны быть общими (EquipmentType)
    и как списковые поля (`signals`/`sensors`) лягут в состав сборки. Результат — правки
    реестра и/или `template_mixin.md`.
+8. **Фикс 500 на `/api/core/catalog-wizard/<code>/`** — `CatalogWizardAdapterView`
+   (`core/question_graph_views.py:541`) сначала дёргает `QuestionGraph.objects.get(...)`,
+   но таблица `core_questiongraph` удалена миграцией `0012_delete_questiongraph`
+   (вылетает `OperationalError`, а не `DoesNotExist` → 500). Все 5 каталогов уже работают
+   через `SelectionWizard` (активные строки: `lsb`, `directional-valve`, `manual-override`,
+   `fr`, `fittings`). Сделать: убрать graph-ветку из адаптера, оставить только
+   `_flat_config` (SelectionWizard) — тогда `/catalog-wizard/<code>/` вернёт `type: 'flat'`.
+9. **Полная зачистка QuestionGraph** (старая схема, заменена SelectionWizard): модель
+   `core/models/question_graph.py`, `core/question_graph_views.py`, роуты `question-graph/*`
+   и `catalog-wizard/*` в `core/urls.py`, команда `core/management/commands/load_question_graph.py`,
+   тест `core/tests/test_question_graph_options.py`; фронт: `QuestionGraphWizard.vue`,
+   `QuestionGraphAdmin.vue`, `QuestionGraphDemo.vue`, `BranchNodeForm.vue`, а также graph-ветки
+   в 5 каталогах (`graphAvailable`/`page==='graph'`/`QuestionGraphWizard` в App.vue) и
+   `useCatalogWizard.js` — перевести на flat-only. Миграцию `0012_delete_questiongraph`
+   оставить как есть (таблица уже удалена).
 
 ## 8. Кабельные вводы (cable_glands) — рефакторинг под каталог
 
-**Статус: модели + админки зафиксированы; миграция пересоздана, НЕ применена.**
+**Статус: модели + админки зафиксированы; миграции 0001–0005 применены (2026-09-09).**
 
 ### Структура (3 уровня, паттерн пневмо/электроприводов)
 
@@ -171,8 +186,11 @@
   `description_template` / `model_item_code_template`. `equipment_type` — **единственный тип
   на серии** (nullable, `SET_NULL` — переходный, ужесточить до PROTECT после заполнения;
   FK `cable_gland_type` → `CableGlandItemType` **удалён**). `ip` — **одиночный FK**
-  (был M2M; эталон Posi). `exd` — M2M; **убран `default=1`** (это и был «баг Django»:
-  конструирование серии падало) и **убран raw-SQL обход** `exd_all/exd_*`. Удалены
+  (был M2M; эталон Posi). `exd` — **through-модель `CableGlandExdOption`**
+  (`BaseM2MExdThroughOption`: кодировка + M2M видов; 2026-09-09 заменил старый M2M `exd`).
+  Материал корпуса — **through-модель `CableGlandBodyMaterialOption`** (`BaseThroughOption`:
+  `model_line` + `body_material` + `encoding`, `unique_together` model_line/body_material/encoding;
+  inline в админке серии). Удалены
   `CableGlandMaterialOption` (копия резьбовой) и `get_full_description`.
 - **`CableGlandModelLineItem`** — «модель в серии»: `model_line`/`body`/
   `metal_sleeve_body`/`weight`, `CopyMixin`. TemplateMixin НЕ наследует.
