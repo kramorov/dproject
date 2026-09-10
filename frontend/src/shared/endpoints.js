@@ -108,6 +108,15 @@ export const ENDPOINTS = {
     modelLineItems: (mlId) => `/electric_actuators/constructor/model-lines/${mlId}/items/`,
   },
 
+  cgConstructor: {
+    list: '/cable-glands/constructor/',
+    detail: (id) => `/cable-glands/constructor/${id}/`,
+    options: '/cable-glands/constructor/options/',
+    preview: '/cable-glands/constructor/preview/',
+    modelLines: '/cable-glands/constructor/model-lines/',
+    modelLineItems: (mlId) => `/cable-glands/constructor/model-lines/${mlId}/items/`,
+  },
+
   eaAdmin: {
     matrix: '/electric_actuators/admin/power-supply-matrix/',
     exportMatrix: '/electric_actuators/admin/power-supply-matrix/export/',

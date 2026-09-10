@@ -45,10 +45,11 @@ class CableGlandAdmin(AdminCopyMixin, admin.ModelAdmin):
 
     list_display = (
         'code', 'name', 'model_line', 'model_line_item',
-        'thread', 'body_material', 'sku', 'sorting_order', 'is_active',
+        'thread_option', 'body_material_option', 'exd_option',
+        'sku', 'sorting_order', 'is_active',
     )
     list_editable = ('sorting_order', 'is_active')
-    list_filter = ('is_active', 'model_line', 'body_material')
+    list_filter = ('is_active', 'model_line', 'body_material_option')
     search_fields = ('code', 'name', 'description', 'model_line__name', 'sku__code')
     ordering = ('sorting_order', 'code')
 
@@ -63,8 +64,9 @@ class CableGlandAdmin(AdminCopyMixin, admin.ModelAdmin):
             'fields': (
                 'model_line',
                 'model_line_item',
-                'thread',
-                'body_material',
+                'thread_option',
+                'body_material_option',
+                'exd_option',
                 ('code', 'name', 'description'),
             ),
         }),
@@ -80,5 +82,7 @@ class CableGlandAdmin(AdminCopyMixin, admin.ModelAdmin):
         """Оптимизация запросов списка артикулов."""
         return super().get_queryset(request).select_related(
             'model_line', 'model_line_item', 'model_line_item__body',
-            'model_line_item__metal_sleeve_body', 'thread', 'body_material', 'sku',
+            'model_line_item__metal_sleeve_body',
+            'thread_option__thread_size', 'body_material_option__body_material',
+            'exd_option', 'sku',
         )

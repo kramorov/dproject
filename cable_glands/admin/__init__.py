@@ -4,4 +4,5 @@ from .cg_dicts_admin import *
 from .cg_model_line_admin import *
 from .cg_model_line_item_admin import *
 from .cg_actual_admin import *
+from .cg_constructor_admin import *
 from .metal_sleeve_admin import *

@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-08. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-10. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо).
 
 ---
@@ -26,10 +26,11 @@
   `code_path` для автогенерации артикула). Реестры — в `*_fields.py` рядом с моделями.
   На ручном `_get_data_dict()` осталась `SensorComponent`.
 
-**Модели на контракте** (8 активных): `DirectionValve`, `LimitSwitchBox`, `PosiModelLineItem`,
-`FilterRegulator`, `GearBox`, `PneumaticFitting`, `PneumaticActuatorItem`, `SensorComponent`
-(шаблон с опции `variety`). У `SensorComponent` — ручной `_get_data_dict`; у остальных
-семи словари выводятся из `TEMPLATE_FIELDS`.
+**Модели на контракте** (9 активных): `DirectionValve`, `LimitSwitchBox`, `PosiModelLineItem`,
+`FilterRegulator`, `GearBox`, `PneumaticFitting`, `PneumaticActuatorItem`, `CableGland`,
+`SensorComponent` (шаблон с опции `variety`). У `SensorComponent` — ручной `_get_data_dict`;
+у остальных словари выводятся из `TEMPLATE_FIELDS`. `CableGland` — encodings через
+through-опции (`code_path` → `*_encoding`-свойства артикула).
 
 **Legacy** (не удалять без подтверждения): `PneumaticActuatorModelLineItem` — миксин снят,
 `to_dict` отдаёт хранимые name/description; `PneumaticActuatorSelected`,
@@ -173,95 +174,97 @@
    (см. п. 8) и остаётся основным мастером; плоский `SelectionWizard` — fallback.
    Зачем нужен граф и где используется: `sw.md` §0.
 
-## 8. Кабельные вводы (cable_glands) — рефакторинг под каталог
+## 8. Кабельные вводы (cable_glands) — артикул на through-опциях + конструктор
 
-**Статус: модели + админки зафиксированы; миграции 0001–0005 применены (2026-09-09).**
+**Статус (2026-09-10): артикул CableGland переведён на прямые FK на through-строки;**
+**добавлен конструктор кабельных вводов (модель + REST API + фронт + пункт меню);**
+**миграции 0001–0011 применены (`makemigrations --check` — No changes).**
 
-### Структура (3 уровня, паттерн пневмо/электроприводов)
+### Иерархия (3 уровня)
 
-- **`CableGlandModelLine`** — серия: `ImageGalleryMixin, TechDocMixin, CertDocMixin,
-  EquipmentTypeMixin, CopyMixin, StructuredDataMixin`. Шаблоны `name_template` /
-  `description_template` / `model_item_code_template`. `equipment_type` — **единственный тип
-  на серии** (nullable, `SET_NULL` — переходный, ужесточить до PROTECT после заполнения;
-  FK `cable_gland_type` → `CableGlandItemType` **удалён**). `ip` — **одиночный FK**
-  (был M2M; эталон Posi). `exd` — **through-модель `CableGlandExdOption`**
-  (`BaseM2MExdThroughOption`: кодировка + M2M видов; 2026-09-09 заменил старый M2M `exd`).
-  Материал корпуса — **through-модель `CableGlandBodyMaterialOption`** (`BaseThroughOption`:
-  `model_line` + `body_material` + `encoding`, `unique_together` model_line/body_material/encoding;
-  inline в админке серии). Удалены
-  `CableGlandMaterialOption` (копия резьбовой) и `get_full_description`.
-- **`CableGlandModelLineItem`** — «модель в серии»: `model_line`/`body`/
-  `metal_sleeve_body`/`weight`, `CopyMixin`. TemplateMixin НЕ наследует.
-- **`CableGland`** (`cg_actual.py`, была не зарегистрирована!) — **артикул каталога**:
-  `TemplateMixin, CopyMixin, ImageGalleryMixin, TechDocMixin, SKUMixin`. FK `model_line` →
-  серия (денормализуется из `model_line_item` в `save()`), `model_line_item`, `thread` →
-  `ThreadSize` (классом! строка `'ThreadSize'` без app_label не резолвилась), `body_material`.
-  `update_name/update_description` не затирают ручные name/description без кода и без
-  шаблона серии; `code` обязателен в админке до автогенерации (guard в
-  `CableGlandAdminForm`); временный `_get_data_dict` (будет заменён реестром). SKU —
-  `sync_sku()` в save.
-- Справочники: `CableGlandBody` (+ опции резьбы `CableGlandThreadOption`),
-  `CableGlandMetalSleeveBody` (+ M2M `MetalSleeve`), `CableGlandBodyMaterial`,
-  `CableGlandModelLineCertRelation`. `CableGlandItemType` **оставлен без потребителей**
-  (админка есть) — решить: удалить или перенести признак «ввод/адаптер/заглушка/кольцо».
-- Починены конфликты `related_name` (`cg_metal_sleeve_body_brand`, `cg_material_body`
-  [модель удалена], дублей больше нет).
+- **CableGlandModelLine** — серия (шаблоны name/description/model_item_code_template,
+  equipment_type, ip, бренд/производитель, флаги кабеля, температуры). Взрывозащита —
+  through-модель **CableGlandExdOption** (`BaseM2MExdThroughOption`: кодировка + M2M
+  `exd_options`, parent `model_line`). Материал — through-модель
+  **CableGlandBodyMaterialOption** (`BaseThroughOption`: `model_line` + `body_material`
+  + `encoding`). Обе inline в админке серии.
+- **CableGlandBody** — корпус (диапазон обжимаемого кабеля `cable_diameter_inner_min/max`,
+  длина резьбы). Резьбы — through-модель **CableGlandThreadOption**
+  (`ThreadSizeThroughOption`: `cable_gland_body` + `thread_size` + `encoding`,
+  `unique_together` body/thread_size; inline в админке корпуса).
+- **CableGlandModelLineItem** — «модель в серии» (body + metal_sleeve_body + weight +
+  `cable_diameter_outer_min/max`). TemplateMixin НЕ наследует.
+- **CableGland** (`cg_actual.py`) — артикул каталога (`TemplateMixin, CatalogSerializerMixin,
+  SmartCatalogMixin, CopyMixin, ImageGalleryMixin, TechDocMixin, SKUMixin`).
+  Прямые FK на through-строки: `thread_option`, `body_material_option`, `exd_option`
+  (nullable, SET_NULL); `model_line_item` (корпус/вес/МР) + `model_line` (денормализуется
+  в save). Старые FK `thread`→ThreadSize и `body_material` **удалены** (миграции 0008–0010
+  с переносом данных). encoding читается напрямую из строк: свойства `thread_encoding`,
+  `body_material_encoding`, `exd_encoding` (fallback exd — дефолт серии).
+  `code` — `unique=True`, автогенерируется из `model_line.model_item_code_template`.
 
-### Админки (cable_glands/admin) — все переписаны
+### Правила артикула (cg_actual.py)
 
-- `CopyMixin` на 5 моделях + `AdminCopyMixin` c `copy_selected_objects` на 5 админках:
-  `CableGlandModelLine`, `CableGlandModelLineItem`, `CableGlandBody`
-  (хук `_copy_custom_relations` дублирует `CableGlandThreadOption`),
-  `CableGlandMetalSleeveBody`, `CableGland`. M2M копируются `.set()`, `sku` сбрасывается.
-- Серия: `TemplatePlaceholdersAdminMixin` (`template_item_model=CableGland`,
-  `template_placeholders_fieldset=«Шаблоны названия, описания и артикула»`).
-- Удалён мёртвый `cg_item_admin.py` (импортировал несуществующий `CableGlandItem`);
-  добавлен `cg_actual_admin.py`; `MetalSleeve` и `CableGlandMetalSleeveBody` получили админки.
+- `_validate_option_consistency()` — инварианты (резьба↔корпус, материал/exd↔серия);
+  вызывается в `clean()` И в `save()`.
+- **Дедупликация в save()**: сочетание (model_line_item + thread_option +
+  body_material_option + exd_option) — идентичность артикула; при создании дубля
+  патчится существующая строка (`_get_duplicate` + перевод `_state.adding` в update).
+- `save()` → `sync_sku()` (SKUMixin, как в solenoid_valves/gearbox).
+- `_generate_fallback_code` = model_line_item.code + thread_encoding + body_material_encoding.
 
-### Миграции и БД
+### Реестр (cg_item_fields.py)
 
-- Цепочка `0001…0007` удалена (разошлась с моделями — не было RenameModel и т.п.),
-  **пересоздана `0001_initial.py`** (10 моделей).
-- **Применена 2026-09-08**: в dev-БД `db.sqlite3` удалены все старые таблицы
-  `cable_glands_*` (12 шт., включая `cableglanditem*`, M2M `ip`) и ОБЕ устаревшие
-  цепочки истории (старая `0002_remove…/0008_…` + `0002_metalsleeve…/0007_…`),
-  затем `migrate cable_glands --skip-checks` → `cable_glands.0001_initial` OK.
-  Данные cable_glands в dev-БД утеряны (дампы `cable_glands-02-26.json` — под старую
-  схему, не применимы) — нужен повторный ввод по новой структуре.
-- Живой смоук пройден: создание серии/корпуса/«модели в серии»/артикула, генерация
-  name из шаблона серии, денормализация `model_line` из `model_line_item`, SKU,
-  копирование артикула/серии/корпуса (с дублированием `CableGlandThreadOption`).
+- `{model_code}` → code_path `model_line_item__code`; `{size}` удалён.
+- `{thread}` → path `thread_option__thread_size__name`, code_path `thread_encoding`.
+- `{body_material}` → code_path `body_material_encoding`.
+- `{exd}` → path `get_exd_display`, code_path `exd_encoding`.
+- `{flags}` заменён на `{cable_types}` (path `get_applicable_cable_types_display`).
+- `{cable_diameter_outer}` → `get_outer_cable_diameter_display`.
 
-- Внимание: у моделей, наследующих и `CopyMixin`, и `StructuredDataMixin`, `CopyMixin`
-  должен стоять РАНЬШЕ в bases (иначе побеждает `StructuredDataMixin.copy` без сохранения;
-  исправлено для `CableGlandBody`/`CableGlandMetalSleeveBody`).
+### Конструктор (новый, 2026-09-10)
 
-### Блокеры / остаток
+- Модель **CableGlandConstructor** (`models/cg_constructor.py`): форма с
+  `selected_model_line` / `selected_model_line_item` / `selected_thread_option` /
+  `selected_body_material_option` / `selected_exd_option` (прямые FK на through-строки).
+  Методы: `get_available_options`, `_ensure_valid_options`, `build_preview_item`
+  (временный CableGland → генерация code/name/description), `materialize`
+  (get_or_create CableGland+SKU по коду), `save` (валидация → генерация).
+- API **CableGlandConstructorViewSet** (`api/views_constructor.py`), роут
+  `api/cable-glands/constructor/` (`cable_glands/urls.py`, подключён в `djangoProject1/urls.py`).
+  Эндпоинты: CRUD + `model-lines/`, `model-lines/<id>/items/`, `options/`
+  (?model_line & model_line_item), `preview/`. `required_section='configurator_cg'`.
+- `object_registry.py`: `configurator.cg`, `catalog.cg`. Админка `CableGlandConstructorAdmin`.
+- Фронт: `frontend/src/apps/cg-constructor/` (App.vue, api.js, main.js, index.html),
+  страница `pages/admin/CgConstructorPage.vue`, маршрут `/admin/cg-constructor`
+  (section `configurator_cg`), пункт меню «Конфигуратор Кабельных вводов» в TopMenu.vue
+  (раздел «Конфигураторы»), `cgConstructor` в `shared/endpoints.js`, entry в `vite.config.js`.
 
-- **GraphQL убран (2026-09-08)**: root `djangoProject1/urls.py` больше не импортирует
-  `graphql_api.schema` и не монтирует `/graphql/`; `graphql_api/schema.py` очищен от
-  `cableGlandsSchema`; удалены legacy-файлы cable_glands: `graphql/*`, `serializers.py`,
-  `views.py`, `urls.py` (были мёртвыми ссылками на `CableGlandItem`).
-  `manage.py check` → **System check identified no issues** (runserver/check разблокированы).
-- L1–L4 закрыты: `get_temp_range_display`/`get_cable_diameter_display` не выводят `None`
-  (диаметр фильтрует нули-дефолты); дефолтные шаблоны name/description без висячих
-  разделителей; `CableGland.code` — `unique=True` (миграция 0003 применена; дубликат кода
-  → IntegrityError).
-- **Шаг 3 — РЕЕСТР ГОТОВ**: `cable_glands/models/cg_item_fields.py`
-  (`CG_ITEM_TEMPLATE_FIELDS`); артикул переведён на `CatalogSerializerMixin` +
-  `SmartCatalogMixin`; `NAME/CODE/VARS/SPEC_FIELD_KEYS`, `SPEC_GROUP_TITLES`;
-  временный `_get_data_dict` удалён; **автогенерация артикула активна**
-  (`model_item_code_template` серии + encodings `thread__code`/`body_material__code`/
-  `model_line_item__code`; пример: `ABRA.DN100.NPT-1_4.BR`); display-свойства
-  `get_exd_display/get_cable_diameter_display/get_temp_range_display/
-  get_cable_flags_display`; `required_model_line_fields` включает
-  `model_item_code_template`; guard «код обязателен» в админке снят.
-  Миграция `0002_alter_...` применена (help_text/verbose); дальнейших изменений
-  модели нет (`makemigrations --check` — No changes).
-- **Поиск** по `thread/exd/ip/⌀ кабеля/флагам/temp/brand` — позже (анализ проведён:
-  нужен плоский артикул, thread-кодировки, exd через денормализованную M2M на артикуле).
-- Ограничение копирования: повторное копирование → одинаковый код «X Копия» → конфликт
-  SKU; при необходимости — перебор суффиксов как у Posi.
+### Миграции (все применены)
+
+- `0007_fix_model_line_templates` — данные: `{flags}`→`{cable_types}`, удалён `{size}`.
+- `0008` — AddField `thread_option`/`body_material_option`/`exd_option` (nullable).
+- `0009` — data: перенос `thread`/`body_material` → through-строки (`QuerySet.update()`,
+  создание недостающих строк с encoding из кода справочника; без побочной генерации).
+- `0010` — RemoveField `thread`/`body_material`.
+- `0011` — CreateModel `CableGlandConstructor`.
+
+### Исправлено в этой сессии
+
+- `get_outer_cable_diameter_display` / `get_outer_max_cable_diameter_display` —
+  AttributeError из-за обращения к несуществующим полям (inner на MLI, outer на Body).
+- `get_applicable_cable_types_display` — `', '.join(str(p) ...)` (ленивый перевод `__proxy__`).
+- API конструктора — широкий `except ObjectDoesNotExist` (был узкий → 500).
+- Удалена осиротевшая SKU (код `КБУ-МР G-1_4 BR`) после смены кода артикула.
+
+### Остаток / риски
+
+- Фронт `cg-constructor` не собран (`npm --prefix frontend run build` нужен локально).
+- Дедупликация артикула — на уровне приложения (гонка при параллельной записи возможна);
+  жёсткого `UniqueConstraint` нет (NULL-семантика на SQLite).
+- Секция прав `configurator_cg` в SiteSection не создана (суперюзер работает).
+- SKU-код не переписывается в `sync_sku` при смене кода артикула (остаются осиротевшие SKU).
+- Поиск по каталогу (thread/exd/ip/⌀/флаги/temp/brand) — позже.
 
 ---
 
@@ -269,8 +272,8 @@
 
 - `git pull`/переключение ветки; зависимости не менялись.
 - Миграции применены (`manage.py migrate` — no-op); dev-БД — `db.sqlite3`.
-  cable_glands: применена свежая `0001_initial` (2026-09-08), старые данные
-  приложения в dev-БД утеряны.
+  cable_glands: применены `0001_initial` … `0011_cableglandconstructor`; данные есть
+  (4 серии, 7 корпусов, артикул + конструктор проверены смоуком).
 - QuestionGraph: `manage.py migrate core` (применит `0013_questiongraph`) + сид
   `manage.py load_question_graph` (пересоздаёт 5 графов для 5 каталогов).
 - Фронт: при необходимости `npm --prefix frontend run build`.

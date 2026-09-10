@@ -18,33 +18,35 @@
 CG_ITEM_TEMPLATE_FIELDS = (
     # ── Общие / template_vars ──
     {'key': 'code', 'placeholder': '{model_code}', 'path': 'code',
-     'code_path': 'model_line__code', 'label': 'Артикул', 'group': 'general', 'order': 1},
+     'code_path': 'model_line_item__code', 'label': 'Артикул', 'group': 'general', 'order': 1},
     {'key': 'name', 'path': 'name', 'label': 'Название'},
     {'key': 'model_line_name', 'path': 'model_line__name', 'label': 'Серия', 'group': 'general', 'order': 2},
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
      'name_path': 'model_line__brand', 'label': 'Бренд', 'group': 'general', 'order': 3},
-    {'key': 'size', 'placeholder': '{size}', 'path': 'model_line_item__code',
-     'code_path': 'model_line_item__code', 'label': 'Размер/исполнение', 'group': 'general', 'order': 4},
     {'key': 'ip', 'placeholder': '{ip}', 'path': 'model_line__ip__name',
      'name_path': 'model_line__ip', 'label': 'IP', 'group': 'general', 'order': 5},
     {'key': 'exd', 'placeholder': '{exd}', 'path': 'get_exd_display',
+     'code_path': 'exd_encoding',
      'label': 'Взрывозащита', 'group': 'general', 'order': 6},
 
     # ── Корпус ──
-    {'key': 'thread', 'placeholder': '{thread}', 'path': 'thread__name',
-     'name_path': 'thread', 'code_path': 'thread__code',
+    {'key': 'thread', 'placeholder': '{thread}', 'path': 'thread_option__thread_size__name',
+     'name_path': 'thread_option__thread_size', 'code_path': 'thread_encoding',
      'label': 'Резьба', 'group': 'body', 'order': 1},
-    {'key': 'body_material', 'placeholder': '{body_material}', 'path': 'body_material__name',
-     'name_path': 'body_material', 'code_path': 'body_material__code',
+    {'key': 'body_material', 'placeholder': '{body_material}', 'path': 'body_material_option__body_material__name',
+     'name_path': 'body_material_option__body_material', 'code_path': 'body_material_encoding',
      'label': 'Материал корпуса', 'group': 'body', 'order': 2},
     {'key': 'cable_diameter', 'placeholder': '{cable_diameter}', 'path': 'get_cable_diameter_display',
      'label': 'Диаметр кабеля', 'unit': 'мм', 'group': 'body', 'order': 3},
+    {'key': 'cable_diameter_outer', 'placeholder': '{cable_diameter_outer}', 'path': 'get_outer_cable_diameter_display',
+     'label': 'Диаметр кабеля', 'unit': 'мм', 'group': 'body', 'order': 4},
     {'key': 'weight', 'placeholder': '{weight}', 'path': 'model_line_item__weight',
-     'label': 'Вес', 'unit': 'кг', 'type': 'number', 'group': 'body', 'order': 4},
+     'label': 'Вес', 'unit': 'кг', 'type': 'number', 'group': 'body', 'order': 5},
 
     # ── Условия эксплуатации ──
     {'key': 'temp_range', 'placeholder': '{temp_range}', 'path': 'get_temp_range_display',
      'label': 'Температура', 'unit': '°С', 'group': 'conditions', 'order': 1},
-    {'key': 'flags', 'placeholder': '{flags}', 'path': 'get_cable_flags_display',
+    {'key': 'cable_types', 'placeholder': '{cable_types}', 'path': 'get_applicable_cable_types_display',
      'label': 'Исполнение', 'group': 'conditions', 'order': 2},
+
 )

@@ -85,6 +85,7 @@ const routes = [
   { path: '/admin/posi-constructor', component: () => import('../pages/admin/PosiConstructorPage.vue'), meta: { title: 'Конструктор Позиционеров', section: 'configurator_pa' } },
   { path: '/configurator/pa-legacy', component: () => import('../pages/admin/PaConstructorLegacyPage.vue'), meta: { title: 'Конструктор ПП Old', section: 'configurator_pa' } },
   { path: '/admin/ea-constructor', component: () => import('../pages/admin/EaConstructorPage.vue'), meta: { title: 'Конструктор ЭП', section: 'configurator_ea' } },
+  { path: '/admin/cg-constructor', component: () => import('../pages/admin/CgConstructorPage.vue'), meta: { title: 'Конструктор Кабельных вводов', section: 'configurator_cg' } },
   { path: '/admin/ea-power-supply', component: () => import('../pages/admin/EaAdminPage.vue'), meta: { title: 'Напряжения ЭП', section: 'configurator_ea' } },
   { path: '/admin/ea-switches', component: () => import('../pages/admin/EaSwitchesAdminPage.vue'), meta: { title: 'Выключатели ЭП', section: 'configurator_ea' } },
   { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', section: 'configurator_ea' } },

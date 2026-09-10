@@ -8,6 +8,7 @@ from .cg_actual import *
 from .cg_body_material_option import *
 from .cg_exd_option import *
 from .metal_sleeve import *
+from .cg_constructor import *
 # from .py_options_constants import *
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     'CableGlandBodyMaterialOption',
     'CableGlandExdOption',
     'CableGland',
+    'CableGlandConstructor',
 ]

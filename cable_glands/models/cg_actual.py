@@ -27,8 +27,6 @@ from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from sku.models import SKUMixin
 
-from params.models import ThreadSize
-
 from .cg_item_fields import CG_ITEM_TEMPLATE_FIELDS
 
 
@@ -73,24 +71,24 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'size', 'thread', 'body_material',
-        'cable_diameter', 'weight', 'ip', 'exd', 'temp_range', 'flags',
+        'code', 'brand_name', 'thread', 'body_material',
+        'cable_diameter','cable_diameter_outer', 'weight', 'ip', 'exd', 'temp_range', 'cable_types',
     )
 
     CODE_FIELD_KEYS = (
-        'code', 'size', 'thread', 'body_material',
+        'code', 'thread', 'body_material', 'exd',
     )
 
     VARS_FIELD_KEYS = (
-        'code', 'name', 'model_line_name', 'brand_name', 'size', 'thread',
-        'body_material', 'cable_diameter', 'weight', 'ip', 'exd',
-        'temp_range', 'flags',
+        'code', 'name', 'model_line_name', 'brand_name', 'thread',
+        'body_material', 'cable_diameter', 'cable_diameter_outer','weight', 'ip', 'exd',
+        'temp_range', 'cable_types',
     )
 
     SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'size', 'ip', 'exd',
-        'thread', 'body_material', 'cable_diameter', 'weight',
-        'temp_range', 'flags',
+        'model_line_name', 'brand_name', 'ip', 'exd',
+        'thread', 'body_material', 'cable_diameter','cable_diameter_outer', 'weight',
+        'temp_range', 'cable_types',
     )
 
     SPEC_GROUP_TITLES = {
@@ -124,16 +122,25 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         verbose_name=_("Серия"),
         help_text=_('Серия кабельных вводов (источник шаблонов названия/описания/артикула)'))
 
-    body_material = models.ForeignKey(
-        'CableGlandBodyMaterial', blank=True, null=True,
+    # ── Выбранные опции через through-строки (источник encoding) ──
+    thread_option = models.ForeignKey(
+        'CableGlandThreadOption', blank=True, null=True,
         on_delete=models.SET_NULL,
-        verbose_name=_("Материал корпуса"),
-        help_text=_('Материал корпуса'))
-    thread = models.ForeignKey(
-        ThreadSize, blank=True, null=True,
+        related_name='cable_gland_thread_articles',
+        verbose_name=_("Опция резьбы"),
+        help_text=_('Выбранная опция резьбы корпуса (through-строка)'))
+    body_material_option = models.ForeignKey(
+        'CableGlandBodyMaterialOption', blank=True, null=True,
         on_delete=models.SET_NULL,
-        verbose_name=_("Резьба"),
-        help_text=_('Резьба'))
+        related_name='cable_gland_body_material_articles',
+        verbose_name=_("Опция материала корпуса"),
+        help_text=_('Выбранная опция материала корпуса (through-строка)'))
+    exd_option = models.ForeignKey(
+        'CableGlandExdOption', blank=True, null=True,
+        on_delete=models.SET_NULL,
+        related_name='cable_gland_exd_articles',
+        verbose_name=_("Опция взрывозащиты"),
+        help_text=_('Выбранная опция взрывозащиты серии; пусто — наследуется дефолт серии'))
 
     class Meta:
         verbose_name = _("Кабельный ввод")
@@ -144,12 +151,71 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         # Серия (источник шаблонов) денормализуется из «модели в серии».
         if not self.model_line_id and self.model_line_item_id:
             self.model_line = self.model_line_item.model_line
+        self._validate_option_consistency()
         # Артикул автогенерируется из model_line.model_item_code_template,
         # если не задан вручную (pattern Posi/электроприводов).
         if not self.code:
             self.code = self.generated_model_item_code or None
+
+        # Дедупликация: сочетание (модель + резьба + материал + взрывозащита)
+        # — идентичность артикула. При создании дубля патчим существующую
+        # строку, а не создаём новую.
+        if self._state.adding:
+            existing = self._get_duplicate()
+            if existing is not None:
+                self.pk = existing.pk
+                self._state.adding = False
+
         super().save(*args, **kwargs)   # цепочка → TemplateMixin.save(): генерация name/description
         self.sync_sku()
+
+    def _get_duplicate(self):
+        """Существующий артикул с тем же сочетанием (модель + опции)."""
+        if not self.model_line_item_id:
+            return None
+        qs = self.__class__.objects.filter(
+            model_line_item_id=self.model_line_item_id,
+            thread_option_id=self.thread_option_id,
+            body_material_option_id=self.body_material_option_id,
+            exd_option_id=self.exd_option_id,
+        )
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        return qs.first()
+
+    def clean(self):
+        """Консистентность выбранных through-строк с корпусом/серией (для форм)."""
+        self._validate_option_consistency()
+
+    def _validate_option_consistency(self):
+        """Консистентность выбранных through-строк с корпусом/серией.
+
+        Вызывается и в clean() (админ-формы), и в save() — чтобы прямой
+        программный save() тоже не пропускал невалидную комбинацию.
+        """
+        from django.core.exceptions import ValidationError
+        errors = {}
+        mli = self.model_line_item
+        if self.thread_option_id and mli and mli.body_id:
+            try:
+                if self.thread_option.cable_gland_body_id != mli.body_id:
+                    errors['thread_option'] = _('Резьба относится к другому корпусу.')
+            except Exception:
+                pass
+        if self.body_material_option_id and self.model_line_id:
+            try:
+                if self.body_material_option.model_line_id != self.model_line_id:
+                    errors['body_material_option'] = _('Материал относится к другой серии.')
+            except Exception:
+                pass
+        if self.exd_option_id and self.model_line_id:
+            try:
+                if self.exd_option.model_line_id != self.model_line_id:
+                    errors['exd_option'] = _('Взрывозащита относится к другой серии.')
+            except Exception:
+                pass
+        if errors:
+            raise ValidationError(errors)
 
     # ── Защита от «родовых» имён: без кода и без шаблона серии не
     #    перезаписываем введённое вручную имя/описание. ──
@@ -196,10 +262,9 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     def _generate_fallback_code(self) -> str:
         parts = [
-            self.model_line.code if self.model_line else None,
             self.model_line_item.code if self.model_line_item else None,
-            self.thread.code if self.thread else None,
-            self.body_material.code if self.body_material else None,
+            self.thread_encoding or None,
+            self.body_material_encoding or None,
         ]
         return '.'.join(p for p in parts if p)
 
@@ -207,20 +272,42 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     @property
     def get_exd_display(self) -> str:
-        """Взрывозащита серии из through-строки (CableGlandExdOption) — через ' / '."""
-        if not self.model_line_id:
-            return ''
-        from .cg_exd_option import CableGlandExdOption
-        try:
-            row = CableGlandExdOption.get_effective_row(parent_id=self.model_line_id)
-        except Exception:
-            return ''
+        """Взрывозащита: выбранная through-строка (exd_option) или дефолт серии — через ' / '."""
+        row = self.exd_option
+        if row is None and self.model_line_id:
+            from .cg_exd_option import CableGlandExdOption
+            try:
+                row = CableGlandExdOption.get_effective_row(parent_id=self.model_line_id)
+            except Exception:
+                row = None
         if row is None:
             return ''
         items = []
         for x in row.exd_options.all():
             items.append(x.code or x.name or x.description or str(x))
         return ' / '.join(items)
+
+    @property
+    def exd_encoding(self) -> str:
+        """Encoding взрывозащиты: выбранная through-строка или дефолт серии."""
+        row = self.exd_option
+        if row is None and self.model_line_id:
+            from .cg_exd_option import CableGlandExdOption
+            try:
+                row = CableGlandExdOption.get_effective_row(parent_id=self.model_line_id)
+            except Exception:
+                row = None
+        return row.encoding if (row and row.encoding) else ''
+
+    @property
+    def thread_encoding(self) -> str:
+        """Encoding резьбы — напрямую из выбранной through-строки."""
+        return self.thread_option.encoding if (self.thread_option and self.thread_option.encoding) else ''
+
+    @property
+    def body_material_encoding(self) -> str:
+        """Encoding материала корпуса — напрямую из выбранной through-строки."""
+        return self.body_material_option.encoding if (self.body_material_option and self.body_material_option.encoding) else ''
 
     @property
     def get_cable_diameter_display(self) -> str:
@@ -235,7 +322,51 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         if b.cable_diameter_inner_max:
             parts.append(str(b.cable_diameter_inner_max).rstrip('0').rstrip('.'))
         return '…'.join(parts)
+    @property
+    def get_outer_cable_diameter_display(self) -> str:
+        """Диаметр внешний (по броне) обжимаемого кабеля из «модели в серии»."""
+        mli = self.model_line_item
+        if not mli:
+            return ''
+        parts = []
+        if mli.cable_diameter_outer_min:
+            parts.append(str(mli.cable_diameter_outer_min).rstrip('0').rstrip('.'))
+        if mli.cable_diameter_outer_max:
+            parts.append(str(mli.cable_diameter_outer_max).rstrip('0').rstrip('.'))
+        return '…'.join(parts)
+        
+    @property
+    def get_inner_min_cable_diameter_display(self) -> str:
+        """Диаметр обжимаемого кабеля из корпуса «модели в серии»."""
+        mli = self.model_line_item
+        if not mli or not mli.body_id:
+            return ''
+        return str(mli.body.cable_diameter_inner_min).rstrip('0').rstrip('.') if mli.body.cable_diameter_inner_min else ''
+    @property
+    def get_inner_max_cable_diameter_display(self) -> str:
+        """Диаметр обжимаемого кабеля из корпуса «модели в серии»."""
+        mli = self.model_line_item
+        if not mli or not mli.body_id:
+            return ''
+        return str(mli.body.cable_diameter_inner_max).rstrip('0').rstrip('.') if mli.body.cable_diameter_inner_max else ''        
+        
 
+    @property
+    def get_outer_min_cable_diameter_display(self) -> str:
+        """Диаметр обжимаемого кабеля из корпуса «модели в серии»."""
+        mli = self.model_line_item
+        if not mli:
+            return ''
+        return str(mli.cable_diameter_outer_min).rstrip('0').rstrip('.') if mli.cable_diameter_outer_min else ''
+        
+    @property
+    def get_outer_max_cable_diameter_display(self) -> str:
+        """Диаметр обжимаемого кабеля из «модели в серии»."""
+        mli = self.model_line_item
+        if not mli:
+            return ''
+        return str(mli.cable_diameter_outer_max).rstrip('0').rstrip('.') if mli.cable_diameter_outer_max else ''
+      
     @property
     def get_temp_range_display(self) -> str:
         """Диапазон температур из серии (заполненные границы)."""
@@ -250,19 +381,30 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         return '…'.join(parts)
 
     @property
-    def get_cable_flags_display(self) -> str:
+    def get_temp_min_display(self) -> str:
+        """Мин температура из серии."""
+        return str(self.model_line.temp_min) if self.model_line.temp_min is not None else ''
+    @property
+    def get_temp_max_display(self) -> str:
+        """Мин температура из серии."""
+        return str(self.model_line.temp_max) if self.model_line.temp_max is not None else ''
+        
+    @property
+    def get_applicable_cable_types_display(self) -> str:
         """Тип кабеля по флагам серии."""
         ml = self.model_line
         if not ml:
             return ''
         parts = []
         if ml.for_armored_cable:
-            parts.append(_('бронированный кабель'))
+            parts.append(_('для бронированного кабеля'))
+        else: 
+            parts.append(_('для небронированного кабеля'))
         if ml.for_metal_sleeve_cable:
-            parts.append(_('металлорукав'))
+            parts.append(_('в металлорукаве'))
         if ml.for_pipelines_cable:
-            parts.append(_('трубопровод'))
-        return ', '.join(parts)
+            parts.append(_('в трубопроводе'))
+        return ' '.join(str(p) for p in parts)
 
     # ── SKUMixin ──
 

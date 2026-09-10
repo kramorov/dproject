@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => ({
         'pa-catalog': resolve(__dirname, 'src/apps/pa-catalog/index.html'),
         'ea-constructor': resolve(__dirname, 'src/apps/ea-constructor/index.html'),
         'ea-admin': resolve(__dirname, 'src/apps/ea-admin/index.html'),
+        'cg-constructor': resolve(__dirname, 'src/apps/cg-constructor/index.html'),
       },
     },
   },

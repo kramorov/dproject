@@ -40,6 +40,7 @@ const allItems = [
     { to:'/configurator/pa-kit', label:'Конфигуратор сборки (ETP)' },
     // { to:'/configurator/pa-legacy', label:'Конфигуратор ПП Old' },
     { to:'/admin/ea-constructor', label:'Конфигуратор Электроприводов' },
+    { to:'/admin/cg-constructor', label:'Конфигуратор Кабельных вводов' },
     { to:'/configurator/cabinets', label:'Конфигуратор Шкафов управления ЭП' },
     { to:'/configurator/ea-reducers', label:'Конфигуратор Редукторов к ЭП' },
     { to:'/configurator/ea-assemblies', label:'Конфигуратор Сборок арматуры с ЭП' },

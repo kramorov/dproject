@@ -57,6 +57,7 @@ path('api/test/', UniversalAPIView.as_view(), name='test_api'),  # Прямой 
     path('api/pneumatic-plugs/', include(plugs_urlpatterns)),
     path('api/filter-regulator/', include('filter_regulator.urls')),
     path('api/pa-controls/', include('pa_controls.urls')),
+    path('api/cable-glands/', include('cable_glands.urls')),
     path('api/image-processor/', include('image_processor.urls')),
     path('api/svg-converter/', include('svg_converter.urls')),
     path('api/features/', include('features.urls')),
