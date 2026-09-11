@@ -23,7 +23,16 @@
       />
       <template v-else-if="!hasClimateFilter || (f.filter_type !== 'temp_min' && f.filter_type !== 'temp_max')">
         <label>{{ f.label }}</label>
-        <span v-if="f.options.length === 1" class="filter-single-value">{{ f.options[0].name }}</span>
+        <input
+          v-if="isNumericFilter(f)"
+          type="number"
+          class="filter-number-input"
+          min="0"
+          step="0.1"
+          v-model="active[f.key]"
+          @change="$emit('change', f.key, active[f.key])"
+        />
+        <span v-else-if="f.options.length === 1" class="filter-single-value">{{ f.options[0].name }}</span>
         <select v-else v-model="active[f.key]" @change="$emit('change', f.key, active[f.key])">
           <option value="">Не указано</option>
           <option
@@ -85,6 +94,9 @@ const hasClimateFilter = computed(() =>
   sortedFilters.value.some(f => f.filter_type === 'climate_cascade')
 )
 
+const NUMERIC_FILTER_TYPES = ['gte', 'lte']
+function isNumericFilter(f) { return NUMERIC_FILTER_TYPES.includes(f.filter_type) }
+
 function onExdChange(ids) {
   activeExdIds.value = ids
   if (!ids.length) {
@@ -115,5 +127,6 @@ function onClimateChange(temps, key) {
 .filter-group { margin-bottom: 16px; }
 .filter-group label { display: block; font-size: var(--cat-text-sm); font-weight: 500; color: var(--cat-muted); margin-bottom: 4px; }
 .filter-group select { width: 100%; padding: 8px 10px; font-size: var(--cat-text-base); color: var(--cat-text); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }
+.filter-number-input { width: 100%; padding: 8px 10px; font-size: var(--cat-text-base); color: var(--cat-text); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }
 .filter-single-value { display: block; padding: 8px 10px; font-size: var(--cat-text-base); color: var(--cat-text); background: var(--cat-surface); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); }
 </style>

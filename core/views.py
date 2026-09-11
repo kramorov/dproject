@@ -837,6 +837,17 @@ class BaseQuickSelectView(APIView):
                 for v in values if v is not None
             ]
 
+        elif fd.filter_type in (_FT.MAX,):
+            values = (
+                qs.values_list(field_name, flat=True)
+                .distinct()
+                .order_by(field_name)
+            )
+            return [
+                {'value': v, 'label': str(v), 'count': qs.filter(**{f'{field_name}__lte': v}).count()}
+                for v in values if v is not None
+            ]
+
         elif fd.filter_type in (_FT.TEMP_MIN,):
             values = (
                 qs.values_list(field_name, flat=True)

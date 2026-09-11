@@ -25,7 +25,7 @@ const routes = [
   { path: '/catalog/pneumatic-fittings', component: () => import('../pages/catalog/PneumaticFittingsPage.vue'), meta: { title: 'Фитинги резьба-трубка', section: 'catalog_pf' } },
   { path: '/catalog/pneumatic-silencers', component: () => import('../pages/catalog/PneumaticSilencersPage.vue'), meta: { title: 'Глушители пневматические', section: 'catalog_sil' } },
   { path: '/catalog/pneumatic-plugs', component: () => import('../pages/catalog/PneumaticPlugsPage.vue'), meta: { title: 'Заглушки пневматические', section: 'catalog_plug' } },
-  { path: '/catalog/cable-glands', component: PlaceholderPage, props: { title: 'Кабельные вводы' }, meta: { title: 'Кабельные вводы', section: 'catalog_cg' } },
+  { path: '/catalog/cable-glands', component: () => import('../pages/catalog/CableGlandPage.vue'), meta: { title: 'Кабельные вводы', section: 'catalog_cg' } },
   { path: '/catalog/pa-actuators', component: () => import('../pages/catalog/PaActuatorPage.vue'), meta: { title: 'Пневмоприводы', section: 'catalog_pa' } },
   { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры', section: 'catalog_gearbox' } },
   { path: '/catalog/ea-reducers', component: PlaceholderPage, props: { title: 'Редукторы к ЭП' }, meta: { title: 'Редукторы к ЭП' } },

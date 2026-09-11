@@ -72,6 +72,17 @@ export const ENDPOINTS = {
     meta: '/pa-controls/meta/',
   },
 
+  cableGlands: {
+    sections: '/cable-glands/sections/',
+    catalog: '/cable-glands/catalog/',
+    detail: (id) => `/cable-glands/catalog/${id}/`,
+    filters: '/cable-glands/filters/',
+    engineer: '/cable-glands/engineer/',
+    engineerFilters: '/cable-glands/engineer/filters/',
+    quickselect: '/cable-glands/quickselect/',
+    meta: '/cable-glands/meta/',
+  },
+
   admin: {
     pricesSnapshot: '/admin/prices/snapshot/',
   },

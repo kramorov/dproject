@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => ({
         'ea-constructor': resolve(__dirname, 'src/apps/ea-constructor/index.html'),
         'ea-admin': resolve(__dirname, 'src/apps/ea-admin/index.html'),
         'cg-constructor': resolve(__dirname, 'src/apps/cg-constructor/index.html'),
+        'cable-gland-catalog': resolve(__dirname, 'src/apps/cable-gland-catalog/index.html'),
       },
     },
   },

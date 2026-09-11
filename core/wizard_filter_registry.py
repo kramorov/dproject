@@ -53,6 +53,10 @@ _register('pa_controls', 'limitswitchbox',
 _register('pneumatic_fittings', 'pneumaticfitting',
           'pneumatic_fittings.catalog.filter_defs', 'PNEUMATIC_FITTINGS_FILTER_DEFINITIONS')
 
+# ── CableGland (фильтры из catalog/filter_defs.py) ──
+_register('cable_glands', 'cablegland',
+          'cable_glands.catalog.filter_defs', 'CABLE_GLAND_FILTER_DEFINITIONS')
+
 # ── PneumaticActuatorModelLineItem (FILTER_DEFINITIONS on class for AI pipeline) ──
 _register('pneumatic_actuators', 'pneumaticactuatormodellineitem',
           None, None)

@@ -22,7 +22,16 @@
       </div>
       <div v-for="f in regularFilters" :key="f.key" class="eng-filter-bar__chip" v-show="!isThreadFilter(f.key) && isVisible(f.key)">
         <label class="eng-filter-bar__chip-label">{{ f.label }}</label>
-        <span v-if="f.options.length === 1" class="eng-filter-bar__chip-single">{{ f.options[0].name }}</span>
+        <input
+          v-if="isNumericFilter(f)"
+          type="number"
+          class="eng-filter-bar__chip-input"
+          min="0"
+          step="0.1"
+          v-model="active[f.key]"
+          @change="$emit('change', f.key, active[f.key])"
+        />
+        <span v-else-if="f.options.length === 1" class="eng-filter-bar__chip-single">{{ f.options[0].name }}</span>
         <select
           v-else
           class="eng-filter-bar__chip-select"
@@ -123,6 +132,8 @@ function onExdChange(ids) {
 }
 
 const THREAD_KEYS = ['thread_type_id', 'thread_id']
+const NUMERIC_FILTER_TYPES = ['gte', 'lte']
+function isNumericFilter(f) { return NUMERIC_FILTER_TYPES.includes(f.filter_type) }
 const hasThreadPair = computed(() => THREAD_KEYS.every(k => k in props.filters))
 function isThreadFilter(key) { return THREAD_KEYS.includes(key) }
 function onThreadChange(v) { if (v.thread_type_id != null) emit('change', 'thread_type_id', v.thread_type_id); if (v.thread_id != null) emit('change', 'thread_id', v.thread_id) }
@@ -247,6 +258,20 @@ watch(() => ({ ...active }), async () => {
   cursor: pointer;
 }
 .eng-filter-bar__chip-select:focus {
+  border-color: var(--cat-primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .1);
+}
+.eng-filter-bar__chip-input {
+  padding: 6px 10px;
+  font-size: var(--cat-text-sm, 13px);
+  color: var(--cat-text, #1f2937);
+  border: 1px solid var(--cat-border, #d1d5db);
+  border-radius: var(--cat-radius-md, 6px);
+  background: var(--cat-surface, #fff);
+  min-width: 120px;
+  outline: none;
+}
+.eng-filter-bar__chip-input:focus {
   border-color: var(--cat-primary, #2563eb);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, .1);
 }

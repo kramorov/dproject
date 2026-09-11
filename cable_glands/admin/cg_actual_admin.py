@@ -37,6 +37,58 @@ class CableGlandAdminForm(forms.ModelForm):
         return cleaned_data
 
 
+class _CableDiameterFilter(admin.SimpleListFilter):
+    """Базовый фильтр по диапазону диаметра кабеля (мин/макс).
+
+    ``field`` — путь к DecimalField через связи (например,
+    ``model_line_item__body__cable_diameter_inner_min``);
+    ``direction`` — 'gte' для «от» (мин) или 'lte' для «до» (макс).
+    """
+    field = None
+    direction = 'gte'
+
+    def lookups(self, request, model_admin):
+        values = CableGland.objects.values_list(self.field, flat=True).distinct()
+        values = sorted(v for v in values if v is not None)
+        return [
+            (str(v), str(v).rstrip('0').rstrip('.'))
+            for v in values
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(**{f'{self.field}__{self.direction}': self.value()})
+        return queryset
+
+
+class CableDiameterInnerMinFilter(_CableDiameterFilter):
+    title = _('Внутр. ⌀ кабеля, от')
+    parameter_name = 'inner_d_min'
+    field = 'model_line_item__body__cable_diameter_inner_min'
+    direction = 'gte'
+
+
+class CableDiameterInnerMaxFilter(_CableDiameterFilter):
+    title = _('Внутр. ⌀ кабеля, до')
+    parameter_name = 'inner_d_max'
+    field = 'model_line_item__body__cable_diameter_inner_max'
+    direction = 'lte'
+
+
+class CableDiameterOuterMinFilter(_CableDiameterFilter):
+    title = _('Внеш. ⌀ кабеля (броня), от')
+    parameter_name = 'outer_d_min'
+    field = 'model_line_item__cable_diameter_outer_min'
+    direction = 'gte'
+
+
+class CableDiameterOuterMaxFilter(_CableDiameterFilter):
+    title = _('Внеш. ⌀ кабеля (броня), до')
+    parameter_name = 'outer_d_max'
+    field = 'model_line_item__cable_diameter_outer_max'
+    direction = 'lte'
+
+
 @admin.register(CableGland)
 class CableGlandAdmin(AdminCopyMixin, admin.ModelAdmin):
     """Админка артикула кабельного ввода."""
@@ -49,7 +101,16 @@ class CableGlandAdmin(AdminCopyMixin, admin.ModelAdmin):
         'sku', 'sorting_order', 'is_active',
     )
     list_editable = ('sorting_order', 'is_active')
-    list_filter = ('is_active', 'model_line', 'body_material_option')
+    list_filter = (
+        'is_active', 'model_line', 'body_material_option', 'thread_option',
+        'model_line__for_armored_cable',
+        'model_line__for_metal_sleeve_cable',
+        'model_line__for_pipelines_cable',
+        CableDiameterInnerMinFilter,
+        CableDiameterInnerMaxFilter,
+        CableDiameterOuterMinFilter,
+        CableDiameterOuterMaxFilter,
+    )
     search_fields = ('code', 'name', 'description', 'model_line__name', 'sku__code')
     ordering = ('sorting_order', 'code')
 

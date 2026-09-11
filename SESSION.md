@@ -1,7 +1,8 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-10. История изменений удалена; здесь — только актуальные факты,
-> механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо).
+> Обновлено: 2026-09-11. История изменений удалена; здесь — только актуальные факты,
+> механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо),
+> паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`.
 
 ---
 
@@ -218,9 +219,17 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 - `{model_code}` → code_path `model_line_item__code`; `{size}` удалён.
 - `{thread}` → path `thread_option__thread_size__name`, code_path `thread_encoding`.
 - `{body_material}` → code_path `body_material_encoding`.
-- `{exd}` → path `get_exd_display`, code_path `exd_encoding`.
+- `{exd}` → path `get_exd_display` (теперь из `name` опций, не `code`), code_path `exd_encoding`.
+- `{exd_short}` → path `get_exd_short_list` (короткий вид «Ex db / Ex ta / …», паттерн позиционеров).
 - `{flags}` заменён на `{cable_types}` (path `get_applicable_cable_types_display`).
 - `{cable_diameter_outer}` → `get_outer_cable_diameter_display`.
+- Диаметры/МР/корпус (2026-09-11): `{metal_sleeve_body_code}`,
+  `{metal_sleeve_inner}`/`{metal_sleeve_outer}` (сырые Decimal), `{metal_sleeve_range}`
+  (path `get_metal_sleeve_range_display` — диапазон с `rstrip('0').rstrip('.')`),
+  `{metal_sleeve}` (список металлорукавов через `get_metal_sleeve_display`),
+  `{body_code}` (код корпуса). Все при пустом `model_line_item.metal_sleeve_body` → `''`.
+- `{extra_params}` (2026-09-11) → path `get_extra_params` (JSON `model_line.extra_params`
+  в строку «ключ: значение; …»), доступен в NAME/VARS/SPEC.
 
 ### Конструктор (новый, 2026-09-10)
 
@@ -239,6 +248,48 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
   страница `pages/admin/CgConstructorPage.vue`, маршрут `/admin/cg-constructor`
   (section `configurator_cg`), пункт меню «Конфигуратор Кабельных вводов» в TopMenu.vue
   (раздел «Конфигураторы»), `cgConstructor` в `shared/endpoints.js`, entry в `vite.config.js`.
+
+### Каталог для фронта (новый, 2026-09-11)
+
+- Пакет `cable_glands/catalog/`: `filter_defs.py` (15 фильтров), `config.py`
+  (`CABLE_GLAND_CONFIG`), views `list/detail/filters/engineer/engineer_filters/
+  quickselect/meta/sections`. Паттерн — `solenoid_valves/catalog/`.
+- Фильтры: серия, бренд, резьба (`thread_option__thread_size`), материал корпуса
+  (`body_material_option__body_material`), exd (EXD_COMPATIBLE через
+  `exd_option__exd_options`), IP (IP_RANK через `model_line__ip`), диаметры
+  (числовые «от/до»: `gte/lte`), температура («от/до» + `fd_climate` =
+  `CLIMATE_CASCADE`, как в БКВ), булевы флаги серии (бронированный/металлорукав/
+  трубопровод, `FilterType.BOOLEAN` + CHOICES «Да/Нет»).
+- `views_sections.py` — `/api/cable-glands/sections/` (серии со счётчиками/фото);
+  отдельный эндпоинт нужен, т.к. fallback фронта на `list({limit: 1000})`
+  серверно режется до 200 записей (при 972 артикулах терялись бы серии).
+- Мастер подбора (Selection Wizard): `CableGland` зарегистрирован в
+  `core/wizard_filter_registry.py` → `cable_glands.catalog.filter_defs`.
+- Фронт: `frontend/src/apps/cable-gland-catalog/` (App.vue, api.js, main.js,
+  index.html, README.md) + страница `pages/catalog/CableGlandPage.vue` (обёртка
+  App.vue), маршрут `/catalog/cable-glands` в `router/index.js` (был
+  PlaceholderPage), `cableGlands` в `shared/endpoints.js`, entry
+  `cable-gland-catalog` в `vite.config.js`. `equipment_type_id=12`, `eqCode='cable-gland'`.
+- `core/views.py`: добавлена ветка `FilterType.MAX` в
+  `BaseQuickSelectView._get_filter_options` (чипсы «от» в быстром подборе).
+- Фронт-компоненты `EngineerFilterBar.vue`/`FilterSidebar.vue`: числовой `<input>`
+  для `filter_type` `gte/lte` (диаметры), `ClimateFilter` для `climate_cascade`.
+
+### Генерация артикулов (команда, 2026-09-11)
+
+- `cable_glands/management/commands/generate_cable_gland_combinations.py`:
+  перебирает thread × body_material × exd для всех серий бренда БЛОК/BLOCK
+  (опции `--brand`, `--dry-run`). Дедуп: сочетание (model_line_item + 3 опции)
+  + fallback по `code` (подхват legacy-записей без опций). Перегенерирует
+  name/code/description из шаблонов + синхронизирует SKU (и `SKU.code`, если
+  код артикула поменялся). Результат: **972 артикула** (971 создан, 1 обновлён —
+  legacy `id=10 «20s16 КНК»`), у всех — SKU и опции.
+
+### Админка артикула (2026-09-11)
+
+- `cg_actual_admin.py`: добавлены фильтры по диаметру (внутр./внеш. «от/до»,
+  кастомные `SimpleListFilter` с `gte`/`lte`) и булевы фильтры серии
+  (`model_line__for_armored_cable`, `for_metal_sleeve_cable`, `for_pipelines_cable`).
 
 ### Миграции (все применены)
 
@@ -259,12 +310,18 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 
 ### Остаток / риски
 
-- Фронт `cg-constructor` не собран (`npm --prefix frontend run build` нужен локально).
+- Фронт `cg-constructor` и `cable-gland-catalog` не собраны (`npm --prefix frontend run build` нужен локально);
+  полная сборка Vite не проверялась (SFC `App.vue`/`CableGlandPage.vue` не компилировались).
 - Дедупликация артикула — на уровне приложения (гонка при параллельной записи возможна);
   жёсткого `UniqueConstraint` нет (NULL-семантика на SQLite).
 - Секция прав `configurator_cg` в SiteSection не создана (суперюзер работает).
-- SKU-код не переписывается в `sync_sku` при смене кода артикула (остаются осиротевшие SKU).
-- Поиск по каталогу (thread/exd/ip/⌀/флаги/temp/brand) — позже.
+- `sync_sku()` не переписывает `SKU.code` при смене кода артикула; в команде генерации
+  есть обход `_sync_sku_code`, в общем `save()` — нет (осиротевшие SKU при переименовании).
+- У серии `КБУ` (ml 20) не было `model_item_code_template` → fallback-код с точками
+  (`20 КБУ.M25x1,5.Ni`); пользователь исправил шаблон — перепроверить генерацию кодов КБУ.
+- Диаметровые фильтры (`MIN/MAX`) входят в `SPLITTABLE_TYPES` → при `show_compatible=true`
+  могут стать split-фильтром (классификация exact/compatible по числу) — косметика.
+- Булевы флаги серии (armored/metal_sleeve/pipelines) — nullable; фильтр «Нет» не включает NULL.
 
 ---
 
@@ -272,10 +329,14 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 
 - `git pull`/переключение ветки; зависимости не менялись.
 - Миграции применены (`manage.py migrate` — no-op); dev-БД — `db.sqlite3`.
-  cable_glands: применены `0001_initial` … `0011_cableglandconstructor`; данные есть
-  (4 серии, 7 корпусов, артикул + конструктор проверены смоуком).
-- QuestionGraph: `manage.py migrate core` (применит `0013_questiongraph`) + сид
-  `manage.py load_question_graph` (пересоздаёт 5 графов для 5 каталогов).
+  cable_glands: применены `0001_initial` … `0011_cableglandconstructor`; данных —
+  **972 артикула CableGland** (сгенерены командой `generate_cable_gland_combinations`,
+  4 серии бренда BLOCK/БЛОК), у всех SKU и опции. Новых миграций в этой сессии нет.
+- Каталог кабельных вводов: бэкенд `cable_glands/catalog/` + эндпоинты
+  `/api/cable-glands/catalog|filters|engineer|quickselect|meta|sections/`;
+  фронт `frontend/src/apps/cable-gland-catalog/` + `/catalog/cable-glands` в SPA-роутере.
+- QuestionGraph: `manage.py migrate core` + сид `manage.py load_question_graph` (пересоздаёт 5 графов).
 - Фронт: при необходимости `npm --prefix frontend run build`.
 - Проверки: `manage.py check` + смоук-скрипты (тест-БД не работает, см. п. 6).
-- Документация контракта: `template_mixin.md`.
+- Документация контракта: `template_mixin.md`; фильтрация — `CATALOG_PATTERN.md`.
+- Мастер подбора (Selection Wizard) для CableGland зарегистрирован в `core/wizard_filter_registry.py`.
