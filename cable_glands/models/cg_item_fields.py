@@ -28,6 +28,8 @@ CG_ITEM_TEMPLATE_FIELDS = (
     {'key': 'exd', 'placeholder': '{exd}', 'path': 'get_exd_display',
      'code_path': 'exd_encoding',
      'label': 'Взрывозащита', 'group': 'general', 'order': 6},
+    {'key': 'exd_short', 'placeholder': '{exd_short}', 'path': 'get_exd_short_list',
+     'label': 'Взрывозащита (кратко)', 'group': 'general', 'order': 7},
 
     # ── Корпус ──
     {'key': 'thread', 'placeholder': '{thread}', 'path': 'thread_option__thread_size__name',
@@ -43,10 +45,31 @@ CG_ITEM_TEMPLATE_FIELDS = (
     {'key': 'weight', 'placeholder': '{weight}', 'path': 'model_line_item__weight',
      'label': 'Вес', 'unit': 'кг', 'type': 'number', 'group': 'body', 'order': 5},
 
+    # ── Крепление металлорукава / корпус (из «модели в серии») ──
+    {'key': 'metal_sleeve_body_code', 'placeholder': '{metal_sleeve_body_code}',
+     'path': 'model_line_item__metal_sleeve_body__code',
+     'label': 'Крепление МР (код)', 'group': 'body', 'order': 6},
+    {'key': 'metal_sleeve_inner', 'placeholder': '{metal_sleeve_inner}',
+     'path': 'model_line_item__metal_sleeve_body__metal_sleeve_inner',
+     'label': 'МР внутр. ⌀', 'unit': 'мм', 'group': 'body', 'order': 7},
+    {'key': 'metal_sleeve_outer', 'placeholder': '{metal_sleeve_outer}',
+     'path': 'model_line_item__metal_sleeve_body__metal_sleeve_outer',
+     'label': 'МР внеш. ⌀', 'unit': 'мм', 'group': 'body', 'order': 8},
+    {'key': 'metal_sleeve_range', 'placeholder': '{metal_sleeve_range}', 'path': 'get_metal_sleeve_range_display',
+     'label': 'МР внутр./внеш. ⌀', 'unit': 'мм', 'group': 'body', 'order': 9},
+    {'key': 'metal_sleeve', 'placeholder': '{metal_sleeve}', 'path': 'get_metal_sleeve_display',
+     'label': 'Металлорукав', 'group': 'body', 'order': 10},
+    {'key': 'body_code', 'placeholder': '{body_code}', 'path': 'model_line_item__body__code',
+     'label': 'Корпус (код)', 'group': 'body', 'order': 11},
+
     # ── Условия эксплуатации ──
     {'key': 'temp_range', 'placeholder': '{temp_range}', 'path': 'get_temp_range_display',
      'label': 'Температура', 'unit': '°С', 'group': 'conditions', 'order': 1},
     {'key': 'cable_types', 'placeholder': '{cable_types}', 'path': 'get_applicable_cable_types_display',
      'label': 'Исполнение', 'group': 'conditions', 'order': 2},
+
+    # ── Дополнительно ──
+    {'key': 'extra_params', 'placeholder': '{extra_params}', 'path': 'get_extra_params',
+     'label': 'Дополнительные параметры', 'group': 'extra', 'order': 1},
 
 )

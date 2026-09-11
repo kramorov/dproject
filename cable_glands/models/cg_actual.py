@@ -72,7 +72,9 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'thread', 'body_material',
-        'cable_diameter','cable_diameter_outer', 'weight', 'ip', 'exd', 'temp_range', 'cable_types',
+        'cable_diameter','cable_diameter_outer', 'weight', 'metal_sleeve_body_code',
+        'metal_sleeve_inner', 'metal_sleeve_outer', 'metal_sleeve_range', 'metal_sleeve', 'body_code',
+        'ip', 'exd', 'exd_short', 'temp_range', 'cable_types', 'extra_params',
     )
 
     CODE_FIELD_KEYS = (
@@ -81,20 +83,25 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     VARS_FIELD_KEYS = (
         'code', 'name', 'model_line_name', 'brand_name', 'thread',
-        'body_material', 'cable_diameter', 'cable_diameter_outer','weight', 'ip', 'exd',
-        'temp_range', 'cable_types',
+        'body_material', 'cable_diameter', 'cable_diameter_outer','weight',
+        'metal_sleeve_body_code', 'metal_sleeve_inner', 'metal_sleeve_outer',
+        'metal_sleeve_range', 'metal_sleeve', 'body_code',
+        'ip', 'exd', 'exd_short', 'temp_range', 'cable_types', 'extra_params',
     )
 
     SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'ip', 'exd',
+        'model_line_name', 'brand_name', 'ip', 'exd', 'exd_short',
         'thread', 'body_material', 'cable_diameter','cable_diameter_outer', 'weight',
-        'temp_range', 'cable_types',
+        'metal_sleeve_body_code', 'metal_sleeve_inner', 'metal_sleeve_outer',
+        'metal_sleeve_range', 'metal_sleeve', 'body_code',
+        'temp_range', 'cable_types', 'extra_params',
     )
 
     SPEC_GROUP_TITLES = {
         'general': 'Основные',
         'body': 'Корпус',
         'conditions': 'Условия эксплуатации',
+        'extra': 'Дополнительно',
     }
 
     name = models.TextField(blank=True,
@@ -270,9 +277,8 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     # ── Display-свойства для шаблонов и секций каталога ──
 
-    @property
-    def get_exd_display(self) -> str:
-        """Взрывозащита: выбранная through-строка (exd_option) или дефолт серии — через ' / '."""
+    def _get_effective_exd_row(self):
+        """Эффективная through-строка взрывозащиты: выбранная (exd_option) или дефолт серии."""
         row = self.exd_option
         if row is None and self.model_line_id:
             from .cg_exd_option import CableGlandExdOption
@@ -280,23 +286,29 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
                 row = CableGlandExdOption.get_effective_row(parent_id=self.model_line_id)
             except Exception:
                 row = None
+        return row
+
+    @property
+    def get_exd_display(self) -> str:
+        """Взрывозащита: список из полей name опций (через ' / ')."""
+        row = self._get_effective_exd_row()
         if row is None:
             return ''
         items = []
         for x in row.exd_options.all():
-            items.append(x.code or x.name or x.description or str(x))
+            items.append(x.name or x.code or x.description or str(x))
         return ' / '.join(items)
+
+    @property
+    def get_exd_short_list(self) -> str:
+        """Короткий список видов взрывозащиты: «Ex db / Ex ta / Ex eb / Ex nR» (паттерн позиционеров)."""
+        row = self._get_effective_exd_row()
+        return row.get_exd_short_list if row else ''
 
     @property
     def exd_encoding(self) -> str:
         """Encoding взрывозащиты: выбранная through-строка или дефолт серии."""
-        row = self.exd_option
-        if row is None and self.model_line_id:
-            from .cg_exd_option import CableGlandExdOption
-            try:
-                row = CableGlandExdOption.get_effective_row(parent_id=self.model_line_id)
-            except Exception:
-                row = None
+        row = self._get_effective_exd_row()
         return row.encoding if (row and row.encoding) else ''
 
     @property
@@ -366,6 +378,31 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         if not mli:
             return ''
         return str(mli.cable_diameter_outer_max).rstrip('0').rstrip('.') if mli.cable_diameter_outer_max else ''
+
+    @property
+    def get_metal_sleeve_display(self) -> str:
+        """Список совместимых металлорукавов из крепления МР (пусто, если крепление не привязано)."""
+        mli = self.model_line_item
+        if not mli or not mli.metal_sleeve_body_id:
+            return ''
+        sleeves = mli.metal_sleeve_body.metal_sleeve.all()
+        if not sleeves:
+            return ''
+        return ' / '.join(str(s) for s in sleeves)
+
+    @property
+    def get_metal_sleeve_range_display(self) -> str:
+        """Диапазон внутр./внеш. ⌀ металлорукава из крепления МР (пусто, если крепление не привязано)."""
+        mli = self.model_line_item
+        if not mli or not mli.metal_sleeve_body_id:
+            return ''
+        body = mli.metal_sleeve_body
+        parts = []
+        if body.metal_sleeve_inner:
+            parts.append(str(body.metal_sleeve_inner).rstrip('0').rstrip('.'))
+        if body.metal_sleeve_outer:
+            parts.append(str(body.metal_sleeve_outer).rstrip('0').rstrip('.'))
+        return '…'.join(parts)
       
     @property
     def get_temp_range_display(self) -> str:
@@ -405,6 +442,34 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         if ml.for_pipelines_cable:
             parts.append(_('в трубопроводе'))
         return ' '.join(str(p) for p in parts)
+
+    @property
+    def get_extra_params(self) -> str:
+        """Дополнительные параметры из extra_params серии (плейсхолдер {extra_params})."""
+        ml = self.model_line
+        if not ml or not ml.extra_params:
+            return ''
+        params = ml.extra_params
+        if isinstance(params, str):
+            import json
+            try:
+                params = json.loads(params)
+            except Exception:
+                return ''
+        if not isinstance(params, dict):
+            return ''
+        parts = []
+        for key, value in params.items():
+            if not value:
+                continue
+            if isinstance(value, dict):
+                name = value.get('name', key)
+                val = value.get('value', '')
+            else:
+                name, val = key, value
+            if val:
+                parts.append(f"{name}: {val}")
+        return '; '.join(parts)
 
     # ── SKUMixin ──
 
