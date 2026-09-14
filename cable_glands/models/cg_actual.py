@@ -89,20 +89,23 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         'ip', 'exd', 'exd_short', 'temp_range', 'cable_types', 'extra_params',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'ip', 'exd', 'exd_short',
-        'thread', 'body_material', 'cable_diameter','cable_diameter_outer', 'weight',
-        'metal_sleeve_body_code', 'metal_sleeve_inner', 'metal_sleeve_outer',
-        'metal_sleeve_range', 'metal_sleeve', 'body_code',
-        'temp_range', 'cable_types', 'extra_params',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template
+    # (model_line → EquipmentType), фоллбэк — {model_code}.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'ip', 'exd', 'exd_short',
+    #     'thread', 'body_material', 'cable_diameter','cable_diameter_outer', 'weight',
+    #     'metal_sleeve_body_code', 'metal_sleeve_inner', 'metal_sleeve_outer',
+    #     'metal_sleeve_range', 'metal_sleeve', #'body_code',
+    #     'temp_range', 'cable_types', 'extra_params',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-        'body': 'Корпус',
-        'conditions': 'Условия эксплуатации',
-        'extra': 'Дополнительно',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    #     'body': 'Присоединения',
+    #     'conditions': 'Условия эксплуатации',
+    #     'extra': 'Дополнительно',
+    # }
 
     name = models.TextField(blank=True,
                             verbose_name=_("Название"),
@@ -247,6 +250,12 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         if not self.model_line:
             return None
         return self.model_line.description_template or None
+
+    def _get_title_template_source(self):
+        """Шаблон заголовка карточки — из серии (title_template)."""
+        if not self.model_line:
+            return None
+        return getattr(self.model_line, 'title_template', None) or None
 
     def _get_default_name_template(self) -> str:
         return "{model_code} Кабельный ввод {brand}"

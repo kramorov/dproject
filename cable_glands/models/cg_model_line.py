@@ -68,6 +68,14 @@ class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
     description_template = models.TextField(blank=True, null=True,
                                             verbose_name=_("Шаблон описания"),
                                             help_text=_('Шаблон для описания КВ'))
+    title_template = models.TextField(blank=True, null=True,
+                                      verbose_name=_("Шаблон заголовка"),
+                                      help_text=_('Шаблон короткого заголовка для карточки '
+                                                  '(плейсхолдеры из реестра CableGland)'))
+    spec_template = models.JSONField(default=dict, blank=True,
+                                     verbose_name=_("Шаблон спецификации"),
+                                     help_text=_('JSON: группы и поля спецификации; пусто — '
+                                                 'используется реестр CableGland'))
     model_item_code_template = models.CharField(
         max_length=500, blank=True, null=True,
         verbose_name=_("Шаблон артикула"),

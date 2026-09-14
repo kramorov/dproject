@@ -92,19 +92,21 @@ class PosiModelLineItem(CatalogSerializerMixin,
         'alarm_signal_profile_summary',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'acting_type', 'exd', 'ip',
-        'work_temp', 'body_material', 'weight', 'actuator_action',
-        'smart_capabilities', 'pneumatic_connection', 'cable_gland_hole',
-        'lever', 'supply_pressure', 'signal_profile',
-        'signal_profile_summary', 'alarm', 'alarm_signal_profile_summary',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'acting_type', 'exd', 'ip',
+    #     'work_temp', 'body_material', 'weight', 'actuator_action',
+    #     'smart_capabilities', 'pneumatic_connection', 'cable_gland_hole',
+    #     'lever', 'supply_pressure', 'signal_profile',
+    #     'signal_profile_summary', 'alarm', 'alarm_signal_profile_summary',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-        'connections': 'Присоединения',
-        'signals': 'Сигналы',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    #     'connections': 'Присоединения',
+    #     'signals': 'Сигналы',
+    # }
 
     name = models.TextField(verbose_name=_("Название"),
                             help_text=_('Текстовое название позиционера'))

@@ -54,18 +54,20 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         'handwheel_diameter', 'handwheel_force_nominal', 'interlock', 'work_temp',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'body_material', 'ip',
-        'override_mechanism', 'locking_mechanism', 'is_declutchable',
-        'transmission_variety', 'reduction_ratio', 'max_output_torque',
-        'max_input_torque', 'weight', 'handwheel_diameter', 'work_temp',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'body_material', 'ip',
+    #     'override_mechanism', 'locking_mechanism', 'is_declutchable',
+    #     'transmission_variety', 'reduction_ratio', 'max_output_torque',
+    #     'max_input_torque', 'weight', 'handwheel_diameter', 'work_temp',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-        'body': 'Корпус',
-        'conditions': 'Условия эксплуатации',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    #     'body': 'Корпус',
+    #     'conditions': 'Условия эксплуатации',
+    # }
 
     name = models.TextField(blank=True,
                             verbose_name=_("Название"),

@@ -281,11 +281,14 @@ class TemplateMixin:
 
     @property
     def title_template(self) -> str:
-        """Итоговый шаблон заголовка: source или default."""
-        et = self._get_equipment_type_template('title_template')
-        if et:
-            return et
-        return self._get_title_template_source() or self._get_default_title_template()
+        """Итоговый шаблон заголовка.
+
+        Приоритет: model_line (``_get_title_template_source()``)
+        → ``EquipmentType.title_template`` → дефолтный шаблон модели.
+        """
+        return (self._get_title_template_source()
+                or self._get_equipment_type_template('title_template')
+                or self._get_default_title_template())
 
     @property
     def description_template(self) -> str:
@@ -1826,25 +1829,11 @@ class CatalogDictMixin:
     @classmethod
     def get_field_meta(cls) -> dict:
         """
-        Извлекает плоский словарь field_key -> {label, group, unit, type} из sections.
-
-        Вызывается на классе (без инстанса) — создаёт dummy-объект.
+        Deprecated: подписи/единицы полей теперь задаются в ``spec_template``
+        (JSON на серии/типе оборудования). Метод оставлен для совместимости
+        meta-эндпоинтов и возвращает пустой словарь.
         """
-        dummy = cls()
-        data = dummy.to_dict()
-        meta = {}
-        for section in data.get("sections", []):
-            if section.get("type") == "specs":
-                for group in section.get("groups", []):
-                    for field in group.get("fields", []):
-                        meta[field["key"]] = {
-                            "label": field["label"],
-                            "group": group.get("title", ""),
-                            "unit": field.get("unit", ""),
-                            "type": field.get("type", "text"),
-                            "order": field.get("order", 0),
-                        }
-        return meta
+        return {}
 
     def to_values_dict(self) -> dict:
         """
@@ -1854,12 +1843,7 @@ class CatalogDictMixin:
             {id, code, name, values: {key: value}, images, model_line, sku, ...}
         """
         data = self.to_dict()
-        values = {}
-        for section in data.get("sections", []):
-            if section.get("type") == "specs":
-                for group in section.get("groups", []):
-                    for field in group.get("fields", []):
-                        values[field["key"]] = field["value"]
+        values = dict(data.get("template_vars", {}))
         return {
             "id": data.get("id"),
             "code": data.get("code"),

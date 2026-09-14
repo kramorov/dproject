@@ -65,18 +65,20 @@ class LimitSwitchBox(CatalogSerializerMixin,
         'signal_profile_summary', 'cert_description', 'signals', 'sensors',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'sensor_variety', 'points', 'ip',
-        'exd', 'work_temp', 'visual_indicator_type', 'body_material', 'weight',
-        'cable_glands_holes', 'mounting', 'signals', 'sensors',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'sensor_variety', 'points', 'ip',
+    #     'exd', 'work_temp', 'visual_indicator_type', 'body_material', 'weight',
+    #     'cable_glands_holes', 'mounting', 'signals', 'sensors',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-        'body': 'Корпус',
-        'signals_feedback': 'Сигналы обратной связи',
-        'sensors': 'Датчики',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    #     'body': 'Корпус',
+    #     'signals_feedback': 'Сигналы обратной связи',
+    #     'sensors': 'Датчики',
+    # }
 
     name = models.TextField(
         verbose_name=_("Название"),

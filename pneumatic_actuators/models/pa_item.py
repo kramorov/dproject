@@ -98,13 +98,15 @@ class PneumaticActuatorItem(
         'body_name', 'body_code', 'variety_name', 'variety_code', 'weight',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'variety_name', 'body_name', 'weight',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'variety_name', 'body_name', 'weight',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    # }
 
     name = models.TextField(
         blank=True,

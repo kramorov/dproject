@@ -19,20 +19,20 @@ PA_ITEM_TEMPLATE_FIELDS = (
     # ── Общие / template_vars ──
     {'key': 'code', 'placeholder': '{model_code}', 'path': 'code', 'code_path': 'base_model_code'},
     {'key': 'name', 'path': 'name'},
-    {'key': 'model_line_name', 'path': 'model_line__name', 'label': 'Серия', 'group': 'general', 'order': 1},
+    {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'model_line_code', 'path': 'model_line__code'},
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
-     'name_path': 'model_line__brand', 'label': 'Бренд', 'group': 'general', 'order': 2},
+     'name_path': 'model_line__brand', },
 
     # ── Вид и корпус ──
     {'key': 'variety_name', 'placeholder': '{variety}', 'path': 'pneumatic_actuator_variety__name',
-     'name_path': 'pneumatic_actuator_variety', 'label': 'Тип привода', 'group': 'general', 'order': 3},
+     'name_path': 'pneumatic_actuator_variety', },
     {'key': 'variety_code', 'path': 'pneumatic_actuator_variety__code'},
     {'key': 'body_name', 'placeholder': '{body_name}', 'path': 'body__name',
-     'label': 'Корпус', 'group': 'general', 'order': 4},
+     },
     {'key': 'body_code', 'placeholder': '{body_code}', 'path': 'body__code'},
     {'key': 'weight', 'placeholder': '{weight}', 'path': 'calculated_weight',
-     'label': 'Вес (кг)', 'type': 'number', 'group': 'general', 'order': 6},
+     },
 
     # ── Опции (шаблоны + артикул) ──
     {'key': 'safety_position', 'placeholder': '{safety_position}', 'path': 'selected_safety_position__name',

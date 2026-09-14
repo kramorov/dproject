@@ -68,13 +68,16 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
                 ('temp_min', 'temp_max'),
             ),
         }),
-        (_('Шаблоны названия, описания и артикула'), {
+        (_('Шаблоны названия, описания, заголовка и артикула'), {
             'fields': (
                 ('name_template', 'description_template'),
+                'title_template',
                 'model_item_code_template',
+                'spec_template',
             ),
             'description': _('Шаблоны серии: {model_code}, {brand}, {thread}, '
-                             '{body_material} — по справочнику плейсхолдеров ниже.'),
+                             '{body_material} — по справочнику плейсхолдеров ниже. '
+                             'spec_template — JSON групп и полей спецификации.'),
         }),
         (_('ГОСТ, Описание'), {
             'fields': ('gost', 'description'),

@@ -21,10 +21,19 @@
 Цепочка источника шаблона (приоритет сверху вниз):
 
 ```
+# name / description
 _get_name_template_source()        ← переопределение модели (обычно model_line)
   → _get_default_name_template()   ← fallback-текст в модели
-Для title дополнительно:
+
+# title (заголовок карточки)
+_get_title_template_source()       ← переопределение модели (обычно model_line.title_template)
   → EquipmentType.title_template   ← глобальная настройка типа оборудования
+  → _get_default_title_template()  ← fallback-текст в модели
+
+# spec (спецификация, JSON)
+model_line.spec_template           ← приоритет — на серии
+  → EquipmentType.spec_template    ← глобальная настройка типа оборудования
+  → {model_code}                   ← fallback (только артикул)
 ```
 
 ---
@@ -46,9 +55,15 @@ class MyModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
     description_template = models.TextField(blank=True, null=True,
                                             verbose_name=_("Шаблон описания"))
 
+    # ОПЦИОНАЛЬНО: заголовок карточки и JSON-спецификация (приоритет над EquipmentType)
+    title_template = models.TextField(blank=True, null=True,
+                                      verbose_name=_("Шаблон заголовка"))
+    spec_template = models.JSONField(default=dict, blank=True,
+                                     verbose_name=_("Шаблон спецификации"))
+
     brand = models.ForeignKey(Brands, ...)
     # EquipmentTypeMixin даёт поле equipment_type — используется
-    # для title-цепочки (EquipmentType.title_template) и для SKU.
+    # для title/spec-цепочки (EquipmentType.title_template/spec_template) и для SKU.
 ```
 
 ### 2.2. Модель артикула (item)
@@ -74,6 +89,11 @@ class MyItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin,
         if not self.model_line:
             return None
         return self.model_line.description_template or None
+
+    def _get_title_template_source(self):
+        if not self.model_line:
+            return None
+        return self.model_line.title_template or None
 
     # ── Fallback-тексты (используются, если шаблон серии не задан) ──
     def _get_default_name_template(self) -> str:
@@ -388,7 +408,7 @@ class MyItem(CatalogSerializerMixin, ..., TemplateMixin, ...):
     NAME_FIELD_KEYS = ('code', 'brand', 'exd_list', 'exd_short', ...)   # имя/описание
     CODE_FIELD_KEYS = ('code', 'exd_list', ...)                          # артикул
     VARS_FIELD_KEYS = ('code', 'brand', 'exd_list', ...)                 # template_vars
-    SPEC_FIELD_KEYS = ('brand', 'exd_list', ...)                         # specs-секции
+    # SPEC_FIELD_KEYS больше не нужен: спецификация задаётся spec_template.
 ```
 
 Производные методы строят словари из этих списков:
@@ -396,7 +416,8 @@ class MyItem(CatalogSerializerMixin, ..., TemplateMixin, ...):
 - `_get_data_dict()` → `NAME_FIELD_KEYS` (дефолт: все поля с `path`);
 - `_get_code_data_dict()` → `CODE_FIELD_KEYS` (дефолт: все поля с `code_path`, фолбэк `path`);
 - `_get_template_vars(fields=None)` → `VARS_FIELD_KEYS` (дефолт: все поля с `path`);
-- `_get_spec_sections(fields=None)` → `SPEC_FIELD_KEYS` (дефолт: все поля с `group`).
+- `_get_spec_sections(fields=None)` → `spec_template` (model_line → EquipmentType),
+  фоллбэк — `{model_code}` (только артикул).
 
 Значения резолвятся лениво и мемоизируются на инстансе (`_resolve_field()`),
 поэтому лишние поля не вычисляются; `fields=` даёт проекцию для MCP.
@@ -406,9 +427,11 @@ class MyItem(CatalogSerializerMixin, ..., TemplateMixin, ...):
 `core/models/catalog_serializer.py` — `CatalogSerializerMixin(CatalogDictMixin)`:
 единый каркас `to_dict()`/`to_values_dict()` и общие секции (галерея,
 характеристики, документация, сертификаты, описание). `_get_template_vars()`
-и `_get_spec_sections()` выводятся из реестра; переопределять их нужно только
-для динамических секций (примеры: `LimitSwitchBox` — сигналы/датчики через
-`resolver`-поля; `PneumaticFitting` — состав спеков по виду оборудования).
+выводится из реестра, а `_get_spec_sections()` — из `spec_template`
+(model_line → EquipmentType, фоллбэк `{model_code}`); переопределять её нужно
+только для динамических секций (пример: `LimitSwitchBox` — сигналы/датчики
+через `resolver`-поля). Состав спеков по виду оборудования (`PneumaticFitting`)
+задаётся разными `EquipmentType.spec_template`, а не переопределением метода.
 
 System checks:
 

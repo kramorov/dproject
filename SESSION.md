@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-11. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-14. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо),
 > паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`.
 
@@ -13,19 +13,26 @@
 - Шаблоны `name_template` / `description_template` живут на **серии** (model_line).
 - **Артикул** (item) определяет `_get_data_dict()` — словарь «плейсхолдер → путь к характеристике».
 - Генерация name/description происходит в `save()` (флаг `skip_auto_generate=True` отключает).
-- Title: цепочка `_get_title_template_source` → `EquipmentType.title_template` → `{model_code}`.
+- Title: цепочка `model_line.title_template` (`_get_title_template_source`) → `EquipmentType.title_template` → `{model_code}`.
 - SKU создаётся из артикула через `SKUMixin.sync_sku()` (в `save()` после `super().save()`).
-- **Реестр полей (новое, 2026-09-07)**: `TEMPLATE_FIELDS` + `TemplateFieldSpec`
+- **Реестр полей (2026-09-07 → упрощён 2026-09-14)**: `TEMPLATE_FIELDS` + `TemplateFieldSpec`
   (`core/models/template_fields.py`) — единый источник правды для `_get_data_dict`,
-  `_get_code_data_dict`, `_get_template_vars`, `_get_spec_sections`; составы словарей —
-  списками ключей (`NAME/CODE/VARS/SPEC_FIELD_KEYS`), сериализация —
-  `CatalogSerializerMixin` (`core/models/catalog_serializer.py`). Подробно: `template_mixin.md` §7.
+  `_get_code_data_dict`, `_get_template_vars`; теперь только `key`/`placeholder`/`path`/
+  `name_path`/`code_path`/`resolver` (метаданные `label`/`unit`/`type`/`group`/`order` убраны).
+  Составы словарей — списками ключей (`NAME/CODE/VARS_FIELD_KEYS`; `SPEC_FIELD_KEYS` и
+  `SPEC_GROUP_TITLES` удалены). Сериализация — `CatalogSerializerMixin`
+  (`core/models/catalog_serializer.py`). Подробно: `template_mixin.md` §7.
   Пилоты: `PosiModelLineItem`, `LimitSwitchBox` (списковые поля `signals`/`sensors` → JSON).
   Переведены на реестр 2026-09-07: `DirectionValve`, `FilterRegulator`, `GearBox`,
-  `PneumaticFitting` (точечное переопределение `_get_spec_sections()` — состав спеков
-  по виду оборудования), `PneumaticActuatorItem` (единственная с `CODE_FIELD_KEYS`/
-  `code_path` для автогенерации артикула). Реестры — в `*_fields.py` рядом с моделями.
-  На ручном `_get_data_dict()` осталась `SensorComponent`.
+  `PneumaticFitting`, `PneumaticActuatorItem` (с `CODE_FIELD_KEYS`/`code_path`).
+  Реестры — в `*_fields.py` рядом с моделями. На ручном `_get_data_dict()` — `SensorComponent`.
+- **Спецификация/заголовок (2026-09-14)**: спецификация — вложенный JSON `spec_template`
+  (приоритет `model_line.spec_template` → `EquipmentType.spec_template` → фоллбэк
+  `{model_code}`); формат `{группа: {подпись: ключ_поля}}`. `_get_spec_sections()` отдаёт
+  `{группа: {подпись: значение}}`; секция спеки в `to_dict()` — `data` (вместо `groups`).
+  Фронт: `TabSpecs.vue` рендерит `data` напрямую (без meta/order). `get_field_meta()`
+  → deprecated (`{}`); `to_values_dict()['values']` = `template_vars`. У `EquipmentType`
+  добавлен `spec_template` (core 0014); в админке серии/типа — поля `title_template`/`spec_template`.
 
 **Модели на контракте** (9 активных): `DirectionValve`, `LimitSwitchBox`, `PosiModelLineItem`,
 `FilterRegulator`, `GearBox`, `PneumaticFitting`, `PneumaticActuatorItem`, `CableGland`,
@@ -299,6 +306,7 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
   создание недостающих строк с encoding из кода справочника; без побочной генерации).
 - `0010` — RemoveField `thread`/`body_material`.
 - `0011` — CreateModel `CableGlandConstructor`.
+- `0012` — AddField `title_template`/`spec_template` в `CableGlandModelLine` (2026-09-14).
 
 ### Исправлено в этой сессии
 
@@ -329,9 +337,10 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 
 - `git pull`/переключение ветки; зависимости не менялись.
 - Миграции применены (`manage.py migrate` — no-op); dev-БД — `db.sqlite3`.
-  cable_glands: применены `0001_initial` … `0011_cableglandconstructor`; данных —
+  cable_glands: применены `0001_initial` … `0012_cableglandmodelline_spec_template_and_more`;
+  core: применена `0014_equipmenttype_spec_template`. данных —
   **972 артикула CableGland** (сгенерены командой `generate_cable_gland_combinations`,
-  4 серии бренда BLOCK/БЛОК), у всех SKU и опции. Новых миграций в этой сессии нет.
+  4 серии бренда BLOCK/БЛОК), у всех SKU и опции. Новые миграции: `cable_glands/0012`, `core/0014`.
 - Каталог кабельных вводов: бэкенд `cable_glands/catalog/` + эндпоинты
   `/api/cable-glands/catalog|filters|engineer|quickselect|meta|sections/`;
   фронт `frontend/src/apps/cable-gland-catalog/` + `/catalog/cable-glands` в SPA-роутере.

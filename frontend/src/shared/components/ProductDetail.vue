@@ -20,7 +20,7 @@
           <template #default="{ activeTab }">
             <template v-for="section in product.sections" :key="section.key">
               <div v-if="activeTab === section.key">
-                <TabSpecs v-if="section.type === 'specs'" :groups="section.groups" />
+                <TabSpecs v-if="section.type === 'specs'" :data="section.data" />
                 <FileList v-else-if="section.type === 'files'" :files="section.data" />
                 <div v-else-if="section.type === 'text'" class="section-text" v-html="section.data"></div>
               </div>

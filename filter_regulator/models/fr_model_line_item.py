@@ -48,22 +48,24 @@ class FilterRegulator(
         'has_shut_off_valve',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'filter_variety', 'body_material',
-        'bowl_material', 'protection_material', 'ip', 'filtration_rating',
-        'flow_rate', 'filter_element_material',
-        'pressure_range', 'pressure_inlet_max',
-        'weight', 'thread', 'gauge_port_size', 'drain_port_size',
-        'wall_mounting_included', 'has_shut_off_valve',
-        'work_temp',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'filter_variety', 'body_material',
+    #     'bowl_material', 'protection_material', 'ip', 'filtration_rating',
+    #     'flow_rate', 'filter_element_material',
+    #     'pressure_range', 'pressure_inlet_max',
+    #     'weight', 'thread', 'gauge_port_size', 'drain_port_size',
+    #     'wall_mounting_included', 'has_shut_off_valve',
+    #     'work_temp',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-        'pressure': 'Давление',
-        'body_specs': 'Корпус',
-        'conditions': 'Условия эксплуатации',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    #     'pressure': 'Давление',
+    #     'body_specs': 'Корпус',
+    #     'conditions': 'Условия эксплуатации',
+    # }
 
     name = models.TextField(blank=True,
                             verbose_name=_("Название"),

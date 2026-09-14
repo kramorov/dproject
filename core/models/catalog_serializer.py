@@ -59,40 +59,93 @@ class CatalogSerializerMixin(CatalogDictMixin):
         selected = self._lookup_specs(keys) if keys is not None else specs
         return {f.key: self._resolve_field(f) for f in selected if f.key}
 
-    def _get_spec_sections(self, fields=None) -> list:
-        """Группы характеристик, выведенные из TEMPLATE_FIELDS (по ``group``).
+    def _get_spec_template_from_model_line(self):
+        """JSON-шаблон спецификации из серии (model_line)."""
+        ml = getattr(self, 'model_line', None)
+        if ml is None:
+            return None
+        return getattr(ml, 'spec_template', None) or None
 
-        ``fields`` — подмножество ключей; иначе — ``SPEC_FIELD_KEYS`` (дефолт —
-        все поля с ``group``). label/unit/type/order берутся из спецификации.
+    def _get_spec_template(self):
+        """Итоговый JSON-шаблон спецификации.
+
+        Приоритет: ``model_line.spec_template`` →
+        ``EquipmentType.spec_template`` → None (фоллбэк на реестр).
         """
-        specs = self._get_field_specs()
-        if not specs:
-            return []
-        keys = fields if fields is not None else getattr(self, 'SPEC_FIELD_KEYS', None)
-        selected = self._lookup_specs(keys) if keys is not None else specs
-        groups = {}
-        order = []
-        titles = getattr(self, 'SPEC_GROUP_TITLES', None) or {}
-        for f in selected:
-            if not f.group:
+        template = self._get_spec_template_from_model_line()
+        if template:
+            return template
+        getter = getattr(self, '_get_equipment_type_template', None)
+        if getter is not None:
+            template = getter('spec_template')
+            if template:
+                return template
+        return None
+
+    def _parse_spec_template(self, data):
+        """Нормализовать JSON-шаблон спецификации в dict (иначе None)."""
+        if isinstance(data, str):
+            import json
+            try:
+                data = json.loads(data)
+            except Exception:
+                return None
+        if not isinstance(data, dict):
+            return None
+        return data
+
+    def _build_spec_sections_from_template(self, template):
+        """Разворачивает вложенный spec_template в ``{группа: {подпись: значение}}``.
+
+        Формат шаблона::
+
+            {"Основные": {"Температура, °С": "temp_range", "IP": "ip"}}
+
+        Ключ — готовая подпись, значение — ключ поля реестра. Порядок — по
+        вставке ключей (без ``order``).
+        """
+        by_key = {f.key: f for f in self._get_field_specs()}
+        result = {}
+        for group_title, fields in template.items():
+            if not isinstance(fields, dict):
                 continue
-            if f.group not in groups:
-                groups[f.group] = {
-                    'key': f.group,
-                    'title': titles.get(f.group, f.group),
-                    'order': len(order) + 1,
-                    'fields': [],
-                }
-                order.append(f.group)
-            groups[f.group]['fields'].append({
-                'key': f.key,
-                'label': f.label or f.key,
-                'value': self._resolve_field(f),
-                'unit': f.unit,
-                'type': f.type,
-                'order': f.order,
-            })
-        return [groups[g] for g in order]
+            group_fields = {}
+            for label, key in fields.items():
+                spec = by_key.get(key)
+                if spec is None:
+                    continue
+                value = self._resolve_field(spec)
+                if value in (None, ''):
+                    continue
+                group_fields[label] = value
+            if group_fields:
+                result[group_title] = group_fields
+        return result
+
+    def _build_model_code_spec(self):
+        """Фоллбэк-спецификация: только артикул (``{model_code}``)."""
+        code_spec = None
+        for f in self._get_field_specs():
+            if f.key == 'code' or f.placeholder == '{model_code}':
+                code_spec = f
+                break
+        if code_spec is None:
+            return {}
+        value = self._resolve_field(code_spec)
+        if value in (None, ''):
+            return {}
+        return {_('Основные'): {_('Артикул'): value}}
+
+    def _get_spec_sections(self, fields=None) -> dict:
+        """Характеристики в виде ``{группа: {подпись: значение}}``.
+
+        Если задан ``spec_template`` (model_line или EquipmentType) — строит из
+        него; иначе — фоллбэк на ``{model_code}`` (один артикул).
+        """
+        template = self._parse_spec_template(self._get_spec_template())
+        if template:
+            return self._build_spec_sections_from_template(template)
+        return self._build_model_code_spec()
 
     # ── Общие вспомогательные ──
 
@@ -230,7 +283,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
     def _build_specs_section(self) -> dict:
         return {
             'key': 'specs', 'title': _('Характеристики'), 'type': 'specs',
-            'order': 1, 'groups': self._get_spec_sections(),
+            'order': 1, 'data': self._get_spec_sections(),
         }
 
     def _build_files_section(self, key: str, title: str, data: list, order: int) -> dict:

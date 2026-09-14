@@ -55,6 +55,18 @@ class EquipmentType(BaseAbstractModel):
         )
     )
 
+    # ── Шаблон спецификации ──
+    spec_template = models.JSONField(
+        blank=True,
+        default=dict,
+        verbose_name=_("Шаблон спецификации"),
+        help_text=_(
+            "JSON: спецификация в виде {группа: {подпись: ключ_поля}} (приоритет "
+            "ниже, чем spec_template серии). Пример: {\"Основные\": {\"IP\": \"ip\"}}. "
+            "Оставьте пустым — фоллбэк на {model_code} (только артикул)."
+        )
+    )
+
     # ── AI Assistant: семантика параметров для фазы сравнения ──────────
     param_semantics = models.JSONField(
         null=True,

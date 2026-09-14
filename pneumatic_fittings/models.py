@@ -246,18 +246,20 @@ class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
         'pressure_min', 'pressure_max', 'temp_min', 'temp_max',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'fitting_variety', 'thread',
-        'thread_inner_outer', 'body_material', 'temperature_range',
-        'pipe_diameter', 'pipe_material', 'pressure_range',
-        'flow_rate', 'noise_level', 'operating_pressure',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'fitting_variety', 'thread',
+    #     'thread_inner_outer', 'body_material', 'temperature_range',
+    #     'pipe_diameter', 'pipe_material', 'pressure_range',
+    #     'flow_rate', 'noise_level', 'operating_pressure',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-        'pipe': 'Трубка и давление',
-        'silencer': 'Параметры глушителя',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    #     'pipe': 'Трубка и давление',
+    #     'silencer': 'Параметры глушителя',
+    # }
 
     name = models.CharField(max_length=300 ,
                             verbose_name=_("Название") ,
@@ -426,26 +428,9 @@ class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
     SILENCER_PLUG_EQUIPMENT_CODES = ('fitting-silencer', 'fitting-plug')
 
     def _get_spec_sections(self, fields=None):
-        """Характеристики: базовая группа + поля трубки или глушителя по виду.
-
-        Группа ``pipe`` — только для фитингов, ``silencer`` — только для
-        глушителей/заглушек; пустые параметры глушителя не выводятся
-        (как в старой `_build_detail_sections`).
-        """
-        sections = super()._get_spec_sections(fields=fields)
-        # Вид определяет серия (каталоги скоупятся по model_line__equipment_type),
-        # а не артикул: чтение item.equipment_type дало бы N+1 на списках.
-        ml_et = self.model_line.equipment_type if getattr(self, 'model_line_id', None) else None
-        code = (ml_et.code if ml_et else '') or ''
-        is_silencer_plug = code in self.SILENCER_PLUG_EQUIPMENT_CODES
-        exclude = 'pipe' if is_silencer_plug else 'silencer'
-        sections = [s for s in sections if s['key'] != exclude]
-        if is_silencer_plug:
-            for s in sections:
-                if s['key'] == 'silencer':
-                    s['fields'] = [fld for fld in s['fields'] if fld['value'] not in ('', None)]
-        # Пустые группы (например, глушитель без данных) не выводим
-        return [s for s in sections if s.get('fields')]
+        """Спецификация берётся из spec_template (пайп/глушитель уже разведены
+        по EquipmentType.spec_template), пустые значения скрываются в миксине."""
+        return super()._get_spec_sections(fields=fields)
 
     def __str__(self) :
         return self.name

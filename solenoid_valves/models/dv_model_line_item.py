@@ -82,28 +82,30 @@ class DirectionValve(CatalogSerializerMixin,
         'work_temp_min', 'work_temp_max', 'temperature_range', 'pressure_range',
     )
 
-    SPEC_FIELD_KEYS = (
-        'model_line_name', 'brand_name', 'function', 'actuation', 'construction',
-        'operation', 'manual_override', 'working_medium', 'kv', 'dn',
-        'pressure_min', 'pressure_max', 'pressure_range',
-        'body_material', 'body_material_specified', 'sealing_material_specified',
-        'solenoid_body_material', 'solenoid_body_material_specified', 'weight',
-        'pneumatic_connection', 'pneumatic_connection_thread', 'cable_glands_holes',
-        'power_supply', 'power_consumption_start', 'power_consumption_hot',
-        'power_consumption_hold', 'solenoid_insulation_class', 'ip', 'exd',
-        'temperature_range', 'medium_density_max',
-    )
+    # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
+    # SPEC_FIELD_KEYS = (
+    #     'model_line_name', 'brand_name', 'function', 'actuation', 'construction',
+    #     'operation', 'manual_override', 'working_medium', 'kv', 'dn',
+    #     'pressure_min', 'pressure_max', 'pressure_range',
+    #     'body_material', 'body_material_specified', 'sealing_material_specified',
+    #     'solenoid_body_material', 'solenoid_body_material_specified', 'weight',
+    #     'pneumatic_connection', 'pneumatic_connection_thread', 'cable_glands_holes',
+    #     'power_supply', 'power_consumption_start', 'power_consumption_hot',
+    #     'power_consumption_hold', 'solenoid_insulation_class', 'ip', 'exd',
+    #     'temperature_range', 'medium_density_max',
+    # )
 
-    SPEC_GROUP_TITLES = {
-        'general': 'Основные',
-        'flow': 'Пропускная способность',
-        'pressure': 'Давление',
-        'body': 'Корпус и материалы',
-        'connections': 'Присоединения',
-        'electric': 'Электрические параметры',
-        'protection': 'Защита',
-        'conditions': 'Условия эксплуатации',
-    }
+    # SPEC_GROUP_TITLES закомментирован: названия групп задаются в spec_template (JSON).
+    # SPEC_GROUP_TITLES = {
+    #     'general': 'Основные',
+    #     'flow': 'Пропускная способность',
+    #     'pressure': 'Давление',
+    #     'body': 'Корпус и материалы',
+    #     'connections': 'Присоединения',
+    #     'electric': 'Электрические параметры',
+    #     'protection': 'Защита',
+    #     'conditions': 'Условия эксплуатации',
+    # }
 
     name = models.TextField(
         verbose_name=_("Название"),

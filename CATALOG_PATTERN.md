@@ -76,3 +76,58 @@ API возвращает `defaults` в ответе QuickSelect, фронт пр
 
 `parameter_rule_code` имеет приоритет в `build_filter_lookup`.
 При ошибке — fallback на `filter_type`.
+
+---
+
+## Шаблоны title и спецификации (title_template / spec_template)
+
+Единый паттерн формирования заголовка карточки и спецификации (деталки).
+Реализация — `core/models/mixins.py` (TemplateMixin) и
+`core/models/catalog_serializer.py` (CatalogSerializerMixin).
+
+### title (заголовок карточки)
+
+Приоритет источника (сверху вниз):
+
+1. `_get_title_template_source()` — обычно `model_line.title_template`;
+2. `EquipmentType.title_template` — глобальная настройка типа оборудования;
+3. `_get_default_title_template()` — fallback-текст модели.
+
+Заполняется плейсхолдерами реестра `TEMPLATE_FIELDS`, аналогично
+`name_template`/`description_template`.
+
+### spec (спецификация)
+
+Приоритет источника (JSON, сверху вниз):
+
+1. `model_line.spec_template` — на серии;
+2. `EquipmentType.spec_template` — глобальная настройка типа оборудования;
+3. `{model_code}` — fallback (только артикул).
+
+Формат `spec_template` (вложенный, без `order`):
+
+```json
+{
+  "Основные": {
+    "Температура, °С": "temp_range",
+    "IP": "ip",
+    "Взрывозащита": "exd_short"
+  },
+  "Присоединения": {
+    "Резьба": "thread",
+    "Материал корпуса": "body_material",
+    "Вес, кг": "weight"
+  }
+}
+```
+
+Ключ — готовая подпись (с единицей), значение — ключ поля реестра
+`TEMPLATE_FIELDS`. Порядок — по вставке ключей. Пустые значения автоматически
+скрываются. Фронт получает уже заполненные значения
+(`sections[type=specs].data` = `{группа: {подпись: значение}}`).
+
+Реестр `TEMPLATE_FIELDS` хранит только резолв значений и строковые шаблоны
+(`key`, `placeholder`, `path`, `name_path`, `code_path`, `resolver`);
+`label`/`unit`/`type`/`group`/`order` убраны — подписи задаются в `spec_template`.
+
+Эталон: кабельные вводы (`CableGland` / `CableGlandModelLine`).

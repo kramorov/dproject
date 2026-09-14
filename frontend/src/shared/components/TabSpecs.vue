@@ -1,13 +1,13 @@
 <!-- shared/components/TabSpecs.vue -->
-<!-- Рендерит характеристики из sections[type=specs] с метаданными из стора -->
+<!-- Рендерит характеристики из sections[type=specs] (data = {группа: {подпись: значение}}) -->
 <template>
-  <div class="tab-specs" v-if="groups.length">
-    <div v-for="group in sortedGroups" :key="group.key" class="spec-group">
-      <h3 class="group-title" v-if="group.title">{{ group.title }}</h3>
+  <div class="tab-specs" v-if="hasData">
+    <div v-for="(fields, groupTitle) in data" :key="groupTitle" class="spec-group">
+      <h3 class="group-title">{{ groupTitle }}</h3>
       <dl class="spec-table">
-        <div v-for="field in group.fields" :key="field.key" class="spec-row">
-          <dt>{{ field.label }}{{ field.unit ? ', ' + field.unit : '' }}</dt>
-          <dd>{{ field.value || '—' }}</dd>
+        <div v-for="(value, label) in fields" :key="label" class="spec-row">
+          <dt>{{ label }}</dt>
+          <dd>{{ value || '—' }}</dd>
         </div>
       </dl>
     </div>
@@ -21,12 +21,10 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  groups: { type: Array, default: () => [] },
+  data: { type: Object, default: () => ({}) },
 })
 
-const sortedGroups = computed(() =>
-  [...props.groups].sort((a, b) => (a.order || 99) - (b.order || 99))
-)
+const hasData = computed(() => Object.keys(props.data).length > 0)
 </script>
 
 <style scoped>

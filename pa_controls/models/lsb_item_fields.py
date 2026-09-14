@@ -13,20 +13,19 @@ LSB_ITEM_TEMPLATE_FIELDS = (
     # ── Общие / template_vars ──
     {'key': 'code', 'placeholder': '{model_code}', 'path': 'code'},
     {'key': 'name', 'path': 'name'},
-    {'key': 'model_line_name', 'path': 'model_line__name', 'label': 'Серия', 'group': 'general', 'order': 1},
+    {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
-     'label': 'Бренд', 'group': 'general', 'order': 2},
+     },
 
     # ── Основные ──
     {'key': 'sensor_variety', 'placeholder': '{sensor_variety}', 'path': 'sensor_variety__name',
-     'label': 'Тип сенсора', 'group': 'general', 'order': 3},
+     },
     {'key': 'points', 'placeholder': '{points}', 'path': 'get_points_display', 'name_path': 'points_option',
-     'label': 'Количество датчиков', 'type': 'number', 'group': 'general', 'order': 4},
-    {'key': 'ip', 'placeholder': '{ip}', 'path': 'ip__name', 'label': 'IP', 'group': 'general', 'order': 5},
-    {'key': 'exd', 'placeholder': '{exd}', 'path': 'exd_display', 'label': 'Взрывозащита', 'group': 'general', 'order': 6},
-    {'key': 'work_temp', 'path': 'get_work_temp_display', 'label': 'Рабочая температура', 'group': 'general', 'order': 7},
-    {'key': 'visual_indicator_type', 'path': 'visual_indicator_type__name', 'label': 'Визуальный индикатор',
-     'group': 'general', 'order': 9},
+     },
+    {'key': 'ip', 'placeholder': '{ip}', 'path': 'ip__name', },
+    {'key': 'exd', 'placeholder': '{exd}', 'path': 'exd_display', },
+    {'key': 'work_temp', 'path': 'get_work_temp_display', },
+    {'key': 'visual_indicator_type', 'path': 'visual_indicator_type__name', },
 
     # ── Только template_vars ──
     {'key': 'work_temp_min', 'placeholder': '{work_temp_min}', 'path': 'work_temp_min'},
@@ -47,17 +46,15 @@ LSB_ITEM_TEMPLATE_FIELDS = (
 
     # ── Корпус ──
     {'key': 'body_material', 'placeholder': '{body_material}', 'path': 'body_material__name',
-     'label': 'Материал корпуса', 'group': 'body', 'order': 1},
+     },
     {'key': 'weight', 'placeholder': '{weight}', 'path': 'get_weight_display', 'name_path': 'body__weight',
-     'label': 'Вес', 'unit': 'кг', 'type': 'number', 'group': 'body', 'order': 3},
+     },
     {'key': 'cable_glands_holes', 'placeholder': '{cable_glands_holes}', 'path': 'body__cable_glands_holes_list_text',
-     'label': 'Отверстия под КВ', 'group': 'body', 'order': 4},
+     },
     {'key': 'mounting', 'placeholder': '{mounting}', 'path': 'body__mounting_list_text',
-     'label': 'Монтаж', 'group': 'body', 'order': 5},
+     },
 
     # ── Динамические списки (JSON/MCP) ──
-    {'key': 'signals', 'type': 'list', 'resolver': 'get_signals_data', 'label': 'Сигналы обратной связи',
-     'group': 'signals_feedback', 'order': 1},
-    {'key': 'sensors', 'type': 'list', 'resolver': 'get_sensors_data', 'label': 'Датчики',
-     'group': 'sensors', 'order': 1},
+    {'key': 'signals', 'resolver': 'get_signals_data', },
+    {'key': 'sensors', 'resolver': 'get_sensors_data', },
 )
