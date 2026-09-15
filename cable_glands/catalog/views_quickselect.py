@@ -11,6 +11,7 @@ from cable_glands.catalog.config import CABLE_GLAND_CONFIG
 
 CABLE_GLAND_QUICKSELECT_FILTERS = [
     'thread_id', 'body_material_id', 'exd_id', 'ip_id',
+    'cable_type_id',
     'cable_diameter_min', 'cable_diameter_max',
     'work_temp_min',
 ]

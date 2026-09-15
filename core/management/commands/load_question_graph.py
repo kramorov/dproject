@@ -207,3 +207,44 @@ class Command(BaseCommand):
                 defaults={'name': 'Подбор ручных дублёров', 'equipment_type': et_mo, 'graph_json': graph_mo, 'is_active': True},
             )
             self.stdout.write(self.style.SUCCESS('Graph manual-override: Updated'))
+
+        # ──────────────────────────────────────────
+        # Cable glands (кабельные вводы)
+        # ──────────────────────────────────────────
+        et_cg = EquipmentType.objects.filter(code='cable-gland').first()
+        if et_cg:
+            graph_cg = {
+                "entry_node": "page_cable_type",
+                "nodes": {
+                    "page_cable_type": {
+                        "type": "page", "name": "Тип кабеля",
+                        "params": [{"title": "Тип кабеля", "param_name": "cable_type_id", "order": 1}],
+                        "_x": 80, "_y": 60,
+                    },
+                    "page_thread": {
+                        "type": "page", "name": "Присоединение",
+                        "params": [
+                            {"title": "Резьба", "param_name": "thread_id", "order": 1},
+                            {"title": "Материал корпуса", "param_name": "body_material_id", "order": 2},
+                        ],
+                        "_x": 80, "_y": 240,
+                    },
+                    "page_protection": {
+                        "type": "page", "name": "Защита",
+                        "params": [
+                            {"title": "IP", "param_name": "ip_id", "order": 1},
+                            {"title": "Взрывозащита", "param_name": "exd_id", "order": 2},
+                        ],
+                        "_x": 80, "_y": 420,
+                    },
+                },
+                "edges": [
+                    {"from": "page_cable_type", "to": "page_thread"},
+                    {"from": "page_thread", "to": "page_protection"},
+                ],
+            }
+            QuestionGraph.objects.update_or_create(
+                code='cable-gland',
+                defaults={'name': 'Подбор кабельных вводов', 'equipment_type': et_cg, 'graph_json': graph_cg, 'is_active': True},
+            )
+            self.stdout.write(self.style.SUCCESS('Graph cable-gland: Updated'))

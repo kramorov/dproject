@@ -14,6 +14,7 @@ from .cg_constructor import *
 __all__ = [
     # все модели, которые должны быть доступны извне
     'CableGlandItemType',
+    'CableType',
     'CableGlandBodyMaterial',
     'CableGlandThreadOption',
     'CableGlandModelLineCertRelation',

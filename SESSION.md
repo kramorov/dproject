@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-14. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-15. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо),
 > паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`.
 
@@ -162,7 +162,8 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
    Constructor, legacy `PneumaticActuatorModelLineItem` и мостика `source_model_line_item` —
    **после подтверждения**.
 5. `ai/ai` в `.gitignore` / перестать отслеживать.
-6. Коммит контрольной точки текущего состояния (46 файлов рабочего дерева).
+6. Коммит контрольной точки текущего состояния (15 изменённых + 4 новых файла:
+   CableType/граф/QuickSelect; `db.sqlite3` изменён).
 7. **Согласовать реестр полей с assy.md/cg.md**: проанализировать, как новый
    `TEMPLATE_FIELDS` + `TemplateFieldSpec` (`key/placeholder/path/name_path/code_path/
    resolver/label/unit/type/order/group`) и `CatalogSerializerMixin` (`to_dict`/
@@ -184,9 +185,53 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 
 ## 8. Кабельные вводы (cable_glands) — артикул на through-опциях + конструктор
 
-**Статус (2026-09-10): артикул CableGland переведён на прямые FK на through-строки;**
-**добавлен конструктор кабельных вводов (модель + REST API + фронт + пункт меню);**
-**миграции 0001–0011 применены (`makemigrations --check` — No changes).**
+**Статус (2026-09-15): артикул на through-строках; конструктор; каталог REST;**
+**справочник CableType вместо булевых флагов серии; ParameterRule для ip/exd/temp;**
+**графовый мастер (6-й граф `cable-gland`) + быстрый подбор на фронте;**
+**миграции применены по cable_glands 0016 и core 0016; `makemigrations --check` — No changes.**
+
+### Сессия 2026-09-15: CableType + ParameterRule + мастер подбора
+
+- **Справочник `CableType`** (`cable_glands/models/cg_dicts.py`, миграция `0015_cabletype`):
+  поля `name/code/description/sorting_order/is_active` + булевы атрибуты записи
+  (`for_armored_cable`/`for_metal_sleeve_cable`/`for_pipelines_cable` — сохраняют семантику
+  на будущее). Админка `CableTypeAdmin` (`admin/cg_dicts_admin.py`).
+- **FK `cable_type` на `CableGlandModelLine`** вместо трёх булевых полей (поля удалены).
+  Data-миграция `0016_remove_cableglandmodelline_for_armored_cable_and_more`: 4 записи
+  («Под небронированный кабель», «… в металлорукаве», «Под бронированный кабель»,
+  «… в металлорукаве»; codes unarmored/unarmored_ms/armored/armored_ms) + перенос всех
+  8 серий; reverse написан (не прогонялся).
+- **Плейсхолдер `{cable_types}`** → `get_applicable_cable_types_display` теперь отдаёт
+  `name` из CableType (раньше собирал строку из флагов).
+- **ParameterRule** (`catalog/filter_defs.py`): `fd_ip→'ip'` (subset «не хуже»),
+  `fd_exd→'exd'` (hierarchy; для каталогового пути декоративен — fallback на
+  EXD_COMPATIBLE, как у БКВ), `fd_temp_min/max→'temperature_min/max'` (directional).
+  Три boolean fd заменены на `fd_cable_type` (`cable_type_id`, `model_line__cable_type`, EXACT).
+- **config/quickselect**: `fd_cable_type` в list/engineer/quickselect (в quickselect — без
+  default, чтобы автовыбор не занулял серии); `views_quickselect.py` — чипс `cable_type_id`.
+- **`select_related`**: `model_line__cable_type` добавлен в `CABLE_GLAND_CONFIG` и в
+  админку серий (иначе N+1 на сериализации).
+- **Мастер подбора**: в `load_question_graph.py` добавлен 6-й граф `code='cable-gland'`
+  (ET 12, «Подбор кабельных вводов»): `page_cable_type` (cable_type_id) →
+  `page_thread` (thread_id, body_material_id) → `page_protection` (ip_id, exd_id),
+  линейные рёбра. Температуры в шагах нет — у всех 8 серий -60…+130.
+- **`content_type` ET 12**: data-миграция `core/0015_cablegland_content_type` →
+  `cable_glands.cablegland` (без неё опции/результаты графового мастера пустые).
+- **core/0016_alter_equipmenttype_spec_template** — догенерён предсуществующий долг
+  (только help_text у `spec_template`; на БД не влияет). После этого
+  `makemigrations --check` по всему репо — No changes.
+- **Фронт**: `apps/cable-gland-catalog/App.vue` — графовый мастер по паттерну БКВ
+  (`useCatalogWizard('cable-gland')` + `QuestionGraphWizard`, page `'graph'`, fallback на
+  плоский WizardSelection), подпись чипса `cable_type_id:'Тип кабеля'`.
+  `shared/components/catalog/QuickSelect.vue` — чипсы серий из `api.getSections()`
+  (если метод есть) с fallback на `api.list` (иначе у КВ видны только 2/8 серий из-за
+  серверного капа 200 записей).
+- **Данные**: 1042 артикула, 8 серий (КНК, КБУ, КБУ-МР, КМР — BLOCK; BA, BAМр, BН, BНМр —
+  Нордэкс). Все серии: temp -60…+130. «Под трубу» — у всех серий флаг был 0.
+- **Проверено смоук-скриптами** (Django Client): catalog-wizard → type graph; опции
+  entry — 4 названия; advance 1→2→3 со скоупом; results: бронированный 210,
+  небронированный 138, бронированный в МР 338; quickselect — чипс cable_type_id с count;
+  `vite build` — без ошибок (12.6s).
 
 ### Иерархия (3 уровня)
 
@@ -307,19 +352,32 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 - `0010` — RemoveField `thread`/`body_material`.
 - `0011` — CreateModel `CableGlandConstructor`.
 - `0012` — AddField `title_template`/`spec_template` в `CableGlandModelLine` (2026-09-14).
+- `0013`/`0014` — промежуточные (вкл. `0014_populate_cableglandmodelline_ip_m2m`).
+- `0015_cabletype` — CreateModel `CableType` (2026-09-15).
+- `0016_remove_cableglandmodelline_for_armored_cable_and_more` — AddField `cable_type`
+  (FK) + RunPython (4 записи справочника, перенос флагов 8 серий) + RemoveField трёх
+  булевых полей (2026-09-15).
+- core: `0015_cablegland_content_type` (data: ET 12 → content_type), `0016_alter_equipmenttype_spec_template` (help_text).
 
 ### Исправлено в этой сессии
 
 - `get_outer_cable_diameter_display` / `get_outer_max_cable_diameter_display` —
   AttributeError из-за обращения к несуществующим полям (inner на MLI, outer на Body).
-- `get_applicable_cable_types_display` — `', '.join(str(p) ...)` (ленивый перевод `__proxy__`).
+- `get_applicable_cable_types_display` — `', '.join(str(p) ...)` (ленивый перевод `__proxy__`);
+  2026-09-15 переписан: отдаёт `name` из справочника `CableType` (флаги удалены).
 - API конструктора — широкий `except ObjectDoesNotExist` (был узкий → 500).
 - Удалена осиротевшая SKU (код `КБУ-МР G-1_4 BR`) после смены кода артикула.
 
 ### Остаток / риски
 
-- Фронт `cg-constructor` и `cable-gland-catalog` не собраны (`npm --prefix frontend run build` нужен локально);
-  полная сборка Vite не проверялась (SFC `App.vue`/`CableGlandPage.vue` не компилировались).
+- Фронт собран `vite build` 2026-09-15 (12.6s, без ошибок). Браузерная проверка вкладок
+  «Быстрый подбор»/«Мастер подбора» кабельных вводов и регресс тех же вкладок у
+  БКВ/соленоидных (общий QuickSelect.vue менялся) — остались на пользователя
+  (серверы останавливались вручную).
+- Типа кабеля «Под трубу» в справочнике нет (у всех 8 серий флаг был 0) — добавить
+  запись, когда появятся данные; фильтр `fd_cable_type` и мастер готовы к этому.
+- AI-подбор кабельных вводов не настроен: нет `ParameterBinding` для cable-gland и пусты
+  AI-поля ET 12 (`param_semantics`, `filter_endpoint`).
 - Дедупликация артикула — на уровне приложения (гонка при параллельной записи возможна);
   жёсткого `UniqueConstraint` нет (NULL-семантика на SQLite).
 - Секция прав `configurator_cg` в SiteSection не создана (суперюзер работает).
@@ -329,7 +387,8 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
   (`20 КБУ.M25x1,5.Ni`); пользователь исправил шаблон — перепроверить генерацию кодов КБУ.
 - Диаметровые фильтры (`MIN/MAX`) входят в `SPLITTABLE_TYPES` → при `show_compatible=true`
   могут стать split-фильтром (классификация exact/compatible по числу) — косметика.
-- Булевы флаги серии (armored/metal_sleeve/pipelines) — nullable; фильтр «Нет» не включает NULL.
+- `QuickSelect.vue` при `brandId` + `getSections()` игнорирует скроупинг по бренду
+  (sections не принимает brand_id) — неактуально, пока ни один каталог не передаёт brandId.
 
 ---
 
@@ -337,15 +396,21 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 
 - `git pull`/переключение ветки; зависимости не менялись.
 - Миграции применены (`manage.py migrate` — no-op); dev-БД — `db.sqlite3`.
-  cable_glands: применены `0001_initial` … `0012_cableglandmodelline_spec_template_and_more`;
-  core: применена `0014_equipmenttype_spec_template`. данных —
-  **972 артикула CableGland** (сгенерены командой `generate_cable_gland_combinations`,
-  4 серии бренда BLOCK/БЛОК), у всех SKU и опции. Новые миграции: `cable_glands/0012`, `core/0014`.
+  cable_glands: применены до `0016_remove_cableglandmodelline_for_armored_cable_and_more`
+  (вкл. `0015_cabletype`); core: до `0016_alter_equipmenttype_spec_template`
+  (вкл. `0015_cablegland_content_type`). Данные — **1042 артикула CableGland, 8 серий**
+  (BLOCK + Нордэкс), справочник CableType — 4 записи; у всех артикулов SKU и опции.
+  `makemigrations --check` по всему репо — No changes.
 - Каталог кабельных вводов: бэкенд `cable_glands/catalog/` + эндпоинты
   `/api/cable-glands/catalog|filters|engineer|quickselect|meta|sections/`;
   фронт `frontend/src/apps/cable-gland-catalog/` + `/catalog/cable-glands` в SPA-роутере.
-- QuestionGraph: `manage.py migrate core` + сид `manage.py load_question_graph` (пересоздаёт 5 графов).
-- Фронт: при необходимости `npm --prefix frontend run build`.
-- Проверки: `manage.py check` + смоук-скрипты (тест-БД не работает, см. п. 6).
+- QuestionGraph: сид `manage.py load_question_graph` (пересоздаёт **6** графов, включая
+  `cable-gland`). ET 12 (cable-gland) имеет content_type (data-миграция core/0015).
+- Фронт: `npm --prefix frontend run build` — собран 2026-09-15 без ошибок.
+- Проверки: `manage.py check` + смоук-скрипты через Django Client (тест-БД не работает, см. п. 6).
 - Документация контракта: `template_mixin.md`; фильтрация — `CATALOG_PATTERN.md`.
 - Мастер подбора (Selection Wizard) для CableGland зарегистрирован в `core/wizard_filter_registry.py`.
+- **Остаток сессии 2026-09-15**: (1) браузерный проход вкладок «Быстрый подбор»/«Мастер»
+  кабельных вводов + регресс БКВ/соленоидных; (2) коммит (15 изменённых + 4 новых файла,
+  `db.sqlite3` изменён); (3) TODO фазы 5: ParameterBinding/AI-поля для cable-gland,
+  запись CableType «Под трубу» при появлении данных, привязка марок кабеля к CableType.

@@ -14,7 +14,7 @@ from cable_glands.catalog.filter_defs import (
     fd_cable_diameter_min, fd_cable_diameter_max,
     fd_cable_diameter_outer_min, fd_cable_diameter_outer_max,
     fd_temp_min, fd_temp_max, fd_climate,
-    fd_for_armored_cable, fd_for_metal_sleeve_cable, fd_for_pipelines_cable,
+    fd_cable_type,
 )
 
 
@@ -31,7 +31,7 @@ CABLE_GLAND_CONFIG = CatalogConfig(
                 fd_cable_diameter_min, fd_cable_diameter_max,
                 fd_cable_diameter_outer_min, fd_cable_diameter_outer_max,
                 fd_temp_min, fd_temp_max, fd_climate,
-                fd_for_armored_cable, fd_for_metal_sleeve_cable, fd_for_pipelines_cable,
+                fd_cable_type,
             ],
             scoped=False,
             show_compatible=True,
@@ -44,7 +44,7 @@ CABLE_GLAND_CONFIG = CatalogConfig(
                 fd_cable_diameter_min, fd_cable_diameter_max,
                 fd_cable_diameter_outer_min, fd_cable_diameter_outer_max,
                 fd_temp_min, fd_temp_max, fd_climate,
-                fd_for_armored_cable, fd_for_metal_sleeve_cable, fd_for_pipelines_cable,
+                fd_cable_type,
             ],
             scoped=False,
             show_compatible=True,
@@ -66,6 +66,7 @@ CABLE_GLAND_CONFIG = CatalogConfig(
         'quickselect': FilterSet(
             definitions=[
                 fd_thread, fd_body_material, fd_exd, fd_ip,
+                fd_cable_type,
                 fd_cable_diameter_min, fd_cable_diameter_max,
                 fd_temp_min,
             ],
@@ -82,7 +83,7 @@ CABLE_GLAND_CONFIG = CatalogConfig(
 
     select_related=[
         'model_line',
-        'model_line__brand', 'model_line__equipment_type',
+        'model_line__brand', 'model_line__equipment_type', 'model_line__cable_type',
         'model_line_item',
         'model_line_item__body',
         'model_line_item__metal_sleeve_body',

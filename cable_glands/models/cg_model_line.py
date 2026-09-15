@@ -29,8 +29,8 @@ class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
         на серии, переходно nullable — ужесточить до PROTECT после заполнения);
       * ip — степени защиты IP (M2M на params.IpOption);
       * exd — виды взрывозащиты (through-строка CableGlandExdOption: кодировка + M2M ExdOption);
-      * for_armored_cable / for_metal_sleeve_cable / for_pipelines_cable — тип
-        кабеля, для которого предназначена серия;
+      * cable_type — тип кабеля (справочник CableType: понятное название +
+        булевы атрибуты бронированного кабеля / металлорукава / трубопровода);
       * thread_external / thread_internal — исполнение резьбы присоединения;
       * temp_min / temp_max — диапазон рабочей температуры окружающей среды;
       * gost — соответствие ГОСТ/ТУ/стандартам; extra_params — прочие (JSON).
@@ -100,12 +100,13 @@ class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
                                 related_name='cable_gland_model_lines',
                                 verbose_name=_("IP"),
                                 help_text=_('Степени защиты IP'))
-    for_armored_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Бронированный кабель"),
-                                            help_text=_('Для бронированного кабеля'))
-    for_metal_sleeve_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Металлорукав"),
-                                                 help_text=_('Для кабеля в металлорукаве'))
-    for_pipelines_cable = models.BooleanField(blank=True, null=True, verbose_name=_("Трубопровод"),
-                                              help_text=_('Для кабеля в трубопроводе'))
+    cable_type = models.ForeignKey(
+        'CableType',
+        blank=True, null=True, on_delete=models.SET_NULL,
+        related_name='model_lines',
+        verbose_name=_("Тип кабеля"),
+        help_text=_('Тип кабеля из справочника (заменяет булевы флаги бронированного/МР/трубопровода)'),
+    )
     thread_external = models.BooleanField(blank=True, null=True, verbose_name=_("Наружная резьба"),
                                           help_text=_('Наружная резьба для внешнего присоединения'))
     thread_internal = models.BooleanField(blank=True, null=True, verbose_name=_("Внутренняя резьба"),

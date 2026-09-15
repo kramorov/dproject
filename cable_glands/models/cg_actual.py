@@ -445,20 +445,11 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         
     @property
     def get_applicable_cable_types_display(self) -> str:
-        """Тип кабеля по флагам серии."""
+        """Тип кабеля из справочника серии (плейсхолдер {cable_types} в шаблонах)."""
         ml = self.model_line
-        if not ml:
+        if not ml or not ml.cable_type_id:
             return ''
-        parts = []
-        if ml.for_armored_cable:
-            parts.append(_('для бронированного кабеля'))
-        else: 
-            parts.append(_('для небронированного кабеля'))
-        if ml.for_metal_sleeve_cable:
-            parts.append(_('в металлорукаве'))
-        if ml.for_pipelines_cable:
-            parts.append(_('в трубопроводе'))
-        return ' '.join(str(p) for p in parts)
+        return str(ml.cable_type)
 
     @property
     def get_extra_params(self) -> str:

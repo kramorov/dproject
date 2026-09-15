@@ -103,9 +103,7 @@ class CableGlandAdmin(AdminCopyMixin, admin.ModelAdmin):
     list_editable = ('sorting_order', 'is_active')
     list_filter = (
         'is_active', 'model_line', 'body_material_option', 'thread_option',
-        'model_line__for_armored_cable',
-        'model_line__for_metal_sleeve_cable',
-        'model_line__for_pipelines_cable',
+        'model_line__cable_type',
         CableDiameterInnerMinFilter,
         CableDiameterInnerMaxFilter,
         CableDiameterOuterMinFilter,

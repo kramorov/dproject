@@ -47,6 +47,7 @@
       @select="id => onSelectItem(id, 'quickselect')"
       @navigate="goToSection"
     />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'cable-gland'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -64,7 +65,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import CatalogActions from '@/shared/components/catalog/CatalogActions.vue'
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
@@ -73,8 +74,10 @@ import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
 import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
+import QuestionGraphWizard from '@/shared/components/catalog/QuestionGraphWizard.vue'
 import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
+import { useCatalogWizard } from '@/shared/composables/useCatalogWizard'
 import cableGlandApi from './api'
 const api = cableGlandApi
 const equipmentTypeId = 12  // Кабельный ввод
@@ -91,6 +94,7 @@ const labels = {
       body_material_id:'Материал корпуса',
       exd_id:'Взрывозащита',
       ip_id:'IP',
+      cable_type_id:'Тип кабеля',
       cable_diameter_min:'Кабель от, мм',
       cable_diameter_max:'Кабель до, мм',
       work_temp_min:'Температура от, °С',
@@ -102,11 +106,12 @@ const labels = {
 }
 
 const cacheEpoch = ref(0)
+const graphAvailable = ref(false)
 const { page, selectedId, idValue, goToList: _goToList, goToBrand: _goToBrand } = useCatalogRouter(api, { idProp:'model_line_id' })
 const previousPage = ref('section')
 const pageSubtitle = ref('')
 
-const modeNames = { section:'Просмотр по сериям', list:'Инженерный подбор', brand:'Просмотр по сериям', detail:'', quickselect:'Быстрый подбор', wizard:'Мастер подбора', ai:'AI подбор' }
+const modeNames = { section:'Просмотр по сериям', list:'Инженерный подбор', brand:'Просмотр по сериям', detail:'', quickselect:'Быстрый подбор', wizard:'Мастер подбора', graph:'Мастер подбора', ai:'AI подбор' }
 const parentModeName = computed(() => {
   if (page.value === 'detail') return modeNames[previousPage.value] || 'Просмотр по сериям'
   if (page.value === 'brand') return 'Просмотр по сериям'
@@ -122,15 +127,21 @@ const breadcrumbs = computed(() => {
   return items
 })
 
-const tabKeys = { section:'section', brand:'section', list:'engineer', detail:'', quickselect:'quickselect', wizard:'wizard', ai:'ai' }
+const tabKeys = { section:'section', brand:'section', list:'engineer', detail:'', quickselect:'quickselect', wizard:'wizard', graph:'wizard', ai:'ai' }
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function goToList() { cacheEpoch.value++; _goToList() }
 function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
 
+onMounted(async () => {
+  try {
+    const { type } = await useCatalogWizard('cable-gland')
+    graphAvailable.value = type === 'graph'
+  } catch { }
+})
 function onSelectItem(id, fromPage) { previousPage.value = fromPage; selectedId.value = id; page.value = 'detail' }
 function goToQuickSelect() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'quickselect' }
-function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'wizard' }
+function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = graphAvailable.value ? 'graph' : 'wizard' }
 function goToAi() { previousPage.value = page.value; page.value = 'ai' }
 function goToSection() { cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
 </script>

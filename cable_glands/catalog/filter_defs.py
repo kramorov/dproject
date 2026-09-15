@@ -6,7 +6,7 @@
 """
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
 from params.models import IpOption, ThreadSize
-from cable_glands.models import CableGlandBodyMaterial
+from cable_glands.models import CableGlandBodyMaterial, CableType
 
 
 # ── Individual filter definitions ──
@@ -53,6 +53,7 @@ fd_exd = FilterDefinition(
     param_name='exd_id',
     model_field='exd_option__exd_options',
     filter_type=FilterType.EXD_COMPATIBLE,          # frontend: ExdFilter (каскад)
+    parameter_rule_code='exd',                      # backend: ParameterRule (hierarchy)
     data_source_type=DataSourceType.CUSTOM,
     label='Взрывозащита',
     order=5,
@@ -62,6 +63,7 @@ fd_ip = FilterDefinition(
     param_name='ip_id',
     model_field='model_line__ip',
     filter_type=FilterType.EXACT,
+    parameter_rule_code='ip',                       # backend: ParameterRule (subset по ip_rank)
     data_source_type=DataSourceType.GLOBAL_MODEL,
     source_model=IpOption,
     label='IP',
@@ -110,6 +112,7 @@ fd_temp_min = FilterDefinition(
     param_name='work_temp_min',
     model_field='model_line__temp_min',
     filter_type=FilterType.TEMP_MIN,
+    parameter_rule_code='temperature_min',          # backend: ParameterRule (directional)
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от, °С',
     order=11,
@@ -119,6 +122,7 @@ fd_temp_max = FilterDefinition(
     param_name='work_temp_max',
     model_field='model_line__temp_max',
     filter_type=FilterType.TEMP_MAX,
+    parameter_rule_code='temperature_max',          # backend: ParameterRule (directional)
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до, °С',
     order=12,
@@ -133,36 +137,16 @@ fd_climate = FilterDefinition(
     order=50,
 )
 
-# ── Исполнение кабеля (булевы флаги серии) ──
+# ── Тип кабеля (справочник CableType; заменяет булевы флаги серии) ──
 
-fd_for_armored_cable = FilterDefinition(
-    param_name='for_armored_cable',
-    model_field='model_line__for_armored_cable',
-    filter_type=FilterType.BOOLEAN,
-    data_source_type=DataSourceType.CHOICES,
-    choices=[('true', 'Да'), ('false', 'Нет')],
-    label='Бронированный кабель',
+fd_cable_type = FilterDefinition(
+    param_name='cable_type_id',
+    model_field='model_line__cable_type',
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    source_model=CableType,
+    label='Тип кабеля',
     order=13,
-)
-
-fd_for_metal_sleeve_cable = FilterDefinition(
-    param_name='for_metal_sleeve_cable',
-    model_field='model_line__for_metal_sleeve_cable',
-    filter_type=FilterType.BOOLEAN,
-    data_source_type=DataSourceType.CHOICES,
-    choices=[('true', 'Да'), ('false', 'Нет')],
-    label='Металлорукав',
-    order=14,
-)
-
-fd_for_pipelines_cable = FilterDefinition(
-    param_name='for_pipelines_cable',
-    model_field='model_line__for_pipelines_cable',
-    filter_type=FilterType.BOOLEAN,
-    data_source_type=DataSourceType.CHOICES,
-    choices=[('true', 'Да'), ('false', 'Нет')],
-    label='Трубопровод',
-    order=15,
 )
 
 
@@ -182,7 +166,5 @@ CABLE_GLAND_FILTER_DEFINITIONS = [
     fd_temp_min,
     fd_temp_max,
     fd_climate,
-    fd_for_armored_cable,
-    fd_for_metal_sleeve_cable,
-    fd_for_pipelines_cable,
+    fd_cable_type,
 ]

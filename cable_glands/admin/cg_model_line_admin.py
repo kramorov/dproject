@@ -44,13 +44,12 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
     actions = ['copy_selected_objects']
 
     list_display = (
-        'id', 'name', 'code', 'brand',
+        'id', 'name', 'code', 'brand', 'cable_type',
         'ip_display', 'exd_display',
-        'for_armored_cable', 'for_metal_sleeve_cable', 'for_pipelines_cable',
         'temp_min', 'temp_max', 'sorting_order', 'is_active',
     )
     list_editable = ('sorting_order', 'is_active')
-    list_filter = ('is_active', 'brand')
+    list_filter = ('is_active', 'brand', 'cable_type')
     search_fields = ('name', 'code', 'brand__name')
     ordering = ('sorting_order', 'name')
 
@@ -62,8 +61,7 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
         (_('Общая информация'), {
             'fields': (
                 ('name', 'code', 'brand', 'producer'),
-                ('equipment_type', 'ip'),
-                ('for_armored_cable', 'for_metal_sleeve_cable', 'for_pipelines_cable'),
+                ('equipment_type', 'ip', 'cable_type'),
                 ('thread_external', 'thread_internal'),
                 ('temp_min', 'temp_max'),
             ),
@@ -117,5 +115,5 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
     def get_queryset(self, request):
         """Оптимизация запросов списка серий."""
         return super().get_queryset(request).select_related(
-            'brand', 'producer', 'equipment_type',
+            'brand', 'producer', 'equipment_type', 'cable_type',
         ).prefetch_related('exd_options__exd_options', 'ip')

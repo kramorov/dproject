@@ -84,8 +84,8 @@ class CableGlandMetalSleeveBody(CopyMixin, StructuredDataMixin, models.Model):
     металлорукава (M2M MetalSleeve), плюс бренд.
 
     Используется «моделью в серии» (CableGlandModelLineItem.metal_sleeve_body)
-    для исполнений «кабель в металлорукаве» (у серии флаг
-    for_metal_sleeve_cable). Свойство metal_sleeve_display отдаёт список
+    для исполнений «кабель в металлорукаве» (у серии тип кабеля из справочника
+    CableType с признаком for_metal_sleeve_cable). Свойство metal_sleeve_display отдаёт список
     металлорукавов через разделитель.
     """
     name = models.CharField(max_length=200,
