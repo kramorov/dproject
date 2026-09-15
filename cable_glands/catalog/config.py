@@ -82,7 +82,7 @@ CABLE_GLAND_CONFIG = CatalogConfig(
 
     select_related=[
         'model_line',
-        'model_line__brand', 'model_line__equipment_type', 'model_line__ip',
+        'model_line__brand', 'model_line__equipment_type',
         'model_line_item',
         'model_line_item__body',
         'model_line_item__metal_sleeve_body',
@@ -92,6 +92,7 @@ CABLE_GLAND_CONFIG = CatalogConfig(
         'sku',
     ],
     prefetch_fields=[
+        'model_line__ip',
         'exd_option__exd_options',
         'exd_option__exd_options__explosion_protection_class',
         'exd_option__exd_options__hazardous_group',

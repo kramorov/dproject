@@ -45,7 +45,7 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
 
     list_display = (
         'id', 'name', 'code', 'brand',
-        'ip', 'exd_display',
+        'ip_display', 'exd_display',
         'for_armored_cable', 'for_metal_sleeve_cable', 'for_pipelines_cable',
         'temp_min', 'temp_max', 'sorting_order', 'is_active',
     )
@@ -54,7 +54,7 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
     search_fields = ('name', 'code', 'brand__name')
     ordering = ('sorting_order', 'name')
 
-    filter_horizontal = ('tech_docs', 'cert_docs')
+    filter_horizontal = ('tech_docs', 'cert_docs', 'ip')
 
     inlines = [CableGlandBodyMaterialOptionInline, CableGlandExdOptionInline]
 
@@ -105,8 +105,17 @@ class CableGlandModelLineAdmin(AdminCopyMixin, TemplatePlaceholdersAdminMixin, a
 
     exd_display.short_description = _('Взрывозащита')
 
+    def ip_display(self, obj):
+        """Отображение степеней защиты IP в списке (разделитель ' / ')."""
+        items = list(obj.ip.all())
+        if not items:
+            return '-'
+        return ' / '.join(str(x) for x in items)
+
+    ip_display.short_description = _('IP')
+
     def get_queryset(self, request):
         """Оптимизация запросов списка серий."""
         return super().get_queryset(request).select_related(
-            'brand', 'producer', 'ip', 'equipment_type',
-        ).prefetch_related('exd_options__exd_options')
+            'brand', 'producer', 'equipment_type',
+        ).prefetch_related('exd_options__exd_options', 'ip')

@@ -1,5 +1,5 @@
 # cable_glands/management/commands/generate_cable_gland_combinations.py
-"""Генерация всех комбинаций CableGland для бренда БЛОК (BLOCK).
+"""Генерация всех комбинаций CableGland для бренда Нордэкс (Nordex).
 
 Сервисная команда: для каждой серии бренда перебирает опции
 резьбы (CableGlandThreadOption, по корпусу «модели в серии»),
@@ -21,7 +21,7 @@
 Использование:
     python manage.py generate_cable_gland_combinations --dry-run
     python manage.py generate_cable_gland_combinations
-    python manage.py generate_cable_gland_combinations --brand БЛОК BLOCK
+    python manage.py generate_cable_gland_combinations --brand Нордэкс Nordex
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -37,13 +37,13 @@ from cable_glands.models import (
 )
 from sku.models import SKU
 
-# Имена брендов, для которых генерируем комбинации. В данных это «BLOCK»,
-# но пользователь оперирует также «БЛОК» — поддерживаем оба написания.
-TARGET_BRANDS = ('БЛОК', 'BLOCK')
+# Имена брендов, для которых генерируем комбинации. В данных это «Нордэкс»,
+# но пользователь может оперировать и латиницей «Nordex» — поддерживаем оба написания.
+TARGET_BRANDS = ('Нордэкс', 'Nordex')
 
 
 class Command(BaseCommand):
-    help = 'Сгенерировать все комбинации CableGland (резьба × материал × взрывозащита) для бренда БЛОК'
+    help = 'Сгенерировать все комбинации CableGland (резьба × материал × взрывозащита) для бренда Нордэкс'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -55,7 +55,7 @@ class Command(BaseCommand):
             '--brand',
             nargs='*',
             default=list(TARGET_BRANDS),
-            help='Имена брендов для фильтра серий (по умолчанию: БЛОК BLOCK).',
+            help='Имена брендов для фильтра серий (по умолчанию: Нордэкс Nordex).',
         )
 
     def handle(self, *args, **options):

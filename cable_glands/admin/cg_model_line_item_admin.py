@@ -17,8 +17,9 @@ from cable_glands.models import CableGlandModelLineItem
 class CableGlandModelLineItemAdmin(AdminCopyMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'code', 'model_line', 'body', 'metal_sleeve_body',
                     'weight', 'sorting_order', 'is_active')
-    list_editable = ('sorting_order', 'is_active')
-    list_filter = ('is_active', 'model_line')
+    list_editable = ('sorting_order', 'name', 'code', 'model_line', 'body', 'metal_sleeve_body',
+                    'weight', )
+    list_filter = ('is_active', 'model_line','model_line__brand')
     search_fields = ('name', 'code', 'model_line__name')
     ordering = ('sorting_order', 'name')
 

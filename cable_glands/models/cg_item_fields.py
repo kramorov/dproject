@@ -28,8 +28,8 @@ CG_ITEM_TEMPLATE_FIELDS = (
     {'key': 'cable_types', 'placeholder': '{cable_types}', 'path': 'get_applicable_cable_types_display',
      },
 
-    {'key': 'ip', 'placeholder': '{ip}', 'path': 'model_line__ip__name',
-     'name_path': 'model_line__ip', },
+    {'key': 'ip', 'placeholder': '{ip}', 'path': 'get_ip_display',
+     },
     
     {'key': 'exd', 'placeholder': '{exd}', 'path': 'get_exd_display',
      'code_path': 'exd_encoding',

@@ -20,7 +20,7 @@
       <div v-if="hasThreadPair" class="eng-filter-bar__chip eng-filter-bar__thread">
         <ThreadFilter @change="onThreadChange" />
       </div>
-      <div v-for="f in regularFilters" :key="f.key" class="eng-filter-bar__chip" v-show="!isThreadFilter(f.key) && isVisible(f.key)">
+      <div v-for="f in regularFilters" :key="f.key" class="eng-filter-bar__chip" v-show="(!isThreadFilter(f.key) || !hasThreadPair) && isVisible(f.key)">
         <label class="eng-filter-bar__chip-label">{{ f.label }}</label>
         <input
           v-if="isNumericFilter(f)"

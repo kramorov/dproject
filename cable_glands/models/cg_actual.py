@@ -315,6 +315,14 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         return row.get_exd_short_list if row else ''
 
     @property
+    def get_ip_display(self) -> str:
+        """Степени защиты IP из серии: список значений через ' / '."""
+        ml = self.model_line
+        if not ml:
+            return ''
+        return ' / '.join(str(x) for x in ml.ip.all())
+
+    @property
     def exd_encoding(self) -> str:
         """Encoding взрывозащиты: выбранная through-строка или дефолт серии."""
         row = self._get_effective_exd_row()

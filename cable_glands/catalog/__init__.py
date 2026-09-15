@@ -13,7 +13,7 @@
 - `filter_defs.py` — определения фильтров (`CABLE_GLAND_FILTER_DEFINITIONS`):
   серия, бренд, резьба (`thread_option__thread_size`), материал корпуса
   (`body_material_option__body_material`), взрывозащита (EXD_COMPATIBLE через
-  `exd_option__exd_options`), IP (IP_RANK через `model_line__ip`),
+  `exd_option__exd_options`), IP (EXACT-вхождение через M2M `model_line__ip`),
   диаметр кабеля (внутр./внеш. — числовые «от/до»), температура («от/до» +
   климатическое исполнение `CLIMATE_CASCADE`), булевы флаги серии
   (бронированный / металлорукав / трубопровод). Реестр зарегистрирован в
