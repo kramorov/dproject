@@ -302,6 +302,48 @@ def validate_selection_params(params: Dict[str , Any]) -> Tuple[bool , Optional[
 
 # def find_apppropriate_model_line(params: Dict[str , Any]) -> Dict[str , Any] :
 
+def _match_exd_for_model_lines(search_results: List[Dict], exd_id) -> List[Dict]:
+    """Фильтрует серии по взрывозащите: семантика «не хуже чем» (exd-option.md §1.3).
+
+    Для каждой серии ищется активная through-строка PneumaticExdOption, у
+    которой хотя бы один вид совместим с запрошенным (exd_id — id вида
+    params.ExdOption). Серии без такой строки исключаются (hard-требование).
+    Выбранная строка аннотируется в серию: exd_option_id / exd_encoding /
+    exd_short / exd_variety_ids (для дальнейшего конфигурирования).
+    """
+    from pneumatic_actuators.models.pa_options import PneumaticExdOption
+
+    requested_id = int(exd_id)
+    requested = ExdOption.objects.filter(id=requested_id).first()
+    compat_ids = requested.get_compatible_ids() if requested else {requested_id}
+
+    rows_by_line: Dict[int, list] = {}
+    for row in PneumaticExdOption.objects.filter(is_active=True).prefetch_related('exd_options'):
+        rows_by_line.setdefault(row.model_line_id, []).append(row)
+
+    result = []
+    for ml in search_results:
+        ml_id = ml.get('model_line_id')
+        best = None
+        for row in rows_by_line.get(ml_id, []):
+            variety_ids = {o.id for o in row.exd_options.all()}
+            if variety_ids & compat_ids:
+                if requested_id in variety_ids:
+                    best = row
+                    break  # строка с точным видом — приоритет
+                if best is None:
+                    best = row
+        if best is None:
+            continue  # серия не поддерживает запрошенную взрывозащиту
+        ml['exd_option_id'] = best.id
+        ml['exd_encoding'] = best.encoding or ''
+        ml['exd_short'] = best.get_exd_short_list or ''
+        ml['exd_variety_ids'] = [o.id for o in best.exd_options.all()]
+        ml['exd_matched'] = True
+        result.append(ml)
+    return result
+
+
 def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     """
     Обрабатывает параметры подбора привода со страницы PaSelectionPage.
@@ -310,7 +352,9 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     2. Определяет рабочее давление (air_pressure_id, по умолчанию 6 бар).
     3. Вызывает BodyThrustTorqueTable.find_suitable_actuators() —
        поиск подходящих корпусов/пружин по моменту с запасом.
-    4. Логирует все параметры и результаты поиска.
+    4. Фильтрует серии по взрывозащите (exd_id) — «не хуже чем» по M2M видов
+       through-строк PneumaticExdOption.
+    5. Логирует все параметры и результаты поиска.
 
     Returns:
         Dict с ключами success, search_results (список серий с моделями), total_found.
@@ -387,6 +431,12 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
         )
 
         print(f"\n✅ Найдено подходящих серий: {len(search_results)}")
+
+        # 4. Взрывозащита: hard-фильтр по совместимым видам (exd-option.md §1.3).
+        exd_id = params.get('exd_id')
+        if exd_id:
+            search_results = _match_exd_for_model_lines(search_results, exd_id)
+            print(f"⚡ После фильтра по взрывозащите (exd_id={exd_id}): {len(search_results)} серий")
 
         total_items = 0
         for ml in search_results :

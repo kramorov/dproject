@@ -1,7 +1,6 @@
 # electric_actuators/models/ea_model_line.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from params.exd_models import ExdOption
 from typing import List , Optional , Tuple , Any , Dict , Union
 from django.core.exceptions import ValidationError
 
@@ -565,10 +564,10 @@ class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
 
     @property
     def exd_display(self) :
-        """Отображаемое имя стандартной Exd опции"""
+        """Отображаемое имя стандартной Exd опции (короткий список видов)"""
         default_exd = self.get_default_exd_option()
-        if default_exd and default_exd.exd_option :
-            return default_exd.exd_option.name
+        if default_exd :
+            return default_exd.get_exd_short_list or 'Не указано'
         return "Не указано"
 
     @property
@@ -738,17 +737,6 @@ class ModelLine(models.Model) :
                                related_name='ea_model_line_allowed_body_coating' ,
                                help_text='Возможные для выбора покрытия корпуса для серии (можно выбрать несколько)')
 
-    default_exd = \
-        models.ForeignKey('params.ExdOption', blank=True, null=True,
-                          related_name='default_exd_option',
-                          on_delete=models.SET_NULL,
-                          help_text='Стандартное исполнение степени взрывозащиты для серии')
-    allowed_exd = \
-        models.ManyToManyField('params.ExdOption', blank=True, default=1,
-                               related_name='ea_model_line_allowed_exd',
-                               help_text='Возможные для выбора степени взрывозащиты для серии (можно '
-                                         'выбрать несколько)')
-
     default_blinker = \
         models.ForeignKey('params.BlinkerOption' , blank=True , null=True ,
                           related_name='default_blinker_option' ,
@@ -838,41 +826,6 @@ class ModelLine(models.Model) :
                                          'несколько)')
 
     # certificates = GenericRelation(CertData)
-
-    # --- Обход бага Django: M2M к ExdOption (.all/.exists/.set не работают) ---
-    @property
-    def allowed_exd_all(self):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute(
-                'SELECT exdoption_id FROM electric_actuators_electricactuatormodelline_allowed_exd WHERE electricactuatormodelline_id = %s',
-                [self.pk]
-            )
-            ids = [r[0] for r in c.fetchall()]
-        return ExdOption.objects.filter(id__in=ids) if ids else ExdOption.objects.none()
-
-    def allowed_exd_exists(self):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute(
-                'SELECT 1 FROM electric_actuators_electricactuatormodelline_allowed_exd WHERE electricactuatormodelline_id = %s LIMIT 1',
-                [self.pk]
-            )
-            return c.fetchone() is not None
-
-    def allowed_exd_get_ids(self):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute('SELECT exdoption_id FROM electric_actuators_electricactuatormodelline_allowed_exd WHERE electricactuatormodelline_id = %s', [self.pk])
-            return [r[0] for r in c.fetchall()]
-
-    def allowed_exd_set_ids(self, exd_ids):
-        from django.db import connection
-        with connection.cursor() as c:
-            c.execute('DELETE FROM electric_actuators_electricactuatormodelline_allowed_exd WHERE electricactuatormodelline_id = %s', [self.pk])
-            for eid in exd_ids:
-                c.execute('INSERT INTO electric_actuators_electricactuatormodelline_allowed_exd (electricactuatormodelline_id, exdoption_id) VALUES (%s, %s)', [self.pk, eid])
-    # --- конец обхода ---
 
     def __str__(self) :
         return self.name

@@ -1,5 +1,6 @@
 # params/exd_models.py
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import TextDescriptionMixin, OptionListToSelectMixin
@@ -502,64 +503,86 @@ class ExdOption(models.Model, OptionListToSelectMixin):
         return set(queryset.values_list('id', flat=True))
 
     @classmethod
+    def resolve_compatible(cls, method_id: int = None, type_id: int = None,
+                           group_id: int = None, temp_id: int = None) -> tuple:
+        """
+        Разрешает совместимые виды взрывозащиты по компонентам каскада.
+
+        Один SQL-запрос (плюс максимум 2 точечных lookup'а справочников) —
+        вместо прежнего цикла по опциям. Семантика «не хуже»:
+
+          * тип: если передан type_id — все типы ЕГО МЕТОДА (например, db →
+            и db, и da: в пределах метода выбирается «не хуже», чем запрошено);
+            если только method_id — все типы метода;
+          * группа: та же среда (GAS/DUST) и rating >= требуемого;
+          * температура (газ): temperature_rating >= strictness_rating;
+          * температура (пыль): не фильтруем (в UI селект отключён для пыли).
+
+        Returns:
+            (ids: set[int], exact_id: int | None) — exact_id это вид, точно
+            соответствующий выбранным компонентам, если он единственный
+            (для раздела «точно подходят»).
+        """
+        q = Q(is_active=True)
+        exact_q = Q(is_active=True)
+
+        if type_id:
+            try:
+                type_obj = ExplosionProtectionType.objects.get(id=type_id)
+            except ExplosionProtectionType.DoesNotExist:
+                return set(), None
+            exact_q &= Q(explosion_protection_class_id=type_id)
+            method = type_obj.method
+            if method:
+                q &= Q(explosion_protection_class__method_id=method.id)
+        elif method_id:
+            exact_q &= Q(explosion_protection_class__method_id=method_id)
+            q &= Q(explosion_protection_class__method_id=method_id)
+
+        group_obj = None
+        if group_id:
+            try:
+                group_obj = HazardousGroup.objects.get(id=group_id)
+            except HazardousGroup.DoesNotExist:
+                return set(), None
+            exact_q &= Q(hazardous_group_id=group_id)
+            q &= Q(
+                hazardous_group__rating__gte=group_obj.rating,
+                hazardous_group__group_type=group_obj.group_type,
+            )
+
+        is_dust = bool(group_obj and group_obj.group_type == 'DUST')
+        if temp_id and not is_dust:
+            try:
+                temp_class = TemperatureClass.objects.get(id=temp_id)
+            except TemperatureClass.DoesNotExist:
+                return set(), None
+            exact_q &= Q(temperature_class_id=temp_id)
+            q &= Q(temperature_rating__gte=temp_class.strictness_rating)
+
+        ids = set(cls.objects.filter(q).values_list('id', flat=True))
+
+        # Точный вид: единственный активный, совпавший по всем компонентам.
+        # Не возвращаем «точный» для неоднозначного выбора (например, только метод).
+        exact_id = None
+        if method_id or type_id:
+            exact_matches = list(
+                cls.objects.filter(exact_q).order_by('id').values_list('id', flat=True)[:2]
+            )
+            if len(exact_matches) == 1:
+                exact_id = exact_matches[0]
+        return ids, exact_id
+
+    @classmethod
     def get_compatible_ids_by_components(cls, method_id: int = None, type_id: int = None,
-                                         group_id: int = None,temp_id: int = None) -> set:
+                                         group_id: int = None, temp_id: int = None) -> set:
         """
         Возвращает ID всех ExdOption, совместимых с выбранными компонентами.
 
-        Args:
-            method_id: ID метода взрывозащиты (ExplosionProtectionMethod)
-            type_id: ID типа взрывозащиты (ExplosionProtectionType)
-            gas_group_id: ID газовой группы (HazardousGroup)
-            dust_group_id: ID пылевой группы (HazardousGroup)
-            temp_id: ID температурного класса (TemperatureClass)
-        Вход: Параметры (method_id, type_id...)	Выход: ID совместимых	Когда использовать: Когда пользователь выбирает через UI компоненты
-        Returns:
-            set: множество ID совместимых ExdOption
+        Обёртка над resolve_compatible для обратной совместимости.
         """
-        print(f"DEBUG: get_compatible_ids_by_components called with:")
-        print(f"  method_id={method_id}, type_id={type_id}")
-        print(f"  group_id={group_id}")
-        print(f"  temp_id={temp_id}")
-
-        queryset = cls.objects.filter(is_active=True)
-        print(f"  Initial queryset count: {queryset.count()}")
-
-        if type_id:
-            queryset = queryset.filter(explosion_protection_class_id=type_id)
-            print(f"  After type filter (id={type_id}): {queryset.count()}")
-        elif method_id:
-            type_ids = ExplosionProtectionType.objects.filter(
-                method_id=method_id, is_active=True
-            ).values_list('id', flat=True)
-            print(f"  Found type_ids for method {method_id}: {list(type_ids)}")
-            queryset = queryset.filter(explosion_protection_class_id__in=type_ids)
-            print(f"  After method filter: {queryset.count()}")
-
-        if group_id:
-            group = HazardousGroup.objects.get(id=group_id)
-            queryset = queryset.filter(
-                hazardous_group__rating__gte=group.rating,
-                hazardous_group__group_type=group.group_type
-            )
-            print(f"  After gas/dust group filter: {queryset.count()}")
-
-        if temp_id:
-            is_dust = False
-            if group_id:
-                try:
-                    group = HazardousGroup.objects.get(id=group_id)
-                    is_dust = group.group_type == 'DUST'
-                except HazardousGroup.DoesNotExist:
-                    pass
-            if not is_dust:
-                temp_class = TemperatureClass.objects.get(id=temp_id)
-                print(f"  Temp class: {temp_class.code}, strictness_rating={temp_class.strictness_rating}")
-                queryset = queryset.filter(
-                    temperature_rating__gte=temp_class.strictness_rating
-                )
-                print(f"  After temp filter: {queryset.count()}")
-
-        result = set(queryset.values_list('id', flat=True))
-        print(f"  Final compatible IDs: {result}")
-        return result
+        ids, _exact = cls.resolve_compatible(
+            method_id=method_id, type_id=type_id,
+            group_id=group_id, temp_id=temp_id,
+        )
+        return ids

@@ -2,7 +2,7 @@
 
 > Обновлено: 2026-09-16. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо),
-> паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`.
+> паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`, взрывозащита (Exd) — в `exd-option.md`.
 
 ---
 
@@ -470,3 +470,98 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 - Шаблон КП — из файла; после отладки перенести в админку/модель (и, возможно, историю КП).
 - Удалить закомментированные `CartItem.price_*` поля миграцией — при желании.
 - `db.sqlite3` изменён в ходе тестов (инкременты счётчика КП).
+
+---
+
+## 11. Сессия 2026-09-16 (вечер) — Exd-опция: единый M2M-паттерн, миграции, фильтры
+
+> Полный контракт и инвентаризация — **`exd-option.md`** (корень репо). Этот раздел — краткий факт-репорт + решения.
+
+### 11.1. Единый паттерн Exd (задача 1)
+
+**Доменная модель**: вид взрывозащиты (`params.ExdOption`) ↔ **опция-с-кодировкой**
+(through-строка `BaseM2MExdThroughOption`: `encoding` + M2M `exd_options` видов) ↔
+**артикул/item**, который выбирает опцию из списка серии (FK `exd_option`/`selected_exd`
+на строку или денормализованный M2M видов). Серия = `model_line`.
+
+**Через-модели (6)**: `CableGlandExdOption`→`CableGlandModelLine`, `PosiExdOption`→`PosiModelLine`,
+`LimitSwitchExdOption`→`LimitSwitchModelLine`, `DirectionValveExdOption`→`DirectionalValveModelLine`
+(новая, `solenoid_valves/models/dv_exd_option.py`), `ElectricExdOption`→`ElectricActuatorModelLine`,
+`PneumaticExdOption`→`PneumaticActuatorModelLine`.
+
+**Сделано в эту сессию**:
+- DV: FK `exd` → `exd_option` (FK на строку) + дата-миграция `solenoid_valves/0022`
+  (84 артикула перепривязаны к 3 строкам); шаблоны `{exd}`/`{exd_short}` (как у КВ/позиционеров).
+- EA: `ElectricExdOption` переведён с legacy `BaseExdThroughOption` на `BaseM2MExdThroughOption`;
+  удалены legacy `default_exd`/`allowed_exd` (+raw-SQL «обход»); `ElectricActuatorConstructor.selected_exd`
+  — теперь FK на СТРОКУ (было на ExdOption); миграция `electric_actuators/0042` (10 строк + 14 конструкторов).
+- PA: то же для `PneumaticExdOption`; `PneumaticActuatorItem`/`PneumaticActuatorConstructor.selected_exd`
+  → FK на строку; миграция `pneumatic_actuators/0038` (3 строки + конструкторы).
+- LSB: добавлен `{exd_short}` в `lsb_item_fields.py` и ключи; позиционеры/КВ уже были на паттерне.
+- Все три миграции — reversable (проверены round-trip на реальной базе; для EA/PA потребовался
+  промежуточный `AlterField(exd_option → null=True)` — исходный FK был NOT NULL).
+- `cart/cart_item.py`: сводка Ex через display-методы с фолбэком на M2M-атрибут.
+- Шаблоны: `{exd}` полный список / `{exd_short}` короткий («Ex db / Ex ia») во всех каталогах.
+
+**Исключения (не трогать)**: `GearboxInterlock.interlock_exd` (плоский M2M, нет серии),
+`EttElectricOptionsCombination.exd_choice` (справочник ЕТТ), мёртвый `AbstractActuatorMixin.exd` (удалён).
+
+### 11.2. Унификация кода (шаги 1–5 идеальной архитектуры)
+
+- **`options/exd.py`** — вынесены `BaseThroughOptionNoDefault`, `BaseThroughOption`,
+  `ExdFormattingMixin`, `BaseM2MExdThroughOption`, `ExdOptionsConsumerMixin`;
+  `options.models` реэкспортирует (старые импорты работают).
+- **`ChosenExdRowMixin`** (`options/exd.py`) — новый: `_get_effective_exd_row`,
+  `get_exd_display`, `get_exd_short_list`, `exd_encoding`, `clean()` (валидация «строка ↔ серия»);
+  на нём — `CableGland` и `DirectionValve` (дубли ~50 строк удалены). Настройки:
+  `exd_row_field`/`exd_through_model`/`exd_parent_field`.
+- **`options/admin.py::BaseExdOptionInline`** — общий инлайн (`exd_options`, `encoding`,
+  `is_default`, `sorting_order`, `is_active` + `filter_horizontal`); все 6 инлайнов на нём.
+- **Legacy вычищено**: `BaseExdThroughOption` (нет подклассов), `AbstractActuatorMixin.exd`.
+
+### 11.3. Фильтры и подбор (задача 2)
+
+**Семантика (решения пользователя, не переигрывать)**:
+- «Не хуже чем»: модель проходит, если **∃ вид** из её списка, совместимый с запрошенным
+  (лестница `общепром < Ex ia < Ex ib < Ex e < Ex d < Ex d IIC`; группа: та же среда + rating>=;
+  температура: `rating>=` (газ) / `dust<=` (пыль)).
+- **Соглашение**: вид БЕЗ температурного класса в маркировке подходит под ЛЮБОЙ запрос по
+  температуре (покрывает кабельные вводы — отдельный фильтр не нужен).
+- EXACT = запрошенный вид присутствует в списке модели.
+- `resolve_compatible`: `type_id` → все типы ЕГО МЕТОДА (db → db+da; семантика «не хуже»).
+
+**Код**:
+- `params/exd_models.py::resolve_compatible(method_id, type_id, group_id, temp_id) → (ids, exact_id)` —
+  один SQL вместо цикла; эндпоинт `/core/exd/compatible/` отдаёт `exact_id`.
+- `configurator/services/parameter_filter.py::_resolve_hierarchy_compatible_ids` — иерархия одним
+  OR-запросом + кэш (LocMem, timeout 300 с), инвалидация сигналами `params/exd_signals.py`
+  (версия `exd_compat_version`; подключается в `params/apps.py.ready`).
+- `core/models/filter_definition.py::classify_match(obj, value, exact_value)` — M2M-aware
+  (`_get_m2m_ids`/`_walk_m2m` поддерживают `exd`, `exd_option__exd_options`, reverse-менеджеры;
+  prefetch-aware). FK-путь сохранён для THREAD/FUNCTION/IP_RANK.
+- `core/models/smart_catalog_mixin.py::apply_filters_and_split` — проброс `exact_value`;
+  режим `{param}_match=exact` + `{param}_exact` (например `exd_id_match=exact&exd_id_exact=4`).
+- Фронт: `ExdFilter.vue` эмитит `exactId`; `FilterSidebar`/`EngineerFilterBar` шлют `exd_id_exact`
+  (мастер — НЕ шлёт: split'а у мастера нет, параметр убран как инертный).
+- PA-подбор: exd-матчинг перенесён в РЕАЛЬНЫЙ селектор `actuator_selector_handler.py`
+  (`_match_exd_for_model_lines`: hard-фильтр серий «∃ совместимый вид», аннотирует
+  `exd_option_id`/`exd_encoding`/`exd_short`; `filter_engine._filter_pa_selector` несёт их в кандидатах).
+- `pneumatic_actuators/actuator_selector_helper.py` — ЗАКОММЕНТИРОВАН целиком (вероятно мёртвый
+  код: никем не импортируется, несовместим с моделями); в шапке файла — пояснение.
+
+### 11.4. Проверено / риски / что осталось
+
+**Проверено**: `manage.py check` чист; configurator 29/29; smoke: иерархия «Ex d» = 2 запроса
+(было ~50), кэш 0; DV/CG split exact/compatible; round-trip миграций DV/EA/PA; PA-селектор
+(exd_id=67 → только серия с видом 67).
+
+**Осталось / риски**:
+- **cart-дрейф**: колонки `price_*` есть в БД (данные: 12/5/5 строк), в модели закомментированы;
+  миграцию НЕ создавал — удаление данных, ждёт решения.
+- `pneumatic_actuators` и `pneumatic_fittings` тесты не догнаны (запуск прерван таймаутом);
+  `core` тесты не запускаются из-за конфликта `core/tests.py` ↔ пакет `core/tests/` (предсуществующий).
+- `db.sqlite3` в git — изменён миграциями/тестами; уточнить конвенцию.
+- Внешние потребители `ExdFilter` (`ConfiguratorPaKitPage`, `PaSelectionPage`, `RequirementForm`)
+  не слушают `exactId` — им EXACT не проброшен (не ломаются).
+- Перенести шаблон КП в модель/админку (п. 10) — не делалось.
+- Следующий шаг: браузерный проход каталогов (exd-фильтр + секция «Точно подходят»), затем коммит.

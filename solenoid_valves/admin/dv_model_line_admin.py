@@ -7,6 +7,13 @@ from core.models.mixins import AdminStructuredDataMixinCopyMixin
 from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from solenoid_valves.models import DirectionalValveModelLine
 from solenoid_valves.models.dv_model_line_item import DirectionValve
+from solenoid_valves.models.dv_exd_option import DirectionValveExdOption
+from options.admin import BaseExdOptionInline
+
+
+class DirectionValveExdOptionInline(BaseExdOptionInline):
+    """Inline опций взрывозащиты (through-строка DirectionalValveModelLine ↔ ExdOption)."""
+    model = DirectionValveExdOption
 
 
 class DirectionalValveModelLineForm(forms.ModelForm):
@@ -62,6 +69,7 @@ class DirectionalValveModelLineAdmin(TemplatePlaceholdersAdminMixin, AdminStruct
     ]
     search_fields = ['name', 'code', 'description']
     filter_horizontal = ('tech_docs', 'cert_docs')
+    inlines = [DirectionValveExdOptionInline]
 
     fieldsets = (
         (_('Основная информация'), {

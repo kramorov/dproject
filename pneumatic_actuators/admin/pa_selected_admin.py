@@ -299,7 +299,9 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
 
     def exd_display(self , obj) :
         """Читаемое имя опции взрывозащиты."""
-        return obj.selected_exd.exd_option if obj.selected_exd else "-"
+        if obj.selected_exd:
+            return obj.selected_exd.get_exd_short_list or "-"
+        return "-"
 
     exd_display.short_description = "Взрывозащита"
 

@@ -123,11 +123,11 @@ class PneumaticActuatorConstructor(models.Model):
     )
 
     selected_exd = models.ForeignKey(
-        'params.ExdOption',
+        'PneumaticExdOption',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         verbose_name=_("Взрывозащита"),
-        help_text=_('Выбранная опция взрывозащиты')
+        help_text=_('Выбранная опция взрывозащиты (through-строка с кодировкой и видами Ex)')
     )
 
     selected_body_coating = models.ForeignKey(
@@ -177,7 +177,7 @@ class PneumaticActuatorConstructor(models.Model):
         },
         'selected_exd': {
             'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticExdOption',
-            'through_attr': 'exd_option',
+            'through_attr': None,  # PneumaticExdOption САМА является опцией (кодировка + M2M видов)
             'label': 'взрывозащита',
             'parent_field': 'model_line',
         },
@@ -394,16 +394,17 @@ class PneumaticActuatorConstructor(models.Model):
             'name': ip.name if ip else '',
         }
 
-        # exd → params.ExdOption
+        # exd → PneumaticExdOption (through-строка: кодировка + M2M видов)
         ex = self.selected_exd
+        ex_short = ex.get_exd_short_list if ex else None
         data['exd'] = {
             'category': 'selected_options',
             'title': 'Взрывозащита',
             'data': ex.id if ex else None,
-            'display_data': ex.name if ex else 'Не указано',
-            'text_data': f"Взрывозащита: {ex.name}" if ex else None,
-            'code': ex.code if ex else '',
-            'name': ex.name if ex else '',
+            'display_data': ex_short or 'Не указано',
+            'text_data': f"Взрывозащита: {ex_short}" if ex_short else None,
+            'code': (ex.encoding or '') if ex else '',
+            'name': ex_short or '',
         }
 
         # body_coating → params.BodyCoatingOption
@@ -1312,16 +1313,17 @@ class PneumaticActuatorConstructor(models.Model):
 
             exd_through = PneumaticExdOption.objects.filter(
                 model_line=ml, is_active=True
-            ).select_related('exd_option')
+            ).prefetch_related('exd_options')
             result['exd_options'] = [
                 {
                     'id': opt.id,
-                    'option_id': opt.exd_option.id,
+                    'option_id': opt.id,
                     'encoding': opt.encoding,
-                    'name': opt.exd_option.name,
-                    'code': opt.exd_option.code,
+                    'name': opt.get_exd_short_list or '—',
+                    'code': opt.encoding or '',
                     'description': opt.description,
                     'is_default': opt.is_default,
+                    'exd_variety_ids': list(opt.exd_options.values_list('id', flat=True)),
                 }
                 for opt in exd_through
             ]

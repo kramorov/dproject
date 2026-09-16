@@ -94,7 +94,7 @@ SOLENOID_VALVES_CONFIG = CatalogConfig(
         'manual_override',
         'power_supply',
         'ip',
-        'exd',
+        'exd_option',
         'body_material',
         'body_material_specified',
         'sealing_material_specified',
@@ -108,6 +108,9 @@ SOLENOID_VALVES_CONFIG = CatalogConfig(
         'sku',
     ],
     prefetch_fields=[
+        'exd_option__exd_options',
+        'exd_option__exd_options__explosion_protection_class',
+        'exd_option__exd_options__hazardous_group',
         'image_gallery__items__image__variants',
         'image_gallery__items__image',
         'tech_docs',

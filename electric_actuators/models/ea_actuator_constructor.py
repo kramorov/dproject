@@ -164,11 +164,11 @@ class ElectricActuatorConstructor(models.Model):
     )
 
     selected_exd = models.ForeignKey(
-        'params.ExdOption',
+        'electric_actuators.ElectricExdOption',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         verbose_name=_("Взрывозащита"),
-        help_text=_('Выбранная опция взрывозащиты')
+        help_text=_('Выбранная опция взрывозащиты (through-строка с кодировкой и видами Ex)')
     )
 
     selected_body_coating = models.ForeignKey(
@@ -297,7 +297,7 @@ class ElectricActuatorConstructor(models.Model):
         },
         'selected_exd': {
             'through_model_path': 'electric_actuators.models.ea_options.ElectricExdOption',
-            'through_attr': 'exd_option',
+            'through_attr': None,  # ElectricExdOption САМА является опцией (кодировка + M2M видов)
             'label': 'взрывозащита',
             'parent_field': 'model_line',
         },
@@ -432,7 +432,9 @@ class ElectricActuatorConstructor(models.Model):
 
     @property
     def exd_display(self):
-        return str(self.selected_exd) if self.selected_exd else "-"
+        if self.selected_exd:
+            return self.selected_exd.get_exd_short_list or "-"
+        return "-"
 
     @property
     def body_coating_display(self):
@@ -976,15 +978,15 @@ class ElectricActuatorConstructor(models.Model):
             'name': ip.name if ip else '',
         }
 
-        # exd → params.ExdOption
+        # exd → ElectricExdOption (through-строка: кодировка + M2M видов)
         ex = self.selected_exd
         data['exd'] = {
             'category': 'selected_options',
             'title': 'Взрывозащита',
             'data': ex.id if ex else None,
-            'display_data': ex.name if ex else 'Не указано',
-            'code': ex.code if ex else '',
-            'name': ex.name if ex else '',
+            'display_data': (ex.get_exd_short_list or 'Не указано') if ex else 'Не указано',
+            'code': (ex.encoding or '') if ex else '',
+            'name': (ex.get_exd_short_list or '') if ex else '',
         }
 
         # body_coating → params.BodyCoatingOption

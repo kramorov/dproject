@@ -14,3 +14,4 @@ class ParamsConfig(AppConfig):
         # всех приложений, чтобы избежать циклических импортов.
         from . import admin_turn_counter  # noqa: F401
         from . import admin_signal        # noqa: F401
+        from . import exd_signals         # noqa: F401 (инвалидация кэша Exd)

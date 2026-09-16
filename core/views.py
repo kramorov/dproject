@@ -980,11 +980,11 @@ class ExdCompatibleView(APIView):
             if temp_id:
                 temp_id = int(temp_id)
 
-            ids = ExdOption.get_compatible_ids_by_components(
+            ids, exact_id = ExdOption.resolve_compatible(
                 method_id=method_id, type_id=type_id,
                 group_id=group_id, temp_id=temp_id,
             )
-            return Response({'ids': sorted(ids)})
+            return Response({'ids': sorted(ids), 'exact_id': exact_id})
         except Exception as e:
             return Response({'error': str(e), 'ids': []}, status=400)
 

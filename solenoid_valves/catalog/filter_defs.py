@@ -60,7 +60,7 @@ fd_ip = FilterDefinition(
 
 fd_exd = FilterDefinition(
     param_name='exd_id',
-    model_field='exd',
+    model_field='exd_option__exd_options',
     filter_type=FilterType.EXD_COMPATIBLE,      # frontend: Exd cascade UI
     parameter_rule_code='exd',                  # backend: ParameterRule 'exd'
     data_source_type=DataSourceType.CUSTOM,

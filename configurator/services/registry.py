@@ -21,7 +21,7 @@ PRODUCT_MODEL_REGISTRY: dict[str, tuple[str, str]] = {
     'lsb':                 ('pa_controls', 'LimitSwitchBox'),
     'fr':                  ('filter_regulator', 'FilterRegulator'),
     'manual-override':     ('gearbox', 'GearBox'),
-    'cable-gland':         ('cable_glands', 'CableGlandItem'),
+    'cable-gland':         ('cable_glands', 'CableGland'),
     'fittings':            ('pneumatic_fittings', 'PneumaticFitting'),
     'fitting-thread-pipe': ('pneumatic_fittings', 'PneumaticFitting'),
     'fitting-silencer':    ('pneumatic_fittings', 'PneumaticFitting'),

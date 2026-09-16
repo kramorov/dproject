@@ -15,6 +15,7 @@ import logging
 from typing import Any
 
 from django.db.models import Q, Model, QuerySet
+from django.utils.functional import Promise
 
 from assemblies.models import ComponentRequirement
 from configurator.models import ParameterBinding
@@ -463,6 +464,21 @@ def _get_nested_attr(obj, path: str):
     return value
 
 
+def _json_safe(value: Any) -> Any:
+    """Рекурсивно приводит lazy-переводы и структуры к JSON-сериализуемому виду.
+
+    JSONField не умеет сериализовать gettext-lazy (__proxy__) — при сохранении
+    filter_results в ComponentRequirement это давало TypeError.
+    """
+    if isinstance(value, Promise):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def _serialize_candidate(obj: Model, soft_params: list) -> dict:
     """Сериализует продукт в словарь для фронта."""
     result = {
@@ -480,7 +496,7 @@ def _serialize_candidate(obj: Model, soft_params: list) -> dict:
     # Пытаемся вызвать to_dict() если есть
     if hasattr(obj, 'to_dict'):
         try:
-            result.update(obj.to_dict())
+            result.update(_json_safe(obj.to_dict()))
         except Exception:
             pass
 
@@ -576,6 +592,9 @@ def _filter_pa_selector(component: ComponentRequirement) -> dict:
                 'spring_margin': item.get('spring_margin'),
                 'model_line': ml.get('model_line_name'),
                 'model_line_code': ml.get('model_line_code'),
+                'exd_option_id': ml.get('exd_option_id'),
+                'exd_encoding': ml.get('exd_encoding'),
+                'exd_short': ml.get('exd_short'),
             })
 
     component.filter_results = {

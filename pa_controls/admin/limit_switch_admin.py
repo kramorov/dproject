@@ -158,11 +158,11 @@ class LimitSwitchSensorVarietyAdmin(admin.ModelAdmin):
     short_description.short_description = _('Краткое описание')
 
 
-class LimitSwitchExdOptionInline(admin.TabularInline):
+from options.admin import BaseExdOptionInline
+
+
+class LimitSwitchExdOptionInline(BaseExdOptionInline):
     model = LimitSwitchExdOption
-    extra = 0
-    fields = ['exd_options', 'encoding', 'is_default', 'sorting_order', 'is_active']
-    filter_horizontal = ['exd_options']
 
 
 @admin.register(LimitSwitchModelLine)

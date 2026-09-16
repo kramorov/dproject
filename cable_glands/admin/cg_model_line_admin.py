@@ -6,6 +6,7 @@ from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from core.models.mixins import AdminCopyMixin
 
 from cable_glands.models import CableGland, CableGlandModelLine, CableGlandBodyMaterialOption, CableGlandExdOption
+from options.admin import BaseExdOptionInline
 
 
 class CableGlandBodyMaterialOptionInline(admin.TabularInline):
@@ -18,13 +19,10 @@ class CableGlandBodyMaterialOptionInline(admin.TabularInline):
     verbose_name_plural = _("Опции материала корпуса")
 
 
-class CableGlandExdOptionInline(admin.TabularInline):
-    """Inline опций взрывозащиты (through-строка CableGlandModelLine в†” ExdOption)."""
+class CableGlandExdOptionInline(BaseExdOptionInline):
+    """Inline опций взрывозащиты (through-строка CableGlandModelLine ↔ ExdOption)."""
     model = CableGlandExdOption
-    extra = 0
     ordering = ['sorting_order']
-    fields = ['exd_options', 'encoding', 'is_default', 'sorting_order', 'is_active']
-    filter_horizontal = ['exd_options']
     verbose_name = _("Опция взрывозащиты")
     verbose_name_plural = _("Опции взрывозащиты")
 

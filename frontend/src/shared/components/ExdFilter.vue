@@ -70,7 +70,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/shared/api'
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'update:exactId'])
 
 const SENTINEL_NONE = '_none_'
 const SENTINEL_EMPTY = '_empty_'
@@ -159,10 +159,12 @@ onMounted(async () => {
 async function fetchCompatible() {
   if (String(methodId.value) === '0') {
     emit('update:modelValue', [SENTINEL_NONE])
+    emit('update:exactId', null)
     return
   }
   if (methodId.value == null) {
     emit('update:modelValue', [])
+    emit('update:exactId', null)
     return
   }
 
@@ -177,9 +179,11 @@ async function fetchCompatible() {
     const { data } = await api.get('/core/exd/compatible/', { params })
     const ids = data.ids || []
     emit('update:modelValue', ids.length === 0 ? [SENTINEL_EMPTY] : ids)
+    emit('update:exactId', data.exact_id ?? null)
   } catch (e) {
     console.error('[ExdFilter] Compatible fetch failed', e)
     emit('update:modelValue', [SENTINEL_EMPTY])
+    emit('update:exactId', null)
   }
   loading.value = false
 }

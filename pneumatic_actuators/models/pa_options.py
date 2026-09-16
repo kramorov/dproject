@@ -3,9 +3,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 
-from options.models import BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption, \
+from options.models import BaseTemperatureThroughOption, BaseBodyCoatingThroughOption, \
     BaseIpThroughOption, BasePneumaticConnectionThroughOption, BaseSafetyPositionThroughOption, \
-    BaseSpringsQtyThroughOption, BaseHandWheelThroughOption
+    BaseSpringsQtyThroughOption, BaseHandWheelThroughOption, BaseM2MExdThroughOption
 from params.models import IpOption
 
 
@@ -213,8 +213,12 @@ class PneumaticIpOption(BaseIpThroughOption):
 
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
-class PneumaticExdOption(BaseExdThroughOption):
-    """Опции взрывозащиты для пневмоприводов"""
+class PneumaticExdOption(BaseM2MExdThroughOption):
+    """Опции взрывозащиты для пневмоприводов.
+
+    Одна строка = одна КОДИРОВКА (опция выбора), внутри — M2M видов взрывозащиты
+    (params.ExdOption). Аналог CableGlandExdOption/PosiExdOption.
+    """
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
@@ -225,21 +229,23 @@ class PneumaticExdOption(BaseExdThroughOption):
     class Meta:
         verbose_name = _("Опция взрывозащиты пневмопривода")
         verbose_name_plural = _("Опции взрывозащиты пневмоприводов")
-        ordering = ['exd_option__sorting_order', 'sorting_order']
-        unique_together = ['model_line', 'exd_option']
+        ordering = ['is_default', 'sorting_order']
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line'
 
     def __str__(self):
-        return f"{self.exd_option.name} (Стандарт)" if self.is_default else f"{self.exd_option.name} (Опция)"
+        if self.pk is None:
+            return f"{self.encoding or '—'} (удалено)"
+        short = self.get_exd_short_list or '—'
+        return f"{short} (Стандарт)" if self.is_default else f"{short} (Опция)"
 
     @classmethod
     def get_for_select(cls , model_line_id: Optional[int] = None ,
                        model_line_item_id: Optional[int] = None ,
                        active_only: bool = True) -> List[Dict] :
-        """Получить опции взрывозащиты"""
+        """Получить опции взрывозащиты (строки с кодировкой + виды Ex в M2M)"""
         queryset = cls.objects.all()
 
         if active_only :
@@ -259,7 +265,15 @@ class PneumaticExdOption(BaseExdThroughOption):
             except PneumaticActuatorModelLineItem.DoesNotExist :
                 pass
 
-        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
+        return [
+            {
+                'id' : obj.id ,
+                'name' : str(obj) ,
+                'code' : obj.encoding ,
+                'exd_variety_ids' : list(obj.exd_options.values_list('id' , flat=True)) ,
+            }
+            for obj in queryset.prefetch_related('exd_options')
+        ]
 
 class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""

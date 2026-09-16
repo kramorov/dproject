@@ -24,14 +24,14 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 from options.models import (
-    BaseTemperatureThroughOption, BaseExdThroughOption, BaseBodyCoatingThroughOption,
+    BaseTemperatureThroughOption, BaseBodyCoatingThroughOption,
     BaseIpThroughOption, BaseHandWheelThroughOption, BaseTurnAngleThroughOption,
     BaseBlinkerThroughOption, BaseControlUnitInstalledThroughOption,
     BaseWaySwitchesThroughOption,
     BaseOperatingModeThroughOption,
     BaseMechanicalIndicatorThroughOption, BaseThroughOption, BaseSafetyPositionThroughOption,
     BaseColorThroughOption, BaseEndSwitchesThroughOption, BaseTorqueSwitchesThroughOption,
-    CableGlandHolesSetThroughOption
+    BaseM2MExdThroughOption, CableGlandHolesSetThroughOption
 )
 
 
@@ -118,8 +118,12 @@ class ElectricIpOption(BaseIpThroughOption):
 
 
 
-class ElectricExdOption(BaseExdThroughOption):
-    """Опции взрывозащиты для электроприводов"""
+class ElectricExdOption(BaseM2MExdThroughOption):
+    """Опции взрывозащиты для электроприводов.
+
+    Одна строка = одна КОДИРОВКА (опция выбора), внутри — M2M видов взрывозащиты
+    (params.ExdOption). Аналог CableGlandExdOption/PosiExdOption.
+    """
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -130,8 +134,7 @@ class ElectricExdOption(BaseExdThroughOption):
     class Meta:
         verbose_name = _("Опция взрывозащиты электропривода")
         verbose_name_plural = _("Опции взрывозащиты электроприводов")
-        ordering = ['exd_option__sorting_order', 'sorting_order']
-        unique_together = ['model_line', 'exd_option']
+        ordering = ['is_default', 'sorting_order']
 
     @classmethod
     def _get_parent_field_name(cls):

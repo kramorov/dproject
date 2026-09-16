@@ -40,12 +40,13 @@ class PneumaticHandWheelOptionInline(admin.TabularInline) :
     verbose_name = _("Опция ручного дублера")
     verbose_name_plural = _("Опции ручного дублера")
 
-class PneumaticExdOptionInline(admin.TabularInline) :
+from options.admin import BaseExdOptionInline
+
+
+class PneumaticExdOptionInline(BaseExdOptionInline) :
     """Inline для Exd опций"""
     model = PneumaticExdOption
-    extra = 0
     ordering = ['sorting_order']
-    fields = ['exd_option' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Exd опция")
     verbose_name_plural = _("Exd опции")
 

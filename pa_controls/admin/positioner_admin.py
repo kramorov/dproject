@@ -235,11 +235,11 @@ class PosiAlarmOptionInline(admin.TabularInline):
     fields = ['alarm', 'encoding', 'is_default', 'sorting_order', 'is_active']
 
 
-class PosiExdOptionInline(admin.TabularInline):
+from options.admin import BaseExdOptionInline
+
+
+class PosiExdOptionInline(BaseExdOptionInline):
     model = PosiExdOption
-    extra = 0
-    fields = ['exd_options', 'encoding', 'is_default', 'sorting_order', 'is_active']
-    filter_horizontal = ['exd_options']
 
 
 # ── Серия ──

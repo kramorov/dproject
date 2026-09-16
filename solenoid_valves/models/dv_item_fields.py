@@ -93,7 +93,10 @@ DV_ITEM_TEMPLATE_FIELDS = (
     # ── Защита ──
     {'key': 'ip', 'placeholder': '{ip}', 'path': 'ip__name', 'name_path': 'ip',
      },
-    {'key': 'exd', 'placeholder': '{exd}', 'path': 'exd__name', 'name_path': 'exd',
+    {'key': 'exd', 'placeholder': '{exd}', 'path': 'get_exd_display',
+     'code_path': 'exd_encoding',
+     },
+    {'key': 'exd_short', 'placeholder': '{exd_short}', 'path': 'get_exd_short_list',
      },
 
     # ── Условия эксплуатации ──

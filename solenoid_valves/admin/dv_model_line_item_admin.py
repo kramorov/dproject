@@ -76,19 +76,19 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     form = DirectionValveForm
 
     list_display = ['id',
-        'code', 'image_gallery', 'exd', 'pneumatic_connection', 'model_line', 'function',
+        'code', 'image_gallery', 'exd_option', 'pneumatic_connection', 'model_line', 'function',
         'power_supply', 'work_temp_min', 'ip',
         'body_material', 'solenoid_body_material', 'sorting_order',
     ]
     list_editable = ['sorting_order', 'image_gallery', 'code']
     list_select_related = [
         'model_line', 'function', 'actuation', 'power_supply', 'brand',
-        'ip', 'exd', 'body_material', 'solenoid_body_material',
+        'ip', 'exd_option', 'body_material', 'solenoid_body_material',
         'pneumatic_connection',
     ]
     list_filter = [
         'is_active', 'model_line', 'function', 'actuation',
-        'power_supply', 'brand', 'ip', 'exd',
+        'power_supply', 'brand', 'ip', 'exd_option',
         'body_material', 'solenoid_body_material', 'work_temp_min'
     ]
     search_fields = ['name', 'code', 'description', 'model_line__name']
@@ -105,7 +105,7 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
         (_('Функциональные характеристики'), {
             'fields': (
                 ('function', 'actuation', 'manual_override'),
-                ('dn', 'kv', 'ip'),
+                ('dn', 'kv', 'ip', 'exd_option'),
             ),
         }),
         (_('Корпус'), {
@@ -146,7 +146,7 @@ class DirectionValveAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
             'manual_override', 'power_supply', 'producer', 'brand',
             'body_material', 'sealing_material_specified',
             'solenoid_body_material', 'solenoid_body_material_specified',
-            'body_material_specified', 'ip', 'exd',
+            'body_material_specified', 'ip', 'exd_option',
             'pneumatic_connection', 'pneumatic_connection_thread',
             'cable_glands_holes',
         )

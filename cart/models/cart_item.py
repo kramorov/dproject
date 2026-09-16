@@ -126,13 +126,25 @@ class CartItem(models.Model):
             if ip:
                 specs.append({'label': 'IP', 'value': getattr(ip, 'name', '') or str(ip)})
 
-            # Взрывозащита
-            exd = getattr(source, 'exd', None)
-            if exd:
-                if hasattr(exd, 'all'):
+            # Взрывозащита (единый паттерн: display-методы; фолбэк — M2M-атрибут exd)
+            exd_value = ''
+            for attr in ('get_exd_display', 'get_exd_list', 'get_exd_short_list'):
+                fn = getattr(source, attr, None)
+                if callable(fn):
+                    try:
+                        exd_value = fn() or ''
+                    except Exception:
+                        exd_value = ''
+                    if exd_value:
+                        break
+            if not exd_value:
+                exd = getattr(source, 'exd', None)
+                if exd is not None and hasattr(exd, 'all'):
                     exd_names = [getattr(e, 'name', str(e)) for e in exd.all()[:3]]
                     if exd_names:
-                        specs.append({'label': 'Ex', 'value': ', '.join(exd_names)})
+                        exd_value = ', '.join(exd_names)
+            if exd_value:
+                specs.append({'label': 'Ex', 'value': exd_value})
 
             # Температура
             tmin = getattr(source, 'work_temp_min', None)

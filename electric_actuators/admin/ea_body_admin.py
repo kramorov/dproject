@@ -98,11 +98,12 @@ class ElectricActuatorBodyAdmin(admin.ModelAdmin):
 @admin.register(ElectricExdOption)
 class ElectricExdOptionAdmin(admin.ModelAdmin):
     # Показать важные поля в списке объектов модели
-    list_display = ('model_line','encoding',  'exd_option')
+    list_display = ('model_line', 'encoding', 'is_default', 'sorting_order', 'is_active')
 
     # Поля для редактирования в админке
     fieldsets = (
         ('Основные параметры', {
-            'fields': ('model_line','encoding',  'exd_option'),
+            'fields': ('model_line', 'encoding', 'exd_options', 'is_default', 'sorting_order', 'is_active'),
         }),
     )
+    filter_horizontal = ('exd_options',)

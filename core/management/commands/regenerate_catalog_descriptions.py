@@ -32,6 +32,15 @@ CATALOG_MODELS = [
     'pneumatic_actuators.PneumaticActuatorItem',
 ]
 
+# Prefetch путей взрывозащиты, чтобы генерация {exd}/{exd_short}
+# не порождала N+1 запросов к through-строкам и их M2M.
+EXD_PREFETCH_MAP = {
+    'solenoid_valves.DirectionValve': ['exd_option__exd_options'],
+    'pa_controls.LimitSwitchBox': ['exd'],
+    'pa_controls.PosiModelLineItem': ['exd_options'],
+    'pneumatic_actuators.PneumaticActuatorItem': ['selected_exd__exd_options'],
+}
+
 
 class Command(BaseCommand):
     help = 'Перегенерировать названия/описания каталога из шаблонов'
@@ -58,6 +67,9 @@ class Command(BaseCommand):
         models = self._get_models(options['model'])
         for model in models:
             qs = model.objects.all() if options['inactive'] else model.objects.filter(is_active=True)
+            exd_prefetch = EXD_PREFETCH_MAP.get(model._meta.label)
+            if exd_prefetch:
+                qs = qs.prefetch_related(*exd_prefetch)
             total = qs.count()
             self.stdout.write(f'{model._meta.label}: {total} записей')
             if not total:

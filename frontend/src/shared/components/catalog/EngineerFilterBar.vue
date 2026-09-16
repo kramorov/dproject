@@ -50,6 +50,7 @@
         <ExdFilter
           v-if="f.filter_type === 'exd_compatible'"
           @update:modelValue="ids => onExdChange(ids)"
+          @update:exactId="id => onExdExact(id)"
         />
         <ClimateFilter
           v-else-if="f.filter_type === 'climate_cascade'"
@@ -129,6 +130,10 @@ function onExdChange(ids) {
   } else {
     emit('change', 'exd_id', ids.join(','))
   }
+}
+
+function onExdExact(id) {
+  emit('change', 'exd_id_exact', id != null ? id : '')
 }
 
 const THREAD_KEYS = ['thread_type_id', 'thread_id']

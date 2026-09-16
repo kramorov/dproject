@@ -51,14 +51,14 @@ class LimitSwitchBox(CatalogSerializerMixin,
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'sensor_variety', 'points', 'body_material',
         'body_material_specified', 'weight', 'cable_glands_holes', 'mounting',
-        'work_temp_min', 'work_temp_max', 'exd', 'ip', 'primary_sensor',
+        'work_temp_min', 'work_temp_max', 'exd', 'exd_short', 'ip', 'primary_sensor',
         'primary_sensor_signal_type', 'primary_sensor_contact_state',
         'primary_sensor_contact_form', 'signal_profile_summary',
     )
 
     VARS_FIELD_KEYS = (
         'code', 'name', 'model_line_name', 'brand_name', 'sensor_variety',
-        'points', 'ip', 'exd', 'work_temp', 'work_temp_min', 'work_temp_max',
+        'points', 'ip', 'exd', 'exd_short', 'work_temp', 'work_temp_min', 'work_temp_max',
         'body_material', 'body_material_specified', 'weight',
         'cable_glands_holes', 'mounting', 'is_pneumatic', 'has_namur_interface',
         'visual_indicator_type', 'primary_sensor', 'primary_sensor_signal_type',

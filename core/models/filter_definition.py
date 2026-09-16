@@ -497,6 +497,101 @@ class FilterDefinition:
 
     # ── Exact/Compatible split ──
 
+    # ── Exd exact/compatible split (M2M-aware) ──
+
+    @classmethod
+    def _get_m2m_ids(cls, obj, path: str) -> set:
+        """ID видов по пути: M2M напрямую или через through-строку.
+
+        Поддерживает 'exd' (M2M), 'exd_option__exd_options' (FK на строку →
+        M2M внутри) и 'exd_options__exd_options' (reverse-менеджер строк серии
+        → объединение по всем строкам). Использует prefetched-кэш, если
+        queryset был prefetch_related.
+        """
+        return cls._walk_m2m(obj, path.split('__'))
+
+    @classmethod
+    def _walk_m2m(cls, current, parts):
+        if not parts:
+            return set()
+        head = parts[0]
+        attr = getattr(current, head, None)
+        if attr is None:
+            return set()
+        if len(parts) == 1:
+            if hasattr(attr, 'all'):
+                try:
+                    return {o.pk for o in attr.all()}
+                except Exception:
+                    return set()
+            pk = getattr(attr, 'pk', None)
+            return {pk} if pk is not None else set()
+        if hasattr(attr, 'all') and not hasattr(attr, 'pk'):
+            # reverse-менеджер или M2M в середине пути — объединение по строкам
+            result = set()
+            try:
+                for row in attr.all():
+                    result |= cls._walk_m2m(row, parts[1:])
+            except Exception:
+                pass
+            return result
+        return cls._walk_m2m(attr, parts[1:])
+
+    @staticmethod
+    def _parse_id_list(value) -> set:
+        """Набор int-id из списка/csv/одиночного значения (sentinel'ы → {})."""
+        if value is None:
+            return set()
+        if isinstance(value, int):
+            return {value}
+        if isinstance(value, (list, tuple, set)):
+            values = value
+        else:
+            values = str(value).split(',')
+        out = set()
+        for v in values:
+            try:
+                out.add(int(str(v).strip()))
+            except (ValueError, TypeError):
+                continue
+        return out
+
+    def _classify_exd_match(self, obj, requested_value, exact_value=None):
+        """'exact'/'compatible'/None для Exd-фильтра."""
+        # 1. Простое FK-поле (legacy): сравнение по id
+        fk_attr = f"{self.model_field}_id"
+        if hasattr(obj, fk_attr):
+            obj_fk_id = getattr(obj, fk_attr, None)
+            ref = exact_value if exact_value is not None else requested_value
+            try:
+                requested_id = int(ref)
+            except (ValueError, TypeError):
+                return None
+            if obj_fk_id is None:
+                return None
+            return 'exact' if obj_fk_id == requested_id else 'compatible'
+
+        # 2. M2M/through: виды, приписанные модели
+        model_ids = self._get_m2m_ids(obj, self.model_field)
+        if requested_value in ('_none_', ['_none_']):
+            return 'exact' if not model_ids else None
+        req_ids = self._parse_id_list(requested_value)
+
+        exact_int = None
+        if exact_value is not None:
+            try:
+                exact_int = int(exact_value)
+            except (ValueError, TypeError):
+                exact_int = None
+        elif len(req_ids) == 1:
+            exact_int = next(iter(req_ids))
+
+        if exact_int is not None and exact_int in model_ids:
+            return 'exact'
+        if req_ids and model_ids and (req_ids & model_ids):
+            return 'compatible'
+        return None
+
     def supports_split(self) -> bool:
         """True if this filter can distinguish exact vs compatible matches."""
         return self.filter_type in self.SPLITTABLE_TYPES
@@ -512,13 +607,19 @@ class FilterDefinition:
                 return None
         return value
 
-    def classify_match(self, obj, requested_value):
+    def classify_match(self, obj, requested_value, exact_value=None):
         """
         Classify one object as 'exact', 'compatible', or None.
 
         obj is already in the filtered queryset (it passed the filter).
         requested_value is the raw value from the user's request.
+        exact_value — id точного запрошенного вида (параметр
+        '{param_name}_exact') для M2M-разделения exact/compatible.
         """
+        # ── Exd: работает и с FK, и с M2M/through-путями ──
+        if self.filter_type == FilterType.EXD_COMPATIBLE:
+            return self._classify_exd_match(obj, requested_value, exact_value)
+
         try:
             requested_num = float(requested_value)
         except (ValueError, TypeError):
@@ -526,8 +627,8 @@ class FilterDefinition:
 
         # ── FK-based: compare by ID ──
         if self.filter_type in (
-            FilterType.EXD_COMPATIBLE, FilterType.THREAD_COMPATIBLE,
-            FilterType.FUNCTION_COMPATIBLE, FilterType.IP_RANK,
+            FilterType.THREAD_COMPATIBLE, FilterType.FUNCTION_COMPATIBLE,
+            FilterType.IP_RANK,
         ):
             fk_field = f"{self.model_field}_id"
             obj_fk_id = self._get_nested_attr(obj, fk_field)

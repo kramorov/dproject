@@ -239,6 +239,7 @@ class SmartCatalogMixin(models.Model):
         # ── Track the "primary" splittable filter ──
         split_fd: Optional[FilterDefinition] = None
         split_raw_value = None
+        split_exact_value = None
 
         for fd in filter_definitions:
             value = params.get(fd.param_name)
@@ -246,6 +247,16 @@ class SmartCatalogMixin(models.Model):
                 continue
 
             lookup, converted = fd.build_filter_lookup(value)
+            if fd.filter_type == FilterType.EXD_COMPATIBLE:
+                exact_param = params.get(f'{fd.param_name}_exact')
+                if exact_param:
+                    split_exact_value = exact_param
+                if exact_param and params.get(f'{fd.param_name}_match') == 'exact':
+                    # Режим EXACT: фильтруем только по точному виду
+                    try:
+                        lookup, converted = f"{fd.model_field}__in", [int(exact_param)]
+                    except (ValueError, TypeError):
+                        pass
             if lookup and converted is not None:
                 queryset = queryset.filter(**{lookup: converted})
                 filters_applied[fd.param_name] = value
@@ -293,7 +304,8 @@ class SmartCatalogMixin(models.Model):
                 item = {'id': obj.id}
 
             if do_split:
-                classification = split_fd.classify_match(obj, split_raw_value)
+                classification = split_fd.classify_match(
+                    obj, split_raw_value, exact_value=split_exact_value)
                 if classification == 'exact':
                     data.append(item)
                 else:

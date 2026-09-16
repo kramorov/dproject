@@ -536,10 +536,10 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
 
     @property
     def exd_display(self) :
-        """Отображаемое имя стандартной Exd опции"""
+        """Отображаемое имя стандартной Exd опции (короткий список видов)"""
         default_exd = self.default_exd
-        if default_exd and default_exd.exd_option :
-            return default_exd.exd_option.name
+        if default_exd :
+            return default_exd.get_exd_short_list or 'Не указано'
         return "Не указано"
 
     @property

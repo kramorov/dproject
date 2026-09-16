@@ -15,6 +15,7 @@
       <ExdFilter
         v-if="f.filter_type === 'exd_compatible'"
         @update:modelValue="ids => onExdChange(ids)"
+        @update:exactId="id => onExdExact(id)"
       />
       <!-- Обычные фильтры -->
       <ClimateFilter
@@ -106,6 +107,10 @@ function onExdChange(ids) {
   } else {
     emit('change', 'exd_id', ids.join(','))
   }
+}
+
+function onExdExact(id) {
+  emit('change', 'exd_id_exact', id != null ? id : '')
 }
 
 function onClimateChange(temps, key) {

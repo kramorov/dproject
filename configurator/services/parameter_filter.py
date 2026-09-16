@@ -5,12 +5,102 @@ Replaces FilterDefinition-based _apply_filters with ParameterRule semantics:
 directional (min/max), hierarchy, compatible, subset match types.
 """
 import logging
+import hashlib
 from typing import Any
 from django.db.models import Q, Model
 from configurator.models import ParameterBinding
 from params.exd_models import ExdOption
 
 logger = logging.getLogger(__name__)
+
+# Ключ версии кэша совместимости Exd. Инвалидируется сигналами
+# params/apps.py (post_save/post_delete справочников взрывозащиты).
+EXD_COMPAT_CACHE_VERSION_KEY = 'exd_compat_version'
+
+
+def _resolve_hierarchy_compatible_ids(levels: list, value: Any) -> set | None:
+    """ID видов, совместимых с уровнем иерархии — один SQL-запрос + кэш.
+
+    Семантика (см. exd-option.md §1.3):
+      * уровень 0 (общепром) → все активные виды;
+      * иначе: виды, чьи имена соответствуют уровням value..max, расширяются
+        их наборами «не хуже» (тот же метод, группа rating>= в той же среде,
+        температура rating>= для газа / dust<= для пыли) и объединяются ОДНИМ
+        OR-запросом вместо прежнего цикла get_compatible_ids() (N+1).
+
+    Возвращает None, если значение не является уровнем; пустое множество —
+    если подходящих видов нет (вызовет пустую выдачу, как прежний фолбэк).
+    """
+    from django.core.cache import cache
+
+    _value = 'Ex d' if value == 'Exd' else value
+    if _value not in levels:
+        return None
+    idx = levels.index(_value)
+    if idx == 0:
+        # общепром → все активные виды
+        return set(ExdOption.objects.filter(is_active=True).values_list('id', flat=True))
+
+    version = cache.get(EXD_COMPAT_CACHE_VERSION_KEY, 1)
+    cache_key = 'exd_hierarchy:%s:%s' % (version, hashlib.md5(_value.encode('utf-8')).hexdigest())
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return set(cached)
+
+    compatible_names = levels[idx:]
+    name_q = Q()
+    for name in compatible_names:
+        name_q |= Q(name__icontains=name, is_active=True)
+    matched = list(
+        ExdOption.objects.filter(name_q).select_related(
+            'explosion_protection_class__method',
+            'hazardous_group',
+            'temperature_class',
+        )
+    )
+    if not matched:
+        return set()
+
+    branch_q = Q()
+    unconstrained = False
+    for opt in matched:
+        cond = Q()
+        has_constraint = False
+        if opt.explosion_protection_class_id and opt.explosion_protection_class.method_id:
+            cond &= Q(explosion_protection_class__method_id=opt.explosion_protection_class.method_id)
+            has_constraint = True
+        if opt.hazardous_group_id:
+            cond &= Q(
+                hazardous_group__rating__gte=opt.hazardous_group.rating,
+                hazardous_group__group_type=opt.hazardous_group.group_type,
+            )
+            has_constraint = True
+        if opt.temperature_class_id:
+            cond &= Q(temperature_rating__gte=opt.temperature_class.strictness_rating)
+            has_constraint = True
+        elif opt.dust_temperature:
+            cond &= Q(temperature_rating__lte=opt.dust_temperature)
+            has_constraint = True
+        if has_constraint:
+            branch_q |= cond
+        else:
+            unconstrained = True
+
+    if unconstrained:
+        ids = set(ExdOption.objects.filter(is_active=True).values_list('id', flat=True))
+    else:
+        ids = set(
+            ExdOption.objects.filter(is_active=True)
+            .filter(branch_q)
+            .values_list('id', flat=True)
+        )
+    # Прежний фолбэк: если набор «не хуже» пуст, допускались сами найденные
+    # по имени виды (icontains-фолбэк по name).
+    if not ids:
+        ids = {opt.id for opt in matched}
+
+    cache.set(cache_key, sorted(ids), timeout=300)
+    return ids
 
 
 def _build_q_from_parameter_rule(rule, param_name: str, value: Any) -> tuple | None:
@@ -39,37 +129,16 @@ def _build_q_from_parameter_rule(rule, param_name: str, value: Any) -> tuple | N
                 return f"{param_name}__gte", value
 
         elif match_type == "hierarchy":
+            # requirement at level N → модели с видами уровня >= N (M2M-поиск).
             levels: list = match_config.get("levels", [])
             if not levels:
                 return None
-            _value = value
-            if value == "Exd":
-                _value = "Ex d"
-            if _value not in levels:
+            ids = _resolve_hierarchy_compatible_ids(levels, value)
+            if ids is None:
                 return None
-            idx = levels.index(_value)
-            compatible_names = levels[idx:]
-            is_all_levels = (idx == 0)
-
-            try:
-                if is_all_levels:
-                    exd_options = ExdOption.objects.filter(is_active=True)
-                else:
-                    name_q = Q()
-                    for name in compatible_names:
-                        name_q |= Q(name__icontains=name, is_active=True)
-                    exd_options = ExdOption.objects.filter(name_q)
-
-                if exd_options.exists():
-                    all_ids: set[int] = set()
-                    for opt in exd_options:
-                        all_ids.update(opt.get_compatible_ids())
-                    if all_ids:
-                        return f"{param_name}__in", list(all_ids)
-            except Exception as e:
-                logger.warning(f"Hierarchy lookup for {param_name}={value}: {e}")
-
-            return f"{param_name}", value
+            if ids:
+                return f"{param_name}__in", list(ids)
+            return f"{param_name}", value  # прежний фолбэк: точное совпадение
 
         elif match_type == "compatible":
             groups: list = match_config.get("groups", [])
@@ -118,50 +187,24 @@ def _build_q_from_binding(binding: ParameterBinding, value: Any) -> Q | None:
                 return Q(**{f"{param_name}__gte": value})
 
         elif match_type == "hierarchy":
-            # requirement at level N → models at level >= N.
-            # Uses ExdOption.get_compatible_ids() to find all acceptable options.
+            # requirement at level N → модели с видами уровня >= N.
+            # Поиск по M2M видов: модель проходит, если хотя бы один
+            # приписанный вид совместим с требованием (EXISTS-семантика).
             levels: list = match_config.get("levels", [])
             if not levels:
                 return None
 
-            # Normalize common input variants: "Exd" → "Ex d"
-            _value = value
-            if value == "Exd":
-                _value = "Ex d"
-
-            if _value not in levels:
+            ids = _resolve_hierarchy_compatible_ids(levels, value)
+            if ids is None:
                 return None
+            if ids:
+                return Q(**{f"{param_name}__in": list(ids)})
 
+            # Fallback: direct __name__icontains OR (как прежде, когда набор пуст).
+            _value = 'Ex d' if value == 'Exd' else value
             idx = levels.index(_value)
-            compatible_names = levels[idx:]
-            is_all_levels = (idx == 0)  # общепром → match all
-
-            try:
-                if is_all_levels:
-                    # общепром → all ExdOptions
-                    exd_options = ExdOption.objects.filter(is_active=True)
-                else:
-                    # Find ExdOption objects matching the compatible level names.
-                    # Level names like "Ex d", "Ex ia" match via name__icontains
-                    # against full ExdOption names like "Ex db IIB T6 Gb".
-                    name_q = Q()
-                    for name in compatible_names:
-                        name_q |= Q(name__icontains=name, is_active=True)
-                    exd_options = ExdOption.objects.filter(name_q)
-
-                if exd_options.exists():
-                    all_ids: set[int] = set()
-                    for opt in exd_options:
-                        all_ids.update(opt.get_compatible_ids())
-                    if all_ids:
-                        return Q(**{f"{param_name}__in": list(all_ids)})
-            except Exception as e:
-                logger.warning(f"Hierarchy filter for {param_name}={value}: {e}")
-
-            # Fallback: direct __name__icontains OR.
-            # Also try common abbreviation normalizations (Exd → Ex d).
             name_q = Q()
-            for name in compatible_names:
+            for name in levels[idx:]:
                 name_q |= Q(**{f"{param_name}__name__icontains": name})
                 # Normalize common variants: "Exd" → also search "Ex d"
                 if name == "Exd":

@@ -85,7 +85,7 @@ class PneumaticActuatorItem(
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'variety_name', 'body_name', 'body_code',
         'weight', 'safety_position', 'springs_qty', 'temperature',
-        'ip', 'exd', 'coating', 'hand_wheel',
+        'ip', 'exd', 'exd_short', 'coating', 'hand_wheel',
     )
 
     CODE_FIELD_KEYS = (
@@ -96,6 +96,7 @@ class PneumaticActuatorItem(
     VARS_FIELD_KEYS = (
         'code', 'name', 'model_line_name', 'model_line_code', 'brand_name',
         'body_name', 'body_code', 'variety_name', 'variety_code', 'weight',
+        'ip', 'exd', 'exd_short',
     )
 
     # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
@@ -174,10 +175,11 @@ class PneumaticActuatorItem(
         verbose_name=_("Степень защиты IP"),
     )
     selected_exd = models.ForeignKey(
-        'params.ExdOption',
+        'PneumaticExdOption',
         on_delete=models.SET_NULL, null=True, blank=True,
         related_name='pa_items_exd',
         verbose_name=_("Взрывозащита"),
+        help_text=_('Выбранная опция взрывозащиты (through-строка с кодировкой и видами Ex)')
     )
     selected_body_coating = models.ForeignKey(
         'params.BodyCoatingOption',
@@ -246,7 +248,7 @@ class PneumaticActuatorItem(
         },
         'selected_exd': {
             'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticExdOption',
-            'through_attr': 'exd_option',
+            'through_attr': None,  # PneumaticExdOption сама является опцией (кодировка + M2M видов)
             'parent_field': 'model_line',
         },
         'selected_body_coating': {

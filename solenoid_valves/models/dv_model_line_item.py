@@ -9,6 +9,7 @@ from core.models.mixins import TemplateMixin, CopyMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 # TemplateGeneratorMixin удалён 2026-09-01 — DirectionValve использует единый TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
+from options.models import ChosenExdRowMixin
 
 from .dv_model_line import DirectionalValveModelLine
 from .dv_body import DirectionValveBody
@@ -23,7 +24,8 @@ class DirectionValve(CatalogSerializerMixin,
                      ImageGalleryMixin,
                      TechDocMixin,
                      SKUMixin, CopyMixin, TemplateMixin,
-                     SmartCatalogMixin, EquipmentTypeMixin, models.Model):
+                     SmartCatalogMixin, EquipmentTypeMixin,
+                     ChosenExdRowMixin, models.Model):
     """
     Распределительный клапан (конкретный артикул каталога).
 
@@ -49,7 +51,7 @@ class DirectionValve(CatalogSerializerMixin,
       - pressure_min/max, work_temp_min/max, medium_density_max: рабочие параметры
       - power_supply, power_consumption_*: электрические характеристики
       - body_material, sealing, solenoid_body_material: материалы
-      - ip, exd: защита
+      - ip, exd_option: защита
       - pneumatic_connection, pneumatic_connection_thread, cable_glands_holes: присоединения
     """
 
@@ -66,6 +68,7 @@ class DirectionValve(CatalogSerializerMixin,
         'pneumatic_connection', 'pneumatic_connection_thread', 'cable_glands_holes',
         'power_supply', 'power_consumption_start', 'power_consumption_hot',
         'power_consumption_hold', 'solenoid_insulation_class', 'ip', 'exd',
+        'exd_short',
         'temperature_range', 'medium_density_max', 'work_temp_min', 'work_temp_max',
     )
 
@@ -73,6 +76,7 @@ class DirectionValve(CatalogSerializerMixin,
         'code', 'name', 'model_line_name', 'brand_name', 'function',
         'actuation', 'construction', 'operation', 'working_medium',
         'solenoid_insulation_class', 'manual_override', 'kv', 'dn', 'ip', 'exd',
+        'exd_short',
         'power_supply', 'power_consumption_start', 'power_consumption_hot',
         'power_consumption_hold', 'body_material', 'body_material_specified',
         'sealing_material_specified', 'solenoid_body_material',
@@ -143,10 +147,13 @@ class DirectionValve(CatalogSerializerMixin,
     ip = models.ForeignKey('params.IpOption', blank=True, null=True, default=65,
                            on_delete=models.SET_NULL, related_name='direction_valve_ip', verbose_name=_("IP"),
                            help_text=_('Степень IP для модели клапана'))
-    exd = models.ForeignKey('params.ExdOption', blank=True, null=True,
-                            related_name='direction_valve_exd',
-                            on_delete=models.SET_NULL, verbose_name=_("Exd"),
-                            help_text=_('Степень взрывозащиты для модели клапана'))
+    exd_option = models.ForeignKey(
+        'solenoid_valves.DirectionValveExdOption',
+        blank=True, null=True,
+        on_delete=models.SET_NULL,
+        related_name='direction_valve_exd_articles',
+        verbose_name=_("Опция взрывозащиты"),
+        help_text=_('Выбранная опция взрывозащиты серии; пусто — наследуется дефолт серии'))
     actuation = models.ForeignKey(ValveActuationVariety,
                                   related_name='direction_valve_actuation',
                                   blank=True,
@@ -271,6 +278,9 @@ class DirectionValve(CatalogSerializerMixin,
         """Сохраняет модель и синхронизирует номенклатуру (SKU)."""
         super().save(*args, **kwargs)
         self.sync_sku()
+
+    # ── Взрывозащита: выбор опции серии (единый паттерн, см. exd-option.md) ──
+    exd_through_model = 'solenoid_valves.DirectionValveExdOption'
 
     class Meta:
         ordering = ['sorting_order', 'code']

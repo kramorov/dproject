@@ -14,7 +14,6 @@ from params.models import PowerSupplies , BodyCoatingOption , BlinkerOption , Sw
     OperatingModeOption , StemShapes , StemSize , MountingPlateTypes , ThreadSize , CertVariety , CertData , \
     MechanicalIndicatorInstalledOption , ControlUnitLocationOption , ControlUnitTypeOption , SafetyPositionOption , \
     ValveTypes , ClimaticConditions
-from params.exd_models import ExdOption
 
 VALVE_DATA_STEM_TYPES = [
     ('Выдвижной', 'Выдвижной шток'),  # ('AC', 'Постоянный ток')
@@ -116,8 +115,6 @@ class AbstractActuatorMixin(AbstractActuatorModelBodyMixin):
     body_coating = models.ForeignKey(BodyCoatingOption, related_name='%(class)s', blank=True,
                                      null=True,
                                      on_delete=models.SET_NULL, help_text='Покрытие корпуса')
-    exd = models.ForeignKey(ExdOption, related_name='%(class)s', blank=True, null=True,
-                            on_delete=models.SET_NULL, help_text='Степень exd')
     output_type = models.ForeignKey(ActuatorGearboxOutputType, related_name='%(class)s', blank=True,
                                     null=True,
                                     on_delete=models.SET_NULL, help_text='Вид привода')

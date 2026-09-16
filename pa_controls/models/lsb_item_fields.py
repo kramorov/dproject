@@ -24,6 +24,7 @@ LSB_ITEM_TEMPLATE_FIELDS = (
      },
     {'key': 'ip', 'placeholder': '{ip}', 'path': 'ip__name', },
     {'key': 'exd', 'placeholder': '{exd}', 'path': 'exd_display', },
+    {'key': 'exd_short', 'placeholder': '{exd_short}', 'path': 'get_exd_short_list', },
     {'key': 'work_temp', 'path': 'get_work_temp_display', },
     {'key': 'visual_indicator_type', 'path': 'visual_indicator_type__name', },
 

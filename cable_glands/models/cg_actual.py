@@ -26,12 +26,14 @@ from core.models.mixins import TemplateMixin, CopyMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from sku.models import SKUMixin
+from options.models import ChosenExdRowMixin
 
 from .cg_item_fields import CG_ITEM_TEMPLATE_FIELDS
 
 
 class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
                  CopyMixin, ImageGalleryMixin, TechDocMixin, SKUMixin,
+                 ChosenExdRowMixin,
                  models.Model):
     """Артикул каталога — конкретный кабельный ввод (единица продажи).
 
@@ -195,6 +197,7 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     def clean(self):
         """Консистентность выбранных through-строк с корпусом/серией (для форм)."""
+        super().clean()  # цепочка → ChosenExdRowMixin.clean(): exd-опция ↔ серия
         self._validate_option_consistency()
 
     def _validate_option_consistency(self):
@@ -286,33 +289,10 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     # ── Display-свойства для шаблонов и секций каталога ──
 
-    def _get_effective_exd_row(self):
-        """Эффективная through-строка взрывозащиты: выбранная (exd_option) или дефолт серии."""
-        row = self.exd_option
-        if row is None and self.model_line_id:
-            from .cg_exd_option import CableGlandExdOption
-            try:
-                row = CableGlandExdOption.get_effective_row(parent_id=self.model_line_id)
-            except Exception:
-                row = None
-        return row
-
-    @property
-    def get_exd_display(self) -> str:
-        """Взрывозащита: список из полей name опций (через ' / ')."""
-        row = self._get_effective_exd_row()
-        if row is None:
-            return ''
-        items = []
-        for x in row.exd_options.all():
-            items.append(x.name or x.code or x.description or str(x))
-        return ' / '.join(items)
-
-    @property
-    def get_exd_short_list(self) -> str:
-        """Короткий список видов взрывозащиты: «Ex db / Ex ta / Ex eb / Ex nR» (паттерн позиционеров)."""
-        row = self._get_effective_exd_row()
-        return row.get_exd_short_list if row else ''
+    # ── Взрывозащита: выбор опции серии (единый паттерн, см. exd-option.md) ──
+    # _get_effective_exd_row / get_exd_display / get_exd_short_list / exd_encoding
+    # приходят из ChosenExdRowMixin.
+    exd_through_model = 'cable_glands.CableGlandExdOption'
 
     @property
     def get_ip_display(self) -> str:
@@ -321,12 +301,6 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
         if not ml:
             return ''
         return ' / '.join(str(x) for x in ml.ip.all())
-
-    @property
-    def exd_encoding(self) -> str:
-        """Encoding взрывозащиты: выбранная through-строка или дефолт серии."""
-        row = self._get_effective_exd_row()
-        return row.encoding if (row and row.encoding) else ''
 
     @property
     def thread_encoding(self) -> str:
