@@ -39,11 +39,10 @@
       @navigate="goToSection"
       @title-ready="t => pageSubtitle = t"
     />
-    <QuickSelect
+    <QuickSelectCableType
       v-else-if="page === 'quickselect'"
       :api="api" :labels="labels.quickselect"
       :filter-labels="labels.quickselect.filterLabels"
-      :auto-select-rules="labels.quickselect.autoSelectRules"
       @select="id => onSelectItem(id, 'quickselect')"
       @navigate="goToSection"
     />
@@ -72,7 +71,7 @@ import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
 import EngineerSelection from '@/shared/components/catalog/EngineerSelection.vue'
 import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
-import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
+import QuickSelectCableType from './components/QuickSelectCableType.vue'
 import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
 import QuestionGraphWizard from '@/shared/components/catalog/QuestionGraphWizard.vue'
 import AiSelectionPage from '@/pages/AiSelectionPage.vue'

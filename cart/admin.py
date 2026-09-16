@@ -9,7 +9,7 @@ class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 0
     readonly_fields = ('added_at',)
-    fields = ('content_type', 'object_id', 'quantity', 'price_snapshot', 'notes', 'added_at')
+    fields = ('sku', 'quantity', 'notes', 'added_at')
     autocomplete_fields = []
 
     def has_add_permission(self, request, obj=None):

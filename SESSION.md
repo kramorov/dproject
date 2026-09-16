@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-15. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-16. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо),
 > паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`.
 
@@ -414,3 +414,59 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
   кабельных вводов + регресс БКВ/соленоидных; (2) коммит (15 изменённых + 4 новых файла,
   `db.sqlite3` изменён); (3) TODO фазы 5: ParameterBinding/AI-поля для cable-gland,
   запись CableType «Под трубу» при появлении данных, привязка марок кабеля к CableType.
+
+---
+
+## 10. Сессия 2026-09-16 — глобальный поиск, КП, цена, быстрый подбор КВ
+
+### Глобальный поиск по артикулу (SKU)
+
+- Бэкенд `sku/api/search.py`:
+  - `SKUSearchView` — `GET /api/admin/sku/search/?q=...` (AllowAny), ищет по `SKU.code`
+    без учёта регистра; для кириллицы — casefold-фоллбэк (SQLite `LIKE` регистронезависим
+    только для ASCII). До 10 результатов + `source_content_type`/`source_object_id`.
+  - `SKUModelDetailView` — `GET /api/admin/sku/model-detail/?sku_id=...` → `to_dict()` + price + schema;
+    `to_dict()`/`get_display_price` обёрнуты в try/except (аккуратный 500 при сбое сериализации).
+- `sku/urls.py`: `search/`, `model-detail/` (под `/api/admin/sku/`).
+- Фронт: `components/header/GlobalSearch.vue` (в шапке, все страницы; дебаунс 300 мс,
+  выпадающий список, подсветка по `@mouseenter`) + страница `/sku/:id`
+  (`pages/SkuProductPage.vue`) + роут в `router/index.js`.
+
+### Модуль `commercial` — КП (quotation) из корзины
+
+- Отдельное приложение `commercial/` (`CommercialConfig`, в INSTALLED_APPS).
+- `GET /api/commercial/quotation/<uuid:cart_id>/` (`CartQuotationView`) → `.docx`
+  (attachment `Quotation_<hex>.docx`).
+- `services/quotation.py::build_cart_quotation` — таблица (№ подпункта/Артикул/Описание/
+  Количество/Цена/Сумма + строка «Итого») + спецификации по уникальным SKU (дедуп по `sku_id`).
+- `services/numbering.py::generate_quotation_number` — `RequestNumberCounter` (компания+
+  пользователь) + `UserParameter` `quotation_number_template` (дефолт
+  `КП-{year}-{company_seq}-{user_seq}`); фоллбэк `DocumentNumerator` (префикс «КП»).
+- Шаблон `commercial/templates/quotation_template.docx` (шапка редактируется в Word);
+  таблица/спеки добавляются программно (`python-docx`), т.к. `{%tr %}`-циклы в docxtpl 0.20.2 ненадёжны.
+- Команда `manage.py create_quotation_template` — пересоздать дефолтный шаблон.
+- Кнопка «Сформировать КП» — `pages/CartDetailPage.vue` (только на странице корзины).
+
+### Цена в корзине (read-only)
+
+- `cart/serializers.py::_resolve_sku_price` — больше не пишет в БД: читает
+  `PriceHistory.get_current_price_by_sku()`, валюту конвертирует в RUB на лету
+  (`ExchangeRate`), кеш только in-memory на запрос.
+- `cart/models/cart_item.py`: поля `price_snapshot`/`price_date`/`price_currency`
+  **закомментированы** (колонки в БД остались, миграция 0003).
+- `cart/admin.py` `CartItemInline.fields` → `('sku', 'quantity', 'notes', 'added_at')`
+  (убраны `price_snapshot` и устаревшие `content_type`/`object_id`).
+
+### Быстрый подбор кабельных вводов
+
+- `cable_glands/catalog/views_quickselect.py` — `get()` переопределён: `model_line_id`
+  не обязателен (подбор по всем сериям); топ-уровнем — «Тип кабеля» (`cable_type_id`).
+- Фронт: `apps/cable-gland-catalog/components/QuickSelectCableType.vue` (топ-селектор
+  «Тип кабеля», остальные фильтры чипсами); `App.vue`/`api.js` переключены.
+
+### Остаток / риски 2026-09-16
+
+- Браузерная проверка глобального поиска и кнопки «Сформировать КП» — за пользователем.
+- Шаблон КП — из файла; после отладки перенести в админку/модель (и, возможно, историю КП).
+- Удалить закомментированные `CartItem.price_*` поля миграцией — при желании.
+- `db.sqlite3` изменён в ходе тестов (инкременты счётчика КП).

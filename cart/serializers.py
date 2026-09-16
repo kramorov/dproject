@@ -46,67 +46,48 @@ class CartItemSerializer(serializers.ModelSerializer):
         """
         Разрешить цену SKU с кешированием на уровне запроса.
 
-        Двухуровневый кеш:
-        1. CartItem.price_date >= сегодня → цена из price_snapshot (0 запросов к БД)
-        2. Иначе → PriceHistory.get_current_price_by_sku() → конвертация → запись в БД
+        Кеш только in-memory (на инстанс сериализатора) — в БД ничего не пишем.
         """
         if not hasattr(self, '_price_cache'):
             self._price_cache = {}
         key = obj.sku_id
         if key not in self._price_cache:
-            self._price_cache[key] = _resolve_sku_price(obj.sku_id, existing_item=obj)
+            self._price_cache[key] = _resolve_sku_price(obj.sku_id)
         return self._price_cache[key]
 
 
-def _resolve_sku_price(sku_id, existing_item=None):
+def _resolve_sku_price(sku_id):
     """
-    Получить цену SKU. Кешируется в CartItem.price_snapshot на один день.
+    Получить актуальную цену SKU в RUB.
 
-    Логика:
-    1. Если price_snapshot есть и price_date >= сегодня → вернуть кеш
-    2. Иначе → запросить PriceHistory, сохранить в CartItem, вернуть
+    Источник правды — PriceHistory (последняя зафиксированная цена).
+    Если цена в валюте — динамически конвертируем в RUB по курсу ЦБ (без записи в БД).
     """
-    from datetime import date
-    today = date.today()
-
-    # 1. Кеш ещё актуален?
-    if existing_item and existing_item.price_snapshot is not None:
-        if existing_item.price_date and existing_item.price_date >= today:
-            return {
-                'price': float(existing_item.price_snapshot),
-                'currency_symbol': '₽',
-                'currency_code': 'RUB',
-            }
-
-    # 2. Запросить реальную цену
     try:
         from price.models import PriceHistory, PriceVariety, Currency
         from price.models.exchange_rate import ExchangeRate
+
         pv = PriceVariety.objects.filter(is_active=True).order_by('sorting_order').first()
         if not pv:
             return {'price': None, 'currency_symbol': '', 'currency_code': ''}
+
         ph = PriceHistory.get_current_price_by_sku(sku_id, pv)
         if ph and ph.price is not None:
             price_val = float(ph.price)
             ph_currency = ph.currency
-            # Конвертация в RUB через курс ЦБ
+            # Конвертация в RUB через курс ЦБ (только в памяти)
             if ph_currency and ph_currency.code != 'RUB':
                 rate_obj = ExchangeRate.objects.filter(
                     currency=ph_currency.code
                 ).order_by('-date').first()
                 if rate_obj and rate_obj.rate:
                     price_val = round(price_val * float(rate_obj.rate) / float(rate_obj.nominal or 1), 2)
-            # Сохранить кеш в CartItem (всегда в RUB)
-            if existing_item:
-                existing_item.price_snapshot = price_val
-                existing_item.price_date = today
-                existing_item.price_currency = 'RUB'
-                existing_item.save(update_fields=['price_snapshot', 'price_date', 'price_currency'])
             return {
                 'price': price_val,
                 'currency_symbol': '₽',
                 'currency_code': 'RUB',
             }
+
         # fallback
         cur = Currency.objects.filter(is_active=True).order_by('sorting_order').first()
         return {

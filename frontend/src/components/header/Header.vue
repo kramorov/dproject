@@ -2,6 +2,7 @@
   <header class="site-header">
     <div class="header-left"><router-link to="/" class="logo">На главную</router-link></div>
     <nav class="header-nav"><TopMenu /></nav>
+    <div class="header-search"><GlobalSearch /></div>
     <div class="header-actions">
       <!-- Корзина: клик → список, ховер → дропдаун -->
       <div class="hdr-cart"
@@ -63,6 +64,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import TopMenu from './TopMenu.vue'
+import GlobalSearch from './GlobalSearch.vue'
 import AppButton from '@/shared/components/AppButton.vue'
 import { useAuth } from './useAuth.js'
 import cartService from '@/shared/services/cartService'
@@ -148,6 +150,7 @@ async function doLogout() {
 .header-left{flex-shrink:0}
 .logo{font-size:18px;font-weight:700;color:inherit;text-decoration:none}
 .header-nav{flex:1}
+.header-search{flex-shrink:0;margin:0 8px}
 .header-actions{display:flex;align-items:center;gap:2px;flex-shrink:0}
 .header-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .user-name{font-size:13px;opacity:.9}

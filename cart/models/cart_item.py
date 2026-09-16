@@ -38,23 +38,25 @@ class CartItem(models.Model):
         verbose_name=_('Добавлено'),
     )
 
-    # ── Кеш цены: обновляется раз в день ──
-    price_snapshot = models.DecimalField(
-        max_digits=12, decimal_places=2,
-        null=True, blank=True,
-        verbose_name=_('Цена (кеш)'),
-        help_text=_('Цена в RUB на дату price_date. Обновляется раз в день.'),
-    )
-    price_date = models.DateField(
-        null=True, blank=True,
-        verbose_name=_('Дата цены'),
-        help_text=_('Если < сегодня → пересчитать по курсу.'),
-    )
-    price_currency = models.CharField(
-        max_length=3, blank=True,
-        verbose_name=_('Валюта цены'),
-        help_text=_('RUB — после конвертации из USD по курсу.'),
-    )
+    # ── Кеш цены: отключено (2026-09-16) — цена читается из PriceHistory и
+    #    конвертируется в RUB на лету в cart.serializers._resolve_sku_price.
+    #    Колонки в БД пока остаются (миграция 0003).
+    # price_snapshot = models.DecimalField(
+    #     max_digits=12, decimal_places=2,
+    #     null=True, blank=True,
+    #     verbose_name=_('Цена (кеш)'),
+    #     help_text=_('Цена в RUB на дату price_date. Обновляется раз в день.'),
+    # )
+    # price_date = models.DateField(
+    #     null=True, blank=True,
+    #     verbose_name=_('Дата цены'),
+    #     help_text=_('Если < сегодня → пересчитать по курсу.'),
+    # )
+    # price_currency = models.CharField(
+    #     max_length=3, blank=True,
+    #     verbose_name=_('Валюта цены'),
+    #     help_text=_('RUB — после конвертации из USD по курсу.'),
+    # )
 
     notes = models.TextField(
         blank=True,

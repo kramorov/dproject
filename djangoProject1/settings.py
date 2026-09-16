@@ -178,6 +178,7 @@ INSTALLED_APPS = [
     'assemblies.apps.AssembliesConfig',
     'configurator.apps.ConfiguratorConfig',
     'cart.apps.CartConfig',
+    'commercial.apps.CommercialConfig',
 ]
 
 MIDDLEWARE = [

@@ -3,6 +3,7 @@
   <div class="cd-page">
     <div class="cd-header">
       <router-link to="/cart" class="cd-back">← К списку корзин</router-link>
+      <button class="cd-kp-btn" :disabled="loading || !items.length" @click="formKp">Сформировать КП</button>
     </div>
 
     <!-- Inline editing: name + description -->
@@ -118,14 +119,22 @@ function openPopup(itemId) {
   popupOpen.value = true
 }
 
+function formKp() {
+  if (!cartId.value) return
+  window.location.href = '/api/commercial/quotation/' + cartId.value
+}
+
 watch(cartId, () => { if (cartId.value) load() }, { immediate: true })
 </script>
 
 <style scoped>
 .cd-page { max-width: 900px; margin: 0 auto; padding: 24px 16px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
-.cd-header { margin-bottom: 8px; flex-shrink: 0; }
+.cd-header { margin-bottom: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cd-back { font-size: 13px; color: var(--cat-primary, #3b82f6); text-decoration: none; }
 .cd-back:hover { text-decoration: underline; }
+.cd-kp-btn { padding: 8px 16px; font-size: 14px; font-weight: 600; color: #fff; background: var(--cat-primary, #2563eb); border: none; border-radius: 6px; cursor: pointer; }
+.cd-kp-btn:hover { opacity: .9; }
+.cd-kp-btn:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Inline editing block */
 .cd-edit { margin-bottom: 16px; flex-shrink: 0; }

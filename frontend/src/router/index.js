@@ -16,6 +16,7 @@ const routes = [
   { path: '/cart/:id', component: () => import('../pages/CartDetailPage.vue'), meta: { title: 'Корзина' } },
   { path: '/favorites', component: () => import('../pages/FavoritesPage.vue'), meta: { title: 'Избранное' } },
   { path: '/product/:id', component: () => import('../pages/ProductPage.vue'), meta: { title: 'Товар' } },
+  { path: '/sku/:id', component: () => import('../pages/SkuProductPage.vue'), meta: { title: 'Карточка модели' } },
 
   // Каталоги — индексные страницы
   { path: '/catalogs/equipment', name: 'catalogs-equipment', component: () => import('../pages/catalog/CatalogEquipmentIndex.vue'), meta: { title: 'Каталоги оборудования' } },
