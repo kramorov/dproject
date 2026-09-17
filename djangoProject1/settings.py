@@ -23,6 +23,11 @@ MEDIA_ROOT = os.path.join(BASE_DIR , 'media')
 FILE_STORAGE_BACKEND = 'cloudru'  # было 'local'
 # FILE_STORAGE_BACKEND = os.getenv('FILE_STORAGE_BACKEND', 'local')
 
+# OCR-бэкенд по умолчанию для распознавания таблиц (media_library.table_extractor).
+# Варианты: tesseract | rapidocr | surya | paddle | easyocr | doctr
+# В Docker можно переопределить через env, например MEDIA_TABLE_OCR_BACKEND=tesseract
+MEDIA_TABLE_OCR_BACKEND = os.getenv('MEDIA_TABLE_OCR_BACKEND' , 'rapidocr')
+
 # Режим раздачи медиафайлов:
 #   'proxy'    — Django читает из хранилища и стримит клиенту (медленно, но контролирует доступ)
 #   'redirect' — редирект на presigned URL / прямой URL хранилища (быстро, клиент качает напрямую)

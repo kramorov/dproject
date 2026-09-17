@@ -106,6 +106,7 @@ const routes = [
   // Инструменты
   { path: '/tools/image-processor', component: () => import('../pages/ImageProcessorTest.vue'), meta: { title: 'Обрезка изображений' } },
   { path: '/tools/svg-converter', component: () => import('../pages/SvgConverterTest.vue'), meta: { title: 'SVG Конвертер' } },
+  { path: '/tools/table-ocr', component: () => import('../pages/TableOcrTool.vue'), meta: { title: 'Распознавание (OCR)' } },
   { path: '/tools/pdf-to-docx', component: () => import('../pages/PdfToDocxTest.vue'), meta: { title: 'PDF → DOCX' } },
   { path: '/tools/requirements', component: () => import('../pages/RequirementsTest.vue'), meta: { title: 'Тест требований' } },
   { path: '/selector/pa', component: () => import('../pages/PaSelectionPage.vue'), meta: { title: 'Подбор ПП', section: 'selector_pa' } },

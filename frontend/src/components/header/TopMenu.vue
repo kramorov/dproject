@@ -87,6 +87,7 @@ const allItems = [
     { label:'Инструменты', children:[
       { to:'/tools/image-processor', label:'Обработка изображений' },
       { to:'/tools/svg-converter', label:'SVG Конвертер' },
+      { to:'/tools/table-ocr', label:'Распознавание (OCR)' },
       { to:'/widgets', label:'Виджеты' },
     ]},
     { label:'AI', children:[

@@ -19,6 +19,8 @@ from params.exd_models import ExdOption
 from pneumatic_actuators.models import PneumaticActuatorBody
 from pneumatic_actuators.models.pa_options import PneumaticHandWheelOption
 from pneumatic_actuators.models.pa_params import PneumaticActuatorVariety , PneumaticActuatorConstructionVariety
+from pneumatic_actuators.models.py_options_constants import ACTUATOR_VARIETY_RP_DEFAULT_CODE , \
+    ACTUATOR_VARIETY_SY_DEFAULT_CODE
 
 from producers.models import Brands
 import logging
@@ -86,6 +88,21 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
         if active_only :
             queryset = queryset.filter(is_active=True)
         return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
+
+    # ==================== ДИСКРИМИНАТОР ТИПА КОНСТРУКЦИИ (RP / SY) ====================
+
+    @property
+    def is_scotch_yoke(self) -> bool :
+        """Кулисный тип конструкции (SY)."""
+        variety = self.pneumatic_actuator_construction_variety
+        return bool(variety and variety.code == ACTUATOR_VARIETY_SY_DEFAULT_CODE)
+
+    @property
+    def is_rack_pinion(self) -> bool :
+        """Тип конструкции шестерня-рейка (RP)."""
+        variety = self.pneumatic_actuator_construction_variety
+        return bool(variety and variety.code == ACTUATOR_VARIETY_RP_DEFAULT_CODE)
+
     # ==================== StructuredDataMixin методы ====================
     def _get_metadata(self) -> Dict[str , Any] :
         """
@@ -757,6 +774,18 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
     def pneumatic_actuator_construction_variety(self) :
         """Тип конструкции из model_line"""
         return self.model_line.pneumatic_actuator_construction_variety if self.model_line else None
+
+    @property
+    def is_scotch_yoke(self) -> bool :
+        """Кулисный тип конструкции (SY) — из серии."""
+        variety = self.pneumatic_actuator_construction_variety
+        return bool(variety and variety.code == ACTUATOR_VARIETY_SY_DEFAULT_CODE)
+
+    @property
+    def is_rack_pinion(self) -> bool :
+        """Тип конструкции шестерня-рейка (RP) — из серии."""
+        variety = self.pneumatic_actuator_construction_variety
+        return bool(variety and variety.code == ACTUATOR_VARIETY_RP_DEFAULT_CODE)
 
     @property
     def default_output_type(self) :

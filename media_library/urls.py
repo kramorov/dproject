@@ -11,8 +11,10 @@ from django.urls import path
 
 from media_library.views.admin_copy import MediaAdminCopyView
 from media_library.views.admin_detail import MediaAdminDetailView
+from media_library.views.admin_ocr_tool import MediaOcrExportView , MediaOcrRecognizeView
 from media_library.views.admin_recreate_preview import MediaAdminRecreatePreviewView
 from media_library.views.admin_regenerate_variants import MediaAdminRegenerateVariantsView
+from media_library.views.admin_table_extract import MediaAdminTableExtractView
 from media_library.views.admin_variants import MediaAdminVariantsView
 from media_library.views.admin_upload import MediaAdminUploadView
 from media_library.views.download import MediaDownloadView
@@ -28,6 +30,9 @@ urlpatterns_admin = [
     path('<int:pk>/recreate-preview/', MediaAdminRecreatePreviewView.as_view(), name='media_admin_recreate_preview'),
     path('<int:pk>/regenerate-variants/', MediaAdminRegenerateVariantsView.as_view(), name='media_admin_regenerate_variants'),
     path('<int:pk>/variants/', MediaAdminVariantsView.as_view(), name='media_admin_variants'),
+    path('<int:pk>/extract-tables/', MediaAdminTableExtractView.as_view(), name='media_admin_extract_tables'),
+    path('ocr/recognize/', MediaOcrRecognizeView.as_view(), name='media_admin_ocr_recognize'),
+    path('ocr/export/', MediaOcrExportView.as_view(), name='media_admin_ocr_export'),
     path('<int:pk>/', MediaAdminDetailView.as_view(), name='media_admin_detail'),
 ]
 
