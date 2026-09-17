@@ -95,7 +95,8 @@ class PneumaticActuatorBodyTableAdmin(admin.ModelAdmin) :
                 pressure_max=8.0 ,
                 springs_min=5 ,
                 springs_max=12 ,
-                output_path=f"torque_export_{body_table.code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                output_path=f"torque_export_{body_table.code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx" ,
+                body_table=body_table
             )
 
             # Читаем файл и возвращаем как HTTP response

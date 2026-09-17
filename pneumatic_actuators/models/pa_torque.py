@@ -643,9 +643,12 @@ class BodyThrustTorqueTable(models.Model):
         return pressures
 
     @staticmethod
-    def export_table_template(pressure_min=2.5, pressure_max=8.0, springs_min=5, springs_max=12, output_path=None):
+    def export_table_template(pressure_min=2.5, pressure_max=8.0, springs_min=5, springs_max=12, output_path=None, body_table=None):
         """
         Экспорт таблицы моментов/усилий в Excel файл
+
+        Args:
+            body_table: если задана, экспортируются только корпуса этой таблицы
         """
         from params.models import PneumaticAirSupplyPressure
         from pneumatic_actuators.models import PneumaticActuatorSpringsQty
@@ -676,8 +679,11 @@ class BodyThrustTorqueTable(models.Model):
                     is_active=True
                 ).order_by('sorting_order')
 
-            # Получаем все корпуса
-            bodies = PneumaticActuatorBody.objects.filter(is_active=True).order_by('sorting_order')
+            # Получаем корпуса (только заданной таблицы, если она указана)
+            bodies = PneumaticActuatorBody.objects.filter(is_active=True)
+            if body_table is not None:
+                bodies = bodies.filter(body_table=body_table)
+            bodies = bodies.order_by('sorting_order')
 
             # ИСПРАВЛЕНИЕ: получаем ВСЕ существующие данные для фильтрации
             all_torque_data = BodyThrustTorqueTable.objects.filter(
