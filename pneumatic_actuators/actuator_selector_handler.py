@@ -7,7 +7,6 @@ from params.models import IpOption, HandWheelInstalledOption, BodyCoatingOption,
     PneumaticAirSupplyPressure
 from params.exd_models import ExdOption
 from pneumatic_actuators.models import BodyThrustTorqueTable, PneumaticActuatorVariety
-from pneumatic_actuators.models.pa_options import PneumaticIpOption
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +25,6 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
     Returns:
         Dict: словарь со всеми опциями
     """
-    from pneumatic_actuators.models.pa_options import (
-        PneumaticSafetyPositionOption ,
-        PneumaticTemperatureOption ,
-        PneumaticIpOption ,
-        PneumaticExdOption ,
-        PneumaticBodyCoatingOption ,
-        PneumaticHandWheelOption
-    )
-
     result = {
         'actuator_varieties' : [] ,
         'safety_positions' : [] ,
@@ -48,46 +38,25 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
     # 1. Виды приводов (DA/SR) - не зависят от model_line
     result['actuator_varieties'] = PneumaticActuatorVariety.get_for_select(active_only=True)
 
-    # 2. Положения безопасности - с учетом всех параметров
-    result['safety_positions'] = get_safety_positions(
-        model_line_id=model_line_id ,
-        model_line_item_id=model_line_item_id ,
-        actuator_variety_id=actuator_variety_id ,
-        active_only=True
-    )
-    # Deduplicate through-model positions (same name with Стандарт/Опция suffix)
-    seen_names = set()
-    deduped = []
-    for sp in result['safety_positions']:
-        base = sp['name'].rsplit(' (', 1)[0]
-        if base not in seen_names:
-            seen_names.add(base)
-            deduped.append(sp)
-    result['safety_positions'] = deduped
+    # 2. Положения безопасности — требования (реальные опции params.SafetyPositionOption),
+    # а не through-строки серии: id идёт в create-sku и должен быть ID реальной опции.
+    from params.models import SafetyPositionOption
+    result['safety_positions'] = [
+        {'id' : o.id , 'name' : o.name , 'code' : o.code}
+        for o in SafetyPositionOption.objects.filter(is_active=True).order_by('sorting_order')
+    ]
 
-    # 3. IP, Exd, покрытие, ручной дублер
-    if model_line_id:
-        # Серия выбрана — фильтруем через through-модели (только доступные для серии)
-        option_classes = {
-            'ip_options' : PneumaticIpOption ,
-            'exd_options' : PneumaticExdOption ,
-            'coating_options' : PneumaticBodyCoatingOption ,
-            'hand_wheel_options' : PneumaticHandWheelOption
-        }
-        for key , option_class in option_classes.items() :
-            result[key] = option_class.get_for_select(
-                model_line_id=model_line_id , active_only=True
-            )
-    else:
-        # Серия не выбрана — все уникальные опции из мастер-таблиц
-        option_classes = {
-            'ip_options' : IpOption ,
-            'exd_options' : ExdOption ,
-            'coating_options' : BodyCoatingOption ,
-            'hand_wheel_options' : HandWheelInstalledOption
-        }
-        for key , option_class in option_classes.items() :
-            result[key] = option_class.get_for_select(active_only=True)
+    # 3. IP, Exd, покрытие, ручной дублер — всегда мастер-справочники (требования),
+    # а не through-строки серии: exd используется в фильтре подбора (нужны ID видов
+    # params.ExdOption), а ip/coating/hand_wheel — в create-sku (нужны ID реальных опций).
+    option_classes = {
+        'ip_options' : IpOption ,
+        'exd_options' : ExdOption ,
+        'coating_options' : BodyCoatingOption ,
+        'hand_wheel_options' : HandWheelInstalledOption
+    }
+    for key , option_class in option_classes.items() :
+        result[key] = option_class.get_for_select(active_only=True)
 
     return result
 
@@ -308,14 +277,17 @@ def _match_exd_for_model_lines(search_results: List[Dict], exd_id) -> List[Dict]
     Для каждой серии ищется активная through-строка PneumaticExdOption, у
     которой хотя бы один вид совместим с запрошенным (exd_id — id вида
     params.ExdOption). Серии без такой строки исключаются (hard-требование).
-    Выбранная строка аннотируется в серию: exd_option_id / exd_encoding /
-    exd_short / exd_variety_ids (для дальнейшего конфигурирования).
+    Строка с пустым M2M трактуется как «общепром» и подходит только под
+    запрос «общепром» (вид без кода). Выбранная строка аннотируется в серию:
+    exd_option_id / exd_encoding / exd_short / exd_variety_ids.
     """
     from pneumatic_actuators.models.pa_options import PneumaticExdOption
 
     requested_id = int(exd_id)
     requested = ExdOption.objects.filter(id=requested_id).first()
     compat_ids = requested.get_compatible_ids() if requested else {requested_id}
+    # «Общепром» — вид без кода (нет требований взрывозащиты).
+    is_common = bool(requested and not requested.code)
 
     rows_by_line: Dict[int, list] = {}
     for row in PneumaticExdOption.objects.filter(is_active=True).prefetch_related('exd_options'):
@@ -325,14 +297,22 @@ def _match_exd_for_model_lines(search_results: List[Dict], exd_id) -> List[Dict]
     for ml in search_results:
         ml_id = ml.get('model_line_id')
         best = None
+        common_row = None
         for row in rows_by_line.get(ml_id, []):
             variety_ids = {o.id for o in row.exd_options.all()}
+            if not variety_ids:
+                # Пустой M2M = «общепром» (fallback только под запрос «общепром»).
+                if common_row is None:
+                    common_row = row
+                continue
             if variety_ids & compat_ids:
                 if requested_id in variety_ids:
                     best = row
                     break  # строка с точным видом — приоритет
                 if best is None:
                     best = row
+        if best is None and is_common:
+            best = common_row
         if best is None:
             continue  # серия не поддерживает запрошенную взрывозащиту
         ml['exd_option_id'] = best.id
@@ -342,6 +322,43 @@ def _match_exd_for_model_lines(search_results: List[Dict], exd_id) -> List[Dict]
         ml['exd_matched'] = True
         result.append(ml)
     return result
+
+
+def _dedup_series_by_body(search_results: List[Dict]) -> List[Dict]:
+    """Для каждого body оставляет только одну серию.
+
+    Приоритет — серия без конкретной взрывозащиты (общепром), затем по sorting_order.
+    Вызывается ПОСЛЕ exd-фильтра: если exd обязателен, серии без exd уже отсеяны.
+    """
+    from collections import defaultdict
+
+    specific_ml_ids = BodyThrustTorqueTable._get_specific_exd_series(
+        {ml.get('model_line_id') for ml in search_results}
+    )
+
+    body_to_mls = defaultdict(list)
+    for ml in search_results :
+        for item in ml.get('model_line_items' , []) :
+            body_to_mls[item['body_id']].append(ml)
+
+    keep_ml_by_body = {}
+    for body_id, mls in body_to_mls.items() :
+        if len(mls) == 1 :
+            keep_ml_by_body[body_id] = mls[0]['model_line_id']
+        else :
+            mls.sort(key=lambda m : (
+                m['model_line_id'] in specific_ml_ids ,
+                m.get('model_line_sorting_order' , 999)
+            ))
+            keep_ml_by_body[body_id] = mls[0]['model_line_id']
+
+    for ml in search_results :
+        ml['model_line_items'] = [
+            it for it in ml.get('model_line_items' , [])
+            if keep_ml_by_body.get(it['body_id']) == ml['model_line_id']
+        ]
+
+    return [ml for ml in search_results if ml.get('model_line_items')]
 
 
 def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
@@ -421,13 +438,25 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     print(f"Требуемый момент с запасом: {torque_with_safety} Нм")
     print(f"Тип привода: {actuator_variety_code}")
 
+    # Серия: ограничиваем корпуса рамками выбранной серии (через model_line_items).
+    body_ids = None
+    model_line_id = params.get('model_line_id')
+    if model_line_id :
+        from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLineItem
+        body_ids = list(
+            PneumaticActuatorModelLineItem.objects.filter(
+                model_line_id=model_line_id , is_active=True
+            ).values_list('body_id' , flat=True).distinct()
+        )
+
     # Вызываем поиск подходящих приводов
     try :
         search_results = BodyThrustTorqueTable.find_suitable_actuators(
             torque_with_sf=torque_with_safety ,
             work_pressure_id=work_pressure_id ,
             actuator_variety=actuator_variety_code ,
-            max_bodies=2
+            body_ids=body_ids ,
+            max_bodies_per_series=2
         )
 
         print(f"\n✅ Найдено подходящих серий: {len(search_results)}")
@@ -437,6 +466,9 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
         if exd_id:
             search_results = _match_exd_for_model_lines(search_results, exd_id)
             print(f"⚡ После фильтра по взрывозащите (exd_id={exd_id}): {len(search_results)} серий")
+
+        # 5. Дедуп: одинаковые body в разных сериях — оставляем одну серию (без exd приоритет).
+        search_results = _dedup_series_by_body(search_results)
 
         total_items = 0
         for ml in search_results :

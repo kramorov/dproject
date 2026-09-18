@@ -166,11 +166,12 @@
       <h2>📊 Результаты подбора ({{ results.length }} серий)</h2>
       <div v-for="ml in results" :key="ml.model_line_name" class="result-group">
         <h3>📁 {{ ml.model_line_name }} <code>{{ ml.model_line_code }}</code></h3>
-        <div v-for="(item, idx) in ml.model_line_items" :key="idx" class="result-card">
+        <div v-for="(item, idx) in ml.model_line_items" :key="idx" class="result-card" @click="openProduct(item, ml)">
           <div class="result-header">
             <strong>{{ idx + 1 }}. {{ item.model_line_item_name }}</strong>
             <code>{{ item.model_line_item_code }}</code>
           </div>
+          <div class="result-desc" v-if="item.description">{{ item.description }}</div>
           <div class="result-metrics">
             <span>🏭 {{ item.body_name }} ({{ item.body_code }})</span>
             <span>📌 {{ item.actuator_variety_code }}</span>
@@ -313,6 +314,22 @@ export default {
         this.searching = false
       }
     },
+    openProduct(item, ml) {
+      if (!item.model_line_item_id) return
+      // Переход в конфигуратор с предвыбором. SKU создаётся при добавлении в корзину.
+      const q = {
+        model_line_id: ml?.model_line_id || undefined,
+        model_line_item_id: item.model_line_item_id,
+        actuator_variety_code: item.actuator_variety_code || undefined,
+        springs_qty: item.spring_qty_id || undefined,
+        safety_position: this.form.safety_position_id || undefined,
+        ip: this.form.ip_id || undefined,
+        exd: this.form.exd_id || undefined,
+        body_coating: this.form.coating_id || undefined,
+        hand_wheel: this.form.hand_wheel_id || undefined,
+      }
+      this.$router.push({ path: '/catalog/pa-actuators', query: q })
+    },
     reset() {
       this.form = {
         valve_type_id: null, dn_id: null, pn_id: null,
@@ -357,7 +374,9 @@ code { background: #f0f0f0; padding: 1px 6px; border-radius: 3px; font-size: 0.8
 .error-msg { background: #fee; color: #c00; padding: 10px 16px; border-radius: 6px; margin: 12px 0; }
 .results { background: #fff; }
 .result-group { margin-bottom: 16px; }
-.result-card { border: 1px solid #e8e8e8; border-radius: 6px; padding: 12px; margin: 8px 0; background: #fafbff; }
+.result-card { border: 1px solid #e8e8e8; border-radius: 6px; padding: 12px; margin: 8px 0; background: #fafbff; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.result-card:hover { border-color: #2563eb; box-shadow: 0 2px 8px rgba(37,99,235,.12); }
+.result-desc { font-size: 0.85rem; color: #444; margin: 6px 0; line-height: 1.4; }
 .result-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 .result-metrics { display: flex; gap: 20px; font-size: 0.85rem; color: #555; flex-wrap: wrap; }
 .result-springs { font-size: 0.82rem; color: #777; margin-top: 4px; }

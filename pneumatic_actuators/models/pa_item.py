@@ -49,6 +49,7 @@ from .pa_model_line import PneumaticActuatorModelLine, PneumaticActuatorModelLin
 from .pa_params import PneumaticActuatorVariety, PneumaticActuatorSpringsQty
 from .pa_options import PneumaticTemperatureOption
 from .pa_item_fields import PA_ITEM_TEMPLATE_FIELDS
+from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE, ACTUATOR_VARIETY_RP_DEFAULT_CODE, SPRINGS_DA_DEFAULT_CODE
 
 logger = logging.getLogger(__name__)
 
@@ -367,7 +368,8 @@ class PneumaticActuatorItem(
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
         result = re.sub(r'\s*\(DA\)', '', result)
-        return result.strip('. ')
+        result = re.sub(r'[.-]+$', '', result)
+        return result.strip()
 
     @property
     def base_model_code(self) -> str:
@@ -462,9 +464,11 @@ class PneumaticActuatorItem(
         except Exception as e:
             logger.error(f"Ошибка поиска encoding {field_name}: {e}")
             return ''
-        if through_instance and through_instance.encoding:
-            return through_instance.encoding
-        # through-записи нет (или без encoding) — fallback на code реальной опции
+        if through_instance is not None:
+            # through-строка найдена: возвращаем её encoding (пустой остаётся пустым,
+            # не подменяем кодом реальной опции).
+            return through_instance.encoding or ''
+        # through-записи нет — fallback на code реальной опции.
         return getattr(option_value, 'code', '') or ''
 
     @classmethod
@@ -490,6 +494,54 @@ class PneumaticActuatorItem(
             return float(weight)
         except (TypeError, ValueError):
             return None
+
+    # ═══════════════════════════════════════════════════════════════
+    # Resolver'ы для spec_template (технические + таблица моментов)
+    # ═══════════════════════════════════════════════════════════════
+
+    def _res_pressure(self) -> str:
+        body = self.body
+        if body and body.min_pressure_bar:
+            return f"{body.min_pressure_bar} - {body.max_pressure_bar} бар"
+        return ''
+
+    def _res_air_usage(self) -> str:
+        body = self.body
+        if not body:
+            return ''
+        open_v = body.air_usage_open or ''
+        close_v = body.air_usage_close or ''
+        return f"открытие {open_v} л, закрытие {close_v} л" if (open_v or close_v) else ''
+
+    def _res_pneumatic_conn(self) -> str:
+        body = self.body
+        if body and body.pneumatic_connection.exists():
+            return ', '.join(str(c) for c in body.pneumatic_connection.all())
+        return ''
+
+    def _res_torque_table(self):
+        """HTML-блок таблицы моментов/усилий по выбранной конфигурации (DA или пружины SR)."""
+        body = self.body
+        if not body:
+            return ''
+        from pneumatic_actuators.models import BodyThrustTorqueTable
+        ncno_code = self.selected_safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
+        construction_variety = self.model_line.pneumatic_actuator_construction_variety if self.model_line else None
+        construction_variety_code = construction_variety.code if construction_variety else ACTUATOR_VARIETY_RP_DEFAULT_CODE
+        da_sr_code = self.pneumatic_actuator_variety.code if self.pneumatic_actuator_variety else None
+        spring_qty = self.selected_springs_qty
+        if not spring_qty and da_sr_code == SPRINGS_DA_DEFAULT_CODE:
+            # DA: пружин нет — берём DA-опцию, чтобы таблица показала только строку DA.
+            spring_qty = PneumaticActuatorSpringsQty.objects.filter(code=SPRINGS_DA_DEFAULT_CODE).first()
+        torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
+            current_body=body,
+            spring_qty_list=[spring_qty] if spring_qty else None,
+            ncno_code=ncno_code,
+            construction_variety_code=construction_variety_code,
+            da_sr_code=da_sr_code,
+        )
+        html = BodyThrustTorqueTable.format_for_html(torque_data)
+        return {'__html': html} if html else ''
 
     # ═══════════════════════════════════════════════════════════════
     # CatalogSerializerMixin — галерея с fallback на изображения серии

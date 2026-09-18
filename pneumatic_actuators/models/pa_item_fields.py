@@ -25,7 +25,7 @@ PA_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'model_line__brand', },
 
     # ── Вид и корпус ──
-    {'key': 'variety_name', 'placeholder': '{variety}', 'path': 'pneumatic_actuator_variety__name',
+    {'key': 'variety_name', 'placeholder': '{variety}', 'path': 'pneumatic_actuator_variety__description',
      'name_path': 'pneumatic_actuator_variety', },
     {'key': 'variety_code', 'path': 'pneumatic_actuator_variety__code'},
     {'key': 'body_name', 'placeholder': '{body_name}', 'path': 'body__name',
@@ -50,4 +50,16 @@ PA_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'selected_body_coating', 'code_path': 'coating_encoding'},
     {'key': 'hand_wheel', 'placeholder': '{hand_wheel}', 'path': 'selected_hand_wheel__name',
      'name_path': 'selected_hand_wheel', 'code_path': 'hand_wheel_encoding'},
+
+    # ── Технические характеристики корпуса (для spec_template) ──
+    {'key': 'construction', 'path': 'model_line__pneumatic_actuator_construction_variety__name'},
+    {'key': 'turn_angle', 'path': 'body__turn_angle'},
+    {'key': 'pressure', 'resolver': '_res_pressure'},
+    {'key': 'air_usage', 'resolver': '_res_air_usage'},
+    {'key': 'stem', 'path': 'body__stem_info_display'},
+    {'key': 'mounting', 'path': 'body__mounting_plate_display'},
+    {'key': 'thread_in', 'path': 'body__thread_in'},
+    {'key': 'thread_out', 'path': 'body__thread_out'},
+    {'key': 'pneumatic_conn', 'resolver': '_res_pneumatic_conn'},
+    {'key': 'torque_table', 'resolver': '_res_torque_table'},
 )

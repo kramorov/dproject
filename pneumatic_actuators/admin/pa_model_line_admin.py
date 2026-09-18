@@ -118,7 +118,7 @@ class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Mode
             'fields' : (
                 ('name' , 'code' , 'brand' , 'equipment_type',
                 'pneumatic_actuator_construction_variety'), 'model_item_code_template',
-                ('name_template', 'description_template'), 'description'
+                ('name_template', 'description_template'), 'spec_template', 'description'
             )
         }) ,
         (_('Основные параметры') , {

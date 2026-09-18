@@ -45,6 +45,7 @@
       v-else-if="page === 'engineer'"
       :api="api"
       :labels="{ title: 'Конфигуратор пневмопривода' }"
+      :initial="initial"
       @add-to-cart="onAddToCart"
       @navigate="goToSection"
     />
@@ -94,6 +95,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import CatalogActions from '@/shared/components/catalog/CatalogActions.vue'
 import PageTitle from '@/shared/components/PageTitle.vue'
@@ -102,6 +104,8 @@ import PaQuickSelect from '@/shared/components/catalog/PaQuickSelect.vue'
 import paApi from './api'
 
 const api = paApi
+const route = useRoute()
+const initial = ref(null)
 
 const labels = {
   section: { title:'Пневмоприводы', subtitle:'Выберите серию пневмопривода', breadcrumbName:'Пневмоприводы' },
@@ -148,6 +152,12 @@ onMounted(async () => {
     }
   } catch (e) { console.error(e) }
   loadingML.value = false
+
+  // Переход из подбора: предвыбор модели и опций в конфигураторе
+  if (route.query.model_line_item_id) {
+    page.value = 'engineer'
+    initial.value = { ...route.query }
+  }
 })
 
 async function selectModelLine(ml) {

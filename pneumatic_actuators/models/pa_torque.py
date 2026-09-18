@@ -151,7 +151,6 @@ class BodyThrustTorqueTable(models.Model):
             structured_data = cls._format_structured_simple(queryset, ncno=ncno_code,
                                                             construction_variety_code=construction_variety_code,
                                                             da_sr_code=da_sr_code)
-            print(f"structured_data {structured_data}")
             return structured_data
         except Exception as e:
             logger.error(f"Error in get_torque_thrust_values: {e}", exc_info=True)
@@ -594,6 +593,49 @@ class BodyThrustTorqueTable(models.Model):
             markdown_lines.append(f"- Безопасное положение: {formatted_data.get('ncno' , 'N/A')}")
 
         return "\n".join(markdown_lines)
+
+    @classmethod
+    def format_for_html(cls , formatted_data) :
+        """Форматирует таблицу моментов/усилий в HTML (для вкладки «Характеристики»)."""
+        if not formatted_data or not isinstance(formatted_data , dict) :
+            return ''
+        table_config = formatted_data.get('table_config' , {})
+        data_by_spring = formatted_data.get('data' , {}).get('by_spring' , {})
+        if not data_by_spring :
+            return ''
+        visible_fields = table_config.get('visible_fields' , [])
+        pressure_order = table_config.get('pressure_order' , [])
+        spring_order = table_config.get('spring_order' , [])
+        torque_format = table_config.get('format' , {}).get('torque' , {})
+        unit = torque_format.get('unit' , 'Нм')
+
+        parts = ['<table border="1" style="border-collapse: collapse; width: 100%; font-size: 12px;">']
+        parts.append('<thead><tr><th rowspan="2">Пружины</th>')
+        for pressure_code in pressure_order :
+            parts.append(f'<th colspan="{len(visible_fields)}">{pressure_code}</th>')
+        parts.append('</tr><tr>')
+        for _ in pressure_order :
+            for field in visible_fields :
+                parts.append(f'<th>{field.upper()}</th>')
+        parts.append('</tr></thead><tbody>')
+        for spring_code in spring_order :
+            if spring_code not in data_by_spring :
+                continue
+            parts.append(f'<tr><td>{spring_code}</td>')
+            pressures = data_by_spring[spring_code].get('pressures' , {})
+            for pressure_code in pressure_order :
+                pressure_values = pressures.get(pressure_code , {})
+                for field in visible_fields :
+                    value = pressure_values.get(field)
+                    if value is None :
+                        parts.append('<td>—</td>')
+                    else :
+                        parts.append(f'<td>{value:.0f}</td>')
+            parts.append('</tr>')
+        parts.append('</tbody></table>')
+        parts.append(f'<div style="margin-top: 4px; color: #888;">Примечание: значения в {unit}</div>')
+        return ''.join(parts)
+
     # ==================== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ====================
 
     @classmethod
@@ -1104,10 +1146,24 @@ class BodyThrustTorqueTable(models.Model):
         logger.info(f"Импорт завершен. Импортировано записей: {imported_count}, ошибок: {len(errors)}")
         return imported_count, errors
 
+    @staticmethod
+    def _get_specific_exd_series(ml_ids: set) -> set:
+        """Серии, у которых есть конкретная взрывозащита (вид с кодом), а не только «общепром»."""
+        from pneumatic_actuators.models.pa_options import PneumaticExdOption
+        specific = set()
+        if not ml_ids :
+            return specific
+        for row in PneumaticExdOption.objects.filter(model_line_id__in=ml_ids, is_active=True).prefetch_related('exd_options') :
+            for o in row.exd_options.all() :
+                if o.code :
+                    specific.add(row.model_line_id)
+                    break
+        return specific
+
     @classmethod
     def find_suitable_actuators(cls , torque_with_sf: float , work_pressure_id: int ,
                                 actuator_variety: str , body_ids: Optional[List[int]] = None ,
-                                max_bodies: int = 3) -> List[Dict] :
+                                max_bodies_per_series: int = 2) -> List[Dict] :
         """
         Найти подходящие приводы по моменту и давлению
 
@@ -1129,7 +1185,7 @@ class BodyThrustTorqueTable(models.Model):
                 torque_with_sf=torque_with_sf ,
                 work_pressure_id=work_pressure_id ,
                 body_ids=body_ids ,
-                max_bodies=max_bodies
+                max_bodies=None
             )
         else :  # DA
             results = service.find_suitable_da_actuators(
@@ -1139,7 +1195,7 @@ class BodyThrustTorqueTable(models.Model):
                 torque_with_sf=torque_with_sf ,
                 work_pressure_id=work_pressure_id ,
                 body_ids=body_ids ,
-                max_bodies=max_bodies
+                max_bodies=None
             )
 
         # Собираем уникальные body_id и запоминаем тип привода для каждого
@@ -1200,13 +1256,26 @@ class BodyThrustTorqueTable(models.Model):
                 model_lines_dict[ml_id]['model_line_id'] = ml_id
                 model_lines_dict[ml_id]['model_line_name'] = model_line.name
                 model_lines_dict[ml_id]['model_line_code'] = model_line.code
+                model_lines_dict[ml_id]['model_line_sorting_order'] = getattr(model_line, 'sorting_order', 0) or 0
 
             # Формируем информацию о model_line_item
+            seg = []
+            if model_line and model_line.brand and model_line.brand.name :
+                seg.append(model_line.brand.name)
+            if model_line and model_line.name :
+                seg.append(model_line.name)
+            if mli.pneumatic_actuator_variety :
+                seg.append(mli.pneumatic_actuator_variety.name)
+            if body_info.get('body_name') :
+                seg.append(body_info['body_name'])
+            desc = ', '.join(seg)
+
             mli_data = {
                 'model_line_item_id' : mli.id ,
                 'model_line_item_name' : mli.name ,
                 'model_line_item_code' : mli.code ,
                 'model_line_item_description' : mli.description ,
+                'description' : desc ,
                 'model_line_item_sorting_order' : mli.sorting_order ,
                 'actuator_variety_id' : mli.pneumatic_actuator_variety.id if mli.pneumatic_actuator_variety else None ,
                 'actuator_variety_name' : mli.pneumatic_actuator_variety.name if mli.pneumatic_actuator_variety else None ,
@@ -1254,9 +1323,14 @@ class BodyThrustTorqueTable(models.Model):
 
             model_lines_dict[ml_id]['model_line_items'].append(mli_data)
 
-        # Сортируем model_line_items внутри каждой группы
-        for ml_id in model_lines_dict :
-            model_lines_dict[ml_id]['model_line_items'].sort(key=lambda x : x.get('model_line_item_sorting_order' , 0))
+        # ── Лимит на серию (лучшие по score) и порядок в выдаче ──
+        for ml_id, ml_data in model_lines_dict.items() :
+            items = ml_data['model_line_items']
+            items.sort(key=lambda x : x.get('score' , 999))
+            if max_bodies_per_series :
+                items = items[:max_bodies_per_series]
+            items.sort(key=lambda x : x.get('model_line_item_sorting_order' , 0))
+            ml_data['model_line_items'] = items
 
         # Преобразуем в список и сортируем model_line
         result_structure = sorted(
@@ -1264,9 +1338,10 @@ class BodyThrustTorqueTable(models.Model):
                 'model_line_id' : ml_data['model_line_id'] ,
                 'model_line_name' : ml_data['model_line_name'] ,
                 'model_line_code' : ml_data['model_line_code'] ,
+                'model_line_sorting_order' : ml_data.get('model_line_sorting_order' , 0) ,
                 'model_line_items' : ml_data['model_line_items'] ,
                 'total_items' : len(ml_data['model_line_items'])
-            } for ml_data in model_lines_dict.values()] ,
+            } for ml_id, ml_data in model_lines_dict.items() if ml_data['model_line_items']] ,
             key=lambda x : x.get('model_line_sorting_order' , 0)
         )
 

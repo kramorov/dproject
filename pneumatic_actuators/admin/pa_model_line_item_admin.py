@@ -67,6 +67,9 @@ class PneumaticActuatorModelLineItemAdmin(admin.ModelAdmin):
         'body__name'
     )
 
+    # Поиск корпуса по подстроке (name/code) при выборе в форме
+    autocomplete_fields = ('body',)
+
     ordering = ('sorting_order', 'name')
 
     # Inline только для опций, которые принадлежат этой модели

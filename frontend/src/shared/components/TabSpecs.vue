@@ -6,8 +6,13 @@
       <h3 class="group-title">{{ groupTitle }}</h3>
       <dl class="spec-table">
         <div v-for="(value, label) in fields" :key="label" class="spec-row">
-          <dt>{{ label }}</dt>
-          <dd>{{ value || '—' }}</dd>
+          <template v-if="isHtmlBlock(value)">
+            <div class="spec-html" v-html="value.__html"></div>
+          </template>
+          <template v-else>
+            <dt>{{ label }}</dt>
+            <dd>{{ value || '—' }}</dd>
+          </template>
         </div>
       </dl>
     </div>
@@ -25,6 +30,10 @@ const props = defineProps({
 })
 
 const hasData = computed(() => Object.keys(props.data).length > 0)
+
+function isHtmlBlock(value) {
+  return !!value && typeof value === 'object' && typeof value.__html === 'string'
+}
 </script>
 
 <style scoped>
@@ -57,6 +66,7 @@ const hasData = computed(() => Object.keys(props.data).length > 0)
   color: var(--cat-text);
   margin: 0;
 }
+.spec-html { flex: 1; min-width: 0; }
 .tab-specs.empty { color: var(--cat-muted-light); font-size: var(--cat-text-base); }
 @media (max-width: 768px) { .spec-row dt { width: 140px; } }
 </style>

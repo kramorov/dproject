@@ -49,6 +49,11 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
     description_template = models.TextField(blank=True , null=True ,
                                             verbose_name=_("Шаблон описания") ,
                                             help_text=_('Шаблон для описания пневмопривода'))
+    # JSON-шаблон спецификации (вкладка «Характеристики»).
+    # Приоритет: эта серия → EquipmentType.spec_template → {model_code}.
+    spec_template = models.JSONField(blank=True , default=dict ,
+                                     verbose_name=_("Шаблон спецификации") ,
+                                     help_text=_('JSON: {группа: {подпись: ключ_поля}}. Пусто — берётся из типа оборудования.'))
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
@@ -859,6 +864,60 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
             return ml._get_images_section()
         return []
 
+    def _get_spec_template(self):
+        """JSON-шаблон спецификации: серия → EquipmentType (fallback)."""
+        ml = self.model_line
+        if ml:
+            tpl = getattr(ml, 'spec_template', None)
+            if tpl:
+                return tpl
+            et = getattr(ml, 'equipment_type', None)
+            if et is not None:
+                tpl = getattr(et, 'spec_template', None)
+                if tpl:
+                    return tpl
+        return None
+
+    def _get_spec_sections(self, vars=None):
+        """Характеристики в виде {группа: {подпись: значение}} из spec_template.
+
+        Значение — строка; специальные HTML-блоки передаются как ``{'__html': ...}``.
+        ``vars`` — внешний плоский словарь (например, от конструктора с опциями).
+        """
+        tv = vars if vars is not None else self._get_template_vars()
+        tpl = self._get_spec_template()
+        if tpl and isinstance(tpl, dict):
+            result = {}
+            for group_title, fields in tpl.items():
+                if not isinstance(fields, dict):
+                    continue
+                group_fields = {}
+                for label, key in fields.items():
+                    if key not in tv:
+                        continue
+                    value = tv[key]
+                    if isinstance(value, dict):
+                        group_fields[label] = value
+                    elif value not in (None, ''):
+                        group_fields[label] = value
+                if group_fields:
+                    result[group_title] = group_fields
+            if result:
+                return result
+        # Fallback — базовые характеристики (поведение до шаблонов)
+        fallback = {}
+        for label, key in (
+            ('Серия', 'model_line_name'),
+            ('Бренд', 'brand_name'),
+            ('Тип привода', 'variety_name'),
+            ('Корпус', 'body_name'),
+            ('Вес (кг)', 'weight'),
+        ):
+            value = tv.get(key)
+            if value not in (None, ''):
+                fallback[label] = value
+        return {'Основные': fallback}
+
     def to_dict(self):
         """Структурированная сериализация для карточки каталога."""
         tv = self._get_template_vars()
@@ -880,18 +939,7 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                 },
                 {
                     'key': 'specs', 'title': 'Характеристики', 'type': 'specs',
-                    'order': 1, 'groups': [
-                        {
-                            'key': 'general', 'title': 'Основные', 'order': 1,
-                            'fields': [
-                                {'key': 'model_line_name', 'label': 'Серия', 'value': tv['model_line_name'], 'type': 'text', 'order': 1},
-                                {'key': 'brand_name', 'label': 'Бренд', 'value': tv['brand_name'], 'type': 'text', 'order': 2},
-                                {'key': 'variety_name', 'label': 'Тип привода', 'value': tv['variety_name'], 'type': 'text', 'order': 3},
-                                {'key': 'body_name', 'label': 'Корпус', 'value': tv['body_name'], 'type': 'text', 'order': 4},
-                                {'key': 'weight', 'label': 'Вес (кг)', 'value': tv['weight'], 'type': 'number', 'order': 6},
-                            ]
-                        },
-                    ]
+                    'order': 1, 'data': self._get_spec_sections(),
                 },
                 {
                     'key': 'docs', 'title': 'Документация', 'type': 'files',

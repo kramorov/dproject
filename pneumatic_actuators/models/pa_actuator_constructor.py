@@ -845,6 +845,72 @@ class PneumaticActuatorConstructor(models.Model):
         }
         return structured_data
 
+    def get_spec_vars(self) -> Dict[str, Any]:
+        """Плоский словарь значений для spec_template (вкладка «Характеристики»).
+
+        Обычные ключи — строки. Специальный ключ ``torque_table`` — HTML-блок
+        ``{'__html': '...'}`` с полной таблицей моментов/усилий (все пружины).
+        """
+        from pneumatic_actuators.models import BodyThrustTorqueTable
+
+        item = self.selected_model_line_item
+        ml = item.model_line if item else None
+        body = item.body if item else None
+        variety = item.pneumatic_actuator_variety if item else None
+
+        def s(v):
+            return str(v) if v not in (None, '') else ''
+
+        vars_ = {
+            'code': self.code or '',
+            'model_line_name': ml.name if ml else '',
+            'model_line_code': ml.code if ml else '',
+            'brand_name': ml.brand.name if ml and ml.brand else '',
+            'variety_name': variety.description if variety and variety.description else s(variety),
+            'variety_code': s(variety.code) if variety else '',
+            'body_name': body.name if body else '',
+            'body_code': body.code if body else '',
+            'construction': str(ml.pneumatic_actuator_construction_variety) if ml and ml.pneumatic_actuator_construction_variety else '',
+            'turn_angle': str(body.turn_angle) if body and body.turn_angle else '',
+            'weight': str(body.weight_spring) if body and body.weight_spring is not None else '',
+            'springs_qty': s(self.selected_springs_qty),
+            'temperature': s(self.selected_temperature),
+            'ip': s(self.selected_ip),
+            'safety_position': s(self.selected_safety_position),
+            'exd': s(self.selected_exd),
+            'coating': s(self.selected_body_coating),
+            'hand_wheel': s(self.selected_hand_wheel),
+        }
+
+        if body:
+            vars_['pressure'] = f"{body.min_pressure_bar} - {body.max_pressure_bar} бар" if body.min_pressure_bar else ''
+            air_open = body.air_usage_open or ''
+            air_close = body.air_usage_close or ''
+            vars_['air_usage'] = f"открытие {air_open} л, закрытие {air_close} л" if (air_open or air_close) else ''
+            vars_['stem'] = body.stem_info_display or ''
+            vars_['mounting'] = body.mounting_plate_display or ''
+            vars_['thread_in'] = s(body.thread_in)
+            vars_['thread_out'] = s(body.thread_out)
+            vars_['pneumatic_conn'] = ', '.join(str(c) for c in body.pneumatic_connection.all()) if body.pneumatic_connection.exists() else ''
+
+        # Таблица моментов — по выбранной конфигурации: DA или конкретное число пружин (SR).
+        if body:
+            ncno_code = self.selected_safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
+            construction_variety_code = item.pneumatic_actuator_construction_variety.code if item and item.pneumatic_actuator_construction_variety else ACTUATOR_VARIETY_RP_DEFAULT_CODE
+            da_sr_code = item.pneumatic_actuator_variety.code if item and item.pneumatic_actuator_variety else None
+            spring_qty = self.selected_springs_qty
+            torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
+                current_body=body,
+                spring_qty_list=[spring_qty] if spring_qty else None,
+                ncno_code=ncno_code,
+                construction_variety_code=construction_variety_code,
+                da_sr_code=da_sr_code,
+            )
+            html = BodyThrustTorqueTable.format_for_html(torque_data)
+            vars_['torque_table'] = {'__html': html} if html else ''
+
+        return vars_
+
     @property
     def generated_model_item_code(self) -> str:
         """

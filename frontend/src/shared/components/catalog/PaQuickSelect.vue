@@ -60,6 +60,7 @@ import PaProductCard from './PaProductCard.vue'
 const props = defineProps({
   api: { type: Object, required: true },
   labels: { type: Object, default: () => ({}) },
+  initial: { type: Object, default: null },
 })
 defineEmits(['addToCart', 'navigate'])
 
@@ -89,7 +90,33 @@ onMounted(async () => {
     modelLines.value = data || []
   } catch (e) { console.error(e) }
   loading.value = false
+
+  if (props.initial) await prefill(props.initial)
 })
+
+async function prefill(init) {
+  if (!init || !init.model_line_id || !init.model_line_item_id) return
+  try {
+    form.model_line_id = Number(init.model_line_id)
+    form.variety = init.actuator_variety_code || null
+
+    if (form.variety) {
+      loading.value = true
+      const { data } = await props.api.getModelLineItems(form.model_line_id, form.variety)
+      modelItems.value = data || []
+      loading.value = false
+    }
+
+    await selectItem(Number(init.model_line_item_id))
+
+    // Поверх дефолтов подставляем выбранные в подборе опции
+    const keys = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'hand_wheel']
+    for (const k of keys) {
+      if (init[k] != null && init[k] !== '') form[k] = Number(init[k])
+    }
+    await fetchPreview()
+  } catch (e) { console.error('prefill failed', e) }
+}
 
 async function selectML(id) {
   if (form.model_line_id === id) return
