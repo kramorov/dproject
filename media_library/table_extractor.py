@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 #   doctr      — pip install python-doctr
 OCR_BACKENDS = {
     'tesseract' : ('img2table.ocr' , 'TesseractOCR' , {'lang' : 'rus+eng' , 'n_threads' : 1}) ,
-    'rapidocr' : ('img2table.ocr' , 'RapidOCR' , {}) ,
+    'rapidocr' : ('img2table.ocr' , 'RapidOCR' , {}) ,  # params собираются в get_ocr_instance (кириллица)
     'surya' : ('img2table.ocr' , 'SuryaOCR' , {}) ,
     'paddle' : ('img2table.ocr' , 'PaddleOCR' , {'lang' : 'en'}) ,
     'easyocr' : ('img2table.ocr' , 'EasyOCR' , {'lang' : ['ru' , 'en']}) ,
@@ -70,10 +70,66 @@ def _import_img2table_image() :
         ) from e
 
 
+def _rapidocr_params(**overrides) -> Dict[str , Any] :
+    """Параметры RapidOCR: восточнославянская rec-модель (кириллица + латиница).
+
+    По умолчанию img2table использует в RapidOCR английскую rec-модель
+    (``Rec.lang_type=LangRec.EN``), которая не знает кириллицу — русский текст
+    не распознаётся, остаются только цифры и латиница. Здесь переключаем
+    распознавание на ``eslav_PP-OCRv5_rec_mobile`` (PaddleOCR), который покрывает
+    кириллицу (русский/украинский/белорусский), латиницу и цифры.
+
+    ``overrides`` позволяют переопределить отдельные ключи конфигурации RapidOCR
+    (например ``Rec.lang_type='cyrillic'``); строковые значения ``Rec.ocr_version``
+    и ``Rec.model_type`` приводятся к enum-значениям rapidocr.
+    """
+    from rapidocr import ModelType , OCRVersion
+
+    params = {
+        'Rec.lang_type' : 'eslav' ,
+        'Rec.ocr_version' : OCRVersion.PPOCRV5 ,
+        'Rec.model_type' : ModelType.MOBILE ,
+    }
+
+    # Каталог моделей можно вынести наружу (Docker: volume / предзагрузка).
+    try :
+        from django.conf import settings
+        model_dir = getattr(settings , 'MEDIA_OCR_MODEL_DIR' , None)
+        if model_dir :
+            params['Global.model_root_dir'] = str(model_dir)
+    except Exception :
+        pass
+
+    enum_map = {
+        'Rec.ocr_version' : {
+            'PP-OCRv4' : OCRVersion.PPOCRV4 ,
+            'PP-OCRv5' : OCRVersion.PPOCRV5 ,
+            'PP-OCRv6' : OCRVersion.PPOCRV6 ,
+        } ,
+        'Rec.model_type' : {
+            'mobile' : ModelType.MOBILE ,
+            'server' : ModelType.SERVER ,
+            'small' : ModelType.SMALL ,
+            'tiny' : ModelType.TINY ,
+            'medium' : ModelType.MEDIUM ,
+        } ,
+    }
+    for key , value in overrides.items() :
+        if value is None :
+            continue
+        if key in enum_map and isinstance(value , str) :
+            value = enum_map[key].get(value , value)
+        params[key] = value
+    return params
+
+
 def get_ocr_instance(backend : str , **kwargs) :
     """Создать OCR-объект img2table по имени бэкенда.
 
     kwargs переопределяют дефолтные параметры бэкенда (например ``lang``).
+    Для ``rapidocr`` kwargs могут содержать ``params`` (dict) или отдельные
+    ключи конфигурации RapidOCR (например ``Rec.lang_type``), которые
+    накладываются поверх дефолтных кириллических параметров.
     """
     if backend not in OCR_BACKENDS :
         raise TableExtractionError(
@@ -81,18 +137,27 @@ def get_ocr_instance(backend : str , **kwargs) :
         )
 
     module_name , class_name , defaults = OCR_BACKENDS[backend]
-    params = dict(defaults)
-    params.update({k : v for k , v in kwargs.items() if v is not None})
 
     import importlib
     try :
         module = importlib.import_module(module_name)
         ocr_cls = getattr(module , class_name)
-        return ocr_cls(**params)
     except ImportError as e :
         raise TableExtractionError(
             f'OCR-бэкенд "{backend}" требует img2table и зависимости OCR: {e}'
         ) from e
+
+    try :
+        if backend == 'rapidocr' :
+            # img2table.ocr.RapidOCR принимает один словарь ``params``.
+            overrides = kwargs.get('params')
+            if not isinstance(overrides , dict) :
+                overrides = {k : v for k , v in kwargs.items() if v is not None}
+            return ocr_cls(params=_rapidocr_params(**overrides))
+
+        params = dict(defaults or {})
+        params.update({k : v for k , v in kwargs.items() if v is not None})
+        return ocr_cls(**params)
     except Exception as e :
         raise TableExtractionError(
             f'Не удалось инициализировать OCR "{backend}": {e}'

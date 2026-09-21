@@ -153,6 +153,40 @@ def _file_to_pages(data : bytes , filename : str) -> list :
     return [data]
 
 
+def _attach_checkboxes(result : dict , pages : list) -> None :
+    """Дополнить результат распознаванием чек-боксов по каждой странице.
+
+    Добавляет в ``result`` ключи:
+        form_fields — список по страницам ({'page', 'checkboxes', 'groups', 'selected'}),
+        checkboxes  — плоский список всех чек-боксов,
+        selected    — подписи отмеченных чек-боксов.
+    """
+    from media_library.form_extractor import extract_form_fields
+
+    result['form_fields'] = []
+    result['checkboxes'] = []
+    result['selected'] = []
+
+    for i , page_bytes in enumerate(pages) :
+        try :
+            fields = extract_form_fields(page_bytes)
+        except Exception as e :
+            logger.warning('Распознавание чек-боксов (стр. %d): %s' , (i + 1) , e)
+            fields = {'checkboxes' : [] , 'selected' : [] , 'groups' : []}
+
+        fields['page'] = i + 1
+        if result.get('pages') and i < len(result['pages']) :
+            page = result['pages'][i]
+            page['checkboxes'] = fields.get('checkboxes') or []
+            page['groups'] = fields.get('groups') or []
+
+        result['form_fields'].append(fields)
+        for cb in (fields.get('checkboxes') or []) :
+            cb['page'] = i + 1
+            result['checkboxes'].append(cb)
+        result['selected'].extend(fields.get('selected') or [])
+
+
 class MediaOcrRecognizeView(APIView) :
     permission_classes = [SectionAccessPermission]
     required_section = 'admin_section'  # TODO: вернуть IsAdminUser
@@ -196,6 +230,8 @@ class MediaOcrRecognizeView(APIView) :
                 max_workers=_as_int(data.get('max_workers') , 1) ,
                 use_first_row_as_header=_as_bool(data.get('use_first_row_as_header') , True) ,
             )
+            if _as_bool(data.get('detect_checkboxes') , False) :
+                _attach_checkboxes(result , pages)
         except TableExtractionError as e :
             return Response({'error' : str(e)} , status=status.HTTP_400_BAD_REQUEST)
         except Exception as e :
@@ -214,6 +250,9 @@ class MediaOcrRecognizeView(APIView) :
             'text' : result.get('text') or '' ,
             'tables' : result.get('tables') or [] ,
             'pages' : result.get('pages') or [] ,
+            'checkboxes' : result.get('checkboxes') or [] ,
+            'selected' : result.get('selected') or [] ,
+            'form_fields' : result.get('form_fields') or [] ,
         })
 
 
@@ -251,6 +290,139 @@ class MediaOcrExportView(APIView) :
 
         base = _sanitize_filename(os.path.splitext(result.get('filename') or 'ocr')[0])
         filename = f'{base}.{ext}'
+        response = HttpResponse(content , content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
+class MediaOcrCheckboxLabelView(APIView) :
+    """Распознать текст внутри области «чек-бокс + подпись» (ручная разметка).
+
+    POST /api/admin/media/ocr/checkbox-label/  (multipart)
+        file — изображение, x/y/w/h — область чек-бокса вместе с подписью.
+    Ответ: {"label": "..."}
+    """
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'  # TODO: вернуть IsAdminUser
+    parser_classes = [MultiPartParser]
+
+    def post(self , request) :
+        file = request.FILES.get('file')
+        if not file :
+            return Response({'error' : 'file is required'} , status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data or {}
+        try :
+            region = (
+                int(data.get('x')) , int(data.get('y')) ,
+                int(data.get('w')) , int(data.get('h')) ,
+            )
+        except (TypeError , ValueError) :
+            return Response(
+                {'error' : 'x/y/w/h должны быть целыми числами.'} ,
+                status=status.HTTP_400_BAD_REQUEST ,
+            )
+
+        if region[2] <= 0 or region[3] <= 0 :
+            return Response(
+                {'error' : 'Пустая область.'} ,
+                status=status.HTTP_400_BAD_REQUEST ,
+            )
+
+        raw = file.read()
+        try :
+            from media_library.form_extractor import ocr_text_in_region
+            label = ocr_text_in_region(raw , region)
+        except Exception as e :
+            logger.exception('OCR checkbox label failed')
+            return Response({'error' : str(e)} , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'label' : label})
+
+
+class MediaOcrRegionView(APIView) :
+    """Разбор произвольной области изображения (для ручной разметки ОЛ).
+
+    POST /api/admin/media/ocr/region/  (multipart)
+        file — изображение, x/y/w/h — область в пикселях исходника.
+        kind — 'text' (OCR текста) или 'value' (автоопределение значения:
+               чек-боксы / таблица / текст). По умолчанию 'text'.
+    """
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'  # TODO: вернуть IsAdminUser
+    parser_classes = [MultiPartParser]
+
+    def post(self , request) :
+        file = request.FILES.get('file')
+        if not file :
+            return Response({'error' : 'file is required'} , status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data or {}
+        kind = str(data.get('kind' , 'text')).strip().lower()
+        try :
+            region = (
+                int(data.get('x')) , int(data.get('y')) ,
+                int(data.get('w')) , int(data.get('h')) ,
+            )
+        except (TypeError , ValueError) :
+            return Response(
+                {'error' : 'x/y/w/h должны быть целыми числами.'} ,
+                status=status.HTTP_400_BAD_REQUEST ,
+            )
+
+        if region[2] <= 0 or region[3] <= 0 :
+            return Response(
+                {'error' : 'Пустая область.'} ,
+                status=status.HTTP_400_BAD_REQUEST ,
+            )
+
+        raw = file.read()
+        try :
+            from media_library.form_extractor import (
+                analyze_region , extract_fv_table , ocr_text_in_area ,
+            )
+            if kind == 'value' :
+                result = analyze_region(raw , region)
+            elif kind == 'fvtable' :
+                result = {'rows' : extract_fv_table(raw , region)}
+            else :
+                result = {'text' : ocr_text_in_area(raw , region)}
+        except Exception as e :
+            logger.exception('OCR region failed')
+            return Response({'error' : str(e)} , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(result)
+
+
+class MediaOcrStructureExportView(APIView) :
+    """Экспорт размеченной структуры ОЛ (JSON-дерева) в Word/Excel.
+
+    POST /api/admin/media/ocr/export-structure/  (json)
+        {structure: {...}, format: 'xlsx'|'docx'}
+    Ответ: файл как attachment.
+    """
+    permission_classes = [SectionAccessPermission]
+    required_section = 'admin_section'  # TODO: вернуть IsAdminUser
+    parser_classes = [JSONParser]
+
+    def post(self , request) :
+        structure = request.data.get('structure') or {}
+        fmt = str(request.data.get('format' , 'xlsx')).strip().lower()
+        try :
+            from media_library.form_export import structure_to_docx , structure_to_xlsx
+            if fmt in ('docx' , 'word') :
+                content = structure_to_docx(structure)
+                content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ext = 'docx'
+            else :
+                content = structure_to_xlsx(structure)
+                content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                ext = 'xlsx'
+        except Exception as e :
+            logger.exception('Structure export failed')
+            return Response({'error' : str(e)} , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        filename = 'опросный_лист.' + ext
         response = HttpResponse(content , content_type=content_type)
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response

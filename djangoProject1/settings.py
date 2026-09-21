@@ -28,6 +28,11 @@ FILE_STORAGE_BACKEND = 'cloudru'  # было 'local'
 # В Docker можно переопределить через env, например MEDIA_TABLE_OCR_BACKEND=tesseract
 MEDIA_TABLE_OCR_BACKEND = os.getenv('MEDIA_TABLE_OCR_BACKEND' , 'rapidocr')
 
+# Каталог моделей RapidOCR (onnx). Если не задан — используется встроенный
+# каталог внутри site-packages/rapidocr/models. В Docker стоит задать через env,
+# чтобы модели лежали в volume и не скачивались заново при каждом запуске.
+MEDIA_OCR_MODEL_DIR = os.getenv('MEDIA_OCR_MODEL_DIR' , '') or None
+
 # Режим раздачи медиафайлов:
 #   'proxy'    — Django читает из хранилища и стримит клиенту (медленно, но контролирует доступ)
 #   'redirect' — редирект на presigned URL / прямой URL хранилища (быстро, клиент качает напрямую)
