@@ -12,7 +12,9 @@ img2table / pandas / numpy — ленивые, чтобы отсутствие �
 бэкенд по умолчанию задаётся настройкой ``MEDIA_TABLE_OCR_BACKEND``.
 """
 
+import json
 import logging
+import threading
 from io import BytesIO
 from typing import Any , Dict , List , Optional
 
@@ -40,6 +42,35 @@ OCR_BACKENDS = {
 
 class TableExtractionError(RuntimeError) :
     """Ошибка распознавания таблицы."""
+
+
+# ── Кэш OCR-движков ─────────────────────────────────────────────────
+# Модели OCR грузятся из файлов секундами: экземпляры кэшируются на весь
+# процесс. Движки с внутренним состоянием (RapidOCR и т.п.) не потокобезопасны,
+# поэтому вызовы сериализуются через per-key RLock (_SerializedEngine).
+_ocr_instances : Dict[str , Any] = {}
+_ocr_locks : Dict[str , Any] = {}
+_ocr_cache_lock = threading.Lock()
+
+_rapidocr_engine = None
+_rapidocr_lock = threading.RLock()
+
+
+class _SerializedEngine :
+    """Прокси над OCR-движком: каждый вызов метода прогоняется через lock."""
+
+    def __init__(self , engine , lock) :
+        object.__setattr__(self , '_engine' , engine)
+        object.__setattr__(self , '_lock' , lock)
+
+    def __getattr__(self , name) :
+        attr = getattr(self._engine , name)
+        if callable(attr) :
+            def _wrapped(*args , **kwargs) :
+                with self._lock :
+                    return attr(*args , **kwargs)
+            return _wrapped
+        return attr
 
 
 def available_backends() -> List[str] :
@@ -124,18 +155,37 @@ def _rapidocr_params(**overrides) -> Dict[str , Any] :
 
 
 def get_ocr_instance(backend : str , **kwargs) :
-    """Создать OCR-объект img2table по имени бэкенда.
+    """Вернуть OCR-объект img2table по имени бэкенда (кэш на процесс).
 
-    kwargs переопределяют дефолтные параметры бэкенда (например ``lang``).
-    Для ``rapidocr`` kwargs могут содержать ``params`` (dict) или отдельные
-    ключи конфигурации RapidOCR (например ``Rec.lang_type``), которые
-    накладываются поверх дефолтных кириллических параметров.
+    Экземпляр создаётся один раз на комбинацию (backend, kwargs) и оборачивается
+    в ``_SerializedEngine`` — повторные запросы не пересоздают модель, а вызовы
+    из разных потоков не конфликтуют между собой.
     """
     if backend not in OCR_BACKENDS :
         raise TableExtractionError(
             f'Неизвестный OCR-бэкенд "{backend}". Доступные: {available_backends()}'
         )
 
+    cache_key = backend + '|' + _kwargs_key(kwargs)
+    with _ocr_cache_lock :
+        engine = _ocr_instances.get(cache_key)
+        if engine is None :
+            engine = _create_ocr_instance(backend , kwargs)
+            _ocr_instances[cache_key] = engine
+        lock = _ocr_locks.setdefault(cache_key , threading.RLock())
+    return _SerializedEngine(engine , lock)
+
+
+def _kwargs_key(kwargs : Dict[str , Any]) -> str :
+    """Стабильный строковый ключ для kwargs (вложенные dict сортируются)."""
+    try :
+        return json.dumps(kwargs , sort_keys=True , default=str , ensure_ascii=False)
+    except Exception :
+        return repr(kwargs)
+
+
+def _create_ocr_instance(backend : str , kwargs : Dict[str , Any]) :
+    """Создать OCR-объект img2table (без кэша)."""
     module_name , class_name , defaults = OCR_BACKENDS[backend]
 
     import importlib
@@ -162,6 +212,25 @@ def get_ocr_instance(backend : str , **kwargs) :
         raise TableExtractionError(
             f'Не удалось инициализировать OCR "{backend}": {e}'
         ) from e
+
+
+def get_rapidocr_engine() :
+    """Процессный синглтон RapidOCR с кириллической моделью (для form_extractor)."""
+    global _rapidocr_engine
+    with _rapidocr_lock :
+        if _rapidocr_engine is None :
+            from rapidocr import RapidOCR
+            _rapidocr_engine = RapidOCR(params=_rapidocr_params())
+    return _rapidocr_engine
+
+
+def rapidocr_call(img) :
+    """Запустить RapidOCR на изображении (сериализованный, потокобезопасный вызов).
+
+    Возвращает result RapidOCR или None.
+    """
+    with _rapidocr_lock :
+        return get_rapidocr_engine()(img)
 
 
 def _read_image_bytes(media_file) -> bytes :

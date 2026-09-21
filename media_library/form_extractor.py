@@ -69,13 +69,14 @@ def _load_image(data : bytes) :
 
 
 def _ocr_words(img) -> List[Dict[str , Any]] :
-    """OCR через RapidOCR (кириллица): список слов с координатами."""
-    from rapidocr import RapidOCR
+    """OCR через RapidOCR (кириллица): список слов с координатами.
 
-    from media_library.table_extractor import _rapidocr_params
+    Движок — процессный синглтон (см. table_extractor.get_rapidocr_engine),
+    поэтому повторные вызовы не перезагружают модели с диска.
+    """
+    from media_library.table_extractor import rapidocr_call
 
-    engine = RapidOCR(params=_rapidocr_params())
-    result = engine(img)
+    result = rapidocr_call(img)
     words : List[Dict[str , Any]] = []
     if result is None :
         return words

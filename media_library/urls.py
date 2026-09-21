@@ -11,7 +11,7 @@ from django.urls import path
 
 from media_library.views.admin_copy import MediaAdminCopyView
 from media_library.views.admin_detail import MediaAdminDetailView
-from media_library.views.admin_ocr_tool import MediaOcrCheckboxLabelView , MediaOcrExportView , MediaOcrRecognizeView , MediaOcrRegionView , MediaOcrStructureExportView
+from media_library.views.admin_ocr_tool import MediaOcrCheckboxLabelView , MediaOcrExportView , MediaOcrPagesView , MediaOcrRecognizeView , MediaOcrRegionView , MediaOcrRegionsView , MediaOcrStructureExportView
 from media_library.views.admin_recreate_preview import MediaAdminRecreatePreviewView
 from media_library.views.admin_regenerate_variants import MediaAdminRegenerateVariantsView
 from media_library.views.admin_table_extract import MediaAdminTableExtractView
@@ -33,6 +33,9 @@ urlpatterns_admin = [
     path('<int:pk>/extract-tables/', MediaAdminTableExtractView.as_view(), name='media_admin_extract_tables'),
     path('ocr/recognize/', MediaOcrRecognizeView.as_view(), name='media_admin_ocr_recognize'),
     path('ocr/region/', MediaOcrRegionView.as_view(), name='media_admin_ocr_region'),
+    path('ocr/regions/', MediaOcrRegionsView.as_view(), name='media_admin_ocr_regions'),
+    path('ocr/pages/', MediaOcrPagesView.as_view(), name='media_admin_ocr_pages'),
+    path('ocr/pages/<str:token>/<int:page>/', MediaOcrPagesView.as_view(), name='media_admin_ocr_page_image'),
     path('ocr/export-structure/', MediaOcrStructureExportView.as_view(), name='media_admin_ocr_export_structure'),
     path('ocr/checkbox-label/', MediaOcrCheckboxLabelView.as_view(), name='media_admin_ocr_checkbox_label'),
     path('ocr/export/', MediaOcrExportView.as_view(), name='media_admin_ocr_export'),

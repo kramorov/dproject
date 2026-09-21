@@ -1,0 +1,610 @@
+Record-level diff: db.sqlite3 (local working db) vs db_head_4f00d76.sqlite3 (committed HEAD db)
+
+auth_user                                               +0 -0 ~1
+cart_cart                                               +0 -4 ~0
+cart_cartevent                                          +0 -4 ~0
+django_admin_log                                        +141 -0 ~0
+documents_documentnumerator                             +0 -0 ~1
+media_library_imagegalleryset                           +1 -0 ~0
+media_library_imagegallerysetitem                       +9 -0 ~0
+media_library_medialibraryitem                          +9 -0 ~0
+media_library_mediavariant                              +45 -0 ~0
+pneumatic_actuators_bodythrusttorquetable               +88 -0 ~15
+pneumatic_actuators_pneumaticactuatorbody               +0 -0 ~7
+pneumatic_actuators_pneumaticactuatoritem               +0 -1 ~0
+pneumatic_actuators_pneumaticactuatormodelline          +0 -0 ~1
+pneumatic_actuators_pneumaticactuatormodellineitem      +43 -12 ~7
+pneumatic_actuators_pneumaticsafetypositionoption       +59 -25 ~1
+pneumatic_actuators_pneumaticspringsqtyoption           +54 -12 ~7
+price_pricedocument                                     +0 -1 ~0
+price_pricedocumentitem                                 +0 -1 ~0
+price_pricehistory                                      +0 -1 ~1
+
+=== auth_user (+0 added, -0 removed, ~1 changed) ===
+  ~ pk=1 | password: 'pbkdf2_sha256$870000$UoCVatGK1FQvyvI9p5oQx0$f3+5GjOTZCP0fYo...(90 chars) -> 'pbkdf2_sha256$1000000$6oFZTmPRfmMwDPU1IPkriY$qWWEDGE96FD6PM...(91 chars) | last_login: '2026-09-19 13:18:10.300792' -> '2026-09-21 06:28:22.582188'
+
+=== cart_cart (+0 added, -4 removed, ~0 changed) ===
+  - pk='2026-09-21 06:28:09.513680' created_at='2026-09-21 06:28:09.513680' | updated_at='2026-09-21 06:28:09.513752' | id='4fd6712ea61e4f8eb62998d8ecb62c95' | cart_type='cart' | name='Новая корзина 26-09-21-09-28' | status='active' | session_key=None | client_request_id=None | employee_id=None | project_customer_id=None | user_id=None | description='' | is_active_cart=1
+  - pk='2026-09-21 15:08:41.370927' created_at='2026-09-21 15:08:41.370927' | updated_at='2026-09-21 15:08:41.372209' | id='84b6d6fd282f401ab04544b5963a66e8' | cart_type='cart' | name='Новая корзина 26-09-21-18-08' | status='active' | session_key=None | client_request_id=None | employee_id=None | project_customer_id=None | user_id=None | description='' | is_active_cart=1
+  - pk='2026-09-21 15:17:04.129755' created_at='2026-09-21 15:17:04.129755' | updated_at='2026-09-21 15:17:04.129827' | id='4925cb74a81c478aaee7ad48959c4176' | cart_type='cart' | name='Новая корзина 26-09-21-18-17' | status='active' | session_key=None | client_request_id=None | employee_id=None | project_customer_id=None | user_id=None | description='' | is_active_cart=1
+  - pk='2026-09-21 15:20:00.940069' created_at='2026-09-21 15:20:00.940069' | updated_at='2026-09-21 15:20:00.940129' | id='3a31c378317b4af6814b606bf8c4287f' | cart_type='cart' | name='Новая корзина 26-09-21-18-20' | status='active' | session_key=None | client_request_id=None | employee_id=None | project_customer_id=None | user_id=None | description='' | is_active_cart=1
+
+=== cart_cartevent (+0 added, -4 removed, ~0 changed) ===
+  - pk='00bf502610d54a38a1c9e6425a01ac3b' id='00bf502610d54a38a1c9e6425a01ac3b' | event_type='created' | data='{}' | created_at='2026-09-21 06:28:09.552933' | cart_id='4fd6712ea61e4f8eb62998d8ecb62c95'
+  - pk='02b28a2229494736b41ed38b4129c28c' id='02b28a2229494736b41ed38b4129c28c' | event_type='created' | data='{}' | created_at='2026-09-21 15:08:41.426688' | cart_id='84b6d6fd282f401ab04544b5963a66e8'
+  - pk='578d96261dd9482e9e650bc4450ab642' id='578d96261dd9482e9e650bc4450ab642' | event_type='created' | data='{}' | created_at='2026-09-21 15:20:00.955774' | cart_id='3a31c378317b4af6814b606bf8c4287f'
+  - pk='8286e75c11fb41e8bc909b0468306e40' id='8286e75c11fb41e8bc909b0468306e40' | event_type='created' | data='{}' | created_at='2026-09-21 15:17:04.179552' | cart_id='4925cb74a81c478aaee7ad48959c4176'
+
+=== django_admin_log (+141 added, -0 removed, ~0 changed) ===
+  + pk=7850 id=7850 | object_id='60' | object_repr='AIR03-125' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:40:25.474995'
+  + pk=7851 id=7851 | object_id='63' | object_repr='AIR03-160' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:40:48.873133'
+  + pk=7852 id=7852 | object_id='66' | object_repr='AIR03-180' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:41:18.906099'
+  + pk=7853 id=7853 | object_id='67' | object_repr='AIR04-180' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:41:42.886389'
+  + pk=7854 id=7854 | object_id='73' | object_repr='c' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:42:09.870231'
+  + pk=7855 id=7855 | object_id='73' | object_repr='AIR04-180' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(89 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:42:20.556851'
+  + pk=7856 id=7856 | object_id='73' | object_repr='AIR04-200' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:42:44.152065'
+  + pk=7857 id=7857 | object_id='76' | object_repr='AIR04-220' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:43:33.685171'
+  + pk=7858 id=7858 | object_id='78' | object_repr='AIR04-260' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=157 | user_id=1 | action_time='2026-09-19 06:43:56.382313'
+  + pk=7859 id=7859 | object_id='78' | object_repr='AIR03-SYM125-S2' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:44:27.714298'
+  + pk=7860 id=7860 | object_id='79' | object_repr='AIR03-SYM125-S3' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:44:27.714298'
+  + pk=7861 id=7861 | object_id='80' | object_repr='AIR03-SYM160-S1' | action_flag=2 | change_message='[{"added": {"name": "\\u041a\\u043e\\u043b\\u0438\\u0447\\u0435\\u0441\\u0442\\...(1203 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:45:21.825560'
+  + pk=7862 id=7862 | object_id='80' | object_repr='AIR03-SYM160-S1' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:45:58.310119'
+  + pk=7863 id=7863 | object_id='81' | object_repr='AIR03-SYM160-S2' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:45:58.310119'
+  + pk=7864 id=7864 | object_id='82' | object_repr='AIR03-SYM160' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(1323 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:47:20.606367'
+  + pk=7865 id=7865 | object_id='83' | object_repr='AIR03-SYM180' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(1315 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:48:12.420969'
+  + pk=7866 id=7866 | object_id='84' | object_repr='AIR03-SYM180-S2' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:48:23.470523'
+  + pk=7867 id=7867 | object_id='85' | object_repr='AIR03-SYM180-S3' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:48:23.470523'
+  + pk=7868 id=7868 | object_id='86' | object_repr='AIR04-SYM180' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(1315 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:49:11.620116'
+  + pk=7869 id=7869 | object_id='87' | object_repr='AIR04-SY180' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(1692 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:50:00.251173'
+  + pk=7870 id=7870 | object_id='87' | object_repr='AIR04-SY180' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(597 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:50:13.765244'
+  + pk=7871 id=7871 | object_id='88' | object_repr='AIR04-SYM180-S3' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:50:25.982459'
+  + pk=7872 id=7872 | object_id='89' | object_repr='AIR04-SYM200' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(1315 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:51:12.980420'
+  + pk=7873 id=7873 | object_id='90' | object_repr='AIR04-SYM200-S2' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:51:24.463365'
+  + pk=7874 id=7874 | object_id='91' | object_repr='AIR04-SYM200-S3' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:51:24.463365'
+  + pk=7875 id=7875 | object_id='92' | object_repr='AIR04-SYM220' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(1315 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:51:59.128689'
+  + pk=7876 id=7876 | object_id='93' | object_repr='AIR04-SYM220-S2' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:52:13.678046'
+  + pk=7877 id=7877 | object_id='94' | object_repr='AIR04-SYM220-S3' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:52:13.678046'
+  + pk=7878 id=7878 | object_id='95' | object_repr='AIR04-SYM260' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(983 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:52:40.131848'
+  + pk=7879 id=7879 | object_id='96' | object_repr='AIR04-SYM260-S3' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 06:52:50.896961'
+  + pk=7880 id=7880 | object_id='1' | object_repr='AIR03-SYM125-S1-S3.fl SR Пружин: 12 пружин; Положение безопасности:Оставаться в...(130 chars) | action_flag=3 | change_message='' | content_type_id=375 | user_id=1 | action_time='2026-09-19 06:57:19.185808'
+  + pk=7881 id=7881 | object_id='103' | object_repr='AIR14-SY200' | action_flag=1 | change_message='[{"added": {}}, {"added": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\...(820 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:36:57.835852'
+  + pk=7882 id=7882 | object_id='104' | object_repr='AIR14-SY250' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(190 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:37:27.153075'
+  + pk=7883 id=7883 | object_id='103' | object_repr='AIR14-SY200' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:37:39.885955'
+  + pk=7884 id=7884 | object_id='105' | object_repr='AIR16-SY280' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:38:05.485103'
+  + pk=7885 id=7885 | object_id='103' | object_repr='AIR14-SY200' | action_flag=2 | change_message='[]' | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:44:00.393048'
+  + pk=7886 id=7886 | object_id='105' | object_repr='AIR16-SY280' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:44:18.425680'
+  + pk=7887 id=7887 | object_id='106' | object_repr='AIR16-SY280 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:44:18.425680'
+  + pk=7888 id=7888 | object_id='106' | object_repr='AIR16-SY300' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:44:45.825125'
+  + pk=7889 id=7889 | object_id='107' | object_repr='AIR14-SY200 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:45:07.957716'
+  + pk=7890 id=7890 | object_id='108' | object_repr='AIR14-SY250 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:45:07.957908'
+  + pk=7891 id=7891 | object_id='109' | object_repr='AIR16-SY280 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:45:07.957908'
+  + pk=7892 id=7892 | object_id='110' | object_repr='AIR16-SY300 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:45:07.957908'
+  + pk=7893 id=7893 | object_id='107' | object_repr='AIR25-SY280' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:45:27.090749'
+  + pk=7894 id=7894 | object_id='108' | object_repr='AIR25-SY300' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:45:43.890811'
+  + pk=7895 id=7895 | object_id='109' | object_repr='AIR25-SY350' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:46:01.105744'
+  + pk=7896 id=7896 | object_id='110' | object_repr='AIR30-SY400' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:46:25.022447'
+  + pk=7897 id=7897 | object_id='111' | object_repr='AIR14-SY200 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.804698'
+  + pk=7898 id=7898 | object_id='112' | object_repr='AIR14-SY250 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.804698'
+  + pk=7899 id=7899 | object_id='113' | object_repr='AIR16-SY280 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.804698'
+  + pk=7900 id=7900 | object_id='114' | object_repr='AIR16-SY300 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.804698'
+  + pk=7901 id=7901 | object_id='115' | object_repr='AIR25-SY280 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.804698'
+  + pk=7902 id=7902 | object_id='116' | object_repr='AIR25-SY300 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.804698'
+  + pk=7903 id=7903 | object_id='117' | object_repr='AIR25-SY350 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.804698'
+  + pk=7904 id=7904 | object_id='118' | object_repr='AIR30-SY400 Копия' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:07.821418'
+  + pk=7905 id=7905 | object_id='111' | object_repr='AIR30-SY450' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:25.737637'
+  + pk=7906 id=7906 | object_id='112' | object_repr='AIR30-SY500' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:47:49.413406'
+  + pk=7907 id=7907 | object_id='113' | object_repr='AIR35-SY450' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:48:12.019782'
+  + pk=7908 id=7908 | object_id='114' | object_repr='AIR35-SY500' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:48:27.169265'
+  + pk=7909 id=7909 | object_id='115' | object_repr='AIR35-SY550' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:48:47.773786'
+  + pk=7910 id=7910 | object_id='116' | object_repr='AIR35-SY600' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:49:07.588051'
+  + pk=7911 id=7911 | object_id='117' | object_repr='AIR40-SY700' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:49:28.267468'
+  + pk=7912 id=7912 | object_id='118' | object_repr='AIR16-SY200-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(190 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:53:21.051996'
+  + pk=7913 id=7913 | object_id='118' | object_repr='AIR16-SY200-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:53:49.411161'
+  + pk=7914 id=7914 | object_id='118' | object_repr='AIR16-SY200-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:53:58.144144'
+  + pk=7915 id=7915 | object_id='119' | object_repr='AIR16-SY250-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:54:34.543344'
+  + pk=7916 id=7916 | object_id='120' | object_repr='AIR16-SY280-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:57:10.024507'
+  + pk=7917 id=7917 | object_id='121' | object_repr='AIR16-SY300-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:57:24.755071'
+  + pk=7918 id=7918 | object_id='122' | object_repr='AIR30-SY280-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:57:47.505068'
+  + pk=7919 id=7919 | object_id='123' | object_repr='AIR30-SY320-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:58:05.671379'
+  + pk=7920 id=7920 | object_id='124' | object_repr='AIR30-SY350-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:58:20.871013'
+  + pk=7921 id=7921 | object_id='125' | object_repr='AIR30-SY400-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:58:37.287112'
+  + pk=7922 id=7922 | object_id='126' | object_repr='AIR35-SY450-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:59:06.395733'
+  + pk=7923 id=7923 | object_id='127' | object_repr='IR40-SY500-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:59:21.469215'
+  + pk=7924 id=7924 | object_id='128' | object_repr='AIR40-SY550-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:59:37.735504'
+  + pk=7925 id=7925 | object_id='127' | object_repr='AIR40-SY500-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(114 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 09:59:49.635394'
+  + pk=7926 id=7926 | object_id='129' | object_repr='AIR40-SY600-D' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:15.137166'
+  + pk=7927 id=7927 | object_id='118' | object_repr='AIR16-SY200-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7928 id=7928 | object_id='119' | object_repr='AIR16-SY250-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7929 id=7929 | object_id='120' | object_repr='AIR16-SY280-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7930 id=7930 | object_id='121' | object_repr='AIR16-SY300-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7931 id=7931 | object_id='122' | object_repr='AIR30-SY280-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7932 id=7932 | object_id='123' | object_repr='AIR30-SY320-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7933 id=7933 | object_id='124' | object_repr='AIR30-SY350-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7934 id=7934 | object_id='125' | object_repr='AIR30-SY400-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7935 id=7935 | object_id='126' | object_repr='AIR35-SY450-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7936 id=7936 | object_id='127' | object_repr='AIR40-SY500-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7937 id=7937 | object_id='128' | object_repr='AIR40-SY550-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7938 id=7938 | object_id='129' | object_repr='AIR40-SY600-D' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:00:54.667155'
+  + pk=7939 id=7939 | object_id='130' | object_repr='AIR14-SYM200-S2' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(1914 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:01:50.166657'
+  + pk=7940 id=7940 | object_id='43' | object_repr='AIR14-SYM200-S2' | action_flag=2 | change_message='[]' | content_type_id=157 | user_id=1 | action_time='2026-09-19 10:27:48.008310'
+  + pk=7941 id=7941 | object_id='131' | object_repr='AIR14-SYM250-S2' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:28:41.524863'
+  + pk=7942 id=7942 | object_id='132' | object_repr='AIR14-SYM280-S2' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:29:07.207515'
+  + pk=7943 id=7943 | object_id='132' | object_repr='AIR14-SYM280-S2' | action_flag=2 | change_message='[]' | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:29:15.957063'
+  + pk=7944 id=7944 | object_id='133' | object_repr='AIR14-SYM300-S2' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:29:34.324216'
+  + pk=7945 id=7945 | object_id='134' | object_repr='AIR25-SYM280-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:29:56.759066'
+  + pk=7946 id=7946 | object_id='135' | object_repr='AIR25-SYM300-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:30:14.388890'
+  + pk=7947 id=7947 | object_id='136' | object_repr='AIR25-SYM350-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:30:34.321790'
+  + pk=7948 id=7948 | object_id='137' | object_repr='AIR25-SYM400-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:30:52.938202'
+  + pk=7949 id=7949 | object_id='138' | object_repr='AIR25-SYM450-S4' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(662 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:31:43.937534'
+  + pk=7950 id=7950 | object_id='130' | object_repr='AIR14-SYM200-S2' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:31:59.869877'
+  + pk=7951 id=7951 | object_id='131' | object_repr='AIR14-SYM250-S2' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:06.652694'
+  + pk=7952 id=7952 | object_id='139' | object_repr='AIR14-SYM250-S2 Копия' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:15.618157'
+  + pk=7953 id=7953 | object_id='140' | object_repr='AIR14-SYM280-S2 Копия' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:20.719427'
+  + pk=7954 id=7954 | object_id='140' | object_repr='AIR14-SYM280-S2 Копия' | action_flag=2 | change_message='[]' | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:25.785644'
+  + pk=7955 id=7955 | object_id='133' | object_repr='AIR14-SYM300-S2' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:32.447615'
+  + pk=7956 id=7956 | object_id='141' | object_repr='AIR14-SYM300-S2 Копия' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:37.818984'
+  + pk=7957 id=7957 | object_id='134' | object_repr='AIR25-SYM280-S3' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:43.831162'
+  + pk=7958 id=7958 | object_id='142' | object_repr='AIR25-SYM280-S3 Копия' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:50.501728'
+  + pk=7959 id=7959 | object_id='135' | object_repr='AIR25-SYM300-S3' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:32:57.234816'
+  + pk=7960 id=7960 | object_id='143' | object_repr='AIR25-SYM300-S3 Копия' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:33:03.819309'
+  + pk=7961 id=7961 | object_id='136' | object_repr='AIR25-SYM350-S3' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:33:10.280189'
+  + pk=7962 id=7962 | object_id='144' | object_repr='AIR25-SYM350-S3 Копия' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:33:16.251331'
+  + pk=7963 id=7963 | object_id='137' | object_repr='AIR25-SYM400-S3' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:33:22.200932'
+  + pk=7964 id=7964 | object_id='145' | object_repr='AIR25-SYM400-S3 Копия' | action_flag=2 | change_message='[{"changed": {"name": "\\u041f\\u043e\\u043b\\u043e\\u0436\\u0435\\u043d\\u0438...(542 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:33:28.634198'
+  + pk=7965 id=7965 | object_id='138' | object_repr='AIR25-SYM450-S4' | action_flag=2 | change_message='[]' | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:33:35.036294'
+  + pk=7966 id=7966 | object_id='139' | object_repr='AIR30-SYM500-S4' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:33:50.983636'
+  + pk=7967 id=7967 | object_id='140' | object_repr='AIR35-SYM450-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:34:06.649634'
+  + pk=7968 id=7968 | object_id='141' | object_repr='AIR35-SYM500-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:34:23.186408'
+  + pk=7969 id=7969 | object_id='142' | object_repr='AIR35-SYM550-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:34:42.715511'
+  + pk=7970 id=7970 | object_id='143' | object_repr='AIR35-SYM600-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:02.331847'
+  + pk=7971 id=7971 | object_id='144' | object_repr='AIR35-SYM700-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u041d\\u0430\\u0437\\u0432\\u0430\\u043d\\u0438\\u0...(122 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:16.670569'
+  + pk=7972 id=7972 | object_id='145' | object_repr='AIR25-SYM400-S3 Копия' | action_flag=3 | change_message='' | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:24.008318'
+  + pk=7973 id=7973 | object_id='131' | object_repr='AIR14-SYM250-S2' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7974 id=7974 | object_id='132' | object_repr='AIR14-SYM280-S2' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7975 id=7975 | object_id='133' | object_repr='AIR14-SYM300-S2' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7976 id=7976 | object_id='134' | object_repr='AIR25-SYM280-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7977 id=7977 | object_id='135' | object_repr='AIR25-SYM300-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7978 id=7978 | object_id='136' | object_repr='AIR25-SYM350-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7979 id=7979 | object_id='137' | object_repr='AIR25-SYM400-S3' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7980 id=7980 | object_id='138' | object_repr='AIR25-SYM450-S4' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7981 id=7981 | object_id='139' | object_repr='AIR30-SYM500-S4' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.063775'
+  + pk=7982 id=7982 | object_id='140' | object_repr='AIR35-SYM450-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.080316'
+  + pk=7983 id=7983 | object_id='141' | object_repr='AIR35-SYM500-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.080627'
+  + pk=7984 id=7984 | object_id='142' | object_repr='AIR35-SYM550-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.080627'
+  + pk=7985 id=7985 | object_id='143' | object_repr='AIR35-SYM600-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.080627'
+  + pk=7986 id=7986 | object_id='144' | object_repr='AIR35-SYM700-S5' | action_flag=2 | change_message='[{"changed": {"fields": ["C\\u043e\\u0440\\u0442\\u0438\\u0440\\u043e\\u0432\\u...(97 chars) | content_type_id=171 | user_id=1 | action_time='2026-09-19 10:35:55.080627'
+  + pk=7987 id=7987 | object_id='55' | object_repr='AIR-SY-SYM' | action_flag=1 | change_message='[{"added": {}}, {"added": {"name": "\\u042d\\u043b\\u0435\\u043c\\u0435\\u043d\...(1483 chars) | content_type_id=289 | user_id=1 | action_time='2026-09-19 14:29:19.004677'
+  + pk=7988 id=7988 | object_id='6' | object_repr='AIR SY/SYM' | action_flag=2 | change_message='[{"changed": {"fields": ["\\u0413\\u0430\\u043b\\u0435\\u0440\\u0435\\u044f \\u...(160 chars) | content_type_id=158 | user_id=1 | action_time='2026-09-19 14:38:20.177881'
+  + pk=7989 id=7989 | object_id='5' | object_repr='AIR DA/SR' | action_flag=2 | change_message='[{"changed": {"name": "\\u041e\\u043f\\u0446\\u0438\\u044f \\u0432\\u0437\\u044...(448 chars) | content_type_id=158 | user_id=1 | action_time='2026-09-19 14:40:03.133521'
+  + pk=7990 id=7990 | object_id='6' | object_repr='AIR SY/SYM' | action_flag=2 | change_message='[{"changed": {"name": "\\u041e\\u043f\\u0446\\u0438\\u044f \\u0432\\u0437\\u044...(448 chars) | content_type_id=158 | user_id=1 | action_time='2026-09-19 14:40:10.069803'
+
+=== documents_documentnumerator (+0 added, -0 removed, ~1 changed) ===
+  ~ pk=2 | counter: 1 -> 2
+
+=== media_library_imagegalleryset (+1 added, -0 removed, ~0 changed) ===
+  + pk=55 id=55 | name='AIR-SY-SYM' | code='AIR-SY-SYM' | keywords='' | sorting_order=0 | created_at='2026-09-19 14:29:18.943593' | updated_at='2026-09-19 14:29:18.943593'
+
+=== media_library_imagegallerysetitem (+9 added, -0 removed, ~0 changed) ===
+  + pk=100 id=100 | sorting_order=7 | is_default=0 | gallery_set_id=55 | image_id=285
+  + pk=101 id=101 | sorting_order=5 | is_default=0 | gallery_set_id=55 | image_id=284
+  + pk=102 id=102 | sorting_order=4 | is_default=0 | gallery_set_id=55 | image_id=283
+  + pk=103 id=103 | sorting_order=2 | is_default=0 | gallery_set_id=55 | image_id=282
+  + pk=104 id=104 | sorting_order=10 | is_default=0 | gallery_set_id=55 | image_id=281
+  + pk=105 id=105 | sorting_order=12 | is_default=0 | gallery_set_id=55 | image_id=280
+  + pk=106 id=106 | sorting_order=0 | is_default=1 | gallery_set_id=55 | image_id=278
+  + pk=107 id=107 | sorting_order=0 | is_default=0 | gallery_set_id=55 | image_id=279
+  + pk=99 id=99 | sorting_order=8 | is_default=0 | gallery_set_id=55 | image_id=286
+
+=== media_library_medialibraryitem (+9 added, -0 removed, ~0 changed) ===
+  + pk=278 id=278 | description='AIR-SY-SYM кулисный пневмопривод Общий вид' | media_file='media_library/medialibraryitem/95/d3/95d3acf7fc01242edd17856e6f54f4ba.png' | preview_file='' | mime_type='image/png' | is_active=1 | is_public=1 | created_at='2026-09-19 13:22:31.575201' | updated_at='2026-09-19 13:23:40.786132' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, SYM, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SY-SYM кулисный пневмопривод Общий вид 01'
+  + pk=279 id=279 | description='AIR-SY кулисный пневмопривод с дублером винтового типа 01' | media_file='media_library/medialibraryitem/0b/ae/0bae07d45805bc4b4a15608a25fd5321.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 13:23:51.742003' | updated_at='2026-09-19 14:12:24.158887' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SY кулисный пневмопривод с дублером винтового типа 01'
+  + pk=280 id=280 | description='AIR-SY кулисный пневмопривод с дублером винтового типа 01' | media_file='media_library/medialibraryitem/18/d6/18d635efeba45025246a6c00ba1eb1e7.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 14:12:53.103920' | updated_at='2026-09-19 14:13:13.497542' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SY кулисный пневмопривод с дублером винтового типа 02'
+  + pk=281 id=281 | description='AIR-SY кулисный пневмопривод с дублером винтового типа Общая' | media_file='media_library/medialibraryitem/20/1a/201a2d23358c3edee4ad1ac549628f12.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 14:13:36.987208' | updated_at='2026-09-19 14:14:03.861668' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SY кулисный пневмопривод с дублером винтового типа Общая'
+  + pk=282 id=282 | description='AIR-SYM кулисный пневмопривод с дублерами Общая' | media_file='media_library/medialibraryitem/22/f1/22f1b72846e0a98b6a6ed3bc948f9a58.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 14:14:42.935592' | updated_at='2026-09-19 14:15:35.008063' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SYM кулисный пневмопривод с дублерами Общая'
+  + pk=283 id=283 | description='AIR-SYM кулисный пневмопривод с дублером гидравлическим ' | media_file='media_library/medialibraryitem/21/0b/210b2a0b89db37efd365616643a173e0.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 14:16:00.975907' | updated_at='2026-09-19 14:16:35.186409' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SYM кулисный пневмопривод с дублером гидравлическим 01'
+  + pk=284 id=284 | description='AIR-SYM кулисный пневмопривод с дублером гидравлическим ' | media_file='media_library/medialibraryitem/d7/64/d76416b221330a6079130b413f5421b2.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 14:24:24.516148' | updated_at='2026-09-19 14:24:45.188963' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SYM кулисный пневмопривод с дублером гидравлическим 02'
+  + pk=285 id=285 | description='AIR-SYM кулисный пневмопривод с дублером винтовым ' | media_file='media_library/medialibraryitem/54/17/5417209c37098e59ac95c030f92bdd30.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 14:25:45.602561' | updated_at='2026-09-19 14:26:10.920520' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SYM кулисный пневмопривод с дублером винтовым 01'
+  + pk=286 id=286 | description='AIR-SYM кулисный пневмопривод с дублером червячного типа' | media_file='media_library/medialibraryitem/e8/fc/e8fceb576c48d63bd27fa92db6758d0b.jpg' | preview_file='' | mime_type='image/jpeg' | is_active=1 | is_public=1 | created_at='2026-09-19 14:26:36.272404' | updated_at='2026-09-19 14:27:01.200790' | category_id=17 | created_by_id=1 | equipment_type_id=3 | brand_id=1 | keywords='AIR SY, пневмопривод, кулисный' | is_default=0 | sorting_order=0 | code='AIR-SY-SYM-01' | name='AIR-SYM кулисный пневмопривод с дублером червячного типа 01'
+
+=== media_library_mediavariant (+45 added, -0 removed, ~0 changed) ===
+  + pk=3094 id=3094 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/278/icon_50.webp' | file_size=1718 | page_num=None | created_at='2026-09-19 13:27:24.439945' | media_item_id=278
+  + pk=3095 id=3095 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/278/thumb_80.webp' | file_size=3112 | page_num=None | created_at='2026-09-19 13:27:24.567916' | media_item_id=278
+  + pk=3096 id=3096 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/278/thumb_150.webp' | file_size=7374 | page_num=None | created_at='2026-09-19 13:27:24.731631' | media_item_id=278
+  + pk=3097 id=3097 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/278/card_400.webp' | file_size=27032 | page_num=None | created_at='2026-09-19 13:27:24.934594' | media_item_id=278
+  + pk=3098 id=3098 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/278/card_800.webp' | file_size=68332 | page_num=None | created_at='2026-09-19 13:27:25.382530' | media_item_id=278
+  + pk=3109 id=3109 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/279/icon_50.webp' | file_size=1458 | page_num=None | created_at='2026-09-19 14:12:45.253811' | media_item_id=279
+  + pk=3110 id=3110 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/279/thumb_80.webp' | file_size=2502 | page_num=None | created_at='2026-09-19 14:12:45.446895' | media_item_id=279
+  + pk=3111 id=3111 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/279/thumb_150.webp' | file_size=5114 | page_num=None | created_at='2026-09-19 14:12:45.639251' | media_item_id=279
+  + pk=3112 id=3112 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/279/card_400.webp' | file_size=18050 | page_num=None | created_at='2026-09-19 14:12:45.859156' | media_item_id=279
+  + pk=3113 id=3113 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/279/card_800.webp' | file_size=47084 | page_num=None | created_at='2026-09-19 14:12:46.215513' | media_item_id=279
+  + pk=3119 id=3119 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/280/icon_50.webp' | file_size=1324 | page_num=None | created_at='2026-09-19 14:13:28.697791' | media_item_id=280
+  + pk=3120 id=3120 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/280/thumb_80.webp' | file_size=2312 | page_num=None | created_at='2026-09-19 14:13:28.850008' | media_item_id=280
+  + pk=3121 id=3121 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/280/thumb_150.webp' | file_size=4630 | page_num=None | created_at='2026-09-19 14:13:29.022031' | media_item_id=280
+  + pk=3122 id=3122 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/280/card_400.webp' | file_size=15596 | page_num=None | created_at='2026-09-19 14:13:29.201751' | media_item_id=280
+  + pk=3123 id=3123 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/280/card_800.webp' | file_size=42366 | page_num=None | created_at='2026-09-19 14:13:29.571666' | media_item_id=280
+  + pk=3129 id=3129 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/281/icon_50.webp' | file_size=2066 | page_num=None | created_at='2026-09-19 14:14:20.325316' | media_item_id=281
+  + pk=3130 id=3130 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/281/thumb_80.webp' | file_size=3798 | page_num=None | created_at='2026-09-19 14:14:20.474476' | media_item_id=281
+  + pk=3131 id=3131 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/281/thumb_150.webp' | file_size=8056 | page_num=None | created_at='2026-09-19 14:14:20.636659' | media_item_id=281
+  + pk=3132 id=3132 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/281/card_400.webp' | file_size=28068 | page_num=None | created_at='2026-09-19 14:14:20.846682' | media_item_id=281
+  + pk=3133 id=3133 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/281/card_800.webp' | file_size=72616 | page_num=None | created_at='2026-09-19 14:14:21.241603' | media_item_id=281
+  + pk=3144 id=3144 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/283/icon_50.webp' | file_size=1400 | page_num=None | created_at='2026-09-19 14:16:47.350270' | media_item_id=283
+  + pk=3145 id=3145 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/283/thumb_80.webp' | file_size=2304 | page_num=None | created_at='2026-09-19 14:16:47.508831' | media_item_id=283
+  + pk=3146 id=3146 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/283/thumb_150.webp' | file_size=4896 | page_num=None | created_at='2026-09-19 14:16:48.055265' | media_item_id=283
+  + pk=3147 id=3147 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/283/card_400.webp' | file_size=17000 | page_num=None | created_at='2026-09-19 14:16:48.223277' | media_item_id=283
+  + pk=3148 id=3148 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/283/card_800.webp' | file_size=47748 | page_num=None | created_at='2026-09-19 14:16:48.590542' | media_item_id=283
+  + pk=3149 id=3149 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/282/icon_50.webp' | file_size=2046 | page_num=None | created_at='2026-09-19 14:16:59.516985' | media_item_id=282
+  + pk=3150 id=3150 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/282/thumb_80.webp' | file_size=3508 | page_num=None | created_at='2026-09-19 14:16:59.701009' | media_item_id=282
+  + pk=3151 id=3151 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/282/thumb_150.webp' | file_size=7188 | page_num=None | created_at='2026-09-19 14:16:59.865585' | media_item_id=282
+  + pk=3152 id=3152 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/282/card_400.webp' | file_size=25856 | page_num=None | created_at='2026-09-19 14:17:00.052291' | media_item_id=282
+  + pk=3153 id=3153 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/282/card_800.webp' | file_size=67358 | page_num=None | created_at='2026-09-19 14:17:00.434869' | media_item_id=282
+  + pk=3159 id=3159 | role='icon' | width=50 | height=49 | format='webp' | file_path='media_library/variants/284/icon_50.webp' | file_size=1142 | page_num=None | created_at='2026-09-19 14:25:05.083143' | media_item_id=284
+  + pk=3160 id=3160 | role='thumb' | width=80 | height=79 | format='webp' | file_path='media_library/variants/284/thumb_80.webp' | file_size=1904 | page_num=None | created_at='2026-09-19 14:25:05.218328' | media_item_id=284
+  + pk=3161 id=3161 | role='thumb' | width=150 | height=149 | format='webp' | file_path='media_library/variants/284/thumb_150.webp' | file_size=3992 | page_num=None | created_at='2026-09-19 14:25:05.609962' | media_item_id=284
+  + pk=3162 id=3162 | role='card' | width=400 | height=399 | format='webp' | file_path='media_library/variants/284/card_400.webp' | file_size=14350 | page_num=None | created_at='2026-09-19 14:25:05.805089' | media_item_id=284
+  + pk=3163 id=3163 | role='card' | width=800 | height=798 | format='webp' | file_path='media_library/variants/284/card_800.webp' | file_size=39692 | page_num=None | created_at='2026-09-19 14:25:06.188730' | media_item_id=284
+  + pk=3169 id=3169 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/285/icon_50.webp' | file_size=1402 | page_num=None | created_at='2026-09-19 14:26:31.469816' | media_item_id=285
+  + pk=3170 id=3170 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/285/thumb_80.webp' | file_size=2236 | page_num=None | created_at='2026-09-19 14:26:31.588823' | media_item_id=285
+  + pk=3171 id=3171 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/285/thumb_150.webp' | file_size=4884 | page_num=None | created_at='2026-09-19 14:26:31.708215' | media_item_id=285
+  + pk=3172 id=3172 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/285/card_400.webp' | file_size=16926 | page_num=None | created_at='2026-09-19 14:26:31.858603' | media_item_id=285
+  + pk=3173 id=3173 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/285/card_800.webp' | file_size=47080 | page_num=None | created_at='2026-09-19 14:26:32.244903' | media_item_id=285
+  + pk=3179 id=3179 | role='icon' | width=50 | height=50 | format='webp' | file_path='media_library/variants/286/icon_50.webp' | file_size=1236 | page_num=None | created_at='2026-09-19 14:27:14.158819' | media_item_id=286
+  + pk=3180 id=3180 | role='thumb' | width=80 | height=80 | format='webp' | file_path='media_library/variants/286/thumb_80.webp' | file_size=1894 | page_num=None | created_at='2026-09-19 14:27:14.299998' | media_item_id=286
+  + pk=3181 id=3181 | role='thumb' | width=150 | height=150 | format='webp' | file_path='media_library/variants/286/thumb_150.webp' | file_size=3972 | page_num=None | created_at='2026-09-19 14:27:14.456764' | media_item_id=286
+  + pk=3182 id=3182 | role='card' | width=400 | height=400 | format='webp' | file_path='media_library/variants/286/card_400.webp' | file_size=13418 | page_num=None | created_at='2026-09-19 14:27:14.641457' | media_item_id=286
+  + pk=3183 id=3183 | role='card' | width=800 | height=800 | format='webp' | file_path='media_library/variants/286/card_800.webp' | file_size=38094 | page_num=None | created_at='2026-09-19 14:27:16.615313' | media_item_id=286
+
+=== pneumatic_actuators_bodythrusttorquetable (+88 added, -0 removed, ~15 changed) ===
+  + pk=1244 id=1244 | bto=621 | rto=229 | eto=258 | body_id=63 | spring_qty_id=7 | pressure_id=12
+  + pk=1245 id=1245 | bto=737 | rto=289 | eto=373 | body_id=63 | spring_qty_id=7 | pressure_id=13
+  + pk=1246 id=1246 | bto=967 | rto=409 | eto=604 | body_id=63 | spring_qty_id=7 | pressure_id=14
+  + pk=1247 id=1247 | bto=1198 | rto=529 | eto=834 | body_id=63 | spring_qty_id=7 | pressure_id=15
+  + pk=1248 id=1248 | bto=928 | rto=396 | eto=594 | body_id=63 | spring_qty_id=7 | pressure_id=1
+  + pk=1249 id=1249 | bto=378 | rto=137 | eto=150 | body_id=63 | spring_qty_id=8 | pressure_id=9
+  + pk=1250 id=1250 | bto=493 | rto=197 | eto=266 | body_id=63 | spring_qty_id=8 | pressure_id=10
+  + pk=1251 id=1251 | bto=608 | rto=258 | eto=381 | body_id=63 | spring_qty_id=8 | pressure_id=11
+  + pk=1252 id=1252 | bto=724 | rto=318 | eto=496 | body_id=63 | spring_qty_id=8 | pressure_id=12
+  + pk=1253 id=1253 | bto=839 | rto=378 | eto=611 | body_id=63 | spring_qty_id=8 | pressure_id=13
+  + pk=1254 id=1254 | bto=1070 | rto=498 | eto=842 | body_id=63 | spring_qty_id=8 | pressure_id=14
+  + pk=1255 id=1255 | bto=1300 | rto=618 | eto=1073 | body_id=63 | spring_qty_id=8 | pressure_id=15
+  + pk=1256 id=1256 | bto=709 | rto=315 | eto=500 | body_id=63 | spring_qty_id=8 | pressure_id=1
+  + pk=1257 id=1257 | bto=277 | rto=109 | eto=140 | body_id=63 | spring_qty_id=9 | pressure_id=7
+  + pk=1258 id=1258 | bto=392 | rto=169 | eto=255 | body_id=63 | spring_qty_id=9 | pressure_id=8
+  + pk=1259 id=1259 | bto=507 | rto=229 | eto=371 | body_id=63 | spring_qty_id=9 | pressure_id=9
+  + pk=1260 id=1260 | bto=623 | rto=289 | eto=486 | body_id=63 | spring_qty_id=9 | pressure_id=10
+  + pk=1261 id=1261 | bto=738 | rto=349 | eto=601 | body_id=63 | spring_qty_id=9 | pressure_id=11
+  + pk=1262 id=1262 | bto=803 | rto=296 | eto=336 | body_id=66 | spring_qty_id=7 | pressure_id=12
+  + pk=1263 id=1263 | bto=949 | rto=373 | eto=483 | body_id=66 | spring_qty_id=7 | pressure_id=13
+  + pk=1264 id=1264 | bto=1242 | rto=525 | eto=775 | body_id=66 | spring_qty_id=7 | pressure_id=14
+  + pk=1265 id=1265 | bto=1170 | rto=498 | eto=742 | body_id=66 | spring_qty_id=7 | pressure_id=1
+  + pk=1266 id=1266 | bto=481 | rto=171 | eto=175 | body_id=66 | spring_qty_id=8 | pressure_id=9
+  + pk=1267 id=1267 | bto=627 | rto=247 | eto=321 | body_id=66 | spring_qty_id=8 | pressure_id=10
+  + pk=1268 id=1268 | bto=773 | rto=323 | eto=468 | body_id=66 | spring_qty_id=8 | pressure_id=11
+  + pk=1269 id=1269 | bto=920 | rto=399 | eto=614 | body_id=66 | spring_qty_id=8 | pressure_id=12
+  + pk=1270 id=1270 | bto=1066 | rto=476 | eto=761 | body_id=66 | spring_qty_id=8 | pressure_id=13
+  + pk=1271 id=1271 | bto=915 | rto=403 | eto=634 | body_id=66 | spring_qty_id=8 | pressure_id=1
+  + pk=1272 id=1272 | bto=353 | rto=138 | eto=178 | body_id=66 | spring_qty_id=9 | pressure_id=7
+  + pk=1273 id=1273 | bto=499 | rto=214 | eto=324 | body_id=66 | spring_qty_id=9 | pressure_id=8
+  + pk=1274 id=1274 | bto=646 | rto=291 | eto=471 | body_id=66 | spring_qty_id=9 | pressure_id=9
+  + pk=1275 id=1275 | bto=792 | rto=367 | eto=617 | body_id=66 | spring_qty_id=9 | pressure_id=10
+  + pk=1276 id=1276 | bto=938 | rto=443 | eto=764 | body_id=66 | spring_qty_id=9 | pressure_id=11
+  + pk=1277 id=1277 | bto=1252 | rto=470 | eto=552 | body_id=67 | spring_qty_id=7 | pressure_id=13
+  + pk=1278 id=1278 | bto=1614 | rto=658 | eto=914 | body_id=67 | spring_qty_id=7 | pressure_id=14
+  + pk=1279 id=1279 | bto=1976 | rto=846 | eto=1275 | body_id=67 | spring_qty_id=7 | pressure_id=15
+  + pk=1280 id=1280 | bto=1487 | rto=606 | eto=843 | body_id=67 | spring_qty_id=7 | pressure_id=1
+  + pk=1281 id=1281 | bto=1004 | rto=405 | eto=552 | body_id=67 | spring_qty_id=8 | pressure_id=11
+  + pk=1282 id=1282 | bto=1185 | rto=499 | eto=733 | body_id=67 | spring_qty_id=8 | pressure_id=12
+  + pk=1283 id=1283 | bto=1366 | rto=594 | eto=914 | body_id=67 | spring_qty_id=8 | pressure_id=13
+  + pk=1284 id=1284 | bto=1728 | rto=782 | eto=1276 | body_id=67 | spring_qty_id=8 | pressure_id=14
+  + pk=1285 id=1285 | bto=2090 | rto=970 | eto=1637 | body_id=67 | spring_qty_id=8 | pressure_id=15
+  + pk=1286 id=1286 | bto=1154 | rto=493 | eto=793 | body_id=67 | spring_qty_id=8 | pressure_id=1
+  + pk=1287 id=1287 | bto=637 | rto=264 | eto=378 | body_id=67 | spring_qty_id=9 | pressure_id=8
+  + pk=1288 id=1288 | bto=818 | rto=358 | eto=559 | body_id=67 | spring_qty_id=9 | pressure_id=9
+  + pk=1289 id=1289 | bto=999 | rto=452 | eto=739 | body_id=67 | spring_qty_id=9 | pressure_id=10
+  + pk=1290 id=1290 | bto=1180 | rto=547 | eto=920 | body_id=67 | spring_qty_id=9 | pressure_id=11
+  + pk=1291 id=1291 | bto=1361 | rto=641 | eto=1101 | body_id=67 | spring_qty_id=9 | pressure_id=12
+  + pk=1292 id=1292 | bto=1549 | rto=566 | eto=624 | body_id=73 | spring_qty_id=7 | pressure_id=12
+  + pk=1293 id=1293 | bto=1997 | rto=799 | eto=1072 | body_id=73 | spring_qty_id=7 | pressure_id=13
+  + pk=1294 id=1294 | bto=2445 | rto=1032 | eto=1521 | body_id=73 | spring_qty_id=7 | pressure_id=14
+  + pk=1295 id=1295 | bto=1897 | rto=767 | eto=1048 | body_id=73 | spring_qty_id=7 | pressure_id=1
+  + pk=1296 id=1296 | bto=1255 | rto=504 | eto=680 | body_id=73 | spring_qty_id=8 | pressure_id=11
+  + pk=1297 id=1297 | bto=1479 | rto=620 | eto=904 | body_id=73 | spring_qty_id=8 | pressure_id=12
+  + pk=1298 id=1298 | bto=1703 | rto=737 | eto=1128 | body_id=73 | spring_qty_id=8 | pressure_id=13
+  + pk=1299 id=1299 | bto=2152 | rto=970 | eto=1577 | body_id=73 | spring_qty_id=8 | pressure_id=14
+  + pk=1300 id=1300 | bto=2600 | rto=1204 | eto=2025 | body_id=73 | spring_qty_id=8 | pressure_id=15
+  + pk=1301 id=1301 | bto=1434 | rto=609 | eto=906 | body_id=73 | spring_qty_id=8 | pressure_id=1
+  + pk=1302 id=1302 | bto=573 | rto=212 | eto=243 | body_id=72 | spring_qty_id=1 | pressure_id=7
+  + pk=1303 id=1303 | bto=797 | rto=329 | eto=467 | body_id=72 | spring_qty_id=1 | pressure_id=8
+  + pk=1304 id=1304 | bto=1022 | rto=446 | eto=691 | body_id=72 | spring_qty_id=1 | pressure_id=9
+  + pk=1305 id=1305 | bto=1246 | rto=563 | eto=915 | body_id=72 | spring_qty_id=1 | pressure_id=10
+  + pk=1306 id=1306 | bto=1470 | rto=679 | eto=1139 | body_id=72 | spring_qty_id=1 | pressure_id=11
+  + pk=1307 id=1307 | bto=1694 | rto=796 | eto=1364 | body_id=72 | spring_qty_id=1 | pressure_id=12
+  + pk=1308 id=1308 | bto=1918 | rto=913 | eto=1588 | body_id=72 | spring_qty_id=1 | pressure_id=13
+  + pk=1309 id=1309 | bto=2366 | rto=1146 | eto=2036 | body_id=72 | spring_qty_id=1 | pressure_id=14
+  + pk=1310 id=1310 | bto=1012 | rto=448 | eto=706 | body_id=72 | spring_qty_id=1 | pressure_id=1
+  + pk=1311 id=1311 | bto=1908 | rto=692 | eto=750 | body_id=76 | spring_qty_id=7 | pressure_id=13
+  + pk=1312 id=1312 | bto=2451 | rto=975 | eto=1294 | body_id=76 | spring_qty_id=7 | pressure_id=14
+  + pk=1313 id=1313 | bto=2309 | rto=925 | eto=1245 | body_id=76 | spring_qty_id=7 | pressure_id=1
+  + pk=1314 id=1314 | bto=1541 | rto=613 | eto=813 | body_id=76 | spring_qty_id=8 | pressure_id=11
+  + pk=1315 id=1315 | bto=1813 | rto=754 | eto=1085 | body_id=76 | spring_qty_id=8 | pressure_id=12
+  + pk=1316 id=1316 | bto=2085 | rto=896 | eto=1357 | body_id=76 | spring_qty_id=8 | pressure_id=13
+  + pk=1317 id=1317 | bto=2628 | rto=1179 | eto=1901 | body_id=76 | spring_qty_id=8 | pressure_id=14
+  + pk=1318 id=1318 | bto=1751 | rto=738 | eto=1083 | body_id=76 | spring_qty_id=8 | pressure_id=1
+  + pk=1319 id=1319 | bto=700 | rto=260 | eto=301 | body_id=76 | spring_qty_id=9 | pressure_id=7
+  + pk=1320 id=1320 | bto=972 | rto=402 | eto=573 | body_id=76 | spring_qty_id=9 | pressure_id=8
+  + pk=1321 id=1321 | bto=1244 | rto=544 | eto=845 | body_id=76 | spring_qty_id=9 | pressure_id=9
+  + pk=1322 id=1322 | bto=1516 | rto=685 | eto=1117 | body_id=76 | spring_qty_id=9 | pressure_id=10
+  + pk=1323 id=1323 | bto=1787 | rto=827 | eto=1388 | body_id=76 | spring_qty_id=9 | pressure_id=11
+  + pk=1324 id=1324 | bto=2059 | rto=968 | eto=1660 | body_id=76 | spring_qty_id=9 | pressure_id=12
+  + pk=1325 id=1325 | bto=2181 | rto=853 | eto=1094 | body_id=78 | spring_qty_id=8 | pressure_id=11
+  + pk=1326 id=1326 | bto=2563 | rto=1051 | eto=1475 | body_id=78 | spring_qty_id=8 | pressure_id=12
+  + pk=1327 id=1327 | bto=2497 | rto=1040 | eto=1498 | body_id=78 | spring_qty_id=8 | pressure_id=1
+  + pk=1328 id=1328 | bto=989 | rto=362 | eto=402 | body_id=78 | spring_qty_id=9 | pressure_id=7
+  + pk=1329 id=1329 | bto=1370 | rto=561 | eto=784 | body_id=78 | spring_qty_id=9 | pressure_id=8
+  + pk=1330 id=1330 | bto=1751 | rto=759 | eto=1165 | body_id=78 | spring_qty_id=9 | pressure_id=9
+  + pk=1331 id=1331 | bto=2132 | rto=958 | eto=1546 | body_id=78 | spring_qty_id=9 | pressure_id=10
+  ~ pk=1075 | bto: 507 -> 928 | rto: 231 -> 396 | eto: 381 -> 594
+  ~ pk=1076 | bto: 853 -> 621 | rto: 409 -> 229 | eto: 716 -> 258
+  ~ pk=1077 | bto: 969 -> 737 | rto: 469 -> 289 | eto: 832 -> 373
+  ~ pk=1084 | bto: 643 -> 1170 | rto: 293 -> 498 | eto: 483 -> 742
+  ~ pk=1085 | bto: 1085 -> 803 | rto: 519 -> 296 | eto: 910 -> 336
+  ~ pk=1086 | bto: 1231 -> 949 | rto: 595 -> 373 | eto: 1056 -> 483
+  ~ pk=1087 | bto: 816 -> 1487 | rto: 363 -> 606 | eto: 578 -> 843
+  ~ pk=1088 | bto: 1542 -> 1252 | rto: 735 -> 470 | eto: 1282 -> 552
+  ~ pk=1105 | bto: 1222 -> 2309 | rto: 541 -> 925 | eto: 856 -> 1245
+  ~ pk=1106 | bto: 2331 -> 1908 | rto: 1110 -> 692 | eto: 1932 -> 750
+  ~ pk=1109 | bto: 1731 -> 2497 | rto: 761 -> 1040 | eto: 1193 -> 1498
+  ~ pk=1110 | bto: 2514 -> 2181 | rto: 1156 -> 853 | eto: 1927 -> 1094
+  ~ pk=1124 | bto: 1199 -> 967 | rto: 589 -> 409 | eto: 1062 -> 604
+  ~ pk=1148 | bto: 1903 -> 1614 | rto: 923 -> 658 | eto: 1644 -> 914
+  ~ pk=1149 | bto: 2265 -> 1976 | rto: 1112 -> 846 | eto: 2005 -> 1275
+
+=== pneumatic_actuators_pneumaticactuatorbody (+0 added, -0 removed, ~7 changed) ===
+  ~ pk=60 | name: 'AIR03-125' -> 'AIR03-SYM125-S1' | code: 'AIR03-125' -> 'AIR03-SYM125-S1'
+  ~ pk=63 | name: 'AIR03-160' -> 'AIR03-SYM160-S1' | code: 'AIR03-160' -> 'AIR03-SYM160-S1'
+  ~ pk=66 | name: 'AIR03-180' -> 'AIR03-SYM180-S1' | code: 'AIR03-180' -> 'AIR03-SYM180-S1'
+  ~ pk=67 | name: 'AIR04-180' -> 'AIR04-SYM180-S1' | code: 'AIR04-180' -> 'AIR04-SYM180-S1'
+  ~ pk=73 | name: 'AIR04-200' -> 'AIR04-SYM200-S1' | code: 'AIR04-200' -> 'AIR04-SYM200-S1'
+  ~ pk=76 | name: 'AIR04-220' -> 'AIR04-SYM220-S1' | code: 'AIR04-220' -> 'AIR04-SYM220-S1'
+  ~ pk=78 | name: 'AIR04-260' -> 'AIR04-SYM260-S2' | code: 'AIR04-260' -> 'AIR04-SYM260-S2'
+
+=== pneumatic_actuators_pneumaticactuatoritem (+0 added, -1 removed, ~0 changed) ===
+  - pk=1 id=1 | name='AIR03-SYM125-S1-S3.fl SR Пружин: 12 пружин; Положение безопасности:Оставаться в...(130 chars) | code='AIR03-SYM125-S1-S3.fl' | description='AIR03-SYM125-S1-S3.fl SR Пружин: 12 пружин; Положение безопасности:Оставаться в...(174 chars) | sorting_order=0 | is_active=1 | extra_params='{}' | body_id=60 | equipment_type_id=3 | image_gallery_id=None | model_line_id=11 | pneumatic_actuator_variety_id=2 | selected_body_coating_id=None | selected_hand_wheel_id=None | selected_ip_id=None | selected_safety_position_id=1 | selected_springs_qty_id=9 | selected_temperature_id=None | sku_id=1542 | source_model_line_item_id=77 | selected_exd_id=None
+
+=== pneumatic_actuators_pneumaticactuatormodelline (+0 added, -0 removed, ~1 changed) ===
+  ~ pk=6 | image_gallery_id: 55 -> None
+
+=== pneumatic_actuators_pneumaticactuatormodellineitem (+43 added, -12 removed, ~7 changed) ===
+  + pk=103 id=103 | name='AIR14-SY200' | code='AIR14-SY200' | description='' | sorting_order=2 | is_active=1 | body_id=16 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=104 id=104 | name='AIR14-SY250' | code='AIR14-SY250' | description='' | sorting_order=4 | is_active=1 | body_id=17 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=105 id=105 | name='AIR16-SY280' | code='AIR16-SY280' | description='' | sorting_order=6 | is_active=1 | body_id=18 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=106 id=106 | name='AIR16-SY300' | code='AIR16-SY300' | description='' | sorting_order=8 | is_active=1 | body_id=19 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=107 id=107 | name='AIR25-SY280' | code='AIR25-SY280' | description='' | sorting_order=10 | is_active=1 | body_id=20 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=108 id=108 | name='AIR25-SY300' | code='AIR25-SY300' | description='' | sorting_order=12 | is_active=1 | body_id=21 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=109 id=109 | name='AIR25-SY350' | code='AIR25-SY350' | description='' | sorting_order=14 | is_active=1 | body_id=22 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=110 id=110 | name='AIR30-SY400' | code='AIR30-SY400' | description='' | sorting_order=16 | is_active=1 | body_id=23 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=111 id=111 | name='AIR30-SY450' | code='AIR30-SY450' | description='' | sorting_order=18 | is_active=1 | body_id=24 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=112 id=112 | name='AIR30-SY500' | code='AIR30-SY500' | description='' | sorting_order=20 | is_active=1 | body_id=25 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=113 id=113 | name='AIR35-SY450' | code='AIR35-SY450' | description='' | sorting_order=22 | is_active=1 | body_id=26 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=114 id=114 | name='AIR35-SY500' | code='AIR35-SY500' | description='' | sorting_order=24 | is_active=1 | body_id=27 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=115 id=115 | name='AIR35-SY550' | code='AIR35-SY550' | description='' | sorting_order=26 | is_active=1 | body_id=28 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=116 id=116 | name='AIR35-SY600' | code='AIR35-SY600' | description='' | sorting_order=28 | is_active=1 | body_id=29 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=117 id=117 | name='AIR40-SY700' | code='AIR40-SY700' | description='' | sorting_order=30 | is_active=1 | body_id=30 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=118 id=118 | name='AIR16-SY200-D' | code='AIR16-SY200-D' | description='' | sorting_order=2 | is_active=1 | body_id=31 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=119 id=119 | name='AIR16-SY250-D' | code='AIR16-SY250-D' | description='' | sorting_order=4 | is_active=1 | body_id=32 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=120 id=120 | name='AIR16-SY280-D' | code='AIR16-SY280-D' | description='' | sorting_order=6 | is_active=1 | body_id=33 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=121 id=121 | name='AIR16-SY300-D' | code='AIR16-SY300-D' | description='' | sorting_order=8 | is_active=1 | body_id=34 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=122 id=122 | name='AIR30-SY280-D' | code='AIR30-SY280-D' | description='' | sorting_order=10 | is_active=1 | body_id=35 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=123 id=123 | name='AIR30-SY320-D' | code='AIR30-SY320-D' | description='' | sorting_order=12 | is_active=1 | body_id=36 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=124 id=124 | name='AIR30-SY350-D' | code='AIR30-SY350-D' | description='' | sorting_order=14 | is_active=1 | body_id=37 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=125 id=125 | name='AIR30-SY400-D' | code='AIR30-SY400-D' | description='' | sorting_order=16 | is_active=1 | body_id=38 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=126 id=126 | name='AIR35-SY450-D' | code='AIR35-SY450-D' | description='' | sorting_order=18 | is_active=1 | body_id=39 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=127 id=127 | name='AIR40-SY500-D' | code='AIR40-SY500-D' | description='' | sorting_order=20 | is_active=1 | body_id=40 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=128 id=128 | name='AIR40-SY550-D' | code='AIR40-SY550-D' | description='' | sorting_order=22 | is_active=1 | body_id=41 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=129 id=129 | name='AIR40-SY600-D' | code='AIR40-SY600-D' | description='' | sorting_order=24 | is_active=1 | body_id=42 | model_line_id=6 | pneumatic_actuator_variety_id=1 | image_gallery_id=None | extra_params='{}'
+  + pk=130 id=130 | name='AIR14-SYM200-S2' | code='AIR14-SYM200-S2' | description='' | sorting_order=2 | is_active=1 | body_id=43 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=131 id=131 | name='AIR14-SYM250-S2' | code='AIR14-SYM250-S2' | description='' | sorting_order=4 | is_active=1 | body_id=44 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=132 id=132 | name='AIR14-SYM280-S2' | code='AIR14-SYM280-S2' | description='' | sorting_order=6 | is_active=1 | body_id=45 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=133 id=133 | name='AIR14-SYM300-S2' | code='AIR14-SYM300-S2' | description='' | sorting_order=8 | is_active=1 | body_id=46 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=134 id=134 | name='AIR25-SYM280-S3' | code='AIR25-SYM280-S3' | description='' | sorting_order=10 | is_active=1 | body_id=47 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=135 id=135 | name='AIR25-SYM300-S3' | code='AIR25-SYM300-S3' | description='' | sorting_order=12 | is_active=1 | body_id=48 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=136 id=136 | name='AIR25-SYM350-S3' | code='AIR25-SYM350-S3' | description='' | sorting_order=14 | is_active=1 | body_id=49 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=137 id=137 | name='AIR25-SYM400-S3' | code='AIR25-SYM400-S3' | description='' | sorting_order=16 | is_active=1 | body_id=50 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=138 id=138 | name='AIR25-SYM450-S4' | code='AIR25-SYM450-S4' | description='' | sorting_order=18 | is_active=1 | body_id=51 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=139 id=139 | name='AIR30-SYM500-S4' | code='AIR30-SYM500-S4' | description='' | sorting_order=20 | is_active=1 | body_id=52 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=140 id=140 | name='AIR35-SYM450-S5' | code='AIR35-SYM450-S5' | description='' | sorting_order=22 | is_active=1 | body_id=53 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=141 id=141 | name='AIR35-SYM500-S5' | code='AIR35-SYM500-S5' | description='' | sorting_order=24 | is_active=1 | body_id=54 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=142 id=142 | name='AIR35-SYM550-S5' | code='AIR35-SYM550-S5' | description='' | sorting_order=26 | is_active=1 | body_id=55 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=143 id=143 | name='AIR35-SYM600-S5' | code='AIR35-SYM600-S5' | description='' | sorting_order=28 | is_active=1 | body_id=56 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=144 id=144 | name='AIR35-SYM700-S5' | code='AIR35-SYM700-S5' | description='' | sorting_order=30 | is_active=1 | body_id=57 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  + pk=146 id=146 | name='AIR35-SYM500-S5 Копия' | code='AIR35-SYM500-S5 Копия' | description='' | sorting_order=24 | is_active=1 | body_id=54 | model_line_id=6 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=78 id=78 | name='AIR03-SYM125-S2' | code='AIR03-SYM125-S2' | description='' | sorting_order=4 | is_active=1 | body_id=59 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=79 id=79 | name='AIR03-SYM125-S3' | code='AIR03-SYM125-S3' | description='' | sorting_order=6 | is_active=1 | body_id=61 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=80 id=80 | name='AIR03-SYM160-S1' | code='AIR03-SYM160-S1' | description='' | sorting_order=8 | is_active=1 | body_id=63 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=81 id=81 | name='AIR03-SYM160-S2' | code='AIR03-SYM160-S2' | description='' | sorting_order=10 | is_active=1 | body_id=62 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=84 id=84 | name='AIR03-SYM180-S2' | code='AIR03-SYM180-S2' | description='' | sorting_order=16 | is_active=1 | body_id=65 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=85 id=85 | name='AIR03-SYM180-S3' | code='AIR03-SYM180-S3' | description='' | sorting_order=18 | is_active=1 | body_id=69 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=88 id=88 | name='AIR04-SYM180-S3' | code='AIR04-SYM180-S3' | description='' | sorting_order=24 | is_active=1 | body_id=70 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=90 id=90 | name='AIR04-SYM200-S2' | code='AIR04-SYM200-S2' | description='' | sorting_order=28 | is_active=1 | body_id=72 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=91 id=91 | name='AIR04-SYM200-S3' | code='AIR04-SYM200-S3' | description='' | sorting_order=30 | is_active=1 | body_id=71 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=93 id=93 | name='AIR04-SYM220-S2' | code='AIR04-SYM220-S2' | description='' | sorting_order=34 | is_active=1 | body_id=75 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=94 id=94 | name='AIR04-SYM220-S3' | code='AIR04-SYM220-S3' | description='' | sorting_order=36 | is_active=1 | body_id=74 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  - pk=96 id=96 | name='AIR04-SYM260-S3' | code='AIR04-SYM260-S3' | description='' | sorting_order=40 | is_active=1 | body_id=77 | model_line_id=11 | pneumatic_actuator_variety_id=2 | image_gallery_id=None | extra_params='{}'
+  ~ pk=82 | name: 'AIR03-SYM160' -> 'AIR03-SYM160-S3' | code: 'AIR03-SYM160' -> 'AIR03-SYM160-S3' | body_id: 63 -> 61
+  ~ pk=83 | name: 'AIR03-SYM180' -> 'AIR03-SYM180-S1' | code: 'AIR03-SYM180' -> 'AIR03-SYM180-S1'
+  ~ pk=86 | name: 'AIR04-SYM180' -> 'AIR04-SYM180-S1' | code: 'AIR04-SYM180' -> 'AIR04-SYM180-S1'
+  ~ pk=87 | name: 'AIR04-SY180' -> 'AIR04-SYM180-S2' | code: 'AIR04-SY180' -> 'AIR04-SYM180-S2' | body_id: 67 -> 68 | pneumatic_actuator_variety_id: 1 -> 2
+  ~ pk=89 | name: 'AIR04-SYM200' -> 'AIR04-SYM200-S1' | code: 'AIR04-SYM200' -> 'AIR04-SYM200-S1'
+  ~ pk=92 | name: 'AIR04-SYM220' -> 'AIR04-SYM220-S1' | code: 'AIR04-SYM220' -> 'AIR04-SYM220-S1'
+  ~ pk=95 | name: 'AIR04-SYM260' -> 'AIR04-SYM260-S2' | code: 'AIR04-SYM260' -> 'AIR04-SYM260-S2'
+
+=== pneumatic_actuators_pneumaticsafetypositionoption (+59 added, -25 removed, ~1 changed) ===
+  + pk=193 id=193 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=103 | safety_position_id=1
+  + pk=194 id=194 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=104 | safety_position_id=1
+  + pk=195 id=195 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=105 | safety_position_id=1
+  + pk=196 id=196 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=106 | safety_position_id=1
+  + pk=197 id=197 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=107 | safety_position_id=1
+  + pk=198 id=198 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=108 | safety_position_id=1
+  + pk=199 id=199 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=109 | safety_position_id=1
+  + pk=200 id=200 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=110 | safety_position_id=1
+  + pk=201 id=201 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=111 | safety_position_id=1
+  + pk=202 id=202 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=112 | safety_position_id=1
+  + pk=203 id=203 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=113 | safety_position_id=1
+  + pk=204 id=204 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=114 | safety_position_id=1
+  + pk=205 id=205 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=115 | safety_position_id=1
+  + pk=206 id=206 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=116 | safety_position_id=1
+  + pk=207 id=207 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=117 | safety_position_id=1
+  + pk=208 id=208 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=118 | safety_position_id=1
+  + pk=209 id=209 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=119 | safety_position_id=1
+  + pk=210 id=210 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=120 | safety_position_id=1
+  + pk=211 id=211 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=121 | safety_position_id=1
+  + pk=212 id=212 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=122 | safety_position_id=1
+  + pk=213 id=213 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=123 | safety_position_id=1
+  + pk=214 id=214 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=124 | safety_position_id=1
+  + pk=215 id=215 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=125 | safety_position_id=1
+  + pk=216 id=216 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=126 | safety_position_id=1
+  + pk=217 id=217 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=127 | safety_position_id=1
+  + pk=218 id=218 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=128 | safety_position_id=1
+  + pk=219 id=219 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=129 | safety_position_id=1
+  + pk=220 id=220 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=130 | safety_position_id=3
+  + pk=221 id=221 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=130 | safety_position_id=2
+  + pk=222 id=222 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=131 | safety_position_id=3
+  + pk=223 id=223 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=131 | safety_position_id=2
+  + pk=224 id=224 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=132 | safety_position_id=3
+  + pk=225 id=225 | encoding='NC' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=132 | safety_position_id=2
+  + pk=226 id=226 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=133 | safety_position_id=3
+  + pk=227 id=227 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=133 | safety_position_id=2
+  + pk=228 id=228 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=134 | safety_position_id=3
+  + pk=229 id=229 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=134 | safety_position_id=2
+  + pk=230 id=230 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=135 | safety_position_id=3
+  + pk=231 id=231 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=135 | safety_position_id=2
+  + pk=232 id=232 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=136 | safety_position_id=3
+  + pk=233 id=233 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=136 | safety_position_id=2
+  + pk=234 id=234 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=137 | safety_position_id=3
+  + pk=235 id=235 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=137 | safety_position_id=2
+  + pk=236 id=236 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=138 | safety_position_id=3
+  + pk=237 id=237 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=138 | safety_position_id=2
+  + pk=238 id=238 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=139 | safety_position_id=3
+  + pk=239 id=239 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=139 | safety_position_id=2
+  + pk=240 id=240 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=140 | safety_position_id=3
+  + pk=241 id=241 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=140 | safety_position_id=2
+  + pk=242 id=242 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=141 | safety_position_id=3
+  + pk=243 id=243 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=141 | safety_position_id=2
+  + pk=244 id=244 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=142 | safety_position_id=3
+  + pk=245 id=245 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=142 | safety_position_id=2
+  + pk=246 id=246 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=143 | safety_position_id=3
+  + pk=247 id=247 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=143 | safety_position_id=2
+  + pk=248 id=248 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=144 | safety_position_id=3
+  + pk=249 id=249 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=144 | safety_position_id=2
+  + pk=252 id=252 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=146 | safety_position_id=3
+  + pk=253 id=253 | encoding='NO_copy' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=146 | safety_position_id=2
+  - pk=143 id=143 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=78 | safety_position_id=3
+  - pk=144 id=144 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=78 | safety_position_id=2
+  - pk=145 id=145 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=79 | safety_position_id=3
+  - pk=146 id=146 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=79 | safety_position_id=2
+  - pk=147 id=147 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=80 | safety_position_id=3
+  - pk=148 id=148 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=80 | safety_position_id=2
+  - pk=149 id=149 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=81 | safety_position_id=3
+  - pk=150 id=150 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=81 | safety_position_id=2
+  - pk=155 id=155 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=84 | safety_position_id=3
+  - pk=156 id=156 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=84 | safety_position_id=2
+  - pk=157 id=157 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=85 | safety_position_id=3
+  - pk=158 id=158 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=85 | safety_position_id=2
+  - pk=162 id=162 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=87 | safety_position_id=2
+  - pk=163 id=163 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=88 | safety_position_id=3
+  - pk=164 id=164 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=88 | safety_position_id=2
+  - pk=167 id=167 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=90 | safety_position_id=3
+  - pk=168 id=168 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=90 | safety_position_id=2
+  - pk=169 id=169 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=91 | safety_position_id=3
+  - pk=170 id=170 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=91 | safety_position_id=2
+  - pk=173 id=173 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=93 | safety_position_id=3
+  - pk=174 id=174 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=93 | safety_position_id=2
+  - pk=175 id=175 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=94 | safety_position_id=3
+  - pk=176 id=176 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=94 | safety_position_id=2
+  - pk=179 id=179 | encoding='NC' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=96 | safety_position_id=3
+  - pk=180 id=180 | encoding='NO' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=96 | safety_position_id=2
+  ~ pk=161 | encoding: '' -> 'NC' | safety_position_id: 1 -> 3
+
+=== pneumatic_actuators_pneumaticspringsqtyoption (+54 added, -12 removed, ~7 changed) ===
+  + pk=316 id=316 | encoding='S2' | description='' | sorting_order=4 | is_active=1 | is_default=0 | model_line_item_id=82 | springs_qty_id=8
+  + pk=317 id=317 | encoding='S1' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=82 | springs_qty_id=7
+  + pk=318 id=318 | encoding='S2' | description='' | sorting_order=4 | is_active=1 | is_default=0 | model_line_item_id=83 | springs_qty_id=8
+  + pk=319 id=319 | encoding='S1' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=83 | springs_qty_id=7
+  + pk=320 id=320 | encoding='S2' | description='' | sorting_order=4 | is_active=1 | is_default=0 | model_line_item_id=86 | springs_qty_id=8
+  + pk=321 id=321 | encoding='S1' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=86 | springs_qty_id=7
+  + pk=322 id=322 | encoding='S2' | description='' | sorting_order=4 | is_active=1 | is_default=0 | model_line_item_id=89 | springs_qty_id=8
+  + pk=323 id=323 | encoding='S1' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=89 | springs_qty_id=7
+  + pk=324 id=324 | encoding='S2' | description='' | sorting_order=4 | is_active=1 | is_default=0 | model_line_item_id=92 | springs_qty_id=8
+  + pk=325 id=325 | encoding='S1' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=92 | springs_qty_id=7
+  + pk=326 id=326 | encoding='S2' | description='' | sorting_order=2 | is_active=1 | is_default=0 | model_line_item_id=95 | springs_qty_id=8
+  + pk=327 id=327 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=103 | springs_qty_id=1
+  + pk=328 id=328 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=104 | springs_qty_id=1
+  + pk=329 id=329 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=105 | springs_qty_id=1
+  + pk=330 id=330 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=106 | springs_qty_id=1
+  + pk=331 id=331 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=107 | springs_qty_id=1
+  + pk=332 id=332 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=108 | springs_qty_id=1
+  + pk=333 id=333 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=109 | springs_qty_id=1
+  + pk=334 id=334 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=110 | springs_qty_id=1
+  + pk=335 id=335 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=111 | springs_qty_id=1
+  + pk=336 id=336 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=112 | springs_qty_id=1
+  + pk=337 id=337 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=113 | springs_qty_id=1
+  + pk=338 id=338 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=114 | springs_qty_id=1
+  + pk=339 id=339 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=115 | springs_qty_id=1
+  + pk=340 id=340 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=116 | springs_qty_id=1
+  + pk=341 id=341 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=117 | springs_qty_id=1
+  + pk=342 id=342 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=118 | springs_qty_id=1
+  + pk=343 id=343 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=119 | springs_qty_id=1
+  + pk=344 id=344 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=120 | springs_qty_id=1
+  + pk=345 id=345 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=121 | springs_qty_id=1
+  + pk=346 id=346 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=122 | springs_qty_id=1
+  + pk=347 id=347 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=123 | springs_qty_id=1
+  + pk=348 id=348 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=124 | springs_qty_id=1
+  + pk=349 id=349 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=125 | springs_qty_id=1
+  + pk=350 id=350 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=126 | springs_qty_id=1
+  + pk=351 id=351 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=127 | springs_qty_id=1
+  + pk=352 id=352 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=128 | springs_qty_id=1
+  + pk=353 id=353 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=0 | model_line_item_id=129 | springs_qty_id=1
+  + pk=354 id=354 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=130 | springs_qty_id=9
+  + pk=355 id=355 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=131 | springs_qty_id=9
+  + pk=356 id=356 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=132 | springs_qty_id=9
+  + pk=357 id=357 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=133 | springs_qty_id=9
+  + pk=358 id=358 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=134 | springs_qty_id=9
+  + pk=359 id=359 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=135 | springs_qty_id=9
+  + pk=360 id=360 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=136 | springs_qty_id=9
+  + pk=361 id=361 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=137 | springs_qty_id=9
+  + pk=362 id=362 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=138 | springs_qty_id=9
+  + pk=363 id=363 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=139 | springs_qty_id=9
+  + pk=364 id=364 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=140 | springs_qty_id=9
+  + pk=365 id=365 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=141 | springs_qty_id=9
+  + pk=366 id=366 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=142 | springs_qty_id=9
+  + pk=367 id=367 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=143 | springs_qty_id=9
+  + pk=368 id=368 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=144 | springs_qty_id=9
+  + pk=370 id=370 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=146 | springs_qty_id=9
+  - pk=287 id=287 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=78 | springs_qty_id=9
+  - pk=288 id=288 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=79 | springs_qty_id=9
+  - pk=289 id=289 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=80 | springs_qty_id=9
+  - pk=290 id=290 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=81 | springs_qty_id=9
+  - pk=293 id=293 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=84 | springs_qty_id=9
+  - pk=294 id=294 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=85 | springs_qty_id=9
+  - pk=297 id=297 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=88 | springs_qty_id=9
+  - pk=299 id=299 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=90 | springs_qty_id=9
+  - pk=300 id=300 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=91 | springs_qty_id=9
+  - pk=302 id=302 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=93 | springs_qty_id=9
+  - pk=303 id=303 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=94 | springs_qty_id=9
+  - pk=305 id=305 | encoding='' | description='' | sorting_order=0 | is_active=1 | is_default=1 | model_line_item_id=96 | springs_qty_id=9
+  ~ pk=291 | encoding: 'S3' -> '' | sorting_order: 6 -> 0
+  ~ pk=292 | encoding: 'S3' -> '' | sorting_order: 6 -> 0
+  ~ pk=295 | encoding: 'S3' -> '' | sorting_order: 6 -> 0
+  ~ pk=296 | springs_qty_id: 1 -> 9
+  ~ pk=298 | encoding: 'S3' -> '' | sorting_order: 6 -> 0
+  ~ pk=301 | encoding: 'S3' -> '' | sorting_order: 6 -> 0
+  ~ pk=304 | encoding: 'S3' -> '' | sorting_order: 4 -> 0
+
+=== price_pricedocument (+0 added, -1 removed, ~0 changed) ===
+  - pk=13 id=13 | name='RD8' | document_date='2026-09-21' | description='' | sorting_order=0 | is_active=1 | status='posted' | default_currency_id=2 | default_price_variety_id=1 | code='ЦЕНА--000002' | created_at='2026-09-21 06:29:13.463750' | updated_at='2026-09-21 06:29:58.559293'
+
+=== price_pricedocumentitem (+0 added, -1 removed, ~0 changed) ===
+  - pk=236 id=236 | price=1897 | comment='' | sorting_order=0 | is_active=1 | currency_id=2 | document_id=13 | price_variety_id=1 | sku_id=15 | created_at='2026-09-21 06:29:48.519600' | updated_at='2026-09-21 06:29:48.519624'
+
+=== price_pricehistory (+0 added, -1 removed, ~1 changed) ===
+  - pk=361 id=361 | name='RD-8 Ручной дублер расцепляемый Четвертьоборотный Artorq Макс: 6000.00 Нм; IP65...(159 chars) | code='RD-8' | price=1897 | price_date='2026-09-21' | sorting_order=0 | is_active=1 | currency_id=2 | price_variety_id=1 | content_type_id=None | is_current=1 | object_id=None | source_document_id=13 | sku_id=15
+  ~ pk=157 | is_current: 1 -> 0
