@@ -328,7 +328,12 @@ def _intent_message(intent: str) -> str:
 class EquipmentTypeListSerializer(serializers.ModelSerializer):
     class Meta:
         model = EquipmentType
-        fields = ["id", "code", "name", "level", "filter_endpoint", "param_semantics", "is_active"]
+        fields = [
+            "id", "code", "name", "description", "icon", "level", "parent",
+            "sorting_order", "filter_endpoint", "title_template", "spec_template",
+            "param_semantics", "ai_title", "ai_description", "ai_placeholder",
+            "ai_hints", "is_active",
+        ]
 
 class EquipmentTypeListView(ListAPIView):
     pagination_class = None
@@ -345,6 +350,35 @@ class EquipmentTypeListView(ListAPIView):
         ser.is_valid(raise_exception=True)
         ser.save()
         return Response(ser.data)
+
+
+class EquipmentTypeTemplateFieldsView(APIView):
+    """GET /api/ai-assistant/equipment-type-template-fields/ — справочник
+    плейсхолдеров и ключей полей для редакторов title_template/spec_template.
+
+    Query-параметр ``equipment_type`` (id) — вернуть поля только этого типа
+    оборудования; без него — объединение по всем каталогам.
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from core.template_field_registry import (
+            collect_template_fields_for_equipment_type,
+            collect_placeholder_choices,
+            collect_field_choices,
+        )
+        et_id = request.query_params.get('equipment_type')
+        specs = None
+        if et_id:
+            try:
+                et = EquipmentType.objects.get(pk=et_id)
+            except EquipmentType.DoesNotExist:
+                return Response({'error': 'EquipmentType not found'}, status=404)
+            specs = collect_template_fields_for_equipment_type(et)
+        return Response({
+            'placeholders': collect_placeholder_choices(specs),
+            'fields': collect_field_choices(specs),
+        })
 
 class CustomerListSerializer(serializers.ModelSerializer):
     class Meta:

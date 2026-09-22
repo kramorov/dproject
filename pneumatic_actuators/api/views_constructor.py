@@ -223,9 +223,10 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def preview(self, request):
-        """
-        Превью: возвращает to_dict() model_line_item + динамический код/описание.
-        """
+        """Превью: собирает несохранённый PneumaticActuatorItem (общий паттерн)
+        и возвращает его to_dict(). Спецификация берётся из реестра
+        TEMPLATE_FIELDS + spec_template (серия → EquipmentType), а не из
+        отдельного захардкоженного словаря значений."""
         obj = self._build_from_request(request)
         obj._ensure_valid_options()
         if obj.selected_temperature:
@@ -236,29 +237,16 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         if not mli:
             return Response({'error': 'model_line_item required'}, status=400)
 
-        # Базовая структура из to_dict()
-        data = mli.to_dict()
+        from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
 
-        # Переопределяем title/code/description динамическим кодом
-        data['title'] = obj.generated_model_item_code
-        data['code'] = obj.generated_model_item_code
-        data['description'] = obj._generate_short_description()
-        # Подменяем статичное описание в секции на динамическое
-        for s in data.get('sections', []):
-            if s.get('key') == 'description':
-                s['data'] = data['description']
-        data['tech_description'] = obj._generate_tech_description()  # HTML для кнопки «Просмотр» в legacy-конструкторе
+        item = PneumaticActuatorItem.from_constructor(obj)
+        item.code = item.generated_model_item_code or None
+        item.name = item.generate_name() or item.code or ''
+        item.description = item.generate_description() or ''
 
-        # === Перестраиваем specs из spec_template (серия → EquipmentType) ===
-        spec_vars = obj.get_spec_vars()
-        spec_data = mli._get_spec_sections(vars=spec_vars)
-
-        data['sections'] = [s for s in data.get('sections', []) if s['key'] != 'specs']
-        data['sections'].insert(1, {
-            'key': 'specs', 'title': 'Характеристики', 'type': 'specs', 'order': 1,
-            'data': spec_data,
-        })
-
+        data = item.to_dict()
+        # HTML-описание для кнопки «Просмотр спецификации» (legacy-модалка).
+        data['tech_description'] = obj._generate_tech_description()
         return Response(data)
 
     @action(detail=False, methods=['post'], url_path='create-sku')

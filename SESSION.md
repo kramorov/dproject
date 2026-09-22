@@ -182,6 +182,17 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 9. ~~Полная зачистка QuestionGraph~~ — **отменено 2026-09-09**: QuestionGraph восстановлен
    (см. п. 8) и остаётся основным мастером; плоский `SelectionWizard` — fallback.
    Зачем нужен граф и где используется: `sw.md` §0.
+10. **Конфигуратор ПП → общий паттерн (сделано 2026-09-22), остаток на потом**:
+    `ConstructorViewSet.preview` теперь рендерит спецификацию через
+    `PneumaticActuatorItem.from_constructor()` + `item.to_dict()` (реестр
+    `TEMPLATE_FIELDS` + `spec_template` серия→EquipmentType), а не через `get_spec_vars()`.
+    Осталось: legacy-методы `PneumaticActuatorConstructor` — `get_spec_vars()`,
+    `get_description_data()`, `_generate_short_description()`, `_generate_tech_description()` —
+    ещё нужны для `tech_description` (HTML-модалка «Просмотр спецификации» в preview)
+    и для старой `PneumaticActuatorSelected`. Перенести генерацию HTML-спеки на item
+    (из `_get_spec_sections()`; `torque_table` уже приходит как `{'__html': ...}`),
+    затем удалить методы + Selected/Constructor (см. п. 4). Заодно починено:
+    `pneumatic-actuator.title_template` было битым `'{thread_in}'` → сброшено в `None`.
 
 ## 8. Кабельные вводы (cable_glands) — артикул на through-опциях + конструктор
 

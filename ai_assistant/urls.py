@@ -6,7 +6,7 @@ from .api.views import (
     PipelineSkillViewSet, SkillOverrideViewSet, JSONSchemaViewSet,
     CompositionGroupViewSet, CompositionGroupTreeView, EquipmentTypeTreeView, MBOMViewSet, MBOMItemViewSet,
     DecomposeView, ExtractView, FilterView, SelectView,
-    CompareView, EBOMView, MBOMView, TreeView,
+    CompareView, EBOMView, MBOMView, TreeView, EquipmentTypeTemplateFieldsView,
 )
 
 router = DefaultRouter()
@@ -27,6 +27,7 @@ urlpatterns = [
 
     path("equipment-types/", EquipmentTypeListView.as_view(), name="ai-equipment-types"),
     path("equipment-types/<int:pk>/", EquipmentTypeListView.as_view(), name="ai-equipment-types-detail"),
+    path("equipment-type-template-fields/", EquipmentTypeTemplateFieldsView.as_view(), name="ai-equipment-type-template-fields"),
     path("model-roles/", ModelRolesView.as_view(), name="ai-model-roles"),
     path("customers/", CustomerListView.as_view(), name="ai-customers"),
 

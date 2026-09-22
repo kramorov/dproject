@@ -54,6 +54,19 @@ from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE, ACTUATOR_VARI
 logger = logging.getLogger(__name__)
 
 
+def _fmt_num(value) -> str:
+    """Отформатировать Decimal/int/float без лишних нулей (27.0 -> 27, 3.50 -> 3.5)."""
+    if value is None:
+        return ''
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if f == int(f):
+        return str(int(f))
+    return (f"{f:.2f}").rstrip('0').rstrip('.')
+
+
 class PneumaticActuatorItem(
     CatalogSerializerMixin,
     ImageGalleryMixin,
@@ -271,6 +284,29 @@ class PneumaticActuatorItem(
 
     def __str__(self):
         return self.name or self.code or f'PneumaticActuatorItem #{self.pk}'
+
+    @classmethod
+    def from_constructor(cls, constructor):
+        """Собрать несохранённый item из конфигурации конструктора.
+
+        Единый паттерн: превью/спецификация конструктора рендерятся через эту
+        эталонную модель (реестр TEMPLATE_FIELDS + spec_template), а не через
+        отдельный захардкоженный словарь значений.
+        """
+        mli = getattr(constructor, 'selected_model_line_item', None)
+        return cls(
+            model_line=mli.model_line if mli else None,
+            body=mli.body if mli else None,
+            pneumatic_actuator_variety=mli.pneumatic_actuator_variety if mli else None,
+            source_model_line_item=mli,
+            selected_safety_position=getattr(constructor, 'selected_safety_position', None),
+            selected_springs_qty=getattr(constructor, 'selected_springs_qty', None),
+            selected_temperature=getattr(constructor, 'selected_temperature', None),
+            selected_ip=getattr(constructor, 'selected_ip', None),
+            selected_exd=getattr(constructor, 'selected_exd', None),
+            selected_body_coating=getattr(constructor, 'selected_body_coating', None),
+            selected_hand_wheel=getattr(constructor, 'selected_hand_wheel', None),
+        )
 
     # ═══════════════════════════════════════════════════════════════
     # SKUMixin — SKU создаётся из этой модели (стандартный путь)
@@ -501,8 +537,8 @@ class PneumaticActuatorItem(
 
     def _res_pressure(self) -> str:
         body = self.body
-        if body and body.min_pressure_bar:
-            return f"{body.min_pressure_bar} - {body.max_pressure_bar} бар"
+        if body and body.min_pressure_bar is not None:
+            return f"{_fmt_num(body.min_pressure_bar)} - {_fmt_num(body.max_pressure_bar)} бар"
         return ''
 
     def _res_air_usage(self) -> str:
@@ -518,6 +554,69 @@ class PneumaticActuatorItem(
         if body and body.pneumatic_connection.exists():
             return ', '.join(str(c) for c in body.pneumatic_connection.all())
         return ''
+
+    def _res_piston_diameter(self) -> str:
+        body = self.body
+        if body and body.piston_diameter is not None:
+            return f"{_fmt_num(body.piston_diameter)} мм"
+        return ''
+
+    def _res_weight_spring(self) -> str:
+        body = self.body
+        if body and body.weight_spring is not None:
+            return f"{_fmt_num(body.weight_spring)} кг"
+        return ''
+
+    def _res_pressure_min(self) -> str:
+        body = self.body
+        if body and body.min_pressure_bar is not None:
+            return f"{_fmt_num(body.min_pressure_bar)} бар"
+        return ''
+
+    def _res_pressure_max(self) -> str:
+        body = self.body
+        if body and body.max_pressure_bar is not None:
+            return f"{_fmt_num(body.max_pressure_bar)} бар"
+        return ''
+
+    def _res_air_usage_open(self) -> str:
+        body = self.body
+        if body and body.air_usage_open is not None:
+            return f"{_fmt_num(body.air_usage_open)} л"
+        return ''
+
+    def _res_air_usage_close(self) -> str:
+        body = self.body
+        if body and body.air_usage_close is not None:
+            return f"{_fmt_num(body.air_usage_close)} л"
+        return ''
+
+    def _res_max_stem_height(self) -> str:
+        body = self.body
+        if body and body.max_stem_height is not None:
+            return f"{_fmt_num(body.max_stem_height)} мм"
+        return ''
+
+    def _res_max_stem_diameter(self) -> str:
+        body = self.body
+        if body and body.max_stem_diameter is not None:
+            return f"{_fmt_num(body.max_stem_diameter)} мм"
+        return ''
+
+    def _res_stem_size_dim(self) -> str:
+        """Габарит штока: для квадрата — «27×27», для вала со шпонкой — «16×5»."""
+        body = self.body
+        if not body or not body.stem_size:
+            return ''
+        ss = body.stem_size
+        d = _fmt_num(ss.stem_diameter)
+        stem_code = (ss.stem_type.code if ss.stem_type else '') or ''
+        if stem_code == 'sq':
+            return f"{d}×{d}" if d else (ss.name or '')
+        key = _fmt_num(ss.chunk_x)
+        if d and key:
+            return f"{d}×{key}"
+        return ss.name or ''
 
     def _res_torque_table(self):
         """HTML-блок таблицы моментов/усилий по выбранной конфигурации (DA или пружины SR)."""
