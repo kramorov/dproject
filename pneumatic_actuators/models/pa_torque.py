@@ -92,7 +92,10 @@ class BodyThrustTorqueTable(models.Model):
         verbose_name_plural = _("Таблица моментов/усилий пневмоприводов")
 
     def __str__(self):
-        return f"Таблица моментов/усилий для {self.body.name}"
+        body = self.body
+        if body is None:
+            return f"Таблица моментов/усилий #{self.pk or '—'}"
+        return f"Таблица моментов/усилий для {body.name}"
 
         # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
@@ -1163,6 +1166,7 @@ class BodyThrustTorqueTable(models.Model):
     @classmethod
     def find_suitable_actuators(cls , torque_with_sf: float , work_pressure_id: int ,
                                 actuator_variety: str , body_ids: Optional[List[int]] = None ,
+                                model_line_id: Optional[int] = None ,
                                 max_bodies_per_series: int = 2) -> List[Dict] :
         """
         Найти подходящие приводы по моменту и давлению
@@ -1213,11 +1217,18 @@ class BodyThrustTorqueTable(models.Model):
                     'spring_margin' : result.get('spring_margin' , 0)
                 }
 
-        # Получаем все model_line_item для найденных body
-        model_line_items = PneumaticActuatorModelLineItem.objects.filter(
+        # Получаем все model_line_item для найденных body.
+        # Если серия задана явно (model_line_id), ограничиваем выдачу только ей:
+        # у разных серий бывают общие корпуса (body), иначе в выдачу попадут чужие серии.
+        model_line_items_qs = PneumaticActuatorModelLineItem.objects.filter(
             body_id__in=body_info_map.keys() ,
             is_active=True
-        ).select_related('model_line' , 'pneumatic_actuator_variety').order_by(
+        )
+        if model_line_id :
+            model_line_items_qs = model_line_items_qs.filter(model_line_id=model_line_id)
+        model_line_items = model_line_items_qs.select_related(
+            'model_line' , 'pneumatic_actuator_variety'
+        ).order_by(
             'model_line__sorting_order' ,
             'sorting_order'
         )

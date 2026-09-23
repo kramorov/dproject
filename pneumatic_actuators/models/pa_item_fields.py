@@ -105,4 +105,8 @@ PA_ITEM_TEMPLATE_FIELDS = (
     # ── Расчёт ──
     {'key': 'torque_table', 'resolver': '_res_torque_table',
      'label': 'Таблица моментов/усилий', 'group': 'Расчёт'},
+    {'key': 'time_open', 'placeholder': '{time_open}', 'resolver': '_res_time_open',
+     'label': 'Время открытия', 'unit': 'сек', 'group': 'Расчёт'},
+    {'key': 'time_close', 'placeholder': '{time_close}', 'resolver': '_res_time_close',
+     'label': 'Время закрытия', 'unit': 'сек', 'group': 'Расчёт'},
 )

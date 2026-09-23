@@ -245,8 +245,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         item.description = item.generate_description() or ''
 
         data = item.to_dict()
-        # HTML-описание для кнопки «Просмотр спецификации» (legacy-модалка).
-        data['tech_description'] = obj._generate_tech_description()
+        # HTML-описание для кнопки «Просмотр спецификации» (модалка) — из той же
+        # спецификации, что и вкладка «Характеристики» (spec_template серия → EquipmentType).
+        data['tech_description'] = item.render_spec_html()
         return Response(data)
 
     @action(detail=False, methods=['post'], url_path='create-sku')

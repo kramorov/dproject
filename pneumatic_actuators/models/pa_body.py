@@ -466,9 +466,13 @@ class PneumaticCloseTimeParameter(models.Model) :
         return f"Время откр/закр {self.spring_qty.name}:{self.time_open}/{self.time_close} сек"
 
     @classmethod
-    def get_time_to_close(cls, body_id, spring_da, pressure=None):
+    def get_time_to_close(cls, body_id, spring_da, pressure=None, valve_torque_nm=0):
         """
-        Получить время открытия/закрытия для пневмопривода
+        Получить время открытия/закрытия для пневмопривода.
+
+        ``valve_torque_nm`` — момент на арматуре (Нм). 0 — момент не задан,
+        считается базовое время без учёта сопротивления арматуры; >0 — время
+        увеличивается за счёт эквивалентного падения давления.
         """
         from pneumatic_actuators.models import PneumaticActuatorSpringsQty
         from params.models import PneumaticAirSupplyPressure
@@ -714,7 +718,7 @@ class PneumaticCloseTimeParameter(models.Model) :
             base_t_open_da=base_t_open_da,
             piston_diameter=piston_diameter,
             volume_liters=volume_liters,
-            valve_torque_nm=0
+            valve_torque_nm=valve_torque_nm
         )
 
         if result:

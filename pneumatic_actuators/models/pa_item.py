@@ -642,6 +642,97 @@ class PneumaticActuatorItem(
         html = BodyThrustTorqueTable.format_for_html(torque_data)
         return {'__html': html} if html else ''
 
+    def _get_valve_torque_nm(self) -> float:
+        """Момент на арматуре (Нм) для расчёта времени открытия/закрытия.
+
+        0 — момент не задан (служебная функция считает базовое время без учёта
+        сопротивления арматуры). Если задан в ``extra_params`` — время увеличивается
+        за счёт эквивалентного падения давления.
+        """
+        params = self.extra_params or {}
+        for key in ('valve_torque_nm', 'valve_torque', 'required_torque_nm'):
+            raw = params.get(key)
+            if raw in (None, ''):
+                continue
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                continue
+        return 0.0
+
+    def _res_time_open(self) -> str:
+        return self._res_time_value('time_open')
+
+    def _res_time_close(self) -> str:
+        return self._res_time_value('time_close')
+
+    def _res_time_value(self, key: str) -> str:
+        """Время открытия/закрытия через служебную функцию PneumaticCloseTimeParameter."""
+        from pneumatic_actuators.models import PneumaticCloseTimeParameter
+
+        if not self.body_id:
+            return ''
+        try:
+            result = PneumaticCloseTimeParameter.get_time_to_close(
+                self.body_id,
+                self.selected_springs_qty,
+                pressure=None,
+                valve_torque_nm=self._get_valve_torque_nm(),
+            )
+        except Exception:
+            logger.exception('Не удалось рассчитать время %s', key)
+            return ''
+        if not isinstance(result, dict):
+            return ''
+        value = result.get(key)
+        if value is None:
+            return ''
+        try:
+            return f"{float(value):.1f} сек"
+        except (TypeError, ValueError):
+            return str(value)
+
+    def render_spec_html(self) -> str:
+        """HTML-описание спецификации для модалки «Просмотр спецификации».
+
+        Строится из ``_get_spec_sections()`` — того же источника, что и вкладка
+        «Характеристики» (``spec_template`` серия → EquipmentType). Значение поля
+        может быть строкой или ``{'__html': ...}`` (таблица моментов) — HTML-блок
+        вставляется как есть.
+        """
+        from html import escape
+
+        sections = self._get_spec_sections()
+        if not sections:
+            return ''
+
+        parts = []
+        for group_title, fields in sections.items():
+            if not fields:
+                continue
+            parts.append(
+                f'<h4 style="margin:14px 0 6px;font-size:14px;">'
+                f'{escape(str(group_title))}</h4>'
+            )
+            parts.append(
+                '<table style="border-collapse:collapse;width:100%;font-size:13px;">'
+            )
+            for label, value in fields.items():
+                if isinstance(value, dict) and value.get('__html'):
+                    parts.append(
+                        f'<tr><td colspan="2" style="padding:6px 0;">'
+                        f'{value["__html"]}</td></tr>'
+                    )
+                else:
+                    text = str(value) if value not in (None, '') else '—'
+                    parts.append(
+                        f'<tr><td style="padding:3px 12px 3px 0;color:#6b7280;'
+                        f'white-space:nowrap;vertical-align:top;">{escape(str(label))}</td>'
+                        f'<td style="padding:3px 0;vertical-align:top;">{escape(text)}</td></tr>'
+                    )
+            parts.append('</table>')
+        return ''.join(parts)
+
     # ═══════════════════════════════════════════════════════════════
     # CatalogSerializerMixin — галерея с fallback на изображения серии
     # ═══════════════════════════════════════════════════════════════

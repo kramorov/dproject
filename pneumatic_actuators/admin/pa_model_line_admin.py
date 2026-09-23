@@ -190,6 +190,10 @@ class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Mode
             for instance in instances :
                 instance.save()
 
+            # commit=False откладывает M2M-сохранение — доводим связи явно
+            # (иначе «Виды взрывозащиты» PneumaticExdOption не записываются).
+            formset.save_m2m()
+
             for instance in formset.deleted_objects :
                 instance.delete()
 

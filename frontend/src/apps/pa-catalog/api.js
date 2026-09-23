@@ -5,7 +5,9 @@ import { ENDPOINTS } from '@/shared/endpoints'
 const E = ENDPOINTS.paCatalog
 
 export default {
-  // Model lines (series)
+  // Series (для единого паттерна CatalogSection)
+  getSections() { return api.get(E.modelLines) },
+  // Model lines (series) — alias для конфигуратора
   getModelLines() { return api.get(E.modelLines) },
   // Model line items (body+variety)
   getModelLineItems(mlId, variety) {

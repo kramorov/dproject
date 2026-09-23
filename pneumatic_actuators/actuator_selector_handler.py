@@ -456,6 +456,7 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
             work_pressure_id=work_pressure_id ,
             actuator_variety=actuator_variety_code ,
             body_ids=body_ids ,
+            model_line_id=model_line_id ,
             max_bodies_per_series=2
         )
 
