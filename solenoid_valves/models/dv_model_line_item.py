@@ -327,18 +327,11 @@ class DirectionValve(CatalogSerializerMixin,
         """Отображаемый диапазон давлений"""
         return f'{self.pressure_min}..{self.pressure_max}'
 
-    def _get_default_name_template(self) -> str:
-        default_name_template = "{model_code} Пневмораспределитель {brand} {function} {operation} {actuation}; {pneumatic_connection}; {pneumatic_connection_thread}; корпус: {body_material};  катушка: {solenoid_body_material}{solenoid_body_material_specified}; уплотнение {sealing_material_specified}; P {pressure_range} бар; T {temperature_range}°С;  {exd}; {ip}; {power_supply};"
-        return default_name_template
-
-    def _get_default_description_template(self) -> str:
-        default_description_template = "{model_code} Пневмораспределитель {brand} {operation} {construction} функция {function}; тип пневмоприсоединения - {pneumatic_connection}; присоединение {pneumatic_connection_thread}; Kv-{kv} м3/ч; корпус {body_material}({body_material_specified}); катушка {solenoid_body_material}{solenoid_body_material_specified}; уплотнение {sealing_material_specified}; Давление {pressure_range} бар; Темп.окр.среды {temperature_range}°С; отверстие под кабельный ввод {cable_glands_holes},  взрывозащита {exd}; {ip}; Dn {dn} мм; Питание {power_supply}; Мощность холодного/ном/удерж: {power_consumption_start} /  {power_consumption_hot} / {power_consumption_hold}, Вт; Ручной дублер: {manual_override}; макс. плотность рабочей среды {medium_density_max} сСт (мм2/с); Класс изоляции соленоида: {solenoid_insulation_class}; макс 5 циклов/сек; вес {weight}"
-        return default_description_template
-
     def _get_title_template_source(self):
-        """Переопределить в модели: вернуть шаблон заголовка или None."""
-        title_template = "{model_code} {function}; {temperature_range}°С; {exd}; {ip}; {power_supply}; {operation}; {construction}"
-        return title_template
+        """Шаблон заголовка — из серии; fallback на EquipmentType (единый контракт)."""
+        if not self.model_line:
+            return None
+        return getattr(self.model_line, 'title_template', None) or None
 
     def _get_name_template_source(self):
         """Шаблон названия из model_line (единый контракт, 2026-09-01)."""

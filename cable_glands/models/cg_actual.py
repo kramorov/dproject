@@ -260,12 +260,6 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
             return None
         return getattr(self.model_line, 'title_template', None) or None
 
-    def _get_default_name_template(self) -> str:
-        return "{model_code} Кабельный ввод {brand}"
-
-    def _get_default_description_template(self) -> str:
-        return "{model_code} Кабельный ввод {brand}"
-
     # ── Артикул: рендер model_item_code_template (encodings из реестра) ──
 
     @property

@@ -441,24 +441,11 @@ class PosiModelLineItem(CatalogSerializerMixin,
     def _get_description_template_source(self):
         return self.model_line.description_template or None
 
-    def _get_default_name_template(self) -> str:
-        return ("{model_code} Позиционер {brand}, {acting_type}; {exd}; "
-                "Т.окр. {work_temp_min}..{work_temp_max} °С; Присоединения: {body_connection}; "
-                "Рычаг: {lever}; "
-                "Материал корпуса: {body_material}")
-
-    def _get_default_description_template(self) -> str:
-        return ("{model_code} Позиционер {brand}, {acting_type}; {exd}; {ip}; "
-                "Т.окр. {work_temp_min}..{work_temp_max} °С; "
-                "Присоединения корпуса: {body_connection}; "
-                "Рычаг: {lever}; Материал корпуса: {body_material}, вес {weight} кг; "
-                "Питание: {supply_pressure_range} бар; "
-                "Пневмопривод: {actuator_action}; "
-                "Сигнал тревоги: {alarm}. Сигналы: {signal_profile_summary}; "
-                "Смарт-возможности: {smart_capabilities}")
-
     def _get_title_template_source(self):
-        return "{model_code} Позиционер {brand}, {acting_type}; {exd}; {ip}"
+        """Шаблон заголовка — из серии; fallback на EquipmentType (единый контракт)."""
+        if not self.model_line:
+            return None
+        return getattr(self.model_line, 'title_template', None) or None
 
     # ── Резьбы присоединений корпуса (для шаблонов и каталога) ──
 

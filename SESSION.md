@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-16. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-24. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо),
 > паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`, взрывозащита (Exd) — в `exd-option.md`.
 
@@ -401,6 +401,32 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 - `QuickSelect.vue` при `brandId` + `getSections()` игнорирует скроупинг по бренду
   (sections не принимает brand_id) — неактуально, пока ни один каталог не передаёт brandId.
 
+### Сессия 2026-09-24 — инженерный подбор КВ: броня/металлорукав, условные фильтры, группа «Диаметры»
+
+- **`FilterDefinition` + `group`/`visible_when`** (`core/models/filter_definition.py`):
+  два новых необязательных атрибута для презентации на фронте.
+  `group` — метка блока (например «Диаметры»); `visible_when` — `{param_name: [codes]}`
+  (фильтр виден, только когда у родителя выбран option с code из списка).
+  Сериализуются в `BaseFilterOptionsView` (`core/views.py`) как `group`/`visible_when`.
+- **`cable_glands/catalog/filter_defs.py`**:
+  - Броня (`cable_diameter_outer_min/max`) — `visible_when={'cable_type_id': ['armored','armored_ms']}`;
+    при небронированном кабеле фронт скрывает и сбрасывает (не шлёт на бэкенд).
+  - Новые: `metal_sleeve_diameter_min/max` («Металлорукав от/до, мм» →
+    `metal_sleeve_body__metal_sleeve_inner`/`_outer`, семантика как у «Кабель от/до»)
+    и `metal_sleeve_id` («Тип металлорукава», M2M `metal_sleeve`, EXACT).
+    Оба `visible_when={'cable_type_id': ['unarmored_ms','armored_ms']}`.
+  - Диаметровые фильтры (кабель/броня/металлорукав) получили `group='Диаметры'`.
+- **`config.py`**: новые fd добавлены в `list` и `engineer` (в `model_line`/`quickselect` — нет).
+- **Фронт `EngineerFilterBar.vue`**: обычные фильтры разделены на `plainRegularFilters`
+  (без группы) и `groupedRegularFilters` (блок с заголовком); `isVisible()` учитывает
+  `visible_when` (по `code` опции родителя); watch сбрасывает скрытые фильтры.
+- Проверено: `manage.py check` чист; смоук `/api/cable-glands/engineer/filters/` отдаёт
+  group/visible_when и 42 опции `metal_sleeve_id`; фильтрация `metal_sleeve_id=31` → 96;
+  `vite build` — 15.7s без ошибок.
+- **Семантика «Металлорукав от/до»** (принято, можно переиграть): «от» = inner<=value,
+  «до» = outer>=value — зеркалит «Кабель от/до». Если нужен одиночный фильтр по
+  условному диаметру — скажи, поправлю.
+
 ---
 
 ## 9. Как продолжить с другой машины
@@ -576,3 +602,53 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
   не слушают `exactId` — им EXACT не проброшен (не ломаются).
 - Перенести шаблон КП в модель/админку (п. 10) — не делалось.
 - Следующий шаг: браузерный проход каталогов (exd-фильтр + секция «Точно подходят»), затем коммит.
+
+---
+
+## 12. Сессия 2026-09-24 — фильтры КВ, плейсхолдеры, шаблоны EquipmentType
+
+### 12.1. Инженерный подбор КВ — броня/металлорукав (детали в §8, «Сессия 2026-09-24»)
+
+- `FilterDefinition` + `group`/`visible_when` (core/models/filter_definition.py); сериализуются
+  в `BaseFilterOptionsView` (core/views.py) как `group`/`visible_when`.
+- КВ (`cable_glands/catalog/filter_defs.py`): броня `visible_when` по `cable_type_id`;
+  новые `metal_sleeve_diameter_min/max` и `metal_sleeve_id` (тип МР, M2M); диаметровые фильтры
+  в группе «Диаметры».
+- Фронт: `EngineerFilterBar.vue`/`FilterSidebar.vue` — группы + условная видимость;
+  `useCatalog.js` — `syncVisibility()` в `fetchData()` (скрытые фильтры не уходят на бэкенд).
+
+### 12.2. Плейсхолдеры name/description — единый источник `_get_data_dict()`
+
+- `TemplateMixin._get_data_dict()` теперь маппит `name_path → path → resolver` (resolver-поля
+  попадают в словарь); `_fill_template()` резолвит через `_resolve_data_dict_target()`
+  (callable → вызов, иначе `_get_value`).
+- `PneumaticActuatorItem.NAME_FIELD_KEYS` дополнен 23 техническими ключами (37 плейсхолдеров).
+- `TemplatePlaceholdersAdminMixin._get_placeholder_list()` читает `_get_data_dict()` — общий
+  паттерн «плейсхолдеры из dict»; список серии теперь совпадает с EquipmentType (37).
+
+### 12.3. Унификация шаблонов name/description/title → EquipmentType
+
+- `EquipmentType` + `name_template`/`description_template` (core/0018).
+- Data-миграции: core/0019 (name/description из хардкода 8 каталогов), core/0020
+  (title_template для DV/LSB/Posi). spec_template у PA — core/0017.
+- `TemplateMixin`: `name/description/title_template` → `model_line → EquipmentType → {model_code}`.
+- Удалены per-model `_get_default_name/description_template` у 8 моделей (PA, DV, LSB, Posi,
+  FR, GB, PF, CG). `SensorComponent` не тронут — делегирует в `variety` (отдельный паттерн).
+
+### 12.4. Фронт: компонент EquipmentTypeEditor
+
+- Новый `frontend/src/components/admin/EquipmentTypeEditor.vue` — под-вкладки: Основное,
+  name_template, description_template, title_template (с чипсами плейсхолдеров), spec_template
+  (SpecTemplateEditor), param_semantics, AI Catalog Schema + таблица параметров.
+- `ai_assistant/api/views.py::EquipmentTypeListSerializer` — добавлены `name_template`/
+  `description_template`.
+- `PipelineConfigPage.vue` — вместо инлайн-секции `<EquipmentTypeEditor>`; редактирование через
+  копию (JSON clone) + `emit('saved')` → родитель синхронизирует `equipmentTypes`.
+
+### Проверено / осталось
+
+- `manage.py check` чист; `makemigrations --check` — No changes; `npm run build` — без ошибок.
+- Браузерный проход (вкладки EquipmentTypeEditor, клик-вставка плейсхолдеров) — за пользователем.
+- `spec_template` у не-PA каталогов (DV/LSB/Posi/FR/GB/PF/CG) пуст → фолбэк `{model_code}`;
+  заполнение JSON-спеки на каждый тип — отдельная задача.
+- `icon` (EquipmentType) задумано как emoji/CSS-класс, но в фронте единообразно не подключено.

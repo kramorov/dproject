@@ -330,7 +330,9 @@ class EquipmentTypeListSerializer(serializers.ModelSerializer):
         model = EquipmentType
         fields = [
             "id", "code", "name", "description", "icon", "level", "parent",
-            "sorting_order", "filter_endpoint", "title_template", "spec_template",
+            "sorting_order", "filter_endpoint",
+            "name_template", "description_template",
+            "title_template", "spec_template",
             "param_semantics", "ai_title", "ai_description", "ai_placeholder",
             "ai_hints", "is_active",
         ]

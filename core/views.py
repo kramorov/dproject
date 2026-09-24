@@ -632,6 +632,8 @@ class BaseFilterOptionsView(APIView):
                             'options': options,
                             'default_value': fd.default_value,
                             'show_code': fd.show_code,
+                            'group': fd.group,
+                            'visible_when': fd.visible_when,
                         }
                 except Exception as e:
                     result[fd.param_name] = {

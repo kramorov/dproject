@@ -105,6 +105,8 @@ class FilterDefinition:
             default_value: str = None,
             mandatory: str = 'any',
             parameter_rule_code: str = None,
+            group: str = None,
+            visible_when: Dict[str, List[str]] = None,
     ):
         self.param_name = param_name
         self.model_field = model_field
@@ -125,6 +127,14 @@ class FilterDefinition:
         self.default_value = default_value
         self.mandatory = mandatory
         self.parameter_rule_code = parameter_rule_code
+        # ── Frontend presentation hints ──
+        # group: человекочитаемая метка блока, в который фронт группирует фильтр
+        #   (например «Диаметры»); None — обычный ряд без группировки.
+        # visible_when: {param_name: [codes]} — фильтр виден, только когда у
+        #   родительского фильтра выбран option с code из списка. Используется
+        #   для условных фильтров (броня/металлорукав в зависимости от типа кабеля).
+        self.group = group
+        self.visible_when = visible_when
 
     # ── Options ──
 

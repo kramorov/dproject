@@ -14,13 +14,13 @@
       </div>
     </div>
 
-    <!-- Row 1: regular filter selects -->
-    <div class="eng-filter-bar__chips" v-if="regularFilters.length">
+    <!-- Row 1: regular filter selects (ungrouped) -->
+    <div class="eng-filter-bar__chips" v-if="plainRegularFilters.length">
       <!-- Thread combined filter (type + size) -->
       <div v-if="hasThreadPair" class="eng-filter-bar__chip eng-filter-bar__thread">
         <ThreadFilter @change="onThreadChange" />
       </div>
-      <div v-for="f in regularFilters" :key="f.key" class="eng-filter-bar__chip" v-show="(!isThreadFilter(f.key) || !hasThreadPair) && isVisible(f.key)">
+      <div v-for="f in plainRegularFilters" :key="f.key" class="eng-filter-bar__chip" v-show="(!isThreadFilter(f.key) || !hasThreadPair) && isVisible(f.key)">
         <label class="eng-filter-bar__chip-label">{{ f.label }}</label>
         <input
           v-if="isNumericFilter(f)"
@@ -41,6 +41,35 @@
           <option value="">Не указано</option>
           <option v-for="opt in f.options" :key="opt.id" :value="opt.id">{{ f.show_code && opt.code ? opt.code + ' ' + opt.name : opt.name }}</option>
         </select>
+      </div>
+    </div>
+
+    <!-- Grouped filter blocks (e.g. diameters) -->
+    <div v-for="grp in groupedRegularFilters" :key="grp.label" class="eng-filter-bar__group">
+      <span class="eng-filter-bar__group-label">{{ grp.label }}</span>
+      <div class="eng-filter-bar__chips">
+        <div v-for="f in grp.filters" :key="f.key" class="eng-filter-bar__chip" v-show="isVisible(f.key)">
+          <label class="eng-filter-bar__chip-label">{{ f.label }}</label>
+          <input
+            v-if="isNumericFilter(f)"
+            type="number"
+            class="eng-filter-bar__chip-input"
+            min="0"
+            step="0.1"
+            v-model="active[f.key]"
+            @change="$emit('change', f.key, active[f.key])"
+          />
+          <span v-else-if="f.options.length === 1" class="eng-filter-bar__chip-single">{{ f.options[0].name }}</span>
+          <select
+            v-else
+            class="eng-filter-bar__chip-select"
+            v-model="active[f.key]"
+            @change="$emit('change', f.key, active[f.key])"
+          >
+            <option value="">Не указано</option>
+            <option v-for="opt in f.options" :key="opt.id" :value="opt.id">{{ f.show_code && opt.code ? opt.code + ' ' + opt.name : opt.name }}</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -111,6 +140,25 @@ const regularFilters = computed(() =>
   )
 )
 
+const plainRegularFilters = computed(() =>
+  regularFilters.value.filter(f => !f.group)
+)
+
+const groupedRegularFilters = computed(() => {
+  const groups = []
+  const byLabel = {}
+  for (const f of regularFilters.value) {
+    if (!f.group) continue
+    if (!byLabel[f.group]) {
+      const grp = { label: f.group, filters: [] }
+      byLabel[f.group] = grp
+      groups.push(grp)
+    }
+    byLabel[f.group].filters.push(f)
+  }
+  return groups
+})
+
 const specialFilters = computed(() =>
   allFilters.value.filter(f =>
     f.filter_type === 'exd_compatible' || f.filter_type === 'climate_cascade'
@@ -153,10 +201,39 @@ import api from '@/shared/api'
 
 const visibleParams = ref(null)
 function isVisible(key) {
-  if (visibleParams.value === null) return true
-  if (THREAD_KEYS.includes(key)) return hasThreadPair.value && visibleParams.value.has(key)
-  return visibleParams.value.has(key)
+  // Graph-wizard visibility (only active when graphCode is provided)
+  if (visibleParams.value !== null) {
+    if (THREAD_KEYS.includes(key)) {
+      if (!(hasThreadPair.value && visibleParams.value.has(key))) return false
+    } else if (!visibleParams.value.has(key)) {
+      return false
+    }
+  }
+  // Conditional visibility: visible_when maps a parent param to allowed option codes
+  const f = props.filters[key]
+  if (f && f.visible_when) {
+    for (const [parentKey, codes] of Object.entries(f.visible_when)) {
+      const parent = props.filters[parentKey]
+      if (!parent) continue // родитель не в этом наборе фильтров — условие не применимо
+      const selected = active[parentKey]
+      if (selected === '' || selected == null) return false
+      const opt = (parent.options || []).find(o => String(o.id) === String(selected))
+      if (!opt || !codes.includes(opt.code)) return false
+    }
+  }
+  return true
 }
+
+// Clear filters that became hidden by visible_when (UI); activeFilters чистится в useCatalog.fetchData()
+watch(() => ({ ...active }), () => {
+  for (const key of Object.keys(active)) {
+    const f = props.filters[key]
+    if (!f || !f.visible_when) continue
+    if (active[key] && !isVisible(key)) {
+      active[key] = ''
+    }
+  }
+}, { deep: true })
 
 watch(() => ({ ...active }), async () => {
   if (!props.graphCode) return
@@ -231,6 +308,24 @@ watch(() => ({ ...active }), async () => {
 }
 .eng-filter-bar__reset:hover {
   background: var(--cat-border, #e5e7eb);
+}
+
+/* ── Grouped filter blocks (e.g. diameters) ── */
+.eng-filter-bar__group {
+  margin-bottom: 8px;
+}
+.eng-filter-bar__group .eng-filter-bar__chips {
+  margin-bottom: 0;
+}
+.eng-filter-bar__group-label {
+  display: block;
+  font-size: var(--cat-text-xs, 11px);
+  font-weight: 600;
+  color: var(--cat-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+  padding-left: 2px;
 }
 
 /* ── Row 1: regular chips ── */

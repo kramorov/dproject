@@ -42,6 +42,29 @@ class EquipmentType(BaseAbstractModel):
         validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
 
+    # ── Шаблон названия ──
+    name_template = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Шаблон названия"),
+        help_text=_(
+            "Шаблон для generate_name(). Плейсхолдеры из _get_data_dict() "
+            "модели-артикула (например {model_code}, {brand}). "
+            "Пусто — фоллбэк на {model_code}."
+        )
+    )
+
+    # ── Шаблон описания ──
+    description_template = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Шаблон описания"),
+        help_text=_(
+            "Шаблон для generate_description(). Плейсхолдеры из _get_data_dict() "
+            "модели-артикула. Пусто — фоллбэк на {model_code}."
+        )
+    )
+
     # ── Шаблон заголовка ──
     title_template = models.TextField(
         null=True,

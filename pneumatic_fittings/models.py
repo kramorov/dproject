@@ -415,14 +415,6 @@ class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
         """Переопределить в модели: вернуть шаблон описания или None."""
         return self.model_line.description_template if self.model_line else None
 
-    def _get_default_name_template(self) -> str :
-        default_description_template = "{model_code} {fitting_variety} {brand}"
-        return default_description_template
-
-    def _get_default_description_template(self) -> str :
-        default_description_template = "{model_code} {fitting_variety} {brand}, {thread_inner_outer} резьба {thread}, Т раб. {temperature_range} °С, Р раб. {pressure_range} бар"
-        return default_description_template
-
     # Виды оборудования, для которых показываются параметры глушителя
     # (вместо полей трубки и давления).
     SILENCER_PLUG_EQUIPMENT_CODES = ('fitting-silencer', 'fitting-plug')

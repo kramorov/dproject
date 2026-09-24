@@ -7,41 +7,47 @@
     </div>
 
     <div
-      v-for="f in sortedFilters"
-      :key="f.key"
+      v-for="item in displayItems"
+      :key="item.key"
       class="filter-group"
+      v-show="item.type === 'group' || isVisible(item.key)"
     >
-      <!-- Exd-каскадный фильтр -->
-      <ExdFilter
-        v-if="f.filter_type === 'exd_compatible'"
-        @update:modelValue="ids => onExdChange(ids)"
-        @update:exactId="id => onExdExact(id)"
-      />
-      <!-- Обычные фильтры -->
-      <ClimateFilter
-        v-else-if="f.filter_type === 'climate_cascade'"
-        @update:temps="temps => onClimateChange(temps, f.key)"
-      />
-      <template v-else-if="!hasClimateFilter || (f.filter_type !== 'temp_min' && f.filter_type !== 'temp_max')">
-        <label>{{ f.label }}</label>
-        <input
-          v-if="isNumericFilter(f)"
-          type="number"
-          class="filter-number-input"
-          min="0"
-          step="0.1"
-          v-model="active[f.key]"
-          @change="$emit('change', f.key, active[f.key])"
+      <!-- Заголовок группы (например «Диаметры») -->
+      <h4 v-if="item.type === 'group'" class="filter-group-title">{{ item.label }}</h4>
+
+      <template v-else>
+        <!-- Exd-каскадный фильтр -->
+        <ExdFilter
+          v-if="item.filter_type === 'exd_compatible'"
+          @update:modelValue="ids => onExdChange(ids)"
+          @update:exactId="id => onExdExact(id)"
         />
-        <span v-else-if="f.options.length === 1" class="filter-single-value">{{ f.options[0].name }}</span>
-        <select v-else v-model="active[f.key]" @change="$emit('change', f.key, active[f.key])">
-          <option value="">Не указано</option>
-          <option
-            v-for="opt in f.options"
-            :key="opt.id"
-            :value="opt.id"
-          >{{ opt.name }}</option>
-        </select>
+        <!-- Обычные фильтры -->
+        <ClimateFilter
+          v-else-if="item.filter_type === 'climate_cascade'"
+          @update:temps="temps => onClimateChange(temps, item.key)"
+        />
+        <template v-else-if="!hasClimateFilter || (item.filter_type !== 'temp_min' && item.filter_type !== 'temp_max')">
+          <label>{{ item.label }}</label>
+          <input
+            v-if="isNumericFilter(item)"
+            type="number"
+            class="filter-number-input"
+            min="0"
+            step="0.1"
+            v-model="active[item.key]"
+            @change="$emit('change', item.key, active[item.key])"
+          />
+          <span v-else-if="item.options.length === 1" class="filter-single-value">{{ item.options[0].name }}</span>
+          <select v-else v-model="active[item.key]" @change="$emit('change', item.key, active[item.key])">
+            <option value="">Не указано</option>
+            <option
+              v-for="opt in item.options"
+              :key="opt.id"
+              :value="opt.id"
+            >{{ opt.name }}</option>
+          </select>
+        </template>
       </template>
     </div>
 
@@ -74,7 +80,10 @@ const active = reactive({})
 
 watch(() => props.filters, (val) => {
   for (const [k, v] of Object.entries(val)) {
-    active[k] = v
+    // Сохраняем выбор пользователя; default_value применяем только при первой инициализации
+    if (active[k] === undefined || active[k] === '' || active[k] === null) {
+      active[k] = v.default_value || ''
+    }
   }
 }, { deep: true, immediate: true })
 
@@ -87,6 +96,20 @@ const sortedFilters = computed(() => {
   return arr
 })
 
+// Плоский список с заголовками групп между фильтрами
+const displayItems = computed(() => {
+  const items = []
+  let lastGroup = null
+  for (const f of sortedFilters.value) {
+    if (f.group && f.group !== lastGroup) {
+      items.push({ key: `__group__${f.group}`, type: 'group', label: f.group })
+    }
+    lastGroup = f.group || null
+    items.push({ ...f, type: 'filter' })
+  }
+  return items
+})
+
 const hasActive = computed(() =>
   Object.values(active).some(v => v !== '' && v != null)
 )
@@ -97,6 +120,32 @@ const hasClimateFilter = computed(() =>
 
 const NUMERIC_FILTER_TYPES = ['gte', 'lte']
 function isNumericFilter(f) { return NUMERIC_FILTER_TYPES.includes(f.filter_type) }
+
+function isVisible(key) {
+  const f = props.filters[key]
+  if (f && f.visible_when) {
+    for (const [parentKey, codes] of Object.entries(f.visible_when)) {
+      const parent = props.filters[parentKey]
+      if (!parent) continue // родитель не в этом наборе фильтров — условие не применимо
+      const selected = active[parentKey]
+      if (selected === '' || selected == null) return false
+      const opt = (parent.options || []).find(o => String(o.id) === String(selected))
+      if (!opt || !codes.includes(opt.code)) return false
+    }
+  }
+  return true
+}
+
+// Очищает скрытые фильтры (UI); activeFilters чистится в useCatalog.fetchData()
+watch(() => ({ ...active }), () => {
+  for (const key of Object.keys(active)) {
+    const f = props.filters[key]
+    if (!f || !f.visible_when) continue
+    if (active[key] && !isVisible(key)) {
+      active[key] = ''
+    }
+  }
+}, { deep: true })
 
 function onExdChange(ids) {
   activeExdIds.value = ids
@@ -130,6 +179,7 @@ function onClimateChange(temps, key) {
 .reset-btn { padding: 4px 12px; font-size: var(--cat-text-sm); background: var(--cat-border-light); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-sm); cursor: pointer; }
 .reset-btn:hover { background: var(--cat-border); }
 .filter-group { margin-bottom: 16px; }
+.filter-group-title { font-size: var(--cat-text-sm); font-weight: 600; color: var(--cat-muted); text-transform: uppercase; letter-spacing: .5px; margin: 0 0 8px; }
 .filter-group label { display: block; font-size: var(--cat-text-sm); font-weight: 500; color: var(--cat-muted); margin-bottom: 4px; }
 .filter-group select { width: 100%; padding: 8px 10px; font-size: var(--cat-text-base); color: var(--cat-text); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }
 .filter-number-input { width: 100%; padding: 8px 10px; font-size: var(--cat-text-base); color: var(--cat-text); border: 1px solid var(--cat-border); border-radius: var(--cat-radius-md); background: var(--cat-surface); }

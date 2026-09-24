@@ -265,18 +265,11 @@ class LimitSwitchBox(CatalogSerializerMixin,
         """Переопределить в модели: вернуть шаблон описания или None."""
         return self.model_line.description_template or None
 
-    def _get_default_name_template(self) -> str:
-        default_description_template = "{model_code} Блок концевых выключателей {brand};  {points}, тип датчика: {sensor_variety}; {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, вес {weight} кг."
-        return default_description_template
-
-    def _get_default_description_template(self) -> str:
-        default_description_template = "{model_code} Блок концевых выключателей {brand}; {points}, тип датчика: {sensor_variety}, {ip}, Взрывозащита: {exd}; Т.окр. {work_temp_min}..{work_temp_max} °С, Материал корпуса: {body_material_specified}, Отверстия под КВ:{cable_glands_holes}, Монтаж:{mounting}, вес {weight}кг. Сигналы: {signal_profile_summary}"
-        return default_description_template
-
     def _get_title_template_source(self):
-        """Переопределить в модели: вернуть шаблон заголовка или None."""
-        title_template = "{model_code} {points}, {sensor_variety}; {ip}, В/з: {exd}; {work_temp_min}..{work_temp_max} °С, корпус: {body_material}"
-        return title_template
+        """Шаблон заголовка — из серии; fallback на EquipmentType (единый контракт)."""
+        if not self.model_line:
+            return None
+        return getattr(self.model_line, 'title_template', None) or None
 
     @property
     def get_primary_sensor_contact_form(self) -> str:

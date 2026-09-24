@@ -213,16 +213,39 @@ class TemplateMixin:
 
     # === СЛОВАРЬ ДЛЯ ПОДСТАНОВКИ ===
     def _get_data_dict(self) -> Dict[str, str]:
-        """Плейсхолдер → путь для имени/описания.
+        """Плейсхолдер → путь/resolver для имени/описания.
 
-        Использует ``NAME_FIELD_KEYS``; если список не задан — все поля с ``path``.
+        Использует ``NAME_FIELD_KEYS``; если список не задан — все поля реестра.
+        Значение — ``name_path`` → ``path`` → ``resolver`` (резолвится в
+        ``_fill_template`` через ``_resolve_data_dict_target``).
         """
         keys = getattr(self, 'NAME_FIELD_KEYS', None)
         specs = self._lookup_specs(keys) if keys is not None else self._get_field_specs()
-        result = {f.placeholder: (f.name_path or f.path) for f in specs if (f.name_path or f.path)}
+        result = {}
+        for f in specs:
+            if not f.placeholder:
+                continue
+            target = f.name_path or f.path or f.resolver
+            if target:
+                result[f.placeholder] = target
         if result:
             return result
         return {'{model_code}': 'code'}
+
+    def _resolve_data_dict_target(self, target: str):
+        """Резолв значения из ``_get_data_dict()``.
+
+        ``target`` может быть атрибутным путём (``name_path``/``path``, резолвится
+        через ``_get_value``) или именем resolver-метода (``resolver``, вызывается).
+        Отличие определяем по callable: resolver — метод на модели, путь — нет.
+        """
+        fn = getattr(self, target, None)
+        if callable(fn):
+            try:
+                return fn()
+            except Exception:
+                return ''
+        return self._get_value(target)
 
     def _get_model_meta_name(self) -> str:
         """
@@ -277,7 +300,14 @@ class TemplateMixin:
 
     @property
     def name_template(self) -> str:
-        return self._get_name_template_source() or self._get_default_name_template()
+        """Итоговый шаблон названия.
+
+        Приоритет: model_line (``_get_name_template_source()``)
+        → ``EquipmentType.name_template`` → ``{model_code}``.
+        """
+        return (self._get_name_template_source()
+                or self._get_equipment_type_template('name_template')
+                or self._get_default_name_template())
 
     @property
     def title_template(self) -> str:
@@ -292,7 +322,14 @@ class TemplateMixin:
 
     @property
     def description_template(self) -> str:
-        return self._get_description_template_source() or self._get_default_description_template()
+        """Итоговый шаблон описания.
+
+        Приоритет: model_line (``_get_description_template_source()``)
+        → ``EquipmentType.description_template`` → ``{model_code}``.
+        """
+        return (self._get_description_template_source()
+                or self._get_equipment_type_template('description_template')
+                or self._get_default_description_template())
 
 
 
@@ -323,18 +360,16 @@ class TemplateMixin:
             # Формируем ключ с фигурными скобками для поиска в словаре
             dict_key = f'{{{placeholder}}}'
 
+            value = None
             if dict_key in full_data_dict:
-                # Получаем путь к значению
-                path = full_data_dict[dict_key]
-                # Получаем значение по пути
-                value = self._get_value(path)
-                # Заменяем плейсхолдер
-                result = result.replace(dict_key, str(value) if value is not None else "")
+                target = full_data_dict[dict_key]
+                value = self._resolve_data_dict_target(target)
             else:
-                # Если плейсхолдер не найден в словаре, заменяем на пустую строку
-                # или можно залогировать предупреждение
+                # Плейсхолдер отсутствует в справочнике — заменяем на пустую строку
                 print(f"[WARNING] Плейсхолдер {dict_key} не найден в data_dict")
-                result = result.replace(dict_key, "")
+
+            # Заменяем плейсхолдер
+            result = result.replace(dict_key, str(value) if value is not None else "")
 
         # Очищаем от оставшихся незамененных плейсхолдеров (на всякий случай)
         result = re.sub(r'\{[^{}]+\}', '', result)

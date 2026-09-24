@@ -6,7 +6,7 @@
 """
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
 from params.models import IpOption, ThreadSize
-from cable_glands.models import CableGlandBodyMaterial, CableType
+from cable_glands.models import CableGlandBodyMaterial, CableType, MetalSleeve
 
 
 # ── Individual filter definitions ──
@@ -79,6 +79,7 @@ fd_cable_diameter_min = FilterDefinition(
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Кабель от, мм',
     order=7,
+    group='Диаметры',
 )
 
 fd_cable_diameter_max = FilterDefinition(
@@ -88,6 +89,7 @@ fd_cable_diameter_max = FilterDefinition(
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Кабель до, мм',
     order=8,
+    group='Диаметры',
 )
 
 fd_cable_diameter_outer_min = FilterDefinition(
@@ -97,6 +99,8 @@ fd_cable_diameter_outer_min = FilterDefinition(
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Броня от, мм',
     order=9,
+    group='Диаметры',
+    visible_when={'cable_type_id': ['armored', 'armored_ms']},
 )
 
 fd_cable_diameter_outer_max = FilterDefinition(
@@ -106,6 +110,43 @@ fd_cable_diameter_outer_max = FilterDefinition(
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Броня до, мм',
     order=10,
+    group='Диаметры',
+    visible_when={'cable_type_id': ['armored', 'armored_ms']},
+)
+
+# Диаметр металлорукава: «от» = inner (min) <= value, «до» = outer (max) >= value —
+# зеркалит семантику «Кабель от/до» (диапазон крепления должен содержать запрос).
+fd_metal_sleeve_diameter_min = FilterDefinition(
+    param_name='metal_sleeve_diameter_min',
+    model_field='model_line_item__metal_sleeve_body__metal_sleeve_inner',
+    filter_type=FilterType.MAX,                     # lte: inner <= value
+    data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
+    label='Металлорукав от, мм',
+    order=14,
+    group='Диаметры',
+    visible_when={'cable_type_id': ['unarmored_ms', 'armored_ms']},
+)
+
+fd_metal_sleeve_diameter_max = FilterDefinition(
+    param_name='metal_sleeve_diameter_max',
+    model_field='model_line_item__metal_sleeve_body__metal_sleeve_outer',
+    filter_type=FilterType.MIN,                     # gte: outer >= value
+    data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
+    label='Металлорукав до, мм',
+    order=15,
+    group='Диаметры',
+    visible_when={'cable_type_id': ['unarmored_ms', 'armored_ms']},
+)
+
+fd_metal_sleeve_type = FilterDefinition(
+    param_name='metal_sleeve_id',
+    model_field='model_line_item__metal_sleeve_body__metal_sleeve',
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    source_model=MetalSleeve,
+    label='Тип металлорукава',
+    order=16,
+    visible_when={'cable_type_id': ['unarmored_ms', 'armored_ms']},
 )
 
 fd_temp_min = FilterDefinition(
@@ -163,6 +204,9 @@ CABLE_GLAND_FILTER_DEFINITIONS = [
     fd_cable_diameter_max,
     fd_cable_diameter_outer_min,
     fd_cable_diameter_outer_max,
+    fd_metal_sleeve_diameter_min,
+    fd_metal_sleeve_diameter_max,
+    fd_metal_sleeve_type,
     fd_temp_min,
     fd_temp_max,
     fd_climate,

@@ -99,6 +99,31 @@ export function useCatalog(api, opts = {}) {
     fetchData()
   }
 
+  // --- Условная видимость фильтров (visible_when) ---
+  function isParamVisible(key) {
+    const meta = filterData[key]
+    if (!meta || !meta.visible_when) return true
+    for (const [parentKey, codes] of Object.entries(meta.visible_when)) {
+      const parentMeta = filterData[parentKey]
+      if (!parentMeta) continue // родитель не в этом наборе фильтров — условие не применимо
+      const selected = activeFilters[parentKey]
+      if (selected === '' || selected == null) return false
+      const opt = (parentMeta.options || []).find(o => String(o.id) === String(selected))
+      if (!opt || !codes.includes(opt.code)) return false
+    }
+    return true
+  }
+
+  // Очищает активные фильтры, которые стали скрытыми (чтобы не уходили на бэкенд).
+  function syncVisibility() {
+    for (const key of Object.keys(activeFilters)) {
+      if (!activeFilters[key]) continue
+      const meta = filterData[key]
+      if (!meta || !meta.visible_when) continue
+      if (!isParamVisible(key)) activeFilters[key] = ''
+    }
+  }
+
   // --- Поиск ---
   function onSearchInput() {
     clearTimeout(searchTimer)
@@ -121,6 +146,8 @@ export function useCatalog(api, opts = {}) {
   async function fetchData() {
     loading.value = true
     try {
+      syncVisibility()
+
       const params = { limit: limit.value, offset: offset.value }
 
       // Фиксированные параметры (brand_id, model_line_id и т.д.)

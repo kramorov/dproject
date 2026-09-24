@@ -37,7 +37,12 @@ class TemplatePlaceholdersAdminMixin:
         css = {'all': ('admin/css/template_placeholders.css',)}
 
     def _get_placeholder_list(self):
-        """Список плейсхолдеров {ключ} из _get_data_dict() item-модели."""
+        """Список плейсхолдеров {ключ} из справочника ``_get_data_dict()`` item-модели.
+
+        Единый источник правды по общему паттерну — ``_get_data_dict()``
+        (строится из ``NAME_FIELD_KEYS`` реестра). Чтобы плейсхолдер появился здесь,
+        добавьте ключ в ``NAME_FIELD_KEYS`` модели-артикула.
+        """
         if not self.template_item_model:
             return []
         try:

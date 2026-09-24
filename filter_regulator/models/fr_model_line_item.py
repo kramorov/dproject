@@ -233,31 +233,6 @@ class FilterRegulator(
     def _get_description_template_source(self):
         return self.model_line.description_template or None
 
-    def _get_default_name_template(self) -> str:
-        return (
-            "{model_code} {filter_variety} {brand}; "
-            "Расход {flow_rate} л/мин; {drain_variety}; "
-            "Т.окр. {work_temp_min}..{work_temp_max} °С, "
-            "Рег.давления {pressure_min}..{pressure_max} бар; "
-            "Порты: {thread}; фильтрация {filtration_rating} мкм;"
-        )
-
-    def _get_default_description_template(self) -> str:
-        return (
-            "{model_code} {filter_variety} {brand}; "
-            "Расход {flow_rate} л/мин; {drain_variety}; "
-            "Т.окр. {work_temp_min}..{work_temp_max} °С, "
-            "Материал корпуса: {body_material}, "
-            "Материал стакана: {bowl_material}, "
-            "Кожух: {protection_material} "
-            "Порты: {thread}; слив: {drain_port_size}; "
-            "{gauge_quantity}; фильтрация {filtration_rating} мкм; "
-            "Диапазон регулировки давления {pressure_min}..{pressure_max} бар; "
-            "Макс. входное давление {pressure_inlet_max} бар; "
-            "вес {weight}кг. "
-            "Настенное крепление: {wall_mounting_included}"
-        )
-
     def _get_model_line_summary(self) -> dict:
         if not self.model_line:
             return None

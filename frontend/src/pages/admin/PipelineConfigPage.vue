@@ -106,124 +106,10 @@
 
     </section>
 
-    <!-- Equipment Types (split layout) -->
+    <!-- Equipment Types -->
     <section v-show="activeTab === 'equipment'" class="section">
       <h2>Equipment Types</h2>
-      <div class="split-layout">
-        <!-- Left: equipment types list -->
-        <div class="left-panel">
-          <ul class="et-list">
-            <li v-for="et in equipmentTypes" :key="et.id"
-                :class="{ active: selectedEtId === et.id }"
-                @click="selectEquipmentType(et)">
-              <code>{{ et.code }}</code> {{ et.name }}
-            </li>
-          </ul>
-        </div>
-
-        <!-- Right: editor for selected type -->
-        <div class="right-panel" v-if="selectedEt">
-          <div class="et-info">
-            <div class="et-info-title">
-              <strong>{{ selectedEt.name }}</strong> <code>{{ selectedEt.code }}</code>
-            </div>
-            <div class="et-info-actions">
-              <button class="btn-save" @click="saveEquipment(selectedEt)">💾 Сохранить</button>
-              <span v-if="saveMessage" class="et-status" :class="{ error: saveError }">{{ saveMessage }}</span>
-            </div>
-          </div>
-
-          <div class="et-form">
-            <div class="et-form-row">
-              <label>Код</label><input v-model="selectedEt.code" class="cell-input" />
-              <label>Сортировка</label><input v-model.number="selectedEt.sorting_order" type="number" class="cell-input" style="width:90px" />
-            </div>
-            <div class="et-form-row">
-              <label>Название</label><input v-model="selectedEt.name" class="cell-input" />
-              <label>Иконка</label><input v-model="selectedEt.icon" class="cell-input" style="width:120px" />
-            </div>
-            <div class="et-form-row">
-              <label>Filter Endpoint</label><input v-model="selectedEt.filter_endpoint" class="cell-input" />
-            </div>
-            <div class="et-form-col">
-              <label>Описание</label><textarea v-model="selectedEt.description" class="cell-input" rows="2"></textarea>
-            </div>
-
-            <div class="et-form-block">
-              <label class="et-form-block-label">Шаблон заголовка (title_template)</label>
-              <div class="et-chips">
-                <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph)">{{ ph }}</button>
-              </div>
-              <textarea ref="titleTemplateEl" v-model="selectedEt.title_template" class="cell-input" rows="3"></textarea>
-            </div>
-
-            <div class="et-form-block">
-              <label class="et-form-block-label">Шаблон спецификации (spec_template)</label>
-              <SpecTemplateEditor :key="selectedEt.id" v-model="selectedEt.spec_template" :fields="templateFields" />
-            </div>
-
-            <div class="et-form-block">
-              <label class="et-form-block-label">Семантика параметров (param_semantics)</label>
-              <SemanticsEditor :key="selectedEt.id" v-model="selectedEt.param_semantics" />
-            </div>
-
-            <div class="et-form-block">
-              <label class="et-form-block-label">AI Catalog Schema</label>
-              <div class="et-form-row">
-                <label>AI title</label><input v-model="selectedEt.ai_title" class="cell-input" />
-                <label>AI placeholder</label><input v-model="selectedEt.ai_placeholder" class="cell-input" />
-              </div>
-              <div class="et-form-col">
-                <label>AI description</label><textarea v-model="selectedEt.ai_description" class="cell-input" rows="2"></textarea>
-              </div>
-              <div class="et-form-col">
-                <label>AI hints</label>
-                <HintsEditor :key="selectedEt.id" v-model="selectedEt.ai_hints" />
-              </div>
-            </div>
-          </div>
-
-          <!-- Конфигуратор: таблица параметров (EquipmentTypeParameter) -->
-          <div class="param-section">
-            <h4>Параметры конфигуратора ({{ filteredParams.length }})</h4>
-            <div class="info-bar">
-              ⓘ Редактируйте <strong>compare_direction</strong> и <strong>compare_label</strong> прямо в строках таблицы.
-            </div>
-            <table>
-              <thead><tr>
-                <th>Param</th><th>Path</th><th>Type</th><th>Unit</th>
-                <th>Compare</th><th>Label</th>
-                <th>Req</th><th>Act</th><th></th>
-              </tr></thead>
-              <tbody>
-                <tr v-for="p in filteredParams" :key="p.id">
-                  <td><input v-model="p.param_name" class="cell-input" /></td>
-                  <td><input v-model="p.field_path" class="cell-input" /></td>
-                  <td><select v-model="p.param_type"><option value="">—</option><option value="integer">int</option><option value="decimal">dec</option><option value="choice">choice</option><option value="boolean">bool</option><option value="string">str</option></select></td>
-                  <td><input v-model="p.unit" class="cell-input" style="width:50px" /></td>
-                  <td><select v-model="p.compare_direction" @change="saveParam(p)">
-                    <option value="">—</option>
-                    <option value="min">Min ↑</option>
-                    <option value="max">Max ↓</option>
-                    <option value="exact">Exact =</option>
-                  </select></td>
-                  <td><input v-model="p.compare_label" class="cell-input" style="width:90px" placeholder="не менее" @change="saveParam(p)" /></td>
-                  <td><input type="checkbox" v-model="p.is_required" /></td>
-                  <td><input type="checkbox" v-model="p.is_active" /></td>
-                  <td><button class="btn-save-sm" @click="saveParam(p)">💾</button></td>
-                </tr>
-                <tr v-if="!filteredParams.length"><td colspan="9" class="empty">No parameters yet</td></tr>
-              </tbody>
-            </table>
-            <button class="btn-add" @click="addParam()" style="margin-top:8px">+ Add Parameter</button>
-          </div>
-        </div>
-
-        <!-- No type selected -->
-        <div class="right-panel" v-else>
-          <div class="empty">Выберите тип оборудования слева</div>
-        </div>
-      </div>
+      <EquipmentTypeEditor :equipment-types="equipmentTypes" @saved="onEquipmentSaved" />
     </section>
 
     <!-- EquipmentType classifier CRUD -->
@@ -331,14 +217,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '@/shared/api'
 import JsonTableViewer from '@/components/JsonTableViewer.vue'
 import VueJsonPretty from 'vue-json-pretty'
 import 'vue-json-pretty/lib/styles.css'
-import SpecTemplateEditor from '@/components/admin/SpecTemplateEditor.vue'
-import SemanticsEditor from '@/components/admin/SemanticsEditor.vue'
-import HintsEditor from '@/components/admin/HintsEditor.vue'
+import EquipmentTypeEditor from '@/components/admin/EquipmentTypeEditor.vue'
 
 const activeTab = ref('skills')
 const tabs = [
@@ -356,10 +240,6 @@ const STEP_CHOICES = [['decompose','Decompose'],['extract','Extract'],['filter',
 
 const skills = ref([]); const overrides = ref([]); const promptTemplates = ref([])
 const schemas = ref([]); const equipmentTypes = ref([]); const modelRoles = ref([]); const customers = ref([])
-const equipmentParams = ref([])
-const selectedEt = ref(null); const selectedEtId = ref(null)
-const templateFields = ref([]); const placeholders = ref([]); const titleTemplateEl = ref(null)
-const saveMessage = ref(''); const saveError = ref(false)
 const schemaEtId = ref(null); const schemaVariant = ref('ai')
 const generatedSchema = ref(null); const generatedSchemaName = ref('')
 const editingPrompt = ref(null); const editingSchema = ref(null)
@@ -387,8 +267,6 @@ onMounted(async () => {
   schemas.value = schemasRaw.map(s => ({ ...s, schema_json_text: JSON.stringify(s.schema_json, null, 2) }))
   equipmentTypes.value = equipmentRaw
   modelRoles.value = rolesResp; customers.value = customersRaw
-  const paramsResp = await safe(api.get('/configurator/admin/equipment-type-parameters/'))
-  equipmentParams.value = Array.isArray(paramsResp) ? paramsResp : (paramsResp.results || [])
   const classifierResp = await safe(api.get('/configurator/admin/equipment-types/'))
   classifierTypes.value = Array.isArray(classifierResp) ? classifierResp : (classifierResp.results || [])
   const fittingResp = await safe(api.get('/configurator/admin/fitting-patterns/'))
@@ -424,37 +302,6 @@ async function saveSchema(s) {
 async function addSchema() { schemas.value.push({ name: 'new', version: '1', schema_json_text: '{}', schema_json: {}, is_active: true }) }
 async function deleteSchema(id) { if (confirm('Delete?')) { await api.delete(`/ai-assistant/schemas/${id}/`); schemas.value = schemas.value.filter(s => s.id !== id) } }
 
-async function saveEquipment(et) {
-  const p = {
-    code: et.code, name: et.name, description: et.description || '',
-    icon: et.icon || '', sorting_order: et.sorting_order || 0,
-    filter_endpoint: et.filter_endpoint || null,
-    title_template: et.title_template || null,
-    spec_template: et.spec_template || {},
-    param_semantics: et.param_semantics || {},
-    ai_title: et.ai_title || '', ai_description: et.ai_description || '',
-    ai_placeholder: et.ai_placeholder || '',
-    ai_hints: Array.isArray(et.ai_hints) ? et.ai_hints : [],
-  }
-  try {
-    await api.patch(`/ai-assistant/equipment-types/${et.id}/`, p)
-    setSaveStatus('Сохранено', false)
-  } catch (e) {
-    const detail = e.response?.data?.detail
-    const msg = typeof detail === 'string' ? detail : (e.response?.data?.non_field_errors?.[0] || e.displayMessage || e.message || 'Неизвестная ошибка')
-    setSaveStatus('Ошибка сохранения: ' + msg, true)
-  }
-}
-
-let statusTimer = null
-function setSaveStatus(msg, isError) {
-  saveMessage.value = msg
-  saveError.value = isError
-  if (statusTimer) clearTimeout(statusTimer)
-  statusTimer = setTimeout(() => { saveMessage.value = ''; saveError.value = false }, 4000)
-}
-async function saveParam(p) { await api.patch(`/configurator/admin/equipment-type-parameters/${p.id}/`, p) }
-
 async function saveEquipmentType(et) {
   const p = { code: et.code, name: et.name, level: et.level || 0, parent: et.parent || null, is_active: et.is_active }
   if (et.id) { await api.patch(`/configurator/admin/equipment-types/${et.id}/`, p) }
@@ -462,6 +309,11 @@ async function saveEquipmentType(et) {
 }
 async function addEquipmentType() { classifierTypes.value.push({ code: 'new', name: 'new', level: 0, parent: null, is_active: true }) }
 async function deleteEquipmentType(id) { if (confirm('Delete?')) { await api.delete(`/configurator/admin/equipment-types/${id}/`); classifierTypes.value = classifierTypes.value.filter(e => e.id !== id) } }
+
+function onEquipmentSaved(updated) {
+  const idx = equipmentTypes.value.findIndex(x => x.id === updated.id)
+  if (idx !== -1) equipmentTypes.value[idx] = updated
+}
 
 async function saveFittingPattern(f) {
   if (!f.applies_to) { alert('Выберите тип оборудования (Applies to)'); return }
@@ -492,74 +344,6 @@ async function saveDerivationRule(d) {
 }
 async function addDerivationRule() { derivationRules.value.push({ code: 'new', source_type: null, source_product_field: '', target_type: null, target_param: '', priority: 0, is_active: true }) }
 async function deleteDerivationRule(id) { if (confirm('Delete?')) { await api.delete(`/configurator/admin/derivation-rules/${id}/`); derivationRules.value = derivationRules.value.filter(x => x.id !== id) } }
-
-const filteredParams = computed(() => {
-  if (!selectedEtId.value) return []
-  return equipmentParams.value.filter(p => p.equipment_type === selectedEtId.value)
-})
-
-function selectEquipmentType(et) {
-  saveMessage.value = ''; saveError.value = false
-  templateFields.value = []
-  placeholders.value = []
-  if (et.spec_template == null) et.spec_template = {}
-  if (et.param_semantics == null) et.param_semantics = {}
-  if (!Array.isArray(et.ai_hints)) et.ai_hints = []
-  if (et.title_template == null) et.title_template = ''
-  if (et.description == null) et.description = ''
-  if (et.ai_title == null) et.ai_title = ''
-  if (et.ai_description == null) et.ai_description = ''
-  if (et.ai_placeholder == null) et.ai_placeholder = ''
-  if (et.icon == null) et.icon = ''
-  selectedEt.value = et
-  selectedEtId.value = et.id
-  loadTemplateFields(et.id)
-}
-
-async function loadTemplateFields(etId) {
-  try {
-    const { data } = await api.get('/ai-assistant/equipment-type-template-fields/', { params: { equipment_type: etId } })
-    if (selectedEtId.value !== etId) return
-    templateFields.value = data?.fields || []
-    placeholders.value = data?.placeholders || []
-  } catch (e) {
-    if (selectedEtId.value !== etId) return
-    templateFields.value = []
-    placeholders.value = []
-  }
-}
-
-function insertPlaceholder(ph) {
-  const el = titleTemplateEl.value
-  if (!el) return
-  const start = el.selectionStart != null ? el.selectionStart : el.value.length
-  const end = el.selectionEnd != null ? el.selectionEnd : start
-  const text = el.value
-  selectedEt.value.title_template = text.slice(0, start) + ph + text.slice(end)
-  nextTick(() => {
-    const pos = start + ph.length
-    el.focus()
-    el.setSelectionRange(pos, pos)
-  })
-}
-
-async function addParam() {
-  if (!selectedEtId.value) return
-  const newP = {
-    equipment_type: selectedEtId.value,
-    param_name: 'new_param',
-    field_path: 'new_param',
-    field_type: 'choice',
-    is_required: false,
-    allow_override: true,
-    is_active: true,
-    sorting_order: filteredParams.value.length,
-  }
-  try {
-    const { data } = await api.post('/configurator/admin/equipment-type-parameters/', newP)
-    equipmentParams.value.push(data)
-  } catch (e) { alert('Failed to create parameter: ' + (e.response?.data?.detail || e.message)) }
-}
 
 async function generateSchema() {
   if (!schemaEtId.value) return

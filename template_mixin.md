@@ -22,13 +22,14 @@
 
 ```
 # name / description
-_get_name_template_source()        ← переопределение модели (обычно model_line)
-  → _get_default_name_template()   ← fallback-текст в модели
+_get_name_template_source()        ← переопределение модели (обычно model_line.name_template)
+  → EquipmentType.name_template    ← глобальная настройка типа оборудования
+  → {model_code}                   ← fallback (только артикул)
 
 # title (заголовок карточки)
 _get_title_template_source()       ← переопределение модели (обычно model_line.title_template)
   → EquipmentType.title_template   ← глобальная настройка типа оборудования
-  → _get_default_title_template()  ← fallback-текст в модели
+  → _get_default_title_template()  ← fallback '{model_code}'
 
 # spec (спецификация, JSON)
 model_line.spec_template           ← приоритет — на серии
@@ -95,12 +96,8 @@ class MyItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin,
             return None
         return self.model_line.title_template or None
 
-    # ── Fallback-тексты (используются, если шаблон серии не задан) ──
-    def _get_default_name_template(self) -> str:
-        return "{model_code} Наименование {brand}; ..."
-
-    def _get_default_description_template(self) -> str:
-        return "{model_code} ...полный текст характеристик..."
+    # Fallback: если шаблон серии не задан — берётся EquipmentType.name_template/
+    # description_template, затем {model_code}. Переопределять _get_default_* не нужно.
 
     # ── СЛОВАРЬ ПОДСТАНОВОК: ОБЯЗАТЕЛЕН ──
     def _get_data_dict(self) -> Dict[str, str]:
@@ -242,11 +239,12 @@ class MyModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
 `TemplatePlaceholdersAdminMixin` автоматически:
 
 - добавляет в форму readonly-блок **«Справочник плейсхолдеров»** — чипы со всеми
-  ключами из `_get_data_dict()` модели-артикула;
+  плейсхолдерами из `_get_data_dict()` модели-артикула (по общему паттерну —
+  справочник строится из `NAME_FIELD_KEYS` реестра);
 - клик по чипу **вставляет плейсхолдер в последнее выбранное поле шаблона**
   (Название/Описание) и копирует в буфер обмена;
 - кнопка **«Скопировать все»** — весь список в буфер;
-- подсказывает: не хватает характеристики — добавить её в `_get_data_dict()`.
+- подсказывает: не хватает характеристики — добавьте ключ в `NAME_FIELD_KEYS`.
 
 Чтобы блок рендерился **внутри** конкретного fieldset'а (например, рядом с
 полями шаблонов), задайте его заголовок:
@@ -309,11 +307,8 @@ class MyItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin, SKUMixin,
     def _get_description_template_source(self):
         return self.model_line.description_template or None if self.model_line else None
 
-    def _get_default_name_template(self):
-        return "{model_code} {brand}"
-
-    def _get_default_description_template(self):
-        return "{model_code} {brand}, вес {weight} кг"
+    # Fallback name/description: EquipmentType.name_template/description_template → {model_code}
+    # (переопределять _get_default_* не нужно).
 
     def _get_data_dict(self):
         return {
@@ -421,6 +416,13 @@ class MyItem(CatalogSerializerMixin, ..., TemplateMixin, ...):
 
 Значения резолвятся лениво и мемоизируются на инстансе (`_resolve_field()`),
 поэтому лишние поля не вычисляются; `fields=` даёт проекцию для MCP.
+
+> **Плейсхолдеры в name/description.** `_fill_template()` берёт маппинг из
+> `_get_data_dict()` (`NAME_FIELD_KEYS`). Значение записи — `name_path` → `path` →
+> `resolver`; resolver-поля (нет `path`) резолвятся вызовом метода. Поэтому в
+> `name_template`/`description_template` доступен любой плейсхолдер, ключ которого
+> перечислен в `NAME_FIELD_KEYS`; справочник плейсхолдеров в админке серии
+> показывает тот же состав.
 
 ### 7.3. Сериализация каталога
 

@@ -100,6 +100,14 @@ class PneumaticActuatorItem(
         'code', 'brand_name', 'variety_name', 'body_name', 'body_code',
         'weight', 'safety_position', 'springs_qty', 'temperature',
         'ip', 'exd', 'exd_short', 'coating', 'hand_wheel',
+        # Технические характеристики (для name/description и справочника плейсхолдеров)
+        'construction', 'piston_diameter', 'turn_angle', 'turn_tuning_limit',
+        'weight_spring', 'pressure_min', 'pressure_max', 'pressure',
+        'air_usage_open', 'air_usage_close', 'air_usage',
+        'stem_shape', 'stem_size', 'stem_size_dim',
+        'max_stem_height', 'max_stem_diameter', 'stem',
+        'mounting', 'thread_in', 'thread_out', 'pneumatic_conn',
+        'time_open', 'time_close',
     )
 
     CODE_FIELD_KEYS = (
@@ -361,25 +369,6 @@ class PneumaticActuatorItem(
         if not self.model_line:
             return None
         return getattr(self.model_line, 'description_template', None) or None
-
-    def _get_default_name_template(self) -> str:
-        return (
-            "{model_code} Пневмопривод {brand} {variety}; "
-            "{safety_position}; {springs_qty}; "
-            "Т.исп. {temperature}; {ip}; {exd}; "
-            "Покрытие корпуса: {coating}; Ручной дублер: {hand_wheel}"
-        )
-
-    def _get_default_description_template(self) -> str:
-        return (
-            "{model_code} Пневмопривод {brand} {variety}; "
-            "Положение безопасности: {safety_position}; "
-            "Количество пружин: {springs_qty}; "
-            "Т.исп. {temperature}; {ip}; {exd}; "
-            "Покрытие корпуса: {coating}; "
-            "Ручной дублер на корпусе: {hand_wheel}; "
-            "Вес {weight} кг"
-        )
 
     # ═══════════════════════════════════════════════════════════════
     # Артикул: рендер model_line.model_item_code_template

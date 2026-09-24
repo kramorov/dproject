@@ -231,24 +231,6 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         """
         return self.model_line.description_template or None
 
-    def _get_default_name_template(self) -> str:
-        """
-        Дефолтный шаблон названия (заглушка — для редукторов не используется).
-
-        В реальности название редуктора задаётся шаблоном из model_line,
-        этот метод — fallback из TemplateMixin.
-        """
-        return "{model_code} {brand} {gearbox_variety}"
-
-    def _get_default_description_template(self) -> str:
-        """
-        Дефолтный шаблон описания (заглушка — для редукторов не используется).
-
-        В реальности описание редуктора задаётся шаблоном из model_line,
-        этот метод — fallback из TemplateMixin.
-        """
-        return "{model_code} {brand} {gearbox_variety} {gearbox_output_variety}"
-
     def _get_model_line_summary(self) -> dict:
         """Краткая сводка model_line."""
         if not self.model_line:
