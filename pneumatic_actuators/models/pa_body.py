@@ -428,7 +428,7 @@ class PneumaticWeightParameter(models.Model) :
         unique_together = ['body' , 'spring_qty']
 
     def __str__(self) :
-        return f"Вес {self.body.name} - {self.spring_qty.name}"
+        return f"Вес {self.body.name} - {self.spring_qty.name} = {self.weight}"
 
 
 class PneumaticCloseTimeParameter(models.Model) :

@@ -32,7 +32,7 @@ class PneumaticActuatorVariety(models.Model) :
     """
     Разновидности пневмоприводов- DA или SR
     """
-    name = models.CharField(max_length=10 ,
+    name = models.CharField(max_length=150,
                             verbose_name=_("Название") ,
                             help_text=_('Название разновидности'))
     code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
@@ -64,7 +64,7 @@ class PneumaticActuatorConstructionVariety(StructuredDataMixin , models.Model) :
     """
     Разновидности конструкций пневмоприводов- шестерня-рейка или кулисный
     """
-    name = models.CharField(max_length=10 ,
+    name = models.CharField(max_length=150 ,
                             verbose_name=_("Название") ,
                             help_text=_('Название разновидности конструкции'))
     code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,

@@ -97,11 +97,11 @@ class PneumaticActuatorItem(
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'variety_name', 'body_name', 'body_code',
-        'weight', 'safety_position', 'springs_qty', 'temperature',
+        'code', 'brand_name', 'variety_name', 'variety_description', 'variety_code', 'body_name', 'body_code',
+        'weight', 'safety_position', 'safety_position_text_value','springs_qty', 'temperature',
         'ip', 'exd', 'exd_short', 'coating', 'hand_wheel',
         # Технические характеристики (для name/description и справочника плейсхолдеров)
-        'construction', 'piston_diameter', 'turn_angle', 'turn_tuning_limit',
+        'construction_name','construction_description','piston_diameter', 'turn_angle', 'turn_tuning_limit',
         'weight_spring', 'pressure_min', 'pressure_max', 'pressure',
         'air_usage_open', 'air_usage_close', 'air_usage',
         'stem_shape', 'stem_size', 'stem_size_dim',
@@ -436,6 +436,10 @@ class PneumaticActuatorItem(
         return self._get_option_encoding('selected_safety_position')
 
     @property
+    def safety_position_text_value(self) -> str:
+        return self.selected_safety_position
+
+    @property
     def hand_wheel_encoding(self) -> str:
         return self._get_option_encoding('selected_hand_wheel')
 
@@ -541,7 +545,7 @@ class PneumaticActuatorItem(
     def _res_pneumatic_conn(self) -> str:
         body = self.body
         if body and body.pneumatic_connection.exists():
-            return ', '.join(str(c) for c in body.pneumatic_connection.all())
+            return ' или '.join(str(c) for c in body.pneumatic_connection.all())
         return ''
 
     def _res_piston_diameter(self) -> str:

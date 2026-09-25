@@ -25,7 +25,9 @@ PA_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'model_line__brand', },
 
     # ── Вид и корпус ──
-    {'key': 'variety_name', 'placeholder': '{variety}', 'path': 'pneumatic_actuator_variety__description',
+    {'key': 'variety_name', 'placeholder': '{variety_name}', 'path': 'pneumatic_actuator_variety__name',
+     'name_path': 'pneumatic_actuator_variety', },
+    {'key': 'variety_description', 'placeholder': '{variety_description}', 'path': 'pneumatic_actuator_variety__description',
      'name_path': 'pneumatic_actuator_variety', },
     {'key': 'variety_code', 'path': 'pneumatic_actuator_variety__code'},
     {'key': 'body_name', 'placeholder': '{body_name}', 'path': 'body__name',
@@ -37,6 +39,8 @@ PA_ITEM_TEMPLATE_FIELDS = (
     # ── Опции (шаблоны + артикул) ──
     {'key': 'safety_position', 'placeholder': '{safety_position}', 'path': 'selected_safety_position__name',
      'name_path': 'selected_safety_position', 'code_path': 'safety_position_encoding'},
+    {'key': 'safety_position_text_value', 'placeholder': '{safety_position_text_value}', 'path': 'safety_position_text_value',
+     'name_path': 'safety_position_text_value'},
     {'key': 'springs_qty', 'placeholder': '{springs_qty}', 'path': 'selected_springs_qty__name',
      'name_path': 'selected_springs_qty', 'code_path': 'springs_qty_encoding'},
     {'key': 'temperature', 'placeholder': '{temperature}', 'path': 'selected_temperature__name',
@@ -52,9 +56,12 @@ PA_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'selected_hand_wheel', 'code_path': 'hand_wheel_encoding'},
 
     # ── Технические характеристики корпуса (для spec_template) ──
-    {'key': 'construction', 'placeholder': '{construction}',
+    {'key': 'construction_name', 'placeholder': '{construction_name}',
      'path': 'model_line__pneumatic_actuator_construction_variety__name',
-     'label': 'Конструкция', 'group': 'Корпус'},
+    'label': 'Конструкция', 'group': 'Корпус'},
+    {'key': 'construction_description', 'placeholder': '{construction_description}',
+     'path': 'model_line__pneumatic_actuator_construction_variety__description',
+     'label': 'Конструкция описание', 'group': 'Корпус'},
     {'key': 'piston_diameter', 'placeholder': '{piston_diameter}',
      'resolver': '_res_piston_diameter', 'label': 'Диаметр поршня', 'unit': 'мм', 'group': 'Корпус'},
     {'key': 'turn_angle', 'placeholder': '{turn_angle}', 'path': 'body__turn_angle',
