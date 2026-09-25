@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any, Tuple, Optional, List
 
-from params.models import IpOption, HandWheelInstalledOption, BodyCoatingOption, StemShapes, \
+from params.models import IpOption, HandWheelInstalledOption, StemShapes, \
     PneumaticAirSupplyPressure
 from params.exd_models import ExdOption
 from pneumatic_actuators.models import BodyThrustTorqueTable, PneumaticActuatorVariety
@@ -46,17 +46,24 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
         for o in SafetyPositionOption.objects.filter(is_active=True).order_by('sorting_order')
     ]
 
-    # 3. IP, Exd, покрытие, ручной дублер — всегда мастер-справочники (требования),
-    # а не through-строки серии: exd используется в фильтре подбора (нужны ID видов
-    # params.ExdOption), а ip/coating/hand_wheel — в create-sku (нужны ID реальных опций).
+    # 3. IP, Exd, ручной дублер — мастер-справочники (требования):
+    # exd используется в фильтре подбора (нужны ID видов params.ExdOption),
+    # а ip/hand_wheel — в create-sku (нужны ID реальных опций).
     option_classes = {
         'ip_options' : IpOption ,
         'exd_options' : ExdOption ,
-        'coating_options' : BodyCoatingOption ,
         'hand_wheel_options' : HandWheelInstalledOption
     }
     for key , option_class in option_classes.items() :
         result[key] = option_class.get_for_select(active_only=True)
+
+    # Покрытие/исполнение корпуса — through-опция серии (PneumaticBodyDesignOption),
+    # привязанная к model_line; в create-sku идёт её id.
+    from pneumatic_actuators.models.pa_options import PneumaticBodyDesignOption
+    result['coating_options'] = PneumaticBodyDesignOption.get_for_select(
+        model_line_id=model_line_id ,
+        active_only=True
+    )
 
     return result
 

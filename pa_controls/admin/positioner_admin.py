@@ -10,6 +10,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminCopyMixin
 from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
+from core.admin_regenerate_items import RegenerateSeriesItemsAdminMixin
 
 from pa_controls.models import (
     ActingType,
@@ -245,8 +246,9 @@ class PosiExdOptionInline(BaseExdOptionInline):
 # ── Серия ──
 
 @admin.register(PosiModelLine)
-class PosiModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
+class PosiModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAdminMixin, admin.ModelAdmin):
     template_item_model = PosiModelLineItem
+    regenerate_items_related_name = 'positioner_items'
     template_placeholders_fieldset = _('Шаблоны')  # блок плейсхолдеров — рядом с шаблонами
     list_display = ['name', 'code', 'brand', 'actuator_action', 'body_material', 'is_active']
     list_filter = ['code','brand',  'body_material', 'is_active']

@@ -4,13 +4,15 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminCopyMixin
 from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
+from core.admin_regenerate_items import RegenerateSeriesItemsAdminMixin
 from gearbox.models.gb_model_line import GearBoxModelLine
 from gearbox.models.gearbox import GearBox
 
 
 @admin.register(GearBoxModelLine)
-class GearBoxModelLineAdmin(TemplatePlaceholdersAdminMixin, AdminCopyMixin, admin.ModelAdmin):
+class GearBoxModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAdminMixin, AdminCopyMixin, admin.ModelAdmin):
     template_item_model = GearBox
+    regenerate_items_related_name = 'gear_box_model_line'
     filter_horizontal = ('tech_docs','cert_docs')
     list_display = ('name', 'code', 'brand',  'sorting_order', 'is_active')
     list_filter = ('is_active', 'brand', 'gearbox_output_variety')

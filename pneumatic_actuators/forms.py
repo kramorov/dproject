@@ -4,7 +4,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from .models import PneumaticActuatorSelected
 from .models.pa_options import PneumaticSafetyPositionOption , PneumaticSpringsQtyOption , PneumaticTemperatureOption , \
-    PneumaticIpOption , PneumaticExdOption , PneumaticBodyCoatingOption , PneumaticHandWheelOption
+    PneumaticIpOption , PneumaticExdOption , PneumaticBodyDesignOption , PneumaticHandWheelOption
 
 
 class PneumaticActuatorSelectedForm(forms.ModelForm) :
@@ -98,7 +98,7 @@ class PneumaticActuatorSelectedForm(forms.ModelForm) :
                         is_active=True
                     )
                 self.fields['selected_body_coating'].queryset = \
-                    PneumaticBodyCoatingOption.objects.filter(
+                    PneumaticBodyDesignOption.objects.filter(
                         model_line=model_line ,
                         is_active=True
                     )

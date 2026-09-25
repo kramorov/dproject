@@ -45,7 +45,7 @@
           >SR — с возвратной пружиной</button>
         </div>
 
-        <div class="step-label" v-if="form.variety">Типоразмер (корпус)</div>
+        <div class="step-label" v-if="form.variety">Модель</div>
         <div class="chips" v-if="form.variety">
           <button
             v-for="item in modelItems"
@@ -159,6 +159,26 @@ async function selectML(id) {
   form.model_line_id = id
   form.variety = null
   resetAfter('model_line_id')
+  await autoSelectVariety()
+}
+
+async function autoSelectVariety() {
+  // Первый тип привода (DA/SR), у которого есть model_line_item, и первый item.
+  for (const v of ['DA', 'SR']) {
+    try {
+      const { data } = await props.api.getModelLineItems(form.model_line_id, v)
+      if (data && data.length) {
+        form.variety = v
+        modelItems.value = data
+        await selectItem(data[0].id)
+        return
+      }
+    } catch (e) {
+      console.error('PaActuatorConfigurator: autoSelect items failed', e)
+    }
+  }
+  form.variety = null
+  modelItems.value = []
 }
 
 async function selectVariety(v) {
@@ -174,6 +194,9 @@ async function selectVariety(v) {
     modelItems.value = []
   }
   loading.value = false
+  if (modelItems.value.length) {
+    await selectItem(modelItems.value[0].id)
+  }
 }
 
 async function selectItem(id) {

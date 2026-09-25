@@ -459,7 +459,7 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
             PneumaticTemperatureOption ,
             PneumaticIpOption ,
             PneumaticExdOption ,
-            PneumaticBodyCoatingOption,
+            PneumaticBodyDesignOption,
             PneumaticHandWheelOption
         )
 
@@ -467,7 +467,7 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
             PneumaticTemperatureOption ,
             PneumaticIpOption ,
             PneumaticExdOption ,
-            PneumaticBodyCoatingOption,
+            PneumaticBodyDesignOption,
             PneumaticHandWheelOption
         ]
         for option_class in option_classes :
@@ -500,9 +500,14 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
         return PneumaticExdOption.get_or_create_default(self)
 
     def get_default_body_coating_option(self) :
-        """Получить стандартную опцию покрытия корпуса"""
-        from .pa_options import PneumaticBodyCoatingOption
-        return PneumaticBodyCoatingOption.get_or_create_default(self)
+        """Получить стандартное исполнение корпуса"""
+        from .pa_options import PneumaticBodyDesignOption
+        return PneumaticBodyDesignOption.get_or_create_default(self)
+
+    def get_default_hand_wheel_option(self) :
+        """Получить стандартную опцию ручного дублера"""
+        from .pa_options import PneumaticHandWheelOption
+        return PneumaticHandWheelOption.get_or_create_default(self)
 
     # ==================== СВОЙСТВА ДЛЯ ШАБЛОНОВ И API ====================
 
@@ -523,8 +528,13 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
 
     @property
     def body_coating_options_list(self) :
-        """Список всех опций покрытия корпуса"""
-        return self.body_coating_options.all()
+        """Список всех исполнений корпуса"""
+        return self.body_design_options.all()
+
+    @property
+    def hand_wheel_options_list(self) :
+        """Список всех опций ручного дублера"""
+        return self.hand_wheel_options.all()
 
     @property
     def default_temperature(self) :
@@ -546,6 +556,11 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
         """Стандартная опция покрытия корпуса"""
         return self.get_default_body_coating_option()
 
+    @property
+    def default_hand_wheel(self) :
+        """Стандартная опция ручного дублера"""
+        return self.get_default_hand_wheel_option()
+
     # ==================== ОТОБРАЖАЕМЫЕ СВОЙСТВА ====================
 
     @property
@@ -566,10 +581,10 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
 
     @property
     def body_coating_display(self) :
-        """Отображаемое имя стандартной опции покрытия"""
+        """Отображаемое имя стандартного покрытия корпуса"""
         default_coating = self.default_body_coating
-        if default_coating and default_coating.body_coating_option :
-            return default_coating.body_coating_option.name
+        if default_coating :
+            return default_coating.body_coating or "Не указано"
         return "Не указано"
 
     def get_option_info(self) :
@@ -592,8 +607,8 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
                 'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
             },
             'hand_wheel' : {
-                'default' : self.default_body_coating.get_option_info() if self.default_body_coating else None ,
-                'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
+                'default' : self.default_hand_wheel.get_option_info() if self.default_hand_wheel else None ,
+                'options' : [opt.get_option_info() for opt in self.hand_wheel_options_list]
             }
         }
 
@@ -1081,10 +1096,6 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                             if field.related_model == PneumaticActuatorModelLineItem :
                                 setattr(obj , field.name , copy_obj)
                                 break
-
-                    # Добавляем суффикс к encoding для уникальности
-                    if hasattr(obj , 'encoding') and obj.encoding :
-                        obj.encoding = f"{obj.encoding}_copy"
 
                     obj.save()
 

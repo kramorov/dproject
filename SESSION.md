@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-09-24. История изменений удалена; здесь — только актуальные факты,
+> Обновлено: 2026-09-25. История изменений удалена; здесь — только актуальные факты,
 > механизмы и задачи. Детали контракта каталогов — в `template_mixin.md` (корень репо),
 > паттерн фильтрации каталогов — в `CATALOG_PATTERN.md`, взрывозащита (Exd) — в `exd-option.md`.
 
@@ -652,3 +652,63 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 - `spec_template` у не-PA каталогов (DV/LSB/Posi/FR/GB/PF/CG) пуст → фолбэк `{model_code}`;
   заполнение JSON-спеки на каждый тип — отдельная задача.
 - `icon` (EquipmentType) задумано как emoji/CSS-класс, но в фронте единообразно не подключено.
+
+---
+
+## 13. Сессия 2026-09-25 — PA: исполнение корпуса, вес, пружинные блоки, кнопка перегенерации
+
+### 13.1. PneumaticBodyCoatingOption → PneumaticBodyDesignOption
+
+- Новая through-модель `PneumaticBodyDesignOption` (`pa_options.py`, наследует `BaseThroughOption`):
+  `body_material` FK→`MaterialGeneral` (SET_NULL), `body_coating` CharField(250),
+  `body_color` FK→`params.BodyColor` (SET_NULL), `model_line` FK (related_name=`body_design_options`),
+  + `encoding/is_default/sorting_order/is_active/description`. Старая `PneumaticBodyCoatingOption` удалена.
+- FK `selected_body_coating` в `PneumaticActuatorSelected/Constructor/Item` → `PneumaticBodyDesignOption`;
+  `_OPTION_CONFIG['selected_body_coating']` → `through_attr=None` (опция сама себя представляет).
+- Миграции: `0042` (создание + data-перенос `body_coating_option.name`→`body_coating` + перепривязка FK
+  + удаление старой модели), `0043` (`body_color` on_delete CASCADE→SET_NULL). Применены к локальному db.sqlite3.
+- `PA_ITEM_TEMPLATE_FIELDS`: добавлены `body_material`, `body_coating`, `body_color_ral`,
+  `body_color_name` (→ `body_color__ral_name_ru`); те же ключи добавлены в `NAME_FIELD_KEYS` и `VARS_FIELD_KEYS`.
+  Ключ `coating` (placeholder `{coating}` → `coating_encoding`) сохранён для артикула.
+- `actuator_selector_handler.get_actuator_options()`: `coating_options` теперь
+  `PneumaticBodyDesignOption.get_for_select(model_line_id=...)` (было `params.BodyCoatingOption`).
+- `sku_service._MODEL_BY_KEY['body_coating']` → `pneumatic_actuators.PneumaticBodyDesignOption`.
+
+### 13.2. Вес пневмопривода
+
+- Новый модуль `pneumatic_actuators/models/pa_weight.py` — `calculate_actuator_weight(body, variety_code, spring_code)`:
+  DA → вес из `PneumaticWeightParameter` (код `DA`) или 0; пружины → точное совпадение по коду/блоку → вес напрямую;
+  иначе `вес_DA + N × вес_1_пружины` (вес_1_пружины = `body.weight_spring`, при отсутствии выводится из
+  (вес_референсного_кол-ва − вес_DA)/N).
+- `PneumaticActuatorItem.calculated_weight` и `PneumaticActuatorConstructor/Selected.get_weight()` → единый вызов.
+  `_res_weight_spring` = вес 1 пружины (без изменений). Полный вес — ключ/плейсхолдер `weight` → `calculated_weight`.
+
+### 13.3. Пружинные блоки кулисных (SY) — S1/S2/S3
+
+- Миграция `0044_add_scotch_yoke_spring_blocks`: в справочнике `PneumaticActuatorSpringsQty` созданы `S1/S2/S3`;
+  у SY-серий through-опции `springs_qty` `10/11/12` → `S1/S2/S3` (+ encoding), веса `12` → `S3`.
+  RACK-PINION остался числовым `10/11/12`.
+- При копировании `model_line_item` убран суффикс `_copy` у encoding (`pa_model_line.py::_copy_related_options`).
+
+### 13.4. Кнопка перегенерации name/description в админке серий
+
+- `core/admin_regenerate_items.py` — миксин `RegenerateSeriesItemsAdminMixin`: кнопка в change-form,
+  URL `<object_id>/regenerate-items/`, вызывает `update_from_templates(save=True)` по всем items серии.
+- Шаблон `templates/admin/regenerate_items_change_form.html` (object-tools).
+- Подключено к 6 админкам серий: FilterRegulatorModelLine, GearBoxModelLine, DirectionalValveModelLine,
+  PneumaticFittingModelLine, LimitSwitchModelLine, PosiModelLine. **Исключены** pneumatic_actuators и electric_actuators.
+- cable_glands и valve_data не подключены (item-модели не на TemplateMixin).
+
+### 13.5. Фронт каталога ПП (fix)
+
+- `views_constructor.model_lines` теперь отдаёт `image` (из галереи серии) и `description` — починило картинки серий.
+- `PaActuatorConfigurator.vue`: автовыбор первого типа DA/SR (где есть model_line_item) и первой модели при входе
+  в серию; `selectVariety` тоже авто-выбирает первую модель; подпись «Типоразмер (корпус)» → «Модель».
+
+### Состояние git / незакоммичено
+
+- За сессию НЕ закоммичено: 22 modified, 8 untracked. Миграции `0042/0043/0044` и новые файлы
+  (`pa_weight.py`, `core/admin_regenerate_items.py`, `templates/admin/regenerate_items_change_form.html`) — untracked.
+  `db.sqlite3` изменён миграциями.
+- Бэкапы: `db_before_bodydesign_migration.sqlite3`, `db_before_spring_blocks.sqlite3` (можно удалить после проверки).
+- Фронт проверен статически (`manage.py check` чист), но НЕ прогонялся в браузере/сборке npm.

@@ -3,10 +3,11 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 
-from options.models import BaseTemperatureThroughOption, BaseBodyCoatingThroughOption, \
+from options.models import BaseTemperatureThroughOption, BaseThroughOption, \
     BaseIpThroughOption, BasePneumaticConnectionThroughOption, BaseSafetyPositionThroughOption, \
     BaseSpringsQtyThroughOption, BaseHandWheelThroughOption, BaseM2MExdThroughOption
 from params.models import IpOption
+from materials.models import MaterialGeneral
 
 
 class PneumaticHandWheelOption(BaseHandWheelThroughOption):
@@ -275,33 +276,91 @@ class PneumaticExdOption(BaseM2MExdThroughOption):
             for obj in queryset.prefetch_related('exd_options')
         ]
 
-class PneumaticBodyCoatingOption(BaseBodyCoatingThroughOption):
-    """Опции покрытия корпуса для пневмоприводов"""
+class PneumaticBodyDesignOption(BaseThroughOption):
+    """Исполнение корпуса (материал/покрытие/цвет) для пневмоприводов"""
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
-        related_name='body_coating_options',
+        related_name='body_design_options',
         verbose_name=_("Серия пневмоприводов")
+    )
+    body_material = models.ForeignKey(
+        MaterialGeneral,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pa_body_design_materials',
+        verbose_name=_("Материал корпуса")
+    )
+    body_coating = models.CharField(
+        max_length=250,
+        blank=True,
+        verbose_name=_("Покрытие корпуса")
+    )
+    body_color = models.ForeignKey(
+        'params.BodyColor',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pa_body_design_colors',
+        verbose_name=_("Цвет корпуса")
     )
 
     class Meta:
-        verbose_name = _("Опция покрытия корпуса пневмопривода")
-        verbose_name_plural = _("Опции покрытия корпуса пневмоприводов")
-        ordering = ['body_coating_option__sorting_order', 'sorting_order']
-        unique_together = ['model_line', 'body_coating_option']
+        verbose_name = _("Исполнение корпуса пневмопривода")
+        verbose_name_plural = _("Исполнения корпуса пневмоприводов")
+        ordering = ['is_default', 'sorting_order']
+        unique_together = ['model_line', 'encoding']
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line'
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартное исполнение корпуса (покрытие по умолчанию из справочника)"""
+        from django.apps import apps
+        BodyCoatingOption = apps.get_model('params' , 'BodyCoatingOption')
+        std_coating = None
+        for code in ('STD' , 'STANDARD' , 'DEFAULT') :
+            std_coating = BodyCoatingOption.objects.filter(code=code , is_active=True).first()
+            if std_coating :
+                break
+        if not std_coating :
+            std_coating = BodyCoatingOption.objects.filter(is_active=True).first()
+
+        parent_field = cls._get_parent_field_name()
+        return cls.objects.create(
+            **{parent_field : parent_obj} ,
+            body_material=None ,
+            body_coating=std_coating.name if std_coating else '' ,
+            body_color=None ,
+            encoding=std_coating.code if std_coating else '' ,
+            description='Стандартное исполнение корпуса' ,
+            is_default=True ,
+            sorting_order=0 ,
+            is_active=True
+        )
+
+    def get_display_name(self) :
+        parts = []
+        if self.body_material :
+            parts.append(self.body_material.name)
+        if self.body_coating :
+            parts.append(self.body_coating)
+        if self.body_color :
+            parts.append(str(self.body_color))
+        base = ', '.join(parts) if parts else 'Не указано'
+        if self.encoding and self.encoding.strip() :
+            base = f"{self.encoding} ({base})"
+        return f"{base} (Стандарт)" if self.is_default else f"{base} (Опция)"
+
     def __str__(self):
-        # ИСПРАВЛЕНО: используем is_default вместо default_option
-        return f"{self.body_coating_option.name} (Стандарт)" if self.is_default else f"{self.body_coating_option.name} (Опция)"
+        return self.get_display_name()
 
     @classmethod
     def get_for_select(cls , model_line_id: Optional[int] = None ,
                        model_line_item_id: Optional[int] = None ,
                        active_only: bool = True) -> List[Dict] :
-        """Получить опции покрытия корпуса"""
+        """Получить опции исполнения корпуса"""
         queryset = cls.objects.all()
 
         if active_only :

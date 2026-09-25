@@ -8,7 +8,7 @@ from .models import (
     PneumaticActuatorModelLineItem ,
 )
 from .models.pa_options import PneumaticSafetyPositionOption , PneumaticSpringsQtyOption , PneumaticTemperatureOption , \
-    PneumaticIpOption , PneumaticExdOption , PneumaticBodyCoatingOption , PneumaticHandWheelOption
+    PneumaticIpOption , PneumaticExdOption , PneumaticBodyDesignOption , PneumaticHandWheelOption
 
 
 def get_used_queryset(model , field_name , filter_field='id' , exclude_null=True) :
@@ -74,7 +74,7 @@ class PneumaticActuatorSelectedFilter(django_filters.FilterSet) :
     )
 
     selected_body_coating = django_filters.ModelChoiceFilter(
-        queryset=get_used_queryset(PneumaticBodyCoatingOption , 'selected_body_coating') ,
+        queryset=get_used_queryset(PneumaticBodyDesignOption , 'selected_body_coating') ,
         widget=forms.Select(attrs={'class' : 'form-control'})
     )
 

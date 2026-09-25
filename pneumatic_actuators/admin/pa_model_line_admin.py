@@ -8,7 +8,7 @@ from pneumatic_actuators.models.pa_options import (
     PneumaticTemperatureOption,
     PneumaticIpOption,
     PneumaticExdOption,
-    PneumaticBodyCoatingOption, PneumaticHandWheelOption
+    PneumaticBodyDesignOption, PneumaticHandWheelOption
 )
 
 
@@ -51,14 +51,14 @@ class PneumaticExdOptionInline(BaseExdOptionInline) :
     verbose_name_plural = _("Exd опции")
 
 
-class PneumaticBodyCoatingOptionInline(admin.TabularInline) :
-    """Inline для опций покрытия корпуса"""
-    model = PneumaticBodyCoatingOption
+class PneumaticBodyDesignOptionInline(admin.TabularInline) :
+    """Inline для исполнений корпуса"""
+    model = PneumaticBodyDesignOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['body_coating_option' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
-    verbose_name = _("Опция покрытия")
-    verbose_name_plural = _("Опции покрытия")
+    fields = ['body_material' , 'body_coating' , 'body_color' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Исполнение корпуса")
+    verbose_name_plural = _("Исполнения корпуса")
 
 
 @admin.register(PneumaticActuatorModelLine)
@@ -109,7 +109,7 @@ class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Mode
         PneumaticTemperatureOptionInline ,
         PneumaticIpOptionInline ,
         PneumaticExdOptionInline ,
-        PneumaticBodyCoatingOptionInline,
+        PneumaticBodyDesignOptionInline,
         PneumaticHandWheelOptionInline,
     ]
 
@@ -142,7 +142,7 @@ class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Mode
             'temperature_options' ,
             'ip_options' ,
             'exd_options' ,
-            'body_coating_options' ,
+            'body_design_options' ,
             'hand_wheel_options',
             'ip_options' ,
             'exd_options' ,
@@ -183,7 +183,7 @@ class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Mode
     def save_formset(self , request , form , formset , change) :
         """Упрощенное сохранение с проверкой после записи"""
         if formset.model in [PneumaticTemperatureOption , PneumaticIpOption ,
-                             PneumaticExdOption , PneumaticBodyCoatingOption] :
+                             PneumaticExdOption , PneumaticBodyDesignOption] :
 
             # 1. Сначала сохраняем все объекты
             instances = formset.save(commit=False)

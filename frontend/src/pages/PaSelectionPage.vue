@@ -245,6 +245,7 @@ export default {
       handler() {
         this.form.actuator_variety_id = null
         this.form.safety_position_id = null
+        this.form.coating_id = null
         this.actuatorOptions.safety_positions = []
         this.loadActuatorOptions()
       },

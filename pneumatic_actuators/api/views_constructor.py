@@ -196,12 +196,23 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def model_lines(self, request):
-        """Список активных серий пневмоприводов."""
+        """Список активных серий пневмоприводов (с изображением и описанием)."""
         items = PneumaticActuatorModelLine.objects.filter(is_active=True).order_by('sorting_order')
-        return Response([
-            {'id': ml.id, 'name': ml.name, 'code': ml.code}
-            for ml in items
-        ])
+        result = []
+        for ml in items :
+            image = None
+            try :
+                imgs = ml._get_images_section()
+                if imgs :
+                    image = imgs[0].get('preview_url') or imgs[0].get('url')
+            except Exception :
+                image = None
+            result.append({
+                'id' : ml.id , 'name' : ml.name , 'code' : ml.code ,
+                'description' : ml.description ,
+                'image' : image ,
+            })
+        return Response(result)
 
     @action(detail=False, methods=['get'], url_path='model-lines/(?P<ml_id>[^/.]+)/items')
     def model_line_items(self, request, ml_id=None):

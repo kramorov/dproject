@@ -14,7 +14,7 @@ from pneumatic_actuators.models.pa_actuator_selected import PneumaticActuatorSel
 from pneumatic_actuators.models.pa_options import (
     PneumaticSafetyPositionOption , PneumaticSpringsQtyOption ,
     PneumaticTemperatureOption , PneumaticIpOption ,
-    PneumaticExdOption , PneumaticBodyCoatingOption
+    PneumaticExdOption , PneumaticBodyDesignOption
 )
 
 
@@ -307,6 +307,6 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
 
     def body_coating_display(self , obj) :
         """Читаемое имя покрытия корпуса."""
-        return obj.selected_body_coating.body_coating_option if obj.selected_body_coating else "-"
+        return str(obj.selected_body_coating) if obj.selected_body_coating else "-"
 
     body_coating_display.short_description = "Покрытие"

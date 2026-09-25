@@ -47,7 +47,7 @@ _MODEL_BY_KEY = {
     'safety_position': 'params.SafetyPositionOption',
     'ip': 'params.IpOption',
     'exd': 'params.ExdOption',
-    'body_coating': 'params.BodyCoatingOption',
+    'body_coating': 'pneumatic_actuators.PneumaticBodyDesignOption',
     'hand_wheel': 'params.HandWheelInstalledOption',
 }
 

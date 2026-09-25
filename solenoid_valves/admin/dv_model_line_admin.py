@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminStructuredDataMixinCopyMixin
 from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
+from core.admin_regenerate_items import RegenerateSeriesItemsAdminMixin
 from solenoid_valves.models import DirectionalValveModelLine
 from solenoid_valves.models.dv_model_line_item import DirectionValve
 from solenoid_valves.models.dv_exd_option import DirectionValveExdOption
@@ -53,9 +54,10 @@ class DirectionalValveModelLineForm(forms.ModelForm):
 
 
 @admin.register(DirectionalValveModelLine)
-class DirectionalValveModelLineAdmin(TemplatePlaceholdersAdminMixin, AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
+class DirectionalValveModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAdminMixin, AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     """Админка для серии распределительных клапанов (DNA клапана)"""
     template_item_model = DirectionValve
+    regenerate_items_related_name = 'direction_valve_model_line'
     form = DirectionalValveModelLineForm
 
     list_display = [

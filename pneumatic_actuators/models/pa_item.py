@@ -99,7 +99,7 @@ class PneumaticActuatorItem(
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'variety_name', 'variety_description', 'variety_code', 'body_name', 'body_code',
         'weight', 'safety_position', 'safety_position_text_value','springs_qty', 'temperature',
-        'ip', 'exd', 'exd_short', 'coating', 'hand_wheel',
+        'ip', 'exd', 'exd_short', 'coating', 'body_material', 'body_coating', 'body_color_ral', 'body_color_name', 'hand_wheel',
         # Технические характеристики (для name/description и справочника плейсхолдеров)
         'construction_name','construction_description','piston_diameter', 'turn_angle', 'turn_tuning_limit',
         'weight_spring', 'pressure_min', 'pressure_max', 'pressure',
@@ -119,6 +119,7 @@ class PneumaticActuatorItem(
         'code', 'name', 'model_line_name', 'model_line_code', 'brand_name',
         'body_name', 'body_code', 'variety_name', 'variety_code', 'weight',
         'ip', 'exd', 'exd_short',
+        'body_material', 'body_coating', 'body_color_ral', 'body_color_name',
     )
 
     # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
@@ -204,10 +205,10 @@ class PneumaticActuatorItem(
         help_text=_('Выбранная опция взрывозащиты (through-строка с кодировкой и видами Ex)')
     )
     selected_body_coating = models.ForeignKey(
-        'params.BodyCoatingOption',
+        'PneumaticBodyDesignOption',
         on_delete=models.SET_NULL, null=True, blank=True,
         related_name='pa_items_coating',
-        verbose_name=_("Покрытие корпуса"),
+        verbose_name=_("Исполнение корпуса"),
     )
     selected_hand_wheel = models.ForeignKey(
         'params.HandWheelInstalledOption',
@@ -274,8 +275,8 @@ class PneumaticActuatorItem(
             'parent_field': 'model_line',
         },
         'selected_body_coating': {
-            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyCoatingOption',
-            'through_attr': 'body_coating_option',
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption',
+            'through_attr': None,  # PneumaticBodyDesignOption САМА является опцией
             'parent_field': 'model_line',
         },
         'selected_hand_wheel': {
@@ -513,16 +514,16 @@ class PneumaticActuatorItem(
 
     @property
     def calculated_weight(self) -> Optional[float]:
-        """Вес: базовый вес корпуса (weight_spring); уточняется на этапе P8."""
-        if not self.body:
-            return None
-        weight = getattr(self.body, 'weight_spring', None)
-        if weight is None:
-            return None
-        try:
-            return float(weight)
-        except (TypeError, ValueError):
-            return None
+        """Вес привода в зависимости от выбранного количества пружин."""
+        from .pa_weight import calculate_actuator_weight
+        variety = self.pneumatic_actuator_variety
+        springs = self.selected_springs_qty
+        result = calculate_actuator_weight(
+            self.body,
+            variety.code if variety else None,
+            springs.code if springs else None,
+        )
+        return float(result) if result is not None else None
 
     # ═══════════════════════════════════════════════════════════════
     # Resolver'ы для spec_template (технические + таблица моментов)

@@ -131,11 +131,11 @@ class PneumaticActuatorConstructor(models.Model):
     )
 
     selected_body_coating = models.ForeignKey(
-        'params.BodyCoatingOption',
+        'PneumaticBodyDesignOption',
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        verbose_name=_("Покрытие корпуса"),
-        help_text=_('Выбранное покрытие корпуса')
+        verbose_name=_("Исполнение корпуса"),
+        help_text=_('Выбранное исполнение корпуса (материал/покрытие/цвет)')
     )
 
     selected_hand_wheel = models.ForeignKey(
@@ -182,9 +182,9 @@ class PneumaticActuatorConstructor(models.Model):
             'parent_field': 'model_line',
         },
         'selected_body_coating': {
-            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyCoatingOption',
-            'through_attr': 'body_coating_option',
-            'label': 'покрытие корпуса',
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption',
+            'through_attr': None,  # PneumaticBodyDesignOption САМА является опцией
+            'label': 'исполнение корпуса',
             'parent_field': 'model_line',
         },
         'selected_hand_wheel': {
@@ -407,16 +407,16 @@ class PneumaticActuatorConstructor(models.Model):
             'name': ex_short or '',
         }
 
-        # body_coating → params.BodyCoatingOption
+        # body_coating → PneumaticBodyDesignOption
         bc = self.selected_body_coating
         data['body_coating'] = {
             'category': 'selected_options',
-            'title': 'Покрытие корпуса',
+            'title': 'Исполнение корпуса',
             'data': bc.id if bc else None,
-            'display_data': bc.name if bc else 'Не указано',
-            'text_data': f"Покрытие корпуса: {bc.name}" if bc else None,
-            'code': bc.code if bc else '',
-            'name': bc.name if bc else '',
+            'display_data': str(bc) if bc else 'Не указано',
+            'text_data': f"Исполнение корпуса: {bc}" if bc else None,
+            'code': bc.encoding if bc else '',
+            'name': bc.body_coating if bc else '',
         }
 
         # hand_wheel → params.HandWheelInstalledOption
@@ -1295,7 +1295,7 @@ class PneumaticActuatorConstructor(models.Model):
         from pneumatic_actuators.models.pa_options import (
             PneumaticSafetyPositionOption, PneumaticSpringsQtyOption,
             PneumaticTemperatureOption, PneumaticIpOption,
-            PneumaticExdOption, PneumaticBodyCoatingOption, PneumaticHandWheelOption
+            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticHandWheelOption
         )
 
         if not self.selected_model_line_item:
@@ -1394,16 +1394,16 @@ class PneumaticActuatorConstructor(models.Model):
                 for opt in exd_through
             ]
 
-            coating_through = PneumaticBodyCoatingOption.objects.filter(
+            coating_through = PneumaticBodyDesignOption.objects.filter(
                 model_line=ml, is_active=True
-            ).select_related('body_coating_option')
+            )
             result['body_coating_options'] = [
                 {
                     'id': opt.id,
-                    'option_id': opt.body_coating_option.id,
+                    'option_id': opt.id,
                     'encoding': opt.encoding,
-                    'name': opt.body_coating_option.name,
-                    'code': opt.body_coating_option.code,
+                    'name': str(opt),
+                    'code': opt.encoding or '',
                     'description': opt.description,
                     'is_default': opt.is_default,
                 }
@@ -1431,58 +1431,18 @@ class PneumaticActuatorConstructor(models.Model):
     # ==================== ВЕС ====================
 
     def get_weight(self) -> Optional[Decimal]:
-        """
-        Рассчитывает вес привода.
-        Для DA (двойного действия): берёт вес из PneumaticWeightParameter с code='DA'.
-        Для SR (с возвратной пружиной): вычисляет от максимального веса минус разница пружин × вес_одной.
-        Возвращает None если недостаточно данных.
-        """
-        try:
-            if not self.selected_model_line_item or not self.selected_model_line_item.body:
-                return None
-
-            body = self.selected_model_line_item.body
-            from pneumatic_actuators.models import PneumaticWeightParameter
-
-            # Для приводов DA
-            if (self.selected_model_line_item.pneumatic_actuator_variety and
-                    self.selected_model_line_item.pneumatic_actuator_variety.code == 'DA'):
-                da_weight = PneumaticWeightParameter.objects.filter(
-                    body=body,
-                    spring_qty__code='DA'
-                ).first()
-                return da_weight.weight if da_weight else None
-
-            # Для приводов SR
-            if not self.selected_springs_qty:
-                return None
-
-            max_springs_qty = PneumaticWeightParameter.objects.filter(
-                body=body
-            ).exclude(spring_qty__code='DA').order_by('-spring_qty__code').first()
-
-            if not max_springs_qty:
-                return None
-
-            # В Constructor: selected_springs_qty — это напрямую PneumaticActuatorSpringsQty
-            if self.selected_springs_qty.code == max_springs_qty.spring_qty.code:
-                return max_springs_qty.weight
-
-            try:
-                selected_springs = int(self.selected_springs_qty.code)
-                max_springs = int(max_springs_qty.spring_qty.code)
-                spring_difference = max_springs - selected_springs
-
-                if body.weight_spring and spring_difference > 0:
-                    return max_springs_qty.weight - (spring_difference * body.weight_spring)
-                else:
-                    return max_springs_qty.weight
-
-            except (ValueError, TypeError):
-                return max_springs_qty.weight
-
-        except Exception:
+        """Вес привода в зависимости от количества пружин (см. pa_weight)."""
+        from .pa_weight import calculate_actuator_weight
+        mli = self.selected_model_line_item
+        if not mli or not mli.body:
             return None
+        variety = mli.pneumatic_actuator_variety
+        springs = self.selected_springs_qty
+        return calculate_actuator_weight(
+            mli.body,
+            variety.code if variety else None,
+            springs.code if springs else None,
+        )
 
     @property
     def calculated_weight(self) -> Optional[Decimal]:
