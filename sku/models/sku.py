@@ -38,7 +38,7 @@ class SKU(models.Model):
         help_text=_("Наименование товара/услуги")
     )
     code = models.CharField(
-        max_length=100, unique=True,
+        max_length=255, unique=True,
         verbose_name=_("Код"),
         help_text=_("Уникальный артикул номенклатуры")
     )

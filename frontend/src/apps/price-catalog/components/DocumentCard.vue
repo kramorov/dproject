@@ -129,11 +129,11 @@
         <h4>Подбор SKU в документ</h4>
         <div class="fill-filters fl">
           <input v-model="fillCode" placeholder="Код/название" class="fi" @keyup.enter="doFillSearch" />
-          <select v-model="fillEqType" class="fi"><option value="">Все типы</option>
+          <select v-model="fillEqType" class="fi" @change="onFillEqTypeChange"><option value="">Все типы</option>
             <option v-for="t in opts.equipmentTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
           </select>
           <select v-model="fillBrand" class="fi"><option value="">Все бренды</option>
-            <option v-for="b in opts.brands" :key="b.id" :value="b.id">{{ b.name }}</option>
+            <option v-for="b in fillBrands" :key="b.id" :value="b.id">{{ b.name }}</option>
           </select>
           <button class="btn-fill" @click="doFillSearch">Искать</button>
         </div>
@@ -155,9 +155,10 @@
         </div>
         <div v-else-if="!fillLoading && fillCode" class="st">Ничего не найдено</div>
         <div v-if="fillErr" class="er">{{ fillErr }}</div>
+        <div v-if="!canFill" class="er">⚠️ Укажите тип цены и валюту документа (поля «Тип цены»/«Валюта» над таблицей), чтобы перенести позиции.</div>
         <div class="modal-btns">
           <button
-            class="btn-fill" :disabled="fillAdding || !fillSelected.size"
+            class="btn-fill" :disabled="fillAdding || !fillSelected.size || !canFill"
             @click="doFillAdd"
           >{{ fillAdding ? 'Добавление...' : 'Перенести в документ (' + fillSelected.size + ')' }}</button>
           <button class="btn-cancel" @click="showFillModal = false">Закрыть</button>
@@ -293,11 +294,28 @@ watch(doc, (d) => {
 
 async function saveExtraFields() {
   if (!doc.value || !isDraft.value) return
+  const oldPv = doc.value.default_price_variety_id || null
+  const oldCur = doc.value.default_currency_id || null
+  const newPv = priceVarietyId.value || null
+  const newCur = currencyId.value || null
+  const changed = oldPv !== newPv || oldCur !== newCur
+
+  let updatePrices = false
+  if (changed && docItems.value.length) {
+    updatePrices = confirm('Обновить цены в документе в соответствии с новым типом цены и валютой?')
+  }
+
   try {
     await priceApi.updateDocument(props.docId, {
-      default_price_variety_id: priceVarietyId.value || undefined,
-      default_currency_id: currencyId.value || undefined,
+      default_price_variety_id: newPv || undefined,
+      default_currency_id: newCur || undefined,
+      update_item_prices: updatePrices,
     })
+    if (doc.value) {
+      doc.value.default_price_variety_id = newPv
+      doc.value.default_currency_id = newCur
+    }
+    if (updatePrices) await loadItems(props.docId)
     emit('changed')
   } catch {}
 }
@@ -412,11 +430,23 @@ const showFillModal = ref(false)
 const fillCode = ref(''), fillEqType = ref(''), fillBrand = ref('')
 const fillItems = ref([]), fillLoading = ref(false), fillAdding = ref(false)
 const fillSelected = ref(new Set()), fillErr = ref('')
+const fillBrands = ref([])
 const fillAllSelected = computed(() => fillItems.value.length > 0 && fillSelected.value.size === fillItems.value.length)
+const canFill = computed(() => !!doc.value?.default_price_variety_id && !!doc.value?.default_currency_id)
 
 function openFillByFilter() {
   showFillModal.value = true; fillCode.value = ''; fillEqType.value = ''; fillBrand.value = ''
   fillItems.value = []; fillSelected.value = new Set(); fillErr.value = ''
+  fillBrands.value = opts.brands || []
+}
+
+async function onFillEqTypeChange() {
+  fillBrand.value = ''
+  if (!fillEqType.value) { fillBrands.value = opts.brands || []; return }
+  try {
+    const r = await priceApi.filterOptions({ equipment_type_id: fillEqType.value })
+    fillBrands.value = r.data?.brands || []
+  } catch { fillBrands.value = opts.brands || [] }
 }
 
 async function doFillSearch() {
@@ -447,8 +477,17 @@ function toggleFillAll() {
 async function doFillAdd() {
   fillAdding.value = true; fillErr.value = ''
   try {
+    if (!canFill.value) {
+      fillErr.value = 'Укажите тип цены и валюту документа перед добавлением позиций.'
+      return
+    }
+    let failed = 0
     for (const skuId of fillSelected.value) {
-      try { await itemsApi.addItem(props.docId, { sku_id: skuId, price: 0 }) } catch {}
+      try { await itemsApi.addItem(props.docId, { sku_id: skuId }) } catch { failed++ }
+    }
+    if (failed) {
+      fillErr.value = `Не удалось добавить ${failed} из ${fillSelected.value.size} позиций.`
+      return
     }
     showFillModal.value = false
     await loadItems(props.docId); emit('changed')

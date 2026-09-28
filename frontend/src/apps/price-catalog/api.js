@@ -5,7 +5,7 @@ const B = '/admin/prices'
 export default {
   // Каталог цен
   listPrices(params = {}) { return api.get(`${B}/`, { params }) },
-  filterOptions() { return api.get(`${B}/filters/`) },
+  filterOptions(params = {}) { return api.get(`${B}/filters/`, { params }) },
 
   // Срез цен
   getSnapshot(params = {}) { return api.get(`${B}/snapshot/`, { params }) },

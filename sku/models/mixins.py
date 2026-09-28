@@ -12,8 +12,12 @@ SKUMixin — абстрактная модель для авто-синхрон�
             super().save(*args, **kwargs)
             self.sync_sku()
 """
+import logging
+
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
+
+logger = logging.getLogger(__name__)
 
 
 class SKUMixin(models.Model):
@@ -107,6 +111,17 @@ class SKUMixin(models.Model):
             # Уже привязана — обновляем поля SKU из модели
             sku = self.sku
             changed = False
+            if sku.code != code:
+                # Код элемента сменился — синхронизируем код SKU (с защитой от конфликта).
+                if SKU.objects.filter(code=code).exclude(pk=sku.pk).exists():
+                    logger.warning(
+                        'SKU code conflict: %s pk=%s code=%r already taken by another SKU; '
+                        'keeping stale code %r',
+                        self.__class__.__name__, self.pk, code, sku.code,
+                    )
+                else:
+                    sku.code = code
+                    changed = True
             if sku.name != name[:300]:
                 sku.name = name[:300]
                 changed = True
@@ -125,7 +140,7 @@ class SKUMixin(models.Model):
                 sku.source_object_id = self.pk
                 changed = True
             if changed:
-                sku.save(update_fields=['name', 'description', 'equipment_type', 'brand',
+                sku.save(update_fields=['code', 'name', 'description', 'equipment_type', 'brand',
                                         'source_content_type', 'source_object_id'])
         else:
             # Пытаемся найти или создать SKU по коду

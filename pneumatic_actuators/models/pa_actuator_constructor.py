@@ -1396,13 +1396,15 @@ class PneumaticActuatorConstructor(models.Model):
 
             coating_through = PneumaticBodyDesignOption.objects.filter(
                 model_line=ml, is_active=True
-            )
+            ).select_related('body_material', 'body_color')
             result['body_coating_options'] = [
                 {
                     'id': opt.id,
                     'option_id': opt.id,
                     'encoding': opt.encoding,
-                    'name': str(opt),
+                    'material': opt.body_material.name if opt.body_material else '',
+                    'coating': opt.body_coating or '',
+                    'name': ', '.join(filter(None, [opt.body_material.name if opt.body_material else '', opt.body_coating or ''])) or 'Не указано',
                     'code': opt.encoding or '',
                     'description': opt.description,
                     'is_default': opt.is_default,

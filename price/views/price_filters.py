@@ -13,6 +13,7 @@ from rest_framework.permissions import AllowAny
 from price.models import PriceVariety, Currency
 from core.models.equipment_type import EquipmentType
 from producers.models import Brands
+from sku.models import SKU
 
 
 class PriceFilterOptionsView(APIView):
@@ -35,9 +36,17 @@ class PriceFilterOptionsView(APIView):
             .order_by('name')
         )
 
+        brands_qs = Brands.objects.filter(is_active=True)
+        equipment_type_id = request.query_params.get('equipment_type_id')
+        if equipment_type_id:
+            # Бренды, у которых есть SKU данного типа оборудования.
+            brand_ids = SKU.objects.filter(
+                equipment_type_id=equipment_type_id, brand__isnull=False
+            ).values_list('brand_id', flat=True).order_by().distinct()
+            brands_qs = brands_qs.filter(id__in=brand_ids)
+
         brands = list(
-            Brands.objects.filter(is_active=True)
-            .values('id', 'name')
+            brands_qs.values('id', 'name')
             .order_by('name')
         )
 

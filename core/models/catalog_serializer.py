@@ -173,13 +173,18 @@ class CatalogSerializerMixin(CatalogDictMixin):
         }
 
     def _get_docs_section(self) -> list:
-        """Техдокументация: своя → из серии (дедуп по id)."""
+        """Техдокументация: своя → из серии (дедуп по id).
+
+        На несохранённом инстансе (превью конструктора) собственная M2M
+        недоступна — пропускаем её, но документы серии берём.
+        """
         docs = []
         seen = set()
-        for doc in self.tech_docs.all():
-            if doc.media_file and doc.id not in seen:
-                seen.add(doc.id)
-                docs.append(self._build_doc_dict(doc))
+        if self.pk is not None:
+            for doc in self.tech_docs.all():
+                if doc.media_file and doc.id not in seen:
+                    seen.add(doc.id)
+                    docs.append(self._build_doc_dict(doc))
         if self.model_line and hasattr(self.model_line, 'tech_docs'):
             for doc in self.model_line.tech_docs.all():
                 if doc.media_file and doc.id not in seen:

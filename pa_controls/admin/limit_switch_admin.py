@@ -254,7 +254,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
     autocomplete_fields = ['points_option', 'body', 'model_line', 'signal_profile', 'visual_indicator_type']
     ordering = ['sorting_order', 'name']
     actions = ['copy_selected_boxes','save_selected_boxes','regenerate_from_templates']
-    readonly_fields = ['exd_grouped']
+    filter_horizontal = ['exd']
     # raw_id_fields = ['images', 'tech_docs']
 
 
@@ -262,7 +262,7 @@ class LimitSwitchBoxAdmin(admin.ModelAdmin):
         (_('Основная информация'), {
             'fields': (('name', 'code', 'model_line'),
                        ( 'points_option','sensor_variety',),
-                       ('ip', 'exd_grouped'),
+                       ('ip', 'exd'),
                        ('work_temp_min', 'work_temp_max'),)
         }),
         (_('Описание'), {

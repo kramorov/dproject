@@ -7,13 +7,47 @@ GET/POST/DELETE /api/admin/prices/documents/<id>/items/ — строки док�
 GET /api/admin/prices/documents/<id>/export/ — экспорт в Excel
 POST /api/admin/prices/documents/<id>/import/ — импорт из Excel
 """
+from decimal import Decimal, InvalidOperation
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from project_customers.permissions import SectionAccessPermission
 from django.http import HttpResponse
-from price.models import PriceDocument, PriceDocumentItem, Currency, PriceVariety
+from price.models import PriceDocument, PriceDocumentItem, Currency, PriceVariety, PriceHistory
 from price.services.excel_io import export_document_to_excel, import_document_from_excel
+
+
+def _get_current_price(sku_id, price_variety, currency):
+    """Актуальная цена из PriceHistory для (sku, вид цены, валюта) либо None."""
+    if not sku_id or not price_variety or not currency:
+        return None
+    ph = PriceHistory.objects.filter(
+        sku_id=sku_id,
+        price_variety=price_variety,
+        currency=currency,
+        is_current=True,
+        is_active=True,
+    ).order_by('-price_date', '-id').first()
+    return ph.price if ph else None
+
+
+def _reprice_document_items(doc):
+    """Пересчитать цены строк под новые default_price_variety/default_currency."""
+    pv = doc.default_price_variety
+    cur = doc.default_currency
+    if not pv or not cur:
+        return 0
+    updated = 0
+    for item in doc.items.filter(is_active=True):
+        item.price_variety_id = pv.id
+        item.currency_id = cur.id
+        resolved = _get_current_price(item.sku_id, pv, cur)
+        if resolved is not None:
+            item.price = resolved
+        item.save(update_fields=['price_variety_id', 'currency_id', 'price'])
+        updated += 1
+    return updated
 
 
 class PriceDocumentDetailView(APIView):
@@ -116,7 +150,12 @@ class PriceDocumentDetailView(APIView):
             doc.default_currency_id = int(cur_id) if cur_id else None
 
         doc.save()
-        return Response({'success': True})
+
+        updated = 0
+        if data.get('update_item_prices'):
+            updated = _reprice_document_items(doc)
+
+        return Response({'success': True, 'updated': updated})
 
     def delete(self, request, pk):
         doc = self._get_doc(pk)
@@ -213,10 +252,22 @@ class PriceDocumentItemView(APIView):
         price_variety = doc.default_price_variety
         currency = doc.default_currency
 
+        price = request.data.get('price')
+        if price in (None, '', 0, '0', '0.0'):
+            price = Decimal('0')
+            resolved = _get_current_price(sku_id, price_variety, currency)
+            if resolved is not None:
+                price = resolved
+        else:
+            try:
+                price = Decimal(str(price))
+            except (InvalidOperation, ValueError, TypeError):
+                price = Decimal('0')
+
         item = PriceDocumentItem.objects.create(
             document=doc,
             sku_id=sku_id,
-            price=request.data.get('price', 0),
+            price=price,
             price_variety=price_variety,
             currency=currency,
             comment=request.data.get('comment', ''),

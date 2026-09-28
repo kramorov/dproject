@@ -117,8 +117,24 @@ watch(activeIndex, (i) => {
 }
 .main-image img.loading { opacity: 0.6; }
 .main-image.placeholder { color: var(--cat-muted-light); font-size: var(--cat-text-base); }
-.thumbnails { display: flex; gap: var(--cat-thumb-gap); margin-top: 12px; }
+.thumbnails {
+  display: flex;
+  gap: var(--cat-thumb-gap);
+  margin-top: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.thumbnails::-webkit-scrollbar { height: 6px; }
+.thumbnails::-webkit-scrollbar-track { background: transparent; }
+.thumbnails::-webkit-scrollbar-thumb { background: var(--cat-border); border-radius: 3px; }
 .thumb {
+  flex-shrink: 0;
+  scroll-snap-align: start;
   width: var(--cat-thumb-size); height: var(--cat-thumb-size);
   border: 2px solid var(--cat-border); border-radius: var(--cat-radius-md);
   overflow: hidden; cursor: pointer; padding: 0; background: var(--cat-bg);

@@ -15,6 +15,7 @@
     <div v-else-if="!modelLines.length" class="empty">Нет доступных серий</div>
 
     <template v-else>
+      <div class="pa-top">
       <!-- 1. Серия -->
       <div class="step">
         <div class="step-label">Серия</div>
@@ -57,25 +58,74 @@
         </div>
       </div>
 
-      <!-- 3. Опции -->
-      <div class="step" v-if="optionFields.length">
-        <div class="step-label">Опции</div>
-        <div class="options">
-          <div class="option" v-for="opt in optionFields" :key="opt.key">
-            <label>{{ opt.label }}</label>
-            <select :value="form[opt.key]" @change="toggleOption(opt.key, $event.target.value)">
-              <option :value="null">— не выбрано —</option>
-              <option
-                v-for="o in opt.items"
-                :key="o.id"
-                :value="o.id"
-              >{{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}</option>
-            </select>
-          </div>
+      <!-- 3. Количество пружин (под блоком «Модель») -->
+      <div class="step" v-if="springsField">
+        <div class="step-label">{{ springsField.label }}</div>
+        <div class="chips">
+          <button
+            v-for="o in springsField.items"
+            :key="o.id"
+            class="chip"
+            :class="{ active: form.springs_qty === o.id }"
+            @click="toggleOption('springs_qty', o.id)"
+          >{{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}</button>
         </div>
       </div>
+      </div><!-- /.pa-top -->
 
-      <!-- 4. Результат -->
+      <div class="pa-body">
+      <!-- 4. Остальные опции (сайдбар) -->
+      <aside class="pa-sidebar" v-if="otherOptionFields.length || hasBodyDesign">
+        <div class="step-label">Опции</div>
+        <div class="option-groups">
+          <div class="option-group" v-for="opt in otherOptionFields" :key="opt.key">
+            <div class="option-label">{{ opt.label }}</div>
+            <div class="chips">
+              <button
+                v-for="o in opt.items"
+                :key="o.id"
+                class="chip"
+                :class="{ active: form[opt.key] === o.id }"
+                @click="toggleOption(opt.key, o.id)"
+              >{{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}</button>
+            </div>
+          </div>
+
+          <!-- Исполнение корпуса: материал + покрытие — связанные чипсы.
+               В данных это одна опция (PneumaticBodyDesignOption), но выбираем
+               материал и покрытие как два независимых измерения и резолвим
+               выбранную пару обратно в конкретную опцию серии. -->
+          <template v-if="hasBodyDesign">
+            <div class="option-group">
+              <div class="option-label">Материал корпуса</div>
+              <div class="chips">
+                <button
+                  v-for="m in bodyMaterials"
+                  :key="m"
+                  class="chip"
+                  :class="{ active: form.body_material === m }"
+                  @click="selectBodyMaterial(m)"
+                >{{ m }}</button>
+              </div>
+            </div>
+            <div class="option-group">
+              <div class="option-label">Покрытие корпуса</div>
+              <div class="chips">
+                <button
+                  v-for="c in bodyCoatings"
+                  :key="c"
+                  class="chip"
+                  :class="{ active: form.body_coating_label === c }"
+                  @click="selectBodyCoating(c)"
+                >{{ c }}</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </aside><!-- /.pa-sidebar -->
+
+      <div class="pa-content">
+      <!-- 5. Результат -->
       <div class="result" v-if="preview">
         <PaProductCard
           :preview="preview"
@@ -83,12 +133,14 @@
         />
       </div>
       <div v-else-if="loading" class="state"><Spinner /></div>
+      </div><!-- /.pa-content -->
+      </div><!-- /.pa-body -->
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 import PaProductCard from './PaProductCard.vue'
@@ -108,7 +160,6 @@ const OPTION_KEY_MAP = {
   temperature_options: 'temperature',
   ip_options: 'ip',
   exd_options: 'exd',
-  body_coating_options: 'body_coating',
   hand_wheel_options: 'hand_wheel',
 }
 
@@ -118,7 +169,6 @@ const OPTION_LABELS = {
   temperature: 'Температурное исполнение',
   ip: 'Степень защиты IP',
   exd: 'Взрывозащита',
-  body_coating: 'Покрытие корпуса',
   hand_wheel: 'Ручной дублёр',
 }
 
@@ -127,9 +177,26 @@ const OPTION_KEYS = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd
 const modelLines = ref([])
 const modelItems = ref([])
 const optionFields = ref([])
+const springsField = computed(() => optionFields.value.find(f => f.key === 'springs_qty') || null)
+const otherOptionFields = computed(() => optionFields.value.filter(f => f.key !== 'springs_qty'))
 const preview = ref(null)
 const loadingML = ref(false)
 const loading = ref(false)
+
+// Исполнение корпуса (одна опция PneumaticBodyDesignOption = материал + покрытие + цвет + кодировка).
+// Выбираем материал/покрытие как два измерения, резолвим пару обратно в option.id.
+const bodyDesign = ref({ items: [] })
+const bodyMaterials = computed(() => {
+  const s = new Set()
+  for (const o of bodyDesign.value.items) if (o.material) s.add(o.material)
+  return [...s]
+})
+const bodyCoatings = computed(() => {
+  const s = new Set()
+  for (const o of bodyDesign.value.items) if (o.coating) s.add(o.coating)
+  return [...s]
+})
+const hasBodyDesign = computed(() => bodyDesign.value.items.length > 0)
 
 const form = reactive({
   model_line_id: null,
@@ -137,6 +204,7 @@ const form = reactive({
   model_line_item_id: null,
   springs_qty: null, temperature: null, safety_position: null,
   ip: null, exd: null, body_coating: null, hand_wheel: null,
+  body_material: null, body_coating_label: null,
 })
 
 onMounted(async () => {
@@ -203,6 +271,9 @@ async function selectItem(id) {
   if (form.model_line_item_id === id) return
   form.model_line_item_id = id
   for (const k of OPTION_KEYS) form[k] = null
+  form.body_material = null
+  form.body_coating_label = null
+  bodyDesign.value = { items: [] }
   optionFields.value = []
   preview.value = null
 
@@ -212,6 +283,25 @@ async function selectItem(id) {
     const fields = []
     for (const [apiKey, items] of Object.entries(data || {})) {
       if (!Array.isArray(items) || !items.length) continue
+
+      // Исполнение корпуса — особая опция (материал + покрытие).
+      if (apiKey === 'body_coating_options') {
+        const bd = items.map(o => ({
+          id: o.option_id || o.id,
+          material: o.material || '',
+          coating: o.coating || '',
+          is_default: o.is_default,
+        }))
+        bodyDesign.value = { items: bd }
+        const def = bd.find(o => o.is_default) || bd[0]
+        if (def) {
+          form.body_material = def.material
+          form.body_coating_label = def.coating
+          form.body_coating = def.id
+        }
+        continue
+      }
+
       const formKey = OPTION_KEY_MAP[apiKey]
       if (!formKey) continue
       const mapped = items.map(o => ({
@@ -220,8 +310,15 @@ async function selectItem(id) {
         is_default: o.is_default,
       }))
       fields.push({ key: formKey, label: OPTION_LABELS[formKey] || formKey, items: mapped })
-      const def = mapped.find(o => o.is_default) || mapped[0]
-      if (def && form[formKey] === null) form[formKey] = def.id
+      // Единственная опция — выделяем по умолчанию; иначе — только is_default.
+      if (form[formKey] === null) {
+        if (mapped.length === 1) {
+          form[formKey] = mapped[0].id
+        } else {
+          const def = mapped.find(o => o.is_default)
+          if (def) form[formKey] = def.id
+        }
+      }
     }
     optionFields.value = fields
     await fetchPreview()
@@ -232,9 +329,55 @@ async function selectItem(id) {
 }
 
 function toggleOption(key, value) {
-  const v = value === '' || value === null ? null : Number(value)
-  if (form[key] === v) return
-  form[key] = v
+  const v = Number(value)
+  // Клик по активному чипсу снимает выбор (как в «Быстром подборе»).
+  form[key] = form[key] === v ? null : v
+  fetchPreview()
+}
+
+function selectBodyMaterial(material) {
+  if (form.body_material === material) {
+    clearBodyDesign()
+    return
+  }
+  form.body_material = material
+  const opts = bodyDesign.value.items.filter(o => o.material === material)
+  // Покрытие не совместимо с новым материалом — автопереключаем.
+  if (!opts.some(o => o.coating === form.body_coating_label)) {
+    const def = opts.find(o => o.is_default) || opts[0]
+    form.body_coating_label = def ? def.coating : null
+  }
+  resolveBodyOption()
+  fetchPreview()
+}
+
+function selectBodyCoating(coating) {
+  if (form.body_coating_label === coating) {
+    clearBodyDesign()
+    return
+  }
+  form.body_coating_label = coating
+  const opts = bodyDesign.value.items.filter(o => o.coating === coating)
+  // Материал не совместим с новым покрытием — автопереключаем.
+  if (!opts.some(o => o.material === form.body_material)) {
+    const def = opts.find(o => o.is_default) || opts[0]
+    form.body_material = def ? def.material : null
+  }
+  resolveBodyOption()
+  fetchPreview()
+}
+
+function resolveBodyOption() {
+  const match = bodyDesign.value.items.find(
+    o => o.material === form.body_material && o.coating === form.body_coating_label
+  )
+  form.body_coating = match ? match.id : null
+}
+
+function clearBodyDesign() {
+  form.body_material = null
+  form.body_coating_label = null
+  form.body_coating = null
   fetchPreview()
 }
 
@@ -261,6 +404,9 @@ function resetAfter(field) {
   const order = ['model_line_id', 'variety', 'model_line_item_id']
   const idx = order.indexOf(field)
   for (let i = idx + 1; i < order.length; i++) form[order[i]] = null
+  form.body_material = null
+  form.body_coating_label = null
+  bodyDesign.value = { items: [] }
   modelItems.value = []
   optionFields.value = []
   preview.value = null
@@ -274,12 +420,17 @@ function buildPayload() {
 </script>
 
 <style scoped>
-.pa-config { max-width: 1200px; margin: 0 auto; padding: var(--cat-gap-lg, 16px); }
+.pa-config { max-width: 1400px; margin: 0 auto; padding: var(--cat-gap-lg, 16px); }
 .step { margin-bottom: var(--cat-gap-xl, 20px); }
 .step-label {
   font-weight: 600; font-size: var(--cat-text-sm, 13px); color: var(--cat-text-soft, #374151);
   margin: 10px 0 6px;
 }
+.pa-top { margin-bottom: var(--cat-gap-xl, 20px); }
+.pa-body { display: flex; gap: 28px; align-items: flex-start; }
+.pa-sidebar { width: 300px; flex-shrink: 0; }
+.pa-content { flex: 1; min-width: 0; }
+
 .chips { display: flex; flex-wrap: wrap; gap: var(--cat-gap-xs, 6px); }
 .chip {
   padding: 6px 14px; font-size: var(--cat-text-sm, 13px);
@@ -290,14 +441,21 @@ function buildPayload() {
 .chip:hover { border-color: var(--cat-primary, #2563eb); color: var(--cat-primary, #2563eb); }
 .chip.active { background: var(--cat-primary, #2563eb); color: #fff; border-color: var(--cat-primary, #2563eb); }
 
-.options { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--cat-gap-md, 12px); }
-.option label { display: block; font-size: var(--cat-text-xs, 12px); color: var(--cat-muted, #6b7280); margin-bottom: 4px; }
-.option select {
-  width: 100%; padding: 8px; font-size: var(--cat-text-sm, 13px);
-  border: 1px solid var(--cat-border, #e5e7eb); border-radius: var(--cat-radius-md, 8px); background: var(--cat-surface, #fff); color: var(--cat-text, #1f2937);
+.pa-sidebar .chips { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+.pa-sidebar .chip {
+  width: 100%; text-align: left; white-space: normal; word-break: break-word;
+  border-radius: 10px; padding: 8px 12px;
 }
 
-.result { margin-top: var(--cat-gap-2xl, 24px); }
+.option-groups { display: flex; flex-direction: column; gap: var(--cat-gap-md, 12px); }
+.option-label { font-size: var(--cat-text-xs, 12px); color: var(--cat-muted, #6b7280); margin-bottom: 4px; }
+
+.result { margin-top: 0; }
 .state { padding: 32px 0; display: flex; justify-content: center; }
 .empty { text-align: center; padding: 48px; color: var(--cat-muted-light, #9ca3af); }
+
+@media (max-width: 900px) {
+  .pa-body { flex-direction: column; }
+  .pa-sidebar { width: 100%; }
+}
 </style>
