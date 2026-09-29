@@ -321,6 +321,26 @@ class TemplateMixin:
                 or self._get_default_title_template())
 
     @property
+    def spec_title_template(self) -> str:
+        """Заголовок в .docx-спецификации.
+
+        Приоритет: ``EquipmentType.spec_title_template`` → ``title_template``
+        (полная цепочка) → ``{model_code}``.
+        """
+        return (self._get_equipment_type_template('spec_title_template')
+                or self.title_template)
+
+    @property
+    def list_title_template(self) -> str:
+        """Первая строка карточки в списке (SelectionResultGrid).
+
+        Приоритет: ``EquipmentType.list_title_template`` → ``title_template``
+        (полная цепочка) → ``{model_code}``.
+        """
+        return (self._get_equipment_type_template('list_title_template')
+                or self.title_template)
+
+    @property
     def description_template(self) -> str:
         """Итоговый шаблон описания.
 
@@ -395,6 +415,14 @@ class TemplateMixin:
         """Сгенерировать заголовок из шаблона title_template."""
         # print(f'Mixin template generate_title={self._fill_template(self.title_template)}, template={self.title_template}')
         return self._fill_template(self.title_template)
+
+    def generate_spec_title(self) -> str:
+        """Заголовок .docx-спецификации (``spec_title_template``)."""
+        return self._fill_template(self.spec_title_template)
+
+    def generate_list_title(self) -> str:
+        """Первая строка карточки в списке (``list_title_template``)."""
+        return self._fill_template(self.list_title_template)
 
     # === ОБНОВЛЕНИЕ ПОЛЕЙ МОДЕЛИ ===
     def update_name(self, save: bool = False) -> bool:
@@ -534,6 +562,217 @@ class TemplateMixin:
         name_updated = self.update_name_from_template()
         description_updated = self.update_description_from_template()
         return name_updated or description_updated
+
+
+    # ═══════════════════════════════════════════════════════════════
+    # Рендерер спецификации для документов (docxtpl/Jinja)
+    # Единый контекст для Word/PDF: секции характеристик текстом,
+    # дефолтное изображение, техдокументация и сертификаты со ссылками.
+    # ═══════════════════════════════════════════════════════════════
+
+    def get_spec_doc_context(self, base_url: str = None) -> dict:
+        """Контекст для рендера спецификации в docx (docxtpl/Jinja).
+
+        Возвращает dict:
+            item        — {code, name, title, description}
+            spec_groups — [{title, rows: [{label, text}]}]
+            image       — {url, name, ...} или None (дефолтное изображение)
+            tech_docs   — [{name, url_full, url_compressed}]
+            certs       — [{name, url_full, url_compressed}]
+
+        ``base_url`` — абсолютный origin для ссылок на скачивание;
+        по умолчанию ``settings.SITE_BASE_URL`` (или '', тогда ссылки
+        остаются относительными).
+        """
+        from django.conf import settings
+
+        base_url = (base_url if base_url is not None
+                    else (settings.SITE_BASE_URL or ''))
+
+        item = {
+            'code': getattr(self, 'code', '') or '',
+            'name': getattr(self, 'name', '') or '',
+            'title': (self.generate_spec_title()
+                      if hasattr(self, 'generate_spec_title')
+                      else (self.generate_title() if hasattr(self, 'generate_title') else '')),
+            'description': getattr(self, 'description', '') or '',
+        }
+        if not item['title']:
+            item['title'] = item['name']
+
+        spec_groups = []
+        get_specs = getattr(self, '_get_spec_sections', None)
+        if callable(get_specs):
+            raw = get_specs() or {}
+            for group_title, fields in raw.items():
+                if not isinstance(fields, dict):
+                    continue
+                rows = []
+                for label, value in fields.items():
+                    text = self._spec_value_to_text(value)
+                    if text in (None, ''):
+                        continue
+                    rows.append({'label': label, 'text': text})
+                if rows:
+                    spec_groups.append({'title': group_title, 'rows': rows})
+
+        image = None
+        get_image = getattr(self, '_get_first_image', None)
+        if callable(get_image):
+            image = get_image()
+
+        tech_docs = self._doc_links(getattr(self, '_get_docs_section', None), base_url)
+        certs = self._doc_links(getattr(self, '_get_certs_section', None), base_url)
+
+        return {
+            'item': item,
+            'spec_groups': spec_groups,
+            'image': image,
+            'tech_docs': tech_docs,
+            'certs': certs,
+        }
+
+    @staticmethod
+    def _spec_value_to_text(value):
+        """Значение характеристики → плоский текст (list → '; ', html → текст)."""
+        if value is None:
+            return ''
+        if isinstance(value, (list, tuple)):
+            return '; '.join(
+                p for p in (TemplateMixin._spec_value_to_text(v) for v in value) if p
+            )
+        if isinstance(value, dict):
+            return TemplateMixin._html_to_text(value.get('__html'))
+        return str(value)
+
+    @staticmethod
+    def _html_to_text(html):
+        """HTML-блок → плоский текст.
+
+        Таблица: одна строка на ``<tr>``, ячейки через `` | ``.
+        """
+        if not html:
+            return ''
+        import re
+        text = str(html)
+        text = re.sub(r'(?i)<\s*tr\s*>', '\n', text)
+        text = re.sub(r'(?i)<\s*(td|th)\s*>', ' | ', text)
+        text = re.sub(r'(?i)<\s*(br|/p|/tr|/div|/h[1-6]|/li)\s*>', '\n', text)
+        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r'&nbsp;', ' ', text)
+        text = re.sub(r'\n\s*\|', '\n', text)
+        text = re.sub(r'[ \t]+', ' ', text)
+        text = re.sub(r'\n[ \t]+', '\n', text)
+        text = re.sub(r'\s*\|$', '', text)
+        text = re.sub(r'\n\s*\n+', '\n', text)
+        return text.strip()
+
+    def _format_spec_value(self, spec):
+        """Сырое значение поля → display-вид для секции характеристик.
+
+        ``type='list'`` → список строк (каждый элемент по ``format``);
+        ``type='html'`` → блок ``{'__html': ...}`` как есть;
+        иначе — скаляр из ``_resolve_field``. Сырые структуры в ``template_vars``
+        (для MCP/Jinja) не трогаем — это только display-форматирование.
+        """
+        value = self._resolve_field(spec)
+        if spec.type == 'list' and isinstance(value, (list, tuple)):
+            return [self._apply_item_format(spec.format, item) for item in value]
+        return value
+
+    @staticmethod
+    def _apply_item_format(fmt, item):
+        """Подстановка {key} в ``format`` из dict-элемента (одинарные скобки,
+        как в ``name_template``/``_fill_template``). Пустые значения не оставляют
+        висячих разделителей («label — »)."""
+        if not fmt:
+            return str(item)
+        if isinstance(item, dict):
+            import re
+            result = re.sub(r'\{([^{}]+)\}', lambda m: str(item.get(m.group(1), '')), fmt)
+            return re.sub(r'\s*[—–-]\s*$', '', result).strip()
+        if '{}' in fmt:
+            return fmt.replace('{}', str(item))
+        return str(item)
+
+    def _get_list_params(self) -> list:
+        """Параметры для карточки в списке (SelectionResultGrid).
+
+        Возвращает ``[{label, value}]`` — резолвит ключи из
+        ``EquipmentType.list_params`` через реестр полей (label из spec,
+        значение форматируется единым ``_format_spec_value``/``_spec_value_to_text``).
+        """
+        keys = self._get_equipment_type_template('list_params')
+        if not keys:
+            return []
+        if isinstance(keys, str):
+            import json
+            try:
+                keys = json.loads(keys)
+            except Exception:
+                return []
+        if not isinstance(keys, (list, tuple)):
+            return []
+        by_key = {f.key: f for f in self._get_field_specs()}
+        # Подписи полей — из spec_template (label → key), реверс: key → label.
+        label_by_key = {}
+        _get_spec_template = getattr(self, '_get_spec_template', None)
+        _parse_spec_template = getattr(self, '_parse_spec_template', None)
+        if callable(_get_spec_template) and callable(_parse_spec_template):
+            template = _parse_spec_template(_get_spec_template())
+            if template:
+                for group_fields in template.values():
+                    if not isinstance(group_fields, dict):
+                        continue
+                    for label, key in group_fields.items():
+                        if isinstance(key, str) and key not in label_by_key:
+                            label_by_key[key] = label
+        result = []
+        for key in keys:
+            spec = by_key.get(key)
+            if spec is None:
+                continue
+            try:
+                value = self._spec_value_to_text(self._format_spec_value(spec))
+            except Exception:
+                value = ''
+            if value in (None, ''):
+                continue
+            result.append({
+                'label': spec.label or label_by_key.get(key) or spec.key,
+                'value': value,
+            })
+        return result
+
+    def _doc_links(self, getter, base_url: str):
+        """Техдокументация/сертификаты → [{name, url_full, url_compressed}]."""
+        items = []
+        if not callable(getter):
+            return items
+        try:
+            raw = getter()
+        except Exception:
+            return items
+        for d in raw or []:
+            if not isinstance(d, dict):
+                continue
+            items.append({
+                'name': d.get('name') or d.get('file_name') or '',
+                'url_full': self._abs_url(base_url, d.get('url')),
+                'url_compressed': self._abs_url(base_url, d.get('email_url')),
+            })
+        return items
+
+    @staticmethod
+    def _abs_url(base_url: str, path):
+        """Склеить относительный путь с origin (уже абсолютный — как есть)."""
+        if not path:
+            return None
+        if str(path).startswith(('http://', 'https://')):
+            return str(path)
+        if base_url:
+            return base_url.rstrip('/') + '/' + str(path).lstrip('/')
+        return str(path)
 
 
 @checks.register('catalog')
@@ -1879,11 +2118,25 @@ class CatalogDictMixin:
         """
         data = self.to_dict()
         values = dict(data.get("template_vars", {}))
+        list_title = ''
+        if hasattr(self, 'generate_list_title'):
+            try:
+                list_title = self.generate_list_title()
+            except Exception:
+                list_title = ''
+        list_params = []
+        if hasattr(self, '_get_list_params'):
+            try:
+                list_params = self._get_list_params()
+            except Exception:
+                list_params = []
         return {
             "id": data.get("id"),
             "code": data.get("code"),
             "name": data.get("name"),
             "title": data.get("title"),
+            "list_title": list_title,
+            "list_params": list_params,
             "image_alt": data.get("image_alt") or data.get("name", ""),
             "template_vars": data.get("template_vars", {}),
             "values": values,

@@ -9,6 +9,14 @@
           <template v-if="isHtmlBlock(value)">
             <div class="spec-html" v-html="value.__html"></div>
           </template>
+          <template v-else-if="isList(value)">
+            <dt>{{ label }}</dt>
+            <dd>
+              <ul class="spec-list">
+                <li v-for="(item, i) in value" :key="i">{{ item }}</li>
+              </ul>
+            </dd>
+          </template>
           <template v-else>
             <dt>{{ label }}</dt>
             <dd>{{ value || '—' }}</dd>
@@ -33,6 +41,10 @@ const hasData = computed(() => Object.keys(props.data).length > 0)
 
 function isHtmlBlock(value) {
   return !!value && typeof value === 'object' && typeof value.__html === 'string'
+}
+
+function isList(value) {
+  return Array.isArray(value)
 }
 </script>
 
@@ -67,6 +79,8 @@ function isHtmlBlock(value) {
   margin: 0;
 }
 .spec-html { flex: 1; min-width: 0; }
+.spec-list { margin: 0; padding-left: 18px; }
+.spec-list li { margin: 2px 0; }
 .tab-specs.empty { color: var(--cat-muted-light); font-size: var(--cat-text-base); }
 @media (max-width: 768px) { .spec-row dt { width: 140px; } }
 </style>

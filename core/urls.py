@@ -2,6 +2,7 @@
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from .views import UniversalAPIView, DebugAPIView, ExdStructureView, ExdParseView, ExdCompatibleView, AiSchemaView
+from .spec_doc_views import SpecDocxDownloadView, rebuild_spec_template
 from .wizard_views import WizardConfigView, WizardFilterOptionsView, WizardResultsView, WizardModelFiltersView, WizardAdminListView, WizardAdminDetailView, WizardEquipmentTypesView
 from .question_graph_views import QuestionGraphConfigView, QuestionGraphAdvanceView, QuestionGraphResultsView, QuestionGraphAdminListView, QuestionGraphAdminDetailView, QuestionGraphToWizardView, CatalogWizardAdapterView, QuestionGraphVisibleParamsView
 from .climate_views import ClimateStructureView, ClimateParseView
@@ -10,6 +11,11 @@ from .ref_views import SectionsView, AllowedAppsView, BrandsView, DjangoUsersVie
 
 urlpatterns = [
     path('', csrf_exempt(UniversalAPIView.as_view()), name='universal_api'),
+    # Скачивание спецификации в .docx для любого каталогового артикула
+    path('catalog/spec-docx/<str:app_label>/<str:model_name>/<int:pk>/',
+         SpecDocxDownloadView.as_view(), name='spec_docx_download'),
+    path('catalog/spec-docx/rebuild-template/',
+         rebuild_spec_template, name='spec_docx_rebuild_template'),
     path('debug/', DebugAPIView.as_view(), name='debug_api'),
     path('exd/structure/', ExdStructureView.as_view(), name='exd_structure'),
     path('exd/parse/', ExdParseView.as_view(), name='exd_parse'),

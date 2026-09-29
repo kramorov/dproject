@@ -108,7 +108,7 @@
 
     <!-- Equipment Types -->
     <section v-show="activeTab === 'equipment'" class="section">
-      <h2>Equipment Types</h2>
+      <h2>Equipment Types <button class="btn-add" @click="rebuildSpecTemplate">Перегенерировать .docx шаблон</button></h2>
       <EquipmentTypeEditor :equipment-types="equipmentTypes" @saved="onEquipmentSaved" />
     </section>
 
@@ -313,6 +313,15 @@ async function deleteEquipmentType(id) { if (confirm('Delete?')) { await api.del
 function onEquipmentSaved(updated) {
   const idx = equipmentTypes.value.findIndex(x => x.id === updated.id)
   if (idx !== -1) equipmentTypes.value[idx] = updated
+}
+
+async function rebuildSpecTemplate() {
+  try {
+    const r = await api.post('/core/catalog/spec-docx/rebuild-template/')
+    alert(r.data && r.data.ok ? 'Шаблон .docx перегенерирован' : ('Ошибка: ' + ((r.data && r.data.error) || 'неизвестно')))
+  } catch (e) {
+    alert('Ошибка: ' + (e?.message || e))
+  }
 }
 
 async function saveFittingPattern(f) {

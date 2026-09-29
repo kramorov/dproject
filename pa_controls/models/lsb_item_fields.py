@@ -56,6 +56,6 @@ LSB_ITEM_TEMPLATE_FIELDS = (
      },
 
     # ── Динамические списки (JSON/MCP) ──
-    {'key': 'signals', 'resolver': 'get_signals_data', },
-    {'key': 'sensors', 'resolver': 'get_sensors_data', },
+    {'key': 'signals', 'resolver': 'get_signals_data', 'type': 'list', 'format': '{name} — {marker}', },
+    {'key': 'sensors', 'resolver': 'get_sensors_data', 'type': 'list', 'format': '{name}', },
 )

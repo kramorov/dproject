@@ -41,6 +41,9 @@ MEDIA_OCR_MODEL_DIR = os.getenv('MEDIA_OCR_MODEL_DIR' , '') or None
 #   'proxy'    — Django стримит файл через себя (медленно, но полный контроль доступа)
 MEDIA_SERVE_MODE = 'redirect'  # 'redirect' | 'direct' | 'proxy'
 MEDIA_PUBLIC_BASE_URL = 'https://s3.cloud.ru/media-storage'
+# Origin для абсолютных ссылок на скачивание в .docx (спецификации).
+# Пусто — ссылки останутся относительными (для встроенного предпросмотра).
+SITE_BASE_URL = os.getenv('SITE_BASE_URL', '')
 # Cloud.ru Evolution Object Storage
 # --- Админский аккаунт (запись, удаление, управление) ---
 CLOUDRU_ADMIN_TENANT_ID = 'ffe0e1bf-9a68-496a-9029-34355a9e1527'

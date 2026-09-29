@@ -114,8 +114,8 @@ class CatalogSerializerMixin(CatalogDictMixin):
                 spec = by_key.get(key)
                 if spec is None:
                     continue
-                value = self._resolve_field(spec)
-                if value in (None, ''):
+                value = self._format_spec_value(spec)
+                if value in (None, '') or value == []:
                     continue
                 group_fields[label] = value
             if group_fields:
@@ -264,9 +264,19 @@ class CatalogSerializerMixin(CatalogDictMixin):
             'sorting_order': self.sorting_order,
             'model_line': self._get_model_line_summary(),
             'sku': self._get_sku_summary(),
+            'spec_download_url': self._get_spec_download_url(),
             'template_vars': tv,
             'sections': self._build_sections(tv),
         }
+
+    def _get_spec_download_url(self) -> str:
+        """URL для скачивания спецификации в .docx (или '')."""
+        if not self.pk:
+            return ''
+        return (
+            f'/api/core/catalog/spec-docx/'
+            f'{self._meta.app_label}/{self._meta.model_name}/{self.pk}/'
+        )
 
     def _build_sections(self, tv) -> list:
         return [

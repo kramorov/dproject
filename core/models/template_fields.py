@@ -34,10 +34,13 @@ class TemplateFieldSpec:
     # Имя callable-а на модели вместо ``path`` (для сложных значений).
     resolver: str | None = None
 
-    # Метаданные для ``_get_spec_sections()``.
+    # Метаданные для ``_get_spec_sections()`` и генерации текста (Jinja/Word).
     label: str = ''
     unit: str = ''
+    # text | list | html — как рендерить значение в секции характеристик/тексте.
     type: str = 'text'
+    # Шаблон элемента для type='list' (напр. '{name} — {marker}').
+    format: str = ''
     order: int = 0
     group: str = ''
 

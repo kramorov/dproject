@@ -71,6 +71,15 @@ export function useCatalog(api, opts = {}) {
         // Old format: { param_name: { label, order, options } }
         Object.assign(filterData, body)
       }
+
+      // Применить default_value к активным фильтрам (только если ещё не выбран)
+      const src = body.filters || body
+      for (const [k, meta] of Object.entries(src)) {
+        const dv = meta && meta.default_value
+        if (dv != null && dv !== '' && (activeFilters[k] === undefined || activeFilters[k] === '' || activeFilters[k] === null)) {
+          activeFilters[k] = dv
+        }
+      }
     } catch (e) {
       console.error('[useCatalog] Failed to load filters', e)
     }

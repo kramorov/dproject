@@ -71,14 +71,36 @@
           </div>
         </div>
 
-        <!-- Шаблон заголовка (title_template) -->
+        <!-- Шаблон заголовка карточки (title_template) -->
         <div v-show="subTab === 'title'" class="et-tab">
           <div class="et-form-block">
-            <label class="et-form-block-label">Шаблон заголовка (title_template)</label>
+            <label class="et-form-block-label">Шаблон заголовка карточки (title_template) <button class="et-help" type="button" @click="showHelp('title_template')">ⓘ</button></label>
             <div class="et-chips">
               <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'title_template', titleTemplateEl)">{{ ph }}</button>
             </div>
             <textarea ref="titleTemplateEl" v-model="selectedEt.title_template" class="cell-input" rows="4"></textarea>
+          </div>
+
+          <div class="et-form-block">
+            <label class="et-form-block-label">Шаблон заголовка в спецификации (spec_title_template) <button class="et-help" type="button" @click="showHelp('spec_title_template')">ⓘ</button></label>
+            <div class="et-chips">
+              <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'spec_title_template', specTitleTemplateEl)">{{ ph }}</button>
+            </div>
+            <textarea ref="specTitleTemplateEl" v-model="selectedEt.spec_title_template" class="cell-input" rows="2"></textarea>
+          </div>
+
+          <div class="et-form-block">
+            <label class="et-form-block-label">Шаблон заголовка в списке (list_title_template) <button class="et-help" type="button" @click="showHelp('list_title_template')">ⓘ</button></label>
+            <div class="et-chips">
+              <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'list_title_template', listTitleTemplateEl)">{{ ph }}</button>
+            </div>
+            <textarea ref="listTitleTemplateEl" v-model="selectedEt.list_title_template" class="cell-input" rows="2"></textarea>
+          </div>
+
+          <div class="et-form-block">
+            <label class="et-form-block-label">Список параметров в списке (list_params) <button class="et-help" type="button" @click="showHelp('list_params')">ⓘ</button></label>
+            <textarea v-model="listParamsText" class="cell-input" rows="2" placeholder='[\"brand\", \"ip\", \"exd_short\"]'></textarea>
+            <button class="btn-save-sm" type="button" @click="saveListParams">💾 Сохранить</button>
           </div>
         </div>
 
@@ -181,15 +203,30 @@ const placeholders = ref([])
 const titleTemplateEl = ref(null)
 const nameTemplateEl = ref(null)
 const descriptionTemplateEl = ref(null)
+const specTitleTemplateEl = ref(null)
+const listTitleTemplateEl = ref(null)
+const listParamsText = ref('')
 const saveMessage = ref('')
 const saveError = ref(false)
 const equipmentParams = ref([])
+const helpTexts = ref({})
+
+function showHelp(key) { alert(helpTexts.value[key] || '') }
+
+function saveListParams() {
+  try {
+    selectedEt.value.list_params = JSON.parse(listParamsText.value || '[]')
+    listParamsText.value = JSON.stringify(selectedEt.value.list_params)
+  } catch (e) {
+    alert('Невалидный JSON: ' + e.message)
+  }
+}
 
 const subTabs = [
   { id: 'basic', label: 'Основное' },
   { id: 'name', label: 'Шаблон названия (name_template)' },
   { id: 'description', label: 'Шаблон описания (description_template)' },
-  { id: 'title', label: 'Шаблон заголовка (title_template)' },
+  { id: 'title', label: 'Шаблон заголовка карточки (title_template)' },
   { id: 'spec', label: 'Шаблон спецификации (spec_template)' },
   { id: 'semantics', label: 'Семантика параметров (param_semantics)' },
   { id: 'ai', label: 'AI Catalog Schema' },
@@ -228,6 +265,9 @@ function selectEquipmentType(et) {
   if (clone.title_template == null) clone.title_template = ''
   if (clone.name_template == null) clone.name_template = ''
   if (clone.description_template == null) clone.description_template = ''
+  if (clone.spec_title_template == null) clone.spec_title_template = ''
+  if (clone.list_title_template == null) clone.list_title_template = ''
+  listParamsText.value = JSON.stringify(Array.isArray(clone.list_params) ? clone.list_params : [])
   if (clone.description == null) clone.description = ''
   if (clone.ai_title == null) clone.ai_title = ''
   if (clone.ai_description == null) clone.ai_description = ''
@@ -244,6 +284,7 @@ async function loadTemplateFields(etId) {
     if (selectedEtId.value !== etId) return
     templateFields.value = data?.fields || []
     placeholders.value = data?.placeholders || []
+    helpTexts.value = data?.help_texts || {}
   } catch (e) {
     if (selectedEtId.value !== etId) return
     templateFields.value = []
@@ -280,6 +321,9 @@ async function saveEquipment(et) {
     name_template: et.name_template || null,
     description_template: et.description_template || null,
     title_template: et.title_template || null,
+    spec_title_template: et.spec_title_template || null,
+    list_title_template: et.list_title_template || null,
+    list_params: Array.isArray(et.list_params) ? et.list_params : [],
     spec_template: et.spec_template || {},
     param_semantics: et.param_semantics || {},
     ai_title: et.ai_title || '', ai_description: et.ai_description || '',
@@ -351,6 +395,7 @@ async function addParam() {
 .et-form-col > label { font-size: 12px; color: #666; }
 .et-form-block { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; background: #fafafa; display: flex; flex-direction: column; gap: 8px; }
 .et-form-block-label { font-size: 13px; font-weight: 600; color: #374151; }
+.et-help { background: none; border: none; cursor: pointer; color: #1976d2; font-size: 13px; padding: 0 2px; }
 .et-chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
 .et-chip { padding: 3px 8px; background: #e8f0fe; border: 1px solid #aecbfa; border-radius: 12px; font-family: monospace; font-size: 12px; color: #1a56b0; cursor: pointer; line-height: 1.3; }
 .et-chip:hover { background: #d2e3fc; border-color: #7aa7f5; }

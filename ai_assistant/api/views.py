@@ -333,6 +333,7 @@ class EquipmentTypeListSerializer(serializers.ModelSerializer):
             "sorting_order", "filter_endpoint",
             "name_template", "description_template",
             "title_template", "spec_template",
+            "spec_title_template", "list_title_template", "list_params",
             "param_semantics", "ai_title", "ai_description", "ai_placeholder",
             "ai_hints", "is_active",
         ]
@@ -377,9 +378,22 @@ class EquipmentTypeTemplateFieldsView(APIView):
             except EquipmentType.DoesNotExist:
                 return Response({'error': 'EquipmentType not found'}, status=404)
             specs = collect_template_fields_for_equipment_type(et)
+
+        # help_text шаблонных полей модели — для хелп-кнопок на фронте
+        help_texts = {}
+        for n in ('name_template', 'description_template', 'title_template',
+                  'spec_title_template', 'list_title_template', 'list_params',
+                  'spec_template'):
+            try:
+                f = EquipmentType._meta.get_field(n)
+                help_texts[n] = getattr(f, 'help_text', '') or ''
+            except Exception:
+                help_texts[n] = ''
+
         return Response({
             'placeholders': collect_placeholder_choices(specs),
             'fields': collect_field_choices(specs),
+            'help_texts': help_texts,
         })
 
 class CustomerListSerializer(serializers.ModelSerializer):

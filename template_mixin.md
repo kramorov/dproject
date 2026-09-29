@@ -377,19 +377,31 @@ class MyItem(CatalogDictMixin, ImageGalleryMixin, TechDocMixin, SKUMixin,
 | `path` | путь к display-значению (имя/описание/vars/specs) |
 | `code_path` | путь к encoding-значению (артикул) |
 | `resolver` | callable на модели вместо `path` (для сложных значений) |
-| `label` / `unit` / `type` / `order` / `group` | метаданные для секций характеристик |
+| `type` | как рендерить значение: `text` (по умолчанию), `list`, `html` |
+| `format` | шаблон элемента для `type='list'` (напр. `'{name} — {marker}'`) |
+| `label` / `unit` / `order` / `group` | метаданные для секций характеристик |
 
-Реестр можно выносить в отдельный файл `*_fields.py` и импортировать в модель:
+Реестр обязательно выносится в отдельный файл ``<app>/models/<name>_item_fields.py``
+(имя всегда заканчивается на ``_item_fields.py``) и импортируется в модель.
+Файл описывает ВСЕ поля — это единый источник правды:
 
 ```python
-# my_app/my_item_fields.py
+# my_app/models/my_item_fields.py
 MY_ITEM_TEMPLATE_FIELDS = (
     {'key': 'code', 'placeholder': '{model_code}', 'path': 'code', 'code_path': 'model_line__code'},
     {'key': 'brand', 'placeholder': '{brand}', 'path': 'model_line__brand__name'},
     {'key': 'exd_list', 'placeholder': '{exd}', 'path': 'get_exd_list', 'code_path': 'exd_encoding'},
     {'key': 'exd_short', 'placeholder': '{exd_short}', 'path': 'get_exd_short_list'},
+    # нескалярные поля — явный type (+ format для списков):
+    {'key': 'signals', 'resolver': 'get_signals_data', 'type': 'list', 'format': '{name} — {marker}'},
 )
 ```
+
+``type`` объявляется только когда отличается от ``text`` (по умолчанию);
+``text`` на каждом поле писать не нужно — он материализуется автоматически.
+``format`` задаёт шаблон элемента для ``type='list'`` (одинарные скобки, как в
+``name_template``). Значения резолвятся в ``template_vars`` в СЫРОМ виде
+(структура для MCP/Jinja), а в секцию характеристик — уже отформатированные.
 
 ### 7.2. Составы словарей — списки ключей
 
@@ -470,4 +482,70 @@ System checks:
 
 На ручном `_get_data_dict()` осталась `SensorComponent` (шаблон с опции
 `variety`) — перевод отдельным шагом.
+
+### 7.5. Рендеринг спецификации в документы (docx/Jinja)
+
+Единый контекст для Word/PDF строит ``TemplateMixin.get_spec_doc_context(base_url=None)``:
+
+```python
+ctx = item.get_spec_doc_context(base_url='https://example.com')
+# ctx = {
+#   'item':        {'code','name','title','description'},
+#   'spec_groups': [{'title': 'Основные', 'rows': [{'label','text'}, ...]}, ...],
+#   'image':       {'url','name',...} | None,        # дефолтное изображение
+#   'tech_docs':   [{'name','url_full','url_compressed'}, ...],
+#   'certs':       [{'name','url_full','url_compressed'}, ...],
+# }
+```
+
+Особенности:
+
+- значения характеристик приводятся к плоскому тексту: `list` → `'; '`,
+  `html` → текст (теги срезаются);
+- дефолтное изображение — первое в карточке (`ImageGalleryMixin._get_first_image`);
+- техдокументация/сертификаты — текст (имя) + две ссылки на скачивание:
+  полный вариант и «ужатый» (email-вариант).
+
+Готовый .docx собирает ``core.models.spec_docx.render_spec_docx``:
+
+```python
+from core.models.spec_docx import render_spec_docx
+render_spec_docx(item, '/tmp/spec.docx', base_url='https://example.com')
+```
+
+Шаблон ``core/templates/docx/specification_template.docx`` создаётся при первом
+рендере автоматически (``build_spec_template``) и общий для всех моделей. Источник
+данных — тот же ``get_spec_doc_context``, поэтому контекст можно рендерить и любым
+Jinja-шаблоном (``docxtpl`` для Word, Jinja+HTML→PDF для PDF), не дублируя логику.
+
+#### 7.5.1. Собственные шаблоны Word
+
+Можно делать свой шаблон: взять Word с оформлением и вставить теги.
+Положите файл в ``core/templates/docx/specification_template.docx`` (он не
+перезапишется — ``build_spec_template`` вызывается только если файла нет) или
+передайте путь явно:
+
+```python
+render_spec_docx(item, out, template_path='/my/styled_template.docx')
+```
+
+Два ограничения docxtpl, о которых надо помнить:
+
+1. **Тег нельзя разбивать на run'ы.** Word может разбить ``{{ row.label }}``
+   автозаменой/проверкой орфографии на два run'а — тогда Jinja не найдёт тег и
+   выведет его как текст. Набирайте тег, выделяйте целиком и применяйте один
+   стиль; на абзацах с тегами отключайте проверку правописания. Проверить —
+   открыть ``word/document.xml`` и убедиться, что тег в одном ``<w:t>``.
+
+2. **``{{ d.rich }}`` / ``{{ c.rich }}`` / ``{{ image }}`` должны стоять ОДНИ**
+   в своём run/абзаце (без окружающего текста) — эти плейсхолдеры заменяются
+   сырым run-XML с закрытием/переоткрытием run (как ``InlineImage``).
+
+Какое форматирование уважается:
+
+- наследуют стиль run'а (ваш шрифт/размер/цвет): ``{{ item.title }}``,
+  ``{{ item.code }}``, ``{{ g.title }}``, ``{{ row.label }}``, ``{{ row.text }}``;
+- задаётся кодом (перебивает Word): имя документа/сертификата (жирное) и ссылки
+  «Скачать» (синие, подчёркнутые) в ``_build_rich_links``; размер картинки —
+  ``image_width_mm`` в ``render_spec_docx``.
 

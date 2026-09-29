@@ -13,7 +13,7 @@
     </div>
     <div class="eng-card__body">
       <div class="eng-card__header">
-        <h3 class="eng-card__title">{{ item.title || item.name || item.code }}</h3>
+        <h3 class="eng-card__title">{{ item.list_title || item.title || item.name || item.code }}</h3>
         <span class="eng-card__code">{{ item.code }}</span>
       </div>
       <div class="eng-card__specs" v-if="specs.length">
@@ -58,8 +58,16 @@ const imageFull = computed(() => {
 
 // Dynamic specs — extract key engineering params from item
 const specs = computed(() => {
-  const result = []
   const i = props.item
+
+  // Declarative: keys from EquipmentType.list_params (resolved backend-side)
+  if (Array.isArray(i.list_params) && i.list_params.length) {
+    return i.list_params
+      .filter(p => p && p.value != null && p.value !== '')
+      .map(p => ({ label: p.label || '', value: p.value }))
+  }
+
+  const result = []
 
   // IP rating
   if (i.ip) {

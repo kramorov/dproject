@@ -34,7 +34,9 @@ fd_points = FilterDefinition(
     data_source_type=DataSourceType.FOREIGN_KEY,
     label='Количество датчиков',
     order=4,
-    default_value=2,
+    # id в PointsOption: 1=«2 датчика», 2=«3 датчика», 3=«4 датчика»
+    # (после перевода с choices на FK id сдвинулись на -1).
+    default_value=1,
 )
 
 # ── ParameterRule-backed filters: filter_type for frontend, parameter_rule_code for backend ──

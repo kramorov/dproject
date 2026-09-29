@@ -1,0 +1,100 @@
+================================================================================
+TECHNICAL DATA SHEET: FESTO DFPD QUARTER-TURN ACTUATOR
+================================================================================
+
+[BLOCK: DESIGN & STRUCTURE]
+--------------------------------------------------------------------------------
+Feature                          | Value / Specification
+--------------------------------------------------------------------------------
+Design Structure                 | Rack and pinion (Piston/Shaft kinematically linked)
+Mode of Operation                | Single-acting (Spring to close/open)
+Size / Displacement Code         | DFPD-160-RP-90-RS60-F0710
+Cushioning                       | No cushioning
+Flange Hole Pattern              | ISO 5211 (F07 / F10)
+Swivel Angle                     | 90 Deg
+End-position adjustment range    | -4 Deg ... +4 Deg at 0° and 90° positions
+
+[BLOCK: PNEUMATIC & ENVIRONMENTAL]
+--------------------------------------------------------------------------------
+Nominal Operating Pressure       | 5.6 bar (81.2 psi)
+Operating Pressure Range         | 2 bar ... 8 bar (29 psi ... 116 psi)
+CE Marking                       | To EU Explosion Protection Directive (ATEX)
+ATEX Ambient Temperature         | -20°C <= Ta <= +80°C
+Corrosion Resistance Class (CRC) | CRC 3 - High corrosion stress (for chemical plants)
+Note on Operating Medium         | Lubricated operation possible (required for further use)
+Air Quality Class                | Compressed air to ISO 8573-1:2010 [7:4:4]
+
+[BLOCK: TORQUE & FORCES]
+--------------------------------------------------------------------------------
+Torque at Nominal Pressure       | 160 Nm at 90° rotation angle
+Spring Return Torque at 0°       | 60 Nm
+Spring Return Torque at 90°      | 40 Nm
+Mass / Product Weight            | 6,800 g (6.8 kg)
+
+[BLOCK: MATERIAL SPECIFICATIONS]
+--------------------------------------------------------------------------------
+Housing Material Specification   | Wrought aluminum alloy, smooth anodized
+Cover / End Cap Material         | Die-cast aluminum, powder coated
+Shaft / Pinion Material          | High-alloy stainless steel (1.4305)
+Seal Materials (Standard)        | NBR / Polyurethane
+Seal Materials (H2S-Resistant)   | FKM (Fluorocarbon rubber)
+Product Material Compliance      | RoHS-compliant / LABS-free (PWIS-free)
+
+[BLOCK: CONNECTIONS]
+--------------------------------------------------------------------------------
+Pneumatic Connection Порт 2     | G 1/4" with NAMUR interface hole pattern
+Pneumatic Connection Порт 4     | G 1/4" with NAMUR interface hole pattern
+Top Interface (for Limit Box)    | VDI/VDE 3845 hole pattern (Size: 30x80mm, Shaft 20mm)
+================================================================================
+
+================================================================================
+PRODUCT TECHNICAL SPECIFICATION / DATASHEET
+================================================================================
+
+1. GENERAL INFORMATION
+--------------------------------------------------------------------------------
+Manufacturer:                 Emerson Automation Solutions
+Brand/Series:                 Bettis™ RPE-Series / CBB-Series
+Product Type:                 Pneumatic Quarter-Turn Valve Actuator
+Action Type:                  Double Acting (DA) / Spring Return (SR)
+Mechanism Type:               Rack and Pinion / Scotch-Yoke
+Rotation Angle:               90° (Adjustable: -5° to +5° at both travel stops)
+
+2. OPERATING CONDITIONS
+--------------------------------------------------------------------------------
+Operating Medium:             Clean, dry, filtered compressed air (ISO 8573-1:2010)
+Minimum Supply Pressure:      2.5 bar (36.2 psi)
+Maximum Supply Pressure:      8.0 bar (116 psi)
+Standard Temp Range:          -20°C to +80°C (-4°F to +176°F) / Nitrile O-rings
+Low Temp Range (Arctic):      -40°C to +80°C (-40°F to +176°F) / Silicone Seals
+High Temp Range (H2S/Acid):   -10°C to +120°C (+14°F to +248°F) / FKM (Viton) Seals
+
+3. MECHANICAL PERFORMANCE
+--------------------------------------------------------------------------------
+Output Torque (DA @ 5.5 bar): 150 Nm (1327 lb-in)
+Spring End Torque (SR):       45 Nm (398 lb-in)
+Displacement (Volume Open):   0.45 Liters
+Displacement (Volume Close):  0.62 Liters
+Stroke Speed (Open/Close):    < 0.5 seconds (under nominal conditions)
+Duty Cycle:                   100% Continuous Duty
+
+4. MATERIALS OF CONSTRUCTION
+--------------------------------------------------------------------------------
+Body Material:                Extruded Aluminum Alloy (ASTM 6063-T6)
+End Caps:                     Die-cast Aluminum (Epoxy Coated)
+Pinion/Drive Shaft:           Carbon Steel (Electroless Nickel Plated)
+Pistons:                      Die-cast Aluminum
+Fasteners & Bolts:            Stainless Steel (AISI 304 / 316)
+Guide Bands / Bearings:       Aromatic Polyamide (Low Friction)
+
+5. INTERFACES & COMPLIANCE
+--------------------------------------------------------------------------------
+Valve Mounting Interface:     ISO 5211 (F05 / F07 Flange circle)
+Drive Shaft Connection:       Double Square (Star) / Keyway
+Accessory Mounting:           VDI/VDE 3845 (NAMUR Standard for Limit Switch Box)
+Air Supply Connection:        NAMUR G 1/4" Threaded
+Explosion Protection:         ATEX II 2 GD c T6 / IECEx Ex h IIC T6 Gb
+Safety Integrity Level:       SIL 3 Capable (IEC 61508)
+Enclosure Rating:             IP66 / IP67 / NEMA 4, 4X
+================================================================================
+

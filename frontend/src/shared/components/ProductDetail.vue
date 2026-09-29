@@ -12,8 +12,15 @@
 
       <div class="detail-info">
         <ProductHeader :name="product.title || product.name" :code="product.code" :price="price" />
-        <div class="detail-actions" v-if="product.sku?.id">
-          <AddToCartButton :skuId="product.sku.id" />
+        <div class="detail-actions" v-if="product.sku?.id || product.spec_download_url">
+          <AddToCartButton v-if="product.sku?.id" :skuId="product.sku.id" />
+          <a
+            v-if="product.spec_download_url"
+            class="spec-download-btn"
+            :href="product.spec_download_url"
+          >
+            Скачать спецификацию
+          </a>
         </div>
 
         <ProductTabs :tabs="tabItems">
@@ -66,7 +73,19 @@ const galleryImages = computed(() => {
 .detail-layout { display: flex; gap: 32px; margin-top: 16px; }
 .detail-gallery { width: 460px; flex-shrink: 0; }
 .detail-info { flex: 1; min-width: 0; }
-.detail-actions { margin: 12px 0; }
+.detail-actions { margin: 12px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.spec-download-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--cat-primary, #3b82f6);
+  border-radius: 6px;
+  color: var(--cat-primary, #3b82f6);
+  font-size: var(--cat-text-sm, 14px);
+  text-decoration: none;
+  transition: all .2s;
+}
+.spec-download-btn:hover { background: var(--cat-primary, #3b82f6); color: #fff; }
 .section-text { font-size: var(--cat-text-base); line-height: 1.6; color: var(--cat-text-soft); }
 
 @media (max-width: 768px) {

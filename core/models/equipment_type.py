@@ -71,10 +71,11 @@ class EquipmentType(BaseAbstractModel):
         blank=True,
         verbose_name=_("Шаблон заголовка"),
         help_text=_(
-            "Шаблон для generate_title(). Плейсхолдеры: {model_code}, {brand}, "
+            "Заголовок карточки товара (шапка страницы товара, generate_title()). "
+            "Приоритет: model_line.title_template → EquipmentType.title_template → "
+            "фоллбэк {model_code}. Плейсхолдеры: {model_code}, {brand}, "
             "{sensor_variety}, {ip}, {exd}, {work_temp_min}, {work_temp_max}, "
-            "{body_material}, {points}, {weight}, и др. из _get_data_dict(). "
-            "Оставьте пустым — используется дефолтный шаблон из кода модели."
+            "{body_material}, {points}, {weight}, и др. из _get_data_dict()."
         )
     )
 
@@ -87,6 +88,39 @@ class EquipmentType(BaseAbstractModel):
             "JSON: спецификация в виде {группа: {подпись: ключ_поля}} (приоритет "
             "ниже, чем spec_template серии). Пример: {\"Основные\": {\"IP\": \"ip\"}}. "
             "Оставьте пустым — фоллбэк на {model_code} (только артикул)."
+        )
+    )
+
+    # ── Заголовок в спецификации (.docx) ──
+    spec_title_template = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Шаблон заголовка в спецификации"),
+        help_text=_(
+            "Заголовок в .docx-спецификации (item.title). Плейсхолдеры те же, "
+            "что в title_template. Пусто — фоллбэк на title_template, затем {model_code}."
+        )
+    )
+
+    # ── Заголовок в списке (SelectionResultGrid, первая строка) ──
+    list_title_template = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Шаблон заголовка в списке"),
+        help_text=_(
+            "Первая строка карточки в списке (SelectionResultGrid). Плейсхолдеры "
+            "те же, что в title_template. Пусто — фоллбэк на title_template."
+        )
+    )
+
+    # ── Список параметров, выводимых в списке (вторая/третья строка) ──
+    list_params = models.JSONField(
+        blank=True,
+        default=list,
+        verbose_name=_("Список выводимых в списке параметров"),
+        help_text=_(
+            "JSON-список ключей полей (реестра *_item_fields), выводимых "
+            "дополнительными строками в SelectionResultGrid. Пример: [\"brand\", \"ip\", \"exd_short\"]"
         )
     )
 

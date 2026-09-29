@@ -57,6 +57,13 @@ through-опции (`code_path` → `*_encoding`-свойства артикул
 
 ## 2. Пневмоприводы
 
+- **⚠️ EquipmentType → legacy**: `EquipmentType` «Пневмопривод» (id=3) в поле `content_type`
+  указывает на legacy-модель `pneumaticactuatormodellineitem`, а новая модель
+  `PneumaticActuatorItem` сейчас пуста (нет артикулов). Поэтому `list_params`/`list_title`
+  для ПА пока не резолвятся end-to-end (legacy-модель без `TemplateMixin` не отдаёт
+  их в `to_values_dict`). Нужно перевести `content_type` на `PneumaticActuatorItem`
+  (и наполнить артикулы), чтобы `SelectionResultGrid` показывал список-параметры ПА.
+
 - **`PneumaticActuatorItem`** — эталонная модель каталога: опции прямыми FK
   (`selected_safety_position`, `selected_springs_qty`, `selected_temperature`, `selected_ip`,
   `selected_exd`, `selected_body_coating`, `selected_hand_wheel`), артикул автогенерируется

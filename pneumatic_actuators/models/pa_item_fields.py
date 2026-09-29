@@ -118,7 +118,7 @@ PA_ITEM_TEMPLATE_FIELDS = (
      'resolver': '_res_pneumatic_conn', 'label': 'Типы пневмоподключений', 'group': 'Подключения'},
 
     # ── Расчёт ──
-    {'key': 'torque_table', 'resolver': '_res_torque_table',
+    {'key': 'torque_table', 'resolver': '_res_torque_table', 'type': 'html',
      'label': 'Таблица моментов/усилий', 'group': 'Расчёт'},
     {'key': 'time_open', 'placeholder': '{time_open}', 'resolver': '_res_time_open',
      'label': 'Время открытия', 'unit': 'сек', 'group': 'Расчёт'},

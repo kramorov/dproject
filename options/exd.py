@@ -516,16 +516,25 @@ class ExdFormattingMixin:
 
     @property
     def get_exd_short_list(self) -> str:
-        """Уникальные виды взрывозащиты, например «Ex d / Ex ia»."""
+        """Уникальные виды взрывозащиты, например «Ex d / Ex ia».
+
+        Для «общепром» (нет классов взрывозащиты) возвращается короткий
+        ``exd_full_code`` («Общепромышленное») вместо пустой строки.
+        """
+        options = self.get_exd_options()
         seen = set()
         result = []
-        for exd in self.get_exd_options():
+        for exd in options:
             if not exd.explosion_protection_class_id:
                 continue
             name = str(exd.explosion_protection_class)
             if name and name not in seen:
                 seen.add(name)
                 result.append(name)
+        if not result:
+            for exd in options:
+                if exd.exd_full_code and exd.exd_full_code not in result:
+                    result.append(exd.exd_full_code)
         return ' / '.join(result)
 
 
@@ -792,13 +801,17 @@ class ChosenExdRowMixin(ExdFormattingMixin):
 
     @property
     def get_exd_display(self) -> str:
-        """Взрывозащита: список имён видов через « / » (для ``{exd}``)."""
+        """Взрывозащита: список имён видов через « / » (для ``{exd}``).
+
+        Для «общепром» (нет видов) берётся короткий ``exd_full_code``
+        («Общепромышленное»), а не длинное ``description``.
+        """
         row = self._get_effective_exd_row()
         if row is None:
             return ''
         items = []
         for x in row.exd_options.all():
-            items.append(x.name or x.code or x.description or str(x))
+            items.append(x.name or x.exd_full_code or x.code or str(x))
         return ' / '.join(items)
 
     @property
