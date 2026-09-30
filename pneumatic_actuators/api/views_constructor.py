@@ -196,8 +196,20 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def model_lines(self, request):
-        """Список активных серий пневмоприводов (с изображением и описанием)."""
-        items = PneumaticActuatorModelLine.objects.filter(is_active=True).order_by('sorting_order')
+        """Список активных серий пневмоприводов (с изображением и описанием).
+
+        ?construction_variety_id=X — серверная фильтрация по конструкции (RP/SY).
+        """
+        items = PneumaticActuatorModelLine.objects.filter(is_active=True).select_related(
+            'pneumatic_actuator_construction_variety'
+        )
+        construction_variety_id = request.query_params.get('construction_variety_id')
+        if construction_variety_id:
+            try:
+                items = items.filter(pneumatic_actuator_construction_variety_id=int(construction_variety_id))
+            except (TypeError, ValueError):
+                pass  # некорректный параметр — игнорируем, возвращаем все серии
+        items = items.order_by('sorting_order')
         result = []
         for ml in items :
             image = None
@@ -211,6 +223,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
                 'id' : ml.id , 'name' : ml.name , 'code' : ml.code ,
                 'description' : ml.description ,
                 'image' : image ,
+                'construction_variety_id' : ml.pneumatic_actuator_construction_variety_id ,
+                'construction_variety_code' : ml.pneumatic_actuator_construction_variety.code if ml.pneumatic_actuator_construction_variety else None ,
+                'construction_name' : ml.pneumatic_actuator_construction_variety.name if ml.pneumatic_actuator_construction_variety else None ,
             })
         return Response(result)
 

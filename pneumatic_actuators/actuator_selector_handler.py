@@ -6,7 +6,8 @@ from typing import Dict, Any, Tuple, Optional, List
 from params.models import IpOption, HandWheelInstalledOption, StemShapes, \
     PneumaticAirSupplyPressure
 from params.exd_models import ExdOption
-from pneumatic_actuators.models import BodyThrustTorqueTable, PneumaticActuatorVariety
+from pneumatic_actuators.models import BodyThrustTorqueTable, PneumaticActuatorVariety, \
+    PneumaticActuatorConstructionVariety
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +61,50 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
     # Покрытие/исполнение корпуса — through-опция серии (PneumaticBodyDesignOption),
     # привязанная к model_line; в create-sku идёт её id.
     from pneumatic_actuators.models.pa_options import PneumaticBodyDesignOption
-    result['coating_options'] = PneumaticBodyDesignOption.get_for_select(
+    coating_raw = PneumaticBodyDesignOption.get_for_select(
         model_line_id=model_line_id ,
         active_only=True
     )
+    # Одинаковые исполнения повторяются в разных сериях — отдаём только уникальные.
+    _seen_names = set()
+    coating_unique = []
+    for _o in coating_raw :
+        if _o.get('name') not in _seen_names :
+            _seen_names.add(_o.get('name'))
+            coating_unique.append(_o)
+    result['coating_options'] = coating_unique
+
+    # Уникальные материалы корпуса (для шага «Материал корпуса»): чистый body_material,
+    # а не исполнение (материал+покрытие+цвет).
+    from materials.models import MaterialGeneral
+    material_qs = PneumaticBodyDesignOption.objects.filter(
+        is_active=True , body_material__isnull=False
+    )
+    if model_line_id :
+        material_qs = material_qs.filter(model_line_id=model_line_id)
+    material_ids = material_qs.values_list('body_material_id' , flat=True).distinct()
+    result['body_material_options'] = [
+        {'id' : m.id , 'name' : m.name , 'code' : m.code or ''}
+        for m in MaterialGeneral.objects.filter(id__in=material_ids , is_active=True).order_by('name')
+    ]
+
+    # Температура окружающей среды: уникальные нижние границы work_temp_min,
+    # близкие значения объединяем (шаг 10°C, оставляем более холодную).
+    from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
+    temp_qs = PneumaticTemperatureOption.objects.filter(
+        is_active=True , work_temp_min__isnull=False
+    )
+    if model_line_id :
+        temp_qs = temp_qs.filter(model_line_id=model_line_id)
+    temp_vals = sorted(set(temp_qs.values_list('work_temp_min' , flat=True)))  # от холодной к тёплой
+    merged = []
+    for v in temp_vals :
+        if not merged or abs(v - merged[-1]) > 10 :
+            merged.append(v)
+    merged.sort(reverse=True)  # от тёплой к холодной (для UI)
+    result['temperature_options'] = [
+        {'id' : v , 'name' : f'{v}°C' , 'code' : str(v)} for v in merged
+    ]
 
     return result
 
@@ -179,6 +220,7 @@ def get_initial_data() -> Dict[str, Any]:
 
     return {
         'model_lines': PneumaticActuatorModelLine.get_for_select(active_only=True),
+        'construction_varieties': PneumaticActuatorConstructionVariety.get_for_select(active_only=True),
         'dn_varieties': DnVariety.get_for_select(active_only=True),
         'pn_varieties': PnVariety.get_for_select(active_only=True),
         'air_pressure': PneumaticAirSupplyPressure.get_for_select(active_only=True),
@@ -475,7 +517,65 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
             search_results = _match_exd_for_model_lines(search_results, exd_id)
             print(f"⚡ После фильтра по взрывозащите (exd_id={exd_id}): {len(search_results)} серий")
 
-        # 5. Дедуп: одинаковые body в разных сериях — оставляем одну серию (без exd приоритет).
+        # 5. Конструкция: hard-фильтр по серии (шестерня-рейка / кулисный).
+        construction_variety_id = params.get('construction_variety_id')
+        if construction_variety_id:
+            from pneumatic_actuators.models import PneumaticActuatorModelLine
+            allowed_model_line_ids = set(
+                PneumaticActuatorModelLine.objects.filter(
+                    pneumatic_actuator_construction_variety_id=construction_variety_id ,
+                    is_active=True
+                ).values_list('id' , flat=True)
+            )
+            search_results = [
+                ml for ml in search_results
+                if ml.get('model_line_id') in allowed_model_line_ids
+            ]
+            print(f"⚡ После фильтра по конструкции (construction_variety_id={construction_variety_id}): {len(search_results)} серий")
+
+        # 6. Материал корпуса: hard-фильтр по серии (body_design_options__body_material).
+        body_material_id = params.get('body_material_id')
+        if body_material_id:
+            from pneumatic_actuators.models import PneumaticActuatorModelLine
+            allowed_ml_ids = set(
+                PneumaticActuatorModelLine.objects.filter(
+                    body_design_options__body_material_id=body_material_id ,
+                    is_active=True
+                ).values_list('id' , flat=True).distinct()
+            )
+            search_results = [
+                ml for ml in search_results
+                if ml.get('model_line_id') in allowed_ml_ids
+            ]
+            print(f"⚡ После фильтра по материалу корпуса (body_material_id={body_material_id}): {len(search_results)} серий")
+
+        # 7. Температура окружающей среды: серия подходит, если её температурная опция
+        # покрывает заданный диапазон (work_temp_min <= temp_min, work_temp_max >= temp_max).
+        temp_min = params.get('temp_min')
+        temp_max = params.get('temp_max')
+        if temp_min or temp_max:
+            from pneumatic_actuators.models import PneumaticActuatorModelLine
+            try:
+                temp_min = float(temp_min) if temp_min not in (None , '') else None
+            except (TypeError , ValueError):
+                temp_min = None
+            try:
+                temp_max = float(temp_max) if temp_max not in (None , '') else None
+            except (TypeError , ValueError):
+                temp_max = None
+            temp_qs = PneumaticActuatorModelLine.objects.filter(is_active=True)
+            if temp_min is not None:
+                temp_qs = temp_qs.filter(temperature_options__work_temp_min__lte=temp_min)
+            if temp_max is not None:
+                temp_qs = temp_qs.filter(temperature_options__work_temp_max__gte=temp_max)
+            allowed_ml_ids = set(temp_qs.values_list('id' , flat=True).distinct())
+            search_results = [
+                ml for ml in search_results
+                if ml.get('model_line_id') in allowed_ml_ids
+            ]
+            print(f"⚡ После фильтра по температуре (temp_min={temp_min}, temp_max={temp_max}): {len(search_results)} серий")
+
+        # 8. Дедуп: одинаковые body в разных сериях — оставляем одну серию (без exd приоритет).
         search_results = _dedup_series_by_body(search_results)
 
         total_items = 0

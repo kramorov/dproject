@@ -14,6 +14,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from project_customers.permissions import SectionAccessPermission
 from django.http import HttpResponse
+from django.db import transaction
+from django.db.models import Q
 from price.models import PriceDocument, PriceDocumentItem, Currency, PriceVariety, PriceHistory
 from price.services.excel_io import export_document_to_excel, import_document_from_excel
 
@@ -32,22 +34,44 @@ def _get_current_price(sku_id, price_variety, currency):
     return ph.price if ph else None
 
 
-def _reprice_document_items(doc):
-    """Пересчитать цены строк под новые default_price_variety/default_currency."""
+@transaction.atomic
+def _reread_prices(doc, brand_id=None, equipment_type_id=None, search=None):
+    """Перечитать цены строк из актуального PriceHistory по типу/валюте шапки.
+
+    У каждой строки цена заполняется заново по (sku, вид цены, валюта) из
+    шапки документа. Если актуальной цены нет — цена ставится в 0.
+    Опциональные фильтры (brand_id/equipment_type_id/search) ограничивают
+    набор перечитываемых строк; новые позиции при этом не создаются.
+
+    Returns:
+        (updated, missing) — updated: строк с найденной ценой,
+        missing: строк без актуальной цены для выбранных типа/валюты.
+    """
     pv = doc.default_price_variety
     cur = doc.default_currency
     if not pv or not cur:
-        return 0
+        return 0, 0
+    items = doc.items.filter(is_active=True)
+    if brand_id:
+        items = items.filter(sku__brand_id=brand_id)
+    if equipment_type_id:
+        items = items.filter(sku__equipment_type_id=equipment_type_id)
+    if search:
+        items = items.filter(Q(sku__code__icontains=search) | Q(sku__name__icontains=search))
     updated = 0
-    for item in doc.items.filter(is_active=True):
+    missing = 0
+    for item in items:
         item.price_variety_id = pv.id
         item.currency_id = cur.id
         resolved = _get_current_price(item.sku_id, pv, cur)
         if resolved is not None:
             item.price = resolved
+            updated += 1
+        else:
+            item.price = Decimal('0')
+            missing += 1
         item.save(update_fields=['price_variety_id', 'currency_id', 'price'])
-        updated += 1
-    return updated
+    return updated, missing
 
 
 class PriceDocumentDetailView(APIView):
@@ -151,11 +175,7 @@ class PriceDocumentDetailView(APIView):
 
         doc.save()
 
-        updated = 0
-        if data.get('update_item_prices'):
-            updated = _reprice_document_items(doc)
-
-        return Response({'success': True, 'updated': updated})
+        return Response({'success': True})
 
     def delete(self, request, pk):
         doc = self._get_doc(pk)
@@ -202,6 +222,25 @@ class PriceDocumentDetailView(APIView):
                 })
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        elif action == 'reprices':
+            if doc.status != PriceDocument.Status.DRAFT:
+                return Response(
+                    {'error': f'Перечитывание цен запрещено. Статус: {doc.get_status_display()}'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not doc.default_price_variety or not doc.default_currency:
+                return Response(
+                    {'error': 'Укажите тип цены и валюту в шапке документа'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            updated, missing = _reread_prices(
+                doc,
+                brand_id=request.data.get('brand_id'),
+                equipment_type_id=request.data.get('equipment_type_id'),
+                search=(request.data.get('search') or '').strip() or None,
+            )
+            return Response({'success': True, 'updated': updated, 'missing': missing})
 
         return Response({'error': 'Unknown action'}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -18,6 +18,7 @@ export default {
   deleteDocument(id) { return api.delete(`${B}/documents/${id}/`) },
   applyDocument(id) { return api.post(`${B}/documents/${id}/apply/`) },
   unapplyDocument(id) { return api.post(`${B}/documents/${id}/unapply/`) },
+  repricesDocument(id, data = {}) { return api.post(`${B}/documents/${id}/reprices/`, data) },
 
   // Строки документа
   getItems(docId) { return api.get(`${B}/documents/${docId}/items/`) },

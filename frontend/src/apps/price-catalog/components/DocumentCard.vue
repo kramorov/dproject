@@ -62,8 +62,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, i) in docItems" :key="item.id">
-              <td class="it-num">{{ i + 1 }}</td>
+            <tr v-for="(item, i) in pagedItems" :key="item.id">
+              <td class="it-num">{{ (page - 1) * pageSize + i + 1 }}</td>
               <td class="it-code">{{ item.product_code || '—' }}</td>
               <td class="it-name">{{ item.product_name || '—' }}</td>
               <td class="it-variety">{{ item.price_variety_name || doc.default_price_variety_name || '—' }}</td>
@@ -89,6 +89,23 @@
           </tbody>
         </table>
         <div v-else class="items-empty">Нет позиций</div>
+
+        <!-- Пагинация -->
+        <div v-if="docItems.length" class="pager">
+          <span class="pager-info">Позиций: {{ docItems.length }} · Страница {{ page }} из {{ totalPages }}</span>
+          <div class="pager-controls">
+            <label class="pager-size">
+              На странице
+              <select v-model="pageSize" class="fi">
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+            </label>
+            <button class="btn-icon" :disabled="page <= 1" @click="page--">←</button>
+            <button class="btn-icon" :disabled="page >= totalPages" @click="page++">→</button>
+          </div>
+        </div>
 
         <!-- Добавление позиции -->
         <div v-if="isDraft" class="add-form">
@@ -117,50 +134,31 @@
         </div>
 
         <!-- Fill by filter -->
-        <div v-if="isDraft" style="margin-top:8px">
+        <div v-if="isDraft" class="fl" style="margin-top:8px">
           <button class="btn-fill" @click="openFillByFilter">📋 Заполнить по фильтру</button>
+          <button class="btn-fill" :disabled="repricing" @click="doReprices()">{{ repricing ? 'Перечитываю…' : '⟳ Перечитать цены' }}</button>
         </div>
       </template>
     </SharedDocumentCard>
 
-    <!-- Fill modal -->
+    <!-- Reprice by filter modal -->
     <div v-if="showFillModal" class="modal-bg">
       <div class="modal-box">
-        <h4>Подбор SKU в документ</h4>
+        <h4>Перечитать цены по фильтру</h4>
+        <p class="fill-hint">Перечитываются цены только существующих позиций документа по типу и валюте из шапки. Новые позиции не добавляются.</p>
         <div class="fill-filters fl">
-          <input v-model="fillCode" placeholder="Код/название" class="fi" @keyup.enter="doFillSearch" />
+          <input v-model="fillCode" placeholder="Код/название" class="fi" @keyup.enter="doRepricesByFilter" />
           <select v-model="fillEqType" class="fi" @change="onFillEqTypeChange"><option value="">Все типы</option>
             <option v-for="t in opts.equipmentTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
           </select>
           <select v-model="fillBrand" class="fi"><option value="">Все бренды</option>
             <option v-for="b in fillBrands" :key="b.id" :value="b.id">{{ b.name }}</option>
           </select>
-          <button class="btn-fill" @click="doFillSearch">Искать</button>
         </div>
-        <div v-if="fillLoading" class="st">Поиск...</div>
-        <div v-else-if="fillItems.length" class="fill-list">
-          <div class="fill-row sel" @click="toggleFillAll">
-            <input type="checkbox" :checked="fillAllSelected" /> <strong>Выбрать все ({{ fillItems.length }})</strong>
-          </div>
-          <div
-            v-for="item in fillItems" :key="item.id"
-            class="fill-row" :class="{ sel: fillSelected.has(item.id) }"
-            @click="toggleFillOne(item.id)"
-          >
-            <input type="checkbox" :checked="fillSelected.has(item.id)" />
-            <span class="code">{{ item.code }}</span>
-            <span class="name">{{ item.name }}</span>
-            <span class="meta">{{ item.equipment_type_name }} / {{ item.brand_name }}</span>
-          </div>
-        </div>
-        <div v-else-if="!fillLoading && fillCode" class="st">Ничего не найдено</div>
         <div v-if="fillErr" class="er">{{ fillErr }}</div>
-        <div v-if="!canFill" class="er">⚠️ Укажите тип цены и валюту документа (поля «Тип цены»/«Валюта» над таблицей), чтобы перенести позиции.</div>
+        <div v-if="!canFill" class="er">⚠️ Укажите тип цены и валюту документа, чтобы перечитать цены.</div>
         <div class="modal-btns">
-          <button
-            class="btn-fill" :disabled="fillAdding || !fillSelected.size || !canFill"
-            @click="doFillAdd"
-          >{{ fillAdding ? 'Добавление...' : 'Перенести в документ (' + fillSelected.size + ')' }}</button>
+          <button class="btn-fill" :disabled="repricing || !canFill" @click="doRepricesByFilter">{{ repricing ? 'Перечитываю…' : '⟳ Перечитать цены' }}</button>
           <button class="btn-cancel" @click="showFillModal = false">Закрыть</button>
         </div>
       </div>
@@ -269,6 +267,20 @@ const itemsApi = {
 const docItemsComposable = useDocumentItems(itemsApi)
 const { items: docItems, loadItems } = docItemsComposable
 
+// ── Pagination ──
+const pageSize = ref(25)
+const page = ref(1)
+const totalPages = computed(() => Math.max(1, Math.ceil(docItems.value.length / pageSize.value)))
+const pagedItems = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return docItems.value.slice(start, start + pageSize.value)
+})
+
+watch(pageSize, () => { page.value = 1 })
+watch(() => docItems.value.length, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+})
+
 // Features override — price docs don't have print
 const cardFeatures = computed(() => ({
   print: false,
@@ -294,28 +306,17 @@ watch(doc, (d) => {
 
 async function saveExtraFields() {
   if (!doc.value || !isDraft.value) return
-  const oldPv = doc.value.default_price_variety_id || null
-  const oldCur = doc.value.default_currency_id || null
   const newPv = priceVarietyId.value || null
   const newCur = currencyId.value || null
-  const changed = oldPv !== newPv || oldCur !== newCur
-
-  let updatePrices = false
-  if (changed && docItems.value.length) {
-    updatePrices = confirm('Обновить цены в документе в соответствии с новым типом цены и валютой?')
-  }
-
   try {
     await priceApi.updateDocument(props.docId, {
       default_price_variety_id: newPv || undefined,
       default_currency_id: newCur || undefined,
-      update_item_prices: updatePrices,
     })
     if (doc.value) {
       doc.value.default_price_variety_id = newPv
       doc.value.default_currency_id = newCur
     }
-    if (updatePrices) await loadItems(props.docId)
     emit('changed')
   } catch {}
 }
@@ -425,18 +426,17 @@ async function doDeleteItem(itemId) {
   } catch {}
 }
 
-// ── Fill by filter ──
+// ── Reprice (Перечитать цены) ──
 const showFillModal = ref(false)
 const fillCode = ref(''), fillEqType = ref(''), fillBrand = ref('')
-const fillItems = ref([]), fillLoading = ref(false), fillAdding = ref(false)
-const fillSelected = ref(new Set()), fillErr = ref('')
+const fillErr = ref('')
 const fillBrands = ref([])
-const fillAllSelected = computed(() => fillItems.value.length > 0 && fillSelected.value.size === fillItems.value.length)
+const repricing = ref(false)
 const canFill = computed(() => !!doc.value?.default_price_variety_id && !!doc.value?.default_currency_id)
 
 function openFillByFilter() {
   showFillModal.value = true; fillCode.value = ''; fillEqType.value = ''; fillBrand.value = ''
-  fillItems.value = []; fillSelected.value = new Set(); fillErr.value = ''
+  fillErr.value = ''
   fillBrands.value = opts.brands || []
 }
 
@@ -449,50 +449,34 @@ async function onFillEqTypeChange() {
   } catch { fillBrands.value = opts.brands || [] }
 }
 
-async function doFillSearch() {
-  fillLoading.value = true; fillErr.value = ''
+async function doReprices(params = {}) {
+  if (!canFill.value) {
+    alert('Укажите тип цены и валюту в шапке документа.')
+    return
+  }
+  repricing.value = true
   try {
-    const p = new URLSearchParams()
-    if (fillCode.value) p.set('search', fillCode.value)
-    if (fillEqType.value) p.set('equipment_type_id', fillEqType.value)
-    if (fillBrand.value) p.set('brand_id', fillBrand.value)
-    p.set('limit', '100')
-    const r = await fetch('/api/admin/sku/?' + p.toString())
-    const d = await r.json()
-    fillItems.value = d.data || []; fillSelected.value = new Set()
-  } catch (e) { fillErr.value = 'Search error' }
-  finally { fillLoading.value = false }
+    const r = await priceApi.repricesDocument(props.docId, params)
+    const d = r.data || {}
+    const msg = [`Перечитано цен: ${d.updated ?? 0}`]
+    if (d.missing) msg.push(`Без актуальной цены (поставлено 0): ${d.missing}`)
+    alert(msg.join('\n'))
+    await loadItems(props.docId)
+    emit('changed')
+  } catch (e) {
+    error.value = e?.displayMessage || 'Ошибка перечитывания цен'
+  } finally {
+    repricing.value = false
+  }
 }
 
-function toggleFillOne(id) {
-  const s = new Set(fillSelected.value)
-  s.has(id) ? s.delete(id) : s.add(id)
-  fillSelected.value = s
-}
-
-function toggleFillAll() {
-  fillSelected.value = fillAllSelected.value ? new Set() : new Set(fillItems.value.map(x => x.id))
-}
-
-async function doFillAdd() {
-  fillAdding.value = true; fillErr.value = ''
-  try {
-    if (!canFill.value) {
-      fillErr.value = 'Укажите тип цены и валюту документа перед добавлением позиций.'
-      return
-    }
-    let failed = 0
-    for (const skuId of fillSelected.value) {
-      try { await itemsApi.addItem(props.docId, { sku_id: skuId }) } catch { failed++ }
-    }
-    if (failed) {
-      fillErr.value = `Не удалось добавить ${failed} из ${fillSelected.value.size} позиций.`
-      return
-    }
-    showFillModal.value = false
-    await loadItems(props.docId); emit('changed')
-  } catch (e) { fillErr.value = 'Error adding items' }
-  finally { fillAdding.value = false }
+async function doRepricesByFilter() {
+  const params = {}
+  if (fillCode.value) params.search = fillCode.value
+  if (fillEqType.value) params.equipment_type_id = fillEqType.value
+  if (fillBrand.value) params.brand_id = fillBrand.value
+  await doReprices(params)
+  showFillModal.value = false
 }
 
 // ── SKU create ──
@@ -556,6 +540,7 @@ async function saveSkuEdit() {
 // ── Init ──
 watch(() => props.docId, async (id) => {
   if (id) {
+    page.value = 1
     await loadDocument(id)
     await loadItems(id)
   }
@@ -692,13 +677,13 @@ onBeforeUnmount(() => clearTimeout(prodTimer))
 
 /* Fill */
 .fill-filters { margin-bottom: var(--cat-gap-sm); }
-.fill-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--cat-border); border-radius: var(--cat-radius-sm); margin-bottom: var(--cat-gap-sm); }
-.fill-row { display: flex; align-items: center; gap: var(--cat-gap-sm); padding: 4px 8px; border-bottom: 1px solid var(--cat-border-light); font-size: var(--cat-text-sm); cursor: pointer; }
-.fill-row:hover { background: var(--cat-row-hover, #fdfcf9); }
-.fill-row.sel { background: var(--cat-primary-light); }
-.fill-row .code { font-family: var(--cat-font-mono); font-weight: 500; min-width: 90px; }
-.fill-row .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fill-row .meta { color: var(--cat-muted); font-size: var(--cat-text-xs); white-space: nowrap; }
+.fill-hint { margin: 0 0 var(--cat-gap-sm); color: var(--cat-muted); font-size: var(--cat-text-xs); }
+
+/* Pagination */
+.pager { display: flex; align-items: center; justify-content: space-between; gap: var(--cat-gap-sm); flex-wrap: wrap; margin-top: var(--cat-gap-sm); }
+.pager-info { color: var(--cat-muted); font-size: var(--cat-text-xs); }
+.pager-controls { display: flex; align-items: center; gap: var(--cat-gap-sm); }
+.pager-size { display: flex; align-items: center; gap: 4px; color: var(--cat-muted); font-size: var(--cat-text-xs); }
 
 /* SKU modals */
 .sku-body { display: flex; flex-direction: column; gap: var(--cat-gap-sm); }

@@ -89,10 +89,17 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
     @classmethod
     def get_for_select(cls , active_only=True) :
         """Получить серии моделей для выпадающего списка"""
-        queryset = cls.objects.all()
+        queryset = cls.objects.all().select_related('pneumatic_actuator_construction_variety')
         if active_only :
             queryset = queryset.filter(is_active=True)
-        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
+        return [
+            {
+                'id' : obj.id , 'name' : obj.name , 'code' : obj.code ,
+                'pneumatic_actuator_construction_variety_id' : obj.pneumatic_actuator_construction_variety_id ,
+                'construction_variety_code' : obj.pneumatic_actuator_construction_variety.code if obj.pneumatic_actuator_construction_variety else None ,
+            }
+            for obj in queryset
+        ]
 
     # ==================== ДИСКРИМИНАТОР ТИПА КОНСТРУКЦИИ (RP / SY) ====================
 

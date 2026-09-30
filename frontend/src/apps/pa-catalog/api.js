@@ -6,7 +6,7 @@ const E = ENDPOINTS.paCatalog
 
 export default {
   // Series (для единого паттерна CatalogSection)
-  getSections() { return api.get(E.modelLines) },
+  getSections(params = {}) { return api.get(E.modelLines, { params }) },
   // Model lines (series) — alias для конфигуратора
   getModelLines() { return api.get(E.modelLines) },
   // Model line items (body+variety)
@@ -25,4 +25,6 @@ export default {
   createSku(payload) { return api.post(E.createSku, payload) },
   // Initial data (pressures, etc.)
   getInitialData() { return api.get('/pneumatic_actuators/selector/initial-data/') },
+  // Actuator options (varieties, safety, exd, materials, temperature)
+  getActuatorOptions(params = {}) { return api.get('/pneumatic_actuators/options/', { params }) },
 }

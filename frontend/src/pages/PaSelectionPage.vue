@@ -76,12 +76,12 @@
     <!-- ========== Требования к приводу ========== -->
     <section class="section">
       <h2>🔧 Требования к приводу</h2>
-      <div class="grid-2">
+      <div class="grid-3">
         <div class="field">
           <label>Серия моделей</label>
           <select v-model="form.model_line_id">
             <option :value="null">— Все серии —</option>
-            <option v-for="v in refs.model_lines" :key="v.id" :value="v.id">{{ v.name }}</option>
+            <option v-for="v in filteredModelLines" :key="v.id" :value="v.id">{{ v.name }}</option>
           </select>
         </div>
         <div class="field">
@@ -89,6 +89,13 @@
           <select v-model="form.actuator_variety_id">
             <option :value="null">— Выберите —</option>
             <option v-for="v in actuatorVarieties" :key="v.id" :value="v.id">{{ v.name }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Конструкция</label>
+          <select v-model="form.construction_variety_id">
+            <option :value="null">— Все —</option>
+            <option v-for="v in refs.construction_varieties" :key="v.id" :value="v.id">{{ v.name }}</option>
           </select>
         </div>
       </div>
@@ -162,47 +169,33 @@
     <div v-if="error" class="error-msg">❌ {{ error }}</div>
 
     <!-- ========== Результаты ========== -->
-    <section v-if="results.length" class="section results">
-      <h2>📊 Результаты подбора ({{ results.length }} серий)</h2>
-      <div v-for="ml in results" :key="ml.model_line_name" class="result-group">
-        <h3>📁 {{ ml.model_line_name }} <code>{{ ml.model_line_code }}</code></h3>
-        <div v-for="(item, idx) in ml.model_line_items" :key="idx" class="result-card" @click="openProduct(item, ml)">
-          <div class="result-header">
-            <strong>{{ idx + 1 }}. {{ item.model_line_item_name }}</strong>
-            <code>{{ item.model_line_item_code }}</code>
-          </div>
-          <div class="result-desc" v-if="item.description">{{ item.description }}</div>
-          <div class="result-metrics">
-            <span>🏭 {{ item.body_name }} ({{ item.body_code }})</span>
-            <span>📌 {{ item.actuator_variety_code }}</span>
-            <span>⭐ Score: {{ item.score?.toFixed(1) }}</span>
-            <span>📊 Запас: {{ item.spring_margin?.toFixed(0) }} Нм</span>
-          </div>
-          <div v-if="item.actuator_variety_code === 'SR'" class="result-springs">
-            Пружины: {{ item.spring_qty_name }} |
-            BTO/ETO: {{ item.spring_bto?.toFixed(0) }}/{{ item.spring_eto?.toFixed(0) }} (пруж.)
-            {{ item.pressure_bto?.toFixed(0) }}/{{ item.pressure_eto?.toFixed(0) }} (возд.)
-          </div>
-          <div v-else class="result-springs">
-            💨 BTO: {{ item.spring_bto?.toFixed(0) }} Нм
-          </div>
-        </div>
-      </div>
+    <section v-if="cards.length" class="section results">
+      <h2>📊 Результаты подбора</h2>
+      <SelectionResultGrid
+        :items="cards"
+        :total="cards.length"
+        :loading="searching"
+        empty-text="Ничего не найдено. Измените критерии."
+        @select="onSelectCard"
+      />
     </section>
   </div>
 </template>
 
 <script>
 import api from '@/shared/api'
+import SelectionResultGrid from '@/shared/components/catalog/SelectionResultGrid.vue'
+import { paResultsToCards, buildPaConfigQuery } from '@/shared/utils/paResults'
 
 export default {
   name: 'PaSelectionPage',
+  components: { SelectionResultGrid },
   data() {
     return {
       refs: {
         valve_types: [], dn_varieties: [], pn_varieties: [],
         mounting_plates: [], stem_shapes: [], stem_sizes: [],
-        air_pressure: [], model_lines: [],
+        air_pressure: [], model_lines: [], construction_varieties: [],
       },
       actuatorOptions: {
         actuator_varieties: [], safety_positions: [],
@@ -214,6 +207,7 @@ export default {
         mounting_plate_id: null, stem_shape_id: null, stem_id: null,
         torque_without_safety: 0, safety_factor: 1.5,
         model_line_id: null,
+        construction_variety_id: null,
         actuator_variety_id: null, safety_position_id: null,
         air_pressure_id: null, ip_id: null, exd_id: null,
         coating_id: null, hand_wheel_id: null,
@@ -232,14 +226,26 @@ export default {
       if (!this.form.stem_shape_id) return this.refs.stem_sizes
       return this.refs.stem_sizes.filter(s => s.stem_shape_id === this.form.stem_shape_id)
     },
+    filteredModelLines() {
+      if (!this.form.construction_variety_id) return this.refs.model_lines
+      return this.refs.model_lines.filter(
+        ml => ml.pneumatic_actuator_construction_variety_id === this.form.construction_variety_id
+      )
+    },
     actuatorVarieties() {
       return this.actuatorOptions.actuator_varieties || []
     },
     safetyPositions() {
       return this.actuatorOptions.safety_positions || []
     },
+    cards() {
+      return paResultsToCards(this.results)
+    },
   },
   watch: {
+    'form.construction_variety_id'() {
+      this.form.model_line_id = null
+    },
     'form.model_line_id': {
       immediate: true,
       handler() {
@@ -315,21 +321,22 @@ export default {
         this.searching = false
       }
     },
-    openProduct(item, ml) {
-      if (!item.model_line_item_id) return
-      // Переход в конфигуратор с предвыбором. SKU создаётся при добавлении в корзину.
-      const q = {
-        model_line_id: ml?.model_line_id || undefined,
-        model_line_item_id: item.model_line_item_id,
-        actuator_variety_code: item.actuator_variety_code || undefined,
-        springs_qty: item.spring_qty_id || undefined,
-        safety_position: this.form.safety_position_id || undefined,
-        ip: this.form.ip_id || undefined,
-        exd: this.form.exd_id || undefined,
-        body_coating: this.form.coating_id || undefined,
-        hand_wheel: this.form.hand_wheel_id || undefined,
-      }
-      this.$router.push({ path: '/catalog/pa-actuators', query: q })
+    openProduct(item, ml, options = {}) {
+      if (!item?.model_line_item_id) return
+      this.$router.push({ path: '/catalog/pa-actuators', query: buildPaConfigQuery(ml, item, options) })
+    },
+    collectOptions() {
+      const o = {}
+      if (this.form.safety_position_id) o.safety_position = this.form.safety_position_id
+      if (this.form.ip_id) o.ip = this.form.ip_id
+      if (this.form.exd_id) o.exd = this.form.exd_id
+      if (this.form.hand_wheel_id) o.hand_wheel = this.form.hand_wheel_id
+      if (this.form.coating_id) o.body_coating = this.form.coating_id
+      return o
+    },
+    onSelectCard(id) {
+      const c = this.cards.find(x => x.id === id)
+      if (c) this.openProduct(c._item, c._ml, this.collectOptions())
     },
     reset() {
       this.form = {
@@ -337,6 +344,7 @@ export default {
         mounting_plate_id: null, stem_shape_id: null, stem_id: null,
         torque_without_safety: 0, safety_factor: 1.5,
         model_line_id: null, model_line_item_id: null,
+        construction_variety_id: null,
         actuator_variety_id: null, safety_position_id: null,
         air_pressure_id: null, ip_id: null, exd_id: null,
         coating_id: null, hand_wheel_id: null,

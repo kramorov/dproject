@@ -34,6 +34,7 @@ urlpatterns_admin = [
     path('documents/<int:pk>/', PriceDocumentDetailView.as_view(), name='price_document_detail'),
     path('documents/<int:pk>/apply/', PriceDocumentDetailView.as_view(), name='price_document_apply'),
     path('documents/<int:pk>/unapply/', PriceDocumentDetailView.as_view(), name='price_document_unapply'),
+    path('documents/<int:pk>/reprices/', PriceDocumentDetailView.as_view(), name='price_document_reprices'),
     path('documents/<int:doc_id>/items/', PriceDocumentItemView.as_view(), name='price_document_items'),
     path('documents/<int:pk>/export/', PriceDocumentExportView.as_view(), name='price_document_export'),
     path('documents/<int:pk>/import/', PriceDocumentImportView.as_view(), name='price_document_import'),

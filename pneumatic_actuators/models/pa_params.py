@@ -84,6 +84,14 @@ class PneumaticActuatorConstructionVariety(StructuredDataMixin , models.Model) :
     def __str__(self) :
         return self.name
 
+    @classmethod
+    def get_for_select(cls , active_only=True) :
+        """Получить конструкции приводов для выпадающего списка"""
+        queryset = cls.objects.all()
+        if active_only :
+            queryset = queryset.filter(is_active=True)
+        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
+
     # ==================== StructuredDataMixin методы ====================
 
     def get_compact_data(self) -> Dict[str , Any] :

@@ -1585,6 +1585,17 @@ class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return f"{self.name} бар"
 
+    @classmethod
+    def get_for_select(cls, active_only=True):
+        """Давление питания с code и числовым значением (для мастера/селектора)."""
+        queryset = cls.objects.all()
+        if active_only:
+            queryset = queryset.filter(is_active=True)
+        return [
+            {'id' : obj.id , 'name' : str(obj) , 'code' : obj.code , 'pressure_bar' : float(obj.pressure_bar)}
+            for obj in queryset
+        ]
+
     def get_pressure_in_units(self, unit='bar'):
         """
         Возвращает давление в различных единицах измерения

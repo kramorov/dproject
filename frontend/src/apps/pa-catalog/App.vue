@@ -9,7 +9,7 @@
     <KeepAlive :key="cacheEpoch">
       <CatalogSection
         v-if="page === 'section'"
-        :api="api" :labels="labels.section"
+        :api="api" :labels="labels.section" :filters="constructionFilters"
         @select-series="goToBrand"
         @navigate="goToSection"
       />
@@ -17,14 +17,16 @@
         v-else-if="page === 'brand'"
         :api="api"
         :initial-model-line-id="idValue"
+        :initial-model-line-item-id="preSelect?.modelLineItemId || null"
+        :initial-variety="preSelect?.variety || null"
+        :initial-options="preSelect?.options || {}"
         :title="labels.brand.title"
         :subtitle="labels.brand.subtitle"
         @add-to-cart="onAddToCart"
       />
-      <WizardSelection
+      <PaWizard
         v-else-if="page === 'wizard'"
-        :equipment-type-id="equipmentTypeId"
-        :labels="labels.wizard"
+        :api="api"
         @navigate="goToSection"
       />
       <AiSelectionPage
@@ -39,17 +41,19 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import CatalogActions from '@/shared/components/catalog/CatalogActions.vue'
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
 import PaActuatorConfigurator from '@/shared/components/catalog/PaActuatorConfigurator.vue'
-import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
+import PaWizard from '@/shared/components/catalog/PaWizard.vue'
 import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import { useCatalogRouter } from '@/shared/composables/useCatalogRouter.js'
 import paApi from './api'
 
 const api = paApi
+const route = useRoute()
 const equipmentTypeId = 3 // Пневмопривод
 const eqCode = 'pneumatic-actuator'
 
@@ -69,6 +73,26 @@ const labels = {
 }
 
 const cacheEpoch = ref(0)
+// Предвыбор типоразмера/вида при открытии конфигуратора из мастера/селектора.
+const preSelect = ref(null)
+// Чипсы «Конструкция» для фильтра серий (по умолчанию шестерня-рейка).
+const constructionFilters = ref([])
+
+onMounted(async () => {
+  try {
+    const { data } = await api.getInitialData()
+    const varieties = data?.construction_varieties || []
+    if (!varieties.length) return
+    const options = varieties.map(v => ({ value: v.id, label: v.name }))
+    const rp = varieties.find(v => v.code === 'RACK-PINION' || v.code === 'RP')
+      || varieties[0]
+    constructionFilters.value = [
+      { field: 'construction_variety_id', param: 'construction_variety_id', label: 'Конструкция', options, default: rp.id },
+    ]
+  } catch (e) {
+    console.error('[pa-catalog] construction filter load failed:', e)
+  }
+})
 // У ПП нет каталоговых фильтров — не дёргаем getFilters().
 const { page, idValue, goToBrand: _goToBrand } = useCatalogRouter(api, { idProp: 'model_line_id', preloadFilters: false })
 const previousPage = ref('section')
@@ -89,10 +113,30 @@ const breadcrumbs = computed(() => {
 const tabKeys = { section: 'section', brand: 'section', wizard: 'wizard', ai: 'ai' }
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
-function goToBrand(id) { cacheEpoch.value++; _goToBrand(id) }
+function goToBrand(id) { preSelect.value = null; cacheEpoch.value++; _goToBrand(id) }
+const OPTION_QUERY_KEYS = ['safety_position', 'exd', 'ip', 'hand_wheel', 'body_coating', 'body_material']
+function openConfigurator(mlId, itemId, variety, options = {}) {
+  preSelect.value = { modelLineItemId: itemId, variety, options }
+  cacheEpoch.value++
+  _goToBrand(mlId)
+}
 function goToWizard() { cacheEpoch.value++; previousPage.value = page.value; page.value = 'wizard' }
 function goToAi() { previousPage.value = page.value; page.value = 'ai' }
-function goToSection() { cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
+function goToSection() { preSelect.value = null; cacheEpoch.value++; pageSubtitle.value = ''; previousPage.value = page.value; page.value = 'section' }
+
+// Открытие конфигуратора по URL (мастер/селектор → /catalog/pa-actuators?model_line_id=&model_line_item_id=&variety=).
+watch(() => route.query, (q) => {
+  if (q.model_line_id) {
+    const options = {}
+    for (const k of OPTION_QUERY_KEYS) if (q[k]) options[k] = q[k]
+    openConfigurator(
+      Number(q.model_line_id),
+      q.model_line_item_id ? Number(q.model_line_item_id) : null,
+      q.variety || null,
+      options,
+    )
+  }
+}, { immediate: true })
 
 async function onAddToCart(payload) {
   try {

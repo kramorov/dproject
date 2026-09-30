@@ -151,6 +151,11 @@ const props = defineProps({
   subtitle: { type: String, default: 'Серия → типоразмер → опции' },
   // Предвыбор серии (из CatalogSection, единый паттерн)
   initialModelLineId: { type: Number, default: null },
+  // Предвыбор типоразмера и вида (из мастера/селектора)
+  initialModelLineItemId: { type: Number, default: null },
+  initialVariety: { type: String, default: null },
+  // Предвыбранные опции: { safety_position, exd, ip, hand_wheel, body_coating, body_material }
+  initialOptions: { type: Object, default: () => ({}) },
 })
 defineEmits(['addToCart'])
 
@@ -218,7 +223,17 @@ onMounted(async () => {
   loadingML.value = false
 
   if (props.initialModelLineId) {
-    await selectML(props.initialModelLineId)
+    form.model_line_id = props.initialModelLineId
+    resetAfter('model_line_id')
+    if (props.initialVariety) {
+      await selectVariety(props.initialVariety)
+      if (props.initialModelLineItemId) {
+        await selectItem(props.initialModelLineItemId)
+      }
+    } else {
+      await autoSelectVariety()
+    }
+    applyInitialOptions()
   }
 })
 
@@ -379,6 +394,44 @@ function clearBodyDesign() {
   form.body_coating_label = null
   form.body_coating = null
   fetchPreview()
+}
+
+function applyInitialOptions() {
+  const o = props.initialOptions || {}
+  let changed = false
+  // Прямые опции (id реальных опций): safety_position, exd, ip, hand_wheel
+  for (const key of ['safety_position', 'exd', 'ip', 'hand_wheel']) {
+    if (o[key] == null || o[key] === '') continue
+    const f = optionFields.value.find(x => x.key === key)
+    if (!f) continue
+    const hit = f.items.find(it => String(it.id) === String(o[key]))
+    if (hit) { form[key] = hit.id; changed = true }
+  }
+  // Материал корпуса (по имени — form.body_material хранит имя)
+  if (o.body_material != null && o.body_material !== '') {
+    const m = String(o.body_material)
+    if (bodyMaterials.value.includes(m)) {
+      form.body_material = m
+      const opts = bodyDesign.value.items.filter(b => b.material === m)
+      if (!opts.some(b => b.coating === form.body_coating_label)) {
+        const def = opts.find(b => b.is_default) || opts[0]
+        form.body_coating_label = def ? def.coating : null
+      }
+      resolveBodyOption()
+      changed = true
+    }
+  }
+  // Покрытие (id PneumaticBodyDesignOption) — из селектора coating_id
+  if (o.body_coating != null && o.body_coating !== '') {
+    const bd = bodyDesign.value.items.find(b => String(b.id) === String(o.body_coating))
+    if (bd) {
+      form.body_material = bd.material
+      form.body_coating_label = bd.coating
+      form.body_coating = bd.id
+      changed = true
+    }
+  }
+  if (changed) fetchPreview()
 }
 
 async function fetchPreview() {
