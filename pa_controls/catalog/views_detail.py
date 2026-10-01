@@ -39,9 +39,9 @@ class LimitSwitchBoxDetailView(APIView):
             )
             data = item.to_dict()
 
-            sku_code = item.sku.code if hasattr(item, 'sku') and item.sku else None
-            if sku_code:
-                data['price'] = get_display_price(sku_code, currency_code)
+            sku_id = item.sku_id
+            if sku_id:
+                data['price'] = get_display_price(sku_id, currency_code)
 
             data['schema'] = self.config.model_class.build_schema(
                 data,

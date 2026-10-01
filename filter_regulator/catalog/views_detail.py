@@ -30,9 +30,9 @@ class FilterRegulatorDetailView(APIView):
             )
             data = obj.to_dict()
 
-            sku_code = obj.sku.code if hasattr(obj, 'sku') and obj.sku else None
-            if sku_code:
-                data['price'] = get_display_price(sku_code, currency_code)
+            sku_id = obj.sku_id
+            if sku_id:
+                data['price'] = get_display_price(sku_id, currency_code)
 
             data['schema'] = self.config.model_class.build_schema(
                 data,

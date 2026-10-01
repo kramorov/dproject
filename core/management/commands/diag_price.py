@@ -22,9 +22,13 @@ class Command(BaseCommand):
         r = convert_price(Decimal('100'), 'USD', 'RUB')
         self.stdout.write(f"  Result: {r} RUB")
 
-        # 4. Bulk
-        self.stdout.write("\n=== get_bulk_prices(['RD-1'], 'RUB') ===")
-        self.stdout.write(str(get_bulk_prices(['RD-1'], 'RUB')))
+        # 4. Bulk (по sku_id)
+        self.stdout.write("\n=== get_bulk_prices(по sku_id) ===")
+        sample_ids = list(
+            PriceHistory.objects.filter(is_current=True, sku__isnull=False)
+            .values_list('sku_id', flat=True)[:3]
+        )
+        self.stdout.write(str(get_bulk_prices(sample_ids, 'RUB')))
 
         # 5. Customer
         self.stdout.write("\n=== Customer Архимед ===")

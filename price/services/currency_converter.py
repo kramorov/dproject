@@ -105,11 +105,11 @@ def _get_rate(currency_code: str, target_date: date) -> Decimal:
     return None
 
 
-def get_display_price(sku_code: str, default_currency_code: str = 'RUB') -> dict:
+def get_display_price(sku_id: int, default_currency_code: str = 'RUB') -> dict:
     """
     Получить цену для отображения в каталоге.
 
-    Ищет актуальную цену SKU (is_current=True), конвертирует в валюту клиента.
+    Ищет актуальную цену SKU (is_current=True) по sku_id, конвертирует в валюту клиента.
 
     Возвращает:
         {'price': '1250.00', 'currency': 'RUB', 'symbol': '₽'}
@@ -119,11 +119,11 @@ def get_display_price(sku_code: str, default_currency_code: str = 'RUB') -> dict
 
     # Берём первый активный вид цены (обычно РРЦ)
     variety = PriceVariety.objects.filter(is_active=True).first()
-    if not variety or not sku_code:
+    if not variety or not sku_id:
         return None
 
     price_record = PriceHistory.objects.filter(
-        sku__code=sku_code,
+        sku_id=sku_id,
         price_variety=variety,
         is_current=True,
         is_active=True,
@@ -152,15 +152,15 @@ def get_display_price(sku_code: str, default_currency_code: str = 'RUB') -> dict
     }
 
 
-def get_bulk_prices(sku_codes: list, default_currency_code: str = 'RUB') -> dict:
+def get_bulk_prices(sku_ids: list, default_currency_code: str = 'RUB') -> dict:
     """
     Массовый запрос цен для списка SKU.
 
-    Возвращает: {sku_code: {price, currency, symbol}, ...}
+    Возвращает: {sku_id: {price, currency, symbol}, ...}
     """
     from price.models import PriceHistory, PriceVariety
 
-    if not sku_codes:
+    if not sku_ids:
         return {}
 
     variety = PriceVariety.objects.filter(is_active=True).first()
@@ -168,17 +168,17 @@ def get_bulk_prices(sku_codes: list, default_currency_code: str = 'RUB') -> dict
         return {}
 
     records = PriceHistory.objects.filter(
-        sku__code__in=sku_codes,
+        sku_id__in=sku_ids,
         price_variety=variety,
         is_current=True,
         is_active=True,
-    ).select_related('currency', 'sku')
+    ).select_related('currency')
 
     result = {}
     for rec in records:
         from_currency = rec.currency.code if rec.currency else 'USD'
         converted = convert_price(rec.price, from_currency, default_currency_code)
-        result[rec.sku.code] = {
+        result[rec.sku_id] = {
             'price': format_price(converted, default_currency_code),
             'currency': default_currency_code,
             'symbol': _get_symbol(default_currency_code),

@@ -36,17 +36,17 @@ class FilterRegulatorCatalogView(APIView):
             )
 
             data = result['data']
-            sku_codes = [
-                item.get('sku', {}).get('code')
-                for item in data if item.get('sku', {}).get('code')
+            sku_ids = [
+                item.get('sku', {}).get('id')
+                for item in data if item.get('sku', {}).get('id')
             ]
-            prices = get_bulk_prices(sku_codes, currency_code) if sku_codes else {}
+            prices = get_bulk_prices(sku_ids, currency_code) if sku_ids else {}
             for item in data:
-                item['price'] = prices.get(item.get('sku', {}).get('code'))
+                item['price'] = prices.get(item.get('sku', {}).get('id'))
 
             if result.get('compatible_data'):
                 for item in result['compatible_data']:
-                    code = item.get('sku', {}).get('code')
+                    code = item.get('sku', {}).get('id')
                     item['price'] = prices.get(code) if code else None
 
             result['currency'] = currency_code

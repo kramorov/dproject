@@ -28,6 +28,7 @@ item-уровневых опций (safety_position / springs_qty), у кото�
 (этап P8) поле удаляется.
 """
 
+import hashlib
 import importlib
 import logging
 import re
@@ -147,6 +148,16 @@ class PneumaticActuatorItem(
     )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+    config_hash = models.CharField(
+        max_length=64, unique=True, blank=True, null=True,
+        verbose_name=_("Хэш конфигурации"),
+        help_text=_("SHA-256 от типоразмера + опций; ключ дедупа и диффа"),
+    )
+    exclude_from_catalog = models.BooleanField(
+        default=False,
+        verbose_name=_("Не включать в каталог"),
+        help_text=_("Скрыть из листингов каталога (поиск и деталка работают)"),
+    )
 
     model_line = models.ForeignKey(
         PneumaticActuatorModelLine, related_name='pa_items',
@@ -323,17 +334,20 @@ class PneumaticActuatorItem(
 
     def save(self, *args, **kwargs):
         """
-        Стандартный цикл каталога:
+        Стандартный цикл каталога (единый для ручного и авто-создания):
         1. equipment_type (обязательный, PROTECT) автозаполняется из model_line;
         2. code автогенерируется из model_line.model_item_code_template, если не задан;
-        3. super().save() → TemplateMixin.save() генерирует name/description
+        3. config_hash пересчитывается из опций; коллизия → ValidationError;
+        4. super().save() → TemplateMixin.save() генерирует name/description
            из шаблонов model_line (skip_auto_generate=True пропускает);
-        4. sync_sku() создаёт/обновляет SKU из этой модели.
+        5. sync_sku() создаёт/обновляет SKU из этой модели.
         """
         if not self.equipment_type_id and self.model_line and getattr(self.model_line, 'equipment_type_id', None):
             self.equipment_type = self.model_line.equipment_type
         if not self.code:
             self.code = self.generated_model_item_code or None
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)
         self.sync_sku()
 
@@ -346,6 +360,7 @@ class PneumaticActuatorItem(
             raise ValidationError(
                 _('Укажите тип оборудования или выберите серию с заданным типом оборудования')
             )
+        self._check_config_hash_unique()
 
     def get_equipment_type_for_sku(self):
         """Тип оборудования для SKU — берётся из model_line."""
@@ -354,6 +369,34 @@ class PneumaticActuatorItem(
     def get_brand_for_sku(self):
         """Бренд для SKU — берётся из model_line."""
         return self.model_line.brand if self.model_line else None
+
+    def compute_config_hash(self) -> str:
+        """SHA-256 от канонического кортежа стабильных id конфигурации.
+
+        Хэшируются только стабильные id (типоразмер + опции), НЕ encoding и не code:
+        смена кодировки не меняет хэш. Отсутствующая опция — 0.
+        """
+        ids = (
+            self.model_line_id, self.body_id, self.pneumatic_actuator_variety_id,
+            self.selected_safety_position_id, self.selected_springs_qty_id,
+            self.selected_temperature_id, self.selected_ip_id, self.selected_exd_id,
+            self.selected_body_coating_id, self.selected_hand_wheel_id,
+        )
+        canonical = '|'.join(str(i if i is not None else 0) for i in ids)
+        return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+
+    def _check_config_hash_unique(self):
+        """Блок при коллизии config_hash (одна карточка = одна конфигурация)."""
+        h = self.config_hash or self.compute_config_hash()
+        if not h:
+            return
+        qs = type(self).objects.filter(config_hash=h)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        if qs.exists():
+            raise ValidationError(
+                f'Карточка с такой конфигурацией уже существует (config_hash: {h})'
+            )
 
     # ═══════════════════════════════════════════════════════════════
     # TemplateMixin — шаблоны названия/описания из model_line

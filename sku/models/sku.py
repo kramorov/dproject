@@ -14,6 +14,7 @@ SKU — справочник номенклатуры.
 - Упростить связи: один FK вместо GFK
 """
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -38,9 +39,9 @@ class SKU(models.Model):
         help_text=_("Наименование товара/услуги")
     )
     code = models.CharField(
-        max_length=255, unique=True,
+        max_length=255,
         verbose_name=_("Код"),
-        help_text=_("Уникальный артикул номенклатуры")
+        help_text=_("Уникальный артикул номенклатуры (внутри бренда)")
     )
 
     description = models.TextField(
@@ -92,6 +93,18 @@ class SKU(models.Model):
             models.Index(fields=['code']),
             models.Index(fields=['equipment_type']),
             models.Index(fields=['brand']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['code'],
+                condition=Q(brand__isnull=True),
+                name='sku_code_uniq_nobrand',
+            ),
+            models.UniqueConstraint(
+                fields=['code', 'brand'],
+                condition=Q(brand__isnull=False),
+                name='sku_code_brand_uniq',
+            ),
         ]
 
     def __str__(self):

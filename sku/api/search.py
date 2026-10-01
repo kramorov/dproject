@@ -39,7 +39,7 @@ class SKUSearchView(APIView):
         # Быстрый путь: icontains покрывает ASCII-регистр и кириллицу точного регистра.
         fast = (
             base.filter(code__icontains=q)
-            .select_related('equipment_type', 'source_content_type')
+            .select_related('equipment_type', 'source_content_type', 'brand')
             .order_by('code')[:50]
         )
         for sku in fast:
@@ -51,7 +51,7 @@ class SKUSearchView(APIView):
 
         # Если не хватило — досматриваем по casefold (кириллица с другим регистром).
         if len(results) < 10:
-            qs = base.select_related('equipment_type', 'source_content_type').order_by('code')
+            qs = base.select_related('equipment_type', 'source_content_type', 'brand').order_by('code')
             for sku in qs.iterator(chunk_size=500):
                 if sku.id in seen_ids:
                     continue
@@ -67,6 +67,8 @@ class SKUSearchView(APIView):
                 'sku_id': sku.id,
                 'code': sku.code,
                 'name': sku.name,
+                'brand_id': sku.brand_id,
+                'brand_name': sku.brand.name if sku.brand else None,
                 'equipment_type_code': sku.equipment_type.code if sku.equipment_type else None,
                 'equipment_type_name': sku.equipment_type.name if sku.equipment_type else None,
                 'source_object_id': sku.source_object_id,
@@ -114,7 +116,7 @@ class SKUModelDetailView(APIView):
         try:
             with translation.override(lang):
                 data = obj.to_dict()
-                data['price'] = get_display_price(sku.code, currency_code)
+                data['price'] = get_display_price(sku.id, currency_code)
 
                 category_name = sku.equipment_type.name if sku.equipment_type else None
                 try:

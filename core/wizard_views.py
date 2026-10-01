@@ -299,10 +299,10 @@ class WizardResultsView(WizardModelMixin, APIView):
 
         # Prices
         currency_code = get_currency_code(request)
-        sku_codes = [item.get('sku', {}).get('code') for item in items if item.get('sku', {}).get('code')]
-        prices = get_bulk_prices(sku_codes, currency_code) if sku_codes else {}
+        sku_ids = [item.get('sku', {}).get('id') for item in items if item.get('sku', {}).get('id')]
+        prices = get_bulk_prices(sku_ids, currency_code) if sku_ids else {}
         for item in items:
-            item['price'] = prices.get(item.get('sku', {}).get('code'))
+            item['price'] = prices.get(item.get('sku', {}).get('id'))
 
         return Response({
             'items': items,

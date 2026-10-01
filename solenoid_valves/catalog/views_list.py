@@ -39,25 +39,25 @@ class SolenoidValvesCatalogView(APIView):
 
             # ── Prices ──
             data = result['data']
-            sku_codes = [
-                (item.get('sku') or {}).get('code')
+            sku_ids = [
+                (item.get('sku') or {}).get('id')
                 for item in data
-                if (item.get('sku') or {}).get('code')
+                if (item.get('sku') or {}).get('id')
             ]
-            prices = get_bulk_prices(sku_codes, currency_code) if sku_codes else {}
+            prices = get_bulk_prices(sku_ids, currency_code) if sku_ids else {}
             for item in data:
-                item['price'] = prices.get((item.get('sku') or {}).get('code'))
+                item['price'] = prices.get((item.get('sku') or {}).get('id'))
 
             if result.get('compatible_data'):
                 comp_data = result['compatible_data']
-                comp_skus = [
-                    (item.get('sku') or {}).get('code')
+                comp_sku_ids = [
+                    (item.get('sku') or {}).get('id')
                     for item in comp_data
-                    if (item.get('sku') or {}).get('code')
+                    if (item.get('sku') or {}).get('id')
                 ]
-                comp_prices = get_bulk_prices(comp_skus, currency_code) if comp_skus else {}
+                comp_prices = get_bulk_prices(comp_sku_ids, currency_code) if comp_sku_ids else {}
                 for item in comp_data:
-                    item['price'] = comp_prices.get((item.get('sku') or {}).get('code'))
+                    item['price'] = comp_prices.get((item.get('sku') or {}).get('id'))
 
             result['currency'] = currency_code
 

@@ -367,11 +367,11 @@ class QuestionGraphResultsView(APIView):
 
         # Prices — как в плоском мастере (WizardResultsView)
         currency_code = get_currency_code(request)
-        sku_codes = [r.get('sku', {}).get('code') for r in results if isinstance(r.get('sku'), dict) and r['sku'].get('code')]
-        prices = get_bulk_prices(sku_codes, currency_code) if sku_codes else {}
+        sku_ids = [r.get('sku', {}).get('id') for r in results if isinstance(r.get('sku'), dict) and r['sku'].get('id')]
+        prices = get_bulk_prices(sku_ids, currency_code) if sku_ids else {}
         for r in results:
             if isinstance(r.get('sku'), dict):
-                r['price'] = prices.get(r['sku'].get('code'))
+                r['price'] = prices.get(r['sku'].get('id'))
 
         return Response({
             'results': results,

@@ -88,9 +88,9 @@ class SKUMixin(models.Model):
         Логика:
             1. Если модель уже привязана к SKU (self.sku_id) — обновить поля SKU
                (name, description, equipment_type, brand, source_*) из модели.
-            2. Если привязки нет — найти SKU по коду (get_or_create).
-               - Если код новый → создать SKU с defaults из модели.
-               - Если SKU с таким кодом уже существует (standalone-номенклатура
+            2. Если привязки нет — найти SKU по (code, brand) (get_or_create).
+               - Если код+бренд новые → создать SKU с defaults из модели.
+               - Если SKU с таким (code, brand) уже существует (standalone-номенклатура
                  для счетов/КП) → «подхватить» её: обогатить поля SKU данными
                  из модели (name, description, equipment_type, brand, source_*).
             3. Если кода нет — выходит молча.
@@ -113,7 +113,7 @@ class SKUMixin(models.Model):
             changed = False
             if sku.code != code:
                 # Код элемента сменился — синхронизируем код SKU (с защитой от конфликта).
-                if SKU.objects.filter(code=code).exclude(pk=sku.pk).exists():
+                if SKU.objects.filter(code=code, brand=brand).exclude(pk=sku.pk).exists():
                     logger.warning(
                         'SKU code conflict: %s pk=%s code=%r already taken by another SKU; '
                         'keeping stale code %r',
@@ -146,11 +146,11 @@ class SKUMixin(models.Model):
             # Пытаемся найти или создать SKU по коду
             sku, created = SKU.objects.get_or_create(
                 code=code,
+                brand=brand,
                 defaults={
                     'name': name[:300],
                     'description': desc,
                     'equipment_type': eq_type,
-                    'brand': brand,
                     'source_content_type': ct,
                     'source_object_id': self.pk,
                 }
