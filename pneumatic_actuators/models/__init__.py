@@ -25,6 +25,6 @@ __all__ = [
     'PneumaticActuatorSelected',
     'PneumaticActuatorConstructor',
     'PneumaticActuatorModelLineItem',
-    'PneumaticActuatorItem',
+    'PneumaticActuatorCatalogItem',
     # '',
 ]

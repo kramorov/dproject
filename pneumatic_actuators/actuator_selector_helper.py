@@ -52,7 +52,7 @@
 #             ],
 #             'exd_options': [...],
 #             'coating_options': [...],
-#             'hand_wheel_options': [...],
+#             'manual_override_options': [...],
 #             'temperature_options': [...],
 #             'model_lines': [  # все серии моделей
 #                 {
@@ -72,7 +72,7 @@
 #                             'ip_options_ids': [1, 2, 3],  # доступные IP
 #                             'exd_options_ids': [1, 2],
 #                             'coating_options_ids': [1],
-#                             'hand_wheel_options_ids': [1, 2],
+#                             'manual_override_options_ids': [1, 2],
 #                             'safety_positions_ids': [1, 2]  # для SR
 #                         },
 #                         ...
@@ -99,7 +99,7 @@
 #         PneumaticIpOption,
 #         PneumaticExdOption,
 #         PneumaticBodyCoatingOption,
-#         PneumaticHandWheelOption
+#         PneumaticManualOverrideOption
 #     )
 #
 #     result = {
@@ -109,7 +109,7 @@
 #         'ip_options': [],
 #         'exd_options': [],
 #         'coating_options': [],
-#         'hand_wheel_options': [],
+#         'manual_override_options': [],
 #         'temperature_options': [],
 #
 #         # Параметры арматуры
@@ -137,7 +137,7 @@
 #     result['ip_options'] = IpOption.get_for_select(active_only=True)
 #     result['exd_options'] = ExdOption.get_for_select(active_only=True)
 #     result['coating_options'] = BodyCoatingOption.get_for_select(active_only=True)
-#     result['hand_wheel_options'] = HandWheelInstalledOption.get_for_select(active_only=True)
+#     result['manual_override_options'] = HandWheelInstalledOption.get_for_select(active_only=True)
 #
 #     # 2. Загружаем параметры арматуры
 #     result['dn_varieties'] = DnVariety.get_for_select(active_only=True)
@@ -188,7 +188,7 @@
 #                 active_only=True
 #             )
 #
-#             hand_wheel_options = PneumaticHandWheelOption.get_for_select(
+#             manual_override_options = PneumaticManualOverrideOption.get_for_select(
 #                 model_line_item_id=item['id'],
 #                 active_only=True
 #             )
@@ -221,7 +221,7 @@
 #                     for vid in exd.get('exd_variety_ids', [])
 #                 ],
 #                 'coating_options_ids': [coat['id'] for coat in coating_options],
-#                 'hand_wheel_options_ids': [hw['id'] for hw in hand_wheel_options],
+#                 'manual_override_options_ids': [hw['id'] for hw in manual_override_options],
 #                 'temperature_options_ids': [temp['id'] for temp in temperature_options],
 #
 #                 # Совместимость с параметрами арматуры
@@ -276,7 +276,7 @@
 #                 'ip_id': int,
 #                 'exd_id': int,
 #                 'coating_id': int,
-#                 'hand_wheel_id': int,
+#                 'manual_override_id': int,
 #                 'temp_min': int,
 #                 'temp_max': int,
 #             }
@@ -377,8 +377,8 @@
 #                 missing_features.append("Не поддерживает выбранное покрытие")
 #
 #         # 8. Проверка ручного дублера
-#         if selected_params.get('hand_wheel_id'):
-#             if selected_params['hand_wheel_id'] in item['hand_wheel_options_ids']:
+#         if selected_params.get('manual_override_id'):
+#             if selected_params['manual_override_id'] in item['manual_override_options_ids']:
 #                 score += 2
 #                 reasons.append("Поддерживает ручной дублер")
 #             else:

@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
 from gearbox.models.gb_item_fields import GB_ITEM_TEMPLATE_FIELDS
@@ -13,7 +14,7 @@ from params.models import LockingMechanism, IpOption, MountingPlateTypes
 from sku.models import SKUMixin
 
 
-class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, ImageGalleryMixin, TechDocMixin, SKUMixin, models.Model):
+class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixin, ConfigHashMixin, ImageGalleryMixin, TechDocMixin, SKUMixin, models.Model):
     """
     Модель редуктора (каталог).
 
@@ -181,6 +182,11 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         """Бренд для SKU — берётся из model_line."""
         return self.model_line.brand
 
+    config_hash_fields = (
+        'model_line', 'body', 'body_material', 'override_mechanism',
+        'locking_mechanism', 'is_declutchable', 'ip', 'interlock',
+    )
+
     def save(self, *args, **kwargs):
         """
         Сохраняет модель и синхронизирует номенклатуру (SKU).
@@ -188,6 +194,8 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
         или «подхватывает» существующую по коду, обогащая её полями модели.
         """
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)
         self.sync_sku()
 

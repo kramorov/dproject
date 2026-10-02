@@ -4,11 +4,12 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import TemplateMixin, GetChoicesMixin, CopyMixin
+from core.models.config_hash import ConfigHashMixin
 # from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState
 from producers.models import Brands
 
 
-class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, models.Model):
+class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin, models.Model):
     """База данных конкретных моделей датчиков и трансмиттеров"""
     name = models.CharField(max_length=200,
         verbose_name=_("Название"),
@@ -148,8 +149,14 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, models.Model):
         # Искробезопасность: Ui={ui}В Ii={ii}мА Pi={pi}мВт Ci={ci}нФ Li={li}мкГн. Материал: {material}, частота: {frequency}, SIL: {sil}"
         return self.variety.description_template if self.variety else None
 
+    config_hash_fields = (
+        'brand', 'variety', 'signal_type', 'contact_form', 'contact_state',
+    )
+
     def save(self, *args, **kwargs):
         # skip_auto_generate = kwargs.pop('skip_auto_generate', False)
         print(f'save from SenSorComponent')
         self.update_description()
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(skip_auto_generate=True, *args, **kwargs)

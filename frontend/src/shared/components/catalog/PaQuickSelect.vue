@@ -80,7 +80,7 @@ const form = reactive({
   variety: null,
   model_line_item_id: null,
   springs_qty: null, temperature: null, safety_position: null,
-  ip: null, exd: null, body_coating: null, hand_wheel: null,
+  ip: null, exd: null, body_coating: null, manual_override: null,
 })
 
 onMounted(async () => {
@@ -110,7 +110,7 @@ async function prefill(init) {
     await selectItem(Number(init.model_line_item_id))
 
     // Поверх дефолтов подставляем выбранные в подборе опции
-    const keys = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'hand_wheel']
+    const keys = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'manual_override']
     for (const k of keys) {
       if (init[k] != null && init[k] !== '') form[k] = Number(init[k])
     }
@@ -141,7 +141,7 @@ async function selectItem(id) {
   if (form.model_line_item_id === id) return
   form.model_line_item_id = id
   form.springs_qty = null; form.temperature = null; form.safety_position = null
-  form.ip = null; form.exd = null; form.body_coating = null; form.hand_wheel = null
+  form.ip = null; form.exd = null; form.body_coating = null; form.manual_override = null
   optionFields.value = []
   preview.value = null
 
@@ -152,7 +152,7 @@ async function selectItem(id) {
     const keyMap = {
       safety_positions: 'safety_position', springs_qty_options: 'springs_qty',
       temperature_options: 'temperature', ip_options: 'ip', exd_options: 'exd',
-      body_coating_options: 'body_coating', hand_wheel_options: 'hand_wheel',
+      body_coating_options: 'body_coating', manual_override_options: 'manual_override',
     }
     const fields = []
     for (const [apiKey, items] of Object.entries(data)) {
@@ -188,7 +188,7 @@ async function fetchPreview() {
       selected_ip: form.ip,
       selected_exd: form.exd,
       selected_body_coating: form.body_coating,
-      selected_hand_wheel: form.hand_wheel,
+      selected_manual_override: form.manual_override,
     })
     preview.value = data
   } catch (e) { /* ignore */ }
@@ -204,7 +204,7 @@ function resetAfter(field) {
 }
 
 function buildOptionsPayload() {
-  const keys = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'hand_wheel']
+  const keys = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'manual_override']
   const opts = {}
   for (const k of keys) { if (form[k] != null) opts[k] = form[k] }
   return opts
@@ -217,7 +217,7 @@ const optionLabels = {
   ip: 'Степень защиты IP',
   exd: 'Взрывозащита',
   body_coating: 'Покрытие корпуса',
-  hand_wheel: 'Ручной дублёр',
+  manual_override: 'Ручной дублёр',
 }
 </script>
 

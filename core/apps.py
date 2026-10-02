@@ -30,6 +30,10 @@ class CoreConfig(AppConfig):
         post_migrate.connect(self._sync_admin_permissions, sender=self)
         post_migrate.connect(self._sync_anonymous_permissions, sender=self)
         self._connect_cache_invalidation()
+        # config_hash карточек зависит от M2M-опций — пересчитываем после m2m.
+        from django.db.models.signals import m2m_changed
+        from core.models.config_hash import config_hash_m2m_receiver
+        m2m_changed.connect(config_hash_m2m_receiver)
 
     @staticmethod
     def _sync_admin_permissions(sender, **kwargs):

@@ -134,7 +134,7 @@ const OPTION_MAP = {
   selected_ip:               { label: 'IP защита',             apiKey: 'ip_options' },
   selected_exd:              { label: 'Взрывозащита',          apiKey: 'exd_options' },
   selected_body_coating:     { label: 'Покрытие корпуса',      apiKey: 'body_coating_options' },
-  selected_hand_wheel:       { label: 'Ручной дублер',         apiKey: 'hand_wheel_options' },
+  selected_manual_override:       { label: 'Ручной дублер',         apiKey: 'manual_override_options' },
 }
 
 const filters = reactive({ search: '', model_line: null, model_line_item: null })
@@ -149,7 +149,7 @@ const defaultForm = () => ({
   selected_ip: null,
   selected_exd: null,
   selected_body_coating: null,
-  selected_hand_wheel: null,
+  selected_manual_override: null,
 })
 
 const form = reactive(defaultForm())

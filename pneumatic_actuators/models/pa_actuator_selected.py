@@ -96,8 +96,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_('Выбранное исполнение корпуса (материал/покрытие/цвет)')
     )
 
-    selected_hand_wheel = models.ForeignKey(
-        'PneumaticHandWheelOption',
+    selected_manual_override = models.ForeignKey(
+        'PneumaticManualOverrideOption',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         verbose_name=_("Встроенный дублер"),
@@ -143,11 +143,11 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'parent_field': 'model_line',
             'model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption'
         },
-        'selected_hand_wheel': {
-            'model_class': 'PneumaticHandWheelOption',
+        'selected_manual_override': {
+            'model_class': 'PneumaticManualOverrideOption',
             'label': 'ручной дублер',
             'parent_field': 'model_line',
-            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticHandWheelOption'
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticManualOverrideOption'
         }
     }
 
@@ -171,7 +171,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         #             'selected_ip',
         #             'selected_exd',
         #             'selected_body_coating',
-        #             'selected_hand_wheel'
+        #             'selected_manual_override'
         #         ],
         #         name='unique_actuator_configuration',  # Понятное имя
         #         # condition=models.Q(is_active=True),  # Если нужно только для активных
@@ -225,7 +225,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'selected_ip' ,
             'selected_exd' ,
             'selected_body_coating',
-            'selected_hand_wheel'
+            'selected_manual_override'
         ]
 
         for field_name in option_fields :
@@ -289,7 +289,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             ('selected_ip' , _('Степень защиты IP') , '🛡️' , 8) ,
             ('selected_exd' , _('Взрывозащита') , '⚡' , 9) ,
             ('selected_body_coating' , _('Покрытие корпуса') , '🎨' , 10) ,
-            ('selected_hand_wheel' , _('Тип установленного ручного дублера') , '🎨' , 11) ,
+            ('selected_manual_override' , _('Тип установленного ручного дублера') , '🎨' , 11) ,
         ]
 
         for field_name , label , icon , priority in option_configs :
@@ -607,14 +607,14 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             traceback.print_exc()
 
         try :
-            data['hand_wheel'] = {
+            data['manual_override'] = {
                 'category' : 'selected_options' ,
                 'title' : 'Ручной дублер' ,
-                'data' : self.selected_hand_wheel.id if self.selected_hand_wheel else None ,
-                'display_data' : str(self.selected_hand_wheel) if self.selected_hand_wheel else 'Не указано' ,
-                'text_data' : f"Ручной дублер: {self.selected_hand_wheel}" if self.selected_hand_wheel else None
+                'data' : self.selected_manual_override.id if self.selected_manual_override else None ,
+                'display_data' : str(self.selected_manual_override) if self.selected_manual_override else 'Не указано' ,
+                'text_data' : f"Ручной дублер: {self.selected_manual_override}" if self.selected_manual_override else None
             }
-            logger.debug(f"hand_wheel added: {self.selected_hand_wheel if self.selected_hand_wheel else None}")
+            logger.debug(f"hand_wheel added: {self.selected_manual_override if self.selected_manual_override else None}")
         except Exception as e :
             logger.error(f"Error adding hand_wheel: {e}")
             traceback.print_exc()
@@ -814,7 +814,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         body_coating = data.get('body_coating' , {}).get('display_data' , '')
         short_description += f" Покрытие корпуса: {body_coating};"
 
-        hand_wheel = data.get('hand_wheel' , {}).get('display_data' , '')
+        hand_wheel = data.get('manual_override' , {}).get('display_data' , '')
         short_description += f" Ручной дублер на корпусе: {hand_wheel};"
 
         # Технические характеристики корпуса (с префиксом body_)
@@ -959,7 +959,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         if coating and coating != 'Не указано' :
             selected_options.append(f"Покрытие корпуса: {coating}")
 
-        hand_wheel = data.get('hand_wheel' , {}).get('display_data')
+        hand_wheel = data.get('manual_override' , {}).get('display_data')
         if hand_wheel and hand_wheel != 'Не указано' :
             selected_options.append(f"Ручной дублер: {hand_wheel}")
 
@@ -1090,7 +1090,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'ip' : data.get('ip' , {}).get('display_data') ,
                 'exd' : data.get('exd' , {}).get('display_data') ,
                 'body_coating' : data.get('body_coating' , {}).get('display_data') ,
-                'hand_wheel' : data.get('hand_wheel' , {}).get('display_data') ,
+                'manual_override' : data.get('manual_override' , {}).get('display_data') ,
             } ,
             'technical_specs' : {
                 'piston_diameter' : data.get('body_piston_diameter' , {}).get('display_data') ,
@@ -1148,7 +1148,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         result = result.replace('{springs_qty}', self._get_nested_attr('selected_springs_qty__encoding'))
         result = result.replace('{temperature}', self._get_nested_attr('selected_temperature__encoding'))
         result = result.replace('{safety_position}', self._get_nested_attr('selected_safety_position__encoding'))
-        result = result.replace('{hand_wheel}', self._get_nested_attr('selected_hand_wheel__encoding'))
+        result = result.replace('{manual_override}', self._get_nested_attr('selected_manual_override__encoding'))
         result = result.replace('{coating}', self._get_nested_attr('selected_body_coating__encoding'))
         result = result.replace('{ip}', self._get_nested_attr('selected_ip__encoding'))
         result = result.replace('{exd}', self._get_nested_attr('selected_exd__encoding'))
@@ -1186,7 +1186,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             self._get_nested_attr('selected_springs_qty__encoding'),
             self._get_nested_attr('selected_temperature__encoding'),
             self._get_nested_attr('selected_safety_position__encoding'),
-            self._get_nested_attr('selected_hand_wheel__encoding'),
+            self._get_nested_attr('selected_manual_override__encoding'),
             self._get_nested_attr('selected_body_coating__encoding'),
             self._get_nested_attr('selected_ip__encoding'),
             self._get_nested_attr('selected_exd__encoding'),
@@ -1467,7 +1467,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         from pneumatic_actuators.models.pa_options import (
             PneumaticSafetyPositionOption, PneumaticSpringsQtyOption,
             PneumaticTemperatureOption, PneumaticIpOption,
-            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticHandWheelOption
+            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticManualOverrideOption
         )
 
         logger.debug(f"=== DEBUG get_available_options ===")
@@ -1537,7 +1537,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     model_line=self.selected_model_line_item.model_line,
                     is_active=True
                 )
-                hand_wheel_options = PneumaticHandWheelOption.objects.filter(
+                hand_wheel_options = PneumaticManualOverrideOption.objects.filter(
                     model_line=self.selected_model_line_item.model_line,
                     is_active=True
                 )
@@ -1668,7 +1668,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             selected_ip=self.selected_ip,
             selected_exd=self.selected_exd,
             selected_body_coating=self.selected_body_coating,
-            selected_hand_wheel=self.selected_hand_wheel,
+            selected_manual_override=self.selected_manual_override,
 
             # Копируем остальные поля
             sorting_order=self.sorting_order,

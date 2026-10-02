@@ -22,6 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from typing import Dict
 
 from core.models import ImageGalleryMixin, TechDocMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.mixins import TemplateMixin, CopyMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
@@ -33,6 +34,7 @@ from .cg_item_fields import CG_ITEM_TEMPLATE_FIELDS
 
 class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
                  CopyMixin, ImageGalleryMixin, TechDocMixin, SKUMixin,
+                 ConfigHashMixin,
                  ChosenExdRowMixin,
                  models.Model):
     """Артикул каталога — конкретный кабельный ввод (единица продажи).
@@ -69,6 +71,11 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     required_model_line_fields = (
         'name_template', 'description_template', 'model_item_code_template',
+    )
+
+    # Поля, чьи id образуют каноническую конфигурацию (порядок важен для хэша).
+    config_hash_fields = (
+        'model_line', 'model_line_item', 'thread_option', 'body_material_option', 'exd_option',
     )
 
     # Составы словарей (по ключам реестра).
@@ -178,6 +185,8 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
                 self.pk = existing.pk
                 self._state.adding = False
 
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)   # цепочка → TemplateMixin.save(): генерация name/description
         self.sync_sku()
 

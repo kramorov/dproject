@@ -1,14 +1,15 @@
 # pneumatic_actuators/admin/pa_model_line_admin.py
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
+from core.admin_regenerate_items import RegenerateSeriesItemsAdminMixin
 from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
 from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLine
-from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
+from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
 from pneumatic_actuators.models.pa_options import (
     PneumaticTemperatureOption,
     PneumaticIpOption,
     PneumaticExdOption,
-    PneumaticBodyDesignOption, PneumaticHandWheelOption
+    PneumaticBodyDesignOption,
 )
 
 
@@ -30,15 +31,6 @@ class PneumaticIpOptionInline(admin.TabularInline) :
     fields = ['ip_option' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("IP опция")
     verbose_name_plural = _("IP опции")
-
-class PneumaticHandWheelOptionInline(admin.TabularInline) :
-    """Inline для PneumaticHandWheelOption опций"""
-    model = PneumaticHandWheelOption
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['hand_wheel_option' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
-    verbose_name = _("Опция ручного дублера")
-    verbose_name_plural = _("Опции ручного дублера")
 
 from options.admin import BaseExdOptionInline
 
@@ -62,10 +54,13 @@ class PneumaticBodyDesignOptionInline(admin.TabularInline) :
 
 
 @admin.register(PneumaticActuatorModelLine)
-class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin) :
+class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAdminMixin, admin.ModelAdmin) :
     """Админка для серий пневмоприводов с through-опциями"""
 
-    template_item_model = PneumaticActuatorItem
+    template_item_model = PneumaticActuatorCatalogItem
+    regenerate_items_related_name = 'pa_items'
+
+    template_item_model = PneumaticActuatorCatalogItem
 
     list_display = (
         'name' ,
@@ -110,7 +105,6 @@ class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Mode
         PneumaticIpOptionInline ,
         PneumaticExdOptionInline ,
         PneumaticBodyDesignOptionInline,
-        PneumaticHandWheelOptionInline,
     ]
 
     fieldsets = (
@@ -143,9 +137,6 @@ class PneumaticActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Mode
             'ip_options' ,
             'exd_options' ,
             'body_design_options' ,
-            'hand_wheel_options',
-            'ip_options' ,
-            'exd_options' ,
         )
 
     def temperature_range_display(self , obj) :

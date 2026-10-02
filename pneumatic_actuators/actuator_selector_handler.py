@@ -33,7 +33,7 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
         'ip_options' : [] ,
         'exd_options' : [] ,
         'coating_options' : [] ,
-        'hand_wheel_options' : []
+        'manual_override_options' : []
     }
 
     # 1. Виды приводов (DA/SR) - не зависят от model_line
@@ -49,11 +49,11 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
 
     # 3. IP, Exd, ручной дублер — мастер-справочники (требования):
     # exd используется в фильтре подбора (нужны ID видов params.ExdOption),
-    # а ip/hand_wheel — в create-sku (нужны ID реальных опций).
+    # а ip/manual_override — в create-sku (нужны ID реальных опций).
     option_classes = {
         'ip_options' : IpOption ,
         'exd_options' : ExdOption ,
-        'hand_wheel_options' : HandWheelInstalledOption
+        'manual_override_options' : HandWheelInstalledOption
     }
     for key , option_class in option_classes.items() :
         result[key] = option_class.get_for_select(active_only=True)
@@ -469,7 +469,7 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     print(f"  - IP защита ID: {params.get('ip_id')}")
     print(f"  - Exd взрывозащита ID: {params.get('exd_id')}")
     print(f"  - Покрытие корпуса ID: {params.get('coating_id')}")
-    print(f"  - Ручной дублер ID: {params.get('hand_wheel_id')}")
+    print(f"  - Ручной дублер ID: {params.get('manual_override_id')}")
 
     print("\n🌡️ ТЕМПЕРАТУРНЫЕ ПАРАМЕТРЫ:")
     print(f"  - Мин. температура: {params.get('temp_min')} °C")

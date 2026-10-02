@@ -28,7 +28,7 @@ RULES = [
     ('pa-coating', 'pneumatic-actuator', 'coating_id', 'user', None, True, False, None, 70),
     ('pa-safety-pos', 'pneumatic-actuator', 'safety_position_id', 'user', None, True, False,
      {'param': 'actuator_variety_code', 'value': 'SR'}, 85),  # только для SR
-    ('pa-hand-wheel', 'pneumatic-actuator', 'hand_wheel_id', 'user', None, True, False, None, 60),
+    ('pa-hand-wheel', 'pneumatic-actuator', 'manual_override_id', 'user', None, True, False, None, 60),
 
     # ── directional-valve ──
     ('dv-voltage', 'directional-valve', 'voltage_id', 'user', None, True, True, None, 100),

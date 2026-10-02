@@ -1,6 +1,6 @@
 # pneumatic_actuators/management/commands/generate_pa_cards.py
 """
-Материализация карточек пневмоприводов (PneumaticActuatorItem) для всех валидных
+Материализация карточек пневмоприводов (PneumaticActuatorCatalogItem) для всех валидных
 комбинаций опций.
 
 Walk: типоразмеры (PneumaticActuatorModelLineItem) × доступные опции (через
@@ -19,7 +19,7 @@ import logging
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
+from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
 from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLineItem
 from pneumatic_actuators.models.pa_options import (
     PneumaticSafetyPositionOption,
@@ -28,7 +28,7 @@ from pneumatic_actuators.models.pa_options import (
     PneumaticIpOption,
     PneumaticExdOption,
     PneumaticBodyDesignOption,
-    PneumaticHandWheelOption,
+    PneumaticManualOverrideOption,
 )
 from sku.models import SKU
 
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Материализовать карточки PneumaticActuatorItem для всех комбинаций опций.'
+    help = 'Материализовать карточки PneumaticActuatorCatalogItem для всех комбинаций опций.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -71,20 +71,24 @@ class Command(BaseCommand):
 
         for mli in mlis:
             for kwargs in self._iter_combos(mli):
-                probe = PneumaticActuatorItem(
+                probe = PneumaticActuatorCatalogItem(
                     source_model_line_item=mli,
                     exclude_from_catalog=True,
+                    origin=PneumaticActuatorCatalogItem.Origin.GENERATED,
                     **kwargs,
                 )
                 config_hash = probe.compute_config_hash()
                 code = probe.generated_model_item_code
                 seen_hashes.add(config_hash)
 
-                existing = PneumaticActuatorItem.objects.filter(
+                existing = PneumaticActuatorCatalogItem.objects.filter(
                     config_hash=config_hash,
                 ).first()
 
                 if existing is not None:
+                    if existing.origin == PneumaticActuatorCatalogItem.Origin.MANUAL:
+                        # Ручная карточка с этой конфигурацией — не трогаем.
+                        continue
                     if not existing.is_active:
                         reactivated += 1
                         if not dry_run:
@@ -115,7 +119,10 @@ class Command(BaseCommand):
 
         archived = 0
         if archive and not dry_run:
-            qs = PneumaticActuatorItem.objects.filter(is_active=True)
+            qs = PneumaticActuatorCatalogItem.objects.filter(
+                is_active=True,
+                origin=PneumaticActuatorCatalogItem.Origin.GENERATED,
+            )
             if ml_id:
                 qs = qs.filter(model_line_id=ml_id)
             for item in qs.iterator(chunk_size=500):
@@ -155,8 +162,8 @@ class Command(BaseCommand):
         coating = PneumaticBodyDesignOption.objects.filter(
             model_line=model_line, is_active=True,
         )
-        hand_wheel = PneumaticHandWheelOption.objects.filter(
-            model_line=model_line, is_active=True,
+        hand_wheel = PneumaticManualOverrideOption.objects.filter(
+            model_line_item=mli, is_active=True,
         ).select_related('hand_wheel_option')
 
         # Отсутствующая категория → единственный вариант «не задано» (None).
@@ -182,5 +189,5 @@ class Command(BaseCommand):
                 'selected_ip': ip_opt,
                 'selected_exd': exd_opt,
                 'selected_body_coating': coat_opt,
-                'selected_hand_wheel': hw_opt,
+                'selected_manual_override': hw_opt,
             }

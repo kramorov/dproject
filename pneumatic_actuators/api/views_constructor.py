@@ -50,7 +50,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_ip',
             'selected_exd',
             'selected_body_coating',
-            'selected_hand_wheel',
+            'selected_manual_override',
         )
 
     def list(self, request, *args, **kwargs):
@@ -75,14 +75,14 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             selected_ip_id=request.data.get('selected_ip'),
             selected_exd_id=request.data.get('selected_exd'),
             selected_body_coating_id=request.data.get('selected_body_coating'),
-            selected_hand_wheel_id=request.data.get('selected_hand_wheel'),
+            selected_manual_override_id=request.data.get('selected_manual_override'),
             sorting_order=request.data.get('sorting_order', 0),
             is_active=request.data.get('is_active', True),
         )
 
     def _materialize_item(self, obj):
         """
-        Записать конфигурацию конструктора в эталонную PneumaticActuatorItem + SKU.
+        Записать конфигурацию конструктора в эталонную PneumaticActuatorCatalogItem + SKU.
 
         Constructor — только форма: результат записи — item каталога
         (автогенерация code/name/description из шаблонов серии) и SKU,
@@ -95,7 +95,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         logger = logging.getLogger(__name__)
 
         from pneumatic_actuators.services.sku_service import get_or_create_sku
-        from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
+        from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
 
         if not obj.selected_model_line_item_id:
             return None, None
@@ -107,7 +107,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'ip': obj.selected_ip_id,
             'exd': obj.selected_exd_id,
             'body_coating': obj.selected_body_coating_id,
-            'hand_wheel': obj.selected_hand_wheel_id,
+            'manual_override': obj.selected_manual_override_id,
         }
         try:
             sku = get_or_create_sku(obj.selected_model_line_item, options)
@@ -117,7 +117,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
         item = None
         if sku and sku.source_content_type_id and sku.source_object_id:
-            item = PneumaticActuatorItem.objects.filter(pk=sku.source_object_id).first()
+            item = PneumaticActuatorCatalogItem.objects.filter(pk=sku.source_object_id).first()
         return item, sku
 
     def _attach_item_sku(self, data, obj):
@@ -147,7 +147,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
                 selected_ip=obj.selected_ip,
                 selected_exd=obj.selected_exd,
                 selected_body_coating=obj.selected_body_coating,
-                selected_hand_wheel=obj.selected_hand_wheel,
+                selected_manual_override=obj.selected_manual_override,
                 is_active=True,
             ).first()
             if existing:
@@ -165,7 +165,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_model_line', 'selected_model_line_item',
             'selected_safety_position', 'selected_springs_qty',
             'selected_temperature', 'selected_ip', 'selected_exd',
-            'selected_body_coating', 'selected_hand_wheel',
+            'selected_body_coating', 'selected_manual_override',
         ]:
             value = request.data.get(field)
             if value is not None:
@@ -249,7 +249,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def preview(self, request):
-        """Превью: собирает несохранённый PneumaticActuatorItem (общий паттерн)
+        """Превью: собирает несохранённый PneumaticActuatorCatalogItem (общий паттерн)
         и возвращает его to_dict(). Спецификация берётся из реестра
         TEMPLATE_FIELDS + spec_template (серия → EquipmentType), а не из
         отдельного захардкоженного словаря значений."""
@@ -263,9 +263,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         if not mli:
             return Response({'error': 'model_line_item required'}, status=400)
 
-        from pneumatic_actuators.models.pa_item import PneumaticActuatorItem
+        from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
 
-        item = PneumaticActuatorItem.from_constructor(obj)
+        item = PneumaticActuatorCatalogItem.from_constructor(obj)
         item.code = item.generated_model_item_code or None
         item.name = item.generate_name() or item.code or ''
         item.description = item.generate_description() or ''
@@ -334,7 +334,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_ip': _fk_dict(obj.selected_ip),
             'selected_exd': _fk_dict(obj.selected_exd),
             'selected_body_coating': _fk_dict(obj.selected_body_coating),
-            'selected_hand_wheel': _fk_dict(obj.selected_hand_wheel),
+            'selected_manual_override': _fk_dict(obj.selected_manual_override),
             'work_temp_min': obj.work_temp_min,
             'work_temp_max': obj.work_temp_max,
         })

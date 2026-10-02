@@ -1,0 +1,1 @@
+import{S as e}from"./App-CVTDcT_M.js";import{_ as a,d as s,q as o,o as t}from"./_plugin-vue_export-helper-CrHymscG.js";const _={class:"sku-page"},c={__name:"SkuAdminPage",setup(r){return(p,n)=>(t(),s("div",_,[o(e)]))}},u=a(c,[["__scopeId","data-v-4a5d67e5"]]);export{u as default};

@@ -65,8 +65,8 @@ class BodyThrustTorqueTable(models.Model):
             если PneumaticActuatorVariety.code='DA' то  возвращает список моделей, у которых
                 есть pressure меньше или равно pressure_min, и значение bto
         """
-    body = models.ForeignKey(PneumaticActuatorBody, on_delete=models.SET_NULL,
-                             null=True, blank=True,  # ← ДОБАВЬТЕ ЭТО
+    body = models.ForeignKey(PneumaticActuatorBody, on_delete=models.CASCADE,
+                             null=True, blank=True,
                              related_name='body_thrust_torque_table',
                              verbose_name=_("Модель"),
                              help_text=_("Модель корпуса привода"))

@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, ImageGalleryMixin
 from core.models.mixins import TemplateMixin, CopyMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 # TemplateGeneratorMixin удалён 2026-09-01 — DirectionValve использует единый TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
@@ -23,7 +24,7 @@ from sku.models import SKUMixin
 class DirectionValve(CatalogSerializerMixin,
                      ImageGalleryMixin,
                      TechDocMixin,
-                     SKUMixin, CopyMixin, TemplateMixin,
+                     SKUMixin, CopyMixin, TemplateMixin, ConfigHashMixin,
                      SmartCatalogMixin, EquipmentTypeMixin,
                      ChosenExdRowMixin, models.Model):
     """
@@ -274,8 +275,17 @@ class DirectionValve(CatalogSerializerMixin,
                           on_delete=models.SET_NULL, verbose_name=_("Отверстия КВ"),
                            help_text=_('Отверстия под кабельные вводы'))
 
+    config_hash_fields = (
+        'model_line', 'function', 'ip', 'exd_option', 'actuation', 'manual_override',
+        'body', 'power_supply', 'body_material', 'body_material_specified',
+        'sealing_material_specified', 'solenoid_body_material', 'solenoid_body_material_specified',
+        'pneumatic_connection_thread', 'pneumatic_connection', 'cable_glands_holes',
+    )
+
     def save(self, *args, **kwargs):
         """Сохраняет модель и синхронизирует номенклатуру (SKU)."""
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)
         self.sync_sku()
 

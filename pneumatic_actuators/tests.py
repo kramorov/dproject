@@ -1,7 +1,7 @@
 """
 Tests for pneumatic_actuators SKU service (переработаны 2026-09-01).
 
-SKU теперь создаётся из эталонной модели PneumaticActuatorItem
+SKU теперь создаётся из эталонной модели PneumaticActuatorCatalogItem
 (через SKUMixin.sync_sku()), а не как standalone-запись.
 """
 from django.test import TestCase
@@ -36,7 +36,7 @@ class GetOrCreateSkuTests(TestCase):
 
     def test_creates_sku_via_reference_model(self):
         from sku.models import SKU
-        from pneumatic_actuators.models import PneumaticActuatorItem
+        from pneumatic_actuators.models import PneumaticActuatorCatalogItem
 
         initial_count = SKU.objects.count()
         sku = get_or_create_sku(self.item, {})
@@ -46,9 +46,9 @@ class GetOrCreateSkuTests(TestCase):
         self.assertEqual(sku.code, 'TI-01')
         self.assertEqual(sku.equipment_type, self.equipment_type)
         self.assertEqual(sku.brand, self.brand)
-        self.assertEqual(sku.source_content_type.model_class(), PneumaticActuatorItem)
+        self.assertEqual(sku.source_content_type.model_class(), PneumaticActuatorCatalogItem)
 
-        item_row = PneumaticActuatorItem.objects.get(source_model_line_item=self.item)
+        item_row = PneumaticActuatorCatalogItem.objects.get(source_model_line_item=self.item)
         self.assertEqual(item_row.code, 'TI-01')
         self.assertEqual(item_row.sku, sku)
 

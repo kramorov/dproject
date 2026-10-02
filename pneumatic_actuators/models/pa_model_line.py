@@ -17,7 +17,7 @@ from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorG
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
 from pneumatic_actuators.models import PneumaticActuatorBody
-from pneumatic_actuators.models.pa_options import PneumaticHandWheelOption
+from pneumatic_actuators.models.pa_options import PneumaticManualOverrideOption
 from pneumatic_actuators.models.pa_params import PneumaticActuatorVariety , PneumaticActuatorConstructionVariety
 from pneumatic_actuators.models.py_options_constants import ACTUATOR_VARIETY_RP_DEFAULT_CODE , \
     ACTUATOR_VARIETY_SY_DEFAULT_CODE
@@ -42,7 +42,7 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание модели корпуса привода'))
     # Шаблоны текста каталога — единый контракт с DV/LSB/FR/GB/PF (2026-08-31).
-    # Используются PneumaticActuatorItem (TemplateMixin._get_name_template_source).
+    # Используются PneumaticActuatorCatalogItem (TemplateMixin._get_name_template_source).
     name_template = models.TextField(blank=True , null=True ,
                                      verbose_name=_("Шаблон названия") ,
                                      help_text=_('Шаблон для текстового названия пневмопривода'))
@@ -467,7 +467,6 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
             PneumaticIpOption ,
             PneumaticExdOption ,
             PneumaticBodyDesignOption,
-            PneumaticHandWheelOption
         )
 
         option_classes = [
@@ -475,7 +474,6 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
             PneumaticIpOption ,
             PneumaticExdOption ,
             PneumaticBodyDesignOption,
-            PneumaticHandWheelOption
         ]
         for option_class in option_classes :
             print(f">>> Processing {option_class.__name__}")
@@ -511,11 +509,6 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
         from .pa_options import PneumaticBodyDesignOption
         return PneumaticBodyDesignOption.get_or_create_default(self)
 
-    def get_default_hand_wheel_option(self) :
-        """Получить стандартную опцию ручного дублера"""
-        from .pa_options import PneumaticHandWheelOption
-        return PneumaticHandWheelOption.get_or_create_default(self)
-
     # ==================== СВОЙСТВА ДЛЯ ШАБЛОНОВ И API ====================
 
     @property
@@ -539,11 +532,6 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
         return self.body_design_options.all()
 
     @property
-    def hand_wheel_options_list(self) :
-        """Список всех опций ручного дублера"""
-        return self.hand_wheel_options.all()
-
-    @property
     def default_temperature(self) :
         """Стандартная температурная опция"""
         return self.get_default_temperature_option()
@@ -562,11 +550,6 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
     def default_body_coating(self) :
         """Стандартная опция покрытия корпуса"""
         return self.get_default_body_coating_option()
-
-    @property
-    def default_hand_wheel(self) :
-        """Стандартная опция ручного дублера"""
-        return self.get_default_hand_wheel_option()
 
     # ==================== ОТОБРАЖАЕМЫЕ СВОЙСТВА ====================
 
@@ -612,10 +595,6 @@ class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, 
             'body_coating' : {
                 'default' : self.default_body_coating.get_option_info() if self.default_body_coating else None ,
                 'options' : [opt.get_option_info() for opt in self.body_coating_options_list]
-            },
-            'hand_wheel' : {
-                'default' : self.default_hand_wheel.get_option_info() if self.default_hand_wheel else None ,
-                'options' : [opt.get_option_info() for opt in self.hand_wheel_options_list]
             }
         }
 
@@ -692,7 +671,7 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
     Объединяет в себе общие для всех моделей серии свойства
     и доступные опции.
     LEGACY (2026-09-01): TemplateMixin снят — шаблоны/генерация живут
-    в эталонной модели PneumaticActuatorItem; карточка отдаёт хранимые
+    в эталонной модели PneumaticActuatorCatalogItem; карточка отдаёт хранимые
     name/description.
     """
     name = models.CharField(max_length=200 ,

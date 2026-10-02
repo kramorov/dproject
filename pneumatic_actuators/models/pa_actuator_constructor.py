@@ -138,7 +138,7 @@ class PneumaticActuatorConstructor(models.Model):
         help_text=_('Выбранное исполнение корпуса (материал/покрытие/цвет)')
     )
 
-    selected_hand_wheel = models.ForeignKey(
+    selected_manual_override = models.ForeignKey(
         'params.HandWheelInstalledOption',
         on_delete=models.SET_NULL,
         null=True, blank=True,
@@ -187,11 +187,11 @@ class PneumaticActuatorConstructor(models.Model):
             'label': 'исполнение корпуса',
             'parent_field': 'model_line',
         },
-        'selected_hand_wheel': {
-            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticHandWheelOption',
+        'selected_manual_override': {
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticManualOverrideOption',
             'through_attr': 'hand_wheel_option',
             'label': 'ручной дублер',
-            'parent_field': 'model_line',
+            'parent_field': 'model_line_item',
         }
     }
 
@@ -420,8 +420,8 @@ class PneumaticActuatorConstructor(models.Model):
         }
 
         # hand_wheel → params.HandWheelInstalledOption
-        hw = self.selected_hand_wheel
-        data['hand_wheel'] = {
+        hw = self.selected_manual_override
+        data['manual_override'] = {
             'category': 'selected_options',
             'title': 'Ручной дублер',
             'data': hw.id if hw else None,
@@ -563,7 +563,7 @@ class PneumaticActuatorConstructor(models.Model):
         coating = data.get('body_coating', {}).get('display_data', '')
         short_description += f" Покрытие корпуса: {coating};"
 
-        hand_wheel = data.get('hand_wheel', {}).get('display_data', '')
+        hand_wheel = data.get('manual_override', {}).get('display_data', '')
         short_description += f" Ручной дублер на корпусе:{hand_wheel};"
 
         return short_description
@@ -632,7 +632,7 @@ class PneumaticActuatorConstructor(models.Model):
 #         if coating and coating != 'Не указано':
 #             selected_options.append(f"Покрытие корпуса: {coating}")
 #
-#         hand_wheel = data.get('hand_wheel', {}).get('display_data')
+#         hand_wheel = data.get('manual_override', {}).get('display_data')
 #         if hand_wheel and hand_wheel != 'Не указано':
 #             selected_options.append(f"Ручной дублер: {hand_wheel}")
 #
@@ -830,7 +830,7 @@ class PneumaticActuatorConstructor(models.Model):
 #                 'ip': data.get('ip', {}).get('display_data'),
 #                 'exd': data.get('exd', {}).get('display_data'),
 #                 'body_coating': data.get('body_coating', {}).get('display_data'),
-#                 'hand_wheel': data.get('hand_wheel', {}).get('display_data'),
+#                 'manual_override': data.get('manual_override', {}).get('display_data'),
 #             },
 #             'calculated_parameters': {
 #                 'weight': data.get('weight', {}).get('display_data'),
@@ -879,7 +879,7 @@ class PneumaticActuatorConstructor(models.Model):
 #             'safety_position': s(self.selected_safety_position),
 #             'exd': s(self.selected_exd),
 #             'coating': s(self.selected_body_coating),
-#             'hand_wheel': s(self.selected_hand_wheel),
+#             'manual_override': s(self.selected_manual_override),
 #         }
 #
 #         if body:
@@ -916,7 +916,7 @@ class PneumaticActuatorConstructor(models.Model):
         """
         Генерирует артикул (code) по шаблону model_line.model_item_code_template.
         Поддерживает переменные: {model_code}, {springs_qty}, {temperature},
-        {safety_position}, {hand_wheel}, {coating}, {ip}, {exd}.
+        {safety_position}, {manual_override}, {coating}, {ip}, {exd}.
         Если шаблон отсутствует — вызывает _generate_fallback_code().
         """
         if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
@@ -932,7 +932,7 @@ class PneumaticActuatorConstructor(models.Model):
         result = result.replace('{springs_qty}', self._get_option_encoding('selected_springs_qty'))
         result = result.replace('{temperature}', self._get_option_encoding('selected_temperature'))
         result = result.replace('{safety_position}', self._get_option_encoding('selected_safety_position'))
-        result = result.replace('{hand_wheel}', self._get_option_encoding('selected_hand_wheel'))
+        result = result.replace('{manual_override}', self._get_option_encoding('selected_manual_override'))
         result = result.replace('{coating}', self._get_option_encoding('selected_body_coating'))
         result = result.replace('{ip}', self._get_option_encoding('selected_ip'))
         result = result.replace('{exd}', self._get_option_encoding('selected_exd'))
@@ -941,7 +941,7 @@ class PneumaticActuatorConstructor(models.Model):
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
         result = re.sub(r'\s*\(DA\)', '', result)
-        result = result.strip('.')
+        result = re.sub(r'[.-]+$', '', result).strip()
 
         return result
 
@@ -996,7 +996,7 @@ class PneumaticActuatorConstructor(models.Model):
             self._get_option_encoding('selected_springs_qty'),
             self._get_option_encoding('selected_temperature'),
             self._get_option_encoding('selected_safety_position'),
-            self._get_option_encoding('selected_hand_wheel'),
+            self._get_option_encoding('selected_manual_override'),
             self._get_option_encoding('selected_body_coating'),
             self._get_option_encoding('selected_ip'),
             self._get_option_encoding('selected_exd'),
@@ -1295,7 +1295,7 @@ class PneumaticActuatorConstructor(models.Model):
         from pneumatic_actuators.models.pa_options import (
             PneumaticSafetyPositionOption, PneumaticSpringsQtyOption,
             PneumaticTemperatureOption, PneumaticIpOption,
-            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticHandWheelOption
+            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticManualOverrideOption
         )
 
         if not self.selected_model_line_item:
@@ -1412,10 +1412,10 @@ class PneumaticActuatorConstructor(models.Model):
                 for opt in coating_through
             ]
 
-            hw_through = PneumaticHandWheelOption.objects.filter(
-                model_line=ml, is_active=True
+            hw_through = PneumaticManualOverrideOption.objects.filter(
+                model_line_item=self.selected_model_line_item, is_active=True
             ).select_related('hand_wheel_option')
-            result['hand_wheel_options'] = [
+            result['manual_override_options'] = [
                 {
                     'id': opt.id,
                     'option_id': opt.hand_wheel_option.id,
@@ -1469,7 +1469,7 @@ class PneumaticActuatorConstructor(models.Model):
             selected_ip=self.selected_ip,
             selected_exd=self.selected_exd,
             selected_body_coating=self.selected_body_coating,
-            selected_hand_wheel=self.selected_hand_wheel,
+            selected_manual_override=self.selected_manual_override,
             sorting_order=self.sorting_order,
             is_active=self.is_active,
             is_unique=False,

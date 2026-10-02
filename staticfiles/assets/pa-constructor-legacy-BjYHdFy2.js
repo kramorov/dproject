@@ -1,0 +1,1 @@
+import{z as o}from"./_plugin-vue_export-helper-CrHymscG.js";import{P as p}from"./App_legacy-Cn7mEXZZ.js";import"./default-BCX413Po.js";import"./api-CkV-Jpci.js";o(p).mount("#pa-constructor-legacy-app");

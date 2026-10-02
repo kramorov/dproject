@@ -1,5 +1,5 @@
 # pneumatic_actuators/models/pa_item_fields.py
-"""Реестр полей PneumaticActuatorItem — единый источник правды.
+"""Реестр полей PneumaticActuatorCatalogItem — единый источник правды.
 
 Единственная модель каталога с автогенерацией артикула: ``code_path`` даёт
 encoding-значение для ``model_line.model_item_code_template`` (из through-опций
@@ -60,8 +60,8 @@ PA_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'selected_body_coating__body_color__ral_code'},
     {'key': 'body_color_name', 'placeholder': '{body_color_name}', 'path': 'selected_body_coating__body_color__ral_name_ru',
      'name_path': 'selected_body_coating__body_color__ral_name_ru'},
-    {'key': 'hand_wheel', 'placeholder': '{hand_wheel}', 'path': 'selected_hand_wheel__name',
-     'name_path': 'selected_hand_wheel', 'code_path': 'hand_wheel_encoding'},
+    {'key': 'manual_override', 'placeholder': '{manual_override}', 'path': 'selected_manual_override__name',
+     'name_path': 'selected_manual_override', 'code_path': 'manual_override_encoding'},
 
     # ── Технические характеристики корпуса (для spec_template) ──
     {'key': 'construction_name', 'placeholder': '{construction_name}',

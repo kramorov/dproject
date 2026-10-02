@@ -13,6 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import TechDocMixin, ImageGalleryMixin
 from core.models.mixins import TemplateMixin, CopyMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from sku.models import SKUMixin
@@ -33,7 +34,7 @@ class PosiModelLineItem(CatalogSerializerMixin,
                         TechDocMixin,
                         SmartCatalogMixin,
                         TemplateMixin,
-                        SKUMixin, CopyMixin, ExdOptionsConsumerMixin, models.Model):
+                        SKUMixin, CopyMixin, ConfigHashMixin, ExdOptionsConsumerMixin, models.Model):
     """Модель позиционера (артикул каталога), собранная из опций серии.
 
     Основа — структура БКВ (LimitSwitchBox): те же миксины, шаблоны названий
@@ -263,6 +264,11 @@ class PosiModelLineItem(CatalogSerializerMixin,
 
         return conflicts
 
+    config_hash_fields = (
+        'model_line', 'acting_type', 'exd_options', 'body_connection', 'lever',
+        'alarm', 'signal_profile', 'work_temp_min', 'work_temp_max', 'smart_capability_set',
+    )
+
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         # Для всех моделей по умолчанию — входной 4-20 мА (стандартный профиль)
@@ -276,6 +282,8 @@ class PosiModelLineItem(CatalogSerializerMixin,
         # Артикул генерируется из model_line.model_item_code_template, если не задан
         if not self.code:
             self.code = self.generated_model_item_code or None
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)
         if is_new and self.model_line_id:
             self._sync_exd_options_from_model_line()

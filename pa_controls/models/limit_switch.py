@@ -9,6 +9,7 @@ import logging
 from core.models import TechDocMixin, ImageGalleryMixin
 from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, CommonFilterConfigs
 from core.models.mixins import TemplateMixin, CopyMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from materials.models import MaterialGeneral, MaterialSpecified
@@ -36,7 +37,7 @@ class LimitSwitchBox(CatalogSerializerMixin,
                      TechDocMixin,
                      SmartCatalogMixin,
                      TemplateMixin,
-                     SKUMixin, CopyMixin, ExdOptionsConsumerMixin, models.Model):
+                     SKUMixin, CopyMixin, ConfigHashMixin, ExdOptionsConsumerMixin, models.Model):
     """Модель блока концевых выключателей (каталог)
     points: int,
         1 точка - один датчик (обычно только на закрыто)
@@ -218,6 +219,13 @@ class LimitSwitchBox(CatalogSerializerMixin,
         """Бренд для SKU — берётся из model_line."""
         return self.model_line.brand
 
+    config_hash_fields = (
+        'model_line', 'body', 'sensor_variety', 'primary_sensor', 'signal_profile',
+        'points', 'points_option', 'ip', 'exd', 'work_temp_min', 'work_temp_max',
+        'body_material', 'body_material_specified', 'is_pneumatic', 'has_namur_interface',
+        'visual_indicator_type',
+    )
+
     def save(self, *args, **kwargs):
         """
         Сохраняет модель и синхронизирует номенклатуру (SKU).
@@ -226,6 +234,8 @@ class LimitSwitchBox(CatalogSerializerMixin,
         или «подхватывает» существующую по коду, обогащая её полями модели.
         """
         is_new = self.pk is None
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)
         if is_new and self.model_line_id:
             self._sync_exd_options_from_model_line()

@@ -139,9 +139,9 @@
         </div>
         <div class="field">
           <label>Ручной дублёр</label>
-          <select v-model="form.hand_wheel_id">
+          <select v-model="form.manual_override_id">
             <option :value="null">— Не выбрано —</option>
-            <option v-for="v in actuatorOptions.hand_wheel_options" :key="v.id" :value="v.id">{{ v.name }}</option>
+            <option v-for="v in actuatorOptions.manual_override_options" :key="v.id" :value="v.id">{{ v.name }}</option>
           </select>
         </div>
       </div>
@@ -199,7 +199,7 @@ export default {
       },
       actuatorOptions: {
         actuator_varieties: [], safety_positions: [],
-        ip_options: [], exd_options: [], coating_options: [], hand_wheel_options: [],
+        ip_options: [], exd_options: [], coating_options: [], manual_override_options: [],
       },
       modelLineItems: [],
       form: {
@@ -210,7 +210,7 @@ export default {
         construction_variety_id: null,
         actuator_variety_id: null, safety_position_id: null,
         air_pressure_id: null, ip_id: null, exd_id: null,
-        coating_id: null, hand_wheel_id: null,
+        coating_id: null, manual_override_id: null,
         temp_min: 0, temp_max: 0,
       },
       results: [],
@@ -330,7 +330,7 @@ export default {
       if (this.form.safety_position_id) o.safety_position = this.form.safety_position_id
       if (this.form.ip_id) o.ip = this.form.ip_id
       if (this.form.exd_id) o.exd = this.form.exd_id
-      if (this.form.hand_wheel_id) o.hand_wheel = this.form.hand_wheel_id
+      if (this.form.manual_override_id) o.manual_override = this.form.manual_override_id
       if (this.form.coating_id) o.body_coating = this.form.coating_id
       return o
     },
@@ -347,7 +347,7 @@ export default {
         construction_variety_id: null,
         actuator_variety_id: null, safety_position_id: null,
         air_pressure_id: null, ip_id: null, exd_id: null,
-        coating_id: null, hand_wheel_id: null,
+        coating_id: null, manual_override_id: null,
         temp_min: 0, temp_max: 0,
       }
       this.results = []

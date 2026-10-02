@@ -1,6 +1,6 @@
 # pneumatic_actuators/models/pa_item.py
 """
-ЭТАЛОННАЯ каталожная модель пневмопривода — PneumaticActuatorItem.
+ЭТАЛОННАЯ каталожная модель пневмопривода — PneumaticActuatorCatalogItem.
 
 Создана 2026-08-31 в рамках унификации каталогов. Работает по общему контракту
 (как DirectionValve / LimitSwitchBox / FilterRegulator / GearBox / PneumaticFitting):
@@ -28,7 +28,6 @@ item-уровневых опций (safety_position / springs_qty), у кото�
 (этап P8) поле удаляется.
 """
 
-import hashlib
 import importlib
 import logging
 import re
@@ -39,6 +38,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
@@ -68,10 +68,11 @@ def _fmt_num(value) -> str:
     return (f"{f:.2f}").rstrip('0').rstrip('.')
 
 
-class PneumaticActuatorItem(
+class PneumaticActuatorCatalogItem(
     CatalogSerializerMixin,
     ImageGalleryMixin,
     TechDocMixin,
+    ConfigHashMixin,
     SKUMixin,
     CopyMixin,
     TemplateMixin,
@@ -88,6 +89,19 @@ class PneumaticActuatorItem(
     SKU создаётся/обновляется из этой модели через SKUMixin.sync_sku().
     """
 
+    class Origin(models.TextChoices):
+        """Кто владеет жизненным циклом карточки."""
+        GENERATED = 'generated', _('Сгенерирована')
+        MANUAL = 'manual', _('Ручная')
+
+    # Поля, чьи id образуют каноническую конфигурацию (порядок важен для хэша).
+    config_hash_fields = (
+        'model_line', 'body', 'pneumatic_actuator_variety',
+        'selected_safety_position', 'selected_springs_qty',
+        'selected_temperature', 'selected_ip', 'selected_exd',
+        'selected_body_coating', 'selected_manual_override',
+    )
+
     # ── Реестр полей (единый источник правды) — pa_item_fields.py ──
     TEMPLATE_FIELDS = PA_ITEM_TEMPLATE_FIELDS
 
@@ -100,7 +114,7 @@ class PneumaticActuatorItem(
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'variety_name', 'variety_description', 'variety_code', 'body_name', 'body_code',
         'weight', 'safety_position', 'safety_position_text_value','springs_qty', 'temperature',
-        'ip', 'exd', 'exd_short', 'coating', 'body_material', 'body_coating', 'body_color_ral', 'body_color_name', 'hand_wheel',
+        'ip', 'exd', 'exd_short', 'coating', 'body_material', 'body_coating', 'body_color_ral', 'body_color_name', 'manual_override',
         # Технические характеристики (для name/description и справочника плейсхолдеров)
         'construction_name','construction_description','piston_diameter', 'turn_angle', 'turn_tuning_limit',
         'weight_spring', 'pressure_min', 'pressure_max', 'pressure',
@@ -113,7 +127,7 @@ class PneumaticActuatorItem(
 
     CODE_FIELD_KEYS = (
         'code', 'springs_qty', 'temperature', 'safety_position',
-        'hand_wheel', 'coating', 'ip', 'exd',
+        'manual_override', 'coating', 'ip', 'exd',
     )
 
     VARS_FIELD_KEYS = (
@@ -148,15 +162,17 @@ class PneumaticActuatorItem(
     )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
-    config_hash = models.CharField(
-        max_length=64, unique=True, blank=True, null=True,
-        verbose_name=_("Хэш конфигурации"),
-        help_text=_("SHA-256 от типоразмера + опций; ключ дедупа и диффа"),
-    )
     exclude_from_catalog = models.BooleanField(
         default=False,
         verbose_name=_("Не включать в каталог"),
         help_text=_("Скрыть из листингов каталога (поиск и деталка работают)"),
+    )
+    origin = models.CharField(
+        max_length=16,
+        choices=Origin.choices,
+        default=Origin.GENERATED,
+        verbose_name=_("Происхождение"),
+        help_text=_("Кто владеет жизненным циклом карточки: генератор или человек"),
     )
 
     model_line = models.ForeignKey(
@@ -221,7 +237,7 @@ class PneumaticActuatorItem(
         related_name='pa_items_coating',
         verbose_name=_("Исполнение корпуса"),
     )
-    selected_hand_wheel = models.ForeignKey(
+    selected_manual_override = models.ForeignKey(
         'params.HandWheelInstalledOption',
         on_delete=models.SET_NULL, null=True, blank=True,
         related_name='pa_items_hand_wheel',
@@ -290,10 +306,10 @@ class PneumaticActuatorItem(
             'through_attr': None,  # PneumaticBodyDesignOption САМА является опцией
             'parent_field': 'model_line',
         },
-        'selected_hand_wheel': {
-            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticHandWheelOption',
+        'selected_manual_override': {
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticManualOverrideOption',
             'through_attr': 'hand_wheel_option',
-            'parent_field': 'model_line',
+            'parent_field': 'model_line_item',
         },
     }
 
@@ -303,7 +319,7 @@ class PneumaticActuatorItem(
         verbose_name_plural = _('Пневмоприводы (каталог)')
 
     def __str__(self):
-        return self.name or self.code or f'PneumaticActuatorItem #{self.pk}'
+        return self.name or self.code or f'PneumaticActuatorCatalogItem #{self.pk}'
 
     @classmethod
     def from_constructor(cls, constructor):
@@ -325,7 +341,7 @@ class PneumaticActuatorItem(
             selected_ip=getattr(constructor, 'selected_ip', None),
             selected_exd=getattr(constructor, 'selected_exd', None),
             selected_body_coating=getattr(constructor, 'selected_body_coating', None),
-            selected_hand_wheel=getattr(constructor, 'selected_hand_wheel', None),
+            selected_manual_override=getattr(constructor, 'selected_manual_override', None),
         )
 
     # ═══════════════════════════════════════════════════════════════
@@ -370,33 +386,7 @@ class PneumaticActuatorItem(
         """Бренд для SKU — берётся из model_line."""
         return self.model_line.brand if self.model_line else None
 
-    def compute_config_hash(self) -> str:
-        """SHA-256 от канонического кортежа стабильных id конфигурации.
 
-        Хэшируются только стабильные id (типоразмер + опции), НЕ encoding и не code:
-        смена кодировки не меняет хэш. Отсутствующая опция — 0.
-        """
-        ids = (
-            self.model_line_id, self.body_id, self.pneumatic_actuator_variety_id,
-            self.selected_safety_position_id, self.selected_springs_qty_id,
-            self.selected_temperature_id, self.selected_ip_id, self.selected_exd_id,
-            self.selected_body_coating_id, self.selected_hand_wheel_id,
-        )
-        canonical = '|'.join(str(i if i is not None else 0) for i in ids)
-        return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
-
-    def _check_config_hash_unique(self):
-        """Блок при коллизии config_hash (одна карточка = одна конфигурация)."""
-        h = self.config_hash or self.compute_config_hash()
-        if not h:
-            return
-        qs = type(self).objects.filter(config_hash=h)
-        if self.pk:
-            qs = qs.exclude(pk=self.pk)
-        if qs.exists():
-            raise ValidationError(
-                f'Карточка с такой конфигурацией уже существует (config_hash: {h})'
-            )
 
     # ═══════════════════════════════════════════════════════════════
     # TemplateMixin — шаблоны названия/описания из model_line
@@ -459,7 +449,7 @@ class PneumaticActuatorItem(
             self.springs_qty_encoding,
             self.temperature_encoding,
             self.safety_position_encoding,
-            self.hand_wheel_encoding,
+            self.manual_override_encoding,
             self.coating_encoding,
             self.ip_encoding,
             self.exd_encoding,
@@ -484,8 +474,8 @@ class PneumaticActuatorItem(
         return self.selected_safety_position
 
     @property
-    def hand_wheel_encoding(self) -> str:
-        return self._get_option_encoding('selected_hand_wheel')
+    def manual_override_encoding(self) -> str:
+        return self._get_option_encoding('selected_manual_override')
 
     @property
     def coating_encoding(self) -> str:

@@ -57,7 +57,7 @@ class PneumaticActuatorSelectedAdmin(admin.ModelAdmin) :
         ('Опции привода' , {
             'fields' : (
                 ('selected_safety_position' , 'selected_springs_qty' , 'selected_temperature') ,
-                ('selected_ip' , 'selected_exd' , 'selected_body_coating', 'selected_hand_wheel') ,
+                ('selected_ip' , 'selected_exd' , 'selected_body_coating', 'selected_manual_override') ,
             ) ,
         }) ,
 

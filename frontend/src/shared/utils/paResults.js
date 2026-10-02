@@ -26,7 +26,7 @@ export function paResultsToCards(searchResults) {
 
 // Единая навигация «открыть конфигуратор с предвыбором» для мастера и селектора.
 // options — дополнительные предвыбранные опции (safety_position, exd, ip,
-// hand_wheel, body_coating, body_material).
+// manual_override, body_coating, body_material).
 export function buildPaConfigQuery(ml, item, options = {}) {
   return {
     model_line_id: ml?.model_line_id || undefined,

@@ -1,7 +1,7 @@
 # pneumatic_actuators/models/pa_weight.py
 """Расчёт веса пневмопривода.
 
-Единая реализация для PneumaticActuatorItem / PneumaticActuatorConstructor /
+Единая реализация для PneumaticActuatorCatalogItem / PneumaticActuatorConstructor /
 PneumaticActuatorSelected. Вес хранится в PneumaticWeightParameter
 (body × spring_qty). Ключ spring_qty — это ``code`` записи
 PneumaticActuatorSpringsQty: 'DA' (без пружин), '05'..'12' (количество пружин)

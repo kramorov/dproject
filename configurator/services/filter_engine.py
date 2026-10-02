@@ -565,7 +565,7 @@ def _filter_pa_selector(component: ComponentRequirement) -> dict:
         'ip_id': _get_value(effective, own, rev_map, 'ip_id') or _get_value(effective, own, rev_map, 'ip'),
         'exd_id': _resolve_exd_id(_get_value(effective, own, rev_map, 'exd')),
         'coating_id': _get_value(effective, own, rev_map, 'coating_id'),
-        'hand_wheel_id': _get_value(effective, own, rev_map, 'hand_wheel_id'),
+        'manual_override_id': _get_value(effective, own, rev_map, 'manual_override_id'),
         'temp_min': int(_get_value(effective, own, rev_map, 'temp_min', 0) or 0),
         'temp_max': int(_get_value(effective, own, rev_map, 'temp_max', 0) or 0),
     }

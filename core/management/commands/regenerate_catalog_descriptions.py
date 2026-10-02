@@ -5,7 +5,7 @@
 Использование:
     python manage.py regenerate_catalog_descriptions                     # все каталоги
     python manage.py regenerate_catalog_descriptions --model gearbox.GearBox
-    python manage.py regenerate_catalog_descriptions --model pneumatic_actuators.PneumaticActuatorItem --inactive
+    python manage.py regenerate_catalog_descriptions --model pneumatic_actuators.PneumaticActuatorCatalogItem --inactive
 
 Что делает:
     - проходит по записям каталога (is_active=True по умолчанию);
@@ -17,7 +17,7 @@
     solenoid_valves.DirectionValve, pa_controls.LimitSwitchBox,
     pa_controls.PosiModelLineItem, filter_regulator.FilterRegulator,
     gearbox.GearBox, pneumatic_fittings.PneumaticFitting,
-    pneumatic_actuators.PneumaticActuatorItem.
+    pneumatic_actuators.PneumaticActuatorCatalogItem.
 """
 from django.apps import apps
 from django.core.management.base import BaseCommand, CommandError
@@ -29,7 +29,7 @@ CATALOG_MODELS = [
     'filter_regulator.FilterRegulator',
     'gearbox.GearBox',
     'pneumatic_fittings.PneumaticFitting',
-    'pneumatic_actuators.PneumaticActuatorItem',
+    'pneumatic_actuators.PneumaticActuatorCatalogItem',
 ]
 
 # Prefetch путей взрывозащиты, чтобы генерация {exd}/{exd_short}
@@ -38,7 +38,7 @@ EXD_PREFETCH_MAP = {
     'solenoid_valves.DirectionValve': ['exd_option__exd_options'],
     'pa_controls.LimitSwitchBox': ['exd'],
     'pa_controls.PosiModelLineItem': ['exd_options'],
-    'pneumatic_actuators.PneumaticActuatorItem': ['selected_exd__exd_options'],
+    'pneumatic_actuators.PneumaticActuatorCatalogItem': ['selected_exd__exd_options'],
 }
 
 

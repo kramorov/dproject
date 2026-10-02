@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'selected_ip': 'ip_options',
         'selected_exd': 'exd_options',
         'selected_body_coating': 'coating_options',
-        'selected_hand_wheel': 'hand_wheel_options' // если есть в API
+        'selected_manual_override': 'manual_override_options' // если есть в API
     };
 
     // 4. Функция обновления опций

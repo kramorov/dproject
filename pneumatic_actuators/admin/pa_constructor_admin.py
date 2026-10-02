@@ -37,7 +37,7 @@ class PneumaticActuatorConstructorAdmin(admin.ModelAdmin):
         ('Опции привода', {
             'fields': (
                 ('selected_safety_position', 'selected_springs_qty', 'selected_temperature'),
-                ('selected_ip', 'selected_exd', 'selected_body_coating', 'selected_hand_wheel'),
+                ('selected_ip', 'selected_exd', 'selected_body_coating', 'selected_manual_override'),
             ),
         }),
         ('Температура', {
@@ -80,7 +80,7 @@ class PneumaticActuatorConstructorAdmin(admin.ModelAdmin):
     body_coating_display.short_description = "Покрытие"
 
     def hand_wheel_display(self, obj):
-        return str(obj.selected_hand_wheel) if obj.selected_hand_wheel else "-"
+        return str(obj.selected_manual_override) if obj.selected_manual_override else "-"
     hand_wheel_display.short_description = "Дублер"
 
     def description_preview(self, obj):
@@ -104,5 +104,5 @@ class PneumaticActuatorConstructorAdmin(admin.ModelAdmin):
             'selected_ip',
             'selected_exd',
             'selected_body_coating',
-            'selected_hand_wheel',
+            'selected_manual_override',
         )

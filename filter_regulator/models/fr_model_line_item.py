@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.mixins import CopyMixin, TemplateMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
 from filter_regulator.models import FilterRegulatorBody
@@ -22,6 +23,7 @@ class FilterRegulator(
     SmartCatalogMixin,
     TemplateMixin,
     SKUMixin,
+    ConfigHashMixin,
     models.Model,
 ):
     """Модель фильтр-регулятора (каталог)"""
@@ -179,6 +181,12 @@ class FilterRegulator(
         """Бренд для SKU — берётся из model_line."""
         return self.model_line.brand
 
+    config_hash_fields = (
+        'model_line', 'body', 'ip', 'body_material',
+        'gauge_quantity', 'filter_element_material', 'wall_mounting_included',
+        'has_shut_off_valve', 'drain_variety',
+    )
+
     def save(self, *args, **kwargs):
         """
         Сохраняет модель и синхронизирует номенклатуру (SKU).
@@ -186,6 +194,8 @@ class FilterRegulator(
         Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
         или «подхватывает» существующую по коду, обогащая её полями модели.
         """
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)
         self.sync_sku()
 

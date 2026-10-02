@@ -1,0 +1,1 @@
+import{E as o}from"./App-RiR5E12i.js";import{_ as t,d as a,q as e,o as r}from"./_plugin-vue_export-helper-CrHymscG.js";import"./default-BCX413Po.js";const s={class:"catalog-page"},c={__name:"EaConstructorPage",setup(_){return(p,n)=>(r(),a("div",s,[e(o)]))}},i=t(c,[["__scopeId","data-v-be86adc0"]]);export{i as default};

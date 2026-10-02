@@ -25,7 +25,7 @@ from core.models.template_fields import TemplateFieldSpec
 # У части типов ``content_type`` всё ещё указывает на старую (переходную) модель
 # без реестра ``TEMPLATE_FIELDS``. Явный мостик на актуальную модель-каталог.
 _EQUIPMENT_TYPE_MODEL_OVERRIDES = {
-    'pneumatic-actuator': 'pneumatic_actuators.PneumaticActuatorItem',
+    'pneumatic-actuator': 'pneumatic_actuators.PneumaticActuatorCatalogItem',
 }
 
 

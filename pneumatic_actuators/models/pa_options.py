@@ -10,50 +10,44 @@ from params.models import IpOption
 from materials.models import MaterialGeneral
 
 
-class PneumaticHandWheelOption(BaseHandWheelThroughOption):
-    """Температурные опции для пневмоприводов"""
-    model_line = models.ForeignKey(
-        'PneumaticActuatorModelLine',
+class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
+    """Опции ручного дублера для пневмоприводов (на уровне модели в серии)."""
+    model_line_item = models.ForeignKey(
+        'PneumaticActuatorModelLineItem',
         on_delete=models.CASCADE,
-        related_name='hand_wheel_options',
-        verbose_name=_("Серия пневмоприводов")
+        related_name='manual_override_options',
+        verbose_name=_("Модель в серии")
     )
 
     class Meta:
         verbose_name = _("Тип установленного ручного дублера")
         verbose_name_plural = _("Типы установленного ручного дублера пневмоприводов")
         ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
-        unique_together = ['model_line', 'encoding']
+        unique_together = ['model_line_item', 'encoding']
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         """Явно указываем имя родительского поля"""
-        return 'model_line'
+        return 'model_line_item'
 
     @classmethod
     def get_for_select(cls , model_line_id: Optional[int] = None ,
                        model_line_item_id: Optional[int] = None ,
                        active_only: bool = True) -> List[Dict] :
-        """Получить опции ручного дублера"""
+        """Получить опции ручного дублера."""
         queryset = cls.objects.all()
 
         if active_only :
             queryset = queryset.filter(is_active=True)
 
-        if model_line_id :
-            queryset = queryset.filter(model_line_id=model_line_id)
-
-        # Если передан model_line_item_id, получаем model_line через него
         if model_line_item_id :
+            queryset = queryset.filter(model_line_item_id=model_line_item_id)
+        elif model_line_id :
             from pneumatic_actuators.models import PneumaticActuatorModelLineItem
-            try :
-                model_line_item = PneumaticActuatorModelLineItem.objects.select_related(
-                    'model_line'
-                ).get(id=model_line_item_id)
-                if model_line_item.model_line :
-                    queryset = queryset.filter(model_line_id=model_line_item.model_line.id)
-            except PneumaticActuatorModelLineItem.DoesNotExist :
-                pass
+            item_ids = PneumaticActuatorModelLineItem.objects.filter(
+                model_line_id=model_line_id
+            ).values_list('id', flat=True)
+            queryset = queryset.filter(model_line_item_id__in=item_ids)
 
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 

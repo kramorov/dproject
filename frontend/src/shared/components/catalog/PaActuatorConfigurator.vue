@@ -154,7 +154,7 @@ const props = defineProps({
   // Предвыбор типоразмера и вида (из мастера/селектора)
   initialModelLineItemId: { type: Number, default: null },
   initialVariety: { type: String, default: null },
-  // Предвыбранные опции: { safety_position, exd, ip, hand_wheel, body_coating, body_material }
+  // Предвыбранные опции: { safety_position, exd, ip, manual_override, body_coating, body_material }
   initialOptions: { type: Object, default: () => ({}) },
 })
 defineEmits(['addToCart'])
@@ -165,7 +165,7 @@ const OPTION_KEY_MAP = {
   temperature_options: 'temperature',
   ip_options: 'ip',
   exd_options: 'exd',
-  hand_wheel_options: 'hand_wheel',
+  manual_override_options: 'manual_override',
 }
 
 const OPTION_LABELS = {
@@ -174,10 +174,10 @@ const OPTION_LABELS = {
   temperature: 'Температурное исполнение',
   ip: 'Степень защиты IP',
   exd: 'Взрывозащита',
-  hand_wheel: 'Ручной дублёр',
+  manual_override: 'Ручной дублёр',
 }
 
-const OPTION_KEYS = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'hand_wheel']
+const OPTION_KEYS = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'manual_override']
 
 const modelLines = ref([])
 const modelItems = ref([])
@@ -208,7 +208,7 @@ const form = reactive({
   variety: null,
   model_line_item_id: null,
   springs_qty: null, temperature: null, safety_position: null,
-  ip: null, exd: null, body_coating: null, hand_wheel: null,
+  ip: null, exd: null, body_coating: null, manual_override: null,
   body_material: null, body_coating_label: null,
 })
 
@@ -399,8 +399,8 @@ function clearBodyDesign() {
 function applyInitialOptions() {
   const o = props.initialOptions || {}
   let changed = false
-  // Прямые опции (id реальных опций): safety_position, exd, ip, hand_wheel
-  for (const key of ['safety_position', 'exd', 'ip', 'hand_wheel']) {
+  // Прямые опции (id реальных опций): safety_position, exd, ip, manual_override
+  for (const key of ['safety_position', 'exd', 'ip', 'manual_override']) {
     if (o[key] == null || o[key] === '') continue
     const f = optionFields.value.find(x => x.key === key)
     if (!f) continue
@@ -445,7 +445,7 @@ async function fetchPreview() {
       selected_ip: form.ip,
       selected_exd: form.exd,
       selected_body_coating: form.body_coating,
-      selected_hand_wheel: form.hand_wheel,
+      selected_manual_override: form.manual_override,
     })
     preview.value = data
   } catch (e) {

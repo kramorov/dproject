@@ -114,7 +114,7 @@ const tabKeys = { section: 'section', brand: 'section', wizard: 'wizard', ai: 'a
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function goToBrand(id) { preSelect.value = null; cacheEpoch.value++; _goToBrand(id) }
-const OPTION_QUERY_KEYS = ['safety_position', 'exd', 'ip', 'hand_wheel', 'body_coating', 'body_material']
+const OPTION_QUERY_KEYS = ['safety_position', 'exd', 'ip', 'manual_override', 'body_coating', 'body_material']
 function openConfigurator(mlId, itemId, variety, options = {}) {
   preSelect.value = { modelLineItemId: itemId, variety, options }
   cacheEpoch.value++

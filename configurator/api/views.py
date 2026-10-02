@@ -455,12 +455,12 @@ def _get_pa_filter_schema(model_class) -> list[dict]:
 
     # Ручной дублёр
     fields.append({
-        'param_name': 'hand_wheel_id',
-        'model_field': 'hand_wheel_id',
+        'param_name': 'manual_override_id',
+        'model_field': 'manual_override_id',
         'label': 'Ручной дублёр',
         'filter_type': 'choice',
         'parameter_rule_code': None,
-        'options': options.get('hand_wheel_options', []),
+        'options': options.get('manual_override_options', []),
     })
 
     # IP

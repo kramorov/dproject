@@ -10,7 +10,8 @@ from django.utils.html import format_html
 from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLineItem
 from pneumatic_actuators.models.pa_options import (
     PneumaticSafetyPositionOption,
-    PneumaticSpringsQtyOption
+    PneumaticSpringsQtyOption,
+    PneumaticManualOverrideOption,
 )
 
 
@@ -32,6 +33,16 @@ class PneumaticSpringsQtyOptionInline(admin.TabularInline):
     fields = ['springs_qty', 'encoding', 'is_default', 'is_active', 'sorting_order']
     verbose_name = _("Опция количества пружин")
     verbose_name_plural = _("Опции количества пружин")
+    fk_name = 'model_line_item'  # Явно указываем поле связи
+
+class PneumaticManualOverrideOptionInline(admin.TabularInline):
+    """Inline для опций ручного дублера"""
+    model = PneumaticManualOverrideOption
+    extra = 0
+    ordering = ['is_default', 'sorting_order']
+    fields = ['hand_wheel_option', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    verbose_name = _("Опция ручного дублера")
+    verbose_name_plural = _("Опции ручного дублера")
     fk_name = 'model_line_item'  # Явно указываем поле связи
 
 
@@ -76,6 +87,7 @@ class PneumaticActuatorModelLineItemAdmin(admin.ModelAdmin):
     inlines = [
         PneumaticSafetyPositionOptionInline,
         PneumaticSpringsQtyOptionInline,
+        PneumaticManualOverrideOptionInline,
     ]
 
     fieldsets = (
@@ -107,7 +119,8 @@ class PneumaticActuatorModelLineItemAdmin(admin.ModelAdmin):
             'body'
         ).prefetch_related(
             'safety_position_option_model_line_item',
-            'springs_qty_option_model_line_item'
+            'springs_qty_option_model_line_item',
+            'manual_override_options'
         )
 
     def brand_display(self, obj):

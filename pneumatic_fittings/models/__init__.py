@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from typing import Dict , List
 from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin
+from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
 from core.models.cert_doc_mixin import CertDocMixin
@@ -202,7 +203,7 @@ class PneumaticFittingModelLine(ImageGalleryMixin, TechDocMixin,
 
 class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
                        ImageGalleryMixin, TechDocMixin,
-                       SKUMixin, EquipmentTypeMixin,
+                       SKUMixin, EquipmentTypeMixin, ConfigHashMixin,
                        StructuredDataMixin, TemplateMixin, CopyMixin, models.Model):
     """
     Пневматический фитинг (конкретный артикул каталога).
@@ -366,8 +367,15 @@ class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
         """Бренд для SKU — берётся из model_line."""
         return self.model_line.brand if self.model_line else None
 
+    config_hash_fields = (
+        'model_line', 'fitting_variety', 'body_material', 'pipe_material',
+        'thread', 'thread_inner_outer',
+    )
+
     def save(self, *args, **kwargs):
         """Сохраняет модель и синхронизирует номенклатуру (SKU)."""
+        self.config_hash = self.compute_config_hash()
+        self._check_config_hash_unique()
         super().save(*args, **kwargs)
         self.sync_sku()
 

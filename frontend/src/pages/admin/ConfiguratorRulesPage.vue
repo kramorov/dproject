@@ -17,23 +17,6 @@
       </div>
     </div>
 
-    <!-- ParameterSources (read-only) -->
-    <div v-if="activeTab === 'sources'" class="table-wrap">
-      <div class="toolbar">
-        <span class="count">{{ sources.length }} источников</span>
-      </div>
-      <table>
-        <thead><tr><th>Code</th><th>Название</th><th>Описание</th></tr></thead>
-        <tbody>
-          <tr v-for="s in sources" :key="s.id">
-            <td><code>{{ s.code }}</code></td>
-            <td>{{ s.name }}</td>
-            <td style="font-size:0.8rem;color:#666">{{ s.description }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
     <!-- AI Pipeline -->
     <div v-if="activeTab === 'ai'" class="section">
       <p>AI Pipeline настраивает промпты и JSON-схемы для каждого шага и типа оборудования.</p>
@@ -64,7 +47,6 @@ import api from '@/shared/api'
 
 const ENDPOINTS = {
   etp: '/configurator/admin/equipment-type-parameters/',
-  sources: '/configurator/admin/parameter-sources/',
 }
 
 export default {
@@ -74,12 +56,10 @@ export default {
       activeTab: 'etp',
       tabs: [
         { key: 'etp', label: 'Параметры' },
-        { key: 'sources', label: 'Источники' },
         { key: 'ai', label: 'AI Pipeline' },
       ],
       redirectToPipeline: true,
       etpList: [],
-      sources: [],
       schemaEqType: null,
       generatedSchema: '',
       generating: false,
@@ -117,12 +97,8 @@ export default {
     async loadAll() {
       this.loading = true
       try {
-        const [etpRes, srcRes] = await Promise.all([
-          api.get(ENDPOINTS.etp),
-          api.get(ENDPOINTS.sources),
-        ])
+        const etpRes = await api.get(ENDPOINTS.etp)
         this.etpList = etpRes.data.results || etpRes.data
-        this.sources = srcRes.data.results || srcRes.data
       } catch (e) { this.error = 'Ошибка загрузки' }
       finally { this.loading = false }
     },
