@@ -13,6 +13,7 @@
 
     <div class="qgf-main">
       <VueFlow
+        ref="flowRef"
         v-model:nodes="flowNodes"
         v-model:edges="flowEdges"
         :node-types="nodeTypes"
@@ -94,6 +95,7 @@ watch(() => props.graphJson, (gj) => {
 }, { immediate: true, deep: true })
 
 // ── Vue Flow state (derived from liveJson) ──
+const flowRef = ref(null)
 const flowNodes = ref([])
 const flowEdges = ref([])
 const nodeTypes = { page: markRaw(PageNode), branch: markRaw(BranchNode) }
@@ -226,21 +228,41 @@ function onBranchSave(data) {
 }
 
 // ── Add nodes → write to liveJson ──
+function newPosition() {
+  const nodes = liveJson.value.nodes || {}
+  const ids = Object.keys(nodes)
+  if (!ids.length) return { _x: 80, _y: 60 }
+  let maxY = -180
+  let x = 80
+  ids.forEach(id => {
+    const n = nodes[id] || {}
+    const y = n._y != null ? Number(n._y) : 0
+    if (y > maxY) {
+      maxY = y
+      x = n._x != null ? Number(n._x) : 80
+    }
+  })
+  return { _x: x, _y: maxY + 180 }
+}
 function addPageNode() {
   const id = `page_${Date.now()}`
   if (!liveJson.value.entry_node) liveJson.value.entry_node = id
+  const pos = newPosition()
   liveJson.value.nodes[id] = {
     type: 'page', name: 'Новая страница', next_node: '', params: [],
-    _x: Object.keys(liveJson.value.nodes).length * 320 + 80, _y: 60,
+    _x: pos._x, _y: pos._y,
   }
+  nextTick(() => flowRef.value?.fitView())
 }
 function addBranchNode() {
   const id = `branch_${Date.now()}`
+  const pos = newPosition()
   liveJson.value.nodes[id] = {
     type: 'branch', name: '', param_name: '', match_values: [],
     match_target: '', else_target: '',
-    _x: Object.keys(liveJson.value.nodes).length * 320 + 80, _y: 60,
+    _x: pos._x, _y: pos._y,
   }
+  nextTick(() => flowRef.value?.fitView())
 }
 
 // ── Edge editing (directly on flowEdges, sync to liveJson) ──

@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminCopyMixin
 from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
+from pneumatic_actuators.models.pa_options import PneumaticManualOverrideOption
 
 
 @admin.register(PneumaticActuatorCatalogItem)
@@ -54,6 +55,25 @@ class PneumaticActuatorCatalogItemAdmin(AdminCopyMixin, admin.ModelAdmin):
             obj.origin = PneumaticActuatorCatalogItem.Origin.MANUAL
         super().save_model(request, obj, form, change)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Опции ручного дублера фильтруются по выбранному корпусу."""
+        if db_field.name == 'manual_override_option':
+            body_id = None
+            if request.method == 'POST':
+                body_id = request.POST.get('body')
+            if not body_id:
+                object_id = request.resolver_match.kwargs.get('object_id')
+                if object_id:
+                    obj = self.get_object(request, object_id)
+                    body_id = getattr(obj, 'body_id', None)
+            qs = PneumaticManualOverrideOption.objects.select_related(
+                'hand_wheel_option', 'model_line_item',
+            )
+            if body_id:
+                qs = qs.filter(model_line_item__body_id=body_id)
+            kwargs['queryset'] = qs
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     filter_horizontal = ('tech_docs',)
 
     fieldsets = (
@@ -73,7 +93,7 @@ class PneumaticActuatorCatalogItemAdmin(AdminCopyMixin, admin.ModelAdmin):
                 'selected_ip',
                 'selected_exd',
                 'selected_body_coating',
-                'selected_manual_override',
+                'manual_override_option',
             ),
         }),
         (_('Номенклатура и медиа'), {

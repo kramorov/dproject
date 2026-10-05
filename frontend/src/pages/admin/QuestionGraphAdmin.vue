@@ -44,7 +44,7 @@
         </div>
         <div class="qg-form-group qg-inline">
           <label>Тип оборудования</label>
-          <select v-model="form.equipment_type_id" class="qg-input">
+          <select v-model="form.equipment_type_id" class="qg-input" @change="onEquipmentTypeChange">
             <option :value="null">— выберите —</option>
             <option v-for="et in equipmentTypes" :key="et.id" :value="et.id">{{ et.name }}</option>
           </select>
@@ -144,6 +144,27 @@ async function editGraph(g) {
     editorTab.value = 'visual'
     saveMsg.value = ''
   } catch (e) { console.error(e) }
+}
+
+function onEquipmentTypeChange() {
+  const etId = form.value.equipment_type_id
+  if (!etId) return
+  const existing = graphs.value.find(g => g.equipment_type_id === etId)
+  if (existing) {
+    // Для этого типа уже есть граф — подгружаем его код/название/граф.
+    editGraph(existing)
+    return
+  }
+  // Нового графа нет — подставляем значения по умолчанию.
+  const et = equipmentTypes.value.find(e => e.id === etId)
+  form.value.id = null
+  form.value.code = et?.code || ''
+  form.value.name = et ? `Подбор ${et.name}` : ''
+  form.value.is_active = true
+  liveGraphJson.value = { entry_node: '', nodes: {}, edges: [] }
+  graphJsonText.value = JSON.stringify(liveGraphJson.value, null, 2)
+  isNew.value = true
+  saveMsg.value = ''
 }
 
 function cancelEdit() {

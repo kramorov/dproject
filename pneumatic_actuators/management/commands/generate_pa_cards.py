@@ -77,6 +77,7 @@ class Command(BaseCommand):
                     origin=PneumaticActuatorCatalogItem.Origin.GENERATED,
                     **kwargs,
                 )
+                probe.weight = probe.compute_weight()
                 config_hash = probe.compute_config_hash()
                 code = probe.generated_model_item_code
                 seen_hashes.add(config_hash)
@@ -93,6 +94,7 @@ class Command(BaseCommand):
                         reactivated += 1
                         if not dry_run:
                             existing.is_active = True
+                            existing.weight = probe.weight
                             existing.save()
                             if existing.sku_id:
                                 SKU.objects.filter(pk=existing.sku_id).update(is_active=True)
@@ -101,6 +103,7 @@ class Command(BaseCommand):
                         updated += 1
                         if not dry_run:
                             existing.code = code
+                            existing.weight = probe.weight
                             existing.save()  # пересчёт name/description + sync_sku
                     continue
 
@@ -173,7 +176,7 @@ class Command(BaseCommand):
         ip_choices = [o.ip_option for o in ip] or [None]
         exd_choices = list(exd) or [None]
         coating_choices = list(coating) or [None]
-        hand_wheel_choices = [o.hand_wheel_option for o in hand_wheel] or [None]
+        hand_wheel_choices = list(hand_wheel) or [None]  # через-опции с mo_weight
 
         for sp, sq, temp, ip_opt, exd_opt, coat_opt, hw_opt in itertools.product(
             safety_choices, springs_choices, temperature_choices,
@@ -189,5 +192,6 @@ class Command(BaseCommand):
                 'selected_ip': ip_opt,
                 'selected_exd': exd_opt,
                 'selected_body_coating': coat_opt,
-                'selected_manual_override': hw_opt,
+                'selected_manual_override': hw_opt.hand_wheel_option if hw_opt else None,
+                'manual_override_option': hw_opt,
             }

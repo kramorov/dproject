@@ -33,7 +33,7 @@ PA_ITEM_TEMPLATE_FIELDS = (
     {'key': 'body_name', 'placeholder': '{body_name}', 'path': 'body__name',
      },
     {'key': 'body_code', 'placeholder': '{body_code}', 'path': 'body__code'},
-    {'key': 'weight', 'placeholder': '{weight}', 'path': 'calculated_weight',
+    {'key': 'weight', 'placeholder': '{weight}', 'path': 'weight',
      },
 
     # ── Опции (шаблоны + артикул) ──

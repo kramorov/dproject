@@ -31,6 +31,7 @@ item-уровневых опций (safety_position / springs_qty), у кото�
 import importlib
 import logging
 import re
+from decimal import Decimal
 from typing import Optional
 
 from django.db import models
@@ -244,6 +245,26 @@ class PneumaticActuatorCatalogItem(
         verbose_name=_("Встроенный ручной дублер"),
     )
 
+    manual_override_option = models.ForeignKey(
+        'PneumaticManualOverrideOption',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+        verbose_name=_("Опция ручного дублера"),
+        help_text=_(
+            'Конкретная опция ручного дублера (through) с весом mo_weight; '
+            'используется для расчёта веса карточки.'
+        ),
+    )
+
+    weight = models.DecimalField(
+        max_digits=10, decimal_places=3, null=True, blank=True,
+        verbose_name=_("Вес, кг"),
+        help_text=_(
+            'Рассчитанный вес привода (корпус + пружины + ручной дублер). '
+            'Материализуется при генерации карточки, а не считается динамически.'
+        ),
+    )
+
     extra_params = models.JSONField(
         default=dict, blank=True,
         verbose_name=_("Параметры"),
@@ -330,7 +351,14 @@ class PneumaticActuatorCatalogItem(
         отдельный захардкоженный словарь значений.
         """
         mli = getattr(constructor, 'selected_model_line_item', None)
-        return cls(
+        manual_override = getattr(constructor, 'selected_manual_override', None)
+        manual_override_option = None
+        if mli and manual_override:
+            from pneumatic_actuators.models.pa_options import PneumaticManualOverrideOption
+            manual_override_option = PneumaticManualOverrideOption.objects.filter(
+                model_line_item=mli, hand_wheel_option=manual_override,
+            ).order_by('id').first()
+        item = cls(
             model_line=mli.model_line if mli else None,
             body=mli.body if mli else None,
             pneumatic_actuator_variety=mli.pneumatic_actuator_variety if mli else None,
@@ -341,8 +369,12 @@ class PneumaticActuatorCatalogItem(
             selected_ip=getattr(constructor, 'selected_ip', None),
             selected_exd=getattr(constructor, 'selected_exd', None),
             selected_body_coating=getattr(constructor, 'selected_body_coating', None),
-            selected_manual_override=getattr(constructor, 'selected_manual_override', None),
+            selected_manual_override=manual_override,
+            manual_override_option=manual_override_option,
         )
+        # Для превью (несохранённый item) вес считается на лету — как при генерации.
+        item.weight = item.compute_weight()
+        return item
 
     # ═══════════════════════════════════════════════════════════════
     # SKUMixin — SKU создаётся из этой модели (стандартный путь)
@@ -357,13 +389,22 @@ class PneumaticActuatorCatalogItem(
         4. super().save() → TemplateMixin.save() генерирует name/description
            из шаблонов model_line (skip_auto_generate=True пропускает);
         5. sync_sku() создаёт/обновляет SKU из этой модели.
+
+        Для ручных карточек (origin=manual) перед super().save() вес
+        пересчитывается из опций (compute_weight).
         """
         if not self.equipment_type_id and self.model_line and getattr(self.model_line, 'equipment_type_id', None):
             self.equipment_type = self.model_line.equipment_type
         if not self.code:
             self.code = self.generated_model_item_code or None
+        if self.manual_override_option:
+            # Базовая опция дублера всегда согласована с выбранной through-опцией.
+            self.selected_manual_override = self.manual_override_option.hand_wheel_option
         self.config_hash = self.compute_config_hash()
         self._check_config_hash_unique()
+        if self.origin == self.Origin.MANUAL:
+            # Ручная карточка: вес пересчитывается из опций при каждом сохранении.
+            self.weight = self.compute_weight()
         super().save(*args, **kwargs)
         self.sync_sku()
 
@@ -545,18 +586,32 @@ class PneumaticActuatorCatalogItem(
     # Расчётные свойства
     # ═══════════════════════════════════════════════════════════════
 
-    @property
-    def calculated_weight(self) -> Optional[float]:
-        """Вес привода в зависимости от выбранного количества пружин."""
-        from .pa_weight import calculate_actuator_weight
+    def compute_weight(self) -> Optional[Decimal]:
+        """Рассчитать вес привода (корпус + пружины + ручной дублер), кг.
+
+        Используется при материализации карточек; результат сохраняется в поле
+        ``weight``, чтобы при отображении не пересчитывать вес динамически.
+        """
+        from .pa_weight import calculate_actuator_weight, resolve_manual_override_weight
         variety = self.pneumatic_actuator_variety
         springs = self.selected_springs_qty
-        result = calculate_actuator_weight(
+        mo = self.manual_override_option
+        manual_override_weight = (
+            mo.mo_weight if mo else
+            resolve_manual_override_weight(
+                self.source_model_line_item, self.selected_manual_override)
+        )
+        return calculate_actuator_weight(
             self.body,
             variety.code if variety else None,
             springs.code if springs else None,
+            manual_override_weight=manual_override_weight,
         )
-        return float(result) if result is not None else None
+
+    @property
+    def calculated_weight(self) -> Optional[float]:
+        """Сохранённый вес карточки (материализован при генерации)."""
+        return float(self.weight) if self.weight is not None else None
 
     # ═══════════════════════════════════════════════════════════════
     # Resolver'ы для spec_template (технические + таблица моментов)

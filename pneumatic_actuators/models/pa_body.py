@@ -126,7 +126,7 @@ class PneumaticActuatorBody(models.Model) :
                                   help_text=_("Угол поворота"))
     turn_tuning_limit = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Ограничитель") ,
                                          help_text=_("Настройка ограничителя на ±1° (об.)"))
-    weight_spring = models.DecimalField(max_digits=4 , decimal_places=2 ,
+    weight_spring = models.DecimalField(max_digits=5 , decimal_places=3 ,
                                         default=0 , blank=True , null=True ,
                                         verbose_name=_("Вес пружины") ,
                                         help_text=_(

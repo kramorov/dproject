@@ -40,7 +40,7 @@ class PneumaticManualOverrideOptionInline(admin.TabularInline):
     model = PneumaticManualOverrideOption
     extra = 0
     ordering = ['is_default', 'sorting_order']
-    fields = ['hand_wheel_option', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    fields = ['hand_wheel_option', 'encoding', 'mo_weight','is_default', 'is_active', 'sorting_order']
     verbose_name = _("Опция ручного дублера")
     verbose_name_plural = _("Опции ручного дублера")
     fk_name = 'model_line_item'  # Явно указываем поле связи

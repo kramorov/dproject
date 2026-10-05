@@ -1434,7 +1434,7 @@ class PneumaticActuatorConstructor(models.Model):
 
     def get_weight(self) -> Optional[Decimal]:
         """Вес привода в зависимости от количества пружин (см. pa_weight)."""
-        from .pa_weight import calculate_actuator_weight
+        from .pa_weight import calculate_actuator_weight, resolve_manual_override_weight
         mli = self.selected_model_line_item
         if not mli or not mli.body:
             return None
@@ -1444,6 +1444,8 @@ class PneumaticActuatorConstructor(models.Model):
             mli.body,
             variety.code if variety else None,
             springs.code if springs else None,
+            manual_override_weight=resolve_manual_override_weight(
+                mli, self.selected_manual_override),
         )
 
     @property

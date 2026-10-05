@@ -18,7 +18,11 @@ class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
         related_name='manual_override_options',
         verbose_name=_("Модель в серии")
     )
-
+    mo_weight = models.DecimalField(max_digits=6 , decimal_places=2 ,
+                                        default=0 , blank=True , null=True ,
+                                        verbose_name=_("Вес ручного дублера") ,
+                                        help_text=_(
+                                            'Вес ручного дублера, кг.'))
     class Meta:
         verbose_name = _("Тип установленного ручного дублера")
         verbose_name_plural = _("Типы установленного ручного дублера пневмоприводов")

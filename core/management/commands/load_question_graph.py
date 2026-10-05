@@ -18,11 +18,13 @@ class Command(BaseCommand):
                 "nodes": {
                     "page_equipment": {
                         "type": "page", "name": "Вид фитинга",
+                        "description": "Выберите вид пневматического фитинга",
                         "params": [{"title": "Вид фитинга", "param_name": "equipment_type_id", "order": 1}],
                         "_x": 80, "_y": 60,
                     },
                     "branch_equipment": {
                         "type": "branch", "name": "По виду фитинга", "param_name": "equipment_type_id",
+                        "description": "Ветвление по виду фитинга",
                         "match_values": ["17"],
                         "match_target": "page_pipe",
                         "else_target": "page_thread",
@@ -30,6 +32,7 @@ class Command(BaseCommand):
                     },
                     "page_pipe": {
                         "type": "page", "name": "Параметры трубки",
+                        "description": "Параметры трубки",
                         "params": [
                             {"title": "Диаметр трубки", "param_name": "pipe_diameter", "order": 1},
                             {"title": "Материал трубки", "param_name": "pipe_material_id", "order": 2},
@@ -38,6 +41,7 @@ class Command(BaseCommand):
                     },
                     "page_thread": {
                         "type": "page", "name": "Параметры резьбы",
+                        "description": "Параметры резьбового соединения",
                         "params": [
                             {"title": "Тип резьбы", "param_name": "thread_type_id", "order": 1},
                             {"title": "Размер резьбы", "param_name": "thread_id", "order": 2},
@@ -47,6 +51,7 @@ class Command(BaseCommand):
                     },
                     "page_material": {
                         "type": "page", "name": "Материал и температура",
+                        "description": "Материал корпуса и температурный режим",
                         "params": [
                             {"title": "Материал корпуса", "param_name": "body_material_id", "order": 1},
                             {"title": "Температура мин", "param_name": "temp_min", "order": 2},
@@ -78,11 +83,13 @@ class Command(BaseCommand):
                 "nodes": {
                     "page_sensor": {
                         "type": "page", "name": "Тип датчика",
+                        "description": "Выберите тип датчика БКВ",
                         "params": [{"title": "Тип датчика", "param_name": "sensor_variety_id", "order": 1}],
                         "_x": 80, "_y": 60,
                     },
                     "branch_sensor": {
                         "type": "branch", "name": "По типу датчика", "param_name": "sensor_variety_id",
+                        "description": "Ветвление по типу датчика",
                         "match_values": ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
                         "match_target": "page_common",
                         "else_target": "page_common",
@@ -90,15 +97,20 @@ class Command(BaseCommand):
                     },
                     "page_common": {
                         "type": "page", "name": "Основные параметры",
+                        "description": "Количество точек, тип сигнала, форма контактов, материал корпуса, IP, взрывозащита",
                         "params": [
                             {"title": "Количество точек", "param_name": "points_option_id", "order": 1},
-                            {"title": "Материал корпуса", "param_name": "body_material_id", "order": 2},
-                            {"title": "IP", "param_name": "ip_id", "order": 3},
+                            {"title": "Тип сигнала", "param_name": "signal_type_id", "order": 2},
+                            {"title": "Форма контактов", "param_name": "contact_form_id", "order": 3},
+                            {"title": "Материал корпуса", "param_name": "body_material_id", "order": 4},
+                            {"title": "IP", "param_name": "ip_id", "order": 5},
+                            {"title": "Взрывозащита", "param_name": "exd_id", "order": 6},
                         ],
                         "_x": 80, "_y": 420,
                     },
                     "page_temp": {
                         "type": "page", "name": "Температура",
+                        "description": "Температура эксплуатации",
                         "params": [{"title": "Температура мин", "param_name": "work_temp_min", "order": 1}],
                         "_x": 80, "_y": 600,
                     },
@@ -125,6 +137,7 @@ class Command(BaseCommand):
                 "nodes": {
                     "page_params": {
                         "type": "page", "name": "Параметры",
+                        "description": "Основные параметры соленоидного клапана",
                         "params": [
                             {"title": "Серия", "param_name": "model_line_id", "order": 1},
                             {"title": "Бренд", "param_name": "brand_id", "order": 2},
@@ -137,6 +150,8 @@ class Command(BaseCommand):
                             {"title": "Резьба подключения", "param_name": "pneumatic_connection_thread_id", "order": 9},
                             {"title": "IP", "param_name": "ip_id", "order": 10},
                             {"title": "Ex", "param_name": "exd_id", "order": 11},
+                            {"title": "Kv не менее", "param_name": "kv_min", "order": 12},
+                            {"title": "Клим. исполнение", "param_name": "climate", "order": 13},
                         ],
                         "_x": 80, "_y": 60,
                     },
@@ -159,6 +174,7 @@ class Command(BaseCommand):
                 "nodes": {
                     "page_params": {
                         "type": "page", "name": "Параметры",
+                        "description": "Основные параметры фильтр-регулятора",
                         "params": [
                             {"title": "Серия", "param_name": "model_line_id", "order": 1},
                             {"title": "Бренд", "param_name": "brand_id", "order": 2},
@@ -191,11 +207,17 @@ class Command(BaseCommand):
                 "nodes": {
                     "page_params": {
                         "type": "page", "name": "Параметры",
+                        "description": "Основные параметры ручного дублёра",
                         "params": [
                             {"title": "Серия", "param_name": "model_line_id", "order": 1},
                             {"title": "Бренд", "param_name": "brand_id", "order": 2},
                             {"title": "IP", "param_name": "ip_id", "order": 3},
                             {"title": "Материал корпуса", "param_name": "body_material_id", "order": 4},
+                            {"title": "Рабочий момент", "param_name": "min_work_torque", "order": 5},
+                            {"title": "Монтажная площадка", "param_name": "mounting_plate_top_id", "order": 6},
+                            {"title": "Температура мин", "param_name": "work_temp_min", "order": 7},
+                            {"title": "Температура макс", "param_name": "work_temp_max", "order": 8},
+                            {"title": "Клим. исполнение", "param_name": "climate", "order": 9},
                         ],
                         "_x": 80, "_y": 60,
                     },
@@ -218,11 +240,13 @@ class Command(BaseCommand):
                 "nodes": {
                     "page_cable_type": {
                         "type": "page", "name": "Тип кабеля",
+                        "description": "Выберите тип кабеля",
                         "params": [{"title": "Тип кабеля", "param_name": "cable_type_id", "order": 1}],
                         "_x": 80, "_y": 60,
                     },
                     "page_thread": {
                         "type": "page", "name": "Присоединение",
+                        "description": "Резьба и материал корпуса",
                         "params": [
                             {"title": "Резьба", "param_name": "thread_id", "order": 1},
                             {"title": "Материал корпуса", "param_name": "body_material_id", "order": 2},
@@ -231,6 +255,7 @@ class Command(BaseCommand):
                     },
                     "page_protection": {
                         "type": "page", "name": "Защита",
+                        "description": "IP и взрывозащита",
                         "params": [
                             {"title": "IP", "param_name": "ip_id", "order": 1},
                             {"title": "Взрывозащита", "param_name": "exd_id", "order": 2},

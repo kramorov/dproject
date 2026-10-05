@@ -1,6 +1,6 @@
 # SESSION.md — Текущее состояние проекта
 
-> Обновлено: 2026-10-02. Актуальные факты, механизмы и задачи. Подробности контракта
+> Обновлено: 2026-10-05. Актуальные факты, механизмы и задачи. Подробности контракта
 > каталогов — `template_mixin.md`, терминология/признаки карточки + правило fork —
 > `CATALOG_PATTERN.md`, материализация ПП — `pa_card_pattern.md`, SKU/MBOM — `sku-mbom.md`,
 > взрывозащита (Exd) — `exd-option.md`.
@@ -47,23 +47,18 @@
 - Миграция `0049` (RenameModel + RenameField + data-миграция).
 - НЕ переименованы (общие с ЭП): справочник `params.HandWheelInstalledOption`, базовое поле `hand_wheel_option`.
 
-### 1.6 Прочее
-- `BodyThrustTorqueTable.body` → `on_delete=CASCADE` (миграция 0048); удалены 3 осиротевшие строки моментов.
-- Дедуп конфигуратора `sku_service.get_or_create_sku` → по `config_hash` (не по `code`).
-- Кнопка «Перегенерировать name/description» подключена для ПП (`RegenerateSeriesItemsAdminMixin`, `regenerate_items_related_name='pa_items'`).
 
-### 1.7 Чистка статики (выполнено)
-- Удалены дубли из `static/`: `rest_framework/` (копия DRF), `ckeditor/` + `streamfield/` (пакеты не установлены, не используются), осиротевшие `cablegland.js` и `admin/css/admin.css` (все копии), 151 файл-дубль пакетов (`admin/admin_interface/colorfield`) и 7 устаревших JS/SVG от Django 3.
-- Результат: предупреждений `collectstatic` **194 → 13**; оставшиеся 13 — «override» (проект/`admin_interface` перекрывают пакетные файлы, это норма).
-
-### 1.8 Вес привода × ручной дублер (СПРОЕКТИРОВАНО, НЕ реализовано)
+### 1.8 Вес привода × ручной дублер (РЕАЛИЗОВАНО)
 - **Проблема**: у кулисных AIR-SY SR вес зависит от опции ручного дублера; у остальных дублера нет. У кулисных возможны несколько кулисных блоков.
 - **Принятая модель**: вес = **сумма аддитивных компонентов**: `вес_привода(body, пружины)` + `вес_дублера(body, опция)` + (будущее) `блоки × вес_блока`.
-- **Решение**: новая таблица `PneumaticManualOverrideWeight(body, hand_wheel_option, weight_kg)`, `unique_together=(body, hand_wheel_option)` — симметрична `PneumaticWeightParameter`.
-- `calculated_weight = calculate_actuator_weight(body, variety, spring) + manual_override_delta(body, selected_manual_override)`; «Не установлен»/нет строки → `0`.
-- **Ключ по `body`, НЕ на справочнике `HandWheelInstalledOption`** (нет размера, общий с ЭП) и НЕ на through `PneumaticManualOverrideOption` (доступ только через временный мост `source_model_line_item`).
+- **Решение (итоговое)**: вес дублера хранится полем `mo_weight` (Decimal, null/blank, default 0) на through-модели `PneumaticManualOverrideOption` — отдельная таблица `PneumaticManualOverrideWeight` **не создавалась**.
+- Миграция `0050_pneumaticmanualoverrideoption_mo_weight_and_more` (+ `AlterField weight_spring` на `PneumaticActuatorBody`).
+- `calculate_actuator_weight(body, variety, spring, manual_override_weight=None)` прибавляет вес дублера ко всем веткам с определённым базовым весом; `None` → возврат `None`.
+- Хелпер `resolve_manual_override_weight(model_line_item, hand_wheel_option)` в `pa_weight.py` ищет through-строку по паре (model_line_item, опция дублера) и возвращает `mo_weight`; «Не установлен»/нет строки → `0`.
+- Три вызова обновлены: `PneumaticActuatorConstructor.get_weight()` (резолв через `selected_model_line_item`), `PneumaticActuatorSelected.get_weight()` (через `selected_manual_override.mo_weight` напрямую — там FK уже на through), `PneumaticActuatorCatalogItem.calculated_weight` (резолв через `source_model_line_item`).
 - **config_hash/SKU не затрагиваются** (вес — derived-значение, не идентичность).
-- Отложено до следующего раза; пользователь подтвердил подход, реализация не начата.
+- Админка: `mo_weight` добавлен в inline `PneumaticManualOverrideOptionInline` (`pa_model_line_item_admin.py`).
+- Продолжение (хранимое поле `weight` + `manual_override_option`) — см. §3.
 
 ---
 
@@ -76,23 +71,46 @@
 
 ---
 
-## 3. Осталось
+## 3. Итог сессии 2026-10-05 (вес в карточке + мастер подбора)
 
-- [ ] **Снэпшот документа при `POSTED`** — на паузе; решить: хранить снимок в тех же моделях или в документах.
-- [ ] **Материализация карточек ПП** — `python manage.py generate_pa_cards` (~8к карточек + SKU). Блокер §14 снят (инъективность есть), но прогон не запускали.
-- [ ] **Вес × ручной дублер (§1.8)** — реализовать `PneumaticManualOverrideWeight` + миграцию + `calculate_actuator_weight`/`calculated_weight` + админка.
-- [x] Пересборка фронта — `vite build` + `collectstatic --clear` сделаны (пользователь).
-- [ ] `manage.py test` не прогонялся (известная медленная тестовая БД).
-- [ ] В корне репо — устаревшие скрипты `seed_etp.py` / `fill_etp.py` / `_qa_check.py` / `_fix_etp.py` / `_seed_etp.py` импортируют удалённый `ParameterSource` — починить или удалить.
+### 3.1 Вес привода — материализация в карточке
+- На `PneumaticActuatorCatalogItem` добавлено хранимое поле `weight` (DecimalField, null/blank) — вес **материализуется при генерации**, а не считается динамически.
+- `compute_weight()` — расчёт (корпус + пружины + ручной дублер); `calculated_weight` (property) теперь читает **сохранённое** `weight`.
+- `pa_item_fields.py`: плейсхолдер `{weight}` → `path: 'weight'` (хранимое поле).
+- `generate_pa_cards`: `probe.weight = probe.compute_weight()` перед сохранением; вес синхронизируется и при реактивации/обновлении существующих карточек.
+- Ручные карточки (`origin=manual`): вес пересчитывается в `save()` через `compute_weight()`.
+
+### 3.2 manual_override_option — прямое поле ручного дублера
+- На `PneumaticActuatorCatalogItem` добавлено поле `manual_override_option` (FK → `PneumaticManualOverrideOption`) — несёт `mo_weight` напрямую, без мостика `source_model_line_item`.
+- `selected_manual_override` (базовая `params.HandWheelInstalledOption`) остаётся полем идентичности/encoding (в `config_hash_fields`).
+- `save()`: если задана `manual_override_option`, базовая опция выводится из `hand_wheel_option` (до расчёта config_hash).
+- Админка `pa_item_admin.py`: `manual_override_option` фильтруется по выбранному корпусу (`formfield_for_foreignkey` → `model_line_item__body_id`); если корпус не выбран — все.
+- `from_constructor()` и генератор прокидывают through-опцию.
+
+### 3.3 Миграции ПП (все применены)
+- `0050` — `mo_weight` на `PneumaticManualOverrideOption` + `AlterField weight_spring` (decimal_places 2→3).
+- `0051` — `weight` на `PneumaticActuatorCatalogItem`.
+- `0052` — `manual_override_option` на `PneumaticActuatorCatalogItem`.
+- ⚠️ Инцидент: `0051`/`0052` были созданы, но не применены → любой запрос к `PneumaticActuatorCatalogItem` падал с `OperationalError: no such column ... manual_override_option_id`. Исправлено применением миграций (`python manage.py migrate pneumatic_actuators`).
+
+### 3.4 Мастер подбора (QuestionGraph) — фронт и контент
+- Фронт `QuestionGraphFlow.vue`: кнопки «+ Страница/Ветвление» добавляли узел за экраном (`x = count*320 + 80`). Исправлено: `newPosition()` ставит узел под последним + `fitView()` после добавления.
+- Фронт `QuestionGraphAdmin.vue`: у селектора «Тип оборудования» не было обработчика. Добавлен `@change` → подгружает граф типа (или дефолты code/name).
+- Формат графов: плоский `type/name/params/match_values` (с 2026-08-07, коммит `0b3bf39d`). Старый `question/description/pages/branches/param_names` (до `afb2133b`) потерял описания и часть параметров при переписывании.
+- Восстановлено в `load_question_graph.py` (и перезалито в БД): `description` у всех узлов; потерянные параметры:
+  - БКВ (`lsb`): `signal_type_id`, `exd_id`, `contact_form_id`;
+  - соленоиды (`directional-valve`): `kv_min`, `climate`;
+  - ручные дублёры (`manual-override`): `min_work_torque`, `mounting_plate_top_id`, `work_temp_min`, `work_temp_max`, `climate`.
+- Фитинги: `fitting_variety_id` → `equipment_type_id` — намеренное изменение 2026-08-24 (`947de6f6`), не откатывалось.
 
 ---
 
-## 4. Незакоммичено (накоплено к 2026-10-02)
+## 4. Осталось
 
-Много правок в `pneumatic_actuators/**`, `core/models/config_hash.py`, `core/apps.py`, админках
-`pa_*`, `sku_service.py`, фронте `frontend/src/**`, доки `CATALOG_PATTERN.md`/`pa_card_pattern.md`,
-плюс **12 миграций** + массовая чистка статики (`static/`, `staticfiles/` — §1.7, ~600 изменённых
-путей в `git status`). Плюс `db.sqlite3` изменён миграциями/тестами.
+- [ ] **Снэпшот документа при `POSTED`** — на паузе; решить: хранить снимок в тех же моделях или в документах.
+- [ ] **Материализация карточек ПП** — `python manage.py generate_pa_cards` (~8к карточек + SKU). Блокер §14 снят (инъективность есть), вес уже материализуется в `weight` (§3.1); прогон не запускали.
+- [x] **Вес × ручной дублер (§1.8 + §3)** — `mo_weight` + хранимое `weight` + `manual_override_option` + `calculate_actuator_weight` + админка.
+- [x] Пересборка фронта — `vite build` + `collectstatic --clear` сделаны (пользователь).
+- [ ] `manage.py test` не прогонялся (известная медленная тестовая БД).
+- [ ] В корне репо — устаревшие скрипты `seed_etp.py` / `fill_etp.py` / `_qa_check.py` / `_fix_etp.py` / `_seed_etp.py` импортируют удалённый `ParameterSource` — удалить.
 
-См. также: `template_mixin.md` (контракт шаблонов), `CATALOG_PATTERN.md` (терминология + fork),
-`pa_card_pattern.md` (материализация ПП), `sku-mbom.md` (SKU/цены/снэпшот), `exd-option.md` (Exd).

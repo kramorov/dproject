@@ -1647,6 +1647,10 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             mli.body,
             variety.code if variety else None,
             spring_code,
+            manual_override_weight=(
+                self.selected_manual_override.mo_weight
+                if self.selected_manual_override else None
+            ),
         )
 
     @property
