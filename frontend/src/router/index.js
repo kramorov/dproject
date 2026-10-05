@@ -2,8 +2,27 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '../pages/HomePage.vue'
 import PlaceholderPage from '../pages/PlaceholderPage.vue'
 import { ensurePerms, usePerms } from '@/shared/composables/usePerms'
+import { setLocale } from '@/shared/i18n'
 
 const Placeholder = (title) => ({ template: '<PlaceholderPage :title="title" />', components: { PlaceholderPage }, data: () => ({ title }) })
+
+// Локаль в URL: /en/... и /zh/... (ru — без префикса). Каждый маршрут получает
+// локализованные клоны с meta.locale; имена остаются только у ru-маршрутов.
+function expandRoutes(baseRoutes) {
+  const out = []
+  for (const r of baseRoutes) {
+    out.push({ ...r, meta: { ...r.meta, locale: 'ru' } })
+    for (const loc of ['en', 'zh']) {
+      out.push({
+        ...r,
+        name: undefined,
+        path: r.path === '/' ? `/${loc}` : `/${loc}${r.path}`,
+        meta: { ...r.meta, locale: loc },
+      })
+    }
+  }
+  return out
+}
 
 const routes = [
   { path: '/', name: 'home', component: HomePage, meta: { title: 'Главная' } },
@@ -116,7 +135,13 @@ const routes = [
   { path: '/demo/question-graph', component: () => import('../pages/QuestionGraphDemo.vue'), meta: { title: 'Граф вопросов-ответов' } },
 ]
 
-const router = createRouter({ history: createWebHistory(), routes })
+const router = createRouter({ history: createWebHistory(), routes: expandRoutes(routes) })
+
+// Локаль из meta.locale (ru по умолчанию) — до проверки прав.
+router.beforeEach((to) => {
+  setLocale(to.meta.locale || 'ru')
+  return true
+})
 
 router.beforeEach(async (to, from, next) => {
   const requiredObject = to.meta.object
@@ -132,12 +157,12 @@ router.beforeEach(async (to, from, next) => {
     if (systemGroups.value.includes('administrators')) return next()
     if (requiredObject) {
       const allowed = objectPerms.value[requiredObject] || []
-      if (!allowed.includes(requiredAction) && !allowed.includes('manage')) return next('/login')
+      if (!allowed.includes(requiredAction) && !allowed.includes('manage')) return next({ path: '/login', query: { next: to.fullPath } })
     }
-    if (requiredSection && !sectionPerms.value.includes(requiredSection)) return next('/login')
+    if (requiredSection && !sectionPerms.value.includes(requiredSection)) return next({ path: '/login', query: { next: to.fullPath } })
     next()
   } catch (e) {
-    next('/login')
+    next({ path: '/login', query: { next: to.fullPath } })
   }
 })
 

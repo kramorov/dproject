@@ -1,53 +1,57 @@
 <template>
   <div class="register-page">
     <div class="register-card">
-      <h1>Регистрация</h1>
-      <p class="subtitle">Создайте аккаунт для доступа к каталогу оборудования</p>
+      <h1>{{ t('auth.title.register') }}</h1>
+      <p class="subtitle">{{ t('auth.subtitle.register') }}</p>
       <form @submit.prevent="register" class="reg-form">
         <div class="field">
-          <label>Логин</label>
-          <input v-model="u" type="text" placeholder="Придумайте логин" autocomplete="username" />
+          <label>{{ t('auth.username') }}</label>
+          <input v-model="u" name="username" type="text" placeholder="Придумайте логин" autocomplete="username" />
         </div>
         <div class="field">
-          <label>Email</label>
-          <input v-model="e" type="email" placeholder="your@email.com" autocomplete="email" />
+          <label>{{ t('auth.email') }}</label>
+          <input v-model="e" name="email" type="email" placeholder="your@email.com" autocomplete="email" />
         </div>
         <div class="field">
-          <label>Пароль</label>
-          <input v-model="p" type="password" placeholder="Минимум 6 символов" autocomplete="new-password" />
+          <label>{{ t('auth.password') }}</label>
+          <input v-model="p" name="new-password" type="password" placeholder="Минимум 6 символов" autocomplete="new-password" />
         </div>
         <div class="field">
-          <label>Подтверждение пароля</label>
-          <input v-model="p2" type="password" placeholder="Повторите пароль" autocomplete="new-password" />
+          <label>{{ t('auth.passwordConfirm') }}</label>
+          <input v-model="p2" name="new-password-confirm" type="password" placeholder="Повторите пароль" autocomplete="new-password" />
         </div>
         <div class="error" v-if="err">{{ err }}</div>
         <div class="success" v-if="success">{{ success }}</div>
         <button class="btn-primary" :disabled="ld">
           <span v-if="ld" class="spinner"></span>
-          <span v-else>Зарегистрироваться</span>
+          <span v-else>{{ t('auth.signUp') }}</span>
         </button>
       </form>
-      <p class="link">Уже есть аккаунт? <router-link to="/login">Войти</router-link></p>
+      <p class="link">{{ t('auth.haveAccount') }} <router-link :to="localizedPath('/login', locale)">{{ t('auth.signInLink') }}</router-link></p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/shared/api'
+import { useI18n, localizedPath } from '@/shared/i18n'
+const router = useRouter()
+const { t, locale } = useI18n()
 
 const u = ref(''), e = ref(''), p = ref(''), p2 = ref(''), err = ref(''), success = ref(''), ld = ref(false)
 
 async function register() {
   err.value = ''; success.value = ''
-  if (!u.value || !e.value || !p.value) { err.value = 'Заполните все поля'; return }
-  if (p.value !== p2.value) { err.value = 'Пароли не совпадают'; return }
-  if (p.value.length < 6) { err.value = 'Пароль должен быть не менее 6 символов'; return }
+  if (!u.value || !e.value || !p.value) { err.value = t('auth.fillAll'); return }
+  if (p.value !== p2.value) { err.value = t('auth.passwordsMismatch'); return }
+  if (p.value.length < 6) { err.value = t('auth.passwordMin'); return }
   ld.value = true
   try {
     await api.post('/auth/register/', { username: u.value, email: e.value, password: p.value })
-    success.value = 'Регистрация успешна! Сейчас вы будете перенаправлены на страницу входа.'
-    setTimeout(() => { window.location.href = '/login' }, 2000)
+    success.value = t('auth.registerSuccess')
+    setTimeout(() => { router.push(localizedPath('/login', locale.value)) }, 2000)
   } catch (e) {
     err.value = e.response?.data?.error || e.response?.data?.detail || Object.values(e.response?.data || {}).flat().join('; ') || 'Ошибка регистрации'
   } finally { ld.value = false }

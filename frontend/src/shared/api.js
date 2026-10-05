@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { API_URL, API_PREFIX } from './config'
+import { getLocale } from './i18n'
 
 const api = axios.create({
   baseURL: `${API_URL}${API_PREFIX}`,
@@ -18,6 +19,9 @@ api.interceptors.request.use(c => {
   if (method === 'post' || method === 'put' || method === 'patch' || method === 'delete') {
     c.headers['X-CSRFToken'] = getCSRF()
   }
+  // Локализация данных на бэкенде (Фаза 4)
+  const l = getLocale()
+  c.headers['Accept-Language'] = l === 'zh' ? 'zh-CN' : l
   return c
 })
 

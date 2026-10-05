@@ -2,6 +2,9 @@
 
 Vue 3 + Vite. Мини-приложения в `src/apps/`, переиспользуемое в `src/shared/`.
 
+> **Актуальный план миграции к полноценному сайту** (роутинг, auth, i18n RU/EN/ZH) —
+> [`docs/migration-plan.md`](docs/migration-plan.md). Этот README описывает структуру кода.
+
 ## `src/shared/` — общие модули
 
 | Путь | Назначение |
@@ -82,21 +85,39 @@ App.vue
 
 ## `src/apps/` — мини-приложения (каталоги)
 
-Каждый каталог — отдельная точка входа в `vite.config.js → rollupOptions.input`:
+Каталоги:
+- `gearbox-catalog` — редукторы (ручные дублёры)
+- `filter-regulator-catalog` — фильтр-регуляторы
+- `solenoid-valves-catalog` — соленоидные клапаны
+- `pneumatic-fittings-catalog` — фитинги (резьба-трубка)
+- `pneumatic-plugs-catalog` — заглушки пневматические
+- `pneumatic-silencers-catalog` — глушители пневматические
+- `limit-switch-catalog` — блоки концевых выключателей (БКВ)
+- `cable-gland-catalog` — кабельные вводы
+- `pa-catalog` — пневмоприводы
 
-| Приложение | Путь | Назначение |
-|-----------|------|-----------|
-| `limit-switch-catalog` | `apps/limit-switch-catalog/` | Каталог БКВ |
-| `gearbox-catalog` | `apps/gearbox-catalog/` | Каталог редукторов |
-| `filter-regulator-catalog` | `apps/filter-regulator-catalog/` | Каталог фильтр-регуляторов |
-| `solenoid-valves-catalog` | `apps/solenoid-valves-catalog/` | Каталог клапанов |
-| `pneumatic-fittings-catalog` | `apps/pneumatic-fittings-catalog/` | Каталог фитингов |
-| `price-catalog` | `apps/price-catalog/` | Цены и документы |
-| `media-library` | `apps/media-library/` | Медиабиблиотека |
-| `pa-constructor` | `apps/pa-constructor/` | Конструктор пневмоприводов |
-| `ea-constructor` | `apps/ea-constructor/` | Конструктор электроприводов |
-| `limit-switch-admin` | `apps/limit-switch-admin/` | Админка БКВ |
-| `widget` | `apps/widget/` | Виджет для партнёров |
+Конструкторы:
+- `pa-constructor` (+ легаси `pa-constructor-legacy`) — пневмоприводы
+- `ea-constructor` — электроприводы
+- `cg-constructor` — кабельные вводы
+- `posi-constructor` — позиционеры
+
+Сервисы и админки:
+- `price-catalog` — цены и документы
+- `media-library` — медиабиблиотека
+- `cert-docs` — сертификаты
+- `sku-admin` — SKU
+- `limit-switch-admin` — админка БКВ
+- `ea-admin`, `ea-model-admin`, `ea-wiring-admin`, `ea-switches-admin` — админки электроприводов
+- `requests` — заявки клиентов
+- `assemblies` — сборки арматуры с приводом
+
+Портал/партнёры:
+- `widget` — виджет для партнёров
+
+Standalone-сборка (`vite.config.js → rollupOptions.input`, свой `index.html`): 17 приложений.
+SPA-only (обёртки `src/pages/catalog/*`, без собственного входа в сборке):
+`pneumatic-fittings/plugs/silencers-catalog`, `requests`, `assemblies`, `ea-model/wiring/switches-admin`.
 
 Структура каждого каталога:
 ```
@@ -164,9 +185,9 @@ apps/xxx-catalog/
 
 Все маршруты. `meta.role = 'admin'` для администрирования. `beforeEach` — проверка `/api/auth/me/`.
 
-## Конструктор пневмоприводов (`src/apps/actuator-constructor/`)
+## Конструктор пневмоприводов (`src/apps/pa-constructor/`)
 
-Пошаговый wizard. Подробнее: `actuator_constructor_pattern.md`.
+Пошаговый wizard (`App.vue`; легаси-версия — `App_legacy.vue`, вход `index_legacy.html`).
 
 ## Медиафайлы
 

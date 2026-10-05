@@ -4,21 +4,21 @@
       <!-- Левая панель: Вход -->
       <div class="auth-panel auth-panel-login">
         <div class="auth-panel-inner">
-          <h1>Вход</h1>
-          <p class="auth-subtitle">Войдите в личный кабинет для доступа к администрированию</p>
+          <h1>{{ t('auth.title.login') }}</h1>
+          <p class="auth-subtitle">{{ t('auth.subtitle.login') }}</p>
           <form @submit.prevent="login" class="auth-form">
             <div class="field">
-              <label>Логин</label>
-              <input v-model="u" type="text" placeholder="Введите логин" autocomplete="username" />
+              <label>{{ t('auth.username') }}</label>
+              <input v-model="u" name="username" type="text" placeholder="Введите логин" autocomplete="username" />
             </div>
             <div class="field">
-              <label>Пароль</label>
-              <input v-model="p" type="password" placeholder="Введите пароль" autocomplete="current-password" />
+              <label>{{ t('auth.password') }}</label>
+              <input v-model="p" name="password" type="password" placeholder="Введите пароль" autocomplete="current-password" />
             </div>
             <div class="error" v-if="err">{{ err }}</div>
             <button class="btn-primary" :disabled="ld">
               <span v-if="ld" class="spinner"></span>
-              <span v-else>Войти</span>
+              <span v-else>{{ t('auth.signIn') }}</span>
             </button>
           </form>
         </div>
@@ -27,30 +27,30 @@
       <!-- Правая панель: Регистрация -->
       <div class="auth-panel auth-panel-register">
         <div class="auth-panel-inner">
-          <h1>Регистрация</h1>
-          <p class="auth-subtitle">Создайте аккаунт для доступа к каталогу и подбору оборудования</p>
+          <h1>{{ t('auth.title.register') }}</h1>
+          <p class="auth-subtitle">{{ t('auth.subtitle.register') }}</p>
           <form @submit.prevent="register" class="auth-form">
             <div class="field">
-              <label>Логин</label>
-              <input v-model="ru" type="text" placeholder="Придумайте логин" autocomplete="username" />
+              <label>{{ t('auth.username') }}</label>
+              <input v-model="ru" name="username" type="text" placeholder="Придумайте логин" autocomplete="username" />
             </div>
             <div class="field">
-              <label>Email</label>
-              <input v-model="re" type="email" placeholder="your@email.com" autocomplete="email" />
+              <label>{{ t('auth.email') }}</label>
+              <input v-model="re" name="email" type="email" placeholder="your@email.com" autocomplete="email" />
             </div>
             <div class="field">
-              <label>Пароль</label>
-              <input v-model="rp" type="password" placeholder="Минимум 6 символов" autocomplete="new-password" />
+              <label>{{ t('auth.password') }}</label>
+              <input v-model="rp" name="new-password" type="password" placeholder="Минимум 6 символов" autocomplete="new-password" />
             </div>
             <div class="field">
-              <label>Подтверждение пароля</label>
-              <input v-model="rp2" type="password" placeholder="Повторите пароль" autocomplete="new-password" />
+              <label>{{ t('auth.passwordConfirm') }}</label>
+              <input v-model="rp2" name="new-password-confirm" type="password" placeholder="Повторите пароль" autocomplete="new-password" />
             </div>
             <div class="error" v-if="rerr">{{ rerr }}</div>
             <div class="success" v-if="rsuccess">{{ rsuccess }}</div>
             <button class="btn-primary btn-primary-outline" :disabled="rld">
               <span v-if="rld" class="spinner"></span>
-              <span v-else>Зарегистрироваться</span>
+              <span v-else>{{ t('auth.signUp') }}</span>
             </button>
           </form>
         </div>
@@ -61,18 +61,26 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import api from '@/shared/api'
+import { login as doLogin } from '@/shared/stores/auth'
+import { useI18n } from '@/shared/i18n'
+const { t } = useI18n()
+
+const router = useRouter()
+const route = useRoute()
 
 // ── Вход ──
 const u = ref(''), p = ref(''), err = ref(''), ld = ref(false)
 async function login() {
-  if (!u.value || !p.value) { err.value = 'Заполните все поля'; return }
+  if (!u.value || !p.value) { err.value = t('auth.fillAll'); return }
   ld.value = true; err.value = ''
   try {
-    await api.post('/auth/login/', { login: u.value, password: p.value })
-    window.location.href = '/'
+    await doLogin({ login: u.value, password: p.value })
+    const next = typeof route.query.next === 'string' ? route.query.next : '/'
+    router.push(next)
   } catch (e) {
-    err.value = e.response?.data?.error || e.response?.data?.detail || 'Ошибка входа'
+    err.value = e.response?.data?.error || e.response?.data?.detail || t('auth.loginError')
   } finally { ld.value = false }
 }
 
@@ -80,13 +88,13 @@ async function login() {
 const ru = ref(''), re = ref(''), rp = ref(''), rp2 = ref(''), rerr = ref(''), rsuccess = ref(''), rld = ref(false)
 async function register() {
   rerr.value = ''; rsuccess.value = ''
-  if (!ru.value || !re.value || !rp.value) { rerr.value = 'Заполните все поля'; return }
-  if (rp.value !== rp2.value) { rerr.value = 'Пароли не совпадают'; return }
-  if (rp.value.length < 6) { rerr.value = 'Пароль должен быть не менее 6 символов'; return }
+  if (!ru.value || !re.value || !rp.value) { rerr.value = t('auth.fillAll'); return }
+  if (rp.value !== rp2.value) { rerr.value = t('auth.passwordsMismatch'); return }
+  if (rp.value.length < 6) { rerr.value = t('auth.passwordMin'); return }
   rld.value = true
   try {
     await api.post('/auth/register/', { username: ru.value, email: re.value, password: rp.value })
-    rsuccess.value = 'Регистрация успешна! Теперь вы можете войти.'
+    rsuccess.value = t('auth.registerSuccess')
     ru.value = ''; re.value = ''; rp.value = ''; rp2.value = ''
   } catch (e) {
     rerr.value = e.response?.data?.error || e.response?.data?.detail || Object.values(e.response?.data || {}).flat().join('; ') || 'Ошибка регистрации'

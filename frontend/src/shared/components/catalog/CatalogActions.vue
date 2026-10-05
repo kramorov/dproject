@@ -8,12 +8,14 @@
       :class="{ active: active === tab.key }"
       @click="tab.event && $emit(tab.event)"
     >
-      {{ tab.label }}
+      {{ t(tab.label) }}
     </button>
   </div>
 </template>
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from '@/shared/i18n'
+const { t } = useI18n()
 
 const props = defineProps({
   active: { type: String, default: 'section' },
@@ -23,11 +25,11 @@ const props = defineProps({
 defineEmits(['section', 'engineer', 'quickselect', 'wizard', 'ai'])
 
 const allTabs = [
-  { key: 'section',    label: 'Просмотр по сериям', event: 'section' },
-  { key: 'engineer',   label: 'Инженерный подбор',  event: 'engineer' },
-  { key: 'quickselect',label: 'Быстрый подбор',     event: 'quickselect' },
-  { key: 'wizard',     label: 'Мастер подбора',     event: 'wizard' },
-  { key: 'ai',         label: 'AI подбор',          event: 'ai' },
+  { key: 'section',    label: 'catalog.mode.section', event: 'section' },
+  { key: 'engineer',   label: 'catalog.mode.engineer',  event: 'engineer' },
+  { key: 'quickselect',label: 'catalog.mode.quickselect', event: 'quickselect' },
+  { key: 'wizard',     label: 'catalog.mode.wizard',     event: 'wizard' },
+  { key: 'ai',         label: 'catalog.mode.ai',          event: 'ai' },
 ]
 
 const tabs = computed(() => (props.tabs && props.tabs.length ? props.tabs : allTabs))

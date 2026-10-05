@@ -1,19 +1,19 @@
 <template>
   <div class="top-menu">
     <div class="menu-item" v-for="item in visibleItems" :key="item.key" @mouseenter="open=item.key" @mouseleave="open=null; subOpen=null">
-      <span class="menu-link has-sub">{{ item.label }} ▾</span>
+      <span class="menu-link has-sub">{{ t(item.label) }} ▾</span>
       <div v-if="item.children && open===item.key" class="dropdown">
         <template v-for="ch in item.children" :key="ch.label">
           <!-- group with sub-dropdown -->
           <div v-if="ch.children" class="dropdown-group" @mouseenter="subOpen=ch.label" @mouseleave="subOpen=null">
-            <span class="dropdown-item has-sub">{{ ch.label }} ▸</span>
+            <span class="dropdown-item has-sub">{{ t(ch.label) }} ▸</span>
             <div v-if="subOpen===ch.label" class="sub-dropdown">
-              <router-link v-for="sub in ch.children" :key="sub.to" :to="sub.to" class="dropdown-item">{{ sub.label }}</router-link>
+              <router-link v-for="sub in ch.children" :key="sub.to" :to="localizedPath(sub.to, locale)" class="dropdown-item">{{ t(sub.label) }}</router-link>
             </div>
           </div>
           <!-- regular link -->
-          <router-link v-else :to="ch.to" class="dropdown-item">
-            {{ ch.label }}
+          <router-link v-else :to="localizedPath(ch.to, locale)" class="dropdown-item">
+            {{ t(ch.label) }}
           </router-link>
         </template>
       </div>
@@ -23,17 +23,19 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuth } from './useAuth.js'
+import { useI18n, localizedPath } from '@/shared/i18n'
 const { roles, loaded } = useAuth()
+const { locale, t } = useI18n()
 const open = ref(null)
 const subOpen = ref(null)
 
 const allItems = [
-  { key:'catalog', label:'Каталоги', children:[
-    { to:'/catalogs/equipment', label:'Каталоги оборудования' },
-    { to:'/catalogs/valves', label:'Каталоги арматуры' },
-    { to:'/catalogs/solutions', label:'Каталог готовых решений' },
+  { key:'catalog', label:'menu.catalogs', children:[
+    { to:'/catalogs/equipment', label:'menu.catalogEquipment' },
+    { to:'/catalogs/valves', label:'menu.catalogValves' },
+    { to:'/catalogs/solutions', label:'menu.catalogSolutions' },
   ]},
-  { key:'configurator', label:'Конфигураторы', children:[
+  { key:'configurator', label:'menu.configurators', children:[
     { to:'/selector/pa', label:'Подбор пневмопривода по моменту' },
     { to:'/configurator/pa', label:'Конфигуратор Пневмоприводов' },
     { to:'/admin/posi-constructor', label:'Конфигуратор Позиционеров' },
@@ -46,23 +48,23 @@ const allItems = [
     { to:'/configurator/ea-assemblies', label:'Конфигуратор Сборок арматуры с ЭП' },
     { to:'/configurator/pa-assemblies', label:'Конфигуратор Сборок арматуры с ПП' },
   ]},
-  { key:'ai', label:'AI', children:[
+  { key:'ai', label:'menu.ai', children:[
     { to:'/ai-debug', label:'AI Отладка' },
   ]},
-  { key:'requests', label:'Заявки клиентов', children:[
+  { key:'requests', label:'menu.requests', children:[
     { to:'/requests/list', label:'Список заявок' },
     { to:'/admin/customers', label:'Клиенты' },
     { to:'/requests/contractors', label:'Контрагенты' },
   ]},
-  { key:'about', label:'О проекте', children:[
-    { to:'/about', label:'О проекте' },
-    { to:'/about/capabilities', label:'Возможности системы' },
-    { to:'/about/benefits-users', label:'Преимущества для пользователей' },
-    { to:'/about/benefits-types', label:'Преимущества по типам' },
-    { to:'/about/architecture', label:'Архитектура системы' },
-    { to:'/about/contacts', label:'Контакты' },
+  { key:'about', label:'menu.about', children:[
+    { to:'/about', label:'menu.aboutProject' },
+    { to:'/about/capabilities', label:'menu.aboutCapabilities' },
+    { to:'/about/benefits-users', label:'menu.aboutBenefitsUsers' },
+    { to:'/about/benefits-types', label:'menu.aboutBenefitsTypes' },
+    { to:'/about/architecture', label:'menu.aboutArchitecture' },
+    { to:'/about/contacts', label:'menu.aboutContacts' },
   ]},
-  { key:'admin', label:'Администрирование', adminOnly:true, children:[
+  { key:'admin', label:'menu.admin', adminOnly:true, children:[
     { label:'Номенклатура и цены', children:[
       { to:'/admin/price', label:'Цены' },
       { to:'/admin/sku', label:'SKU' },

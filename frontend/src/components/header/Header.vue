@@ -1,6 +1,6 @@
 <template>
   <header class="site-header">
-    <div class="header-left"><router-link to="/" class="logo">На главную</router-link></div>
+    <div class="header-left"><router-link :to="localizedPath('/', locale)" class="logo">{{ t('header.home') }}</router-link></div>
     <nav class="header-nav"><TopMenu /></nav>
     <div class="header-search"><GlobalSearch /></div>
     <div class="header-actions">
@@ -24,54 +24,65 @@
             @mouseleave="scheduleClose"
             @click.stop
           >
-            <div class="hdr-dd__title">Мои корзины</div>
+            <div class="hdr-dd__title">{{ t('header.carts') }}</div>
             <div v-if="dropdownCarts.length" class="hdr-dd__list">
               <router-link
                 v-for="c in dropdownCarts"
                 :key="c.id"
-                :to="`/cart/${c.id}`"
+                :to="localizedPath(`/cart/${c.id}`, locale)"
                 class="hdr-dd__item"
                 :class="{ 'hdr-dd__item--active': c.is_active_cart }"
                 @click="selectCart(c)"
               >
-                <span class="hdr-dd__name">{{ c.name || 'Без названия' }}</span>
-                <span class="hdr-dd__count">{{ c.item_count }} поз.</span>
+                <span class="hdr-dd__name">{{ c.name || t('header.unnamed') }}</span>
+                <span class="hdr-dd__count">{{ c.item_count }} {{ t('header.positions') }}</span>
               </router-link>
             </div>
-            <div v-else class="hdr-dd__empty">Нет корзин</div>
-            <button class="hdr-dd__new" @click="createAndOpen">+ Новая корзина</button>
+            <div v-else class="hdr-dd__empty">{{ t('header.noCarts') }}</div>
+            <button class="hdr-dd__new" @click="createAndOpen">{{ t('header.newCart') }}</button>
           </div>
         </Transition>
       </div>
 
       <!-- Избранное -->
-      <router-link to="/favorites" class="hdr-fav" title="Избранное">
+      <router-link :to="localizedPath('/favorites', locale)" class="hdr-fav" :title="t('header.favorites')">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
         </svg>
       </router-link>
     </div>
     <div class="header-right">
+      <div class="locale-switch">
+        <button v-for="l in LOCALES" :key="l" class="loc-btn" :class="{ active: locale === l }" @click="switchLocale(l)">{{ localeLabels[l] }}</button>
+      </div>
       <template v-if="user">
         <span class="user-name">{{ user.username }}</span>
-        <button class="logout-btn" @click="doLogout">Выход</button>
+        <button class="logout-btn" @click="doLogout">{{ t('header.logout') }}</button>
       </template>
-      <router-link v-else to="/login" class="auth-link">Вход</router-link>
+      <router-link v-else :to="localizedPath('/login', locale)" class="auth-link">{{ t('header.login') }}</router-link>
     </div>
   </header>
 </template>
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import TopMenu from './TopMenu.vue'
 import GlobalSearch from './GlobalSearch.vue'
 import AppButton from '@/shared/components/AppButton.vue'
 import { useAuth } from './useAuth.js'
 import cartService from '@/shared/services/cartService'
-import api from '@/shared/api'
-const { user, role } = useAuth()
+import { useI18n, localizedPath, stripLocalePrefix, LOCALES } from '@/shared/i18n'
+const { user, logout } = useAuth()
+const { locale, t } = useI18n()
+const localeLabels = { ru: 'RU', en: 'EN', zh: '中文' }
 
 const router = useRouter()
+const route = useRoute()
+
+function switchLocale(target) {
+  if (target === locale.value) return
+  router.push({ path: localizedPath(stripLocalePrefix(route.path), target), query: route.query })
+}
 const cartCount = ref(0)
 const dropdownOpen = ref(false)
 const dropdownCarts = ref([])
@@ -108,7 +119,7 @@ function cancelClose() {
 
 function goToCartList() {
   dropdownOpen.value = false
-  router.push('/cart')
+  router.push(localizedPath('/cart', locale.value))
 }
 
 async function selectCart(cart) {
@@ -124,7 +135,7 @@ async function createAndOpen() {
     const res = await cartService.createCart()
     const newId = res.data?.id
     dropdownOpen.value = false
-    if (newId) router.push(`/cart/${newId}`)
+    if (newId) router.push(localizedPath(`/cart/${newId}`, locale.value))
   } catch {}
 }
 
@@ -139,10 +150,8 @@ onUnmounted(() => {
 })
 
 async function doLogout() {
-  try { await api.post('/auth/logout/') } catch(e) {}
-  user.value = null
-  role.value = 'viewer'
-  window.location.href = '/'
+  await logout()
+  router.push(localizedPath('/', locale.value))
 }
 </script>
 <style scoped>
@@ -158,6 +167,12 @@ async function doLogout() {
 .logout-btn:hover{background:rgba(255,255,255,.25)}
 .auth-link{color:inherit;text-decoration:none;font-size:14px;padding:6px 12px;border-radius:4px;transition:background .15s}
 .auth-link:hover{background:rgba(255,255,255,.15)}
+
+/* Переключатель локали */
+.locale-switch{display:flex;align-items:center;gap:2px;margin-right:4px}
+.loc-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1}
+.loc-btn.active{background:#fff;color:var(--site-header-bg);border-color:#fff;font-weight:700}
+.loc-btn:hover{background:rgba(255,255,255,.25)}
 
 /* Корзина */
 .hdr-cart{position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;color:inherit;cursor:pointer;border-radius:8px;transition:background .15s}

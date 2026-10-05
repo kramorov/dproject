@@ -1,116 +1,214 @@
-# SESSION.md — Текущее состояние проекта
+# SESSION.md — состояние проекта и план Фазы 4 (локализация данных)
 
-> Обновлено: 2026-10-05. Актуальные факты, механизмы и задачи. Подробности контракта
-> каталогов — `template_mixin.md`, терминология/признаки карточки + правило fork —
-> `CATALOG_PATTERN.md`, материализация ПП — `pa_card_pattern.md`, SKU/MBOM — `sku-mbom.md`,
-> взрывозащита (Exd) — `exd-option.md`.
+Дата: 2026-10-05. Это checkpoint: что сделано, какие решения приняты и подробный план
+реализации локализации данных (RU/EN/ZH) на пилоте «БКВ» (`pa_controls`).
 
 ---
 
-## 1. Итог сессии 2026-10-02 (карточки + SKU)
+## 1. Общий статус проекта
 
-### 1.1 Карточка ПП — переименование
-- `PneumaticActuatorItem` → **`PneumaticActuatorCatalogItem`** (конвенция `*CatalogItem`, пока только ПП).
-- Производные: `PneumaticActuatorCatalogItemAdmin`, `...ListView/DetailView`.
-- Миграция `pneumatic_actuators/0046_rename_...`.
+### Frontend — готово (собрано, `npm run build` зелёный)
+- **Фаза 0 (гигиена):** убран dummy `Authorization` из `frontend/src/services/axios.js`;
+  README актуализирован; план в `frontend/docs/migration-plan.md`; GraphQL заморожен.
+- **Фаза 1 (auth):** единый store `frontend/src/shared/stores/auth.js`; логин/логаут без
+  полной перезагрузки; `?next=` редирект; `name`-атрибуты полей для сохранения пароля.
+- **Фаза 2 (URL-каталоги):** `frontend/src/shared/composables/useCatalogRoute.js`
+  (SPA — query через vue-router, embed — `location.hash`). Все 9 каталогов переведены
+  на URL-управляемый режим (назад/вперёд, deep-link, бредкрамбы из маршрута).
+- **Фаза 3 (i18n UI-хрома):** лёгкий модуль `frontend/src/shared/i18n/` + словари
+  `ru/en/zh`; префикс локали `/en/`, `/zh/` (ru без префикса) через `expandRoutes()` в
+  `frontend/src/router/index.js` + guard `meta.locale`; переключатель в шапке; переведены
+  Header, TopMenu, CatalogActions (табы), auth-страницы, modeNames/бредкрамбы каталогов.
+- **Фаза 4 (фронт-задел):** `frontend/src/shared/api.js` шлёт `Accept-Language`
+  (`ru`/`en`/`zh-CN`) в каждом запросе.
 
-### 1.2 origin — происхождение карточки
-- Поле `origin` (choices `generated`/`manual`, default `generated`) на `PneumaticActuatorCatalogItem`.
-- Админка: новая карточка вручную → `origin=manual`.
-- Генератор `generate_pa_cards`: создаёт `generated`, **не трогает** `manual` (не реактивирует/не пересчитывает `code`), `--archive` только `generated`.
-- Миграция `0047_..._origin`.
+### Backend — локализация данных: НЕ начата (этот план)
 
-### 1.3 config_hash — общий миксин на всех карточках
-- `core/models/config_hash.py` — **`ConfigHashMixin`**: поле `config_hash` (unique, null) +
-  `compute_config_hash()` (неймспейс `app_label.model` + каноничный кортеж полей) +
-  `_check_config_hash_unique()`; `_hash_part()` поддерживает FK/M2M/скаляр/JSON.
-- `m2m_changed`-приёмник `config_hash_m2m_receiver` (подключён в `core/apps.py`) — пересчитывает хэш после M2M.
-- Подключено к **9** карточным моделям (у каждой свой `config_hash_fields`):
-  - `PneumaticActuatorCatalogItem` (10), `CableGland` (5), `DirectionValve` (16),
-    `FilterRegulator` (9), `GearBox` (8), `PneumaticFitting` (6), `SensorComponent` (5, с `brand`),
-    `PosiModelLineItem` (10, M2M `exd_options`), `LimitSwitchBox` (16, M2M `exd` + скаляры).
-- Миграции: cable_glands 0017, solenoid_valves 0023, filter_regulator 0014, gearbox 0025,
-  pneumatic_fittings 0020, pa_controls 0066 (Sensor) + 0067 (Posi+LSB).
-
-### 1.4 Правило fork (зафиксировано в CATALOG_PATTERN.md)
-- Хэш тот же, код другой → **та же SKU** (переименование `code`).
-- Хэш другой → **новый продукт** → новая карточка + SKU (старая архивируется).
-- Код обязан быть **инъективен** к хэшу (иначе — баг шаблона артикула).
-
-### 1.5 hand_wheel → manual_override (только ПП)
-- Through-модель `PneumaticHandWheelOption` → **`PneumaticManualOverrideOption`**, родитель `model_line` → `model_line_item`.
-- `selected_hand_wheel` → `selected_manual_override` (item + constructor + legacy selected).
-- Плейсхолдер `{hand_wheel}` → `{manual_override}` (реестр + шаблоны серий + `EquipmentType` fallback).
-- **Data-перенос**: серия `AIR-SY` (code='AIR-SY') — все опции в каждый типоразмер; остальные — «Не установлен».
-- Админка: inline ручного дублера перенесён из серии в «модель в серии» (`model_line_item` admin).
-- Фронт (исходники) переведён; `ea-constructor` (ЭП) — **не трогали**.
-- Миграция `0049` (RenameModel + RenameField + data-миграция).
-- НЕ переименованы (общие с ЭП): справочник `params.HandWheelInstalledOption`, базовое поле `hand_wheel_option`.
-
-
-### 1.8 Вес привода × ручной дублер (РЕАЛИЗОВАНО)
-- **Проблема**: у кулисных AIR-SY SR вес зависит от опции ручного дублера; у остальных дублера нет. У кулисных возможны несколько кулисных блоков.
-- **Принятая модель**: вес = **сумма аддитивных компонентов**: `вес_привода(body, пружины)` + `вес_дублера(body, опция)` + (будущее) `блоки × вес_блока`.
-- **Решение (итоговое)**: вес дублера хранится полем `mo_weight` (Decimal, null/blank, default 0) на through-модели `PneumaticManualOverrideOption` — отдельная таблица `PneumaticManualOverrideWeight` **не создавалась**.
-- Миграция `0050_pneumaticmanualoverrideoption_mo_weight_and_more` (+ `AlterField weight_spring` на `PneumaticActuatorBody`).
-- `calculate_actuator_weight(body, variety, spring, manual_override_weight=None)` прибавляет вес дублера ко всем веткам с определённым базовым весом; `None` → возврат `None`.
-- Хелпер `resolve_manual_override_weight(model_line_item, hand_wheel_option)` в `pa_weight.py` ищет through-строку по паре (model_line_item, опция дублера) и возвращает `mo_weight`; «Не установлен»/нет строки → `0`.
-- Три вызова обновлены: `PneumaticActuatorConstructor.get_weight()` (резолв через `selected_model_line_item`), `PneumaticActuatorSelected.get_weight()` (через `selected_manual_override.mo_weight` напрямую — там FK уже на through), `PneumaticActuatorCatalogItem.calculated_weight` (резолв через `source_model_line_item`).
-- **config_hash/SKU не затрагиваются** (вес — derived-значение, не идентичность).
-- Админка: `mo_weight` добавлен в inline `PneumaticManualOverrideOptionInline` (`pa_model_line_item_admin.py`).
-- Продолжение (хранимое поле `weight` + `manual_override_option`) — см. §3.
+### Осталось после Фазы 4
+- Фаза 5: runtime-проверка standalone-сборок и hash-fallback (нужен запущенный фронт + браузер).
 
 ---
 
-## 2. Факты (проверено в этой сессии)
+## 2. Согласованные решения (не пересматривать без нужды)
 
-- **Инъективность** (1 конфигурация = 1 код = 1 хэш), все 5 серий ПП — OK:
-  серия 4 = 3036, серия 5 = 2024, серия 6 = 456, серия 11 = 141, серия 12 = 452.
-- Приоритет шаблонов name/description: **серия (`model_line`) → `EquipmentType` → `{model_code}`**.
-- `EquipmentType «Пневмопривод» (id=3)` в `content_type` → legacy `PneumaticActuatorModelLineItem` (НЕ исправлено, известный пункт).
-
----
-
-## 3. Итог сессии 2026-10-05 (вес в карточке + мастер подбора)
-
-### 3.1 Вес привода — материализация в карточке
-- На `PneumaticActuatorCatalogItem` добавлено хранимое поле `weight` (DecimalField, null/blank) — вес **материализуется при генерации**, а не считается динамически.
-- `compute_weight()` — расчёт (корпус + пружины + ручной дублер); `calculated_weight` (property) теперь читает **сохранённое** `weight`.
-- `pa_item_fields.py`: плейсхолдер `{weight}` → `path: 'weight'` (хранимое поле).
-- `generate_pa_cards`: `probe.weight = probe.compute_weight()` перед сохранением; вес синхронизируется и при реактивации/обновлении существующих карточек.
-- Ручные карточки (`origin=manual`): вес пересчитывается в `save()` через `compute_weight()`.
-
-### 3.2 manual_override_option — прямое поле ручного дублера
-- На `PneumaticActuatorCatalogItem` добавлено поле `manual_override_option` (FK → `PneumaticManualOverrideOption`) — несёт `mo_weight` напрямую, без мостика `source_model_line_item`.
-- `selected_manual_override` (базовая `params.HandWheelInstalledOption`) остаётся полем идентичности/encoding (в `config_hash_fields`).
-- `save()`: если задана `manual_override_option`, базовая опция выводится из `hand_wheel_option` (до расчёта config_hash).
-- Админка `pa_item_admin.py`: `manual_override_option` фильтруется по выбранному корпусу (`formfield_for_foreignkey` → `model_line_item__body_id`); если корпус не выбран — все.
-- `from_constructor()` и генератор прокидывают through-опцию.
-
-### 3.3 Миграции ПП (все применены)
-- `0050` — `mo_weight` на `PneumaticManualOverrideOption` + `AlterField weight_spring` (decimal_places 2→3).
-- `0051` — `weight` на `PneumaticActuatorCatalogItem`.
-- `0052` — `manual_override_option` на `PneumaticActuatorCatalogItem`.
-- ⚠️ Инцидент: `0051`/`0052` были созданы, но не применены → любой запрос к `PneumaticActuatorCatalogItem` падал с `OperationalError: no such column ... manual_override_option_id`. Исправлено применением миграций (`python manage.py migrate pneumatic_actuators`).
-
-### 3.4 Мастер подбора (QuestionGraph) — фронт и контент
-- Фронт `QuestionGraphFlow.vue`: кнопки «+ Страница/Ветвление» добавляли узел за экраном (`x = count*320 + 80`). Исправлено: `newPosition()` ставит узел под последним + `fitView()` после добавления.
-- Фронт `QuestionGraphAdmin.vue`: у селектора «Тип оборудования» не было обработчика. Добавлен `@change` → подгружает граф типа (или дефолты code/name).
-- Формат графов: плоский `type/name/params/match_values` (с 2026-08-07, коммит `0b3bf39d`). Старый `question/description/pages/branches/param_names` (до `afb2133b`) потерял описания и часть параметров при переписывании.
-- Восстановлено в `load_question_graph.py` (и перезалито в БД): `description` у всех узлов; потерянные параметры:
-  - БКВ (`lsb`): `signal_type_id`, `exd_id`, `contact_form_id`;
-  - соленоиды (`directional-valve`): `kv_min`, `climate`;
-  - ручные дублёры (`manual-override`): `min_work_torque`, `mounting_plate_top_id`, `work_temp_min`, `work_temp_max`, `climate`.
-- Фитинги: `fitting_variety_id` → `equipment_type_id` — намеренное изменение 2026-08-24 (`947de6f6`), не откатывалось.
+1. Локали: `ru` (базовый), `en`, `zh`. URL-префикс `/en/`, `/zh/`, ru — без префикса.
+2. GraphQL заморожен, работаем по REST (DRF).
+3. SSR (Nuxt) на паузе — держим SPA единообразно с мини-приложениями.
+4. Переводы данных — да (не только UI).
+5. **Форма хранения:** базовое RU-поле остаётся рабочим (редактируется как раньше);
+   рядом добавляется `<field>_i18n` = `JSONField(default=dict)` = `{"ru": "...", "en": "...", "zh": "..."}`.
+   При сохранении `ru` синхронизируется в `_i18n["ru"]`. Чтение — только через
+   `pick_i18n(field_i18n, locale)` (fallback: `locale → ru → ""`).
+6. Шаблоны резолвятся на **2 уровнях**: `model_line` (каталога) → `EquipmentType` (фоллбэк).
+7. `name`/`description` — **гибрид**: локализованные шаблоны (источник истины) +
+   денормализованный `display_i18n` на айтеме (быстрое чтение списков).
+8. **Пилот — БКВ** (`pa_controls`).
 
 ---
 
-## 4. Осталось
+## 3. Уже готово (Фаза 4, шаг 0)
 
-- [ ] **Снэпшот документа при `POSTED`** — на паузе; решить: хранить снимок в тех же моделях или в документах.
-- [ ] **Материализация карточек ПП** — `python manage.py generate_pa_cards` (~8к карточек + SKU). Блокер §14 снят (инъективность есть), вес уже материализуется в `weight` (§3.1); прогон не запускали.
-- [x] **Вес × ручной дублер (§1.8 + §3)** — `mo_weight` + хранимое `weight` + `manual_override_option` + `calculate_actuator_weight` + админка.
-- [x] Пересборка фронта — `vite build` + `collectstatic --clear` сделаны (пользователь).
-- [ ] `manage.py test` не прогонялся (известная медленная тестовая БД).
-- [ ] В корне репо — устаревшие скрипты `seed_etp.py` / `fill_etp.py` / `_qa_check.py` / `_fix_etp.py` / `_seed_etp.py` импортируют удалённый `ParameterSource` — удалить.
+`core/utils/localization.py` — проверено:
+- `pick_i18n(i18n, locale, fallback='ru')` — устойчив к plain-строке (не dict).
+- `sync_ru(i18n, ru_value)` — вернуть dict с обновлённым `ru` (не мутирует).
+- `set_locale(i18n, locale, value)` — вернуть dict с переводом.
+- `locale_from_accept_language(header)` — `Accept-Language → ru|en|zh`.
 
+Проверка: `python manage.py check` → «no issues»; smoke-тест хелперов прошёл.
+
+---
+
+## 4. Подробный план Фазы 4 (пилот БКВ)
+
+### Шаг 1 — локаль-осведомлённый `core/models/mixins.py`
+
+Файл: `core/models/mixins.py` (91 КБ, много подклассов — делать осторожно).
+
+Текущее состояние (важно):
+- `generate_name()`, `generate_description()`, `generate_title()`, `generate_spec_title()`,
+  `generate_list_title()` вызывают `_fill_template(self.<field>_template, ...)`.
+- Свойства `<field>_template` (name/description/title/spec_title/list_title) резолвят цепочку:
+  `_get_title_template_source()` / `_get_description_template_source()` (model_line)
+  → `_get_equipment_type_template(field)` (EquipmentType) → `_get_default_*_template()`.
+- `_fill_template(template, data_dict)` подставляет плейсхолдеры из `_get_data_dict()`,
+  а значения резолвит `_resolve_data_dict_target()` (справочники).
+- `save()` → `update_name(save=False)` + `update_description(save=False)` (если не
+  `skip_auto_generate=True`).
+
+Изменения:
+1. Добавить параметр `locale=None` (default `DEFAULT_LOCALE`) во все `generate_*`.
+2. Добавить метод `_resolve_template(field_base, locale)`:
+   - взять RU-шаблон текущей цепочки (`getattr(self, field_base)` — существующее свойство);
+   - взять `_i18n` из ТОГО ЖЕ источника резолва (model_line или EquipmentType);
+   - вернуть `pick_i18n(i18n, locale, fallback=ru_template)`.
+   ВАЖНО: `_i18n` нужно читать из того же объекта, откуда взят RU-шаблон, чтобы не
+   разъехаться (проверить `_get_title_template_source()` и аналоги).
+3. `_get_data_dict(locale)` и `_resolve_data_dict_target(locale)` — локализовать значения
+   справочников (связано с Шагом 3): `pick_i18n(obj.<field>_i18n, locale)`.
+4. `generate_*` передают `locale` в `_fill_template` и в `_get_data_dict`.
+
+Проверка: `manage.py check` + юнит-тест `generate_description('ru') == generate_description('en')`
+при пустых переводах (fallback на ru) и различаются при заполненном en.
+
+### Шаг 2 — шаблоны `_i18n` (миграция + sync)
+
+Файлы и поля:
+- `core/models/equipment_type.py` (EquipmentType): добавить JSONField `default=dict`:
+  `name_template_i18n`, `description_template_i18n`, `title_template_i18n`,
+  `spec_title_template_i18n`, `list_title_template_i18n`, `spec_template_i18n`.
+- `pa_controls/models/lsb_model_line.py` (БКВ series): добавить
+  `name_template_i18n`, `description_template_i18n`.
+  (Проверить, есть ли у этой модели `title_template`/`spec_template` — у других каталогов
+  есть; у БКВ по факту только name/description, остальное из EquipmentType.)
+
+Миграция:
+- `makemigrations` + **data-migration**: для каждой существующей записи с непустым RU-полем
+  → `_i18n["ru"] = ru_поле`.
+- Синхронизация на save: в `save()` (или сигнал `pre_save`) — `field_i18n = sync_ru(field_i18n, field_ru)`
+  для каждого локализуемого поля. `core/utils/localization.py` уже имеет `sync_ru`.
+
+Проверка: `manage.py makemigrations --check` (после миграций), `manage.py migrate`,
+ручная проверка в админке/шелл: поменял `title_template` → `title_template_i18n["ru"]` обновился.
+
+### Шаг 3 — справочники БКВ `_i18n`
+
+Файлы (БКВ-справочники, строковые поля `name`/`description`/`text_description`):
+- `pa_controls/models/sensor.py` (тип сенсора)
+- `pa_controls/models/lsb_body.py` (материал корпуса)
+- `pa_controls/models/visual_indicator.py` (визуальный индикатор)
+- `pa_controls/models/pa_control_options.py` (опции; ВНИМАНИЕ: там есть свои
+  `name_template`/`description_template` — их тоже локализовать как в Шаге 2)
+- `pa_controls/models/pa_control_mounting.py` (монтаж)
+
+Изменения:
+- Добавить `name_i18n`, `description_i18n` (и `text_description_i18n`, где есть) JSONField `default=dict`.
+- Sync ru на save (как в Шаге 2).
+- Связать с Шагом 1: `_resolve_data_dict_target(locale)` читает `_i18n`.
+
+НЕ переводить: `symbolic_code`, числовые поля, FK-коды. `choices`-справочники в коде
+(`ETT_ACTUATOR_TYPES` и т.п.) — отдельная история (gettext `_()` или вынос в БД), в этот
+пилот не входит.
+
+Проверка: тест резолва шаблона с локализованным справочником.
+
+### Шаг 4 — `display_i18n` на айтеме
+
+Файл: `pa_controls/models/limit_switch.py` (и, при необходимости, общий миксин).
+
+Изменения:
+- Добавить `display_i18n = JSONField(default=dict)` на айтем.
+- В `save()` (после авто-генерации) собрать на каждую локаль из `LOCALES`:
+  `{"name": ..., "description": ..., "title": ..., "list_title": ..., "spec_title": ...}`
+  через `generate_*(locale)`.
+  Итог: `display_i18n = {"ru": {...}, "en": {...}, "zh": {...}}`.
+- Инвалидация: перегенерировать на `save()` айтема; при изменении шаблона/справочника —
+  либо сигнал, либо management-команда массового пересчёта (на пилоте — команда или ручной запуск).
+
+Проверка: тест — создал айтем → `display_i18n` содержит все 3 локали; изменил шаблон →
+  после пересчёта `display_i18n` обновился.
+
+### Шаг 5 — сериализаторы/вью читают локаль
+
+Файлы:
+- `pa_controls/catalog/views_list.py`, `views_detail.py`, `views_engineer.py`, `views_filters.py`, `views_quickselect.py`, `views/meta.py`, `views/catalog.py`.
+- `core/models/catalog_serializer.py` (общий сериализатор каталога + `spec_download_url`).
+
+Изменения:
+- Локаль из `request.headers['Accept-Language']` → `locale_from_accept_language()`.
+- Отдавать локализованные поля: name/description/title — из `display_i18n[locale]`
+  (fallback ru), а не из сырых `name`/`description`.
+- Мета/фильтры: подписи фильтров и значения справочников — через `_i18n`.
+- `label`/`description` справочников в `views/meta.py` и `filter_defs.py` — локализовать.
+
+Проверка: ручной/авто-тест API с заголовком `Accept-Language: en` возвращает en-поля.
+
+### Шаг 6 — спецификация `.docx` на локаль
+
+Файл: `core/models/spec_docx.py` (+ `core/models/mixins.py` для контекста).
+
+Изменения:
+- `render_spec_docx(item, locale=None)` — пробросить локаль.
+- Заголовок: `generate_spec_title(locale)` (локализованный `spec_title_template`).
+- Подписи групп/полей: `spec_template_i18n[locale]` (локализованный `{"группа": {"подпись": ключ}}`).
+- Значения полей: из справочников с `_i18n` (Шаг 3).
+- Хром документа («Спецификация»/«Specification» и шапка) — отдельный локализованный
+  словарь/JSON на уровне рендерера (позже).
+
+Проверка: генерация `.docx` для `ru` и `en` → заголовок и подписи различаются.
+
+---
+
+## 5. Верификация на каждом шаге
+
+- `python manage.py check` — после каждой правки моделей/mixins.
+- `python manage.py makemigrations pa_controls core --check` — миграции в норме.
+- `python manage.py migrate` — только после makemigrations.
+- Юнит-тест на fallback (`pick_i18n`): `en` отсутствует → возвращается `ru`.
+- `frontend`: `npm run build` (не должен ломаться — бэкенд-правки не влияют, но проверить).
+
+---
+
+## 6. Риски и открытые вопросы
+
+- **`mixins.py` большой и общий** — правки локали затрагивают все каталоги, не только БКВ.
+  Делать через `locale=None` (default ru), чтобы поведение остальных каталогов не изменилось.
+- **`spec_template` — вложенный JSON** (`{группа: {подпись: ключ}}`); локализованная форма
+  `{"ru": {...}, "en": {...}, "zh": {...}}` — локаль как внешний ключ. Не перепутать с
+  плоскими `*_template_i18n`.
+- **Синхронизация ru→`_i18n["ru"]`**: решить, делать в `save()` или в `pre_save`-сигнале,
+  чтобы не зациклить (не вызывать повторный `save()` из `sync_ru`).
+- **Массовая перегенерация `display_i18n`** при изменении шаблона/справочника — нужна
+  management-команда (на пилоте достаточно ручного запуска).
+- **`choices`-справочники в коде** (ett и др.) — вне пилота; позже gettext `_()` или вынос в БД.
+- **Аудит `_()`**: НЕ везде обёрнуто (ai_assistant, configurator, assemblies, ett, gearbox,
+  image_processor, media_library, частично electric_actuators/core). Отдельная задача по статике,
+  вне пилота.
+
+---
+
+## 7. Что делать первым при возврате к реализации
+
+1. `core/models/mixins.py` — `locale`-параметр в `generate_*` + `_resolve_template(locale)`
+   + `_get_data_dict(locale)`/`_resolve_data_dict_target(locale)`. (Шаг 1)
+2. Миграции шаблонов `_i18n` (EquipmentType + lsb_model_line) + data-migration + sync ru. (Шаг 2)
+3. Дальше по шагам 3→6, с `manage.py check` после каждого.
