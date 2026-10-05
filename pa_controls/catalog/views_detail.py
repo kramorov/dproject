@@ -11,6 +11,7 @@ from django.utils import translation
 from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
 from price.services.currency_converter import get_display_price
 from core.utils.catalog_helpers import get_currency_code
+from core.utils.localization import locale_from_accept_language
 
 
 class LimitSwitchBoxDetailView(APIView):
@@ -18,6 +19,7 @@ class LimitSwitchBoxDetailView(APIView):
     config = LIMIT_SWITCH_CONFIG
 
     def get(self, request, pk):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         lang = request.GET.get('lang', 'ru')
         currency_code = get_currency_code(request)
 
@@ -37,7 +39,7 @@ class LimitSwitchBoxDetailView(APIView):
                 ),
                 pk=pk,
             )
-            data = item.to_dict()
+            data = item.to_dict(locale=locale)
 
             sku_id = item.sku_id
             if sku_id:

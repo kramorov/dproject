@@ -1,5 +1,5 @@
 import ru from './ru'
 import en from './en'
-import zh from './zh'
+import cn from './cn'
 
-export const messages = { ru, en, zh }
+export const messages = { ru, en, cn }

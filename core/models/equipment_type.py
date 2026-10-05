@@ -3,6 +3,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 from .base import BaseAbstractModel
+from ..utils.localization import sync_ru
 
 
 class EquipmentType(BaseAbstractModel):
@@ -113,6 +114,41 @@ class EquipmentType(BaseAbstractModel):
         )
     )
 
+    # ── Локализованные шаблоны (ru/en/cn) — расширение RU-полей ──
+    name_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона названия (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с name_template.')
+    )
+    description_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона описания (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с description_template.')
+    )
+    title_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона заголовка (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с title_template.')
+    )
+    spec_title_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы заголовка спецификации (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с spec_title_template.')
+    )
+    list_title_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы заголовка в списке (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с list_title_template.')
+    )
+    spec_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона спецификации (ru/en/cn)"),
+        help_text=_(
+            'Локаль — внешний ключ: {"ru": {группа: {подпись: ключ}}, "en": {...}, "cn": {...}}. '
+            '"ru" синхронизируется с spec_template.'
+        )
+    )
+
     # ── Список параметров, выводимых в списке (вторая/третья строка) ──
     list_params = models.JSONField(
         blank=True,
@@ -215,6 +251,13 @@ class EquipmentType(BaseAbstractModel):
             self.level = self.parent.level + 1
         else:
             self.level = 0
+        # Локализация (Фаза 4): синхронизация RU-значений в _i18n
+        self.name_template_i18n = sync_ru(self.name_template_i18n, self.name_template)
+        self.description_template_i18n = sync_ru(self.description_template_i18n, self.description_template)
+        self.title_template_i18n = sync_ru(self.title_template_i18n, self.title_template)
+        self.spec_title_template_i18n = sync_ru(self.spec_title_template_i18n, self.spec_title_template)
+        self.list_title_template_i18n = sync_ru(self.list_title_template_i18n, self.list_title_template)
+        self.spec_template_i18n = sync_ru(self.spec_template_i18n, self.spec_template)
         super().save(*args, **kwargs)
 
     def get_full_path(self):

@@ -21,15 +21,15 @@
     </div>
 
     <Spinner v-if="loading && !series.length" />
-    <div v-if="loading && series.length" class="loading-hint">Обновление…</div>
+    <div v-if="loading && series.length" class="loading-hint">{{ t('catalog.section.updating') }}</div>
 
     <div class="series-grid" v-if="series.length">
       <div v-for="s in series" :key="s.id" class="series-card" @click="$emit('selectSeries', s.id)">
         <div class="series-image"><img v-if="s.image" :src="s.image" :alt="s.name" loading="lazy" /><span v-else class="no-image">{{ labels.icon }}</span></div>
-        <div class="series-body"><h3>Серия {{ s.name }}</h3><p class="series-desc" v-if="s.description">{{ s.description }}</p></div>
+        <div class="series-body"><h3>{{ t('catalog.section.seriesPrefix') }} {{ s.name }}</h3><p class="series-desc" v-if="s.description">{{ s.description }}</p></div>
       </div>
     </div>
-    <div class="empty" v-else-if="loaded && !loading">Нет доступных серий</div>
+    <div class="empty" v-else-if="loaded && !loading">{{ t('catalog.section.noSeries') }}</div>
   </div>
 </template>
 <script setup>
@@ -37,6 +37,8 @@ import { ref, reactive, watch, onMounted } from 'vue'
 import { debug } from '@/shared/config'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import Spinner from '@/shared/components/Spinner.vue'
+import { useI18n } from '@/shared/i18n'
+const { t } = useI18n()
 const props = defineProps({
   api:{type:Object,required:true},
   labels:{type:Object,required:true},

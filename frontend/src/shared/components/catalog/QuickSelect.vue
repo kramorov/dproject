@@ -4,14 +4,14 @@
   <div class="qs-page">
     <span class="debug-tag" v-if="debug">QuickSelect</span>
     <PageTitle :title="pageTitle" />
-    <div class="chip-group" v-if="modelLines.length"><div class="chip-label">Серия</div><div class="chip-row"><button v-for="ml in modelLines" :key="ml.id" class="chip" :class="{active:selectedML===ml.id}" @click="selectSeries(ml.id)">{{ ml.name }}</button></div></div>
+    <div class="chip-group" v-if="modelLines.length"><div class="chip-label">{{ t('catalog.section.seriesPrefix') }}</div><div class="chip-row"><button v-for="ml in modelLines" :key="ml.id" class="chip" :class="{active:selectedML===ml.id}" @click="selectSeries(ml.id)">{{ ml.name }}</button></div></div>
     <div class="qs-body">
       <aside class="qs-sidebar" v-if="filterGroups.length">
         <div class="filter-chips"><div v-for="group in filterGroups" :key="group.key" class="chip-group"><div class="chip-label">{{ group.label }}</div><div class="chip-row"><button v-for="opt in group.options" :key="opt.value||opt.id" class="chip" :class="{active:String(activeFilters[group.key])===String(opt.value??opt.id)}" @click="toggleFilter(group.key,opt.value??opt.id)">{{ opt.label||opt.name }}<span class="chip-count" v-if="opt.count!=null">({{ opt.count }})</span></button></div></div></div>
       </aside>
       <div class="qs-content">
         <div v-if="product" class="product-area"><ProductDetail :product="product" :price="product.price" :breadcrumbs="detailBreadcrumbs" @navigate="$emit('navigate', $event)" /></div>
-        <div class="empty" v-else-if="loaded">Модель не найдена — измените фильтры</div>
+        <div class="empty" v-else-if="loaded">{{ t('catalog.quickselect.notFound') }}</div>
         <Spinner v-else-if="!loaded && modelLines.length" />
       </div>
     </div>
@@ -23,20 +23,22 @@ import { debug } from '@/shared/config'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import ProductDetail from '@/shared/components/ProductDetail.vue'
 import Spinner from '@/shared/components/Spinner.vue'
+import { useI18n } from '@/shared/i18n'
+const { t } = useI18n()
 const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, brandId:{type:[Number,String],default:null}, filterLabels:{type:Object,default:()=>({})}, autoSelectRules:{type:Object,default:()=>({})} })
 defineEmits(['select','navigate'])
 const modelLines=ref([]); const selectedML=ref(null); const filterGroups=ref([]); const activeFilters=reactive({}); const product=ref(null); const loaded=ref(false)
 const pageTitle=computed(()=>props.labels.title||'Быстрый подбор')
 const eqLabel = computed(() => props.labels.breadcrumbName || 'Каталог')
 const breadcrumbs=computed(()=>[
-  { name: 'Каталог' },
+  { name: t('breadcrumb.catalog') },
   { name: eqLabel.value },
-  { name: 'Быстрый подбор' },
+  { name: t('catalog.mode.quickselect') },
 ])
 const detailBreadcrumbs=computed(()=>[
-  { name: 'Каталог', to: '/' },
+  { name: t('breadcrumb.catalog'), to: '/' },
   { name: eqLabel.value },
-  { name: 'Быстрый подбор' },
+  { name: t('catalog.mode.quickselect') },
   { name: product.value?.model_line?.name||'' },
 ])
 onMounted(async()=>{try{let mlList=[];if(typeof props.api.getSections==='function'){try{const sr=await props.api.getSections();const secs=Array.isArray(sr.data)?sr.data:(sr.data?.data||sr.data?.results||[]);mlList=secs.filter(s=>s&&s.id!=null).map(s=>({id:s.id,name:s.name}))}catch(e){mlList=[]}}if(!mlList.length){const params={limit:1000};if(props.brandId)params.brand_id=props.brandId;const r=await props.api.list(params);const items=r.data?.data||[];const mlMap={};for(const item of items){const ml=item.model_line;if(ml&&!mlMap[ml.id])mlMap[ml.id]=ml}mlList=Object.values(mlMap)}modelLines.value=mlList.sort((a,b)=>(a.name||'').localeCompare(b.name||''));if(modelLines.value.length){selectedML.value=modelLines.value[0].id;await initSeries()}loaded.value=true}catch(e){loaded.value=true}})

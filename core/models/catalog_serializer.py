@@ -24,6 +24,18 @@ from django.core import checks
 from django.utils.translation import gettext_lazy as _
 
 from .mixins import CatalogDictMixin
+from ..utils.localization import DEFAULT_LOCALE, pick_i18n
+
+
+# Заголовки секций to_dict() по локалям (вместо gettext — локаль данных из Accept-Language).
+_SECTION_TITLES = {
+    'ru': {'images': 'Изображения', 'specs': 'Характеристики', 'docs': 'Документация',
+           'certs': 'Сертификаты', 'description': 'Описание', 'main': 'Основные', 'article': 'Артикул'},
+    'en': {'images': 'Images', 'specs': 'Specifications', 'docs': 'Technical documentation',
+           'certs': 'Certificates', 'description': 'Description', 'main': 'General', 'article': 'Article'},
+    'cn': {'images': '图片', 'specs': '技术参数', 'docs': '技术文档',
+           'certs': '证书', 'description': '描述', 'main': '基本', 'article': '型号'},
+}
 
 
 class CatalogSerializerMixin(CatalogDictMixin):
@@ -94,7 +106,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
             return None
         return data
 
-    def _build_spec_sections_from_template(self, template):
+    def _build_spec_sections_from_template(self, template, locale=None):
         """Разворачивает вложенный spec_template в ``{группа: {подпись: значение}}``.
 
         Формат шаблона::
@@ -102,7 +114,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
             {"Основные": {"Температура, °С": "temp_range", "IP": "ip"}}
 
         Ключ — готовая подпись, значение — ключ поля реестра. Порядок — по
-        вставке ключей (без ``order``).
+        вставке ключей (без ``order``). Значения локализуются для ``locale``.
         """
         by_key = {f.key: f for f in self._get_field_specs()}
         result = {}
@@ -114,7 +126,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
                 spec = by_key.get(key)
                 if spec is None:
                     continue
-                value = self._format_spec_value(spec)
+                value = self._format_spec_value(spec, locale=locale)
                 if value in (None, '') or value == []:
                     continue
                 group_fields[label] = value
@@ -122,7 +134,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
                 result[group_title] = group_fields
         return result
 
-    def _build_model_code_spec(self):
+    def _build_model_code_spec(self, locale=None):
         """Фоллбэк-спецификация: только артикул (``{model_code}``)."""
         code_spec = None
         for f in self._get_field_specs():
@@ -134,18 +146,47 @@ class CatalogSerializerMixin(CatalogDictMixin):
         value = self._resolve_field(code_spec)
         if value in (None, ''):
             return {}
-        return {_('Основные'): {_('Артикул'): value}}
+        titles = _SECTION_TITLES.get(locale or DEFAULT_LOCALE, _SECTION_TITLES[DEFAULT_LOCALE])
+        return {titles['main']: {titles['article']: value}}
 
-    def _get_spec_sections(self, fields=None) -> dict:
+    def _get_spec_template_i18n(self):
+        """Переводы spec_template из ТОГО ЖЕ источника, откуда взят RU-шаблон.
+
+        Цепочка как в ``_get_spec_template``: model_line.spec_template →
+        EquipmentType.spec_template. Возвращает dict ({"ru": {...}, "en": {...}, ...})
+        или None.
+        """
+        ml = getattr(self, 'model_line', None)
+        if ml is not None and getattr(ml, 'spec_template', None):
+            i18n = getattr(ml, 'spec_template_i18n', None)
+            if isinstance(i18n, dict):
+                return i18n
+            return None
+        et = self._get_equipment_type()
+        if et is not None:
+            i18n = getattr(et, 'spec_template_i18n', None)
+            if isinstance(i18n, dict):
+                return i18n
+        return None
+
+    def _get_spec_sections(self, fields=None, locale=None) -> dict:
         """Характеристики в виде ``{группа: {подпись: значение}}``.
 
         Если задан ``spec_template`` (model_line или EquipmentType) — строит из
-        него; иначе — фоллбэк на ``{model_code}`` (один артикул).
+        него; иначе — фоллбэк на ``{model_code}`` (один артикул). Для не-RU
+        локали берётся ``spec_template_i18n[locale]`` (подписи переводятся).
         """
+        locale = locale or DEFAULT_LOCALE
         template = self._parse_spec_template(self._get_spec_template())
+        if locale != DEFAULT_LOCALE:
+            i18n = self._get_spec_template_i18n()
+            if isinstance(i18n, dict):
+                loc_template = self._parse_spec_template(i18n.get(locale))
+                if loc_template:
+                    template = loc_template
         if template:
-            return self._build_spec_sections_from_template(template)
-        return self._build_model_code_spec()
+            return self._build_spec_sections_from_template(template, locale=locale)
+        return self._build_model_code_spec(locale=locale)
 
     # ── Общие вспомогательные ──
 
@@ -225,15 +266,18 @@ class CatalogSerializerMixin(CatalogDictMixin):
                     })
         return certs
 
-    def _get_model_line_summary(self) -> dict:
+    def _get_model_line_summary(self, locale=None) -> dict:
         if not self.model_line:
             return None
         ml = self.model_line
+        locale = locale or DEFAULT_LOCALE
         return {
             'id': ml.id,
             'name': ml.name,
             'code': getattr(ml, 'code', '') or '',
-            'description': ml.description or '',
+            'description': pick_i18n(
+                getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+            ),
             'brand': {
                 'id': ml.brand.id,
                 'name': ml.brand.name,
@@ -251,22 +295,36 @@ class CatalogSerializerMixin(CatalogDictMixin):
 
     # ── Сборка to_dict ──
 
-    def to_dict(self) -> dict:
+    def _get_display_i18n(self, locale) -> dict:
+        """display_i18n[locale] айтема или None (нет поля/локали → fallback на RU-поля)."""
+        di = getattr(self, 'display_i18n', None)
+        if isinstance(di, dict):
+            entry = di.get(locale)
+            if isinstance(entry, dict):
+                return entry
+        return None
+
+    def to_dict(self, locale=None) -> dict:
+        locale = locale or DEFAULT_LOCALE
+        disp = self._get_display_i18n(locale)
+        name = (disp.get('name') if disp else None) or self.name or ''
+        description = (disp.get('description') if disp else None) or self.description or ''
+        title = (disp.get('title') if disp else None) or self.generate_title(locale)
         tv = self._get_template_vars()
         return {
             'id': self.id,
             'code': self.code or '',
-            'name': self.name or '',
-            'title': self.generate_title(),
-            'image_alt': self.name or '',
-            'description': self.description or '',
+            'name': name,
+            'title': title,
+            'image_alt': name,
+            'description': description,
             'is_active': self.is_active,
             'sorting_order': self.sorting_order,
-            'model_line': self._get_model_line_summary(),
+            'model_line': self._get_model_line_summary(locale=locale),
             'sku': self._get_sku_summary(),
             'spec_download_url': self._get_spec_download_url(),
             'template_vars': tv,
-            'sections': self._build_sections(tv),
+            'sections': self._build_sections(tv, description=description, locale=locale),
         }
 
     def _get_spec_download_url(self) -> str:
@@ -278,27 +336,29 @@ class CatalogSerializerMixin(CatalogDictMixin):
             f'{self._meta.app_label}/{self._meta.model_name}/{self.pk}/'
         )
 
-    def _build_sections(self, tv) -> list:
+    def _build_sections(self, tv, description=None, locale=None) -> list:
+        titles = _SECTION_TITLES.get(locale or DEFAULT_LOCALE, _SECTION_TITLES[DEFAULT_LOCALE])
         return [
-            self._build_gallery_section(),
-            self._build_specs_section(),
-            self._build_files_section('docs', _('Документация'),
+            self._build_gallery_section(titles),
+            self._build_specs_section(titles, locale),
+            self._build_files_section('docs', titles['docs'],
                                       self._safe_m2m(self, '_get_docs_section'), 2),
-            self._build_files_section('certs', _('Сертификаты'),
+            self._build_files_section('certs', titles['certs'],
                                       self._safe_m2m(self, '_get_certs_section'), 3),
-            self._build_text_section('description', _('Описание'), self.description or '', 4),
+            self._build_text_section('description', titles['description'],
+                                     description if description is not None else (self.description or ''), 4),
         ]
 
-    def _build_gallery_section(self) -> dict:
+    def _build_gallery_section(self, titles) -> dict:
         return {
-            'key': 'images', 'title': _('Изображения'), 'type': 'gallery',
+            'key': 'images', 'title': titles['images'], 'type': 'gallery',
             'order': 0, 'data': self._safe_m2m(self, '_get_images_section'),
         }
 
-    def _build_specs_section(self) -> dict:
+    def _build_specs_section(self, titles, locale=None) -> dict:
         return {
-            'key': 'specs', 'title': _('Характеристики'), 'type': 'specs',
-            'order': 1, 'data': self._get_spec_sections(),
+            'key': 'specs', 'title': titles['specs'], 'type': 'specs',
+            'order': 1, 'data': self._get_spec_sections(locale=locale),
         }
 
     def _build_files_section(self, key: str, title: str, data: list, order: int) -> dict:

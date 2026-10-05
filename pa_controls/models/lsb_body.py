@@ -2,10 +2,11 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from core.models import StructuredDataMixin
+from core.models.mixins import LocalizedDictFieldsMixin
 from electric_actuators.models import CableGlandHolesSet
 
 
-class LimitSwitchBody(StructuredDataMixin, models.Model):
+class LimitSwitchBody(StructuredDataMixin, LocalizedDictFieldsMixin):
     """
     Корпус БКВ
     """

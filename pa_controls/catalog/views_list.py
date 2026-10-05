@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
 from price.services.currency_converter import get_bulk_prices
 from core.utils.catalog_helpers import get_currency_code
+from core.utils.localization import locale_from_accept_language
 
 
 class LimitSwitchBoxCatalogView(APIView):
@@ -16,6 +17,7 @@ class LimitSwitchBoxCatalogView(APIView):
     config = LIMIT_SWITCH_CONFIG
 
     def get(self, request):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         params = request.query_params
         scope = params.get('scope', 'list')
         filter_set = self.config.get_filter_set(scope)
@@ -29,6 +31,7 @@ class LimitSwitchBoxCatalogView(APIView):
             params,
             filter_definitions=filter_set.definitions,
             base_queryset=qs,
+            locale=locale,
         )
 
         # Цены

@@ -92,7 +92,7 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
     def get_brand_name(self):
         return self.brand.name if self.brand else "OEM"
 
-    def _get_data_dict(self) -> Dict[str , str] :
+    def _get_data_dict(self, locale=None) -> Dict[str , str] :
         """
         Словарь соответствий плейсхолдеров и путей к атрибутам для SensorComponent
         """
@@ -148,6 +148,15 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
         """Шаблон описания по умолчанию"""
         # Искробезопасность: Ui={ui}В Ii={ii}мА Pi={pi}мВт Ci={ci}нФ Li={li}мкГн. Материал: {material}, частота: {frequency}, SIL: {sil}"
         return self.variety.description_template if self.variety else None
+
+    def _get_template_i18n(self, field_base: str):
+        """Переводы шаблона сенсора — из variety (источник шаблона), затем стандартная цепочка."""
+        i18n = super()._get_template_i18n(field_base)
+        if i18n:
+            return i18n
+        if self.variety is not None:
+            return getattr(self.variety, f'{field_base}_i18n', None)
+        return None
 
     config_hash_fields = (
         'brand', 'variety', 'signal_type', 'contact_form', 'contact_state',

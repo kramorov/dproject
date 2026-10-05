@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from django.db.models import Count
 
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
+from core.utils.localization import locale_from_accept_language, pick_i18n
 
 
 class LimitSwitchBoxSectionView(APIView):
@@ -17,6 +18,7 @@ class LimitSwitchBoxSectionView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         qs = (
             LimitSwitchModelLine.objects
             .filter(limit_switch_box_model_line__is_active=True)
@@ -33,7 +35,9 @@ class LimitSwitchBoxSectionView(APIView):
                 'id': ml.id,
                 'name': ml.name,
                 'code': ml.code or '',
-                'description': ml.description or '',
+                'description': pick_i18n(
+                    getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+                ),
                 'count': ml.count,
                 'image': (
                     img.preview_url if img and img.media_file

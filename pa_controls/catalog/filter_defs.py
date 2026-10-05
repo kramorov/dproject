@@ -15,6 +15,7 @@ fd_model_line = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.FOREIGN_KEY,
     label='Серия',
+    label_i18n={'en': 'Series', 'cn': '系列'},
     order=7,
 )
 
@@ -24,6 +25,7 @@ fd_sensor_variety = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Тип сенсора',
+    label_i18n={'en': 'Sensor type', 'cn': '传感器类型'},
     order=1,
 )
 
@@ -33,6 +35,7 @@ fd_points = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.FOREIGN_KEY,
     label='Количество датчиков',
+    label_i18n={'en': 'Number of sensors', 'cn': '传感器数量'},
     order=4,
     # id в PointsOption: 1=«2 датчика», 2=«3 датчика», 3=«4 датчика»
     # (после перевода с choices на FK id сдвинулись на -1).
@@ -49,6 +52,7 @@ fd_ip = FilterDefinition(
     data_source_type=DataSourceType.GLOBAL_MODEL,
     source_model=IpOption,
     label='IP',
+    label_i18n={'en': 'IP', 'cn': 'IP'},
     order=5,
 )
 
@@ -59,6 +63,7 @@ fd_temp_min = FilterDefinition(
     parameter_rule_code='temperature_min',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от',
+    label_i18n={'en': 'Temperature from', 'cn': '温度从'},
     order=10,
 )
 
@@ -69,6 +74,7 @@ fd_temp_max = FilterDefinition(
     parameter_rule_code='temperature_max',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до',
+    label_i18n={'en': 'Temperature to', 'cn': '温度至'},
     order=11,
 )
 
@@ -79,6 +85,7 @@ fd_exd = FilterDefinition(
     parameter_rule_code='exd',                  # backend: ParameterRule
     data_source_type=DataSourceType.CUSTOM,
     label='Взрывозащита',
+    label_i18n={'en': 'Explosion protection', 'cn': '防爆'},
     order=51,
 )
 
@@ -88,6 +95,7 @@ fd_climate = FilterDefinition(
     filter_type=FilterType.CLIMATE_CASCADE,     # frontend: ClimateFilter slider
     data_source_type=DataSourceType.CUSTOM,
     label='Клим. исполнение',
+    label_i18n={'en': 'Climatic version', 'cn': '气候类型'},
     order=50,
 )
 
@@ -136,6 +144,7 @@ fd_body_material = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.FOREIGN_KEY,
     label='Материал корпуса',
+    label_i18n={'en': 'Body material', 'cn': '壳体材料'},
     order=6,
 )
 
@@ -145,6 +154,7 @@ fd_brand = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Бренд серии',
+    label_i18n={'en': 'Series brand', 'cn': '系列品牌'},
     order=8,
 )
 
@@ -154,6 +164,7 @@ fd_signal_type = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Тип сигнала',
+    label_i18n={'en': 'Signal type', 'cn': '信号类型'},
     order=2,
 )
 
@@ -163,6 +174,7 @@ fd_contact_form = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Форма контактов',
+    label_i18n={'en': 'Contact form', 'cn': '触点形式'},
     order=3,
     show_code=True,
 )
@@ -173,6 +185,7 @@ fd_visual_indicator = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Вид визуального индикатора',
+    label_i18n={'en': 'Visual indicator', 'cn': '视觉指示器类型'},
     order=4,
 )
 

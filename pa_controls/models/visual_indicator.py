@@ -13,8 +13,10 @@ VisualIndicatorType — вид индикатора («купол») на кор
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from core.models.mixins import LocalizedDictFieldsMixin
 
-class VisualIndicatorType(models.Model):
+
+class VisualIndicatorType(LocalizedDictFieldsMixin):
     """Вид визуального индикатора положения (купол) БКВ."""
     name = models.CharField(
         max_length=200,

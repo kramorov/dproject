@@ -32,6 +32,30 @@ DEFAULT_TEMPLATE_PATH = os.path.join(
 )
 
 
+# Хром документа («Характеристики», «Артикул» и т.п.) по локалям.
+# Ключи соответствуют плейсхолдерам {{ chrome.* }} в build_spec_template().
+SPEC_CHROME = {
+    'ru': {
+        'article': 'Артикул',
+        'characteristics': 'Характеристики',
+        'tech_docs': 'Техническая документация',
+        'certs': 'Сертификаты',
+    },
+    'en': {
+        'article': 'Article',
+        'characteristics': 'Specifications',
+        'tech_docs': 'Technical documentation',
+        'certs': 'Certificates',
+    },
+    'cn': {
+        'article': '型号',
+        'characteristics': '技术参数',
+        'tech_docs': '技术文档',
+        'certs': '证书',
+    },
+}
+
+
 def _fetch_image_bytes(image: dict):
     """Байты изображения: локальный media-файл → URL (S3 presigned и т.п.)."""
     url = image.get('url')
@@ -163,14 +187,14 @@ def build_spec_template(path: str):
     doc = Document()
 
     doc.add_heading('{{ item.title }}', level=1)
-    doc.add_paragraph('Артикул: {{ item.code }}')
+    doc.add_paragraph('{{ chrome.article }}: {{ item.code }}')
 
     # Изображение — плейсхолдер в отдельном абзаце
     doc.add_paragraph('{{ image }}')
 
     # ── Характеристики ──
     doc.add_paragraph('{%p if spec_groups %}')
-    doc.add_heading('Характеристики', level=2)
+    doc.add_heading('{{ chrome.characteristics }}', level=2)
     doc.add_paragraph('{%p for g in spec_groups %}')
     doc.add_heading('{{ g.title }}', level=3)
     doc.add_paragraph('{%p for row in g.rows %}')
@@ -181,7 +205,7 @@ def build_spec_template(path: str):
 
     # ── Техническая документация ──
     doc.add_paragraph('{%p if tech_docs %}')
-    doc.add_heading('Техническая документация', level=2)
+    doc.add_heading('{{ chrome.tech_docs }}', level=2)
     doc.add_paragraph('{%p for d in tech_docs %}')
     doc.add_paragraph('{{ d.rich }}')
     doc.add_paragraph('{%p endfor %}')
@@ -189,7 +213,7 @@ def build_spec_template(path: str):
 
     # ── Сертификаты ──
     doc.add_paragraph('{%p if certs %}')
-    doc.add_heading('Сертификаты', level=2)
+    doc.add_heading('{{ chrome.certs }}', level=2)
     doc.add_paragraph('{%p for c in certs %}')
     doc.add_paragraph('{{ c.rich }}')
     doc.add_paragraph('{%p endfor %}')
@@ -203,16 +227,22 @@ def build_spec_template(path: str):
 
 
 def render_spec_docx_bytes(item, template_path: str = None, base_url: str = None,
-                          image_width_mm: float = 90.0, image_float: bool = True) -> bytes:
+                          image_width_mm: float = 90.0, image_float: bool = True,
+                          locale=None) -> bytes:
     """Рендер спецификации ``item`` в байты .docx (для HTTP-скачивания).
 
     ``image_float`` — True: картинка плавает в правом верхнем углу с обтеканием
     текста; False: обычная inline-картинка в потоке.
+    ``locale`` — локаль данных и хрома документа (ru/en/cn).
     """
+    from ..utils.localization import DEFAULT_LOCALE
+
     if DocxTemplate is None:
         raise RuntimeError('docxtpl не установлен — установите docxtpl')
 
-    ctx = item.get_spec_doc_context(base_url=base_url)
+    locale = locale or DEFAULT_LOCALE
+    ctx = item.get_spec_doc_context(base_url=base_url, locale=locale)
+    ctx['chrome'] = SPEC_CHROME.get(locale, SPEC_CHROME[DEFAULT_LOCALE])
 
     tpl_path = template_path or DEFAULT_TEMPLATE_PATH
     if not os.path.exists(tpl_path):
@@ -244,13 +274,14 @@ def render_spec_docx_bytes(item, template_path: str = None, base_url: str = None
 
 def render_spec_docx(item, output_path: str, template_path: str = None,
                      base_url: str = None, image_width_mm: float = 90.0,
-                     image_float: bool = True):
+                     image_float: bool = True, locale=None):
     """Рендер спецификации ``item`` в файл .docx.
 
     ``template_path`` — путь к .docx-шаблону; если не задан и файла нет —
     шаблон создаётся автоматически (``build_spec_template``).
     """
-    data = render_spec_docx_bytes(item, template_path, base_url, image_width_mm, image_float)
+    data = render_spec_docx_bytes(item, template_path, base_url, image_width_mm,
+                                  image_float, locale=locale)
     with open(output_path, 'wb') as fh:
         fh.write(data)
     return output_path

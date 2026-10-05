@@ -47,7 +47,7 @@
       @select="id => onSelectItem(id, 'quickselect')"
       @navigate="goToSection"
     />
-    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'lsb'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'lsb'" :total-label="t('catalog.common.foundLower')" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -58,7 +58,7 @@
     <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
       :labels="labels.ai"
-      eq-name="БКВ"
+      :eq-name="t('lsb.eqName')"
       @navigate="goToSection"
     />
     </KeepAlive>
@@ -84,18 +84,18 @@ const api = lsbApi
 const equipmentTypeId = 8  // Блок концевых выключателей
 
 const eqCode = 'lsb'
-const labels = {
-  section: { title:'Блоки концевых выключателей', subtitle:'Выберите серию БКВ', breadcrumbName:'БКВ' },
-  list: { title:'БКВ — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено', breadcrumbName:'БКВ' },
-  detail: { backLabel:'Назад к каталогу', breadcrumbName:'БКВ' },
-  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'БКВ' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'БКВ',
-    filterLabels:{ sensor_variety_id:'Тип сенсора', points:'Количество датчиков', body_material_id:'Материал корпуса', signal_type_id:'Тип сигнала' },
-    autoSelectRules:{},
+const labels = computed(() => ({
+  section: { title: t('lsb.section.title'), subtitle: t('lsb.section.subtitle'), breadcrumbName: t('lsb.breadcrumb') },
+  list: { title: t('lsb.list.title'), searchPlaceholder: t('catalog.common.search'), resultsLabel: t('catalog.common.found'), emptyLabel: t('catalog.common.nothingFound'), breadcrumbName: t('lsb.breadcrumb') },
+  detail: { backLabel: t('catalog.common.backToCatalog'), breadcrumbName: t('lsb.breadcrumb') },
+  brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('lsb.breadcrumb') },
+  quickselect: { title: t('lsb.quickselect.title'), breadcrumbName: t('lsb.breadcrumb'),
+    filterLabels: { sensor_variety_id: t('lsb.filter.sensor_variety'), points: t('lsb.filter.points'), body_material_id: t('lsb.filter.body_material'), signal_type_id: t('lsb.filter.signal_type') },
+    autoSelectRules: {},
   },
-  wizard: { breadcrumbName:'БКВ', wizardTitle:'Мастер подбора БКВ' },
-  ai: { breadcrumbName:'БКВ', aiTitle:'AI подбор БКВ' },
-}
+  wizard: { breadcrumbName: t('lsb.breadcrumb'), wizardTitle: t('lsb.wizard.title') },
+  ai: { breadcrumbName: t('lsb.breadcrumb'), aiTitle: t('lsb.ai.title') },
+}))
 
 const cacheEpoch = ref(0)
 const graphAvailable = ref(false)
@@ -129,11 +129,11 @@ const parentModeName = computed(() => {
 })
 const parentTarget = computed(() => targetByPage[fromPage.value] || 'section')
 
-const eqLabel = 'БКВ'
+const eqLabel = computed(() => t('lsb.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
     items.push({ name: parentModeName.value, target: parentTarget.value })

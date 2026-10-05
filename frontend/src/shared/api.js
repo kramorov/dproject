@@ -21,7 +21,7 @@ api.interceptors.request.use(c => {
   }
   // Локализация данных на бэкенде (Фаза 4)
   const l = getLocale()
-  c.headers['Accept-Language'] = l === 'zh' ? 'zh-CN' : l
+  c.headers['Accept-Language'] = l === 'cn' ? 'zh-CN' : l
   return c
 })
 

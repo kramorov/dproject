@@ -6,6 +6,8 @@ from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 
+from core.models.mixins import LocalizedDictFieldsMixin
+
 # from djangoProject1.common_models.eav_mixins import EAVMixin
 
 class WorkingMedium(models.Model):
@@ -30,7 +32,7 @@ class WorkingMedium(models.Model):
     def __str__(self):
         return self.name
 
-class MaterialGeneral(models.Model):
+class MaterialGeneral(LocalizedDictFieldsMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Общее название типа материала")
@@ -102,7 +104,7 @@ class MaterialStandard(models.Model):
         return f"{self.name} ({self.code})"
 
 
-class MaterialSpecified(models.Model):
+class MaterialSpecified(LocalizedDictFieldsMixin):
     """Уточненная спецификация материала"""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),

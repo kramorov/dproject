@@ -1,11 +1,11 @@
 // shared/i18n/index.js — лёгкая мультиязычность (без внешних зависимостей).
-// Реактивная локаль + словари ru/en/zh. Локаль хранится в localStorage и
-// отражается в URL-префиксе (/en/..., /zh/...), который разбирает router.
+// Реактивная локаль + словари ru/en/cn. Локаль хранится в localStorage и
+// отражается в URL-префиксе (/en/..., /cn/...), который разбирает router.
 
 import { ref } from 'vue'
 import { messages } from './locales'
 
-export const LOCALES = ['ru', 'en', 'zh']
+export const LOCALES = ['ru', 'en', 'cn']
 export const DEFAULT_LOCALE = 'ru'
 
 function detectInitialLocale() {
@@ -13,7 +13,7 @@ function detectInitialLocale() {
     const saved = localStorage.getItem('locale')
     if (saved && LOCALES.includes(saved)) return saved
     const nav = (navigator.language || '').toLowerCase()
-    if (nav.startsWith('zh')) return 'zh'
+    if (nav.startsWith('zh')) return 'cn'
     if (nav.startsWith('en')) return 'en'
   } catch (e) { /* SSR/инкогнито */ }
   return DEFAULT_LOCALE
@@ -26,7 +26,7 @@ export function setLocale(l) {
   locale.value = l
   try { localStorage.setItem('locale', l) } catch (e) { /* ignore */ }
   if (typeof document !== 'undefined') {
-    document.documentElement.lang = l === 'zh' ? 'zh-CN' : l
+    document.documentElement.lang = l === 'cn' ? 'zh-CN' : l
   }
 }
 
@@ -54,7 +54,7 @@ export function useI18n() {
 // '/en/catalog/gearbox' → '/catalog/gearbox'; '/en' → '/'; без префикса → как есть.
 export function stripLocalePrefix(path) {
   const p = path || '/'
-  for (const l of ['en', 'zh']) {
+  for (const l of ['en', 'cn']) {
     if (p === `/${l}`) return '/'
     if (p.startsWith(`/${l}/`)) return p.slice(l.length + 1)
   }

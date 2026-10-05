@@ -6,13 +6,13 @@ import { setLocale } from '@/shared/i18n'
 
 const Placeholder = (title) => ({ template: '<PlaceholderPage :title="title" />', components: { PlaceholderPage }, data: () => ({ title }) })
 
-// Локаль в URL: /en/... и /zh/... (ru — без префикса). Каждый маршрут получает
+// Локаль в URL: /en/... и /cn/... (ru — без префикса). Каждый маршрут получает
 // локализованные клоны с meta.locale; имена остаются только у ru-маршрутов.
 function expandRoutes(baseRoutes) {
   const out = []
   for (const r of baseRoutes) {
     out.push({ ...r, meta: { ...r.meta, locale: 'ru' } })
-    for (const loc of ['en', 'zh']) {
+    for (const loc of ['en', 'cn']) {
       out.push({
         ...r,
         name: undefined,
@@ -136,6 +136,12 @@ const routes = [
 ]
 
 const router = createRouter({ history: createWebHistory(), routes: expandRoutes(routes) })
+
+// Старые /zh/ URL (локаль переименована в cn) — редирект с сохранением query.
+router.addRoute({
+  path: '/zh/:pathMatch(.*)*',
+  redirect: (to) => ({ path: to.params.pathMatch ? `/cn/${to.params.pathMatch}` : '/cn', query: to.query }),
+})
 
 // Локаль из meta.locale (ru по умолчанию) — до проверки прав.
 router.beforeEach((to) => {

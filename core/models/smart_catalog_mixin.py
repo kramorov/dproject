@@ -210,6 +210,7 @@ class SmartCatalogMixin(models.Model):
         base_queryset: QuerySet = None,
         split_mode: str = 'auto',
         serializer=None,
+        locale=None,
     ) -> Dict:
         """
         Unified filtering + optional exact/compatible split.
@@ -284,7 +285,7 @@ class SmartCatalogMixin(models.Model):
 
         # ── Serializer ──
         if serializer is None:
-            serializer = (lambda obj: obj.to_values_dict()) if hasattr(cls, 'to_values_dict') else (lambda obj: obj.to_dict())
+            serializer = (lambda obj: obj.to_values_dict(locale=locale)) if hasattr(cls, 'to_values_dict') else (lambda obj: obj.to_dict())
 
         show_compatible = params.get('show_compatible', '').lower() in ('true', '1')
         do_split = (

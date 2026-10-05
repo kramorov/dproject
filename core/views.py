@@ -7,6 +7,8 @@ from django.apps import apps
 from django.db.models import Q
 from .serializers import get_model_serializer , get_model_field_info , get_app_models
 from project_customers.permissions import SectionAccessPermission
+from core.utils.localization import (locale_from_accept_language, localized_name,
+                                     pick_i18n)
 
 import logging
 
@@ -604,6 +606,7 @@ class BaseFilterOptionsView(APIView):
     }
 
     def get(self, request):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         scope = request.query_params.get('scope', getattr(self, 'default_scope', 'list'))
 
         # ── New path: CatalogConfig ──
@@ -620,13 +623,13 @@ class BaseFilterOptionsView(APIView):
             result = {}
             for fd in filter_set.definitions:
                 try:
-                    options = fd.get_options(config.model_class, queryset=base_qs)
+                    options = fd.get_options(config.model_class, queryset=base_qs, locale=locale)
                     # CUSTOM filters (exd_compatible, climate_cascade) may return empty list —
                     # still include them so frontend renders special UI components
                     is_custom = fd.data_source_type.value == 'custom'
                     if options or is_custom:
                         result[fd.param_name] = {
-                            'label': fd.label,
+                            'label': pick_i18n(getattr(fd, 'label_i18n', None), locale, fallback=fd.label),
                             'order': fd.order,
                             'filter_type': fd.filter_type.value,
                             'options': options,
@@ -637,7 +640,7 @@ class BaseFilterOptionsView(APIView):
                         }
                 except Exception as e:
                     result[fd.param_name] = {
-                        'label': fd.label,
+                        'label': pick_i18n(getattr(fd, 'label_i18n', None), locale, fallback=fd.label),
                         'order': fd.order,
                         'options': [],
                         'error': str(e),
@@ -658,16 +661,16 @@ class BaseFilterOptionsView(APIView):
             if fd.param_name in exclude:
                 continue
                 try:
-                    options = fd.get_options(self.model_class)
+                    options = fd.get_options(self.model_class, locale=locale)
                     if options:
                         result[fd.param_name] = {
-                            'label': fd.label,
+                            'label': pick_i18n(getattr(fd, 'label_i18n', None), locale, fallback=fd.label),
                             'order': fd.order,
                             'options': options,
                         }
                 except Exception as e:
                     result[fd.param_name] = {
-                        'label': fd.label,
+                        'label': pick_i18n(getattr(fd, 'label_i18n', None), locale, fallback=fd.label),
                         'order': fd.order,
                         'options': [],
                         'error': str(e),
@@ -709,6 +712,7 @@ class BaseQuickSelectView(APIView):
     catalog_config = None
 
     def get(self, request):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         params = request.query_params
         model_line_id = params.get('model_line_id')
         brand_id = params.get('brand_id')
@@ -743,7 +747,7 @@ class BaseQuickSelectView(APIView):
         # Фильтры через JOIN (профиль сигналов) — убираем дубликаты
         qs = qs.distinct()
 
-        items = [obj.to_dict() for obj in qs[:50]]
+        items = [obj.to_dict(locale=locale) for obj in qs[:50]]
 
         # Опции фильтров с подсчётом
         filters_out = {}
@@ -751,10 +755,12 @@ class BaseQuickSelectView(APIView):
         for fd in (self.filter_definitions or []):
             if fd.param_name not in (self.quickselect_filters or []):
                 continue
-            options = self._get_filter_options(qs, fd)
+            options = self._get_filter_options(qs, fd, locale)
             if options:
                 filters_out[fd.param_name] = options
-                filter_labels[fd.param_name] = fd.label
+                filter_labels[fd.param_name] = pick_i18n(
+                    getattr(fd, 'label_i18n', None), locale, fallback=fd.label
+                )
 
         ml_info = None
         if model_line_id and self.model_line_model:
@@ -775,7 +781,7 @@ class BaseQuickSelectView(APIView):
             'defaults': defaults,
         })
 
-    def _get_filter_options(self, qs, fd):
+    def _get_filter_options(self, qs, fd, locale=None):
         """Собрать доступные значения фильтра с подсчётом."""
         from core.models.smart_catalog_mixin import FilterType as _FT
         from django.db.models import Count
@@ -820,7 +826,9 @@ class BaseQuickSelectView(APIView):
                 obj_map = {obj.id: obj for obj in objects}
 
                 return [
-                    {'id': oid, 'name': str(obj_map[oid]), 'count': row['count']}
+                    {'id': oid,
+                     'name': localized_name(obj_map[oid], locale) or str(obj_map[oid]),
+                     'count': row['count']}
                     for row in rows
                     if (oid := row[id_field]) and oid in obj_map
                 ]

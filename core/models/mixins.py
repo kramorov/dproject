@@ -11,6 +11,8 @@ from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from typing import Dict , List , Optional , Any
 from ..constants import DataFormat , DisplayView
+from ..utils.localization import (DEFAULT_LOCALE, LOCALES, localized_name,
+                                  localize_service_word, pick_i18n, sync_ru)
 from typing import TypeVar , Any , Dict , Callable , Optional
 import logging
 from django.contrib import messages
@@ -118,20 +120,23 @@ class TemplateMixin:
         """Переопределить в модели: вернуть шаблон заголовка или None."""
         return None
 
-    def _get_equipment_type_template(self, field: str) -> str:
-        """Получить шаблон из EquipmentType (админная настройка).
-        Ищет через model_line.equipment_type или прямой equipment_type."""
+    def _get_equipment_type(self):
+        """Объект EquipmentType из цепочки (через model_line или прямое поле), либо None."""
         try:
-            et = None
             ml = getattr(self, 'model_line', None)
             if ml and hasattr(ml, 'equipment_type_id') and ml.equipment_type_id:
-                et = ml.equipment_type
-            if et is None and hasattr(self, 'equipment_type_id') and self.equipment_type_id:
-                et = self.equipment_type
-            if et is not None:
-                return getattr(et, field, None) or ''
+                return ml.equipment_type
+            if hasattr(self, 'equipment_type_id') and self.equipment_type_id:
+                return self.equipment_type
         except Exception:
             pass
+        return None
+
+    def _get_equipment_type_template(self, field: str) -> str:
+        """Получить шаблон из EquipmentType (админная настройка)."""
+        et = self._get_equipment_type()
+        if et is not None:
+            return getattr(et, field, None) or ''
         return ''
 
     # === ДЕФОЛТНЫЕ ШАБЛОНЫ ===
@@ -190,16 +195,19 @@ class TemplateMixin:
             )
         return [by_key[k] for k in keys if k in by_key]
 
-    def _resolve_field(self, spec):
+    def _resolve_field(self, spec, locale=None):
         """Лениво вычислить значение поля с мемоизацией на инстансе.
 
         Резолвит ``resolver`` (callable) или ``path`` (атрибутный путь).
-        Повторный доступ к тому же ключу берётся из ``_field_cache``.
+        Повторный доступ к тому же ключу берётся из ``_field_cache``
+        (ключ кэша включает локаль). Для не-RU локали значения справочников
+        локализуются через ``<field>_i18n`` связанных объектов.
         """
         cache = getattr(self, '_field_cache', None)
         if cache is None:
             cache = self._field_cache = {}
-        key = spec.key or spec.placeholder
+        locale = locale or DEFAULT_LOCALE
+        key = (spec.key or spec.placeholder, locale)
         if key in cache:
             return cache[key]
         if spec.resolver:
@@ -208,16 +216,30 @@ class TemplateMixin:
             value = self._get_value(spec.path)
         else:
             value = ''
+        if locale != DEFAULT_LOCALE and spec.path:
+            # Цель локализации — name_path (если задан), иначе path:
+            # name_path часто указывает на bare-FK или объект справочника.
+            target = spec.name_path or spec.path
+            obj = None
+            if '__' not in target and '.' not in target:
+                obj = getattr(self, target, None)
+            if obj is not None and not isinstance(obj, str) and hasattr(obj, 'name_i18n'):
+                value = localized_name(obj, locale)
+            else:
+                value = pick_i18n(self._get_target_i18n(target), locale, fallback=value)
+            value = localize_service_word(value, locale)
         cache[key] = value
         return value
 
     # === СЛОВАРЬ ДЛЯ ПОДСТАНОВКИ ===
-    def _get_data_dict(self) -> Dict[str, str]:
+    def _get_data_dict(self, locale=None) -> Dict[str, str]:
         """Плейсхолдер → путь/resolver для имени/описания.
 
         Использует ``NAME_FIELD_KEYS``; если список не задан — все поля реестра.
         Значение — ``name_path`` → ``path`` → ``resolver`` (резолвится в
         ``_fill_template`` через ``_resolve_data_dict_target``).
+        ``locale`` принимается для подклассов; базовый словарь локале-независим
+        (локализация значений — в ``_resolve_data_dict_target``).
         """
         keys = getattr(self, 'NAME_FIELD_KEYS', None)
         specs = self._lookup_specs(keys) if keys is not None else self._get_field_specs()
@@ -232,20 +254,52 @@ class TemplateMixin:
             return result
         return {'{model_code}': 'code'}
 
-    def _resolve_data_dict_target(self, target: str):
+    def _resolve_data_dict_target(self, target: str, locale=None):
         """Резолв значения из ``_get_data_dict()``.
 
         ``target`` может быть атрибутным путём (``name_path``/``path``, резолвится
         через ``_get_value``) или именем resolver-метода (``resolver``, вызывается).
         Отличие определяем по callable: resolver — метод на модели, путь — нет.
+        Для не-RU локали значение справочника локализуется через ``<field>_i18n``
+        связанного объекта (нет поля/перевода — остаётся RU-значение).
         """
         fn = getattr(self, target, None)
         if callable(fn):
             try:
-                return fn()
+                value = fn()
             except Exception:
                 return ''
-        return self._get_value(target)
+            # Резолвер вернул объект справочника — локализуем его name
+            if locale and locale != DEFAULT_LOCALE and hasattr(value, 'name_i18n'):
+                return localized_name(value, locale)
+            return localize_service_word(value, locale)
+        value = self._get_value(target)
+        locale = locale or DEFAULT_LOCALE
+        if locale == DEFAULT_LOCALE:
+            return value
+        # bare-FK target (например 'points_option'): локализуем name объекта
+        if '__' not in target and '.' not in target:
+            obj = getattr(self, target, None)
+            if obj is not None and not isinstance(obj, str) and hasattr(obj, 'name_i18n'):
+                return localized_name(obj, locale)
+        return localize_service_word(
+            pick_i18n(self._get_target_i18n(target), locale, fallback=value), locale
+        )
+
+    def _get_target_i18n(self, target: str):
+        """_i18n-словарь справочника для пути ``target`` ('body__name' → body.name_i18n)."""
+        parts = target.split('__')
+        obj = self
+        for part in parts[:-1]:
+            if '.' in part or not hasattr(obj, part):
+                return None
+            obj = getattr(obj, part)
+            if obj is None:
+                return None
+        last = parts[-1]
+        if '.' in last:
+            return None
+        return getattr(obj, f'{last}_i18n', None)
 
     def _get_model_meta_name(self) -> str:
         """
@@ -352,9 +406,54 @@ class TemplateMixin:
                 or self._get_default_description_template())
 
 
+    # === ЛОКАЛИЗОВАННЫЙ ШАБЛОН (ru/en/cn) ===
+    def _get_template_i18n(self, field_base: str):
+        """_i18n-словарь перевода шаблона из ТОГО ЖЕ источника, откуда взят RU-шаблон.
+
+        name/title/description — источник model_line (методы ``_get_*_template_source``);
+        spec_title/list_title — сначала EquipmentType, при пустом RU-шаблоне фолбэк на
+        title-цепочку. Вернёт dict или None (полей ``*_i18n`` ещё нет / нет переводов).
+        """
+        i18n_field = f'{field_base}_i18n'
+        source_methods = {
+            'name_template': '_get_name_template_source',
+            'title_template': '_get_title_template_source',
+            'description_template': '_get_description_template_source',
+        }
+        source_method = source_methods.get(field_base)
+        if source_method:
+            source = getattr(self, source_method)()
+            if source:
+                # Перевод — из model_line только если RU-шаблон реально оттуда
+                # (иначе перевод «разъедется» с источником шаблона, напр. variety).
+                ml = getattr(self, 'model_line', None)
+                if ml is not None and getattr(ml, field_base, None) == source:
+                    return getattr(ml, i18n_field, None)
+                return None
+        et = self._get_equipment_type()
+        if et is not None:
+            if field_base in ('spec_title_template', 'list_title_template') and not getattr(et, field_base, None):
+                return self._get_template_i18n('title_template')
+            return getattr(et, i18n_field, None)
+        if field_base in ('spec_title_template', 'list_title_template'):
+            return self._get_template_i18n('title_template')
+        return None
+
+    def _resolve_template(self, field_base: str, locale=None) -> str:
+        """RU-шаблон поля ``field_base`` или его перевод для ``locale``.
+
+        Перевод берётся из ``<field_base>_i18n`` того же объекта, откуда взят RU-шаблон
+        (model_line или EquipmentType). Нет перевода/поля — возвращается RU-шаблон.
+        """
+        locale = locale or DEFAULT_LOCALE
+        ru_template = getattr(self, field_base) or ''
+        if locale == DEFAULT_LOCALE:
+            return ru_template
+        return pick_i18n(self._get_template_i18n(field_base), locale, fallback=ru_template)
+
 
     # === ЗАПОЛНЕНИЕ ШАБЛОНА ===
-    def _fill_template(self, template: str, data_dict: Dict[str, str] = None, hide_code: bool = False) -> str:
+    def _fill_template(self, template: str, data_dict: Dict[str, str] = None, hide_code: bool = False, locale=None) -> str:
         import re
 
         if not template:
@@ -369,7 +468,7 @@ class TemplateMixin:
 
         # Получаем маппинг только если он нужен
         if data_dict is None:
-            full_data_dict = self._get_data_dict()
+            full_data_dict = self._get_data_dict(locale=locale)
         else:
             full_data_dict = data_dict
 
@@ -383,7 +482,7 @@ class TemplateMixin:
             value = None
             if dict_key in full_data_dict:
                 target = full_data_dict[dict_key]
-                value = self._resolve_data_dict_target(target)
+                value = self._resolve_data_dict_target(target, locale=locale)
             else:
                 # Плейсхолдер отсутствует в справочнике — заменяем на пустую строку
                 print(f"[WARNING] Плейсхолдер {dict_key} не найден в data_dict")
@@ -399,11 +498,11 @@ class TemplateMixin:
         return result
 
     # === ГЕНЕРАЦИЯ СТРОК ===
-    def generate_name(self) -> str:
-        return self._fill_template(self.name_template)
+    def generate_name(self, locale=None) -> str:
+        return self._fill_template(self._resolve_template('name_template', locale), locale=locale)
 
-    def generate_description(self) -> str:
-        return self._fill_template(self.description_template)
+    def generate_description(self, locale=None) -> str:
+        return self._fill_template(self._resolve_template('description_template', locale), locale=locale)
 
     def get_display_name(self) -> str:
         return self.generate_name()
@@ -411,18 +510,35 @@ class TemplateMixin:
     def get_display_description(self) -> str:
         return self.generate_description()
 
-    def generate_title(self) -> str:
-        """Сгенерировать заголовок из шаблона title_template."""
-        # print(f'Mixin template generate_title={self._fill_template(self.title_template)}, template={self.title_template}')
-        return self._fill_template(self.title_template)
+    def generate_title(self, locale=None) -> str:
+        """Сгенерировать заголовок из шаблона title_template (локализованный)."""
+        return self._fill_template(self._resolve_template('title_template', locale), locale=locale)
 
-    def generate_spec_title(self) -> str:
-        """Заголовок .docx-спецификации (``spec_title_template``)."""
-        return self._fill_template(self.spec_title_template)
+    def generate_spec_title(self, locale=None) -> str:
+        """Заголовок .docx-спецификации (``spec_title_template``), локализованный."""
+        return self._fill_template(self._resolve_template('spec_title_template', locale), locale=locale)
 
-    def generate_list_title(self) -> str:
-        """Первая строка карточки в списке (``list_title_template``)."""
-        return self._fill_template(self.list_title_template)
+    def generate_list_title(self, locale=None) -> str:
+        """Первая строка карточки в списке (``list_title_template``), локализованная."""
+        return self._fill_template(self._resolve_template('list_title_template', locale), locale=locale)
+
+    # === ЛОКАЛИЗОВАННОЕ ОТОБРАЖЕНИЕ (Фаза 4) ===
+    def build_display_i18n(self) -> dict:
+        """{локаль: {name, description, title, list_title, spec_title}} из generate_*(locale).
+
+        Денормализованный кэш для быстрого чтения списков (display_i18n на айтеме).
+        Используется пилотом БКВ; другие каталоги могут подключать по мере надобности.
+        """
+        return {
+            locale: {
+                'name': self.generate_name(locale),
+                'description': self.generate_description(locale),
+                'title': self.generate_title(locale),
+                'list_title': self.generate_list_title(locale),
+                'spec_title': self.generate_spec_title(locale),
+            }
+            for locale in LOCALES
+        }
 
     # === ОБНОВЛЕНИЕ ПОЛЕЙ МОДЕЛИ ===
     def update_name(self, save: bool = False) -> bool:
@@ -570,7 +686,7 @@ class TemplateMixin:
     # дефолтное изображение, техдокументация и сертификаты со ссылками.
     # ═══════════════════════════════════════════════════════════════
 
-    def get_spec_doc_context(self, base_url: str = None) -> dict:
+    def get_spec_doc_context(self, base_url: str = None, locale=None) -> dict:
         """Контекст для рендера спецификации в docx (docxtpl/Jinja).
 
         Возвращает dict:
@@ -583,19 +699,29 @@ class TemplateMixin:
         ``base_url`` — абсолютный origin для ссылок на скачивание;
         по умолчанию ``settings.SITE_BASE_URL`` (или '', тогда ссылки
         остаются относительными).
+        ``locale`` — локаль данных (ru/en/cn): заголовок из
+        ``generate_spec_title(locale)``, подписи групп/полей из
+        ``spec_template_i18n``, значения справочников через ``_i18n``.
         """
+        import inspect
         from django.conf import settings
+
+        locale = locale or DEFAULT_LOCALE
+        disp = None
+        di = getattr(self, 'display_i18n', None)
+        if isinstance(di, dict) and isinstance(di.get(locale), dict):
+            disp = di[locale]
 
         base_url = (base_url if base_url is not None
                     else (settings.SITE_BASE_URL or ''))
 
         item = {
             'code': getattr(self, 'code', '') or '',
-            'name': getattr(self, 'name', '') or '',
-            'title': (self.generate_spec_title()
+            'name': (disp.get('name') if disp else None) or getattr(self, 'name', '') or '',
+            'title': (self.generate_spec_title(locale)
                       if hasattr(self, 'generate_spec_title')
-                      else (self.generate_title() if hasattr(self, 'generate_title') else '')),
-            'description': getattr(self, 'description', '') or '',
+                      else (self.generate_title(locale) if hasattr(self, 'generate_title') else '')),
+            'description': (disp.get('description') if disp else None) or getattr(self, 'description', '') or '',
         }
         if not item['title']:
             item['title'] = item['name']
@@ -603,7 +729,11 @@ class TemplateMixin:
         spec_groups = []
         get_specs = getattr(self, '_get_spec_sections', None)
         if callable(get_specs):
-            raw = get_specs() or {}
+            try:
+                accepts_locale = 'locale' in inspect.signature(get_specs).parameters
+            except (TypeError, ValueError):
+                accepts_locale = False
+            raw = (get_specs(locale=locale) if accepts_locale else get_specs()) or {}
             for group_title, fields in raw.items():
                 if not isinstance(fields, dict):
                     continue
@@ -667,15 +797,16 @@ class TemplateMixin:
         text = re.sub(r'\n\s*\n+', '\n', text)
         return text.strip()
 
-    def _format_spec_value(self, spec):
+    def _format_spec_value(self, spec, locale=None):
         """Сырое значение поля → display-вид для секции характеристик.
 
         ``type='list'`` → список строк (каждый элемент по ``format``);
         ``type='html'`` → блок ``{'__html': ...}`` как есть;
-        иначе — скаляр из ``_resolve_field``. Сырые структуры в ``template_vars``
-        (для MCP/Jinja) не трогаем — это только display-форматирование.
+        иначе — скаляр из ``_resolve_field`` (с локализацией для ``locale``).
+        Сырые структуры в ``template_vars`` (для MCP/Jinja) не трогаем —
+        это только display-форматирование.
         """
-        value = self._resolve_field(spec)
+        value = self._resolve_field(spec, locale=locale)
         if spec.type == 'list' and isinstance(value, (list, tuple)):
             return [self._apply_item_format(spec.format, item) for item in value]
         return value
@@ -1912,6 +2043,36 @@ class GetChoicesMixin:
             return None
 
 
+class LocalizedDictFieldsMixin(models.Model) :
+    """Поля name/description + переводы `_i18n` с синхронизацией ru (Фаза 4).
+
+    Для справочников: JSONField ``name_i18n`` / ``description_i18n`` рядом с RU-полями.
+    ``save()`` синхронизирует ``_i18n['ru']`` через переопределяемый ``_sync_localized_ru()``
+    (подкласс может добавить синхронизацию своих шаблонов, напр. variety).
+    """
+    name_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы названия (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с названием.')
+    )
+    description_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы описания (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с описанием.')
+    )
+
+    class Meta :
+        abstract = True
+
+    def _sync_localized_ru(self) :
+        self.name_i18n = sync_ru(getattr(self , 'name_i18n' , None), getattr(self , 'name' , ''))
+        self.description_i18n = sync_ru(getattr(self , 'description_i18n' , None), getattr(self , 'description' , ''))
+
+    def save(self , *args , **kwargs) :
+        self._sync_localized_ru()
+        super().save(*args , **kwargs)
+
+
 class CopyMixin:
     """
     Миксин для копирования моделей.
@@ -2109,19 +2270,23 @@ class CatalogDictMixin:
         """
         return {}
 
-    def to_values_dict(self) -> dict:
+    def to_values_dict(self, locale=None) -> dict:
         """
         Только значения полей (без метаданных) — для списков.
 
         Возвращает:
             {id, code, name, values: {key: value}, images, model_line, sku, ...}
         """
-        data = self.to_dict()
+        data = self.to_dict(locale=locale)
         values = dict(data.get("template_vars", {}))
-        list_title = ''
-        if hasattr(self, 'generate_list_title'):
+        disp = None
+        di = getattr(self, 'display_i18n', None)
+        if isinstance(di, dict) and isinstance(di.get(locale or DEFAULT_LOCALE), dict):
+            disp = di[locale or DEFAULT_LOCALE]
+        list_title = (disp.get('list_title') if disp else None) or ''
+        if not list_title and hasattr(self, 'generate_list_title'):
             try:
-                list_title = self.generate_list_title()
+                list_title = self.generate_list_title(locale)
             except Exception:
                 list_title = ''
         list_params = []

@@ -30,7 +30,8 @@ class LoginView(APIView):
 
     @method_decorator(ensure_csrf_cookie)
     def post(self, request):
-        login_val = request.data.get('login', '').strip()
+        # Логин: 'login' (текущий контракт) или 'email' (совместимость со старым)
+        login_val = (request.data.get('login') or request.data.get('email') or '').strip()
         pwd = request.data.get('password', '')
 
         if not login_val or not pwd:

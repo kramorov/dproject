@@ -19,6 +19,7 @@ from rest_framework.response import Response
 
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.spec_docx import render_spec_docx_bytes
+from core.utils.localization import locale_from_accept_language
 
 
 # Общие связи всех каталоговых моделей (ImageGalleryMixin / TechDocMixin / model_line).
@@ -44,7 +45,8 @@ class SpecDocxDownloadView(APIView):
         item = get_object_or_404(self._get_queryset(model), pk=pk)
 
         base_url = settings.SITE_BASE_URL or request.build_absolute_uri('/')
-        data = render_spec_docx_bytes(item, base_url=base_url)
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        data = render_spec_docx_bytes(item, base_url=base_url, locale=locale)
 
         code = getattr(item, 'code', None) or str(pk)
         safe_code = re.sub(r'[\\/*?:"<>|]', '-', str(code))

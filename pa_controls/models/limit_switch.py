@@ -226,6 +226,13 @@ class LimitSwitchBox(CatalogSerializerMixin,
         'visual_indicator_type',
     )
 
+    # ── Локализованное отображение (ru/en/cn) — денормализованный кэш для API/списков ──
+    display_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Локализованное отображение (ru/en/cn)"),
+        help_text=_('JSON: {"ru": {"name": ..., "description": ..., "title": ..., "list_title": ..., "spec_title": ...}, "en": {...}, "cn": {...}}. Обновляется при сохранении айтема и командой rebuild_display_i18n.')
+    )
+
     def save(self, *args, **kwargs):
         """
         Сохраняет модель и синхронизирует номенклатуру (SKU).
@@ -233,6 +240,10 @@ class LimitSwitchBox(CatalogSerializerMixin,
         Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
         или «подхватывает» существующую по коду, обогащая её полями модели.
         """
+        skip_display_i18n = kwargs.pop('skip_display_i18n', False)
+        if not skip_display_i18n:
+            # Фаза 4: денормализованный кэш локализованного отображения
+            self.display_i18n = self.build_display_i18n()
         is_new = self.pk is None
         self.config_hash = self.compute_config_hash()
         self._check_config_hash_unique()

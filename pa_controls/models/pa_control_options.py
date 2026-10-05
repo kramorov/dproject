@@ -2,12 +2,13 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import GetChoicesMixin
+from core.models.mixins import GetChoicesMixin, LocalizedDictFieldsMixin
+from core.utils.localization import sync_ru
 # TemplateFillerMixin удалён из импорта 2026-06-05 — класс закомментирован,
 # LimitSwitchSensorVariety не использовал ни один его метод.
 
 
-class SignalType(models.Model):
+class SignalType(LocalizedDictFieldsMixin):
     """Тип сигнала (NAMUR, PNP, Сухой контакт, 4-20мА и т.д.)"""
     name = models.CharField(max_length=100, verbose_name=_("Название"))
     code = models.CharField(max_length=50, verbose_name=_("Код"))
@@ -28,7 +29,7 @@ class SignalType(models.Model):
     def __str__(self): return self.name
 
 
-class ContactState(models.Model):
+class ContactState(LocalizedDictFieldsMixin):
     """Состояние контакта (НО, НЗ, Перекидной)"""
     name = models.CharField(max_length=100, help_text=_("Пользовательское описание (например, 'Нормально разомкнутый')"
                                                         ), verbose_name=_("Название"))
@@ -51,7 +52,7 @@ class ContactState(models.Model):
         return f'{self.code} - {self.name}'
 
 
-class ContactForm(models.Model):
+class ContactForm(LocalizedDictFieldsMixin):
     """Форма контактов (SPST, SPDT, DPDT)"""
     name = models.CharField(max_length=100,
                             help_text=_("Техническое наименование (например, 'Однополюсный перекидной')"),
@@ -75,7 +76,7 @@ class ContactForm(models.Model):
     def __str__(self): return f'{self.code} - {self.name}'
 
 
-class LimitSwitchSensorVariety(GetChoicesMixin, models.Model):
+class LimitSwitchSensorVariety(LocalizedDictFieldsMixin, GetChoicesMixin):
     # TemplateFillerMixin удалён из наследования 2026-06-05 —
     # класс закомментирован, модель не использовала его методы.
     """Тип сенсора концевого выключателя (механический, индуктивный, магнитный, пневматический)"""
@@ -97,6 +98,22 @@ class LimitSwitchSensorVariety(GetChoicesMixin, models.Model):
     description_template = models.TextField(blank=True , null=True ,
                                             verbose_name=_("Шаблон описания") ,
                                             help_text=_('Шаблон для описания сенсора'))
+    # ── Локализованные шаблоны (ru/en/cn) — расширение RU-полей ──
+    name_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона названия (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с name_template.')
+    )
+    description_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона описания (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с description_template.')
+    )
+
+    def _sync_localized_ru(self):
+        super()._sync_localized_ru()
+        self.name_template_i18n = sync_ru(self.name_template_i18n, self.name_template)
+        self.description_template_i18n = sync_ru(self.description_template_i18n, self.description_template)
     class Meta:
         verbose_name = _("Тип сенсора БКВ")
         verbose_name_plural = _("Типы сенсоров БКВ")
@@ -105,7 +122,7 @@ class LimitSwitchSensorVariety(GetChoicesMixin, models.Model):
         return self.name
 
 
-class PointsOption(models.Model):
+class PointsOption(LocalizedDictFieldsMixin):
     """Количество датчиков (точек переключения) в БКВ"""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),

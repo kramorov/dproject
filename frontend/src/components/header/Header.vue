@@ -74,7 +74,7 @@ import cartService from '@/shared/services/cartService'
 import { useI18n, localizedPath, stripLocalePrefix, LOCALES } from '@/shared/i18n'
 const { user, logout } = useAuth()
 const { locale, t } = useI18n()
-const localeLabels = { ru: 'RU', en: 'EN', zh: '中文' }
+const localeLabels = { ru: 'RU', en: 'EN', cn: '中文' }
 
 const router = useRouter()
 const route = useRoute()

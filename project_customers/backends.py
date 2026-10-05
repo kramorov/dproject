@@ -33,7 +33,16 @@ class CustomerBackend(ModelBackend):
         except ProjectCustomerUser.DoesNotExist:
             return None
 
-        if not customer_user.check_password(password):
+        # Пароль — на 1:1 Django User (access.md). Профиль-хэш — фоллбэк:
+        # оба хранилища синхронизируются при смене пароля в админке, но у
+        # старых пользователей хэш есть только на Django User.
+        django_user = customer_user.user
+        if django_user is None:
+            return None
+        password_ok = django_user.check_password(password)
+        if not password_ok and customer_user.password:
+            password_ok = customer_user.check_password(password)
+        if not password_ok:
             return None
 
         customer = customer_user.customer
@@ -42,9 +51,6 @@ class CustomerBackend(ModelBackend):
         if customer.access_until and customer.access_until < date.today():
             return None
 
-        django_user = customer_user.user
-        if django_user is None:
-            return None
         if not django_user.is_active:
             return None
 

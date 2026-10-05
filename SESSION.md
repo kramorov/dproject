@@ -1,7 +1,7 @@
 # SESSION.md — состояние проекта и план Фазы 4 (локализация данных)
 
 Дата: 2026-10-05. Это checkpoint: что сделано, какие решения приняты и подробный план
-реализации локализации данных (RU/EN/ZH) на пилоте «БКВ» (`pa_controls`).
+реализации локализации данных (RU/EN/CN) на пилоте «БКВ» (`pa_controls`).
 
 ---
 
@@ -16,13 +16,13 @@
   (SPA — query через vue-router, embed — `location.hash`). Все 9 каталогов переведены
   на URL-управляемый режим (назад/вперёд, deep-link, бредкрамбы из маршрута).
 - **Фаза 3 (i18n UI-хрома):** лёгкий модуль `frontend/src/shared/i18n/` + словари
-  `ru/en/zh`; префикс локали `/en/`, `/zh/` (ru без префикса) через `expandRoutes()` в
+  `ru/en/cn`; префикс локали `/en/`, `/cn/` (ru без префикса) через `expandRoutes()` в
   `frontend/src/router/index.js` + guard `meta.locale`; переключатель в шапке; переведены
   Header, TopMenu, CatalogActions (табы), auth-страницы, modeNames/бредкрамбы каталогов.
 - **Фаза 4 (фронт-задел):** `frontend/src/shared/api.js` шлёт `Accept-Language`
   (`ru`/`en`/`zh-CN`) в каждом запросе.
 
-### Backend — локализация данных: НЕ начата (этот план)
+### Backend — локализация данных: ФАЗА 4 ЗАВЕРШЕНА (шаги 0→6, см. раздел 3)
 
 ### Осталось после Фазы 4
 - Фаза 5: runtime-проверка standalone-сборок и hash-fallback (нужен запущенный фронт + браузер).
@@ -31,18 +31,27 @@
 
 ## 2. Согласованные решения (не пересматривать без нужды)
 
-1. Локали: `ru` (базовый), `en`, `zh`. URL-префикс `/en/`, `/zh/`, ru — без префикса.
+1. Локали: `ru` (базовый), `en`, `cn` (китайский). Код везде `cn`, не `zh`/`zh-CN`;
+   Accept-Language `zh-CN` мапится в `cn`. URL-префикс фронта — `/en/`, `/cn/`
+   (переименовано из `/zh/`; `npm run build` зелёный).
 2. GraphQL заморожен, работаем по REST (DRF).
 3. SSR (Nuxt) на паузе — держим SPA единообразно с мини-приложениями.
 4. Переводы данных — да (не только UI).
 5. **Форма хранения:** базовое RU-поле остаётся рабочим (редактируется как раньше);
-   рядом добавляется `<field>_i18n` = `JSONField(default=dict)` = `{"ru": "...", "en": "...", "zh": "..."}`.
+   рядом добавляется `<field>_i18n` = `JSONField(default=dict)` = `{"ru": "...", "en": "...", "cn": "..."}`.
    При сохранении `ru` синхронизируется в `_i18n["ru"]`. Чтение — только через
    `pick_i18n(field_i18n, locale)` (fallback: `locale → ru → ""`).
+   **RU-значения в БД остаются как есть**: рабочие RU-поля никуда не переезжают,
+   en/cn — только расширение `_i18n`.
 6. Шаблоны резолвятся на **2 уровнях**: `model_line` (каталога) → `EquipmentType` (фоллбэк).
 7. `name`/`description` — **гибрид**: локализованные шаблоны (источник истины) +
    денормализованный `display_i18n` на айтеме (быстрое чтение списков).
 8. **Пилот — БКВ** (`pa_controls`).
+9. Названия серий (`model_line.name`) — **торговые названия, НЕ локализуются** (до отдельного
+   решения пользователя, 2026-10-05). Коды (`code`/`symbolic_code`/FK-коды) НЕ локализуются никогда.
+10. Локаль данных — заголовок `Accept-Language`; gettext-хром (заголовки секций и т.п.) — `?lang=`.
+    Вне пилота: question_graph/wizard/constructor-эндпоинты и CUSTOM/cascade-опции фильтров
+    остаются ru (механизм есть — пробросить заголовок позже).
 
 ---
 
@@ -52,7 +61,203 @@
 - `pick_i18n(i18n, locale, fallback='ru')` — устойчив к plain-строке (не dict).
 - `sync_ru(i18n, ru_value)` — вернуть dict с обновлённым `ru` (не мутирует).
 - `set_locale(i18n, locale, value)` — вернуть dict с переводом.
-- `locale_from_accept_language(header)` — `Accept-Language → ru|en|zh`.
+- `locale_from_accept_language(header)` — `Accept-Language → ru|en|cn` (`zh*` → `cn`).
+- `LOCALES = ("ru", "en", "cn")`, `DEFAULT_LOCALE = "ru"`.
+- Тестовая БД `test_db.sqlite3` — свежая копия боевой (см. раздел 8).
+
+### Шаг 1 — локаль-осведомлённый TemplateMixin — СДЕЛАНО (2026-10-05)
+
+- `core/models/mixins.py`: `generate_* (locale=None)`, `_resolve_template(field_base, locale)`,
+  `_get_template_i18n(field_base)` (перевод из ТОГО ЖЕ источника, откуда взят RU-шаблон),
+  `_get_data_dict(locale=None)`, `_resolve_data_dict_target(target, locale)` +
+  `_get_target_i18n(target)` (локализация значений справочников), `_fill_template(..., locale=None)`.
+  Рефакторинг: `_get_equipment_type()` выделен из `_get_equipment_type_template()`.
+- `core/utils/localization.py`: `pick_i18n` — fallback-значение (не код локали) возвращается
+  при отсутствии перевода; поведение по умолчанию (locale → ru → '') не изменилось.
+- `pa_controls/models/sensor.py`: сигнатура `_get_data_dict(self, locale=None)`.
+- Тесты: `core/tests/test_localization.py` — 6 тестов (SimpleTestCase, без БД):
+  ru default, en-перевод шаблона+справочника, fallback ru без переводов, частичный перевод,
+  пустой `_i18n` dict, источник EquipmentType. Все зелёные.
+- Smoke на реальных данных (копия боевой): БКВ айтем pk=1 — ru/en/cn идентичны
+  (переводов ещё нет), генерация по цепочке работает.
+- Ревью-фиксы (2026-10-05): `_get_template_i18n` сверяет источник с `model_line.<field>`
+  (перевод из model_line применяется, только если RU-шаблон реально оттуда; у сенсоров
+  источник — `variety`, переводы молча не применяются и не «разъезжаются»); редирект
+  `/zh/...` → `/cn/...` на фронте; `test_db.sqlite3` убран из git (`.gitignore`);
+  тесты на `locale_from_accept_language` и на guard источника.
+
+### Шаг 2 — шаблоны `_i18n` — СДЕЛАНО (2026-10-05)
+
+- Поля: EquipmentType — 6 JSONField (`name/description/title/spec_title/list_title_template_i18n`,
+  `spec_template_i18n` — локаль внешним ключом `{"ru": {...}, "en": {...}, "cn": {...}}`);
+  LimitSwitchModelLine — `name_template_i18n`, `description_template_i18n` (title/spec у БКВ
+  из EquipmentType, как и предполагалось).
+- Sync на save: в `save()` обеих моделей — `field_i18n = sync_ru(field_i18n, field_ru)`
+  (без рекурсии; en/cn не затираются — проверено).
+- Миграции: core 0023 (схема) + 0024 (data-backfill ru); pa_controls 0068 (схема) + 0069
+  (data-backfill). Применены к боевой и к копии. `makemigrations --check` — «No changes detected».
+- Проверки: backfill — 11 EquipmentType / 5 серий БКВ, все `_i18n["ru"]` == RU-полю;
+  sync на save + сохранение en-перевода — ок; 9/9 тестов зелёные.
+
+### Шаг 3 — справочники БКВ `_i18n` — СДЕЛАНО (2026-10-05)
+
+- Новый абстрактный миксин `LocalizedDictFieldsMixin` (core/models/mixins.py): поля
+  `name_i18n`/`description_i18n` + `save()` → `_sync_localized_ru()` (переопределяется).
+- Применён к справочникам БКВ: SignalType, ContactState, ContactForm, PointsOption,
+  LimitSwitchSensorVariety, PaControlMountingStandard, LimitSwitchBody, VisualIndicatorType.
+- LimitSwitchSensorVariety дополнительно: `name_template_i18n`, `description_template_i18n`
+  + sync; `SensorComponent._get_template_i18n()` читает переводы из variety (источник шаблона).
+- Миграции: pa_controls 0070 (схема, 18 полей) + 0071 (data-backfill ru). Применены к боевой
+  и к копии; `makemigrations --check` — чисто.
+- Проверки: backfill по всем 8 моделям — `_i18n["ru"]` == RU-полю; sync на save + en
+  сохраняется; интеграция — `variety.name_i18n["en"]` попадает в `generate_name("en")`
+  реального БКВ (таргет `sensor_variety__name`); перевод variety-шаблона попадает в имя
+  сенсора (`EN-VARIETY SNI...`).
+- Резолверы (`get_brand_name`, `get_primary_sensor_contact_form` и т.п.) — ОСТАЮТСЯ ru
+  (решение: локализация резолверов — вне пилота, отдельная задача).
+- Вне пилота (follow-up): материалы приложения `materials` (MaterialGeneral/
+  MaterialSpecified — кормят `{body_material*}` в шаблонах БКВ) и bare-FK таргеты
+  (`{points}` → str(points_option)) — локализация позже.
+- Ревью-фиксы Шагов 2-3 (2026-10-05): нормализованы переводы строк LF→CRLF
+  (equipment_type.py, visual_indicator.py); добавлен тест `_sync_localized_ru`
+  (LocalizedDictFieldsMixinTests); правило sync-контракта — в разделе 8.
+
+### Шаг 4 — `display_i18n` на айтеме — СДЕЛАНО (2026-10-05)
+
+- `TemplateMixin.build_display_i18n()`: {локаль: {name, description, title, list_title,
+  spec_title}} через `generate_*(locale)` для всех трёх локалей.
+- `LimitSwitchBox`: поле `display_i18n` (JSONField default=dict); в `save()` пересчитывается
+  (флаг `skip_display_i18n=True` — для массовых/точечных обновлений).
+- Management-команда `rebuild_display_i18n [--limit N]` — массовый пересчёт через
+  queryset.update (без save()/sync_sku); запущена: 100/100 на боевой и копии.
+- Миграция pa_controls 0072 (схема). Применена к обеим БД.
+- Тесты: `pa_controls/tests.py` (DisplayI18nTests, TestCase на копии — транзакционные):
+  все локали/поля, соответствие generate_*, отражение правки шаблона после resave,
+  skip-флаг. 15/15 тестов (11 локализация + 4 display) зелёные.
+
+### Шаг 5 — API читает локаль — СДЕЛАНО (2026-10-05)
+
+- `CatalogSerializerMixin.to_dict(locale=None)`: name/description/title/image_alt из
+  `display_i18n[locale]` (fallback: RU-поля / `generate_title(locale)`); description-секция
+  тоже локализована. Default ru — остальные каталоги не изменились.
+- `CatalogDictMixin.to_values_dict(locale=None)` — list_title из display_i18n.
+- `SmartCatalogMixin.apply_filters_and_split(..., locale=None)` — локаль в сериализатор.
+- `FilterDefinition`: параметр `label_i18n`; `get_options(..., locale=None)` — названия опций
+  через `localized_name()` (name_i18n справочников).
+- `BaseFilterOptionsView` — локаль из `Accept-Language`, label через `pick_i18n(label_i18n, ...)`.
+- Вью БКВ (`views_list`, `views_detail`) — локаль из `Accept-Language`.
+- БКВ-фильтры (`filter_defs.py`): en/cn-переводы label для всех 13 определений.
+- Проверки: smoke на копии (Django test client) — list/detail/filters с `Accept-Language: en`
+  отдают en-поля (имя, заголовок, label «Sensor type», опции с переводом), ru без изменений,
+  fallback ru для непереведённых опций. 15/15 тестов, `manage.py check` — чисто.
+- Вне пилота: template_vars остаются ru; `group`-подписи фильтров не локализуются
+  (у БКВ не используются); `lang`-параметр деталки (gettext-хром) не тронут.
+
+### Шаг 6 — спецификация `.docx` на локаль — СДЕЛАНО (2026-10-05)
+
+- `get_spec_doc_context(base_url, locale)`: заголовок из `generate_spec_title(locale)`,
+  name/description из display_i18n, `_get_spec_sections(locale)` (сигнатура оверрайдов
+  проверяется через inspect — pa_model_line/pneumatic_fittings не сломаны).
+- `_get_spec_sections(fields, locale)`: для не-RU берётся `spec_template_i18n[locale]`
+  (из ТОГО ЖЕ источника, что RU-шаблон — `_get_spec_template_i18n()`); значения полей
+  локализуются в `_resolve_field(spec, locale)` (кэш теперь с локалью).
+- `spec_docx.py`: `SPEC_CHROME` (ru/en/cn для «Артикул»/«Характеристики»/«Техдокументация»/
+  «Сертификаты»), `build_spec_template` переведён на `{{ chrome.* }}`-плейсхолдеры,
+  шаблон перегенерирован (36 790 байт); `render_spec_docx_bytes(..., locale=None)`.
+- `spec_doc_views.py`: локаль из `Accept-Language` → рендер.
+- Тесты: `SpecDocContextLocaleTests` (контекст без docxtpl) + smoke полного рендера:
+  en-docx содержит EN-заголовок/«Specifications»/«Article:»/EN-подписи, ru — прежний.
+  20/20 тестов зелёные, `manage.py check` — чисто.
+
+### ФИКС АВТОРИЗАЦИИ (2026-10-05, вне плана Фазы 4)
+
+- Проблема: «двойная авторизация» — пароль хранится в ДВУХ местах: 1:1 Django
+  `User.password` (по access.md — источник истины) и `ProjectCustomerUser.password`.
+  `CustomerBackend` проверял ТОЛЬКО профиль-хэш, который у всех пользователей пуст
+  (реальные хэши — на Django User) → правильный пароль всегда отвергался («Неверный
+  email или пароль»), `last_login` у всех None.
+- Фикс: `CustomerBackend.authenticate` — пароль проверяется на 1:1 `User` с фоллбэком
+  на профиль-хэш (совместимость со старым контрактом); `LoginView` принимает и `email`
+  (старый контракт тестов). Проверено на копии: оба хранилища работают, неверный пароль
+  отвергается, сессия подхватывается.
+- Причина «каталоги не открываются» — бэкенд не был запущен (прокси vite отдаёт 500
+  на любой /api/, фронт редиректит на /login). С запущенным бэкендом аноним получает
+  права anonymous_users и каталоги открываются (проверено: 200 на catalog/filters).
+
+### Проверка в живом браузере (Phase 5, частично — 2026-10-05)
+
+- Headless Chrome (dump-dom, выполняет JS): `/`, `/en/`, `/cn/` — html lang ru/en/zh-CN,
+  топ-меню «Каталоги»/«Catalogs»/«目录», переключатель локали RU/EN/中文 в шапке с
+  активным состоянием, ссылки локализованы (`/login`, `/en/login`, `/cn/login`).
+- `/login` — форма с полями username/password рендерится; `/catalog/limit-switch` —
+  каталог БКВ открывается анонимно (84 КБ DOM, каталог-приложение загружено).
+- API через прокси (5173→8000): filters/catalog 200 анонимно; login — 400 с правильной
+  ошибкой при неверном пароле. Полный логин с реальным паролем — проверить пользователю.
+- НЕ проверено (нужен прод-режим): standalone-сборки с hash-фоллбэком (npm run build +
+  раздача через Django) — отдельная задача.
+
+### Фикс UI-хрома каталога БКВ (2026-10-05, после отчёта пользователя)
+
+- Проблема: на `/en/catalog/limit-switch` карточки серий показывали «Серия АМУР» с ru-хромом.
+- Причина: в общем `CatalogSection.vue` захардкожены «Серия»/«Обновление…»/«Нет доступных
+  серий»; в `apps/limit-switch-catalog/App.vue` — ru-объект `labels` и `eq-name="БКВ"`.
+- Фикс: строки переведены на `t()`; в словари ru/en/cn добавлены ключи `catalog.*` (общие:
+  seriesPrefix, updating, noSeries, items, search, found, backToCatalog...) и `lsb.*`
+  (заголовки БКВ, фильтры, хлебные крошки). Названия серий («АМУР»/«ЯМАЛ») — торговые,
+  остаются ru по решению раздела 2 п.9.
+- Проверено headless Chrome: ru «Серия АМУР», en «Series АМУР», cn «系列 АМУР», subtitles
+  локализованы. Vite dev пересобрал; прод-билд — пересобрать (`npm run build`).
+- Follow-up: тот же хардкод-паттерн в мини-приложениях других каталогов (gearbox, cable-gland
+  и др.) — перевести по аналогии; описания серий (данные) остаются ru.
+
+### Контент переводов БКВ + доработки пайплайна (2026-10-05)
+
+- Залиты переводы (en/cn) в боевую БД: шаблоны ET8 (name/description/title/spec_title/list_title
+  + spec_template подписи), шаблоны и описания 5 серий БКВ, справочники (9 типов сенсора,
+  12 типов сигнала, 4 формы/4 состояния контактов, точки, индикаторы) и материалы
+  (MaterialGeneral 8, MaterialSpecified 2).
+- Новые поля: `LimitSwitchModelLine.description_i18n` (описание серии; название — торговое,
+  не переводится); материалы `MaterialGeneral`/`MaterialSpecified` — `LocalizedDictFieldsMixin`
+  (name/description_i18n). Миграции materials 0009/0010, pa_controls 0073/0074.
+- API: `sections/` и `_get_model_line_summary(locale)` отдают переведённое описание серии.
+- Пайплайн (mixins): bare-FK таргеты (`points_option`) и resolver-объекты локализуются через
+  `localized_name()`; служебные RU-слова (`Нет`→No/无 и т.п. из `exd_display`) — через
+  `localize_service_word()`.
+- Проверено на API: EN-имя «Limit switch box ЯМАЛ; 2 sensors, sensor type: Mechanical, Dry
+  contact, SPDT single-pole double-throw; IP67, Explosion protection: No; … Anodized
+  aluminium»; CN-имя полностью на китайском; опции фильтров EN/CN; описания секций EN/CN.
+  Браузер: карточка серии на /en/ — EN-описание. 20/20 тестов. Бэкенд перезапущен.
+- Известный остаток: строки «или» внутри `cable_glands_holes_list_text`/`mounting_list_text`
+  (технические обозначения с ru-соединителем) — не локализуются.
+
+### Фикс деталки (CatalogDetail) — заголовки и значения секций (2026-10-05)
+
+- Проблема: на en-деталке заголовки секций («Характеристики», «Сертификаты») и часть
+  значений/подписей оставались ru.
+- Фикс: заголовки секций `to_dict()` переведены с gettext на словарь `_SECTION_TITLES`
+  (ru/en/cn) с пробросом locale через `_build_sections` → `_build_specs_section` →
+  `_get_spec_sections(locale)`; фоллбэк `_build_model_code_spec(locale)` — тоже.
+- `_resolve_field(spec, locale)`: цель локализации — `name_path` (bare-FK/resolver-объекты:
+  `points_option`, `get_primary_sensor_contact_form` и т.п.) с фоллбэком на `path`.
+- `localize_service_word`: добавлены подстроковые замены единиц/соединителей
+  (`°С`→`°C`, `кг`→`kg`, ` или `→` or `/ 或`, `квадрат`→`square`/`方`).
+- Проверено: EN-деталка — Images/Specifications/Technical documentation/Certificates/
+  Description; группы General/Body/Feedback signals/Sensors; значения `2 sensors`, `No`,
+  `-63...+80 °C`, `Anodized aluminium`, индикатор переведён; CN — полностью на китайском
+  (включая «方 11» в монтаже). 20/20 тестов, бэкенд перезапущен.
+
+### Фикс QuickSelect (2026-10-05)
+
+- Проблема: заголовки/чипы быстрого подбора оставались ru (хардкод в QuickSelect.vue +
+  ru-определения фильтров в вью).
+- Фикс: `QuickSelect.vue` — «Серия»/«Модель не найдена»/бредкрамбы через `t()`;
+  `BaseQuickSelectView` — локаль из `Accept-Language`: `to_dict(locale)`, опции через
+  `localized_name()`, `filter_labels` через `pick_i18n(label_i18n, ...)`;
+  `LimitSwitchBoxQuickSelectView` переведён на каталожные `LIMIT_SWITCH_FILTER_DEFINITIONS`
+  (с label_i18n; param/model_field идентичны модельным).
+- Проверено: EN-чипы «Series/Sensor type/Number of sensors/…»; CN-метки китайские; опции
+  и карточка локализованы; браузер /en/catalog/limit-switch?mode=quickselect — без ru-строк.
+  20/20 тестов, бэкенд перезапущен.
 
 Проверка: `python manage.py check` → «no issues»; smoke-тест хелперов прошёл.
 
@@ -61,6 +266,8 @@
 ## 4. Подробный план Фазы 4 (пилот БКВ)
 
 ### Шаг 1 — локаль-осведомлённый `core/models/mixins.py`
+
+**СДЕЛАНО (2026-10-05)** — см. раздел 3, реализация и проверки.
 
 Файл: `core/models/mixins.py` (91 КБ, много подклассов — делать осторожно).
 
@@ -92,6 +299,8 @@
 
 ### Шаг 2 — шаблоны `_i18n` (миграция + sync)
 
+**СДЕЛАНО (2026-10-05)** — см. раздел 3.
+
 Файлы и поля:
 - `core/models/equipment_type.py` (EquipmentType): добавить JSONField `default=dict`:
   `name_template_i18n`, `description_template_i18n`, `title_template_i18n`,
@@ -112,6 +321,8 @@
 
 ### Шаг 3 — справочники БКВ `_i18n`
 
+**СДЕЛАНО (2026-10-05)** — см. раздел 3. Резолверы оставлены ru (решение зафиксировано).
+
 Файлы (БКВ-справочники, строковые поля `name`/`description`/`text_description`):
 - `pa_controls/models/sensor.py` (тип сенсора)
 - `pa_controls/models/lsb_body.py` (материал корпуса)
@@ -129,9 +340,16 @@
 (`ETT_ACTUATOR_TYPES` и т.п.) — отдельная история (gettext `_()` или вынос в БД), в этот
 пилот не входит.
 
+- ВНИМАНИЕ (ревью): значения, резолвящиеся resolver-методами (`get_brand_name` и т.п.),
+  локализацию обходят — решить здесь: передавать `locale` в резолвер или оставить ru.
+- Кодовые поля (`*__code`, `*_code`) НИКОГДА не получают `_i18n`: `_get_target_i18n`
+  читает `<last>_i18n` и для них (сейчас полей нет → безопасно, но правило закрепить).
+
 Проверка: тест резолва шаблона с локализованным справочником.
 
 ### Шаг 4 — `display_i18n` на айтеме
+
+**СДЕЛАНО (2026-10-05)** — см. раздел 3.
 
 Файл: `pa_controls/models/limit_switch.py` (и, при необходимости, общий миксин).
 
@@ -140,7 +358,7 @@
 - В `save()` (после авто-генерации) собрать на каждую локаль из `LOCALES`:
   `{"name": ..., "description": ..., "title": ..., "list_title": ..., "spec_title": ...}`
   через `generate_*(locale)`.
-  Итог: `display_i18n = {"ru": {...}, "en": {...}, "zh": {...}}`.
+  Итог: `display_i18n = {"ru": {...}, "en": {...}, "cn": {...}}`.
 - Инвалидация: перегенерировать на `save()` айтема; при изменении шаблона/справочника —
   либо сигнал, либо management-команда массового пересчёта (на пилоте — команда или ручной запуск).
 
@@ -148,6 +366,8 @@
   после пересчёта `display_i18n` обновился.
 
 ### Шаг 5 — сериализаторы/вью читают локаль
+
+**СДЕЛАНО (2026-10-05)** — см. раздел 3.
 
 Файлы:
 - `pa_controls/catalog/views_list.py`, `views_detail.py`, `views_engineer.py`, `views_filters.py`, `views_quickselect.py`, `views/meta.py`, `views/catalog.py`.
@@ -160,9 +380,11 @@
 - Мета/фильтры: подписи фильтров и значения справочников — через `_i18n`.
 - `label`/`description` справочников в `views/meta.py` и `filter_defs.py` — локализовать.
 
-Проверка: ручной/авто-тест API с заголовком `Accept-Language: en` возвращает en-поля.
+Проверка: ручной/авто-тест API с заголовком `Accept-Language: en` (или `zh-CN`) возвращает en-поля (cn-поля).
 
 ### Шаг 6 — спецификация `.docx` на локаль
+
+**СДЕЛАНО (2026-10-05)** — см. раздел 3.
 
 Файл: `core/models/spec_docx.py` (+ `core/models/mixins.py` для контекста).
 
@@ -184,6 +406,7 @@
 - `python manage.py makemigrations pa_controls core --check` — миграции в норме.
 - `python manage.py migrate` — только после makemigrations.
 - Юнит-тест на fallback (`pick_i18n`): `en` отсутствует → возвращается `ru`.
+- Юнит-тесты: `python manage.py test --keepdb` — на копии боевой БД (см. раздел 8).
 - `frontend`: `npm run build` (не должен ломаться — бэкенд-правки не влияют, но проверить).
 
 ---
@@ -193,7 +416,7 @@
 - **`mixins.py` большой и общий** — правки локали затрагивают все каталоги, не только БКВ.
   Делать через `locale=None` (default ru), чтобы поведение остальных каталогов не изменилось.
 - **`spec_template` — вложенный JSON** (`{группа: {подпись: ключ}}`); локализованная форма
-  `{"ru": {...}, "en": {...}, "zh": {...}}` — локаль как внешний ключ. Не перепутать с
+  `{"ru": {...}, "en": {...}, "cn": {...}}` — локаль как внешний ключ. Не перепутать с
   плоскими `*_template_i18n`.
 - **Синхронизация ru→`_i18n["ru"]`**: решить, делать в `save()` или в `pre_save`-сигнале,
   чтобы не зациклить (не вызывать повторный `save()` из `sync_ru`).
@@ -208,7 +431,61 @@
 
 ## 7. Что делать первым при возврате к реализации
 
-1. `core/models/mixins.py` — `locale`-параметр в `generate_*` + `_resolve_template(locale)`
-   + `_get_data_dict(locale)`/`_resolve_data_dict_target(locale)`. (Шаг 1)
-2. Миграции шаблонов `_i18n` (EquipmentType + lsb_model_line) + data-migration + sync ru. (Шаг 2)
-3. Дальше по шагам 3→6, с `manage.py check` после каждого.
+1. **Закоммитить сегодняшнюю работу** — всё некоммичено: HEAD=0e29325 «front en»,
+   56 изменённых/новых файлов (локализация Фазы 4 + фикс авторизации + user_path_map.md).
+2. Задачи локализации из раздела 9 по порядку: (1) имена файлов сертификатов/техдоки и
+   медиабиблиотеки; (2) имя файла .docx спецификации; (3) spec_template_i18n остальных
+   каталогов; (4) локализация мастера подбора.
+3. Затем Фаза 5: runtime-проверка standalone-сборок и hash-fallback (нужен запущенный фронт + браузер).
+
+---
+
+## 8. Тестовая БД — копия боевой
+
+- Тесты гоняем на **копии боевой БД** (`db.sqlite3`): создание тестовой с нуля долгое,
+  а в копии все миграции уже применены — прогон быстрый.
+- Обновление копии: `sqlite3.exe db.sqlite3 ".backup test_db.sqlite3"` (backup API, безопасно
+  при запущенном dev-сервере). Файл копии — `test_db.sqlite3` (уже указан в `settings.py`
+  как `TEST.NAME`).
+- Запуск тестов: `python manage.py test --keepdb`. **Без `--keepdb` копия уничтожается после
+  прогона** — тогда просто пересоздать её заново (команда выше).
+- Только `TestCase` (транзакционные тесты, откат). `TransactionTestCase` обрезает таблицы
+  и может почистить данные копии. Юнит-тесты локализации — `TestCase`.
+- Тесты локализации: `core/tests/test_localization.py` (пакет `core/tests/`; файл `core/tests.py`
+  перекрыт пакетом и тест-раннером не запускается — туда не писать). Для Шага 4 — `pa_controls/tests/`.
+- Нюанс прогона на копии боевой: 3 старых теста (`test_question_graph_options`, `test_wizard`)
+  падают и без правок локализации — ожидают пустую БД (пустой реестр фильтров) или
+  несуществующее поле `exd_id`. К локализации отношения не имеют.
+- `test_db.sqlite3` — вне git (`.gitignore`): это копия боевых данных, в репозитории
+  её быть не должно. `db.sqlite3` (боевая) — ОСТАЁТСЯ в git (решение пользователя, 2026-10-05).
+- **Контракт синхронизации ru→`_i18n`**: работает при полном `save()` (админка).
+  `save(update_fields=...)` без `_i18n`-полей и `QuerySet.update()` оставляют БД
+  несогласованной — правки RU-полей только через полный save; массовые пересчёты —
+  `rebuild_display_i18n`.
+
+---
+
+## 9. Задачи локализации (очередь, 2026-10-05)
+
+1. **Названия файлов сертификатов/техдокументации и изображений в медиабиблиотеке.**
+   Сейчас имена формируются ru: `core/models/catalog_serializer.py` —
+   `_get_certs_section()` (`f"{variety_name} {cert_code} для {ml_name}"`),
+   `_build_doc_dict()` (`doc.name`), подписи «Скачать»/«Скачать (сжат)» в
+   `core/models/spec_docx.py::_build_rich_links`. Нужно: локализованные имена файлов
+   (серия — trade, служебные «для»/«Сертификат» — через локаль), alt-тексты и названия
+   в медиабиблиотеке.
+
+2. **Шаблон имени файла спецификации (.docx).** `core/spec_doc_views.py`:
+   `filename = 'Спец-я %s.docx'` — сделать из локали (`Accept-Language`):
+   ru «Спецификация», en «Spec», cn «规格» и т.п. (Content-Disposition).
+
+3. **Шаблоны спецификаций — локализовать для остальных каталогов.** Для БКВ
+   `spec_template_i18n` (EquipmentType) работает (Шаг 6 + контент). Распространить:
+   en/cn-переводы `spec_template_i18n` остальных EquipmentType/серий; проверить
+   `_get_spec_template_i18n()` для случая собственного `spec_template` серии.
+
+4. **Локализация мастера подбора (Wizard).** `WizardSelection.vue`,
+   `QuestionGraphWizard.vue`, `AiSelectionPage.vue` + бэкенд `core/wizard_views.py`,
+   `core/question_graph_views.py` — сейчас ru (метки узлов, вопросы, подсказки).
+   Задача: пробросить локаль из `Accept-Language` во все wizard-эндпоинты и перевести
+   UI-строки через `t()`/словари (как сделано для QuickSelect/деталки).

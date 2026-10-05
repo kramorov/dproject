@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, ImageGalleryMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
+from core.utils.localization import sync_ru
 from producers.models import Producer, Brands
 from options.models import BaseM2MExdThroughOption
 
@@ -28,6 +29,23 @@ class LimitSwitchModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,Equipme
     description_template = models.TextField(blank=True, null=True,
                                             verbose_name=_("Шаблон описания"),
                                             help_text=_('Шаблон для описания БКВ'))
+    # ── Локализованные шаблоны (ru/en/cn) — расширение RU-полей ──
+    name_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона названия (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с name_template.')
+    )
+    description_template_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы шаблона описания (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с description_template.')
+    )
+    # Описание серии: переводы (название — торговое, не переводится)
+    description_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы описания серии (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с description.')
+    )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Cортировка"),
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
@@ -55,6 +73,13 @@ class LimitSwitchModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,Equipme
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Локализация (Фаза 4): синхронизация RU-значений в _i18n
+        self.name_template_i18n = sync_ru(self.name_template_i18n, self.name_template)
+        self.description_template_i18n = sync_ru(self.description_template_i18n, self.description_template)
+        self.description_i18n = sync_ru(self.description_i18n, self.description)
+        super().save(*args, **kwargs)
 
     # ── M2M-сериализаторы: id, code, name ──
 

@@ -4,11 +4,13 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from typing import List, Optional, Tuple, Any, Dict, Union
 
+from core.models.mixins import LocalizedDictFieldsMixin
+
 import logging
 
 logger = logging.getLogger(__name__)
 
-class PaControlMountingStandard(models.Model):
+class PaControlMountingStandard(LocalizedDictFieldsMixin):
     """
     Стандарт присоединения для БКВ и позиционеров
     """

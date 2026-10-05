@@ -18,6 +18,8 @@ from django.db import models
 from django.db.models import QuerySet
 from django.core.exceptions import FieldDoesNotExist
 
+from ..utils.localization import localized_name
+
 from params.exd_models import ExdOption
 from params.models import IpOption, ThreadSize, ThreadTypes
 
@@ -91,6 +93,7 @@ class FilterDefinition:
             filter_type: FilterType,
             data_source_type: DataSourceType,
             label: str = None,
+            label_i18n: Dict[str, str] = None,
             order: int = 0,
             source_model: Type[models.Model] = None,
             source_field: str = None,
@@ -113,6 +116,7 @@ class FilterDefinition:
         self.filter_type = filter_type
         self.data_source_type = data_source_type
         self.label = label or param_name
+        self.label_i18n = label_i18n or {}
         self.order = order
         self.source_model = source_model
         self.source_field = source_field
@@ -138,10 +142,11 @@ class FilterDefinition:
 
     # ── Options ──
 
-    def get_options(self, model_class, queryset=None) -> List[Dict]:
+    def get_options(self, model_class, queryset=None, locale=None) -> List[Dict]:
         """
         Get filter options. If queryset is provided (scoped mode), values
         are limited to what appears in that queryset instead of the full table.
+        ``locale`` — локализует названия опций через ``name_i18n`` справочников.
         """
 
         if self.data_source_type == DataSourceType.FIELD_VALUES:
@@ -185,7 +190,7 @@ class FilterDefinition:
                 return [
                     {
                         'id': obj.id,
-                        'name': getattr(obj, 'name', str(obj)),
+                        'name': localized_name(obj, locale) or str(obj),
                         'code': getattr(obj, 'code', '') or ''
                     }
                     for obj in objects
@@ -228,7 +233,7 @@ class FilterDefinition:
                 return [
                     {
                         'id': obj.id,
-                        'name': getattr(obj, 'name', str(obj)),
+                        'name': localized_name(obj, locale) or str(obj),
                         'code': getattr(obj, 'code', '') or ''
                     }
                     for obj in qs
@@ -249,7 +254,7 @@ class FilterDefinition:
                 return [
                         {
                             'id': obj.id,
-                            'name': getattr(obj, 'name', str(obj)),
+                            'name': localized_name(obj, locale) or str(obj),
                             'code': getattr(obj, 'code', '') or ''
                         }
                         for obj in queryset
