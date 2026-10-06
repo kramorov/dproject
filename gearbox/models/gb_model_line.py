@@ -8,9 +8,10 @@ from core.models import ImageGalleryMixin , TechDocMixin , EquipmentTypeMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from params.models import ActuatorGearboxOutputType
 from producers.models import Brands
+from core.models.mixins import LocalizedModelLineMixin
 
 
-class GearBoxModelLine(ImageGalleryMixin, CertDocMixin, TechDocMixin, EquipmentTypeMixin, models.Model):
+class GearBoxModelLine(LocalizedModelLineMixin, ImageGalleryMixin, CertDocMixin, TechDocMixin, EquipmentTypeMixin, models.Model):
     """
     Серия редукторов (model line).
 

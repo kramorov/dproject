@@ -22,9 +22,10 @@ from .mixins import (
     ValveLineUtilsMixin
 )
 from .properties import ValveLinePropertiesMixin
+from core.models.mixins import LocalizedDescriptionFieldsMixin
 
 
-class ValveLine(
+class ValveLine(LocalizedDescriptionFieldsMixin, 
     ValveLineModelDataMixin,
     ValveLineKvDataMixin,
     ValveLineServiceMixin, # Включает ValveLineInheritanceMixin, и ValveLineDataGettersMixin,

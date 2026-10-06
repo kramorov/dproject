@@ -50,7 +50,7 @@ import PaActuatorConfigurator from '@/shared/components/catalog/PaActuatorConfig
 import PaWizard from '@/shared/components/catalog/PaWizard.vue'
 import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import { useCatalogRoute } from '@/shared/composables/useCatalogRoute.js'
-import { useI18n } from '@/shared/i18n'
+import { useI18n, localizedPath } from '@/shared/i18n'
 import paApi from './api'
 
 const api = paApi
@@ -80,7 +80,7 @@ const {
   goToSection: navSection, goToBrand: navBrand, goToWizard: navWizard, goToAi: navAi,
 } = useCatalogRoute({ mlParam: 'model_line_id' })
 const pageSubtitle = ref('')
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const modeNames = computed(() => ({
   section: t('catalog.mode.section'),
@@ -118,7 +118,7 @@ function onNavigate(item) {
   const target = item?.target
   if (!target) return
   if (target === 'catalog-index') {
-    if (router) router.push('/catalogs/equipment')
+    if (router) router.push(localizedPath('/catalogs/equipment', locale.value))
     else navSection()
     return
   }

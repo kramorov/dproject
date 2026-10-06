@@ -3,10 +3,10 @@ from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
-from core.models.mixins import TextDescriptionMixin, OptionListToSelectMixin
+from core.models.mixins import TextDescriptionMixin, OptionListToSelectMixin, LocalizedDictFieldsMixin
 
 
-class HazardousGroup(models.Model) :
+class HazardousGroup(LocalizedDictFieldsMixin) :
     """Группа взрывоопасной среды (газ и пыль в одном справочнике)"""
 
     class GroupType(models.TextChoices) :
@@ -45,7 +45,7 @@ class HazardousGroup(models.Model) :
         except HazardousGroup.DoesNotExist :
             return False
 
-class TemperatureClass(models.Model, TextDescriptionMixin):
+class TemperatureClass(LocalizedDictFieldsMixin, TextDescriptionMixin):
     """Температурный класс (T1-T6)"""
     name = models.CharField(max_length=10, verbose_name=_("Название"))
     code = models.CharField(max_length=10, verbose_name=_("Код"))
@@ -86,7 +86,7 @@ class TemperatureClass(models.Model, TextDescriptionMixin):
             'temp': self.max_surface_temp,
             'ignition': self.max_surface_temp
         }
-class ExplosionProtectionMethod(models.Model):
+class ExplosionProtectionMethod(LocalizedDictFieldsMixin):
     """Общий метод (Вид) взрывозащиты: d, e, i, m, p, t и т.д."""
     code = models.CharField(max_length=10, unique=True) # Например: 'i'
     name = models.CharField(max_length=100) # Искробезопасная электрическая цепь
@@ -102,7 +102,7 @@ class ExplosionProtectionMethod(models.Model):
     def __str__(self):
         return f"Ex {self.code}"
 
-class ExplosionProtectionType(models.Model, TextDescriptionMixin):
+class ExplosionProtectionType(LocalizedDictFieldsMixin, TextDescriptionMixin):
     """Тип взрывозащиты (Ex d, Ex e, Ex i, etc.)"""
 
     class ProtectionCategory(models.TextChoices):
@@ -153,7 +153,7 @@ class ExplosionProtectionType(models.Model, TextDescriptionMixin):
         return descriptions.get(self.code, self.description or self.name)
 
 
-class ExplosionProtectionLevel(models.Model, TextDescriptionMixin):
+class ExplosionProtectionLevel(LocalizedDictFieldsMixin, TextDescriptionMixin):
     """Уровень взрывозащиты (Ga, Gb, Gc, Da, Db, Dc)"""
     name = models.CharField(max_length=10, verbose_name=_("Название"))
     code = models.CharField(max_length=10, verbose_name=_("Код"))
@@ -195,7 +195,7 @@ class ExplosionProtectionLevel(models.Model, TextDescriptionMixin):
         return descriptions.get(self.code, self.description or self.name)
 
 
-class ExdOption(models.Model, OptionListToSelectMixin):
+class ExdOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Тип взрывозащиты (расширенная версия)"""
 
     class EquipmentType(models.TextChoices):

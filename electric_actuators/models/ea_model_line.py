@@ -10,11 +10,12 @@ from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin
 
 from producers.models import Brands
+from core.models.mixins import LocalizedDescriptionFieldsMixin
 
 logger = logging.getLogger(__name__)
 
 
-class ElectricActuatorModelLine(StructuredDataMixin , models.Model) :
+class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataMixin , models.Model) :
     """
     Серия электроприводов - объединяет в себе общие для всех моделей серии свойства
     и доступные опции

@@ -23,11 +23,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel , StructuredDataMixin , EquipmentTypeMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
-from core.models.mixins import CopyMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
 from producers.models import Brands
 
 
-class CertVariety(BaseAbstractModel) :
+class CertVariety(BaseAbstractModel, LocalizedDictFieldsMixin):
     """
     Тип (разновидность) сертификата.
 

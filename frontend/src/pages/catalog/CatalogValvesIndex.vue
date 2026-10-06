@@ -2,26 +2,36 @@
 <template>
   <div class="cat-index">
     <Breadcrumbs :items="breadcrumbs" />
-    <h1 class="cat-title">Каталоги арматуры</h1>
+    <h1 class="cat-title">{{ t('menu.catalogValves') }}</h1>
     <div class="cat-grid">
-      <router-link v-for="cat in items" :key="cat.to" :to="cat.to" class="cat-card">
+      <router-link v-for="cat in items" :key="cat.to" :to="localizedPath(cat.to, locale)" class="cat-card">
         <div class="cat-img">
-          <img v-if="cat.img" :src="cat.img" :alt="cat.name" class="cat-pic" @error="$event.target.style.display='none'" />
+          <img v-if="cat.img" :src="cat.img" :alt="t(cat.nameKey)" class="cat-pic" @error="$event.target.style.display='none'" />
         </div>
-        <h3 class="cat-name">{{ cat.name }}</h3>
+        <h3 class="cat-name">{{ t(cat.nameKey) }}</h3>
       </router-link>
     </div>
   </div>
 </template>
 <script setup>
+import { computed } from 'vue'
 import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
+import { useI18n, localizedPath } from '@/shared/i18n'
+
+const { locale, t } = useI18n()
+
 function img(path) { return `${import.meta.env.BASE_URL}img/catalog/${path}` }
-const breadcrumbs = [{ name: 'Главная', to: '/' }, { name: 'Каталоги арматуры' }]
+
+const breadcrumbs = computed(() => [
+  { name: t('breadcrumb.home'), to: localizedPath('/', locale.value) },
+  { name: t('menu.catalogValves') },
+])
+
 const items = [
-  { to:'/catalog/butterfly-valves', name:'Дисковые затворы', img:img('butterfly-valves.webp') },
-  { to:'/catalog/ball-valves', name:'Шаровые краны', img:img('ball-valves.webp') },
-  { to:'/catalog/gate-valves', name:'Клиновые задвижки', img:img('gate-valves.webp') },
-  { to:'/catalog/knife-gate-valves', name:'Шиберные задвижки', img:img('knife-gate-valves.webp') },
+  { to: '/catalog/butterfly-valves', nameKey: 'catalog.name.butterflyValves', img: img('butterfly-valves.webp') },
+  { to: '/catalog/ball-valves', nameKey: 'catalog.name.ballValves', img: img('ball-valves.webp') },
+  { to: '/catalog/gate-valves', nameKey: 'catalog.name.gateValves', img: img('gate-valves.webp') },
+  { to: '/catalog/knife-gate-valves', nameKey: 'catalog.name.knifeGateValves', img: img('knife-gate-valves.webp') },
 ]
 </script>
 <style scoped>

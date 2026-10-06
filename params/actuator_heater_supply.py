@@ -11,9 +11,10 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class ActuatorHeaterSupply(models.Model):
+class ActuatorHeaterSupply(LocalizedDictFieldsMixin):
     """Вариант питания антиконденсатного обогрева электропривода."""
     name = models.CharField(
         max_length=200,

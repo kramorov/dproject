@@ -9,9 +9,10 @@ from core.models.smart_catalog_mixin import SmartCatalogMixin
 from filter_regulator.models import FilterRegulatorVariety
 from materials.models import MaterialGeneral , MaterialSpecified
 from producers.models import Brands
+from core.models.mixins import LocalizedModelLineMixin
 
 
-class FilterRegulatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, SmartCatalogMixin, models.Model):
+class FilterRegulatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, SmartCatalogMixin, models.Model):
     """
     Серия пневматических фитингов
     """

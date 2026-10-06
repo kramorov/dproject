@@ -14,10 +14,10 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import OptionListToSelectMixin
+from core.models.mixins import OptionListToSelectMixin, LocalizedDictFieldsMixin
 
 
-class TurnCounterOption(OptionListToSelectMixin, models.Model):
+class TurnCounterOption(OptionListToSelectMixin, LocalizedDictFieldsMixin):
     """Счётчик оборотов — механический или электронный, с пределом по оборотам."""
 
     COUNTER_TYPES = [

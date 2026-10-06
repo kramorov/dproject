@@ -196,3 +196,15 @@ LIMIT_SWITCH_FILTER_DEFINITIONS = [
     fd_signal_type, fd_contact_form, fd_visual_indicator,
     fd_exd,
 ]
+
+# Фильтры быстрого подбора (QuickSelect) — список param_name.
+LIMIT_SWITCH_QUICKSELECT_FILTERS = [
+    'sensor_variety_id',
+    'points_option_id',
+    'body_material_id',
+    'signal_type_id',
+    'visual_indicator_type_id',
+    'exd_id',
+    'work_temp_min',
+    'work_temp_max',
+]

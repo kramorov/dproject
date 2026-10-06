@@ -17,10 +17,10 @@ unique_together = [profile, signal_role] гарантирует, что на о�
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import OptionListToSelectMixin, CopyMixin
+from core.models.mixins import OptionListToSelectMixin, CopyMixin, LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
 
 
-class ControlUnitSignalProfile(OptionListToSelectMixin, CopyMixin, models.Model):
+class ControlUnitSignalProfile(OptionListToSelectMixin, CopyMixin, LocalizedDictFieldsMixin):
     """Типовой профиль сигналов для конфигурации БУ.
 
     Группирует датчики в осмысленные наборы:
@@ -78,7 +78,7 @@ class ControlUnitSignalProfile(OptionListToSelectMixin, CopyMixin, models.Model)
             entry.save()
 
 
-class ControlUnitSignalProfileEntry(models.Model):
+class ControlUnitSignalProfileEntry(LocalizedNameFieldsMixin):
     """Запись в профиле: роль сигнала → конкретный датчик.
 
     Через эту модель один датчик может быть назначен на несколько ролей

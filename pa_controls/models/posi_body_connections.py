@@ -17,9 +17,10 @@ PosiPneumaticThreadOption и PosiPneumaticConnectionOption.
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class PosiBodyConnections(models.Model):
+class PosiBodyConnections(LocalizedDictFieldsMixin):
     """Присоединения корпуса позиционера: резьба пневмоподключения + отверстие КВ."""
 
     name = models.CharField(

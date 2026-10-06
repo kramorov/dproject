@@ -3,10 +3,11 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models import StructuredDataMixin
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
 
-class ManualOverride(StructuredDataMixin, models.Model):
+class ManualOverride(StructuredDataMixin, LocalizedDictFieldsMixin):
     """Справочник типов ручного дублирования соленоидного клапана"""
 
     class MechanismType(models.TextChoices):
@@ -55,7 +56,7 @@ class ManualOverride(StructuredDataMixin, models.Model):
         return f"{self.name}"
 
 
-class ValveActuationVariety(StructuredDataMixin, models.Model):
+class ValveActuationVariety(StructuredDataMixin, LocalizedDictFieldsMixin):
     """Справочник типов управления: Моностабильный (1 катушка), Бистабильный (2 катушки)"""
 
     class ReturnType(models.TextChoices):
@@ -111,7 +112,7 @@ class ValveActuationVariety(StructuredDataMixin, models.Model):
         return self.name
 
 
-class ValveDesign(StructuredDataMixin, models.Model):
+class ValveDesign(StructuredDataMixin, LocalizedDictFieldsMixin):
     """Справочник типов конструкции: Золотниковый, Мембранный и т.д."""
     name = models.CharField(max_length=50,
                             verbose_name=_("Название"),
@@ -134,7 +135,7 @@ class ValveDesign(StructuredDataMixin, models.Model):
         return self.name
 
 
-class ValveOperationVariety(StructuredDataMixin, models.Model):
+class ValveOperationVariety(StructuredDataMixin, LocalizedDictFieldsMixin):
     """Справочник типов действия: Прямое, Пилотное"""
     name = models.CharField(max_length=50,
                             verbose_name=_("Тип"),
@@ -157,7 +158,7 @@ class ValveOperationVariety(StructuredDataMixin, models.Model):
         return self.name
 
 
-class ValveFunction(StructuredDataMixin, models.Model):
+class ValveFunction(StructuredDataMixin, LocalizedDictFieldsMixin):
     """Справочник схем распределения: 3/2, 5/2, 5/3 и т.д."""
     name = models.CharField(max_length=20,
                             verbose_name=_("Схема (Функция)"),
@@ -203,7 +204,7 @@ class ValveFunction(StructuredDataMixin, models.Model):
         return list(set(ids))
 
 
-class ValvePilotVariety(StructuredDataMixin, models.Model):
+class ValvePilotVariety(StructuredDataMixin, LocalizedDictFieldsMixin):
     """Справочник типов управляющего сигнала (пилота)"""
 
     class SignalCategory(models.TextChoices):

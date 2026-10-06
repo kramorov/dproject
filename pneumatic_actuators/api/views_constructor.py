@@ -17,6 +17,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from project_customers.permissions import SectionAccessPermission
 from rest_framework.decorators import action
+from core.utils.localization import locale_from_accept_language
 
 from pneumatic_actuators.models import (
     PneumaticActuatorConstructor,
@@ -192,7 +193,8 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             return Response({'error': 'model_line_item_id required'}, status=400)
         # Временный инстанс только для вызова get_available_options
         obj = PneumaticActuatorConstructor(selected_model_line_item_id=mli_id)
-        return Response(obj.get_available_options())
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        return Response(obj.get_available_options(locale=locale))
 
     @action(detail=False, methods=['get'])
     def model_lines(self, request):

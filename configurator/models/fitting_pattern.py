@@ -1,7 +1,8 @@
 from django.db import models
+from core.models.mixins import LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
 
 
-class FittingPattern(models.Model):
+class FittingPattern(LocalizedNameFieldsMixin):
     """Шаблон фитингов для контекста монтажа.
 
     В отличие от PropagationRule и DerivationRule, не передаёт значения

@@ -3,9 +3,10 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from core.models import BaseAbstractModel
 from core.models.equipment_type import EquipmentType
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class FeatureVariety(BaseAbstractModel):
+class FeatureVariety(BaseAbstractModel, LocalizedDictFieldsMixin):
     """
     Вид/тип характеристики (справочник)
     """

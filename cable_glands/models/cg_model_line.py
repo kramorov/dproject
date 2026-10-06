@@ -6,13 +6,13 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import StructuredDataMixin, ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
 from core.models.cert_doc_mixin import CertDocMixin
-from core.models.mixins import CopyMixin
+from core.models.mixins import CopyMixin, LocalizedModelLineMixin
 from producers.models import Brands, Producer
 
 from params.models import IpOption
 
 
-class CableGlandModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin,
+class CableGlandModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin, CertDocMixin,
                           EquipmentTypeMixin, CopyMixin,
                           StructuredDataMixin, models.Model):
     """Серия кабельных вводов (model line) — «семейство» изделий.

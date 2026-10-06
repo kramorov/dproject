@@ -149,9 +149,17 @@ def _get_options_for_param(equipment_type, param_name, filters_applied=None):
         fk_ids = qs.values_list(param_name, flat=True).distinct()
         options = related_model.objects.filter(pk__in=fk_ids).order_by('name')
         return [{'id': o.pk, 'name': str(o), 'description': getattr(o, 'description', '') or ''} for o in options]
-    else:
-        values = qs.values_list(param_name, flat=True).distinct().order_by(param_name)
-        return [{'id': v, 'name': str(v)} for v in values if v is not None]
+    if field_obj.many_to_many:
+        related_model = field_obj.remote_field.model
+        ids = qs.values_list(field_lookup, flat=True).distinct()
+        options = related_model.objects.filter(pk__in=ids)
+        if hasattr(related_model, 'sorting_order'):
+            options = options.order_by('sorting_order', 'name')
+        else:
+            options = options.order_by('name')
+        return [{'id': o.pk, 'name': str(o), 'description': getattr(o, 'description', '') or ''} for o in options]
+    values = qs.values_list(field_lookup, flat=True).distinct().order_by(field_lookup)
+    return [{'id': v, 'name': str(v)} for v in values if v is not None]
 
 
 def _get_node_pages(node: dict) -> list[dict]:

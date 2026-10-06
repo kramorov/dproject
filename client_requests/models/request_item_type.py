@@ -1,9 +1,10 @@
 # client_requests/models/request_item_type.py
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class RequestItemType(models.Model) :
+class RequestItemType(LocalizedDictFieldsMixin) :
     """
     Тип подбора для позиции запроса
     """

@@ -13,7 +13,7 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from core.models.mixins import CopyMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
 
 
 class SignalDirection(models.TextChoices):
@@ -22,7 +22,7 @@ class SignalDirection(models.TextChoices):
     BIDIRECTIONAL = 'bidirectional', _('Двунаправленный')
 
 
-class SignalRole(CopyMixin, models.Model):
+class SignalRole(CopyMixin, LocalizedDictFieldsMixin):
     """Роль сигнала в конфигурации БУ.
 
     Примеры:

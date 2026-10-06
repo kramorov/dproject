@@ -2,9 +2,10 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class MetalSleeve( models.Model):
+class MetalSleeve( LocalizedDictFieldsMixin):
     """Тип/диаметр металлорукава (справочник).
 
     name — обозначение (например «РЗЦХ 12», «РЗЦП 12»), code — код,

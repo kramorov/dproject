@@ -32,6 +32,7 @@ from options.models import (
 )
 
 from .posi_options import ActingType, LeverOption, SmartCapabilitySet
+from core.models.mixins import LocalizedModelLineMixin
 
 
 class ExdAvailability(models.TextChoices):
@@ -41,7 +42,7 @@ class ExdAvailability(models.TextChoices):
     EX = 'ex', _('Только Ex')
 
 
-class PosiModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin,
+class PosiModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin,
                     SmartCatalogMixin, StructuredDataMixin, models.Model):
     """Серия позиционеров (аналог LimitSwitchModelLine для БКВ).
 

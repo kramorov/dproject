@@ -28,7 +28,7 @@ import CatalogDetail from '@/shared/components/catalog/CatalogDetail.vue'
 import CatalogModelLine from '@/shared/components/catalog/CatalogModelLine.vue'
 import QuickSelectNoSeries from '@/shared/components/catalog/QuickSelectNoSeries.vue'
 import { useCatalogRoute } from '@/shared/composables/useCatalogRoute.js'
-import { useI18n } from '@/shared/i18n'
+import { useI18n, localizedPath } from '@/shared/i18n'
 import silencerApi from './api'
 
 const api = silencerApi
@@ -62,7 +62,7 @@ const {
 } = useCatalogRoute()
 
 const pageSubtitle = ref('')
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const modeNames = computed(() => ({
   section: t('catalog.mode.section'),
@@ -112,7 +112,7 @@ function onNavigate(item) {
   const t = item?.target
   if (!t) return
   if (t === 'catalog-index') {
-    if (router) { router.push('/catalogs/equipment') } else { navSection() }
+    if (router) { router.push(localizedPath('/catalogs/equipment', locale.value)) } else { navSection() }
     return
   }
   cacheEpoch.value++

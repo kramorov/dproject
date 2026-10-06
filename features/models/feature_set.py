@@ -8,9 +8,10 @@ from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel
 from .feature_template import FeatureTemplate
 import json
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class FeatureSet(BaseAbstractModel):
+class FeatureSet(BaseAbstractModel, LocalizedDictFieldsMixin):
     """
     Набор характеристик для конкретного экземпляра оборудования
     """

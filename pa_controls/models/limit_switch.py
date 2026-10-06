@@ -11,13 +11,17 @@ from core.models.catalog_mixin import CatalogFilterMixin, FilterFieldConfig, Com
 from core.models.mixins import TemplateMixin, CopyMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
-from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
+from core.models.smart_catalog_mixin import SmartCatalogMixin
 from materials.models import MaterialGeneral, MaterialSpecified
 from pa_controls.models.pa_control_options import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState, PointsOption
 from pa_controls.models.sensor import SensorComponent
 from pa_controls.models.lsb_body import LimitSwitchBody
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
-from pa_controls.models.lsb_item_fields import LSB_ITEM_TEMPLATE_FIELDS
+from pa_controls.models.lsb_item_fields import (
+    LSB_ITEM_TEMPLATE_FIELDS,
+    LSB_NAME_FIELD_KEYS,
+    LSB_VARS_FIELD_KEYS,
+)
 from params.exd_models import ExdOption
 from options.models import ExdOptionsConsumerMixin
 from sku.models import SKUMixin
@@ -49,22 +53,8 @@ class LimitSwitchBox(CatalogSerializerMixin,
     exd_m2m_field = 'exd'
 
     TEMPLATE_FIELDS = LSB_ITEM_TEMPLATE_FIELDS
-    NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'sensor_variety', 'points', 'body_material',
-        'body_material_specified', 'weight', 'cable_glands_holes', 'mounting',
-        'work_temp_min', 'work_temp_max', 'exd', 'exd_short', 'ip', 'primary_sensor',
-        'primary_sensor_signal_type', 'primary_sensor_contact_state',
-        'primary_sensor_contact_form', 'signal_profile_summary',
-    )
-
-    VARS_FIELD_KEYS = (
-        'code', 'name', 'model_line_name', 'brand_name', 'sensor_variety',
-        'points', 'ip', 'exd', 'exd_short', 'work_temp', 'work_temp_min', 'work_temp_max',
-        'body_material', 'body_material_specified', 'weight',
-        'cable_glands_holes', 'mounting', 'is_pneumatic', 'has_namur_interface',
-        'visual_indicator_type', 'primary_sensor', 'primary_sensor_signal_type',
-        'signal_profile_summary', 'cert_description', 'signals', 'sensors',
-    )
+    NAME_FIELD_KEYS = LSB_NAME_FIELD_KEYS
+    VARS_FIELD_KEYS = LSB_VARS_FIELD_KEYS
 
     # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
     # SPEC_FIELD_KEYS = (
@@ -383,131 +373,9 @@ class LimitSwitchBox(CatalogSerializerMixin,
                 sensors.append(self.primary_sensor)
         return signals, sensors
 
-    # ========== КОНФИГУРАЦИЯ ДЛЯ МИКСИНА SmartCatalogMixin ==========
-
-    FILTER_DEFINITIONS = [
-        # Серия
-        FilterDefinition(
-            param_name='model_line_id',
-            model_field='model_line',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.FOREIGN_KEY,
-            label='Серия',
-            order=1
-        ),
-
-        # Тип сенсора
-        FilterDefinition(
-            param_name='sensor_variety_id',
-            model_field='sensor_variety',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Тип сенсора',
-            order=2
-        ),
-
-        # Количество датчиков
-        FilterDefinition(
-            param_name='points_option_id',
-            model_field='points_option',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.FOREIGN_KEY,
-            label='Количество датчиков',
-            order=3
-        ),
-
-        # IP (ParameterRule)
-        FilterDefinition(
-            param_name='ip_id',
-            model_field='ip',
-            filter_type=FilterType.IP_RANK,
-            parameter_rule_code='ip',
-            data_source_type=DataSourceType.GLOBAL_MODEL,
-            source_model=IpOption,
-            label='IP',
-            order=4
-        ),
-
-        # Температура (ParameterRule)
-        FilterDefinition(
-            param_name='work_temp_min',
-            model_field='work_temp_min',
-            filter_type=FilterType.TEMP_MIN,
-            parameter_rule_code='temperature_min',
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Температура от',
-            order=5
-        ),
-        FilterDefinition(
-            param_name='work_temp_max',
-            model_field='work_temp_max',
-            filter_type=FilterType.TEMP_MAX,
-            parameter_rule_code='temperature_max',
-            data_source_type=DataSourceType.FIELD_VALUES,
-            label='Температура до',
-            order=6
-        ),
-
-        # Материалы
-        FilterDefinition(
-            param_name='body_material_id',
-            model_field='body_material',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.FOREIGN_KEY,
-            label='Материал корпуса',
-            order=7
-        ),
-
-        # Бренд через серию
-        FilterDefinition(
-            param_name='model_line_brand_id',
-            model_field='model_line__brand',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Бренд серии',
-            order=8
-        ),
-
-        # Тип сигнала (датчики)
-        # FilterDefinition(  #Все значения из глобальной модели
-        #     param_name='signal_type_id',
-        #     model_field='primary_sensor__signal_type',
-        #     filter_type=FilterType.EXACT,
-        #     data_source_type=DataSourceType.GLOBAL_MODEL,
-        #     source_model=SignalType,
-        #     label='Тип сигнала',
-        #     order=9
-        # ),
-        # Только имеющиеся в справочнике
-        # Для ForeignKey полей - используем UNIQUE_FIELD_VALUES (только используемые)
-        FilterDefinition(
-            param_name='signal_type_id',
-            model_field='signal_profile__entries__sensor__signal_type',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,  # ← только используемые
-            label='Тип сигнала',
-            order=9
-        ),
-        # Вид визуального индикатора
-        FilterDefinition(
-            param_name='visual_indicator_type_id',
-            model_field='visual_indicator_type',
-            filter_type=FilterType.EXACT,
-            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-            label='Вид визуального индикатора',
-            order=10
-        ),
-        # Exd (ParameterRule)
-        FilterDefinition(
-            param_name='exd_id',
-            model_field='exd',
-            filter_type=FilterType.EXD_COMPATIBLE,
-            parameter_rule_code='exd',
-            data_source_type=DataSourceType.CUSTOM,
-            label='Взрывозащита',
-            order=10
-        ),
-    ]
+    # FILTER_DEFINITIONS и QUICKSELECT_FILTERS вынесены в
+    # pa_controls/catalog/filter_defs.py (единый источник с label_i18n).
+    # Wizard/question_graph находят их через core/wizard_filter_registry.py.
 
     # ========== ОПЦИИ ДЛЯ ФИЛЬТРОВ (CUSTOM) ==========
     @classmethod
@@ -519,18 +387,6 @@ class LimitSwitchBox(CatalogSerializerMixin,
         ]
 
     SEARCH_FIELDS = ['code', 'name', 'description']
-
-    # Фильтры для быстрого подбора (QuickSelect)
-    QUICKSELECT_FILTERS = [
-        'sensor_variety_id',
-        'points_option_id',
-        'body_material_id',
-        'signal_type_id',
-        'visual_indicator_type_id',
-        'exd_id',
-        'work_temp_min',
-        'work_temp_max',
-    ]
 
     SELECT_RELATED_FIELDS = [
         'model_line', 'model_line__brand', 'sensor_variety',

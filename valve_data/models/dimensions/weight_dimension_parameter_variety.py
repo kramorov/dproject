@@ -2,8 +2,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from core.models.mixins import LocalizedDictFieldsMixin
 
-class WeightDimensionParameterVariety(models.Model):
+class WeightDimensionParameterVariety(LocalizedDictFieldsMixin):
     """Справочник параметров предопределенных параметров ВГХ - выбирается  DimensionTableParameter
         Нужен для сравнения моделей, отбора по значениям параметра, формирования паспорта на изделие и
         технички на серию"""

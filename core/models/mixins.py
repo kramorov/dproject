@@ -1992,13 +1992,13 @@ class TextDescriptionMixin:
 
 class OptionListToSelectMixin:
     @classmethod
-    def get_for_select(cls, active_only: bool = True) -> List[Dict]:
+    def get_for_select(cls, active_only: bool = True, locale=None) -> List[Dict]:
         queryset = cls.objects.all()
 
         if active_only and hasattr(cls, 'is_active'):
             queryset = queryset.filter(is_active=True)
 
-        return [{'id': obj.id, 'name': str(obj)} for obj in queryset]
+        return [{'id': obj.id, 'name': localized_name(obj, locale)} for obj in queryset]
 
 class GetChoicesMixin:
     """
@@ -2070,6 +2070,95 @@ class LocalizedDictFieldsMixin(models.Model) :
 
     def save(self , *args , **kwargs) :
         self._sync_localized_ru()
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None :
+            kwargs['update_fields'] = set(update_fields) | {'name_i18n' , 'description_i18n'}
+        super().save(*args , **kwargs)
+
+
+class LocalizedNameFieldsMixin(models.Model) :
+    """Только ``name`` + ``name_i18n`` (для справочников без поля ``description``)."""
+    name_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы названия (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с названием.')
+    )
+
+    class Meta :
+        abstract = True
+
+    def _sync_localized_ru(self) :
+        self.name_i18n = sync_ru(getattr(self , 'name_i18n' , None), getattr(self , 'name' , ''))
+
+    def save(self , *args , **kwargs) :
+        self._sync_localized_ru()
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None :
+            kwargs['update_fields'] = set(update_fields) | {'name_i18n'}
+        super().save(*args , **kwargs)
+
+
+class LocalizedDescriptionFieldsMixin(models.Model) :
+    """Только ``description`` + ``description_i18n`` (для серий/каталоговых линий).
+
+    ``name`` остаётся торговым названием и НЕ локализуется. ``save()``
+    синхронизирует ``description_i18n['ru']`` с ``description``.
+    """
+    description_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы описания (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с описанием.')
+    )
+
+    class Meta :
+        abstract = True
+
+    def _sync_localized_ru(self) :
+        self.description_i18n = sync_ru(getattr(self , 'description_i18n' , None), getattr(self , 'description' , ''))
+
+    def save(self , *args , **kwargs) :
+        self._sync_localized_ru()
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None :
+            kwargs['update_fields'] = set(update_fields) | {'description_i18n'}
+        super().save(*args , **kwargs)
+
+
+class LocalizedModelLineMixin(models.Model) :
+    """Для серий: переводы описания и шаблонов name/description.
+
+    ``name`` — торговое название, НЕ локализуется. RU синхронизируется из
+    базовых полей (``description``, ``name_template``, ``description_template``).
+    """
+    description_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы описания (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с описанием.')
+    )
+    name_template_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы шаблона названия (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с шаблоном.')
+    )
+    description_template_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы шаблона описания (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с шаблоном.')
+    )
+
+    class Meta :
+        abstract = True
+
+    def _sync_localized_ru(self) :
+        self.description_i18n = sync_ru(getattr(self , 'description_i18n' , None), getattr(self , 'description' , ''))
+        self.name_template_i18n = sync_ru(getattr(self , 'name_template_i18n' , None), getattr(self , 'name_template' , ''))
+        self.description_template_i18n = sync_ru(getattr(self , 'description_template_i18n' , None), getattr(self , 'description_template' , ''))
+
+    def save(self , *args , **kwargs) :
+        self._sync_localized_ru()
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None :
+            kwargs['update_fields'] = set(update_fields) | {'description_i18n' , 'name_template_i18n' , 'description_template_i18n'}
         super().save(*args , **kwargs)
 
 

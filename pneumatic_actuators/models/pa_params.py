@@ -2,9 +2,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
-from core.models.mixins import StructuredDataMixin
+from core.models.mixins import StructuredDataMixin, LocalizedDictFieldsMixin
 
-class PneumaticActuatorSpringsQty(models.Model) :
+class PneumaticActuatorSpringsQty(LocalizedDictFieldsMixin) :
     """
     Количество пружин в пневмоприводе SR
     """
@@ -28,7 +28,7 @@ class PneumaticActuatorSpringsQty(models.Model) :
     def __str__(self) :
         return self.name
 
-class PneumaticActuatorVariety(models.Model) :
+class PneumaticActuatorVariety(LocalizedDictFieldsMixin) :
     """
     Разновидности пневмоприводов- DA или SR
     """
@@ -60,7 +60,7 @@ class PneumaticActuatorVariety(models.Model) :
             queryset = queryset.filter(is_active=True)
         return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
 
-class PneumaticActuatorConstructionVariety(StructuredDataMixin , models.Model) :
+class PneumaticActuatorConstructionVariety(StructuredDataMixin , LocalizedDictFieldsMixin) :
     """
     Разновидности конструкций пневмоприводов- шестерня-рейка или кулисный
     """

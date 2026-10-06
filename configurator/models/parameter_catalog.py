@@ -18,9 +18,10 @@ ParameterCatalog — глобальный реестр канонических 
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class ParameterCatalog(models.Model):
+class ParameterCatalog(LocalizedDictFieldsMixin):
     """Глобальная запись канонического параметра."""
 
     code = models.CharField(

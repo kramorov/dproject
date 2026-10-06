@@ -4,13 +4,13 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
 
 from pa_controls.models import LimitSwitchSensorVariety, SensorComponent
 from params.models import IpOption
 
 
-class GearBoxInterlock(CopyMixin, models.Model):
+class GearBoxInterlock(CopyMixin, LocalizedDictFieldsMixin):
     """
     Блокировка/интерлок редуктора.
 

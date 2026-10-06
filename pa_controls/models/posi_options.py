@@ -16,10 +16,10 @@ SMART_CAPABILITY_SEED — стартовое наполнение справоч
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
 
 
-class ActingType(models.Model):
+class ActingType(LocalizedDictFieldsMixin):
     """Тип действия позиционера: линейный или ротационный.
 
     Справочник опций. Использование:
@@ -63,7 +63,7 @@ class ActingType(models.Model):
         return self.name
 
 
-class LeverOption(models.Model):
+class LeverOption(LocalizedDictFieldsMixin):
     """Рычаг позиционера: тип (линейный/ротационный) + диапазон хода штока.
 
     Справочник опций. Использование:
@@ -145,7 +145,7 @@ class LeverOption(models.Model):
         super().clean()
 
 
-class SmartCapabilityOption(models.Model):
+class SmartCapabilityOption(LocalizedDictFieldsMixin):
     """Возможность смарт-позиционера: диагностика, HART, LCD, автонастройка и т.д.
 
     Единый справочник возможностей — наборы (SmartCapabilitySet) собираются из
@@ -194,7 +194,7 @@ class SmartCapabilityOption(models.Model):
         return self.name
 
 
-class SmartCapabilitySet(CopyMixin, models.Model):
+class SmartCapabilitySet(CopyMixin, LocalizedDictFieldsMixin):
     """Набор смарт-возможностей.
 
     Набор привязывается к through-опции «Профиль сигналов»

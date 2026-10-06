@@ -28,7 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
-from core.models.mixins import CopyMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from producers.models import Brands
 from storage_manager.fields import ManagedFileField
@@ -39,7 +39,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-class MediaCategory(models.Model):
+class MediaCategory(LocalizedDictFieldsMixin):
     """
     Категория медиафайла — жёсткая классификация по типу содержимого.
 

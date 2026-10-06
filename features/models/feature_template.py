@@ -8,9 +8,10 @@ from core.models import BaseAbstractModel
 from core.models.equipment_type import EquipmentType
 from .feature_variety import FeatureVariety
 import json
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class FeatureTemplate(BaseAbstractModel):
+class FeatureTemplate(BaseAbstractModel, LocalizedDictFieldsMixin):
     """
     Шаблон характеристик для типа оборудования
     """

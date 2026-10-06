@@ -4,14 +4,14 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
-from core.models.mixins import StructuredDataMixin, OptionListToSelectMixin, CopyMixin
+from core.models.mixins import StructuredDataMixin, OptionListToSelectMixin, CopyMixin, LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
 from options.models import BaseThroughOption
 
 from .exd_models import ExdOption,  TemperatureClass, ExplosionProtectionType, \
     ExplosionProtectionLevel, ExplosionProtectionMethod
 
 
-class PowerSupplies(models.Model, OptionListToSelectMixin):
+class PowerSupplies(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     VOLTAGE_TYPES = [
         ('AC', 'AC - Переменный ток'),
         ('DC', 'DC - Постоянный ток'),
@@ -48,7 +48,7 @@ class PowerSupplies(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class ControlUnitLocationOption(models.Model, OptionListToSelectMixin):
+class ControlUnitLocationOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             help_text=_("Символьное обозначение типа размещения блока управления"),
                             verbose_name=_("Название"))
@@ -70,7 +70,7 @@ class ControlUnitLocationOption(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return self.name
 
-class ControlUnitTypeOption(models.Model, OptionListToSelectMixin):
+class ControlUnitTypeOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение типа размещения блока управления")
@@ -96,7 +96,7 @@ class ControlUnitTypeOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class SafetyPositionOption(models.Model, OptionListToSelectMixin):
+class SafetyPositionOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение положения функции безопасности")
@@ -119,7 +119,7 @@ class SafetyPositionOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class IpOption(models.Model, OptionListToSelectMixin):
+class IpOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение исполнения IP")
@@ -144,7 +144,7 @@ class IpOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class BodyCoatingOption(models.Model, OptionListToSelectMixin):
+class BodyCoatingOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     # TODO: Объединить этот класс с классом в Valve_data добавить толщину покрытия
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -168,7 +168,7 @@ class BodyCoatingOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class BlinkerOption(models.Model, OptionListToSelectMixin):
+class BlinkerOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение наличия блинкера")
@@ -191,7 +191,7 @@ class BlinkerOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class SwitchesParameters(models.Model, OptionListToSelectMixin):
+class SwitchesParameters(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение характеристик выключателей")
@@ -214,7 +214,7 @@ class SwitchesParameters(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class EnvTempParameters(models.Model):
+class EnvTempParameters(LocalizedDictFieldsMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Символьное обозначение типа температурного исполнения")
@@ -239,7 +239,7 @@ class EnvTempParameters(models.Model):
         return self.name
 
 
-class ClimaticPlacementCategory(models.Model, OptionListToSelectMixin):
+class ClimaticPlacementCategory(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Категория размещения оборудования (1, 2, 3, 4, 5)."""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -263,7 +263,7 @@ class ClimaticPlacementCategory(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class ClimaticZoneCategory(models.Model, OptionListToSelectMixin):
+class ClimaticZoneCategory(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Климатическая зона (У, ХЛ, УХЛ, Т, ТВ, М, ОМ, В…)."""
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -287,7 +287,7 @@ class ClimaticZoneCategory(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class ClimaticConditions(models.Model, OptionListToSelectMixin):
+class ClimaticConditions(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название значения температуры по климатическому исполнению")
@@ -326,7 +326,7 @@ class ClimaticConditions(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class DigitalProtocolsSupportOption(models.Model, OptionListToSelectMixin):
+class DigitalProtocolsSupportOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения поддерживаемого цифрового протокола")
@@ -349,7 +349,7 @@ class DigitalProtocolsSupportOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class MechanicalIndicatorInstalledOption(models.Model, OptionListToSelectMixin):
+class MechanicalIndicatorInstalledOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения установленного механического индикатора положения")
@@ -378,7 +378,7 @@ class MechanicalIndicatorInstalledOption(models.Model, OptionListToSelectMixin):
             return "Новый индикатор"
 
 
-class ControlUnitInstalledOption(models.Model, OptionListToSelectMixin):
+class ControlUnitInstalledOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения установленного на приводе блока управления")
@@ -408,7 +408,7 @@ class ControlUnitInstalledOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class ActuatorGearboxOutputType(StructuredDataMixin, models.Model, OptionListToSelectMixin):
+class ActuatorGearboxOutputType(StructuredDataMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения типа выхода привода/редуктора")
@@ -638,7 +638,7 @@ class ActuatorGearboxOutputType(StructuredDataMixin, models.Model, OptionListToS
         return f"/admin/actuators/actuatorgearboxoutputtype/{self.id}/change/"
 
 
-class ActuatorGearBoxCombinationTypes(models.Model, OptionListToSelectMixin):
+class ActuatorGearBoxCombinationTypes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа комбинации привода и редуктора")
@@ -670,7 +670,7 @@ class ActuatorGearBoxCombinationTypes(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class ValveTypes(models.Model, OptionListToSelectMixin):
+class ValveTypes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа арматуры")
@@ -706,7 +706,7 @@ class ValveTypes(models.Model, OptionListToSelectMixin):
                  'actuator_gearbox_combinations': obj.actuator_gearbox_combinations} for obj in queryset]
 
 
-class HandWheelInstalledOption(models.Model, OptionListToSelectMixin):
+class HandWheelInstalledOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа установленного на приводе ручного дублера")
@@ -731,7 +731,7 @@ class HandWheelInstalledOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class OperatingModeOption(models.Model, OptionListToSelectMixin):
+class OperatingModeOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа режима работы электропривода")
@@ -754,7 +754,7 @@ class OperatingModeOption(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class MountingPlateTypes(models.Model, OptionListToSelectMixin):
+class MountingPlateTypes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа монтажной площадки")
@@ -777,7 +777,7 @@ class MountingPlateTypes(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class StemShapes(models.Model, OptionListToSelectMixin):
+class StemShapes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа штока")
@@ -800,7 +800,7 @@ class StemShapes(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class StemSize(models.Model, OptionListToSelectMixin):
+class StemSize(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типоразмера штока")
@@ -842,7 +842,7 @@ class StemSize(models.Model, OptionListToSelectMixin):
         return [{'id': obj.id, 'name': str(obj), 'stem_shape_id': obj.stem_type.id} for obj in queryset]
 
 
-class ThreadTypes(models.Model, OptionListToSelectMixin):
+class ThreadTypes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     # TODO: не надо ли объединить с типами резьбы в valve_data
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
@@ -880,7 +880,7 @@ class ThreadTypes(models.Model, OptionListToSelectMixin):
         return list(set(ids))
 
 
-class ThreadInnerOuter(models.Model, OptionListToSelectMixin):
+class ThreadInnerOuter(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=30, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название расположения резьбы - внутренняя или наружная")
@@ -903,7 +903,7 @@ class ThreadInnerOuter(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class MeasureUnits(models.Model):
+class MeasureUnits(LocalizedDictFieldsMixin):
     MEASURE_TYPES = [
         ('length', _('Длина')),
         ('weight', _('Вес')),
@@ -940,7 +940,7 @@ class MeasureUnits(models.Model):
         return self.name
 
 
-class ThreadSize(models.Model, CopyMixin, OptionListToSelectMixin):
+class ThreadSize(LocalizedDictFieldsMixin, CopyMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа и размера резьбы")
@@ -970,7 +970,7 @@ class ThreadSize(models.Model, CopyMixin, OptionListToSelectMixin):
         return self.name
 
 
-class ThreadSizeSet(models.Model, OptionListToSelectMixin):
+class ThreadSizeSet(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """
     Набор резьбовых соединений
     """
@@ -1024,7 +1024,7 @@ class ThreadSizeSet(models.Model, OptionListToSelectMixin):
         return self.thread_items.count()
 
 
-class ThreadSizeSetItem(models.Model, OptionListToSelectMixin):
+class ThreadSizeSetItem(LocalizedNameFieldsMixin, OptionListToSelectMixin):
     """
     Элемент набора резьбовых соединений.
     Каждый элемент указывается отдельно, даже если одинаковые.
@@ -1096,7 +1096,7 @@ class ThreadSizeThroughOption(BaseThroughOption):
         ordering = ['sorting_order']
 
 
-class CertVariety(models.Model, OptionListToSelectMixin):
+class CertVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название типа сертификата")
@@ -1119,7 +1119,7 @@ class CertVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class CertData(models.Model, OptionListToSelectMixin):
+class CertData(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название сертификата")
@@ -1148,7 +1148,7 @@ class CertData(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class DnVariety(models.Model, OptionListToSelectMixin):
+class DnVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Условный диаметр Dn (Ду)")
@@ -1270,7 +1270,7 @@ class DnVariety(models.Model, OptionListToSelectMixin):
         return dn_objects, errors
 
 
-class PnVariety(models.Model, OptionListToSelectMixin):
+class PnVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название давления PN в бар")
@@ -1391,7 +1391,7 @@ class PnVariety(models.Model, OptionListToSelectMixin):
         return pn_objects, errors
 
 
-class OptionVariety(models.Model, OptionListToSelectMixin):
+class OptionVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """ Тип опций исполнения - под заказ/склад и т.п."""
     name = models.CharField(max_length=100, verbose_name=_("Название варианта исполнения изделия"))
     code = models.CharField(max_length=50, unique=True, verbose_name=_("Код варианта исполнения изделия"))
@@ -1408,7 +1408,7 @@ class OptionVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class BodyColor(models.Model, OptionListToSelectMixin):
+class BodyColor(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Цвет корпуса арматуры"""
     name = models.CharField(max_length=100, verbose_name=_("Название цвета"))
     code = models.CharField(max_length=50, unique=True, verbose_name=_("Код цвета"))
@@ -1460,7 +1460,7 @@ class BodyColor(models.Model, OptionListToSelectMixin):
     #     return data
 
 
-class ValveFunctionVariety(models.Model, OptionListToSelectMixin):
+class ValveFunctionVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """ Тип арматуры - регулирующая, запорная"""
     name = models.CharField(max_length=100,
                             verbose_name=_("Название типа назначения арматуры - регулирование и запорное"))
@@ -1479,7 +1479,7 @@ class ValveFunctionVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class ValveActuationVariety(models.Model, OptionListToSelectMixin):
+class ValveActuationVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """ Тип механизма приведения в действие арматуры - ручка/редуктор/привод"""
     name = models.CharField(max_length=100, help_text=_(
         "Название типа механизма приведения в действие арматуры - ручка/редуктор/привод"),
@@ -1500,7 +1500,7 @@ class ValveActuationVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class SealingClass(models.Model, OptionListToSelectMixin):
+class SealingClass(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """ Класс герметичности арматуры - в зависимости от ее типа (регулирующая/запорная)"""
     name = models.CharField(max_length=100, verbose_name=_("Название класса герметичности арматуры"))
     code = models.CharField(max_length=50, unique=True, verbose_name=_("Код класса герметичности арматуры"))
@@ -1522,7 +1522,7 @@ class SealingClass(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class CoatingVariety(models.Model, OptionListToSelectMixin):
+class CoatingVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """ Типы покрытия арматуры"""
     name = models.CharField(max_length=100, verbose_name=_("Тип и толщина покрытия"))
     code = models.CharField(max_length=50, unique=True, verbose_name=_("Код типа и толщины покрытия"))
@@ -1542,7 +1542,7 @@ class CoatingVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class WarrantyTimePeriodVariety(models.Model, OptionListToSelectMixin):
+class WarrantyTimePeriodVariety(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """ Варианты продолжительности гарантийного срока"""
     name = models.CharField(max_length=500, verbose_name=_("Текст продолжительности гарантийного срока"))
     code = models.CharField(max_length=50, unique=True,
@@ -1560,7 +1560,7 @@ class WarrantyTimePeriodVariety(models.Model, OptionListToSelectMixin):
         return self.name
 
 
-class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin):
+class PneumaticAirSupplyPressure(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """
     Давление питания в пневмосистеме
     """
@@ -1677,7 +1677,7 @@ class PneumaticAirSupplyPressure(models.Model, OptionListToSelectMixin):
             return None
 
 
-class PneumaticConnection(models.Model, OptionListToSelectMixin):
+class PneumaticConnection(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """
     Пневмоподключения - трубка, NAMUR
     """
@@ -1701,7 +1701,7 @@ class PneumaticConnection(models.Model, OptionListToSelectMixin):
     def __str__(self):
         return self.name
 
-class LockingMechanism(models.Model):
+class LockingMechanism(LocalizedDictFieldsMixin):
     """Способы блокировки дублера/переключателя
     Примеры: "Отверстие под навесной замок", "Встроенный замок с ключом", "Пломбируемый фиксатор"
     """

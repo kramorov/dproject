@@ -16,7 +16,8 @@ from electric_actuators.models import CableGlandHolesSet
 from params.exd_models import ExdOption
 from params.models import IpOption
 from sku.models import SKUMixin
-class DirectionalValveModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, StructuredDataMixin, models.Model):
+from core.models.mixins import LocalizedModelLineMixin
+class DirectionalValveModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, StructuredDataMixin, models.Model):
     """Серия распределительных клапанов (DNA клапана). Определяет конструкцию, принцип действия, рабочую среду и изоляцию."""
 
     name = models.CharField(max_length=200,

@@ -239,7 +239,7 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         """
         return self.model_line.description_template or None
 
-    def _get_model_line_summary(self) -> dict:
+    def _get_model_line_summary(self, locale=None) -> dict:
         """Краткая сводка model_line."""
         if not self.model_line:
             return None

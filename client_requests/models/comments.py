@@ -1,9 +1,10 @@
 import uuid
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class CommentType(models.Model) :
+class CommentType(LocalizedDictFieldsMixin) :
     """
     Справочник типов комментариев
     """

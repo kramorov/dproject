@@ -3,8 +3,9 @@ from typing import Dict
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
-class OverrideMechanism(models.Model):
+class OverrideMechanism(LocalizedDictFieldsMixin):
     """Справочник механизмов отключения/дублирования для редукторов
     Declutchable Lever (Эксцентриковый рычаг): Самый частый вариант для пневмоприводов.
         Рычаг физически выводит червяк из зацепления с сектором.
@@ -32,7 +33,7 @@ class OverrideMechanism(models.Model):
     def __str__(self):
         return self.name
 
-class TransmissionVariety(models.Model):
+class TransmissionVariety(LocalizedDictFieldsMixin):
     """Простой справочник: Червячная, Коническая, Планетарная"""
     name = models.CharField(max_length=100,
                             verbose_name=_("Название"),
@@ -52,7 +53,7 @@ class TransmissionVariety(models.Model):
     def __str__(self):
         return self.name
 
-class GearboxVariety(models.Model):
+class GearboxVariety(LocalizedDictFieldsMixin):
     """Простой справочник: Ручной дублер, Редуктор под привод"""
     name = models.CharField(max_length=100,
                             verbose_name=_("Название"),

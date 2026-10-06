@@ -8,6 +8,7 @@ from options.models import BaseTemperatureThroughOption, BaseThroughOption, \
     BaseSpringsQtyThroughOption, BaseHandWheelThroughOption, BaseM2MExdThroughOption
 from params.models import IpOption
 from materials.models import MaterialGeneral
+from core.utils.localization import localized_name
 
 
 class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
@@ -294,6 +295,13 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         blank=True,
         verbose_name=_("Покрытие корпуса")
     )
+    body_coating_option = models.ForeignKey(
+        'params.BodyCoatingOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pa_body_design_coatings',
+        verbose_name=_("Опция покрытия корпуса (справочник)")
+    )
     body_color = models.ForeignKey(
         'params.BodyColor',
         on_delete=models.SET_NULL,
@@ -330,6 +338,7 @@ class PneumaticBodyDesignOption(BaseThroughOption):
             **{parent_field : parent_obj} ,
             body_material=None ,
             body_coating=std_coating.name if std_coating else '' ,
+            body_coating_option=std_coating ,
             body_color=None ,
             encoding=std_coating.code if std_coating else '' ,
             description='Стандартное исполнение корпуса' ,
@@ -338,14 +347,15 @@ class PneumaticBodyDesignOption(BaseThroughOption):
             is_active=True
         )
 
-    def get_display_name(self) :
+    def get_display_name(self, locale=None) :
         parts = []
         if self.body_material :
-            parts.append(self.body_material.name)
-        if self.body_coating :
-            parts.append(self.body_coating)
+            parts.append(localized_name(self.body_material, locale))
+        coating = localized_name(self.body_coating_option, locale) if self.body_coating_option else (self.body_coating or '')
+        if coating :
+            parts.append(coating)
         if self.body_color :
-            parts.append(str(self.body_color))
+            parts.append(localized_name(self.body_color, locale))
         base = ', '.join(parts) if parts else 'Не указано'
         if self.encoding and self.encoding.strip() :
             base = f"{self.encoding} ({base})"

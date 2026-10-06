@@ -7,9 +7,10 @@ from params.models import (
 )
 from producers.models import Producer, Brands
 from materials.models import MaterialGeneral, MaterialSpecified
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class AllowedDnTemplate(models.Model):
+class AllowedDnTemplate(LocalizedDictFieldsMixin):
     """Шаблон допустимых Dn - для выбора в ValveLineSealingMaterial, ValveLineValveActuationVariety """
     name = models.CharField(max_length=150, null=True, blank=True, verbose_name=_('Название'),
                             help_text=_('Символьное обозначение шаблона допустимых Dn'))
@@ -34,7 +35,7 @@ class AllowedDnTemplate(models.Model):
         return self.name
 
 
-class ValveConnectionToPipe(models.Model):
+class ValveConnectionToPipe(LocalizedDictFieldsMixin):
     name = models.CharField(max_length=100,
                             help_text=_("Символьное обозначение типа присоединения арматуры к трубе"),
                             verbose_name=_("Символьное обозначение типа присоединения арматуры к трубе"))
@@ -71,7 +72,7 @@ class ValveVariety(models.Model):
         return self.text_description
 
 
-class ConstructionVariety(models.Model):
+class ConstructionVariety(LocalizedDictFieldsMixin):
     name = models.CharField(max_length=100, help_text=_(
         "Название типа конструкции вида арматуры"),
                             verbose_name=_("Название типа конструкции"))
@@ -94,7 +95,7 @@ class ConstructionVariety(models.Model):
         return self.name
 
 
-class PortQty(models.Model):
+class PortQty(LocalizedDictFieldsMixin):
     name = models.CharField(max_length=100, help_text=_(
         "Количество портов арматуры"), verbose_name=_("Количество портов арматуры"))
     code = models.CharField(max_length=50, unique=True, help_text=_(
@@ -330,7 +331,7 @@ class ValveLineBodyColor(models.Model):
         super().clean()
 
 
-class EAVAttribute(models.Model):
+class EAVAttribute(LocalizedDictFieldsMixin):
     """Атрибут EAV системы"""
     name = models.CharField(max_length=100, verbose_name=_("Название атрибута"))
     code = models.CharField(max_length=50, unique=True, verbose_name=_("Код атрибута"))

@@ -4,9 +4,10 @@ from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 
 from core.models import StructuredDataMixin
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class Brands(StructuredDataMixin , models.Model) :  # Добавить наследование
+class Brands(StructuredDataMixin , LocalizedDictFieldsMixin) :  # Добавить наследование
     """
     Модель бренда производителя
     """
@@ -328,7 +329,7 @@ class Brands(StructuredDataMixin , models.Model) :  # Добавить насл�
             for b in cls.get_all(active_only=True)
         ]
 
-class Producer(StructuredDataMixin , models.Model) :
+class Producer(StructuredDataMixin , LocalizedDictFieldsMixin) :
     name = models.CharField(max_length=100 ,
                             verbose_name=_("Название производителя"))
     code = models.CharField(max_length=50 , blank=True , null=True ,

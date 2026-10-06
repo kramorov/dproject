@@ -10,7 +10,7 @@ from core.models.mixins import LocalizedDictFieldsMixin
 
 # from djangoProject1.common_models.eav_mixins import EAVMixin
 
-class WorkingMedium(models.Model):
+class WorkingMedium(LocalizedDictFieldsMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название рабочей среды")
@@ -55,7 +55,7 @@ class MaterialGeneral(LocalizedDictFieldsMixin):
         return self.name
 
 
-class MaterialGeneralMoreDetailed(models.Model):
+class MaterialGeneralMoreDetailed(LocalizedDictFieldsMixin):
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название уточненного типа материала")
@@ -86,7 +86,7 @@ class MaterialGeneralMoreDetailed(models.Model):
         return self.name
 
 
-class MaterialStandard(models.Model):
+class MaterialStandard(LocalizedDictFieldsMixin):
     """Справочник стандартов (ГОСТ, AISI, DIN, ASTM, EN, etc.)"""
     name = models.CharField(max_length=50, verbose_name=_("Название стандарта"))
     code = models.CharField(max_length=10, verbose_name=_("Код стандарта"), unique=True)

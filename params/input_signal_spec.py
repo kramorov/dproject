@@ -13,9 +13,10 @@ InputSignalSpec описывает электрический интерфейс
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
 
-class InputSignalSpec(models.Model):
+class InputSignalSpec(LocalizedDictFieldsMixin):
     """Тип входного сигнала (канал) блока управления."""
     name = models.CharField(
         max_length=200,

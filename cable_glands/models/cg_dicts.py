@@ -2,8 +2,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
+from core.models.mixins import LocalizedDictFieldsMixin
 
-class CableGlandItemType(models.Model):
+class CableGlandItemType(LocalizedDictFieldsMixin):
     """Тип кабельного ввода (справочник).
 
     Исторический классификатор назначения изделия: кабельный ввод, адаптер,
@@ -36,7 +37,7 @@ class CableGlandItemType(models.Model):
         return self.name
 
 
-class CableType(models.Model):
+class CableType(LocalizedDictFieldsMixin):
     """Тип кабеля, под который спроектирован кабельный ввод (справочник).
 
     Заменяет исторические булевы флаги серии (for_armored_cable / for_metal_sleeve_cable /
@@ -74,7 +75,7 @@ class CableType(models.Model):
         return self.name
 
 
-class CableGlandBodyMaterial( models.Model):
+class CableGlandBodyMaterial( LocalizedDictFieldsMixin):
     """Материал корпуса кабельного ввода (справочник).
 
     name — название материала (латунь, нерж., никелированная сталь...),

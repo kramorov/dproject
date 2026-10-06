@@ -12,7 +12,7 @@ from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin , EquipmentTypeMixin
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.cert_doc_mixin import CertDocMixin
-from core.models.mixins import CatalogDictMixin
+from core.models.mixins import CatalogDictMixin, LocalizedModelLineMixin
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -28,7 +28,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class PneumaticActuatorModelLine(ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, StructuredDataMixin, models.Model):
+class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, StructuredDataMixin, models.Model):
     """
     Серия пневмоприводов - DA и SR -
     Объединяет в себе общие для всех моделей серии свойства

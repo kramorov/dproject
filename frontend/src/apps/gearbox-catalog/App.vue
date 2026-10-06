@@ -44,7 +44,7 @@ import QuickSelect from '@/shared/components/catalog/QuickSelect.vue'
 import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import WizardSelection from '@/shared/components/catalog/WizardSelection.vue'
 import { useCatalogRoute } from '@/shared/composables/useCatalogRoute.js'
-import { useI18n } from '@/shared/i18n'
+import { useI18n, localizedPath } from '@/shared/i18n'
 import { useCatalogWizard } from '@/shared/composables/useCatalogWizard'
 import QuestionGraphWizard from '@/shared/components/catalog/QuestionGraphWizard.vue'
 import gearboxApi from './api'
@@ -77,7 +77,7 @@ const {
 } = useCatalogRoute()
 
 const pageSubtitle = ref('')
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const modeNames = computed(() => ({
   section: t('catalog.mode.section'),
@@ -132,7 +132,7 @@ function onNavigate(item) {
   const t = item?.target
   if (!t) return
   if (t === 'catalog-index') {
-    if (router) { router.push('/catalogs/equipment') } else { navSection() }
+    if (router) { router.push(localizedPath('/catalogs/equipment', locale.value)) } else { navSection() }
     return
   }
   cacheEpoch.value++

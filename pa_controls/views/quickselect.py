@@ -10,12 +10,15 @@ from pa_controls.models.limit_switch import LimitSwitchBox
 from pa_controls.models.lsb_model_line import LimitSwitchModelLine
 from pa_controls.catalog.config import LIMIT_SWITCH_CONFIG
 # Каталожные определения фильтров (с label_i18n) — те же param/model_field, что в модели.
-from pa_controls.catalog.filter_defs import LIMIT_SWITCH_FILTER_DEFINITIONS
+from pa_controls.catalog.filter_defs import (
+    LIMIT_SWITCH_FILTER_DEFINITIONS,
+    LIMIT_SWITCH_QUICKSELECT_FILTERS,
+)
 
 
 class LimitSwitchBoxQuickSelectView(BaseQuickSelectView):
     permission_classes = [AllowAny]
-    quickselect_filters = LimitSwitchBox.QUICKSELECT_FILTERS
+    quickselect_filters = LIMIT_SWITCH_QUICKSELECT_FILTERS
     filter_definitions = LIMIT_SWITCH_FILTER_DEFINITIONS
     model_class = LimitSwitchBox
     model_line_model = LimitSwitchModelLine

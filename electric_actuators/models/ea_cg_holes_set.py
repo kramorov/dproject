@@ -2,9 +2,10 @@
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 from django.db import models
+from core.models.mixins import LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
 
 
-class CableGlandHolesSet(models.Model):
+class CableGlandHolesSet(LocalizedNameFieldsMixin):
     name = models.CharField(max_length=20, blank=True,
                             help_text='Название варианта набора отверстий под КВ')
     cg1 = models.ForeignKey('params.ThreadSize', related_name='cable_gland1', blank=True, null=True, on_delete=models.SET_NULL,

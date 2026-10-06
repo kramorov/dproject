@@ -4,7 +4,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from typing import Dict , List
-from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin
+from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin, LocalizedDictFieldsMixin, LocalizedModelLineMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
@@ -76,7 +76,7 @@ from pneumatic_fittings.models.pf_item_fields import PF_ITEM_TEMPLATE_FIELDS
 # DigitalProtocolsSupportOption, ControlUnitInstalledOption,ActuatorType, ValveTypes, GearBoxTypes, \
 # HandWheelInstalledOption, OperatingModeOption
 
-class FittingShape(StructuredDataMixin , models.Model) :
+class FittingShape(StructuredDataMixin , LocalizedDictFieldsMixin) :
     name = models.CharField(max_length=100 , verbose_name=_("Название формы"))
     code = models.SlugField(max_length=50 , unique=True , verbose_name=_("Код"))
     description = models.TextField(blank=True , verbose_name=_("Краткое описание"))
@@ -94,7 +94,7 @@ class FittingShape(StructuredDataMixin , models.Model) :
         return self.name
 
 
-class FittingFixationMethod(StructuredDataMixin , models.Model) :
+class FittingFixationMethod(StructuredDataMixin , LocalizedDictFieldsMixin) :
     name = models.CharField(max_length=100 , verbose_name=_("Название способа"))
     code = models.SlugField(max_length=50 , unique=True , verbose_name=_("Код"))
     description = models.TextField(blank=True , verbose_name=_("Описание"))
@@ -112,7 +112,7 @@ class FittingFixationMethod(StructuredDataMixin , models.Model) :
         return self.name
 
 
-class PneumaticFittingVariety(StructuredDataMixin , models.Model) :
+class PneumaticFittingVariety(StructuredDataMixin , LocalizedDictFieldsMixin) :
     """
     Разновидности конструкций фитингов
     """
@@ -139,7 +139,7 @@ class PneumaticFittingVariety(StructuredDataMixin , models.Model) :
         return self.name
 
 
-class PneumaticFittingModelLine(ImageGalleryMixin, TechDocMixin,
+class PneumaticFittingModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin,
                                 CertDocMixin,
                                 EquipmentTypeMixin,
                                 StructuredDataMixin, CopyMixin, models.Model):
@@ -427,10 +427,10 @@ class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
     # (вместо полей трубки и давления).
     SILENCER_PLUG_EQUIPMENT_CODES = ('fitting-silencer', 'fitting-plug')
 
-    def _get_spec_sections(self, fields=None):
+    def _get_spec_sections(self, fields=None, locale=None):
         """Спецификация берётся из spec_template (пайп/глушитель уже разведены
         по EquipmentType.spec_template), пустые значения скрываются в миксине."""
-        return super()._get_spec_sections(fields=fields)
+        return super()._get_spec_sections(fields=fields, locale=locale)
 
     def __str__(self) :
         return self.name

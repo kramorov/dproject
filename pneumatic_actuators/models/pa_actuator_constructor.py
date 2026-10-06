@@ -15,6 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from pneumatic_actuators.models import PneumaticActuatorModelLineItem, PneumaticCloseTimeParameter
+from core.utils.localization import localized_name
 from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE, ACTUATOR_VARIETY_RP_DEFAULT_CODE
 
 class PneumaticActuatorConstructor(models.Model):
@@ -1285,7 +1286,7 @@ class PneumaticActuatorConstructor(models.Model):
 
     # ==================== GET AVAILABLE OPTIONS ====================
 
-    def get_available_options(self) -> Dict[str, List[Dict]]:
+    def get_available_options(self, locale=None) -> Dict[str, List[Dict]]:
         """
         Получить все доступные опции для выбранной модели.
         Возвращает словарь: ключ — имя поля опции, значение — список {id, option_id, name, code, is_default, ...}.
@@ -1314,7 +1315,7 @@ class PneumaticActuatorConstructor(models.Model):
                 'id': opt.id,                         # ID through-записи
                 'option_id': opt.safety_position.id,   # ID реальной опции (params.SafetyPositionOption)
                 'encoding': opt.encoding,
-                'name': opt.safety_position.name,
+                'name': localized_name(opt.safety_position, locale),
                 'code': opt.safety_position.code,
                 'description': opt.description,
                 'is_default': opt.is_default,
@@ -1332,7 +1333,7 @@ class PneumaticActuatorConstructor(models.Model):
                 'id': opt.id,
                 'option_id': opt.springs_qty.id,       # ID реальной опции (PneumaticActuatorSpringsQty)
                 'encoding': opt.encoding,
-                'name': opt.springs_qty.name,
+                'name': localized_name(opt.springs_qty, locale),
                 'code': opt.springs_qty.code,
                 'description': opt.description,
                 'is_default': opt.is_default,
@@ -1369,7 +1370,7 @@ class PneumaticActuatorConstructor(models.Model):
                     'id': opt.id,
                     'option_id': opt.ip_option.id,      # ID реальной опции (params.IpOption)
                     'encoding': opt.encoding,
-                    'name': opt.ip_option.name,
+                    'name': localized_name(opt.ip_option, locale),
                     'code': opt.ip_option.code,
                     'description': opt.description,
                     'is_default': opt.is_default,
@@ -1396,15 +1397,18 @@ class PneumaticActuatorConstructor(models.Model):
 
             coating_through = PneumaticBodyDesignOption.objects.filter(
                 model_line=ml, is_active=True
-            ).select_related('body_material', 'body_color')
+            ).select_related('body_material', 'body_color', 'body_coating_option')
             result['body_coating_options'] = [
                 {
                     'id': opt.id,
                     'option_id': opt.id,
                     'encoding': opt.encoding,
-                    'material': opt.body_material.name if opt.body_material else '',
-                    'coating': opt.body_coating or '',
-                    'name': ', '.join(filter(None, [opt.body_material.name if opt.body_material else '', opt.body_coating or ''])) or 'Не указано',
+                    'material': localized_name(opt.body_material, locale) if opt.body_material else '',
+                    'coating': localized_name(opt.body_coating_option, locale) if opt.body_coating_option else (opt.body_coating or ''),
+                    'name': ', '.join(filter(None, [
+                        localized_name(opt.body_material, locale) if opt.body_material else '',
+                        (localized_name(opt.body_coating_option, locale) if opt.body_coating_option else (opt.body_coating or '')),
+                    ])) or 'Не указано',
                     'code': opt.encoding or '',
                     'description': opt.description,
                     'is_default': opt.is_default,
@@ -1420,7 +1424,7 @@ class PneumaticActuatorConstructor(models.Model):
                     'id': opt.id,
                     'option_id': opt.hand_wheel_option.id,
                     'encoding': opt.encoding,
-                    'name': opt.hand_wheel_option.name,
+                    'name': localized_name(opt.hand_wheel_option, locale),
                     'code': opt.hand_wheel_option.code,
                     'description': opt.description,
                     'is_default': opt.is_default,

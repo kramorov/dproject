@@ -355,7 +355,7 @@ class DirectionValve(CatalogSerializerMixin,
             return None
         return self.model_line.description_template or None
 
-    def _get_model_line_summary(self) -> dict:
+    def _get_model_line_summary(self, locale=None) -> dict:
         if not self.model_line:
             return None
         return {

@@ -489,3 +489,63 @@
    `core/question_graph_views.py` — сейчас ru (метки узлов, вопросы, подсказки).
    Задача: пробросить локаль из `Accept-Language` во все wizard-эндпоинты и перевести
    UI-строки через `t()`/словари (как сделано для QuickSelect/деталки).
+
+
+---
+
+## 10. Сессия 2026-10-06 — справочники/серии: `_i18n` везде + фиксы регрессий
+
+### Сделано
+
+1. **Фиксы регрессий после коммита «locale»:**
+   - `CatalogSerializerMixin.to_dict()` стал звать хуки с `locale=`; у каталогов
+     переопределения были со старыми сигнатурами → список отдавал только `{id}`.
+     Добавлен `locale=None` в `_get_model_line_summary()` (filter_regulator, gearbox,
+     solenoid_valves) и `_get_spec_sections()` (pneumatic_fittings).
+   - `question_graph_views._get_options_for_param()` падал на `exd_id` (M2M вместо FK):
+     добавлена ветка `many_to_many` + использование `field_lookup` вместо `param_name`.
+   - Фронт: индексные страницы каталогов (`CatalogEquipmentIndex`/`Valves`/`Solutions`)
+     и ссылки «назад в каталоги» переведены на `t()` + `localizedPath()`; локали en/cn
+     дополнены.
+
+2. **Миксины локализации (core/models/mixins.py):**
+   - `LocalizedDictFieldsMixin` — name + description (справочники).
+   - `LocalizedNameFieldsMixin` — только name (справочники без `description`).
+   - `LocalizedDescriptionFieldsMixin` — только description (серии без шаблонов).
+   - `LocalizedModelLineMixin` — description + `name_template_i18n` +
+     `description_template_i18n` (серии с шаблонами).
+   - **Фикс partial-save:** все миксины принудительно добавляют свои `_i18n`-поля в
+     `update_fields`, чтобы `save(update_fields=['name'])` не рассинхронизировал ru.
+
+3. **Справочники (~99 моделей):** `params` (55), `producers`, `materials` + 14 каталоговых
+   приложений (Option/Variety/Type/…). Миграции применены.
+
+4. **Серии (ModelLine):** `name` — торговое, НЕ локализуется; локализуются `description`
+   и шаблоны (`name_template`/`description_template`) через `<field>_i18n` JSON
+   (из того же источника, что и RU-шаблон). Поля `*_template_i18n` добавлены 7 сериям.
+
+5. **Переводы en/cn:** коды/уникальные названия (Ex db, IP67, NPT/G/M, У1/ХЛ1, T1..T6,
+   ГЕРДА, FLEXICON, NAMUR, модели датчиков, размеры) НЕ переводятся (fallback ru).
+   - params: data-миграция `params/0071` (50 терминов).
+   - каталоговые: команда `translate_reference_dicts` (161 строка).
+   - описания серий: команда `translate_model_line_descriptions` (37 описаний).
+
+6. **Конструктор ПП:** `PneumaticBodyDesignOption.body_coating_option` FK на
+   `BodyCoatingOption` + backfill; `get_display_name(locale)`; `get_available_options(locale)`
+   + проброс `Accept-Language` в `/constructor/options/`.
+
+7. **Фронт:** `index.html` — `translate="no"` + `<meta name="google" content="notranslate">`.
+
+### Команды (идемпотентны)
+- `python manage.py backfill_localized_ru` — `_i18n['ru']` для всех `*_i18n`.
+- `python manage.py translate_reference_dicts` — en/cn справочников.
+- `python manage.py translate_model_line_descriptions` — en/cn описаний серий.
+
+### НЕ сделано (очередь)
+- en/cn текст шаблонов `name_template_i18n`/`description_template_i18n` 7 серий (только ru).
+- Локализация wizard (задача 4 раздела 9) — не трогалась.
+- `EquipmentType.name/description` не локализованы (config-сущность).
+- spec/docx filename и названия файлов сертификатов (задачи 1-2 раздела 9).
+
+### Тесты
+- `python manage.py test core.tests.test_localization --keepdb` — 11 OK.

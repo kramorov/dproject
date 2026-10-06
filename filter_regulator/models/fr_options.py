@@ -2,8 +2,9 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from core.models.mixins import LocalizedDictFieldsMixin
 
-class DrainVariety(models.Model):
+class DrainVariety(LocalizedDictFieldsMixin):
     """ Название типа слива: Ручной, Авто, Полуавто
     """
     name = models.CharField(max_length=200 ,
@@ -24,7 +25,7 @@ class DrainVariety(models.Model):
 
     def __str__(self): return self.name
 
-class FilterRegulatorVariety(models.Model):
+class FilterRegulatorVariety(LocalizedDictFieldsMixin):
     """Тип фильтр-регулятора"""
 
     name = models.CharField(max_length=200 , blank=True , null=True ,
