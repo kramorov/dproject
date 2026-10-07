@@ -13,6 +13,7 @@ from django.utils import translation
 from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
 from price.services.currency_converter import get_bulk_prices
 from core.utils.catalog_helpers import get_currency_code
+from core.utils.localization import locale_from_accept_language
 
 
 class FilterRegulatorEngineerView(APIView):
@@ -23,6 +24,7 @@ class FilterRegulatorEngineerView(APIView):
     def get(self, request):
         params = request.query_params
         lang = params.get('lang', 'ru')
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         currency_code = get_currency_code(request)
         filter_set = self.config.get_filter_set('engineer')
 
@@ -36,6 +38,7 @@ class FilterRegulatorEngineerView(APIView):
                 params,
                 filter_definitions=filter_set.definitions,
                 base_queryset=qs,
+                locale=locale,
             )
 
             data = result['data']

@@ -32,6 +32,7 @@ GB_ITEM_TEMPLATE_FIELDS = (
     {'key': 'locking_mechanism', 'placeholder': '{locking_mechanism}', 'path': 'locking_mechanism__name',
      'name_path': 'locking_mechanism', },
     {'key': 'is_declutchable', 'placeholder': '{is_declutchable}', 'path': 'is_declutchable_display',
+     'resolver': 'is_declutchable_display',
      },
 
     # ── Корпус ──
@@ -62,8 +63,10 @@ GB_ITEM_TEMPLATE_FIELDS = (
 
     # ── Только имя/описание ──
     {'key': 'gearbox_output_variety', 'placeholder': '{gearbox_output_variety}',
-     'path': 'model_line__gearbox_output_variety'},
-    {'key': 'gearbox_variety', 'placeholder': '{gearbox_variety}', 'path': 'model_line__gearbox_variety'},
+     'path': 'model_line__gearbox_output_variety',
+     'name_path': 'model_line__gearbox_output_variety__name'},
+    {'key': 'gearbox_variety', 'placeholder': '{gearbox_variety}', 'path': 'model_line__gearbox_variety',
+     'name_path': 'model_line__gearbox_variety__name'},
     {'key': 'turn_angle', 'placeholder': '{turn_angle}', 'path': 'model_line__turn_angle'},
     {'key': 'turn_tuning_limit', 'placeholder': '{turn_tuning_limit}', 'path': 'model_line__turn_tuning_limit'},
     {'key': 'mechanical_advantage', 'placeholder': '{mechanical_advantage}', 'path': 'body__mechanical_advantage'},
@@ -71,12 +74,14 @@ GB_ITEM_TEMPLATE_FIELDS = (
      'path': 'body__max_stem_diameter_bottom'},
     {'key': 'stem_height_bottom', 'placeholder': '{stem_height_bottom}', 'path': 'body__stem_height_bottom'},
     {'key': 'stem_size_bottom', 'placeholder': '{stem_size_bottom}', 'path': 'body__stem_size_bottom'},
-    {'key': 'stem_shape_bottom', 'placeholder': '{stem_shape_bottom}', 'path': 'body__stem_shape_bottom'},
+    {'key': 'stem_shape_bottom', 'placeholder': '{stem_shape_bottom}', 'path': 'body__stem_shape_bottom',
+     'name_path': 'body__stem_shape_bottom__name'},
     {'key': 'mounting_plate_bottom_list_text', 'placeholder': '{mounting_plate_bottom_list_text}',
      'path': 'body__mounting_plate_bottom_list_text'},
     {'key': 'stem_height_top', 'placeholder': '{stem_height_top}', 'path': 'body__stem_height_top'},
     {'key': 'stem_size_top', 'placeholder': '{stem_size_top}', 'path': 'body__stem_size_top'},
-    {'key': 'stem_shape_top', 'placeholder': '{stem_shape_top}', 'path': 'body__stem_shape_top'},
+    {'key': 'stem_shape_top', 'placeholder': '{stem_shape_top}', 'path': 'body__stem_shape_top',
+     'name_path': 'body__stem_shape_top__name'},
     {'key': 'mounting_plate_top_list_text', 'placeholder': '{mounting_plate_top_list_text}',
      'path': 'body__mounting_plate_top_list_text'},
     {'key': 'efficiency', 'placeholder': '{efficiency}', 'path': 'body__efficiency'},

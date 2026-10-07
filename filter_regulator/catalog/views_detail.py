@@ -11,6 +11,7 @@ from django.utils import translation
 from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
 from price.services.currency_converter import get_display_price
 from core.utils.catalog_helpers import get_currency_code
+from core.utils.localization import locale_from_accept_language
 
 
 class FilterRegulatorDetailView(APIView):
@@ -18,6 +19,7 @@ class FilterRegulatorDetailView(APIView):
     config = FILTER_REGULATOR_CONFIG
 
     def get(self, request, pk):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         lang = request.GET.get('lang', 'ru')
         currency_code = get_currency_code(request)
 
@@ -28,7 +30,7 @@ class FilterRegulatorDetailView(APIView):
                 .prefetch_related(*self.config.prefetch_fields),
                 pk=pk,
             )
-            data = obj.to_dict()
+            data = obj.to_dict(locale=locale)
 
             sku_id = obj.sku_id
             if sku_id:

@@ -10,6 +10,7 @@ from django.utils import translation
 from solenoid_valves.catalog.config import SOLENOID_VALVES_CONFIG
 from price.services.currency_converter import get_bulk_prices
 from core.utils.catalog_helpers import get_currency_code
+from core.utils.localization import locale_from_accept_language
 
 
 class SolenoidValvesEngineerView(APIView):
@@ -20,6 +21,7 @@ class SolenoidValvesEngineerView(APIView):
     def get(self, request):
         params = request.query_params
         lang = params.get('lang', 'ru')
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         currency_code = get_currency_code(request)
         filter_set = self.config.get_filter_set('engineer')
 
@@ -33,6 +35,7 @@ class SolenoidValvesEngineerView(APIView):
                 params,
                 filter_definitions=filter_set.definitions,
                 base_queryset=qs,
+                locale=locale,
             )
 
             data = result['data']

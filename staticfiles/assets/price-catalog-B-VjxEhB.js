@@ -1,0 +1,1 @@
+import{D as p}from"./_plugin-vue_export-helper-kUGgy624.js";import{P as r}from"./App-D6ZIQ6TT.js";/* empty css                                                                  */import"./Spinner-FNrWtE_F.js";import"./BaseModal-D8te4lD9.js";p(r).mount("#price-app");

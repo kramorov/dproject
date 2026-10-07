@@ -199,9 +199,17 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         super().save(*args, **kwargs)
         self.sync_sku()
 
-    @property
-    def is_declutchable_display(self):
-        return dict(self.DECLUTCHABLE_CHOICES).get(self.is_declutchable, '')
+    def is_declutchable_display(self, locale=None):
+        label = dict(self.DECLUTCHABLE_CHOICES).get(self.is_declutchable, '')
+        if locale and locale != 'ru' and label:
+            words = {
+                'расцепляемый': {'en': 'declutchable', 'cn': '可脱离'},
+                'не расцепляемый': {'en': 'non-declutchable', 'cn': '不可脱离'},
+            }
+            entry = words.get(label)
+            if entry:
+                return entry.get(locale, label)
+        return label
 
     @property
     def work_temp_display(self):

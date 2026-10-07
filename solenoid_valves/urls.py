@@ -7,8 +7,10 @@ from solenoid_valves.catalog.views_engineer_filters import SolenoidValvesEnginee
 from solenoid_valves.catalog.views_quickselect import SolenoidValvesQuickSelectView
 from solenoid_valves.catalog.views_meta import SolenoidValvesMetaView
 from solenoid_valves.catalog.views_detail import SolenoidValvesDetailView
+from solenoid_valves.catalog.views_sections import SolenoidValvesSectionView
 
 urlpatterns = [
+    path('sections/', SolenoidValvesSectionView.as_view(), name='solenoid_valves_sections'),
     path('catalog/', SolenoidValvesCatalogView.as_view(), name='solenoid_valves_catalog'),
     path('catalog/<int:pk>/', SolenoidValvesDetailView.as_view(), name='solenoid_valves_detail'),
     path('filters/', SolenoidValvesFilterOptionsView.as_view(), name='solenoid_valves_filters'),

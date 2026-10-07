@@ -17,7 +17,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from project_customers.permissions import SectionAccessPermission
 from rest_framework.decorators import action
-from core.utils.localization import locale_from_accept_language
+from core.utils.localization import locale_from_accept_language, pick_i18n
 
 from pneumatic_actuators.models import (
     PneumaticActuatorConstructor,
@@ -212,6 +212,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             except (TypeError, ValueError):
                 pass  # некорректный параметр — игнорируем, возвращаем все серии
         items = items.order_by('sorting_order')
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         result = []
         for ml in items :
             image = None
@@ -223,7 +224,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
                 image = None
             result.append({
                 'id' : ml.id , 'name' : ml.name , 'code' : ml.code ,
-                'description' : ml.description ,
+                'description' : pick_i18n(
+                    getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+                ),
                 'image' : image ,
                 'construction_variety_id' : ml.pneumatic_actuator_construction_variety_id ,
                 'construction_variety_code' : ml.pneumatic_actuator_construction_variety.code if ml.pneumatic_actuator_construction_variety else None ,

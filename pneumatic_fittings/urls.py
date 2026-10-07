@@ -40,13 +40,21 @@ from pneumatic_fittings.catalog.views_quickselect import (
     PneumaticPlugsQuickSelectView,
 )
 from pneumatic_fittings.catalog.views_meta import PneumaticFittingsMetaView
+from pneumatic_fittings.catalog.views_sections import (
+    PneumaticFittingsSectionView,
+    PneumaticSilencersSectionView,
+    PneumaticPlugsSectionView,
+)
 
 
 def _catalog_patterns(catalog_view, detail_view, filters_view,
                       engineer_view, engineer_filters_view, quickselect_view,
-                      meta_view=None):
+                      meta_view=None, sections_view=None):
     """Стандартный набор маршрутов каталога (по паттерну остальных каталогов)."""
-    patterns = [
+    patterns = []
+    if sections_view is not None:
+        patterns.append(path('sections/', sections_view.as_view()))
+    patterns += [
         path('catalog/', catalog_view.as_view()),
         path('catalog/<int:pk>/', detail_view.as_view()),
         path('filters/', filters_view.as_view()),
@@ -67,6 +75,7 @@ fittings_urlpatterns = _catalog_patterns(
     PneumaticFittingsEngineerFilterOptionsView,
     PneumaticFittingsQuickSelectView,
     meta_view=PneumaticFittingsMetaView,
+    sections_view=PneumaticFittingsSectionView,
 )
 
 silencers_urlpatterns = _catalog_patterns(
@@ -76,6 +85,7 @@ silencers_urlpatterns = _catalog_patterns(
     PneumaticSilencersEngineerView,
     PneumaticSilencersEngineerFilterOptionsView,
     PneumaticSilencersQuickSelectView,
+    sections_view=PneumaticSilencersSectionView,
 )
 
 plugs_urlpatterns = _catalog_patterns(
@@ -85,6 +95,7 @@ plugs_urlpatterns = _catalog_patterns(
     PneumaticPlugsEngineerView,
     PneumaticPlugsEngineerFilterOptionsView,
     PneumaticPlugsQuickSelectView,
+    sections_view=PneumaticPlugsSectionView,
 )
 
 # Обратная совместимость: include('pneumatic_fittings.urls') → каталог трубок

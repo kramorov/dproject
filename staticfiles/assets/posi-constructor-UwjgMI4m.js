@@ -1,0 +1,1 @@
+import{D as o}from"./_plugin-vue_export-helper-kUGgy624.js";import{P as p}from"./App-gt7h3AS7.js";import"./default-C53lrT5u.js";import"./PaProductCard-DFjvrDci.js";import"./ProductDetail-CDH4cPXw.js";import"./api-MR5-k6bQ.js";import"./AddToCartButton-C3rkI2Ht.js";import"./cartService-gT7mHObi.js";o(p).mount("#posi-constructor-app");

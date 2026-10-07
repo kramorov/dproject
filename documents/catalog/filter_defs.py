@@ -24,6 +24,7 @@ fd_status = FilterDefinition(
         ('deleted', 'Удалён'),
     ],
     label='Статус',
+    label_i18n={'en': 'Status', 'cn': '状态'},
     order=1,
 )
 
@@ -35,6 +36,7 @@ fd_date_from = FilterDefinition(
     filter_type=FilterType.MIN,
     data_source_type=DataSourceType.CUSTOM,
     label='Дата от',
+    label_i18n={'en': 'Date from', 'cn': '起始日期'},
     order=2,
 )
 
@@ -44,6 +46,7 @@ fd_date_to = FilterDefinition(
     filter_type=FilterType.MAX,
     data_source_type=DataSourceType.CUSTOM,
     label='Дата до',
+    label_i18n={'en': 'Date to', 'cn': '截止日期'},
     order=3,
 )
 
@@ -55,6 +58,7 @@ fd_search = FilterDefinition(
     filter_type=FilterType.CONTAINS,
     data_source_type=DataSourceType.CUSTOM,
     label='Поиск',
+    label_i18n={'en': 'Search', 'cn': '搜索'},
     order=4,
 )
 

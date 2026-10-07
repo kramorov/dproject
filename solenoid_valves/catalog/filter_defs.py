@@ -15,6 +15,7 @@ fd_model_line = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Серия',
+    label_i18n={'en': 'Series', 'cn': '系列'},
     order=1,
 )
 
@@ -24,6 +25,7 @@ fd_brand = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Бренд',
+    label_i18n={'en': 'Brand', 'cn': '品牌'},
     order=2,
 )
 
@@ -34,6 +36,7 @@ fd_function = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=ValveFunction,
     label='Схема (функция)',
+    label_i18n={'en': 'Function', 'cn': '功能'},
     order=3,
 )
 
@@ -44,6 +47,7 @@ fd_actuation = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=ValveActuationVariety,
     label='Управление',
+    label_i18n={'en': 'Actuation', 'cn': '控制方式'},
     order=4,
 )
 
@@ -55,6 +59,7 @@ fd_ip = FilterDefinition(
     data_source_type=DataSourceType.GLOBAL_MODEL,
     source_model=IpOption,
     label='IP',
+    label_i18n={'en': 'IP', 'cn': 'IP'},
     order=5,
 )
 
@@ -65,6 +70,7 @@ fd_exd = FilterDefinition(
     parameter_rule_code='exd',                  # backend: ParameterRule 'exd'
     data_source_type=DataSourceType.CUSTOM,
     label='Взрывозащита',
+    label_i18n={'en': 'Explosion protection', 'cn': '防爆'},
     order=6,
 )
 
@@ -75,6 +81,7 @@ fd_power_supply = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=PowerSupplies,
     label='Напряжение соленоида',
+    label_i18n={'en': 'Solenoid voltage', 'cn': '线圈电压'},
     order=7,
     mandatory='yes',
 )
@@ -85,6 +92,7 @@ fd_kv = FilterDefinition(
     filter_type=FilterType.MIN,
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Kv не менее, м³/ч',
+    label_i18n={'en': 'Kv min., m³/h', 'cn': '最小 Kv, m³/h'},
     order=8,
 )
 
@@ -95,6 +103,7 @@ fd_body_material = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=MaterialGeneral,
     label='Материал корпуса',
+    label_i18n={'en': 'Body material', 'cn': '壳体材料'},
     order=9,
 )
 
@@ -105,6 +114,7 @@ fd_solenoid_body_material = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=MaterialGeneral,
     label='Материал соленоида',
+    label_i18n={'en': 'Solenoid material', 'cn': '线圈材料'},
     order=10,
 )
 
@@ -115,6 +125,7 @@ fd_pneumatic_connection = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=PneumaticConnection,
     label='Пневматическое присоединение',
+    label_i18n={'en': 'Pneumatic connection', 'cn': '气动连接'},
     order=11,
 )
 
@@ -125,6 +136,7 @@ fd_pneumatic_connection_thread = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=ThreadSize,
     label='Резьба присоединения',
+    label_i18n={'en': 'Connection thread', 'cn': '连接螺纹'},
     order=12,
 )
 
@@ -135,6 +147,7 @@ fd_temp_min = FilterDefinition(
     parameter_rule_code='temperature_min',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от, °С',
+    label_i18n={'en': 'Temperature from, °C', 'cn': '最低温度, °C'},
     order=12,
 )
 
@@ -145,6 +158,7 @@ fd_temp_max = FilterDefinition(
     parameter_rule_code='temperature_max',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до, °С',
+    label_i18n={'en': 'Temperature up to, °C', 'cn': '最高温度, °C'},
     order=13,
 )
 
@@ -154,6 +168,7 @@ fd_climate = FilterDefinition(
     filter_type=FilterType.CLIMATE_CASCADE,
     data_source_type=DataSourceType.CUSTOM,
     label='Клим. исполнение',
+    label_i18n={'en': 'Climate version', 'cn': '气候型式'},
     order=14,
 )
 

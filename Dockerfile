@@ -10,6 +10,9 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 
+# Отключаем интерактивные диалоги для apt-get на этапе сборки
+ARG DEBIAN_FRONTEND=noninteractive
+
 # System deps for PyMuPDF + Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 mupdf-tools \
@@ -28,8 +31,7 @@ COPY --from=frontend /build/dist /app/frontend/dist
 
 # Static + DB directory
 RUN mkdir -p /app/staticfiles /app/data && \
-    python manage.py collectstatic --noinput && \
-    python manage.py migrate --noinput
+    python manage.py collectstatic --noinput 
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

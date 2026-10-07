@@ -13,7 +13,7 @@ from core.models import StructuredDataMixin , EquipmentTypeMixin
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.mixins import CatalogDictMixin, LocalizedModelLineMixin
-from core.utils.localization import DEFAULT_LOCALE
+from core.utils.localization import DEFAULT_LOCALE , sync_ru
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -55,6 +55,12 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
     spec_template = models.JSONField(blank=True , default=dict ,
                                      verbose_name=_("Шаблон спецификации") ,
                                      help_text=_('JSON: {группа: {подпись: ключ_поля}}. Пусто — берётся из типа оборудования.'))
+    spec_template_i18n = models.JSONField(
+        default=dict , blank=True ,
+        verbose_name=_("Переводы шаблона спецификации (ru/en/cn)") ,
+        help_text=_('Локаль — внешний ключ: {"ru": {группа: {подпись: ключ}}, "en": {...}, '
+                    '"cn": {...}}. "ru" синхронизируется с spec_template.')
+    )
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
@@ -599,6 +605,10 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
             }
         }
 
+    def _sync_localized_ru(self) :
+        super()._sync_localized_ru()
+        self.spec_template_i18n = sync_ru(getattr(self , 'spec_template_i18n' , None), getattr(self , 'spec_template' , {}))
+
     def save(self , *args , **kwargs) :
         """Сохранение с трассировкой для диагностики"""
         # import traceback
@@ -626,6 +636,8 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
 
         # Вызываем оригинальный save
         is_new = self.pk is None
+        if kwargs.get('update_fields') is not None :
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'spec_template_i18n'}
         super().save(*args , **kwargs)
 
         # После создания новой серии создаем опции по умолчанию
@@ -880,15 +892,40 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                     return tpl
         return None
 
-    def _get_spec_sections(self, vars=None):
+    def _get_spec_template_i18n(self):
+        """Переводы spec_template из ТОГО ЖЕ источника, откуда взят RU-шаблон.
+
+        Цепочка как в ``_get_spec_template``: model_line.spec_template →
+        EquipmentType.spec_template.
+        """
+        ml = self.model_line
+        if ml is not None and getattr(ml, 'spec_template', None):
+            i18n = getattr(ml, 'spec_template_i18n', None)
+            if isinstance(i18n, dict):
+                return i18n
+            return None
+        et = getattr(ml, 'equipment_type', None) if ml is not None else None
+        if et is not None:
+            i18n = getattr(et, 'spec_template_i18n', None)
+            if isinstance(i18n, dict):
+                return i18n
+        return None
+
+    def _get_spec_sections(self, vars=None, locale=None):
         """Характеристики в виде {группа: {подпись: значение}} из spec_template.
 
         Значение — строка; специальные HTML-блоки передаются как ``{'__html': ...}``.
         ``vars`` — внешний плоский словарь (например, от конструктора с опциями).
+        Для не-RU ``locale`` подписи берутся из ``spec_template_i18n`` (fallback ru).
         """
+        locale = locale or DEFAULT_LOCALE
         tv = vars if vars is not None else self._get_template_vars()
         tpl = self._get_spec_template()
         if tpl and isinstance(tpl, dict):
+            if locale != DEFAULT_LOCALE:
+                i18n = self._get_spec_template_i18n()
+                if isinstance(i18n, dict) and isinstance(i18n.get(locale), dict):
+                    tpl = i18n[locale]
             result = {}
             for group_title, fields in tpl.items():
                 if not isinstance(fields, dict):

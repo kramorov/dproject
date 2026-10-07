@@ -24,13 +24,14 @@ FR_ITEM_TEMPLATE_FIELDS = (
 
     # ── Основные ──
     {'key': 'filter_variety', 'placeholder': '{filter_variety}', 'path': 'model_line__filter_variety__name',
-     'name_path': 'model_line__filter_variety', },
+     'name_path': 'model_line__filter_variety__name', },
     {'key': 'body_material', 'placeholder': '{body_material}', 'path': 'model_line__body_material_text',
      },
     {'key': 'bowl_material', 'placeholder': '{bowl_material}', 'path': 'model_line__bowl_material_text',
      },
     {'key': 'protection_material', 'placeholder': '{protection_material}',
-     'path': 'model_line__protection_material', },
+     'path': 'model_line__protection_material',
+     'name_path': 'model_line__protection_material__name', },
     {'key': 'ip', 'path': 'ip__name', },
     {'key': 'filtration_rating', 'placeholder': '{filtration_rating}', 'path': 'filtration_rating',
      },

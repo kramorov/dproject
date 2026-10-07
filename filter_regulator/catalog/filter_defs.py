@@ -12,6 +12,7 @@ fd_model_line = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Серия',
+    label_i18n={'en': 'Series', 'cn': '系列'},
     order=1,
 )
 
@@ -21,6 +22,7 @@ fd_filtration = FilterDefinition(
     filter_type=FilterType.MIN,
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Тонкость фильтрации, мкм',
+    label_i18n={'en': 'Filtration rating, µm', 'cn': '过滤精度, µm'},
     order=2,
 )
 
@@ -30,6 +32,7 @@ fd_body_material = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Материал корпуса',
+    label_i18n={'en': 'Body material', 'cn': '壳体材料'},
     order=3,
 )
 
@@ -39,6 +42,7 @@ fd_flow_rate = FilterDefinition(
     filter_type=FilterType.MIN,
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Расход не менее, л/мин',
+    label_i18n={'en': 'Flow rate min., l/min', 'cn': '最小流量, l/min'},
     order=4,
 )
 
@@ -48,6 +52,7 @@ fd_thread = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Резьба портов',
+    label_i18n={'en': 'Port thread', 'cn': '接口螺纹'},
     order=5,
 )
 
@@ -68,6 +73,7 @@ fd_temp_min = FilterDefinition(
     parameter_rule_code='temperature_min',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от, °С',
+    label_i18n={'en': 'Temperature from, °C', 'cn': '最低温度, °C'},
     order=6,
 )
 
@@ -78,6 +84,7 @@ fd_temp_max = FilterDefinition(
     parameter_rule_code='temperature_max',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до, °С',
+    label_i18n={'en': 'Temperature up to, °C', 'cn': '最高温度, °C'},
     order=7,
 )
 
@@ -87,6 +94,7 @@ fd_climate = FilterDefinition(
     filter_type=FilterType.CLIMATE_CASCADE,
     data_source_type=DataSourceType.CUSTOM,
     label='Клим. исполнение',
+    label_i18n={'en': 'Climate version', 'cn': '气候型式'},
     order=8,
 )
 
@@ -96,6 +104,7 @@ fd_brand = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Бренд',
+    label_i18n={'en': 'Brand', 'cn': '品牌'},
     order=10,
 )
 

@@ -17,6 +17,7 @@ fd_model_line = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Серия',
+    label_i18n={'en': 'Series', 'cn': '系列'},
     order=1,
 )
 
@@ -26,6 +27,7 @@ fd_brand = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Бренд',
+    label_i18n={'en': 'Brand', 'cn': '品牌'},
     order=2,
 )
 
@@ -36,6 +38,7 @@ fd_thread = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=ThreadSize,
     label='Резьба',
+    label_i18n={'en': 'Thread', 'cn': '螺纹'},
     order=3,
 )
 
@@ -46,6 +49,7 @@ fd_body_material = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=CableGlandBodyMaterial,
     label='Материал корпуса',
+    label_i18n={'en': 'Body material', 'cn': '壳体材料'},
     order=4,
 )
 
@@ -56,6 +60,7 @@ fd_exd = FilterDefinition(
     parameter_rule_code='exd',                      # backend: ParameterRule (hierarchy)
     data_source_type=DataSourceType.CUSTOM,
     label='Взрывозащита',
+    label_i18n={'en': 'Explosion protection', 'cn': '防爆'},
     order=5,
 )
 
@@ -67,6 +72,7 @@ fd_ip = FilterDefinition(
     data_source_type=DataSourceType.GLOBAL_MODEL,
     source_model=IpOption,
     label='IP',
+    label_i18n={'en': 'IP', 'cn': 'IP'},
     order=6,
 )
 
@@ -78,6 +84,7 @@ fd_cable_diameter_min = FilterDefinition(
     filter_type=FilterType.MAX,                     # lte: inner_min <= value
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Кабель от, мм',
+    label_i18n={'en': 'Cable from, mm', 'cn': '电缆直径从, mm'},
     order=7,
     group='Диаметры',
 )
@@ -88,6 +95,7 @@ fd_cable_diameter_max = FilterDefinition(
     filter_type=FilterType.MIN,                     # gte: inner_max >= value
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Кабель до, мм',
+    label_i18n={'en': 'Cable up to, mm', 'cn': '电缆直径至, mm'},
     order=8,
     group='Диаметры',
 )
@@ -98,6 +106,7 @@ fd_cable_diameter_outer_min = FilterDefinition(
     filter_type=FilterType.MAX,                     # lte: outer_min <= value
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Броня от, мм',
+    label_i18n={'en': 'Armour from, mm', 'cn': '铠装直径从, mm'},
     order=9,
     group='Диаметры',
     visible_when={'cable_type_id': ['armored', 'armored_ms']},
@@ -109,6 +118,7 @@ fd_cable_diameter_outer_max = FilterDefinition(
     filter_type=FilterType.MIN,                     # gte: outer_max >= value
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Броня до, мм',
+    label_i18n={'en': 'Armour up to, mm', 'cn': '铠装直径至, mm'},
     order=10,
     group='Диаметры',
     visible_when={'cable_type_id': ['armored', 'armored_ms']},
@@ -122,6 +132,7 @@ fd_metal_sleeve_diameter_min = FilterDefinition(
     filter_type=FilterType.MAX,                     # lte: inner <= value
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Металлорукав от, мм',
+    label_i18n={'en': 'Metal sleeve from, mm', 'cn': '软管直径从, mm'},
     order=14,
     group='Диаметры',
     visible_when={'cable_type_id': ['unarmored_ms', 'armored_ms']},
@@ -133,6 +144,7 @@ fd_metal_sleeve_diameter_max = FilterDefinition(
     filter_type=FilterType.MIN,                     # gte: outer >= value
     data_source_type=DataSourceType.CUSTOM,         # numeric input (no dropdown)
     label='Металлорукав до, мм',
+    label_i18n={'en': 'Metal sleeve up to, mm', 'cn': '软管直径至, mm'},
     order=15,
     group='Диаметры',
     visible_when={'cable_type_id': ['unarmored_ms', 'armored_ms']},
@@ -145,6 +157,7 @@ fd_metal_sleeve_type = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=MetalSleeve,
     label='Тип металлорукава',
+    label_i18n={'en': 'Metal sleeve type', 'cn': '软管类型'},
     order=16,
     visible_when={'cable_type_id': ['unarmored_ms', 'armored_ms']},
 )
@@ -156,6 +169,7 @@ fd_temp_min = FilterDefinition(
     parameter_rule_code='temperature_min',          # backend: ParameterRule (directional)
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от, °С',
+    label_i18n={'en': 'Temperature from, °C', 'cn': '最低温度, °C'},
     order=11,
 )
 
@@ -166,6 +180,7 @@ fd_temp_max = FilterDefinition(
     parameter_rule_code='temperature_max',          # backend: ParameterRule (directional)
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура до, °С',
+    label_i18n={'en': 'Temperature up to, °C', 'cn': '最高温度, °C'},
     order=12,
 )
 
@@ -175,6 +190,7 @@ fd_climate = FilterDefinition(
     filter_type=FilterType.CLIMATE_CASCADE,     # frontend: ClimateFilter (слайдер климата)
     data_source_type=DataSourceType.CUSTOM,
     label='Клим. исполнение',
+    label_i18n={'en': 'Climate version', 'cn': '气候型式'},
     order=50,
 )
 
@@ -187,6 +203,7 @@ fd_cable_type = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=CableType,
     label='Тип кабеля',
+    label_i18n={'en': 'Cable type', 'cn': '电缆类型'},
     order=13,
 )
 

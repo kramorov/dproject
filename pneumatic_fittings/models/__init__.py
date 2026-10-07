@@ -408,12 +408,15 @@ class PneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
             return str(self.operating_pressure)
         return ''
 
-    @property
-    def swivel_display(self) :
-        """Текстовое обозначение поворотности для шаблонов."""
+    def swivel_display(self, locale=None) :
+        """Текстовое обозначение поворотности для шаблонов (локализованное)."""
         if self.model_line is None :
             return ''
-        return 'поворотный' if self.model_line.is_swivel else 'неповоротный'
+        if self.model_line.is_swivel :
+            word = {'ru': 'поворотный', 'en': 'swivel', 'cn': '可旋转'}
+        else :
+            word = {'ru': 'неповоротный', 'en': 'fixed', 'cn': '不可旋转'}
+        return word.get(locale or 'ru', word['ru'])
 
     def _get_name_template_source(self) :
         """Переопределить в модели: вернуть шаблон названия или None."""

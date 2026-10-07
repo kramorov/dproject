@@ -11,6 +11,7 @@ from django.utils import translation
 from gearbox.catalog.config import GEARBOX_CONFIG
 from price.services.currency_converter import get_display_price
 from core.utils.catalog_helpers import get_currency_code
+from core.utils.localization import locale_from_accept_language
 
 
 class GearboxDetailView(APIView):
@@ -18,6 +19,7 @@ class GearboxDetailView(APIView):
     config = GEARBOX_CONFIG
 
     def get(self, request, pk):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         lang = request.GET.get('lang', 'ru')
         currency_code = get_currency_code(request)
 
@@ -28,7 +30,7 @@ class GearboxDetailView(APIView):
                 .prefetch_related(*self.config.prefetch_fields),
                 pk=pk,
             )
-            data = obj.to_dict()
+            data = obj.to_dict(locale=locale)
 
             # Price
             sku_id = obj.sku_id

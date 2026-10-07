@@ -1,0 +1,1 @@
+import{P as a}from"./App_legacy-CaVL4Mp9.js";import{_ as o,d as t,x as e,o as c}from"./_plugin-vue_export-helper-kUGgy624.js";import"./api-Dihwikr1.js";import"./default-C53lrT5u.js";const r={class:"catalog-page"},s={__name:"PaConstructorLegacyPage",setup(_){return(p,n)=>(c(),t("div",r,[e(a)]))}},u=o(s,[["__scopeId","data-v-05410d9e"]]);export{u as default};

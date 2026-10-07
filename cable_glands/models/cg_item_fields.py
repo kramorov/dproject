@@ -25,7 +25,8 @@ CG_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'model_line__brand', },
     {'key': 'temp_range', 'placeholder': '{temp_range}', 'path': 'get_temp_range_display',
      },
-    {'key': 'cable_types', 'placeholder': '{cable_types}', 'path': 'get_applicable_cable_types_display',
+    {'key': 'cable_types', 'placeholder': '{cable_types}', 'path': 'model_line__cable_type__name',
+     'name_path': 'model_line__cable_type__name',
      },
 
     {'key': 'ip', 'placeholder': '{ip}', 'path': 'get_ip_display',
@@ -42,7 +43,7 @@ CG_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'thread_option__thread_size', 'code_path': 'thread_encoding',
      },
     {'key': 'body_material', 'placeholder': '{body_material}', 'path': 'body_material_option__body_material__name',
-     'name_path': 'body_material_option__body_material', 'code_path': 'body_material_encoding',
+     'name_path': 'body_material_option__body_material__name', 'code_path': 'body_material_encoding',
      },
     {'key': 'cable_diameter', 'placeholder': '{cable_diameter}', 'path': 'get_cable_diameter_display',
      },

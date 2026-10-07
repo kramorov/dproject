@@ -1,0 +1,1 @@
+import{C as o}from"./App-CE6fvUR9.js";import{_ as t,d as e,x as a,o as r}from"./_plugin-vue_export-helper-kUGgy624.js";import"./default-C53lrT5u.js";const s={class:"catalog-page"},c={__name:"CgConstructorPage",setup(_){return(p,n)=>(r(),e("div",s,[a(o)]))}},u=t(c,[["__scopeId","data-v-393c6902"]]);export{u as default};

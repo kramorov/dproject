@@ -28,12 +28,15 @@ DV_ITEM_TEMPLATE_FIELDS = (
     {'key': 'actuation', 'placeholder': '{actuation}', 'path': 'actuation__name', 'name_path': 'actuation',
      },
     {'key': 'construction', 'placeholder': '{construction}', 'path': 'construction',
+     'name_path': 'model_line__construction__name',
      },
     {'key': 'operation', 'placeholder': '{operation}', 'path': 'operation',
+     'name_path': 'model_line__operation__name',
      },
     {'key': 'manual_override', 'placeholder': '{manual_override}', 'path': 'manual_override__name',
      'name_path': 'manual_override', },
     {'key': 'working_medium', 'placeholder': '{working_medium}', 'path': 'working_medium',
+     'name_path': 'model_line__working_medium__name',
      },
 
     # ── Пропускная способность ──

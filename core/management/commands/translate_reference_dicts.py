@@ -226,6 +226,25 @@ TRANSLATIONS = {
         'Отказное письмо': ('Letter of refusal', '拒绝函'),
         'Сейсмостойкость до 9 баллов по MSK-64': ('Seismic resistance up to 9 (MSK-64)', '抗震性MSK-64 9级'),
     },
+    'params.PneumaticConnection': {
+        'Трубный монтаж': ('Pipe mounting', '管式安装'),
+    },
+    'materials.MaterialSpecified': {
+        'HNBR (Гидронитрильный каучук)': ('HNBR (Nitrile rubber)', 'HNBR（丁腈橡胶）'),
+        'FVMQ (Фторосиликон )': ('FVMQ (Fluorosilicone)', 'FVMQ（氟硅橡胶）'),
+    },
+    'params.StemShapes': {
+        'Квадрат': ('Square', '方形'),
+        'Вал со шпонкой': ('Keyed shaft', '带键轴'),
+        'Левая резьба': ('Left-hand thread', '左旋螺纹'),
+        'По заказу, макс.диам.': ('Custom, max. dia.', '定制，最大直径'),
+    },
+    'params.ActuatorGearboxOutputType': {
+        'Четвертьоборотный': ('Quarter-turn', '角行程'),
+        'Многоборотный': ('Multi-turn', '多回转'),
+        'Линейный': ('Linear', '直行程'),
+        'нет': ('none', '无'),
+    },
 }
 
 

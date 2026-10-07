@@ -12,12 +12,14 @@ from rest_framework.permissions import AllowAny
 from django.db.models import Count
 
 from cable_glands.models import CableGlandModelLine
+from core.utils.localization import locale_from_accept_language, pick_i18n
 
 
 class CableGlandSectionView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         qs = (
             CableGlandModelLine.objects
             .filter(cable_gland_articles__is_active=True)
@@ -34,7 +36,9 @@ class CableGlandSectionView(APIView):
                 'id': ml.id,
                 'name': ml.name,
                 'code': ml.code or '',
-                'description': ml.description or '',
+                'description': pick_i18n(
+                    getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+                ),
                 'count': ml.count,
                 'image': img.get_serve_url() if img else None,
                 'brand': {'id': ml.brand.id, 'name': ml.brand.name} if ml.brand else None,

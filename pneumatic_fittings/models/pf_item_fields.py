@@ -38,7 +38,7 @@ PF_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'body_material', },
     {'key': 'temperature_range', 'placeholder': '{temperature_range}', 'path': 'temperature_range_display',
      },
-    {'key': 'swivel', 'placeholder': '{swivel}', 'path': 'swivel_display'},
+    {'key': 'swivel', 'placeholder': '{swivel}', 'path': 'swivel_display', 'resolver': 'swivel_display'},
 
     # ── Трубка и давление (только для фитингов) ──
     {'key': 'pipe_diameter', 'placeholder': '{pipe_diameter}', 'path': 'pipe_diameter',

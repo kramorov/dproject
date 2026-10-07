@@ -2,6 +2,7 @@
 from django.urls import path
 from gearbox.catalog.views_list import GearboxCatalogView
 from gearbox.catalog.views_detail import GearboxDetailView
+from gearbox.catalog.views_sections import GearboxSectionView
 from gearbox.catalog.views_filters import GearboxFilterOptionsView
 from gearbox.catalog.views_engineer import GearboxEngineerView
 from gearbox.catalog.views_engineer_filters import GearboxEngineerFilterOptionsView
@@ -9,6 +10,7 @@ from gearbox.views.meta import GearboxMetaView
 from gearbox.views.quickselect import GearboxQuickSelectView
 
 urlpatterns = [
+    path('sections/', GearboxSectionView.as_view(), name='gearbox_sections'),
     path('quickselect/', GearboxQuickSelectView.as_view(), name='gearbox_quickselect'),
     path('meta/', GearboxMetaView.as_view(), name='gearbox_meta'),
     path('catalog/', GearboxCatalogView.as_view(), name='gearbox_catalog'),

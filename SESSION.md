@@ -583,3 +583,131 @@
 - Фразовый перевод медиа-имён неполный (коды/бренды остаются ru — осознанно).
 - Всё некоммичено (HEAD=0e29325 «front en»): 34 modified + 9 untracked.
 - Отладочный `print` в `SensorComponent.save()` — убрать.
+
+---
+
+## 12. Сессия 2026-10-07 (вечер) — spec_template_i18n остальных каталогов, шаблоны серий, тесты, Фаза 5, медиа-имена
+
+### Сделано
+
+1. **Отладочный print** в `SensorComponent.save()` — удалён (остаток §11).
+2. **spec_template_i18n для остальных каталогов (задача 3 §9):**
+   - Поля `spec_template_i18n` + sync ru в `_sync_localized_ru()`: `CableGlandModelLine`,
+     `PneumaticActuatorModelLine`. Миграции `cable_glands/0021`, `pneumatic_actuators/0057`.
+   - Команда `core/management/commands/translate_spec_templates.py` (идемпотентная):
+     en/cn для 10 EquipmentType (ПП, позиционер для ПП, соленоиды, фитинги, дублёры, ФР, КВ,
+     фитинг резьба-трубка, глушители, заглушки) + 8 серий КВ. БКВ не тронут.
+   - Фикс `PneumaticActuatorModelLineItem._get_spec_sections(vars, locale=None)` (старая
+     сигнатура) + новый `_get_spec_template_i18n()` (серия → EquipmentType).
+   - Detail-вью 5 каталогов (КВ, соленоиды, редукторы, ФР, фитинги): локаль из
+     `Accept-Language` в `to_dict(locale=...)` (паттерн БКВ).
+3. **Шаблоны серий (§10 «НЕ сделано»):** команда
+   `core/management/commands/translate_model_line_templates.py` (ключ — точный ru-шаблон,
+   плейсхолдеры сохраняются): en/cn для 81 серии 8 каталогов (КВ, ПП, фитинги, соленоиды,
+   БКВ, позиционеры, ФР, дублёры). Пилотные переводы БКВ не перезатёрты.
+4. **Тесты нового функционала:** `core/tests/test_catalog_i18n.py` (12 тестов: spec-секции
+   ru/en/cn, серия-синк, generate_name en/cn, detail-вью Accept-Language, идемпотентность
+   команд). Прогон на копии боевой БД: `sqlite3.exe db.sqlite3 ".backup test_db.sqlite3"`,
+   затем `manage.py test core.tests.test_catalog_i18n core.tests.test_localization --keepdb`
+   → 23/23.
+5. **Фаза 5 (прод-сборка + hash-fallback):** `npm run build` зелёный; через Django (8000)
+   проверено в headless Chrome: SPA `/` (новый main-*.js), `/en/` (lang=en, меню EN),
+   standalone `limit-switch-catalog` (секция + hash-режим `#?mode=quickselect`),
+   standalone `posi-constructor`. `collectstatic --noinput` обновлён (420 файлов).
+6. **Медиа-имена (задача «фразовый перевод неполный»):** расширен словарь
+   `translate_media_names` (65+ фраз: листовки, РЭ, габаритные чертежи, позиционеры,
+   фитинги/глушители/заглушки, откр/закр, общепром, и т.д.) + исправлен порядок
+   («на пневмоприводы» до «пневмоприводы» и т.п.); переведено 295 строк.
+   Остались только бренды/коды (Архимед, Север, ТР ТС, ЕАЭС, ГОСТ — осознанно).
+
+### Осталось
+
+- `staticfiles` содержит сиротские старые хэши — почистить `collectstatic --clear` (перед
+  деплоем; в git уйдёт много удалений).
+- `db.sqlite3` и `test_db.sqlite3` изменились (контент переводов).
+- Полный тест-сьют pa_controls — pre-existing падение на тестовой БД (не чинился).
+
+---
+
+## 13. Сессия 2026-10-07 (ночь) — i18n UI-хрома всех каталогов (по отчёту пользователя)
+
+### Проблема
+Перевод «работал не везде»: пилот БКВ (limit-switch-catalog) переведён, остальные
+каталоги — ru-хардкод в App.vue (labels-объект без t(), заголовки графов, eq-name,
+хлебные крошки). Сравнение БКВ vs соленоидных — паттерн тот же, что в follow-up §3.
+
+### Сделано
+1. **Соленоидные клапаны**: ключи `sv.*` (18) в ru/en/cn; App.vue → computed(t()),
+   total-label/eq-name/eqLabel.
+2. **Остальные 7 каталогов** (gearbox `gb.*`, filter-regulator `fr.*`, cable-glands
+   `cg.*`, pa `pa.*`, fittings `pf.*`, plugs `pp.*`, silencers `ps.*`): те же правки
+   App.vue (labels computed + t(), graph total-label, AiSelectionPage labels.ai/eq-name/
+   @navigate, eqLabel.value в breadcrumbs, pa: alerts + label фильтра «Конструкция»).
+3. **Фикс доступа заглушки/глушители**: маршруты требуют meta.section catalog_plug /
+   catalog_sil, а записей SiteSection не было (сплит 0015 их пропустил) → guard
+   редиректил на /login. Data-миграция `project_customers/0018_add_plug_silencer_sections`
+   создаёт разделы и выдаёт их ролям/клиентам, имеющим catalog_pf. /api/auth/me/ теперь
+   отдаёт catalog_plug/catalog_sil.
+4. `npm run build` зелёный; `collectstatic` обновлён (241 файл).
+
+### Проверено
+- grep: в App.vue всех 9 каталогов нет кириллических строковых литералов (кроме
+  комментариев).
+- Headless Chrome (vite, /en/): все 9 каталогов — EN-заголовки/подзаголовки/хлебные
+  крошки; ранее заглушки/глушители показывали /login — теперь каталоги открываются.
+- Тесты 23/23; `manage.py check` чисто.
+
+### Осталось
+- Некоммичено: i18n словари ×3, 8 App.vue каталогов, миграция project_customers/0018,
+  staticfiles, db.sqlite3.
+- Фаза 6 (паритет мини-приложений/SEO/QA) — отдельно.
+
+---
+
+## 14. Сессия 2026-10-07 (ночь, волна 2) — локализация карточек/фильтров всех каталогов (по отчётам пользователя)
+
+### Проблемы (от пользователя, каталог Directional valves как образец)
+1. CatalogModelLine: описание серии в заголовке без перевода.
+2. Названия селекторов фильтров без перевода.
+3. Карточки товара (ProductCard/SelectionResultGrid) с ru-текстом.
+
+### Диагноз и фиксы (механизм общий, применён ко всем каталогам)
+1. **to_dict-фоллбэк** (`core/models/catalog_serializer.py`): при отсутствии display_i18n
+   name/description генерируются `generate_name(locale)`/`generate_description(locale)`
+   из шаблонов серии (раньше — сырые ru-поля). Чинит карточки всех каталогов.
+2. **list/engineer-вью 5 каталогов** (SV, gearbox, FR, fittings, CG): локаль из
+   `Accept-Language` проброшена в `apply_filters_and_split(..., locale=locale)`.
+3. **name_path для property/FK-листов** (`__name`-суффикс обязателен, иначе
+   `_get_target_i18n` читает несуществующее поле):
+   - SV: operation/construction/working_medium → `model_line__X__name`;
+   - gearbox: gearbox_variety/gearbox_output_variety/stem_shape_*;
+   - FR: filter_variety/protection_material;
+   - CG: body_material_option__body_material, cable_types → model_line__cable_type__name.
+4. **Property-резолверы → методы с locale + resolver в спецификации:**
+   PF `swivel_display`, gearbox `is_declutchable_display` (снят @property).
+5. **Фильтры:** `label_i18n` добавлен в ~50 FilterDefinition (SV 15, CG 17, FR 10,
+   gearbox 9, fittings 11, documents 4).
+6. **title/list_title EquipmentType** — команда `translate_et_title_templates`
+   (en/cn для ET 3,4,7,10,11,12; ключ — точный ru-шаблон). Монтажные комплекты
+   (ET 13-18) — fallback ru (каталоги-заглушки).
+7. **Сериальный title КВ:** `CableGlandModelLine.title_template_i18n` (миграция
+   cable_glands/0022) + sync/update_fields; `translate_model_line_templates` расширен
+   на title_template (переводы == name_template); опечатка данных `{exd_short}}` вылечена.
+8. **Справочники** (`translate_reference_dicts`): PneumaticConnection («Трубный монтаж»),
+   MaterialSpecified (HNBR/FVMQ), StemShapes (Квадрат и др.), ActuatorGearboxOutputType
+   (Четвертьоборотный и др.).
+9. **Итоговый скан** engineer-эндпоинтов всех 9 каталогов (en): в карточках остались
+   только бренды/коды (Архимед, КНК, ЯМАЛ/УРАЛ/АМУР, ГОСТ) — осознанная граница §2.
+
+### Проверки
+- Тесты: `core/tests/test_catalog_i18n.py` расширен до 16 (sections-эндпоинты всех
+  каталогов + EN-поля карточек SV); 31/31 с test_localization.
+- `manage.py check` / `makemigrations --check` чисто; `npm run build` зелёный;
+  collectstatic обновлён; тестовая БД — свежий `.backup` боевой.
+- lang.md: раздел 7 «Уроки первой волны» расширен до правил 11-17.
+
+### Осталось (не в этой волне)
+- Полная i18n админ-страниц (alert/label ru) — pre-existing.
+- Монтажные комплекты ET 13-18 — title/list_title без en/cn (заглушки).
+- Контент описаний серий фитингов/глушителей/заглушек (в БД пусто).
+- `collectstatic --clear` перед деплоем; коммит (265 modified, 877 untracked).

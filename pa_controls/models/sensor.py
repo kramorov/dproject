@@ -187,7 +187,6 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
 
     def save(self, *args, **kwargs):
         # skip_auto_generate = kwargs.pop('skip_auto_generate', False)
-        print(f'save from SenSorComponent')
         self.update_description()
         self.config_hash = self.compute_config_hash()
         self._check_config_hash_unique()

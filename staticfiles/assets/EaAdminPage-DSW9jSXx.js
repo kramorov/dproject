@@ -1,1 +1,0 @@
-import{E as a}from"./App-DozG8A9u.js";import{_ as e,d as o,q as t,o as s}from"./_plugin-vue_export-helper-CrHymscG.js";import"./default-BCX413Po.js";const c={class:"catalog-page"},_={__name:"EaAdminPage",setup(r){return(p,n)=>(s(),o("div",c,[t(a)]))}},f=e(_,[["__scopeId","data-v-77ae8cdf"]]);export{f as default};

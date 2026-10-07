@@ -1,0 +1,1 @@
+import{E as a}from"./App-9G1BVaW-.js";import{_ as e,d as o,x as t,o as s}from"./_plugin-vue_export-helper-kUGgy624.js";import"./default-C53lrT5u.js";const c={class:"catalog-page"},_={__name:"EaAdminPage",setup(r){return(p,d)=>(s(),o("div",c,[t(a)]))}},l=e(_,[["__scopeId","data-v-ded01e22"]]);export{l as default};

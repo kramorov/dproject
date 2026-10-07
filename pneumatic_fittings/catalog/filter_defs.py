@@ -16,6 +16,7 @@ fd_model_line = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Серия',
+    label_i18n={'en': 'Series', 'cn': '系列'},
     order=1,
 )
 
@@ -25,6 +26,7 @@ fd_brand = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Бренд',
+    label_i18n={'en': 'Brand', 'cn': '品牌'},
     order=2,
 )
 
@@ -34,6 +36,7 @@ fd_fitting_variety = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Тип фитинга',
+    label_i18n={'en': 'Fitting type', 'cn': '接头类型'},
     order=3,
 )
 
@@ -44,6 +47,7 @@ fd_body_material = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=MaterialGeneral,
     label='Материал корпуса',
+    label_i18n={'en': 'Body material', 'cn': '壳体材料'},
     order=4,
 )
 
@@ -54,6 +58,7 @@ fd_pipe_material = FilterDefinition(
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     source_model=MaterialGeneral,
     label='Материал трубки',
+    label_i18n={'en': 'Tube material', 'cn': '气管材料'},
     order=5,
 )
 
@@ -63,6 +68,7 @@ fd_pipe_diameter = FilterDefinition(
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Диаметр трубки, мм',
+    label_i18n={'en': 'Tube diameter, mm', 'cn': '气管直径, mm'},
     order=6,
 )
 
@@ -74,6 +80,7 @@ fd_thread_type = FilterDefinition(
     data_source_type=DataSourceType.GLOBAL_MODEL,
     source_model=ThreadTypes,
     label='Тип резьбы',
+    label_i18n={'en': 'Thread type', 'cn': '螺纹类型'},
     order=7,
 )
 
@@ -83,6 +90,7 @@ fd_thread = FilterDefinition(
     filter_type=FilterType.THREAD_COMPATIBLE,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
     label='Резьба',
+    label_i18n={'en': 'Thread', 'cn': '螺纹'},
     order=8,
 )
 
@@ -93,6 +101,7 @@ fd_thread_inner_outer = FilterDefinition(
     data_source_type=DataSourceType.FOREIGN_KEY,
     source_model=ThreadInnerOuter,
     label='Резьба (нар/внут)',
+    label_i18n={'en': 'Thread (ext/int)', 'cn': '螺纹（外/内）'},
     order=9,
 )
 
@@ -103,6 +112,7 @@ fd_temp_min = FilterDefinition(
     parameter_rule_code='temperature_min',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от, °С',
+    label_i18n={'en': 'Temperature from, °C', 'cn': '最低温度, °C'},
     order=10,
 )
 
@@ -114,6 +124,7 @@ fd_swivel = FilterDefinition(
     data_source_type=DataSourceType.CHOICES,
     choices=[('true', 'Поворотный'), ('false', 'Неповоротный')],
     label='Поворотность',
+    label_i18n={'en': 'Swivel', 'cn': '可旋转'},
     order=11,
 )
 

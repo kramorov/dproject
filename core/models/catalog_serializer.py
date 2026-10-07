@@ -319,8 +319,22 @@ class CatalogSerializerMixin(CatalogDictMixin):
     def to_dict(self, locale=None) -> dict:
         locale = locale or DEFAULT_LOCALE
         disp = self._get_display_i18n(locale)
-        name = (disp.get('name') if disp else None) or self.name or ''
-        description = (disp.get('description') if disp else None) or self.description or ''
+        # display_i18n — только у пилота (БКВ); остальные каталоги генерируют
+        # имена из локализованных шаблонов серии (name_template_i18n и т.п.).
+        name = (disp.get('name') if disp else None)
+        if not name:
+            try:
+                name = self.generate_name(locale)
+            except Exception:
+                name = ''
+        name = name or self.name or ''
+        description = (disp.get('description') if disp else None)
+        if not description:
+            try:
+                description = self.generate_description(locale)
+            except Exception:
+                description = ''
+        description = description or self.description or ''
         title = (disp.get('title') if disp else None) or self.generate_title(locale)
         tv = self._get_template_vars()
         return {
