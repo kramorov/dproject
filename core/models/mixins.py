@@ -18,6 +18,7 @@ import logging
 from django.contrib import messages
 logger = logging.getLogger(__name__)
 import copy
+import inspect
 
 class TemplateMixin:
     """
@@ -195,6 +196,19 @@ class TemplateMixin:
             )
         return [by_key[k] for k in keys if k in by_key]
 
+    def _call_resolver(self, resolver_name: str, locale=None):
+        """Вызвать resolver-метод, передав ``locale``, если он его принимает."""
+        fn = getattr(self, resolver_name, None)
+        if not callable(fn):
+            return fn
+        if locale and locale != DEFAULT_LOCALE:
+            try:
+                if 'locale' in inspect.signature(fn).parameters:
+                    return fn(locale=locale)
+            except (TypeError, ValueError):
+                pass
+        return fn()
+
     def _resolve_field(self, spec, locale=None):
         """Лениво вычислить значение поля с мемоизацией на инстансе.
 
@@ -211,7 +225,7 @@ class TemplateMixin:
         if key in cache:
             return cache[key]
         if spec.resolver:
-            value = getattr(self, spec.resolver)()
+            value = self._call_resolver(spec.resolver, locale=locale)
         elif spec.path:
             value = self._get_value(spec.path)
         else:
@@ -266,7 +280,7 @@ class TemplateMixin:
         fn = getattr(self, target, None)
         if callable(fn):
             try:
-                value = fn()
+                value = self._call_resolver(target, locale=locale)
             except Exception:
                 return ''
             # Резолвер вернул объект справочника — локализуем его name
@@ -311,17 +325,19 @@ class TemplateMixin:
         return self.__class__.__name__
 
     # === ИТОГОВЫЕ ШАБЛОНЫ ===
-    @property
-    def get_extra_params(self, separator: str = "; ", name_value_separator: str = ": ") -> str:
+    def get_extra_params(self, separator: str = "; ", name_value_separator: str = ": ", locale=None) -> str:
         """
         Формирует строку дополнительных параметров из JSON поля extra_params.
+
+        Поддерживает два формата:
+          * локализованный: ``{"ru": {...}, "en": {...}, "cn": {...}}`` —
+            выбирается словарь текущей локали (fallback: locale → ru);
+          * устаревший плоский: ``{key: {"name": ..., "value": ...}}``.
 
         Args:
             separator: Разделитель между параметрами (по умолчанию "; ")
             name_value_separator: Разделитель между именем и значением (по умолчанию ": ")
-
-        Returns:
-            Строка вида "name1: value1; name2: value2; ..."
+            locale: Локаль данных (ru/en/cn).
         """
         if not self.extra_params:
             return ""
@@ -330,14 +346,22 @@ class TemplateMixin:
         if isinstance(self.extra_params, str):
             try:
                 import json
-                params_dict = json.loads(self.extra_params)
+                raw = json.loads(self.extra_params)
             except (json.JSONDecodeError, TypeError):
                 return ""
         else:
-            params_dict = self.extra_params
+            raw = self.extra_params
 
-        if not isinstance(params_dict, dict):
+        if not isinstance(raw, dict):
             return ""
+
+        locale = locale or DEFAULT_LOCALE
+        # Локализованный формат: {"ru": {...}, "en": {...}, "cn": {...}}
+        if isinstance(raw.get('ru'), dict):
+            params_dict = raw.get(locale) or raw.get('ru') or {}
+        else:
+            # Устаревший плоский формат: {"key": {"name": ..., "value": ...}}
+            params_dict = raw
 
         # Формируем строку параметров
         result_parts = []
@@ -751,8 +775,8 @@ class TemplateMixin:
         if callable(get_image):
             image = get_image()
 
-        tech_docs = self._doc_links(getattr(self, '_get_docs_section', None), base_url)
-        certs = self._doc_links(getattr(self, '_get_certs_section', None), base_url)
+        tech_docs = self._doc_links(getattr(self, '_get_docs_section', None), base_url, locale)
+        certs = self._doc_links(getattr(self, '_get_certs_section', None), base_url, locale)
 
         return {
             'item': item,
@@ -826,13 +850,16 @@ class TemplateMixin:
             return fmt.replace('{}', str(item))
         return str(item)
 
-    def _get_list_params(self) -> list:
+    def _get_list_params(self, locale=None) -> list:
         """Параметры для карточки в списке (SelectionResultGrid).
 
         Возвращает ``[{label, value}]`` — резолвит ключи из
-        ``EquipmentType.list_params`` через реестр полей (label из spec,
-        значение форматируется единым ``_format_spec_value``/``_spec_value_to_text``).
+        ``EquipmentType.list_params`` через реестр полей. Подписи берутся из
+        ``spec_template`` (для не-RU — ``spec_template_i18n[locale]``), значения
+        форматируются единым ``_format_spec_value``/``_spec_value_to_text`` с
+        локализацией справочников.
         """
+        locale = locale or DEFAULT_LOCALE
         keys = self._get_equipment_type_template('list_params')
         if not keys:
             return []
@@ -851,6 +878,14 @@ class TemplateMixin:
         _parse_spec_template = getattr(self, '_parse_spec_template', None)
         if callable(_get_spec_template) and callable(_parse_spec_template):
             template = _parse_spec_template(_get_spec_template())
+            if locale != DEFAULT_LOCALE:
+                _get_spec_template_i18n = getattr(self, '_get_spec_template_i18n', None)
+                if callable(_get_spec_template_i18n):
+                    i18n = _get_spec_template_i18n()
+                    if isinstance(i18n, dict):
+                        loc_template = _parse_spec_template(i18n.get(locale))
+                        if loc_template:
+                            template = loc_template
             if template:
                 for group_fields in template.values():
                     if not isinstance(group_fields, dict):
@@ -864,24 +899,32 @@ class TemplateMixin:
             if spec is None:
                 continue
             try:
-                value = self._spec_value_to_text(self._format_spec_value(spec))
+                value = self._spec_value_to_text(self._format_spec_value(spec, locale=locale))
             except Exception:
                 value = ''
             if value in (None, ''):
                 continue
+            label = spec.label or label_by_key.get(key) or spec.key
+            if locale != DEFAULT_LOCALE and label_by_key.get(key):
+                label = label_by_key.get(key)
             result.append({
-                'label': spec.label or label_by_key.get(key) or spec.key,
+                'label': label,
                 'value': value,
             })
         return result
 
-    def _doc_links(self, getter, base_url: str):
+    def _doc_links(self, getter, base_url: str, locale=None):
         """Техдокументация/сертификаты → [{name, url_full, url_compressed}]."""
         items = []
         if not callable(getter):
             return items
         try:
-            raw = getter()
+            import inspect
+            try:
+                accepts_locale = 'locale' in inspect.signature(getter).parameters
+            except (TypeError, ValueError):
+                accepts_locale = False
+            raw = getter(locale=locale) if accepts_locale else getter()
         except Exception:
             return items
         for d in raw or []:
@@ -2381,7 +2424,7 @@ class CatalogDictMixin:
         list_params = []
         if hasattr(self, '_get_list_params'):
             try:
-                list_params = self._get_list_params()
+                list_params = self._get_list_params(locale)
             except Exception:
                 list_params = []
         return {

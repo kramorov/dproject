@@ -30,7 +30,7 @@
           <span class="eng-card__price-val">{{ price.price }}</span>
           <span class="eng-card__price-cur">{{ price.symbol || price.currency }}</span>
         </div>
-        <span v-else class="eng-card__price eng-card__price--na">Цена по запросу</span>
+        <span v-else class="eng-card__price eng-card__price--na">{{ t('catalog.engineer.priceOnRequest') }}</span>
       </div>
     </div>
   </div>
@@ -40,6 +40,9 @@
 import { computed } from 'vue'
 import ProgressiveImage from '@/shared/components/ProgressiveImage.vue'
 import AddToCartButton from '@/shared/components/AddToCartButton.vue'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -75,7 +78,7 @@ const specs = computed(() => {
   }
   // Body material
   if (i.body_material) {
-    result.push({ label: 'Корпус', value: typeof i.body_material === 'object' ? (i.body_material.name || i.body_material.code || '') : String(i.body_material) })
+    result.push({ label: t('catalog.engineer.specBody'), value: typeof i.body_material === 'object' ? (i.body_material.name || i.body_material.code || '') : String(i.body_material) })
   }
   // Temperature
   if (i.work_temp_min != null || i.work_temp_max != null) {
@@ -85,39 +88,39 @@ const specs = computed(() => {
   }
   // Torque (gearbox)
   if (i.torque != null) {
-    result.push({ label: 'Mкр, Нм', value: i.torque })
+    result.push({ label: t('catalog.engineer.specTorque'), value: i.torque })
   }
   // Flow rate (filter-regulator)
   if (i.flow_rate != null) {
-    result.push({ label: 'Расход, л/мин', value: i.flow_rate })
+    result.push({ label: t('catalog.engineer.specFlowRate'), value: i.flow_rate })
   }
   // Thread (filter-regulator)
   if (i.thread) {
-    result.push({ label: 'Резьба', value: typeof i.thread === 'object' ? (i.thread.name || i.thread.code || '') : String(i.thread) })
+    result.push({ label: t('catalog.engineer.specThread'), value: typeof i.thread === 'object' ? (i.thread.name || i.thread.code || '') : String(i.thread) })
   }
   // Sensor variety (limit-switch)
   if (i.sensor_variety) {
-    result.push({ label: 'Датчики', value: typeof i.sensor_variety === 'object' ? (i.sensor_variety.name || '') : String(i.sensor_variety) })
+    result.push({ label: t('catalog.engineer.specSensors'), value: typeof i.sensor_variety === 'object' ? (i.sensor_variety.name || '') : String(i.sensor_variety) })
   }
   // Points (limit-switch)
   if (i.points != null) {
-    result.push({ label: 'Контакты', value: i.points })
+    result.push({ label: t('catalog.engineer.specContacts'), value: i.points })
   }
   // Fitting variety (pneumatic fittings)
   if (i.fitting_variety) {
-    result.push({ label: 'Тип фитинга', value: typeof i.fitting_variety === 'object' ? (i.fitting_variety.name || '') : String(i.fitting_variety) })
+    result.push({ label: t('catalog.engineer.specFittingType'), value: typeof i.fitting_variety === 'object' ? (i.fitting_variety.name || '') : String(i.fitting_variety) })
   }
   // Thread name (pneumatic fittings use thread_name)
   if (i.thread_name) {
-    result.push({ label: 'Резьба', value: String(i.thread_name) })
+    result.push({ label: t('catalog.engineer.specThread'), value: String(i.thread_name) })
   }
   // Thread inner/outer (pneumatic fittings)
   if (i.thread_inner_outer_name) {
-    result.push({ label: 'Нар./внут.', value: String(i.thread_inner_outer_name) })
+    result.push({ label: t('catalog.engineer.specInnerOuter'), value: String(i.thread_inner_outer_name) })
   }
   // Pipe material (pneumatic fittings)
   if (i.pipe_material) {
-    result.push({ label: 'Материал трубки', value: typeof i.pipe_material === 'object' ? (i.pipe_material.name || '') : String(i.pipe_material) })
+    result.push({ label: t('catalog.engineer.specPipeMaterial'), value: typeof i.pipe_material === 'object' ? (i.pipe_material.name || '') : String(i.pipe_material) })
   }
 
   return result

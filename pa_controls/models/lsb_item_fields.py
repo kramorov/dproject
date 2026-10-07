@@ -42,7 +42,7 @@ LSB_ITEM_TEMPLATE_FIELDS = (
      'name_path': 'primary_sensor__contact_state'},
     {'key': 'primary_sensor_contact_form', 'placeholder': '{primary_sensor_contact_form}',
      'name_path': 'get_primary_sensor_contact_form'},
-    {'key': 'signal_profile_summary', 'placeholder': '{signal_profile_summary}', 'path': 'get_signal_profile_summary'},
+    {'key': 'signal_profile_summary', 'placeholder': '{signal_profile_summary}', 'resolver': 'get_signal_profile_summary'},
     {'key': 'cert_description', 'path': 'get_cert_docs_description_display'},
 
     # ── Корпус ──

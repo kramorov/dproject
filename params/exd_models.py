@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import TextDescriptionMixin, OptionListToSelectMixin, LocalizedDictFieldsMixin
+from core.utils.localization import pick_i18n
 
 
 class HazardousGroup(LocalizedDictFieldsMixin) :
@@ -135,22 +136,9 @@ class ExplosionProtectionType(LocalizedDictFieldsMixin, TextDescriptionMixin):
     def __str__(self):
         return f"Ex {self.code}"
 
-    def get_text_description(self) -> str:
-        """Генерирует описание типа взрывозащиты"""
-        descriptions = {
-            'd': _("Взрывонепроницаемая оболочка - оборудование выдерживает внутреннее давление взрыва"),
-            'e': _("Повышенная надежность - отсутствие искр и дуг в нормальном режиме"),
-            'i': _("Искробезопасная электрическая цепь - энергия ограничена"),
-            'ia': _("Искробезопасная цепь - очень высокая степень защиты"),
-            'ib': _("Искробезопасная цепь - высокая степень защиты"),
-            'n': _("Неискрящее оборудование для Зоны 2"),
-            'nA': _("Неискрящее оборудование для Зоны 2"),
-            'm': _("Герметизация компаундом"),
-            'p': _("Заполнение или продувка оболочки под избыточным давлением"),
-            't': _("Защита оболочкой для пыли"),
-            'tb': _("Защита оболочкой для пыли - высокая степень"),
-        }
-        return descriptions.get(self.code, self.description or self.name)
+    def get_text_description(self, locale=None) -> str:
+        """Локализованное описание типа взрывозащиты (description_i18n → description)."""
+        return pick_i18n(self.description_i18n, locale, fallback=self.description or self.name)
 
 
 class ExplosionProtectionLevel(LocalizedDictFieldsMixin, TextDescriptionMixin):
@@ -392,7 +380,7 @@ class ExdOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
         super().save(*args, **kwargs)
 
     @classmethod
-    def get_structured_choices(cls) -> Dict:
+    def get_structured_choices(cls, locale=None) -> Dict:
         """
         Возвращает словарь с иерархическими данными для выбора взрывозащиты.
         Структура:
@@ -421,10 +409,10 @@ class ExdOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
             methods.append({
                 'id': method.id,
                 'code': method.code,
-                'name': method.name,
-                'description': method.description,
+                'name': pick_i18n(method.name_i18n, locale, fallback=method.name),
+                'description': pick_i18n(method.description_i18n, locale, fallback=method.description),
                 'types': [
-                    {'id': t.id, 'code': t.code, 'name': t.name, 'description': t.get_text_description(), 'category': t.category}
+                    {'id': t.id, 'code': t.code, 'name': t.name, 'description': t.get_text_description(locale), 'category': t.category}
                     for t in types
                 ]
             })
@@ -432,11 +420,11 @@ class ExdOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
         # 2. Группы газа и пыли
             # 2. Группы - объединяем газ и пыль в один список
         gas_groups = [
-            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'GAS', 'description': g.description}
+            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'GAS', 'description': pick_i18n(g.description_i18n, locale, fallback=g.description)}
             for g in HazardousGroup.objects.filter(group_type='GAS', is_active=True).order_by('rating')
         ]
         dust_groups = [
-            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'DUST', 'description': g.description}
+            {'id': g.id, 'code': g.code, 'name': g.name, 'rating': g.rating, 'group_type': 'DUST', 'description': pick_i18n(g.description_i18n, locale, fallback=g.description)}
             for g in HazardousGroup.objects.filter(group_type='DUST', is_active=True).order_by('rating')
         ]
         all_groups = gas_groups + dust_groups  # просто складываем списки
@@ -446,7 +434,7 @@ class ExdOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
                 'id': t.id,
                 'code': t.temperature_class,
                 'name': t.name,
-                'description': t.description,
+                'description': pick_i18n(t.description_i18n, locale, fallback=t.description),
                 'max_temp': t.max_surface_temp,
                 'strictness_rating': t.strictness_rating
             }

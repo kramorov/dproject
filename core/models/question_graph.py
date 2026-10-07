@@ -6,6 +6,7 @@
 from django.db import models
 from core.models.equipment_type import EquipmentType
 from core.models.base import BaseAbstractModel
+from core.utils.localization import sync_ru
 
 
 class QuestionGraph(BaseAbstractModel):
@@ -43,6 +44,35 @@ class QuestionGraph(BaseAbstractModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """Синхронизирует «ru» в *_i18n узлов графа (en/cn сохраняются).
+
+        Админка правит только RU-текст (question/description/title/params[].title),
+        поэтому ru в *_i18n подтягивается здесь, чтобы переводы не «разъезжались».
+        """
+        self._sync_graph_i18n_ru()
+        super().save(*args, **kwargs)
+
+    def _sync_graph_i18n_ru(self):
+        nodes = (self.graph_json or {}).get('nodes')
+        if not isinstance(nodes, dict):
+            return
+        for node in nodes.values():
+            if not isinstance(node, dict):
+                continue
+            for field in ('question', 'description', 'title', 'name'):
+                val = node.get(field)
+                cur = node.get(field + '_i18n')
+                if val and isinstance(cur, dict):
+                    node[field + '_i18n'] = sync_ru(cur, val)
+            for p in node.get('params') or []:
+                if not isinstance(p, dict):
+                    continue
+                val = p.get('title')
+                cur = p.get('title_i18n')
+                if val and isinstance(cur, dict):
+                    p['title_i18n'] = sync_ru(cur, val)
 
     def get_node(self, node_id: str) -> dict | None:
         """Получить узел по ID."""

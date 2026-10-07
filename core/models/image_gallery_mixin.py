@@ -12,6 +12,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from storage_manager.services import file_service
+from core.utils.localization import localized_name
 
 
 class ImageGalleryMixin(models.Model):
@@ -62,17 +63,17 @@ class ImageGalleryMixin(models.Model):
         img = g.get_default_image()
         return self._build_image_dict(img) if img else None
 
-    def _get_images_section(self) -> list:
+    def _get_images_section(self, locale=None) -> list:
         """Галерея — для детальной карточки."""
         g = self._gallery
         if not g:
             return []
         return [
-            self._build_image_dict(item.image)
+            self._build_image_dict(item.image, locale)
             for item in g.get_images()
         ]
 
-    def _build_image_dict(self, img) -> dict:
+    def _build_image_dict(self, img, locale=None) -> dict:
         """Собрать словарь для одного изображения.
 
         url         — card_800 > card_400 > оригинал (полноразмерный показ, галерея)
@@ -100,7 +101,7 @@ class ImageGalleryMixin(models.Model):
                 thumb = file_service.get_file_url(t80.file_path) if t80 else (preview or url)
         return {
             'id': img.id,
-            'name': getattr(img, 'name', '') or '',
+            'name': localized_name(img, locale) or '',
             'code': getattr(img, 'code', '') or '',
             'url': url,
             'preview_url': preview,

@@ -45,12 +45,19 @@ class SpecDocxDownloadView(APIView):
         item = get_object_or_404(self._get_queryset(model), pk=pk)
 
         base_url = settings.SITE_BASE_URL or request.build_absolute_uri('/')
-        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        # Локаль: ?lang= (для <a href>-переходов из SPA) → Accept-Language.
+        lang = request.query_params.get('lang')
+        locale = lang if lang in ('ru', 'en', 'cn') else locale_from_accept_language(request.headers.get('Accept-Language'))
         data = render_spec_docx_bytes(item, base_url=base_url, locale=locale)
 
         code = getattr(item, 'code', None) or str(pk)
         safe_code = re.sub(r'[\\/*?:"<>|]', '-', str(code))
-        filename = 'Спец-я %s.docx' % safe_code
+        filename_tpl = {
+            'ru': 'Спецификация %s.docx',
+            'en': 'Specification %s.docx',
+            'cn': '规格 %s.docx',
+        }.get(locale, 'Specification %s.docx')
+        filename = filename_tpl % safe_code
 
         return FileResponse(
             io.BytesIO(data),

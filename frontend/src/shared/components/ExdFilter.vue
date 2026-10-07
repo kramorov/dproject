@@ -2,12 +2,12 @@
 <!-- Каскадный фильтр взрывозащиты: метод → тип → группа → температура. -->
 <template>
   <div class="exd-filter filter-group-border">
-    <span class="exd-title">Взрывозащита</span>
+    <span class="exd-title">{{ t('exd.title') }}</span>
     <!-- Text input for parsing -->
       <input
         v-model="exdString"
         type="text"
-        placeholder="...или введите код взрывозащиты"
+        :placeholder="t('exd.parsePlaceholder')"
         class="exd-parse-input"
         autocomplete="off"
         @keydown.enter.prevent
@@ -20,28 +20,28 @@
       <div class="exd-row">
         <label>Ex</label>
         <select v-model="methodId" @change="onMethodChange">
-          <option :value="null">Все</option>
-          <option :value="0">Общепром.</option>
+          <option :value="null">{{ t('exd.all') }}</option>
+          <option :value="0">{{ t('exd.generalIndustrial') }}</option>
           <option v-for="m in methods" :key="m.id" :value="m.id">Ex {{ m.code }}</option>
         </select>
       </div>
       <div class="exd-row">
-        <label>Тип</label>
+        <label>{{ t('exd.type') }}</label>
         <select v-model="typeId" @change="onTypeChange" class="exd-sel--narrow"
                 :disabled="!methodId || String(methodId) === '0'">
-          <option :value="null">Тип</option>
+          <option :value="null">{{ t('exd.type') }}</option>
           <option v-for="t in availableTypes" :key="t.id" :value="t.id">{{ t.code }}</option>
         </select>
       </div>
       <div class="exd-row">
-        <label>Группа</label>
+        <label>{{ t('exd.group') }}</label>
         <select v-model="groupId" @change="onGroupChange" class="exd-sel--narrow"
                 :disabled="!methodId || String(methodId) === '0'">
-          <option :value="null">Группа</option>
-          <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'GAS'" label="Газ">
+          <option :value="null">{{ t('exd.group') }}</option>
+          <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'GAS'" :label="t('exd.gas')">
             <option v-for="g in gasGroups" :key="g.id" :value="g.id">{{ g.code }}</option>
           </optgroup>
-          <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'DUST'" label="Пыль">
+          <optgroup v-if="!selectedTypeCategory || selectedTypeCategory === 'DUST'" :label="t('exd.dust')">
             <option v-for="g in dustGroups" :key="g.id" :value="g.id">{{ g.code }}</option>
           </optgroup>
         </select>
@@ -50,7 +50,7 @@
         <label>T&deg;</label>
         <select v-model="tempId" @change="onTempChange" class="exd-sel--narrow"
                 :disabled="!methodId || String(methodId) === '0' || isDustGroup">
-          <option :value="null">T-класс</option>
+          <option :value="null">{{ t('exd.tempClass') }}</option>
           <option v-for="t in tempClasses" :key="t.id" :value="t.id">{{ t.code }}</option>
         </select>
       </div>
@@ -58,17 +58,20 @@
 
     <!-- Description -->
     <div class="exd-row exd-description">
-        <label>Описание</label>
-      <div class="exd-description-text">{{ exdDescription || 'Не указан класс взрывозащиты' }}</div>
+        <label>{{ t('exd.description') }}</label>
+      <div class="exd-description-text">{{ exdDescription || t('exd.notSpecified') }}</div>
     </div>
 
-    <div v-if="loading" class="exd-loading">загрузка...</div>
+    <div v-if="loading" class="exd-loading">{{ t('exd.loading') }}</div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/shared/api'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['update:modelValue', 'update:exactId'])
 
@@ -124,7 +127,7 @@ const selectedTempClass = computed(() => {
 
 const exdDescription = computed(() => {
   if (methodId.value == null) return null
-  if (String(methodId.value) === '0') return 'Взрывозащита — нет, Общепромышленное исполнение'
+  if (String(methodId.value) === '0') return t('exd.noProtection')
 
   const parts = []
   if (selectedType.value) {
@@ -135,11 +138,11 @@ const exdDescription = computed(() => {
   }
   if (selectedGroup.value) {
     const gd = selectedGroup.value.description ? ` (${selectedGroup.value.description})` : ''
-    parts.push(`группа опасности среды ${selectedGroup.value.code}${gd}`)
+    parts.push(t('exd.hazardGroup', { code: selectedGroup.value.code + gd }))
   }
   if (selectedTempClass.value) {
     const td = selectedTempClass.value.description ? ` (${selectedTempClass.value.description})` : ''
-    parts.push(`${selectedTempClass.value.code}${td}, до ${selectedTempClass.value.max_temp}°C`)
+    parts.push(t('exd.tempUpTo', { code: selectedTempClass.value.code + td, max_temp: selectedTempClass.value.max_temp }))
   }
   return parts.join(', ')
 })
@@ -219,7 +222,7 @@ async function onParseInput() {
       if (data.temp_id != null) tempId.value = data.temp_id
       debouncedFetch()
     } catch (e) {
-      parseError.value = e?.response?.data?.error || e?.message || 'Ошибка парсинга'
+      parseError.value = e?.response?.data?.error || e?.message || t('exd.parseError')
     }
   }, 400)
 }

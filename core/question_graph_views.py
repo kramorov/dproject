@@ -6,6 +6,7 @@ from core.utils.catalog_helpers import get_currency_code
 
 from core.models.question_graph import QuestionGraph
 from core.models.selection_wizard import SelectionWizard
+from core.utils.localization import localized_name, pick_i18n, locale_from_accept_language
 
 
 _CROSS_FIELD_FILTERS = {
@@ -36,19 +37,53 @@ def _find_filter_def(model_class, param_name):
     return None
 
 
-def _get_options_for_page_node(graph, node, accumulated):
+def _option_dict(o, locale=None):
+    """Опция выбора с локализованным именем/описанием (fallback ru)."""
+    return {
+        'id': o.pk,
+        'name': localized_name(o, locale),
+        'description': pick_i18n(
+            getattr(o, 'description_i18n', None), locale,
+            fallback=getattr(o, 'description', '') or '',
+        ),
+    }
+
+
+def _localize_node(node, locale=None):
+    """Локализовать текстовые поля узла графа (question/description/title/name + params[].title).
+
+    Переводы лежат рядом с RU-полем в ``graph_json`` узла: ``description_i18n``,
+    ``title_i18n`` и т.п. (общий паттерн ``<field>_i18n``).
+    """
+    if not isinstance(node, dict):
+        return node
+    node = dict(node)
+    for field in ('question', 'description', 'title', 'name'):
+        if node.get(field):
+            node[field] = pick_i18n(node.get(field + '_i18n'), locale, fallback=node[field])
+    params = node.get('params')
+    if isinstance(params, list):
+        node['params'] = [
+            dict(p, title=pick_i18n(p.get('title_i18n'), locale, fallback=p.get('title', '')))
+            if isinstance(p, dict) and p.get('title') else p
+            for p in params
+        ]
+    return node
+
+
+def _get_options_for_page_node(graph, node, accumulated, locale=None):
     """Get options for all params in a page node."""
     opts = {}
     for p in node.get('params', []):
         pn = p.get('param_name')
         if pn:
-            o = _get_options_for_param(graph.equipment_type, pn, accumulated)
+            o = _get_options_for_param(graph.equipment_type, pn, accumulated, locale=locale)
             if o:
                 opts[pn] = o
     # Backward compat: old format param_names
     for pn in node.get('param_names', []):
         if pn not in opts:
-            o = _get_options_for_param(graph.equipment_type, pn, accumulated)
+            o = _get_options_for_param(graph.equipment_type, pn, accumulated, locale=locale)
             if o:
                 opts[pn] = o
     return opts
@@ -74,7 +109,7 @@ def _resolve_cross_fk_field(model_class, param_name):
         pass
     return None
 
-def _get_options_for_param(equipment_type, param_name, filters_applied=None):
+def _get_options_for_param(equipment_type, param_name, filters_applied=None, locale=None):
     """Get available option values for a filter param_name from the model's data."""
     filters_applied = filters_applied or {}
     content_type = equipment_type.content_type
@@ -128,7 +163,7 @@ def _get_options_for_param(equipment_type, param_name, filters_applied=None):
             for v in ids:
                 o = obj_map.get(v)
                 if o:
-                    options.append({'id': v, 'name': str(o), 'description': getattr(o, 'description', '') or ''})
+                    options.append(_option_dict(o, locale))
             return options
         return [{'id': v, 'name': str(v)} for v in ids]
 
@@ -148,7 +183,7 @@ def _get_options_for_param(equipment_type, param_name, filters_applied=None):
         related_model = field_obj.remote_field.model
         fk_ids = qs.values_list(param_name, flat=True).distinct()
         options = related_model.objects.filter(pk__in=fk_ids).order_by('name')
-        return [{'id': o.pk, 'name': str(o), 'description': getattr(o, 'description', '') or ''} for o in options]
+        return [_option_dict(o, locale) for o in options]
     if field_obj.many_to_many:
         related_model = field_obj.remote_field.model
         ids = qs.values_list(field_lookup, flat=True).distinct()
@@ -157,7 +192,7 @@ def _get_options_for_param(equipment_type, param_name, filters_applied=None):
             options = options.order_by('sorting_order', 'name')
         else:
             options = options.order_by('name')
-        return [{'id': o.pk, 'name': str(o), 'description': getattr(o, 'description', '') or ''} for o in options]
+        return [_option_dict(o, locale) for o in options]
     values = qs.values_list(field_lookup, flat=True).distinct().order_by(field_lookup)
     return [{'id': v, 'name': str(v)} for v in values if v is not None]
 
@@ -194,7 +229,9 @@ class QuestionGraphConfigView(APIView):
         if not entry_node:
             return Response({'error': 'No entry node'}, status=400)
 
-        entry_options = _get_options_for_page_node(graph, entry_node, {})
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        entry_node = _localize_node(entry_node, locale)
+        entry_options = _get_options_for_page_node(graph, entry_node, {}, locale=locale)
 
         return Response({
             'graph_code': graph.code,
@@ -219,6 +256,7 @@ class QuestionGraphAdvanceView(APIView):
         except QuestionGraph.DoesNotExist:
             return Response({'error': 'Graph not found'}, status=404)
 
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         current_node_id = request.data.get('node_id')
         answers = request.data.get('answers', {})
         accumulated = request.data.get('filters_applied', {})
@@ -245,14 +283,14 @@ class QuestionGraphAdvanceView(APIView):
             next_page = pages[next_sub]
             next_options = {}
             for pn in next_page.get('param_names', []):
-                opts = _get_options_for_param(graph.equipment_type, pn, accumulated)
+                opts = _get_options_for_param(graph.equipment_type, pn, accumulated, locale=locale)
                 if opts:
                     next_options[pn] = opts
 
             return Response({
                 'terminal': False,
                 'entry_node_id': current_node_id,
-                'entry_node': node,
+                'entry_node': _localize_node(node, locale),
                 'entry_options': next_options,
                 'filters_applied': accumulated,
                 'sub_page': next_sub,
@@ -299,7 +337,8 @@ class QuestionGraphAdvanceView(APIView):
                 'filters_applied': accumulated,
             })
 
-        next_options = _get_options_for_page_node(graph, next_node, accumulated)
+        next_options = _get_options_for_page_node(graph, next_node, accumulated, locale=locale)
+        next_node = _localize_node(next_node, locale)
 
         return Response({
             'terminal': False,

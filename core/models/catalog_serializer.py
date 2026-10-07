@@ -24,7 +24,7 @@ from django.core import checks
 from django.utils.translation import gettext_lazy as _
 
 from .mixins import CatalogDictMixin
-from ..utils.localization import DEFAULT_LOCALE, pick_i18n
+from ..utils.localization import DEFAULT_LOCALE, localized_name, pick_i18n
 
 
 # Заголовки секций to_dict() по локалям (вместо gettext — локаль данных из Accept-Language).
@@ -191,18 +191,27 @@ class CatalogSerializerMixin(CatalogDictMixin):
     # ── Общие вспомогательные ──
 
     @staticmethod
-    def _safe_m2m(instance, method_name):
+    def _safe_m2m(instance, method_name, *args):
         """Безопасный вызов секций M2M.
 
         На несохранённом инстансе (превью) M2M-менеджер требует pk — возвращаем [].
+        ``args`` (локаль) передаются, только если метод принимает локаль.
         """
         try:
-            return getattr(instance, method_name)()
+            fn = getattr(instance, method_name)
+            if not args:
+                return fn()
+            import inspect
+            try:
+                accepts_locale = 'locale' in inspect.signature(fn).parameters
+            except (TypeError, ValueError):
+                accepts_locale = False
+            return fn(*args) if accepts_locale else fn()
         except Exception:
             return []
 
-    def _build_doc_dict(self, doc) -> dict:
-        name = getattr(doc, 'name', '') or ''
+    def _build_doc_dict(self, doc, locale=None) -> dict:
+        name = localized_name(doc, locale) or ''
         has_email = doc.variants.filter(role='email').exists()
         return {
             'id': doc.id,
@@ -213,7 +222,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
             'email_url': f"/api/media/{doc.id}/download/?variant=email" if has_email else None,
         }
 
-    def _get_docs_section(self) -> list:
+    def _get_docs_section(self, locale=None) -> list:
         """Техдокументация: своя → из серии (дедуп по id).
 
         На несохранённом инстансе (превью конструктора) собственная M2M
@@ -225,16 +234,19 @@ class CatalogSerializerMixin(CatalogDictMixin):
             for doc in self.tech_docs.all():
                 if doc.media_file and doc.id not in seen:
                     seen.add(doc.id)
-                    docs.append(self._build_doc_dict(doc))
+                    docs.append(self._build_doc_dict(doc, locale))
         if self.model_line and hasattr(self.model_line, 'tech_docs'):
             for doc in self.model_line.tech_docs.all():
                 if doc.media_file and doc.id not in seen:
                     seen.add(doc.id)
-                    docs.append(self._build_doc_dict(doc))
+                    docs.append(self._build_doc_dict(doc, locale))
         return docs
 
-    def _get_certs_section(self) -> list:
+    def _get_certs_section(self, locale=None) -> list:
         """Сертификаты — из серии (у позиции нет своего поля)."""
+        locale = locale or DEFAULT_LOCALE
+        connector = {'ru': 'для', 'en': 'for', 'cn': '用于'}.get(locale, 'для')
+        compressed = {'ru': 'сжат', 'en': 'compressed', 'cn': '压缩'}.get(locale, 'сжат')
         certs = []
         if self.model_line and hasattr(self.model_line, 'cert_docs'):
             cert_ids = list(
@@ -248,16 +260,16 @@ class CatalogSerializerMixin(CatalogDictMixin):
                     if not media:
                         continue
                     has_email = media.variants.filter(role='email').exists()
-                    variety_name = str(cert.cert_variety) if cert.cert_variety else ''
+                    variety_name = localized_name(cert.cert_variety, locale) if cert.cert_variety else ''
                     cert_code = getattr(cert, 'code', '') or ''
                     ml_name = self.model_line.name if self.model_line else ''
                     base_name = re.sub(r'[\\/*?:"<>|]', '_',
-                                       f"{variety_name} {cert_code} для {ml_name}".strip())
+                                       f"{variety_name} {cert_code} {connector} {ml_name}".strip())
                     dl_name = f"{base_name}.pdf"
-                    email_name = f"{base_name} (сжат).pdf"
+                    email_name = f"{base_name} ({compressed}).pdf"
                     certs.append({
                         'id': media.id,
-                        'name': getattr(cert, 'name', '') or '',
+                        'name': localized_name(cert, locale) or '',
                         'file_name': dl_name,
                         'email_file_name': email_name,
                         'url': f"/api/media/{media.id}/download/?filename={quote(dl_name)}",
@@ -322,37 +334,44 @@ class CatalogSerializerMixin(CatalogDictMixin):
             'sorting_order': self.sorting_order,
             'model_line': self._get_model_line_summary(locale=locale),
             'sku': self._get_sku_summary(),
-            'spec_download_url': self._get_spec_download_url(),
+            'spec_download_url': self._get_spec_download_url(locale=locale),
             'template_vars': tv,
             'sections': self._build_sections(tv, description=description, locale=locale),
         }
 
-    def _get_spec_download_url(self) -> str:
-        """URL для скачивания спецификации в .docx (или '')."""
+    def _get_spec_download_url(self, locale=None) -> str:
+        """URL для скачивания спецификации в .docx (или '').
+
+        Для не-RU локали добавляет ``?lang=<locale>``, чтобы браузерный
+        ``<a href>``-переход (без Accept-Language от axios) скачивал нужную локаль.
+        """
         if not self.pk:
             return ''
-        return (
+        url = (
             f'/api/core/catalog/spec-docx/'
             f'{self._meta.app_label}/{self._meta.model_name}/{self.pk}/'
         )
+        if locale and locale != DEFAULT_LOCALE:
+            url += f'?lang={locale}'
+        return url
 
     def _build_sections(self, tv, description=None, locale=None) -> list:
         titles = _SECTION_TITLES.get(locale or DEFAULT_LOCALE, _SECTION_TITLES[DEFAULT_LOCALE])
         return [
-            self._build_gallery_section(titles),
+            self._build_gallery_section(titles, locale),
             self._build_specs_section(titles, locale),
             self._build_files_section('docs', titles['docs'],
-                                      self._safe_m2m(self, '_get_docs_section'), 2),
+                                      self._safe_m2m(self, '_get_docs_section', locale), 2),
             self._build_files_section('certs', titles['certs'],
-                                      self._safe_m2m(self, '_get_certs_section'), 3),
+                                      self._safe_m2m(self, '_get_certs_section', locale), 3),
             self._build_text_section('description', titles['description'],
                                      description if description is not None else (self.description or ''), 4),
         ]
 
-    def _build_gallery_section(self, titles) -> dict:
+    def _build_gallery_section(self, titles, locale=None) -> dict:
         return {
             'key': 'images', 'title': titles['images'], 'type': 'gallery',
-            'order': 0, 'data': self._safe_m2m(self, '_get_images_section'),
+            'order': 0, 'data': self._safe_m2m(self, '_get_images_section', locale),
         }
 
     def _build_specs_section(self, titles, locale=None) -> dict:

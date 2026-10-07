@@ -37,7 +37,7 @@
 
           <!-- Empty options -->
           <div v-else-if="options[pn] && options[pn].length === 0" class="filter-empty">
-            Нет доступных вариантов
+            {{ t('wizard.noOptions') }}
           </div>
 
           <!-- Text input for numeric/text params -->
@@ -46,16 +46,16 @@
             v-model.number="answers[pn]"
             type="text"
             class="qg-input"
-            :placeholder="'Введите ' + (filterLabels[pn] || pn)"
+            :placeholder="t('wizard.enter', { label: filterLabels[pn] || pn })"
             @keyup.enter="advance"
           />
         </div>
 
         <div class="qg-nav">
-          <button v-if="history.length" class="qg-back" @click="goBack">← Назад</button>
+          <button v-if="history.length" class="qg-back" @click="goBack">{{ t('catalog.engineer.prev') }}</button>
           <span v-else />
           <button class="qg-next" :disabled="!canAdvance" @click="advance">
-            {{ isLastSubPage && !hasNextNode ? 'Показать результаты' : 'Далее →' }}
+            {{ isLastSubPage && !hasNextNode ? t('wizard.showResults') : t('wizard.next') }}
           </button>
         </div>
       </div>
@@ -64,15 +64,15 @@
     <!-- Results -->
     <div v-if="terminal" class="qg-results">
       <div class="qg-results-header">
-        <button class="qg-back" @click="backToSteps">← К шагам</button>
-        <h3>Результаты подбора</h3>
+        <button class="qg-back" @click="backToSteps">{{ t('wizard.backToSteps') }}</button>
+        <h3>{{ t('wizard.results') }}</h3>
       </div>
       <SelectionResultGrid
         :items="results"
         :total="total"
         :loading="false"
         :results-label="totalLabel"
-        :empty-text="'Ничего не найдено. Попробуйте изменить критерии.'"
+        :empty-text="t('wizard.nothingFound')"
         mode="page"
         :page="page"
         :total-pages="totalPages"
@@ -89,10 +89,13 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import api from '@/shared/api'
 import SelectionResultGrid from '@/shared/components/catalog/SelectionResultGrid.vue'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   graphCode: { type: String, required: true },
-  totalLabel: { type: String, default: 'найдено' },
+  totalLabel: { type: String, default: '' },
   filterLabels: { type: Object, default: () => ({}) },
 })
 
@@ -168,7 +171,7 @@ onMounted(async () => {
     const { data } = await api.get(`/core/question-graph/${props.graphCode}/`)
     applyGraphConfig(data)
   } catch (e) {
-    error.value = 'Ошибка загрузки: ' + (e.response?.data?.error || e.message)
+    error.value = t('wizard.error') + (e.response?.data?.error || e.message)
   }
 })
 
@@ -248,7 +251,7 @@ async function advance() {
       filtersApplied.value = data.filters_applied || {}
     }
   } catch (e) {
-    error.value = 'Ошибка: ' + (e.response?.data?.error || e.message)
+    error.value = t('wizard.error') + (e.response?.data?.error || e.message)
   }
 }
 
@@ -283,7 +286,7 @@ async function loadResults(p) {
     results.value = data.results
     total.value = data.total
   } catch (e) {
-    error.value = 'Ошибка поиска: ' + (e.response?.data?.error || e.message)
+    error.value = t('wizard.searchError') + (e.response?.data?.error || e.message)
   }
 }
 </script>

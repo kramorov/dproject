@@ -5,7 +5,7 @@
     <!-- Счётчик -->
     <div class="srg-info">
       <span class="srg-spinner" v-if="loading" />
-      <span v-else>{{ resultsLabel }} {{ total }}</span>
+      <span v-else>{{ resultsLabel || t('catalog.common.found') }} {{ total }}</span>
     </div>
 
     <!-- Основной список -->
@@ -24,7 +24,7 @@
 
     <!-- Совместимые (опционально) -->
     <section v-if="compatibleItems && compatibleItems.length" class="srg-section">
-      <h3 class="srg-title">{{ compatibleTitle || '🔗 Выполняют условия' }} ({{ compatibleItems.length }})</h3>
+      <h3 class="srg-title">{{ compatibleTitle || t('catalog.engineer.meetsConditions') }} ({{ compatibleItems.length }})</h3>
       <div class="srg-grid">
         <EngineerProductCard
           v-for="item in compatibleItems"
@@ -37,20 +37,20 @@
     </section>
 
     <!-- Пусто -->
-    <div class="srg-empty" v-else-if="!loading && !items.length">{{ emptyText }}</div>
+    <div class="srg-empty" v-else-if="!loading && !items.length">{{ emptyText || t('catalog.common.nothingFound') }}</div>
 
     <!-- Пагинация: страничная -->
     <div class="srg-pagination" v-if="mode === 'page' && totalPages > 1">
-      <button :disabled="page <= 1" @click="$emit('page-change', page - 1)">← Назад</button>
-      <span>Стр. {{ page }} из {{ totalPages }}</span>
-      <button :disabled="page >= totalPages" @click="$emit('page-change', page + 1)">Вперёд →</button>
+      <button :disabled="page <= 1" @click="$emit('page-change', page - 1)">{{ t('catalog.engineer.prev') }}</button>
+      <span>{{ t('catalog.engineer.pageOf', { page, total: totalPages }) }}</span>
+      <button :disabled="page >= totalPages" @click="$emit('page-change', page + 1)">{{ t('catalog.engineer.next') }}</button>
     </div>
 
     <!-- Пагинация: offset-based -->
     <div class="srg-pagination" v-if="mode === 'offset' && total > limit">
-      <button :disabled="offset === 0" @click="$emit('offset-change', offset - limit)">← Назад</button>
-      <span>{{ offset + 1 }}–{{ Math.min(offset + limit, total) }} из {{ total }}</span>
-      <button :disabled="offset + limit >= total" @click="$emit('offset-change', offset + limit)">Вперёд →</button>
+      <button :disabled="offset === 0" @click="$emit('offset-change', offset - limit)">{{ t('catalog.engineer.prev') }}</button>
+      <span>{{ t('catalog.engineer.rangeOf', { from: offset + 1, to: Math.min(offset + limit, total), total }) }}</span>
+      <button :disabled="offset + limit >= total" @click="$emit('offset-change', offset + limit)">{{ t('catalog.engineer.next') }}</button>
     </div>
   </div>
 </template>
@@ -58,14 +58,17 @@
 <script setup>
 import { debug } from '@/shared/config'
 import EngineerProductCard from '@/shared/components/catalog/EngineerProductCard.vue'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 defineProps({
   items: { type: Array, default: () => [] },
   compatibleItems: { type: Array, default: null },
   total: { type: Number, default: 0 },
   loading: { type: Boolean, default: false },
-  emptyText: { type: String, default: 'Ничего не найдено' },
-  resultsLabel: { type: String, default: 'Найдено:' },
+  emptyText: { type: String, default: '' },
+  resultsLabel: { type: String, default: '' },
   // Page mode (default)
   mode: { type: String, default: 'page' },
   page: { type: Number, default: 1 },

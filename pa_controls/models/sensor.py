@@ -4,6 +4,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import TemplateMixin, GetChoicesMixin, CopyMixin, LocalizedDictFieldsMixin
+from core.utils.localization import DEFAULT_LOCALE, pick_i18n, sync_ru
 from core.models.config_hash import ConfigHashMixin
 # from pa_controls.models import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState
 from producers.models import Brands
@@ -38,6 +39,12 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
         verbose_name=_("Электрические характеристики"),
         help_text=_("Например: '8.2В / 25мА' или '250В (AC) / 1.0А' или '24В / 4-20мА'")
     )
+    # ── Локализованные электрические характеристики (ru/en/cn) ──
+    electrical_specs_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы электрических характеристик (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с electrical_specs.')
+    )
 
     wires_count = models.PositiveSmallIntegerField(
         default=2,
@@ -67,11 +74,15 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
     def __str__(self):
         return f"{self.name}"
 
-    @property
-    def get_exi_params(self):
-        exi_template="Максимальное входное напряжение Ui(В): {ui}, Максимальный входной ток Ii(мА): {ii}, Максимальная входная мощность Pi(мВт): {pi}, Внутренняя емкость Ci (нФ): {ci}, Внутренняя индуктивность Li(мкГн): {li}"
-        # Временно сохраняем оригинальные значения
-        # и создаем словарь только с нужными полями
+    def get_exi_params(self, locale=None) -> str:
+        """Искробезопасные параметры (локализованные) или сообщение о не-Exi."""
+        locale = locale or DEFAULT_LOCALE
+        exi_templates = {
+            'ru': "Максимальное входное напряжение Ui(В): {ui}, Максимальный входной ток Ii(мА): {ii}, Максимальная входная мощность Pi(мВт): {pi}, Внутренняя емкость Ci (нФ): {ci}, Внутренняя индуктивность Li(мкГн): {li}",
+            'en': "Maximum input voltage Ui(V): {ui}, Maximum input current Ii(mA): {ii}, Maximum input power Pi(mW): {pi}, Internal capacitance Ci(nF): {ci}, Internal inductance Li(µH): {li}",
+            'cn': "最大输入电压 Ui(V)：{ui}，最大输入电流 Ii(mA)：{ii}，最大输入功率 Pi(mW)：{pi}，内部电容 Ci(nF)：{ci}，内部电感 Li(µH)：{li}",
+        }
+        exi_template = exi_templates.get(locale, exi_templates['ru'])
 
         # Получаем значения и преобразуем в float (None -> 0)
         def safe_float(val):
@@ -83,10 +94,14 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
         values = [safe_float(self._get_value(field)) for field in ['ui', 'ii', 'pi', 'ci', 'li']]
 
         if any(v != 0 for v in values):
-            # Используем существующий метод
-            return self._fill_template(exi_template,self._get_data_dict())
+            return self._fill_template(exi_template, self._get_data_dict(locale=locale), locale=locale)
         else:
-            return "Датчик не является искробезопасным электрооборудованием и не требует использования барьеров искрозащиты"
+            not_exi = {
+                'ru': "Датчик не является искробезопасным электрооборудованием и не требует использования барьеров искрозащиты",
+                'en': "The sensor is not intrinsically safe equipment and does not require safety barriers",
+                'cn': "该传感器不属于本安设备，无需使用安全栅",
+            }
+            return not_exi.get(locale, not_exi['ru'])
 
     @property
     def get_brand_name(self):
@@ -111,7 +126,7 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
             # Состояние контакта
             '{contact_state}' : 'contact_state__name' ,
             # Электрические параметры
-            '{electrical_specs}' : 'electrical_specs' ,
+            '{electrical_specs}' : 'get_electrical_specs' ,
             '{wires_count}' : 'wires_count' ,
             # Искробезопасные параметры
             '{ui}' : 'ui' ,
@@ -161,6 +176,14 @@ class SensorComponent(TemplateMixin, GetChoicesMixin, CopyMixin, ConfigHashMixin
     config_hash_fields = (
         'brand', 'variety', 'signal_type', 'contact_form', 'contact_state',
     )
+
+    def get_electrical_specs(self, locale=None) -> str:
+        """Электрические характеристики в выбранной локали (electrical_specs_i18n → electrical_specs)."""
+        return pick_i18n(self.electrical_specs_i18n, locale, fallback=self.electrical_specs or '')
+
+    def _sync_localized_ru(self):
+        super()._sync_localized_ru()
+        self.electrical_specs_i18n = sync_ru(self.electrical_specs_i18n, self.electrical_specs)
 
     def save(self, *args, **kwargs):
         # skip_auto_generate = kwargs.pop('skip_auto_generate', False)

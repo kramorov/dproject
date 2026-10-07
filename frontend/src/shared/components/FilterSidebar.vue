@@ -2,8 +2,8 @@
 <template>
   <aside class="filter-sidebar">
     <div class="filter-header">
-      <h3>Фильтры</h3>
-      <button class="reset-btn" @click="$emit('reset')" v-if="hasActive">Сбросить</button>
+      <h3>{{ t('catalog.engineer.filters') }}</h3>
+      <button class="reset-btn" @click="$emit('reset')" v-if="hasActive">{{ t('catalog.engineer.reset') }}</button>
     </div>
 
     <div
@@ -40,7 +40,7 @@
           />
           <span v-else-if="item.options.length === 1" class="filter-single-value">{{ item.options[0].name }}</span>
           <select v-else v-model="active[item.key]" @change="$emit('change', item.key, active[item.key])">
-            <option value="">Не указано</option>
+            <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
             <option
               v-for="opt in item.options"
               :key="opt.id"
@@ -54,7 +54,7 @@
     <div class="filter-group" v-if="showCompatibleToggle">
       <label class="compatible-label">
         <input type="checkbox" :checked="showCompatible" @change="$emit('toggleCompatible', $event.target.checked)" />
-        Показывать совместимые
+        {{ t('catalog.engineer.showCompatible') }}
       </label>
     </div>
 
@@ -65,6 +65,9 @@
 import { reactive, ref, computed, watch } from 'vue'
 import ExdFilter from './ExdFilter.vue'
 import ClimateFilter from './ClimateFilter.vue'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const activeExdIds = ref([])
 

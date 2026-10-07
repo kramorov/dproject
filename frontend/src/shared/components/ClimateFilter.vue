@@ -2,12 +2,12 @@
 <!-- Каскадный фильтр климатического исполнения (ГОСТ 15150-69). -->
 <template>
   <div class="exd-filter filter-group-border">
-    <span class="climate-title">Температура</span>
+    <span class="climate-title">{{ t('climate.title') }}</span>
     <!-- Text input -->
       <input
         v-model="climateString"
         type="text"
-        placeholder="...или введите климатическое исполнение"
+        :placeholder="t('climate.parsePlaceholder')"
         class="exd-parse-input"
         autocomplete="off"
         @keydown.enter.prevent
@@ -18,26 +18,26 @@
     <!-- Row: zone + placement + temp inputs -->
     <div class="climate-rows">
       <div class="exd-row">
-        <label>Зона</label>
+        <label>{{ t('climate.zone') }}</label>
         <select v-model="zoneId" @change="onZoneChange">
           <option :value="null">—</option>
           <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.name }}</option>
         </select>
       </div>
       <div class="exd-row">
-        <label>Разм.</label>
+        <label>{{ t('climate.placement') }}</label>
         <select v-model="placementId" @change="onPlacementChange" class="exd-sel--narrow">
           <option :value="null">—</option>
           <option v-for="p in availablePlacements" :key="p.id" :value="p.id">{{ p.code }}</option>
         </select>
       </div>
       <div class="exd-row">
-        <label>t мин</label>
+        <label>{{ t('climate.minTemp') }}</label>
         <input v-model="manualMinTemp" type="number" class="climate-temp-input"
                :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }" />
       </div>
       <div class="exd-row">
-        <label>t макс</label>
+        <label>{{ t('climate.maxTemp') }}</label>
         <input v-model="manualMaxTemp" type="number" class="climate-temp-input"
                :readonly="tempsLocked" :class="{ 'climate-temp-input--locked': tempsLocked }" />
       </div>
@@ -45,17 +45,20 @@
 
     <!-- Description -->
     <div class="exd-row exd-description">
-        <label>Описание</label>
-        <div class="exd-description-text">{{ climateDescription || 'Не указано климатическое исполнение' }}</div>
+        <label>{{ t('climate.description') }}</label>
+        <div class="exd-description-text">{{ climateDescription || t('climate.notSpecified') }}</div>
     </div>
 
-    <div v-if="loading" class="exd-loading">загрузка...</div>
+    <div v-if="loading" class="exd-loading">{{ t('climate.loading') }}</div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import api from '@/shared/api'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const emit = defineEmits(['update:temps'])
 
@@ -106,17 +109,17 @@ const climateDescription = computed(() => {
     parts.push(selectedZone.value.name + (selectedZone.value.description ? ` (${selectedZone.value.description})` : ''))
   }
   if (selectedPlacement.value) {
-    parts.push(`кат. ${selectedPlacement.value.code}` + (selectedPlacement.value.description ? ` (${selectedPlacement.value.description})` : ''))
+    parts.push(t('climate.category', { code: selectedPlacement.value.code }) + (selectedPlacement.value.description ? ` (${selectedPlacement.value.description})` : ''))
   }
   if (matchedCondition.value) {
-    parts.push(`t: ${matchedCondition.value.min_temp_work}…${matchedCondition.value.max_temp_work}°C`)
+    parts.push(t('climate.tempRange', { min: matchedCondition.value.min_temp_work, max: matchedCondition.value.max_temp_work }))
     if (matchedCondition.value.min_temp_extremal != null) {
-      parts.push(`(пред.: ${matchedCondition.value.min_temp_extremal}…${matchedCondition.value.max_temp_extremal}°C)`)
+      parts.push(t('climate.extremal', { min: matchedCondition.value.min_temp_extremal, max: matchedCondition.value.max_temp_extremal }))
     }
   } else if (manualMinTemp.value != null || manualMaxTemp.value != null) {
-    parts.push(`t (вручную): ${manualMinTemp.value ?? '…'}…${manualMaxTemp.value ?? '…'}°C`)
+    parts.push(t('climate.manualTemp', { min: manualMinTemp.value ?? '…', max: manualMaxTemp.value ?? '…' }))
   } else if (zoneId.value && placementId.value) {
-    parts.push('⚠ Комбинация не найдена')
+    parts.push(t('climate.combinationNotFound'))
   }
   return parts.join(', ')
 })
@@ -127,7 +130,7 @@ function emitTemps() {
       min_temp: matchedCondition.value.min_temp_work, max_temp: matchedCondition.value.max_temp_work,
       designation: `${selectedZone.value?.name || ''}${selectedPlacement.value?.code || ''}` })
   } else if (manualMinTemp.value != null || manualMaxTemp.value != null) {
-    const temps = { zone_id: zoneId.value, placement_id: placementId.value, designation: 'вручную' }
+    const temps = { zone_id: zoneId.value, placement_id: placementId.value, designation: t('climate.manual') }
     if (manualMinTemp.value != null) temps.min_temp = Number(manualMinTemp.value)
     if (manualMaxTemp.value != null) temps.max_temp = Number(manualMaxTemp.value)
     emit('update:temps', temps)
@@ -182,7 +185,7 @@ async function onParseInput() {
       if (data.zone_id != null) zoneId.value = data.zone_id
       if (data.placement_id != null) placementId.value = data.placement_id
       emitTemps()
-    } catch (e) { parseError.value = e?.response?.data?.error || e?.message || 'Ошибка парсинга' }
+    } catch (e) { parseError.value = e?.response?.data?.error || e?.message || t('climate.parseError') }
   }, 400)
 }
 </script>

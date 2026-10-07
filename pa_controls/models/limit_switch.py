@@ -12,6 +12,7 @@ from core.models.mixins import TemplateMixin, CopyMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
+from core.utils.localization import localized_name, DEFAULT_LOCALE
 from materials.models import MaterialGeneral, MaterialSpecified
 from pa_controls.models.pa_control_options import LimitSwitchSensorVariety, SignalType, ContactForm, ContactState, PointsOption
 from pa_controls.models.sensor import SensorComponent
@@ -287,17 +288,16 @@ class LimitSwitchBox(CatalogSerializerMixin,
         return '' if self.primary_sensor.contact_form.code == 'NONE' else self.primary_sensor.contact_form
 
     @staticmethod
-    def _sensor_signal_marker(sensor) -> str:
+    def _sensor_signal_marker(sensor, locale=None) -> str:
         """Маркер сигнала датчика: SPDT/DPDT/SPST или тип сигнала (аналоговый)."""
         if sensor.contact_form_id and sensor.contact_form.code != 'NONE':
             return sensor.contact_form.code
         if sensor.signal_type_id:
-            return sensor.signal_type.name
+            return localized_name(sensor.signal_type, locale)
         return ''
 
-    @property
-    def get_signal_profile_summary(self) -> str:
-        """Текстовая сводка сигналов для описания.
+    def get_signal_profile_summary(self, locale=None) -> str:
+        """Текстовая сводка сигналов для описания (локализованная).
 
         Формат:
           Вых. Открыто — SPDT; Вых. Закрыто — SPDT; … Датчик: <код> - <характеристики>
@@ -306,6 +306,8 @@ class LimitSwitchBox(CatalogSerializerMixin,
 
         Без профиля — legacy-состав из primary_sensor (fallback).
         """
+        locale = locale or DEFAULT_LOCALE
+        sensor_prefix = {'ru': 'Датчик', 'en': 'Sensor', 'cn': '传感器'}.get(locale, 'Датчик')
         if self.signal_profile_id:
             entries = self.signal_profile.entries.select_related(
                 'signal_role', 'sensor__signal_type', 'sensor__contact_form',
@@ -316,17 +318,19 @@ class LimitSwitchBox(CatalogSerializerMixin,
             seen_sensors = set()
             for e in entries:
                 if e.sensor_id:
-                    marker = self._sensor_signal_marker(e.sensor)
+                    marker = self._sensor_signal_marker(e.sensor, locale)
+                    role = localized_name(e.signal_role, locale) if e.signal_role_id else '—'
                     if e.signal_role_id:
-                        parts.append(f"{e.signal_role.name} — {marker}" if marker else str(e.signal_role))
+                        parts.append(f"{role} — {marker}" if marker else role)
                     if e.sensor.id not in seen_sensors:
                         seen_sensors.add(e.sensor.id)
                         sensors.append(e.sensor)
                 elif e.input_signal_id:
                     if e.signal_role_id:
-                        parts.append(f"{e.signal_role.name} — {e.input_signal.name}")
+                        role = localized_name(e.signal_role, locale)
+                        parts.append(f"{role} — {localized_name(e.input_signal, locale)}")
             for sensor in sensors:
-                parts.append(f"Датчик: {sensor.generate_name()}")
+                parts.append(f"{sensor_prefix}: {sensor.generate_name(locale)}")
             return "; ".join(parts) if parts else "—"
 
         # Fallback: старый состав (первичный датчик)
@@ -334,11 +338,11 @@ class LimitSwitchBox(CatalogSerializerMixin,
         if self.primary_sensor:
             component = self.primary_sensor.name
             if self.primary_sensor.signal_type_id:
-                component += f" ({self.primary_sensor.signal_type.name})"
+                component += f" ({localized_name(self.primary_sensor.signal_type, locale)})"
             parts.append(component)
         return "; ".join(parts) if parts else "—"
 
-    def get_signal_feedback_data(self):
+    def get_signal_feedback_data(self, locale=None):
         """Два блока для карточки: сигналы обратной связи + уникальные датчики.
 
         Возвращает (signals, sensors):
@@ -357,16 +361,16 @@ class LimitSwitchBox(CatalogSerializerMixin,
             for e in entries:
                 if e.sensor_id:
                     signals.append((
-                        e.signal_role.name if e.signal_role_id else '—',
-                        self._sensor_signal_marker(e.sensor),
+                        localized_name(e.signal_role, locale) if e.signal_role_id else '—',
+                        self._sensor_signal_marker(e.sensor, locale),
                     ))
                     if e.sensor.id not in seen_sensors:
                         seen_sensors.add(e.sensor.id)
                         sensors.append(e.sensor)
                 elif e.input_signal_id:
                     signals.append((
-                        e.signal_role.name if e.signal_role_id else '—',
-                        e.input_signal.name,
+                        localized_name(e.signal_role, locale) if e.signal_role_id else '—',
+                        localized_name(e.input_signal, locale),
                     ))
         else:
             if self.primary_sensor:
@@ -433,12 +437,12 @@ class LimitSwitchBox(CatalogSerializerMixin,
 
     # ── Структурированные значения (JSON/MCP) ──
 
-    def get_signals_data(self) -> list:
+    def get_signals_data(self, locale=None) -> list:
         """Сигналы обратной связи → список {name, marker}."""
-        signals, _ = self.get_signal_feedback_data()
+        signals, _ = self.get_signal_feedback_data(locale=locale)
         return [{'name': name, 'marker': marker} for name, marker in signals]
 
-    def get_sensors_data(self) -> list:
+    def get_sensors_data(self, locale=None) -> list:
         """Датчики → список {name}."""
-        _, sensors = self.get_signal_feedback_data()
-        return [{'name': sensor.generate_name()} for sensor in sensors]
+        _, sensors = self.get_signal_feedback_data(locale=locale)
+        return [{'name': sensor.generate_name(locale)} for sensor in sensors]

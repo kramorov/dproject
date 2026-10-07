@@ -549,3 +549,37 @@
 
 ### Тесты
 - `python manage.py test core.tests.test_localization --keepdb` — 11 OK.
+
+---
+
+## 11. Сессия 2026-10-07 — локализация остальных слоёв
+
+Локализация расширена с БКВ-пилота на весь стек. Общий паттерн и чек-лист — в
+**`lang.md`** (главный документ для локализации новых моделей).
+
+### Сделано
+- **Инженерный подбор (EngineerSelection)**: фильтры/результаты/Exd/Climate/Thread —
+  переведены (фронт `t()` + бэкенд `Accept-Language`).
+- **Exd/Climate справочники** (`params/exd_models.py`, `core/views.py`,
+  `core/climate_views.py`): `description`/`name` методов через `_i18n`; команда
+  `translate_exd_climate_descriptions`.
+- **Данные датчика** (`pa_controls/models/sensor.py`): `get_exi_params`,
+  `extra_params` → `{ru/en/cn}`, `electrical_specs_i18n`; `_call_resolver` передаёт
+  локаль резолверам.
+- **Спецификация `.docx`**: контент/имя файла/кнопка «Скачать спецификацию» —
+  локализованы (`spec_docx.py`, `spec_doc_views.py`, `?lang=` в URL).
+- **Имена медиа/сертификатов/изображений** (`MediaLibraryItem`, `CertData`):
+  `name_i18n`; `localized_name` в `_build_doc_dict`/`_build_image_dict`/`_get_certs_section`;
+  `translate_media_names` (фразовый).
+- **Имя файла сертификата**: «для»→«for»/«用于», «(сжат)»→«(compressed)»/«(压缩)».
+- **CatalogModelLine + FilterSidebar**: фильтры/пагинация/заголовки — `t()`.
+- **Мастер подбора (graph)**: UI-строки + вопросы узлов (`*_i18n` в `graph_json`,
+  `QuestionGraph.save` синхронизирует ru) + опции/подсказки (`translate_wizard_content`).
+- **TOP Menu + глобальный поиск**: перевод пунктов меню и строк поиска.
+
+### НЕ сделано / остатки
+- Тесты нового функционала не покрыты (только `core.tests.test_localization` — 11).
+- `pa_controls` тест-сьют падает на миграции тестовой БД (pre-existing).
+- Фразовый перевод медиа-имён неполный (коды/бренды остаются ru — осознанно).
+- Всё некоммичено (HEAD=0e29325 «front en»): 34 modified + 9 untracked.
+- Отладочный `print` в `SensorComponent.save()` — убрать.

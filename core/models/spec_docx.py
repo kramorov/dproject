@@ -21,6 +21,8 @@ from html import escape as _html_escape
 from django.conf import settings
 from docx.shared import Mm
 
+from core.utils.localization import DEFAULT_LOCALE
+
 try:
     from docxtpl import DocxTemplate, InlineImage
 except Exception:  # docxtpl не установлен — рендер недоступен, но импорт не падает
@@ -53,6 +55,14 @@ SPEC_CHROME = {
         'tech_docs': '技术文档',
         'certs': '证书',
     },
+}
+
+
+# Подписи ссылок на скачивание в .docx («Скачать» / «Скачать (сжат)»).
+DOWNLOAD_LABELS = {
+    'ru': {'full': ' Скачать', 'compressed': ' Скачать (сжат)'},
+    'en': {'full': ' Download', 'compressed': ' Download (compressed)'},
+    'cn': {'full': ' 下载', 'compressed': ' 下载 (压缩)'},
 }
 
 
@@ -144,13 +154,14 @@ def _link_run(rid: str, label: str):
     ) % (rid, _html_escape(label))
 
 
-def _build_rich_links(entries, tpl):
+def _build_rich_links(entries, tpl, locale=None):
     """К имени добавляет две ссылки (полный и «ужатый»), как сырой run-XML.
 
     Плейсхолдер ``{{ d.rich }}`` лежит внутри ``<w:t>…</w:t>``, поэтому строка
     закрывает текущий run, вставляет свои runs/hyperlinks и переоткрывает run —
     ровно как docxtpl.InlineImage.
     """
+    labels = DOWNLOAD_LABELS.get(locale or DEFAULT_LOCALE, DOWNLOAD_LABELS[DEFAULT_LOCALE])
     for entry in entries:
         name = entry.get('name') or ''
         parts = ['</w:t></w:r>']
@@ -159,9 +170,9 @@ def _build_rich_links(entries, tpl):
             % _html_escape(name)
         )
         if entry.get('url_full'):
-            parts.append(_link_run(tpl.build_url_id(entry['url_full']), ' Скачать'))
+            parts.append(_link_run(tpl.build_url_id(entry['url_full']), labels['full']))
         if entry.get('url_compressed'):
-            parts.append(_link_run(tpl.build_url_id(entry['url_compressed']), ' Скачать (сжат)'))
+            parts.append(_link_run(tpl.build_url_id(entry['url_compressed']), labels['compressed']))
         parts.append('<w:r><w:t xml:space="preserve">')
         entry['rich'] = ''.join(parts)
     return entries
@@ -263,8 +274,8 @@ def render_spec_docx_bytes(item, template_path: str = None, base_url: str = None
         ctx['image'] = ''
 
     # ── Ссылки на скачивание ──
-    ctx['tech_docs'] = _build_rich_links(ctx.get('tech_docs', []), tpl)
-    ctx['certs'] = _build_rich_links(ctx.get('certs', []), tpl)
+    ctx['tech_docs'] = _build_rich_links(ctx.get('tech_docs', []), tpl, locale)
+    ctx['certs'] = _build_rich_links(ctx.get('certs', []), tpl, locale)
 
     tpl.render(ctx)
     buf = io.BytesIO()

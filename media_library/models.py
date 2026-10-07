@@ -28,7 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
-from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
 from producers.models import Brands
 from storage_manager.fields import ManagedFileField
@@ -321,7 +321,7 @@ class MediaCategory(LocalizedDictFieldsMixin):
 
 
 
-class MediaLibraryItem(SmartCatalogMixin, models.Model):
+class MediaLibraryItem(SmartCatalogMixin, LocalizedNameFieldsMixin):
     """
     Элемент медиабиблиотеки — файл с классификацией и фильтрацией.
 
@@ -467,6 +467,13 @@ class MediaLibraryItem(SmartCatalogMixin, models.Model):
         """
         Автоматически заполняем поля при сохранении
         """
+        update_fields = kwargs.get('update_fields')
+        # Частичное сохранение (напр. name_i18n) не должно пересоздавать
+        # MIME/варианты — только запись указанных полей.
+        if update_fields is not None and 'media_file' not in update_fields and 'preview_file' not in update_fields:
+            super().save(*args, **kwargs)
+            return
+
         # Определяем MIME-тип ДО сохранения
         if self.media_file and not self.mime_type:
             self.mime_type = self._detect_mime_type()

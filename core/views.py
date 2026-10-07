@@ -898,7 +898,8 @@ class ExdStructureView(APIView):
 
     def get(self, request):
         from params.exd_models import ExdOption
-        return Response(ExdOption.get_structured_choices())
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        return Response(ExdOption.get_structured_choices(locale=locale))
 
 
 class ExdParseView(APIView):

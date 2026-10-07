@@ -13,6 +13,7 @@ from core.models import StructuredDataMixin , EquipmentTypeMixin
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.mixins import CatalogDictMixin, LocalizedModelLineMixin
+from core.utils.localization import DEFAULT_LOCALE
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -999,8 +1000,11 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
             return {'id': self.sku.id, 'code': self.sku.code, 'name': self.sku.name}
         return None
 
-    def _get_certs_section(self) -> list:
+    def _get_certs_section(self, locale=None) -> list:
         """Сертификаты — из model_line (единый паттерн БКВ)."""
+        locale = locale or DEFAULT_LOCALE
+        connector = {'ru': 'для', 'en': 'for', 'cn': '用于'}.get(locale, 'для')
+        compressed = {'ru': 'сжат', 'en': 'compressed', 'cn': '压缩'}.get(locale, 'сжат')
         ml = self.model_line
         if not ml:
             return []
@@ -1020,9 +1024,9 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                     variety_name = str(cert.cert_variety) if cert.cert_variety else ''
                     cert_code = getattr(cert, 'code', '') or ''
                     ml_name = ml.name or ''
-                    base_name = re.sub(r'[\\/*?:<>|]', '_', f"{variety_name} {cert_code} для {ml_name}".strip())
+                    base_name = re.sub(r'[\\/*?:<>|]', '_', f"{variety_name} {cert_code} {connector} {ml_name}".strip())
                     dl_name = f"{base_name}.pdf"
-                    email_name = f"{base_name} (сжат).pdf"
+                    email_name = f"{base_name} ({compressed}).pdf"
                     certs.append({
                         'id': media.id,
                         'name': getattr(cert, 'name', '') or '',

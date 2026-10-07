@@ -1,6 +1,6 @@
 <template>
   <div class="tf-root">
-    <label class="tf-label">{{ label || 'Резьба' }}</label>
+    <label class="tf-label">{{ label || t('thread.label') }}</label>
     <div class="tf-row">
       <!-- Тип резьбы -->
       <select
@@ -8,7 +8,7 @@
         :value="selectedThreadType"
         @change="onTypeChange($event.target.value)"
       >
-        <option :value="null">Все типы</option>
+        <option :value="null">{{ t('thread.allTypes') }}</option>
         <option
           v-for="tt in types"
           :key="tt.id"
@@ -22,7 +22,7 @@
         :value="selectedThreadId"
         @change="onSizeChange($event.target.value)"
       >
-        <option :value="null">Все размеры</option>
+        <option :value="null">{{ t('thread.allSizes') }}</option>
         <option
           v-for="ts in filteredSizes"
           :key="ts.id"
@@ -36,10 +36,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/shared/api'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({ thread_type_id: null, thread_id: null }) },
-  label: { type: String, default: 'Резьба' },
+  label: { type: String, default: '' },
   equipmentTypeCode: { type: String, default: '' },
 })
 

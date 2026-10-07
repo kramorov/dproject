@@ -11,6 +11,7 @@ from rest_framework.permissions import AllowAny
 
 from params.models import ClimaticZoneCategory, ClimaticPlacementCategory, ClimaticConditions
 from core.models.climate_parser import ClimateStringParser
+from core.utils.localization import locale_from_accept_language, pick_i18n
 
 
 class ClimateStructureView(APIView):
@@ -18,19 +19,23 @@ class ClimateStructureView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        zones = list(
-            ClimaticZoneCategory.objects
-            .filter(is_active=True)
-            .order_by('sorting_order')
-            .values('id', 'code', 'name', 'description')
-        )
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
 
-        placements = list(
-            ClimaticPlacementCategory.objects
+        zones = [
+            {'id': z.id, 'code': z.code, 'name': z.name,
+             'description': pick_i18n(z.description_i18n, locale, fallback=z.description)}
+            for z in ClimaticZoneCategory.objects
             .filter(is_active=True)
             .order_by('sorting_order')
-            .values('id', 'code', 'name', 'description')
-        )
+        ]
+
+        placements = [
+            {'id': p.id, 'code': p.code, 'name': p.name,
+             'description': pick_i18n(p.description_i18n, locale, fallback=p.description)}
+            for p in ClimaticPlacementCategory.objects
+            .filter(is_active=True)
+            .order_by('sorting_order')
+        ]
 
         conditions = list(
             ClimaticConditions.objects

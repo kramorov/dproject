@@ -4,7 +4,7 @@
   <div class="engineer-selection">
     <span class="debug-tag" v-if="debug">EngineerSelection</span>
     <PageTitle :title="labels.title" />
-    <div class="search-bar" v-if="withSearch"><input v-model="search" :placeholder="labels.searchPlaceholder||'Поиск...'" @input="onSearchInput" /></div>
+    <div class="search-bar" v-if="withSearch"><input v-model="search" :placeholder="labels.searchPlaceholder || t('catalog.common.search')" @input="onSearchInput" /></div>
     <EngineerFilterBar
       v-if="filtersLoaded"
       :filters="filterData"
@@ -21,13 +21,13 @@
           :compatible-items="compatibleData"
           :total="total"
           :loading="loading"
-          :results-label="labels.resultsLabel || 'Найдено:'"
-          :empty-text="labels.emptyLabel || 'Ничего не найдено'"
+          :results-label="labels.resultsLabel || t('catalog.common.found')"
+          :empty-text="labels.emptyLabel || t('catalog.common.nothingFound')"
           mode="offset"
           :offset="offset"
           :limit="limit"
           :split-mode="splitFilter"
-          main-title="🎯 Точно подходят"
+          :main-title="t('catalog.engineer.exactMatch')"
           @select="id => $emit('select', id)"
           @offset-change="goPage"
         />
@@ -42,6 +42,8 @@ import EngineerFilterBar from '@/shared/components/catalog/EngineerFilterBar.vue
 import EngineerProductCard from '@/shared/components/catalog/EngineerProductCard.vue'
 import SelectionResultGrid from '@/shared/components/catalog/SelectionResultGrid.vue'
 import { useCatalog } from '@/shared/composables/useCatalog.js'
+import { useI18n } from '@/shared/i18n'
+const { t } = useI18n()
 const props = defineProps({ api:{type:Object,required:true}, labels:{type:Object,default:()=>({})}, withSearch:{type:Boolean,default:true}, fixedParams:{type:[Object,Function],default:null}, presetFilters:{type:Object,default:null}, graphCode:{type:String,default:''} })
 defineEmits(['select', 'navigate'])
 const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible,search, activeFilters, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters, onSearchInput,goPage } = useCatalog(props.api,{ mode:'engineer', withSearch:props.withSearch, fixedParams:props.fixedParams })

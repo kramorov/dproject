@@ -4,13 +4,13 @@
   <div class="eng-filter-bar">
     <!-- Header row: title + actions -->
     <div class="eng-filter-bar__header">
-      <span class="eng-filter-bar__title">Фильтры</span>
+      <span class="eng-filter-bar__title">{{ t('catalog.engineer.filters') }}</span>
       <div class="eng-filter-bar__actions">
         <label class="eng-filter-bar__compat" v-if="showCompatibleToggle">
           <input type="checkbox" :checked="showCompatible" @change="$emit('toggleCompatible', $event.target.checked)" />
-          Совместимые
+          {{ t('catalog.engineer.compatible') }}
         </label>
-        <button class="eng-filter-bar__reset" @click="$emit('reset')" v-if="hasActive">Сбросить</button>
+        <button class="eng-filter-bar__reset" @click="$emit('reset')" v-if="hasActive">{{ t('catalog.engineer.reset') }}</button>
       </div>
     </div>
 
@@ -38,7 +38,7 @@
           v-model="active[f.key]"
           @change="$emit('change', f.key, active[f.key])"
         >
-          <option value="">Не указано</option>
+          <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
           <option v-for="opt in f.options" :key="opt.id" :value="opt.id">{{ f.show_code && opt.code ? opt.code + ' ' + opt.name : opt.name }}</option>
         </select>
       </div>
@@ -66,7 +66,7 @@
             v-model="active[f.key]"
             @change="$emit('change', f.key, active[f.key])"
           >
-            <option value="">Не указано</option>
+            <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
             <option v-for="opt in f.options" :key="opt.id" :value="opt.id">{{ f.show_code && opt.code ? opt.code + ' ' + opt.name : opt.name }}</option>
           </select>
         </div>
@@ -95,6 +95,8 @@ import { reactive, ref, computed, watch } from 'vue'
 import ExdFilter from '@/shared/components/ExdFilter.vue'
 import ClimateFilter from '@/shared/components/ClimateFilter.vue'
 import ThreadFilter from '@/shared/components/ThreadFilter.vue'
+import { useI18n } from '@/shared/i18n'
+const { t } = useI18n()
 
 const activeExdIds = ref([])
 

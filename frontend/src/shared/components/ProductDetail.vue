@@ -19,7 +19,7 @@
             class="spec-download-btn"
             :href="product.spec_download_url"
           >
-            Скачать спецификацию
+            {{ t('productDetail.downloadSpec') }}
           </a>
         </div>
 
@@ -42,6 +42,7 @@
 <script setup>
 import { computed } from 'vue'
 import { debug } from '@/shared/config'
+import { useI18n } from '@/shared/i18n'
 import JsonLd from './JsonLd.vue'
 import ProductGallery from './ProductGallery.vue'
 import ProductHeader from './ProductHeader.vue'
@@ -50,6 +51,7 @@ import TabSpecs from './TabSpecs.vue'
 import FileList from './FileList.vue'
 import AddToCartButton from './AddToCartButton.vue'
 
+const { t } = useI18n()
 const props = defineProps({
   product: { type: Object, required: true },
   price: { type: Object, default: null },

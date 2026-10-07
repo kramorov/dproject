@@ -23,7 +23,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from core.models import BaseAbstractModel , StructuredDataMixin , EquipmentTypeMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin , FilterDefinition , FilterType , DataSourceType
-from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
 from producers.models import Brands
 
 
@@ -61,7 +61,7 @@ class CertVariety(BaseAbstractModel, LocalizedDictFieldsMixin):
         return self.name or self.code or f"#{self.id}"
 
 
-class CertData(SmartCatalogMixin, BaseAbstractModel , StructuredDataMixin, CopyMixin) :
+class CertData(SmartCatalogMixin, LocalizedNameFieldsMixin, BaseAbstractModel , StructuredDataMixin, CopyMixin) :
     """
     Сертификат (или декларация) соответствия на оборудование.
 

@@ -9,6 +9,8 @@
 ``pick_i18n`` (fallback: locale → ru → "").
 """
 
+import re
+
 LOCALES = ("ru", "en", "cn")
 DEFAULT_LOCALE = "ru"
 
@@ -97,4 +99,21 @@ def localize_service_word(value, locale=None):
     for src, variants in _SERVICE_REPLACES:
         if src in value:
             value = value.replace(src, variants.get(locale, src))
+    # Единицы после чисел (не-RU): «250 В» → «250 V», «15 А» → «15 A»,
+    # «мА» → «mA», «мВ» → «mV».
+    value = re.sub(r'(\d)\s*В\b', r'\1 V', value)
+    value = re.sub(r'(\d)\s*А\b', r'\1 A', value)
+    value = value.replace('мА', 'mA').replace('мВ', 'mV')
+    # Прочие единицы: «100 Гц» → «100 Hz», «3.5 мм» → «3.5 mm»,
+    # «15 мОм» → «15 mΩ», «0.75 мс» → «0.75 ms» и т.п.
+    value = re.sub(r'(\d)\s*мГц\b', r'\1 MHz', value)
+    value = re.sub(r'(\d)\s*Гц\b', r'\1 Hz', value)
+    value = re.sub(r'(\d)\s*мм\b', r'\1 mm', value)
+    value = re.sub(r'(\d)\s*мОм\b', r'\1 mΩ', value)
+    value = re.sub(r'(\d)\s*Ом\b', r'\1 Ω', value)
+    value = re.sub(r'(\d)\s*мс\b', r'\1 ms', value)
+    value = re.sub(r'(\d)\s*мкА\b', r'\1 µA', value)
+    value = re.sub(r'(\d)\s*пФ\b', r'\1 pF', value)
+    # «до 250» → «up to 250» / «至 250» (перед числом).
+    value = re.sub(r'\bдо\s+(?=\d)', {'en': 'up to ', 'cn': '至 '}.get(locale, 'до '), value)
     return value

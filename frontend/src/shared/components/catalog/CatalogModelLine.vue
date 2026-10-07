@@ -4,7 +4,7 @@
   <div class="catalog-model-line">
     <span class="debug-tag" v-if="debug">CatalogModelLine</span>
     <PageTitle :title="pageTitle" />
-    <p class="page-count" v-if="total">{{ labels.countLabel || 'Товаров:' }} {{ total }}</p>
+    <p class="page-count" v-if="total">{{ labels.countLabel || t('catalog.common.items') }} {{ total }}</p>
     <div class="content" v-if="!loading || items.length">
       <FilterSidebar
         v-if="filtersLoaded && showFilters"
@@ -19,7 +19,7 @@
         <!-- Exact matches -->
         <section v-if="items.length" class="result-section">
           <h3 class="section-title" v-if="splitFilter">
-            🎯 Точно подходят ({{ exactTotal }})
+            {{ t('catalog.engineer.exactMatch') }} ({{ exactTotal }})
           </h3>
           <div class="grid"><ProductCard v-for="item in items" :key="item.id" :item="item" :price="item.price||null" @select="id=>emit('select',id)" /></div>
         </section>
@@ -27,13 +27,13 @@
         <!-- Compatible matches -->
         <section v-if="compatibleData.length" class="result-section">
           <h3 class="section-title">
-            🔗 Выполняют условия ({{ compatibleTotal }})
+            {{ t('catalog.engineer.meetsConditions') }} ({{ compatibleTotal }})
           </h3>
           <div class="grid"><ProductCard v-for="item in compatibleData" :key="'c-'+item.id" :item="item" :price="item.price||null" @select="id=>emit('select',id)" /></div>
         </section>
 
-        <div class="empty" v-else-if="!loading && !items.length">{{ labels.emptyLabel || 'Нет товаров' }}</div>
-        <div class="pagination" v-if="total>limit"><button :disabled="offset===0" @click="goPage(offset-limit)">← Назад</button><span>{{ offset+1 }}–{{ Math.min(offset+limit,total) }} из {{ total }}</span><button :disabled="offset+limit>=total" @click="goPage(offset+limit)">Вперёд →</button></div>
+        <div class="empty" v-else-if="!loading && !items.length">{{ labels.emptyLabel || t('catalog.common.noItems') }}</div>
+        <div class="pagination" v-if="total>limit"><button :disabled="offset===0" @click="goPage(offset-limit)">{{ t('catalog.engineer.prev') }}</button><span>{{ t('catalog.engineer.rangeOf', { from: offset+1, to: Math.min(offset+limit,total), total }) }}</span><button :disabled="offset+limit>=total" @click="goPage(offset+limit)">{{ t('catalog.engineer.next') }}</button></div>
       </main>
     </div>
     <Spinner v-else-if="loading" />
@@ -48,13 +48,15 @@ import FilterSidebar from '@/shared/components/FilterSidebar.vue'
 import ProductCard from '@/shared/components/ProductCard.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 import { useCatalog } from '@/shared/composables/useCatalog.js'
+import { useI18n } from '@/shared/i18n'
+const { t } = useI18n()
 const props = defineProps({
   api: { type: Object, required: true },
   labels: { type: Object, default: () => ({}) },
   idProp: { type: String, default: 'model_line_id' },
   idValue: { type: [Number, String], default: null },
   showFilters: { type: Boolean, default: true },
-  parentMode: { type: String, default: 'Просмотр по сериям' },
+  parentMode: { type: String, default: '' },
 })
 const emit = defineEmits(['select', 'navigate'])
 const mlCode = ref('')
@@ -62,15 +64,16 @@ const mlDescription = ref('')
 const pageTitle = computed(() => {
   const code = mlCode.value
   const desc = mlDescription.value
-  if (code && desc) return `Серия ${code}: ${desc}`
-  if (code) return `Серия ${code}`
-  return 'Серия'
+  const series = t('catalog.section.seriesPrefix')
+  if (code && desc) return `${series} ${code}: ${desc}`
+  if (code) return `${series} ${code}`
+  return series
 })
 const fixedParams = computed(() => props.idValue ? { [props.idProp]: props.idValue } : {})
 const { items,compatibleData,total,exactTotal,compatibleTotal,splitFilter,loading,limit,offset, filterData,filtersLoaded,showCompatibleAvailable,showCompatible, loadFilters,fetchData, onFilterChange,toggleCompatible,resetFilters,goPage } = useCatalog(props.api,{ fixedParams, filterScope:'model_line', withSearch:false, onData(items){ if(items.length&&!mlCode.value){ const ml=items[0]?.model_line; if(ml){ mlCode.value=ml.code||''; mlDescription.value=ml.description||'' } } } })
-const eqLabel = computed(() => props.labels.breadcrumbName || 'Каталог')
+const eqLabel = computed(() => props.labels.breadcrumbName || t('breadcrumb.catalog'))
 const breadcrumbs = computed(() => [
-  { name: 'Каталог', to: '/' },
+  { name: t('breadcrumb.catalog'), to: '/' },
   { name: eqLabel.value },
   { name: props.parentMode },
   { name: pageTitle.value },

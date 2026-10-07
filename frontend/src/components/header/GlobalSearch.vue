@@ -2,7 +2,7 @@
 <!-- Глобальный поиск модели по артикулу (SKU.code) — отображается в шапке на всех страницах. -->
 <template>
   <div class="global-search" ref="root">
-    <label class="gs-label" for="gs-article">Глобальный поиск модели по артикулу</label>
+    <label class="gs-label" for="gs-article">{{ t('Глобальный поиск модели по артикулу') }}</label>
     <div class="gs-control">
       <input
         id="gs-article"
@@ -10,7 +10,7 @@
         class="gs-input"
         type="text"
         autocomplete="off"
-        placeholder="Введите артикул…"
+        :placeholder="t('Введите артикул…')"
         @input="onInput"
         @focus="onFocus"
         @keydown.down.prevent="move(1)"
@@ -34,7 +34,7 @@
         </button>
       </div>
       <div v-else-if="open && query.trim() && !loading" class="gs-dropdown gs-empty">
-        Ничего не найдено
+        {{ t('Ничего не найдено') }}
       </div>
     </div>
   </div>
@@ -44,6 +44,9 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/shared/api'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const root = ref(null)
