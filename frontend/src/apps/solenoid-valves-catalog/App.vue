@@ -16,7 +16,7 @@
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="closeDetail" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" :parent-mode="parentModeName" @select="id => onSelectItem(id, 'brand')" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="id => onSelectItem(id, 'quickselect')" @navigate="goToSection" />
-    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'directional-valve'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'directional-valve'" :total-label="t('catalog.common.foundLower')" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -26,8 +26,9 @@
     />
     <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
-      :labels="labels.ai || {}"
-      eq-name="Соленоидные клапаны"
+      :labels="labels.ai"
+      :eq-name="t('sv.eqName')"
+      @navigate="goToSection"
     />
     </KeepAlive>
   </div>
@@ -52,22 +53,24 @@ const api = svApi
 const equipmentTypeId = 7  // Соленоидные клапаны
 
 const eqCode = 'directional-valve'
-const labels = {
-  section: { title:'Распределительные клапаны', subtitle:'Выберите серию клапана', breadcrumbName:'Клапаны' },
-  list: { title:'Клапаны — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
-  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Клапаны' },
-  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Клапаны' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Клапаны',
-    filterLabels:{
-      function_id:'Схема', actuation_id:'Управление', power_supply_id:'Напряжение соленоида',
-      body_material_id:'Материал корпуса', pneumatic_connection_id:'Пневматическое присоединение',
-      pneumatic_connection_thread_id:'Резьба присоединения', work_temp_min:'Температура мин., °С',
-      ip_id:'IP', exd_id:'Взрывозащита',
+const labels = computed(() => ({
+  section: { title: t('sv.section.title'), subtitle: t('sv.section.subtitle'), breadcrumbName: t('sv.breadcrumb') },
+  list: { title: t('sv.list.title'), searchPlaceholder: t('catalog.common.search'), resultsLabel: t('catalog.common.found'), emptyLabel: t('catalog.common.nothingFound'), breadcrumbName: t('sv.breadcrumb') },
+  detail: { backLabel: t('catalog.common.backToCatalog'), breadcrumbName: t('sv.breadcrumb') },
+  brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('sv.breadcrumb') },
+  quickselect: { title: t('sv.quickselect.title'), breadcrumbName: t('sv.breadcrumb'),
+    filterLabels: {
+      function_id: t('sv.filter.function'), actuation_id: t('sv.filter.actuation'),
+      power_supply_id: t('sv.filter.power_supply'), body_material_id: t('sv.filter.body_material'),
+      pneumatic_connection_id: t('sv.filter.pneumatic_connection'),
+      pneumatic_connection_thread_id: t('sv.filter.thread'), work_temp_min: t('sv.filter.temp_min'),
+      ip_id: t('sv.filter.ip'), exd_id: t('sv.filter.exd'),
     },
-    autoSelectRules:{},
+    autoSelectRules: {},
   },
-  wizard: { breadcrumbName:'Соленоидные клапаны', wizardTitle:'Мастер подбора Соленоидные клапаны' },
-}
+  wizard: { breadcrumbName: t('sv.breadcrumb'), wizardTitle: t('sv.wizard.title') },
+  ai: { breadcrumbName: t('sv.breadcrumb'), aiTitle: t('sv.ai.title') },
+}))
 const cacheEpoch = ref(0)
 const graphAvailable = ref(false)
 
@@ -100,11 +103,11 @@ const parentModeName = computed(() => {
 })
 const parentTarget = computed(() => targetByPage[fromPage.value] || 'section')
 
-const eqLabel = 'Клапаны'
+const eqLabel = computed(() => t('sv.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
     items.push({ name: parentModeName.value, target: parentTarget.value })

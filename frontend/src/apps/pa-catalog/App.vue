@@ -33,7 +33,7 @@
         v-else-if="page === 'ai'"
         :equipment-code="eqCode"
         :labels="labels.ai"
-        eq-name="Пневмоприводы"
+        :eq-name="t('pa.eqName')"
         @navigate="goToSection"
       />
     </KeepAlive>
@@ -64,12 +64,12 @@ const tabs = [
   { key: 'ai', label: 'catalog.mode.ai', event: 'ai' },
 ]
 
-const labels = {
-  section: { title: 'Пневмоприводы', subtitle: 'Выберите серию пневмопривода', breadcrumbName: 'Пневмоприводы' },
-  brand: { title: 'Конфигуратор пневмопривода', subtitle: 'Серия → типоразмер → опции', breadcrumbName: 'Пневмоприводы' },
-  wizard: { breadcrumbName: 'Пневмоприводы', wizardTitle: 'Мастер подбора пневмоприводов' },
-  ai: { breadcrumbName: 'Пневмоприводы', aiTitle: 'AI подбор пневмоприводов' },
-}
+const labels = computed(() => ({
+  section: { title: t('pa.section.title'), subtitle: t('pa.section.subtitle'), breadcrumbName: t('pa.breadcrumb') },
+  brand: { title: t('pa.brand.title'), subtitle: t('pa.brand.subtitle'), breadcrumbName: t('pa.breadcrumb') },
+  wizard: { breadcrumbName: t('pa.breadcrumb'), wizardTitle: t('pa.wizard.title') },
+  ai: { breadcrumbName: t('pa.breadcrumb'), aiTitle: t('pa.ai.title') },
+}))
 
 const cacheEpoch = ref(0)
 const preSelect = ref(null)
@@ -90,11 +90,11 @@ const modeNames = computed(() => ({
 }))
 const parentModeName = computed(() => modeNames.value[page.value] || t('catalog.mode.section'))
 
-const eqLabel = 'Пневмоприводы'
+const eqLabel = computed(() => t('pa.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand') {
     items.push({ name: t('catalog.mode.section'), target: 'section' })
@@ -134,7 +134,7 @@ onMounted(async () => {
     const options = varieties.map(v => ({ value: v.id, label: v.name }))
     const rp = varieties.find(v => v.code === 'RACK-PINION' || v.code === 'RP') || varieties[0]
     constructionFilters.value = [
-      { field: 'construction_variety_id', param: 'construction_variety_id', label: 'Конструкция', options, default: rp.id },
+      { field: 'construction_variety_id', param: 'construction_variety_id', label: t('pa.filter.construction'), options, default: rp.id },
     ]
   } catch (e) {
     console.error('[pa-catalog] construction filter load failed:', e)
@@ -157,9 +157,9 @@ watch(() => route.query, (q) => {
 async function onAddToCart(payload) {
   try {
     const { data } = await api.createSku(payload)
-    alert(`Добавлено в корзину: ${data.code || data.name}`)
+    alert(t('pa.cart.added', { code: data.code || data.name }))
   } catch (e) {
-    alert('Ошибка: ' + (e.response?.data?.error || e.message))
+    alert(t('common.error') + (e.response?.data?.error || e.message))
   }
 }
 </script>

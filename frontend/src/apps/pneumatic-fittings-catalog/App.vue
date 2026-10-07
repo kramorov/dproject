@@ -16,7 +16,7 @@
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="closeDetail" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" :parent-mode="parentModeName" @select="id => onSelectItem(id, 'brand')" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <QuickSelectNoSeries v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="id => onSelectItem(id, 'quickselect')" @navigate="goToSection" />
-    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'pneumatic_fittings'" :total-label="labels.graph.totalLabel" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'pneumatic_fittings'" :total-label="t('catalog.common.foundLower')" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -26,8 +26,9 @@
     />
     <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
-      :labels="labels.ai || {}"
-      eq-name="Пневмофитинги"
+      :labels="labels.ai"
+      :eq-name="t('pf.eqName')"
+      @navigate="goToSection"
     />
     </KeepAlive>
   </div>
@@ -53,22 +54,22 @@ const equipmentTypeId = 9  // Пневмофитинги
 
 const eqCode = 'fittings'
 const graphCode = 'pneumatic_fittings'
-const labels = {
-  section: { title:'Пневматические фитинги', subtitle:'Выберите серию фитингов', breadcrumbName:'Фитинги' },
-  list: { title:'Фитинги — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
-  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Фитинги' },
-  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Фитинги' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Фитинги',
+const labels = computed(() => ({
+  section: { title: t('pf.section.title'), subtitle: t('pf.section.subtitle'), breadcrumbName: t('pf.breadcrumb') },
+  list: { title: t('pf.list.title'), searchPlaceholder: t('catalog.common.search'), resultsLabel: t('catalog.common.found'), emptyLabel: t('catalog.common.nothingFound') },
+  detail: { backLabel: t('catalog.common.backToCatalog'), breadcrumbName: t('pf.breadcrumb') },
+  brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('pf.breadcrumb') },
+  quickselect: { title: t('pf.quickselect.title'), breadcrumbName: t('pf.breadcrumb'),
     filterLabels:{
-      fitting_variety_id:'Тип фитинга', body_material_id:'Материал корпуса',
-      pipe_material_id:'Материал трубки', pipe_diameter:'Диаметр трубки',
-      thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
+      fitting_variety_id: t('pf.filter.fitting_variety'), body_material_id: t('pf.filter.body_material'),
+      pipe_material_id: t('pf.filter.pipe_material'), pipe_diameter: t('pf.filter.pipe_diameter'),
+      thread_id: t('pf.filter.thread'), thread_inner_outer_id: t('pf.filter.thread_inner_outer'),
     },
     autoSelectRules:{},
   },
-  wizard: { breadcrumbName:'Пневмофитинги', wizardTitle:'Мастер подбора Пневмофитинги' },
-  graph: { totalLabel:'найдено' },
-}
+  wizard: { breadcrumbName: t('pf.breadcrumb'), wizardTitle: t('pf.wizard.title') },
+  ai: { breadcrumbName: t('pf.breadcrumb'), aiTitle: t('pf.ai.title') },
+}))
 const cacheEpoch = ref(0)
 const graphAvailable = ref(false)
 
@@ -101,11 +102,11 @@ const parentModeName = computed(() => {
 })
 const parentTarget = computed(() => targetByPage[fromPage.value] || 'section')
 
-const eqLabel = 'Фитинги'
+const eqLabel = computed(() => t('pf.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
     items.push({ name: parentModeName.value, target: parentTarget.value })

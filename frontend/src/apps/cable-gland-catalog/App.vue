@@ -46,7 +46,7 @@
       @select="id => onSelectItem(id, 'quickselect')"
       @navigate="goToSection"
     />
-    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'cable-gland'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'cable-gland'" :total-label="t('catalog.common.foundLower')" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -57,7 +57,7 @@
     <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
       :labels="labels.ai"
-      eq-name="Кабельные вводы"
+      :eq-name="t('cg.eqName')"
       @navigate="goToSection"
     />
     </KeepAlive>
@@ -83,27 +83,27 @@ const api = cableGlandApi
 const equipmentTypeId = 12  // Кабельный ввод
 
 const eqCode = 'cable-gland'
-const labels = {
-  section: { title:'Кабельные вводы', subtitle:'Выберите серию кабельного ввода', breadcrumbName:'Кабельные вводы' },
-  list: { title:'Кабельные вводы — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено', breadcrumbName:'Кабельные вводы' },
-  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Кабельные вводы' },
-  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Кабельные вводы' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Кабельные вводы',
+const labels = computed(() => ({
+  section: { title: t('cg.section.title'), subtitle: t('cg.section.subtitle'), breadcrumbName: t('cg.breadcrumb') },
+  list: { title: t('cg.list.title'), searchPlaceholder: t('catalog.common.search'), resultsLabel: t('catalog.common.found'), emptyLabel: t('catalog.common.nothingFound'), breadcrumbName: t('cg.breadcrumb') },
+  detail: { backLabel: t('catalog.common.backToCatalog'), breadcrumbName: t('cg.breadcrumb') },
+  brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('cg.breadcrumb') },
+  quickselect: { title: t('cg.quickselect.title'), breadcrumbName: t('cg.breadcrumb'),
     filterLabels:{
-      thread_id:'Резьба',
-      body_material_id:'Материал корпуса',
-      exd_id:'Взрывозащита',
-      ip_id:'IP',
-      cable_type_id:'Тип кабеля',
-      cable_diameter_min:'Кабель от, мм',
-      cable_diameter_max:'Кабель до, мм',
-      work_temp_min:'Температура от, °С',
+      thread_id: t('cg.filter.thread'),
+      body_material_id: t('cg.filter.body_material'),
+      exd_id: t('cg.filter.exd'),
+      ip_id: t('cg.filter.ip'),
+      cable_type_id: t('cg.filter.cable_type'),
+      cable_diameter_min: t('cg.filter.cable_diameter_min'),
+      cable_diameter_max: t('cg.filter.cable_diameter_max'),
+      work_temp_min: t('cg.filter.temp_min'),
     },
     autoSelectRules:{},
   },
-  wizard: { breadcrumbName:'Кабельные вводы', wizardTitle:'Мастер подбора кабельных вводов' },
-  ai: { breadcrumbName:'Кабельные вводы', aiTitle:'AI подбор кабельных вводов' },
-}
+  wizard: { breadcrumbName: t('cg.breadcrumb'), wizardTitle: t('cg.wizard.title') },
+  ai: { breadcrumbName: t('cg.breadcrumb'), aiTitle: t('cg.ai.title') },
+}))
 
 const cacheEpoch = ref(0)
 const graphAvailable = ref(false)
@@ -137,11 +137,11 @@ const parentModeName = computed(() => {
 })
 const parentTarget = computed(() => targetByPage[fromPage.value] || 'section')
 
-const eqLabel = 'Кабельные вводы'
+const eqLabel = computed(() => t('cg.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
     items.push({ name: parentModeName.value, target: parentTarget.value })

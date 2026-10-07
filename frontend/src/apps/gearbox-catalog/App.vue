@@ -16,7 +16,7 @@
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="closeDetail" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" :parent-mode="parentModeName" @select="id => onSelectItem(id, 'brand')" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="id => onSelectItem(id, 'quickselect')" @navigate="goToSection" />
-    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'manual-override'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'manual-override'" :total-label="t('catalog.common.foundLower')" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -26,8 +26,9 @@
     />
     <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
-      :labels="labels.ai || {}"
-      eq-name="Ручные дублёры"
+      :labels="labels.ai"
+      :eq-name="t('gb.eqName')"
+      @navigate="goToSection"
     />
     </KeepAlive>
   </div>
@@ -52,20 +53,21 @@ const api = gearboxApi
 const equipmentTypeId = 10  // Редукторы
 
 const eqCode = 'manual-override'
-const labels = {
-  section: { title:'Редукторы', subtitle:'Выберите серию редуктора', breadcrumbName:'Редукторы' },
-  list: { title:'Редукторы — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
-  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Редукторы' },
-  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Редукторы' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Редукторы',
+const labels = computed(() => ({
+  section: { title: t('gb.section.title'), subtitle: t('gb.section.subtitle'), breadcrumbName: t('gb.breadcrumb') },
+  list: { title: t('gb.list.title'), searchPlaceholder: t('catalog.common.search'), resultsLabel: t('catalog.common.found'), emptyLabel: t('catalog.common.nothingFound') },
+  detail: { backLabel: t('catalog.common.backToCatalog'), breadcrumbName: t('gb.breadcrumb') },
+  brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('gb.breadcrumb') },
+  quickselect: { title: t('gb.quickselect.title'), breadcrumbName: t('gb.breadcrumb'),
     filterLabels:{
-      body_material_id:'Материал корпуса', min_work_torque:'Рабочий момент не менее, Нм',
-      mounting_plate_top_id:'Монтажная площадка',
+      body_material_id: t('gb.filter.body_material'), min_work_torque: t('gb.filter.min_work_torque'),
+      mounting_plate_top_id: t('gb.filter.mounting_plate'),
     },
     autoSelectRules:{},
   },
-  wizard: { breadcrumbName:'Редукторы', wizardTitle:'Мастер подбора Редукторы' },
-}
+  wizard: { breadcrumbName: t('gb.breadcrumb'), wizardTitle: t('gb.wizard.title') },
+  ai: { breadcrumbName: t('gb.breadcrumb'), aiTitle: t('gb.ai.title') },
+}))
 const cacheEpoch = ref(0)
 const graphAvailable = ref(false)
 
@@ -98,11 +100,11 @@ const parentModeName = computed(() => {
 })
 const parentTarget = computed(() => targetByPage[fromPage.value] || 'section')
 
-const eqLabel = 'Редукторы'
+const eqLabel = computed(() => t('gb.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
     items.push({ name: parentModeName.value, target: parentTarget.value })

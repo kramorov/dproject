@@ -16,7 +16,7 @@
     <CatalogDetail v-else-if="page === 'detail'" :api="api" :labels="labels.detail" :id="selectedId" :parent-mode="parentModeName" @close="closeDetail" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <CatalogModelLine v-else-if="page === 'brand'" :api="api" :labels="labels.brand" id-prop="model_line_id" :id-value="idValue" :parent-mode="parentModeName" @select="id => onSelectItem(id, 'brand')" @navigate="goToSection" @title-ready="t => pageSubtitle = t" />
     <QuickSelect v-else-if="page === 'quickselect'" :api="api" :labels="labels.quickselect" :filter-labels="labels.quickselect.filterLabels" :auto-select-rules="labels.quickselect.autoSelectRules" @select="id => onSelectItem(id, 'quickselect')" @navigate="goToSection" />
-    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'fr'" :total-label="'найдено'" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
+    <QuestionGraphWizard v-else-if="page === 'graph'" :graph-code="'fr'" :total-label="t('catalog.common.foundLower')" @select="id => onSelectItem(id, 'graph')" @navigate="goToSection" />
     <WizardSelection
       v-else-if="page === 'wizard'"
       :equipment-type-id="equipmentTypeId"
@@ -26,8 +26,9 @@
     />
     <AiSelectionPage :equipment-code="eqCode"
       v-else-if="page === 'ai'"
-      :labels="labels.ai || {}"
-      eq-name="Фильтр-регуляторы"
+      :labels="labels.ai"
+      :eq-name="t('fr.eqName')"
+      @navigate="goToSection"
     />
     </KeepAlive>
   </div>
@@ -52,20 +53,21 @@ const api = frApi
 const equipmentTypeId = 11  // Фильтр-регуляторы
 
 const eqCode = 'fr'
-const labels = {
-  section: { title:'Фильтр-регуляторы', subtitle:'Выберите серию фильтр-регулятора', breadcrumbName:'Фильтр-регуляторы' },
-  list: { title:'Фильтр-регуляторы — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
-  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Фильтр-регуляторы' },
-  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Фильтр-регуляторы' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Фильтр-регуляторы',
+const labels = computed(() => ({
+  section: { title: t('fr.section.title'), subtitle: t('fr.section.subtitle'), breadcrumbName: t('fr.breadcrumb') },
+  list: { title: t('fr.list.title'), searchPlaceholder: t('catalog.common.search'), resultsLabel: t('catalog.common.found'), emptyLabel: t('catalog.common.nothingFound') },
+  detail: { backLabel: t('catalog.common.backToCatalog'), breadcrumbName: t('fr.breadcrumb') },
+  brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('fr.breadcrumb') },
+  quickselect: { title: t('fr.quickselect.title'), breadcrumbName: t('fr.breadcrumb'),
     filterLabels:{
-      filtration_rating_min:'Тонкость фильтрации, мкм', body_material_id:'Материал корпуса',
-      flow_rate_min:'Расход не менее, л/мин', thread_id:'Резьба портов',
+      filtration_rating_min: t('fr.filter.filtration_rating'), body_material_id: t('fr.filter.body_material'),
+      flow_rate_min: t('fr.filter.flow_rate'), thread_id: t('fr.filter.thread'),
     },
     autoSelectRules:{},
   },
-  wizard: { breadcrumbName:'Фильтр-регуляторы', wizardTitle:'Мастер подбора Фильтр-регуляторы' },
-}
+  wizard: { breadcrumbName: t('fr.breadcrumb'), wizardTitle: t('fr.wizard.title') },
+  ai: { breadcrumbName: t('fr.breadcrumb'), aiTitle: t('fr.ai.title') },
+}))
 const cacheEpoch = ref(0)
 const graphAvailable = ref(false)
 
@@ -98,11 +100,11 @@ const parentModeName = computed(() => {
 })
 const parentTarget = computed(() => targetByPage[fromPage.value] || 'section')
 
-const eqLabel = 'Фильтр-регуляторы'
+const eqLabel = computed(() => t('fr.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
     items.push({ name: parentModeName.value, target: parentTarget.value })

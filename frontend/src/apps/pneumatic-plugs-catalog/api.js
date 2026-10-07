@@ -8,6 +8,7 @@ const E = ENDPOINTS.pneumaticPlugs
 export default {
   list(params)   { return api.get(E.catalog, { params }) },
   getDetail(id)  { return api.get(E.detail(id)) },
+  getSections(params) { return api.get(E.sections, { params }) },
   getFilters(params) { return api.get(E.filters, { params }) },
   getEngineer(params) { return api.get(E.engineer, { params }) },
   getEngineerFilters(params) { return api.get(E.engineerFilters, { params }) },

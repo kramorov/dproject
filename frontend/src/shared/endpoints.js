@@ -7,6 +7,7 @@ export const ENDPOINTS = {
   gearbox: {
     catalog: '/gearbox/catalog/',
     detail: (id) => `/gearbox/catalog/${id}/`,
+    sections: '/gearbox/sections/',
     filters: '/gearbox/filters/',
     engineer: '/gearbox/engineer/',
     engineerFilters: '/gearbox/engineer/filters/',
@@ -16,6 +17,7 @@ export const ENDPOINTS = {
   filterRegulator: {
     catalog: '/filter-regulator/catalog/',
     detail: (id) => `/filter-regulator/catalog/${id}/`,
+    sections: '/filter-regulator/sections/',
     filters: '/filter-regulator/filters/',
     engineer: '/filter-regulator/engineer/',
     engineerFilters: '/filter-regulator/engineer/filters/',
@@ -26,6 +28,7 @@ export const ENDPOINTS = {
   solenoidValves: {
     catalog: '/solenoid-valves/catalog/',
     detail: (id) => `/solenoid-valves/catalog/${id}/`,
+    sections: '/solenoid-valves/sections/',
     filters: '/solenoid-valves/filters/',
     engineer: '/solenoid-valves/engineer/',
     engineerFilters: '/solenoid-valves/engineer/filters/',
@@ -36,6 +39,7 @@ export const ENDPOINTS = {
   pneumaticFittings: {
     catalog: '/pneumatic-fittings/catalog/',
     detail: (id) => `/pneumatic-fittings/catalog/${id}/`,
+    sections: '/pneumatic-fittings/sections/',
     filters: '/pneumatic-fittings/filters/',
     engineer: '/pneumatic-fittings/engineer/',
     engineerFilters: '/pneumatic-fittings/engineer/filters/',
@@ -46,6 +50,7 @@ export const ENDPOINTS = {
   pneumaticSilencers: {
     catalog: '/pneumatic-silencers/catalog/',
     detail: (id) => `/pneumatic-silencers/catalog/${id}/`,
+    sections: '/pneumatic-silencers/sections/',
     filters: '/pneumatic-silencers/filters/',
     engineer: '/pneumatic-silencers/engineer/',
     engineerFilters: '/pneumatic-silencers/engineer/filters/',
@@ -55,6 +60,7 @@ export const ENDPOINTS = {
   pneumaticPlugs: {
     catalog: '/pneumatic-plugs/catalog/',
     detail: (id) => `/pneumatic-plugs/catalog/${id}/`,
+    sections: '/pneumatic-plugs/sections/',
     filters: '/pneumatic-plugs/filters/',
     engineer: '/pneumatic-plugs/engineer/',
     engineerFilters: '/pneumatic-plugs/engineer/filters/',

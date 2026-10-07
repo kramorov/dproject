@@ -2,7 +2,7 @@
 <!-- Глобальный поиск модели по артикулу (SKU.code) — отображается в шапке на всех страницах. -->
 <template>
   <div class="global-search" ref="root">
-    <label class="gs-label" for="gs-article">{{ t('Глобальный поиск модели по артикулу') }}</label>
+    <label class="gs-label" for="gs-article">{{ t('search.label') }}</label>
     <div class="gs-control">
       <input
         id="gs-article"
@@ -10,7 +10,7 @@
         class="gs-input"
         type="text"
         autocomplete="off"
-        :placeholder="t('Введите артикул…')"
+        :placeholder="t('search.placeholder')"
         @input="onInput"
         @focus="onFocus"
         @keydown.down.prevent="move(1)"
@@ -34,7 +34,7 @@
         </button>
       </div>
       <div v-else-if="open && query.trim() && !loading" class="gs-dropdown gs-empty">
-        {{ t('Ничего не найдено') }}
+        {{ t('search.nothingFound') }}
       </div>
     </div>
   </div>

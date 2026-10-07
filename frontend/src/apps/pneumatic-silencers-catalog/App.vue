@@ -39,19 +39,19 @@ const tabs = [
   { key: 'quickselect', label: 'catalog.mode.quickselect', event: 'quickselect' },
 ]
 
-const labels = {
-  section: { title:'Глушители пневматические', subtitle:'Выберите серию глушителей', breadcrumbName:'Глушители' },
-  list: { title:'Глушители — инженерный подбор', searchPlaceholder:'Поиск...', resultsLabel:'Найдено:', emptyLabel:'Ничего не найдено' },
-  detail: { backLabel:'Назад к каталогу', breadcrumbName:'Глушители' },
-  brand: { title:'Серия', countLabel:'Товаров:', emptyLabel:'Нет товаров', breadcrumbName:'Глушители' },
-  quickselect: { title:'Быстрый подбор', breadcrumbName:'Глушители',
+const labels = computed(() => ({
+  section: { title: t('ps.section.title'), subtitle: t('ps.section.subtitle'), breadcrumbName: t('ps.breadcrumb') },
+  list: { title: t('ps.list.title'), searchPlaceholder: t('catalog.common.search'), resultsLabel: t('catalog.common.found'), emptyLabel: t('catalog.common.nothingFound') },
+  detail: { backLabel: t('catalog.common.backToCatalog'), breadcrumbName: t('ps.breadcrumb') },
+  brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('ps.breadcrumb') },
+  quickselect: { title: t('ps.quickselect.title'), breadcrumbName: t('ps.breadcrumb'),
     filterLabels:{
-      thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
-      body_material_id:'Материал корпуса',
+      thread_id: t('ps.filter.thread'), thread_inner_outer_id: t('ps.filter.thread_inner_outer'),
+      body_material_id: t('ps.filter.body_material'),
     },
     autoSelectRules:{},
   },
-}
+}))
 
 const cacheEpoch = ref(0)
 
@@ -80,11 +80,11 @@ const parentModeName = computed(() => {
 })
 const parentTarget = computed(() => targetByPage[fromPage.value] || 'section')
 
-const eqLabel = 'Глушители'
+const eqLabel = computed(() => t('ps.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
-    { name: eqLabel, target: 'section' },
+    { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
     items.push({ name: parentModeName.value, target: parentTarget.value })
