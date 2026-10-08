@@ -20,14 +20,21 @@ class FilterRegulatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePla
     filter_horizontal = ('tech_docs', 'cert_docs')
     fieldsets = (
         (None, {
-            'fields': ('name', ('code', 'brand','filter_variety'),'equipment_type', 'description', ('is_active', 'sorting_order'),)
+            'fields': ('name', ('code', 'brand','filter_variety'),'equipment_type', 'description', 'description_i18n', ('is_active', 'sorting_order'),)
         }),
         (_('Шаблоны'), {
-            'fields': ('name_template', 'description_template'),
+            'fields': ('name_template', 'name_template_i18n', 'description_template', 'description_template_i18n'),
             'classes': ('wide',),
         }),
         (_('Материалы'), {
-            'fields': (('body_material', 'body_material_specified','body_material_text',), ('bowl_material', 'bowl_material_text'),'protection_material')
+            'fields': (
+                ('body_material', 'body_material_specified', 'body_material_text'),
+                'body_material_text_i18n',
+                ('bowl_material', 'bowl_material_text'),
+                'bowl_material_text_i18n',
+                'protection_material',
+                'protection_material_i18n',
+            )
         }),
         (_('Рабочие параметры'), {
             'fields': (('work_temp_min', 'work_temp_max'), ('pressure_min', 'pressure_max', 'pressure_inlet_max'))

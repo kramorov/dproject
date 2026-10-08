@@ -8,6 +8,7 @@ from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, DataSourceType, FilterType, FilterDefinition
+from core.utils.localization import pick_i18n, sync_ru, DEFAULT_LOCALE
 from gearbox.models.gb_item_fields import GB_ITEM_TEMPLATE_FIELDS
 from materials.models import MaterialGeneral
 from params.models import LockingMechanism, IpOption, MountingPlateTypes
@@ -110,6 +111,12 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         verbose_name=_("Материал корпуса")
     )
 
+    body_material_text_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы материала корпуса (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с body_material_text.')
+    )
+
     work_temp_min = models.IntegerField(
         null=True, blank=True, default=-40,
         help_text=_('Минимальная рабочая температура, °С'),
@@ -194,6 +201,10 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         Вызывает ``sync_sku()`` после сохранения — создаёт новую SKU
         или «подхватывает» существующую по коду, обогащая её полями модели.
         """
+        self.body_material_text_i18n = sync_ru(self.body_material_text_i18n, self.body_material_text)
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'body_material_text_i18n'}
         self.config_hash = self.compute_config_hash()
         self._check_config_hash_unique()
         super().save(*args, **kwargs)
@@ -251,15 +262,19 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
         """Краткая сводка model_line."""
         if not self.model_line:
             return None
+        locale = locale or DEFAULT_LOCALE
+        ml = self.model_line
         return {
-            'id': self.model_line.id,
-            'name': self.model_line.name,
-            'code': getattr(self.model_line, 'code', '') or '',
-            'description': self.model_line.description or '',
-            'gearbox_variety': self.model_line.gearbox_variety.name if self.model_line.gearbox_variety else None,
-            'gearbox_output_variety': self.model_line.gearbox_output_variety.name if self.model_line.gearbox_output_variety else None,
+            'id': ml.id,
+            'name': ml.name,
+            'code': getattr(ml, 'code', '') or '',
+            'description': pick_i18n(
+                getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+            ),
+            'gearbox_variety': ml.gearbox_variety.name if ml.gearbox_variety else None,
+            'gearbox_output_variety': ml.gearbox_output_variety.name if ml.gearbox_output_variety else None,
             'brand': {
-                'id': self.model_line.brand.id,
-                'name': self.model_line.brand.name,
-            } if self.model_line.brand else None,
+                'id': ml.brand.id,
+                'name': ml.brand.name,
+            } if ml.brand else None,
         }

@@ -10,6 +10,7 @@ from filter_regulator.catalog.config import FILTER_REGULATOR_CONFIG
 
 QUICKSELECT_FILTERS = [
     'filtration_rating_min', 'body_material_id', 'flow_rate_min', 'thread_id',
+    'work_temp_min', 'work_temp_max',
 ]
 
 

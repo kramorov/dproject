@@ -1,0 +1,191 @@
+{
+  "entry_node": "page_sensor",
+  "nodes": {
+    "page_sensor": {
+      "type": "page",
+      "name": "Тип датчика",
+      "description": "Выберите тип датчика БКВ",
+      "params": [
+        {
+          "title": "Тип датчика",
+          "param_name": "sensor_variety_id",
+          "order": 1,
+          "title_i18n": {
+            "ru": "Тип датчика",
+            "en": "Sensor type",
+            "cn": "传感器类型"
+          }
+        }
+      ],
+      "_x": 80,
+      "_y": 60,
+      "description_i18n": {
+        "ru": "Выберите тип датчика БКВ",
+        "en": "Select the LSB sensor type",
+        "cn": "选择限位开关盒传感器类型"
+      },
+      "name_i18n": {
+        "ru": "Тип датчика",
+        "en": "Sensor type",
+        "cn": "传感器类型"
+      }
+    },
+    "branch_sensor": {
+      "type": "branch",
+      "name": "По типу датчика",
+      "param_name": "sensor_variety_id",
+      "description": "Ветвление по типу датчика",
+      "match_values": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "match_target": "page_common",
+      "else_target": "page_common",
+      "_x": 80,
+      "_y": 240,
+      "description_i18n": {
+        "ru": "Ветвление по типу датчика",
+        "en": "Branching by sensor type",
+        "cn": "按传感器类型分支"
+      }
+    },
+	"page_signal_type": {
+      "type": "page",
+      "name": "Тип сигнала",
+      "description": "Выберите тип сигнала датчика БКВ",
+      "params": [
+        {
+          "title": "Тип сигнала",
+          "param_name": "signal_type_id",
+          "order": 1,
+          "title_i18n": {
+            "ru": "Тип сигнала",
+            "en": "Signal type",
+            "cn": "信号类型"
+          }
+        }
+      ],
+      "_x": 80,
+      "_y": 60,
+      "description_i18n": {
+        "ru": "Выберите тип сигнала датчика БКВ",
+        "en": "Select signal type of the LSB sensor",
+        "cn": "选择限位开关盒传感器类型"
+      },
+      "name_i18n": {
+        "ru": "Тип сигнала",
+        "en": "Signal type",
+        "cn": "信号类型"
+      }
+    },
+	"page_common": {
+      "type": "page",
+      "name": "Основные параметры",
+      "description": "Количество точек, тип сигнала, форма контактов, материал корпуса, IP, взрывозащита",
+      "params": [
+        {
+          "title": "Количество точек",
+          "param_name": "points_option_id",
+          "order": 1,
+          "title_i18n": {
+            "ru": "Количество точек",
+            "en": "Number of points",
+            "cn": "触点数量"
+          }
+        },
+        {
+          "title": "Форма контактов",
+          "param_name": "contact_form_id",
+          "order": 3,
+          "title_i18n": {
+            "ru": "Форма контактов",
+            "en": "Contact form",
+            "cn": "触点形式"
+          }
+        },
+        {
+          "title": "Материал корпуса",
+          "param_name": "body_material_id",
+          "order": 4,
+          "title_i18n": {
+            "ru": "Материал корпуса",
+            "en": "Body material",
+            "cn": "壳体材料"
+          }
+        },
+        {
+          "title": "IP",
+          "param_name": "ip_id",
+          "order": 5,
+          "title_i18n": {
+            "ru": "IP",
+            "en": "IP",
+            "cn": "IP"
+          }
+        },
+        {
+          "title": "Взрывозащита",
+          "param_name": "exd_id",
+          "order": 6,
+          "title_i18n": {
+            "ru": "Взрывозащита",
+            "en": "Explosion protection",
+            "cn": "防爆"
+          }
+        }
+      ],
+      "_x": 80,
+      "_y": 420,
+      "description_i18n": {
+        "ru": "Количество точек, тип сигнала, форма контактов, материал корпуса, IP, взрывозащита",
+        "en": "Number of points, signal type, contact form, body material, IP, explosion protection",
+        "cn": "触点数量、信号类型、触点形式、壳体材料、IP、防爆"
+      }
+    },
+    "page_temp": {
+      "type": "page",
+      "name": "Температура",
+      "description": "Температура эксплуатации",
+      "params": [
+        {
+          "title": "Температура мин",
+          "param_name": "work_temp_min",
+          "order": 1,
+          "title_i18n": {
+            "ru": "Температура мин",
+            "en": "Temperature min",
+            "cn": "最低温度"
+          }
+        }
+      ],
+      "_x": 80,
+      "_y": 600,
+      "description_i18n": {
+        "ru": "Температура эксплуатации",
+        "en": "Operating temperature",
+        "cn": "工作温度"
+      }
+    }
+  },
+  "edges": [
+    {
+      "from": "page_sensor",
+      "to": "branch_sensor"
+    },
+    {
+      "from": "branch_sensor",
+      "to": "page_common"
+    },
+    {
+      "from": "page_common",
+      "to": "page_temp"
+    }
+  ]
+}

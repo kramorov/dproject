@@ -31,7 +31,7 @@ FR_ITEM_TEMPLATE_FIELDS = (
      },
     {'key': 'protection_material', 'placeholder': '{protection_material}',
      'path': 'model_line__protection_material',
-     'name_path': 'model_line__protection_material__name', },
+     },
     {'key': 'ip', 'path': 'ip__name', },
     {'key': 'filtration_rating', 'placeholder': '{filtration_rating}', 'path': 'filtration_rating',
      },

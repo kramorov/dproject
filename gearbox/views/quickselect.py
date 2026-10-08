@@ -11,6 +11,7 @@ from gearbox.catalog.config import GEARBOX_CONFIG
 
 GEARBOX_QUICKSELECT_FILTERS = [
     'body_material_id', 'min_work_torque', 'mounting_plate_top_id',
+    'work_temp_min', 'work_temp_max',
 ]
 
 

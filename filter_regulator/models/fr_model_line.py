@@ -10,6 +10,7 @@ from filter_regulator.models import FilterRegulatorVariety
 from materials.models import MaterialGeneral , MaterialSpecified
 from producers.models import Brands
 from core.models.mixins import LocalizedModelLineMixin
+from core.utils.localization import sync_ru
 
 
 class FilterRegulatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin, CertDocMixin, EquipmentTypeMixin, SmartCatalogMixin, models.Model):
@@ -81,6 +82,22 @@ class FilterRegulatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechD
                                            help_text=_('Материал стакана фильтр-регулятора'),
                                            verbose_name=_("Материал кожуха (текст)"))  # Алюминиевый кожух
 
+    body_material_text_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы материала корпуса (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с body_material_text.')
+    )
+    bowl_material_text_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы материала стакана (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с bowl_material_text.')
+    )
+    protection_material_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы материала кожуха (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с protection_material.')
+    )
+
 
     work_temp_min = models.IntegerField(
         null=True, blank=True, default=-40,
@@ -119,6 +136,20 @@ class FilterRegulatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechD
 
     def __str__(self):
         return self.name
+
+    def _sync_localized_ru(self):
+        super()._sync_localized_ru()
+        self.body_material_text_i18n = sync_ru(self.body_material_text_i18n, self.body_material_text)
+        self.bowl_material_text_i18n = sync_ru(self.bowl_material_text_i18n, self.bowl_material_text)
+        self.protection_material_i18n = sync_ru(self.protection_material_i18n, self.protection_material)
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {
+                'body_material_text_i18n', 'bowl_material_text_i18n', 'protection_material_i18n'
+            }
+        super().save(*args, **kwargs)
 
     @property
     def temperature_range_display(self):

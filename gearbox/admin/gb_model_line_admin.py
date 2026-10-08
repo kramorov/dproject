@@ -29,7 +29,11 @@ class GearBoxModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholder
             'fields': ('image_gallery','tech_docs','cert_docs'),
         }),
         (_('Параметры') , {
-            'fields' : (('name_template' ,'description_template','description',),('turn_angle','turn_tuning_limit', )) ,
+            'fields' : (
+                ('name_template' ,'description_template','description',),
+                ('name_template_i18n', 'description_template_i18n', 'description_i18n'),
+                ('turn_angle','turn_tuning_limit', ),
+            ) ,
         }) ,
         (_('Дополнительные параметры'), {
             'fields': ('extra_params',),

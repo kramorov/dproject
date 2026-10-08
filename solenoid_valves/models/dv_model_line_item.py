@@ -8,6 +8,7 @@ from core.models import StructuredDataMixin, EquipmentTypeMixin, TechDocMixin, I
 from core.models.mixins import TemplateMixin, CopyMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
+from core.utils.localization import pick_i18n, DEFAULT_LOCALE, localized_name
 # TemplateGeneratorMixin удалён 2026-09-01 — DirectionValve использует единый TemplateMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from options.models import ChosenExdRowMixin
@@ -358,17 +359,21 @@ class DirectionValve(CatalogSerializerMixin,
     def _get_model_line_summary(self, locale=None) -> dict:
         if not self.model_line:
             return None
+        ml = self.model_line
+        locale = locale or DEFAULT_LOCALE
         return {
-            'id': self.model_line.id,
-            'name': self.model_line.name,
-            'code': getattr(self.model_line, 'code', '') or '',
-            'description': self.model_line.description or '',
-            'construction': self.model_line.construction.name if self.model_line.construction else None,
-            'operation': self.model_line.operation.name if self.model_line.operation else None,
+            'id': ml.id,
+            'name': ml.name,
+            'code': getattr(ml, 'code', '') or '',
+            'description': pick_i18n(
+                getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+            ),
+            'construction': localized_name(ml.construction, locale) if ml.construction else None,
+            'operation': localized_name(ml.operation, locale) if ml.operation else None,
             'brand': {
-                'id': self.model_line.brand.id,
-                'name': self.model_line.brand.name,
-            } if self.model_line.brand else None,
+                'id': ml.brand.id,
+                'name': ml.brand.name,
+            } if ml.brand else None,
         }
 
     def __str__(self):

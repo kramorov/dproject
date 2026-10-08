@@ -13,7 +13,7 @@ from core.models import StructuredDataMixin , EquipmentTypeMixin
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.mixins import CatalogDictMixin, LocalizedModelLineMixin
-from core.utils.localization import DEFAULT_LOCALE , sync_ru
+from core.utils.localization import DEFAULT_LOCALE , sync_ru , pick_i18n
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -853,16 +853,19 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
             'weight': str(getattr(body, 'weight_spring', '')) if body else '',
         }
 
-    def _get_model_line_summary(self):
+    def _get_model_line_summary(self, locale=None):
         """Краткая сводка model_line для to_dict()."""
         ml = self.model_line
         if not ml:
             return None
+        locale = locale or DEFAULT_LOCALE
         return {
             'id': ml.id,
             'name': ml.name,
             'code': ml.code or '',
-            'description': ml.description or '',
+            'description': pick_i18n(
+                getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+            ),
             'brand': {'id': ml.brand.id, 'name': ml.brand.name} if ml.brand else None,
         }
 
@@ -957,7 +960,7 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
                 fallback[label] = value
         return {'Основные': fallback}
 
-    def to_dict(self):
+    def to_dict(self, locale=None):
         """Структурированная сериализация для карточки каталога."""
         tv = self._get_template_vars()
         return {
@@ -968,7 +971,7 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
             'description': self.description or '',
             'is_active': self.is_active,
             'sorting_order': self.sorting_order,
-            'model_line': self._get_model_line_summary(),
+            'model_line': self._get_model_line_summary(locale=locale),
             'sku': self._get_sku_summary(),
             'template_vars': tv,
             'sections': [

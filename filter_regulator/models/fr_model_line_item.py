@@ -8,6 +8,7 @@ from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
 from core.models.smart_catalog_mixin import SmartCatalogMixin, FilterDefinition, FilterType, DataSourceType
+from core.utils.localization import pick_i18n, DEFAULT_LOCALE
 from filter_regulator.models import FilterRegulatorBody
 from filter_regulator.models.fr_model_line import FilterRegulatorModelLine
 from filter_regulator.models.fr_options import FilterRegulatorVariety, DrainVariety
@@ -247,11 +248,14 @@ class FilterRegulator(
         if not self.model_line:
             return None
         ml = self.model_line
+        locale = locale or DEFAULT_LOCALE
         return {
             'id': ml.id,
             'name': ml.name,
             'code': getattr(ml, 'code', '') or '',
-            'description': ml.description or '',
+            'description': pick_i18n(
+                getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
+            ),
             'filter_variety': ml.filter_variety.name if ml.filter_variety else None,
             'brand': {
                 'id': ml.brand.id,

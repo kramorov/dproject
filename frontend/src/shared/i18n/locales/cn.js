@@ -245,7 +245,7 @@ export default {
   'climate.minTemp': '最低温度',
   'climate.maxTemp': '最高温度',
   'climate.description': '说明',
-  'climate.notSpecified': '未指定气候环境类型',
+  'climate.notSpecified': '未指定气候环境类别',
   'climate.category': '类别 {code}',
   'climate.tempRange': '温度: {min}…{max}°C',
   'climate.extremal': '(极限: {min}…{max}°C)',

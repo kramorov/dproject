@@ -37,7 +37,7 @@ GB_ITEM_TEMPLATE_FIELDS = (
 
     # ── Корпус ──
     {'key': 'transmission_variety', 'placeholder': '{transmission_variety}',
-     'path': 'body__transmission_variety__name', 'name_path': 'body__transmission_variety',
+     'path': 'body__transmission_variety__name', 'name_path': 'body__transmission_variety__name',
      },
     {'key': 'reduction_ratio', 'placeholder': '{reduction_ratio_text}', 'path': 'body__reduction_ratio_text',
      },
