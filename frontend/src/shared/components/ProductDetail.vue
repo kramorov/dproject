@@ -3,6 +3,7 @@
 <template>
   <div class="product-detail">
     <span class="debug-tag" v-if="debug">ProductDetail</span>
+    <span v-if="product.is_active === false" class="inactive-badge">{{ t('productDetail.inactiveBadge') }}</span>
     <JsonLd :schema="product.schema" />
 
     <div class="detail-layout">
@@ -71,7 +72,22 @@ const galleryImages = computed(() => {
 </script>
 
 <style scoped>
-.product-detail { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.product-detail { position: relative; max-width: 1200px; margin: 0 auto; padding: 16px; }
+.inactive-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
+  background: #dc2626;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
+}
 .detail-layout { display: flex; gap: 32px; margin-top: 16px; }
 .detail-gallery { width: 460px; flex-shrink: 0; }
 .detail-info { flex: 1; min-width: 0; }

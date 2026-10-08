@@ -28,18 +28,6 @@ TRANSLATIONS = {
         'Обжимной с кольцом (Universal / Compression)': ('Compression (Universal)', '卡套压缩'),
         'Цанговый (Push-in)': ('Push-in (Collet)', '快插（卡箍）'),
     },
-    'pneumatic_fittings.PneumaticFittingVariety': {
-        'Глушитель': ('Silencer', '消音器'),
-        'Заглушка пневматическая': ('Pneumatic plug', '气动堵头'),
-        'Фитинг c накидной гайкой (Rapid) L угловой': ('Union nut fitting (Rapid), L elbow', '压紧螺母接头（Rapid）L弯头'),
-        'Фитинг c накидной гайкой (Rapid) прямой': ('Union nut fitting (Rapid), straight', '压紧螺母接头（Rapid）直通'),
-        'Фитинг обжимной L угловой': ('Compression fitting, L elbow', '卡套接头L弯头'),
-        'Фитинг обжимной прямой': ('Compression fitting, straight', '卡套接头直通'),
-        'Фитинг обжимной с двумя врезными кольцами прямой': ('Double ferrule fitting, straight', '双卡套接头直通'),
-        'Фитинг обжимной с двумя врезными кольцами угловой': ('Double ferrule fitting, elbow', '双卡套接头弯头'),
-        'Фитинг цанговый L угловой': ('Push-in fitting, L elbow', '快插接头L弯头'),
-        'Фитинг цанговый прямой': ('Push-in fitting, straight', '快插接头直通'),
-    },
     'filter_regulator.DrainVariety': {
         'Автоматический (внешний)': ('Automatic (external)', '自动（外部）'),
         'Автоматический слив': ('Automatic drain', '自动排水'),

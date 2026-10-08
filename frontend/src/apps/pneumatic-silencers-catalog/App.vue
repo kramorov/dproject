@@ -84,6 +84,7 @@ const eqLabel = computed(() => t('ps.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
+    { name: t('catalog.name.fittingsAndPlugs'), target: 'fittings-plugs' },
     { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
@@ -113,6 +114,10 @@ function onNavigate(item) {
   if (!t) return
   if (t === 'catalog-index') {
     if (router) { router.push(localizedPath('/catalogs/equipment', locale.value)) } else { navSection() }
+    return
+  }
+  if (t === 'fittings-plugs') {
+    if (router) { router.push(localizedPath('/catalogs/fittings-plugs', locale.value)) } else { navSection() }
     return
   }
   cacheEpoch.value++

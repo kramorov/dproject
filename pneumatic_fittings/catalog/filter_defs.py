@@ -30,14 +30,24 @@ fd_brand = FilterDefinition(
     order=2,
 )
 
-fd_fitting_variety = FilterDefinition(
-    param_name='fitting_variety_id',
-    model_field='fitting_variety',
+fd_shape = FilterDefinition(
+    param_name='shape_id',
+    model_field='model_line__shape',
     filter_type=FilterType.EXACT,
     data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
-    label='Тип фитинга',
-    label_i18n={'en': 'Fitting type', 'cn': '接头类型'},
+    label='Форма фитинга',
+    label_i18n={'en': 'Fitting shape', 'cn': '接头形状'},
     order=3,
+)
+
+fd_fixation_method = FilterDefinition(
+    param_name='fixation_method_id',
+    model_field='model_line__fixation_method',
+    filter_type=FilterType.EXACT,
+    data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+    label='Способ фиксации',
+    label_i18n={'en': 'Fixation method', 'cn': '固定方式'},
+    order=4,
 )
 
 fd_body_material = FilterDefinition(
@@ -134,7 +144,8 @@ fd_swivel = FilterDefinition(
 PNEUMATIC_FITTINGS_FILTER_DEFINITIONS = [
     fd_model_line,
     fd_brand,
-    fd_fitting_variety,
+    fd_shape,
+    fd_fixation_method,
     fd_body_material,
     fd_pipe_material,
     fd_pipe_diameter,

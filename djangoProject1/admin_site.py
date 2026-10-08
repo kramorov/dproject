@@ -167,7 +167,10 @@ ADMIN_MODEL_BLOCK = {
     ('pneumatic_fittings', 'FittingShape'): 'fittings',
     ('pneumatic_fittings', 'PneumaticFitting'): 'fittings',
     ('pneumatic_fittings', 'PneumaticFittingModelLine'): 'fittings',
-    ('pneumatic_fittings', 'PneumaticFittingVariety'): 'fittings',
+    ('pneumatic_fittings', 'PneumaticPlug'): 'fittings',
+    ('pneumatic_fittings', 'PneumaticPlugModelLine'): 'fittings',
+    ('pneumatic_fittings', 'PneumaticSilencer'): 'fittings',
+    ('pneumatic_fittings', 'PneumaticSilencerModelLine'): 'fittings',
     # --- Фильтры-регуляторы ---
     ('filter_regulator', 'DrainVariety'): 'filter_regulators',
     ('filter_regulator', 'FilterRegulator'): 'filter_regulators',

@@ -24,8 +24,8 @@ PRODUCT_MODEL_REGISTRY: dict[str, tuple[str, str]] = {
     'cable-gland':         ('cable_glands', 'CableGland'),
     'fittings':            ('pneumatic_fittings', 'PneumaticFitting'),
     'fitting-thread-pipe': ('pneumatic_fittings', 'PneumaticFitting'),
-    'fitting-silencer':    ('pneumatic_fittings', 'PneumaticFitting'),
-    'fitting-plug':        ('pneumatic_fittings', 'PneumaticFitting'),
+    'fitting-silencer':    ('pneumatic_fittings', 'PneumaticSilencer'),
+    'fitting-plug':        ('pneumatic_fittings', 'PneumaticPlug'),
     # Арматура — будет добавлена позже, когда будет готова модель
 }
 

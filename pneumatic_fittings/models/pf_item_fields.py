@@ -23,13 +23,13 @@ PF_ITEM_TEMPLATE_FIELDS = (
     {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
      'name_path': 'model_line__brand', },
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'equipment_type__name',
+     'name_path': 'equipment_type'},
 
     # ── Основные ──
-    {'key': 'fitting_variety', 'placeholder': '{fitting_variety}', 'path': 'fitting_variety__name',
-     },
-    # {shape} и {fixation_method} исторически указывают на один путь (см. старый _get_data_dict)
-    {'key': 'shape', 'placeholder': '{shape}', 'path': 'fitting_variety__fixation_method'},
-    {'key': 'fixation_method', 'placeholder': '{fixation_method}', 'path': 'fitting_variety__fixation_method'},
+    {'key': 'shape', 'placeholder': '{shape}', 'path': 'model_line__shape__name', 'name_path': 'model_line__shape'},
+    {'key': 'fixation_method', 'placeholder': '{fixation_method}', 'path': 'model_line__fixation_method__name',
+     'name_path': 'model_line__fixation_method'},
     {'key': 'thread', 'placeholder': '{thread}', 'path': 'thread__name', 'name_path': 'thread',
      },
     {'key': 'thread_inner_outer', 'placeholder': '{thread_inner_outer}', 'path': 'thread_inner_outer__name',

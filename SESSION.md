@@ -711,3 +711,70 @@
 - Монтажные комплекты ET 13-18 — title/list_title без en/cn (заглушки).
 - Контент описаний серий фитингов/глушителей/заглушек (в БД пусто).
 - `collectstatic --clear` перед деплоем; коммит (265 modified, 877 untracked).
+
+---
+
+## 15. Сессия 2026-10-08 — фитинги: выпрямление разновидности + раскол позиций/серий, фронт-каталог
+
+### 1. Фронт: страница «Фитинги, заглушки» + иерархия
+- Новая индексная страница `frontend/src/pages/catalog/CatalogFittingsPlugsIndex.vue`
+  (маршрут `/catalogs/fittings-plugs`, ссылки на фитинги/глушители/заглушки).
+- На `/catalogs/equipment` вместо «Фитинг резьба-трубка» — карточка «Фитинги, заглушки»
+  (изображение фитинга).
+- URL вложены: `/catalogs/fittings-plugs/pneumatic-{fittings,silencers,plugs}`
+  + редиректы со старых `/catalog/pneumatic-*` (locale-aware `locRedirect`).
+- Хлебные крошки трёх каталогов: Каталог → Фитинги, заглушки → [вид]. i18n ключи добавлены.
+
+### 2. Вопрос 1: разновидность → форма + способ фиксации (в модели)
+- Удалён `PneumaticFittingVariety` (junction shape+fixation+name) и FK `fitting_variety`;
+  на `PneumaticFitting` добавлены прямые `shape`/`fixation_method`. Миграция `0024`
+  (AddField + data-backfill из variety + замена `{fitting_variety}`→`{fixation_method} {shape}`
+  в шаблонах + RemoveField + DeleteModel).
+- Фильтры разделены: `fd_shape` + `fd_fixation_method` вместо `fd_fitting_variety`.
+
+### 3. Вопрос 2: раскол позиций (одна модель → три)
+- `AbstractPneumaticFitting` + `PneumaticFitting` / `PneumaticSilencer` / `PneumaticPlug`
+  (у каждого свои FILTER_DEFINITIONS, config_hash_fields, NAME/VARS_FIELD_KEYS).
+- Миграции `0025` (CreateModel ×2 + перенос строк по equipment_type + правка
+  `source_content_type` SKU + RemoveField silencer-полей), `0026` (EquipmentType.content_type).
+- config.py/views/admin/registry/handlers обновлены на три модели.
+
+### 4. Раскол серий (по запросу пользователя)
+- `AbstractPneumaticFittingModelLine` + `PneumaticFittingModelLine` (+ `shape`,
+  `fixation_method`, `is_swivel`) / `PneumaticSilencerModelLine` / `PneumaticPlugModelLine`.
+- Форма/способ фиксации перенесены С ПОЗИЦИИ НА СЕРИЮ фитингов; позиция наследует их
+  через `model_line__shape`/`model_line__fixation_method` (реестр `pf_item_fields.py`).
+- Миграция `0027`: CreateModel ×2 + перенос серий глушителей/заглушек + перепривязка
+  `model_line` позиций + backfill shape/fixation на серии + RemoveField с позиций.
+- Админка: в серии фитингов поля «Форма»/«Способ фиксации»; у позиции их больше нет.
+
+### 5. Плейсхолдер `{equipment_type}`
+- Добавлен в `PF_ITEM_TEMPLATE_FIELDS` и `NAME_FIELD_KEYS` трёх моделей (резолв
+  `equipment_type__name`). Обновлены шаблоны EquipmentType глушителей/заглушек
+  (`{model_code} {equipment_type} {brand}` — убраны фитинговые `{shape}`/`{fixation_method}`).
+
+### 6. Прочее
+- config_hash фитингов: добавлен `pipe_diameter` (иначе ~70 позиций с одинаковыми
+  параметрами, но разным диаметром, давали коллизию хэша).
+- Фронт: бейдж «Неактивно — спец. заказ» (красный, правый верх) на `ProductDetail.vue`
+  при `is_active === false` (i18n ru/en/cn).
+- Кабельные вводы: в боевой БД выставлено `is_active=False` для 324 позиций
+  BLOCK + Латунь (проверка фильтрации по «активно»; обратимо).
+- Ревью-фиксы: докстринги `KindCatalogConfig` удалены; словарь
+  `translate_model_line_templates` обновлён (`{fitting_variety}`→`{fixation_method} {shape}`);
+  dev-скрипты (`rename_all.py`, `fill_etp.py`, `_smoke_fixes.py`) покрывают три вида;
+  `_COMMON_FILTER_DEFINITIONS` вынесена в модульную константу (без дублей).
+
+### Проверки
+- `manage.py check` — 0 проблем; миграции применены, `makemigrations --check` чисто.
+- Каталоги: фитинги 128, глушители 25, заглушки 4 (200 OK); фильтры формы/способа работают.
+- `generate_name()`: фитинг «…Цанговый (Push-in) Прямой…», глушитель «…Глушитель Camozzi…» — ок.
+- Тесты `test_kind_catalogs` (9) и `test_fk_cascade` (10) — зелёные ПО ОТДЕЛЬНОСТИ.
+  Совместный прогон двух модулей через `pneumatic_fittings/tests/settings.py` (копия боевой
+  БД) падает на инфраструктуре (`Cannot operate on a closed database` + устаревшая копия) —
+  pre-existing, не код.
+
+### Осталось
+- AI extract-промпты/схемы per-kind (`fitting-thread-pipe`/`fitting-silencer`/`fitting-plug`)
+  — для требований с «своими параметрами» (сейчас только общий `pneumatic_fitting`).
+- `npm run build` + `collectstatic --clear` перед деплоем; всё некоммичено.

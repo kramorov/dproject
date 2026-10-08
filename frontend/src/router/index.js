@@ -6,6 +6,14 @@ import { setLocale } from '@/shared/i18n'
 
 const Placeholder = (title) => ({ template: '<PlaceholderPage :title="title" />', components: { PlaceholderPage }, data: () => ({ title }) })
 
+// Редирект с сохранением локали (ru — без префикса, en/cn — с префиксом) и query.
+function locRedirect(target) {
+  return (to) => {
+    const m = (to && to.path || '').match(/^\/(en|cn)\//)
+    return { path: (m ? `/${m[1]}` : '') + target, query: to.query, hash: to.hash }
+  }
+}
+
 // Локаль в URL: /en/... и /cn/... (ru — без префикса). Каждый маршрут получает
 // локализованные клоны с meta.locale; имена остаются только у ru-маршрутов.
 function expandRoutes(baseRoutes) {
@@ -39,12 +47,16 @@ const routes = [
 
   // Каталоги — индексные страницы
   { path: '/catalogs/equipment', name: 'catalogs-equipment', component: () => import('../pages/catalog/CatalogEquipmentIndex.vue'), meta: { title: 'Каталоги оборудования' } },
+  { path: '/catalogs/fittings-plugs', name: 'catalogs-fittings-plugs', component: () => import('../pages/catalog/CatalogFittingsPlugsIndex.vue'), meta: { title: 'Фитинги, заглушки' } },
   { path: '/catalogs/valves', name: 'catalogs-valves', component: () => import('../pages/catalog/CatalogValvesIndex.vue'), meta: { title: 'Каталоги арматуры' } },
   { path: '/catalogs/solutions', name: 'catalogs-solutions', component: () => import('../pages/catalog/CatalogSolutionsIndex.vue'), meta: { title: 'Каталог готовых решений' } },
 
-  { path: '/catalog/pneumatic-fittings', component: () => import('../pages/catalog/PneumaticFittingsPage.vue'), meta: { title: 'Фитинги резьба-трубка', section: 'catalog_pf' } },
-  { path: '/catalog/pneumatic-silencers', component: () => import('../pages/catalog/PneumaticSilencersPage.vue'), meta: { title: 'Глушители пневматические', section: 'catalog_sil' } },
-  { path: '/catalog/pneumatic-plugs', component: () => import('../pages/catalog/PneumaticPlugsPage.vue'), meta: { title: 'Заглушки пневматические', section: 'catalog_plug' } },
+  { path: '/catalogs/fittings-plugs/pneumatic-fittings', component: () => import('../pages/catalog/PneumaticFittingsPage.vue'), meta: { title: 'Фитинги резьба-трубка', section: 'catalog_pf' } },
+  { path: '/catalogs/fittings-plugs/pneumatic-silencers', component: () => import('../pages/catalog/PneumaticSilencersPage.vue'), meta: { title: 'Глушители пневматические', section: 'catalog_sil' } },
+  { path: '/catalogs/fittings-plugs/pneumatic-plugs', component: () => import('../pages/catalog/PneumaticPlugsPage.vue'), meta: { title: 'Заглушки пневматические', section: 'catalog_plug' } },
+  { path: '/catalog/pneumatic-fittings', redirect: locRedirect('/catalogs/fittings-plugs/pneumatic-fittings') },
+  { path: '/catalog/pneumatic-silencers', redirect: locRedirect('/catalogs/fittings-plugs/pneumatic-silencers') },
+  { path: '/catalog/pneumatic-plugs', redirect: locRedirect('/catalogs/fittings-plugs/pneumatic-plugs') },
   { path: '/catalog/cable-glands', component: () => import('../pages/catalog/CableGlandPage.vue'), meta: { title: 'Кабельные вводы', section: 'catalog_cg' } },
   { path: '/catalog/pa-actuators', component: () => import('../pages/catalog/PaActuatorPage.vue'), meta: { title: 'Пневмоприводы', section: 'catalog_pa' } },
   { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры', section: 'catalog_gearbox' } },

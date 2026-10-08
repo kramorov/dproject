@@ -106,9 +106,14 @@ const specs = computed(() => {
   if (i.points != null) {
     result.push({ label: t('catalog.engineer.specContacts'), value: i.points })
   }
-  // Fitting variety (pneumatic fittings)
-  if (i.fitting_variety) {
-    result.push({ label: t('catalog.engineer.specFittingType'), value: typeof i.fitting_variety === 'object' ? (i.fitting_variety.name || '') : String(i.fitting_variety) })
+  // Fitting shape + fixation method (pneumatic fittings)
+  const shape = i.values?.shape ?? i.shape
+  if (shape) {
+    result.push({ label: t('catalog.engineer.specShape'), value: typeof shape === 'object' ? (shape.name || '') : String(shape) })
+  }
+  const fixation = i.values?.fixation_method ?? i.fixation_method
+  if (fixation) {
+    result.push({ label: t('catalog.engineer.specFixationMethod'), value: typeof fixation === 'object' ? (fixation.name || '') : String(fixation) })
   }
   // Thread name (pneumatic fittings use thread_name)
   if (i.thread_name) {

@@ -138,7 +138,7 @@ const labels = {
     detail: { backLabel:'Назад к каталогу' },
     quickselect: { title:'Быстрый подбор',
       filterLabels:{
-        fitting_variety_id:'Тип фитинга', body_material_id:'Материал корпуса',
+        shape_id:'Форма', fixation_method_id:'Способ фиксации', body_material_id:'Материал корпуса',
         pipe_material_id:'Материал трубки', pipe_diameter:'Диаметр трубки',
         thread_id:'Резьба', thread_inner_outer_id:'Резьба (нар/внут)',
       },

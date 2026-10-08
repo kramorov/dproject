@@ -10,7 +10,9 @@ from configurator.services.registry import get_product_model_class
 ET_CODES = [
     'lsb',              # pa_controls → LimitSwitchBox
     'directional-valve', # solenoid_valves → DirectionValve
-    'fittings',          # pneumatic_fittings → PneumaticFitting
+    'fitting-thread-pipe', # pneumatic_fittings → PneumaticFitting
+    'fitting-silencer',    # pneumatic_fittings → PneumaticSilencer
+    'fitting-plug',        # pneumatic_fittings → PneumaticPlug
     'fr',               # filter_regulator → FilterRegulator
     'manual-override',  # gearbox → GearBox
     'pneumatic-actuator', # pneumatic_actuators → PneumaticActuatorModelLineItem

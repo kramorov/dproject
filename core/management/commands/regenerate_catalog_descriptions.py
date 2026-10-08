@@ -29,6 +29,8 @@ CATALOG_MODELS = [
     'filter_regulator.FilterRegulator',
     'gearbox.GearBox',
     'pneumatic_fittings.PneumaticFitting',
+    'pneumatic_fittings.PneumaticSilencer',
+    'pneumatic_fittings.PneumaticPlug',
     'pneumatic_actuators.PneumaticActuatorCatalogItem',
 ]
 

@@ -197,10 +197,13 @@ class CartItem(models.Model):
             if pc:
                 specs.append({'label': 'Пневмо', 'value': getattr(pc, 'name', '') or str(pc)})
 
-            # Тип фитинга
-            fv = getattr(source, 'fitting_variety', None)
-            if fv:
-                specs.append({'label': 'Тип', 'value': getattr(fv, 'name', '') or str(fv)})
+            # Форма и способ фиксации фитинга
+            shape = getattr(source, 'shape', None)
+            if shape:
+                specs.append({'label': 'Форма', 'value': getattr(shape, 'name', '') or str(shape)})
+            fm = getattr(source, 'fixation_method', None)
+            if fm:
+                specs.append({'label': 'Фиксация', 'value': getattr(fm, 'name', '') or str(fm)})
 
             # Резьба
             thread = getattr(source, 'thread', None)

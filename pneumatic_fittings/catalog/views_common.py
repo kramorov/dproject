@@ -3,8 +3,8 @@
 Общее для трёх каталогов фитингов.
 
 KindFilterOptionsMixin — реализация get() для фильтр-вьюх, в которой опции
-считаются в пределах вида каталога (KindCatalogConfig.get_scoped_queryset),
-а не по всей модели PneumaticFitting.
+считаются в пределах модели каталога (config.get_scoped_queryset),
+а не по всей таблице.
 """
 from rest_framework.response import Response
 

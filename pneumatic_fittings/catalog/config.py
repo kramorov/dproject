@@ -4,57 +4,44 @@ Pneumatic fittings catalog configuration.
 
 Single source of truth: filter sets per page, ORM hints, labels.
 
-Три каталога над одной моделью PneumaticFitting (вид = equipment_type серии):
-  - PNEUMATIC_FITTINGS_CONFIG   — фитинги резьба-трубка ('fitting-thread-pipe')
-  - PNEUMATIC_SILENCERS_CONFIG  — глушители ('fitting-silencer')
-  - PNEUMATIC_PLUGS_CONFIG      — заглушки ('fitting-plug')
+Три каталога над тремя моделями:
+  - PNEUMATIC_FITTINGS_CONFIG   — фитинги резьба-трубка (PneumaticFitting)
+  - PNEUMATIC_SILENCERS_CONFIG  — глушители (PneumaticSilencer)
+  - PNEUMATIC_PLUGS_CONFIG      — заглушки (PneumaticPlug)
 
 Каждый каталог живёт на своём URL-префиксе
 (/api/pneumatic-fittings/, /api/pneumatic-silencers/, /api/pneumatic-plugs/)
 и имеет собственный набор фильтров.
 """
-from dataclasses import dataclass
-
 from core.models.catalog_config import CatalogConfig, FilterSet
-from pneumatic_fittings.models import PneumaticFitting, PneumaticFittingModelLine
+from pneumatic_fittings.models import (
+    PneumaticFitting, PneumaticSilencer, PneumaticPlug,
+    PneumaticFittingModelLine, PneumaticSilencerModelLine, PneumaticPlugModelLine,
+)
 from pneumatic_fittings.catalog.filter_defs import (
-    fd_model_line, fd_brand, fd_fitting_variety,
+    fd_model_line, fd_brand, fd_shape, fd_fixation_method,
     fd_body_material, fd_pipe_material, fd_pipe_diameter,
     fd_thread_type, fd_thread, fd_thread_inner_outer, fd_temp_min,
     fd_swivel,
 )
 
 
-@dataclass
-class KindCatalogConfig(CatalogConfig):
-    """CatalogConfig, ограниченный одним видом (equipment_type серии)."""
-
-    kind_code: str = ''
-
-    def get_scoped_queryset(self, model_line_id=None):
-        """Базовый queryset каталога + ограничение по виду."""
-        qs = super().get_scoped_queryset(model_line_id)
-        if self.kind_code:
-            qs = qs.filter(model_line__equipment_type__code=self.kind_code)
-        return qs
-
-
 # ── Наборы фильтров по видам (композиция fd из filter_defs) ──
 
 # Фитинги резьба-трубка — полный набор
 TUBE_DEFINITIONS = [
-    fd_model_line, fd_brand, fd_fitting_variety,
+    fd_model_line, fd_brand, fd_shape, fd_fixation_method,
     fd_body_material, fd_pipe_material, fd_pipe_diameter,
     fd_thread_type, fd_thread, fd_thread_inner_outer,
     fd_temp_min, fd_swivel,
 ]
 TUBE_MODEL_LINE_DEFINITIONS = [
-    fd_fitting_variety, fd_body_material, fd_pipe_material,
+    fd_shape, fd_fixation_method, fd_body_material, fd_pipe_material,
     fd_pipe_diameter, fd_thread_type, fd_thread,
     fd_thread_inner_outer, fd_temp_min,
 ]
 TUBE_QUICKSELECT_DEFINITIONS = [
-    fd_fitting_variety, fd_body_material, fd_pipe_material,
+    fd_shape, fd_fixation_method, fd_body_material, fd_pipe_material,
     fd_pipe_diameter, fd_thread, fd_thread_inner_outer,
 ]
 
@@ -90,18 +77,20 @@ _PREFETCH_COMMON = [
 _SELECT_RELATED_COMMON = [
     'model_line',
     'model_line__brand', 'model_line__equipment_type',
-    'fitting_variety',
-    'body_material', 'pipe_material',
+    'body_material',
     'thread',
     'thread_inner_outer',
     'sku',
 ]
 
+_TUBE_SELECT_RELATED = _SELECT_RELATED_COMMON + [
+    'model_line__shape', 'model_line__fixation_method', 'pipe_material',
+]
 
-PNEUMATIC_FITTINGS_CONFIG = KindCatalogConfig(
+
+PNEUMATIC_FITTINGS_CONFIG = CatalogConfig(
     model_class=PneumaticFitting,
     model_line_class=PneumaticFittingModelLine,
-    kind_code='fitting-thread-pipe',
 
     filter_sets={
         'list': FilterSet(
@@ -129,16 +118,7 @@ PNEUMATIC_FITTINGS_CONFIG = KindCatalogConfig(
         ),
     },
 
-    select_related=[
-        'model_line',
-        'model_line__brand', 'model_line__equipment_type',
-        'fitting_variety',
-        'body_material',
-        'pipe_material',
-        'thread',
-        'thread_inner_outer',
-        'sku',
-    ],
+    select_related=_TUBE_SELECT_RELATED,
     prefetch_fields=_PREFETCH_COMMON,
     search_fields=['code', 'name', 'description'],
 
@@ -152,10 +132,9 @@ PNEUMATIC_FITTINGS_CONFIG = KindCatalogConfig(
 )
 
 
-PNEUMATIC_SILENCERS_CONFIG = KindCatalogConfig(
-    model_class=PneumaticFitting,
-    model_line_class=PneumaticFittingModelLine,
-    kind_code='fitting-silencer',
+PNEUMATIC_SILENCERS_CONFIG = CatalogConfig(
+    model_class=PneumaticSilencer,
+    model_line_class=PneumaticSilencerModelLine,
 
     filter_sets={
         'list': FilterSet(
@@ -194,10 +173,9 @@ PNEUMATIC_SILENCERS_CONFIG = KindCatalogConfig(
 )
 
 
-PNEUMATIC_PLUGS_CONFIG = KindCatalogConfig(
-    model_class=PneumaticFitting,
-    model_line_class=PneumaticFittingModelLine,
-    kind_code='fitting-plug',
+PNEUMATIC_PLUGS_CONFIG = CatalogConfig(
+    model_class=PneumaticPlug,
+    model_line_class=PneumaticPlugModelLine,
 
     filter_sets={
         'list': FilterSet(

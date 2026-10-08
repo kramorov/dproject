@@ -5,10 +5,10 @@
     python manage.py test pneumatic_fittings.tests.test_kind_catalogs \
         --settings pneumatic_fittings.tests.settings
 
-Три каталога над одной моделью PneumaticFitting:
-  - /api/pneumatic-fittings/   — только 'fitting-thread-pipe'
-  - /api/pneumatic-silencers/  — только 'fitting-silencer'
-  - /api/pneumatic-plugs/      — только 'fitting-plug'
+Три каталога над тремя моделями:
+  - /api/pneumatic-fittings/   — PneumaticFitting ('fitting-thread-pipe')
+  - /api/pneumatic-silencers/  — PneumaticSilencer ('fitting-silencer')
+  - /api/pneumatic-plugs/      — PneumaticPlug ('fitting-plug')
 
 Тесты устойчивы к реальным данным в копии БД: динамические счётчики по видам
 и изоляция через тестовую серию (model_line_id / brand_id).
@@ -18,13 +18,23 @@ from rest_framework.test import APIClient
 
 from core.models import EquipmentType
 from producers.models import Brands
-from pneumatic_fittings.models import PneumaticFitting, PneumaticFittingModelLine
+from pneumatic_fittings.models import (
+    PneumaticFitting, PneumaticSilencer, PneumaticPlug,
+    PneumaticFittingModelLine, PneumaticSilencerModelLine, PneumaticPlugModelLine,
+    FittingShape, FittingFixationMethod,
+)
+
+
+MODEL_BY_CODE = {
+    'fitting-thread-pipe': PneumaticFitting,
+    'fitting-silencer': PneumaticSilencer,
+    'fitting-plug': PneumaticPlug,
+}
 
 
 def kind_count(code):
-    """Число активных позиций вида (вид = equipment_type серии)."""
-    return PneumaticFitting.objects.filter(
-        model_line__equipment_type__code=code, is_active=True).count()
+    """Число активных позиций вида (вид = отдельная модель)."""
+    return MODEL_BY_CODE[code].objects.filter(is_active=True).count()
 
 
 class KindCatalogTests(TestCase):
@@ -40,20 +50,24 @@ class KindCatalogTests(TestCase):
         cls.et_plug, _ = EquipmentType.objects.get_or_create(
             code='fitting-plug', defaults={'name': '_Plug type'})
 
+        cls.shape = FittingShape.objects.create(name='_SHAPE', code='_SHAPE')
+        cls.fixation = FittingFixationMethod.objects.create(name='_FIX', code='_FIX')
+
         cls.line_tube = PneumaticFittingModelLine.objects.create(
-            name='_Tube Line', code='_TL', brand=cls.brand, equipment_type=cls.et_tube)
-        cls.line_sil = PneumaticFittingModelLine.objects.create(
+            name='_Tube Line', code='_TL', brand=cls.brand, equipment_type=cls.et_tube,
+            shape=cls.shape, fixation_method=cls.fixation)
+        cls.line_sil = PneumaticSilencerModelLine.objects.create(
             name='_Silencer Line', code='_SL', brand=cls.brand, equipment_type=cls.et_sil)
-        cls.line_plug = PneumaticFittingModelLine.objects.create(
+        cls.line_plug = PneumaticPlugModelLine.objects.create(
             name='_Plug Line', code='_PL', brand=cls.brand, equipment_type=cls.et_plug)
 
         cls.tube = PneumaticFitting.objects.create(
             name='_Tube item', code='_T1', model_line=cls.line_tube,
             equipment_type=cls.et_tube, pipe_diameter=8)
-        cls.sil = PneumaticFitting.objects.create(
+        cls.sil = PneumaticSilencer.objects.create(
             name='_Silencer item', code='_S1', model_line=cls.line_sil,
             equipment_type=cls.et_sil, flow_rate=100)
-        cls.plug = PneumaticFitting.objects.create(
+        cls.plug = PneumaticPlug.objects.create(
             name='_Plug item', code='_P1', model_line=cls.line_plug,
             equipment_type=cls.et_plug)
 
@@ -95,7 +109,7 @@ class KindCatalogTests(TestCase):
         resp = self.client.get('/api/pneumatic-silencers/filters/')
         self.assertEqual(resp.status_code, 200)
         filters = resp.json()['filters']
-        for excluded in ('pipe_diameter', 'pipe_material_id', 'fitting_variety_id', 'swivel'):
+        for excluded in ('pipe_diameter', 'pipe_material_id', 'shape_id', 'fixation_method_id', 'swivel'):
             self.assertNotIn(excluded, filters)
 
     def test_tube_filters_include_tube_specific(self):
@@ -104,6 +118,8 @@ class KindCatalogTests(TestCase):
         filters = resp.json()['filters']
         self.assertIn('pipe_diameter', filters)
         self.assertIn('swivel', filters)
+        self.assertIn('shape_id', filters)
+        self.assertIn('fixation_method_id', filters)
 
     # ── Быстрый подбор ──
 
@@ -123,6 +139,9 @@ class KindCatalogTests(TestCase):
         resp = self.client.get(f'/api/pneumatic-silencers/catalog/{self.sil.id}/')
         self.assertEqual(resp.status_code, 200)
 
-    def test_silencer_detail_not_visible_in_tube_catalog(self):
-        resp = self.client.get(f'/api/pneumatic-fittings/catalog/{self.sil.id}/')
-        self.assertEqual(resp.status_code, 404)
+    def test_silencer_not_in_tube_catalog(self):
+        # Разные таблицы: код глушителя не должен появляться в каталоге фитингов.
+        resp = self.client.get('/api/pneumatic-fittings/catalog/')
+        self.assertEqual(resp.status_code, 200)
+        codes = {i.get('code') for i in resp.json().get('data', [])}
+        self.assertNotIn(self.sil.code, codes)

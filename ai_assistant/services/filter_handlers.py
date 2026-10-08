@@ -125,7 +125,27 @@ def pneumatic_fittings_filter(params: dict) -> dict:
         PneumaticFitting,
         PNEUMATIC_FITTINGS_CONFIG.get_filter_set("engineer").definitions,
         params,
-        # Каталог фитингов разделён по видам: AI-подбор в каталоге трубок
-        # ищет только вид 'fitting-thread-pipe' (KindCatalogConfig).
         base_queryset=PNEUMATIC_FITTINGS_CONFIG.get_scoped_queryset(),
+    )
+
+
+def pneumatic_silencers_filter(params: dict) -> dict:
+    from pneumatic_fittings.catalog.config import PNEUMATIC_SILENCERS_CONFIG
+    from pneumatic_fittings.models import PneumaticSilencer
+    return _apply_filters(
+        PneumaticSilencer,
+        PNEUMATIC_SILENCERS_CONFIG.get_filter_set("engineer").definitions,
+        params,
+        base_queryset=PNEUMATIC_SILENCERS_CONFIG.get_scoped_queryset(),
+    )
+
+
+def pneumatic_plugs_filter(params: dict) -> dict:
+    from pneumatic_fittings.catalog.config import PNEUMATIC_PLUGS_CONFIG
+    from pneumatic_fittings.models import PneumaticPlug
+    return _apply_filters(
+        PneumaticPlug,
+        PNEUMATIC_PLUGS_CONFIG.get_filter_set("engineer").definitions,
+        params,
+        base_queryset=PNEUMATIC_PLUGS_CONFIG.get_scoped_queryset(),
     )

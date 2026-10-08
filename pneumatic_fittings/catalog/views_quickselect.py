@@ -3,13 +3,16 @@
 GET /api/pneumatic-fittings/quickselect/ — быстрый подбор (чипсовые фильтры + карточка).
 Accepts optional model_line_id; when omitted, queries across all series.
 
-Для каталогов глушителей и заглушек queryset ограничен видом каталога
-(KindCatalogConfig.get_scoped_queryset).
+Для каталогов глушителей и заглушек queryset ограничен своей моделью
+(config.get_scoped_queryset).
 """
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from core.views import BaseQuickSelectView
-from pneumatic_fittings.models import PneumaticFitting, PneumaticFittingModelLine
+from pneumatic_fittings.models import (
+    PneumaticFitting, PneumaticSilencer, PneumaticPlug,
+    PneumaticFittingModelLine, PneumaticSilencerModelLine, PneumaticPlugModelLine,
+)
 from pneumatic_fittings.catalog.filter_defs import PNEUMATIC_FITTINGS_FILTER_DEFINITIONS
 from pneumatic_fittings.catalog.config import (
     PNEUMATIC_FITTINGS_CONFIG,
@@ -20,7 +23,7 @@ from pneumatic_fittings.catalog.config import (
 )
 
 PNEUMATIC_FITTINGS_QUICKSELECT_FILTERS = [
-    'fitting_variety_id', 'body_material_id', 'pipe_material_id',
+    'shape_id', 'fixation_method_id', 'body_material_id', 'pipe_material_id',
     'pipe_diameter', 'thread_id', 'thread_inner_outer_id',
 ]
 PNEUMATIC_SILENCER_QUICKSELECT_FILTERS = [
@@ -47,7 +50,7 @@ class PneumaticFittingsQuickSelectView(BaseQuickSelectView):
         params = request.query_params
         model_line_id = params.get('model_line_id')
 
-        # Базовый queryset — в пределах вида каталога (KindCatalogConfig)
+        # Базовый queryset — в пределах своей модели каталога
         qs = self.config.get_scoped_queryset()
 
         if model_line_id:
@@ -96,6 +99,8 @@ class PneumaticFittingsQuickSelectView(BaseQuickSelectView):
 class PneumaticSilencersQuickSelectView(PneumaticFittingsQuickSelectView):
     """Быстрый подбор глушителей: фильтры резьба/материал корпуса."""
 
+    model_class = PneumaticSilencer
+    model_line_model = PneumaticSilencerModelLine
     config = PNEUMATIC_SILENCERS_CONFIG
     quickselect_filters = PNEUMATIC_SILENCER_QUICKSELECT_FILTERS
     filter_definitions = SILENCER_DEFINITIONS
@@ -106,6 +111,8 @@ class PneumaticSilencersQuickSelectView(PneumaticFittingsQuickSelectView):
 class PneumaticPlugsQuickSelectView(PneumaticFittingsQuickSelectView):
     """Быстрый подбор заглушек: фильтры резьба/материал корпуса."""
 
+    model_class = PneumaticPlug
+    model_line_model = PneumaticPlugModelLine
     config = PNEUMATIC_PLUGS_CONFIG
     quickselect_filters = PNEUMATIC_PLUG_QUICKSELECT_FILTERS
     filter_definitions = PLUG_DEFINITIONS

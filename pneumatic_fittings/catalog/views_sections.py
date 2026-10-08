@@ -2,37 +2,33 @@
 """
 GET /api/pneumatic-{fittings|silencers|plugs}/sections/ — серии со счётчиками и первым фото.
 
-Три каталога над одной моделью PneumaticFitting (вид = equipment_type.code серии):
-  fitting-thread-pipe / fitting-silencer / fitting-plug.
-
-Образец — pa_controls/views/catalog.py (LimitSwitchBoxSectionView): описание серии
-локализуется через description_i18n (Accept-Language), имя — торговое, не переводится.
+Три каталога над тремя моделями позиций и тремя моделями серий.
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.db.models import Count
 
-from pneumatic_fittings.models import PneumaticFittingModelLine
+from pneumatic_fittings.models import (
+    PneumaticFittingModelLine, PneumaticSilencerModelLine, PneumaticPlugModelLine,
+)
 from core.utils.localization import locale_from_accept_language, pick_i18n
 
 
 class PneumaticSectionView(APIView):
     permission_classes = [AllowAny]
 
-    # код вида (equipment_type серии); '' — все виды
-    kind_code = ''
+    model_line_class = None
+    item_related_name = ''
 
     def get(self, request):
         locale = locale_from_accept_language(request.headers.get('Accept-Language'))
-        qs = PneumaticFittingModelLine.objects.filter(
-            pneumatic_fitting_model_line_new__is_active=True,
+        qs = self.model_line_class.objects.filter(
+            **{f'{self.item_related_name}__is_active': True},
         )
-        if self.kind_code:
-            qs = qs.filter(pneumatic_fitting_model_line_new__equipment_type__code=self.kind_code)
         qs = (
             qs
-            .annotate(count=Count('pneumatic_fitting_model_line_new'))
+            .annotate(count=Count(self.item_related_name))
             .prefetch_related('image_gallery__items__image')
             .select_related('brand')
             .order_by('name')
@@ -59,12 +55,15 @@ class PneumaticSectionView(APIView):
 
 
 class PneumaticFittingsSectionView(PneumaticSectionView):
-    kind_code = 'fitting-thread-pipe'
+    model_line_class = PneumaticFittingModelLine
+    item_related_name = 'pneumaticfitting_items'
 
 
 class PneumaticSilencersSectionView(PneumaticSectionView):
-    kind_code = 'fitting-silencer'
+    model_line_class = PneumaticSilencerModelLine
+    item_related_name = 'pneumaticsilencer_items'
 
 
 class PneumaticPlugsSectionView(PneumaticSectionView):
-    kind_code = 'fitting-plug'
+    model_line_class = PneumaticPlugModelLine
+    item_related_name = 'pneumaticplug_items'

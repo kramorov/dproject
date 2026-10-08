@@ -61,7 +61,7 @@ const labels = computed(() => ({
   brand: { title: t('catalog.section.seriesPrefix'), countLabel: t('catalog.common.items'), emptyLabel: t('catalog.common.noItems'), breadcrumbName: t('pf.breadcrumb') },
   quickselect: { title: t('pf.quickselect.title'), breadcrumbName: t('pf.breadcrumb'),
     filterLabels:{
-      fitting_variety_id: t('pf.filter.fitting_variety'), body_material_id: t('pf.filter.body_material'),
+      shape_id: t('pf.filter.shape'), fixation_method_id: t('pf.filter.fixation_method'), body_material_id: t('pf.filter.body_material'),
       pipe_material_id: t('pf.filter.pipe_material'), pipe_diameter: t('pf.filter.pipe_diameter'),
       thread_id: t('pf.filter.thread'), thread_inner_outer_id: t('pf.filter.thread_inner_outer'),
     },
@@ -106,6 +106,7 @@ const eqLabel = computed(() => t('pf.breadcrumb'))
 const breadcrumbs = computed(() => {
   const items = [
     { name: t('breadcrumb.catalog'), target: 'catalog-index' },
+    { name: t('catalog.name.fittingsAndPlugs'), target: 'fittings-plugs' },
     { name: eqLabel.value, target: 'section' },
   ]
   if (page.value === 'brand' || page.value === 'detail') {
@@ -137,6 +138,10 @@ function onNavigate(item) {
   if (!t) return
   if (t === 'catalog-index') {
     if (router) { router.push(localizedPath('/catalogs/equipment', locale.value)) } else { navSection() }
+    return
+  }
+  if (t === 'fittings-plugs') {
+    if (router) { router.push(localizedPath('/catalogs/fittings-plugs', locale.value)) } else { navSection() }
     return
   }
   cacheEpoch.value++
