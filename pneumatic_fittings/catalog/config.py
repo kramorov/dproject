@@ -22,7 +22,7 @@ from pneumatic_fittings.catalog.filter_defs import (
     fd_model_line, fd_brand, fd_shape, fd_fixation_method,
     fd_body_material, fd_pipe_material, fd_pipe_diameter,
     fd_thread_type, fd_thread, fd_thread_inner_outer, fd_temp_min,
-    fd_swivel,
+    fd_pressure_min, fd_pressure_max, fd_swivel,
 )
 
 
@@ -33,12 +33,12 @@ TUBE_DEFINITIONS = [
     fd_model_line, fd_brand, fd_shape, fd_fixation_method,
     fd_body_material, fd_pipe_material, fd_pipe_diameter,
     fd_thread_type, fd_thread, fd_thread_inner_outer,
-    fd_temp_min, fd_swivel,
+    fd_temp_min, fd_pressure_min, fd_pressure_max, fd_swivel,
 ]
 TUBE_MODEL_LINE_DEFINITIONS = [
     fd_shape, fd_fixation_method, fd_body_material, fd_pipe_material,
     fd_pipe_diameter, fd_thread_type, fd_thread,
-    fd_thread_inner_outer, fd_temp_min,
+    fd_thread_inner_outer, fd_temp_min, fd_pressure_min, fd_pressure_max,
 ]
 TUBE_QUICKSELECT_DEFINITIONS = [
     fd_shape, fd_fixation_method, fd_body_material, fd_pipe_material,
@@ -49,11 +49,11 @@ TUBE_QUICKSELECT_DEFINITIONS = [
 SILENCER_DEFINITIONS = [
     fd_model_line, fd_brand, fd_body_material,
     fd_thread_type, fd_thread, fd_thread_inner_outer,
-    fd_temp_min,
+    fd_temp_min, fd_pressure_min, fd_pressure_max,
 ]
 SILENCER_MODEL_LINE_DEFINITIONS = [
     fd_body_material, fd_thread_type, fd_thread,
-    fd_thread_inner_outer, fd_temp_min,
+    fd_thread_inner_outer, fd_temp_min, fd_pressure_min, fd_pressure_max,
 ]
 SILENCER_QUICKSELECT_DEFINITIONS = [
     fd_body_material, fd_thread, fd_thread_inner_outer,

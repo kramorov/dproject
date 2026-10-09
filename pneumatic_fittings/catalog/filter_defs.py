@@ -117,13 +117,35 @@ fd_thread_inner_outer = FilterDefinition(
 
 fd_temp_min = FilterDefinition(
     param_name='temp_min',
-    model_field='temp_min',
+    model_field='model_line__temp_min',
     filter_type=FilterType.TEMP_MIN,            # frontend: temperature slider
     parameter_rule_code='temperature_min',      # backend: ParameterRule
     data_source_type=DataSourceType.FIELD_VALUES,
     label='Температура от, °С',
     label_i18n={'en': 'Temperature from, °C', 'cn': '最低温度, °C'},
     order=10,
+)
+
+
+fd_pressure_min = FilterDefinition(
+    param_name='pressure_min',
+    model_field='model_line__pressure_min',
+    filter_type=FilterType.MAX,                 # lte: "не более X бар"
+    data_source_type=DataSourceType.FIELD_VALUES,
+    label='P раб.мин не более, бар',
+    label_i18n={'en': 'Min. pressure max., bar', 'cn': '最小压力不高于, bar'},
+    order=11,
+)
+
+
+fd_pressure_max = FilterDefinition(
+    param_name='pressure_max',
+    model_field='model_line__pressure_max',
+    filter_type=FilterType.MIN,                 # gte: "не менее X бар"
+    data_source_type=DataSourceType.FIELD_VALUES,
+    label='P раб.макс не менее, бар',
+    label_i18n={'en': 'Max. pressure min., bar', 'cn': '最大压力不低于, bar'},
+    order=12,
 )
 
 
@@ -135,7 +157,7 @@ fd_swivel = FilterDefinition(
     choices=[('true', 'Поворотный'), ('false', 'Неповоротный')],
     label='Поворотность',
     label_i18n={'en': 'Swivel', 'cn': '可旋转'},
-    order=11,
+    order=13,
 )
 
 
@@ -153,5 +175,7 @@ PNEUMATIC_FITTINGS_FILTER_DEFINITIONS = [
     fd_thread,
     fd_thread_inner_outer,
     fd_temp_min,
+    fd_pressure_min,
+    fd_pressure_max,
     fd_swivel,
 ]

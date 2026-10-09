@@ -58,7 +58,11 @@ PF_ITEM_TEMPLATE_FIELDS = (
 
     # ── Только имя/описание (расширение реестра, backlog SESSION.md п.2) ──
     {'key': 'pressure_min', 'placeholder': '{pressure_min}', 'path': 'pressure_min'},
-    {'key': 'pressure_max', 'placeholder': '{pressure_max}', 'path': 'pressure_max'},
+    {'key': 'pressure_max', 'placeholder': '{pressure_max}', 'path': 'pressure_max_effective'},
     {'key': 'temp_min', 'placeholder': '{temp_min}', 'path': 'temp_min'},
     {'key': 'temp_max', 'placeholder': '{temp_max}', 'path': 'temp_max'},
+
+    # ── Габариты/вес (общие для всех видов) ──
+    {'key': 'weight', 'placeholder': '{weight}', 'path': 'weight'},
+    {'key': 'width_across_flats', 'placeholder': '{width_across_flats}', 'path': 'width_across_flats'},
 )

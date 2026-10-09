@@ -15,6 +15,8 @@ MODELS = (
     'cable_glands.CableGlandModelLine',
     'pneumatic_actuators.PneumaticActuatorModelLine',
     'pneumatic_fittings.PneumaticFittingModelLine',
+    'pneumatic_fittings.PneumaticSilencerModelLine',
+    'pneumatic_fittings.PneumaticPlugModelLine',
     'solenoid_valves.DirectionalValveModelLine',
     'pa_controls.LimitSwitchModelLine',
     'pa_controls.PosiModelLine',
@@ -85,6 +87,12 @@ TRANSLATIONS = {
         '{model_code} Глушитель Camozzi {thread} {thread_inner_outer} резьба, латунь, сетчатый фильтр из спеченной бронзы, "Конус", расход {flow_rate} Нл/мин; P раб.макс. {operating_pressure} бар':
             _tr('{model_code} Silencer Camozzi {thread} {thread_inner_outer} thread, brass, sintered bronze mesh filter, "Cone", flow {flow_rate} Nl/min; max oper. pressure {operating_pressure} bar',
                 '{model_code} 消声器 Camozzi {thread} {thread_inner_outer} 螺纹, 黄铜, 烧结青铜网过滤器, "锥形", 流量 {flow_rate} Nl/min; 最大工作压力 {operating_pressure} bar'),
+        '{model_code} {equipment_type} {brand} {thread} {thread_inner_outer} резьба, латунь, сетчатый фильтр из спеченной бронзы, "Конус"':
+            _tr('{model_code} {equipment_type} {brand} {thread} {thread_inner_outer} thread, brass, sintered bronze mesh filter, "Cone"',
+                '{model_code} {equipment_type} {brand} {thread} {thread_inner_outer} 螺纹, 黄铜, 烧结青铜网过滤器, "锥形"'),
+        '{model_code} Глушитель {brand}  {thread} {thread_inner_outer} резьба, латунь, сетчатый фильтр из спеченной бронзы, "Конус", расход {flow_rate} Нл/мин; P раб.макс. {operating_pressure} бар':
+            _tr('{model_code} Silencer {brand} {thread} {thread_inner_outer} thread, brass, sintered bronze mesh filter, "Cone", flow {flow_rate} Nl/min; max oper. pressure {operating_pressure} bar',
+                '{model_code} 消声器 {brand} {thread} {thread_inner_outer} 螺纹, 黄铜, 烧结青铜网过滤器, "锥形", 流量 {flow_rate} Nl/min; 最大工作压力 {operating_pressure} bar'),
         '{model_code} Фитинг цанговый L угловой, {swivel}, Camozzi, {thread_inner_outer} резьба {thread}, для трубки пластик наружн.диам. {pipe_diameter} мм, Т раб. {temperature_range} °С, Р раб. {pressure_range} бар, уплотнение PTFE':
             _tr('{model_code} L-shape collet fitting, {swivel}, Camozzi, {thread_inner_outer} thread {thread}, for plastic tube outer dia. {pipe_diameter} mm, Oper. temp. {temperature_range} °C, Oper. pressure {pressure_range} bar, seal PTFE',
                 '{model_code} L型角通快插接头, {swivel}, Camozzi, {thread_inner_outer} 螺纹 {thread}, 适用塑料管外径 {pipe_diameter} mm, 工作温度 {temperature_range} °C, 工作压力 {pressure_range} bar, 密封 PTFE'),
@@ -201,6 +209,9 @@ TRANSLATIONS = {
         '{model_code} Глушитель Camozzi {thread} {thread_inner_outer} резьба, корпус - латунь, сетчатый фильтрующий элемент из спеченной бронзы, корпус - "Конус", расход {flow_rate} Нл/мин; P раб.макс. {operating_pressure} бар, уровнь шума {noise_level} Дб,':
             _tr('{model_code} Silencer Camozzi {thread} {thread_inner_outer} thread, body - brass, sintered bronze mesh filter element, body - "Cone", flow {flow_rate} Nl/min; max oper. pressure {operating_pressure} bar, noise level {noise_level} dB,',
                 '{model_code} 消声器 Camozzi {thread} {thread_inner_outer} 螺纹, 壳体 - 黄铜, 烧结青铜网过滤元件, 壳体 - "锥形", 流量 {flow_rate} Nl/min; 最大工作压力 {operating_pressure} bar, 噪音 {noise_level} dB,'),
+        '{model_code} Глушитель {brand} {thread} {thread_inner_outer} резьба, корпус - латунь, фильтрующий элемент сетчатый из спеченной бронзы, корпус - "Конус", расход {flow_rate} Нл/мин; P раб.макс. {operating_pressure} бар, уровнь шума {noise_level} Дб,':
+            _tr('{model_code} Silencer {brand} {thread} {thread_inner_outer} thread, body - brass, sintered bronze mesh filter element, body - "Cone", flow {flow_rate} Nl/min; max oper. pressure {operating_pressure} bar, noise level {noise_level} dB,',
+                '{model_code} 消声器 {brand} {thread} {thread_inner_outer} 螺纹, 壳体 - 黄铜, 烧结青铜网过滤元件, 壳体 - "锥形", 流量 {flow_rate} Nl/min; 最大工作压力 {operating_pressure} bar, 噪音 {noise_level} dB,'),
         '{model_code} Заглушка Camozzi  {thread} {thread_inner_outer} резьба Т раб. {temperature_range}, Р раб. {pressure_range} корпус - латунь ОТ58 покрытая никелем':
             _tr('{model_code} Plug Camozzi {thread} {thread_inner_outer} thread, Oper. temp. {temperature_range}, Oper. pressure {pressure_range}, body - nickel-plated OT58 brass',
                 '{model_code} 堵头 Camozzi {thread} {thread_inner_outer} 螺纹, 工作温度 {temperature_range}, 工作压力 {pressure_range}, 壳体 - 镀镍黄铜 OT58'),

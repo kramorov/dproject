@@ -9,7 +9,7 @@ from core.admin_regenerate_items import RegenerateSeriesItemsAdminMixin
 from .models import (
     PneumaticFitting, PneumaticSilencer, PneumaticPlug,
     PneumaticFittingModelLine, PneumaticSilencerModelLine, PneumaticPlugModelLine,
-    FittingShape, FittingFixationMethod,
+    FittingShape, FittingFixationMethod, SilencerShape, PlugSilencerBodyMaterial, SilencerFilterElement,
 )
 
 
@@ -65,7 +65,7 @@ class PneumaticFittingAdmin(_BaseFittingItemAdmin):
             'fields': ('name', ('code', 'model_line'),
                         ('body_material',),
                         ('pipe_material', 'pipe_diameter'), ('thread', 'thread_inner_outer'),
-                        ('pressure_min', 'pressure_max'),
+                        ('weight', 'width_across_flats'),
                         ('description', 'sorting_order', 'is_active'))
         }),
         (_('Изображения и документация'), {
@@ -74,9 +74,6 @@ class PneumaticFittingAdmin(_BaseFittingItemAdmin):
         (_('Номенклатура (SKU)'), {
             'fields': ('sku',),
             'classes': ('collapse',),
-        }),
-        (_('Температура'), {
-            'fields': ('temp_min', 'temp_max'),
         }),
     )
 
@@ -100,7 +97,8 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
                         ('body_material',),
                         ('thread', 'thread_inner_outer'),
                         ('flow_rate', 'noise_level', 'operating_pressure'),
-                        ('pressure_min', 'pressure_max'),
+                        ('pressure_max',),
+                        ('weight', 'width_across_flats'),
                         ('description', 'sorting_order', 'is_active'))
         }),
         (_('Изображения и документация'), {
@@ -109,9 +107,6 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
         (_('Номенклатура (SKU)'), {
             'fields': ('sku',),
             'classes': ('collapse',),
-        }),
-        (_('Температура'), {
-            'fields': ('temp_min', 'temp_max'),
         }),
     )
 
@@ -133,7 +128,7 @@ class PneumaticPlugAdmin(_BaseFittingItemAdmin):
             'fields': ('name', ('code', 'model_line'),
                         ('body_material',),
                         ('thread', 'thread_inner_outer'),
-                        ('pressure_min', 'pressure_max'),
+                        ('weight', 'width_across_flats'),
                         ('description', 'sorting_order', 'is_active'))
         }),
         (_('Изображения и документация'), {
@@ -142,9 +137,6 @@ class PneumaticPlugAdmin(_BaseFittingItemAdmin):
         (_('Номенклатура (SKU)'), {
             'fields': ('sku',),
             'classes': ('collapse',),
-        }),
-        (_('Температура'), {
-            'fields': ('temp_min', 'temp_max'),
         }),
     )
 
@@ -194,9 +186,16 @@ class PneumaticFittingModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePl
             'fields': ('name', ('code', 'equipment_type'),
                         ('shape', 'fixation_method'),
                         ('producer', 'brand', 'is_swivel'),
-                        'name_template',
-                        'description_template',
-                        'description', ('sorting_order', 'is_active'))
+                        ('description', 'description_i18n'),
+                        ('sorting_order', 'is_active'))
+        }),
+        (_('Шаблоны названия и описания'), {
+            'fields': ('name_template', 'name_template_i18n',
+                       'description_template', 'description_template_i18n'),
+            'classes': ('wide',),
+        }),
+        (_('Давление и температура'), {
+            'fields': (('pressure_min', 'pressure_max'), ('temp_min', 'temp_max')),
         }),
         (_('Изображения и документация'), {
             'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
@@ -234,9 +233,17 @@ class PneumaticSilencerModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
         (_('Основная информация'), {
             'fields': ('name', ('code', 'equipment_type'),
                         ('producer', 'brand'),
-                        'name_template',
-                        'description_template',
-                        'description', ('sorting_order', 'is_active'))
+                        ('description', 'description_i18n'),
+                        ('sorting_order', 'is_active'))
+        }),
+        (_('Шаблоны названия и описания'), {
+            'fields': ('name_template', 'name_template_i18n',
+                       'description_template', 'description_template_i18n'),
+            'classes': ('wide',),
+        }),
+        (_('Тех информация'), {
+            'fields': ('body_material','filter_element','shape',
+                       ('pressure_min', 'pressure_max'), ('temp_min', 'temp_max')),
         }),
         (_('Изображения и документация'), {
             'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
@@ -260,9 +267,16 @@ class PneumaticPlugModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlace
         (_('Основная информация'), {
             'fields': ('name', ('code', 'equipment_type'),
                         ('producer', 'brand'),
-                        'name_template',
-                        'description_template',
-                        'description', ('sorting_order', 'is_active'))
+                        ('description', 'description_i18n'),
+                        ('sorting_order', 'is_active'))
+        }),
+        (_('Шаблоны названия и описания'), {
+            'fields': ('name_template', 'name_template_i18n',
+                       'description_template', 'description_template_i18n'),
+            'classes': ('wide',),
+        }),
+        (_('Тех информация'), {
+            'fields': ('body_material', ('pressure_min', 'pressure_max'), ('temp_min', 'temp_max')),
         }),
         (_('Изображения и документация'), {
             'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
@@ -275,6 +289,48 @@ class PneumaticPlugModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlace
 
 @admin.register(FittingShape)
 class FittingShapeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
+    list_editable = ['name', 'code', 'sorting_order', 'is_active']
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'is_active', 'sorting_order')
+        }),
+        ('Описания', {
+            'fields': ('description', 'help_text_content'),
+            'classes': ('collapse',),
+        }),
+    )
+
+@admin.register(SilencerShape)
+class SilencerShapeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
+    list_editable = ['name', 'code', 'sorting_order', 'is_active']
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'is_active', 'sorting_order')
+        }),
+        ('Описания', {
+            'fields': ('description', 'help_text_content'),
+            'classes': ('collapse',),
+        }),
+    )
+
+@admin.register(PlugSilencerBodyMaterial)
+class PlugSilencerBodyMaterialAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
+    list_editable = ['name', 'code', 'sorting_order', 'is_active']
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'is_active', 'sorting_order')
+        }),
+        ('Описания', {
+            'fields': ('description', 'help_text_content'),
+            'classes': ('collapse',),
+        }),
+    )
+
+@admin.register(SilencerFilterElement)
+class SilencerFilterElementAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
     list_editable = ['name', 'code', 'sorting_order', 'is_active']
     fieldsets = (

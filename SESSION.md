@@ -778,3 +778,55 @@
 - AI extract-промпты/схемы per-kind (`fitting-thread-pipe`/`fitting-silencer`/`fitting-plug`)
   — для требований с «своими параметрами» (сейчас только общий `pneumatic_fitting`).
 - `npm run build` + `collectstatic --clear` перед деплоем; всё некоммичено.
+
+---
+
+## 16. Сессия 2026-10-09 — фитинги: перенос pressure/temp на серию + админ/плейсхолдеры/фильтры + переводы глушителей/заглушек
+
+### 1. Перенос pressure/temp с позиции на серию
+- `AbstractPneumaticFittingModelLine` — добавлены `pressure_min`/`pressure_max`/`temp_min`/`temp_max`.
+- `AbstractPneumaticFitting` — эти 4 поля удалены; вместо них свойства-«отдаватели»:
+  `pressure_min`, `temp_min`, `temp_max` (читают из `model_line`), `pressure_max_effective`
+  (базово из серии), `_effective_pressure_max()`.
+- `PneumaticSilencer` — оставлено поле `pressure_max` как **override**: `_effective_pressure_max()`
+  возвращает фактическое значение, если оно не `None`/`0`, иначе значение серии.
+- Проверка БД перед переносом: у фитингов/заглушек все 4 поля одинаковы внутри серии;
+  у глушителей `pressure_max` различается (10 бар до 1/2", 6 бар у 3/4" и 1") → дефолт серии = мода (10),
+  override = 6.
+
+### 2. Миграции (разбиты на 3, чтобы не потерять данные)
+- `0031` — AddField ×12 на серии + AlterField `pressure_max` глушителя (override).
+- `0032` — data-миграция: серии получают значения из позиций; `pressure_max` серии = мода;
+  у глушителей позиции-оверрайды (GAS-20, GAS-25, 2901 3/4", 2901 1") = 6, остальные NULL.
+- `0033` — RemoveField pressure/temp с позиций (у глушителя `pressure_max` остаётся).
+- Применены к боевой; `makemigrations --check` — чисто; имена позиций не затронуты
+  (проверено: 157 позиций, 0 пустых имён).
+
+### 3. Админка / плейсхолдеры / фильтры (по запросу пользователя)
+- Админка серий: добавлены i18n-поля `description_i18n`, `name_template_i18n`,
+  `description_template_i18n` (fieldset «Шаблоны названия и описания», паттерн FR/gearbox).
+- Админка позиций: добавлены `weight` и `width_across_flats` (были на модели, не показывались).
+- Плейсхолдеры: `pf_item_fields.py` — добавлены `{weight}`, `{width_across_flats}`;
+  `pressure_max` путь → `pressure_max_effective`; ключи добавлены в NAME/VARS_FIELD_KEYS трёх видов.
+- Фильтры: `temp_min` → `model_line__temp_min` (filters.py и catalog/filter_defs.py);
+  добавлены `fd_pressure_min` (MAX/lte) и `fd_pressure_max` (MIN/gte); подключены в config.py.
+
+### 4. Переводы i18n глушителей/заглушек
+- `translate_model_line_templates.py`: в `MODELS` добавлены `PneumaticSilencerModelLine`
+  и `PneumaticPlugModelLine` (раньше был только фитинг-серия); добавлены 3 недостающие
+  словарные статьи (GA `name_template`, 2931 `name_template`, 2931 `description_template`).
+- Команда запущена → переведено 10 полей (5 серий × name/description), «без перевода» — нет.
+- Фикс FA-IOM-N: устаревший `{fitting_variety}` → `{fixation_method} {shape}` в сохранённом
+  `name_template_i18n`/`description_template_i18n` (точечно, без `--force`, чтобы не затронуть
+  97 серий по всем каталогам). Скан: неизвестных плейсхолдеров в *_template_i18n больше нет.
+
+### Известные остатки (не этой сессии)
+- Тест `test_series_of_other_kind_invisible` падает на пустой тестовой БД (id тестовой серии
+  фитингов == id серии глушителя = 1 → коллизия) — pre-existing, не код. FK-cascade 10/10,
+  kind-catalogs 8/9.
+- `StructuredDataMixin._get_value` (строка `str(x) if x else ""`) перекрывает
+  `TemplateMixin._get_value` → `pressure_min=0` в `template_vars` отдаётся пустой строкой
+  (было и до переноса, не регресс; в названиях используется `pressure_range_display`).
+- Серия S6512: RU-шаблон с `{brand}`, сохранённый перевод хардкодит «Camozzi» — вывод
+  корректен, но перевод не «универсальный»; при желании добавить `{brand}`-вариант в словарь.
+
