@@ -1,0 +1,36 @@
+/* core/static/admin/css/i18n_json_field.css
+   Стили для textarea.i18n-json-field (поля переводов *_i18n в админке). */
+textarea.i18n-json-field {
+    width: 100%;
+    min-height: 160px;
+    font-family: Consolas, Menlo, Monaco, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre;
+    tab-size: 2;
+}
+textarea.i18n-json-field.json-valid {
+    border-color: #2e7d32;
+}
+textarea.i18n-json-field.json-invalid {
+    border-color: #c62828;
+    background: #fff6f6;
+}
+.json-format-btn {
+    margin: 4px 0 0;
+    padding: 4px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12px;
+}
+.json-format-btn:hover {
+    background: #f0f0f0;
+}
+.json-error {
+    color: #c62828;
+    font-size: 11px;
+    margin-top: 2px;
+    white-space: pre-wrap;
+}

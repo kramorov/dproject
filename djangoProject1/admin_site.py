@@ -20,6 +20,7 @@
 
 from django.contrib import admin
 from django.contrib.admin import AdminSite
+from django.contrib.admin.options import BaseModelAdmin, InlineModelAdmin
 import logging
 
 # ---------------------------------------------------------------------------
@@ -453,3 +454,68 @@ if _stale_keys:
         'djangoProject1.admin_site: ключи ADMIN_MODEL_BLOCK отсутствуют в реестре админки: %s',
         _stale_keys,
     )
+
+
+# ---------------------------------------------------------------------------
+# Автоматический блок «Переводы (ru/en/cn)» для моделей с *_i18n-полями
+# ---------------------------------------------------------------------------
+# Справочники/серии/типы оборудования хранят переводы в JSON-полях <field>_i18n.
+# Блок добавляется в админку автоматически (свёрнутый аккордеон), JSON-поля
+# переводов рендерятся многострочным виджетом с кнопкой «Форматировать»
+# (core/admin_widgets.py). Ручные правки переводов команды translate_* не
+# перезаписывают (они дозаполняют только отсутствующие локали; --force — перезапись).
+from django.db import models as django_models
+
+from core.admin_widgets import PrettyJSONWidget
+
+# Вычисляемое поле (кэш display_i18n у БКВ) — руками не редактируется.
+_LOCALIZED_ADMIN_EXCLUDE = {'display_i18n'}
+
+_original_modeladmin_get_fieldsets = admin.ModelAdmin.get_fieldsets
+_original_inline_get_fieldsets = InlineModelAdmin.get_fieldsets
+
+
+def _get_fieldsets_with_i18n(self, request, obj=None):
+    fieldsets = list(_original_modeladmin_get_fieldsets(self, request, obj) or ())
+    # Поля, которые админка уже показывает сама, не дублируем (серии фитингов/ФР/gearbox
+    # показывают часть *_i18n в собственном fieldset «Шаблоны…»).
+    shown = set()
+    for _title, opts in fieldsets:
+        for f in opts.get('fields', []):
+            if isinstance(f, (list, tuple)):
+                shown.update(str(x) for x in f)
+            else:
+                shown.add(str(f))
+    i18n_fields = [
+        f.name for f in self.model._meta.fields
+        if f.name.endswith('_i18n')
+        and f.name not in _LOCALIZED_ADMIN_EXCLUDE
+        and f.name not in shown
+    ]
+    if i18n_fields:
+        fieldsets = fieldsets + [(
+            'Переводы (ru/en/cn)',
+            {'fields': tuple(i18n_fields), 'classes': ('collapse',)},
+        )]
+    return fieldsets
+
+
+admin.ModelAdmin.get_fieldsets = _get_fieldsets_with_i18n
+InlineModelAdmin.get_fieldsets = _get_fieldsets_with_i18n
+
+# formfield_for_dbfield определён на BaseModelAdmin — патчим один раз,
+# чтобы виджет получали и ModelAdmin, и InlineModelAdmin.
+_original_formfield_for_dbfield = BaseModelAdmin.formfield_for_dbfield
+
+
+def _formfield_for_dbfield_with_i18n_widget(self, db_field, request, **kwargs):
+    formfield = _original_formfield_for_dbfield(self, db_field, request, **kwargs)
+    if (formfield is not None
+            and isinstance(db_field, django_models.JSONField)
+            and db_field.name.endswith('_i18n')
+            and db_field.name not in _LOCALIZED_ADMIN_EXCLUDE):
+        formfield.widget = PrettyJSONWidget()
+    return formfield
+
+
+BaseModelAdmin.formfield_for_dbfield = _formfield_for_dbfield_with_i18n_widget

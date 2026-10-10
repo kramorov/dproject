@@ -13,11 +13,15 @@
 """
 from io import StringIO
 
+from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import Client, TestCase
 
 from cable_glands.models import CableGland, CableGlandModelLine
+from core.models import EquipmentType
 from pneumatic_actuators.models import PneumaticActuatorModelLineItem
+from pneumatic_fittings.models import (
+    FittingShape, PneumaticSilencerModelLine, SilencerShape)
 from solenoid_valves.models import DirectionValve
 
 
@@ -228,3 +232,59 @@ class TranslateCommandsIdempotencyTests(TestCase):
         call_command('translate_model_line_templates', '--dry-run', stdout=StringIO())
         ml.refresh_from_db()
         self.assertEqual(ml.name_template_i18n, before)
+
+
+class TranslateCommandFillMissingTests(TestCase):
+    """Команды дозаполняют только отсутствующие локали; --force перезаписывает."""
+
+    def test_reference_dicts_keeps_manual_fix_and_force_overwrites(self):
+        obj = FittingShape.objects.get(name='Прямой')
+        obj.name_i18n = {'ru': obj.name, 'en': 'MANUAL-FIX', 'cn': '直通'}
+        obj.save(update_fields=['name_i18n'])
+
+        # Без --force ручная правка сохраняется
+        call_command('translate_reference_dicts', stdout=StringIO())
+        obj.refresh_from_db()
+        self.assertEqual(obj.name_i18n.get('en'), 'MANUAL-FIX')
+
+        # --force возвращает словарное значение
+        call_command('translate_reference_dicts', '--force', stdout=StringIO())
+        obj.refresh_from_db()
+        self.assertEqual(obj.name_i18n.get('en'), 'Straight')
+
+
+class AdminI18nFieldsetTests(TestCase):
+    """Глобальный блок «Переводы (ru/en/cn)» в админке (admin_site.py)."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            'i18n-admin', 'i18n-admin@example.com', 'test-password')
+        self.client.force_login(self.user)
+
+    def test_block_and_widget_added(self):
+        obj = SilencerShape.objects.first()
+        response = self.client.get(
+            f'/admin/pneumatic_fittings/silencershape/{obj.pk}/change/')
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        self.assertIn('Переводы (ru/en/cn)', html)
+        self.assertIn('i18n-json-field', html)
+        self.assertIn('i18n_json_field.js', html)
+
+    def test_no_duplicate_fields_when_admin_shows_them_already(self):
+        ml = PneumaticSilencerModelLine.objects.first()
+        response = self.client.get(
+            f'/admin/pneumatic_fittings/pneumaticsilencermodelline/{ml.pk}/change/')
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        self.assertEqual(html.count('<textarea name="name_template_i18n"'), 1)
+        self.assertEqual(html.count('<textarea name="description_i18n"'), 1)
+
+    def test_equipment_type_admin_gets_all_i18n_fields_once(self):
+        et = EquipmentType.objects.get(code='pneumatic-actuator')
+        response = self.client.get(
+            f'/admin/core/equipmenttype/{et.pk}/change/')
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        self.assertIn('Переводы (ru/en/cn)', html)
+        self.assertEqual(html.count('<textarea name="name_template_i18n"'), 1)

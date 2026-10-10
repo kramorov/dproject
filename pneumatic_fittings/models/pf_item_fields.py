@@ -28,6 +28,7 @@ PF_ITEM_TEMPLATE_FIELDS = (
 
     # ── Основные ──
     {'key': 'shape', 'placeholder': '{shape}', 'path': 'model_line__shape__name', 'name_path': 'model_line__shape'},
+    {'key': 'filter_element', 'placeholder': '{filter_element}', 'path': 'model_line__filter_element__name', 'name_path': 'model_line__filter_element'},
     {'key': 'fixation_method', 'placeholder': '{fixation_method}', 'path': 'model_line__fixation_method__name',
      'name_path': 'model_line__fixation_method'},
     {'key': 'thread', 'placeholder': '{thread}', 'path': 'thread__name', 'name_path': 'thread',

@@ -30,6 +30,12 @@
         <button v-for="t in subTabs" :key="t.id" :class="{ active: subTab === t.id }" @click="subTab = t.id">{{ t.label }}</button>
       </nav>
 
+      <div class="et-locales" v-if="['name','description','title','spec'].includes(subTab)">
+        <span class="et-locales-label">Локаль шаблона:</span>
+        <button v-for="l in LOCALES" :key="l.code" type="button" class="et-locale-btn" :class="{ active: loc === l.code }" @click="loc = l.code">{{ l.label }}</button>
+        <span class="et-locales-hint">RU синхронизируется с основным полем при сохранении; EN/CN хранятся в *_i18n</span>
+      </div>
+
       <div class="et-form">
         <!-- Основное -->
         <div v-show="subTab === 'basic'" class="et-tab">
@@ -56,7 +62,7 @@
             <div class="et-chips">
               <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'name_template', nameTemplateEl)">{{ ph }}</button>
             </div>
-            <textarea ref="nameTemplateEl" v-model="selectedEt.name_template" class="cell-input" rows="4"></textarea>
+            <textarea ref="nameTemplateEl" :value="getTpl('name_template', loc)" @input="setTpl('name_template', loc, $event.target.value)" class="cell-input" rows="4"></textarea>
           </div>
         </div>
 
@@ -67,7 +73,7 @@
             <div class="et-chips">
               <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'description_template', descriptionTemplateEl)">{{ ph }}</button>
             </div>
-            <textarea ref="descriptionTemplateEl" v-model="selectedEt.description_template" class="cell-input" rows="4"></textarea>
+            <textarea ref="descriptionTemplateEl" :value="getTpl('description_template', loc)" @input="setTpl('description_template', loc, $event.target.value)" class="cell-input" rows="4"></textarea>
           </div>
         </div>
 
@@ -78,7 +84,7 @@
             <div class="et-chips">
               <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'title_template', titleTemplateEl)">{{ ph }}</button>
             </div>
-            <textarea ref="titleTemplateEl" v-model="selectedEt.title_template" class="cell-input" rows="4"></textarea>
+            <textarea ref="titleTemplateEl" :value="getTpl('title_template', loc)" @input="setTpl('title_template', loc, $event.target.value)" class="cell-input" rows="4"></textarea>
           </div>
 
           <div class="et-form-block">
@@ -86,7 +92,7 @@
             <div class="et-chips">
               <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'spec_title_template', specTitleTemplateEl)">{{ ph }}</button>
             </div>
-            <textarea ref="specTitleTemplateEl" v-model="selectedEt.spec_title_template" class="cell-input" rows="2"></textarea>
+            <textarea ref="specTitleTemplateEl" :value="getTpl('spec_title_template', loc)" @input="setTpl('spec_title_template', loc, $event.target.value)" class="cell-input" rows="2"></textarea>
           </div>
 
           <div class="et-form-block">
@@ -94,7 +100,7 @@
             <div class="et-chips">
               <button v-for="ph in placeholders" :key="ph" class="et-chip" type="button" @click="insertPlaceholder(ph, 'list_title_template', listTitleTemplateEl)">{{ ph }}</button>
             </div>
-            <textarea ref="listTitleTemplateEl" v-model="selectedEt.list_title_template" class="cell-input" rows="2"></textarea>
+            <textarea ref="listTitleTemplateEl" :value="getTpl('list_title_template', loc)" @input="setTpl('list_title_template', loc, $event.target.value)" class="cell-input" rows="2"></textarea>
           </div>
 
           <div class="et-form-block">
@@ -108,7 +114,7 @@
         <div v-show="subTab === 'spec'" class="et-tab">
           <div class="et-form-block">
             <label class="et-form-block-label">Шаблон спецификации (spec_template)</label>
-            <SpecTemplateEditor :key="selectedEt.id" v-model="selectedEt.spec_template" :fields="templateFields" />
+            <SpecTemplateEditor :key="selectedEt.id + '-' + loc" :model-value="getSpec()" @update:model-value="setSpec" :fields="templateFields" />
           </div>
         </div>
 
@@ -198,6 +204,13 @@ const emit = defineEmits(['saved'])
 const selectedEt = ref(null)
 const selectedEtId = ref(null)
 const subTab = ref('basic')
+const loc = ref('ru')
+const LOCALES = [
+  { code: 'ru', label: 'RU' },
+  { code: 'en', label: 'EN' },
+  { code: 'cn', label: 'CN' },
+]
+const TEMPLATE_I18N_FIELDS = ['name_template', 'description_template', 'title_template', 'spec_title_template', 'list_title_template']
 const templateFields = ref([])
 const placeholders = ref([])
 const titleTemplateEl = ref(null)
@@ -212,6 +225,47 @@ const equipmentParams = ref([])
 const helpTexts = ref({})
 
 function showHelp(key) { alert(helpTexts.value[key] || '') }
+
+// ── Локаль-осведомлённый доступ к шаблонам (RU — основное поле, EN/CN — *_i18n JSON) ──
+function getTpl(field, l) {
+  const et = selectedEt.value
+  if (!et) return ''
+  if (l === 'ru') return et[field] ?? ''
+  const i18n = et[field + '_i18n']
+  if (i18n && typeof i18n === 'object' && i18n[l] != null) return i18n[l]
+  return ''
+}
+
+function setTpl(field, l, val) {
+  const et = selectedEt.value
+  if (!et) return
+  if (l === 'ru') {
+    et[field] = val
+  } else {
+    if (!et[field + '_i18n'] || typeof et[field + '_i18n'] !== 'object') et[field + '_i18n'] = {}
+    et[field + '_i18n'][l] = val
+  }
+}
+
+function getSpec() {
+  const et = selectedEt.value
+  if (!et) return {}
+  if (loc.value === 'ru') return et.spec_template || {}
+  const i18n = et.spec_template_i18n
+  const v = i18n && typeof i18n === 'object' ? i18n[loc.value] : null
+  return v && typeof v === 'object' ? v : {}
+}
+
+function setSpec(v) {
+  const et = selectedEt.value
+  if (!et) return
+  if (loc.value === 'ru') {
+    et.spec_template = v
+  } else {
+    if (!et.spec_template_i18n || typeof et.spec_template_i18n !== 'object') et.spec_template_i18n = {}
+    et.spec_template_i18n[loc.value] = v
+  }
+}
 
 function saveListParams() {
   try {
@@ -267,6 +321,11 @@ function selectEquipmentType(et) {
   if (clone.description_template == null) clone.description_template = ''
   if (clone.spec_title_template == null) clone.spec_title_template = ''
   if (clone.list_title_template == null) clone.list_title_template = ''
+  for (const f of TEMPLATE_I18N_FIELDS) {
+    if (!clone[f + '_i18n'] || typeof clone[f + '_i18n'] !== 'object') clone[f + '_i18n'] = {}
+  }
+  if (!clone.spec_template_i18n || typeof clone.spec_template_i18n !== 'object') clone.spec_template_i18n = {}
+  loc.value = 'ru'
   listParamsText.value = JSON.stringify(Array.isArray(clone.list_params) ? clone.list_params : [])
   if (clone.description == null) clone.description = ''
   if (clone.ai_title == null) clone.ai_title = ''
@@ -296,8 +355,8 @@ function insertPlaceholder(ph, field, el) {
   if (!el || !selectedEt.value) return
   const start = el.selectionStart != null ? el.selectionStart : el.value.length
   const end = el.selectionEnd != null ? el.selectionEnd : start
-  const text = selectedEt.value[field] || ''
-  selectedEt.value[field] = text.slice(0, start) + ph + text.slice(end)
+  const text = getTpl(field, loc.value)
+  setTpl(field, loc.value, text.slice(0, start) + ph + text.slice(end))
   nextTick(() => {
     const pos = start + ph.length
     el.focus()
@@ -323,6 +382,12 @@ async function saveEquipment(et) {
     title_template: et.title_template || null,
     spec_title_template: et.spec_title_template || null,
     list_title_template: et.list_title_template || null,
+    name_template_i18n: et.name_template_i18n || {},
+    description_template_i18n: et.description_template_i18n || {},
+    title_template_i18n: et.title_template_i18n || {},
+    spec_title_template_i18n: et.spec_title_template_i18n || {},
+    list_title_template_i18n: et.list_title_template_i18n || {},
+    spec_template_i18n: et.spec_template_i18n || {},
     list_params: Array.isArray(et.list_params) ? et.list_params : [],
     spec_template: et.spec_template || {},
     param_semantics: et.param_semantics || {},
@@ -385,6 +450,12 @@ async function addParam() {
 .et-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; border-bottom: 2px solid #e0e0e0; }
 .et-tabs button { padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
 .et-tabs button.active { color: #1976d2; border-bottom-color: #1976d2; font-weight: 600; }
+
+.et-locales { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.et-locales-label { font-size: 12px; color: #666; }
+.et-locales-hint { font-size: 11px; color: #999; }
+.et-locale-btn { padding: 3px 10px; border: 1px solid #d1d5db; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; color: #374151; }
+.et-locale-btn.active { background: #1976d2; color: #fff; border-color: #1976d2; }
 
 .et-form { display: flex; flex-direction: column; gap: 12px; }
 .et-tab { display: flex; flex-direction: column; gap: 12px; }

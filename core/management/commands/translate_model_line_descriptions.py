@@ -81,9 +81,14 @@ def _norm(s):
 
 
 class Command(BaseCommand):
-    help = 'Backfill en/cn translations for model line descriptions.'
+    help = 'Backfill en/cn translations for model-line descriptions.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы из словаря (затирает ручные правки).')
 
     def handle(self, *args, **options):
+        force = options['force']
         total = 0
         for model in apps.get_models():
             if 'description_i18n' not in {f.name for f in model._meta.fields}:
@@ -94,11 +99,15 @@ class Command(BaseCommand):
                 if key in DESCRIPTIONS:
                     en, cn = DESCRIPTIONS[key]
                     i18n = dict(obj.description_i18n or {})
-                    i18n['en'] = en
-                    i18n['cn'] = cn
-                    obj.description_i18n = i18n
-                    obj.save(update_fields=['description_i18n'])
-                    updated += 1
+                    changed = False
+                    for locale, value in (('en', en), ('cn', cn)):
+                        if force or locale not in i18n:
+                            i18n[locale] = value
+                            changed = True
+                    if changed:
+                        obj.description_i18n = i18n
+                        obj.save(update_fields=['description_i18n'])
+                        updated += 1
             if updated:
                 total += updated
                 self.stdout.write(f'{model._meta.app_label}.{model._meta.object_name}: {updated}')

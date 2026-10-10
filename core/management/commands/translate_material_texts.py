@@ -7,8 +7,8 @@ bowl_material_text / protection_material (свободные тексты «дл
 ``{"ru": ..., "en": ..., "cn": ...}``. Ключ словаря — точная RU-строка после
 исправления опечатки. Коды/бренды не трогаются.
 
-Идемпотентна: повторный запуск просто перезаписывает ru/en/cn и повторно
-исправляет (уже исправленную) строку не меняет.
+Идемпотентна: исправление опечатки применяется всегда; переводы en/cn — только
+отсутствующие (ручные правки не перезаписываются). ``--force`` — перезаписать en/cn.
 """
 from django.core.management.base import BaseCommand
 
@@ -41,50 +41,60 @@ def _localize(value):
     return {'ru': fixed, 'en': en_cn[0], 'cn': en_cn[1]}
 
 
+def _merge_i18n(current, localized, force):
+    """Слить текущее значение с переведённым: ru — из словаря (канон после
+    data-fix), en/cn — только отсутствующие, если не ``force``."""
+    out = dict(current) if isinstance(current, dict) else {}
+    out['ru'] = localized['ru']
+    for locale in ('en', 'cn'):
+        if force or locale not in out:
+            out[locale] = localized[locale]
+    return out
+
+
+def _apply(field, obj, force):
+    """Применить data-fix + переводы к полю ``field``; вернуть список update_fields."""
+    i18n_field = f'{field}_i18n'
+    raw = getattr(obj, field) or ''
+    fixed = DATA_FIXES.get(raw, raw)
+    update_fields = []
+    if fixed != raw:
+        setattr(obj, field, fixed)
+        update_fields.append(field)
+    localized = _localize(fixed)
+    if localized is not None:
+        merged = _merge_i18n(getattr(obj, i18n_field), localized, force)
+        if merged != (getattr(obj, i18n_field) or {}):
+            setattr(obj, i18n_field, merged)
+            update_fields.append(i18n_field)
+    return update_fields
+
+
 class Command(BaseCommand):
     help = 'Fix AISl→AISI and backfill en/cn for free-text material fields.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы из словаря (затирает ручные правки).')
+
     def handle(self, *args, **options):
+        force = options['force']
         updated = 0
 
         # GearBox: body_material_text на самом айтеме.
         for item in GearBox.objects.all():
-            raw = item.body_material_text or ''
-            fixed = DATA_FIXES.get(raw, raw)
-            changed = False
-            update_fields = []
-            if fixed != raw:
-                item.body_material_text = fixed
-                changed = True
-                update_fields.append('body_material_text')
-            i18n = _localize(fixed)
-            if i18n is not None:
-                item.body_material_text_i18n = i18n
-                changed = True
-                update_fields.append('body_material_text_i18n')
-            if changed:
+            update_fields = _apply('body_material_text', item, force)
+            if update_fields:
                 item.save(update_fields=update_fields)
                 updated += 1
 
         # FilterRegulatorModelLine: три свободных текста.
         fields = ('body_material_text', 'bowl_material_text', 'protection_material')
         for ml in FilterRegulatorModelLine.objects.all():
-            changed = False
             update_fields = []
             for field in fields:
-                i18n_field = f'{field}_i18n'
-                raw = getattr(ml, field) or ''
-                fixed = DATA_FIXES.get(raw, raw)
-                if fixed != raw:
-                    setattr(ml, field, fixed)
-                    changed = True
-                    update_fields.append(field)
-                i18n = _localize(fixed)
-                if i18n is not None:
-                    setattr(ml, i18n_field, i18n)
-                    changed = True
-                    update_fields.append(i18n_field)
-            if changed:
+                update_fields.extend(_apply(field, ml, force))
+            if update_fields:
                 ml.save(update_fields=update_fields)
                 updated += 1
 

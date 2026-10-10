@@ -830,3 +830,142 @@
 - Серия S6512: RU-шаблон с `{brand}`, сохранённый перевод хардкодит «Camozzi» — вывод
   корректен, но перевод не «универсальный»; при желании добавить `{brand}`-вариант в словарь.
 
+---
+
+## 17. Сессия 2026-10-10 — EquipmentType: полные переводы шаблонов + i18n в редакторе
+
+### Проблема (от пользователя)
+
+В редакторе `/admin/pipeline-config` (EquipmentTypeEditor) видны только RU-шаблоны, а на
+EN/CN-локалях фронт формирует названия карточек/заголовки по русским шаблонам. Запрос:
+перевести шаблоны EquipmentType на JSON-i18n и в перспективе отказаться от шаблонов в сериях.
+
+### Диагноз (проверено на боевой БД)
+
+- Механика резолва исправна: `TemplateMixin._resolve_template` берёт перевод из `_i18n`
+  **того же источника**, что и RU-шаблон (серия → EquipmentType → дефолт); приоритет
+  серии сохраняется.
+- Реальные пробелы были в данных EquipmentType: en/cn-переводы имели только title/list_title
+  у части типов и полный набор у `lsb`. **40 полей** (20 × en/cn) не имели переводов:
+  name/description/spec_title у ПП(3)/па-позиционера(4)/распределителей(7)/дублёров(10)/ФР(11);
+  name/description у fittings(9)/КВ(12)/fitting-thread-pipe(17)/заглушек(25); все 5 полей у
+  fitting-silencer(24); title/spec_title/list_title у монтажных комплектов mk-*(14–18).
+- Видимо на сайте: ПП — 4 из 5 серий **без собственных шаблонов** (фолбэк на ET 3 → RU на en/cn);
+  позиционеры/глушители прикрыты шаблонами серий (у серий переводы есть — 0 пропусков).
+- API-причина «вижу только русские»: `EquipmentTypeListSerializer` (`ai_assistant/api/views.py`,
+  эндпоинт `/api/ai-assistant/equipment-types/`, его использует редактор) не отдавал
+  `*_i18n`-поля. Сам `EquipmentType` JSON-i18n-поля имеет с Фазы 4 (6 полей + sync_ru в save).
+
+### Сделано
+
+1. **`translate_et_title_templates` расширен** на все 5 текстовых шаблонов
+   (name/description/title/spec_title/list_title; словарь `TEMPLATE_TRANSLATIONS`,
+   ключ — точный ru-шаблон, плейсхолдеры сохраняются; идемпотентно). Запущен на боевой:
+   переведено 40 полей, «без перевода» — нет. Покрытие i18n шаблонов EquipmentType — 100%.
+2. **Сериализатор** `EquipmentTypeListSerializer` (ai_assistant/api/views.py): добавлены
+   `name/description/title/spec_title/list_title_template_i18n` + `spec_template_i18n` —
+   GET отдаёт, PATCH принимает (round-trip проверен тест-клиентом, 200).
+3. **Редактор** `frontend/src/components/admin/EquipmentTypeEditor.vue`: переключатель
+   локали RU/EN/CN на вкладках шаблонов (name/description/title/spec); EN/CN пишутся в
+   `*_template_i18n` JSON, RU — в основное поле (синхронизируется в `_i18n.ru` на save);
+   `SpecTemplateEditor` переключён на локаль (ru → `spec_template`, en/cn →
+   `spec_template_i18n[locale]`); payload сохранения дополнен `_i18n`-полями.
+
+### Проверки
+
+- `manage.py check` чисто; тесты `test_localization` + `test_catalog_i18n` — 31/31 OK
+  (после обновления копии `test_db.sqlite3` — фейл sections у заглушек был на устаревшей копии).
+- `npm run build` зелёный.
+- Смоук: `PneumaticActuatorCatalogItem` без серии → `generate_name('en')`/`generate_title('en')`
+  отдают EN-шаблоны EquipmentType (раньше — RU); `/api/ai-assistant/equipment-types/` отдаёт
+  6 `*_i18n`-полей с переводами.
+
+### Осталось / решения на перспективу
+
+- **Отказ от шаблонов в сериях** (запрос пользователя) — не делался: данные серий
+  специфичны (GAS/2901 глушители и т.п.), механизм уже корректен. Для перехода нужно
+  перенести уникальные шаблоны серий в EquipmentType (обобщить) и очистить поля серий —
+  отдельная задача с ревизией данных; сейчас шаблоны серий просто имеют приоритет.
+- `{equipment_type}`-плейсхолдер (глушители/заглушки) резолвится в `EquipmentType.name`,
+  который **не локализован** (config-сущность, решение §2 п.9) → в EN-карточках может
+  остаться слово «Глушитель пневматический». Кандидат: добавить `name_i18n`/`description_i18n`
+  на EquipmentType (сейчас полей нет) — тогда резолв `equipment_type__name` локализуется
+  через `_get_target_i18n` автоматически.
+- Монтажные комплекты ET 14–18: переводы добавлены, но контента (карточек) почти нет.
+- Не закоммичено: команда, views.py, EquipmentTypeEditor.vue, db.sqlite3 (+ весь
+  некоммиченный хвост волн 1–2).
+
+### Продолжение §17 (2026-10-10) — name_i18n/description_i18n на EquipmentType
+
+По запросу пользователя: плейсхолдер `{equipment_type}` (глушители/заглушки) резолвился
+в нелокализованный `EquipmentType.name`.
+
+- **Модель** `core/models/equipment_type.py`: добавлены `name_i18n`/`description_i18n`
+  (JSONField default=dict) + sync ru в `save()` (паттерн остальных `*_i18n`).
+- **Миграция** `core/0025` — применена к боевой. `makemigrations --check` чисто.
+- **Команда** `core/management/commands/translate_equipment_type_names.py` (идемпотентная):
+  en/cn для 25 названий и 5 описаний ET. Запущена — покрытие 100%, пропусков нет.
+- **Механика работает без правок mixins**: `_get_target_i18n('equipment_type__name')` и
+  bare-FK `localized_name()` читают `name_i18n` автоматически.
+- **Сериализатор** `EquipmentTypeListSerializer` (ai_assistant/api/views.py): добавлены
+  `name_i18n`/`description_i18n` (GET/PATCH round-trip проверен).
+- **Проверки:** глушитель GA-6 `generate_name('en')` = «…Pneumatic silencer Artorq…»,
+  CN = «…气动消音器…» (раньше RU); 2901/заглушки — чисто; тесты 31/31; check чисто.
+
+**Остаток в той же строке (не этой задачей):** значения `{filter_element}` (напр.
+«сетчатый из спеченной бронзы») и `{shape}` («Конус») в EN-имени глушителя GA остаются
+ru — справочники фитингов без en/cn. Кандидат на следующий шаг: расширить
+`translate_reference_dicts`. Опечатка в данных: `mk-directional-valve-pa.description` —
+текст про БКВ (копия с mk-lsb-pa).
+
+### Продолжение §17 (2026-10-10, вторая часть) — админка переводов + защита ручных правок
+
+По запросу пользователя (защита от перезаписи ручных правок и управление переводами
+из админки):
+
+1. **Админка — глобальный блок «Переводы (ru/en/cn)»** (`djangoProject1/admin_site.py`):
+   патч `admin.ModelAdmin.get_fieldsets` — для любой модели с `*_i18n`-полями в конец
+   формы добавляется свёрнутый (collapse) fieldset со всеми такими полями (исключён
+   вычисляемый `display_i18n`). Покрывает 53 админ-класса и будущие модели автоматически.
+2. **Виджет** `core/admin_widgets.py::PrettyJSONWidget` + статика
+   `core/static/admin/{js,css}/i18n_json_field.*`: JSON с отступами (indent=2),
+   моноширинный, на всю ширину, многострочный; кнопка «Форматировать» и подсветка
+   валидности при потере фокуса. Подключается патчем `formfield_for_dbfield` ко ВСЕМ
+   `*_i18n` JSONField (кроме display_i18n).
+3. **Команды translate_* — защита ручных правок**: единая семантика «дозаполнять
+   только отсутствующие локали; `--force` — перезаписать»:
+   `translate_reference_dicts`, `translate_model_line_descriptions`,
+   `translate_exd_climate_descriptions`, `translate_media_names`,
+   `translate_material_texts` (data-fix AISl→AISI применяется всегда),
+   `translate_sensor_electrical_specs`, `translate_signal_roles_and_sensors`,
+   `translate_wizard_content`. (`translate_model_line_templates`/`translate_spec_templates`/
+   новые ET-команды уже так работали.)
+
+**Проверки:** check чисто; makemigrations --check чисто; тесты 31/31; рендер админки
+SilencerShape и EquipmentType — блок «Переводы» есть, 2/8 textarea с виджетом, JS/CSS
+подключены, JSON многострочный; эксперимент: ручная правка en выдерживает прогон
+`translate_reference_dicts` (0 строк), `--force` возвращает словарь (171 строка).
+
+**Замечания:** статику нужно `collectstatic` перед деплоем (в git — 3 новых файла).
+В `translate_model_line_descriptions.py` в процессе правки была временная дубликация
+класса — исправлена (ast-проверка пройдена).
+
+### Ревью-фиксы §17 (2026-10-10, после review)
+
+1. **F1 (дубли полей):** патч `get_fieldsets` теперь вычитает поля, уже показанные
+   в собственных fieldsets админки (6 админок с дублями — серии фитингов/ФР/gearbox).
+2. **F2:** защита `formfield is not None` в патче виджета.
+3. **F3 (инлайны):** патчи перенесены на `BaseModelAdmin.formfield_for_dbfield` и
+   `InlineModelAdmin.get_fieldsets` (импорт из `django.contrib.admin.options` — в Django
+   5.2 `InlineModelAdmin`/`BaseModelAdmin` не экспортируются из `django.contrib.admin`).
+4. **F4:** `EquipmentType.save()` — пустое описание не пишет `'ru': ''`, а чистит
+   устаревший ru-ключ.
+5. **F5 (тесты):** `core/tests/test_catalog_i18n.py` +4 теста
+   (`TranslateCommandFillMissingTests`, `AdminI18nFieldsetTests`) — 35/35.
+
+**Итог дня (2026-10-10):** check/makemigrations --check чисто; тесты 35/35;
+`npm run build` зелёный. Всё некоммичено (плюс хвост волн 1–2); перед деплоем —
+`collectstatic` (3 новых статических файла).
+
+
+

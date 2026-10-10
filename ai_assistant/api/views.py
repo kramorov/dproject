@@ -334,6 +334,10 @@ class EquipmentTypeListSerializer(serializers.ModelSerializer):
             "name_template", "description_template",
             "title_template", "spec_template",
             "spec_title_template", "list_title_template", "list_params",
+            "name_i18n", "description_i18n",
+            "name_template_i18n", "description_template_i18n",
+            "title_template_i18n", "spec_title_template_i18n",
+            "list_title_template_i18n", "spec_template_i18n",
             "param_semantics", "ai_title", "ai_description", "ai_placeholder",
             "ai_hints", "is_active",
         ]

@@ -121,7 +121,12 @@ def translate_name(name: str, lang: str):
 class Command(BaseCommand):
     help = 'Backfill en/cn phrase translations for media/cert names.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы (затирает ручные правки).')
+
     def handle(self, *args, **options):
+        force = options['force']
         total = 0
         for app_label, model_name in [('media_library', 'MediaLibraryItem'), ('cert_doc', 'CertData')]:
             Model = apps.get_model(app_label, model_name)
@@ -131,11 +136,15 @@ class Command(BaseCommand):
                 if not name.strip():
                     continue
                 i18n = dict(obj.name_i18n or {})
-                i18n['en'] = translate_name(name, 'en')
-                i18n['cn'] = translate_name(name, 'cn')
-                obj.name_i18n = i18n
-                obj.save(update_fields=['name_i18n'])
-                updated += 1
+                changed = False
+                for locale in ('en', 'cn'):
+                    if force or locale not in i18n:
+                        i18n[locale] = translate_name(name, locale)
+                        changed = True
+                if changed:
+                    obj.name_i18n = i18n
+                    obj.save(update_fields=['name_i18n'])
+                    updated += 1
             if updated:
                 total += updated
                 self.stdout.write(f'{app_label}.{model_name}: {updated}')

@@ -150,15 +150,20 @@ NAME_TRANSLATIONS = {
 class Command(BaseCommand):
     help = 'Backfill en/cn translations for Exd/Climate reference names and descriptions.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы из словаря (затирает ручные правки).')
+
     def handle(self, *args, **options):
+        force = options['force']
         total = 0
         for label, trans in TRANSLATIONS.items():
-            total += self._apply_translations(label, trans, 'description_i18n')
+            total += self._apply_translations(label, trans, 'description_i18n', force)
         for label, trans in NAME_TRANSLATIONS.items():
-            total += self._apply_translations(label, trans, 'name_i18n')
+            total += self._apply_translations(label, trans, 'name_i18n', force)
         self.stdout.write(self.style.SUCCESS(f'Done. Translated rows: {total}'))
 
-    def _apply_translations(self, label, trans, field):
+    def _apply_translations(self, label, trans, field, force=False):
         app_label, model_name = label.split('.', 1)
         Model = apps.get_model(app_label, model_name)
         updated = 0
@@ -168,11 +173,15 @@ class Command(BaseCommand):
                 continue
             en, cn = trans[code]
             i18n = dict(getattr(obj, field, None) or {})
-            i18n['en'] = en
-            i18n['cn'] = cn
-            setattr(obj, field, i18n)
-            obj.save(update_fields=[field])
-            updated += 1
+            changed = False
+            for locale, value in (('en', en), ('cn', cn)):
+                if force or locale not in i18n:
+                    i18n[locale] = value
+                    changed = True
+            if changed:
+                setattr(obj, field, i18n)
+                obj.save(update_fields=[field])
+                updated += 1
         if updated:
             self.stdout.write(f'{label} ({field}): {updated}')
         return updated

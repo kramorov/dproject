@@ -114,6 +114,21 @@ class EquipmentType(BaseAbstractModel):
         )
     )
 
+    # ── Локализованные название/описание (ru/en/cn) — расширение RU-полей ──
+    # name/description — имена классификатора; раньше считались конфигурационными (не переводились),
+    # но плейсхолдер {equipment_type} подставляет name в шаблоны карточек (глушители/заглушки),
+    # поэтому name теперь локализуется (2026-10-10, SESSION.md §17).
+    name_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы названия (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с name.'),
+    )
+    description_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы описания (ru/en/cn)"),
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с description.'),
+    )
+
     # ── Локализованные шаблоны (ru/en/cn) — расширение RU-полей ──
     name_template_i18n = models.JSONField(
         default=dict, blank=True,
@@ -252,6 +267,12 @@ class EquipmentType(BaseAbstractModel):
         else:
             self.level = 0
         # Локализация (Фаза 4): синхронизация RU-значений в _i18n
+        self.name_i18n = sync_ru(self.name_i18n, self.name)
+        if self.description:
+            self.description_i18n = sync_ru(self.description_i18n, self.description)
+        elif isinstance(self.description_i18n, dict) and 'ru' in self.description_i18n:
+            # описание очищено — убрать устаревший ru-ключ
+            self.description_i18n = {k: v for k, v in self.description_i18n.items() if k != 'ru'}
         self.name_template_i18n = sync_ru(self.name_template_i18n, self.name_template)
         self.description_template_i18n = sync_ru(self.description_template_i18n, self.description_template)
         self.title_template_i18n = sync_ru(self.title_template_i18n, self.title_template)

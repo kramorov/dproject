@@ -80,7 +80,12 @@ SENSOR_VARIETY_TEMPLATES = {
 class Command(BaseCommand):
     help = 'Backfill en/cn translations for signal roles and sensor description templates.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы (затирает ручные правки).')
+
     def handle(self, *args, **options):
+        force = options['force']
         total = 0
 
         # 1. Роли сигналов → name_i18n
@@ -91,11 +96,15 @@ class Command(BaseCommand):
                 continue
             en, cn = SIGNAL_ROLES[obj.code]
             i18n = dict(obj.name_i18n or {})
-            i18n['en'] = en
-            i18n['cn'] = cn
-            obj.name_i18n = i18n
-            obj.save(update_fields=['name_i18n'])
-            updated += 1
+            changed = False
+            for locale, value in (('en', en), ('cn', cn)):
+                if force or locale not in i18n:
+                    i18n[locale] = value
+                    changed = True
+            if changed:
+                obj.name_i18n = i18n
+                obj.save(update_fields=['name_i18n'])
+                updated += 1
         if updated:
             total += updated
             self.stdout.write(f'params.SignalRole: {updated}')
@@ -108,13 +117,20 @@ class Command(BaseCommand):
             if not spec:
                 continue
             name_i18n = dict(obj.name_template_i18n or {})
-            name_i18n['en'], name_i18n['cn'] = spec['name']
-            obj.name_template_i18n = name_i18n
             desc_i18n = dict(obj.description_template_i18n or {})
-            desc_i18n['en'], desc_i18n['cn'] = spec['description']
-            obj.description_template_i18n = desc_i18n
-            obj.save(update_fields=['name_template_i18n', 'description_template_i18n'])
-            updated += 1
+            changed = False
+            for locale in ('en', 'cn'):
+                if force or locale not in name_i18n:
+                    name_i18n[locale] = spec['name'][0 if locale == 'en' else 1]
+                    changed = True
+                if force or locale not in desc_i18n:
+                    desc_i18n[locale] = spec['description'][0 if locale == 'en' else 1]
+                    changed = True
+            if changed:
+                obj.name_template_i18n = name_i18n
+                obj.description_template_i18n = desc_i18n
+                obj.save(update_fields=['name_template_i18n', 'description_template_i18n'])
+                updated += 1
         if updated:
             total += updated
             self.stdout.write(f'pa_controls.LimitSwitchSensorVariety: {updated}')

@@ -50,14 +50,14 @@ class _BaseFittingItemAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
 class PneumaticFittingAdmin(_BaseFittingItemAdmin):
     form = PneumaticFittingForm
     list_display = [
-        'name', 'code', 'equipment_type', 'model_line__brand', 'image_gallery',
-        'pipe_diameter', 'thread', 'thread_inner_outer', 'sorting_order', 'is_active'
+        'name', 'code', 'model_line', 'model_line__brand',
+        'pipe_diameter', 'thread', 'sorting_order', 'is_active'
     ]
     list_editable = ['code', 'pipe_diameter', 'thread', 'sorting_order', 'is_active']
     list_filter = [
-        'equipment_type', 'model_line__brand', 'model_line__code',
+        'model_line', 'model_line__brand', 'model_line__code',
         'model_line__shape', 'model_line__fixation_method',
-        'body_material', 'pipe_material', 'pipe_diameter', 'thread', 'thread_inner_outer'
+        'body_material', 'pipe_material', 'pipe_diameter', 'thread'
     ]
 
     fieldsets = (
@@ -87,8 +87,8 @@ class PneumaticFittingAdmin(_BaseFittingItemAdmin):
 @admin.register(PneumaticSilencer)
 class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
     list_filter = [
-        'equipment_type', 'model_line__brand', 'model_line__code',
-        'body_material', 'thread', 'thread_inner_outer'
+        'model_line', 'model_line__brand', 'model_line__code',
+        'body_material', 'thread'
     ]
 
     fieldsets = (
@@ -119,7 +119,7 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
 @admin.register(PneumaticPlug)
 class PneumaticPlugAdmin(_BaseFittingItemAdmin):
     list_filter = [
-        'equipment_type', 'model_line__brand', 'model_line__code',
+        'model_line',  'model_line__brand',
         'body_material', 'thread', 'thread_inner_outer'
     ]
 

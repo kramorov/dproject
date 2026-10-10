@@ -74,7 +74,12 @@ VARIETY_DESCRIPTIONS = {
 class Command(BaseCommand):
     help = 'Backfill en/cn for wizard node questions and sensor variety descriptions.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы (затирает ручные правки).')
+
     def handle(self, *args, **options):
+        force = options['force']
         total = 0
 
         # 1. Узлы графа → *_i18n
@@ -89,7 +94,7 @@ class Command(BaseCommand):
                     continue
                 for field in ('question', 'description', 'title', 'name'):
                     val = node.get(field)
-                    if val and not node.get(field + '_i18n'):
+                    if val and (force or not node.get(field + '_i18n')):
                         en, cn = TEXT_TRANSLATIONS.get(val, (None, None))
                         if en:
                             node[field + '_i18n'] = {'ru': val, 'en': en, 'cn': cn}
@@ -98,7 +103,7 @@ class Command(BaseCommand):
                     if not isinstance(p, dict):
                         continue
                     val = p.get('title')
-                    if val and not p.get('title_i18n'):
+                    if val and (force or not p.get('title_i18n')):
                         en, cn = TEXT_TRANSLATIONS.get(val, (None, None))
                         if en:
                             p['title_i18n'] = {'ru': val, 'en': en, 'cn': cn}
@@ -119,11 +124,15 @@ class Command(BaseCommand):
                 continue
             en, cn = VARIETY_DESCRIPTIONS[v.code]
             i18n = dict(v.description_i18n or {})
-            i18n['en'] = en
-            i18n['cn'] = cn
-            v.description_i18n = i18n
-            v.save(update_fields=['description_i18n'])
-            updated += 1
+            changed = False
+            for locale, value in (('en', en), ('cn', cn)):
+                if force or locale not in i18n:
+                    i18n[locale] = value
+                    changed = True
+            if changed:
+                v.description_i18n = i18n
+                v.save(update_fields=['description_i18n'])
+                updated += 1
         if updated:
             total += updated
             self.stdout.write(f'LimitSwitchSensorVariety: {updated}')

@@ -5,7 +5,8 @@
 размеры, "Ex db", "IP67", "NPT", "M", "У1", "T1", "3/2" и т.п.) — НЕ переводятся:
 для них локаль вернёт RU-значение (fallback в pick_i18n).
 
-Идемпотентна: повторный запуск просто перезаписывает en/cn.
+Идемпотентна: по умолчанию заполняет только ОТСУТСТВУЮЩИЕ локали (ручные правки
+в админке не перезаписываются). ``--force`` — перезаписать en/cn из словаря.
 """
 from django.core.management.base import BaseCommand
 from django.apps import apps
@@ -251,7 +252,12 @@ TRANSLATIONS = {
 class Command(BaseCommand):
     help = 'Backfill en/cn translations for descriptive reference names.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы из словаря (затирает ручные правки).')
+
     def handle(self, *args, **options):
+        force = options['force']
         total = 0
         for label, trans in TRANSLATIONS.items():
             app_label, model_name = label.split('.', 1)
@@ -261,11 +267,15 @@ class Command(BaseCommand):
                 if obj.name in trans:
                     en, cn = trans[obj.name]
                     i18n = dict(obj.name_i18n or {})
-                    i18n['en'] = en
-                    i18n['cn'] = cn
-                    obj.name_i18n = i18n
-                    obj.save(update_fields=['name_i18n'])
-                    updated += 1
+                    changed = False
+                    for locale, value in (('en', en), ('cn', cn)):
+                        if force or locale not in i18n:
+                            i18n[locale] = value
+                            changed = True
+                    if changed:
+                        obj.name_i18n = i18n
+                        obj.save(update_fields=['name_i18n'])
+                        updated += 1
             if updated:
                 total += updated
                 self.stdout.write(f'{label}: {updated}')

@@ -36,7 +36,12 @@ TRANSLATIONS = {
 class Command(BaseCommand):
     help = 'Backfill en/cn translations for SensorComponent.electrical_specs.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Перезаписать существующие переводы (затирает ручные правки).')
+
     def handle(self, *args, **options):
+        force = options['force']
         Sensor = apps.get_model('pa_controls', 'SensorComponent')
         updated = 0
         for obj in Sensor.objects.all():
@@ -48,10 +53,14 @@ class Command(BaseCommand):
                 en = localize_service_word(ru, 'en')
                 cn = localize_service_word(ru, 'cn')
             i18n = dict(obj.electrical_specs_i18n or {})
-            i18n['en'] = en
-            i18n['cn'] = cn
-            obj.electrical_specs_i18n = i18n
-            obj.save(update_fields=['electrical_specs_i18n'])
-            updated += 1
+            changed = False
+            for locale, value in (('en', en), ('cn', cn)):
+                if force or locale not in i18n:
+                    i18n[locale] = value
+                    changed = True
+            if changed:
+                obj.electrical_specs_i18n = i18n
+                obj.save(update_fields=['electrical_specs_i18n'])
+                updated += 1
 
         self.stdout.write(self.style.SUCCESS(f'Translated sensors: {updated}'))
