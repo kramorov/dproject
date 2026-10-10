@@ -82,7 +82,16 @@
 - [x] `SKUMixin.sync_sku()` → `(code, brand)`
 - [x] цены по `sku_id`
 - [x] команда генерации карточек (`generate_pa_cards`)
-- [ ] переименовать `PneumaticActuatorItem` → `PneumaticActuatorCatalogItem` (+ миграция, строки-ссылки)
-- [ ] поле `origin` (`generated` / `manual`) на карточке; генератор не трогает `manual`
-- [ ] дедуп конфигуратора по `config_hash` (сейчас по `code`)
-- [ ] снэпшот документа при `POSTED`
+- [x] переименование `PneumaticActuatorItem` → `PneumaticActuatorCatalogItem` (ссылок на старое имя нет)
+- [x] поле `origin` (`generated` / `manual`) на карточке; генератор не трогает `manual`
+- [x] дедуп конфигуратора по `config_hash` (`sku_service.get_or_create_sku`)
+- [x] снэпшот цен при проведении документа (`PriceDocument.register_changes` → `PriceHistory`)
+- [x] валидация генерации: AIR-S (141 карточка + SKU, 0 ошибок); dry-run полного прогона = 5999 карточек
+- [ ] полный прогон генерации (5999 карточек + ~6к SKU) — не запускался
+- [ ] переводы опций ПП (напр. `PneumaticTemperatureOption` «LT … (Опция)») — остаются ru в en/cn-именах
+
+Примечание (2026-10-10): в шаблонах EquipmentType «Пневмопривод» плейсхолдер был
+`{variety}` (несуществующий в реестре ПП) → исправлен на `{variety_name}` (RU + en/cn,
+5 полей); словарь `translate_et_title_templates` синхронизирован. В БД есть 2 «сиротских»
+SKU (`AIR.SY`, `AIR03-SYM125-S1-S3.fl`) с source на несуществующие карточки 1/8 — остатки
+более ранней генерации, не трогались.
