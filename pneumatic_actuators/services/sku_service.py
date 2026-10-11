@@ -38,6 +38,7 @@ _FIELD_BY_KEY = {
     'ip': 'selected_ip',
     'exd': 'selected_exd',
     'body_coating': 'selected_body_coating',
+    'body_color': 'selected_body_color',
     'manual_override': 'selected_manual_override',
 }
 
@@ -49,6 +50,7 @@ _MODEL_BY_KEY = {
     'ip': 'params.IpOption',
     'exd': 'params.ExdOption',
     'body_coating': 'pneumatic_actuators.PneumaticBodyDesignOption',
+    'body_color': 'pneumatic_actuators.PneumaticBodyColorOption',
     'manual_override': 'params.HandWheelInstalledOption',
 }
 

@@ -10,6 +10,7 @@ from pneumatic_actuators.models.pa_options import (
     PneumaticIpOption,
     PneumaticExdOption,
     PneumaticBodyDesignOption,
+    PneumaticBodyColorOption,
 )
 
 
@@ -18,7 +19,7 @@ class PneumaticTemperatureOptionInline(admin.TabularInline) :
     model = PneumaticTemperatureOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['encoding' , 'work_temp_min' , 'work_temp_max' , 'is_default' , 'is_active' , 'sorting_order']
+    fields = ['encoding' , 'ext_encoding' , 'work_temp_min' , 'work_temp_max' , 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Температурная опция")
     verbose_name_plural = _("Температурные опции")
 
@@ -28,7 +29,7 @@ class PneumaticIpOptionInline(admin.TabularInline) :
     model = PneumaticIpOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['ip_option' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    fields = ['ip_option' , 'encoding' , 'ext_encoding' , 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("IP опция")
     verbose_name_plural = _("IP опции")
 
@@ -48,9 +49,19 @@ class PneumaticBodyDesignOptionInline(admin.TabularInline) :
     model = PneumaticBodyDesignOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['body_material' , 'body_coating' , 'body_color' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    fields = ['body_material' , 'body_coating' , 'body_coating_option' , 'encoding' , 'ext_encoding' , 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Исполнение корпуса")
     verbose_name_plural = _("Исполнения корпуса")
+
+
+class PneumaticBodyColorOptionInline(admin.TabularInline) :
+    """Inline для цветов корпуса"""
+    model = PneumaticBodyColorOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['color_option' , 'encoding' , 'ext_encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Цвет корпуса")
+    verbose_name_plural = _("Цвета корпуса")
 
 
 @admin.register(PneumaticActuatorModelLine)
@@ -105,13 +116,14 @@ class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
         PneumaticIpOptionInline ,
         PneumaticExdOptionInline ,
         PneumaticBodyDesignOptionInline,
+        PneumaticBodyColorOptionInline,
     ]
 
     fieldsets = (
         (_('Основная информация') , {
             'fields' : (
                 ('name' , 'code' , 'brand' , 'equipment_type',
-                'pneumatic_actuator_construction_variety'), 'model_item_code_template',
+                'pneumatic_actuator_construction_variety'), 'model_item_code_template', 'ext_encoding_template',
                 ('name_template', 'description_template'), 'spec_template', 'description'
             )
         }) ,
@@ -137,6 +149,7 @@ class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
             'ip_options' ,
             'exd_options' ,
             'body_design_options' ,
+            'body_color_options' ,
         )
 
     def temperature_range_display(self , obj) :
@@ -174,7 +187,8 @@ class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
     def save_formset(self , request , form , formset , change) :
         """Упрощенное сохранение с проверкой после записи"""
         if formset.model in [PneumaticTemperatureOption , PneumaticIpOption ,
-                             PneumaticExdOption , PneumaticBodyDesignOption] :
+                             PneumaticExdOption , PneumaticBodyDesignOption ,
+                             PneumaticBodyColorOption] :
 
             # 1. Сначала сохраняем все объекты
             instances = formset.save(commit=False)

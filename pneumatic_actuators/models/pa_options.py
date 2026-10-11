@@ -5,10 +5,11 @@ from typing import List, Optional, Tuple, Any, Dict, Union
 
 from options.models import BaseTemperatureThroughOption, BaseThroughOption, \
     BaseIpThroughOption, BasePneumaticConnectionThroughOption, BaseSafetyPositionThroughOption, \
-    BaseSpringsQtyThroughOption, BaseHandWheelThroughOption, BaseM2MExdThroughOption
+    BaseSpringsQtyThroughOption, BaseHandWheelThroughOption, BaseM2MExdThroughOption, \
+    BaseColorThroughOption
 from params.models import IpOption
 from materials.models import MaterialGeneral
-from core.utils.localization import localized_name
+from core.utils.localization import localized_name, pick_i18n
 
 
 class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
@@ -276,7 +277,7 @@ class PneumaticExdOption(BaseM2MExdThroughOption):
         ]
 
 class PneumaticBodyDesignOption(BaseThroughOption):
-    """Исполнение корпуса (материал/покрытие/цвет) для пневмоприводов"""
+    """Исполнение корпуса (материал/покрытие) для пневмоприводов"""
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
@@ -290,8 +291,8 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         related_name='pa_body_design_materials',
         verbose_name=_("Материал корпуса")
     )
-    body_coating = models.CharField(
-        max_length=250,
+    body_coating = models.JSONField(
+        default=dict,
         blank=True,
         verbose_name=_("Покрытие корпуса")
     )
@@ -301,13 +302,6 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         null=True, blank=True,
         related_name='pa_body_design_coatings',
         verbose_name=_("Опция покрытия корпуса (справочник)")
-    )
-    body_color = models.ForeignKey(
-        'params.BodyColor',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='pa_body_design_colors',
-        verbose_name=_("Цвет корпуса")
     )
 
     class Meta:
@@ -337,9 +331,9 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         return cls.objects.create(
             **{parent_field : parent_obj} ,
             body_material=None ,
-            body_coating=std_coating.name if std_coating else '' ,
+            body_coating=(dict(std_coating.name_i18n) if std_coating and std_coating.name_i18n
+                          else ({'ru': std_coating.name} if std_coating else {})) ,
             body_coating_option=std_coating ,
-            body_color=None ,
             encoding=std_coating.code if std_coating else '' ,
             description='Стандартное исполнение корпуса' ,
             is_default=True ,
@@ -351,11 +345,14 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         parts = []
         if self.body_material :
             parts.append(localized_name(self.body_material, locale))
-        coating = localized_name(self.body_coating_option, locale) if self.body_coating_option else (self.body_coating or '')
+        if self.body_coating :
+            coating = pick_i18n(self.body_coating, locale) or ''
+        elif self.body_coating_option :
+            coating = localized_name(self.body_coating_option, locale)
+        else :
+            coating = ''
         if coating :
             parts.append(coating)
-        if self.body_color :
-            parts.append(localized_name(self.body_color, locale))
         base = ', '.join(parts) if parts else 'Не указано'
         if self.encoding and self.encoding.strip() :
             base = f"{self.encoding} ({base})"
@@ -389,6 +386,59 @@ class PneumaticBodyDesignOption(BaseThroughOption):
                 pass
 
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
+
+
+class PneumaticBodyColorOption(BaseColorThroughOption):
+    """Цвет корпуса для пневмоприводов (отдельная through-опция)"""
+    model_line = models.ForeignKey(
+        'PneumaticActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='body_color_options',
+        verbose_name=_("Серия пневмоприводов")
+    )
+
+    class Meta:
+        verbose_name = _("Цвет корпуса пневмопривода")
+        verbose_name_plural = _("Цвета корпуса пневмоприводов")
+        ordering = ['is_default', 'sorting_order']
+        unique_together = ['model_line', 'encoding']
+
+    @classmethod
+    def _get_parent_field_name(cls) -> Optional[str]:
+        return 'model_line'
+
+    @classmethod
+    def create_default_option(cls, parent_obj):
+        """Создать стандартный цвет (по умолчанию из справочника BodyColor)."""
+        from django.apps import apps
+        BodyColor = apps.get_model('params', 'BodyColor')
+        std_color = BodyColor.objects.filter(code='STD', is_active=True).first() or \
+            BodyColor.objects.filter(is_active=True).first()
+        if not std_color:
+            return None
+        parent_field = cls._get_parent_field_name()
+        return cls.objects.create(
+            **{parent_field: parent_obj},
+            color_option=std_color,
+            encoding='',
+            description='Стандартный цвет корпуса',
+            is_default=True,
+            sorting_order=0,
+            is_active=True
+        )
+
+    @classmethod
+    def get_for_select(cls, model_line_id: Optional[int] = None,
+                       model_line_item_id: Optional[int] = None,
+                       active_only: bool = True) -> List[Dict]:
+        """Получить опции цвета корпуса."""
+        queryset = cls.objects.all()
+        if active_only:
+            queryset = queryset.filter(is_active=True)
+        if model_line_id:
+            queryset = queryset.filter(model_line_id=model_line_id)
+        return [{'id': obj.id, 'name': str(obj), 'code': obj.encoding} for obj in queryset]
+
 
 class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""

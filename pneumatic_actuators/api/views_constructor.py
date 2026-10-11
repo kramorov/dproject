@@ -51,6 +51,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_ip',
             'selected_exd',
             'selected_body_coating',
+            'selected_body_color',
             'selected_manual_override',
         )
 
@@ -76,6 +77,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             selected_ip_id=request.data.get('selected_ip'),
             selected_exd_id=request.data.get('selected_exd'),
             selected_body_coating_id=request.data.get('selected_body_coating'),
+            selected_body_color_id=request.data.get('selected_body_color'),
             selected_manual_override_id=request.data.get('selected_manual_override'),
             sorting_order=request.data.get('sorting_order', 0),
             is_active=request.data.get('is_active', True),
@@ -108,6 +110,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'ip': obj.selected_ip_id,
             'exd': obj.selected_exd_id,
             'body_coating': obj.selected_body_coating_id,
+            'body_color': obj.selected_body_color_id,
             'manual_override': obj.selected_manual_override_id,
         }
         try:
@@ -148,6 +151,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
                 selected_ip=obj.selected_ip,
                 selected_exd=obj.selected_exd,
                 selected_body_coating=obj.selected_body_coating,
+                selected_body_color=obj.selected_body_color,
                 selected_manual_override=obj.selected_manual_override,
                 is_active=True,
             ).first()
@@ -166,7 +170,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_model_line', 'selected_model_line_item',
             'selected_safety_position', 'selected_springs_qty',
             'selected_temperature', 'selected_ip', 'selected_exd',
-            'selected_body_coating', 'selected_manual_override',
+            'selected_body_coating', 'selected_body_color', 'selected_manual_override',
         ]:
             value = request.data.get(field)
             if value is not None:
@@ -339,6 +343,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_ip': _fk_dict(obj.selected_ip),
             'selected_exd': _fk_dict(obj.selected_exd),
             'selected_body_coating': _fk_dict(obj.selected_body_coating),
+            'selected_body_color': _fk_dict(obj.selected_body_color),
             'selected_manual_override': _fk_dict(obj.selected_manual_override),
             'work_temp_min': obj.work_temp_min,
             'work_temp_max': obj.work_temp_max,

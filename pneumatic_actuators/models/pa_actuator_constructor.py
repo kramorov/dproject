@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from pneumatic_actuators.models import PneumaticActuatorModelLineItem, PneumaticCloseTimeParameter
-from core.utils.localization import localized_name
+from core.utils.localization import localized_name, pick_i18n
 from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE, ACTUATOR_VARIETY_RP_DEFAULT_CODE
 
 class PneumaticActuatorConstructor(models.Model):
@@ -136,7 +136,15 @@ class PneumaticActuatorConstructor(models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True,
         verbose_name=_("Исполнение корпуса"),
-        help_text=_('Выбранное исполнение корпуса (материал/покрытие/цвет)')
+        help_text=_('Выбранное исполнение корпуса (материал/покрытие)')
+    )
+
+    selected_body_color = models.ForeignKey(
+        'PneumaticBodyColorOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Цвет корпуса"),
+        help_text=_('Выбранный цвет корпуса')
     )
 
     selected_manual_override = models.ForeignKey(
@@ -186,6 +194,12 @@ class PneumaticActuatorConstructor(models.Model):
             'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption',
             'through_attr': None,  # PneumaticBodyDesignOption САМА является опцией
             'label': 'исполнение корпуса',
+            'parent_field': 'model_line',
+        },
+        'selected_body_color': {
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyColorOption',
+            'through_attr': None,  # PneumaticBodyColorOption САМА является опцией
+            'label': 'цвет корпуса',
             'parent_field': 'model_line',
         },
         'selected_manual_override': {
@@ -1284,6 +1298,11 @@ class PneumaticActuatorConstructor(models.Model):
         """Человекочитаемое название покрытия корпуса."""
         return str(self.selected_body_coating) if self.selected_body_coating else "-"
 
+    @property
+    def body_color_display(self):
+        """Человекочитаемое название цвета корпуса."""
+        return str(self.selected_body_color) if self.selected_body_color else "-"
+
     # ==================== GET AVAILABLE OPTIONS ====================
 
     def get_available_options(self, locale=None) -> Dict[str, List[Dict]]:
@@ -1296,7 +1315,8 @@ class PneumaticActuatorConstructor(models.Model):
         from pneumatic_actuators.models.pa_options import (
             PneumaticSafetyPositionOption, PneumaticSpringsQtyOption,
             PneumaticTemperatureOption, PneumaticIpOption,
-            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticManualOverrideOption
+            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticBodyColorOption,
+            PneumaticManualOverrideOption
         )
 
         if not self.selected_model_line_item:
@@ -1397,23 +1417,42 @@ class PneumaticActuatorConstructor(models.Model):
 
             coating_through = PneumaticBodyDesignOption.objects.filter(
                 model_line=ml, is_active=True
-            ).select_related('body_material', 'body_color', 'body_coating_option')
+            ).select_related('body_material', 'body_coating_option')
             result['body_coating_options'] = [
                 {
                     'id': opt.id,
                     'option_id': opt.id,
                     'encoding': opt.encoding,
                     'material': localized_name(opt.body_material, locale) if opt.body_material else '',
-                    'coating': localized_name(opt.body_coating_option, locale) if opt.body_coating_option else (opt.body_coating or ''),
+                    'coating': pick_i18n(opt.body_coating, locale) if opt.body_coating
+                        else (localized_name(opt.body_coating_option, locale) if opt.body_coating_option else ''),
                     'name': ', '.join(filter(None, [
                         localized_name(opt.body_material, locale) if opt.body_material else '',
-                        (localized_name(opt.body_coating_option, locale) if opt.body_coating_option else (opt.body_coating or '')),
+                        pick_i18n(opt.body_coating, locale) if opt.body_coating
+                            else (localized_name(opt.body_coating_option, locale) if opt.body_coating_option else ''),
                     ])) or 'Не указано',
                     'code': opt.encoding or '',
                     'description': opt.description,
                     'is_default': opt.is_default,
                 }
                 for opt in coating_through
+            ]
+
+            color_through = PneumaticBodyColorOption.objects.filter(
+                model_line=ml, is_active=True
+            ).select_related('color_option')
+            result['body_color_options'] = [
+                {
+                    'id': opt.id,
+                    'option_id': opt.id,
+                    'encoding': opt.encoding,
+                    'name': localized_name(opt.color_option, locale) if opt.color_option else 'Не указано',
+                    'code': opt.color_option.code if opt.color_option else '',
+                    'hex_code': opt.color_option.hex_code if opt.color_option else '',
+                    'description': opt.description,
+                    'is_default': opt.is_default,
+                }
+                for opt in color_through
             ]
 
             hw_through = PneumaticManualOverrideOption.objects.filter(
@@ -1475,6 +1514,7 @@ class PneumaticActuatorConstructor(models.Model):
             selected_ip=self.selected_ip,
             selected_exd=self.selected_exd,
             selected_body_coating=self.selected_body_coating,
+            selected_body_color=self.selected_body_color,
             selected_manual_override=self.selected_manual_override,
             sorting_order=self.sorting_order,
             is_active=self.is_active,

@@ -1036,6 +1036,151 @@ SilencerShape и EquipmentType — блок «Переводы» есть, 2/8 t
 7. **Переводы опций ПП** (пункт выше) — сделать перед «публикацией» EN/CN-каталога,
    не блокирует генерацию карточек.
 
+---
+
+## 19. Сессия 2026-10-11 — ext_encoding + ext-шаблон артикула + локализация названий опций
+
+Задача пользователя: у разных производителей артикул кодируется по-своему, и не все
+опции в него входят. Для однозначного кодирования через-опции получают `ext_encoding`,
+серии — `ext_encoding_template`; полный артикул = render(основного шаблона) + « » +
+render(ext-шаблона). Названия опций через-моделей — на JSON-локализацию (`name_i18n`,
+это было в §18 п.7). Порядок работ: сначала пневмоприводы (ПП), затем электроприводы (ЭП).
+
+### ЭТАП A — схема — СДЕЛАНО (2026-10-11)
+
+1. **`ext_encoding` в абстрактной базе** `options/exd.py::BaseThroughOptionNoDefault`
+   (CharField max_length=50, blank; help: расширенный код для ext-части артикула,
+   пусто — не участвует). Миграции применены к боевой БД: cable_glands/0023 (3 модели),
+   electric_actuators/0046 (17), options/0003 (1), pa_controls/0079 (7),
+   pneumatic_actuators/0058 (7), solenoid_valves/0027 (1). Всего 39 through-моделей.
+2. **`ext_encoding_template`** — `PneumaticActuatorModelLine`
+   (CharField max_length=500, blank/null; рядом с model_item_code_template),
+   миграция pneumatic_actuators/0059. Поле добавлено в fieldsets админки серии ПП.
+3. **Админки (inline):** `ext_encoding` добавлен в поля inline-форм ПП:
+   температура/IP/корпус (pa_model_line_admin), safety/springs/manual override
+   (pa_model_line_item_admin), Exd — в общий `options/admin.py::BaseExdOptionInline`
+   (работает для ПП/ЭП/КВ/распределителей).
+4. **Данные** (ext_encoding опций, ext_encoding_template 5 серий ПП) — заполняет
+   пользователь сам.
+5. Проверки: `makemigrations --check` — чисто; тестовая копия `test_db.sqlite3`
+   обновлена из боевой (.backup).
+
+### ЭТАП A.1 — раскол «Цвет корпуса» (СДЕЛАНО 2026-10-11)
+
+По запросу пользователя цвет вынесен из «Исполнения корпуса» в отдельную
+through-опцию:
+
+- **Новая модель** `PneumaticBodyColorOption(BaseColorThroughOption)`
+  (pa_options.py): FK color_option → params.BodyColor, model_line, unique
+  (model_line, encoding); свой create_default_option (encoding='').
+- **Убрано поле body_color** из `PneumaticBodyDesignOption` (миграция 0060:
+  CreateModel + AddField selected_body_color на item/constructor/selected +
+  RunPython-перенос данных + RemoveField). Перенесено 5 строк (по одному цвету
+  на серию: 9006/gentian-blue), все is_default=True, encoding=''.
+- **Catalog item:** FK selected_body_color + config_hash_fields + `_OPTION_CONFIG`
+  + свойство `body_color_encoding`; реестр pa_item_fields: `{body_color}`
+  (code_path), body_color_ral/name — пути через selected_body_color.
+- **Конструктор/Selected:** FK + _OPTION_CONFIG + display + get_available_options
+  (`body_color_options`), дубликаты/шаблоны {body_color}; API views_constructor —
+  проброс поля; sku_service — ключ 'body_color'.
+- **Генератор** `_iter_combos` — цвет отдельной размерностью (dry-run: 5999,
+  0 ошибок).
+- **Админка:** inline «Цвета корпуса» на серии ПП; body_color убран из inline
+  исполнений; ensure_all_default_options_exist создаёт цвет по умолчанию.
+- **Фронт:** pa-constructor App.vue — селект «Цвет корпуса» + payload/SKU-ключ.
+- Проверки: manage.py check чисто; смоук get_available_options (цвет + hex),
+  _get_code_data_dict содержит {body_color}; npm run build зелёный.
+- **Известное:** у существующих 141 карточки AIR-S selected_body_color=NULL
+  (созданы до раскола) — заполнится при перегенерации; в сохранённых именах
+  цвет ещё упоминается через старый str(исполнения) — обновится при
+  перегенерации, в шаблонах для цвета добавить {body_color} (данные).
+
+### ЭТАП A.2 — body_coating → JSON + аудит текстовых полей через-моделей (СДЕЛАНО 2026-10-11)
+
+По запросу пользователя «Покрытие корпуса» (PneumaticBodyDesignOption.body_coating)
+стало JSONField со стандартом локалей:
+
+- **Модель:** CharField(250) → JSONField(default=dict, blank). Миграция 0061 с
+  RunPython-конвертацией (сырой SQL — в историческом состоянии поле ещё CharField):
+  'Нет покрытия'→{ru,en:No coating,cn:无涂层}, 'Эпоксидная смола'→{...,en:Epoxy
+  resin,cn:环氧树脂}, 'Защитное покрытие'→{...,en:Protective coating,cn:保护涂层},
+  PTFE→PTFE. 11 строк сконвертировано.
+- **Отображение:** get_display_name/`localized_name` — pick_i18n(body_coating, locale)
+  → fallback на справочник body_coating_option; конструктор get_available_options
+  'coating'/'name'; item — новый resolver `_res_body_coating(locale)` в реестре
+  ('coating'/'body_coating' вместо path — иначе dict попадал в vars).
+- Проверки: check/makemigrations --check чисто; смоук ru/en/cn display_name,
+  constructor en options, _res_body_coating; test_db обновлён.
+- Служебные «(Опция)»/«(Стандарт)» — остались ru (этап C).
+
+**Аудит текстовых полей через-моделей (по типам оборудования):**
+
+1. **ПП** — сделано: body_coating JSON.
+2. **ЭП** — `ElectricBodyCoatingOption.body_coating` (CharField 250, из общего
+   BaseBodyCoatingThroughOption) — тот же паттерн, перевести на JSON на этапе ЭП
+   (с миграцией данных: значения те же — «Нет покрытия»/«Эпоксидная смола»/…).
+3. **Позиционеры (pa_controls)** — `PosiSignalProfileOption.name` (CharField 200) —
+   собственное имя в через-модели; кандидат на name_i18n/JSON (этап C).
+4. **Общее для всех** — `description` (TextField на BaseThroughOptionNoDefault) —
+   ru-описания опций, отдаются в get_option_info/конструкторе; кандидат на
+   description_i18n (этап C).
+5. **КВ / распределители / БКВ** — через-модели содержат только FK/encoding/числа,
+   текстовых полей нет. `exd_availability` (posi) — служебное (choices), не локализуется.
+
+### ЭТАП B — генерация артикула (ПЛАН, пилот ПП → ЭП)
+
+1. **Реестр `PA_ITEM_TEMPLATE_FIELDS`** (`pa_item_fields.py`): опциям с `code_path`
+   добавить парный `ext_code_path` (`<key>_ext_encoding`).
+2. **`PneumaticActuatorCatalogItem`** (`pa_item.py`): свойства `*_ext_encoding`
+   (парно `_get_option_ext_encoding` через тот же `_OPTION_CONFIG`; чтение
+   `ext_encoding` through-записи, fallback ''); `generated_ext_code` (рендер
+   `ext_encoding_template` с той же очисткой, что в `generated_model_item_code`);
+   `generated_model_item_code` = `f"{base} {ext}".strip()`.
+3. **Общий миксин `core/models/mixins.py`** (generic-версия :620, используется
+   EA/CG/Posi): `_get_ext_code_data_dict()` по `ext_code_path` + `generated_ext_code`
+   + склейка в `generated_model_item_code`. Без `ext_code_path` в реестрах других
+   каталогов поведение не меняется.
+4. **Конструктор ПП** (`pa_actuator_constructor.py` ~931–1003 — параллельный рендер):
+   ext-рендер + конкатенация + `_get_option_ext_encoding`; проверить
+   `api/views_constructor.py` (отдаёт сгенерированный код).
+5. **`services/sku_service.py`** — убедиться, что SKU берёт итоговый код (со склейкой).
+6. **config_hash (открытый вопрос):** ext производен от through-записей, но их
+   `ext_encoding` в hash не входит → правка ext_encoding не инвалидирует карточку.
+   Решение при реализации: включить в `config_hash_fields` вычисляемый ключ
+   (напр. `generated_ext_code` — правки шаблонов тогда тоже инвалидируют, что для
+   перегенерации нормально) или отдельный снэпшот.
+7. **Fallback-код** `_generate_fallback_code` — решить, включать ли ext (по умолчанию — нет).
+
+### ЭТАП C — локализация названий опций (ПЛАН)
+
+1. **`BaseThroughOptionNoDefault`** + `name_i18n = JSONField(default=dict)` +
+   `localized_name(locale=None)` = `pick_i18n(name_i18n, locale)` fallback на
+   `str(self)`/`get_display_name()`. Через-модели не имеют базового `name` —
+   `LocalizedNameFieldsMixin` не подходит напрямую, нужен свой метод/миксин.
+   Sync `name_i18n['ru']` при save.
+2. **Все точки выдачи имени:** списки `{'name': str(obj)}` в `pa_options.py`
+   (:57, :214, :272, :391, :455, :469), `get_option_info`, опции конструктора
+   (`get_available_options(locale)` — проброс локали уже есть), шаблоны с
+   `name_path` → `localized_name(locale)`.
+3. **Переводы:** backfill `name_i18n['ru']` + en/cn (команда по паттерну translate_*).
+   FK-имена уже локализованы (справочники имеют name_i18n, §10); остаются
+   derived-имена: температура «LT (-40…80°C) (Опция)», «(Стандарт)» и т.п. —
+   либо переводы в name_i18n, либо `localize_service_word`.
+
+### ЭТАП D — проверки и порядок с карточками ПП (ПЛАН)
+
+1. Верификация: `makemigrations --check`; тесты `core/tests/test_catalog_i18n`
+   (ext-артикул, локализованные имена опций); смоук: конструктор (превью с ext),
+   `generate_pa_cards --dry-run`, инъективность кода (код ↔ config_hash).
+2. **Порядок:** ext + локализация ДО полного прогона генерации карточек (§18 п.2),
+   чтобы артикулы/имена сразу финальные (генератор идемпотентен; перегенерация —
+   с `--archive`).
+3. **ЭП следующим этапом:** `EaModelLine.ext_encoding_template` (поле/миграция/
+   админка), реестр ea_item_fields (`ext_code_path`), `EaActuatorSelected`/
+   конструктор ЭП (рендер ext), ea sku_service; через-опции ЭП ext_encoding уже
+   имеют (миграция 0046) — данные заполняет пользователь. После ЭП — CG/Posi/DV
+   при необходимости (тот же паттерн).
+
 
 
 

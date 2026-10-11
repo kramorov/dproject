@@ -42,6 +42,7 @@ from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
+from core.utils.localization import localized_name, pick_i18n
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
 from sku.models import SKUMixin
@@ -100,7 +101,7 @@ class PneumaticActuatorCatalogItem(
         'model_line', 'body', 'pneumatic_actuator_variety',
         'selected_safety_position', 'selected_springs_qty',
         'selected_temperature', 'selected_ip', 'selected_exd',
-        'selected_body_coating', 'selected_manual_override',
+        'selected_body_coating', 'selected_body_color', 'selected_manual_override',
     )
 
     # ── Реестр полей (единый источник правды) — pa_item_fields.py ──
@@ -115,7 +116,8 @@ class PneumaticActuatorCatalogItem(
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'variety_name', 'variety_description', 'variety_code', 'body_name', 'body_code',
         'weight', 'safety_position', 'safety_position_text_value','springs_qty', 'temperature',
-        'ip', 'exd', 'exd_short', 'coating', 'body_material', 'body_coating', 'body_color_ral', 'body_color_name', 'manual_override',
+        'ip', 'exd', 'exd_short', 'coating', 'body_material', 'body_coating', 'body_color',
+        'body_color_ral', 'body_color_name', 'manual_override',
         # Технические характеристики (для name/description и справочника плейсхолдеров)
         'construction_name','construction_description','piston_diameter', 'turn_angle', 'turn_tuning_limit',
         'weight_spring', 'pressure_min', 'pressure_max', 'pressure',
@@ -128,7 +130,7 @@ class PneumaticActuatorCatalogItem(
 
     CODE_FIELD_KEYS = (
         'code', 'springs_qty', 'temperature', 'safety_position',
-        'manual_override', 'coating', 'ip', 'exd',
+        'manual_override', 'coating', 'body_color', 'ip', 'exd',
     )
 
     VARS_FIELD_KEYS = (
@@ -238,6 +240,12 @@ class PneumaticActuatorCatalogItem(
         related_name='pa_items_coating',
         verbose_name=_("Исполнение корпуса"),
     )
+    selected_body_color = models.ForeignKey(
+        'PneumaticBodyColorOption',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pa_items_color',
+        verbose_name=_("Цвет корпуса"),
+    )
     selected_manual_override = models.ForeignKey(
         'params.HandWheelInstalledOption',
         on_delete=models.SET_NULL, null=True, blank=True,
@@ -327,6 +335,11 @@ class PneumaticActuatorCatalogItem(
             'through_attr': None,  # PneumaticBodyDesignOption САМА является опцией
             'parent_field': 'model_line',
         },
+        'selected_body_color': {
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyColorOption',
+            'through_attr': None,  # PneumaticBodyColorOption САМА является опцией
+            'parent_field': 'model_line',
+        },
         'selected_manual_override': {
             'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticManualOverrideOption',
             'through_attr': 'hand_wheel_option',
@@ -369,6 +382,7 @@ class PneumaticActuatorCatalogItem(
             selected_ip=getattr(constructor, 'selected_ip', None),
             selected_exd=getattr(constructor, 'selected_exd', None),
             selected_body_coating=getattr(constructor, 'selected_body_coating', None),
+            selected_body_color=getattr(constructor, 'selected_body_color', None),
             selected_manual_override=manual_override,
             manual_override_option=manual_override_option,
         )
@@ -521,6 +535,19 @@ class PneumaticActuatorCatalogItem(
     @property
     def coating_encoding(self) -> str:
         return self._get_option_encoding('selected_body_coating')
+
+    @property
+    def body_color_encoding(self) -> str:
+        return self._get_option_encoding('selected_body_color')
+
+    def _res_body_coating(self, locale=None) -> str:
+        """Локализованное покрытие корпуса (JSON body_coating → справочник)."""
+        opt = self.selected_body_coating
+        if not opt:
+            return ''
+        if opt.body_coating:
+            return pick_i18n(opt.body_coating, locale) or ''
+        return localized_name(opt.body_coating_option, locale) if opt.body_coating_option else ''
 
     @property
     def ip_encoding(self) -> str:

@@ -23,6 +23,13 @@ class BaseThroughOptionNoDefault(models.Model) :
         verbose_name=_("Кодировка") ,
         help_text=_("Код опции для подстановки в артикул")
     )
+    ext_encoding = models.CharField(
+        max_length=50 ,
+        blank=True ,
+        verbose_name=_("Расширенная кодировка") ,
+        help_text=_("Расширенный код опции для ext-части артикула (схема зависит от производителя; "
+                    "пусто — опция не участвует в ext-кодировании)")
+    )
     description = models.TextField(
         blank=True ,
         verbose_name=_("Описание") ,

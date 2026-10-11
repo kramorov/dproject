@@ -20,7 +20,7 @@ class PneumaticSafetyPositionOptionInline(admin.TabularInline):
     model = PneumaticSafetyPositionOption
     extra = 0
     ordering = ['is_default', 'sorting_order']
-    fields = ['safety_position', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    fields = ['safety_position', 'encoding', 'ext_encoding', 'is_default', 'is_active', 'sorting_order']
     verbose_name = _("Опция положения безопасности")
     verbose_name_plural = _("Опции положения безопасности")
     fk_name = 'model_line_item'  # Явно указываем поле связи
@@ -30,7 +30,7 @@ class PneumaticSpringsQtyOptionInline(admin.TabularInline):
     model = PneumaticSpringsQtyOption
     extra = 0
     ordering = ['is_default', 'sorting_order']
-    fields = ['springs_qty', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    fields = ['springs_qty', 'encoding', 'ext_encoding', 'is_default', 'is_active', 'sorting_order']
     verbose_name = _("Опция количества пружин")
     verbose_name_plural = _("Опции количества пружин")
     fk_name = 'model_line_item'  # Явно указываем поле связи
@@ -40,7 +40,7 @@ class PneumaticManualOverrideOptionInline(admin.TabularInline):
     model = PneumaticManualOverrideOption
     extra = 0
     ordering = ['is_default', 'sorting_order']
-    fields = ['hand_wheel_option', 'encoding', 'mo_weight','is_default', 'is_active', 'sorting_order']
+    fields = ['hand_wheel_option', 'encoding', 'ext_encoding', 'mo_weight','is_default', 'is_active', 'sorting_order']
     verbose_name = _("Опция ручного дублера")
     verbose_name_plural = _("Опции ручного дублера")
     fk_name = 'model_line_item'  # Явно указываем поле связи

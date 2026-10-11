@@ -119,6 +119,7 @@ const OPTION_MAP = {
   selected_ip:               { label: 'IP защита',             apiKey: 'ip_options' },
   selected_exd:              { label: 'Взрывозащита',          apiKey: 'exd_options' },
   selected_body_coating:     { label: 'Покрытие корпуса',      apiKey: 'body_coating_options' },
+  selected_body_color:       { label: 'Цвет корпуса',          apiKey: 'body_color_options' },
   selected_manual_override:       { label: 'Ручной дублер',         apiKey: 'manual_override_options' },
 }
 
@@ -130,6 +131,7 @@ const SKU_OPTION_KEYS = {
   selected_ip: 'ip',
   selected_exd: 'exd',
   selected_body_coating: 'body_coating',
+  selected_body_color: 'body_color',
   selected_manual_override: 'manual_override',
 }
 function buildSkuOptionsPayload() {
@@ -152,6 +154,7 @@ const defaultForm = () => ({
   selected_ip: null,
   selected_exd: null,
   selected_body_coating: null,
+  selected_body_color: null,
   selected_manual_override: null,
 })
 

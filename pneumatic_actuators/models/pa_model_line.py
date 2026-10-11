@@ -68,6 +68,11 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
     model_item_code_template = models.CharField(max_length=500 , blank=True , null=True ,
                                                 verbose_name=_("Шаблон артикула") ,
                                                 help_text=_('Шаблон артикула для конкретной модели серии'))
+    ext_encoding_template = models.CharField(max_length=500 , blank=True , null=True ,
+                                              verbose_name=_("Шаблон ext-артикула") ,
+                                              help_text=_('Шаблон расширенной части артикула (ext_encoding опций; '
+                                                          'схема кодирования зависит от производителя). '
+                                                          'Итоговый артикул = основной шаблон + « » + ext-шаблон.'))
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='pneumatic_model_line_brand' ,
                               on_delete=models.SET_NULL ,
@@ -474,6 +479,7 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
             PneumaticIpOption ,
             PneumaticExdOption ,
             PneumaticBodyDesignOption,
+            PneumaticBodyColorOption,
         )
 
         option_classes = [
@@ -481,6 +487,7 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
             PneumaticIpOption ,
             PneumaticExdOption ,
             PneumaticBodyDesignOption,
+            PneumaticBodyColorOption,
         ]
         for option_class in option_classes :
             print(f">>> Processing {option_class.__name__}")

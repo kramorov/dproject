@@ -28,6 +28,7 @@ from pneumatic_actuators.models.pa_options import (
     PneumaticIpOption,
     PneumaticExdOption,
     PneumaticBodyDesignOption,
+    PneumaticBodyColorOption,
     PneumaticManualOverrideOption,
 )
 from sku.models import SKU
@@ -165,6 +166,9 @@ class Command(BaseCommand):
         coating = PneumaticBodyDesignOption.objects.filter(
             model_line=model_line, is_active=True,
         )
+        color = PneumaticBodyColorOption.objects.filter(
+            model_line=model_line, is_active=True,
+        ).select_related('color_option')
         hand_wheel = PneumaticManualOverrideOption.objects.filter(
             model_line_item=mli, is_active=True,
         ).select_related('hand_wheel_option')
@@ -176,11 +180,12 @@ class Command(BaseCommand):
         ip_choices = [o.ip_option for o in ip] or [None]
         exd_choices = list(exd) or [None]
         coating_choices = list(coating) or [None]
+        color_choices = list(color) or [None]
         hand_wheel_choices = list(hand_wheel) or [None]  # через-опции с mo_weight
 
-        for sp, sq, temp, ip_opt, exd_opt, coat_opt, hw_opt in itertools.product(
+        for sp, sq, temp, ip_opt, exd_opt, coat_opt, color_opt, hw_opt in itertools.product(
             safety_choices, springs_choices, temperature_choices,
-            ip_choices, exd_choices, coating_choices, hand_wheel_choices,
+            ip_choices, exd_choices, coating_choices, color_choices, hand_wheel_choices,
         ):
             yield {
                 'model_line': model_line,
@@ -192,6 +197,7 @@ class Command(BaseCommand):
                 'selected_ip': ip_opt,
                 'selected_exd': exd_opt,
                 'selected_body_coating': coat_opt,
+                'selected_body_color': color_opt,
                 'selected_manual_override': hw_opt.hand_wheel_option if hw_opt else None,
                 'manual_override_option': hw_opt,
             }

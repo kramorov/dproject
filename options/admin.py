@@ -9,5 +9,5 @@ class BaseExdOptionInline(admin.TabularInline):
     ``verbose_name``/``verbose_name_plural``).
     """
     extra = 0
-    fields = ['exd_options', 'encoding', 'is_default', 'sorting_order', 'is_active']
+    fields = ['exd_options', 'encoding', 'ext_encoding', 'is_default', 'sorting_order', 'is_active']
     filter_horizontal = ['exd_options']

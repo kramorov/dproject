@@ -93,7 +93,15 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True,
         verbose_name=_("Исполнение корпуса"),
-        help_text=_('Выбранное исполнение корпуса (материал/покрытие/цвет)')
+        help_text=_('Выбранное исполнение корпуса (материал/покрытие)')
+    )
+
+    selected_body_color = models.ForeignKey(
+        'PneumaticBodyColorOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Цвет корпуса"),
+        help_text=_('Выбранный цвет корпуса')
     )
 
     selected_manual_override = models.ForeignKey(
@@ -142,6 +150,12 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'label': 'исполнение корпуса',
             'parent_field': 'model_line',
             'model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption'
+        },
+        'selected_body_color': {
+            'model_class': 'PneumaticBodyColorOption',
+            'label': 'цвет корпуса',
+            'parent_field': 'model_line',
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyColorOption'
         },
         'selected_manual_override': {
             'model_class': 'PneumaticManualOverrideOption',
@@ -225,6 +239,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'selected_ip' ,
             'selected_exd' ,
             'selected_body_coating',
+            'selected_body_color',
             'selected_manual_override'
         ]
 
@@ -289,7 +304,8 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             ('selected_ip' , _('Степень защиты IP') , '🛡️' , 8) ,
             ('selected_exd' , _('Взрывозащита') , '⚡' , 9) ,
             ('selected_body_coating' , _('Покрытие корпуса') , '🎨' , 10) ,
-            ('selected_manual_override' , _('Тип установленного ручного дублера') , '🎨' , 11) ,
+            ('selected_body_color' , _('Цвет корпуса') , '🎨' , 11) ,
+            ('selected_manual_override' , _('Тип установленного ручного дублера') , '🎨' , 12) ,
         ]
 
         for field_name , label , icon , priority in option_configs :
@@ -1150,6 +1166,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         result = result.replace('{safety_position}', self._get_nested_attr('selected_safety_position__encoding'))
         result = result.replace('{manual_override}', self._get_nested_attr('selected_manual_override__encoding'))
         result = result.replace('{coating}', self._get_nested_attr('selected_body_coating__encoding'))
+        result = result.replace('{body_color}', self._get_nested_attr('selected_body_color__encoding'))
         result = result.replace('{ip}', self._get_nested_attr('selected_ip__encoding'))
         result = result.replace('{exd}', self._get_nested_attr('selected_exd__encoding'))
 
@@ -1188,6 +1205,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             self._get_nested_attr('selected_safety_position__encoding'),
             self._get_nested_attr('selected_manual_override__encoding'),
             self._get_nested_attr('selected_body_coating__encoding'),
+            self._get_nested_attr('selected_body_color__encoding'),
             self._get_nested_attr('selected_ip__encoding'),
             self._get_nested_attr('selected_exd__encoding'),
         ]
@@ -1672,6 +1690,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             selected_ip=self.selected_ip,
             selected_exd=self.selected_exd,
             selected_body_coating=self.selected_body_coating,
+            selected_body_color=self.selected_body_color,
             selected_manual_override=self.selected_manual_override,
 
             # Копируем остальные поля
