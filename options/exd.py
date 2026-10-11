@@ -30,6 +30,12 @@ class BaseThroughOptionNoDefault(models.Model) :
         help_text=_("Расширенный код опции для ext-части артикула (схема зависит от производителя; "
                     "пусто — опция не участвует в ext-кодировании)")
     )
+    name_i18n = models.JSONField(
+        default=dict ,
+        blank=True ,
+        verbose_name=_("Переводы имени (ru/en/cn)") ,
+        help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. Пусто — имя берётся из str()/get_display_name().')
+    )
     description = models.TextField(
         blank=True ,
         verbose_name=_("Описание") ,
@@ -47,6 +53,28 @@ class BaseThroughOptionNoDefault(models.Model) :
     class Meta :
         abstract = True
         ordering = ['sorting_order']
+
+    @property
+    def name(self):
+        """Имя опции для localized_name()-фолбэка (у моделей с полем name — перекрывается)."""
+        return str(self)
+
+    def localized_name(self, locale=None):
+        """Локализованное имя опции: name_i18n[locale] → str() (ru-фолбэк)."""
+        from core.utils.localization import pick_i18n
+        return pick_i18n(self.name_i18n, locale, fallback=str(self)) or str(self)
+
+    def save(self, *args, **kwargs):
+        """Синхронизация name_i18n['ru'] с текущим отображаемым именем (паттерн sync_ru)."""
+        try:
+            ru = str(self)
+        except Exception:
+            ru = ''
+        if ru:
+            i18n = dict(self.name_i18n or {})
+            i18n['ru'] = ru
+            self.name_i18n = i18n
+        super().save(*args, **kwargs)
 
     # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
@@ -382,7 +410,6 @@ class BaseThroughOption(BaseThroughOptionNoDefault) :
 
     def __str__(self) :
         """Безопасный __str__ с логированием"""
-        print("BaseThroughOption.__str__  called")
         try :
             result = str(self.encoding) if self.encoding else _("Опция")
             logger.debug(f"BaseThroughOption.__str__ для {self.__class__.__name__}: {result}")

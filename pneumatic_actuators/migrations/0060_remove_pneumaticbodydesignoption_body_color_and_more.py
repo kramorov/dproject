@@ -8,25 +8,28 @@ def copy_body_colors(apps, schema_editor):
     """Перенос цвета из «Исполнения корпуса» в отдельную опцию «Цвет корпуса».
 
     По одной строке цвета на серию (дедупликация по model_line + color);
+    is_default — если хоть одна строка исполнения с этим цветом стандартная;
     encoding='' (стандартный цвет не кодируется — данные уточнит пользователь).
     """
     BodyDesign = apps.get_model('pneumatic_actuators', 'PneumaticBodyDesignOption')
     BodyColorOpt = apps.get_model('pneumatic_actuators', 'PneumaticBodyColorOption')
 
-    seen = set()
-    for design in BodyDesign.objects.exclude(body_color__isnull=True).order_by('model_line_id', 'is_default'):
+    grouped = {}
+    for design in BodyDesign.objects.exclude(body_color__isnull=True):
         key = (design.model_line_id, design.body_color_id)
-        if key in seen:
-            continue
-        seen.add(key)
+        entry = grouped.setdefault(key, {'is_default': False, 'order': 0})
+        entry['is_default'] = entry['is_default'] or bool(design.is_default)
+        entry['order'] = design.sorting_order
+
+    for (model_line_id, color_id), entry in grouped.items():
         BodyColorOpt.objects.update_or_create(
-            model_line_id=design.model_line_id,
-            color_option_id=design.body_color_id,
+            model_line_id=model_line_id,
+            color_option_id=color_id,
             defaults={
                 'encoding': '',
                 'description': 'Цвет корпуса (перенесено из исполнения корпуса)',
-                'is_default': design.is_default,
-                'sorting_order': 0,
+                'is_default': entry['is_default'],
+                'sorting_order': entry['order'],
                 'is_active': True,
             },
         )

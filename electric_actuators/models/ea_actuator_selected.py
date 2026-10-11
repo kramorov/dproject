@@ -384,7 +384,37 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         # Разделяем по точке, фильтруем пустые части, соединяем обратно
         parts = [p for p in result.split('.') if p.strip()]
         result = '.'.join(parts)
+        # Пустые скобочные группы (плейсхолдер опции пуст) и двойные пробелы
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
 
+        # Ext-часть артикула (ext_encoding_template + ext_encoding через-опций)
+        ext_template = self.selected_model_line_item.model_line.ext_encoding_template
+        if ext_template:
+            ext_replacements = {
+                '{model_code}': self._get_value('selected_model_line_item__name'),
+                '{rotation_speed}': self._get_value('selected_model_line_item__rotation_speed'),
+                '{temperature}': self._get_value('selected_temperature__ext_encoding'),
+                '{ip}': self._get_value('selected_ip__ext_encoding'),
+                '{voltage}': self._get_value('selected_power_supply__ext_encoding'),
+                '{exd}': self._get_value('selected_exd__ext_encoding'),
+                '{control_unit}': self._get_value('selected_control_unit_option__ext_encoding'),
+            }
+            ext = ext_template
+            for placeholder, value in ext_replacements.items():
+                ext = ext.replace(placeholder, str(value) if value else '')
+            ext = '.'.join([p for p in ext.split('.') if p.strip()])
+            ext = re.sub(r'\(\s*\)', '', ext)
+            ext = re.sub(r'-\.', '.', ext)
+            ext = re.sub(r'\.-', '.', ext)
+            ext = re.sub(r'\s{2,}', ' ', ext)
+            ext = ext.strip(' .-')
+            if ext:
+                result = f"{result} {ext}".strip()
+
+        result = result.strip(' .-')
         return result
 
     def get_available_options(self):
@@ -407,26 +437,18 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
             # Для каждой опции из _OPTION_CONFIG
             for field_name, config in self._OPTION_CONFIG.items():
-                print(f"\nDEBUG get_available_options: Processing {field_name}")
-                print(f"DEBUG get_available_options: Config: {config}")
-
                 try:
                     # Динамически импортируем модель
                     module_path, class_name = config['model_path'].rsplit('.', 1)
-                    # print(f"DEBUG get_available_options: Importing {class_name} from {module_path}")
-
                     module = __import__(module_path, fromlist=[class_name])
                     model_class = getattr(module, class_name)
-                    print(f"DEBUG get_available_options: Model class loaded: {model_class}")
 
                     # Определяем ключ для результата
                     result_key = f"{field_name}_options".replace('selected_', '')
-                    print(f"DEBUG get_available_options: Result key: {result_key}")
 
                     # Особый случай: опция блока управления зависит от выбранного напряжения
                     if field_name == 'selected_control_unit_option':
                         if not self.selected_power_supply:
-                            # print("DEBUG get_available_options: No power supply selected for control unit options")
                             result[result_key] = []
                             continue
 
@@ -435,22 +457,16 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                             'power_supply_option': self.selected_power_supply,
                             'is_active': True
                         }
-                        # print(
-                        # f"DEBUG get_available_options: Filter by power_supply_option: {self.selected_power_supply.id}")
                     # Особый случай 2 : model_body через model_line_item
                     elif field_name == 'selected_cable_glands_holes' :
                         if not self.selected_model_line_item :
-                            print("DEBUG get_available_options: selected_model_line_item for selected_cable_glands_holes")
                             result[result_key] = []
                             continue
 
-                        # Фильтруем по выбранному напряжению
                         filter_kwargs = {
                             config['parent_field']: self.selected_model_line_item.body,
                             'is_active' : True
                         }
-                        print(
-                        f"DEBUG get_available_options: Filter by selected_model_line_item.body: {self.selected_model_line_item.body}")
 
                     elif config['parent_field'] == 'model_line':
                         if model_line_info:
@@ -458,9 +474,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                                 config['parent_field']: model_line_info,
                                 'is_active': True
                             }
-                            # print(f"DEBUG get_available_options: Filter by model_line: {model_line_info.id}")
                         else:
-                            # print(f"DEBUG get_available_options: No model_line, skipping")
                             result[result_key] = []
                             continue
 
@@ -469,27 +483,18 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                             config['parent_field']: self.selected_model_line_item,
                             'is_active': True
                         }
-                        # print(
-                        # f"DEBUG get_available_options: Filter by model_line_item: {self.selected_model_line_item.id}")
 
                     else:
                         # Для других связей
-                        print(
-                        f"DEBUG get_available_options Для других связей")
                         parent_value = getattr(self.selected_model_line_item, config['parent_field'], None)
                         if parent_value:
                             filter_kwargs = {config['parent_field']: parent_value, 'is_active': True}
-                            print(f"DEBUG get_available_options: Filter by {config['parent_field']}: {parent_value}")
                         else:
-                            print(f"DEBUG get_available_options: No {config['parent_field']}, skipping")
                             result[result_key] = []
                             continue
 
                     # Получаем опции
-                    print(f"DEBUG get_available_options: Filter kwargs: {filter_kwargs}")
                     options = model_class.objects.filter(**filter_kwargs)
-                    count = options.count()
-                    print(f"DEBUG get_available_options: Found {count} options")
 
                     # Формируем список опций
                     options_list = []
@@ -513,37 +518,22 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
                     result[result_key] = options_list
 
-                    # Логируем первые 3 опции для отладки
-                    if count > 0:
-                        # print(f"DEBUG get_available_options: First 3 options:")
-                        for i, opt in enumerate(options_list[:3]):
-                            print(f"  {i + 1}. {opt['name']} (id: {opt['id']}, encoding: {opt['encoding']})")
-
                 except ImportError as e:
-                    print(f"ERROR get_available_options: Failed to import {config['model_path']}: {e}")
+                    logger.error(f"Failed to import {config['model_path']}: {e}")
                     result_key = f"{field_name}_options".replace('selected_', '')
                     result[result_key] = []
                 except AttributeError as e:
-                    print(f"ERROR get_available_options: Attribute error for {field_name}: {e}")
+                    logger.error(f"Attribute error for {field_name}: {e}")
                     result_key = f"{field_name}_options".replace('selected_', '')
                     result[result_key] = []
                 except Exception as e:
-                    print(f"ERROR get_available_options: Unexpected error for {field_name}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    logger.error(f"Unexpected error for {field_name}: {e}")
                     result_key = f"{field_name}_options".replace('selected_', '')
                     result[result_key] = []
-
-            # print(f"\nDEBUG get_available_options: Final result keys: {list(result.keys())}")
-            for key, value in result.items():
-                print(f"  {key}: {len(value)} items")
 
             return result
 
         except Exception as e:
-            print(f"CRITICAL ERROR in get_available_options: {e}")
-            import traceback
-            traceback.print_exc()
             logger.error(f"Critical error in get_available_options: {e}")
             return self._get_empty_options()
 

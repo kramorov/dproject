@@ -781,6 +781,32 @@ class ElectricActuatorConstructor(models.Model):
         ).first()
         return through_instance.encoding if through_instance and through_instance.encoding else ''
 
+    def _get_option_ext_encoding(self, field_name: str) -> str:
+        """
+        Ext-encoding опции из through-модели (парно _get_option_encoding).
+        Пустое ext_encoding — пустая строка; through-записи нет — пустая строка.
+        """
+        config = self._OPTION_CONFIG.get(field_name)
+        if not config:
+            return ''
+        option_value = getattr(self, field_name)
+        if not option_value:
+            return ''
+
+        through_attr = config.get('through_attr')
+        if through_attr is None:
+            # through-модель САМА опция
+            return getattr(option_value, 'ext_encoding', '') or ''
+
+        ThroughModel = self._import_through_model(config)
+        parent_obj = self._get_parent_for_option(config)
+        if not parent_obj:
+            return ''
+        through_instance = ThroughModel.objects.filter(
+            **{f'{through_attr}_id': option_value.id, config['parent_field']: parent_obj}
+        ).first()
+        return through_instance.ext_encoding if through_instance and through_instance.ext_encoding else ''
+
     def _get_value_old(self, field_path: str) -> str:
         """
         Обход цепочки атрибутов через двойное подчёркивание.
@@ -824,9 +850,49 @@ class ElectricActuatorConstructor(models.Model):
         # Очистка
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
-        result = result.strip('.')
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
+        result = result.strip(' .-')
+
+        ext = self.generated_ext_code
+        if ext:
+            result = f"{result} {ext}".strip()
 
         return result
+
+    @property
+    def generated_ext_code(self) -> str:
+        """Ext-часть артикула по шаблону model_line.ext_encoding_template.
+
+        Плейсхолдеры те же, значения — ext_encoding through-опций.
+        Пустой шаблон — пустая строка.
+        """
+        if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
+            return ''
+        template = self.selected_model_line_item.model_line.ext_encoding_template
+        if not template:
+            return ''
+
+        result = template
+        result = result.replace('{model_code}', self._get_value_old('selected_model_line_item__name'))
+        result = result.replace('{rotation_speed}', self._get_value_old('selected_model_line_item__rotation_speed'))
+        result = result.replace('{temperature}', self._get_option_ext_encoding('selected_temperature'))
+        result = result.replace('{ip}', self._get_option_ext_encoding('selected_ip'))
+        result = result.replace('{voltage}', self._get_option_ext_encoding('selected_power_supply'))
+        result = result.replace('{exd}', self._get_option_ext_encoding('selected_exd'))
+        result = result.replace('{control_unit}', self._get_option_ext_encoding('selected_control_unit_option'))
+
+        result = re.sub(r'\.{2,}', '.', result)
+        result = re.sub(r'\.\s+', ' ', result)
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
+        result = re.sub(r'[.-]+$', '', result)
+        result = re.sub(r'^[.\-\s]+', '', result)
+        return result.strip()
 
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация кода"""

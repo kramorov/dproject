@@ -188,6 +188,11 @@ export default {
   'pa.breadcrumb': 'Пневмоприводы',
   'pa.eqName': 'Пневмоприводы',
 
+  'pa.browse.section.title': 'Пневмоприводы — каталог артикулов',
+  'pa.browse.section.subtitle': 'Выберите серию, чтобы посмотреть готовые артикулы',
+  'pa.browse.list.title': 'Пневмоприводы — инженерный подбор',
+  'pa.browse.link': 'Смотреть готовые артикулы →',
+
   'pf.section.title': 'Пневматические фитинги',
   'pf.section.subtitle': 'Выберите серию фитингов',
   'pf.list.title': 'Фитинги — инженерный подбор',

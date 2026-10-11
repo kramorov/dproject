@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => ({
         'pa-constructor-legacy': resolve(__dirname, 'src/apps/pa-constructor/index_legacy.html'),
         'posi-constructor': resolve(__dirname, 'src/apps/posi-constructor/index.html'),
         'pa-catalog': resolve(__dirname, 'src/apps/pa-catalog/index.html'),
+        'pa-catalog-browse': resolve(__dirname, 'src/apps/pa-catalog-browse/index.html'),
         'ea-constructor': resolve(__dirname, 'src/apps/ea-constructor/index.html'),
         'ea-admin': resolve(__dirname, 'src/apps/ea-admin/index.html'),
         'cg-constructor': resolve(__dirname, 'src/apps/cg-constructor/index.html'),

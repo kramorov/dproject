@@ -19,6 +19,27 @@ from pneumatic_actuators.services.torque_selector import TorqueSelectorService
 
 logger = logging.getLogger(__name__)
 
+# Заголовок колонки пружин (локализованный; без колонки для DA-приводов).
+SPRING_COLUMN_LABELS = {
+    'ru': 'Кол-во пружин',
+    'en': 'Springs',
+    'cn': '弹簧数量',
+}
+
+# Заголовок колонки давления code='spring' (только пружины, без давления питания).
+SPRING_PRESSURE_LABELS = {
+    'ru': 'Пружины',
+    'en': 'Spring',
+    'cn': '弹簧',
+}
+
+# Примечание о единицах измерения (локализованное).
+TORQUE_UNIT_NOTES = {
+    'ru': 'Примечание: значения в Нм',
+    'en': 'Note: values in Nm',
+    'cn': '注：单位为 Nm',
+}
+
 
 class BodyThrustTorqueTable(models.Model):
     """ Значения момента или усилия при заданном количестве пружин и давлении питания
@@ -176,6 +197,7 @@ class BodyThrustTorqueTable(models.Model):
                 'visible_fields' : [] ,
                 'pressure_order' : [] ,
                 'spring_order' : [] ,
+                'field_display_names' : {} ,
                 'field_descriptions' : {} ,
                 'pressure_info' : {} ,
                 'spring_info' : {} ,
@@ -186,6 +208,7 @@ class BodyThrustTorqueTable(models.Model):
             } ,
             'ncno' : 'nc' ,
             'construction_variety' : 'RP' ,
+            'da_sr' : None ,
             'count' : 0
         }
 
@@ -201,6 +224,7 @@ class BodyThrustTorqueTable(models.Model):
                 'visible_fields' : [] ,
                 'pressure_order' : [] ,
                 'spring_order' : [] ,
+                'field_display_names' : {} ,
                 'field_descriptions' : {} ,
                 'pressure_info' : {} ,
                 'spring_info' : {} ,
@@ -211,6 +235,7 @@ class BodyThrustTorqueTable(models.Model):
             } ,
             'ncno' : ncno ,
             'construction_variety' : 'RP' ,
+            'da_sr' : None ,
             'count' : 0
         }
 
@@ -286,7 +311,6 @@ class BodyThrustTorqueTable(models.Model):
             # Определяем поля моментов
             torque_fields = cls._get_torque_fields_for_construction(
                 construction_variety_code, da_sr_code, ncno)
-
             for item in all_data :
                 if not item.body or not item.spring_qty or not item.pressure :
                     continue
@@ -333,6 +357,7 @@ class BodyThrustTorqueTable(models.Model):
                         'id' : item.pressure.id ,
                         'code' : pressure_code ,
                         'name' : str(item.pressure) ,
+                        'name_i18n' : dict(item.pressure.name_i18n or {}) ,
                         'sorting_order' : getattr(item.pressure , 'sorting_order' , 0)
                     }
                     available_pressures.add(pressure_code)
@@ -374,6 +399,7 @@ class BodyThrustTorqueTable(models.Model):
                     'visible_fields' : sorted_fields ,
                     'pressure_order' : sorted_pressures ,
                     'spring_order' : sorted_springs ,
+                    'field_display_names' : dict(torque_fields) ,
                     'field_descriptions' : {
                         'bto' : 'BTO (Break to Open)' ,
                         'eto' : 'ETO (End to Open)' ,
@@ -396,6 +422,7 @@ class BodyThrustTorqueTable(models.Model):
                 } ,
                 'ncno' : ncno ,
                 'construction_variety' : construction_variety_code ,
+                'da_sr' : da_sr_code ,
                 'count' : len(sorted_by_spring)
             }
 
@@ -464,10 +491,46 @@ class BodyThrustTorqueTable(models.Model):
             'tolerance_value' : tolerance
         }
 
+    @staticmethod
+    def format_torque_value(value) -> str:
+        """Форматирование момента: < 100 — один знак после запятой; >= 100 — целое."""
+        if value is None:
+            return ''
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return str(value)
+        if v < 100:
+            return f'{v:.1f}'
+        return f'{v:.0f}'
+
     @classmethod
-    def generate_table_data(cls , formatted_data) :
+    def _pressure_header_label(cls, pressure_code, pressure_info, locale='ru'):
+        """Заголовок группы давлений: code='spring' — локализованный словарь;
+        остальные — имя давления (для en/cn — перевод name_i18n с единицей)."""
+        if pressure_code == 'spring':
+            return SPRING_PRESSURE_LABELS.get(locale, SPRING_PRESSURE_LABELS['ru'])
+        data = pressure_info.get(pressure_code, {})
+        label = data.get('name', pressure_code)
+        if locale and locale != 'ru':
+            label = (data.get('name_i18n') or {}).get(locale) or label
+        return label
+
+    @classmethod
+    def _is_da_table(cls, formatted_data) -> bool:
+        """Таблица DA-привода: единственная строка пружин — код 'DA' (без колонки пружин)."""
+        if formatted_data.get('da_sr') == SPRINGS_DA_DEFAULT_CODE:
+            return True
+        by_spring = formatted_data.get('data', {}).get('by_spring', {})
+        return bool(by_spring) and set(by_spring.keys()) == {SPRINGS_DA_DEFAULT_CODE}
+
+    @classmethod
+    def generate_table_data(cls , formatted_data , locale='ru') :
         """
-        Генерирует данные для таблицы в формате, удобном для фронтенда
+        Генерирует данные для таблицы в формате, удобном для фронтенда.
+
+        DA-привод — без колонки пружин; SR — колонка 'Кол-во пружин' (локализована).
+        Заголовки полей — display-имена (BTO/ETO/RTO, при НО — BTC/ETC/RTC).
 
         Returns:
             {
@@ -482,21 +545,28 @@ class BodyThrustTorqueTable(models.Model):
         body = formatted_data.get('body')
         table_config = formatted_data.get('table_config' , {})
         by_spring = formatted_data['data'].get('by_spring' , {})
+        is_da = cls._is_da_table(formatted_data)
 
         # Формируем заголовки
-        headers = [{'key' : 'spring_qty' , 'label' : 'Пружины' , 'type' : 'string'}]
+        headers = []
+        if not is_da:
+            headers.append({
+                'key' : 'spring_qty' ,
+                'label' : SPRING_COLUMN_LABELS.get(locale , SPRING_COLUMN_LABELS['ru']) ,
+                'type' : 'string'
+            })
 
         pressure_order = table_config.get('pressure_order' , [])
         field_order = table_config.get('visible_fields' , [])
         field_descriptions = table_config.get('field_descriptions' , {})
+        field_display_names = table_config.get('field_display_names' , {})
         pressure_info = table_config.get('pressure_info' , {})
 
         for pressure_code in pressure_order :
-            pressure_data = pressure_info.get(pressure_code , {})
-            pressure_name = pressure_data.get('name' , pressure_code)
+            pressure_name = cls._pressure_header_label(pressure_code, pressure_info, locale)
 
             for field in field_order :
-                field_label = field_descriptions.get(field , field.upper())
+                field_label = field_display_names.get(field) or field_descriptions.get(field , field.upper())
                 headers.append({
                     'key' : f'{pressure_code}:{field}' ,
                     'label' : f'{pressure_name} {field_label}' ,
@@ -514,7 +584,9 @@ class BodyThrustTorqueTable(models.Model):
             if spring_code not in by_spring :
                 continue
 
-            row = {'spring_qty' : spring_code}
+            row = {}
+            if not is_da:
+                row['spring_qty'] = spring_code
             spring_data = by_spring[spring_code]
 
             for pressure_code in pressure_order :
@@ -522,7 +594,7 @@ class BodyThrustTorqueTable(models.Model):
                     pressure_values = spring_data['pressures'][pressure_code]
                     for field in field_order :
                         value = pressure_values.get(field)
-                        row[f'{pressure_code}:{field}'] = value
+                        row[f'{pressure_code}:{field}'] = cls.format_torque_value(value) if value is not None else None
                 else :
                     # Если нет данных для этого давления, заполняем None
                     for field in field_order :
@@ -538,14 +610,15 @@ class BodyThrustTorqueTable(models.Model):
         }
 
     @classmethod
-    def format_for_markdown(cls , formatted_data , include_metadata=True) :
+    def format_for_markdown(cls , formatted_data , include_metadata=True , locale='ru') :
         """
-        Форматирует данные для вывода в Markdown
+        Форматирует данные для вывода в Markdown (правила: DA без колонки пружин,
+        локализованный заголовок, формат чисел < 100 с одним знаком).
 
         Returns:
             Строка в формате Markdown
         """
-        table_data = cls.generate_table_data(formatted_data)
+        table_data = cls.generate_table_data(formatted_data , locale=locale)
 
         if not table_data['headers'] :
             return "Нет данных для отображения"
@@ -574,13 +647,8 @@ class BodyThrustTorqueTable(models.Model):
                 key = header['key']
                 value = row.get(key)
 
-                if value is None :
+                if value is None or value == '' :
                     row_values.append("-")
-                elif isinstance(value , (int , float)) :
-                    # Форматируем числа
-                    precision = formatted_data.get('table_config' , {}).get('format' , {}).get('torque' , {}).get(
-                        'precision' , 1)
-                    row_values.append(f"{value:.{precision}f}")
                 else :
                     row_values.append(str(value))
 
@@ -598,8 +666,12 @@ class BodyThrustTorqueTable(models.Model):
         return "\n".join(markdown_lines)
 
     @classmethod
-    def format_for_html(cls , formatted_data) :
-        """Форматирует таблицу моментов/усилий в HTML (для вкладки «Характеристики»)."""
+    def format_for_html(cls , formatted_data , locale='ru') :
+        """Форматирует таблицу моментов/усилий в HTML (для вкладки «Характеристики» и печатной спецификации).
+
+        Правила: DA — без колонки пружин; шестерня-рейка — BTO, ETO; кулисный — BTO, RTO, ETO.
+        Заголовок пружин локализован; моменты < 100 — один знак, >= 100 — целое.
+        """
         if not formatted_data or not isinstance(formatted_data , dict) :
             return ''
         table_config = formatted_data.get('table_config' , {})
@@ -607,24 +679,31 @@ class BodyThrustTorqueTable(models.Model):
         if not data_by_spring :
             return ''
         visible_fields = table_config.get('visible_fields' , [])
+        field_display_names = table_config.get('field_display_names' , {})
         pressure_order = table_config.get('pressure_order' , [])
         spring_order = table_config.get('spring_order' , [])
-        torque_format = table_config.get('format' , {}).get('torque' , {})
-        unit = torque_format.get('unit' , 'Нм')
+        is_da = cls._is_da_table(formatted_data)
+        spring_label = SPRING_COLUMN_LABELS.get(locale , SPRING_COLUMN_LABELS['ru'])
 
         parts = ['<table border="1" style="border-collapse: collapse; width: 100%; font-size: 12px;">']
-        parts.append('<thead><tr><th rowspan="2">Пружины</th>')
+        parts.append('<thead><tr>')
+        if not is_da :
+            parts.append(f'<th rowspan="2">{spring_label}</th>')
         for pressure_code in pressure_order :
-            parts.append(f'<th colspan="{len(visible_fields)}">{pressure_code}</th>')
+            pressure_label = cls._pressure_header_label(
+                pressure_code, table_config.get('pressure_info', {}), locale)
+            parts.append(f'<th colspan="{len(visible_fields)}">{pressure_label}</th>')
         parts.append('</tr><tr>')
         for _ in pressure_order :
             for field in visible_fields :
-                parts.append(f'<th>{field.upper()}</th>')
+                parts.append(f'<th>{field_display_names.get(field, field.upper())}</th>')
         parts.append('</tr></thead><tbody>')
         for spring_code in spring_order :
             if spring_code not in data_by_spring :
                 continue
-            parts.append(f'<tr><td>{spring_code}</td>')
+            parts.append('<tr>')
+            if not is_da :
+                parts.append(f'<td>{spring_code}</td>')
             pressures = data_by_spring[spring_code].get('pressures' , {})
             for pressure_code in pressure_order :
                 pressure_values = pressures.get(pressure_code , {})
@@ -633,10 +712,11 @@ class BodyThrustTorqueTable(models.Model):
                     if value is None :
                         parts.append('<td>—</td>')
                     else :
-                        parts.append(f'<td>{value:.0f}</td>')
+                        parts.append(f'<td>{cls.format_torque_value(value)}</td>')
             parts.append('</tr>')
         parts.append('</tbody></table>')
-        parts.append(f'<div style="margin-top: 4px; color: #888;">Примечание: значения в {unit}</div>')
+        parts.append(f'<div style="margin-top: 4px; color: #888;">'
+                     f'{TORQUE_UNIT_NOTES.get(locale, TORQUE_UNIT_NOTES["ru"])}</div>')
         return ''.join(parts)
 
     # ==================== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ====================

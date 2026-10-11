@@ -38,11 +38,11 @@ class AbstractPneumaticFittingModelLine(LocalizedModelLineMixin, ImageGalleryMix
                             help_text=_("Код серии"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание серии'))
-    name_template = models.CharField(max_length=300 ,
+    name_template = models.CharField(max_length=300 , blank=True , null=True ,
                                      verbose_name=_("Шаблон названия") ,
-                                     help_text=_('Шаблон для текстового названия'))
-    description_template = models.TextField(blank=True , verbose_name=_("Шаблон описания") ,
-                                            help_text=_('Шаблон для описания'))
+                                     help_text=_('Шаблон для текстового названия (пусто — из типа оборудования)'))
+    description_template = models.TextField(blank=True , null=True , verbose_name=_("Шаблон описания") ,
+                                            help_text=_('Шаблон для описания (пусто — из типа оборудования)'))
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,

@@ -20,7 +20,7 @@ const props = defineProps({
   id: { type: [Number, String], default: null },
   parentMode: { type: String, default: 'Просмотр по сериям' },
 })
-const emit = defineEmits(['close', 'navigate'])
+const emit = defineEmits(['close', 'navigate', 'title-ready'])
 const product = ref(null); const price = ref(null); const loading = ref(true)
 const breadcrumbs = computed(() => [
   { name: 'Каталог', to: '/' },
@@ -28,7 +28,7 @@ const breadcrumbs = computed(() => [
   { name: props.parentMode },
   { name: product.value?.title || product.value?.name || product.value?.code || '...' },
 ])
-async function fetchDetail() { if (!props.id) return; loading.value = true; try { const r = await props.api.getDetail(props.id); const data = r.data || {}; product.value = { ...data, image_alt: data.code || '' }; price.value = data.price || null } catch (e) { product.value = null } loading.value = false }
+async function fetchDetail() { if (!props.id) return; loading.value = true; try { const r = await props.api.getDetail(props.id); const data = r.data || {}; product.value = { ...data, image_alt: data.code || '' }; price.value = data.price || null; emit('title-ready', data.title || data.name || data.code || '') } catch (e) { product.value = null } loading.value = false }
 onMounted(fetchDetail); watch(() => props.id, fetchDetail)
 </script>
 <style scoped>

@@ -1127,29 +1127,140 @@ through-опцию:
 5. **КВ / распределители / БКВ** — через-модели содержат только FK/encoding/числа,
    текстовых полей нет. `exd_availability` (posi) — служебное (choices), не локализуется.
 
-### ЭТАП B — генерация артикула (ПЛАН, пилот ПП → ЭП)
+### ЭТАП B — генерация артикула — ПП СДЕЛАНО (2026-10-11), ЭП/CG/Posi — далее по паттерну
 
-1. **Реестр `PA_ITEM_TEMPLATE_FIELDS`** (`pa_item_fields.py`): опциям с `code_path`
-   добавить парный `ext_code_path` (`<key>_ext_encoding`).
-2. **`PneumaticActuatorCatalogItem`** (`pa_item.py`): свойства `*_ext_encoding`
-   (парно `_get_option_ext_encoding` через тот же `_OPTION_CONFIG`; чтение
-   `ext_encoding` through-записи, fallback ''); `generated_ext_code` (рендер
-   `ext_encoding_template` с той же очисткой, что в `generated_model_item_code`);
-   `generated_model_item_code` = `f"{base} {ext}".strip()`.
-3. **Общий миксин `core/models/mixins.py`** (generic-версия :620, используется
-   EA/CG/Posi): `_get_ext_code_data_dict()` по `ext_code_path` + `generated_ext_code`
-   + склейка в `generated_model_item_code`. Без `ext_code_path` в реестрах других
-   каталогов поведение не меняется.
-4. **Конструктор ПП** (`pa_actuator_constructor.py` ~931–1003 — параллельный рендер):
-   ext-рендер + конкатенация + `_get_option_ext_encoding`; проверить
-   `api/views_constructor.py` (отдаёт сгенерированный код).
-5. **`services/sku_service.py`** — убедиться, что SKU берёт итоговый код (со склейкой).
-6. **config_hash (открытый вопрос):** ext производен от through-записей, но их
-   `ext_encoding` в hash не входит → правка ext_encoding не инвалидирует карточку.
-   Решение при реализации: включить в `config_hash_fields` вычисляемый ключ
-   (напр. `generated_ext_code` — правки шаблонов тогда тоже инвалидируют, что для
-   перегенерации нормально) или отдельный снэпшот.
-7. **Fallback-код** `_generate_fallback_code` — решить, включать ли ext (по умолчанию — нет).
+**Реализовано (пилот ПП):**
+
+1. **`TemplateFieldSpec` (core/models/template_fields.py):** новое поле `ext_code_path`
+   (путь к ext_encoding-значению для ext-шаблона артикула).
+2. **Общий миксин (core/models/mixins.py):** `_get_ext_code_data_dict()` (ext_code_path →
+   фолбэк code_path, чтобы {model_code} и опции без ext в ext-шаблоне не ломались),
+   `generated_ext_code` (рендер ml.ext_encoding_template, пустой шаблон → ''),
+   `generated_model_item_code` = базовый + « » + ext. Для моделей без ext-шаблона —
+   поведение не меняется (готово для EA/CG/Posi).
+3. **Реестр PA_ITEM_TEMPLATE_FIELDS:** у всех 8 опций с code_path добавлен
+   `ext_code_path` (`<key>_ext_encoding`).
+4. **PneumaticActuatorCatalogItem:** свойства `*_ext_encoding` (парно `*_encoding`),
+   `_get_option_ext_encoding()` (ext_encoding through-строки; нет строки → '', без
+   fallback на code реальной опции), `generated_ext_code` (с той же очисткой +
+   снятие ведущих разделителей `^[.\-\s]+`), `generated_model_item_code` = base + « » + ext.
+5. **Конструктор ПП:** `generated_ext_code` + `_get_option_ext_encoding` + склейка
+   (параллельный рендер); **Selected:** ext-рендер в generated_model_item_code.
+6. **sku_service:** без изменений — SKU берёт итоговый `generated_model_item_code`
+   через sync_sku.
+7. **config_hash (решено):** ext в хэш НЕ входит (кодировка ≠ идентичность, как и
+   encoding): генератор сравнивает `existing.code != code` → правка ext_encoding/
+   ext-шаблона пересчитывает code на той же карточке/SKU.
+8. **Fallback-код (решено):** `_generate_fallback_code` остаётся без ext (только
+   базовые encoding-части).
+
+**Проверено:** manage.py check / makemigrations --check чисто; смоук item:
+   ext='TEMP-EXT.IP-EXT', full='AIR03-SY125 TEMP-EXT.IP-EXT' (временные ext_encoding
+   в БД с откатом; проверено, что откат чистый); конструктор — base+ext;
+   generate_pa_cards --dry-run 5999/0 ошибок. test_db обновлён.
+
+**ЭП (следующий):** EaModelLine.ext_encoding_template (поле/миграция/админка),
+   ext_code_path в ea-реестре, EaActuatorSelected/конструктор ЭП — по паттерну ПП;
+   sku ЭП; CG/Posi — аналогично при необходимости.
+
+### ЭТАП B (ЭП) — СДЕЛАНО (2026-10-11), кроме генерации SKU
+
+По запросу пользователя: всё для ЭП, кроме генерации SKU.
+
+1. **`ElectricActuatorModelLine.ext_encoding_template`** (миграция
+   electric_actuators/0047) + поле в fieldsets админки серии ЭП.
+2. **Конструктор ЭП:** `_get_option_ext_encoding` + `generated_ext_code` + склейка
+   `base + « » + ext` в generated_model_item_code (плейсхолдеры: model_code,
+   rotation_speed, temperature, ip, voltage, exd, control_unit; очистка с ведущими
+   разделителями).
+3. **Selected ЭП:** ext-рендер в generated_model_item_code (через
+   `selected_*__ext_encoding`).
+4. **Реестра ext_code_path у ЭП нет** (ЭП не использует TemplateFieldSpec-реестры
+   каталога — генерация кода прямая); SKU ЭП — НЕ трогалось (по решению).
+5. Проверки: check/makemigrations --check чисто; смоук: конструктор
+   'AR01E005.220/50 T-EXT.EX-EXT' (временные ext с откатом, БД чистая);
+   selected — base без изменений при пустых ext; test_db обновлён.
+
+**Осталось по ЭП (не в этой задаче):** sku ЭП; body_coating → JSON у
+ElectricBodyCoatingOption (аудит A.2); PosiSignalProfileOption.name; общий
+`description` через-моделей.
+
+### Таблица моментов ПП — правила по типу привода + локализация (СДЕЛАНО 2026-10-11)
+
+`pneumatic_actuators/models/pa_torque.py` + `_res_torque_table` (pa_item.py):
+
+1. **DA** — колонка пружин не выводится; одна колонка значений на давление (BTO/BTC).
+2. **SR шестерня-рейка** — колонки BTO, ETO (RTO не выводится).
+3. **SR кулисный** — BTO, ETO, RTO (порядок по запросу пользователя).
+   Для НО-приводов заголовки инвертируются BTC/ETC/RTC (как раньше, теперь
+   display-имена идут из `field_display_names` таблицы).
+4. **Колонка пружин** переименована «Пружины» → «Кол-во пружин» с локализацией:
+   ru «Кол-во пружин» / en «Springs» / cn «弹簧数量».
+5. **Колонка давления code='spring'** — локализованный заголовок: ru «Пружины» /
+   en «Spring» / cn «弹簧» (вместо сырого кода); остальные давления — по имени
+   справочника.
+6. **Формат чисел:** момент < 100 — один знак после запятой, >= 100 — целое
+   (`format_torque_value`; в БД: 521 строка с дробной частью, 1918 — целые;
+   диапазон 0–58864).
+7. **Печатная спецификация:** тот же HTML идёт через `_html_to_text` в .docx
+   (заголовки/колонки/формат чисел единые; примечание о единицах локализовано:
+   «Примечание: значения в Нм» / «Note: values in Nm» / «注：单位为 Nm»).
+8. Локаль проброшена: `_res_torque_table(locale)` ← `_call_resolver`;
+   format_for_html/markdown/generate_table_data принимают locale (ru по умолчанию).
+9. **Фикс (2026-10-11, отчёт пользователя):** для SR не выводилась таблица — причина
+   данные: у корпуса RT032 (body 80) в БД только DA-строки моментов (SR-пружин
+   05–12 нет; у тел 82+ полный набор). Раньше превью шло без выбранной пружины
+   (все строки тела), теперь фронт шлёт пружину → точный фильтр пуст → таблица
+   пропадала. Сделан фолбэк в `_res_torque_table`: если по выбранной пружине строк
+   нет — показываются все строки тела (прежнее поведение). **Пользователю: заполнить
+   SR-моменты для RT032 (body 80) в таблице моментов.**
+10. **Опциональные шаблоны серий (2026-10-11):** у фитингов/глушителей/заглушек
+   `name_template`/`description_template` были обязательными (единственные среди
+   model_line) — теперь blank/null (миграция pneumatic_fittings/0034); у всех
+   остальных серий шаблонные поля уже были опциональными. Фолбэк на EquipmentType
+   проверен на глушителях GA: с пустым name_template имя генерируется из ET
+   fitting-silencer, сохранение без шаблона не падает.
+11. **Ревью-фиксы (2026-10-11):** (1) миграция 0060 — copy_body_colors переписана
+   (агрегация is_default через any по строкам ключа; баг воспроизводился бы на
+   чистой БД); (2) локаль проброшена в preview конструктора (to_dict/render_spec_html
+   с locale из Accept-Language) и в items list/detail (views_item.py); render_spec_html
+   принимает locale; (3) _empty/_error_optimized_response дополнены ключами da_sr/
+   field_display_names; (4) фолбэк SR не срабатывает при error-ответе; (5) убраны
+   DEBUG-print'ы из ElectricActuatorSelected.get_available_options (остались
+   logger.error). Проверки: check/makemigrations чисто; смоук preview ru/en/cn —
+   заголовки таблицы локализованы; test_db обновлён.
+12. **Полный прогон карточек ПП + переводы опций (2026-10-11):**
+   - Старые 141 карточка удалена (SKU остались — новый прогон подхватывает их по
+     code+brand); полный прогон `generate_pa_cards`: **5999 карточек, 0 ошибок**
+     (первый прогон упал на database-is-locked — конкуренция с командой переводов
+     на SQLite; перезапущен соло, идемпотентно).
+   - **Переводы опций в БД:** `BaseThroughOptionNoDefault` + `name_i18n` JSONField +
+     `localized_name()`/`name`-property + sync ru в save() (миграции 6 приложений:
+     cable_glands/0024, electric_actuators/0048, options/0004, pa_controls/0080,
+     pneumatic_actuators/0062, solenoid_valves/0028). Команда
+     `translate_pa_option_names` (--force) — 940 строк опций ПП: en/cn из
+     локализованных имён справочников + служебные слова («(Стандарт)»→«(Standard)»/
+     «（标配）», «(Опция)»→«(Option)»/「（选配）」 и т.д. — добавлены в
+     `_SERVICE_REPLACES`); справочник HandWheelInstalledOption — 7 переводов.
+     Конструктор: temperature options отдают `localized_name(locale)`.
+   - **Цвет в спецификации:** в spec_template ET-3 (ru/en/cn) добавлена строка
+     «Цвет корпуса»/«Body color»/「壳体颜色」 = body_color. Фикс `_get_target_i18n`
+     (core/mixins): FK-объект в конце пути → его name_i18n (иначе цвет/материал в
+     en/cn-спеках оставались ru).
+   - **Таблица RT032 (только DA):** фолбэк в `_res_torque_table` — если в данных тела
+     только DA-строки, таблица рендерится как DA-вариант (без колонки пружин,
+     одна колонка на давление).
+   - Проверено: EN-имя карточки переведено; спека EN — «Body color: Gentian blue
+     Archimedes»; RT032SR — DA-таблица; check/makemigrations чисто; test_db обновлён.
+
+**Проверено:** смоук DA (без колонки, BTC, целые >= 100), SR кулисный (BTO/ETO/RTO),
+   SR шестерня-рейка (BTO/ETO без RTO), EN-заголовки Springs/Spring/Note, docx-текст;
+   check/makemigrations чисто; test_db обновлён.
+   **Давления переведены по общей схеме (2026-10-11):** `PneumaticAirSupplyPressure.name_i18n`
+   заполнен en/cn для всех 15 давлений («5.5 bar»/«5.5 巴»; ru из name — «5.5 бар» берётся
+   через str() в заголовке); заголовок таблицы для en/cn берёт перевод из name_i18n
+   (`_pressure_header_label`); code='spring' — отдельный словарь «Пружины»/«Spring»/«弹簧».
+   Смоук: ru/en/cn заголовки полностью локализованы.
 
 ### ЭТАП C — локализация названий опций (ПЛАН)
 
@@ -1180,6 +1291,146 @@ through-опцию:
    конструктор ЭП (рендер ext), ea sku_service; через-опции ЭП ext_encoding уже
    имеют (миграция 0046) — данные заполняет пользователь. После ЭП — CG/Posi/DV
    при необходимости (тот же паттерн).
+
+## 20. Сессия 2026-10-11 (продолжение) — каталог ПП: новая страница браузинга карточек
+
+Задача пользователя: написать каталог пневмоприводов для фронта по общему паттерну
+(CATALOG_PATTERN.md: разделы → серия → карточки → деталка). Существующая страница
+`pa-catalog` (конфигуратор) НЕ трогается — делаем НОВУЮ страницу-приложение
+`pa-catalog-browse`.
+
+### План
+1. **Backend** (`views_item.py` + `urls.py`): items list → пагинированный контракт
+   `useCatalog` (через `apply_filters_and_split` + `FILTER_DEFINITIONS` карточки:
+   `actuator_variety_id`, `torque_nm`); новый endpoint `filters/` (сериализация
+   FILTER_DEFINITIONS с опциями); `label_i18n` в FilterDefinition на pa_item
+   (ru/en/cn).
+2. **Frontend:** новое приложение `frontend/src/apps/pa-catalog-browse/`
+   (api.js/App.vue/main.js/index.html) — режимы: section (серии) → brand
+   (CatalogModelLine: карточки серии + фильтры) → detail (CatalogDetail);
+   + engineer (все карточки: фильтры variety/torque + поиск). Табы: section,
+   engineer. Без quickselect/wizard/ai (остаются на старой странице).
+3. **Wiring:** маршрут `/catalog/pa-actuators-browse` + page-обёртка
+   `PaActuatorBrowsePage.vue`; vite-вход `pa-catalog-browse`;
+   `ENDPOINTS.paCatalog += filters`; i18n ru/en/cn (`pa.browse.*`).
+4. **Ссылка** на новую страницу — с section-страницы старого pa-catalog
+   (маленький баннер, поведение старой страницы не меняется).
+5. **Проверки:** manage.py check; смоук API items/filters (limit/offset/search/
+   фильтры); npm run build; dev-смоук новой страницы (серия → карточки → деталка).
+
+### СДЕЛАНО (2026-10-11, вечер)
+
+**Backend** (`views_item.py` + `urls.py` + `pa_item.py`):
+- items list — пагинированный контракт `{data, total, limit, offset, filters_applied}`
+  через `apply_filters_and_split`; префильтры `model_line_id`/`variety` (legacy), search
+  (SEARCH_FIELDS). Контракт совместим с `useCatalog`.
+- Новый endpoint `GET /api/pneumatic_actuators/filters/` (?model_line_id= — скоуп опций
+  до серии).
+- **Фикс сломанного фильтра `torque_nm`:** `model_field='body__max_work_torque'` не
+  существовал (FieldError). Теперь `data_source_type=CUSTOM` + `_get_torque_nm_options`
+  (1565 значений) + `_apply_torque_min` (тело подходит, если max(bto/eto/rto) ≥ X,
+  Greatest/Max по BodyThrustTorqueTable); в списке фильтр применяется вручную до
+  apply_filters_and_split.
+- `label_i18n` (ru/en/cn) добавлен в оба FilterDefinition карточки.
+
+**Frontend** (новое приложение `pa-catalog-browse`, старое pa-catalog не тронуто):
+- api.js (list/getDetail/getSections/getFilters/getEngineer/getEngineerFilters),
+  App.vue по образцу cable-gland: режимы section → brand (CatalogModelLine, карточки
+  серии + сайдбар фильтров DA/SR + момент) → detail (CatalogDetail/ProductDetail с
+  кнопкой в корзину по SKU) + таб engineer (все карточки: поиск + те же фильтры).
+  `useCatalogRoute({ mlParam: 'model_line_id' })` — глубокие ссылки вида
+  `?mode=section&model_line_id=12` работают (показывают карточки серии).
+- Wiring: маршрут `/catalog/pa-actuators-browse` + `PaActuatorBrowsePage.vue`;
+  vite-вход `pa-catalog-browse`; `ENDPOINTS.paCatalog.filters`; i18n `pa.browse.*`
+  (ru/en/cn); на section-странице старого pa-catalog — баннер-ссылка «Смотреть готовые
+  артикулы →» (только в SPA, поведение старой страницы не меняет).
+
+**Проверки:** manage.py check чисто; смоук API: total=5999, фильтр torque≥1000 → 2881,
+ DA → 515, ml12 SR → 416, search RT032 → 34, detail — полная структура
+ (gallery/specs/files/text, SKU); npm run build зелёный (вход pa-catalog-browse собран);
+ vite-dev скомпилировал все новые модули; API через proxy 200.
+
+**Известное (не чинилось):** коды карточек содержат пустые «()» при пустом
+ ext-шаблоне (склейка base + " " + ext); WARNING «Плейсхолдер {hand_wheel} не найден»
+ при генерации имён части серий (fallback работает, косметика).
+
+### Фикс «()» в артикуле (2026-10-11, вечер)
+
+По запросу пользователя («()» в артикуле не устраивает). Диагноз: пустые скобки
+ НЕ от ext-склейки (она уже была `if ext:`) — а из БАЗОВОГО шаблона
+ `({springs_qty})` у серий PA/AIR/RT: у DA пружин нет, плейсхолдер рендерится
+ пустым → «()». Решение — постобработка рендера во всех генераторах артикула:
+ `re.sub(r'\(\s*\)', '', …)` (пустые скобочные группы) + схлопывание двойных
+ пробелов + финальный strip. Файлы: core/models/mixins.py (generic-миксин, +
+ import re), pneumatic_actuators/models/pa_item.py (свойство карточки),
+ pa_actuator_constructor.py, pa_actuator_selected.py,
+ electric_actuators/models/ea_actuator_constructor.py,
+ ea_actuator_selected.py (base + ext-части). Попутно: в pa_actuator_selected/
+ ea_actuator_selected добавлен финальный strip (был хвостовой пробел после
+ удаления «()»); в ea_actuator_constructor strip('.') → strip(' .-').
+ Перегенерация: `generate_pa_cards` — обновлено=36, ошибок=0 (коды+имена+SKU
+ обновлены на месте, та же SKU). Проверено: 0 карточек с «()» в коде/имени,
+ 0 дублей кодов, 0 null; 35/35 тестов; check чисто; смоук конструктора/Selected
+ ПП и ЭП — коды чистые.
+
+### Ревью-фиксы 1–4 (2026-10-11, ночь)
+
+По итогам ревью каталога ПП:
+1. **Валидация query-параметров** в `views_item.py`: невалидный `model_line_id`
+   (не int) игнорируется (вместо 500), невалидные `limit`/`actuator_variety_id` —
+   обёрнуты try/except → 200 с пустой страницей вместо 500.
+2. **`_get_torque_nm_options` → []**: фронт для filter_type='gte' рендерит
+   числовой ввод, опции не использует; убрали ~1.5к значений (~100 КБ) из
+   каждого ответа `/filters/`.
+3. **N+1:** `select_related` (model_line/body/variety/sku/8 selected-опций/…) в
+   списке и деталке items. Остаточный N+1 — в общем сериализаторе (M2M exd,
+   галерея mediavariant, монтаж/присоединения ~64 запроса/карточку) — на SQLite
+   некритично, отдельная оптимизация (core serialization).
+4. **`CatalogDetail` теперь эмитит `title-ready`** (title/name/code) — бредкрамб
+   деталки показывает название карточки (общий компонент, работает и в cable-gland).
+
+Проверки: check чисто; 35/35 тестов; npm run build зелёный; API-смоук (bad ml_id/
+limit/variety_id → 200, torque/filters/деталка работают).
+
+### Инженерный подбор ПП (2026-10-11, ночь) — СДЕЛАНО
+
+По запросу пользователя: подбор из карточек БД (5999), БЕЗ конфигуратора
+(конфигуратор не тронут). Инженерный режим — таб «Инженерный подбор» новой страницы
+`pa-catalog-browse` (EngineerSelection уже был подключён); основной объём — набор
+фильтров `FILTER_DEFINITIONS` на `PneumaticActuatorCatalogItem` (10 фильтров):
+1. construction_variety_id (RP/SY, через model_line); 2. actuator_variety_id (DA/SR);
+3. torque_nm (момент ≥, custom по таблице моментов); 4–5. work_temp_min/max
+(через selected_temperature, TEMP_MIN/MAX); 6. selected_ip_id; 7. selected_exd_id
+(точное совпадение v1; совместимость — позже); 8. selected_safety_position_id;
+9. selected_springs_qty_id; 10. selected_manual_override_id. Все exact-FK с
+`order_by='sorting_order'` (у through-опций нет поля name — без этого FieldError),
+label_i18n ru/en/cn. Опции скоупятся до серии (?model_line_id=).
+Фронт без изменений: EngineerFilterBar/FilterSidebar рендерят exact-селекты,
+gte-числовой ввод, temp-селекты значений, single-option — span.
+Смоук: кулисный→487, SR→5484, T≥-40→2470, T≤100→1059 (только HT),
+RP+SR+момент≥1000→2328, exd 6/8/9→3036/2024/346; ml12-scope: пружины 9 опций.
+check чисто; 35/35 тестов.
+
+### Задачи (остатки)
+
+1. **Дубликаты в селекте «Взрывозащита»** (инженерный подбор): опции через-модели
+   `pneumatic_actuators.models.pa_options.PneumaticExdOption` (без поля `code`, есть
+   `encoding`) — ids 6/11 и 8/9 отображаются одинаково («Общепромышленное (Стандарт)»,
+   «Ex db / Ex tb (Стандарт)»), но фильтруют разные подмножества карточек.
+   Решение: показывать в label селекта `encoding` (show_code или суффикс) или
+   группировать по имени. НЕ дедуплицировать по имени — семантика разная.
+
+### Ревью-фиксы 5–7 (2026-10-11, ночь) — СДЕЛАНО
+
+1. Задача с дублями Exd — записана выше (п.1 «Задачи»).
+2. **Неактивные карточки исключены из опций фильтров:** `views_item` filters —
+   `base_qs` теперь всегда `is_active=True` (скоуп по серии — сверху).
+3. **Чистка артефактов `-.`/`.-` перенесена в формирование кода** (НЕ в рендеры
+   шаблонов имён/описаний): те же 6 генераторов артикула (mixin/pa_item/pa+ea
+   constructor+selected, base+ext) получили `re.sub(r'-\.', '.')`/`re.sub(r'\.-', '.')`.
+   `AIR03-SY125-.HT` → `AIR03-SY125.HT`. Перегенерация: обновлено=145, ошибок=0;
+   0 артефактов, 0 дублей кодов.
+4. Пропущено (автотесты на фильтры, mandatory) — по решению пользователя.
 
 
 

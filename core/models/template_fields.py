@@ -31,6 +31,8 @@ class TemplateFieldSpec:
     name_path: str | None = None
     # Путь к encoding-значению для шаблона артикула.
     code_path: str | None = None
+    # Путь к ext_encoding-значению для ext-шаблона артикула (этап B, ext_encoding).
+    ext_code_path: str | None = None
     # Имя callable-а на модели вместо ``path`` (для сложных значений).
     resolver: str | None = None
 

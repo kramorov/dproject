@@ -593,7 +593,7 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         (_('Основная информация') , {
             'fields' : (
                 ('name' , 'code' , 'brand' , 'default_output_type') ,
-                'model_item_code_template' ,'motor_thermal_protection',
+                'model_item_code_template' ,'ext_encoding_template', 'motor_thermal_protection',
                 'description'
             )
         }) ,

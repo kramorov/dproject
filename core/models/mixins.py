@@ -19,6 +19,7 @@ from django.contrib import messages
 logger = logging.getLogger(__name__)
 import copy
 import inspect
+import re
 
 class TemplateMixin:
     """
@@ -313,7 +314,15 @@ class TemplateMixin:
         last = parts[-1]
         if '.' in last:
             return None
-        return getattr(obj, f'{last}_i18n', None)
+        i18n = getattr(obj, f'{last}_i18n', None)
+        if i18n is not None:
+            return i18n
+        # last — связанный объект справочника (FK), у которого есть name_i18n
+        # (например 'selected_body_color__color_option' → color_option.name_i18n).
+        related = getattr(obj, last, None)
+        if related is not None and not isinstance(related, str) and hasattr(related, 'name_i18n'):
+            return getattr(related, 'name_i18n', None)
+        return None
 
     def _get_model_meta_name(self) -> str:
         """
@@ -616,17 +625,65 @@ class TemplateMixin:
             return self._get_data_dict()
         return {f.placeholder: f.code_path for f in specs if f.code_path}
 
+    def _get_ext_code_data_dict(self) -> Dict[str, str]:
+        """Плейсхолдер ext-артикула → путь к ext_encoding-значению.
+
+        Значение берётся из ``ext_code_path`` (фолбэк — ``code_path``, чтобы
+        {model_code} и опции без ext-кодировки в ext-шаблоне не ломались).
+        """
+        keys = getattr(self, 'CODE_FIELD_KEYS', None)
+        specs = self._lookup_specs(keys) if keys is not None else self._get_field_specs()
+        if not specs:
+            return {}
+        out = {}
+        for f in specs:
+            if not f.placeholder:
+                continue
+            target = f.ext_code_path or f.code_path
+            if target:
+                out[f.placeholder] = target
+        return out
+
+    @property
+    def generated_ext_code(self) -> str:
+        """Ext-часть артикула по шаблону ``model_line.ext_encoding_template``.
+
+        Пустой шаблон/серия без поля — пустая строка (артикул как раньше).
+        """
+        ml = self._get_model_line()
+        template = getattr(ml, 'ext_encoding_template', None) if ml else None
+        if not template:
+            return ''
+        ext = self._fill_template(template, self._get_ext_code_data_dict()).strip()
+        ext = re.sub(r'\(\s*\)', '', ext)
+        ext = re.sub(r'-\.', '.', ext)
+        ext = re.sub(r'\.-', '.', ext)
+        ext = re.sub(r'\s{2,}', ' ', ext)
+        ext = ext.strip(' .-')
+        return ext
+
     @property
     def generated_model_item_code(self) -> str:
         """Артикул по шаблону ``model_line.model_item_code_template``.
 
         Если шаблон не задан — возвращает fallback-код (по умолчанию '').
+        Полный артикул = основной шаблон + « » + ext-шаблон (если задан).
         """
         ml = self._get_model_line()
         template = getattr(ml, 'model_item_code_template', None) if ml else None
         if not template:
             return self._generate_fallback_code()
-        return self._fill_template(template, self._get_code_data_dict())
+        code = self._fill_template(template, self._get_code_data_dict())
+        # Пустые скобочные группы — плейсхолдер опции пуст (напр. «({springs_qty})» у DA)
+        code = re.sub(r'\(\s*\)', '', code)
+        code = re.sub(r'-\.', '.', code)
+        code = re.sub(r'\.-', '.', code)
+        code = re.sub(r'\s{2,}', ' ', code)
+        code = code.strip(' .-')
+        ext = self.generated_ext_code
+        if ext:
+            code = f"{code} {ext}".strip()
+        return code
 
     def _generate_fallback_code(self) -> str:
         """Fallback-артикул при отсутствии шаблона; переопределяется в модели."""

@@ -6,6 +6,9 @@
   <div class="app">
     <Breadcrumbs :items="breadcrumbs" @navigate="onNavigate" />
     <CatalogActions :active="activeTab" :tabs="tabs" @section="goToSection" @wizard="goToWizard" @ai="goToAi" />
+    <div v-if="page === 'section' && canLinkBrowse" class="browse-banner">
+      <router-link :to="localizedPath('/catalog/pa-actuators-browse', locale)">{{ t('pa.browse.link') }}</router-link>
+    </div>
     <KeepAlive :key="cacheEpoch">
       <CatalogSection
         v-if="page === 'section'"
@@ -79,6 +82,7 @@ const {
   page, idValue, router,
   goToSection: navSection, goToBrand: navBrand, goToWizard: navWizard, goToAi: navAi,
 } = useCatalogRoute({ mlParam: 'model_line_id' })
+const canLinkBrowse = computed(() => !!router)
 const pageSubtitle = ref('')
 const { t, locale } = useI18n()
 
@@ -166,4 +170,7 @@ async function onAddToCart(payload) {
 
 <style scoped>
 .app { max-width: 1200px; margin: 0 auto; }
+.browse-banner { margin: 0 16px 16px; padding: 10px 16px; background: var(--cat-bg, #f9fafb); border: 1px dashed var(--cat-border, #d1d5db); border-radius: 8px; }
+.browse-banner a { color: var(--cat-primary, #2563eb); font-size: 14px; font-weight: 500; text-decoration: none; }
+.browse-banner a:hover { text-decoration: underline; }
 </style>

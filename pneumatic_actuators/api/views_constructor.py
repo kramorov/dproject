@@ -274,15 +274,16 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
         from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
 
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         item = PneumaticActuatorCatalogItem.from_constructor(obj)
         item.code = item.generated_model_item_code or None
         item.name = item.generate_name() or item.code or ''
         item.description = item.generate_description() or ''
 
-        data = item.to_dict()
+        data = item.to_dict(locale=locale)
         # HTML-описание для кнопки «Просмотр спецификации» (модалка) — из той же
         # спецификации, что и вкладка «Характеристики» (spec_template серия → EquipmentType).
-        data['tech_description'] = item.render_spec_html()
+        data['tech_description'] = item.render_spec_html(locale=locale)
         return Response(data)
 
     @action(detail=False, methods=['post'], url_path='create-sku')

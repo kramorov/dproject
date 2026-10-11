@@ -56,6 +56,11 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
     model_item_code_template = models.CharField(max_length=500 , blank=True , null=True ,
                                                 verbose_name=_("Шаблон артикула") ,
                                                 help_text=_('Шаблон артикула для конкретной модели в серии'))
+    ext_encoding_template = models.CharField(max_length=500 , blank=True , null=True ,
+                                              verbose_name=_("Шаблон ext-артикула") ,
+                                              help_text=_('Шаблон расширенной части артикула (ext_encoding опций; '
+                                                          'схема кодирования зависит от производителя). '
+                                                          'Итоговый артикул = основной шаблон + « » + ext-шаблон.'))
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='electric_model_line_brand' ,
                               on_delete=models.SET_NULL ,

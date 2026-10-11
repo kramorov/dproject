@@ -931,8 +931,9 @@ class PneumaticActuatorConstructor(models.Model):
         """
         Генерирует артикул (code) по шаблону model_line.model_item_code_template.
         Поддерживает переменные: {model_code}, {springs_qty}, {temperature},
-        {safety_position}, {manual_override}, {coating}, {ip}, {exd}.
+        {safety_position}, {manual_override}, {coating}, {body_color}, {ip}, {exd}.
         Если шаблон отсутствует — вызывает _generate_fallback_code().
+        Полный артикул = основной шаблон + « » + ext-шаблон (если задан).
         """
         if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
             return self.code or ""
@@ -949,6 +950,7 @@ class PneumaticActuatorConstructor(models.Model):
         result = result.replace('{safety_position}', self._get_option_encoding('selected_safety_position'))
         result = result.replace('{manual_override}', self._get_option_encoding('selected_manual_override'))
         result = result.replace('{coating}', self._get_option_encoding('selected_body_coating'))
+        result = result.replace('{body_color}', self._get_option_encoding('selected_body_color'))
         result = result.replace('{ip}', self._get_option_encoding('selected_ip'))
         result = result.replace('{exd}', self._get_option_encoding('selected_exd'))
 
@@ -956,9 +958,52 @@ class PneumaticActuatorConstructor(models.Model):
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
         result = re.sub(r'\s*\(DA\)', '', result)
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
         result = re.sub(r'[.-]+$', '', result).strip()
 
+        ext = self.generated_ext_code
+        if ext:
+            result = f"{result} {ext}".strip()
+
         return result
+
+    @property
+    def generated_ext_code(self) -> str:
+        """Ext-часть артикула по шаблону model_line.ext_encoding_template.
+
+        Плейсхолдеры те же, значения — ext_encoding through-опций.
+        Пустой шаблон — пустая строка.
+        """
+        if not self.selected_model_line_item or not self.selected_model_line_item.model_line:
+            return ''
+        template = self.selected_model_line_item.model_line.ext_encoding_template
+        if not template:
+            return ''
+
+        result = template
+        result = result.replace('{model_code}', self._get_value_old('selected_model_line_item__name'))
+        result = result.replace('{springs_qty}', self._get_option_ext_encoding('selected_springs_qty'))
+        result = result.replace('{temperature}', self._get_option_ext_encoding('selected_temperature'))
+        result = result.replace('{safety_position}', self._get_option_ext_encoding('selected_safety_position'))
+        result = result.replace('{manual_override}', self._get_option_ext_encoding('selected_manual_override'))
+        result = result.replace('{coating}', self._get_option_ext_encoding('selected_body_coating'))
+        result = result.replace('{body_color}', self._get_option_ext_encoding('selected_body_color'))
+        result = result.replace('{ip}', self._get_option_ext_encoding('selected_ip'))
+        result = result.replace('{exd}', self._get_option_ext_encoding('selected_exd'))
+
+        result = re.sub(r'\.{2,}', '.', result)
+        result = re.sub(r'\.\s+', ' ', result)
+        result = re.sub(r'\s*\(DA\)', '', result)
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
+        result = re.sub(r'[.-]+$', '', result)
+        result = re.sub(r'^[.\-\s]+', '', result)
+        return result.strip()
 
     def _get_option_encoding(self, field_name: str) -> str:
         """
@@ -987,6 +1032,33 @@ class PneumaticActuatorConstructor(models.Model):
             **{f'{through_attr}_id': option_value.id, config['parent_field']: parent_obj}
         ).first()
         return through_instance.encoding if through_instance and through_instance.encoding else ''
+
+    def _get_option_ext_encoding(self, field_name: str) -> str:
+        """
+        Ext-encoding опции из through-модели (парно _get_option_encoding).
+        Пустое ext_encoding — пустая строка (опция не участвует в ext-части);
+        through-записи нет — пустая строка.
+        """
+        config = self._OPTION_CONFIG.get(field_name)
+        if not config:
+            return ''
+        option_value = getattr(self, field_name)
+        if not option_value:
+            return ''
+
+        through_attr = config.get('through_attr')
+        if through_attr is None:
+            # Temperature/design/color/exd: through-модель САМА опция
+            return getattr(option_value, 'ext_encoding', '') or ''
+
+        ThroughModel = self._import_through_model(config)
+        parent_obj = self._get_parent_for_option(config)
+        if not parent_obj:
+            return ''
+        through_instance = ThroughModel.objects.filter(
+            **{f'{through_attr}_id': option_value.id, config['parent_field']: parent_obj}
+        ).first()
+        return through_instance.ext_encoding if through_instance and through_instance.ext_encoding else ''
 
     def _get_value_old(self, field_path: str) -> str:
         """
@@ -1373,7 +1445,7 @@ class PneumaticActuatorConstructor(models.Model):
                     'id': opt.id,
                     'option_id': opt.id,               # Temperature: through-модель САМА опция
                     'encoding': opt.encoding,
-                    'name': str(opt),
+                    'name': opt.localized_name(locale),
                     'work_temp_min': opt.work_temp_min,
                     'work_temp_max': opt.work_temp_max,
                     'description': opt.description,

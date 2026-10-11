@@ -282,24 +282,136 @@ class PneumaticActuatorCatalogItem(
     # ── Фильтры каталога (по образцу старого model_line_item) ──
     FILTER_DEFINITIONS = [
         FilterDefinition(
+            param_name='construction_variety_id',
+            model_field='model_line__pneumatic_actuator_construction_variety',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Конструкция',
+            label_i18n={'ru': 'Конструкция', 'en': 'Construction', 'cn': '结构'},
+            order=1,
+            mandatory='yes',
+            order_by='sorting_order',
+        ),
+        FilterDefinition(
             param_name='actuator_variety_id',
             model_field='pneumatic_actuator_variety',
             filter_type=FilterType.EXACT,
             data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
             label='Тип привода (DA/SR)',
-            order=1,
+            label_i18n={'ru': 'Тип привода (DA/SR)', 'en': 'Actuator type (DA/SR)', 'cn': '执行器类型 (DA/SR)'},
+            order=2,
             mandatory='yes',
         ),
         FilterDefinition(
             param_name='torque_nm',
             model_field='body__max_work_torque',
             filter_type=FilterType.MIN,
-            data_source_type=DataSourceType.FIELD_VALUES,
+            data_source_type=DataSourceType.CUSTOM,
             label='Момент не менее, Нм',
-            order=2,
+            label_i18n={'ru': 'Момент не менее, Нм', 'en': 'Torque not less than, Nm', 'cn': '扭矩不小于, Nm'},
+            order=3,
             mandatory='yes',
         ),
+        FilterDefinition(
+            param_name='work_temp_min',
+            model_field='selected_temperature__work_temp_min',
+            filter_type=FilterType.TEMP_MIN,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура, °С от',
+            label_i18n={'ru': 'Температура, °С от', 'en': 'Temperature, °C from', 'cn': '温度, °C 从'},
+            order=4,
+        ),
+        FilterDefinition(
+            param_name='work_temp_max',
+            model_field='selected_temperature__work_temp_max',
+            filter_type=FilterType.TEMP_MAX,
+            data_source_type=DataSourceType.FIELD_VALUES,
+            label='Температура, °С до',
+            label_i18n={'ru': 'Температура, °С до', 'en': 'Temperature, °C to', 'cn': '温度, °C 至'},
+            order=5,
+        ),
+        FilterDefinition(
+            param_name='selected_ip_id',
+            model_field='selected_ip',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='IP',
+            label_i18n={'ru': 'IP', 'en': 'IP', 'cn': 'IP'},
+            order=6,
+            order_by='sorting_order',
+        ),
+        FilterDefinition(
+            param_name='selected_exd_id',
+            model_field='selected_exd',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Взрывозащита',
+            label_i18n={'ru': 'Взрывозащита', 'en': 'Explosion protection', 'cn': '防爆'},
+            order=7,
+            order_by='sorting_order',
+        ),
+        FilterDefinition(
+            param_name='selected_safety_position_id',
+            model_field='selected_safety_position',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Безопасное положение',
+            label_i18n={'ru': 'Безопасное положение', 'en': 'Safety position', 'cn': '安全位置'},
+            order=8,
+            order_by='sorting_order',
+        ),
+        FilterDefinition(
+            param_name='selected_springs_qty_id',
+            model_field='selected_springs_qty',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Кол-во пружин',
+            label_i18n={'ru': 'Кол-во пружин', 'en': 'Springs qty', 'cn': '弹簧数量'},
+            order=9,
+            order_by='sorting_order',
+        ),
+        FilterDefinition(
+            param_name='selected_manual_override_id',
+            model_field='selected_manual_override',
+            filter_type=FilterType.EXACT,
+            data_source_type=DataSourceType.UNIQUE_FIELD_VALUES,
+            label='Ручной дублер',
+            label_i18n={'ru': 'Ручной дублер', 'en': 'Manual override', 'cn': '手动超驰'},
+            order=10,
+            order_by='sorting_order',
+        ),
     ]
+
+    # в”Ђв”Ђ Пользовательский фильтр torque_nm (источник вЂ” таблица моментов корпуса) в”Ђв”Ђ
+    @classmethod
+    def _get_torque_nm_options(cls):
+        """Опции фильтра «Момент не менее».
+
+        Фронт для filter_type='gte' рендерит числовой ввод и опции НЕ использует;
+        в таблице моментов ~1.5к значений — не тянем их в каждый ответ фильтров.
+        """
+        return []
+
+    @classmethod
+    def _apply_torque_min(cls, queryset, value):
+        """Фильтр «Момент не менее, Нм»: тело подходит, если max(bto/eto/rto) >= value."""
+        from decimal import Decimal, InvalidOperation
+        from django.db.models import Max
+        from django.db.models.functions import Greatest
+        from pneumatic_actuators.models.pa_torque import BodyThrustTorqueTable
+        try:
+            val = Decimal(str(value))
+        except (InvalidOperation, ValueError, TypeError):
+            return queryset
+        body_ids = (
+            BodyThrustTorqueTable.objects
+            .annotate(mx=Greatest('bto', 'eto', 'rto'))
+            .values('body_id')
+            .annotate(m=Max('mx'))
+            .filter(m__gte=val)
+            .values_list('body_id', flat=True)
+        )
+        return queryset.filter(body_id__in=list(body_ids))
 
     # ── Конфиг option → through-модель (для encoding в артикуле) ──
     # Через through_attr резолвится реальная опция; parent_field указывает,
@@ -470,6 +582,7 @@ class PneumaticActuatorCatalogItem(
         Поддерживает плейсхолдеры {model_code} и опции; рендеринг — через
         _fill_template (единый механизм), значения encoding — из through-моделей.
         Если шаблон не задан — fallback на склейку code + encodings.
+        Полный артикул = основной шаблон + « » + ext-шаблон (если задан).
         """
         template = getattr(self.model_line, 'model_item_code_template', None) if self.model_line else None
         if not template:
@@ -478,11 +591,43 @@ class PneumaticActuatorCatalogItem(
         data_dict = self._get_code_data_dict()
         result = self._fill_template(template, data_dict)
 
-        # Очистка (как в конструкторе): двойные точки, висячие разделители, (DA)
+        # Очистка (как в конструкторе): двойные точки, висячие разделители, (DA), пустые скобки
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
         result = re.sub(r'\s*\(DA\)', '', result)
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
         result = re.sub(r'[.-]+$', '', result)
+        result = result.strip()
+
+        ext = self.generated_ext_code
+        if ext:
+            result = f"{result} {ext}"
+        return result.strip()
+
+    @property
+    def generated_ext_code(self) -> str:
+        """Ext-часть артикула по шаблону model_line.ext_encoding_template.
+
+        Плейсхолдеры те же ({model_code}, {springs_qty}, ...), значения —
+        ext_encoding through-опций (фолбэк — обычный encoding/базовый код).
+        Пустой шаблон — пустая строка (артикул как раньше).
+        """
+        template = getattr(self.model_line, 'ext_encoding_template', None) if self.model_line else None
+        if not template:
+            return ''
+        result = self._fill_template(template, self._get_ext_code_data_dict())
+        result = re.sub(r'\.{2,}', '.', result)
+        result = re.sub(r'\.\s+', ' ', result)
+        result = re.sub(r'\s*\(DA\)', '', result)
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
+        result = re.sub(r'[.-]+$', '', result)
+        result = re.sub(r'^[.\-\s]+', '', result)
         return result.strip()
 
     @property
@@ -517,12 +662,24 @@ class PneumaticActuatorCatalogItem(
         return self._get_option_encoding('selected_springs_qty')
 
     @property
+    def springs_qty_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_springs_qty')
+
+    @property
     def temperature_encoding(self) -> str:
         return self._get_option_encoding('selected_temperature')
 
     @property
+    def temperature_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_temperature')
+
+    @property
     def safety_position_encoding(self) -> str:
         return self._get_option_encoding('selected_safety_position')
+
+    @property
+    def safety_position_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_safety_position')
 
     @property
     def safety_position_text_value(self) -> str:
@@ -533,12 +690,24 @@ class PneumaticActuatorCatalogItem(
         return self._get_option_encoding('selected_manual_override')
 
     @property
+    def manual_override_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_manual_override')
+
+    @property
     def coating_encoding(self) -> str:
         return self._get_option_encoding('selected_body_coating')
 
     @property
+    def coating_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_body_coating')
+
+    @property
     def body_color_encoding(self) -> str:
         return self._get_option_encoding('selected_body_color')
+
+    @property
+    def body_color_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_body_color')
 
     def _res_body_coating(self, locale=None) -> str:
         """Локализованное покрытие корпуса (JSON body_coating → справочник)."""
@@ -554,8 +723,16 @@ class PneumaticActuatorCatalogItem(
         return self._get_option_encoding('selected_ip')
 
     @property
+    def ip_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_ip')
+
+    @property
     def exd_encoding(self) -> str:
         return self._get_option_encoding('selected_exd')
+
+    @property
+    def exd_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_exd')
 
     def _get_option_encoding(self, field_name: str) -> str:
         """
@@ -601,6 +778,48 @@ class PneumaticActuatorCatalogItem(
             return through_instance.encoding or ''
         # through-записи нет — fallback на code реальной опции.
         return getattr(option_value, 'code', '') or ''
+
+    def _get_option_ext_encoding(self, field_name: str) -> str:
+        """
+        Ext-encoding опции из through-модели (парно _get_option_encoding).
+        Пустое ext_encoding — пустая строка (опция не участвует в ext-части);
+        through-записи нет — пустая строка (не fallback на code реальной опции:
+        ext-кодировка задаётся только явно в through-строке).
+        """
+        config = self._OPTION_CONFIG.get(field_name)
+        if not config:
+            return ''
+        option_value = getattr(self, field_name)
+        if not option_value:
+            return ''
+
+        through_attr = config.get('through_attr')
+        if through_attr is None:
+            # Temperature/design/color/exd: through-модель сама является опцией
+            return getattr(option_value, 'ext_encoding', '') or ''
+
+        parent_field = config.get('parent_field')
+        if parent_field == 'model_line':
+            parent_obj = self.model_line
+        elif parent_field == 'model_line_item':
+            parent_obj = self.source_model_line_item
+        else:
+            parent_obj = None
+
+        if not parent_obj:
+            return ''
+
+        through_model = self._import_through_model(config)
+        try:
+            through_instance = through_model.objects.filter(
+                **{f'{through_attr}_id': option_value.id, parent_field: parent_obj}
+            ).first()
+        except Exception as e:
+            logger.error(f"Ошибка поиска ext_encoding {field_name}: {e}")
+            return ''
+        if through_instance is not None:
+            return through_instance.ext_encoding or ''
+        return ''
 
     @classmethod
     def _import_through_model(cls, config: dict):
@@ -727,7 +946,7 @@ class PneumaticActuatorCatalogItem(
             return f"{d}×{key}"
         return ss.name or ''
 
-    def _res_torque_table(self):
+    def _res_torque_table(self, locale=None):
         """HTML-блок таблицы моментов/усилий по выбранной конфигурации (DA или пружины SR)."""
         body = self.body
         if not body:
@@ -748,7 +967,28 @@ class PneumaticActuatorCatalogItem(
             construction_variety_code=construction_variety_code,
             da_sr_code=da_sr_code,
         )
-        html = BodyThrustTorqueTable.format_for_html(torque_data)
+        # Точной комбинации (тело+пружина) нет в БД — показываем все строки тела
+        # (прежнее поведение до выбора пружины; данные заполняет пользователь).
+        # При ошибке источника данных фолбэк не делаем (не маскируем сбой).
+        if (spring_qty and 'error' not in torque_data
+                and not torque_data.get('data', {}).get('by_spring')):
+            torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
+                current_body=body,
+                ncno_code=ncno_code,
+                construction_variety_code=construction_variety_code,
+                da_sr_code=da_sr_code,
+            )
+            # В данных только DA-строки (модель работает только в DA) — показываем
+            # таблицу как DA-вариант: без колонки пружин, одна колонка на давление.
+            springs = torque_data.get('table_config', {}).get('spring_order', [])
+            if springs and set(springs) == {SPRINGS_DA_DEFAULT_CODE}:
+                torque_data = BodyThrustTorqueTable.get_torque_thrust_values(
+                    current_body=body,
+                    ncno_code=ncno_code,
+                    construction_variety_code=construction_variety_code,
+                    da_sr_code=SPRINGS_DA_DEFAULT_CODE,
+                )
+        html = BodyThrustTorqueTable.format_for_html(torque_data, locale=locale or 'ru')
         return {'__html': html} if html else ''
 
     def _get_valve_torque_nm(self) -> float:
@@ -801,7 +1041,7 @@ class PneumaticActuatorCatalogItem(
         except (TypeError, ValueError):
             return str(value)
 
-    def render_spec_html(self) -> str:
+    def render_spec_html(self, locale=None) -> str:
         """HTML-описание спецификации для модалки «Просмотр спецификации».
 
         Строится из ``_get_spec_sections()`` — того же источника, что и вкладка
@@ -811,7 +1051,7 @@ class PneumaticActuatorCatalogItem(
         """
         from html import escape
 
-        sections = self._get_spec_sections()
+        sections = self._get_spec_sections(locale=locale)
         if not sections:
             return ''
 

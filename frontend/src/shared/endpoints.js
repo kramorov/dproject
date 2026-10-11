@@ -158,6 +158,7 @@ export const ENDPOINTS = {
     createSku: '/pneumatic_actuators/constructor/create-sku/',
     items: '/pneumatic_actuators/items/',
     itemDetail: (id) => `/pneumatic_actuators/items/${id}/`,
+    filters: '/pneumatic_actuators/filters/',
   },
 
 }

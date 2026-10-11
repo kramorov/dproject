@@ -1178,10 +1178,40 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         result = re.sub(r'\.\s+', ' ', result)  # Заменяет точку и любые пробельные символы после нее
         logger.debug(f"удалили точки в начале и конце: {result}")
         result = re.sub(r'\s*\(DA\)', '', result)  # Удалит (DA) с любым количеством пробелов перед ним
+        result = re.sub(r'\(\s*\)', '', result)  # Пустые скобочные группы (плейсхолдер опции пуст)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
         logger.debug(f"удалили (DA): {result}")
         # if not self.is_da_model():
         #     result = result + str('('+self._get_value('selected_springs_qty__encoding')+')')
 
+        # Ext-часть артикула (ext_encoding_template + ext_encoding через-опций)
+        ext_template = self.selected_model_line_item.model_line.ext_encoding_template
+        if ext_template:
+            ext = ext_template
+            ext = ext.replace('{model_code}', self._get_nested_attr('selected_model_line_item__name'))
+            ext = ext.replace('{springs_qty}', self._get_nested_attr('selected_springs_qty__ext_encoding'))
+            ext = ext.replace('{temperature}', self._get_nested_attr('selected_temperature__ext_encoding'))
+            ext = ext.replace('{safety_position}', self._get_nested_attr('selected_safety_position__ext_encoding'))
+            ext = ext.replace('{manual_override}', self._get_nested_attr('selected_manual_override__ext_encoding'))
+            ext = ext.replace('{coating}', self._get_nested_attr('selected_body_coating__ext_encoding'))
+            ext = ext.replace('{body_color}', self._get_nested_attr('selected_body_color__ext_encoding'))
+            ext = ext.replace('{ip}', self._get_nested_attr('selected_ip__ext_encoding'))
+            ext = ext.replace('{exd}', self._get_nested_attr('selected_exd__ext_encoding'))
+            ext = re.sub(r'\.{2,}', '.', ext)
+            ext = re.sub(r'\.\s+', ' ', ext)
+            ext = re.sub(r'\s*\(DA\)', '', ext)
+            ext = re.sub(r'\(\s*\)', '', ext)
+            ext = re.sub(r'-\.', '.', ext)
+            ext = re.sub(r'\.-', '.', ext)
+            ext = re.sub(r'\s{2,}', ' ', ext)
+            ext = re.sub(r'[.-]+$', '', ext).strip()
+            ext = re.sub(r'^[.\-\s]+', '', ext)
+            if ext:
+                result = f"{result} {ext}".strip()
+
+        result = re.sub(r'[.-]+$', '', result).strip()
         return result
 
     def _get_nested_attr(self, field_path: str) -> str:

@@ -148,6 +148,11 @@ export default {
   'pa.breadcrumb': '气动执行器',
   'pa.eqName': '气动执行器',
 
+  'pa.browse.section.title': '气动执行器 — 产品目录',
+  'pa.browse.section.subtitle': '选择系列以浏览目录产品',
+  'pa.browse.list.title': '气动执行器 — 工程选型',
+  'pa.browse.link': '浏览目录产品 →',
+
   'pf.section.title': '气动接头',
   'pf.section.subtitle': '选择接头系列',
   'pf.list.title': '接头 — 工程选型',

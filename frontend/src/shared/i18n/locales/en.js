@@ -148,6 +148,11 @@ export default {
   'pa.breadcrumb': 'Pneumatic actuators',
   'pa.eqName': 'Pneumatic actuators',
 
+  'pa.browse.section.title': 'Pneumatic actuators — catalog',
+  'pa.browse.section.subtitle': 'Select a series to browse catalog items',
+  'pa.browse.list.title': 'Pneumatic actuators — engineer selection',
+  'pa.browse.link': 'Browse catalog items →',
+
   'pf.section.title': 'Pneumatic fittings',
   'pf.section.subtitle': 'Select a fitting series',
   'pf.list.title': 'Fittings — engineering selection',

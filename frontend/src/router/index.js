@@ -59,6 +59,7 @@ const routes = [
   { path: '/catalog/pneumatic-plugs', redirect: locRedirect('/catalogs/fittings-plugs/pneumatic-plugs') },
   { path: '/catalog/cable-glands', component: () => import('../pages/catalog/CableGlandPage.vue'), meta: { title: 'Кабельные вводы', section: 'catalog_cg' } },
   { path: '/catalog/pa-actuators', component: () => import('../pages/catalog/PaActuatorPage.vue'), meta: { title: 'Пневмоприводы', section: 'catalog_pa' } },
+  { path: '/catalog/pa-actuators-browse', component: () => import('../pages/catalog/PaActuatorBrowsePage.vue'), meta: { title: 'Пневмоприводы — каталог артикулов', section: 'catalog_pa' } },
   { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры', section: 'catalog_gearbox' } },
   { path: '/catalog/ea-reducers', component: PlaceholderPage, props: { title: 'Редукторы к ЭП' }, meta: { title: 'Редукторы к ЭП' } },
   { path: '/catalog/solenoid-valves', component: () => import('../pages/catalog/SolenoidValvesPage.vue'), meta: { title: 'Соленоидные клапаны', section: 'catalog_sv' } },
