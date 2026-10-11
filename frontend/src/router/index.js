@@ -108,6 +108,7 @@ const routes = [
   { path: '/admin/cert-docs', component: () => import('../pages/admin/CertDocsPage.vue'), meta: { title: 'Сертификаты', section: 'certificates' } },
   { path: '/admin/price', component: () => import('../pages/admin/PriceCatalogPage.vue'), meta: { title: 'Цены', section: 'admin_section' } },
   { path: '/admin/sku', component: () => import('../pages/admin/SkuAdminPage.vue'), meta: { title: 'SKU', section: 'admin_section' } },
+  { path: '/admin/storage-backup', component: () => import('../pages/admin/StorageBackupPage.vue'), meta: { title: 'Бэкап хранилища', section: 'admin_section' } },
 { path: '/admin/assemblies', component: () => import('../pages/AssembliesPage.vue'), meta: { title: 'Сборки', section: 'admin_section' } },
   { path: '/admin/limit-switch', component: () => import('../pages/admin/LimitSwitchAdminPage.vue'), meta: { title: 'БКВ', section: 'admin_section' } },
   { path: '/widgets', component: () => import('../pages/admin/WidgetsPage.vue'), meta: { title: 'Виджеты', section: 'admin_section' } },

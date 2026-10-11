@@ -83,6 +83,7 @@ const allItems = [
     { label:'menu.systemSettings', children:[
       { to:'/admin/wizard-config', label:'menu.wizard' },
       { to:'/admin/media', label:'menu.mediaLibrary' },
+      { to:'/admin/storage-backup', label:'menu.storageBackup' },
       { to:'/admin/configurator-rules', label:'menu.configuratorRules' },
       { to:'/admin/permissions', label:'menu.permissions' },
     ]},
