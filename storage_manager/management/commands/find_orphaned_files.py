@@ -5,6 +5,7 @@ python manage.py find_orphaned_files — поиск файлов в Cloud.ru, н
   - MediaLibraryItem: media_file, preview_file
   - MediaVariant: file_path
   - ImageCropSession: original_file, result_sm, result_md, result_lg
+  - SvgConversionSession: original_file, svg_file
 
 Выводит список орфанов (файлы в облаке без ссылок в БД).
 
@@ -85,6 +86,16 @@ class Command(BaseCommand):
                 if field:
                     db_keys.add(self._norm(field))
         self.stdout.write(f'  ImageCropSession: original + results — собрано')
+
+        # SvgConversionSession: original_file + svg_file
+        from svg_converter.models import SvgConversionSession
+        for path in SvgConversionSession.objects.all().values_list(
+            'original_file', 'svg_file'
+        ):
+            for field in path:
+                if field:
+                    db_keys.add(self._norm(field))
+        self.stdout.write(f'  SvgConversionSession: original + svg — собрано')
 
         self.stdout.write(self.style.SUCCESS(f'Уникальных путей из БД: {len(db_keys)}'))
 

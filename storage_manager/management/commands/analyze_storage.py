@@ -264,6 +264,12 @@ class Command(BaseCommand):
                 val = getattr(s, fld)
                 if val and val.name:
                     keys.add(self._norm(val.name))
+        from svg_converter.models import SvgConversionSession
+        for s in SvgConversionSession.objects.all():
+            for fld in ['original_file', 'svg_file']:
+                val = getattr(s, fld)
+                if val and val.name:
+                    keys.add(self._norm(val.name))
         return keys
 
     @staticmethod
