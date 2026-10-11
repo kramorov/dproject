@@ -11,15 +11,31 @@ python manage.py restore_cloudru — восстановление из лока�
     python manage.py restore_cloudru --manifest ... --dry-run     # только показать что будет залито
     python manage.py restore_cloudru --manifest ... --prefix media_library/  # только этот префикс
 """
-import json
 import os
 import time
-from datetime import datetime
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from storage_manager.storage_backends.cloudru import CloudRuStorage
+from storage_manager.backup_service import fmt_size, run_restore
+
+
+class _CliProgress:
+    """Адаптер прогресса сервиса → stdout."""
+
+    def __init__(self, out):
+        self.out = out
+
+    def start(self, phase, total=0):
+        pass
+
+    def set(self, **kw):
+        pass
+
+    def log(self, text):
+        self.out.write(text)
+
+    def finish(self, phase):
+        pass
 
 
 class Command(BaseCommand):
@@ -44,104 +60,26 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         filter_prefix = options['prefix']
 
-        with open(manifest_path, 'r', encoding='utf-8') as f:
-            manifest = json.load(f)
-
-        backup_dir = os.path.dirname(os.path.abspath(manifest_path))
-        all_files = manifest.get('files', [])
-
-        if filter_prefix:
-            all_files = [obj for obj in all_files if obj['key'].startswith(filter_prefix)]
-
-        total_size = sum(obj['size'] for obj in all_files)
-
-        storage = CloudRuStorage()
-        s3 = storage.s3_admin
-        bucket = storage.bucket_name
-
-        self.stdout.write(f'Manifest: {manifest_path}')
-        self.stdout.write(f'Бакет: {bucket}')
-        self.stdout.write(f'Дата бэкапа: {manifest.get("backup_date", "неизвестна")}')
-        self.stdout.write(f'Папка бэкапа: {backup_dir}')
-        self.stdout.write(f'Файлов к восстановлению: {len(all_files)} ({self._fmt_size(total_size)})')
-        if filter_prefix:
-            self.stdout.write(f'Фильтр по префиксу: {filter_prefix}')
         if dry_run:
             self.stdout.write(self.style.WARNING('DRY RUN — файлы НЕ заливаются'))
+        if filter_prefix:
+            self.stdout.write(f'Фильтр по префиксу: {filter_prefix}')
 
-        if not all_files:
-            self.stdout.write(self.style.WARNING('Нет файлов для восстановления.'))
+        progress = _CliProgress(self.stdout)
+        start = time.time()
+        result = run_restore(
+            manifest_path=manifest_path, overwrite=overwrite,
+            dry_run=dry_run, prefix=filter_prefix, progress=progress,
+        )
+        elapsed = time.time() - start
+
+        if result['cancelled']:
+            self.stdout.write(self.style.WARNING('Отменено.'))
             return
-
-        uploaded = 0
-        skipped = 0
-        failed = 0
-        uploaded_bytes = 0
-        start_time = time.time()
-
-        for i, obj in enumerate(all_files):
-            key = obj['key']
-            size = obj['size']
-            local_path = os.path.join(backup_dir, key)
-
-            if not os.path.exists(local_path):
-                failed += 1
-                self.stdout.write(self.style.ERROR(f'  ✗ Файл отсутствует локально: {key}'))
-                continue
-
-            local_size = os.path.getsize(local_path)
-
-            # Проверяем существование в облаке
-            if not overwrite and not dry_run:
-                try:
-                    resp = s3.head_object(Bucket=bucket, Key=key)
-                    cloud_size = resp['ContentLength']
-                    if cloud_size == local_size:
-                        skipped += 1
-                        if (i + 1) % 100 == 0:
-                            self.stdout.write(f'  [{i+1}/{len(all_files)}] залито: {uploaded}, пропущено: {skipped}')
-                        continue
-                    else:
-                        self.stdout.write(
-                            f'  Размер отличается: {key} (локально {local_size}, облако {cloud_size}) — перезаливаю'
-                        )
-                except Exception:
-                    pass  # файла нет в облаке — заливаем
-
-            if dry_run:
-                uploaded += 1
-                uploaded_bytes += local_size
-                continue
-
-            try:
-                s3.upload_file(local_path, bucket, key)
-                uploaded += 1
-                uploaded_bytes += local_size
-            except Exception as e:
-                failed += 1
-                self.stdout.write(self.style.ERROR(f'  ✗ Ошибка заливки: {key} — {e}'))
-
-            if (i + 1) % 50 == 0 or (i + 1) == len(all_files):
-                elapsed = time.time() - start_time
-                speed = uploaded_bytes / elapsed if elapsed > 0 else 0
-                pct = (i + 1) / len(all_files) * 100
-                self.stdout.write(
-                    f'  [{i+1}/{len(all_files)}] {pct:.0f}% | '
-                    f'залито: {uploaded}, пропущено: {skipped}, ошибок: {failed} | '
-                    f'{self._fmt_size(uploaded_bytes)} @ {self._fmt_size(int(speed))}/c'
-                )
-
-        elapsed = time.time() - start_time
+        if result['total'] == 0:
+            return  # сервис уже написал «Нет файлов для восстановления»
         self.stdout.write(self.style.SUCCESS(
             f'\nГотово за {elapsed:.1f}с. '
-            f'Залито: {uploaded}, пропущено: {skipped}, ошибок: {failed}. '
-            f'Всего: {self._fmt_size(uploaded_bytes)}'
+            f"Залито: {result['uploaded']}, пропущено: {result['skipped']}, "
+            f"ошибок: {result['failed']}. Всего: {fmt_size(result['bytes'])}"
         ))
-
-    @staticmethod
-    def _fmt_size(size_bytes: int) -> str:
-        for unit in ('Б', 'КБ', 'МБ', 'ГБ', 'ТБ'):
-            if size_bytes < 1024:
-                return f'{size_bytes:.1f} {unit}'
-            size_bytes /= 1024
-        return f'{size_bytes:.1f} ПБ'
