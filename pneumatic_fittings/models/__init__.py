@@ -17,7 +17,7 @@
 
 # from pneumatic_fittings.models.pf_item_fields import PF_ITEM_TEMPLATE_FIELDS
 from pneumatic_fittings.models.fitting_parameters import (FittingShape, FittingFixationMethod,SilencerFilterElement,
-                                                          SilencerShape,PlugSilencerBodyMaterial)
+                                                          SilencerShape,PlugSilencerBodyMaterial, PlugWrenchHeadType)
 from pneumatic_fittings.models.fittings_pipe import PneumaticFittingModelLine, PneumaticFitting
 from pneumatic_fittings.models.plugs import PneumaticPlugModelLine, PneumaticPlug
 from pneumatic_fittings.models.silencers import PneumaticSilencerModelLine, PneumaticSilencer
@@ -35,7 +35,8 @@ __all__ = [
     "PneumaticSilencer",
     "SilencerFilterElement",
     "PlugSilencerBodyMaterial",
-    "SilencerShape"
+    "SilencerShape",
+    "PlugWrenchHeadType",
 ]
 
 

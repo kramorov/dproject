@@ -94,7 +94,14 @@ class SKUMixin(models.Model):
                  для счетов/КП) → «подхватить» её: обогатить поля SKU данными
                  из модели (name, description, equipment_type, brand, source_*).
             3. Если кода нет — выходит молча.
+
+        Черновик (копия карточки) синхронизацию пропускает: ``_skip_sku`` —
+        временный флаг, который ставится при копировании
+        (``CopyMixin.copy()`` / ``StructuredDataMixin.copy()``). SKU создастся
+        при следующем обычном сохранении.
         """
+        if getattr(self, '_skip_sku', False):
+            return
         from .sku import SKU
         code = self.get_sku_code()
         if not code:

@@ -63,13 +63,12 @@ class KindCatalogTests(TestCase):
 
         cls.tube = PneumaticFitting.objects.create(
             name='_Tube item', code='_T1', model_line=cls.line_tube,
-            equipment_type=cls.et_tube, pipe_diameter=8)
+            pipe_diameter=8)
         cls.sil = PneumaticSilencer.objects.create(
             name='_Silencer item', code='_S1', model_line=cls.line_sil,
-            equipment_type=cls.et_sil, flow_rate=100)
+            flow_rate=100)
         cls.plug = PneumaticPlug.objects.create(
-            name='_Plug item', code='_P1', model_line=cls.line_plug,
-            equipment_type=cls.et_plug)
+            name='_Plug item', code='_P1', model_line=cls.line_plug)
 
     def setUp(self):
         self.client = APIClient()

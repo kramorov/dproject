@@ -87,6 +87,10 @@ _TUBE_SELECT_RELATED = _SELECT_RELATED_COMMON + [
     'model_line__shape', 'model_line__fixation_method', 'pipe_material',
 ]
 
+_PLUG_SELECT_RELATED = _SELECT_RELATED_COMMON + [
+    'model_line__wrench_head_type',
+]
+
 
 PNEUMATIC_FITTINGS_CONFIG = CatalogConfig(
     model_class=PneumaticFitting,
@@ -200,7 +204,7 @@ PNEUMATIC_PLUGS_CONFIG = CatalogConfig(
         ),
     },
 
-    select_related=_SELECT_RELATED_COMMON,
+    select_related=_PLUG_SELECT_RELATED,
     prefetch_fields=_PREFETCH_COMMON,
     search_fields=['code', 'name', 'description'],
 

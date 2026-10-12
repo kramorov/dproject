@@ -23,8 +23,8 @@ PF_ITEM_TEMPLATE_FIELDS = (
     {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
      'name_path': 'model_line__brand', },
-    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'equipment_type__name',
-     'name_path': 'equipment_type'},
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'model_line__equipment_type__name',
+     'name_path': 'model_line__equipment_type'},
 
     # ── Основные ──
     {'key': 'shape', 'placeholder': '{shape}', 'path': 'model_line__shape__name', 'name_path': 'model_line__shape'},
@@ -65,5 +65,10 @@ PF_ITEM_TEMPLATE_FIELDS = (
 
     # ── Габариты/вес (общие для всех видов) ──
     {'key': 'weight', 'placeholder': '{weight}', 'path': 'weight'},
-    {'key': 'width_across_flats', 'placeholder': '{width_across_flats}', 'path': 'width_across_flats'},
+    {'key': 'width_across_flats_body', 'placeholder': '{width_across_flats_body}', 'path': 'width_across_flats_body'},
+    {'key': 'width_across_flats_locking_nut', 'placeholder': '{width_across_flats_locking_nut}', 'path': 'width_across_flats_locking_nut'},
+
+    # ── Заглушка (только) ──
+    {'key': 'wrench_head_type', 'placeholder': '{wrench_head_type}', 'path': 'model_line__wrench_head_type__name',
+     'name_path': 'model_line__wrench_head_type'},
 )

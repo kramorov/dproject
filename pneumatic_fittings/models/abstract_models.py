@@ -2,7 +2,6 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.core.exceptions import ValidationError
 from typing import Dict , List
 from core.models.mixins import StructuredDataMixin, TemplateMixin, CopyMixin, LocalizedDictFieldsMixin, LocalizedModelLineMixin
 from core.models.config_hash import ConfigHashMixin
@@ -81,7 +80,7 @@ class AbstractPneumaticFittingModelLine(LocalizedModelLineMixin, ImageGalleryMix
 
 class AbstractPneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
                                ImageGalleryMixin, TechDocMixin,
-                               SKUMixin, EquipmentTypeMixin, ConfigHashMixin,
+                               SKUMixin, ConfigHashMixin,
                                StructuredDataMixin, TemplateMixin, CopyMixin, models.Model):
     """Общая база позиций фитингов/глушителей/заглушек.
 
@@ -122,8 +121,8 @@ class AbstractPneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
                                        null=True, blank=True,
                                        help_text=_('Вес, кг'),
                                        verbose_name=_('Вес, кг'))
-    width_across_flats = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Ключ, мм") ,
-                                        help_text=_('Размер гайки под ключ, мм'))
+    width_across_flats_body = models.DecimalField(decimal_places=2, max_digits=6, blank=True , null=True , verbose_name=_("Размер ключа, мм") ,
+                                        help_text=_('Размер под ключ, мм'))
     # ── SKUMixin ──
 
     def get_equipment_type_for_sku(self):
@@ -142,17 +141,8 @@ class AbstractPneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
         self.sync_sku()
 
     def clean(self):
-        """Вид артикула должен совпадать с видом серии (вид = свойство серии)."""
+        """Тип оборудования наследуется из серии (отдельного поля нет)."""
         super().clean()
-        if self.model_line_id and self.equipment_type_id:
-            ml_eq = self.model_line.equipment_type if self.model_line else None
-            if ml_eq is not None and ml_eq.pk != self.equipment_type_id:
-                raise ValidationError({
-                    'equipment_type': _(
-                        'Тип оборудования артикула (%(item)s) не совпадает с типом серии (%(line)s). '
-                        'Вид определяется серией — исправьте серию или тип артикула.'
-                    ) % {'item': self.equipment_type.code, 'line': ml_eq.code},
-                })
 
     # ── Рабочее давление / температура (наследуются из серии) ──
 

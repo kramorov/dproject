@@ -10,6 +10,7 @@ from .models import (
     PneumaticFitting, PneumaticSilencer, PneumaticPlug,
     PneumaticFittingModelLine, PneumaticSilencerModelLine, PneumaticPlugModelLine,
     FittingShape, FittingFixationMethod, SilencerShape, PlugSilencerBodyMaterial, SilencerFilterElement,
+    PlugWrenchHeadType,
 )
 
 
@@ -29,7 +30,7 @@ class _BaseFittingItemAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
     search_fields = ['name', 'code', 'description']
     filter_horizontal = ('tech_docs',)
     list_display = [
-        'name', 'code', 'equipment_type', 'model_line__brand', 'image_gallery',
+        'name', 'code', 'model_line__equipment_type', 'model_line__brand', 'image_gallery',
         'thread', 'thread_inner_outer', 'sorting_order', 'is_active'
     ]
     list_editable = ['code', 'thread', 'sorting_order', 'is_active']
@@ -50,10 +51,10 @@ class _BaseFittingItemAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
 class PneumaticFittingAdmin(_BaseFittingItemAdmin):
     form = PneumaticFittingForm
     list_display = [
-        'name', 'code', 'model_line', 'model_line__brand',
+        'name', 'code', 'width_across_flats_body','width_across_flats_locking_nut',
         'pipe_diameter', 'thread', 'sorting_order', 'is_active'
     ]
-    list_editable = ['code', 'pipe_diameter', 'thread', 'sorting_order', 'is_active']
+    list_editable = ['code', 'pipe_diameter', 'thread', 'width_across_flats_body','width_across_flats_locking_nut','sorting_order', 'is_active']
     list_filter = [
         'model_line', 'model_line__brand', 'model_line__code',
         'model_line__shape', 'model_line__fixation_method',
@@ -65,7 +66,7 @@ class PneumaticFittingAdmin(_BaseFittingItemAdmin):
             'fields': ('name', ('code', 'model_line'),
                         ('body_material',),
                         ('pipe_material', 'pipe_diameter'), ('thread', 'thread_inner_outer'),
-                        ('weight', 'width_across_flats'),
+                        ('weight', 'width_across_flats_body','width_across_flats_locking_nut',),
                         ('description', 'sorting_order', 'is_active'))
         }),
         (_('Изображения и документация'), {
@@ -80,7 +81,7 @@ class PneumaticFittingAdmin(_BaseFittingItemAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
             'model_line', 'model_line__shape', 'model_line__fixation_method',
-            'body_material', 'pipe_material', 'thread', 'equipment_type'
+            'body_material', 'pipe_material', 'thread', 'model_line__equipment_type'
         )
 
 
@@ -98,7 +99,7 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
                         ('thread', 'thread_inner_outer'),
                         ('flow_rate', 'noise_level', 'operating_pressure'),
                         ('pressure_max',),
-                        ('weight', 'width_across_flats'),
+                        ('weight', 'width_across_flats_body'),
                         ('description', 'sorting_order', 'is_active'))
         }),
         (_('Изображения и документация'), {
@@ -112,7 +113,7 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'model_line', 'body_material', 'thread', 'equipment_type'
+            'model_line', 'body_material', 'thread', 'model_line__equipment_type'
         )
 
 
@@ -128,7 +129,7 @@ class PneumaticPlugAdmin(_BaseFittingItemAdmin):
             'fields': ('name', ('code', 'model_line'),
                         ('body_material',),
                         ('thread', 'thread_inner_outer'),
-                        ('weight', 'width_across_flats'),
+                        ('weight', 'width_across_flats_body'),
                         ('description', 'sorting_order', 'is_active'))
         }),
         (_('Изображения и документация'), {
@@ -142,7 +143,7 @@ class PneumaticPlugAdmin(_BaseFittingItemAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'model_line', 'body_material', 'thread', 'equipment_type'
+            'model_line', 'body_material', 'thread', 'model_line__equipment_type'
         )
 
 
@@ -267,6 +268,7 @@ class PneumaticPlugModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlace
         (_('Основная информация'), {
             'fields': ('name', ('code', 'equipment_type'),
                         ('producer', 'brand'),
+                        ('wrench_head_type',),
                         ('description', 'description_i18n'),
                         ('sorting_order', 'is_active'))
         }),
@@ -349,3 +351,19 @@ class FittingFixationMethodAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
     list_editable = ['name', 'code', 'sorting_order', 'is_active']
     ordering = ('sorting_order', 'name')
+
+
+@admin.register(PlugWrenchHeadType)
+class PlugWrenchHeadTypeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'code', 'sorting_order', 'is_active')
+    list_editable = ['name', 'code', 'sorting_order', 'is_active']
+    ordering = ('sorting_order', 'name')
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'is_active', 'sorting_order')
+        }),
+        ('Описания', {
+            'fields': ('description', 'help_text_content'),
+            'classes': ('collapse',),
+        }),
+    )

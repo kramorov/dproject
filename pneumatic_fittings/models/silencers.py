@@ -39,7 +39,7 @@ class PneumaticSilencer(AbstractPneumaticFitting):
         'thread', 'thread_inner_outer', 'pressure_range',
         'flow_rate', 'noise_level', 'operating_pressure',
         'body_material', 'pressure_min', 'pressure_max',
-        'temp_min', 'temp_max', 'weight', 'width_across_flats', 'filter_element','shape',
+        'temp_min', 'temp_max', 'weight', 'width_across_flats_body', 'filter_element','shape',
     )
 
     VARS_FIELD_KEYS = (
@@ -47,7 +47,7 @@ class PneumaticSilencer(AbstractPneumaticFitting):
         'thread', 'thread_inner_outer', 'body_material', 'temperature_range',
         'pressure_range', 'flow_rate', 'noise_level', 'operating_pressure',
         'pressure_min', 'pressure_max', 'temp_min', 'temp_max',
-        'weight', 'width_across_flats','filter_element','shape',
+        'weight', 'width_across_flats_body','filter_element','shape',
     )
 
     config_hash_fields = (

@@ -91,3 +91,22 @@ class FittingFixationMethod(StructuredDataMixin , LocalizedDictFieldsMixin) :
 
     def __str__(self) :
         return self.name
+
+
+class PlugWrenchHeadType(StructuredDataMixin , LocalizedDictFieldsMixin) :
+    """Тип головки заглушки под ключ (внутренний/внешний шестигранник)."""
+    name = models.CharField(max_length=100 , verbose_name=_("Название типа"))
+    code = models.SlugField(max_length=50 , unique=True , verbose_name=_("Код"))
+    description = models.TextField(blank=True , verbose_name=_("Краткое описание"))
+    help_text_content = models.TextField(blank=True , verbose_name=_("Описание для подсказок"))
+    sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
+                                        help_text=_('Порядок сортировки в списке'))
+    is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
+                                    help_text=_('Активно свойство или нет'))
+
+    class Meta :
+        verbose_name = "Тип головки под ключ"
+        verbose_name_plural = "Типы головки под ключ"
+
+    def __str__(self) :
+        return self.name

@@ -4,6 +4,7 @@ from django.apps import apps
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from .template_fields import TemplateFieldSpec
+from .config_hash import ConfigHashMixin
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.contrib import admin
@@ -1923,8 +1924,21 @@ class StructuredDataMixin :
             if field_name in new_data:
                 new_data[field_name] = transform_func(new_data[field_name], self)
 
+        # SKU (номенклатура) не наследуется: копия — новый продукт, получит
+        # свою SKU при финализации (или останется черновиком без SKU).
+        if 'sku' in new_data:
+            new_data['sku'] = None
+
         # Создаем новый объект
         new_copy = self.__class__(**new_data)
+
+        # Черновик для карточек с config_hash: копия не наследует хэш
+        # конфигурации и не создаёт SKU сразу — пользователь доводит её до ума
+        # при следующем обычном сохранении (тогда хэш пересчитается и SKU создастся).
+        if isinstance(new_copy, ConfigHashMixin):
+            new_copy.config_hash = None
+            new_copy._skip_config_hash = True
+            new_copy._skip_sku = True
 
         if save_copy:
             new_copy.save()
@@ -2327,6 +2341,14 @@ class CopyMixin:
                 if self._should_deep_copy(field, field_name, value, deep_copy_fields):
                     value = copy.deepcopy(value)
                 setattr(copied_obj, field_name, value)
+
+        # Черновик для карточек с config_hash: копия не наследует хэш конфигурации
+        # и не создаёт SKU сразу — пользователь доводит её до ума при следующем
+        # обычном сохранении (тогда хэш пересчитается и SKU создастся).
+        if isinstance(copied_obj, ConfigHashMixin):
+            copied_obj.config_hash = None
+            copied_obj._skip_config_hash = True
+            copied_obj._skip_sku = True
 
         # Сохраняем копию
         copied_obj.save()

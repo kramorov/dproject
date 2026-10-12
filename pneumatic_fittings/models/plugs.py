@@ -4,6 +4,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from pneumatic_fittings.models import PlugSilencerBodyMaterial
+from pneumatic_fittings.models.fitting_parameters import PlugWrenchHeadType
 from pneumatic_fittings.models.abstract_models import AbstractPneumaticFittingModelLine, AbstractPneumaticFitting
 from pneumatic_fittings.filters import _COMMON_FILTER_DEFINITIONS
 
@@ -14,6 +15,13 @@ class PneumaticPlugModelLine(AbstractPneumaticFittingModelLine):
     #                                   on_delete=models.SET_NULL,
     #                                   help_text=_('Материал корпуса'),
     #                                   verbose_name=_("Материал корпуса"))
+    wrench_head_type = models.ForeignKey(PlugWrenchHeadType ,
+                                         related_name='pneumatic_plug_model_lines' ,
+                                         blank=True , null=True ,
+                                         on_delete=models.SET_NULL ,
+                                         help_text=_('Тип головки заглушки под ключ') ,
+                                         verbose_name=_("Тип головки под ключ"))
+
     class Meta :
         ordering = ['brand' , 'code']
         verbose_name = _('Серия заглушек пневматических')
@@ -27,14 +35,14 @@ class PneumaticPlug(AbstractPneumaticFitting):
         'code', 'brand_name', 'equipment_type', 'temperature_range',
         'thread', 'thread_inner_outer', 'pressure_range',
         'body_material', 'pressure_min', 'pressure_max',
-        'temp_min', 'temp_max', 'weight', 'width_across_flats',
+        'temp_min', 'temp_max', 'weight', 'width_across_flats_body', 'wrench_head_type',
     )
 
     VARS_FIELD_KEYS = (
         'code', 'name', 'model_line_name', 'brand_name',
         'thread', 'thread_inner_outer', 'body_material', 'temperature_range',
         'pressure_range', 'pressure_min', 'pressure_max', 'temp_min', 'temp_max',
-        'weight', 'width_across_flats',
+        'weight', 'width_across_flats_body', 'wrench_head_type',
     )
 
     config_hash_fields = (

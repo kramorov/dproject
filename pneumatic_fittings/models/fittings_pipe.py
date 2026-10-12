@@ -46,7 +46,7 @@ class PneumaticFitting(AbstractPneumaticFitting):
         'shape', 'fixation_method', 'swivel', 'pressure_range',
         'pipe_diameter', 'thread', 'thread_inner_outer',
         'body_material', 'pipe_material', 'pressure_min', 'pressure_max',
-        'temp_min', 'temp_max', 'weight', 'width_across_flats',
+        'temp_min', 'temp_max', 'weight', 'width_across_flats_body', 'width_across_flats_locking_nut',
     )
 
     VARS_FIELD_KEYS = (
@@ -55,7 +55,7 @@ class PneumaticFitting(AbstractPneumaticFitting):
         'thread', 'thread_inner_outer', 'body_material', 'temperature_range',
         'swivel', 'pipe_diameter', 'pipe_material', 'pressure_range',
         'pressure_min', 'pressure_max', 'temp_min', 'temp_max',
-        'weight', 'width_across_flats',
+        'weight', 'width_across_flats_body', 'width_across_flats_locking_nut',
     )
 
     config_hash_fields = (
@@ -76,6 +76,8 @@ class PneumaticFitting(AbstractPneumaticFitting):
     pipe_diameter = models.IntegerField(blank=True , null=True ,
                                         help_text=_('Диаметр') ,
                                         verbose_name=_('Диаметр трубки, мм'))
+    width_across_flats_locking_nut = models.SmallIntegerField(blank=True , null=True , verbose_name=_("Накидная гайка, мм") ,
+                                        help_text=_('Размер накидной гайки, мм'))
 
     class Meta :
         ordering = ['pipe_diameter' , 'thread']

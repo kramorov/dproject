@@ -41,7 +41,14 @@ class ConfigHashMixin(models.Model):
         чтобы хэши разных моделей гарантированно не пересекались. Хэшируются
         только стабильные значения опций, НЕ encoding и не ``code``: смена
         кодировки не меняет хэш. Отсутствующая опция — ``0``.
+
+        Черновик (копия карточки) вычисление пропускает: ``_skip_config_hash``
+        — временный флаг, который ставится при копировании
+        (``CopyMixin.copy()`` / ``StructuredDataMixin.copy()``). Хэш и SKU
+        появятся при следующем обычном сохранении.
         """
+        if getattr(self, '_skip_config_hash', False):
+            return None
         if not self.config_hash_fields:
             return None
         parts = [self._hash_part(field_name) for field_name in self.config_hash_fields]
