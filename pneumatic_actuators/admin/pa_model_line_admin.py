@@ -124,7 +124,7 @@ class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
             'fields' : (
                 ('name' , 'code' , 'brand' , 'equipment_type',
                 'pneumatic_actuator_construction_variety'), 'model_item_code_template', 'ext_encoding_template',
-                ('name_template', 'description_template'), 'spec_template', 'description'
+                ('name_template', 'description_template'), 'spec_template', ('description', 'description_i18n'),
             )
         }) ,
         (_('Основные параметры') , {

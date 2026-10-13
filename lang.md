@@ -83,6 +83,8 @@ description_i18n = models.JSONField(default=dict, blank=True)  # {"ru","en","cn"
 - Мастер подбора: `core/question_graph_views.py` (узлы + опции).
 - Медиа/сертификаты: `media_library/models.py`, `cert_doc/models.py`,
   `core/models/catalog_serializer.py` (`_get_certs_section`/`_build_doc_dict`).
+- Through-опции (суффикс/база): `options/exd.py` (`BaseThroughOptionNoDefault`),
+  `pneumatic_actuators/models/pa_options.py` (reference-оверрайды `_localized_base_name`).
 - Команды-переводчики: `core/management/commands/translate_*.py`.
 
 ---
@@ -172,3 +174,58 @@ description_i18n = models.JSONField(default=dict, blank=True)  # {"ru","en","cn"
     `title_template_i18n` (+sync, +update_fields) и переводить той же командой
     (`translate_model_line_templates`; переводы title == name, ключ — точная ru-строка;
     опечатки в данных вроде `{exd_short}}` ломают exact-match — чинить данные).
+
+---
+
+## 8. Уроки второй волны (2026-10-13, through-опции ПП + конфигуратор)
+
+### Through-опции (BaseThroughOptionNoDefault, options/exd.py)
+
+18. **Суффикс «(Стандарт)/(Опция)» — автоматический, не в `name_i18n`.**
+    `localized_name(locale)` = `_localized_base_name(locale)` + `localize_service_word(
+    '(Стандарт)'/'(Опция)', locale)`. Суффикс выводится на лету по `is_default`; в данных
+    (`name_i18n`) он больше не хранится.
+19. **Reference-опция vs derived-опция.**
+    - Reference-опция (FK на справочник — дублёр/IP/безопасность/пружины/цвет):
+      переопределить `_localized_base_name(locale)` =
+      `_strip_option_suffix(localized_name(справочник, locale))`.
+    - Derived-опция (имя из данных — температура/Exd): default-реализация
+      (`pick_i18n(name_i18n, locale, fallback=None)` → `_strip_option_suffix` →
+      `localize_service_word`). Исполнение корпуса — `get_display_name(locale)`.
+20. **`name_i18n` у through-модели не нужен, если имя выводится из справочника/данных.**
+    Для таких моделей `sync_name_i18n = False` (отключает sync ru в `save()`). Поле остаётся
+    в схеме (общая база через-моделей) — удалять только после миграции всех приложений
+    на этот паттерн.
+21. **`_strip_option_suffix()` — регистронезависимый.** Снимает «(Стандарт)»/«(Опция)»/
+    «(Standard)»/«(Option)»/「（标配）」/「（选配）」. Это же покрывает кейс «Штурвал (опция)»
+    → без двойного суффикса «(option) (Option)».
+22. **Свободная функция `localized_name(obj, locale)` делегирует в метод**
+    `obj.localized_name(locale)`, если он есть (через-опции); иначе — `name_i18n → name`
+    (справочники). Поэтому вызов на through-модели идёт через метод (с суффиксом), на
+    справочнике — через `name_i18n`.
+
+### Справочные списки / initial-data
+
+23. **`get_for_select(active_only=True, locale=None)`.** Справочные списки для селекторов
+    должны принимать локаль и отдавать `name` через `localized_name`, а `description` —
+    через `pick_i18n(description_i18n, ...)` (если есть). Локаль — из
+    `locale_from_accept_language` во вью.
+24. **Частичный initial-data.** `get_initial_data(locale, fields)` выполняет запросы только
+    для запрошенных ключей; вью читает `?fields=a,b`; фронт `api.getInitialData(['a'])`.
+    Не тянуть весь payload ради одного справочника.
+
+### Плейсхолдеры name/description
+
+25. **`name_path` ≠ значение поля.** `name_path='model_line__X'` (bare-FK) в имя подставляет
+    `str(FK)` = имя. Для поля-описания (`{variety_description}`) — только
+    `path='model_line__X__description'` БЕЗ `name_path`; иначе в имя попадёт имя («DA»),
+    а не описание.
+
+### Фронт (конфигуратор ПП)
+
+26. **Данные для кнопок выбора — из бэка, не хардкод.** Фиксированные наборы («Тип привода»
+    DA/SR) отдавать локализованными из справочника (напр. `actuator_varieties` в
+    `initial-data`) и рендерить `v-for`. Подписи групп — по-прежнему UI-хром через `t()`.
+27. **`defineProps` в `<script setup>` не может ссылаться на локальный `t`** (hoisting).
+    Дефолты пропсов — пустые строки или plain-значения; локализованные title/subtitle
+    передаёт родитель.

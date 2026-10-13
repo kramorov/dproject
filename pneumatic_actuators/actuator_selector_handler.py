@@ -211,24 +211,42 @@ def get_filtered_model_line_items(model_line_id: Optional[int] = None,
         active_only=True
     )
 
-def get_initial_data() -> Dict[str, Any]:
+def get_initial_data(locale=None, fields=None) -> Dict[str, Any]:
     """
-    Возвращает начальные данные для загрузки страницы
+    Возвращает начальные данные для загрузки страницы.
+
+    ``fields`` (опционально) — итерабельное с именами ключей; если задано,
+    выполняются только запросы для этих ключей (лёгкий частичный ответ).
     """
     from pneumatic_actuators.models import PneumaticActuatorModelLine
     from params.models import DnVariety, PnVariety, MountingPlateTypes, StemSize, ValveTypes
 
-    return {
-        'model_lines': PneumaticActuatorModelLine.get_for_select(active_only=True),
-        'construction_varieties': PneumaticActuatorConstructionVariety.get_for_select(active_only=True),
-        'dn_varieties': DnVariety.get_for_select(active_only=True),
-        'pn_varieties': PnVariety.get_for_select(active_only=True),
-        'air_pressure': PneumaticAirSupplyPressure.get_for_select(active_only=True),
-        'mounting_plates': MountingPlateTypes.get_for_select(active_only=True),
-        'stem_shapes': StemShapes.get_for_select(active_only=True),
-        'stem_sizes': StemSize.get_for_select(active_only=True),
-        'valve_types': ValveTypes.get_for_select(active_only=True),  # <-- добавить
-    }
+    if fields is not None:
+        fields = set(fields)
+    want = (lambda key: fields is None or key in fields)
+
+    data: Dict[str, Any] = {}
+    if want('model_lines'):
+        data['model_lines'] = PneumaticActuatorModelLine.get_for_select(active_only=True)
+    if want('actuator_varieties'):
+        data['actuator_varieties'] = PneumaticActuatorVariety.get_for_select(active_only=True, locale=locale)
+    if want('construction_varieties'):
+        data['construction_varieties'] = PneumaticActuatorConstructionVariety.get_for_select(active_only=True, locale=locale)
+    if want('dn_varieties'):
+        data['dn_varieties'] = DnVariety.get_for_select(active_only=True)
+    if want('pn_varieties'):
+        data['pn_varieties'] = PnVariety.get_for_select(active_only=True)
+    if want('air_pressure'):
+        data['air_pressure'] = PneumaticAirSupplyPressure.get_for_select(active_only=True)
+    if want('mounting_plates'):
+        data['mounting_plates'] = MountingPlateTypes.get_for_select(active_only=True)
+    if want('stem_shapes'):
+        data['stem_shapes'] = StemShapes.get_for_select(active_only=True)
+    if want('stem_sizes'):
+        data['stem_sizes'] = StemSize.get_for_select(active_only=True)
+    if want('valve_types'):
+        data['valve_types'] = ValveTypes.get_for_select(active_only=True)
+    return data
 
 
 def _normalize_selection_params(params: Dict[str, Any]) -> Dict[str, Any]:

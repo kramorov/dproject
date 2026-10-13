@@ -27,8 +27,7 @@ PA_ITEM_TEMPLATE_FIELDS = (
     # ── Вид и корпус ──
     {'key': 'variety_name', 'placeholder': '{variety_name}', 'path': 'pneumatic_actuator_variety__name',
      'name_path': 'pneumatic_actuator_variety', },
-    {'key': 'variety_description', 'placeholder': '{variety_description}', 'path': 'pneumatic_actuator_variety__description',
-     'name_path': 'pneumatic_actuator_variety', },
+    {'key': 'variety_description', 'placeholder': '{variety_description}', 'path': 'pneumatic_actuator_variety__description', },
     {'key': 'variety_code', 'path': 'pneumatic_actuator_variety__code'},
     {'key': 'body_name', 'placeholder': '{body_name}', 'path': 'body__name',
      },

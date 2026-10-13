@@ -132,7 +132,7 @@ function onNavigate(item) {
 
 onMounted(async () => {
   try {
-    const { data } = await api.getInitialData()
+    const { data } = await api.getInitialData(['construction_varieties'])
     const varieties = data?.construction_varieties || []
     if (!varieties.length) return
     const options = varieties.map(v => ({ value: v.id, label: v.name }))

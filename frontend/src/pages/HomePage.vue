@@ -5,7 +5,7 @@
     <section class="hero">
       <div class="hero-content">
         <h1 class="hero-title">Агрегатор технической информации<br>Трубопроводная арматура и управление арматурой</h1>
-        <p class="hero-subtitle">Подбор по параметрам, конфигураторы, сертификаты, документация — всё в одном месте</p>
+        <p class="hero-subtitle">Инженерная экосистема подбора, конфигурации и комплектации оборудования для управляемой запорной арматуры<br>Подбор по параметрам, конфигураторы, сертификаты, документация — всё в одном месте</p>
 <!--        <div class="hero-actions">-->
 <!--          <router-link to="/catalogs/equipment" class="hero-btn hero-btn-primary">Перейти в каталог</router-link>-->
 <!--          <router-link to="/login" class="hero-btn hero-btn-outline">Войти</router-link>-->

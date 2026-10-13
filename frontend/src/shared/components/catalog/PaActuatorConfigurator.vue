@@ -12,13 +12,13 @@
     />
 
     <div v-if="loadingML" class="state"><Spinner /></div>
-    <div v-else-if="!modelLines.length" class="empty">Нет доступных серий</div>
+    <div v-else-if="!modelLines.length" class="empty">{{ t('pa.configurator.noSeries') }}</div>
 
     <template v-else>
       <div class="pa-top">
       <!-- 1. Серия -->
       <div class="step">
-        <div class="step-label">Серия</div>
+        <div class="step-label">{{ t('pa.configurator.series') }}</div>
         <div class="chips">
           <button
             v-for="ml in modelLines"
@@ -32,21 +32,18 @@
 
       <!-- 2. Тип привода + типоразмер -->
       <div class="step" v-if="form.model_line_id">
-        <div class="step-label">Тип привода</div>
+        <div class="step-label">{{ t('pa.configurator.actuatorType') }}</div>
         <div class="chips">
           <button
+            v-for="v in actuatorVarieties"
+            :key="v.id"
             class="chip"
-            :class="{ active: form.variety === 'DA' }"
-            @click="selectVariety('DA')"
-          >DA — двойного действия</button>
-          <button
-            class="chip"
-            :class="{ active: form.variety === 'SR' }"
-            @click="selectVariety('SR')"
-          >SR — с возвратной пружиной</button>
+            :class="{ active: form.variety === v.code }"
+            @click="selectVariety(v.code)"
+          >{{ v.name }}{{ v.description ? ` — ${v.description}` : '' }}</button>
         </div>
 
-        <div class="step-label" v-if="form.variety">Модель</div>
+        <div class="step-label" v-if="form.variety">{{ t('pa.configurator.model') }}</div>
         <div class="chips" v-if="form.variety">
           <button
             v-for="item in modelItems"
@@ -68,7 +65,7 @@
             class="chip"
             :class="{ active: form.springs_qty === o.id }"
             @click="toggleOption('springs_qty', o.id)"
-          >{{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}</button>
+          >{{ o.name }}</button>
         </div>
       </div>
       </div><!-- /.pa-top -->
@@ -76,7 +73,7 @@
       <div class="pa-body">
       <!-- 4. Остальные опции (сайдбар) -->
       <aside class="pa-sidebar" v-if="otherOptionFields.length || hasBodyDesign">
-        <div class="step-label">Опции</div>
+        <div class="step-label">{{ t('pa.configurator.options') }}</div>
         <div class="option-groups">
           <div class="option-group" v-for="opt in otherOptionFields" :key="opt.key">
             <div class="option-label">{{ opt.label }}</div>
@@ -87,7 +84,7 @@
                 class="chip"
                 :class="{ active: form[opt.key] === o.id }"
                 @click="toggleOption(opt.key, o.id)"
-              >{{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}</button>
+              >{{ o.name }}</button>
             </div>
           </div>
 
@@ -97,7 +94,7 @@
                выбранную пару обратно в конкретную опцию серии. -->
           <template v-if="hasBodyDesign">
             <div class="option-group">
-              <div class="option-label">Материал корпуса</div>
+              <div class="option-label">{{ t('pa.configurator.bodyMaterial') }}</div>
               <div class="chips">
                 <button
                   v-for="m in bodyMaterials"
@@ -109,7 +106,7 @@
               </div>
             </div>
             <div class="option-group">
-              <div class="option-label">Покрытие корпуса</div>
+              <div class="option-label">{{ t('pa.configurator.bodyCoating') }}</div>
               <div class="chips">
                 <button
                   v-for="c in bodyCoatings"
@@ -144,11 +141,14 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 import PaProductCard from './PaProductCard.vue'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   api: { type: Object, required: true },
-  title: { type: String, default: 'Конфигуратор пневмопривода' },
-  subtitle: { type: String, default: 'Серия → типоразмер → опции' },
+  title: { type: String, default: '' },
+  subtitle: { type: String, default: '' },
   // Предвыбор серии (из CatalogSection, единый паттерн)
   initialModelLineId: { type: Number, default: null },
   // Предвыбор типоразмера и вида (из мастера/селектора)
@@ -168,18 +168,19 @@ const OPTION_KEY_MAP = {
   manual_override_options: 'manual_override',
 }
 
-const OPTION_LABELS = {
-  safety_position: 'Положение безопасности',
-  springs_qty: 'Количество пружин',
-  temperature: 'Температурное исполнение',
-  ip: 'Степень защиты IP',
-  exd: 'Взрывозащита',
-  manual_override: 'Ручной дублёр',
-}
+const optionLabels = computed(() => ({
+  safety_position: t('pa.configurator.label.safety_position'),
+  springs_qty: t('pa.configurator.label.springs_qty'),
+  temperature: t('pa.configurator.label.temperature'),
+  ip: t('pa.configurator.label.ip'),
+  exd: t('pa.configurator.label.exd'),
+  manual_override: t('pa.configurator.label.manual_override'),
+}))
 
 const OPTION_KEYS = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'manual_override']
 
 const modelLines = ref([])
+const actuatorVarieties = ref([])
 const modelItems = ref([])
 const optionFields = ref([])
 const springsField = computed(() => optionFields.value.find(f => f.key === 'springs_qty') || null)
@@ -222,6 +223,8 @@ onMounted(async () => {
   }
   loadingML.value = false
 
+  await loadActuatorVarieties()
+
   if (props.initialModelLineId) {
     form.model_line_id = props.initialModelLineId
     resetAfter('model_line_id')
@@ -237,6 +240,16 @@ onMounted(async () => {
   }
 })
 
+async function loadActuatorVarieties() {
+  try {
+    const { data } = await props.api.getInitialData(['actuator_varieties'])
+    actuatorVarieties.value = data?.actuator_varieties || []
+  } catch (e) {
+    console.error('PaActuatorConfigurator: actuator_varieties failed', e)
+    actuatorVarieties.value = []
+  }
+}
+
 async function selectML(id) {
   if (form.model_line_id === id) return
   form.model_line_id = id
@@ -246,12 +259,12 @@ async function selectML(id) {
 }
 
 async function autoSelectVariety() {
-  // Первый тип привода (DA/SR), у которого есть model_line_item, и первый item.
-  for (const v of ['DA', 'SR']) {
+  // Первый тип привода, у которого есть model_line_item, и первый item.
+  for (const v of actuatorVarieties.value) {
     try {
-      const { data } = await props.api.getModelLineItems(form.model_line_id, v)
+      const { data } = await props.api.getModelLineItems(form.model_line_id, v.code)
       if (data && data.length) {
-        form.variety = v
+        form.variety = v.code
         modelItems.value = data
         await selectItem(data[0].id)
         return
@@ -324,7 +337,7 @@ async function selectItem(id) {
         name: o.name,
         is_default: o.is_default,
       }))
-      fields.push({ key: formKey, label: OPTION_LABELS[formKey] || formKey, items: mapped })
+      fields.push({ key: formKey, label: optionLabels.value[formKey] || formKey, items: mapped })
       // Единственная опция — выделяем по умолчанию; иначе — только is_default.
       if (form[formKey] === null) {
         if (mapped.length === 1) {

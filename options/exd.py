@@ -59,21 +59,63 @@ class BaseThroughOptionNoDefault(models.Model) :
         """Имя опции для localized_name()-фолбэка (у моделей с полем name — перекрывается)."""
         return str(self)
 
+    _SUFFIX_WORDS = ('(стандарт)', '(опция)', '(standard)', '(option)', '（标配）', '（选配）')
+
+    @classmethod
+    def _strip_option_suffix(cls, value):
+        """Снять суффикс «(Стандарт)/(Опция)» в любой локали/регистре с конца строки."""
+        if not isinstance(value, str):
+            return value
+        value = value.strip()
+        low = value.lower()
+        for suffix in cls._SUFFIX_WORDS:
+            for sep in (' ', '\u00a0'):
+                tail = f"{sep}{suffix}"
+                if low.endswith(tail):
+                    return value[:-len(tail)].rstrip()
+            if low.endswith(suffix):
+                return value[:-len(suffix)].rstrip()
+        return value
+
+    def _localized_base_name(self, locale=None):
+        """Базовое локализованное имя БЕЗ суффикса «(Стандарт)/(Опция)».
+
+        Reference-based опции переопределяют метод на localized_name(справочник).
+        По умолчанию — имя из name_i18n/str со снятым суффиксом + локализация единиц.
+        """
+        from core.utils.localization import pick_i18n, localize_service_word
+        base = pick_i18n(self.name_i18n, locale, fallback=None)
+        if not base:
+            base = str(self)
+        base = self._strip_option_suffix(base)
+        return localize_service_word(base, locale)
+
     def localized_name(self, locale=None):
-        """Локализованное имя опции: name_i18n[locale] → str() (ru-фолбэк)."""
-        from core.utils.localization import pick_i18n
-        return pick_i18n(self.name_i18n, locale, fallback=str(self)) or str(self)
+        """Локализованное имя опции: база + автоматический суффикс «(Стандарт)/(Опция)»."""
+        from core.utils.localization import localize_service_word
+        base = self._localized_base_name(locale)
+        if hasattr(self, 'is_default'):
+            suffix = '(Стандарт)' if self.is_default else '(Опция)'
+            return f"{base} {localize_service_word(suffix, locale)}"
+        return base
+
+    sync_name_i18n = True  # переопределить в False, если модель не использует name_i18n
 
     def save(self, *args, **kwargs):
-        """Синхронизация name_i18n['ru'] с текущим отображаемым именем (паттерн sync_ru)."""
-        try:
-            ru = str(self)
-        except Exception:
-            ru = ''
-        if ru:
-            i18n = dict(self.name_i18n or {})
-            i18n['ru'] = ru
-            self.name_i18n = i18n
+        """Синхронизация name_i18n['ru'] с текущим отображаемым именем (паттерн sync_ru).
+
+        Модели с ``sync_name_i18n = False`` не пишут name_i18n — имя локализуется
+        из справочника (reference) или derived-полей.
+        """
+        if getattr(self, 'sync_name_i18n', True):
+            try:
+                ru = str(self)
+            except Exception:
+                ru = ''
+            if ru:
+                i18n = dict(self.name_i18n or {})
+                i18n['ru'] = ru
+                self.name_i18n = i18n
         super().save(*args, **kwargs)
 
     # ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================

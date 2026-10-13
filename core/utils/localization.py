@@ -62,10 +62,16 @@ def locale_from_accept_language(header):
 
 
 def localized_name(obj, locale=None):
-    """Название справочника с переводом: obj.name_i18n[locale] → obj.name.
+    """Название справочника/опции с переводом: obj.name_i18n[locale] → obj.name.
 
-    Для объектов без ``name_i18n`` (или без перевода) возвращается RU-имя.
+    Для объектов с собственным методом ``localized_name`` (through-опции,
+    ``BaseThroughOptionNoDefault``) делегируем ему — там базовое имя и суффикс
+    «(Стандарт)/(Опция)» считаются автоматически. Для остальных (справочники без
+    ``name_i18n`` или без перевода) возвращается RU-имя.
     """
+    method = getattr(obj, 'localized_name', None)
+    if callable(method):
+        return method(locale)
     name = getattr(obj, 'name', '') or ''
     i18n = getattr(obj, 'name_i18n', None)
     return pick_i18n(i18n, locale or DEFAULT_LOCALE, fallback=name)
@@ -76,7 +82,7 @@ _SERVICE_WORDS = {
     'Нет': {'en': 'No', 'cn': '无'},
     'Да': {'en': 'Yes', 'cn': '有'},
     'Не указано': {'en': 'Not specified', 'cn': '未指定'},
-    'Общепромышленное': {'en': 'General-purpose', 'cn': '通用'},
+    'Общепромышленное': {'en': 'General industrial', 'cn': '一般工业'},
     # Комплектация (фильтр-регулятор).
     'В комплекте': {'en': 'Included', 'cn': '包含'},
     'Без манометра': {'en': 'Without gauge', 'cn': '无压力表'},
@@ -93,6 +99,8 @@ _SERVICE_WORDS = {
     'Не установлен': {'en': 'Not installed', 'cn': '未安装'},
     'Опция без имени': {'en': 'Unnamed option', 'cn': '未命名选项'},
     'Без пружин': {'en': 'Without springs', 'cn': '无弹簧'},
+    'открытие': {'en': 'opening', 'cn': '开启'},
+    'закрытие': {'en': 'closing', 'cn': '关闭'},
 }
 
 # Подстроковые замены для не-RU локалей (единицы, соединители, служебные слова).

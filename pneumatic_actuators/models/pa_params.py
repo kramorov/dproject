@@ -53,12 +53,21 @@ class PneumaticActuatorVariety(LocalizedDictFieldsMixin) :
         return self.name
 
     @classmethod
-    def get_for_select(cls , active_only=True) :
-        """Получить виды приводов для выпадающего списка"""
+    def get_for_select(cls , active_only=True, locale=None) :
+        """Получить виды приводов для выпадающего списка (name/description локализованы)."""
+        from core.utils.localization import localized_name, pick_i18n
         queryset = cls.objects.all()
         if active_only :
             queryset = queryset.filter(is_active=True)
-        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
+        return [
+            {
+                'id': obj.id,
+                'name': localized_name(obj, locale),
+                'code': obj.code,
+                'description': pick_i18n(getattr(obj, 'description_i18n', None), locale, fallback=obj.description or ''),
+            }
+            for obj in queryset
+        ]
 
 class PneumaticActuatorConstructionVariety(StructuredDataMixin , LocalizedDictFieldsMixin) :
     """
@@ -85,12 +94,13 @@ class PneumaticActuatorConstructionVariety(StructuredDataMixin , LocalizedDictFi
         return self.name
 
     @classmethod
-    def get_for_select(cls , active_only=True) :
+    def get_for_select(cls , active_only=True, locale=None) :
         """Получить конструкции приводов для выпадающего списка"""
+        from core.utils.localization import localized_name
         queryset = cls.objects.all()
         if active_only :
             queryset = queryset.filter(is_active=True)
-        return [{'id' : obj.id , 'name' : obj.name , 'code' : obj.code} for obj in queryset]
+        return [{'id' : obj.id , 'name' : localized_name(obj, locale) , 'code' : obj.code} for obj in queryset]
 
     # ==================== StructuredDataMixin методы ====================
 

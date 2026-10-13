@@ -14,6 +14,7 @@ from core.utils.localization import localized_name, pick_i18n
 
 class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
     """Опции ручного дублера для пневмоприводов (на уровне модели в серии)."""
+    sync_name_i18n = False
     model_line_item = models.ForeignKey(
         'PneumaticActuatorModelLineItem',
         on_delete=models.CASCADE,
@@ -64,8 +65,13 @@ class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
     def __str__(self):
         return f"{self.hand_wheel_option.name} (Стандарт)" if self.is_default else f"{self.hand_wheel_option.name} (Опция)"
 
+    def _localized_base_name(self, locale=None):
+        ref = self.hand_wheel_option
+        return self._strip_option_suffix(localized_name(ref, locale)) if ref else ''
+
 class PneumaticTemperatureOption(BaseTemperatureThroughOption):
     """Температурные опции для пневмоприводов"""
+    sync_name_i18n = False
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
@@ -90,6 +96,7 @@ class PneumaticTemperatureOption(BaseTemperatureThroughOption):
 
 class PneumaticIpOption(BaseIpThroughOption):
     """Опции IP для пневмоприводов"""
+    sync_name_i18n = False
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
@@ -109,6 +116,10 @@ class PneumaticIpOption(BaseIpThroughOption):
 
     def __str__(self):
         return f"{self.ip_option.name} (Стандарт)" if self.is_default else f"{self.ip_option.name} (Опция)"
+
+    def _localized_base_name(self, locale=None):
+        ref = self.ip_option
+        return self._strip_option_suffix(localized_name(ref, locale)) if ref else ''
 
     @classmethod
     def get_model_line_for_IP(cls, ip_option_id: Optional[int] = None,
@@ -220,6 +231,7 @@ class PneumaticExdOption(BaseM2MExdThroughOption):
     Одна строка = одна КОДИРОВКА (опция выбора), внутри — M2M видов взрывозащиты
     (params.ExdOption). Аналог CableGlandExdOption/PosiExdOption.
     """
+    sync_name_i18n = False
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
@@ -278,6 +290,7 @@ class PneumaticExdOption(BaseM2MExdThroughOption):
 
 class PneumaticBodyDesignOption(BaseThroughOption):
     """Исполнение корпуса (материал/покрытие) для пневмоприводов"""
+    sync_name_i18n = False
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
@@ -361,6 +374,11 @@ class PneumaticBodyDesignOption(BaseThroughOption):
     def __str__(self):
         return self.get_display_name()
 
+    def _localized_base_name(self, locale=None):
+        # get_display_name(locale) локализует материал/покрытие через справочники,
+        # но всегда добавляет RU-суффикс — снимаем его, суффикс добавит localized_name().
+        return self._strip_option_suffix(self.get_display_name(locale))
+
     @classmethod
     def get_for_select(cls , model_line_id: Optional[int] = None ,
                        model_line_item_id: Optional[int] = None ,
@@ -390,6 +408,7 @@ class PneumaticBodyDesignOption(BaseThroughOption):
 
 class PneumaticBodyColorOption(BaseColorThroughOption):
     """Цвет корпуса для пневмоприводов (отдельная through-опция)"""
+    sync_name_i18n = False
     model_line = models.ForeignKey(
         'PneumaticActuatorModelLine',
         on_delete=models.CASCADE,
@@ -439,9 +458,14 @@ class PneumaticBodyColorOption(BaseColorThroughOption):
             queryset = queryset.filter(model_line_id=model_line_id)
         return [{'id': obj.id, 'name': str(obj), 'code': obj.encoding} for obj in queryset]
 
+    def _localized_base_name(self, locale=None):
+        ref = self.color_option
+        return self._strip_option_suffix(localized_name(ref, locale)) if ref else ''
+
 
 class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
+    sync_name_i18n = False
     model_line_item = models.ForeignKey(
         'PneumaticActuatorModelLineItem',
         on_delete=models.CASCADE,
@@ -460,7 +484,11 @@ class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
         return 'model_line_item'
 
     def __str__(self):
-        return f"{self.safety_position.name}"
+        return f"{self.safety_position.name} (Стандарт)" if self.is_default else f"{self.safety_position.name} (Опция)"
+
+    def _localized_base_name(self, locale=None):
+        ref = self.safety_position
+        return self._strip_option_suffix(localized_name(ref, locale)) if ref else ''
 
     @classmethod
     def get_for_select(cls , model_line_id=None , model_line_item_id=None ,
@@ -520,6 +548,7 @@ class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
 
 class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
     """Опции покрытия корпуса для пневмоприводов"""
+    sync_name_i18n = False
     model_line_item = models.ForeignKey(
         'PneumaticActuatorModelLineItem',
         on_delete=models.CASCADE,
@@ -534,7 +563,11 @@ class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
         unique_together = ['model_line_item', 'springs_qty']
 
     def __str__(self) :
-        return f"{self.springs_qty.name}"
+        return f"{self.springs_qty.name} (Стандарт)" if self.is_default else f"{self.springs_qty.name} (Опция)"
+
+    def _localized_base_name(self, locale=None):
+        ref = self.springs_qty
+        return self._strip_option_suffix(localized_name(ref, locale)) if ref else ''
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line_item'

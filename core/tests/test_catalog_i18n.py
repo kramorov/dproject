@@ -15,7 +15,7 @@ from io import StringIO
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import Client, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 
 from cable_glands.models import CableGland, CableGlandModelLine
 from core.models import EquipmentType
@@ -288,3 +288,65 @@ class AdminI18nFieldsetTests(TestCase):
         html = response.content.decode('utf-8')
         self.assertIn('Переводы (ru/en/cn)', html)
         self.assertEqual(html.count('<textarea name="name_template_i18n"'), 1)
+
+
+class ThroughOptionLocalizedNameTests(SimpleTestCase):
+    """localized_name() через-опций: авто-суффикс (Стандарт)/(Опция) + делегирование."""
+
+    def test_strip_option_suffix_case_insensitive(self):
+        from options.exd import BaseThroughOptionNoDefault
+        self.assertEqual(BaseThroughOptionNoDefault._strip_option_suffix('Handwheel (option)'), 'Handwheel')
+        self.assertEqual(BaseThroughOptionNoDefault._strip_option_suffix('Не установлен (Стандарт)'), 'Не установлен')
+        self.assertEqual(BaseThroughOptionNoDefault._strip_option_suffix('IP67 (Standard)'), 'IP67')
+
+    def test_localized_name_adds_suffix_default_vs_option(self):
+        from params.models import HandWheelInstalledOption
+        from pneumatic_actuators.models.pa_options import PneumaticManualOverrideOption
+        ref = HandWheelInstalledOption(
+            name='Не установлен',
+            name_i18n={'ru': 'Не установлен', 'en': 'Not installed', 'cn': '未安装'},
+        )
+        default = PneumaticManualOverrideOption(hand_wheel_option=ref, is_default=True)
+        option = PneumaticManualOverrideOption(hand_wheel_option=ref, is_default=False)
+        self.assertEqual(default.localized_name('en'), 'Not installed (Standard)')
+        self.assertEqual(option.localized_name('en'), 'Not installed (Option)')
+        self.assertEqual(default.localized_name('cn'), '未安装 （标配）')
+
+    def test_no_double_suffix_for_reference_with_option_word(self):
+        from params.models import HandWheelInstalledOption
+        from pneumatic_actuators.models.pa_options import PneumaticManualOverrideOption
+        ref = HandWheelInstalledOption(
+            name='Штурвал (опция)',
+            name_i18n={'ru': 'Штурвал (опция)', 'en': 'Handwheel (option)', 'cn': '手轮（选配）'},
+        )
+        opt = PneumaticManualOverrideOption(hand_wheel_option=ref, is_default=False)
+        self.assertEqual(opt.localized_name('en'), 'Handwheel (Option)')
+        self.assertEqual(opt.localized_name('cn'), '手轮 （选配）')
+        self.assertNotIn('(option) (Option)', opt.localized_name('en'))
+
+    def test_free_function_delegates_to_method(self):
+        from params.models import HandWheelInstalledOption
+        from pneumatic_actuators.models.pa_options import PneumaticManualOverrideOption
+        from core.utils.localization import localized_name as localize
+        ref = HandWheelInstalledOption(
+            name='Не установлен',
+            name_i18n={'ru': 'Не установлен', 'en': 'Not installed', 'cn': '未安装'},
+        )
+        opt = PneumaticManualOverrideOption(hand_wheel_option=ref, is_default=True)
+        self.assertEqual(localize(opt, 'en'), opt.localized_name('en'))
+        self.assertEqual(localize(opt, 'cn'), opt.localized_name('cn'))
+
+    def test_safety_springs_str_have_suffix(self):
+        from params.models import SafetyPositionOption
+        from pneumatic_actuators.models.pa_options import (
+            PneumaticSafetyPositionOption, PneumaticSpringsQtyOption)
+        from pneumatic_actuators.models.pa_params import PneumaticActuatorSpringsQty
+        sp = PneumaticSafetyPositionOption(
+            safety_position=SafetyPositionOption(name='NC'), is_default=True)
+        sq = PneumaticSpringsQtyOption(
+            springs_qty=PneumaticActuatorSpringsQty(name='05'), is_default=False)
+        self.assertEqual(str(sp), 'NC (Стандарт)')
+        self.assertEqual(str(sq), '05 (Опция)')
+        self.assertEqual(sp.localized_name('en'), 'NC (Standard)')
+        self.assertEqual(sq.localized_name('en'), '05 (Option)')
+

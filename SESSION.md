@@ -1432,6 +1432,38 @@ check чисто; 35/35 тестов.
    0 артефактов, 0 дублей кодов.
 4. Пропущено (автотесты на фильтры, mandatory) — по решению пользователя.
 
+## 21. Сессия 2026-10-13 — локализация ПП: суффиксы опций, плейсхолдеры, конфигуратор
+
+### Сделано
+- **`{variety_description}`** — убран неверный `name_path` (bare-FK → «DA» вместо описания);
+  имя/спеки берут описание.
+- **`PneumaticActuatorVariety.description_i18n`** (DA/SR): en «double acting»/«spring return»,
+  cn «双作用»/«弹簧复位».
+- **`{pneumatic_conn}`** — резолвер принимает `locale`, имена справочника через `localized_name`,
+  разделитель «или» локализован.
+- **`{time_open}`/`{time_close}`, `{air_usage_open}`/`{air_usage_close}`** — единицы «сек»/«л» убраны;
+  сводный `_res_air_usage` переведён на `_fmt_num` + локализованы «открытие/закрытие» (service-слова).
+- **Авто-суффикс опций** (`BaseThroughOptionNoDefault`): `localized_name()` = база + локализованный
+  «(Стандарт)/(Опция)»; `_strip_option_suffix` регистронезависим; reference-опции ПП (5) переопределяют
+  `_localized_base_name()` на справочник; `sync_name_i18n=False` у 8 ПП through-моделей; `name_i18n` ПП
+  очищен; `translate_pa_option_names` — no-op.
+- **Свободная функция `localized_name(obj, locale)`** делегирует в метод через-опции (иначе фильтр exd
+  фолбэкал на ru после очистки name_i18n).
+- **Конфигуратор ПП** (`PaActuatorConfigurator.vue`): UI-хром → `t()` (`pa.configurator.*`); кнопки
+  «Тип привода» рендерятся из бэка (`actuator_varieties` в `initial-data`, name/description локализованы).
+- **`initial-data` — частичный ответ**: `get_initial_data(locale, fields)` + `?fields=` (конфигуратор тянет
+  только `actuator_varieties`, секция — только `construction_varieties`).
+- Тесты: `ThroughOptionLocalizedNameTests` (5, SimpleTestCase) — суффикс/делегирование/«Штурвал (опция)».
+
+### Задачи (очередь)
+1. **Перенести ЭП/КВ/позиционеры/распределители на паттерн ПП** (reference-опции → `_localized_base_name`
+   из справочника). Сейчас делегирование свободной функции глобально добавляет им суффикс + service-word —
+   безопасно, но по их каталогам не smoke-тестировано.
+2. **Удалить `name_i18n` из схемы `BaseThroughOptionNoDefault`** — после миграции остальных приложений на
+   паттерн ПП (у ПП поле пустое; `translate_pa_option_names` — no-op). Требует миграций 6 приложений.
+3. **Дубли в селекте exd** (id 6/11, 8/9, пустая «— (Standard)») — показать `encoding` в label или сгруппировать
+   (см. §20).
+
 
 
 

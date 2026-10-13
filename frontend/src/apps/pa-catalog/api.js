@@ -23,8 +23,11 @@ export default {
   search(payload) { return api.post(E.search, payload) },
   // Create SKU (add to cart)
   createSku(payload) { return api.post(E.createSku, payload) },
-  // Initial data (pressures, etc.)
-  getInitialData() { return api.get('/pneumatic_actuators/selector/initial-data/') },
+  // Initial data (pressures, etc.); fields — необязательный список ключей для частичного ответа.
+  getInitialData(fields = null) {
+    const params = fields && fields.length ? { fields: fields.join(',') } : {}
+    return api.get('/pneumatic_actuators/selector/initial-data/', { params })
+  },
   // Actuator options (varieties, safety, exd, materials, temperature)
   getActuatorOptions(params = {}) { return api.get('/pneumatic_actuators/options/', { params }) },
 }

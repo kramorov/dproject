@@ -62,7 +62,11 @@ class SelectorAPIView(APIView):
         air_pressure, mounting_plates, stem_shapes, stem_sizes, valve_types.
         """
         from pneumatic_actuators.actuator_selector_handler import get_initial_data
-        return JsonResponse(get_initial_data())
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        fields_param = request.GET.get('fields')
+        fields = [f.strip() for f in fields_param.split(',') if f.strip()] if fields_param else None
+        return JsonResponse(get_initial_data(locale=locale, fields=fields))
 
     def post(self, request):
         """

@@ -42,7 +42,7 @@ from core.models import ImageGalleryMixin, TechDocMixin, EquipmentTypeMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.mixins import CopyMixin, TemplateMixin
 from core.models.catalog_serializer import CatalogSerializerMixin
-from core.utils.localization import localized_name, pick_i18n
+from core.utils.localization import localized_name, pick_i18n, localize_service_word
 from core.models.smart_catalog_mixin import SmartCatalogMixin
 from core.models.filter_definition import FilterDefinition, FilterType, DataSourceType
 from sku.models import SKUMixin
@@ -869,18 +869,23 @@ class PneumaticActuatorCatalogItem(
             return f"{_fmt_num(body.min_pressure_bar)} - {_fmt_num(body.max_pressure_bar)} бар"
         return ''
 
-    def _res_air_usage(self) -> str:
+    def _res_air_usage(self, locale=None) -> str:
         body = self.body
         if not body:
             return ''
-        open_v = body.air_usage_open or ''
-        close_v = body.air_usage_close or ''
-        return f"открытие {open_v} л, закрытие {close_v} л" if (open_v or close_v) else ''
+        open_v = _fmt_num(body.air_usage_open)
+        close_v = _fmt_num(body.air_usage_close)
+        if not (open_v or close_v):
+            return ''
+        open_word = localize_service_word('открытие', locale)
+        close_word = localize_service_word('закрытие', locale)
+        return f"{open_word} {open_v}, {close_word} {close_v}"
 
-    def _res_pneumatic_conn(self) -> str:
+    def _res_pneumatic_conn(self, locale=None) -> str:
         body = self.body
         if body and body.pneumatic_connection.exists():
-            return ' или '.join(str(c) for c in body.pneumatic_connection.all())
+            names = [localized_name(c, locale) for c in body.pneumatic_connection.all()]
+            return localize_service_word(' или ', locale).join(names)
         return ''
 
     def _res_piston_diameter(self) -> str:
@@ -910,13 +915,13 @@ class PneumaticActuatorCatalogItem(
     def _res_air_usage_open(self) -> str:
         body = self.body
         if body and body.air_usage_open is not None:
-            return f"{_fmt_num(body.air_usage_open)} л"
+            return f"{_fmt_num(body.air_usage_open)}"
         return ''
 
     def _res_air_usage_close(self) -> str:
         body = self.body
         if body and body.air_usage_close is not None:
-            return f"{_fmt_num(body.air_usage_close)} л"
+            return f"{_fmt_num(body.air_usage_close)}"
         return ''
 
     def _res_max_stem_height(self) -> str:
@@ -1037,7 +1042,7 @@ class PneumaticActuatorCatalogItem(
         if value is None:
             return ''
         try:
-            return f"{float(value):.1f} сек"
+            return f"{float(value):.1f}"
         except (TypeError, ValueError):
             return str(value)
 

@@ -41,7 +41,7 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
     code = models.CharField(max_length=50 , blank=True , null=True , verbose_name=_("Код") ,
                             help_text=_("Код серии приводов"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
-                                   help_text=_('Текстовое описание модели корпуса привода'))
+                                   help_text=_('Текстовое описание серии пневмоприводов'))
     # Шаблоны текста каталога — единый контракт с DV/LSB/FR/GB/PF (2026-08-31).
     # Используются PneumaticActuatorCatalogItem (TemplateMixin._get_name_template_source).
     name_template = models.TextField(blank=True , null=True ,
