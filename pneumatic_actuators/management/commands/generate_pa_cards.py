@@ -53,25 +53,55 @@ class Command(BaseCommand):
             help='Архивировать (is_active=False) комбинации, исчезнувшие из набора',
         )
 
+    PROGRESS_EVERY = 100
+    SAVE_BATCH_SIZE = 100
+
     def handle(self, *args, **options):
         ml_id = options['model_line']
         dry_run = options['dry_run']
         archive = options['archive']
 
         mlis = PneumaticActuatorModelLineItem.objects.select_related(
-            'model_line', 'body', 'pneumatic_actuator_variety',
-        ).filter(model_line__isnull=False)
+            'model_line', 'model_line__equipment_type', 'model_line__brand',
+            'model_line__pneumatic_actuator_construction_variety',
+            'body', 'pneumatic_actuator_variety',
+        ).prefetch_related('body__pneumatic_connection').filter(
+            model_line__isnull=False,
+        )
         if ml_id:
             mlis = mlis.filter(model_line_id=ml_id)
         mlis = list(mlis)
         if not mlis:
             raise CommandError('Нет типоразмеров (model_line_item) для генерации.')
 
-        created = updated = reactivated = errors = 0
+        # Существующие карточки — одним запросом со всеми связями: сравнение и
+        # обновление идут на existing, чтобы генерация не делала ленивых запросов.
+        existing_map_qs = PneumaticActuatorCatalogItem.objects.all()
+        if ml_id:
+            existing_map_qs = existing_map_qs.filter(model_line_id=ml_id)
+        existing_map = {
+            item.config_hash: item
+            for item in existing_map_qs.select_related(
+                'model_line', 'model_line__equipment_type', 'model_line__brand',
+                'body', 'pneumatic_actuator_variety',
+                'selected_safety_position', 'selected_springs_qty', 'selected_temperature',
+                'selected_ip', 'selected_exd', 'selected_body_coating', 'selected_body_color',
+                'selected_manual_override', 'manual_override_option',
+                'manual_override_option__hand_wheel_option', 'sku',
+            ).prefetch_related(
+                'selected_exd__exd_options', 'body__pneumatic_connection',
+            )
+        }
+
+        created = updated = reactivated = processed = errors = 0
         seen_hashes = set()
+        pending_saves = []  # [(existing, update_fields)] — флаш батчем по SAVE_BATCH_SIZE
 
         for mli in mlis:
             for kwargs in self._iter_combos(mli):
+                processed += 1
+                self._log_progress(processed, updated)
+
                 probe = PneumaticActuatorCatalogItem(
                     source_model_line_item=mli,
                     exclude_from_catalog=True,
@@ -80,46 +110,75 @@ class Command(BaseCommand):
                 )
                 probe.weight = probe.compute_weight()
                 config_hash = probe.compute_config_hash()
-                code = probe.generated_model_item_code
                 seen_hashes.add(config_hash)
 
-                existing = PneumaticActuatorCatalogItem.objects.filter(
-                    config_hash=config_hash,
-                ).first()
-
-                if existing is not None:
-                    if existing.origin == PneumaticActuatorCatalogItem.Origin.MANUAL:
-                        # Ручная карточка с этой конфигурацией — не трогаем.
+                existing = existing_map.get(config_hash)
+                if existing is None:
+                    created += 1
+                    if dry_run:
                         continue
-                    if not existing.is_active:
-                        reactivated += 1
-                        if not dry_run:
-                            existing.is_active = True
-                            existing.weight = probe.weight
-                            existing.save()
-                            if existing.sku_id:
-                                SKU.objects.filter(pk=existing.sku_id).update(is_active=True)
-                        continue
-                    if existing.code != code:
-                        updated += 1
-                        if not dry_run:
-                            existing.code = code
-                            existing.weight = probe.weight
-                            existing.save()  # пересчёт name/description + sync_sku
+                    try:
+                        with transaction.atomic():
+                            probe.save()
+                    except Exception:
+                        errors += 1
+                        logger.exception(
+                            'Не удалось создать карточку: code=%s config_hash=%s',
+                            probe.generated_model_item_code, config_hash,
+                        )
                     continue
 
-                created += 1
-                if dry_run:
+                if existing.origin == PneumaticActuatorCatalogItem.Origin.MANUAL:
+                    # Ручная карточка с этой конфигурацией — не трогаем.
                     continue
-                try:
-                    with transaction.atomic():
-                        probe.save()
-                except Exception:
-                    errors += 1
-                    logger.exception(
-                        'Не удалось создать карточку: code=%s config_hash=%s',
-                        code, config_hash,
-                    )
+                if not existing.is_active:
+                    reactivated += 1
+                    if not dry_run:
+                        existing.is_active = True
+                        existing.weight = probe.weight
+                        existing.save()
+                        if existing.sku_id:
+                            SKU.objects.filter(pk=existing.sku_id).update(is_active=True)
+                    continue
+
+                # Сравнение на самом existing (конфигурация та же — карточка найдена
+                # по config_hash): правки шаблонов/справочников меняют name/description
+                # без изменения code. Свежий вес — до генерации: {weight} в шаблоне
+                # должен видеть актуальное значение.
+                old_weight = existing.weight
+                existing.weight = probe.weight
+                fresh_code = existing.generated_model_item_code
+                fresh_name = existing.generate_name()
+                fresh_description = existing.generate_description()
+                name_stale = bool(fresh_name) and (existing.name or '') != fresh_name
+                desc_stale = bool(fresh_description) and (
+                    existing.description or '') != fresh_description
+
+                if existing.code != fresh_code or name_stale or desc_stale:
+                    updated += 1
+                    if not dry_run:
+                        # Пишем только реально изменившиеся поля (update_fields),
+                        # а сами UPDATE — батчем в одной SQLite-транзакции
+                        # (иначе 2–3 fsync на карточку: item + SKU).
+                        update_fields = set()
+                        if existing.code != fresh_code:
+                            existing.code = fresh_code
+                            update_fields.add('code')
+                        if name_stale and fresh_name:
+                            existing.name = fresh_name
+                            update_fields.add('name')
+                        if desc_stale and fresh_description:
+                            existing.description = fresh_description
+                            update_fields.add('description')
+                        if old_weight != probe.weight:
+                            update_fields.add('weight')
+                        # config_hash пересчитывается в save() — включаем в UPDATE.
+                        update_fields.add('config_hash')
+                        pending_saves.append((existing, update_fields))
+                        if len(pending_saves) >= self.SAVE_BATCH_SIZE:
+                            self._flush_pending(pending_saves)
+
+        self._flush_pending(pending_saves)
 
         archived = 0
         if archive and not dry_run:
@@ -144,6 +203,21 @@ class Command(BaseCommand):
             f'ошибок={errors}{suffix}'
         ))
 
+    @staticmethod
+    def _flush_pending(pending_saves):
+        """Сохранение пачки обновлений в одной транзакции (быстрый commit)."""
+        if not pending_saves:
+            return
+        with transaction.atomic():
+            for item, update_fields in pending_saves:
+                item.save(update_fields=update_fields, skip_auto_generate=True)
+        pending_saves.clear()
+
+    def _log_progress(self, processed, updated):
+        """Промежуточный лог хода работы (каждые PROGRESS_EVERY записей)."""
+        if processed % self.PROGRESS_EVERY == 0:
+            self.stdout.write(f'Обработано - {processed}, изменено - {updated}')
+
     def _iter_combos(self, mli):
         """Все комбинации опций типоразмера (декартово произведение)."""
         model_line = mli.model_line
@@ -162,10 +236,10 @@ class Command(BaseCommand):
         ).select_related('ip_option')
         exd = PneumaticExdOption.objects.filter(
             model_line=model_line, is_active=True,
-        )
+        ).prefetch_related('exd_options')
         coating = PneumaticBodyDesignOption.objects.filter(
             model_line=model_line, is_active=True,
-        )
+        ).select_related('body_material')
         color = PneumaticBodyColorOption.objects.filter(
             model_line=model_line, is_active=True,
         ).select_related('color_option')

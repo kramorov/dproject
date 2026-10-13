@@ -149,10 +149,11 @@ const props = defineProps({
   api: { type: Object, required: true },
   title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
-  // Предвыбор серии (из CatalogSection, единый паттерн)
-  initialModelLineId: { type: Number, default: null },
+  // Предвыбор серии (из CatalogSection, единый паттерн).
+  // id приходит из URL (query) строкой — тип [Number, String] как у CatalogModelLine/CatalogDetail.
+  initialModelLineId: { type: [Number, String], default: null },
   // Предвыбор типоразмера и вида (из мастера/селектора)
-  initialModelLineItemId: { type: Number, default: null },
+  initialModelLineItemId: { type: [Number, String], default: null },
   initialVariety: { type: String, default: null },
   // Предвыбранные опции: { safety_position, exd, ip, manual_override, body_coating, body_material }
   initialOptions: { type: Object, default: () => ({}) },
@@ -226,12 +227,12 @@ onMounted(async () => {
   await loadActuatorVarieties()
 
   if (props.initialModelLineId) {
-    form.model_line_id = props.initialModelLineId
+    form.model_line_id = Number(props.initialModelLineId) || null
     resetAfter('model_line_id')
     if (props.initialVariety) {
       await selectVariety(props.initialVariety)
       if (props.initialModelLineItemId) {
-        await selectItem(props.initialModelLineItemId)
+        await selectItem(Number(props.initialModelLineItemId))
       }
     } else {
       await autoSelectVariety()

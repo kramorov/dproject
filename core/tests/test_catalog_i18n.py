@@ -64,7 +64,9 @@ class SpecTemplateI18nTests(TestCase):
         self.assertIsNotNone(item)
         labels = _spec_labels(item, 'en')
         self.assertIn('General', labels)
-        self.assertIn('Technical', labels)
+        # Имя группы задаётся данными (spec_template_i18n), правки переводов в
+        # админке могут менять его («Technical» / «Technical specifications»).
+        self.assertTrue(any(l.startswith('Technical') for l in labels))
         self.assertNotIn('Основные', labels)
 
     def test_cg_series_sync_ru_on_save(self):

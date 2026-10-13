@@ -52,7 +52,8 @@ from .pa_model_line import PneumaticActuatorModelLine, PneumaticActuatorModelLin
 from .pa_params import PneumaticActuatorVariety, PneumaticActuatorSpringsQty
 from .pa_options import PneumaticTemperatureOption
 from .pa_item_fields import PA_ITEM_TEMPLATE_FIELDS
-from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE, ACTUATOR_VARIETY_RP_DEFAULT_CODE, SPRINGS_DA_DEFAULT_CODE
+from .py_options_constants import SAFETY_POSITION_NC_DEFAULT_CODE, ACTUATOR_VARIETY_RP_DEFAULT_CODE, \
+    ACTUATOR_VARIETY_SY_DEFAULT_CODE, SPRINGS_DA_DEFAULT_CODE
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +126,7 @@ class PneumaticActuatorCatalogItem(
         'stem_shape', 'stem_size', 'stem_size_dim',
         'max_stem_height', 'max_stem_diameter', 'stem',
         'mounting', 'thread_in', 'thread_out', 'pneumatic_conn',
-        'time_open', 'time_close',
+        'time_open', 'time_close', 'torque_6bar',
     )
 
     CODE_FIELD_KEYS = (
@@ -995,6 +996,101 @@ class PneumaticActuatorCatalogItem(
                 )
         html = BodyThrustTorqueTable.format_for_html(torque_data, locale=locale or 'ru')
         return {'__html': html} if html else ''
+
+    @staticmethod
+    def _da_torque_pair(bto, eto):
+        """DA: если задан только один из BTO/ETO (второй 0) — второй равен ненулевому."""
+        b = float(bto or 0)
+        e = float(eto or 0)
+        if b and not e:
+            e = b
+        elif e and not b:
+            b = e
+        return {'bto': b, 'eto': e}
+
+    def _res_torque_6bar(self, locale=None) -> str:
+        """Момент при 6 бар из таблицы моментов по правилам формирования таблицы.
+
+        DA — только воздух (AIR: BTO/ETO); SR шестерня-рейка — воздух + пружины
+        (AIR/SPR: BTO/ETO); SR кулисный — воздух + пружины (AIR/SPR: BTO/RTO/ETO).
+        Для НО подписи инвертируются (BTC/ETC/RTC), как в таблице моментов.
+        """
+        body = self.body
+        if not body:
+            return ''
+        from params.models import PneumaticAirSupplyPressure
+        from pneumatic_actuators.models import BodyThrustTorqueTable
+
+        ncno_code = self.selected_safety_position.code if self.selected_safety_position else SAFETY_POSITION_NC_DEFAULT_CODE
+        construction_variety = self.model_line.pneumatic_actuator_construction_variety if self.model_line else None
+        construction_code = construction_variety.code if construction_variety else ACTUATOR_VARIETY_RP_DEFAULT_CODE
+        variety_code = self.pneumatic_actuator_variety.code if self.pneumatic_actuator_variety else None
+        is_da = variety_code == SPRINGS_DA_DEFAULT_CODE
+
+        spring_qty = self.selected_springs_qty
+        if not spring_qty and is_da:
+            # DA: пружин нет — берём DA-опцию, как в _res_torque_table.
+            spring_qty = PneumaticActuatorSpringsQty.objects.filter(code=SPRINGS_DA_DEFAULT_CODE).first()
+
+        nc = ncno_code == SAFETY_POSITION_NC_DEFAULT_CODE
+        if is_da:
+            fields = [('bto', 'BTO' if nc else 'BTC'), ('eto', 'ETO' if nc else 'ETC')]
+        elif construction_code == ACTUATOR_VARIETY_RP_DEFAULT_CODE:
+            fields = [('bto', 'BTO' if nc else 'BTC'), ('eto', 'ETO' if nc else 'ETC')]
+        elif construction_code == ACTUATOR_VARIETY_SY_DEFAULT_CODE:
+            fields = [('bto', 'BTO' if nc else 'BTC'), ('rto', 'RTO' if nc else 'RTC'),
+                      ('eto', 'ETO' if nc else 'ETC')]
+        else:
+            fields = [('bto', 'BTO' if nc else 'BTC'), ('rto', 'RTO' if nc else 'RTC'),
+                      ('eto', 'ETO' if nc else 'ETC')]
+
+        pressure_6 = PneumaticAirSupplyPressure.objects.filter(pressure_bar=6).first()
+        if pressure_6 is None:
+            return ''
+        spring_pressure = PneumaticAirSupplyPressure.objects.filter(code='spring').first()
+
+        base = BodyThrustTorqueTable.objects.filter(body=body)
+        air_rows = list(base.filter(pressure=pressure_6, spring_qty=spring_qty)) if spring_qty else []
+        spr_rows = (
+            list(base.filter(pressure=spring_pressure, spring_qty=spring_qty))
+            if spring_pressure is not None and spring_qty is not None and not is_da
+            else []
+        )
+
+        # Фолбэк как у таблицы моментов: строк по выбранной пружине нет — берём
+        # первую пружину тела при 6 бар. Тела бывают только-DA и только-SR,
+        # поэтому фолбэк ограничен типом привода: DA — только DA-строки
+        # (пружинной части у DA не бывает), SR — только пружинные строки.
+        if not air_rows and not spr_rows:
+            fallback_qs = PneumaticActuatorSpringsQty.objects.filter(
+                body_thrust_torque_table__body=body,
+                body_thrust_torque_table__pressure=pressure_6,
+            )
+            if is_da:
+                fallback_qs = fallback_qs.filter(code=SPRINGS_DA_DEFAULT_CODE)
+            else:
+                fallback_qs = fallback_qs.exclude(code=SPRINGS_DA_DEFAULT_CODE)
+            fallback = fallback_qs.order_by('sorting_order').first()
+            if fallback is not None:
+                air_rows = list(base.filter(pressure=pressure_6, spring_qty=fallback))
+                if not is_da and spring_pressure is not None:
+                    spr_rows = list(base.filter(pressure=spring_pressure, spring_qty=fallback))
+
+        fmt = BodyThrustTorqueTable.format_torque_value
+        parts = []
+        for prefix, rows in (('AIR', air_rows), ('SPR', spr_rows)):
+            if not rows:
+                continue
+            row = rows[0]
+            if is_da:
+                # DA: если задан только один из BTO/ETO (второй 0) — второй равен ненулевому.
+                pair = self._da_torque_pair(row.bto, row.eto)
+            values = []
+            for field_name, label in fields:
+                value = pair.get(field_name) if is_da else getattr(row, field_name, None)
+                values.append(f'{label} {fmt(value)}' if value is not None else f'{label} —')
+            parts.append(f'{prefix}: ' + ' / '.join(values))
+        return '; '.join(parts)
 
     def _get_valve_torque_nm(self) -> float:
         """Момент на арматуре (Нм) для расчёта времени открытия/закрытия.

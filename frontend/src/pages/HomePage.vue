@@ -19,19 +19,6 @@
         </div>
       </div>
     </section>
-
-    <!-- О проекте -->
-    <section class="hp-about">
-      <router-link to="/about" class="hp-about-card">
-        <div class="hp-about-bg"></div>
-        <div class="hp-about-body">
-          <h2>О проекте</h2>
-          <p>Агрегатор технической информации: умный поиск, подбор, КП, документация. Узнайте о возможностях и преимуществах системы.</p>
-          <span class="hp-about-link">Подробнее →</span>
-        </div>
-      </router-link>
-    </section>
-
     <!-- Каталоги — 3 плитки в ряд -->
     <section class="hp-catalogs">
       <h2>Каталоги</h2>
@@ -60,6 +47,19 @@
       </div>
     </section>
 
+    <!-- О проекте -->
+    <section class="hp-about">
+      <router-link to="/about" class="hp-about-card">
+        <div class="hp-about-bg"></div>
+        <div class="hp-about-body">
+          <h2>О проекте</h2>
+          <p>Агрегатор технической информации: умный поиск, подбор, КП, документация. Узнайте о возможностях и преимуществах системы.</p>
+          <span class="hp-about-link">Подробнее →</span>
+        </div>
+      </router-link>
+    </section>
+	
+	
     <!-- CTA -->
     <section class="cta">
       <div class="cta-content">
