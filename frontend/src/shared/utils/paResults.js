@@ -2,7 +2,14 @@
 // Преобразует вложенный результат подбора ПП (серия → типоразмеры) в плоский
 // список карточек для EngineerProductCard — единый вид карточки в каталоге.
 
-export function paResultsToCards(searchResults) {
+export function paResultsToCards(searchResults, labels) {
+  const L = labels || {
+    series: 'Серия',
+    body: 'Корпус',
+    type: 'Тип',
+    margin: 'Запас',
+    nm: 'Нм',
+  }
   const cards = []
   for (const ml of searchResults || []) {
     for (const item of ml.model_line_items || []) {
@@ -11,13 +18,14 @@ export function paResultsToCards(searchResults) {
         code: item.model_line_item_code || '',
         list_title: item.model_line_item_name || '',
         list_params: [
-          { label: 'Серия', value: ml.model_line_name || '' },
-          { label: 'Корпус', value: item.body_name || '' },
-          { label: 'Тип', value: item.actuator_variety_code || '' },
-          { label: 'Запас', value: `${Math.round(item.spring_margin || 0)} Нм` },
+          { label: L.series, value: ml.model_line_name || '' },
+          { label: L.body, value: item.body_name || '' },
+          { label: L.type, value: item.actuator_variety_code || '' },
+          { label: L.margin, value: `${Math.round(item.spring_margin || 0)} ${L.nm}` },
         ],
         _ml: ml,
         _item: item,
+        is_exact: !!ml.is_exact,
       })
     }
   }

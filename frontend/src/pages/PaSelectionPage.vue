@@ -108,7 +108,7 @@
           </select>
         </div>
         <div class="field">
-          <label>Давление в пневмосистеме</label>
+          <label>Давление в пневмосистеме, бар</label>
           <select v-model="form.air_pressure_id">
             <option :value="null">— Выберите —</option>
             <option v-for="v in refs.air_pressure" :key="v.id" :value="v.id" :disabled="v.code === 'spring'">{{ v.name }}</option>

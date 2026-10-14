@@ -1,11 +1,10 @@
 <!-- pa-catalog/App.vue — единый каркас каталога ПП.
-     У ПП нет готового списка артикулов (item материализуется из конфигурации),
-     поэтому режимы «Инженерный подбор» и «Быстрый подбор» скрыты; вместо
-     «товаров серии» (CatalogModelLine) показываем конфигуратор. -->
+     «Инженерный подбор» — подбор по моменту (PaEngineerSelector);
+     «товаров серии» (CatalogModelLine) нет — вместо конфигуратор по серии. -->
 <template>
   <div class="app">
     <Breadcrumbs :items="breadcrumbs" @navigate="onNavigate" />
-    <CatalogActions :active="activeTab" :tabs="tabs" @section="goToSection" @wizard="goToWizard" @ai="goToAi" />
+    <CatalogActions :active="activeTab" :tabs="tabs" @section="goToSection" @engineer="goToList" @wizard="goToWizard" @ai="goToAi" />
     <div v-if="page === 'section' && canLinkBrowse" class="browse-banner">
       <router-link :to="localizedPath('/catalog/pa-actuators-browse', locale)">{{ t('pa.browse.link') }}</router-link>
     </div>
@@ -26,6 +25,9 @@
         :title="labels.brand.title"
         :subtitle="labels.brand.subtitle"
         @add-to-cart="onAddToCart"
+      />
+      <PaEngineerSelector
+        v-else-if="page === 'list'"
       />
       <PaWizard
         v-else-if="page === 'wizard'"
@@ -50,6 +52,7 @@ import Breadcrumbs from '@/shared/components/Breadcrumbs.vue'
 import CatalogActions from '@/shared/components/catalog/CatalogActions.vue'
 import CatalogSection from '@/shared/components/catalog/CatalogSection.vue'
 import PaActuatorConfigurator from '@/shared/components/catalog/PaActuatorConfigurator.vue'
+import PaEngineerSelector from '@/shared/components/catalog/PaEngineerSelector.vue'
 import PaWizard from '@/shared/components/catalog/PaWizard.vue'
 import AiSelectionPage from '@/pages/AiSelectionPage.vue'
 import { useCatalogRoute } from '@/shared/composables/useCatalogRoute.js'
@@ -63,6 +66,7 @@ const eqCode = 'pneumatic-actuator'
 
 const tabs = [
   { key: 'section', label: 'catalog.mode.section', event: 'section' },
+  { key: 'engineer', label: 'catalog.mode.engineer', event: 'engineer' },
   { key: 'wizard', label: 'catalog.mode.wizard', event: 'wizard' },
   { key: 'ai', label: 'catalog.mode.ai', event: 'ai' },
 ]
@@ -80,7 +84,8 @@ const constructionFilters = ref([])
 
 const {
   page, idValue, router,
-  goToSection: navSection, goToBrand: navBrand, goToWizard: navWizard, goToAi: navAi,
+  goToSection: navSection, goToBrand: navBrand, goToEngineer: navEngineer,
+  goToWizard: navWizard, goToAi: navAi,
 } = useCatalogRoute({ mlParam: 'model_line_id' })
 const canLinkBrowse = computed(() => !!router)
 const pageSubtitle = ref('')
@@ -89,6 +94,7 @@ const { t, locale } = useI18n()
 const modeNames = computed(() => ({
   section: t('catalog.mode.section'),
   brand: t('catalog.mode.section'),
+  list: t('catalog.mode.engineer'),
   wizard: t('catalog.mode.wizard'),
   ai: t('catalog.mode.ai'),
 }))
@@ -110,10 +116,11 @@ const breadcrumbs = computed(() => {
   return items
 })
 
-const tabKeys = { section: 'section', brand: 'section', wizard: 'wizard', ai: 'ai' }
+const tabKeys = { section: 'section', brand: 'section', list: 'engineer', wizard: 'wizard', ai: 'ai' }
 const activeTab = computed(() => tabKeys[page.value] || 'section')
 
 function goToBrand(id) { preSelect.value = null; cacheEpoch.value++; navBrand(id) }
+function goToList() { cacheEpoch.value++; pageSubtitle.value = ''; navEngineer() }
 function goToWizard() { cacheEpoch.value++; navWizard() }
 function goToAi() { navAi() }
 function goToSection() { preSelect.value = null; cacheEpoch.value++; pageSubtitle.value = ''; navSection() }
@@ -126,7 +133,7 @@ function onNavigate(item) {
     else navSection()
     return
   }
-  const map = { section: navSection, wizard: navWizard, ai: navAi }
+  const map = { section: navSection, engineer: navEngineer, wizard: navWizard, ai: navAi }
   ;(map[target] || navSection)()
 }
 
