@@ -26,3 +26,7 @@ body_coating JSON в БД всё ещё хранит старые значени
 
 Удали PneumaticBodyDesignOption.get_for_select(), но сначала проверь, не используется ли она где-то.
 
+sqlite3 db.sqlite3 "VACUUM INTO 'dry_run_copy.sqlite3';"
+
+
+В Подбор пневмоприводов по моменту (http://localhost:5173/selector/pa раздели селектор Покрытие корпуса на два - body_coating и body_material как это сделано в http://localhost:5173/catalog/pa-actuators?mode=engineer
