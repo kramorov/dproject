@@ -1196,3 +1196,68 @@ class PneumaticActuatorCatalogItem(
         if ml and hasattr(ml, '_get_images_section'):
             return ml._get_images_section()
         return []
+
+    def _get_list_preview_images(self):
+        """Одно изображение для сетки результатов (preview_url/url/thumb_url).
+
+        Рассчитывается из префетченных image_gallery__items__image__variants —
+        без доп. запросов к БД. Для списка из десятков карточек это убирает сотни
+        запросов по вариантам изображений (каждый _get_images_section ранее
+        дёргал variants несколькими .filter().first()).
+        """
+        g = self._gallery
+        if not g:
+            return []
+        items = list(g.items.all())
+        if not items:
+            return []
+        gallery_item = next((i for i in items if i.is_default), items[0])
+        img = gallery_item.image
+        if not img:
+            return []
+
+        variants = list(img.variants.all())
+
+        def find(role, width=None):
+            for v in variants:
+                if v.role == role and (width is None or v.width == width):
+                    return v
+            return None
+
+        from storage_manager.services import file_service
+        card800 = find('card', 800)
+        card400 = find('card', 400)
+        thumb150 = find('thumb', 150)
+        thumb80 = find('thumb', 80)
+        icon50 = find('icon', 50)
+
+        url = ''
+        if card800:
+            url = file_service.get_file_url(card800.file_path)
+        elif card400:
+            url = file_service.get_file_url(card400.file_path)
+        elif img.media_file:
+            url = img.media_file.url
+
+        preview_v = card400 or thumb150 or icon50
+        if not preview_v:
+            candidates = [v for v in variants if v.role in ('card', 'thumb', 'icon', 'page')]
+            if candidates:
+                preview_v = min(candidates, key=lambda v: v.width)
+        preview = (file_service.get_file_url(preview_v.file_path) if preview_v
+                   else (img.media_file.url if img.media_file else ''))
+
+        thumb = ''
+        if thumb150:
+            thumb = file_service.get_file_url(thumb150.file_path)
+        elif thumb80:
+            thumb = file_service.get_file_url(thumb80.file_path)
+        else:
+            thumb = preview or url
+
+        return [{
+            'id': img.id,
+            'url': url,
+            'preview_url': preview,
+            'thumb_url': thumb,
+        }]

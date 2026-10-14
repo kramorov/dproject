@@ -1307,7 +1307,7 @@ class BodyThrustTorqueTable(models.Model):
         if model_line_id :
             model_line_items_qs = model_line_items_qs.filter(model_line_id=model_line_id)
         model_line_items = model_line_items_qs.select_related(
-            'model_line' , 'pneumatic_actuator_variety'
+            'model_line' , 'model_line__brand' , 'pneumatic_actuator_variety'
         ).order_by(
             'model_line__sorting_order' ,
             'sorting_order'

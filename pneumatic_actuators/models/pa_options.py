@@ -358,10 +358,12 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         parts = []
         if self.body_material :
             parts.append(localized_name(self.body_material, locale))
-        if self.body_coating :
-            coating = pick_i18n(self.body_coating, locale) or ''
-        elif self.body_coating_option :
+        # body_coating_option (справочник) — источник истины; legacy body_coating
+        # (JSON) используем только как fallback, если FK не заполнен.
+        if self.body_coating_option :
             coating = localized_name(self.body_coating_option, locale)
+        elif self.body_coating :
+            coating = pick_i18n(self.body_coating, locale) or ''
         else :
             coating = ''
         if coating :
@@ -382,8 +384,8 @@ class PneumaticBodyDesignOption(BaseThroughOption):
     @classmethod
     def get_for_select(cls , model_line_id: Optional[int] = None ,
                        model_line_item_id: Optional[int] = None ,
-                       active_only: bool = True) -> List[Dict] :
-        """Получить опции исполнения корпуса"""
+                       active_only: bool = True , locale: Optional[str] = None) -> List[Dict] :
+        """Получить опции исполнения корпуса (name локализован через localized_name)."""
         queryset = cls.objects.all()
 
         if active_only :
@@ -403,7 +405,7 @@ class PneumaticBodyDesignOption(BaseThroughOption):
             except PneumaticActuatorModelLineItem.DoesNotExist :
                 pass
 
-        return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
+        return [{'id' : obj.id , 'name' : localized_name(obj , locale) , 'code' : obj.encoding} for obj in queryset]
 
 
 class PneumaticBodyColorOption(BaseColorThroughOption):

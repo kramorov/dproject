@@ -81,3 +81,46 @@ class SelectorAPIView(APIView):
         if result.get('success'):
             return JsonResponse(result)
         return JsonResponse({'success': False, 'error': result.get('error', 'Unknown error')}, status=400)
+
+
+class EngineerOptionAPIView(APIView):
+    """Опции для «Инженерного подбора» (раздельные материал/покрытие, DA/SR-правило, локализация)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        model_line_id = request.GET.get('model_line_id')
+        model_line_item_id = request.GET.get('model_line_item_id')
+        actuator_variety_id = request.GET.get('actuator_variety_id')
+        from pneumatic_actuators.actuator_engineer_handler import get_actuator_options
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        options = get_actuator_options(
+            model_line_id=int(model_line_id) if model_line_id else None,
+            model_line_item_id=int(model_line_item_id) if model_line_item_id else None,
+            actuator_variety_id=int(actuator_variety_id) if actuator_variety_id else None,
+            locale=locale,
+        )
+        return JsonResponse(options)
+
+
+class EngineerSelectorAPIView(APIView):
+    """«Инженерный подбор» — справочники + поиск карточек (SKU) по моменту."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from pneumatic_actuators.actuator_engineer_handler import get_initial_data
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        fields_param = request.GET.get('fields')
+        fields = [f.strip() for f in fields_param.split(',') if f.strip()] if fields_param else None
+        return JsonResponse(get_initial_data(locale=locale, fields=fields))
+
+    def post(self, request):
+        params = request.data
+        from pneumatic_actuators.actuator_engineer_handler import process_selection_params
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        result = process_selection_params(params, locale=locale)
+        if result.get('success'):
+            return JsonResponse(result)
+        return JsonResponse({'success': False, 'error': result.get('error', 'Unknown error')}, status=400)

@@ -1,7 +1,7 @@
 # pneumatic_actuators/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .api.views import OptionAPIView, SelectorAPIView
+from .api.views import OptionAPIView, SelectorAPIView, EngineerOptionAPIView, EngineerSelectorAPIView
 from .api.views_constructor import ConstructorViewSet
 from .api.views_item import (
     PneumaticActuatorCatalogItemListView,
@@ -19,5 +19,8 @@ urlpatterns = [
     path('options/', OptionAPIView.as_view(), name='get_options'),
     path('selector/initial-data/', SelectorAPIView.as_view(), name='selector_initial_data'),
     path('selector/search/', SelectorAPIView.as_view(), name='selector_search'),
+    path('engineer/options/', EngineerOptionAPIView.as_view(), name='engineer_options'),
+    path('engineer/initial-data/', EngineerSelectorAPIView.as_view(), name='engineer_initial_data'),
+    path('engineer/search/', EngineerSelectorAPIView.as_view(), name='engineer_search'),
     path('', include(router.urls)),
 ]

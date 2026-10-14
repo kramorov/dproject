@@ -51,8 +51,8 @@ class PneumaticSilencer(AbstractPneumaticFitting):
     )
 
     config_hash_fields = (
-        'model_line', 'body_material', 'filter_element','shape','thread', 'thread_inner_outer',
-        'flow_rate', 'noise_level', 'operating_pressure',
+        'model_line', 'body_material', 'thread', 'thread_inner_outer',
+        'flow_rate', 'noise_level', 'operating_pressure', 'pressure_max', 'width_across_flats_body',
     )
 
     model_line = models.ForeignKey(PneumaticSilencerModelLine , related_name='pneumaticsilencer_items' ,

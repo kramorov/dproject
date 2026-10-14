@@ -587,9 +587,13 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
     def body_coating_display(self) :
         """Отображаемое имя стандартного покрытия корпуса"""
         default_coating = self.default_body_coating
-        if default_coating :
-            return default_coating.body_coating or "Не указано"
-        return "Не указано"
+        if not default_coating :
+            return "Не указано"
+        # Источник истины — справочник body_coating_option; legacy JSON — fallback.
+        if default_coating.body_coating_option :
+            from core.utils.localization import localized_name
+            return localized_name(default_coating.body_coating_option)
+        return default_coating.body_coating or "Не указано"
 
     def get_option_info(self) :
         """Полная информация о всех опциях серии"""

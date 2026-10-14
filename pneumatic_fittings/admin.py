@@ -40,6 +40,10 @@ class _BaseFittingItemAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
         copied_count = 0
         for fitting in queryset:
             copy_obj = fitting.copy()
+            # Пометка копии: к артикулу добавляется « Копия», чтобы копию
+            # можно было отличить от источника (как раньше делал CopyMixin.copy).
+            if copy_obj.code:
+                copy_obj.code = f"{copy_obj.code} Копия"
             copy_obj.save()
             copied_count += 1
         self.message_user(request, f'Успешно скопировано {copied_count} объект(ов)')
@@ -91,7 +95,12 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
         'model_line', 'model_line__brand', 'model_line__code',
         'body_material', 'thread'
     ]
-
+    list_display = [
+        'name', 'code', 'thread', 'thread_inner_outer', 'width_across_flats_body', 'sorting_order', 'is_active'
+    ]
+    list_editable = [
+                 'thread', 'thread_inner_outer', 'width_across_flats_body'
+    ]
     fieldsets = (
         (_('Основная информация'), {
             'fields': ('name', ('code', 'model_line'),
@@ -121,9 +130,14 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
 class PneumaticPlugAdmin(_BaseFittingItemAdmin):
     list_filter = [
         'model_line',  'model_line__brand',
-        'body_material', 'thread', 'thread_inner_outer'
+        'body_material', 'thread', 'thread_inner_outer', 'width_across_flats_body'
     ]
-
+    list_display = [
+        'name', 'code', 'thread', 'thread_inner_outer', 'width_across_flats_body', 'sorting_order', 'is_active'
+    ]
+    list_editable = [
+                 'thread', 'thread_inner_outer', 'width_across_flats_body'
+    ]
     fieldsets = (
         (_('Основная информация'), {
             'fields': ('name', ('code', 'model_line'),

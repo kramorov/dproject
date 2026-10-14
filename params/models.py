@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin, OptionListToSelectMixin, CopyMixin, LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
+from core.utils.localization import localized_name
 from options.models import BaseThroughOption
 
 from .exd_models import ExdOption,  TemperatureClass, ExplosionProtectionType, \
@@ -696,13 +697,13 @@ class ValveTypes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
         return self.name
 
     @classmethod
-    def get_for_select(cls, active_only: bool = True) -> List[Dict]:
+    def get_for_select(cls, active_only: bool = True, locale=None) -> List[Dict]:
         queryset = cls.objects.all()
 
         if active_only and hasattr(cls, 'is_active'):
             queryset = queryset.filter(is_active=True)
 
-        return [{'id': obj.id, 'name': str(obj),
+        return [{'id': obj.id, 'name': localized_name(obj, locale),
                  'actuator_gearbox_combinations': obj.actuator_gearbox_combinations} for obj in queryset]
 
 
@@ -833,13 +834,13 @@ class StemSize(LocalizedDictFieldsMixin, OptionListToSelectMixin):
         return self.name
 
     @classmethod
-    def get_for_select(cls, active_only: bool = True) -> List[Dict]:
+    def get_for_select(cls, active_only: bool = True, locale=None) -> List[Dict]:
         queryset = cls.objects.all()
 
         if active_only and hasattr(cls, 'is_active'):
             queryset = queryset.filter(is_active=True)
 
-        return [{'id': obj.id, 'name': str(obj), 'stem_shape_id': obj.stem_type.id} for obj in queryset]
+        return [{'id': obj.id, 'name': localized_name(obj, locale), 'stem_shape_id': obj.stem_type.id} for obj in queryset]
 
 
 class ThreadTypes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -1586,13 +1587,21 @@ class PneumaticAirSupplyPressure(LocalizedDictFieldsMixin, OptionListToSelectMix
         return f"{self.name} бар"
 
     @classmethod
-    def get_for_select(cls, active_only=True):
-        """Давление питания с code и числовым значением (для мастера/селектора)."""
+    def get_for_select(cls, active_only=True, locale=None):
+        """Давление питания с code и числовым значением (для мастера/селектора).
+
+        Значение — без единицы «бар» (единица выносится в заголовок селектора).
+        """
         queryset = cls.objects.all()
         if active_only:
             queryset = queryset.filter(is_active=True)
         return [
-            {'id' : obj.id , 'name' : str(obj) , 'code' : obj.code , 'pressure_bar' : float(obj.pressure_bar)}
+            {
+                'id' : obj.id ,
+                'name' : obj.name ,
+                'code' : obj.code ,
+                'pressure_bar' : float(obj.pressure_bar) ,
+            }
             for obj in queryset
         ]
 

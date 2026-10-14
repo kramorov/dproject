@@ -159,19 +159,29 @@ class TorqueSelectorService :
             return []
 
         if body_ids :
-            bodies = body_model.objects.filter(id__in=body_ids , is_active=True)
+            bodies = list(body_model.objects.filter(id__in=body_ids , is_active=True))
         else :
-            bodies = body_model.objects.filter(is_active=True)
+            bodies = list(body_model.objects.filter(is_active=True))
+
+        if not bodies :
+            return []
+
+        # Один запрос на все тела вместо запроса на каждое (убирает N+1).
+        from collections import defaultdict
+        records_by_body = defaultdict(list)
+        all_records = table_model.objects.filter(
+            body_id__in=[b.id for b in bodies] ,
+            spring_qty__is_active=True
+        ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty' , 'pressure')
+        for record in all_records :
+            records_by_body[record.body_id].append(record)
 
         all_results = []
 
         for body in bodies :
-            # Группируем записи по количеству пружин
-            all_records = table_model.objects.filter(
-                body_id=body.id ,
-                spring_qty__is_active=True
-            ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty' , 'pressure')
+            all_records = records_by_body.get(body.id , [])
 
+            # Группируем записи по количеству пружин
             spring_qty_groups = {}
             for record in all_records :
                 qty_code = record.spring_qty.code
@@ -252,14 +262,39 @@ class TorqueSelectorService :
             return []
 
         if body_ids:
-            bodies = body_model.objects.filter(id__in=body_ids, is_active=True)
+            bodies = list(body_model.objects.filter(id__in=body_ids, is_active=True))
         else:
-            bodies = body_model.objects.filter(is_active=True)
+            bodies = list(body_model.objects.filter(is_active=True))
+
+        if not bodies:
+            return []
+
+        # Один запрос на все тела вместо запроса на каждое (убирает N+1).
+        from collections import defaultdict
+        records = table_model.objects.filter(
+            body_id__in=[b.id for b in bodies],
+            pressure_id=work_pressure_id,
+            spring_qty__code=SPRINGS_DA_DEFAULT_CODE,
+            spring_qty__is_active=True,
+        ).select_related('spring_qty')
+
+        by_body = defaultdict(list)
+        for record in records:
+            if record.bto:
+                by_body[record.body_id].append({
+                    'id': record.id,
+                    'spring_qty_id': record.spring_qty.id,
+                    'spring_qty_code': record.spring_qty.code,
+                    'spring_qty_name': record.spring_qty.name,
+                    'bto': float(record.bto),
+                    'rto': float(record.rto) if record.rto else float(record.bto),
+                    'eto': float(record.eto) if record.eto else float(record.bto),
+                    'value': float(record.bto),
+                })
 
         all_results = []
-
         for body in bodies:
-            da_records = self.get_da_data(table_model, body.id, work_pressure_id)
+            da_records = by_body.get(body.id, [])
 
             suitable = []
             for da in da_records:
