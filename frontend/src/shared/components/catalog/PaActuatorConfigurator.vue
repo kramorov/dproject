@@ -11,6 +11,12 @@
       :subtitle="subtitle"
     />
 
+    <button
+      v-if="backToFilter && routerReady"
+      class="back-to-filter"
+      @click="goBackToFilter"
+    >← {{ t('pa.configurator.backToFilter') }}</button>
+
     <div v-if="loadingML" class="state"><Spinner /></div>
     <div v-else-if="!modelLines.length" class="empty">{{ t('pa.configurator.noSeries') }}</div>
 
@@ -138,12 +144,18 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import Spinner from '@/shared/components/Spinner.vue'
 import PaProductCard from './PaProductCard.vue'
 import { useI18n } from '@/shared/i18n'
 
 const { t } = useI18n()
+
+// standalone/embed-режим может работать без vue-router (как useCatalogRoute).
+let router = null
+try { router = useRouter() } catch (e) { router = null }
+const routerReady = !!router
 
 const props = defineProps({
   api: { type: Object, required: true },
@@ -155,8 +167,10 @@ const props = defineProps({
   // Предвыбор типоразмера и вида (из мастера/селектора)
   initialModelLineItemId: { type: [Number, String], default: null },
   initialVariety: { type: String, default: null },
-  // Предвыбранные опции: { safety_position, exd, ip, manual_override, body_coating, body_material }
+  // Предвыбранные опции: { safety_position, exd, ip, manual_override, body_coating, body_material, temp_min, temp_max }
   initialOptions: { type: Object, default: () => ({}) },
+  // Путь возврата к фильтрам подбора (напр. /selector/pa) — кнопка видна только если задан.
+  backToFilter: { type: String, default: '' },
 })
 defineEmits(['addToCart'])
 
@@ -333,11 +347,16 @@ async function selectItem(id) {
 
       const formKey = OPTION_KEY_MAP[apiKey]
       if (!formKey) continue
-      const mapped = items.map(o => ({
-        id: o.option_id || o.id,
-        name: o.name,
-        is_default: o.is_default,
-      }))
+      const mapped = items.map(o => {
+        const m = { id: o.option_id || o.id, name: o.name, is_default: o.is_default }
+        // Для температуры сохраняем границы диапазона — по ним сопоставляем
+        // предвыбранное значение из фильтров подбора (temp_min/temp_max).
+        if (formKey === 'temperature') {
+          m.work_temp_min = o.work_temp_min
+          m.work_temp_max = o.work_temp_max
+        }
+        return m
+      })
       fields.push({ key: formKey, label: optionLabels.value[formKey] || formKey, items: mapped })
       // Единственная опция — выделяем по умолчанию; иначе — только is_default.
       if (form[formKey] === null) {
@@ -445,6 +464,31 @@ function applyInitialOptions() {
       changed = true
     }
   }
+  // Температура: диапазон из фильтров подбора (/selector/pa). Подходит опция,
+  // покрывающая запрошенный диапазон; из подходящих — наименее «холодная»
+  // (ближайший work_temp_min), при равенстве — стандартная. Если в фильтрах
+  // температуры не было — остаётся выбор по умолчанию (Стандарт).
+  const tMin = o.temp_min != null && o.temp_min !== '' ? Number(o.temp_min) : null
+  const tMax = o.temp_max != null && o.temp_max !== '' ? Number(o.temp_max) : null
+  if ((tMin != null || tMax != null) && Number.isFinite(tMin ?? 0) && Number.isFinite(tMax ?? 0)) {
+    const f = optionFields.value.find(x => x.key === 'temperature')
+    if (f) {
+      const covering = f.items.filter(it =>
+        (tMin == null || (it.work_temp_min != null && Number(it.work_temp_min) <= tMin)) &&
+        (tMax == null || (it.work_temp_max != null && Number(it.work_temp_max) >= tMax))
+      )
+      covering.sort((a, b) => {
+        const amin = a.work_temp_min == null ? -Infinity : Number(a.work_temp_min)
+        const bmin = b.work_temp_min == null ? -Infinity : Number(b.work_temp_min)
+        if (bmin !== amin) return bmin - amin
+        return (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)
+      })
+      if (covering.length) {
+        form.temperature = covering[0].id
+        changed = true
+      }
+    }
+  }
   if (changed) fetchPreview()
 }
 
@@ -465,6 +509,11 @@ async function fetchPreview() {
   } catch (e) {
     console.error('PaActuatorConfigurator: preview failed', e)
   }
+}
+
+function goBackToFilter() {
+  if (!props.backToFilter || !router) return
+  router.push({ path: props.backToFilter, query: { restore: '1' } })
 }
 
 function resetAfter(field) {
@@ -488,6 +537,14 @@ function buildPayload() {
 
 <style scoped>
 .pa-config { max-width: 1400px; margin: 0 auto; padding: var(--cat-gap-lg, 16px); }
+.back-to-filter {
+  display: inline-block; margin: 0 0 var(--cat-gap-md, 12px);
+  padding: 6px 14px; font-size: var(--cat-text-sm, 13px);
+  border: 1px solid var(--cat-border, #d1d5db); border-radius: 8px;
+  background: var(--cat-surface, #fff); color: var(--cat-text, #1f2937); cursor: pointer;
+  transition: all .12s;
+}
+.back-to-filter:hover { border-color: var(--cat-primary, #2563eb); color: var(--cat-primary, #2563eb); }
 .step { margin-bottom: var(--cat-gap-xl, 20px); }
 .step-label {
   font-weight: 600; font-size: var(--cat-text-sm, 13px); color: var(--cat-text-soft, #374151);

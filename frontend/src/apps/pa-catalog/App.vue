@@ -22,6 +22,7 @@
         :initial-model-line-item-id="preSelect?.modelLineItemId || null"
         :initial-variety="preSelect?.variety || null"
         :initial-options="preSelect?.options || {}"
+        :back-to-filter="backToFilter"
         :title="labels.brand.title"
         :subtitle="labels.brand.subtitle"
         @add-to-cart="onAddToCart"
@@ -152,7 +153,12 @@ onMounted(async () => {
   }
 })
 
-const OPTION_QUERY_KEYS = ['safety_position', 'exd', 'ip', 'manual_override', 'body_coating', 'body_material']
+const OPTION_QUERY_KEYS = ['safety_position', 'exd', 'ip', 'manual_override', 'body_coating', 'body_material', 'temp_min', 'temp_max']
+// Кнопка возврата в конфигураторе: показывается, только если открыли из фильтров
+// подбора /selector/pa (origin=pa-selector). Как отдельная страница — кнопки нет.
+const backToFilter = computed(() =>
+  route.query.origin === 'pa-selector' ? localizedPath('/selector/pa', locale.value) : ''
+)
 // Предвыбор конфигуратора из URL (мастер/селектор → ?model_line_id=&model_line_item_id=&variety=...).
 // Навигация уже обеспечена useCatalogRoute (ml=model_line_id → страница «brand»), здесь — только предвыбор.
 watch(() => route.query, (q) => {

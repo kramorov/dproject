@@ -148,6 +148,7 @@ export default {
   'pa.breadcrumb': '气动执行器',
   'pa.eqName': '气动执行器',
   'pa.engineer.title': '气动执行器 — 工程选型',
+  'pa.selector.title': '气动执行器 — 按扭矩选型',
   'pa.engineer.search': '查找执行器',
   'pa.engineer.results': '选型结果',
   'pa.engineer.errorTorque': '请输入无安全系数的扭矩',
@@ -179,6 +180,7 @@ export default {
   'pa.configurator.label.ip': 'IP防护等级',
   'pa.configurator.label.exd': '防爆',
   'pa.configurator.label.manual_override': '手动超驰',
+  'pa.configurator.backToFilter': '← 返回选型筛选',
 
   'pf.section.title': '气动接头',
   'pf.section.subtitle': '选择接头系列',

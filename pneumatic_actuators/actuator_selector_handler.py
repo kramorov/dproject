@@ -58,34 +58,30 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
     for key , option_class in option_classes.items() :
         result[key] = option_class.get_for_select(active_only=True)
 
-    # Покрытие/исполнение корпуса — through-опция серии (PneumaticBodyDesignOption),
-    # привязанная к model_line; в create-sku идёт её id.
+    # Материал корпуса и покрытие корпуса — РАЗДЕЛЬНЫЕ ключи в модели
+    # (body_material FK + body_coating_option FK), поэтому и селекторы раздельные:
+    #   body_material_options — уникальные материалы (MaterialGeneral);
+    #   coating_options       — уникальные покрытия (BodyCoatingOption, источник истины).
     from pneumatic_actuators.models.pa_options import PneumaticBodyDesignOption
-    coating_raw = PneumaticBodyDesignOption.get_for_select(
-        model_line_id=model_line_id ,
-        active_only=True
-    )
-    # Одинаковые исполнения повторяются в разных сериях — отдаём только уникальные.
-    _seen_names = set()
-    coating_unique = []
-    for _o in coating_raw :
-        if _o.get('name') not in _seen_names :
-            _seen_names.add(_o.get('name'))
-            coating_unique.append(_o)
-    result['coating_options'] = coating_unique
-
-    # Уникальные материалы корпуса (для шага «Материал корпуса»): чистый body_material,
-    # а не исполнение (материал+покрытие+цвет).
     from materials.models import MaterialGeneral
-    material_qs = PneumaticBodyDesignOption.objects.filter(
-        is_active=True , body_material__isnull=False
-    )
+    from params.models import BodyCoatingOption
+
+    bd_qs = PneumaticBodyDesignOption.objects.filter(is_active=True)
     if model_line_id :
-        material_qs = material_qs.filter(model_line_id=model_line_id)
-    material_ids = material_qs.values_list('body_material_id' , flat=True).distinct()
+        bd_qs = bd_qs.filter(model_line_id=model_line_id)
+
+    material_ids = bd_qs.values_list('body_material_id' , flat=True).distinct()
     result['body_material_options'] = [
         {'id' : m.id , 'name' : m.name , 'code' : m.code or ''}
         for m in MaterialGeneral.objects.filter(id__in=material_ids , is_active=True).order_by('name')
+    ]
+
+    coating_ids = bd_qs.exclude(body_coating_option__isnull=True).values_list(
+        'body_coating_option_id' , flat=True
+    ).distinct()
+    result['coating_options'] = [
+        {'id' : c.id , 'name' : c.name , 'code' : c.code or ''}
+        for c in BodyCoatingOption.objects.filter(id__in=coating_ids , is_active=True).order_by('sorting_order')
     ]
 
     # Температура окружающей среды: уникальные нижние границы work_temp_min,
@@ -338,23 +334,62 @@ def validate_selection_params(params: Dict[str , Any]) -> Tuple[bool , Optional[
 
 # def find_apppropriate_model_line(params: Dict[str , Any]) -> Dict[str , Any] :
 
-def _match_exd_for_model_lines(search_results: List[Dict], exd_id) -> List[Dict]:
+def _match_exd_for_model_lines(search_results: List[Dict], exd_value, exd_exact_id=None) -> List[Dict]:
     """Фильтрует серии по взрывозащите: семантика «не хуже чем» (exd-option.md §1.3).
 
-    Для каждой серии ищется активная through-строка PneumaticExdOption, у
-    которой хотя бы один вид совместим с запрошенным (exd_id — id вида
-    params.ExdOption). Серии без такой строки исключаются (hard-требование).
-    Строка с пустым M2M трактуется как «общепром» и подходит только под
-    запрос «общепром» (вид без кода). Выбранная строка аннотируется в серию:
-    exd_option_id / exd_encoding / exd_short / exd_variety_ids.
+    Принимает формат компонента ExdFilter:
+      - None / '' / [] — фильтр не задан;
+      - '_none_'  — «общепром» (только серии без конкретных видов Ex);
+      - '_empty_' — нет совместимых видов (пустой результат);
+      - одиночный id / список id / csv-строка id — виды params.ExdOption.
+
+    ``exd_exact_id`` — точный запрошенный вид (для exact/compatible-разделения).
+    Каждая совпавшая серия аннотируется ``exd_exact`` (True — в выбранной строке
+    есть точный вид; для «общепром» — отсутствие Ex и есть точное совпадение).
     """
     from pneumatic_actuators.models.pa_options import PneumaticExdOption
 
-    requested_id = int(exd_id)
-    requested = ExdOption.objects.filter(id=requested_id).first()
-    compat_ids = requested.get_compatible_ids() if requested else {requested_id}
-    # «Общепром» — вид без кода (нет требований взрывозащиты).
-    is_common = bool(requested and not requested.code)
+    if exd_value in (None, '', []):
+        return search_results
+
+    if exd_value == '_none_':
+        compat_ids: set = set()
+        is_common = True
+    elif exd_value == '_empty_':
+        return []
+    elif isinstance(exd_value, str) and ',' in exd_value:
+        compat_ids = {int(v) for v in exd_value.split(',') if v.strip()}
+        is_common = False
+    elif isinstance(exd_value, (list, tuple, set)):
+        compat_ids = {int(v) for v in exd_value}
+        is_common = False
+    else:
+        # Одиночный id (старый селектор): расширяем до совместимых видов.
+        try:
+            single = int(exd_value)
+            requested = ExdOption.objects.filter(id=single).first()
+            compat_ids = requested.get_compatible_ids() if requested else {single}
+        except (ValueError, TypeError):
+            compat_ids = set()
+        is_common = False
+
+    # Точный запрошенный вид (для exact/compatible). Если exact_id не передан,
+    # а значение — одиночный id (старый селектор) — считаем точным сам id.
+    exact_int = None
+    if exd_exact_id not in (None, ''):
+        try:
+            exact_int = int(exd_exact_id)
+        except (ValueError, TypeError):
+            exact_int = None
+    elif not is_common:
+        try:
+            v = exd_value
+            if isinstance(v, str) and ',' not in v:
+                exact_int = int(v)
+            elif isinstance(v, (int, float)):
+                exact_int = int(v)
+        except (ValueError, TypeError):
+            exact_int = None
 
     rows_by_line: Dict[int, list] = {}
     for row in PneumaticExdOption.objects.filter(is_active=True).prefetch_related('exd_options'):
@@ -373,20 +408,20 @@ def _match_exd_for_model_lines(search_results: List[Dict], exd_id) -> List[Dict]
                     common_row = row
                 continue
             if variety_ids & compat_ids:
-                if requested_id in variety_ids:
-                    best = row
-                    break  # строка с точным видом — приоритет
-                if best is None:
-                    best = row
+                best = row
+                break
         if best is None and is_common:
             best = common_row
         if best is None:
             continue  # серия не поддерживает запрошенную взрывозащиту
+        variety_ids = [o.id for o in best.exd_options.all()]
         ml['exd_option_id'] = best.id
         ml['exd_encoding'] = best.encoding or ''
         ml['exd_short'] = best.get_exd_short_list or ''
-        ml['exd_variety_ids'] = [o.id for o in best.exd_options.all()]
+        ml['exd_variety_ids'] = variety_ids
         ml['exd_matched'] = True
+        # exact: точный вид есть в выбранной строке; для «общепром» — отсутствие Ex.
+        ml['exd_exact'] = is_common or (exact_int is not None and exact_int in set(variety_ids))
         result.append(ml)
     return result
 
@@ -487,6 +522,7 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
     print(f"  - IP защита ID: {params.get('ip_id')}")
     print(f"  - Exd взрывозащита ID: {params.get('exd_id')}")
     print(f"  - Покрытие корпуса ID: {params.get('coating_id')}")
+    print(f"  - Материал корпуса ID: {params.get('body_material_id')}")
     print(f"  - Ручной дублер ID: {params.get('manual_override_id')}")
 
     print("\n🌡️ ТЕМПЕРАТУРНЫЕ ПАРАМЕТРЫ:")
@@ -530,9 +566,12 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
         print(f"\n✅ Найдено подходящих серий: {len(search_results)}")
 
         # 4. Взрывозащита: hard-фильтр по совместимым видам (exd-option.md §1.3).
+        # Формат — как у компонента ExdFilter: _none_/_empty_/csv/список + exd_id_exact.
         exd_id = params.get('exd_id')
         if exd_id:
-            search_results = _match_exd_for_model_lines(search_results, exd_id)
+            search_results = _match_exd_for_model_lines(
+                search_results , exd_id , exd_exact_id=params.get('exd_id_exact')
+            )
             print(f"⚡ После фильтра по взрывозащите (exd_id={exd_id}): {len(search_results)} серий")
 
         # 5. Конструкция: hard-фильтр по серии (шестерня-рейка / кулисный).
@@ -551,28 +590,53 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
             ]
             print(f"⚡ После фильтра по конструкции (construction_variety_id={construction_variety_id}): {len(search_results)} серий")
 
-        # 6. Материал корпуса: hard-фильтр по серии (body_design_options__body_material).
+        # 6. Материал корпуса и покрытие корпуса: hard-фильтр по серии.
+        # Условие КОМБИНИРОВАННОЕ: серия подходит, только если у неё есть
+        # through-строка исполнения корпуса (PneumaticBodyDesignOption), в которой
+        # выбранные материал и покрытие встречаются ВМЕСТЕ. Независимые фильтры
+        # по серии пропускали бы «невозможные» комбинации (например, материал
+        # есть только с одним покрытием, а выбран другой).
         body_material_id = params.get('body_material_id')
-        if body_material_id:
-            from pneumatic_actuators.models import PneumaticActuatorModelLine
-            allowed_ml_ids = set(
-                PneumaticActuatorModelLine.objects.filter(
-                    body_design_options__body_material_id=body_material_id ,
-                    is_active=True
-                ).values_list('id' , flat=True).distinct()
-            )
+        coating_id = params.get('coating_id')
+        if body_material_id or coating_id:
+            from pneumatic_actuators.models.pa_options import PneumaticBodyDesignOption
+            bd_qs = PneumaticBodyDesignOption.objects.filter(is_active=True)
+            if body_material_id :
+                bd_qs = bd_qs.filter(body_material_id=body_material_id)
+            if coating_id :
+                bd_qs = bd_qs.filter(body_coating_option_id=coating_id)
+            allowed_ml_ids = set(bd_qs.values_list('model_line_id' , flat=True).distinct())
             search_results = [
                 ml for ml in search_results
                 if ml.get('model_line_id') in allowed_ml_ids
             ]
-            print(f"⚡ После фильтра по материалу корпуса (body_material_id={body_material_id}): {len(search_results)} серий")
+            print(f"⚡ После фильтра по материалу/покрытию корпуса (body_material_id={body_material_id}, coating_id={coating_id}): {len(search_results)} серий")
 
-        # 7. Температура окружающей среды: серия подходит, если её температурная опция
-        # покрывает заданный диапазон (work_temp_min <= temp_min, work_temp_max >= temp_max).
+            # Аннотация исполнения корпуса: конкретная through-строка (материал+покрытие),
+            # её id идёт в конфигуратор предвыбором (body_coating = id PneumaticBodyDesignOption).
+            # Серия уже гарантированно имеет подходящую строку (комбинированный фильтр выше).
+            for ml in search_results :
+                row_qs = PneumaticBodyDesignOption.objects.filter(
+                    model_line_id=ml.get('model_line_id') , is_active=True
+                )
+                if body_material_id :
+                    row_qs = row_qs.filter(body_material_id=body_material_id)
+                if coating_id :
+                    row_qs = row_qs.filter(body_coating_option_id=coating_id)
+                row = row_qs.order_by('-is_default' , 'sorting_order').first()
+                if row :
+                    ml['body_design_option_id'] = row.id
+
+        # 7. Температура окружающей среды: серия подходит, только если у неё есть
+        # ОДНА температурная опция, покрывающая весь заданный диапазон
+        # (work_temp_min <= temp_min И work_temp_max >= temp_max в одной строке).
+        # Независимые фильтры по серии пропускали бы ложные результаты: мин могла
+        # покрывать опция LT, а макс — опция HT, при этом цельной опции нет,
+        # и в конфигураторе не нашлось бы чипса под запрошенный диапазон.
         temp_min = params.get('temp_min')
         temp_max = params.get('temp_max')
         if temp_min or temp_max:
-            from pneumatic_actuators.models import PneumaticActuatorModelLine
+            from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
             try:
                 temp_min = float(temp_min) if temp_min not in (None , '') else None
             except (TypeError , ValueError):
@@ -581,12 +645,12 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
                 temp_max = float(temp_max) if temp_max not in (None , '') else None
             except (TypeError , ValueError):
                 temp_max = None
-            temp_qs = PneumaticActuatorModelLine.objects.filter(is_active=True)
+            temp_qs = PneumaticTemperatureOption.objects.filter(is_active=True)
             if temp_min is not None:
-                temp_qs = temp_qs.filter(temperature_options__work_temp_min__lte=temp_min)
+                temp_qs = temp_qs.filter(work_temp_min__lte=temp_min)
             if temp_max is not None:
-                temp_qs = temp_qs.filter(temperature_options__work_temp_max__gte=temp_max)
-            allowed_ml_ids = set(temp_qs.values_list('id' , flat=True).distinct())
+                temp_qs = temp_qs.filter(work_temp_max__gte=temp_max)
+            allowed_ml_ids = set(temp_qs.values_list('model_line_id' , flat=True).distinct())
             search_results = [
                 ml for ml in search_results
                 if ml.get('model_line_id') in allowed_ml_ids

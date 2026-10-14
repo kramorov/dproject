@@ -188,6 +188,7 @@ export default {
   'pa.breadcrumb': 'Пневмоприводы',
   'pa.eqName': 'Пневмоприводы',
   'pa.engineer.title': 'Пневмоприводы — инженерный подбор',
+  'pa.selector.title': 'Пневмоприводы — подбор по моменту',
   'pa.engineer.search': 'Подобрать привод',
   'pa.engineer.results': 'Результаты подбора',
   'pa.engineer.errorTorque': 'Укажите момент без запаса',
@@ -219,6 +220,7 @@ export default {
   'pa.configurator.label.ip': 'Степень защиты IP',
   'pa.configurator.label.exd': 'Взрывозащита',
   'pa.configurator.label.manual_override': 'Ручной дублёр',
+  'pa.configurator.backToFilter': '← К фильтрам подбора',
 
   'pf.section.title': 'Пневматические фитинги',
   'pf.section.subtitle': 'Выберите серию фитингов',

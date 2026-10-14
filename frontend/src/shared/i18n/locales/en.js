@@ -148,6 +148,7 @@ export default {
   'pa.breadcrumb': 'Pneumatic actuators',
   'pa.eqName': 'Pneumatic actuators',
   'pa.engineer.title': 'Pneumatic actuators — engineering selection',
+  'pa.selector.title': 'Pneumatic actuators — torque selection',
   'pa.engineer.search': 'Find actuator',
   'pa.engineer.results': 'Selection results',
   'pa.engineer.errorTorque': 'Specify torque without safety factor',
@@ -179,6 +180,7 @@ export default {
   'pa.configurator.label.ip': 'IP rating',
   'pa.configurator.label.exd': 'Explosion protection',
   'pa.configurator.label.manual_override': 'Manual override',
+  'pa.configurator.backToFilter': '← Back to selection filters',
 
   'pf.section.title': 'Pneumatic fittings',
   'pf.section.subtitle': 'Select a fitting series',
