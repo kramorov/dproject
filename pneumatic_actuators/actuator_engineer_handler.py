@@ -8,7 +8,7 @@ from params.models import IpOption, HandWheelInstalledOption, StemShapes, \
 from params.exd_models import ExdOption
 from pneumatic_actuators.models import BodyThrustTorqueTable, PneumaticActuatorVariety, \
     PneumaticActuatorConstructionVariety
-from core.utils.localization import localized_name
+from core.utils.localization import localized_name, pick_i18n
 
 logger = logging.getLogger(__name__)
 
@@ -525,6 +525,121 @@ def _dedup_series_by_body(search_results: List[Dict]) -> List[Dict]:
     return [ml for ml in search_results if ml.get('model_line_items')]
 
 
+# ── Измерения опций для группировки карточек по model_line_item (чипсы) ──
+_OPTION_DIMENSION_LABELS = {
+    'temperature': {'ru': 'Температура', 'en': 'Temperature', 'cn': '温度'},
+    'coating': {'ru': 'Покрытие корпуса', 'en': 'Body coating', 'cn': '壳体涂层'},
+    'exd': {'ru': 'Взрывозащита', 'en': 'Explosion protection', 'cn': '防爆'},
+    'ip': {'ru': 'IP', 'en': 'IP', 'cn': 'IP'},
+    'manual_override': {'ru': 'Ручной дублёр', 'en': 'Manual override', 'cn': '手动操作'},
+    'safety_position': {'ru': 'Положение безопасности', 'en': 'Fail-safe position', 'cn': '安全位置'},
+}
+
+
+def _dimension_label(key, locale):
+    from core.utils.localization import DEFAULT_LOCALE
+    locale = locale or DEFAULT_LOCALE
+    i18n = _OPTION_DIMENSION_LABELS.get(key, {})
+    return i18n.get(locale) or i18n.get('ru') or key
+
+
+def _card_option_values(card_item, locale):
+    """Плоский словарь значений опций карточки (для чипсов групповой карточки).
+
+    Подписи — чистые значения без суффиксов «(Стандарт)»/«(Опция)» и без
+    encoding-префиксов: для чипса важно ЧЕМ варианты различаются, а не кодировка.
+    """
+    out = {}
+
+    t = card_item.selected_temperature
+    if t is not None:
+        out['temperature'] = {
+            'value': str(t.id),
+            'label': f"{t.work_temp_min}…{t.work_temp_max}°C",
+        }
+
+    coat = card_item.selected_body_coating
+    if coat is not None:
+        parts = []
+        if coat.body_material:
+            parts.append(localized_name(coat.body_material, locale))
+        if coat.body_coating_option:
+            parts.append(localized_name(coat.body_coating_option, locale))
+        elif coat.body_coating:
+            parts.append(pick_i18n(coat.body_coating, locale) or '')
+        label = ', '.join(p for p in parts if p)
+        if label:
+            out['coating'] = {'value': str(coat.id), 'label': label}
+
+    exd = card_item.selected_exd
+    if exd is not None:
+        label = card_item._res_exd_short() or exd.encoding or ''
+        if label:
+            out['exd'] = {'value': str(exd.id), 'label': label}
+
+    ip = card_item.selected_ip
+    if ip is not None:
+        out['ip'] = {'value': str(ip.id), 'label': localized_name(ip, locale) or str(ip)}
+
+    mo = card_item.selected_manual_override
+    if mo is not None:
+        out['manual_override'] = {'value': str(mo.id), 'label': localized_name(mo, locale) or str(mo)}
+
+    sp = card_item.selected_safety_position
+    if sp is not None:
+        out['safety_position'] = {'value': str(sp.id), 'label': localized_name(sp, locale) or str(sp)}
+
+    return out
+
+
+def _group_cards_by_model_line_item(cards, locale):
+    """Группирует карточки по model_line_item; вычисляет чипсы различающихся опций."""
+    from collections import OrderedDict
+
+    groups = OrderedDict()
+    for card in cards:
+        key = card.get('model_line_item_id') or ('body', card.get('body_id'))
+        groups.setdefault(key, []).append(card)
+
+    result = []
+    for _key, items in groups.items():
+        first = items[0]
+        group = {
+            'model_line_item_id': first.get('model_line_item_id'),
+            'body_id': first.get('body_id'),
+            'code': first.get('code'),
+            'name': first.get('name'),
+            'title': first.get('title'),
+            'list_title': first.get('list_title'),
+            'images': first.get('images'),
+            'sku': first.get('sku'),
+            'sku_id': first.get('sku_id'),
+            'is_exact': first.get('is_exact'),
+            'items': items,
+            'chips': [],
+        }
+
+        for dim in ('temperature', 'coating', 'exd', 'ip', 'manual_override', 'safety_position'):
+            variants = []
+            seen = set()
+            for card in items:
+                opt = card.get('options', {}).get(dim)
+                if not opt or opt['value'] in seen:
+                    continue
+                seen.add(opt['value'])
+                variants.append({'value': opt['value'], 'label': opt['label'], 'sku_id': card.get('sku_id')})
+            if len(variants) > 1:
+                group['chips'].append({
+                    'key': dim,
+                    'label': _dimension_label(dim, locale),
+                    'variants': variants,
+                })
+
+        result.append(group)
+
+    return result
+
+
 def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) -> Dict[str, Any]:
     """Подбор ПП: тела по моменту (со скорингом) → exd/температура/конструкция
     (по сериям, как в старой версии) → материализованные карточки (SKU) найденных тел."""
@@ -649,25 +764,41 @@ def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) 
                 if temp_max is not None:
                     qs = qs.filter(selected_temperature__work_temp_max__gte=temp_max)
             qs = (qs
-                .select_related('model_line', 'body', 'sku', 'image_gallery', 'model_line__image_gallery')
+                .select_related(
+                    'model_line', 'body', 'sku', 'image_gallery', 'model_line__image_gallery',
+                    'pneumatic_actuator_variety',
+                    'selected_temperature', 'selected_exd', 'selected_body_coating',
+                    'selected_body_coating__body_material',
+                    'selected_body_coating__body_coating_option',
+                    'selected_ip', 'selected_manual_override', 'selected_safety_position',
+                )
                 .prefetch_related(
                     'image_gallery__items__image__variants',
                     'model_line__image_gallery__items__image__variants',
+                    'selected_exd__exd_options',
+                    'selected_exd__exd_options__explosion_protection_class',
                 )
                 .distinct())
             for card_item in qs:
+                try:
+                    list_params = card_item._get_list_params(locale=locale)
+                except Exception:
+                    list_params = []
                 cards.append({
                     'id': card_item.id,
+                    'model_line_item_id': card_item.source_model_line_item_id,
+                    'body_id': card_item.body_id,
                     'code': card_item.code or '',
                     'name': card_item.name or '',
                     'title': card_item.name or '',
                     'list_title': card_item.name or '',
-                    'list_params': [],
+                    'list_params': list_params,
                     'images': card_item._get_list_preview_images(),
                     'sku': {'id': card_item.sku_id, 'code': card_item.sku.code, 'name': card_item.sku.name} if card_item.sku_id else None,
                     'sku_id': card_item.sku_id,
                     'is_exact': bool(ml.get('is_exact')),
                     'score': item.get('score', 0),
+                    'options': _card_option_values(card_item, locale),
                 })
 
     # Сортировка по точности момента (чем меньше score, тем ближе к требуемому).
@@ -675,7 +806,12 @@ def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) 
     for c in cards:
         c.pop('score', None)
 
-    return {'search_results': cards, 'total_found': len(cards)}
+    groups = _group_cards_by_model_line_item(cards, locale)
+    return {
+        'search_results': groups,
+        'total_found': len(groups),
+        'total_items': len(cards),
+    }
 
 
 def process_selection_params(params: Dict[str , Any], locale: Optional[str] = None) -> Dict[str , Any] :

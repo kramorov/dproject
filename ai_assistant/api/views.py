@@ -333,7 +333,7 @@ class EquipmentTypeListSerializer(serializers.ModelSerializer):
             "sorting_order", "filter_endpoint",
             "name_template", "description_template",
             "title_template", "spec_template",
-            "spec_title_template", "list_title_template", "list_params",
+            "spec_title_template", "list_title_template", "list_params", "list_params_i18n",
             "name_i18n", "description_i18n",
             "name_template_i18n", "description_template_i18n",
             "title_template_i18n", "spec_title_template_i18n",

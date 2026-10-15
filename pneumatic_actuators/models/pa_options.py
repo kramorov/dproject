@@ -381,32 +381,6 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         # но всегда добавляет RU-суффикс — снимаем его, суффикс добавит localized_name().
         return self._strip_option_suffix(self.get_display_name(locale))
 
-    @classmethod
-    def get_for_select(cls , model_line_id: Optional[int] = None ,
-                       model_line_item_id: Optional[int] = None ,
-                       active_only: bool = True , locale: Optional[str] = None) -> List[Dict] :
-        """Получить опции исполнения корпуса (name локализован через localized_name)."""
-        queryset = cls.objects.all()
-
-        if active_only :
-            queryset = queryset.filter(is_active=True)
-
-        if model_line_id :
-            queryset = queryset.filter(model_line_id=model_line_id)
-
-        if model_line_item_id :
-            from pneumatic_actuators.models import PneumaticActuatorModelLineItem
-            try :
-                model_line_item = PneumaticActuatorModelLineItem.objects.select_related(
-                    'model_line'
-                ).get(id=model_line_item_id)
-                if model_line_item.model_line :
-                    queryset = queryset.filter(model_line_id=model_line_item.model_line.id)
-            except PneumaticActuatorModelLineItem.DoesNotExist :
-                pass
-
-        return [{'id' : obj.id , 'name' : localized_name(obj , locale) , 'code' : obj.encoding} for obj in queryset]
-
 
 class PneumaticBodyColorOption(BaseColorThroughOption):
     """Цвет корпуса для пневмоприводов (отдельная through-опция)"""

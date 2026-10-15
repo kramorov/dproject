@@ -30,7 +30,7 @@ class _BaseFittingItemAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
     search_fields = ['name', 'code', 'description']
     filter_horizontal = ('tech_docs',)
     list_display = [
-        'name', 'code', 'model_line__equipment_type', 'model_line__brand', 'image_gallery',
+        'name', 'code', 'model_line__equipment_type', 'model_line__brand', 
         'thread', 'thread_inner_outer', 'sorting_order', 'is_active'
     ]
     list_editable = ['code', 'thread', 'sorting_order', 'is_active']
@@ -54,7 +54,7 @@ class _BaseFittingItemAdmin(AdminStructuredDataMixinCopyMixin, admin.ModelAdmin)
 @admin.register(PneumaticFitting)
 class PneumaticFittingAdmin(_BaseFittingItemAdmin):
     form = PneumaticFittingForm
-    list_display = [
+    list_display = ['id',
         'name', 'code', 'width_across_flats_body','width_across_flats_locking_nut',
         'pipe_diameter', 'thread', 'sorting_order', 'is_active'
     ]
@@ -95,7 +95,7 @@ class PneumaticSilencerAdmin(_BaseFittingItemAdmin):
         'model_line', 'model_line__brand', 'model_line__code',
         'body_material', 'thread'
     ]
-    list_display = [
+    list_display = ['id',
         'name', 'code', 'thread', 'thread_inner_outer', 'width_across_flats_body', 'sorting_order', 'is_active'
     ]
     list_editable = [
@@ -132,7 +132,7 @@ class PneumaticPlugAdmin(_BaseFittingItemAdmin):
         'model_line',  'model_line__brand',
         'body_material', 'thread', 'thread_inner_outer', 'width_across_flats_body'
     ]
-    list_display = [
+    list_display = ['id',
         'name', 'code', 'thread', 'thread_inner_outer', 'width_across_flats_body', 'sorting_order', 'is_active'
     ]
     list_editable = [
@@ -188,7 +188,7 @@ class PneumaticFittingModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePl
     template_item_model = PneumaticFitting
     regenerate_items_related_name = 'pneumaticfitting_items'
     form = PneumaticFittingModelLineForm
-    list_display = [
+    list_display = ['id',
         'name', 'code', 'shape', 'fixation_method', 'brand', 'is_swivel',
         'sorting_order', 'is_active'
     ]
@@ -239,7 +239,7 @@ class PneumaticFittingModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePl
 class PneumaticSilencerModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAdminMixin, AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     template_item_model = PneumaticSilencer
     regenerate_items_related_name = 'pneumaticsilencer_items'
-    list_display = ['name', 'code', 'brand', 'sorting_order', 'is_active']
+    list_display = ['id','name', 'code', 'brand', 'sorting_order', 'is_active']
     list_editable = ['sorting_order', 'is_active']
     list_filter = ['brand']
     filter_horizontal = ('tech_docs', 'cert_docs')
@@ -273,7 +273,7 @@ class PneumaticSilencerModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
 class PneumaticPlugModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAdminMixin, AdminStructuredDataMixinCopyMixin, admin.ModelAdmin):
     template_item_model = PneumaticPlug
     regenerate_items_related_name = 'pneumaticplug_items'
-    list_display = ['name', 'code', 'brand', 'sorting_order', 'is_active']
+    list_display = ['id','name', 'code', 'brand', 'sorting_order', 'is_active']
     list_editable = ['sorting_order', 'is_active']
     list_filter = ['brand']
     filter_horizontal = ('tech_docs', 'cert_docs')

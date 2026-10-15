@@ -184,9 +184,12 @@ class ValveFunction(StructuredDataMixin, LocalizedDictFieldsMixin):
                                           help_text=_("Второе число в схеме (позиционность)"))
 
     compatible_functions = models.ManyToManyField(
-        'self', blank=True, symmetrical=True,
+        'self', blank=True, symmetrical=False,
         verbose_name=_("Совместимые схемы"),
-        help_text=_("Например: 3/2 ↔ 5/2")
+        help_text=_(
+            "Направленная совместимость: схемы, которыми можно ЗАМЕНИТЬ данную. "
+            "Например, у 3/2 — 5/2 (5/2 подходит вместо 3/2), но не наоборот."
+        )
     )
 
     class Meta:
@@ -198,7 +201,12 @@ class ValveFunction(StructuredDataMixin, LocalizedDictFieldsMixin):
         return self.name
 
     def get_compatible_ids(self):
-        """Возвращает [свой id] + id совместимых схем"""
+        """Возвращает [свой id] + id схем-заменителей (направленно).
+
+        ``compatible_functions`` — НЕ симметричная связь: она хранит только
+        «чем можно заменить эту схему». Поэтому 3/2 → [3/2, 5/2], а
+        5/2 → [5/2] (обратной подстановки 3/2 вместо 5/2 нет).
+        """
         ids = [self.id]
         ids.extend(self.compatible_functions.values_list('id', flat=True))
         return list(set(ids))

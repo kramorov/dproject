@@ -911,48 +911,30 @@ class TemplateMixin:
     def _get_list_params(self, locale=None) -> list:
         """Параметры для карточки в списке (SelectionResultGrid).
 
-        Возвращает ``[{label, value}]`` — резолвит ключи из
-        ``EquipmentType.list_params`` через реестр полей. Подписи берутся из
-        ``spec_template`` (для не-RU — ``spec_template_i18n[locale]``), значения
-        форматируются единым ``_format_spec_value``/``_spec_value_to_text`` с
-        локализацией справочников.
+        ``EquipmentType.list_params`` — объект «подпись → ключ поля»; для не-RU
+        берётся ``list_params_i18n[locale]`` (фолбэк — RU). Значения резолвятся
+        через реестр полей и форматируются ``_format_spec_value``/``_spec_value_to_text``.
         """
         locale = locale or DEFAULT_LOCALE
-        keys = self._get_equipment_type_template('list_params')
-        if not keys:
-            return []
-        if isinstance(keys, str):
+        et = self._get_equipment_type()
+        data = getattr(et, 'list_params', None) if et is not None else None
+        if locale != DEFAULT_LOCALE and et is not None:
+            i18n = getattr(et, 'list_params_i18n', None)
+            if isinstance(i18n, dict) and isinstance(i18n.get(locale), dict):
+                data = i18n.get(locale)
+        if isinstance(data, str):
             import json
             try:
-                keys = json.loads(keys)
+                data = json.loads(data)
             except Exception:
                 return []
-        if not isinstance(keys, (list, tuple)):
+        if not isinstance(data, dict):
             return []
         by_key = {f.key: f for f in self._get_field_specs()}
-        # Подписи полей — из spec_template (label → key), реверс: key → label.
-        label_by_key = {}
-        _get_spec_template = getattr(self, '_get_spec_template', None)
-        _parse_spec_template = getattr(self, '_parse_spec_template', None)
-        if callable(_get_spec_template) and callable(_parse_spec_template):
-            template = _parse_spec_template(_get_spec_template())
-            if locale != DEFAULT_LOCALE:
-                _get_spec_template_i18n = getattr(self, '_get_spec_template_i18n', None)
-                if callable(_get_spec_template_i18n):
-                    i18n = _get_spec_template_i18n()
-                    if isinstance(i18n, dict):
-                        loc_template = _parse_spec_template(i18n.get(locale))
-                        if loc_template:
-                            template = loc_template
-            if template:
-                for group_fields in template.values():
-                    if not isinstance(group_fields, dict):
-                        continue
-                    for label, key in group_fields.items():
-                        if isinstance(key, str) and key not in label_by_key:
-                            label_by_key[key] = label
         result = []
-        for key in keys:
+        for label, key in data.items():
+            if not isinstance(key, str):
+                continue
             spec = by_key.get(key)
             if spec is None:
                 continue
@@ -962,13 +944,7 @@ class TemplateMixin:
                 value = ''
             if value in (None, ''):
                 continue
-            label = spec.label or label_by_key.get(key) or spec.key
-            if locale != DEFAULT_LOCALE and label_by_key.get(key):
-                label = label_by_key.get(key)
-            result.append({
-                'label': label,
-                'value': value,
-            })
+            result.append({'label': label, 'value': value})
         return result
 
     def _doc_links(self, getter, base_url: str, locale=None):

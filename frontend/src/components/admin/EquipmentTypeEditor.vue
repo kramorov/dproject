@@ -30,7 +30,7 @@
         <button v-for="t in subTabs" :key="t.id" :class="{ active: subTab === t.id }" @click="subTab = t.id">{{ t.label }}</button>
       </nav>
 
-      <div class="et-locales" v-if="['name','description','title','spec'].includes(subTab)">
+      <div class="et-locales" v-if="['name','description','title','list','spec'].includes(subTab)">
         <span class="et-locales-label">Локаль шаблона:</span>
         <button v-for="l in LOCALES" :key="l.code" type="button" class="et-locale-btn" :class="{ active: loc === l.code }" @click="loc = l.code">{{ l.label }}</button>
         <span class="et-locales-hint">RU синхронизируется с основным полем при сохранении; EN/CN хранятся в *_i18n</span>
@@ -102,11 +102,13 @@
             </div>
             <textarea ref="listTitleTemplateEl" :value="getTpl('list_title_template', loc)" @input="setTpl('list_title_template', loc, $event.target.value)" class="cell-input" rows="2"></textarea>
           </div>
+        </div>
 
+        <!-- Параметры в списке (list_params) -->
+        <div v-show="subTab === 'list'" class="et-tab">
           <div class="et-form-block">
-            <label class="et-form-block-label">Список параметров в списке (list_params) <button class="et-help" type="button" @click="showHelp('list_params')">ⓘ</button></label>
-            <textarea v-model="listParamsText" class="cell-input" rows="2" placeholder='[\"brand\", \"ip\", \"exd_short\"]'></textarea>
-            <button class="btn-save-sm" type="button" @click="saveListParams">💾 Сохранить</button>
+            <label class="et-form-block-label">Параметры в списке (list_params) <button class="et-help" type="button" @click="showHelp('list_params')">ⓘ</button></label>
+            <ListParamsEditor :key="selectedEt.id + '-' + loc" :model-value="getListParams()" @update:model-value="setListParams" :fields="templateFields" />
           </div>
         </div>
 
@@ -194,6 +196,7 @@ import api from '@/shared/api'
 import SpecTemplateEditor from '@/components/admin/SpecTemplateEditor.vue'
 import SemanticsEditor from '@/components/admin/SemanticsEditor.vue'
 import HintsEditor from '@/components/admin/HintsEditor.vue'
+import ListParamsEditor from '@/components/admin/ListParamsEditor.vue'
 
 const props = defineProps({
   equipmentTypes: { type: Array, default: () => [] },
@@ -218,7 +221,6 @@ const nameTemplateEl = ref(null)
 const descriptionTemplateEl = ref(null)
 const specTitleTemplateEl = ref(null)
 const listTitleTemplateEl = ref(null)
-const listParamsText = ref('')
 const saveMessage = ref('')
 const saveError = ref(false)
 const equipmentParams = ref([])
@@ -267,12 +269,23 @@ function setSpec(v) {
   }
 }
 
-function saveListParams() {
-  try {
-    selectedEt.value.list_params = JSON.parse(listParamsText.value || '[]')
-    listParamsText.value = JSON.stringify(selectedEt.value.list_params)
-  } catch (e) {
-    alert('Невалидный JSON: ' + e.message)
+function getListParams() {
+  const et = selectedEt.value
+  if (!et) return {}
+  if (loc.value === 'ru') return (et.list_params && typeof et.list_params === 'object') ? et.list_params : {}
+  const i18n = et.list_params_i18n
+  const v = i18n && typeof i18n === 'object' ? i18n[loc.value] : null
+  return v && typeof v === 'object' ? v : {}
+}
+
+function setListParams(v) {
+  const et = selectedEt.value
+  if (!et) return
+  if (loc.value === 'ru') {
+    et.list_params = v
+  } else {
+    if (!et.list_params_i18n || typeof et.list_params_i18n !== 'object') et.list_params_i18n = {}
+    et.list_params_i18n[loc.value] = v
   }
 }
 
@@ -281,6 +294,7 @@ const subTabs = [
   { id: 'name', label: 'Шаблон названия (name_template)' },
   { id: 'description', label: 'Шаблон описания (description_template)' },
   { id: 'title', label: 'Шаблон заголовка карточки (title_template)' },
+  { id: 'list', label: 'Параметры в списке (list_params)' },
   { id: 'spec', label: 'Шаблон спецификации (spec_template)' },
   { id: 'semantics', label: 'Семантика параметров (param_semantics)' },
   { id: 'ai', label: 'AI Catalog Schema' },
@@ -326,7 +340,8 @@ function selectEquipmentType(et) {
   }
   if (!clone.spec_template_i18n || typeof clone.spec_template_i18n !== 'object') clone.spec_template_i18n = {}
   loc.value = 'ru'
-  listParamsText.value = JSON.stringify(Array.isArray(clone.list_params) ? clone.list_params : [])
+  if (!clone.list_params || typeof clone.list_params !== 'object' || Array.isArray(clone.list_params)) clone.list_params = {}
+  if (!clone.list_params_i18n || typeof clone.list_params_i18n !== 'object') clone.list_params_i18n = {}
   if (clone.description == null) clone.description = ''
   if (clone.ai_title == null) clone.ai_title = ''
   if (clone.ai_description == null) clone.ai_description = ''
@@ -388,7 +403,8 @@ async function saveEquipment(et) {
     spec_title_template_i18n: et.spec_title_template_i18n || {},
     list_title_template_i18n: et.list_title_template_i18n || {},
     spec_template_i18n: et.spec_template_i18n || {},
-    list_params: Array.isArray(et.list_params) ? et.list_params : [],
+    list_params: (et.list_params && typeof et.list_params === 'object' && !Array.isArray(et.list_params)) ? et.list_params : {},
+    list_params_i18n: et.list_params_i18n || {},
     spec_template: et.spec_template || {},
     param_semantics: et.param_semantics || {},
     ai_title: et.ai_title || '', ai_description: et.ai_description || '',

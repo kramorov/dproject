@@ -32,7 +32,7 @@ PA_ITEM_TEMPLATE_FIELDS = (
     {'key': 'body_name', 'placeholder': '{body_name}', 'path': 'body__name',
      },
     {'key': 'body_code', 'placeholder': '{body_code}', 'path': 'body__code'},
-    {'key': 'weight', 'placeholder': '{weight}', 'path': 'weight',
+    {'key': 'weight', 'placeholder': '{weight}', 'resolver': '_res_weight',
      },
 
     # ── Опции (шаблоны + артикул) ──
@@ -52,7 +52,7 @@ PA_ITEM_TEMPLATE_FIELDS = (
      'ext_code_path': 'ip_ext_encoding'},
     {'key': 'exd', 'placeholder': '{exd}', 'path': 'selected_exd__get_exd_list',
      'code_path': 'exd_encoding', 'ext_code_path': 'exd_ext_encoding'},
-    {'key': 'exd_short', 'placeholder': '{exd_short}', 'path': 'selected_exd__get_exd_short_list'},
+    {'key': 'exd_short', 'placeholder': '{exd_short}', 'resolver': '_res_exd_short', 'label': 'Взрывозащита'},
     {'key': 'coating', 'placeholder': '{coating}', 'resolver': '_res_body_coating',
      'name_path': 'selected_body_coating', 'code_path': 'coating_encoding',
      'ext_code_path': 'coating_ext_encoding'},

@@ -1,5 +1,6 @@
 <!-- shared/components/catalog/EngineerProductCard.vue -->
-<!-- Card for EngineerSelection list — compact horizontal layout with key specs. -->
+<!-- Карточка для EngineerSelection. Единый шаблон: изображение + блок информации
+     о модели (PaModelInfoBlock) + «Блок купить» (PaBuyBlock). Без чипсов опций. -->
 <template>
   <div class="eng-card" @click="emit('select', item.id)">
     <div class="eng-card__image">
@@ -11,38 +12,17 @@
       />
       <span v-else class="eng-card__no-img">🈚</span>
     </div>
-    <div class="eng-card__body">
-      <div class="eng-card__header">
-        <h3 class="eng-card__title">{{ item.list_title || item.title || item.name || item.code }}</h3>
-        <span class="eng-card__code">{{ item.code }}</span>
-      </div>
-      <div class="eng-card__specs" v-if="specs.length">
-        <span v-for="s in specs" :key="s.label" class="eng-card__spec">
-          <span class="eng-card__spec-label">{{ s.label }}</span>
-          <span class="eng-card__spec-value">{{ s.value }}</span>
-        </span>
-      </div>
-      <div class="eng-card__footer">
-        <div class="eng-card__cart" v-if="item.sku_id" @click.stop>
-          <AddToCartButton :skuId="item.sku_id" />
-        </div>
-        <div class="eng-card__price" v-if="price && price.price != null && price.price !== '0' && price.price !== '0.00'">
-          <span class="eng-card__price-val">{{ price.price }}</span>
-          <span class="eng-card__price-cur">{{ price.symbol || price.currency }}</span>
-        </div>
-        <span v-else class="eng-card__price eng-card__price--na">{{ t('catalog.engineer.priceOnRequest') }}</span>
-      </div>
-    </div>
+
+    <PaModelInfoBlock :item="item" class="eng-card__info" />
+    <PaBuyBlock :sku-id="item.sku_id" :price="price" class="eng-card__buy" />
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import ProgressiveImage from '@/shared/components/ProgressiveImage.vue'
-import AddToCartButton from '@/shared/components/AddToCartButton.vue'
-import { useI18n } from '@/shared/i18n'
-
-const { t } = useI18n()
+import PaModelInfoBlock from '@/shared/components/catalog/PaModelInfoBlock.vue'
+import PaBuyBlock from '@/shared/components/catalog/PaBuyBlock.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -58,88 +38,16 @@ const imageFull = computed(() => {
   if (!first) return null
   return first.url !== first.preview_url ? (first.url || null) : null
 })
-
-// Dynamic specs — extract key engineering params from item
-const specs = computed(() => {
-  const i = props.item
-
-  // Declarative: keys from EquipmentType.list_params (resolved backend-side)
-  if (Array.isArray(i.list_params) && i.list_params.length) {
-    return i.list_params
-      .filter(p => p && p.value != null && p.value !== '')
-      .map(p => ({ label: p.label || '', value: p.value }))
-  }
-
-  const result = []
-
-  // IP rating
-  if (i.ip) {
-    result.push({ label: 'IP', value: typeof i.ip === 'object' ? (i.ip.name || i.ip.code || '') : String(i.ip) })
-  }
-  // Body material
-  if (i.body_material) {
-    result.push({ label: t('catalog.engineer.specBody'), value: typeof i.body_material === 'object' ? (i.body_material.name || i.body_material.code || '') : String(i.body_material) })
-  }
-  // Temperature
-  if (i.work_temp_min != null || i.work_temp_max != null) {
-    const tmin = i.work_temp_min != null ? i.work_temp_min : '…'
-    const tmax = i.work_temp_max != null ? i.work_temp_max : '…'
-    result.push({ label: 't, °C', value: `${tmin}…${tmax}` })
-  }
-  // Torque (gearbox)
-  if (i.torque != null) {
-    result.push({ label: t('catalog.engineer.specTorque'), value: i.torque })
-  }
-  // Flow rate (filter-regulator)
-  if (i.flow_rate != null) {
-    result.push({ label: t('catalog.engineer.specFlowRate'), value: i.flow_rate })
-  }
-  // Thread (filter-regulator)
-  if (i.thread) {
-    result.push({ label: t('catalog.engineer.specThread'), value: typeof i.thread === 'object' ? (i.thread.name || i.thread.code || '') : String(i.thread) })
-  }
-  // Sensor variety (limit-switch)
-  if (i.sensor_variety) {
-    result.push({ label: t('catalog.engineer.specSensors'), value: typeof i.sensor_variety === 'object' ? (i.sensor_variety.name || '') : String(i.sensor_variety) })
-  }
-  // Points (limit-switch)
-  if (i.points != null) {
-    result.push({ label: t('catalog.engineer.specContacts'), value: i.points })
-  }
-  // Fitting shape + fixation method (pneumatic fittings)
-  const shape = i.values?.shape ?? i.shape
-  if (shape) {
-    result.push({ label: t('catalog.engineer.specShape'), value: typeof shape === 'object' ? (shape.name || '') : String(shape) })
-  }
-  const fixation = i.values?.fixation_method ?? i.fixation_method
-  if (fixation) {
-    result.push({ label: t('catalog.engineer.specFixationMethod'), value: typeof fixation === 'object' ? (fixation.name || '') : String(fixation) })
-  }
-  // Thread name (pneumatic fittings use thread_name)
-  if (i.thread_name) {
-    result.push({ label: t('catalog.engineer.specThread'), value: String(i.thread_name) })
-  }
-  // Thread inner/outer (pneumatic fittings)
-  if (i.thread_inner_outer_name) {
-    result.push({ label: t('catalog.engineer.specInnerOuter'), value: String(i.thread_inner_outer_name) })
-  }
-  // Pipe material (pneumatic fittings)
-  if (i.pipe_material) {
-    result.push({ label: t('catalog.engineer.specPipeMaterial'), value: typeof i.pipe_material === 'object' ? (i.pipe_material.name || '') : String(i.pipe_material) })
-  }
-
-  return result
-})
 </script>
 
 <style scoped>
-/* ── Card root ── */
 .eng-card {
   display: flex;
+  align-items: stretch;
   gap: 16px;
   background: var(--cat-surface, #fff);
   border: 1px solid var(--cat-border, #e5e7eb);
-  border-radius: var(--cat-radius-lg, 10px);
+  border-radius: var(--cat-radius-lg, 12px);
   padding: 16px;
   cursor: pointer;
   transition: box-shadow .15s, border-color .15s;
@@ -149,11 +57,10 @@ const specs = computed(() => {
   border-color: var(--cat-primary, #2563eb);
 }
 
-/* ── Image ── */
 .eng-card__image {
-  flex: 0 0 100px;
-  height: 100px;
-  border-radius: var(--cat-radius-md, 6px);
+  flex: 0 0 96px;
+  height: 96px;
+  border-radius: var(--cat-radius-md, 8px);
   background: var(--cat-bg, #f9fafb);
   display: flex;
   align-items: center;
@@ -170,102 +77,17 @@ const specs = computed(() => {
   color: var(--cat-border, #d1d5db);
 }
 
-/* ── Body ── */
-.eng-card__body {
+.eng-card__info {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+}
+.eng-card__buy {
+  flex: 0 0 auto;
+  align-self: stretch;
 }
 
-/* ── Header ── */
-.eng-card__header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-.eng-card__title {
-  font-size: var(--cat-text-md, 15px);
-  font-weight: 600;
-  color: var(--cat-text, #1f2937);
-  margin: 0;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.eng-card__code {
-  flex-shrink: 0;
-  font-size: var(--cat-text-xs, 11px);
-  color: var(--cat-muted, #6b7280);
-  font-family: var(--cat-font-mono, monospace);
-  background: var(--cat-bg, #f3f4f6);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-/* ── Specs row ── */
-.eng-card__specs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-}
-.eng-card__spec {
-  display: inline-flex;
-  gap: 4px;
-  font-size: var(--cat-text-sm, 12px);
-}
-.eng-card__spec-label {
-  color: var(--cat-muted, #9ca3af);
-}
-.eng-card__spec-value {
-  color: var(--cat-text, #374151);
-  font-weight: 500;
-}
-
-/* ── Footer (cart + price) ── */
-.eng-card__footer {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.eng-card__cart {
-  flex-shrink: 0;
-}
-.eng-card__price {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-}
-.eng-card__price-val {
-  font-size: var(--cat-price-size, 18px);
-  font-weight: var(--cat-price-weight, 700);
-  color: var(--cat-price-color, #059669);
-}
-.eng-card__price-cur {
-  font-size: var(--cat-text-xs, 12px);
-  color: var(--cat-muted, #6b7280);
-}
-.eng-card__price--na {
-  font-size: var(--cat-text-sm, 13px);
-  color: var(--cat-muted, #9ca3af);
-  font-weight: 400;
-}
-
-/* ── Responsive ── */
 @media (max-width: 640px) {
-  .eng-card {
-    gap: 12px;
-    padding: 12px;
-  }
-  .eng-card__image {
-    flex: 0 0 72px;
-    height: 72px;
-  }
-  .eng-card__specs {
-    gap: 4px 12px;
-  }
+  .eng-card { gap: 12px; padding: 12px; }
+  .eng-card__image { flex: 0 0 72px; height: 72px; }
 }
 </style>

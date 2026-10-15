@@ -167,12 +167,18 @@ class EquipmentType(BaseAbstractModel):
     # ── Список параметров, выводимых в списке (вторая/третья строка) ──
     list_params = models.JSONField(
         blank=True,
-        default=list,
-        verbose_name=_("Список выводимых в списке параметров"),
-        help_text=_(
-            "JSON-список ключей полей (реестра *_item_fields), выводимых "
-            "дополнительными строками в SelectionResultGrid. Пример: [\"brand\", \"ip\", \"exd_short\"]"
+        default=dict,
+        verbose_name=_("Параметры в списке"),
+        help_text=(
+            "JSON-объект «Подпись параметра»: «ключ поля» (реестра *_item_fields), "
+            "выводимых строками в карточке списка. Пример: {\"Серия\": \"model_line_name\", \"Бренд\": \"brand_name\"}. "
+            "RU синхронизируется в list_params_i18n; EN/CN — отдельными ключами."
         )
+    )
+    list_params_i18n = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Переводы параметров в списке (ru/en/cn)"),
+        help_text=_('JSON: {"ru": {...}, "en": {...}, "cn": {...}}. "ru" синхронизируется с list_params.')
     )
 
     # ── AI Assistant: семантика параметров для фазы сравнения ──────────
@@ -279,6 +285,7 @@ class EquipmentType(BaseAbstractModel):
         self.spec_title_template_i18n = sync_ru(self.spec_title_template_i18n, self.spec_title_template)
         self.list_title_template_i18n = sync_ru(self.list_title_template_i18n, self.list_title_template)
         self.spec_template_i18n = sync_ru(self.spec_template_i18n, self.spec_template)
+        self.list_params_i18n = sync_ru(self.list_params_i18n, self.list_params)
         super().save(*args, **kwargs)
 
     def get_full_path(self):

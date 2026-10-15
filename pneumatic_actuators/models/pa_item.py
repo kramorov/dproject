@@ -719,6 +719,36 @@ class PneumaticActuatorCatalogItem(
             return pick_i18n(opt.body_coating, locale) or ''
         return localized_name(opt.body_coating_option, locale) if opt.body_coating_option else ''
 
+    def _res_exd_short(self, locale=None) -> str:
+        """Короткая строка взрывозащиты из prefetched M2M.
+
+        Дублирует логику ``PneumaticExdOption.get_exd_short_list``, но читает
+        ``exd_options.all()`` напрямую (prefetch-кэш) вместо ``get_exd_options()``,
+        чтобы в списках не порождать N+1 запросов.
+        """
+        exd = self.selected_exd
+        if not exd:
+            return ''
+        seen = set()
+        result = []
+        for o in exd.exd_options.all():
+            ec = o.explosion_protection_class
+            if ec is None:
+                continue
+            name = str(ec)
+            if name and name not in seen:
+                seen.add(name)
+                result.append(name)
+        if not result:
+            for o in exd.exd_options.all():
+                if o.exd_full_code and o.exd_full_code not in result:
+                    result.append(o.exd_full_code)
+        return ' / '.join(result)
+
+    def _res_weight(self, locale=None) -> str:
+        """Вес без лишних нулей (19.500 → 19.5)."""
+        return _fmt_num(self.weight)
+
     @property
     def ip_encoding(self) -> str:
         return self._get_option_encoding('selected_ip')

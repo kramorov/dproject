@@ -117,7 +117,7 @@ class AbstractPneumaticFitting(CatalogSerializerMixin, SmartCatalogMixin,
                                            verbose_name=_("Резьба наружная или внутренняя") ,
                                            help_text=_('Резьба наружная или внутренняя'))
 
-    weight = models.DecimalField(decimal_places=3, max_digits=6,
+    weight = models.DecimalField(decimal_places=4, max_digits=7,
                                        null=True, blank=True,
                                        help_text=_('Вес, кг'),
                                        verbose_name=_('Вес, кг'))

@@ -119,8 +119,23 @@ class EngineerSelectorAPIView(APIView):
         params = request.data
         from pneumatic_actuators.actuator_engineer_handler import process_selection_params
         from core.utils.localization import locale_from_accept_language
+        from core.utils.catalog_helpers import get_currency_code
+        from price.services.currency_converter import get_bulk_prices
         locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         result = process_selection_params(params, locale=locale)
         if result.get('success'):
+            # Цены привязываем к каждой SKU-карточке внутри групп (как в других
+            # инженерных подборах: SolenoidValvesEngineerView).
+            currency_code = get_currency_code(request)
+            sku_ids = [
+                item.get('sku_id')
+                for group in result.get('search_results', [])
+                for item in group.get('items', [])
+                if item.get('sku_id')
+            ]
+            prices = get_bulk_prices(sku_ids, currency_code) if sku_ids else {}
+            for group in result.get('search_results', []):
+                for item in group.get('items', []):
+                    item['price'] = prices.get(item.get('sku_id'))
             return JsonResponse(result)
         return JsonResponse({'success': False, 'error': result.get('error', 'Unknown error')}, status=400)
