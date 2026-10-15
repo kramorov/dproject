@@ -468,8 +468,9 @@ from django.db import models as django_models
 
 from core.admin_widgets import PrettyJSONWidget
 
-# Вычисляемое поле (кэш display_i18n у БКВ) — руками не редактируется.
-_LOCALIZED_ADMIN_EXCLUDE = {'display_i18n'}
+# Поля, которые админка не должна показывать в автоматическом блоке переводов
+# (зарезервировано; сейчас пусто — вычисляемый кэш display_i18n у БКВ удалён).
+_LOCALIZED_ADMIN_EXCLUDE = set()
 
 _original_modeladmin_get_fieldsets = admin.ModelAdmin.get_fieldsets
 _original_inline_get_fieldsets = InlineModelAdmin.get_fieldsets

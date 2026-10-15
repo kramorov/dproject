@@ -78,6 +78,17 @@ export const ENDPOINTS = {
     meta: '/pa-controls/meta/',
   },
 
+  positioners: {
+    sections: '/pa-controls/positioners/sections/',
+    catalog: '/pa-controls/positioners/catalog/',
+    detail: (id) => `/pa-controls/positioners/catalog/${id}/`,
+    filters: '/pa-controls/positioners/filters/',
+    engineer: '/pa-controls/positioners/engineer/',
+    engineerFilters: '/pa-controls/positioners/engineer/filters/',
+    quickselect: '/pa-controls/positioners/quickselect/',
+    meta: '/pa-controls/positioners/meta/',
+  },
+
   cableGlands: {
     sections: '/cable-glands/sections/',
     catalog: '/cable-glands/catalog/',

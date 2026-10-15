@@ -7,6 +7,7 @@ PosiModelLineItem — модель позиционера (собирается 
 (разрешённые варианты серии), в item хранятся выбранные значения.
 """
 import re
+from typing import Optional
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -71,7 +72,7 @@ class PosiModelLineItem(CatalogSerializerMixin,
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'acting_type', 'exd', 'exd_short', 'ip',
+        'code', 'brand_name', 'equipment_type', 'acting_type', 'exd', 'exd_short', 'ip',
         'body_connection', 'pneumatic_connection', 'cable_gland_hole',
         'lever', 'alarm', 'body_material', 'weight', 'actuator_action',
         'work_temp_min', 'work_temp_max', 'supply_pressure',
@@ -269,6 +270,30 @@ class PosiModelLineItem(CatalogSerializerMixin,
         'alarm', 'signal_profile', 'work_temp_min', 'work_temp_max', 'smart_capability_set',
     )
 
+    def compute_config_hash(self) -> Optional[str]:
+        """SHA-256 конфигурации; для нового инстанса exd берётся из
+        ``_selected_exd_row`` (конструктор/materialize ставят её до save).
+
+        M2M ``exd_options`` до INSERT ещё пусто: без подмены два исполнения,
+        отличающиеся только взрывозащитой, получали бы одинаковый config_hash
+        и падали на UNIQUE при вставке.
+        """
+        row = getattr(self, '_selected_exd_row', None)
+        if self.pk is not None or row is None:
+            return super().compute_config_hash()
+        import hashlib
+        import json
+
+        exd_ids = sorted(row.exd_options.values_list('pk', flat=True))
+        parts = []
+        for field_name in self.config_hash_fields:
+            if field_name == 'exd_options':
+                parts.append(json.dumps(exd_ids, default=str, sort_keys=True))
+            else:
+                parts.append(self._hash_part(field_name))
+        canonical = f"{self._meta.label_lower}|{'|'.join(parts)}"
+        return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         # Для всех моделей по умолчанию — входной 4-20 мА (стандартный профиль)
@@ -286,7 +311,16 @@ class PosiModelLineItem(CatalogSerializerMixin,
         self._check_config_hash_unique()
         super().save(*args, **kwargs)
         if is_new and self.model_line_id:
-            self._sync_exd_options_from_model_line()
+            # Для несохранённого item'а предпочитаем выбранную через-строку
+            # взрывозащиты (_selected_exd_row ставит конструктор/materialize):
+            # иначе в M2M копируется дефолтная строка серии и приёмник
+            # config_hash накатывает хэш чужой конфигурации (UNIQUE-коллизии
+            # у исполнений, отличающихся только взрывозащитой).
+            row = getattr(self, '_selected_exd_row', None)
+            if row is not None:
+                self._get_exd_m2m().set(row.exd_options.all())
+            else:
+                self._sync_exd_options_from_model_line()
         self.sync_sku()
 
     def copy(self, suffix=' Копия', **kwargs):

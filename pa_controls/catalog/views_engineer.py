@@ -44,12 +44,12 @@ class LimitSwitchBoxEngineerView(APIView):
         prices = get_bulk_prices(sku_ids, currency_code) if sku_ids else {}
         for item in data:
             item['price'] = prices.get(item.get('sku', {}).get('id'))
+        result['currency'] = currency_code
         if result.get('compatible_data'):
             comp_data = result['compatible_data']
             comp_sku_ids = [item.get('sku', {}).get('id') for item in comp_data if item.get('sku', {}).get('id')]
             comp_prices = get_bulk_prices(comp_sku_ids, currency_code) if comp_sku_ids else {}
             for item in comp_data:
                 item['price'] = comp_prices.get(item.get('sku', {}).get('id'))
-            result['currency'] = currency_code
 
         return Response(result)

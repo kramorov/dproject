@@ -1024,6 +1024,9 @@ class AiSchemaView(APIView):
             'description': et.ai_description or '',
             'placeholder': et.ai_placeholder or 'Опишите, какое оборудование вам нужно...',
             'hints': hints,
+            # Признак, что AI-подбор реально сконфигурирован (filter_endpoint + семантика
+            # параметров): фронт прячет вкладку AI, когда конфигурации нет.
+            'ai_configured': bool(et.filter_endpoint),
         })
 
     @staticmethod

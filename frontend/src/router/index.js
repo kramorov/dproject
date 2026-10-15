@@ -63,7 +63,7 @@ const routes = [
   { path: '/catalog/gearbox', component: () => import('../pages/catalog/GearboxPage.vue'), meta: { title: 'Ручные дублёры', section: 'catalog_gearbox' } },
   { path: '/catalog/ea-reducers', component: PlaceholderPage, props: { title: 'Редукторы к ЭП' }, meta: { title: 'Редукторы к ЭП' } },
   { path: '/catalog/solenoid-valves', component: () => import('../pages/catalog/SolenoidValvesPage.vue'), meta: { title: 'Соленоидные клапаны', section: 'catalog_sv' } },
-  { path: '/catalog/positioners', component: PlaceholderPage, props: { title: 'Электропневматические позиционеры' }, meta: { title: 'Позиционеры' } },
+  { path: '/catalog/positioners', component: () => import('../pages/catalog/PositionersPage.vue'), meta: { title: 'Позиционеры', section: 'catalog_positioners' } },
   { path: '/catalog/limit-switch', component: () => import('../pages/catalog/LimitSwitchPage.vue'), meta: { title: 'БКВ', section: 'catalog_lsb' } },
   { path: '/catalog/ea-actuators', component: PlaceholderPage, props: { title: 'Электроприводы' }, meta: { title: 'Электроприводы', section: 'catalog_ea' } },
   { path: '/catalog/ea-cabinets', component: PlaceholderPage, props: { title: 'Шкафы управления ЭП' }, meta: { title: 'Шкафы управления ЭП' } },

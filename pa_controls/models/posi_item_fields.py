@@ -16,6 +16,8 @@ POSI_ITEM_TEMPLATE_FIELDS = (
     {'key': 'name', 'path': 'name'},
     {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name', },
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'model_line__equipment_type__name',
+     'name_path': 'model_line__equipment_type'},
 
     # ── Основные характеристики ──
     {'key': 'acting_type', 'placeholder': '{acting_type}', 'path': 'get_acting_type__name',

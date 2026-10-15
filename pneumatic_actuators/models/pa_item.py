@@ -115,10 +115,10 @@ class PneumaticActuatorCatalogItem(
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'variety_name', 'variety_description', 'variety_code', 'body_name', 'body_code',
+        'code', 'brand_name', 'equipment_type', 'variety_name', 'variety_description', 'variety_code', 'body_name', 'body_code',
         'weight', 'safety_position', 'safety_position_text_value','springs_qty', 'temperature',
         'ip', 'exd', 'exd_short', 'coating', 'body_material', 'body_coating', 'body_color',
-        'body_color_ral', 'body_color_name', 'manual_override',
+        'body_color_ral', 'body_color_name', 'manual_override', 'hand_wheel',
         # Технические характеристики (для name/description и справочника плейсхолдеров)
         'construction_name','construction_description','piston_diameter', 'turn_angle', 'turn_tuning_limit',
         'weight_spring', 'pressure_min', 'pressure_max', 'pressure',

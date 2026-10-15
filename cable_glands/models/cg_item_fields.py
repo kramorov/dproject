@@ -23,6 +23,8 @@ CG_ITEM_TEMPLATE_FIELDS = (
     {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
      'name_path': 'model_line__brand', },
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'model_line__equipment_type__name',
+     'name_path': 'model_line__equipment_type'},
     {'key': 'temp_range', 'placeholder': '{temp_range}', 'path': 'get_temp_range_display',
      },
     {'key': 'cable_types', 'placeholder': '{cable_types}', 'path': 'model_line__cable_type__name',

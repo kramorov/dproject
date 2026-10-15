@@ -21,6 +21,8 @@ FR_ITEM_TEMPLATE_FIELDS = (
     {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
      'name_path': 'model_line__brand', },
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'model_line__equipment_type__name',
+     'name_path': 'model_line__equipment_type'},
 
     # ── Основные ──
     {'key': 'filter_variety', 'placeholder': '{filter_variety}', 'path': 'model_line__filter_variety__name',

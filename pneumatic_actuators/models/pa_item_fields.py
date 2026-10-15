@@ -23,6 +23,8 @@ PA_ITEM_TEMPLATE_FIELDS = (
     {'key': 'model_line_code', 'path': 'model_line__code'},
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
      'name_path': 'model_line__brand', },
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'model_line__equipment_type__name',
+     'name_path': 'model_line__equipment_type'},
 
     # ── Вид и корпус ──
     {'key': 'variety_name', 'placeholder': '{variety_name}', 'path': 'pneumatic_actuator_variety__name',
@@ -70,6 +72,10 @@ PA_ITEM_TEMPLATE_FIELDS = (
     {'key': 'manual_override', 'placeholder': '{manual_override}', 'path': 'selected_manual_override__name',
      'name_path': 'selected_manual_override', 'code_path': 'manual_override_encoding',
      'ext_code_path': 'manual_override_ext_encoding'},
+    # Алиас для шаблонов, использующих «ручной дублер» как {hand_wheel}
+    # (напр., EquipmentType.list_title_template ПП).
+    {'key': 'hand_wheel', 'placeholder': '{hand_wheel}', 'path': 'selected_manual_override__name',
+     'name_path': 'selected_manual_override'},
 
     # ── Технические характеристики корпуса (для spec_template) ──
     {'key': 'construction_name', 'placeholder': '{construction_name}',

@@ -36,7 +36,7 @@ class GearBox(CatalogSerializerMixin, SmartCatalogMixin, CopyMixin, TemplateMixi
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'body_material', 'ip', 'override_mechanism',
+        'code', 'brand_name', 'equipment_type', 'body_material', 'ip', 'override_mechanism',
         'locking_mechanism', 'is_declutchable', 'transmission_variety',
         'reduction_ratio', 'max_output_torque', 'max_input_torque', 'weight',
         'handwheel_diameter', 'handwheel_force_nominal', 'interlock',

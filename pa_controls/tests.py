@@ -1,65 +1,14 @@
 """
-Тесты Шага 4 (Фаза 4): display_i18n на айтеме БКВ.
+Тесты локализации БКВ: API отдаёт локализованные данные по Accept-Language.
 
-Данные — из копии боевой БД: прогон `python manage.py test pa_controls --keepdb`.
+Имена/описания карточек генерируются на лету из шаблонов (generate_name/description
+с локализацией) — отдельного кэша на карточке нет. Данные — из копии боевой БД:
+прогон `python manage.py test pa_controls --keepdb`.
 TestCase транзакционный — изменения откатываются, копия не портится.
 """
 from django.test import TestCase, Client
 
 from pa_controls.models import LimitSwitchBox, LimitSwitchSensorVariety
-
-
-class DisplayI18nTests(TestCase):
-    """display_i18n: все локали/поля, соответствие generate_*, отражение правок шаблона."""
-
-    def _first_item(self):
-        return LimitSwitchBox.objects.select_related('model_line').first()
-
-    def test_display_i18n_has_all_locales_and_fields(self):
-        item = self._first_item()
-        if item is None:
-            self.skipTest('В копии БД нет айтемов БКВ')
-        item.save()  # полный save → display_i18n пересчитывается
-        self.assertEqual(set(item.display_i18n.keys()), {'ru', 'en', 'cn'})
-        for loc in ('ru', 'en', 'cn'):
-            for f in ('name', 'description', 'title', 'list_title', 'spec_title'):
-                self.assertIn(f, item.display_i18n[loc])
-
-    def test_display_matches_generate(self):
-        item = self._first_item()
-        if item is None:
-            self.skipTest('В копии БД нет айтемов БКВ')
-        item.save()
-        self.assertEqual(item.display_i18n['ru']['name'], item.generate_name())
-        self.assertEqual(item.display_i18n['en']['name'], item.generate_name('en'))
-        self.assertEqual(item.display_i18n['cn']['title'], item.generate_title('cn'))
-
-    def test_template_change_reflected_after_resave(self):
-        item = self._first_item()
-        if item is None or not item.model_line or not item.model_line.name_template:
-            self.skipTest('Нет model_line/шаблона')
-        ml = item.model_line
-        old = dict(ml.name_template_i18n or {})
-        ml.name_template_i18n = dict(old)
-        ml.name_template_i18n['en'] = 'TST-EN {model_code}'
-        ml.save()
-        item.save()
-        try:
-            self.assertTrue(item.display_i18n['en']['name'].startswith('TST-EN'))
-            self.assertEqual(item.display_i18n['en']['name'], item.generate_name('en'))
-        finally:
-            ml.name_template_i18n = old
-            ml.save()
-
-    def test_skip_display_i18n_keeps_existing(self):
-        item = self._first_item()
-        if item is None:
-            self.skipTest('В копии БД нет айтемов БКВ')
-        item.save()
-        saved = item.display_i18n
-        item.save(skip_display_i18n=True)
-        item.refresh_from_db()
-        self.assertEqual(item.display_i18n, saved)
 
 
 class LocaleApiTests(TestCase):
@@ -95,7 +44,7 @@ class LocaleApiTests(TestCase):
         item = LimitSwitchBox.objects.filter(sensor_variety=self.variety).first()
         if item is None:
             self.skipTest('Нет айтема с variety «Механический»')
-        item.save()  # пересчёт display_i18n (транзакция откатится)
+        item.save()  # пересчёт конфигурации (транзакция откатится)
         en = self.client.get(f'/api/pa-controls/catalog/{item.pk}/', HTTP_ACCEPT_LANGUAGE='en')
         ru = self.client.get(f'/api/pa-controls/catalog/{item.pk}/', HTTP_ACCEPT_LANGUAGE='ru')
         self.assertEqual(en.status_code, 200)

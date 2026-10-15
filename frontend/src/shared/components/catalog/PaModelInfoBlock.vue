@@ -6,7 +6,7 @@
   <div class="pa-model-info">
     <div class="pa-model-info__header">
       <div class="pa-model-info__code">{{ item.code }}</div>
-      <div class="pa-model-info__name">{{ item.name || item.list_title || item.title }}</div>
+      <div class="pa-model-info__name">{{ item.list_title || item.name || item.title }}</div>
     </div>
 
     <div v-if="params.length" class="pa-model-info__params">

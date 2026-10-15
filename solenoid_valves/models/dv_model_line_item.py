@@ -62,7 +62,7 @@ class DirectionValve(CatalogSerializerMixin,
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'function', 'actuation', 'construction',
+        'code', 'brand_name', 'equipment_type', 'function', 'actuation', 'construction',
         'operation', 'manual_override', 'working_medium', 'kv', 'dn',
         'pressure_min', 'pressure_max', 'pressure_range',
         'body_material', 'body_material_specified', 'sealing_material_specified',

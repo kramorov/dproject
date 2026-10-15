@@ -34,7 +34,7 @@ class FilterRegulator(
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'flow_rate', 'filter_variety',
+        'code', 'brand_name', 'equipment_type', 'flow_rate', 'filter_variety',
         'pressure_min', 'pressure_max', 'pressure_inlet_max',
         'wall_mounting_included', 'body_material', 'bowl_material',
         'protection_material', 'filter_element_material', 'filtration_rating',

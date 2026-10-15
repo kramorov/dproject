@@ -784,6 +784,10 @@ def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) 
                     list_params = card_item._get_list_params(locale=locale)
                 except Exception:
                     list_params = []
+                try:
+                    list_title = card_item.generate_list_title(locale) or card_item.name or ''
+                except Exception:
+                    list_title = card_item.name or ''
                 cards.append({
                     'id': card_item.id,
                     'model_line_item_id': card_item.source_model_line_item_id,
@@ -791,7 +795,7 @@ def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) 
                     'code': card_item.code or '',
                     'name': card_item.name or '',
                     'title': card_item.name or '',
-                    'list_title': card_item.name or '',
+                    'list_title': list_title,
                     'list_params': list_params,
                     'images': card_item._get_list_preview_images(),
                     'sku': {'id': card_item.sku_id, 'code': card_item.sku.code, 'name': card_item.sku.name} if card_item.sku_id else None,

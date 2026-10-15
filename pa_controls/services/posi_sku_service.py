@@ -129,25 +129,15 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
                 existing.refresh_from_db()
                 return existing, getattr(existing, 'sku', None)
 
-        try:
-            # get_or_create вызывает item.save() → автогенерация
-            # code/name/description + sync_sku() (SKUMixin).
-            # Галерея попадает только в defaults (создание), не в lookup.
-            item, created = PosiModelLineItem.objects.get_or_create(
-                defaults=kwargs, **lookup_kwargs
-            )
-        except IntegrityError:
-            # Конкуренция/повторный code: другой item уже занял SKU — берём его
-            if code:
-                item = PosiModelLineItem.objects.filter(code=code).first()
-                if item is None:
-                    raise
-            else:
-                raise
+        # Создание вручную (не get_or_create): новому экземпляру нужно передать
+        # _selected_exd_row (exd участвует в артикуле и config_hash до записи M2M) —
+        # transient-атрибут, который get_or_create потерял бы. Дедуп — сначала по
+        # lookup_kwargs, затем по коду.
+        item = PosiModelLineItem.objects.filter(**lookup_kwargs).first()
+        if item is None and code:
+            item = PosiModelLineItem.objects.filter(code=code).first()
 
-        if created:
-            logger.info(f"PosiModelLineItem создан: {item.code} (series={constructor.selected_model_line_id})")
-        else:
+        if item is not None:
             needs_save = False
             if not item.is_active:
                 item.is_active = True
@@ -159,6 +149,23 @@ def materialize(constructor) -> Tuple[PosiModelLineItem, Optional[object]]:
                 needs_save = True
             if needs_save:
                 item.save()
+        else:
+            try:
+                # item.save() → автогенерация code/name/description + sync_sku() (SKUMixin)
+                item = PosiModelLineItem(**kwargs)
+                item._selected_exd_row = constructor.selected_exd_row
+                item.save()
+                logger.info(
+                    f"PosiModelLineItem создан: {item.code} (series={constructor.selected_model_line_id})"
+                )
+            except IntegrityError:
+                # Конкуренция/повторный code: другой item уже занял SKU — берём его
+                if code:
+                    item = PosiModelLineItem.objects.filter(code=code).first()
+                    if item is None:
+                        raise
+                else:
+                    raise
 
         item.exd_options.set(exd_ids)
 

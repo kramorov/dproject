@@ -16,6 +16,8 @@ LSB_ITEM_TEMPLATE_FIELDS = (
     {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'model_line__brand__name',
      },
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'model_line__equipment_type__name',
+     'name_path': 'model_line__equipment_type'},
 
     # ── Основные ──
     {'key': 'sensor_variety', 'placeholder': '{sensor_variety}', 'path': 'sensor_variety__name',
@@ -64,7 +66,7 @@ LSB_ITEM_TEMPLATE_FIELDS = (
 # Составы словарей для имени/описания и template_vars (см. TemplateMixin).
 # Вынесены из модели в один файл вместе с реестром полей — единый источник правды.
 LSB_NAME_FIELD_KEYS = (
-    'code', 'brand_name', 'sensor_variety', 'points', 'body_material',
+    'code', 'brand_name', 'equipment_type', 'sensor_variety', 'points', 'body_material',
     'body_material_specified', 'weight', 'cable_glands_holes', 'mounting',
     'work_temp_min', 'work_temp_max', 'exd', 'exd_short', 'ip', 'primary_sensor',
     'primary_sensor_signal_type', 'primary_sensor_contact_state',

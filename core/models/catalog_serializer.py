@@ -307,35 +307,21 @@ class CatalogSerializerMixin(CatalogDictMixin):
 
     # ── Сборка to_dict ──
 
-    def _get_display_i18n(self, locale) -> dict:
-        """display_i18n[locale] айтема или None (нет поля/локали → fallback на RU-поля)."""
-        di = getattr(self, 'display_i18n', None)
-        if isinstance(di, dict):
-            entry = di.get(locale)
-            if isinstance(entry, dict):
-                return entry
-        return None
-
     def to_dict(self, locale=None) -> dict:
         locale = locale or DEFAULT_LOCALE
-        disp = self._get_display_i18n(locale)
-        # display_i18n — только у пилота (БКВ); остальные каталоги генерируют
-        # имена из локализованных шаблонов серии (name_template_i18n и т.п.).
-        name = (disp.get('name') if disp else None)
-        if not name:
-            try:
-                name = self.generate_name(locale)
-            except Exception:
-                name = ''
+        # Имена генерируются на лету из локализованных шаблонов серии/типа
+        # оборудования (name_template_i18n и т.п.) — денормализованного кэша нет.
+        try:
+            name = self.generate_name(locale)
+        except Exception:
+            name = ''
         name = name or self.name or ''
-        description = (disp.get('description') if disp else None)
-        if not description:
-            try:
-                description = self.generate_description(locale)
-            except Exception:
-                description = ''
+        try:
+            description = self.generate_description(locale)
+        except Exception:
+            description = ''
         description = description or self.description or ''
-        title = (disp.get('title') if disp else None) or self.generate_title(locale)
+        title = self.generate_title(locale)
         tv = self._get_template_vars()
         return {
             'id': self.id,

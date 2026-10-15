@@ -21,6 +21,8 @@ DV_ITEM_TEMPLATE_FIELDS = (
     {'key': 'model_line_name', 'path': 'model_line__name', },
     {'key': 'brand_name', 'placeholder': '{brand}', 'path': 'brand__name', 'name_path': 'model_line__brand',
      },
+    {'key': 'equipment_type', 'placeholder': '{equipment_type}', 'path': 'model_line__equipment_type__name',
+     'name_path': 'model_line__equipment_type'},
 
     # ── Основные ──
     {'key': 'function', 'placeholder': '{function}', 'path': 'function__name', 'name_path': 'function',

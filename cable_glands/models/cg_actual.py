@@ -80,7 +80,7 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
 
     # Составы словарей (по ключам реестра).
     NAME_FIELD_KEYS = (
-        'code', 'brand_name', 'thread', 'body_material',
+        'code', 'brand_name', 'equipment_type', 'thread', 'body_material',
         'cable_diameter','cable_diameter_outer', 'weight', 'metal_sleeve_body_code',
         'metal_sleeve_inner', 'metal_sleeve_outer', 'metal_sleeve_range', 'metal_sleeve', 'body_code',
         'ip', 'exd', 'exd_short', 'temp_range', 'cable_types', 'extra_params',

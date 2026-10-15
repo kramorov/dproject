@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from typing import Dict , List , Optional , Any
 from ..constants import DataFormat , DisplayView
-from ..utils.localization import (DEFAULT_LOCALE, LOCALES, localized_name,
+from ..utils.localization import (DEFAULT_LOCALE, localized_name,
                                   localize_service_word, pick_i18n, sync_ru)
 from typing import TypeVar , Any , Dict , Callable , Optional
 import logging
@@ -556,24 +556,6 @@ class TemplateMixin:
         """Первая строка карточки в списке (``list_title_template``), локализованная."""
         return self._fill_template(self._resolve_template('list_title_template', locale), locale=locale)
 
-    # === ЛОКАЛИЗОВАННОЕ ОТОБРАЖЕНИЕ (Фаза 4) ===
-    def build_display_i18n(self) -> dict:
-        """{локаль: {name, description, title, list_title, spec_title}} из generate_*(locale).
-
-        Денормализованный кэш для быстрого чтения списков (display_i18n на айтеме).
-        Используется пилотом БКВ; другие каталоги могут подключать по мере надобности.
-        """
-        return {
-            locale: {
-                'name': self.generate_name(locale),
-                'description': self.generate_description(locale),
-                'title': self.generate_title(locale),
-                'list_title': self.generate_list_title(locale),
-                'spec_title': self.generate_spec_title(locale),
-            }
-            for locale in LOCALES
-        }
-
     # === ОБНОВЛЕНИЕ ПОЛЕЙ МОДЕЛИ ===
     def update_name(self, save: bool = False) -> bool:
         generated = self.generate_name()
@@ -789,21 +771,16 @@ class TemplateMixin:
         from django.conf import settings
 
         locale = locale or DEFAULT_LOCALE
-        disp = None
-        di = getattr(self, 'display_i18n', None)
-        if isinstance(di, dict) and isinstance(di.get(locale), dict):
-            disp = di[locale]
-
         base_url = (base_url if base_url is not None
                     else (settings.SITE_BASE_URL or ''))
 
         item = {
             'code': getattr(self, 'code', '') or '',
-            'name': (disp.get('name') if disp else None) or getattr(self, 'name', '') or '',
+            'name': getattr(self, 'name', '') or '',
             'title': (self.generate_spec_title(locale)
                       if hasattr(self, 'generate_spec_title')
                       else (self.generate_title(locale) if hasattr(self, 'generate_title') else '')),
-            'description': (disp.get('description') if disp else None) or getattr(self, 'description', '') or '',
+            'description': getattr(self, 'description', '') or '',
         }
         if not item['title']:
             item['title'] = item['name']
@@ -2466,12 +2443,8 @@ class CatalogDictMixin:
         """
         data = self.to_dict(locale=locale)
         values = dict(data.get("template_vars", {}))
-        disp = None
-        di = getattr(self, 'display_i18n', None)
-        if isinstance(di, dict) and isinstance(di.get(locale or DEFAULT_LOCALE), dict):
-            disp = di[locale or DEFAULT_LOCALE]
-        list_title = (disp.get('list_title') if disp else None) or ''
-        if not list_title and hasattr(self, 'generate_list_title'):
+        list_title = ''
+        if hasattr(self, 'generate_list_title'):
             try:
                 list_title = self.generate_list_title(locale)
             except Exception:
