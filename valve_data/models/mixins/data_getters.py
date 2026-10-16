@@ -169,7 +169,6 @@ class ValveLineDataGettersMixin(ValveLineInheritanceMixin):
     def has_required_data(self):
         return len(self.get_missing_required_fields()) == 0
 
-    # Строковые представления для GraphQL
     @property
     def effective_valve_producer_str(self):
         producer = self.effective_valve_producer

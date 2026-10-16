@@ -18,5 +18,6 @@ exec gunicorn djangoProject1.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 2 \
     --timeout 60 \
+    --worker-tmp-dir /tmp \
     --access-logfile - \
     --error-logfile -

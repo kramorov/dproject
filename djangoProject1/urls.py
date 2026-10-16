@@ -21,7 +21,6 @@ from django.urls import path, include, re_path
 
 # from media_library.urls import urlpatterns_public
 from .views import GetUrlByNameAPIView
-  # Импорт вашей GraphQL-схемы
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import UniversalAPIView

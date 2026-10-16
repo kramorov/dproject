@@ -155,7 +155,6 @@ INSTALLED_APPS = [
     'rest_framework' ,
     'corsheaders' ,
     # 'core' ,
-    'graphene_django' ,
     'import_export',
     'rangefilter',
     'django_filters',
@@ -340,10 +339,6 @@ LOGGING = {
     },
 }
 
-GRAPHENE = {
-    'SCHEMA' : 'djangoProject1.graphql.schema.schema' ,
-    # 'MIDDLEWARE': 'graphql_jwt.middleware.JSONWebTokenMiddleware',  # Отключите аутентификацию на время тестов
-}
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 

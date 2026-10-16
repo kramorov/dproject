@@ -29,11 +29,6 @@ class TypeScriptConfig :
                 'URLField' : 'string' ,
                 'JSONField' : 'any' ,
             } ,
-            'graphql' : {
-                'enabled' : True ,
-                'fragments' : True ,
-                'operations' : True ,
-            } ,
             'formatting' : {
                 'indent' : 2 ,
                 'single_quote' : True ,

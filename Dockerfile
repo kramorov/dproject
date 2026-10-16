@@ -15,7 +15,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # System deps for PyMuPDF + Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 libglib2.0-0 mupdf-tools \
+    libgl1 libglib2.0-0 mupdf-tools tesseract-ocr tesseract-ocr-rus \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps
