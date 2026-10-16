@@ -1,55 +1,48 @@
-# SESSION.md — состояние сессии (2026-10-16)
+# SESSION.md — конец сессии (2026-10-16)
 
-Ветка `office-work`. Фронт (Vite/Vue) в `frontend/`, бэк — Django. `npm run build` в этой сессии НЕ выполнялся (safety-gate блокирует npm-лаунчер) — сборку/визуал делает пользователь.
+Ветка `office-work`. Фронт (Vue/Vite) в `frontend/`, бэк — Django.
+`npm run build` в этой сессии не запускался (сборку/визуал делает пользователь).
 
-## Сделано в этой сессии (не закоммичено)
+## Основное за сегодня
 
-### Спецификация каталогов → единый паттерн (equipment_type)
-- **Кабельные вводы**: удалены `spec_template` + `spec_template_i18n` с `CableGlandModelLine` (миграция `cable_glands/0025`). Спека берётся из `EquipmentType`.
-- **Пневмоприводы**: удалены `spec_template` + `spec_template_i18n` с `PneumaticActuatorModelLine` (миграция `pneumatic_actuators/0064`).
-- `core/management/commands/translate_spec_templates.py` теперь обрабатывает только `EquipmentType`.
-- Тесты: `core.tests.test_catalog_i18n` обновлён; `pneumatic_actuators` + `core.tests.test_catalog_i18n` — 33/33 OK.
+### 1. Инфраструктура / Docker (завершено, проверено)
+- **graphene / GraphQL удалён полностью:**
+  - `djangoProject1/settings.py` — убран `graphene_django` из `INSTALLED_APPS` и блок `GRAPHENE`.
+  - `requirements-docker.txt` — убран `graphene-django`; добавлены `pdf2docx==0.5.13`, `pytesseract==0.3.13`.
+  - `requirements.txt` — убраны 6 пакетов graphene-стека (файл UTF-16LE — правился скриптом, BOM сохранён).
+  - `Dockerfile` — добавлены `tesseract-ocr`, `tesseract-ocr-rus` (OCR в коде с `lang='rus+eng'`).
+  - Удалены мёртвые GraphQL-схемы: `*/graphql/` (cable_glands, clients, client_requests,
+    electric_actuators, ett, materials, media_library, params, producers, valve_data),
+    `djangoProject1/graphql_api/`, `djangoProject1/common_models/graphql_utils.py`.
+  - Дозачищены упоминания: `core/utils/ts_config.py` (ключ `graphql`), `djangoProject1/urls.py`,
+    `valve_data/models/mixins/data_getters.py` (комментарии).
+- **Docker-фиксы:**
+  - `entrypoint.sh` — добавлен `--worker-tmp-dir /tmp` (исправляет `Permission denied: '/.gunicorn'`).
+  - `djangoProject1/wsgi.py` — опечатка `djangoProject12.settings` → `djangoProject1.settings`.
+- **Проверка:** `python manage.py check` — 0 issues; `object_registry` грузятся.
+- Рекомендация (не делал): рассмотреть WAL для SQLite или 1 воркер (риск `database is locked`
+  при 2 sync-воркерах).
 
-### Конфигуратор ПП → запись в `PneumaticActuatorCatalogItem`
-- `pneumatic_actuators/api/views_constructor.py`: `ConstructorViewSet` → `GenericViewSet`, только `create` + справочники/превью; `list/retrieve/update/destroy` убраны (удаление карточек запрещено).
-- `pneumatic_actuators/services/sku_service.py`: `materialize_configuration(mli, options) -> (sku, created)` (вес + `manual_override_option` + `exclude_from_catalog=True` + `origin=generated`); `get_or_create_sku` — backward-compat обёртка. Исправлен баг маппинга `exd` → `PneumaticExdOption`.
-- `create` возвращает `201` (создано) / `200` (переиспользовано, `created=False`).
-- Фронт `pa-constructor/App.vue`: убран список «Сохранённые конфигурации», сообщение «Создана»/«Обновлена».
+### 2. Проектирование опций/сигналов БУ электроприводов
+- `ea-aox-signals-report.md` — анализ таблицы AOX (`available-options-ea-AOX.xlsx`) + эволюция
+  модели (разделы 1–9). Целевая схема на текущий момент (разд. 9):
+  - `EaControlSignal` (входные команды), `EaFeedbackSignal` (выходная ОС),
+    `EaCommProtocol` (HART/Modbus — двунаправленные), `EaControlUnit` (kind + accepts/emits/protocols),
+    `EaSignalMatrixEntry` (наследуемая матрица brand→серия→модель × БУ×напряжение×режим).
+- **Открытые вопросы вынесены в `ea-signals-open-questions.md`** (10 пунктов: источник V/A,
+  role/form, HART поверх 4-20мА, Modbus RTU/TCP, GenericFK, позиционер как БУ, скоуп БУ, mode,
+  S2/стартер). Код не менялся — только проектирование.
 
-### Удалено
-- `/configurator/pa-legacy` (роут, страница, `App_legacy.vue`, `main_legacy.js`, `index_legacy.html`, vite-вход, меню, README).
+## Некоммичено (по `git status` на конец сессии)
+- `ea-aox-signals-report.md` (modified, LF→CRLF)
+- `tasks-2026-10-16.txt` (modified)
+- `ea-signals-open-questions.md` (новый, untracked)
 
-### Сетка с чипсами для фильтр-регуляторов
-- `filter_regulator/catalog/fr_grouping.py` — `group_by_body(cards)` (группировка по корпусу + чипсы).
-- `filter_regulator/catalog/views_engineer.py` — добавляет `body_id` и `result['groups']`.
-- `useCatalog.js` — прокидывает `groups`.
-- Новый `FrEngineerSelector.vue` (рендерит `PaEngineerGroupCard`); `filter-regulator-catalog/App.vue` использует его.
+Остальные правки дня (PA-конфигуратор, graphene, Docker) в `git diff HEAD` уже не фигурируют —
+судя по всему, закоммичены/синхронизированы в shared-воркспейсе `office-work`.
 
-### Карточка товара (ProductCard)
-- `ProductCard.vue`: код выше названия, шрифт кода как у названия; название мельче и не жирное (`--cat-text-sm`, weight 400).
-
-### Главная страница
-- `HomePage.vue`: блок «О проекте» скрыт для неавторизованных (`v-if="user"` из `useAuth`); все тексты локализованы `t('home.*')`; ссылки через `localizedPath`.
-- Ключи `home.*` добавлены в `ru.js`/`en.js`/`cn.js`.
-
-### Нейминг
-- Роут `/configurator/pa`: title «Конструктор ПП» → «Конфигуратор ПП».
-
-### Доки
-- `pa_card_pattern.md` обновлён: `config_hash` = 11 полей (вкл. `selected_body_color`), 2 варианта конфигуратора, терминология «конфигуратор», будущее ограничение доступа, карточки конфигуратора (`origin=generated`, `exclude_from_catalog=True`), вес материализуется; TODO про переводы опций ПП удалён.
-
-## Осталось / решения
-- `npm run build` фронта + визуальная проверка (за пользователем).
-- Standalone `/configurator/pa` оставлен (решили пока не убирать).
-- Внутренние имена `pa-constructor`/`ConstructorViewSet` — legacy, переименование отложено.
-- Ограничение доступа к конфигуратору — отложено (`configurator_pa`).
-
-## Отложено (из прошлых сессий, актуально)
-- Уменьшение размера БД: `git filter-repo` для `db.sqlite3`, дедуп name/description в SKU, чистка `svg_converter`/`django_admin_log` + `VACUUM` (см. прежний SESSION.md — план не менялся).
-- Pre-existing: `pneumatic_fittings/admin.py` (`list_filter=['id', ...]` похоже на опечатку), M1 из ревью позиционеров.
-
-## Некоммичено (ключевые файлы этой сессии)
-Бэкенд: `cable_glands/models/cg_model_line.py`, `cable_glands/admin/cg_model_line_admin.py`, `pneumatic_actuators/models/pa_model_line.py`, `pneumatic_actuators/admin/pa_model_line_admin.py`, `pneumatic_actuators/api/views_constructor.py`, `pneumatic_actuators/services/sku_service.py`, `core/management/commands/translate_spec_templates.py`, `core/tests/test_catalog_i18n.py`, `filter_regulator/catalog/{fr_grouping,views_engineer}.py`.
-Миграции: `cable_glands/0025_*`, `pneumatic_actuators/0064_*`.
-Фронт: `frontend/src/pages/HomePage.vue`, `shared/components/{ProductCard,useCatalog? (composable) — shared/composables/useCatalog.js}.vue`, `shared/components/catalog/{FrEngineerSelector}.vue`, `apps/pa-constructor/{App.vue,api.js}`, `apps/filter-regulator-catalog/App.vue`, `router/index.js`, `components/header/TopMenu.vue`, `vite.config.js`, `shared/i18n/locales/{ru,en,cn}.js`; удалённые `*_legacy` файлы.
-Доки: `pa_card_pattern.md`, `frontend/README.md`.
+## Открытые вопросы / на завтра
+- Продолжить с `ea-signals-open-questions.md` — согласовать схему разд. 9, затем модели + миграции.
+- При следующем деплое: убедиться, что `/.gunicorn` из логов исчез; пересобрать образ
+  (graphene/GraphQL ушли, OCR-зависимости добавлены).
+- `npm run build` фронта и визуальная проверка (за пользователем).

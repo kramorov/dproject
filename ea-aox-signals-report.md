@@ -424,5 +424,154 @@ class ModelSignalRoute:              # куда идёт сигнал датчи
 4. Напряжение входных команд: поле `voltage` на `SignalRole` (input) или отдельные роли
    (`OPEN_CLOSE_STOP_220AC` vs `..._24DC`).
 
-*Если согласуем — предлагаю зафиксировать именно эту (раздел 7) схему как целевую, а раздел 6
-рассматривать как промежуточный вариант.*
+---
+
+## 8. Уточнение: сигналы вместо физических датчиков (ЭП-специфично)
+
+Раздел 7 предлагал физическую модель датчиков (`EaSensor` + `ModelSensor` +
+маршрутизация) и ссылку на `pa_controls.SensorComponent`. Уточняем:
+
+- **Не переиспользуем** `pa_controls.SensorComponent` — это датчики БКВ/позиционеров,
+  у них своя детализация (variety, contact_form, Ex, конкретные модели). Для ЭП связи нет.
+- **Убираем физическую модель датчиков.** По датчикам ЭП данных нет, и потребителю
+  физика не важна.
+- Для ЭП моделируем **сигналы** — то, что потребитель видит на клеммах:
+  форма сигнала + максимальное напряжение + максимальный ток.
+
+### 8.1 `EaSignal` — каталог сигналов ЭП (управление + обратная связь)
+
+```python
+class EaSignal:
+    direction    # INPUT (управление) | OUTPUT (обратная связь)
+    role         # смысловая роль: END_OPEN, END_CLOSE, WAY_OPEN, TORQUE_OPEN,
+                 # TORQUE_CLOSE, POS_4_20MA, OVERHEAT, TURN_COUNTER,
+                 # CMD_OCS_220AC, CMD_OCS_24DC, CMD_REMOTE_220AC, CMD_REMOTE_24DC,
+                 # CMD_LOCK, CMD_MANUAL_OVERRIDE, CMD_4_20MA
+    form         # форма: DRY_SPST | DRY_SPDT | DRY_DPDT |
+                 #        AN_4_20_ACTIVE | AN_4_20_PASSIVE |
+                 #        DISC_220VAC | DISC_24VDC | NAMUR | PNP
+    max_voltage  # макс. коммутируемое напряжение, В (напр. 250 VAC / 30 VDC)
+    max_current  # макс. коммутируемый ток, А (напр. 5 A / 0.5 A)
+    name, code, description, is_active, sorting_order
+```
+
+«Технология» (мех/электронный) из раздела 7 здесь не нужна отдельным полем — она
+выражается формой: механический → сухой контакт (DRY_SPDT/DPDT, высокие V/A),
+электронный → аналог/NAMUR/PNP (низкие V/A).
+
+### 8.2 `EaControlUnit` — блок управления (включая «без БУ»)
+
+```python
+class EaControlUnit:
+    kind     # NONE | BASIC | INTEGRATED | POSITIONER
+    accepts  # M2M EaSignal(direction=INPUT)  — команды, которые принимает
+    emits    # M2M EaSignal(direction=OUTPUT) — сигналы ОС, которые выдаёт
+```
+
+### 8.3 `EaSignalMatrixEntry` — доступность (наследуемая матрица)
+
+```python
+class EaSignalMatrixEntry:
+    brand / model_line / model_line_item   # скоуп (наследование + override)
+    control_unit   FK EaControlUnit
+    power_supply   FK params.PowerSupplies
+    mode           # on_off | modulating | both
+    signal         FK EaSignal
+    availability   # std | opt | na
+    encoding, is_default, sorting_order, conflicts(M2M self)
+```
+
+### 8.4 Итог изменений относительно раздела 7
+
+| Было (раздел 7) | Стало (раздел 8) |
+|---|---|
+| `EaSensor` + FK на `pa_controls.SensorComponent` | `EaSignal` (форма + V + A), без ссылки на БКВ |
+| `ModelSensor` (какие датчики стоят) | строки матрицы `EaSignalMatrixEntry` |
+| `ModelSignalRoute` (direct/to_CU) | доступность в матрице (raw = без БУ; processed = через БУ) |
+| поле `technology` | поле `form` |
+
+### 8.5 Открытые вопросы
+
+1. **Источник V/A.** В таблице AOX значений напряжения/тока сигналов нет (там только
+   формы и примечания). Значит, max_voltage/max_current придётся брать из паспортов/
+   спецификаций производителей — это отдельный ввод данных, которого пока нет.
+2. **`role`** — переиспользовать `params.SignalRole` (уже есть, с direction) или завести
+   отдельный EA-справочник ролей, чтобы не смешивать с БКВ/позиционерами.
+3. **Список `form`** — закрытый choices или свободный справочник (чтобы добавлять формы
+   без миграций).
+
+---
+
+## 9. Раздельные модели: управление / обратная связь / протоколы
+
+Сигналы управления и ОС отличаются физическим смыслом полей V/A, а HART/Modbus —
+двунаправленные цифровые протоколы, которые не ложатся ни во «вход», ни в «выход».
+Поэтому делим на три каталога:
+
+### 9.1 `EaControlSignal` — входные команды (однонаправленные)
+
+```python
+class EaControlSignal:
+    role      # CMD_OCS_220AC, CMD_OCS_24DC, CMD_REMOTE_220AC, CMD_REMOTE_24DC,
+              # CMD_LOCK, CMD_MANUAL_OVERRIDE, CMD_4_20MA
+    category  # discrete | analog
+    form      # DISC_220VAC | DISC_24VDC | AN_4_20_ACTIVE | AN_4_20_PASSIVE
+    voltage   # входное напряжение (для discrete), В
+    current   # потребляемый ток цепи, мА
+    name, code, description, is_active, sorting_order
+```
+
+Здесь V/A — это **параметры входа БУ** (какое напряжение/ток он ожидает на клемме).
+
+### 9.2 `EaFeedbackSignal` — выходные сигналы ОС (однонаправленные)
+
+```python
+class EaFeedbackSignal:
+    role         # END_OPEN, END_CLOSE, WAY_OPEN, TORQUE_OPEN, TORQUE_CLOSE,
+                 # POS_4_20MA, OVERHEAT, TURN_COUNTER, ALARM, READY
+    category     # contact | analog
+    form         # DRY_SPST | DRY_SPDT | DRY_DPDT | AN_4_20_ACTIVE | AN_4_20_PASSIVE
+    max_voltage  # макс. коммутируемое напряжение, В (для contacts)
+    max_current  # макс. коммутируемый ток, А (для contacts)
+    name, code, description, is_active, sorting_order
+```
+
+Здесь V/A — это **коммутируемая способность контакта** (какую нагрузку он может замкнуть),
+т.е. смысл полей другой, чем у управляющего сигнала — поэтому и отдельная модель.
+
+### 9.3 `EaCommProtocol` — цифровые протоколы (двунаправленные)
+
+```python
+class EaCommProtocol:
+    code / name   # HART | MODBUS_RTU | MODBUS_TCP | PROFIBUS | ...
+    transport     # current_loop (HART) | rs485 | ethernet
+    description
+```
+
+HART и Modbus — это **не клемма, а способ общения БУ**: один канал несёт и команды,
+и ОС. Поэтому протоколы висят на БУ, а не на сигналах:
+
+### 9.4 `EaControlUnit` — обновлённый
+
+```python
+class EaControlUnit:
+    kind       # NONE | BASIC | INTEGRATED | POSITIONER
+    accepts    # M2M EaControlSignal   — дискретные/аналоговые команды
+    emits      # M2M EaFeedbackSignal  — контакты / аналоговая ОС
+    protocols  # M2M EaCommProtocol    — HART / Modbus / PROFIBUS
+```
+
+### 9.5 Матрица доступности (без изменений по идее)
+
+`EaSignalMatrixEntry` из разд. 8.3 остаётся, но ссылается на три каталога через
+поле-union (GenericFK на `EaControlSignal`/`EaFeedbackSignal`/`EaCommProtocol`)
+или три nullable FK — один заполняется по типу строки.
+
+### 9.6 Открытые вопросы
+
+1. **HART поверх 4-20 мА.** HART едет по аналоговой петле 4-20 мА. Считать его
+   протоколом БУ (как выше) или атрибутом конкретного сигнала `AN_4_20_*` (`hart=True`)?
+2. **Modbus RTU vs TCP** — одна запись с полем `transport` или разные записи справочника.
+3. **GenericFK vs три nullable FK** в матрице доступности.
+
+*Статус: разд. 8 развит в разд. 9 — три каталога сигналов вместо одного. Правок кода нет.*
