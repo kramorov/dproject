@@ -55,7 +55,7 @@
       <div class="locale-switch">
         <button v-for="l in LOCALES" :key="l" class="loc-btn" :class="{ active: locale === l }" @click="switchLocale(l)">{{ localeLabels[l] }}</button>
       </div>
-      <template v-if="user">
+      <template v-if="isAuthenticated">
         <span class="user-name">{{ user.username }}</span>
         <button class="logout-btn" @click="doLogout">{{ t('header.logout') }}</button>
       </template>
@@ -72,7 +72,7 @@ import AppButton from '@/shared/components/AppButton.vue'
 import { useAuth } from './useAuth.js'
 import cartService from '@/shared/services/cartService'
 import { useI18n, localizedPath, stripLocalePrefix, LOCALES } from '@/shared/i18n'
-const { user, logout } = useAuth()
+const { user, isAuthenticated, logout } = useAuth()
 const { locale, t } = useI18n()
 const localeLabels = { ru: 'RU', en: 'EN', cn: '中文' }
 

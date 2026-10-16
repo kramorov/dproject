@@ -14,7 +14,10 @@ const loaded = ref(false)
 let loadPromise = null
 
 function applyProfile(data) {
-  user.value = data
+  // Аноним (anonymous_users) — это права, а не вошедший пользователь.
+  // user хранит только реально аутентифицированного пользователя (или null).
+  const isAnonymous = Array.isArray(data?.system_groups) && data.system_groups.includes('anonymous_users')
+  user.value = isAnonymous ? null : data
   roles.value = data.roles || []
   sectionPerms.value = data.section_permissions || []
   systemGroups.value = data.system_groups || []
@@ -64,6 +67,7 @@ export async function logout() {
 export function useAuth() {
   if (!loaded.value && !loadPromise) ensureAuth()
 
+  const isAuthenticated = computed(() => user.value !== null)
   const isAdmin = computed(() => systemGroups.value.includes('administrators'))
 
   function can(codename, action = 'view') {
@@ -78,7 +82,7 @@ export function useAuth() {
   }
 
   return {
-    user, roles, sectionPerms, systemGroups, objectPerms, loaded, isAdmin,
+    user, roles, sectionPerms, systemGroups, objectPerms, loaded, isAuthenticated, isAdmin,
     ensureAuth, login, logout, can, canAny, canSeeSection,
   }
 }

@@ -97,7 +97,7 @@ App.vue
 - `pa-catalog` — пневмоприводы
 
 Конструкторы:
-- `pa-constructor` (+ легаси `pa-constructor-legacy`) — пневмоприводы
+- `pa-constructor` — пневмоприводы
 - `ea-constructor` — электроприводы
 - `cg-constructor` — кабельные вводы
 - `posi-constructor` — позиционеры
@@ -187,7 +187,7 @@ apps/xxx-catalog/
 
 ## Конструктор пневмоприводов (`src/apps/pa-constructor/`)
 
-Пошаговый wizard (`App.vue`; легаси-версия — `App_legacy.vue`, вход `index_legacy.html`).
+Пошаговый wizard (`App.vue`).
 
 ## Медиафайлы
 

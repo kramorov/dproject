@@ -4,8 +4,8 @@
     <!-- Hero -->
     <section class="hero">
       <div class="hero-content">
-        <h1 class="hero-title">Агрегатор технической информации<br>Трубопроводная арматура и управление арматурой</h1>
-        <p class="hero-subtitle">Инженерная экосистема подбора, конфигурации и комплектации оборудования для управляемой запорной арматуры<br>Подбор по параметрам, конфигураторы, сертификаты, документация — всё в одном месте</p>
+        <h1 class="hero-title">{{ t('home.heroTitle') }}<br>{{ t('home.heroTitle2') }}</h1>
+        <p class="hero-subtitle">{{ t('home.heroSubtitle') }}<br>{{ t('home.heroSubtitle2') }}</p>
 <!--        <div class="hero-actions">-->
 <!--          <router-link to="/catalogs/equipment" class="hero-btn hero-btn-primary">Перейти в каталог</router-link>-->
 <!--          <router-link to="/login" class="hero-btn hero-btn-outline">Войти</router-link>-->
@@ -13,48 +13,48 @@
       </div>
       <div class="hero-visual">
         <div class="hero-stats">
-          <div class="hs-item"><span class="hs-num">10+</span><span class="hs-label">категорий</span></div>
-          <div class="hs-item"><span class="hs-num">500+</span><span class="hs-label">моделей</span></div>
-          <div class="hs-item"><span class="hs-num">10+</span><span class="hs-label">брендов</span></div>
+          <div class="hs-item"><span class="hs-num">10+</span><span class="hs-label">{{ t('home.statCategories') }}</span></div>
+          <div class="hs-item"><span class="hs-num">500+</span><span class="hs-label">{{ t('home.statModels') }}</span></div>
+          <div class="hs-item"><span class="hs-num">10+</span><span class="hs-label">{{ t('home.statBrands') }}</span></div>
         </div>
       </div>
     </section>
     <!-- Каталоги — 3 плитки в ряд -->
     <section class="hp-catalogs">
-      <h2>Каталоги</h2>
+      <h2>{{ t('home.catalogs') }}</h2>
       <div class="hp-cat-grid">
-        <router-link to="/catalogs/equipment" class="hp-cat-tile hp-cat-eq">
+        <router-link :to="localizedPath('/catalogs/equipment', locale)" class="hp-cat-tile hp-cat-eq">
           <div class="hp-cat-bg"></div>
           <div class="hp-cat-body">
-            <h3>Каталоги оборудования</h3>
-            <p>Пневмофитинги, фильтр-регуляторы, кабельные вводы, пневмоприводы, дублёры, клапаны, позиционеры, БКВ, электроприводы, шкафы управления, монтажные комплекты</p>
+            <h3>{{ t('home.catEquipmentTitle') }}</h3>
+            <p>{{ t('home.catEquipmentDesc') }}</p>
           </div>
         </router-link>
-        <router-link to="/catalogs/valves" class="hp-cat-tile hp-cat-va">
+        <router-link :to="localizedPath('/catalogs/valves', locale)" class="hp-cat-tile hp-cat-va">
           <div class="hp-cat-bg"></div>
           <div class="hp-cat-body">
-            <h3>Каталоги арматуры</h3>
-            <p>Дисковые затворы, шаровые краны, клиновые и шиберные задвижки</p>
+            <h3>{{ t('home.catValvesTitle') }}</h3>
+            <p>{{ t('home.catValvesDesc') }}</p>
           </div>
         </router-link>
-        <router-link to="/catalogs/solutions" class="hp-cat-tile hp-cat-so">
+        <router-link :to="localizedPath('/catalogs/solutions', locale)" class="hp-cat-tile hp-cat-so">
           <div class="hp-cat-bg"></div>
           <div class="hp-cat-body">
-            <h3>Каталог готовых решений</h3>
-            <p>Сборки арматуры с пневмо- и электроприводами: затворы, краны, задвижки</p>
+            <h3>{{ t('home.catSolutionsTitle') }}</h3>
+            <p>{{ t('home.catSolutionsDesc') }}</p>
           </div>
         </router-link>
       </div>
     </section>
 
-    <!-- О проекте -->
-    <section class="hp-about">
-      <router-link to="/about" class="hp-about-card">
+    <!-- О проекте (только для авторизованных) -->
+    <section v-if="isAuthenticated" class="hp-about">
+      <router-link :to="localizedPath('/about', locale)" class="hp-about-card">
         <div class="hp-about-bg"></div>
         <div class="hp-about-body">
-          <h2>О проекте</h2>
-          <p>Агрегатор технической информации: умный поиск, подбор, КП, документация. Узнайте о возможностях и преимуществах системы.</p>
-          <span class="hp-about-link">Подробнее →</span>
+          <h2>{{ t('home.aboutTitle') }}</h2>
+          <p>{{ t('home.aboutDesc') }}</p>
+          <span class="hp-about-link">{{ t('home.aboutLink') }}</span>
         </div>
       </router-link>
     </section>
@@ -65,14 +65,18 @@
       <div class="cta-content">
 <!--        <h2>Не нашли нужное?</h2>-->
 <!--        <p>Отправьте заявку — подберём оборудование под ваш проект</p>-->
-        <router-link to="/login" class="hero-btn hero-btn-primary">Войти в личный кабинет</router-link>
+        <router-link :to="localizedPath('/login', locale)" class="hero-btn hero-btn-primary">{{ t('home.loginCta') }}</router-link>
       </div>
     </section>
   </div>
 </template>
 
 <script setup>
-// No data needed — all content is static
+import { useAuth } from '@/components/header/useAuth.js'
+import { useI18n, localizedPath } from '@/shared/i18n'
+
+const { isAuthenticated } = useAuth()
+const { t, locale } = useI18n()
 </script>
 
 <style scoped>

@@ -5,8 +5,7 @@
     python manage.py test core.tests.test_catalog_i18n --keepdb
 
 Покрытие:
-  - spec_template_i18n: серия КВ с собственным шаблоном, ПП-айтем через EquipmentType;
-  - синхронизация ru в spec_template_i18n при save() серии;
+  - spec_template_i18n: карточки КВ через EquipmentType (общий паттерн), ПП-айтем через EquipmentType;
   - name_template_i18n: generate_name('en'/'cn') реального айтема;
   - detail-вью каталогов: локаль из Accept-Language;
   - идемпотентность команд-переводчиков (--dry-run, без записи).
@@ -35,7 +34,7 @@ def _spec_labels(item, locale):
 
 
 class SpecTemplateI18nTests(TestCase):
-    """spec_template_i18n: серии с собственным шаблоном и EquipmentType."""
+    """spec_template_i18n: карточки через EquipmentType (общий паттерн)."""
 
     def test_cable_gland_spec_sections_en(self):
         item = CableGland.objects.filter(is_active=True).first()
@@ -68,21 +67,6 @@ class SpecTemplateI18nTests(TestCase):
         # админке могут менять его («Technical» / «Technical specifications»).
         self.assertTrue(any(l.startswith('Technical') for l in labels))
         self.assertNotIn('Основные', labels)
-
-    def test_cg_series_sync_ru_on_save(self):
-        ml = CableGlandModelLine.objects.first()
-        original = ml.spec_template
-        self.assertTrue(original)
-        self.assertEqual(ml.spec_template_i18n.get('ru'), original)
-        self.assertIn('en', ml.spec_template_i18n)
-
-        # Правка ru-шаблона → save() синхронизирует ru, en остаётся
-        ml.spec_template = dict(original)
-        ml.spec_template.setdefault('General', {})['Body material'] = 'body_material'
-        ml.save()
-        ml.refresh_from_db()
-        self.assertEqual(ml.spec_template_i18n['ru'], ml.spec_template)
-        self.assertIn('en', ml.spec_template_i18n)
 
 
 class SeriesTemplateI18nTests(TestCase):
@@ -222,11 +206,11 @@ class TranslateCommandsIdempotencyTests(TestCase):
 
     def test_translate_spec_templates_dry_run_no_updates(self):
         # Повторный dry-run по заполненной БД не должен ничего менять
-        item = CableGland.objects.filter(is_active=True).first()
-        i18n_before = dict(getattr(item.model_line, 'spec_template_i18n') or {})
+        et = EquipmentType.objects.get(code='cable-gland')
+        i18n_before = dict(et.spec_template_i18n or {})
         call_command('translate_spec_templates', '--dry-run', stdout=StringIO())
-        i18n_after = getattr(item.model_line, 'spec_template_i18n')
-        self.assertEqual(i18n_after, i18n_before)
+        et.refresh_from_db()
+        self.assertEqual(et.spec_template_i18n, i18n_before)
 
     def test_translate_model_line_templates_dry_run_no_updates(self):
         ml = CableGlandModelLine.objects.first()

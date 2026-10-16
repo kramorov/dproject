@@ -68,7 +68,9 @@ PF_ITEM_TEMPLATE_FIELDS = (
     {'key': 'width_across_flats_body', 'placeholder': '{width_across_flats_body}', 'path': 'width_across_flats_body'},
     {'key': 'width_across_flats_locking_nut', 'placeholder': '{width_across_flats_locking_nut}', 'path': 'width_across_flats_locking_nut'},
 
-    # ── Заглушка (только) ──
+    # ── Заглушка (только) ── 
     {'key': 'wrench_head_type', 'placeholder': '{wrench_head_type}', 'path': 'model_line__wrench_head_type__name',
      'name_path': 'model_line__wrench_head_type'},
+    {'key': 'sealing_material_specified', 'placeholder': '{sealing_material_specified}', 'path': 'model_line__sealing_material_specified',
+     'name_path': 'model_line__sealing_material_specified'},
 )

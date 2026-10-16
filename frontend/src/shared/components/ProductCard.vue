@@ -11,13 +11,13 @@
       <span v-else class="no-image">🈚</span>
     </div>
     <div class="card-body">
-      <h3 class="card-title">{{ item.title || item.name || item.code }}</h3>
       <p class="card-code" v-if="item.code">{{ item.code }}</p>
+      <h3 class="card-title">{{ item.title || item.name || item.code }}</h3>
       <div class="card-price" v-if="price && price.price != null && price.price !== '0' && price.price !== '0.00'">
         <span class="price-val">{{ price.price }}</span>
         <span class="price-cur">{{ price.symbol || price.currency }}</span>
       </div>
-      <div class="card-price card-price-request" v-else>Цена по запросу</div>
+      <div class="card-price card-price-request" v-else>{{ t('catalog.engineer.priceOnRequest') }}</div>
       <div class="card-actions-row" v-if="skuId != null">
         <AddToCartButton :skuId="skuId" />
       </div>
@@ -29,6 +29,9 @@
 import { computed } from 'vue'
 import ProgressiveImage from '@/shared/components/ProgressiveImage.vue'
 import AddToCartButton from '@/shared/components/AddToCartButton.vue'
+import { useI18n } from '@/shared/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -62,8 +65,8 @@ const imageFull = computed(() => {
 .card-image :deep(img) { width: 100%; height: 100%; object-fit: contain; }
 .no-image { font-size: 32px; color: var(--cat-border); }
 .card-body { padding: var(--cat-card-padding); }
-.card-title { font-size: var(--cat-card-title-size); font-weight: var(--cat-card-title-weight); margin: 0 0 4px; color: var(--cat-text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: var(--cat-card-title-lines); -webkit-box-orient: vertical; overflow: hidden; }
-.card-code { font-size: var(--cat-text-xs); color: var(--cat-muted); font-family: var(--cat-font-mono); margin: 0 0 8px; }
+.card-title { font-size: var(--cat-text-sm, 13px); font-weight: 400; margin: 0 0 4px; color: var(--cat-text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: var(--cat-card-title-lines); -webkit-box-orient: vertical; overflow: hidden; }
+.card-code { font-size: var(--cat-card-title-size); font-weight: var(--cat-card-title-weight); margin: 0 0 4px; color: var(--cat-text); line-height: 1.3; }
 .price-val { font-size: var(--cat-price-size); font-weight: var(--cat-price-weight); color: var(--cat-price-color); }
 .price-cur { font-size: var(--cat-text-xs); color: var(--cat-muted); margin-left: 2px; }
 .card-price-request { font-size: var(--cat-text-sm, 13px); color: var(--cat-muted, #6b7280); font-style: italic; }

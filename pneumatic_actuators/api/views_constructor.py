@@ -1,18 +1,22 @@
 # pneumatic_actuators/api/views_constructor.py
 """
-API для конструктора пневмоприводов (PneumaticActuatorConstructor).
+API для конструктора пневмоприводов.
+
+Запись конфигурации идёт напрямую в эталонную ``PneumaticActuatorCatalogItem``
+(хэш-дедупликация + SKU через ``get_or_create_sku``), а НЕ в legacy-модель
+``PneumaticActuatorConstructor``. ``PneumaticActuatorConstructor`` остаётся
+только как временный хелпер чтения опций/превью (без записи).
 
 Эндпоинты:
-    GET    /constructor/                    — список сконструированных приводов
-    POST   /constructor/                    — создать новую конфигурацию
-    GET    /constructor/<id>/               — детальная информация
-    PUT    /constructor/<id>/               — обновить конфигурацию
-    DELETE /constructor/<id>/               — удалить
-    GET    /constructor/<id>/options/       — доступные опции для модели
-    GET    /constructor/model-lines/        — список серий
+    POST   /constructor/                      — материализовать конфигурацию (item + SKU)
+    GET    /constructor/options/              — доступные опции для модели
+    GET    /constructor/model-lines/          — список серий
     GET    /constructor/model-lines/<id>/items/ — модели серии
+    POST   /constructor/preview/              — превью (несохранённая карточка)
+    POST   /constructor/create-sku/           — ленивое создание SKU
 """
 
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from project_customers.permissions import SectionAccessPermission
@@ -24,50 +28,124 @@ from pneumatic_actuators.models import (
     PneumaticActuatorModelLine,
     PneumaticActuatorModelLineItem,
 )
+from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
+from pneumatic_actuators.services.sku_service import get_or_create_sku, materialize_configuration
 
 
-class ConstructorViewSet(viewsets.ModelViewSet):
+class ConstructorViewSet(viewsets.GenericViewSet):
+    """Материализация конфигураций пневмопривода в PneumaticActuatorCatalogItem.
+
+    Только запись (create) и справочники/превью. Списка «сохранённых
+    конфигураций», деталки, обновления и удаления нет — карточки каталога
+    не редактируются и не удаляются через конфигуратор.
     """
-    CRUD для конструктора пневмоприводов.
-    """
+
     permission_classes = [SectionAccessPermission]
     required_section = 'configurator_pa'
-    queryset = PneumaticActuatorConstructor.objects.filter(is_active=True)
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        model_line_id = self.request.query_params.get('model_line_id')
-        model_line_item_id = self.request.query_params.get('model_line_item_id')
-        if model_line_id:
-            qs = qs.filter(selected_model_line_id=model_line_id)
-        if model_line_item_id:
-            qs = qs.filter(selected_model_line_item_id=model_line_item_id)
-        return qs.select_related(
-            'selected_model_line',
-            'selected_model_line_item',
-            'selected_safety_position',
-            'selected_springs_qty',
-            'selected_temperature',
-            'selected_ip',
-            'selected_exd',
-            'selected_body_coating',
-            'selected_body_color',
-            'selected_manual_override',
-        )
+    # Ключ опции (get_or_create_sku) → поле формы фронтенда.
+    _OPTION_FIELD_BY_KEY = {
+        'safety_position': 'selected_safety_position',
+        'springs_qty': 'selected_springs_qty',
+        'temperature': 'selected_temperature',
+        'ip': 'selected_ip',
+        'exd': 'selected_exd',
+        'body_coating': 'selected_body_coating',
+        'body_color': 'selected_body_color',
+        'manual_override': 'selected_manual_override',
+    }
 
-    def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
-        data = []
-        for obj in qs:
-            data.append(self._serialize(obj))
-        return Response(data)
+    # ── Запись ──
 
-    def retrieve(self, request, *args, **kwargs):
-        obj = self.get_object()
-        return Response(self._serialize_detail(obj))
+    def _options_from_request(self, request):
+        """Ключи опций get_or_create_sku → значения из тела запроса."""
+        return {
+            key: request.data.get(field)
+            for key, field in self._OPTION_FIELD_BY_KEY.items()
+        }
+
+    def _materialize(self, mli_id, options):
+        """Материализовать конфигурацию в карточку + SKU (хэш-дедуп)."""
+        mli = get_object_or_404(PneumaticActuatorModelLineItem, pk=mli_id)
+        sku, created = materialize_configuration(mli, options)
+        item = None
+        if sku and sku.source_content_type_id and sku.source_object_id:
+            item = PneumaticActuatorCatalogItem.objects.filter(
+                pk=sku.source_object_id,
+            ).select_related('sku').first()
+        return item, sku, created
+
+    def create(self, request, *args, **kwargs):
+        mli_id = request.data.get('selected_model_line_item')
+        if not mli_id:
+            return Response({'error': 'selected_model_line_item required'}, status=400)
+        options = self._options_from_request(request)
+        try:
+            item, sku, created = self._materialize(mli_id, options)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        if item is None:
+            return Response({'error': 'Не удалось материализовать карточку'}, status=500)
+        data = self._serialize_item_detail(item, sku=sku)
+        data['created'] = bool(created)
+        return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    # ── Сериализация ──
+
+    def _serialize_item(self, item):
+        return {
+            'id': item.id,
+            'name': item.name or item.code or '',
+            'code': item.code or '',
+            'description': item.description or '',
+            'model_line': (
+                {'id': item.model_line_id, 'name': str(item.model_line)}
+                if item.model_line else None
+            ),
+            'model_line_item': (
+                {'id': item.source_model_line_item_id, 'name': str(item.source_model_line_item)}
+                if item.source_model_line_item else None
+            ),
+            'is_active': item.is_active,
+            'sorting_order': item.sorting_order,
+        }
+
+    def _serialize_item_detail(self, item, sku=None):
+        data = self._serialize_item(item)
+        data.update({
+            'selected_safety_position': _fk_dict(item.selected_safety_position),
+            'selected_springs_qty': _fk_dict(item.selected_springs_qty),
+            'selected_temperature': _fk_dict(item.selected_temperature),
+            'selected_ip': _fk_dict(item.selected_ip),
+            'selected_exd': _fk_dict(item.selected_exd),
+            'selected_body_coating': _fk_dict(item.selected_body_coating),
+            'selected_body_color': _fk_dict(item.selected_body_color),
+            'selected_manual_override': _fk_dict(item.selected_manual_override),
+            'work_temp_min': (
+                item.selected_temperature.work_temp_min if item.selected_temperature else None
+            ),
+            'work_temp_max': (
+                item.selected_temperature.work_temp_max if item.selected_temperature else None
+            ),
+        })
+        try:
+            data['item'] = item.to_dict()
+        except Exception:
+            data['item'] = None
+        sku = sku or getattr(item, 'sku', None)
+        if sku:
+            data['sku'] = {
+                'id': sku.id, 'code': sku.code, 'name': sku.name,
+                'description': sku.description,
+            }
+        else:
+            data['sku'] = None
+        return data
+
+    # ── Хелперы чтения (без записи в legacy-модели) ──
 
     def _build_from_request(self, request):
-        """Создать инстанс из данных запроса (без сохранения)."""
+        """Временный PneumaticActuatorConstructor (только чтение опций/превью)."""
         return PneumaticActuatorConstructor(
             selected_model_line_id=request.data.get('selected_model_line'),
             selected_model_line_item_id=request.data.get('selected_model_line_item'),
@@ -83,129 +161,19 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             is_active=request.data.get('is_active', True),
         )
 
-    def _materialize_item(self, obj):
-        """
-        Записать конфигурацию конструктора в эталонную PneumaticActuatorCatalogItem + SKU.
-
-        Constructor — только форма: результат записи — item каталога
-        (автогенерация code/name/description из шаблонов серии) и SKU,
-        созданный из него через SKUMixin.sync_sku().
-
-        Returns:
-            (item, sku) или (None, None) при ошибке/отсутствии модели.
-        """
-        import logging
-        logger = logging.getLogger(__name__)
-
-        from pneumatic_actuators.services.sku_service import get_or_create_sku
-        from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
-
-        if not obj.selected_model_line_item_id:
-            return None, None
-
-        options = {
-            'springs_qty': obj.selected_springs_qty_id,
-            'temperature': obj.selected_temperature_id,
-            'safety_position': obj.selected_safety_position_id,
-            'ip': obj.selected_ip_id,
-            'exd': obj.selected_exd_id,
-            'body_coating': obj.selected_body_coating_id,
-            'body_color': obj.selected_body_color_id,
-            'manual_override': obj.selected_manual_override_id,
-        }
-        try:
-            sku = get_or_create_sku(obj.selected_model_line_item, options)
-        except Exception as e:
-            logger.error(f"Материализация item не удалась: {e}")
-            return None, None
-
-        item = None
-        if sku and sku.source_content_type_id and sku.source_object_id:
-            item = PneumaticActuatorCatalogItem.objects.filter(pk=sku.source_object_id).first()
-        return item, sku
-
-    def _attach_item_sku(self, data, obj):
-        """Добавить в ответ item (to_dict) и sku (кратко)."""
-        item, sku = self._materialize_item(obj)
-        data['item'] = item.to_dict() if item else None
-        if sku:
-            data['sku'] = {
-                'id': sku.id, 'code': sku.code, 'name': sku.name,
-                'description': sku.description,
-            }
-        else:
-            data['sku'] = None
-        return data
-
-    def create(self, request, *args, **kwargs):
-        obj = self._build_from_request(request)
-        # Проверка дубликата: если конфигурация уже существует — возвращаем её
-        existing_msg = obj._check_for_duplicates()
-        if existing_msg:
-            # Ищем существующую запись
-            existing = PneumaticActuatorConstructor.objects.filter(
-                selected_model_line_item=obj.selected_model_line_item,
-                selected_safety_position=obj.selected_safety_position,
-                selected_springs_qty=obj.selected_springs_qty,
-                selected_temperature=obj.selected_temperature,
-                selected_ip=obj.selected_ip,
-                selected_exd=obj.selected_exd,
-                selected_body_coating=obj.selected_body_coating,
-                selected_body_color=obj.selected_body_color,
-                selected_manual_override=obj.selected_manual_override,
-                is_active=True,
-            ).first()
-            if existing:
-                data = self._serialize_detail(existing)
-                data = self._attach_item_sku(data, existing)
-                return Response(data, status=status.HTTP_200_OK)
-        obj.save()
-        data = self._serialize_detail(obj)
-        data = self._attach_item_sku(data, obj)
-        return Response(data, status=status.HTTP_201_CREATED)
-
-    def update(self, request, *args, **kwargs):
-        obj = self.get_object()
-        for field in [
-            'selected_model_line', 'selected_model_line_item',
-            'selected_safety_position', 'selected_springs_qty',
-            'selected_temperature', 'selected_ip', 'selected_exd',
-            'selected_body_coating', 'selected_body_color', 'selected_manual_override',
-        ]:
-            value = request.data.get(field)
-            if value is not None:
-                setattr(obj, f'{field}_id', value)
-        if 'sorting_order' in request.data:
-            obj.sorting_order = request.data['sorting_order']
-        if 'is_active' in request.data:
-            obj.is_active = request.data['is_active']
-        obj.save()
-        data = self._serialize_detail(obj)
-        data = self._attach_item_sku(data, obj)
-        return Response(data)
-
-    def destroy(self, request, *args, **kwargs):
-        obj = self.get_object()
-        obj.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):
         """Доступные опции для модели. ?model_line_item_id=X"""
         mli_id = request.query_params.get('model_line_item_id')
         if not mli_id:
             return Response({'error': 'model_line_item_id required'}, status=400)
-        # Временный инстанс только для вызова get_available_options
         obj = PneumaticActuatorConstructor(selected_model_line_item_id=mli_id)
         locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         return Response(obj.get_available_options(locale=locale))
 
     @action(detail=False, methods=['get'])
     def model_lines(self, request):
-        """Список активных серий пневмоприводов (с изображением и описанием).
-
-        ?construction_variety_id=X — серверная фильтрация по конструкции (RP/SY).
-        """
+        """Список активных серий пневмоприводов (с изображением и описанием)."""
         items = PneumaticActuatorModelLine.objects.filter(is_active=True).select_related(
             'pneumatic_actuator_construction_variety'
         )
@@ -214,27 +182,27 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             try:
                 items = items.filter(pneumatic_actuator_construction_variety_id=int(construction_variety_id))
             except (TypeError, ValueError):
-                pass  # некорректный параметр — игнорируем, возвращаем все серии
+                pass
         items = items.order_by('sorting_order')
         locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         result = []
-        for ml in items :
+        for ml in items:
             image = None
-            try :
+            try:
                 imgs = ml._get_images_section()
-                if imgs :
+                if imgs:
                     image = imgs[0].get('preview_url') or imgs[0].get('url')
-            except Exception :
+            except Exception:
                 image = None
             result.append({
-                'id' : ml.id , 'name' : ml.name , 'code' : ml.code ,
-                'description' : pick_i18n(
+                'id': ml.id, 'name': ml.name, 'code': ml.code,
+                'description': pick_i18n(
                     getattr(ml, 'description_i18n', None), locale, fallback=ml.description or ''
                 ),
-                'image' : image ,
-                'construction_variety_id' : ml.pneumatic_actuator_construction_variety_id ,
-                'construction_variety_code' : ml.pneumatic_actuator_construction_variety.code if ml.pneumatic_actuator_construction_variety else None ,
-                'construction_name' : ml.pneumatic_actuator_construction_variety.name if ml.pneumatic_actuator_construction_variety else None ,
+                'image': image,
+                'construction_variety_id': ml.pneumatic_actuator_construction_variety_id,
+                'construction_variety_code': ml.pneumatic_actuator_construction_variety.code if ml.pneumatic_actuator_construction_variety else None,
+                'construction_name': ml.pneumatic_actuator_construction_variety.name if ml.pneumatic_actuator_construction_variety else None,
             })
         return Response(result)
 
@@ -258,10 +226,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def preview(self, request):
-        """Превью: собирает несохранённый PneumaticActuatorCatalogItem (общий паттерн)
-        и возвращает его to_dict(). Спецификация берётся из реестра
-        TEMPLATE_FIELDS + spec_template (серия → EquipmentType), а не из
-        отдельного захардкоженного словаря значений."""
+        """Превью: несохранённая PneumaticActuatorCatalogItem (to_dict)."""
         obj = self._build_from_request(request)
         obj._ensure_valid_options()
         if obj.selected_temperature:
@@ -272,8 +237,6 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         if not mli:
             return Response({'error': 'model_line_item required'}, status=400)
 
-        from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
-
         locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         item = PneumaticActuatorCatalogItem.from_constructor(obj)
         item.code = item.generated_model_item_code or None
@@ -281,20 +244,12 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         item.description = item.generate_description() or ''
 
         data = item.to_dict(locale=locale)
-        # HTML-описание для кнопки «Просмотр спецификации» (модалка) — из той же
-        # спецификации, что и вкладка «Характеристики» (spec_template серия → EquipmentType).
         data['tech_description'] = item.render_spec_html(locale=locale)
         return Response(data)
 
     @action(detail=False, methods=['post'], url_path='create-sku')
     def create_sku(self, request):
-        """
-        Создать SKU для конфигурации пневмопривода (ленивое создание).
-        Принимает: model_line_item_id + options.
-        """
-        from pneumatic_actuators.services.sku_service import get_or_create_sku
-        from pneumatic_actuators.models import PneumaticActuatorModelLineItem
-
+        """Создать SKU для конфигурации пневмопривода (ленивое создание)."""
         mli_id = request.data.get('model_line_item_id')
         options = request.data.get('options', {})
         if not mli_id:
@@ -305,12 +260,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         except PneumaticActuatorModelLineItem.DoesNotExist:
             return Response({'error': 'Model line item not found'}, status=404)
 
-        # Разрешаем реальные объекты опций по ID
-        resolved_options = {}
-        for key, value in options.items():
-            if value is None:
-                continue
-            resolved_options[key] = value
+        resolved_options = {k: v for k, v in options.items() if v is not None}
 
         try:
             sku = get_or_create_sku(mli, resolved_options)
@@ -320,36 +270,6 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         return Response({
             'id': sku.id, 'code': sku.code, 'name': sku.name, 'description': sku.description,
         })
-
-    # --- serialization helpers ---
-
-    def _serialize(self, obj):
-        return {
-            'id': obj.id,
-            'name': obj.name,
-            'code': obj.code,
-            'description': obj.description,
-            'model_line': {'id': obj.selected_model_line_id, 'name': str(obj.selected_model_line)} if obj.selected_model_line else None,
-            'model_line_item': {'id': obj.selected_model_line_item_id, 'name': str(obj.selected_model_line_item)} if obj.selected_model_line_item else None,
-            'is_active': obj.is_active,
-            'sorting_order': obj.sorting_order,
-        }
-
-    def _serialize_detail(self, obj):
-        data = self._serialize(obj)
-        data.update({
-            'selected_safety_position': _fk_dict(obj.selected_safety_position),
-            'selected_springs_qty': _fk_dict(obj.selected_springs_qty),
-            'selected_temperature': _fk_dict(obj.selected_temperature),
-            'selected_ip': _fk_dict(obj.selected_ip),
-            'selected_exd': _fk_dict(obj.selected_exd),
-            'selected_body_coating': _fk_dict(obj.selected_body_coating),
-            'selected_body_color': _fk_dict(obj.selected_body_color),
-            'selected_manual_override': _fk_dict(obj.selected_manual_override),
-            'work_temp_min': obj.work_temp_min,
-            'work_temp_max': obj.work_temp_max,
-        })
-        return data
 
 
 def _fk_dict(fk_obj):

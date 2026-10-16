@@ -1,8 +1,7 @@
 """Заполняет en/cn переводы spec_template → spec_template_i18n.
 
 Обрабатывает источники RU-шаблона спецификации:
-  - EquipmentType (spec_template);
-  - серии с собственным шаблоном: CableGlandModelLine, PneumaticActuatorModelLine.
+  - EquipmentType (spec_template).
 
 Ключ перевода — ru-подпись (группа и поле). Подписи, которых нет в словарях,
 остаются как есть (fallback ru) — команда сообщает о них в конце.
@@ -14,9 +13,7 @@
 
 from django.core.management.base import BaseCommand
 
-from cable_glands.models import CableGlandModelLine
 from core.models.equipment_type import EquipmentType
-from pneumatic_actuators.models import PneumaticActuatorModelLine
 
 
 # ── Группы ──
@@ -310,8 +307,7 @@ def _translate_template(template, groups, labels, existing=None):
 
 
 class Command(BaseCommand):
-    help = ('Заполняет en/cn переводы spec_template_i18n для EquipmentType и серий '
-            'с собственным spec_template (КВ, ПП).')
+    help = ('Заполняет en/cn переводы spec_template_i18n для EquipmentType.')
 
     def add_arguments(self, parser):
         parser.add_argument('--force', action='store_true',
@@ -323,11 +319,7 @@ class Command(BaseCommand):
         force = options['force']
         dry_run = options['dry_run']
 
-        targets = (
-            list(EquipmentType.objects.all())
-            + list(CableGlandModelLine.objects.all())
-            + list(PneumaticActuatorModelLine.objects.all())
-        )
+        targets = list(EquipmentType.objects.all())
 
         updated = 0
         skipped_empty = 0

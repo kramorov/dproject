@@ -40,7 +40,6 @@ const allItems = [
     { to:'/configurator/pa', label:'menu.paConfigurator' },
     { to:'/admin/posi-constructor', label:'menu.posiConfigurator' },
     { to:'/configurator/pa-kit', label:'menu.assemblyConfigurator' },
-    // { to:'/configurator/pa-legacy', label:'Конфигуратор ПП Old' },
     { to:'/admin/ea-constructor', label:'menu.eaConfigurator' },
     { to:'/admin/cg-constructor', label:'menu.cgConfigurator' },
     { to:'/configurator/cabinets', label:'menu.cabinetsConfigurator' },

@@ -78,16 +78,6 @@ class CableGlandModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMix
         verbose_name=_("Переводы шаблона заголовка (ru/en/cn)"),
         help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}. "ru" синхронизируется с шаблоном.'),
     )
-    spec_template = models.JSONField(default=dict, blank=True,
-                                     verbose_name=_("Шаблон спецификации"),
-                                     help_text=_('JSON: группы и поля спецификации; пусто — '
-                                                 'используется реестр CableGland'))
-    spec_template_i18n = models.JSONField(
-        default=dict, blank=True,
-        verbose_name=_("Переводы шаблона спецификации (ru/en/cn)"),
-        help_text=_('Локаль — внешний ключ: {"ru": {группа: {подпись: ключ}}, "en": {...}, '
-                    '"cn": {...}}. "ru" синхронизируется с spec_template.'),
-    )
     model_item_code_template = models.CharField(
         max_length=500, blank=True, null=True,
         verbose_name=_("Шаблон артикула"),
@@ -140,12 +130,11 @@ class CableGlandModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMix
 
     def _sync_localized_ru(self):
         super()._sync_localized_ru()
-        self.spec_template_i18n = sync_ru(getattr(self, 'spec_template_i18n', None), getattr(self, 'spec_template', {}))
         self.title_template_i18n = sync_ru(getattr(self, 'title_template_i18n', None), getattr(self, 'title_template', ''))
 
     def save(self, *args, **kwargs):
         if kwargs.get('update_fields') is not None:
-            kwargs['update_fields'] = set(kwargs['update_fields']) | {'spec_template_i18n', 'title_template_i18n'}
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'title_template_i18n'}
         super().save(*args, **kwargs)
 
     def __str__(self):

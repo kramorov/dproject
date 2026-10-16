@@ -2,13 +2,15 @@
   <div class="site">
     <Header />
     <main class="main">
-      <router-view />
+      <router-view :key="locale" />
     </main>
   </div>
 </template>
 <script setup>
 import Header from './components/header/Header.vue'
 import { setDebug } from '@/shared/config'
+import { useI18n } from '@/shared/i18n'
+const { locale } = useI18n()
 setDebug(import.meta.env.DEV)
 </script>
 <style>

@@ -30,14 +30,22 @@
 4. `TemplateMixin` — name/description из шаблонов серии;
 5. `sync_sku()` — SKU `(code, brand)`.
 
+Вес материализуется при создании: `generate_pa_cards` и
+`sku_service.materialize_configuration` считают `weight = compute_weight()` до
+`save()` (конфигуратор резолвит `manual_override_option` для точного веса
+ручного дублера).
+
 Ручная и сгенерированная карточки неразличимы по поведению; вместо `is_generated` —
 `origin` (`generated` / `manual`): он определяет, кто управляет жизненным циклом
 (генератор или человек), а не поведение карточки.
 
 ## `config_hash`
 
-- Хэш канонического кортежа стабильных id: `model_line, body, variety, springs_qty,
-  safety_position, temperature, ip, exd, body_coating, hand_wheel`; отсутствующие = `0`.
+- Хэш канонического кортежа стабильных id (11 полей, `config_hash_fields`):
+  `model_line, body, pneumatic_actuator_variety, selected_safety_position,
+  selected_springs_qty, selected_temperature, selected_ip, selected_exd,
+  selected_body_coating, selected_body_color, selected_manual_override`;
+  отсутствующие = `0`.
 - **Не хэшировать** encoding и сам `code` — смена кодировки не трогает хэш.
 - `unique=True` + проверка на `save()`.
 
@@ -56,10 +64,27 @@
 
 ## Конфигуратор — вход/редактор
 
-- Карточка = read-представление (деталка, как у всех каталогов).
-- Конфигуратор = вход (выбор опций) и редактор: у карточки CTA «открыть в конфигураторе»
-  с предвыбором опций (`initialOptions`).
-- Дедуп на commit по `config_hash` → переиспользование существующей карточки.
+Два варианта конфигуратора ПП:
+
+1. **Каталог `/catalog/pa-actuators`** (режим внутри каталога): компонент
+   `PaActuatorConfigurator.vue` (`frontend/src/shared/components/catalog/`).
+   Вход + редактор: у карточки CTA «открыть в конфигураторе» с предвыбором
+   опций (`initialOptions`); эмитит `addToCart` → `create-sku`.
+2. **Отдельная страница `/configurator/pa`**: `apps/pa-constructor/App.vue`
+   (бэкенд `ConstructorViewSet`). Только вход/создание: серия → вид → модель →
+   опции → превью → «Создать» (материализация карточки). Списка «сохранённых
+   конфигураций», редактирования и удаления нет.
+
+Дедуп на commit по `config_hash` → переиспользование существующей карточки
+(`sku_service.materialize_configuration`; при переиспользовании возвращает
+`created=False`).
+
+Терминология: страницу `/configurator/pa` называем **конфигуратор** (не
+«конструктор»). Внутренние имена `pa-constructor`/`ConstructorViewSet` —
+legacy, переименование — отдельной задачей.
+
+Доступ: в дальнейшем доступ к конфигуратору предполагается ограничить
+(права на секцию `configurator_pa`).
 
 ## Признаки карточки: origin и видимость
 
@@ -71,7 +96,10 @@
 - `exclude_from_catalog` (bool, default `False`) — видимость:
   - глобальный поиск и деталка его **игнорируют** (идут через SKU);
   - листинги каталога фильтруют `exclude_from_catalog=False`;
-  - у сгенерированных ПП-карточек = `True` (в браузинге нет, в поиске/деталке есть).
+  - у сгенерированных (`generate_pa_cards`) и конфигураторных карточек = `True`
+    (нестандартные/неявные карточки не показываем в листингах).
+- Конфигураторные карточки: `origin=generated`, `exclude_from_catalog=True`
+  (создаются так в `sku_service.materialize_configuration`).
 
 ## Статус
 
@@ -84,11 +112,16 @@
 - [x] команда генерации карточек (`generate_pa_cards`)
 - [x] переименование `PneumaticActuatorItem` → `PneumaticActuatorCatalogItem` (ссылок на старое имя нет)
 - [x] поле `origin` (`generated` / `manual`) на карточке; генератор не трогает `manual`
-- [x] дедуп конфигуратора по `config_hash` (`sku_service.get_or_create_sku`)
+- [x] дедуп конфигуратора по `config_hash` (`sku_service.materialize_configuration`; возвращает `created`)
+- [x] карточки конфигуратора: `origin=generated`, `exclude_from_catalog=True`, вес материализуется
 - [x] снэпшот цен при проведении документа (`PriceDocument.register_changes` → `PriceHistory`)
 - [x] валидация генерации: AIR-S (141 карточка + SKU, 0 ошибок); dry-run полного прогона = 5999 карточек
 - [ ] полный прогон генерации (5999 карточек + ~6к SKU) — не запускался
-- [ ] переводы опций ПП (напр. `PneumaticTemperatureOption` «LT … (Опция)») — остаются ru в en/cn-именах
+
+Примечание (2026-10-16): страница `/configurator/pa-legacy` удалена; standalone-страница
+`/configurator/pa` переведена на запись в `PneumaticActuatorCatalogItem` (список/редактирование/
+удаление убраны). Исправлен маппинг опции `exd` в `sku_service` (был `params.ExdOption`,
+стало `PneumaticExdOption`).
 
 Примечание (2026-10-10): в шаблонах EquipmentType «Пневмопривод» плейсхолдер был
 `{variety}` (несуществующий в реестре ПП) → исправлен на `{variety_name}` (RU + en/cn,

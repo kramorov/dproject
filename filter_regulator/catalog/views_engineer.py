@@ -55,6 +55,17 @@ class FilterRegulatorEngineerView(APIView):
                     code = item.get('sku', {}).get('id')
                     item['price'] = prices.get(code) if code else None
 
+            # Группировка по корпусу (сетка с чипсами, как у ПП).
+            from filter_regulator.catalog.fr_grouping import group_by_body
+            from filter_regulator.models import FilterRegulator
+            ids = [item.get('id') for item in data if item.get('id')]
+            body_map = dict(
+                FilterRegulator.objects.filter(id__in=ids).values_list('id', 'body_id')
+            )
+            for item in data:
+                item['body_id'] = body_map.get(item.get('id'))
+            result['groups'] = group_by_body(data)
+
             result['currency'] = currency_code
 
         return Response(result)

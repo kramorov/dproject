@@ -1,39 +1,7 @@
-<!-- pa-constructor/App.vue — двухпанельный конструктор пневмопривода -->
+<!-- pa-constructor/App.vue — конструктор пневмопривода (без списка сохранённых) -->
 <template>
   <div class="constructor-app">
-    <!-- Левая панель: список конфигураций + фильтры -->
-    <aside class="panel-left">
-      <h2>Сохранённые конфигурации</h2>
-
-      <div class="filter-bar">
-        <input v-model="filters.search" placeholder="Поиск по коду/названию..." class="filter-input" />
-        <select v-model="filters.model_line" @change="onFilterChange">
-          <option :value="null">Все серии</option>
-          <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }}</option>
-        </select>
-        <select v-model="filters.model_line_item" @change="onFilterChange" :disabled="!filters.model_line">
-          <option :value="null">Все модели</option>
-          <option v-for="mli in filterModelLineItems" :key="mli.id" :value="mli.id">{{ mli.name }}</option>
-        </select>
-      </div>
-
-      <div class="saved-list">
-        <div v-if="loadingList" class="list-status">Загрузка...</div>
-        <div v-else-if="!filteredList.length" class="list-status">Нет сохранённых конфигураций</div>
-        <div
-          v-for="item in filteredList" :key="item.id"
-          class="saved-card"
-          @click="loadItem(item)"
-        >
-          <div class="card-code">{{ item.code || '—' }}</div>
-          <div class="card-model">{{ item.model_line_item?.name || '' }}</div>
-          <div class="card-desc">{{ item.description?.substring(0, 80) || '' }}</div>
-          <button class="btn-icon delete" @click.stop="deleteItem(item.id)" title="Удалить">×</button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Правая панель: форма конструктора -->
+    <!-- Форма конструктора -->
     <main class="panel-right">
       <div class="builder-header">
         <h2>Новая конфигурация</h2>
@@ -92,7 +60,6 @@
 
       <div class="message" v-if="message" :class="message.type">{{ message.text }}</div>
     </main>
-
   </div>
 </template>
 
@@ -103,9 +70,6 @@ import PaProductCard from '@/shared/components/catalog/PaProductCard.vue'
 
 const modelLines = ref([])
 const modelLineItems = ref([])
-const filterModelLineItems = ref([])
-const savedList = ref([])
-const loadingList = ref(false)
 const options = ref(null)
 const message = ref(null)
 const previewData = ref(null)
@@ -142,8 +106,6 @@ function buildSkuOptionsPayload() {
   return opts
 }
 
-const filters = reactive({ search: '', model_line: null, model_line_item: null })
-
 const defaultForm = () => ({
   selected_model_line: null,
   selected_variety: null,
@@ -161,13 +123,6 @@ const defaultForm = () => ({
 const form = reactive(defaultForm())
 const canSave = computed(() => form.selected_model_line_item)
 
-const filteredList = computed(() => {
-  let list = savedList.value
-  const s = (filters.search || '').toLowerCase()
-  if (s) list = list.filter(item => (item.code || '').toLowerCase().includes(s) || (item.name || '').toLowerCase().includes(s))
-  return list
-})
-
 const optionFields = computed(() => {
   if (!options.value) return []
   return Object.entries(OPTION_MAP).map(([key, cfg]) => ({
@@ -178,63 +133,9 @@ const optionFields = computed(() => {
 })
 
 onMounted(async () => {
-  try { modelLines.value = (await api.getModelLines()).data; await loadList() }
+  try { modelLines.value = (await api.getModelLines()).data }
   catch (e) { showMessage('Ошибка загрузки', 'error') }
 })
-
-async function loadList() {
-  loadingList.value = true
-  try {
-    const params = {}
-    if (filters.model_line) params.model_line_id = filters.model_line
-    if (filters.model_line_item) params.model_line_item_id = filters.model_line_item
-    savedList.value = (await api.list(params)).data
-  } catch (e) { /* */ }
-  finally { loadingList.value = false }
-}
-
-async function onFilterChange() {
-  // Поиск — клиентский, API не дёргаем
-  if (filters.model_line) {
-    try { filterModelLineItems.value = (await api.getModelLineItems(filters.model_line)).data }
-    catch (e) { filterModelLineItems.value = [] }
-    if (!filterModelLineItems.value.find(m => m.id === filters.model_line_item)) filters.model_line_item = null
-  } else { filterModelLineItems.value = []; filters.model_line_item = null }
-  // При смене серии/модели грузим список с серверными фильтрами
-  if (filters.model_line || filters.model_line_item) await loadList()
-}
-
-async function deleteItem(id) {
-  if (!confirm('Удалить конфигурацию?')) return
-  try { await api.delete(id); await loadList(); showMessage('Удалено', 'success') }
-  catch (e) { showMessage('Ошибка удаления', 'error') }
-}
-
-async function loadItem(item) {
-  try {
-    const d = (await api.getDetail(item.id)).data
-    form.selected_model_line = d.model_line?.id || null
-    form.selected_variety = null
-
-    if (form.selected_model_line) {
-      const items = (await api.getModelLineItems(form.selected_model_line)).data
-      modelLineItems.value = items
-      const mli = items.find(i => i.id === d.model_line_item?.id)
-      if (mli?.variety) {
-        form.selected_variety = mli.variety
-        modelLineItems.value = (await api.getModelLineItems(form.selected_model_line, mli.variety)).data
-      }
-    }
-
-    form.selected_model_line_item = d.model_line_item?.id || null
-    for (const key of Object.keys(OPTION_MAP)) {
-      if (d[key]?.id) form[key] = d[key].id
-    }
-
-    options.value = (await api.getOptions(form.selected_model_line_item)).data
-    previewData.value = d
-  } catch (e) { showMessage('Ошибка загрузки', 'error') }
-}
 
 // --- cascade (no draft creation) ---
 async function onModelLineChange() {
@@ -269,21 +170,21 @@ function autoFillDefaults() {
   }
 }
 
-// --- save: always POST (create new), never PUT ---
+// --- save: POST (создать карточку каталога через хэш-дедуп) ---
 async function save() {
   saving.value = true
   try {
     const res = await api.create({ ...form })
     const sku = res.data?.sku
+    const verb = res.data?.created === false ? 'Обновлена' : 'Создана'
     const msg = sku
-      ? 'Создано: ' + (res.data.name || '') + ' | SKU: ' + sku.code
-      : (res.status === 201 ? 'Создано: ' + res.data.name : 'Найдена существующая: ' + res.data.name)
+      ? verb + ': ' + (res.data.name || '') + ' | SKU: ' + sku.code
+      : verb + ': ' + (res.data.name || '')
     showMessage(msg, 'success')
     // Refresh preview from API to get full to_dict() data
     try { const pr = await api.preview({ ...form }); previewData.value = pr.data } catch (e) { /* ignore */ }
-    await loadList()
   } catch (e) {
-    const msg = e.response?.data?.detail || 'Ошибка сохранения'
+    const msg = e.response?.data?.detail || e.response?.data?.error || 'Ошибка сохранения'
     showMessage(msg, 'error')
   }
   finally { saving.value = false }
@@ -328,39 +229,8 @@ function showMessage(text, type = 'info') {
 </script>
 
 <style scoped>
-.constructor-app {
-  display: flex; gap: 0; height: calc(100vh - 60px);
-  font-family: system-ui, -apple-system, sans-serif; color: #1a1a2e;
-}
-.panel-left {
-  width: 360px; min-width: 300px; flex-shrink: 0;
-  border-right: 1px solid #e5e7eb; padding: 20px;
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.panel-left h2 { font-size: 16px; margin: 0 0 12px; }
-.filter-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.filter-input { padding: 7px 10px; font-size: 13px; border: 1px solid #ccc; border-radius: 6px; }
-.filter-input:focus { outline: none; border-color: #4a6cf7; }
-.filter-bar select { padding: 7px 10px; font-size: 13px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
-.saved-list { flex: 1; overflow-y: auto; }
-.list-status { color: #999; font-size: 13px; padding: 12px 0; }
-.saved-card {
-  position: relative; padding: 10px 12px; margin-bottom: 6px;
-  border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-.saved-card:hover { border-color: #a0b4f7; background: #f8f9ff; }
-.card-code { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-.card-model { font-size: 12px; color: #666; margin-bottom: 2px; }
-.card-desc { font-size: 11px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.saved-card .delete {
-  position: absolute; top: 6px; right: 8px;
-  border: none; background: none; font-size: 18px; color: #c44;
-  cursor: pointer; line-height: 1; padding: 0 4px; opacity: 0; transition: opacity .15s;
-}
-.saved-card:hover .delete { opacity: 1; }
-
-.panel-right { flex: 1; padding: 20px 32px; overflow-y: auto; }
+.constructor-app { max-width: 1200px; margin: 0 auto; padding: 20px 32px; }
+.panel-right { }
 .builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .builder-header h2 { font-size: 18px; margin: 0; }
 h3 { font-size: 15px; color: #555; margin: 16px 0 8px; }
@@ -372,21 +242,12 @@ h3 { font-size: 15px; color: #555; margin: 16px 0 8px; }
 .form-row select:focus { outline: none; border-color: #4a6cf7; }
 .form-row select:disabled { background: #f3f3f5; color: #555; cursor: not-allowed; border-color: #ddd; }
 .preview { margin-top: 20px; }
-.preview h3 { display: flex; align-items: center; gap: 10px; }
-.preview-text { background: #f7f7f9; border: 1px solid #e0e0e6; border-radius: 6px; padding: 12px; font-size: 13px; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
 .actions { margin-top: 20px; display: flex; gap: 10px; }
 .btn { padding: 10px 24px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
 .btn.primary { background: #4a6cf7; color: #fff; }
 .btn.primary:disabled { background: #a0b4f7; cursor: not-allowed; }
 .btn.secondary { background: #eee; color: #333; }
-.btn.small { padding: 4px 12px; font-size: 12px; }
 .message { margin-top: 12px; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
 .message.success { background: #e6f7e6; color: #2a7a2a; }
 .message.error { background: #fde6e6; color: #a33; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal-content { background: #fff; border-radius: 10px; max-width: 780px; width: 92%; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.2); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eee; }
-.modal-header h3 { margin: 0; font-size: 16px; }
-.modal-header .close { font-size: 22px; border: none; background: none; cursor: pointer; color: #888; }
-.modal-body { padding: 20px; overflow-y: auto; font-size: 13px; line-height: 1.6; flex: 1; }
 </style>

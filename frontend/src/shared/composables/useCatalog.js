@@ -27,6 +27,7 @@ export function useCatalog(api, opts = {}) {
 
   const items = ref([])
   const compatibleData = ref([])
+  const groups = ref([])
   const total = ref(0)
   const exactTotal = ref(0)
   const compatibleTotal = ref(0)
@@ -185,6 +186,7 @@ export function useCatalog(api, opts = {}) {
 
       items.value = body.data || []
       total.value = body.total || 0
+      groups.value = body.groups || []
 
       // Compatible split (from apply_filters_and_split)
       compatibleData.value = body.compatible_data || []
@@ -197,6 +199,7 @@ export function useCatalog(api, opts = {}) {
       console.error('[useCatalog] Failed to load data', e)
       items.value = []
       compatibleData.value = []
+      groups.value = []
       total.value = 0
     }
     loading.value = false
@@ -204,7 +207,7 @@ export function useCatalog(api, opts = {}) {
 
   return {
     // State
-    items, compatibleData, total, exactTotal, compatibleTotal,
+    items, compatibleData, groups, total, exactTotal, compatibleTotal,
     splitFilter, loading, limit, offset,
     filterData, filtersLoaded, showCompatibleAvailable,
     showCompatible, activeFilters, search,

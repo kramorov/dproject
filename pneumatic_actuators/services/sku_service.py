@@ -5,12 +5,15 @@ SKU-сервис пневмоприводов (переработан 2026-09-01
 SKU создаётся из ЭТАЛОННОЙ модели PneumaticActuatorCatalogItem (единый путь
 SKUMixin.sync_sku(), как в остальных каталогах), а не как standalone-запись:
 
-    get_or_create_sku(model_line_item, options)
+    materialize_configuration(model_line_item, options) -> (sku, created)
         → материализует конфигурацию в PneumaticActuatorCatalogItem
           (code генерируется из model_line.model_item_code_template,
-           name/description — из шаблонов серии)
+           name/description — из шаблонов серии; вес — сразу; карточка
+           origin=generated + exclude_from_catalog=True)
         → item.save() → sync_sku() создаёт/подхватывает SKU по коду
-        → возвращает SKU (со связью source_* на item).
+        → возвращает (SKU, created) со связью source_* на item.
+
+    get_or_create_sku(...) — backward-compat обёртка, возвращает только SKU.
 
 Повторный вызов с теми же опциями возвращает ТУ ЖЕ SKU (item ищется
 по config_hash — хэшу конфигурации «типоразмер + опции»).
@@ -48,7 +51,7 @@ _MODEL_BY_KEY = {
     'temperature': 'pneumatic_actuators.PneumaticTemperatureOption',
     'safety_position': 'params.SafetyPositionOption',
     'ip': 'params.IpOption',
-    'exd': 'params.ExdOption',
+    'exd': 'pneumatic_actuators.PneumaticExdOption',
     'body_coating': 'pneumatic_actuators.PneumaticBodyDesignOption',
     'body_color': 'pneumatic_actuators.PneumaticBodyColorOption',
     'manual_override': 'params.HandWheelInstalledOption',
@@ -72,19 +75,15 @@ def _resolve_option(model_path: str, value: Any) -> Optional[Any]:
         return None
 
 
-def get_or_create_sku(model_line_item, options: Optional[Dict[str, Any]] = None) -> SKU:
-    """
-    Получить или создать SKU для конфигурации пневмопривода.
+def materialize_configuration(model_line_item, options: Optional[Dict[str, Any]] = None):
+    """Материализовать конфигурацию в ``PneumaticActuatorCatalogItem`` + SKU.
 
-    Args:
-        model_line_item: PneumaticActuatorModelLineItem (legacy, из create-sku
-            endpoint) либо уже созданный PneumaticActuatorCatalogItem.
-        options: {'springs_qty': id, 'temperature': id, 'safety_position': id,
-                  'ip': id, 'exd': id, 'body_coating': id, 'manual_override': id}
-                 — ID реальных опций (как шлёт фронтенд).
+    Возвращает ``(sku, created)``: ``created=True`` если карточка создана заново,
+    ``False`` — если переиспользована существующая (по ``config_hash``).
 
-    Returns:
-        SKU, привязанный к эталонной модели (source_* → PneumaticActuatorCatalogItem).
+    Карточки конфигуратора создаются с ``origin=generated`` и
+    ``exclude_from_catalog=True`` (нестандартные конфигурации не показываем
+    в листингах каталога); вес материализуется сразу (как в ``generate_pa_cards``).
     """
     from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
     from pneumatic_actuators.models.pa_model_line import PneumaticActuatorModelLineItem
@@ -96,7 +95,7 @@ def get_or_create_sku(model_line_item, options: Optional[Dict[str, Any]] = None)
         if not item.sku_id:
             item.save()
         item.refresh_from_db()
-        return item.sku
+        return item.sku, False
 
     if not isinstance(model_line_item, PneumaticActuatorModelLineItem):
         raise TypeError(
@@ -109,16 +108,28 @@ def get_or_create_sku(model_line_item, options: Optional[Dict[str, Any]] = None)
         'model_line': model_line_item.model_line,
         'body': model_line_item.body,
         'pneumatic_actuator_variety': model_line_item.pneumatic_actuator_variety,
+        'origin': PneumaticActuatorCatalogItem.Origin.GENERATED,
+        'exclude_from_catalog': True,
     }
     for key, field in _FIELD_BY_KEY.items():
         kwargs[field] = _resolve_option(_MODEL_BY_KEY[key], options.get(key))
 
-    # Идентичность карточки — config_hash (не code): code производный и может
-    # меняться при смене кодировки, а хэш фиксирует конфигурацию
-    # (типоразмер + опции). Дедуплицируем по хэшу, а не по kwargs/code.
+    # through-опция ручного дублера — для точного веса (как from_constructor).
+    if model_line_item and kwargs.get('selected_manual_override'):
+        from pneumatic_actuators.models.pa_options import PneumaticManualOverrideOption
+        kwargs['manual_override_option'] = PneumaticManualOverrideOption.objects.filter(
+            model_line_item=model_line_item,
+            hand_wheel_option=kwargs['selected_manual_override'],
+        ).order_by('id').first()
+
+    probe = PneumaticActuatorCatalogItem(**kwargs)
+    try:
+        probe.weight = probe.compute_weight()
+    except Exception:
+        logger.exception('Не удалось вычислить weight для карточки')
+
     config_hash = None
     try:
-        probe = PneumaticActuatorCatalogItem(**kwargs)
         config_hash = probe.compute_config_hash() or None
     except Exception:
         logger.exception('Не удалось вычислить config_hash для дедупликации')
@@ -131,35 +142,33 @@ def get_or_create_sku(model_line_item, options: Optional[Dict[str, Any]] = None)
                 if not existing.sku_id:
                     existing.save()
                 existing.refresh_from_db()
-                return existing.sku
+                return existing.sku, False
 
         try:
-            # get_or_create вызывает item.save() → автогенерация code/name/description
-            # + sync_sku() (SKUMixin). Тот же набор опций → тот же item → та же SKU.
-            item, created = PneumaticActuatorCatalogItem.objects.get_or_create(**kwargs)
+            probe.save()
         except (IntegrityError, ValidationError):
-            # Конкуренция/повторный config_hash: другой item уже занял — берём его
+            # Гонка: другой поток успел создать такую же конфигурацию.
             if config_hash:
                 item = PneumaticActuatorCatalogItem.objects.filter(config_hash=config_hash).first()
                 if item is None:
                     raise
-            else:
-                raise
+                item.refresh_from_db()
+                return item.sku, False
+            raise
 
-        if created:
-            logger.info(f"PneumaticActuatorCatalogItem создан: {item.code} (source={model_line_item.pk})")
-        if not item.sku_id:
-            # item без SKU (например, сохранён со skip) — досинхронизировать
-            try:
-                item.save()
-            except (IntegrityError, ValidationError):
-                # config_hash/SKU уже заняты другим item'ом — берём его
-                if config_hash:
-                    item = PneumaticActuatorCatalogItem.objects.filter(config_hash=config_hash).first()
-                    if item is None:
-                        raise
-                else:
-                    raise
+        logger.info(
+            f"PneumaticActuatorCatalogItem создан: {probe.code} (source={model_line_item.pk})"
+        )
+        probe.refresh_from_db()
+        if not probe.sku_id:
+            # sync_sku не привязал SKU (напр. коллизия кода) — досинхронизировать.
+            probe.save()
+            probe.refresh_from_db()
 
-    item.refresh_from_db()
-    return item.sku
+    return probe.sku, True
+
+
+def get_or_create_sku(model_line_item, options: Optional[Dict[str, Any]] = None) -> SKU:
+    """Backward-compat: вернуть только SKU (без флага created)."""
+    sku, _created = materialize_configuration(model_line_item, options)
+    return sku

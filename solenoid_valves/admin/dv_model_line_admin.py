@@ -75,10 +75,10 @@ class DirectionalValveModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePl
 
     fieldsets = (
         (_('Основная информация'), {
-            'fields': (('name', 'code', 'equipment_type',),'description')
+            'fields': (('name', 'code', 'equipment_type',),('description','description_i18n'))
         }),
         (_('Шаблоны генерации'), {
-            'fields': ('name_template', 'description_template'),
+            'fields': ('name_template_i18n', 'description_template_i18n'),
             'description': _('Шаблоны для автоматической генерации названий и описаний конкретных клапанов')
         }),
         (_('Производитель и бренд'), {

@@ -13,7 +13,7 @@ from core.models import StructuredDataMixin , EquipmentTypeMixin
 from core.models import ImageGalleryMixin, TechDocMixin
 from core.models.cert_doc_mixin import CertDocMixin
 from core.models.mixins import CatalogDictMixin, LocalizedModelLineMixin
-from core.utils.localization import DEFAULT_LOCALE , sync_ru , pick_i18n
+from core.utils.localization import DEFAULT_LOCALE , pick_i18n
 from params.models import MountingPlateTypes , StemShapes , StemSize , ActuatorGearboxOutputType , IpOption , \
     BodyCoatingOption , EnvTempParameters , HandWheelInstalledOption
 from params.exd_models import ExdOption
@@ -50,17 +50,6 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
     description_template = models.TextField(blank=True , null=True ,
                                             verbose_name=_("Шаблон описания") ,
                                             help_text=_('Шаблон для описания пневмопривода'))
-    # JSON-шаблон спецификации (вкладка «Характеристики»).
-    # Приоритет: эта серия → EquipmentType.spec_template → {model_code}.
-    spec_template = models.JSONField(blank=True , default=dict ,
-                                     verbose_name=_("Шаблон спецификации") ,
-                                     help_text=_('JSON: {группа: {подпись: ключ_поля}}. Пусто — берётся из типа оборудования.'))
-    spec_template_i18n = models.JSONField(
-        default=dict , blank=True ,
-        verbose_name=_("Переводы шаблона спецификации (ru/en/cn)") ,
-        help_text=_('Локаль — внешний ключ: {"ru": {группа: {подпись: ключ}}, "en": {...}, '
-                    '"cn": {...}}. "ru" синхронизируется с spec_template.')
-    )
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
@@ -616,10 +605,6 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
             }
         }
 
-    def _sync_localized_ru(self) :
-        super()._sync_localized_ru()
-        self.spec_template_i18n = sync_ru(getattr(self , 'spec_template_i18n' , None), getattr(self , 'spec_template' , {}))
-
     def save(self , *args , **kwargs) :
         """Сохранение с трассировкой для диагностики"""
         # import traceback
@@ -647,8 +632,6 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
 
         # Вызываем оригинальный save
         is_new = self.pk is None
-        if kwargs.get('update_fields') is not None :
-            kwargs['update_fields'] = set(kwargs['update_fields']) | {'spec_template_i18n'}
         super().save(*args , **kwargs)
 
         # После создания новой серии создаем опции по умолчанию

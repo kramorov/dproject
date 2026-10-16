@@ -86,7 +86,7 @@ class PosiModelLine(LocalizedModelLineMixin, ImageGalleryMixin, TechDocMixin, Ce
     model_item_code_template = models.CharField(
         max_length=500, blank=True, null=True,
         verbose_name=_("Шаблон артикула"),
-        help_text=_('Шаблон артикула '),
+        help_text=_('Шаблон артикула позиционера в серии'),
     )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Сортировка"),
                                         help_text=_('Порядок сортировки в списке'))

@@ -269,7 +269,7 @@ class PosiModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAd
     ]
     fieldsets = (
         (_('Основная информация'), {
-            'fields': (('name', 'code'), ('equipment_type','acting_type', 'actuator_action'), ('brand', 'producer'), 'description'),
+            'fields': (('name', 'code'), ('equipment_type','acting_type', 'actuator_action'), ('brand', 'producer'), ('description','description_i18n'),),
         }),
         (_('Характеристики'), {
             'fields': (('body_material',  'weight'),
@@ -278,7 +278,7 @@ class PosiModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAd
                        ),
         }),
         (_('Шаблоны'), {
-            'fields': ('name_template', 'description_template', 'model_item_code_template'),
+            'fields': ('name_template_i18n', 'description_template_i18n', 'model_item_code_template'),
         }),
         (_('Изображения и технички'), {
             'fields': ('image_gallery', 'tech_docs', 'cert_docs'),

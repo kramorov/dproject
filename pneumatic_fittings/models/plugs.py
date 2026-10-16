@@ -7,6 +7,7 @@ from pneumatic_fittings.models import PlugSilencerBodyMaterial
 from pneumatic_fittings.models.fitting_parameters import PlugWrenchHeadType
 from pneumatic_fittings.models.abstract_models import AbstractPneumaticFittingModelLine, AbstractPneumaticFitting
 from pneumatic_fittings.filters import _COMMON_FILTER_DEFINITIONS
+from materials.models import MaterialSpecified
 
 class PneumaticPlugModelLine(AbstractPneumaticFittingModelLine):
     """Серия заглушек пневматических."""
@@ -21,6 +22,12 @@ class PneumaticPlugModelLine(AbstractPneumaticFittingModelLine):
                                          on_delete=models.SET_NULL ,
                                          help_text=_('Тип головки заглушки под ключ') ,
                                          verbose_name=_("Тип головки под ключ"))
+    sealing_material_specified = models.ForeignKey(MaterialSpecified,
+                                                   blank=True,
+                                                   null=True,
+                                                   on_delete=models.SET_NULL,
+                                                   help_text=_('Уплотнение'),
+                                                   verbose_name=_('Материал кольца уплотнения'))
 
     class Meta :
         ordering = ['brand' , 'code']
@@ -34,13 +41,13 @@ class PneumaticPlug(AbstractPneumaticFitting):
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'equipment_type', 'temperature_range',
         'thread', 'thread_inner_outer', 'pressure_range',
-        'body_material', 'pressure_min', 'pressure_max',
+        'body_material', 'sealing_material_specified', 'pressure_min', 'pressure_max',
         'temp_min', 'temp_max', 'weight', 'width_across_flats_body', 'wrench_head_type',
     )
 
     VARS_FIELD_KEYS = (
         'code', 'name', 'model_line_name', 'brand_name',
-        'thread', 'thread_inner_outer', 'body_material', 'temperature_range',
+        'thread', 'thread_inner_outer', 'body_material', 'sealing_material_specified', 'temperature_range',
         'pressure_range', 'pressure_min', 'pressure_max', 'temp_min', 'temp_max',
         'weight', 'width_across_flats_body', 'wrench_head_type',
     )

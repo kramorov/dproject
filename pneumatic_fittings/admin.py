@@ -292,7 +292,7 @@ class PneumaticPlugModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlace
             'classes': ('wide',),
         }),
         (_('Тех информация'), {
-            'fields': ('body_material', ('pressure_min', 'pressure_max'), ('temp_min', 'temp_max')),
+            'fields': (('body_material', 'sealing_material_specified'),('pressure_min', 'pressure_max'), ('temp_min', 'temp_max')),
         }),
         (_('Изображения и документация'), {
             'fields': ('image_gallery', 'tech_docs', 'cert_docs'),
