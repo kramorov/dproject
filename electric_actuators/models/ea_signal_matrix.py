@@ -240,9 +240,13 @@ class EaSignalMatrixEntry(CopyMixin, LocalizedDictFieldsMixin):
         if self.heater_supply_id and not self.slot.code.startswith('HEATER_'):
             raise ValidationError(
                 {'heater_supply': _('Питание обогрева — только для слотов HEATER_*.')})
-        if self.device_id and not self.feedback_signal_id:
+        if (self.device_id and not self.feedback_signal_id
+                and not (self.name and not self.control_signal_id
+                         and not self.protocol_id)):
             raise ValidationError(
-                {'device': _('Устройство ОС задаётся только вместе с сигналом ОС.')})
+                {'device': _('Устройство ОС задаётся только вместе с сигналом ОС '
+                             '(или на none-строке с названием, например '
+                             '«Датчик температуры без выхода ОС»).')})
         if (self.device_id and self.feedback_signal_id
                 and not self.device.emits.filter(pk=self.feedback_signal_id).exists()):
             raise ValidationError(

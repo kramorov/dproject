@@ -37,6 +37,14 @@ class AllowedControlUnitOption(models.Model):
         verbose_name=_("Кодировка"),
         help_text=_("Код опции для подстановки в артикул, например «L», «N», «M1»")
     )
+    cu_power_supply = models.ForeignKey(
+        'params.PowerSupplies',
+        on_delete=models.PROTECT, null=True, blank=True,
+        related_name='allowed_cu_power_supplies',
+        verbose_name=_("Питание БУ"),
+        help_text=_("Питание блока управления отдельно от питания привода; "
+                    "пусто — от питания привода")
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name=_("Активно"),

@@ -5,7 +5,20 @@ from django.db import models
 from core.models.mixins import LocalizedDictFieldsMixin, LocalizedNameFieldsMixin
 
 
+class CableGlandHolesSetKind(models.TextChoices):
+    """Вид ввода кабелей: набор отверстий под КВ или разъём."""
+    GLAND_SET = 'GLAND_SET', _('Набор отверстий под кабельные вводы')
+    CONNECTOR_PLUG = 'CONNECTOR_PLUG', _('Разъём (вместо кабельных вводов)')
+
+
 class CableGlandHolesSet(LocalizedNameFieldsMixin):
+    """Набор отверстий под кабельные вводы или разъём."""
+    kind = models.CharField(
+        max_length=20, choices=CableGlandHolesSetKind.choices,
+        default=CableGlandHolesSetKind.GLAND_SET,
+        verbose_name=_('Вид ввода кабелей'),
+        help_text=_('CONNECTOR_PLUG — разъём «подсолнух» вместо отверстий')
+    )
     name = models.CharField(max_length=20, blank=True,
                             help_text='Название варианта набора отверстий под КВ')
     cg1 = models.ForeignKey('params.ThreadSize', related_name='cable_gland1', blank=True, null=True, on_delete=models.SET_NULL,
@@ -26,6 +39,15 @@ class CableGlandHolesSet(LocalizedNameFieldsMixin):
 
     def __str__(self):
         return self.text_description
+
+    def clean(self):
+        """Для разъёма отверстия под КВ не задаются."""
+        super().clean()
+        if self.kind == CableGlandHolesSetKind.CONNECTOR_PLUG:
+            if any(getattr(self, f'cg{i}') for i in (1, 2, 3, 4)):
+                from django.core.exceptions import ValidationError
+                raise ValidationError(
+                    _('Для вида ввода «Разъём» отверстия под КВ не задаются.'))
 
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для набора кабельных вводов"""

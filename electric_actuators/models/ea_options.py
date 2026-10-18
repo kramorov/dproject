@@ -57,12 +57,32 @@ class ElectricHandWheelOption(BaseHandWheelThroughOption):
 
 
 class ElectricTemperatureOption(BaseTemperatureThroughOption):
-    """Температурные опции для электроприводов"""
+    """Температурные опции для электроприводов.
+
+    Плоская шкала (обогреватель привода — свойство строки):
+    STD→NO_HEATER (стандарт); LT/VLT — парами «источник питания обогрева»
+    (SEPARATE_LINE — стандарт, MOTOR_CIRCUIT — опция). Код `code` — для
+    обмена матрицей (xlsx) и ext-кода; `heater_supply` — откуда питается
+    обогреватель привода.
+    """
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
         related_name='temperature_options',
         verbose_name=_("Серия электроприводов")
+    )
+    code = models.CharField(
+        max_length=20, blank=True, default='',
+        verbose_name=_("Код исполнения"),
+        help_text=_("STD/LT/VLT — для обмена xlsx и расширенного кода")
+    )
+    heater_supply = models.ForeignKey(
+        'params.ActuatorHeaterSupply',
+        on_delete=models.PROTECT, null=True, blank=True,
+        related_name='temperature_options',
+        verbose_name=_("Питание обогрева"),
+        help_text=_("Обогреватель привода: NO_HEATER для стандарта, "
+                    "SEPARATE_LINE/MOTOR_CIRCUIT для LT/VLT")
     )
 
     class Meta:

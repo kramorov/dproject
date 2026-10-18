@@ -337,3 +337,68 @@ class EaAdminMatrixIOTests(TestCase):
         body = resp.content.decode('utf-8', 'ignore')
         self.assertIn('name="file"', body)
         self.assertIn('csrfmiddlewaretoken', body)
+
+
+class EaCatalogExt1301Tests(TestCase):
+    """Пакет 13.1: ввод кабелей, устройство на none-строке, temp-опции."""
+
+    def test_connector_plug_rejects_gland_holes(self):
+        from electric_actuators.models import CableGlandHolesSet
+        from params.models import ThreadSize
+        t = ThreadSize.objects.create(name='M20', code='M20')
+        cg = CableGlandHolesSet(
+            kind='CONNECTOR_PLUG', name='Разъём', cg1=t, text_description='x')
+        with self.assertRaises(ValidationError):
+            cg.full_clean()
+        cg.cg1 = None
+        cg.full_clean()  # без отверстий — валидно
+
+    def test_device_on_none_row_with_name(self):
+        from electric_actuators.models import (EaFeedbackDevice,
+                                               EaSignalMatrixEntry, EaSignalSlot,
+                                               ElectricActuatorModelLine,
+                                               ElectricActuatorModelLineItem)
+        from producers.models import Brands
+        from params.models import ControlUnitInstalledOption, PowerSupplies
+        brand = Brands.objects.create(name='AOX-T', code='AOX-T')
+        line = ElectricActuatorModelLine.objects.create(
+            name='Серия T', description='', code='T1', brand=brand)
+        item = ElectricActuatorModelLineItem.objects.create(
+            name='T1', description='', code='T1', model_line=line)
+        dev = EaFeedbackDevice.objects.create(
+            code='THERMAL_RELAY', name='Термореле', technology='BIMETAL',
+            kind='THERMAL_SENSOR')
+        slot = EaSignalSlot.objects.create(
+            code='THERMAL_SENSOR', name='Датчик температуры')
+        cu, _ = ControlUnitInstalledOption.objects.get_or_create(
+            code='none', defaults={'name': 'нет'})
+        ps, _ = PowerSupplies.objects.get_or_create(
+            code='220-AC', defaults={'name': '220/50'})
+        row = EaSignalMatrixEntry(
+            model_line_item=item, slot=slot, mode='both',
+            control_unit=cu, power_supply=ps,
+            name='Датчик температуры без выхода ОС', device=dev,
+            availability='opt')
+        row.full_clean()  # none-строка с device и именем — валидна
+        row2 = EaSignalMatrixEntry(
+            model_line_item=item, slot=slot, mode='both',
+            control_unit=cu, power_supply=ps, device=dev,
+            availability='opt')
+        with self.assertRaises(ValidationError):
+            row2.full_clean()  # device без сигнала и без имени — ошибка
+
+    def test_temperature_option_code_and_heater(self):
+        from electric_actuators.models import (ElectricTemperatureOption,
+                                               ElectricActuatorModelLine)
+        from producers.models import Brands
+        from params.models import ActuatorHeaterSupply
+        brand = Brands.objects.create(name='AOX-T2', code='AOX-T2')
+        line = ElectricActuatorModelLine.objects.create(
+            name='Серия T2', description='', code='T2', brand=brand)
+        hs, _ = ActuatorHeaterSupply.objects.get_or_create(
+            code='SEPARATE_LINE', defaults={'name': 'От отдельной линии'})
+        temp = ElectricTemperatureOption.objects.create(
+            model_line=line, code='LT', heater_supply=hs,
+            work_temp_min=-40, work_temp_max=70)
+        self.assertEqual(temp.code, 'LT')
+        self.assertEqual(temp.heater_supply.code, 'SEPARATE_LINE')

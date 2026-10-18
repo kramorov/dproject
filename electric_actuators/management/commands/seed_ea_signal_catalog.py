@@ -27,7 +27,7 @@ from django.utils.translation import gettext_lazy as _
 
 from electric_actuators.models import (
     EaSignalForm, EaControlSignal, EaFeedbackSignal, EaCommProtocol,
-    EaFeedbackDevice, EaSignalSlot,
+    EaFeedbackDevice, EaSignalSlot, ElectricTemperatureOption,
 )
 
 
@@ -152,6 +152,15 @@ class Command(BaseCommand):
              250, 0.5, None, None, None, 2, False, 'Счётчик оборотов, НО контакт'),
             ('FB_TORQUE_4_20MA', 'TORQUE_ANALOG', 'analog', 'AN_4_20_ACTIVE', None,
              None, None, None, None, None, 2, False, 'Аналоговый момент 4-20 мА'),
+            ('FB_STOP', 'STOP', 'contact', 'DRY_SPST', 'NO',
+             250, 5, None, None, None, 2, False, 'Останов, сухой контакт'),
+            ('FB_LOCAL_REMOTE', 'LOCAL_REMOTE', 'contact', 'DRY_SPDT', 'CHANGEOVER',
+             250, 5, None, None, None, 3, False, 'Удалённое/местное управление'),
+            ('FB_SELECTOR_POSITION', 'SELECTOR_POSITION', 'contact', 'DRY_SPDT',
+             'CHANGEOVER', 250, 5, None, None, None, 3, False,
+             'Положение ключа-селектора'),
+            ('FB_PHASE_LOSS', 'PHASE_LOSS', 'contact', 'DRY_SPST', 'NO',
+             250, 5, None, None, None, 2, False, 'Авария: потеря фазы'),
         ]
         for (code, role, category, form_code, cnormal, max_v, max_a, r_kohm,
              power, turns, wires, hart, name) in feedback_signals:
@@ -185,17 +194,28 @@ class Command(BaseCommand):
 
         # --- Устройства ОС ---
         devices = [
-            ('POT_RAW', 'Потенциометр (свой)', 'POTENTIOMETER', False),
-            ('PRECISION_POT', 'Прецизионный потенциометр (AUMA)', 'POTENTIOMETER', False),
-            ('TRANSMITTER_4_20', 'Трансмиттер 4-20 мА (свой)', 'POT_CONVERTER', False),
-            ('RWG_4020', 'RWG 4020 (AUMA)', 'POT_CONVERTER', False),
-            ('EWG_01_1', 'EWG 01.1 (AUMA)', 'HALL', True),
-            ('MWG', 'MWG (AUMA)', 'MAGNETIC', True),
+            ('POT_RAW', 'Потенциометр (свой)', 'POTENTIOMETER', False,
+             'POSITION_SENSOR'),
+            ('PRECISION_POT', 'Прецизионный потенциометр (AUMA)', 'POTENTIOMETER',
+             False, 'POSITION_SENSOR'),
+            ('TRANSMITTER_4_20', 'Трансмиттер 4-20 мА (свой)', 'POT_CONVERTER',
+             False, 'POSITION_SENSOR'),
+            ('RWG_4020', 'RWG 4020 (AUMA)', 'POT_CONVERTER', False,
+             'POSITION_SENSOR'),
+            ('EWG_01_1', 'EWG 01.1 (AUMA)', 'HALL', True, 'POSITION_SENSOR'),
+            ('MWG', 'MWG (AUMA)', 'MAGNETIC', True, 'POSITION_SENSOR'),
+            ('THERMAL_RELAY', 'Термореле (биметаллическое)', 'BIMETAL', False,
+             'THERMAL_SENSOR'),
+            ('PTC_THERMISTOR', 'PTC-термистор с реле оценки', 'PTC', False,
+             'THERMAL_SENSOR'),
         ]
-        for code, name, technology, contactless in devices:
-            _, created = EaFeedbackDevice.objects.get_or_create(
+        for code, name, technology, contactless, kind in devices:
+            obj, created = EaFeedbackDevice.objects.get_or_create(
                 code=code, defaults={'name': name, 'technology': technology,
-                                     'contactless': contactless})
+                                     'contactless': contactless, 'kind': kind})
+            if not created and obj.kind != kind:
+                obj.kind = kind
+                obj.save(update_fields=['kind'])
             stats['device'] += 1
             new['device'] += int(created)
 
@@ -218,22 +238,79 @@ class Command(BaseCommand):
 
         # --- Слоты ---
         slots = [
+            ('LOCAL_CONTROL', 'Органы местного управления'),
             ('POSITION_FEEDBACK', 'Позиционная обратная связь'),
+            ('CMD', 'Команды управления'),
+            ('SETPOINT', 'Уставка положения'),
             ('LIMIT_SWITCHES', 'Концевые выключатели'),
             ('WAY_SWITCHES', 'Путевые выключатели'),
             ('TORQUE_SWITCHES', 'Моментные выключатели'),
-            ('HEATER_ACTUATOR', 'Обогрев привода'),
+            ('THERMAL_SENSOR', 'Датчик температуры (теплозащита)'),
             ('HEATER_CONTROL_UNIT', 'Обогрев блока управления'),
+            ('INDICATOR', 'Индикация'),
+            ('TURN_COUNTER', 'Счётчик оборотов'),
             ('PROTOCOL', 'Шина (протокол связи)'),
         ]
         for code, name in slots:
-            _, created = EaSignalSlot.objects.get_or_create(
-                code=code, defaults={'name': name})
+            obj, created = EaSignalSlot.objects.get_or_create(
+                code=code, defaults={'name': name, 'is_active': True})
+            if not created and not obj.is_active:
+                obj.is_active = True
+                obj.save(update_fields=['is_active'])
             stats['slot'] += 1
             new['slot'] += int(created)
+        # Обогрев привода ушёл в температурную опцию (плоская шкала LT/VLT)
+        for code in ('HEATER_ACTUATOR',):
+            EaSignalSlot.objects.filter(code=code).update(is_active=False)
 
         self.stdout.write(self.style.SUCCESS(
             'Seed завершён. Всего (создано новых):'))
         for key, label in (('form', 'форм'), ('control', 'команд'), ('feedback', 'сигналов ОС'),
                            ('protocol', 'протоколов'), ('device', 'устройств'), ('slot', 'слотов')):
             self.stdout.write(f'  {label}: {stats[key]} ({new[key]} новых)')
+
+        # --- Питание обогрева БУ (новое значение) ---
+        from params.models import ActuatorHeaterSupply
+        hs, created = ActuatorHeaterSupply.objects.get_or_create(
+            code='CU_CIRCUIT',
+            defaults={'name': 'От цепей питания блока управления'})
+        self.stdout.write(f'ActuatorHeaterSupply CU_CIRCUIT: '
+                          f'{"создано" if created else "уже есть"}')
+
+        # --- Температурные опции: code + heater_supply + MOTOR_CIRCUIT-варианты ---
+        temp_backfilled = 0
+        temp_created = 0
+        for temp in ElectricTemperatureOption.objects.all().select_related(
+                'model_line'):
+            name = temp.name or ''
+            if not temp.code:
+                temp.code = ('STD' if 'Стандарт' in name or 'стандарт' in name
+                             else 'VLT' if 'VLT' in name
+                             else 'LT' if 'LT' in name else '')
+            if 'LT' in name and 'VLT' not in name:
+                temp.code = 'LT'
+            elif 'VLT' in name:
+                temp.code = 'VLT'
+            if not temp.heater_supply_id:
+                temp.heater_supply = (
+                    ActuatorHeaterSupply.objects.get(code='NO_HEATER')
+                    if temp.code == 'STD'
+                    else ActuatorHeaterSupply.objects.get(code='SEPARATE_LINE'))
+            temp.save()
+            temp_backfilled += 1
+            # LT/VLT: добавить вариант «от мотора» (opt), если нет
+            if temp.code in ('LT', 'VLT') and temp.heater_supply_id:
+                motor = ActuatorHeaterSupply.objects.get(code='MOTOR_CIRCUIT')
+                if not ElectricTemperatureOption.objects.filter(
+                        model_line=temp.model_line, code=temp.code,
+                        heater_supply=motor).exists():
+                    ElectricTemperatureOption.objects.create(
+                        model_line=temp.model_line,
+                        work_temp_min=temp.work_temp_min,
+                        work_temp_max=temp.work_temp_max,
+                        code=temp.code, heater_supply=motor,
+                        is_default=False, is_active=temp.is_active)
+                    temp_created += 1
+        self.stdout.write(
+            f'Температурные опции: бэкфилл {temp_backfilled}, '
+            f'MOTOR_CIRCUIT-вариантов создано {temp_created}')

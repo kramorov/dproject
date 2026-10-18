@@ -62,6 +62,10 @@ class EaFeedbackSignalRole(models.TextChoices):
     ALARM = 'ALARM', _('Авария')
     READY = 'READY', _('Готовность')
     TORQUE_ANALOG = 'TORQUE_ANALOG', _('Аналоговый момент')
+    STOP = 'STOP', _('Останов (привод не в работе)')
+    LOCAL_REMOTE = 'LOCAL_REMOTE', _('Режим местное/удалённое управление')
+    SELECTOR_POSITION = 'SELECTOR_POSITION', _('Положение ключа-селектора')
+    PHASE_LOSS = 'PHASE_LOSS', _('Авария: потеря фазы')
 
 
 class _Analog4to20Mixin:

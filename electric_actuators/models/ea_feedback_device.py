@@ -30,12 +30,20 @@ from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
 
 
 class EaFeedbackTechnology(models.TextChoices):
-    """Технология устройства позиционной ОС."""
+    """Технология устройства ОС."""
     POTENTIOMETER = 'POTENTIOMETER', _('Потенциометр')
     POT_CONVERTER = 'POT_CONVERTER', _('Потенциометр + преобразователь')
     HALL = 'HALL', _('Бесконтактный (датчики Холла)')
     MAGNETIC = 'MAGNETIC', _('Магнитный (пределы/момент/положение)')
+    BIMETAL = 'BIMETAL', _('Биметаллическое термореле')
+    PTC = 'PTC', _('PTC-термистор с реле оценки')
     OTHER = 'OTHER', _('Прочее')
+
+
+class EaFeedbackDeviceKind(models.TextChoices):
+    """Категория устройства ОС: позиционный датчик или теплозащита."""
+    POSITION_SENSOR = 'POSITION_SENSOR', _('Датчик положения')
+    THERMAL_SENSOR = 'THERMAL_SENSOR', _('Датчик температуры (теплозащита)')
 
 
 class EaFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -49,6 +57,13 @@ class EaFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMi
         max_length=50, unique=True,
         verbose_name=_("Код"),
         help_text=_("Уникальный код устройства, например «RWG_4020», «MWG»")
+    )
+    kind = models.CharField(
+        max_length=20, choices=EaFeedbackDeviceKind.choices,
+        default=EaFeedbackDeviceKind.POSITION_SENSOR,
+        verbose_name=_("Категория"),
+        help_text=_("Датчик положения (RWG/EWG/потенциометр) или теплозащита "
+                    "(термореле/PTC)")
     )
     name = models.CharField(
         max_length=200,
