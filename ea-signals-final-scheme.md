@@ -615,6 +615,23 @@ round-trip импорта, is_default) → 6) `manage.py check` +
 
 ## 14. Система ext-кода заказа (образец — AUMA; согласовано 2026-10-18)
 
+### 14.0 Реализация ext-кодировок в моделях (2026-10-18)
+
+- `EaSlotOption.ext_encoding` (миграция 0064) — код позиции каждой опции
+  слота (E1/E2, W1/W2, T1/T2, P/T/TA, C/S, D/B/DB/L/LB, M/E/EM/MF/EMF,
+  DC/R/R2, A/P, S/N, T0/T1/T2…); пусто — стандарт.
+- `ElectricTemperatureOption.ext_encoding` — ''/L/LM/V/VM (STD/LT±обогрев/
+  VLT±обогрев); `AllowedControlUnitOption.ext_encoding` — CU_EXT
+  (IO/IL/IN/IM/IP/IH/PT/TR/T0/PR/P0; basic — '').
+- `ext_encoding_template` прописан во все серии ЭП:
+  `{cu}{cu_p}{ps}{mode}{proto}.{end}{way}{torq}.{pos}{hart}.{temp}{h_cu}{therm}.{lc}{cmd}{setp}{cnt}{ind}`.
+- Конструктор: `generated_ext_code` резолвит все позиции (cu/ps/temp — из
+  выбора; сигнальные позиции пусты до матричного выбора, фаза 6).
+- `EquipmentType` («Электропривод», code=electric-actuator): `name_template`
+  (краткое наименование из набора артикула) и `spec_template` (полная
+  спецификация со всеми опциями) + `*_template_i18n` (ru/en/cn). Плейсхолдеры
+  зарезолвятся карточкой каталога (TemplateMixin) — см. фазу 6.
+
 ### 14.1 Принцип
 
 - Код заказа = **основной артикул** (серия+модель+механика: IP/Exd/покрытие/

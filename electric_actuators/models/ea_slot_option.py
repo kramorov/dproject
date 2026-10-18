@@ -86,6 +86,13 @@ class EaSlotOption(CopyMixin, LocalizedDictFieldsMixin):
         verbose_name=_("Название"),
         help_text=_("Для kind=none/pair: имя опции («Блинкер», «Селекторы»…)")
     )
+    ext_encoding = models.CharField(
+        max_length=10, blank=True, default='',
+        verbose_name=_("Ext-код"),
+        help_text=_("Код позиции расширенного кода заказа (ext): E1/E2, "
+                    "W1/W2, T1/T2, P/T/TA, C/S, D/B/DB/L/LB, M/E/EM/MF/EMF…; "
+                    "пусто — стандарт (позиция не кодируется)")
+    )
     description = models.TextField(
         blank=True, verbose_name=_("Описание"),
         help_text=_("Пояснение опции")

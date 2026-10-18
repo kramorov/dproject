@@ -784,6 +784,26 @@ class ElectricActuatorConstructor(models.Model):
         result = result.replace('{voltage}', self._get_option_ext_encoding('selected_power_supply'))
         result = result.replace('{exd}', self._get_option_ext_encoding('selected_exd'))
         result = result.replace('{control_unit}', self._get_option_ext_encoding('selected_control_unit_option'))
+        # ext-позиции (схема 14.2): сигнальные позиции пусты, пока конструктор
+        # не переведён на матричный выбор (фаза 6)
+        result = result.replace('{cu}', self._cu_ext())
+        result = result.replace('{cu_p}', '')
+        result = result.replace('{ps}', self._ps_ext())
+        result = result.replace('{mode}', '')
+        result = result.replace('{proto}', '')
+        result = result.replace('{end}', '')
+        result = result.replace('{way}', '')
+        result = result.replace('{torq}', '')
+        result = result.replace('{pos}', '')
+        result = result.replace('{hart}', '')
+        result = result.replace('{temp}', self._temp_ext())
+        result = result.replace('{h_cu}', '')
+        result = result.replace('{therm}', '')
+        result = result.replace('{lc}', '')
+        result = result.replace('{cmd}', '')
+        result = result.replace('{setp}', '')
+        result = result.replace('{cnt}', '')
+        result = result.replace('{ind}', '')
 
         result = re.sub(r'\.{2,}', '.', result)
         result = re.sub(r'\.\s+', ' ', result)
@@ -794,6 +814,32 @@ class ElectricActuatorConstructor(models.Model):
         result = re.sub(r'[.-]+$', '', result)
         result = re.sub(r'^[.\-\s]+', '', result)
         return result.strip()
+
+    def _cu_ext(self) -> str:
+        """ext-код блока управления (фиксированный справочник CU_EXT)."""
+        from electric_actuators.services.ea_ext_code import CU_EXT
+        cu = self.selected_control_unit_option
+        return CU_EXT.get(cu.code, '') if cu else ''
+
+    def _ps_ext(self) -> str:
+        """ext-код напряжения мотора ('' — 220AC, '3' — 380AC, '2' — 24DC)."""
+        from electric_actuators.services.ea_ext_code import PS_EXT
+        ps = self.selected_power_supply
+        if ps and ps.power_supply_id:
+            return PS_EXT.get(ps.power_supply.code, '')
+        return ''
+
+    def _temp_ext(self) -> str:
+        """ext-код температуры/обогрева привода (''/L/LM/V/VM)."""
+        from electric_actuators.services.ea_ext_code import TEMP_BASE
+        t = self.selected_temperature
+        if not t:
+            return ''
+        base = TEMP_BASE.get(t.code or '', '')
+        if base and t.heater_supply_id and \
+                t.heater_supply.code == 'MOTOR_CIRCUIT':
+            base = base + 'M'
+        return base
 
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация кода"""

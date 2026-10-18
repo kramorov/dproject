@@ -251,9 +251,165 @@ class Command(BaseCommand):
                     c.save(update_fields=['capabilities'])
                     stats['capabilities'] += 1
 
+        # 4. ext-кодировки (позиции расширенного кода заказа)
+        ext_stats = {'slot': 0, 'temp': 0, 'cu': 0, 'tpl': 0}
+        from electric_actuators.services.ea_ext_code import (
+            option_position_code, CU_EXT)
+        from electric_actuators.models import ElectricTemperatureOption
+        for opt in EaSlotOption.objects.filter(is_active=True):
+            pos_code = option_position_code(opt)
+            ext = pos_code[1] if pos_code else ''
+            if opt.ext_encoding != ext:
+                opt.ext_encoding = ext
+                opt.save(update_fields=['ext_encoding'])
+                ext_stats['slot'] += 1
+        TEMP_EXT = {'STD': '', 'LT': 'L', 'VLT': 'V'}
+        for t in ElectricTemperatureOption.objects.filter(is_active=True):
+            base = TEMP_EXT.get(t.code or '', '')
+            ext = base
+            if base and t.heater_supply_id and \
+                    t.heater_supply.code == 'MOTOR_CIRCUIT':
+                ext = base + 'M'
+            if t.ext_encoding != ext:
+                t.ext_encoding = ext
+                t.save(update_fields=['ext_encoding'])
+                ext_stats['temp'] += 1
+        for a in AllowedControlUnitOption.objects.filter(is_active=True):
+            ext = CU_EXT.get(a.control_unit.code, '')
+            if a.ext_encoding != ext:
+                a.ext_encoding = ext
+                a.save(update_fields=['ext_encoding'])
+                ext_stats['cu'] += 1
+        EXT_TPL = ('{cu}{cu_p}{ps}{mode}{proto}.{end}{way}{torq}.'
+                   '{pos}{hart}.{temp}{h_cu}{therm}.{lc}{cmd}{setp}{cnt}{ind}')
+        for ml in ElectricActuatorModelLine.objects.filter(is_active=True):
+            if ml.ext_encoding_template != EXT_TPL:
+                ml.ext_encoding_template = EXT_TPL
+                ml.save(update_fields=['ext_encoding_template'])
+                ext_stats['tpl'] += 1
+
+        # 5. EquipmentType: шаблоны наименования и спецификации (+i18n)
+        from core.models.equipment_type import EquipmentType
+        et = EquipmentType.objects.filter(code='electric-actuator').first()
+        if et is not None:
+            name_ru = ('Электропривод {series_code} {model_code} {torque} Нм '
+                       '{power_supply} {control_unit} {ext_code}')
+            name_en = ('Electric actuator {series_code} {model_code} '
+                       '{torque} Nm {power_supply} {control_unit} {ext_code}')
+            name_cn = ('电动执行器 {series_code} {model_code} {torque} N·m '
+                       '{power_supply} {control_unit} {ext_code}')
+            spec_ru = ('Серия: {series_code}\nМодель: {model_code} ({body_code})\n'
+                       'Момент: {torque} Нм, время закрытия: {time_to_close} с\n'
+                       'Напряжение питания: {power_supply}\n'
+                       'Блок управления: {control_unit}\n'
+                       'Питание БУ: {cu_power_supply}\n'
+                       'Режим: {mode}\n'
+                       'Шина: {protocol}\n'
+                       'Команды: {commands}\n'
+                       'Уставка: {setpoint}\n'
+                       'Концевые выключатели: {end_switches}\n'
+                       'Промежуточные: {way_switches}\n'
+                       'Моментные: {torque_switches}\n'
+                       'Позиционная ОС: {position_feedback}\n'
+                       'HART: {hart}\n'
+                       'Температурное исполнение: {temperature}\n'
+                       'Обогрев БУ: {heater_cu}\n'
+                       'Теплозащита: {thermal_sensor}\n'
+                       'Органы местного управления: {local_control}\n'
+                       'Индикация: {indicator}\n'
+                       'Счётчик: {turn_counter}\n'
+                       'IP: {ip}\n'
+                       'Взрывозащита: {exd}\n'
+                       'Покрытие: {coating}\n'
+                       'Цвет: {color}\n'
+                       'Ручной дублёр: {hand_wheel}\n'
+                       'Угол поворота: {turn_angle}\n'
+                       'Кабельные вводы: {cable_glands}\n'
+                       'Артикул: {article}')
+            spec_en = ('Series: {series_code}\nModel: {model_code} ({body_code})\n'
+                       'Torque: {torque} Nm, closing time: {time_to_close} s\n'
+                       'Power supply: {power_supply}\n'
+                       'Control unit: {control_unit}\n'
+                       'CU power supply: {cu_power_supply}\n'
+                       'Mode: {mode}\n'
+                       'Protocol: {protocol}\n'
+                       'Commands: {commands}\n'
+                       'Setpoint: {setpoint}\n'
+                       'Limit switches: {end_switches}\n'
+                       'Mid-position switches: {way_switches}\n'
+                       'Torque switches: {torque_switches}\n'
+                       'Position feedback: {position_feedback}\n'
+                       'HART: {hart}\n'
+                       'Temperature version: {temperature}\n'
+                       'CU heater: {heater_cu}\n'
+                       'Thermal protection: {thermal_sensor}\n'
+                       'Local controls: {local_control}\n'
+                       'Indicator: {indicator}\n'
+                       'Turn counter: {turn_counter}\n'
+                       'IP: {ip}\n'
+                       'Explosion protection: {exd}\n'
+                       'Coating: {coating}\n'
+                       'Color: {color}\n'
+                       'Handwheel: {hand_wheel}\n'
+                       'Rotation angle: {turn_angle}\n'
+                       'Cable glands: {cable_glands}\n'
+                       'Article: {article}')
+            spec_cn = ('系列: {series_code}\n型号: {model_code} ({body_code})\n'
+                       '力矩: {torque} N·m, 关闭时间: {time_to_close} s\n'
+                       '电源: {power_supply}\n'
+                       '控制单元: {control_unit}\n'
+                       '控制单元电源: {cu_power_supply}\n'
+                       '模式: {mode}\n'
+                       '总线: {protocol}\n'
+                       '指令: {commands}\n'
+                       '设定值: {setpoint}\n'
+                       '限位开关: {end_switches}\n'
+                       '中间位置开关: {way_switches}\n'
+                       '力矩开关: {torque_switches}\n'
+                       '位置反馈: {position_feedback}\n'
+                       'HART: {hart}\n'
+                       '温度版本: {temperature}\n'
+                       '控制单元加热: {heater_cu}\n'
+                       '热保护: {thermal_sensor}\n'
+                       '就地控制: {local_control}\n'
+                       '指示: {indicator}\n'
+                       '计数器: {turn_counter}\n'
+                       '防护等级: {ip}\n'
+                       '防爆: {exd}\n'
+                       '涂层: {coating}\n'
+                       '颜色: {color}\n'
+                       '手轮: {hand_wheel}\n'
+                       '旋转角度: {turn_angle}\n'
+                       '电缆接头: {cable_glands}\n'
+                       '物料号: {article}')
+            changed = []
+            if et.name_template != name_ru:
+                et.name_template = name_ru
+                changed.append('name_template')
+            if et.name_template_i18n.get('ru') != name_ru or \
+                    et.name_template_i18n.get('en') != name_en or \
+                    et.name_template_i18n.get('cn') != name_cn:
+                et.name_template_i18n = {'ru': name_ru, 'en': name_en,
+                                         'cn': name_cn}
+                changed.append('name_template_i18n')
+            if et.spec_template != spec_ru:
+                et.spec_template = spec_ru
+                changed.append('spec_template')
+            if et.spec_template_i18n.get('ru') != spec_ru or \
+                    et.spec_template_i18n.get('en') != spec_en or \
+                    et.spec_template_i18n.get('cn') != spec_cn:
+                et.spec_template_i18n = {'ru': spec_ru, 'en': spec_en,
+                                         'cn': spec_cn}
+                changed.append('spec_template_i18n')
+            if changed:
+                et.save(update_fields=changed)
+
         self.stdout.write(self.style.SUCCESS(
             'Готово: Allowed создано %d/обновлено %d, INDICATOR строк %d, '
-            'capabilities %d' % (stats['allowed_created'],
-                                 stats['allowed_updated'],
-                                 stats['indicator_created'],
-                                 stats['capabilities'])))
+            'capabilities %d; ext: опции слотов %d, temp %d, БУ %d, '
+            'шаблоны серий %d' % (stats['allowed_created'],
+                                  stats['allowed_updated'],
+                                  stats['indicator_created'],
+                                  stats['capabilities'],
+                                  ext_stats['slot'], ext_stats['temp'],
+                                  ext_stats['cu'], ext_stats['tpl'])))
