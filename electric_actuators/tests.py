@@ -451,11 +451,12 @@ class EaMatrixFrameworkTests(TestCase):
             mode='on_off', slot=cls.slot, feedback_signal=cls.sig,
             option=cls.opt, availability='std')
 
-    def test_framework_covers_all_items(self):
+    def test_framework_covers_items_with_pairs(self):
         from electric_actuators.services.ea_matrix_io import export_series_rows
         rows = export_series_rows('TF')
         item_codes = {r['item_code'] for r in rows}
-        self.assertEqual(item_codes, {'F1', 'F2'})
+        # пары per-модель: F1 имеет матричную строку, F2 — без пар → нет строк
+        self.assertEqual(item_codes, {'F1'})
         r1 = [r for r in rows if r['item_code'] == 'F1'
               and r['option_code'] == 'LIMIT_SWITCHES:FB_END_OPEN_SPDT']
         r2 = [r for r in rows if r['item_code'] == 'F2'
@@ -463,8 +464,7 @@ class EaMatrixFrameworkTests(TestCase):
         self.assertEqual(len(r1), 1)
         self.assertEqual(r1[0]['availability'], 'std')
         self.assertTrue(r1[0]['is_default'])  # std → default
-        self.assertEqual(len(r2), 1)
-        self.assertEqual(r2[0]['availability'], '')  # пустая ячейка каркаса
+        self.assertEqual(r2, [])
 
     def test_import_skips_empty_cells(self):
         from electric_actuators.services.ea_matrix_io import (
@@ -764,4 +764,93 @@ class Phase7LegacyRemovalSmokeTests(TestCase):
         list(qs[:1])  # select_related без удалённых полей
         data = vs._serialize(self.constructor)
         self.assertEqual(data['id'], self.constructor.id)
+
+
+class AllowedCuAndIndicatorTests(TestCase):
+    """Модельные перекрытия AllowedControlUnitOption и INDICATOR-правило
+    бренда (заливка правил пользователя 2026-10-18)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from producers.models import Brands
+        from params.models import ControlUnitInstalledOption, PowerSupplies
+        from electric_actuators.models import (ElectricActuatorModelLine,
+                                               ElectricActuatorModelLineItem,
+                                               AllowedControlUnitOption)
+        cls.brand = Brands.objects.create(name='T-B', code='T-B')
+        cls.line = ElectricActuatorModelLine.objects.create(
+            name='Серия T', description='', code='TA', brand=cls.brand)
+        cls.m1 = ElectricActuatorModelLineItem.objects.create(
+            model_line=cls.line, name='M1', code='M1')
+        cls.m2 = ElectricActuatorModelLineItem.objects.create(
+            model_line=cls.line, name='M2', code='M2')
+        cls.cu_int, _ = ControlUnitInstalledOption.objects.get_or_create(
+            code='int-t', defaults={'name': 'INT/T'})
+        cls.ps220, _ = PowerSupplies.objects.get_or_create(
+            code='220-AC', defaults={'name': '220/50'})
+        cls.ps380, _ = PowerSupplies.objects.get_or_create(
+            code='380-AC', defaults={'name': '380/50'})
+        AllowedControlUnitOption.objects.create(
+            model_line=cls.line, control_unit=cls.cu_int,
+            power_supply=cls.ps380, encoding='INT/T', is_active=True)
+        # Запрет пары для модели M1 (перекрытие серийной строки)
+        AllowedControlUnitOption.objects.create(
+            model_line=cls.line, control_unit=cls.cu_int,
+            power_supply=cls.ps380, model_line_item=cls.m1,
+            encoding='INT/T', is_active=False)
+        # Слот+опция — чтобы каркас экспорта не был пустым
+        from electric_actuators.models import EaSignalSlot, EaSlotOption
+        cls.slot = EaSignalSlot.objects.create(
+            code='LIMIT_SWITCHES3', name='Концевые3')
+        EaSlotOption.objects.create(
+            code='LIMIT_SWITCHES3:END_SPDT', slot=cls.slot, kind='pair',
+            name='Концевые SPDT')
+
+    def test_resolve_cu_pair_model_override(self):
+        from electric_actuators.models.ea_allowed_options import resolve_cu_pair
+        self.assertIsNone(resolve_cu_pair(self.line, self.m1, self.cu_int,
+                                          self.ps380))
+        self.assertIsNotNone(resolve_cu_pair(self.line, self.m2, self.cu_int,
+                                             self.ps380))
+        # пара (БУ×220) вообще не объявлена — недоступна для любой модели
+        self.assertIsNone(resolve_cu_pair(self.line, self.m1, self.cu_int,
+                                          self.ps220))
+
+    def test_export_pairs_respect_model_override(self):
+        from electric_actuators.services.ea_matrix_io import export_series_rows
+        rows = export_series_rows('TA')
+        m1 = [r for r in rows if r['item_code'] == 'M1'
+              and r['control_unit'] == 'int-t'
+              and r['power_supply'] == '380-AC']
+        m2 = [r for r in rows if r['item_code'] == 'M2'
+              and r['control_unit'] == 'int-t'
+              and r['power_supply'] == '380-AC']
+        self.assertEqual(m1, [])
+        self.assertTrue(m2)
+
+    def test_indicator_brand_rule_resolves(self):
+        """INDICATOR-строка бренда видна для модели любой серии бренда."""
+        from params.models import ControlUnitInstalledOption, PowerSupplies
+        from electric_actuators.models import (EaSignalSlot, EaSlotOption,
+                                               EaSignalMatrixEntry)
+        from electric_actuators.services.ea_signal_resolver import resolve_matrix
+        none, _ = ControlUnitInstalledOption.objects.get_or_create(
+            code='none-t', defaults={'name': 'нет-t'})
+        slot = EaSignalSlot.objects.create(code='INDICATOR2', name='Индикация2')
+        opt = EaSlotOption.objects.create(
+            code='INDICATOR2:BLINKER', slot=slot, kind='none',
+            name='Блинкер')
+        EaSignalMatrixEntry.objects.create(
+            brand=self.brand, control_unit=none, power_supply=self.ps220,
+            mode='both', slot=slot, option=opt, availability='std',
+            name='Блинкер', is_default=True)
+        res = resolve_matrix(self.m1, none, self.ps220, 'on_off')
+        rows = []
+        for s in res['slots']:
+            if s['code'] == 'INDICATOR2':
+                rows = s['rows']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['availability'], 'std')
+        self.assertTrue(rows[0]['is_default'])
+
 

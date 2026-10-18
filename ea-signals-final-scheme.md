@@ -341,8 +341,16 @@ signal.code, heater_supply.code, form.code, body.code/item.code) — по ним
   (STD→NO_HEATER, LT/VLT × SEPARATE_LINE/MOTOR_CIRCUIT) + is_default;
 - `cu_options` — пары БУ×напряжение (`AllowedControlUnitOption`) с
   **питанием БУ** (cu_power_supply) и кодировками encoding/ext_encoding;
+  колонка item_code — модельные перекрытия серийной пары
+  (is_active=False — запрет пары для модели);
 - `turn_counters` — разрешённые **счётчики** серии (`AllowedTurnCounterOption`);
   лист создаётся и пустым (заголовок — подсказка для заполнения).
+
+Оси пар (БУ×напряжение) — per-модель: серийные активные пары +
+перекрытия модели (`AllowedControlUnitOption.model_line_item`, миграция 0061;
+`resolve_cu_pair` — резолвер с запретами) + пары строк матрицы. Модели без
+пар в каркас не попадают. Правило стартера: БУ×380 — только с БУ (при none
+встроенного пускателя нет) → пары none×380 запрещены во всех сериях.
 
 Реализация: `services/ea_matrix_io.py` (`export_series_rows`,
 `export_extra_sheets`, `write_xlsx`) + management-команды

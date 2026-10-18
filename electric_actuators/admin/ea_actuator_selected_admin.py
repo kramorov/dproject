@@ -101,28 +101,27 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
             return JsonResponse({'options' : []})
 
         try :
-            from electric_actuators.models import (ElectricPowerSupplyOption,
-                                                   AllowedControlUnitOption)
+            from electric_actuators.models import ElectricPowerSupplyOption
+            from electric_actuators.models.ea_allowed_options import resolve_cu_pair
+            from params.models import ControlUnitInstalledOption
 
             pso = ElectricPowerSupplyOption.objects.select_related(
                 'power_supply', 'model_line_item__model_line').get(
                 id=power_supply_id)
             line = pso.model_line_item.model_line
-            # БУ для напряжения — из новой связки серия×БУ×напряжение
-            options = [
-                o for o in AllowedControlUnitOption.objects.filter(
-                    model_line=line, is_active=True).select_related(
-                    'control_unit', 'power_supply')
-                if o.power_supply_id in (None, pso.power_supply_id)
-            ]
-
+            # БУ для (модель × напряжение) — резолвер пар с перекрытием модели
             options_list = []
-            for option in options :
+            for cu in ControlUnitInstalledOption.objects.filter(
+                    is_active=True).order_by('sorting_order', 'id'):
+                row = resolve_cu_pair(line, pso.model_line_item, cu,
+                                      pso.power_supply)
+                if row is None:
+                    continue
                 options_list.append({
-                    'id' : option.id ,
-                    'control_unit_id' : option.control_unit.id ,
-                    'control_unit_name' : str(option.control_unit) ,
-                    'encoding' : option.encoding or '' ,
+                    'id' : row.id ,
+                    'control_unit_id' : row.control_unit.id ,
+                    'control_unit_name' : str(row.control_unit) ,
+                    'encoding' : row.encoding or '' ,
                     'is_default' : False ,
                     'description' : '' ,
                 })

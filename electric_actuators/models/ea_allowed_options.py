@@ -50,6 +50,14 @@ class AllowedControlUnitOption(models.Model):
         verbose_name=_("Напряжение питания мотора"),
         help_text=_("Напряжение, на котором доступен этот БУ (пусто — любое)")
     )
+    model_line_item = models.ForeignKey(
+        'ElectricActuatorModelLineItem',
+        on_delete=models.CASCADE, null=True, blank=True,
+        related_name='allowed_cu_options',
+        verbose_name=_("Модель"),
+        help_text=_("Перекрытие серийной пары для конкретной модели; "
+                    "is_active=False — запрет пары (БУ×напряжение) для модели")
+    )
     cu_power_supply = models.ForeignKey(
         'params.PowerSupplies',
         on_delete=models.PROTECT, null=True, blank=True,
@@ -71,11 +79,35 @@ class AllowedControlUnitOption(models.Model):
     class Meta:
         verbose_name = _("Разрешённый БУ для серии")
         verbose_name_plural = _("Разрешённые БУ для серий")
-        unique_together = ['model_line', 'control_unit', 'power_supply']
+        unique_together = ['model_line', 'control_unit', 'power_supply',
+                           'model_line_item']
         ordering = ['sorting_order']
 
     def __str__(self):
         return f"{self.model_line} → {self.control_unit} ({self.encoding})"
+
+
+def resolve_cu_pair(model_line, model_line_item, control_unit, power_supply):
+    """Разрешение пары (модель, БУ, напряжение) для серии.
+
+    Строки уровня модели (model_line_item=X) перекрывают серийные
+    (model_line_item=None); конкретное напряжение перекрывает «любое»
+    (power_supply=None). Строка с is_active=False — запрет: пара недоступна.
+
+    Возвращает AllowedControlUnitOption или None (пара недоступна).
+    """
+    qs = AllowedControlUnitOption.objects.filter(
+        model_line=model_line, control_unit=control_unit,
+        power_supply__in=[power_supply, None])
+    item_row = qs.filter(model_line_item=model_line_item).order_by(
+        '-power_supply_id').first()
+    if item_row is not None:
+        return item_row if item_row.is_active else None
+    series_row = qs.filter(model_line_item__isnull=True).order_by(
+        '-power_supply_id').first()
+    if series_row is not None:
+        return series_row if series_row.is_active else None
+    return None
 
 
 class AllowedTurnCounterOption(models.Model):

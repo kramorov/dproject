@@ -31,8 +31,8 @@ FIELDS = ['series_code', 'item_code', 'body_code', 'control_unit',
 # Дополнительные листы (не-матричные опции, влияющие на сигналы/оснащение)
 TEMP_FIELDS = ['series_code', 'temp_code', 'heater_supply', 'is_default',
                'work_temp_min', 'work_temp_max', 'encoding', 'ext_encoding']
-CU_FIELDS = ['series_code', 'control_unit', 'power_supply', 'cu_power_supply',
-             'encoding', 'ext_encoding', 'is_active']
+CU_FIELDS = ['series_code', 'item_code', 'control_unit', 'power_supply',
+             'cu_power_supply', 'encoding', 'ext_encoding', 'is_active']
 COUNTER_FIELDS = ['series_code', 'turn_counter', 'encoding', 'is_active']
 
 
@@ -108,20 +108,33 @@ def _series_matrix_qs(line):
         | Q(body__model_line=line) | Q(model_line_item__model_line=line))
 
 
-def _series_pairs(line):
-    """Пары (cu_code, ps_code, mode) серии: матрица + разрешённые БУ×напряжение
-    (AllowedControlUnitOption — новая связка; режим для БУ — both)."""
-    pairs = set()
-    qs = _series_matrix_qs(line)
-    for r in qs.values('control_unit__code', 'power_supply__code',
-                       'mode').distinct():
-        pairs.add((r['control_unit__code'], r['power_supply__code'], r['mode']))
+def _item_pairs(line, item):
+    """Пары (cu_code, ps_code, mode) для конкретной модели: активные
+    серийные AllowedControlUnitOption + перекрытия модели (is_active=False —
+    запрет) + пары строк матрицы бренда/серии/корпуса/модели."""
     from electric_actuators.models import AllowedControlUnitOption
+    pairs = set()
     for a in AllowedControlUnitOption.objects.filter(
-            model_line=line, is_active=True,
+            model_line=line, model_line_item__isnull=True, is_active=True,
             power_supply__isnull=False).select_related(
             'control_unit', 'power_supply'):
         pairs.add((a.control_unit.code, a.power_supply.code, 'both'))
+    for a in AllowedControlUnitOption.objects.filter(
+            model_line=line, model_line_item=item,
+            power_supply__isnull=False).select_related(
+            'control_unit', 'power_supply'):
+        pair = (a.control_unit.code, a.power_supply.code, 'both')
+        if a.is_active:
+            pairs.add(pair)
+        else:
+            pairs.discard(pair)
+    qs = _series_matrix_qs(line).filter(
+        Q(body__isnull=True, model_line_item__isnull=True)
+        | Q(body=item.body) | Q(model_line_item=item))
+    for r in qs.values('control_unit__code', 'power_supply__code',
+                       'mode').distinct():
+        pairs.add((r['control_unit__code'], r['power_supply__code'],
+                   r['mode']))
     return pairs
 
 
@@ -139,12 +152,12 @@ def export_series_rows(model_line_code):
     cus = {c.code: c for c in ControlUnitInstalledOption.objects.all()}
     pss = {p.code: p for p in PowerSupplies.objects.all()}
     matrix_qs = _series_matrix_qs(line)
-    pairs = sorted(_series_pairs(line))
 
     rows = []
     for item in items:
         body_code = _scope_body_code(item.body)
         item_code = item.code or item.name
+        pairs = sorted(_item_pairs(line, item))
         for cu_code, ps_code, mode in pairs:
             cu, ps = cus.get(cu_code), pss.get(ps_code)
             if not cu or not ps:
@@ -283,15 +296,19 @@ def export_extra_sheets(model_line_code):
     ]
 
     cu_rows = [
-        {'series_code': line.code, 'control_unit': a.control_unit.code,
+        {'series_code': line.code,
+         'item_code': (a.model_line_item.code or a.model_line_item.name)
+         if a.model_line_item_id else '',
+         'control_unit': a.control_unit.code,
          'power_supply': a.power_supply.code if a.power_supply_id else '',
          'cu_power_supply': a.cu_power_supply.code if a.cu_power_supply_id else '',
          'encoding': a.encoding or '', 'ext_encoding': a.ext_encoding or '',
          'is_active': bool(a.is_active)}
         for a in AllowedControlUnitOption.objects.filter(
             model_line=line).select_related(
-            'control_unit', 'power_supply', 'cu_power_supply').order_by(
-            'control_unit__code', 'power_supply__code')
+            'control_unit', 'power_supply', 'cu_power_supply',
+            'model_line_item').order_by(
+            'model_line_item_id', 'control_unit__code', 'power_supply__code')
     ]
 
     counter_rows = [
