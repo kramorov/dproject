@@ -59,7 +59,8 @@ def selection_ext_code(model_line_item, selected_row_ids, temp_option=None,
         if pc:
             selection.setdefault(pc[0], pc[1])
     if temp_option is not None and getattr(temp_option, 'code', ''):
-        base = {'LT': 'L', 'VLT': 'V'}.get(temp_option.code, '')
+        from electric_actuators.services.ea_ext_code import TEMP_BASE
+        base = TEMP_BASE.get(temp_option.code, '')
         if (base and temp_option.heater_supply_id
                 and temp_option.heater_supply.code == 'MOTOR_CIRCUIT'):
             base += 'M'

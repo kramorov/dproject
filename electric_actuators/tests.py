@@ -531,7 +531,7 @@ class EaExtCodeTests(TestCase):
         AllowedControlUnitOption.objects.create(
             model_line=cls.line, control_unit=cls.cu_int,
             power_supply=cls.ps220, encoding='INT/O',
-            ext_encoding='IO', is_active=True)
+            ext_encoding='LCU', is_active=True)
         no_heater, _ = ActuatorHeaterSupply.objects.get_or_create(
             code='NO_HEATER', defaults={'name': 'Нет обогрева'})
         sep, _ = ActuatorHeaterSupply.objects.get_or_create(
@@ -582,11 +582,11 @@ class EaExtCodeTests(TestCase):
     def test_coding_rules_structure(self):
         from electric_actuators.services.ea_ext_code import coding_rules
         rules = coding_rules(self.line)
-        self.assertEqual(len(rules), 5)
+        self.assertEqual(len(rules), 6)
         self.assertEqual([b['key'] for b in rules],
-                         ['bu', 'sw', 'fb', 'cl', 'op'])
+                         ['bu', 'env', 'sw', 'fb', 'cl', 'op'])
         cu_opts = {o['code'] for o in rules[0]['positions'][0]['options']}
-        self.assertIn('IO', cu_opts)
+        self.assertIn('LCU', cu_opts)
         temp_opts = {o['code']
                      for b in rules for p in b['positions']
                      if p['key'] == 'temp' for o in p['options']}
@@ -596,12 +596,12 @@ class EaExtCodeTests(TestCase):
     def test_build_decode_roundtrip(self):
         from electric_actuators.services.ea_ext_code import (
             build_ext_code, decode_ext_code)
-        selection = {'cu': 'IO', 'cu_p': 'X', 'ps': '3', 'mode': 'M',
+        selection = {'cu': 'LCU', 'cu_p': 'X', 'ps': '380AC', 'mode': 'M',
                      'end': 'E1', 'temp': 'LM', 'therm': 'T1'}
         code = build_ext_code(self.line, selection)
-        self.assertIn('IOX3M', code)
+        self.assertIn('LCUX380ACM', code)
         self.assertIn('E1', code)
-        self.assertIn('LMT1', code)
+        self.assertIn('LMN0T1', code)
         decoded, warnings = decode_ext_code(self.line, code)
         self.assertEqual(warnings, [])
         for pos, sel_code in selection.items():
@@ -615,21 +615,22 @@ class EaExtCodeTests(TestCase):
         from electric_actuators.services.ea_ext_code import build_ext_code
         with self.assertRaises(ValueError):
             build_ext_code(self.line, {'cu': 'ZZ'})  # неизвестный код
-        with self.assertRaises(ValueError):
-            build_ext_code(self.line, {'cu_p': 'X'})  # питание БУ без БУ
+        # питание БУ без БУ — дефолт P0, код строится (хэш-полнота)
+        code = build_ext_code(self.line, {'cu_p': 'X'})
+        self.assertIn('P0', code)
 
     def test_decode_op_block_unambiguous(self):
-        """Ревью №7 F2: 'DB' — индикация LED+блинкер, а не cmd+ind."""
+        """'DB' — индикация LED+блинкер, а не cmd+ind; 'D' — команда О/С/З 24DC."""
         from electric_actuators.services.ea_ext_code import (
             build_ext_code, decode_ext_code)
         code_db = build_ext_code(self.line, {'ind': 'DB'})
         decoded, warnings = decode_ext_code(self.line, code_db)
         self.assertEqual(decoded['ind']['code'], 'DB')
-        self.assertEqual(decoded['cmd']['code'], '')
-        code_dc = build_ext_code(self.line, {'cmd': 'DC'})
-        decoded2, warnings2 = decode_ext_code(self.line, code_dc)
-        self.assertEqual(decoded2['cmd']['code'], 'DC')
-        self.assertEqual(decoded2['ind']['code'], '')
+        self.assertEqual(decoded['cmd']['code'], 'N0')
+        code_d = build_ext_code(self.line, {'cmd': 'D'})
+        decoded2, warnings2 = decode_ext_code(self.line, code_d)
+        self.assertEqual(decoded2['cmd']['code'], 'D')
+        self.assertEqual(decoded2['ind']['code'], 'N0')
 
     def test_configurator_data_and_ext_from_rows(self):
         """Фаза 6: слоты конфигуратора + ext-код из выбранных строк матрицы."""
@@ -675,7 +676,7 @@ class EaExtCodeTests(TestCase):
             model_line=self.line, code='LT',
             heater_supply__code='SEPARATE_LINE')
         code2 = selection_ext_code(item, row_ids, temp_option=temp,
-                                   context={'cu': 'IO'})
+                                   context={'cu': 'LCU'})
         self.assertIn('E1', code2)
         self.assertIn('L', code2)
 
@@ -900,7 +901,7 @@ class AllowedCuAndIndicatorTests(TestCase):
         cu_io, _ = ControlUnitInstalledOption.objects.get_or_create(
             code='int-o', defaults={'name': 'INT/O'})
         c.selected_control_unit_option = cu_io
-        self.assertEqual(c._cu_ext(), 'IO')
+        self.assertEqual(c._cu_ext(), 'LCU')
         motor, _ = ActuatorHeaterSupply.objects.get_or_create(
             code='MOTOR_CIRCUIT', defaults={'name': 'От цепей устройства'})
         t = ElectricTemperatureOption.objects.create(

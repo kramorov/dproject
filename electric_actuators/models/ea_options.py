@@ -133,6 +133,13 @@ class ElectricExdOption(BaseM2MExdThroughOption):
         verbose_name_plural = _("Опции взрывозащиты электроприводов")
         ordering = ['is_default', 'sorting_order']
 
+    exd_short = models.CharField(
+        max_length=50, blank=True, default='',
+        verbose_name=_("Краткое обозначение Ex"),
+        help_text=_("Сокращённый код взрывозащиты для ext-кода "
+                    "(напр. «IIC T5 Gb X»)")
+    )
+
     @classmethod
     def _get_parent_field_name(cls):
         return 'model_line'

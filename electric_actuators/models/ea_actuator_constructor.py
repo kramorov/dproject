@@ -143,6 +143,16 @@ class ElectricActuatorConstructor(models.Model):
         help_text=_('Выбранная температурная опция')
     )
 
+    selected_battery_option = models.ForeignKey(
+        'electric_actuators.ElectricBatteryOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Батарея положения безопасности"),
+        help_text=_('Опция BAT: с батареей можно выбрать положение '
+                    'безопасности НЗ/НО (без неё — только оставаться в '
+                    'текущем положении)')
+    )
+
     # t° поля — синхронизируются с selected_temperature в save()
     work_temp_min = models.IntegerField(
         default=0,
@@ -237,6 +247,12 @@ class ElectricActuatorConstructor(models.Model):
             'through_model_path': 'electric_actuators.models.ea_options.ElectricTemperatureOption',
             'through_attr': None,  # ElectricTemperatureOption САМА является опцией
             'label': 'температурная опция',
+            'parent_field': 'model_line',
+        },
+        'selected_battery_option': {
+            'through_model_path': 'electric_actuators.models.ea_battery_option.ElectricBatteryOption',
+            'through_attr': None,
+            'label': 'батарея положения безопасности',
             'parent_field': 'model_line',
         },
         'selected_ip': {
@@ -797,6 +813,9 @@ class ElectricActuatorConstructor(models.Model):
         result = result.replace('{pos}', '')
         result = result.replace('{hart}', '')
         result = result.replace('{temp}', self._temp_ext())
+        result = result.replace('{ip}', self._ip_ext())
+        result = result.replace('{exd}', self._exd_ext())
+        result = result.replace('{bat}', self._bat_ext())
         result = result.replace('{h_cu}', '')
         result = result.replace('{therm}', '')
         result = result.replace('{lc}', '')
@@ -840,6 +859,25 @@ class ElectricActuatorConstructor(models.Model):
                 t.heater_supply.code == 'MOTOR_CIRCUIT':
             base = base + 'M'
         return base
+
+    def _ip_ext(self) -> str:
+        """ext-код степени защиты: код IpOption (IP54…IP69) или 'IP00'."""
+        ip = self.selected_ip
+        if ip and getattr(ip, 'ip_option_id', None):
+            return ip.ip_option.code or 'IP00'
+        return 'IP00'
+
+    def _exd_ext(self) -> str:
+        """ext-код взрывозащиты: exd_short записи или 'EX0'."""
+        exd = self.selected_exd
+        if exd:
+            return exd.exd_short or exd.encoding or 'EX0'
+        return 'EX0'
+
+    def _bat_ext(self) -> str:
+        """ext-код батареи положения безопасности: 'BAT' или 'B0'."""
+        bat = self.selected_battery_option
+        return bat.ext_encoding if (bat and bat.ext_encoding) else 'B0'
 
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация кода"""

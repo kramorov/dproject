@@ -299,6 +299,7 @@ class Command(BaseCommand):
                 ('NONE', 'none', None, 'Без органов управления (без БУ)'),
             ],
             'CMD': [
+                ('NONE', 'none', None, 'Без команд управления'),
                 ('CMD_OCS_220AC', 'control', None, None),
                 ('CMD_OCS_24DC', 'control', None, None),
                 ('CMD_REMOTE_220AC', 'control', None, None),
@@ -321,6 +322,7 @@ class Command(BaseCommand):
                 ('CMD_ESD_CLOSE_220AC', 'control', None, None),
             ],
             'SETPOINT': [
+                ('NONE', 'none', None, 'Без уставки'),
                 ('CMD_POS_4_20MA_ACTIVE', 'control', None, None),
                 ('CMD_POS_4_20MA_PASSIVE', 'control', None, None),
                 ('CMD_POS_0_10V_ACTIVE', 'control', None, None),
@@ -339,6 +341,7 @@ class Command(BaseCommand):
                 ('TORQUE_DPDT', 'pair', None, 'Моментные DPDT (Откр/Закр)'),
             ],
             'POSITION_FEEDBACK': [
+                ('NONE', 'none', None, 'Без позиционной ОС'),
                 ('FB_POS_4_20MA_ACTIVE', 'signal', None, None),
                 ('FB_POS_4_20MA_ACTIVE_HART', 'signal', None, None),
                 ('FB_POS_4_20MA_PASSIVE', 'signal', None, None),
@@ -347,6 +350,7 @@ class Command(BaseCommand):
                 ('FB_POS_0_10V', 'signal', None, None),
             ],
             'PROTOCOL': [
+                ('NONE', 'none', None, 'Без шины'),
                 ('MODBUS_RTU', 'protocol', None, None),
                 ('MODBUS_TCP', 'protocol', None, None),
                 ('PROFIBUS_DP', 'protocol', None, None),
@@ -369,6 +373,7 @@ class Command(BaseCommand):
                 ('SEPARATE_LINE', 'heater', None, 'Отдельная линия'),
             ],
             'INDICATOR': [
+                ('NONE', 'none', None, 'Без индикатора'),
                 ('LED_SET', 'none', None,
                  'Светодиоды ОТКРЫТО/ЗАКРЫТО/ХОД/АВАРИЯ/СТОП'),
                 ('BLINKER', 'none', None, 'Блинкер (мигающий светодиод)'),

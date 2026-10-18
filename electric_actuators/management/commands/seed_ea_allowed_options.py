@@ -280,13 +280,40 @@ class Command(BaseCommand):
                 a.ext_encoding = ext
                 a.save(update_fields=['ext_encoding'])
                 ext_stats['cu'] += 1
-        EXT_TPL = ('{cu}{cu_p}{ps}{mode}{proto}.{end}{way}{torq}.'
-                   '{pos}{hart}.{temp}{h_cu}{therm}.{lc}{cmd}{setp}{cnt}{ind}')
+        EXT_TPL = ('{cu}{cu_p}{ps}{mode}{proto}.{ip}{exd}.'
+                   '{end}{way}{torq}.{pos}{hart}.{temp}{h_cu}{therm}.'
+                   '{lc}{cmd}{setp}{cnt}{ind}{bat}')
         for ml in ElectricActuatorModelLine.objects.filter(is_active=True):
             if ml.ext_encoding_template != EXT_TPL:
                 ml.ext_encoding_template = EXT_TPL
                 ml.save(update_fields=['ext_encoding_template'])
                 ext_stats['tpl'] += 1
+
+        # 4a. BAT для AR11E + exd_short у Ex-опций
+        from electric_actuators.models import (ElectricBatteryOption,
+                                               ElectricExdOption)
+        line_ar11 = lines.get('AR11E')
+        if line_ar11 is not None:
+            bat, created = ElectricBatteryOption.objects.get_or_create(
+                model_line=line_ar11,
+                defaults={'encoding': 'BAT', 'ext_encoding': 'BAT',
+                          'is_default': False})
+            if not created:
+                bat.ext_encoding = 'BAT'
+                bat.save(update_fields=['ext_encoding'])
+        for e in ElectricExdOption.objects.filter(is_active=True):
+            short = ''
+            if e.encoding or e.ext_encoding:
+                # краткое: из name «… Ex db IIC T5 Gb X» → «IIC T5 Gb X»
+                import re
+                m = re.search(r'Ex db (.+)$', (e.name or ''))
+                if m:
+                    short = m.group(1).strip()
+                elif not e.exd_short:
+                    short = e.encoding or ''
+            if short and e.exd_short != short:
+                e.exd_short = short
+                e.save(update_fields=['exd_short'])
 
         # 5. EquipmentType: шаблоны наименования и спецификации (+i18n)
         from core.models.equipment_type import EquipmentType

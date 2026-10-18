@@ -648,57 +648,56 @@ round-trip импорта, is_default) → 6) `manage.py check` +
   кодируется пустотой (у AUMA — явными кодами), тип датчика термозащиты —
   отдельной подпозицией (у AUMA не кодируется).
 
-### 14.2 Позиции и коды
+### 14.2 Позиции и коды (явные коды — аналог хэша, 2026-10-18)
 
-Шаблон (блоки через `.`, пусто = стандарт):
+**Правило: пустых кодов нет** — каждый вариант (включая «нет»/стандарт) имеет
+явный код; собранный ext-код имеет фиксированную длину (все позиции всех
+блоков), как хэш-функция конфигурации. Разделитель блоков — точка.
 
-    {cu}{ps}{mode}{proto} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {cmd}{setp}{cnt}{ind}{s2}
+Шаблон (блоки через «.»):
+
+    {cu}{cu_p}{ps}{mode}{proto} . {ip}{exd} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind}{bat}
 
 **Блок БУ** `{cu}{cu_p}{ps}{mode}{proto}`:
-- cu: пусто=none (базовый) · IO=int-o · IL=int-l · IN=int-n · IM=int-n-mb ·
-  IP=int-n-pb · IH=int-n-hr · PT=pote · TR=tr-4-20 · T0=tr10 · PR=posi-4-20 ·
-  P0=posi10 (коды ≥2 симв., однозначная расшифровка)
-- cu_p (питание БУ): пусто=от питания привода · X=отдельно (24 V DC) —
-  поле AllowedControlUnitOption.cu_power_supply
-- ps: пусто=220-AC · 3=380-AC · 2=24-DC
-- mode: пусто=on_off · M=modulating
-- proto: пусто · PB=ProfiBus · PN=Profinet · MB=Modbus RTU · MT=Modbus TCP ·
-  FF=Foundation Fieldbus
+- cu: NO=нет управления · BA=basic · LCU=int-o (ICU) · INT=int-l (SRCU) ·
+  AINT=int-n (ICU полн.) · AINT-HR/AINT-MB/AINT-PB — протокольные варианты ·
+  PT=pote · TR=tr-4-20 · T0=tr10 · PR=posi-4-20 · P0=posi10
+- cu_p: P0=от питания привода · X=отдельно (24 V DC)
+- ps: 220AC / 380AC / 24DC
+- mode: O=on-off · M=modulating · B=оба
+- proto: N0=нет · MB/MT/PB/PN/FF/PS/DN/EI
 
-**Блок коммутации** `{end}{way}{torq}` (пары контактов, bundle OPEN+CLOSE):
-- end: пусто · E1=SPDT · E2=DPDT
-- way: пусто · W1=SPDT · W2=DPDT
-- torq: пусто · T1=SPDT · T2=DPDT
+**Блок защиты** `{ip}{exd}`:
+- ip: IP54…IP69 (код IpOption) · IP00=без защиты
+- exd: EX0=без Ex · иначе exd_short записи ElectricExdOption («IIC T5 Gb X»)
+
+**Блок коммутации** `{end}{way}{torq}`: 0=нет · 1=SPDT · 2=DPDT (E/W/T-префикс)
 
 **Блок ОС** `{pos}{hart}`:
-- pos: пусто (встроенная 4-20 пассив у INT; для none — нет ОС) ·
-  P=потенциометр · T=трансмиттер 4-20 пассив · TA=4-20 актив ·
-  (RWG-аналог = T+device; EWG = TA с device HALL — device в артикул не
-  выводится, только в описание/сравнение)
-- hart: пусто · H=HART поверх 4-20 (уставка и/или ОС)
+- pos: N0=нет · P=потенциометр · T=4-20 пасс · TA=4-20 акт · TV=0-10 В
+- hart: H0=без HART · H=HART
 
 **Блок климата** `{temp}{h_cu}{therm}`:
-- temp (плоская шкала, кодирует и питание обогрева привода): пусто=STD ·
-  L=LT+отд.кабель (std) · LM=LT+от мотора · V=VLT+отд.кабель · VM=VLT+от мотора
-- h_cu (обогрев БУ): пусто=нет · C=от цепей БУ · S=отдельная линия
-- therm: пусто=нет датчика · T1=термореле НЗ · T2=термореле SPDT ·
-  P1=PTC-схема НЗ · P2=PTC-схема SPDT (тип датчика+форма в одной позиции)
+- temp: ST=STD · L=LT+отд.кабель · LM=LT+от мотора · V=VLT+отд.кабель · VM=VLT+от мотора
+- h_cu: H0=нет · C=от цепей БУ · S=отдельная линия
+- therm: T0=нет датчика · TX=датчик без выхода · T1=термореле НЗ · T2=термореле SPDT
+  (PTC-варианты P1/P2 — по данным пользователя)
 
-**Блок опций** `{cmd}{setp}{cnt}{ind}{s2}`:
-- cmd (команды управления, слот CMD): пусто=OPEN/STOP/CLOSE 220AC (стандарт
-  для on-off) · DC=24DC · R=вход «Удалённое управление» · R2=REMOTE 24DC ·
- N=нет команд (коды без коллизий с позицией ind)
-  (modulating/без БУ) — коды уточнить после заливки колонок AOX 61–68
-- setp (уставка, слот SETPOINT): пусто=нет · A=4-20 актив · P=4-20 пассив ·
-  H=4-20+HART
-- cnt (счётчик, слот TURN_COUNTER): пусто · M=механический (код модели
-  счётчика — из TurnCounterOption) · E=электронный · EM=эл.+мех. ·
-  MF=мех. с ОС · EMF=эл.+мех. с ОС от механического
-- ind (индикатор, слот INDICATOR): пусто · D=светодиодный набор · B=blinker ·
-  DB=LED+blinker · L=LCD-позиция · LB=LCD+blinker
-- lc (органы местного управления, слот LOCAL_CONTROL): пусто · B=кнопки ·
-  S=селекторы · N=нет (без БУ)
-- s2: пусто · S2=таймер S2 · ST=встроенный стартер (380В, кроме std on-off)
+**Блок опций** `{lc}{cmd}{setp}{cnt}{ind}{bat}`:
+- lc: B=кнопки · S=селекторы · N=нет
+- cmd (команды управления): N0=нет · O=О/С/З 220AC · D=О/С/З 24DC ·
+  R=Remote 220AC · RD=Remote 24DC · LK/LD=Lock 220/24 · MK/MD=Manual 220/24 ·
+  EO/EB=ESD Откр 220/24 · EC/EQ=ESD Закр 220/24 · IO/ID=Interlock Откр 220/24 ·
+  IC/IK=Interlock Закр 220/24 · DV/DW=Drive enable 220/24 · MO/MW=Mode 220/24
+- setp: N0=нет · A=4-20 акт · P=4-20 пасс · A0=0-10 акт · P0=0-10 пасс
+- cnt: N0=нет · M=мех · E=эл · EM=эл+мех · MF=мех с ОС · EMF=эл+мех с ОС от мех
+- ind: N0=нет · D=LED-набор · B=blinker · DB=LED+blinker · L=LCD · LB=LCD+blinker
+- bat: B0=нет · BAT=батарея положения безопасности (опция ElectricBatteryOption,
+  серия AR11E; с ней положение безопасности выбирается НЗ/НО, без неё — только
+  «оставаться в текущем положении»)
+
+Коды внутри позиции попарно не префиксы друг друга (расшифровка greedy
+longest-match однозначна).
 
 ### 14.3 Проверка покрытия (все ли опции покрыты) — пробелы
 
