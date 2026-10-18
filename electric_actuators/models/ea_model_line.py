@@ -6,8 +6,8 @@ from django.core.exceptions import ValidationError
 
 import logging
 
-from cert_doc.models import AbstractCertRelation
 from core.models import StructuredDataMixin
+from core.models.cert_doc_mixin import CertDocMixin
 
 from producers.models import Brands
 from core.models.mixins import LocalizedDescriptionFieldsMixin
@@ -15,7 +15,7 @@ from core.models.mixins import LocalizedDescriptionFieldsMixin
 logger = logging.getLogger(__name__)
 
 
-class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataMixin , models.Model) :
+class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataMixin, CertDocMixin, models.Model) :
     """
     Серия электроприводов - объединяет в себе общие для всех моделей серии свойства
     и доступные опции
@@ -199,16 +199,15 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
             'sorting_order' : self.sorting_order ,
         })
 
-        # Сертификаты берем через связь
-        if hasattr(self , 'cert_relations') :
+        # Сертификаты — M2M cert_docs (CertDocMixin)
+        if hasattr(self , 'cert_docs') :
             data['cert_data_list'] = [
                 {
-                    'cert_data' : relation.cert_data.get_compact_data() ,
-                    'relation_sorting_order' : relation.sorting_order ,
-                    'relation_is_active' : relation.is_active ,
+                    'cert_data' : cert.get_compact_data() ,
+                    'relation_sorting_order' : cert.sorting_order ,
+                    'relation_is_active' : cert.is_active ,
                 }
-                for relation in self.cert_relations.filter(is_active=True)
-                if relation.cert_data.is_active
+                for cert in self.cert_docs.filter(is_active=True)
             ]
         return data
 
@@ -265,16 +264,10 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
             multiline=True
         )
 
-        # Получаем данные сертификатов
+        # Получаем данные сертификатов (M2M cert_docs)
         certificates = []
-        if hasattr(self , 'cert_relations') :
-            cert_relations = self.cert_relations.filter(
-                is_active=True ,
-                cert_data__is_active=True
-            ).select_related('cert_data').order_by('sorting_order')
-
-            for relation in cert_relations :
-                cert = relation.cert_data
+        if hasattr(self , 'cert_docs') :
+            for cert in self.cert_docs.filter(is_active=True).order_by('sorting_order') :
                 if view_type == self.CARD or view_type == self.BADGE :
                     cert_display = cert.get_display_data('badge')
                 else :
@@ -285,8 +278,8 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
                     'display' : cert_display ,
                     'compact' : cert.get_compact_data() ,
                     'relation' : {
-                        'sorting_order' : relation.sorting_order ,
-                        'is_active' : relation.is_active ,
+                        'sorting_order' : cert.sorting_order ,
+                        'is_active' : cert.is_active ,
                     }
                 })
 
@@ -393,21 +386,15 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
                 ) ,
             }
 
-        if 'certificates' in include and hasattr(self , 'cert_relations') :
-            cert_relations = self.cert_relations.filter(
-                is_active=True ,
-                cert_data__is_active=True
-            ).select_related('cert_data').order_by('sorting_order')
-
+        if 'certificates' in include and hasattr(self , 'cert_docs') :
             data['certificates'] = []
-            for relation in cert_relations :
-                cert = relation.cert_data
+            for cert in self.cert_docs.filter(is_active=True).order_by('sorting_order') :
                 data['certificates'].append({
                     'certificate' : cert.get_full_data(['form' , 'metadata']) ,
                     'relation' : {
-                        'id' : relation.id ,
-                        'sorting_order' : relation.sorting_order ,
-                        'is_active' : relation.is_active ,
+                        'id' : cert.id ,
+                        'sorting_order' : cert.sorting_order ,
+                        'is_active' : cert.is_active ,
                     }
                 })
 
@@ -600,30 +587,6 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
             } ,
         }
         return option_info
-
-
-# ==================== МОДЕЛЬ ДЛЯ СВЯЗИ СЕРТИФИКАТОВ ====================
-
-# TODO: Перейти на CertDocMixin.cert_docs M2M (как БКВ, редукторы, клапаны, пневмоприводы).
-# Через-модель AbstractCertRelation — устаревший подход, удалён в pneumatic_actuators (0033-0034).
-class ElectricActuatorModelLineCertRelation(AbstractCertRelation) :
-    """
-    Связь сертификатов с сериями электроприводов.
-    """
-    model_line = models.ForeignKey(
-        ElectricActuatorModelLine ,
-        on_delete=models.CASCADE ,
-        verbose_name=_("Серия электроприводов") ,
-        related_name='cert_relations'
-    )
-
-    class Meta(AbstractCertRelation.Meta) :
-        verbose_name = _("Связь сертификата с серией электроприводов")
-        verbose_name_plural = _("Связи сертификатов с сериями электроприводов")
-        unique_together = ['cert_data' , 'model_line']
-
-    def get_related_object(self) :
-        return self.model_line
 
 
 class ModelLine(models.Model) :

@@ -576,7 +576,7 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
         AllowedControlUnitOptionInline ,
         AllowedTurnCounterOptionInline ,
     ]
-    filter_horizontal = ('allowed_operating_mode',)  # ← добавить
+    filter_horizontal = ('allowed_operating_mode', 'cert_docs')  # ← добавить
     fieldsets = (
         (_('Основная информация') , {
             'fields' : (
@@ -587,6 +587,9 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
         }) ,
         (_('Режим работы') , {
             'fields' : ('allowed_operating_mode' ,)  # ← Это ManyToManyField
+        }) ,
+        (_('Документы и сертификаты') , {
+            'fields' : ('cert_docs' ,)  # M2M CertDocMixin (filter_horizontal)
         }) ,
         (_('Настройки') , {
             'fields' : ('sorting_order' , 'is_active')
