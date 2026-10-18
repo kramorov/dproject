@@ -184,7 +184,6 @@ def _serialize_item(item):
             'torque_max': float(pso.torque_max) if pso.torque_max else 0,
             'is_active': pso.is_active,
             'sorting_order': pso.sorting_order,
-            'control_unit_options': [],
             'safety_position_options': sp_options,
         })
 

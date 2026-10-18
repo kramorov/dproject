@@ -32,9 +32,6 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
         ElectricExdOption - Ex
         ElectricBodyCoatingOption - Опции покрытия корпуса для электроприводов
         QC быстросъемное соединение
-        ElectricWaySwitchesOption MID	Опция 3х позиционный (по доп.концевикам) - Путевые выключатели SwitchesParameters
-        ElectricControlUnitInstalledOption  Control Unit (POSI, TR, INT...)
-        ElectricBlinkerOption  Блинкер BlinkerOption
     Опции model_line_item:
         ElectricPowerSupplyOption PowerSupply (time to close, rotation_speed,
         torque_min, torque_max,

@@ -18,7 +18,7 @@ class ElectricActuatorConstructorAdmin(admin.ModelAdmin):
         'power_supply_display', 'safety_position_display',
         'temperature_display', 'ip_display', 'exd_display',
         'body_coating_display', 'body_color_display', 'hand_wheel_display',
-        'turn_angle_display', 'blinker_display', 'mechanical_indicator_display',
+        'turn_angle_display',
         'sorting_order', 'is_active',
         'description_preview',
     ]
@@ -51,16 +51,6 @@ class ElectricActuatorConstructorAdmin(admin.ModelAdmin):
             'fields': (
                 ('selected_body_coating', 'selected_body_color_option', 'selected_hand_wheel'),
                 ('selected_turn_angle_option', 'selected_cable_glands_holes'),
-            ),
-        }),
-        ('Индикация', {
-            'fields': (
-                ('selected_blinker_option', 'selected_mechanical_indicator_option'),
-            ),
-        }),
-        ('Выключатели', {
-            'fields': (
-                ('selected_end_switches_option', 'selected_way_switches_option', 'selected_torque_switches_option'),
             ),
         }),
         ('Присоединение к арматуре', {
@@ -120,14 +110,6 @@ class ElectricActuatorConstructorAdmin(admin.ModelAdmin):
         return str(obj.selected_turn_angle_option) if obj.selected_turn_angle_option else "-"
     turn_angle_display.short_description = "Угол"
 
-    def blinker_display(self, obj):
-        return str(obj.selected_blinker_option) if obj.selected_blinker_option else "-"
-    blinker_display.short_description = "Блинкер"
-
-    def mechanical_indicator_display(self, obj):
-        return str(obj.selected_mechanical_indicator_option) if obj.selected_mechanical_indicator_option else "-"
-    mechanical_indicator_display.short_description = "Мех. инд."
-
     def description_preview(self, obj):
         if not obj.pk:
             return "—"
@@ -153,12 +135,7 @@ class ElectricActuatorConstructorAdmin(admin.ModelAdmin):
             'selected_body_color_option',
             'selected_hand_wheel',
             'selected_turn_angle_option',
-            'selected_blinker_option',
-            'selected_mechanical_indicator_option',
             'selected_cable_glands_holes',
-            'selected_end_switches_option',
-            'selected_way_switches_option',
-            'selected_torque_switches_option',
             'actual_mounting_plate',
             'actual_stem_shape',
             'actual_stem_size',

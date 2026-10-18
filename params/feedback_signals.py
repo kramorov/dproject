@@ -10,8 +10,8 @@ SensorComponent из pa_controls. Каждый SensorComponent уже содер
 - electrical_specs, wires_count, искробезопасные параметры
 
 Использование:
-- ElectricControlUnitOption.feedback_signal_set → FK
-- Конструктор: выбрал БУ+напряжение → набор сигналов определён
+- Матрица сигналов ЭП (electric_actuators.EaSignalMatrixEntry) —
+  нагреватель как устройство слота THERMAL_SENSOR/HEATER_CONTROL_UNIT
 - Каталог: get_summary() → «Концевые (2), Моментные (2), 4–20 мА, Авария»
 """
 

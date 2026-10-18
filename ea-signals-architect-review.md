@@ -481,3 +481,173 @@ localized_name в фазе 6). Убрать или задействовать �
 
 **Вердикт:** F1 и F2 исправить немедленно (теряют данные/однозначность кода),
 F3 — вместе с ними, F4/F5 — при фазе 6. Принять после F1–F3.
+
+---
+
+## Ревью №8 (2026-10-18): фаза 7 — удаление legacy сигнальных моделей (212c934)
+
+Скоуп: миграция 0060, очистка Selected/Constructor/админки/API/urls,
+`price/views/ea_configurator.py`, `admin_site.py`, удаление команд и мёртвых
+файлов. Проверено: grep по 10 удалённым именам во всём репо (живых ссылок
+в импортах нет), миграция 0060 (корректна: RemoveField только у остающихся
+моделей), `manage.py check` = 0, тесты 35 OK, зонды-скрипты на живых путях.
+
+**Вывод:** сама миграция и внешние связи чисты (params ссылается только на
+живые EaControlSignal/EaFeedbackSignal/EaCommProtocol — cross-app FK не
+порваны). Но **чистка неполная**: конструктор и обе админки (Selected,
+Constructor) оставлены со ссылками на удалённые поля и сейчас падают в
+рантайме. `check` и 35 тестов это не ловят. Ревью **НЕ принято** — требуется
+доработка F1–F7 (механика ниже).
+
+### F1 [Критично] save() конструктора падает всегда
+
+`ElectricActuatorConstructor.save()` → `_generate_short_description()` →
+`get_description_data()` → блоки blinker/mechanical_indicator/end/way/torque
+(`self.selected_blinker_option` и пр., строки 1024–1079) — поля удалены
+миграцией 0060 → `AttributeError`. Зонд: падает на первой же строке.
+Конструктор невозможно сохранить ни из API, ни из админки (которая и сама
+не открывается — F3).
+
+### F2 [Критично] get_available_options() → KeyError
+
+`_OPTION_CONFIG` очищен от 5 сигнальных ключей, но циклы в
+`get_available_options()` (строки 437, 483–484) всё ещё итерируют
+`['selected_blinker_option', 'selected_mechanical_indicator_option']` и
+`['selected_end_switches_option', 'selected_way_switches_option',
+'selected_torque_switches_option']` → `KeyError: 'selected_blinker_option'`
+(зонд с реальным model_line_item). Падает API-экшен
+`ConstructorViewSet.options` (зонд 9).
+
+### F3 [Критично] Админка конструктора не открывается
+
+`ea_constructor_admin.py`: fieldsets «Индикация» и «Выключатели» ссылаются
+на 5 удалённых полей; `list_display` содержит `blinker_display` /
+`mechanical_indicator_display`, читающие удалённые поля; `get_queryset()` —
+`select_related` удалённых полей. Зонды: форма → `FieldError` (5 неизвестных
+полей), queryset → `FieldError`.
+
+### F4 [Критично] Админка Selected не открывается
+
+`ea_actuator_selected_admin.py` fieldsets: `selected_control_unit_option`,
+`selected_mechanical_indicator_option`, `selected_blinker_option`,
+`selected_end_switches_option`, `selected_way_switches_option`,
+`selected_torque_switches_option` — все 6 удалены из модели. Зонд: форма →
+`FieldError: Unknown field(s) ... specified for ElectricActuatorSelected`.
+
+### F5 [Критично] ConstructorViewSet сломан целиком
+
+`api/views_constructor.py`: `get_queryset().select_related(...)` — 5
+удалённых полей → `FieldError` на любой запрос (зонд 7); `_build_from_request`/
+`create` передают удалённые kwarg → AttributeError/TypeError; `update`
+ставит `..._id` атрибуты на несуществующие поля; `_serialize`/`_serialize_detail`
+читают `obj.selected_blinker_option` и пр. → AttributeError.
+
+### F6 [Серьёзно] create_duplicate() конструктора
+
+Передаёт 5 удалённых kwarg в `ElectricActuatorConstructor(...)` →
+AttributeError на `self.selected_blinker_option` (зонд 2).
+
+### F7 [Серьёзно] Дыра в тестах
+
+35 тестов зелёные при полностью сломанном конструкторе — не покрыты:
+save()/get_description_data/get_available_options конструктора, формы
+админок Selected/Constructor, ConstructorViewSet. Требуются smoke-тесты на
+каждый из путей F1–F5.
+
+### F8 [Info] check не ловит такие ошибки
+
+`manage.py check` = 0 при невалидных fieldsets и select_related — Django
+не валидирует поля в fieldsets против модели. Опираться на check как на
+гарантию целостности админки нельзя.
+
+### F9 [Info] Косметика (остатки имён в документации/коде)
+
+- `ea_model_line.py:35–37` — докстринг с ElectricWaySwitchesOption/
+  ElectricControlUnitInstalledOption/ElectricBlinkerOption.
+- `ea_allowed_options.py:12` — коммент про ElectricControlUnitOption.
+- `params/actuator_heater_supply.py:5` — докстринг упоминает ControlUnitWiring.
+- `params/feedback_signals.py:13` — докстринг «ElectricControlUnitOption.
+  feedback_signal_set → FK» — неверен после фазы 7.
+- `api/views_admin_items.py:187` — мёртвый ключ `'control_unit_options': []`
+  в сериализации PS-матрицы.
+- `ea_actuator_selected.py:575` — TODO-коммент про selected_way_switches_option.
+
+### Позитив (подтверждено)
+
+- Миграция 0060 корректна и применяется; данные старых таблиц не нужны
+  (снапшот ea_signals_export_2026-10-18.json сохранён).
+- Внешних FK из других приложений в удалённые модели нет; `params` ссылается
+  только на живые модели новой схемы.
+- Пре-экзист баг `ensure_all_default_options_exist` (ElectricWaySwitchesOption)
+  исчез вместе с моделью; тесты серий проходят.
+- Удалены 3 команды и 3 мёртвых файла; urlpatterns очищены;
+  `price/views/ea_configurator.py` WaySwitches-блоки убраны.
+- `selected_control_unit_option` конструктора (FK на params.ControlUnitInstalledOption)
+  остался — корректный мостик до `ElectricActuatorCatalogItem`;
+  `_get_option_encoding` возвращает '' для отсутствующего ключа конфига —
+  graceful-деградация артикула по `{control_unit}`.
+
+**Вердикт: НЕ принято.** Миграция и внешние связи — ок, но runtime-контур
+(конструктор + обе админки + API) остался с мёртвыми ссылками на удалённые
+поля. Исправить F1–F7 сейчас (чистка конструктора/админок/API + smoke-тесты),
+F9 — вместе с чисткой, затем повторный прогон 35+новых тестов и зондов.
+
+### План доработки (по итогам ревью)
+
+1. `ea_actuator_constructor.py`: убрать 5 блоков из `get_description_data`
+   (1024–1079); вычистить имена из циклов `get_available_options` (437,
+   483–484); убрать kwarg из `create_duplicate` (1399–1404); проредить
+   ключи в `_generate_tech_description`/`_generate_html_description`
+   (1161–1162, 1226–1231, 1269–1274) — `data.get` безопасен, но ключи
+   мёртвые; проверить `get_structured_data` на остатки.
+2. `ea_actuator_selected_admin.py`: убрать 6 удалённых полей из fieldsets.
+3. `ea_constructor_admin.py`: убрать поля из fieldsets/list_display/
+   select_related; удалить blinker_display/mechanical_indicator_display.
+4. `views_constructor.py`: убрать удалённые поля из select_related,
+   `_build_from_request`, duplicate-filter, цикла update, `_serialize(_detail)`.
+5. Тесты: smoke — save() конструктора, get_available_options с mli,
+   `admin.get_form(req)()` для Selected/Constructor, сериализация
+   ConstructorViewSet (list).
+6. Косметика F9 (докстринги/комменты).
+
+---
+
+## Резолюция ревью №8 (2026-10-18, после «исправь всё»)
+
+Все находки F1–F9 закрыты:
+
+- **F1** — `get_description_data`: блоки blinker/mechanical/end/way/torque
+  удалены; `save()` конструктора работает (smoke-тест).
+- **F2** — `get_available_options`: удалённые имена убраны из циклов
+  (ml-цикл и блок model_line_item-опций удалён целиком);
+  `selected_control_unit_option` убран из power_supply-цикла (ключа в
+  _OPTION_CONFIG нет → был бы KeyError). API `options` работает.
+- **F3** — `ea_constructor_admin`: секции «Индикация»/«Выключатели» убраны,
+  list_display и select_related очищены, методы blinker_display/
+  mechanical_indicator_display удалены.
+- **F4** — `ea_actuator_selected_admin`: 6 удалённых полей убраны из fieldsets.
+- **F5** — `views_constructor.py`: select_related, `_build_from_request`,
+  duplicate-фильтр, цикл update, `_serialize_detail` очищены от 5 полей.
+- **F6** — `create_duplicate`: 5 kwarg удалены.
+- **F7** — добавлен `Phase7LegacyRemovalSmokeTests` (7 тестов: save+описание,
+  structured_data без удалённых ключей, get_available_options с mli,
+  create_duplicate, обе админ-формы, viewset-сериализация).
+- **F8** — зафиксировано: check не валидирует fieldsets; smoke-тесты теперь
+  страхуют админки/API.
+- **F9** — косметика: докстринги ea_model_line/ea_allowed_options/
+  params/feedback_signals/params/actuator_heater_supply, мёртвый ключ
+  `control_unit_options` в views_admin_items, TODO и отладочный print в
+  ea_actuator_selected, мёртвые ветки «особого случая БУ» в
+  `get_available_options` Selected.
+
+**Дополнительно найден и исправлен пре-экзист баг:** `_set_default_option`
+фильтровал по `is_default`, которого нет у `ElectricPowerSupplyOption` →
+конструктор с выбранной моделью, но без напряжения, падал на save.
+Добавлена проверка наличия поля `is_default` в through-модели (fallback —
+первая активная запись).
+
+**Проверено:** 42 теста OK (35 + 7 новых), `manage.py check` = 0,
+`makemigrations --check` — No changes detected; глобальный grep по
+удалённым именам полей (без migrations) — 0 совпадений.
+
+Вердикт ревью №8 после доработки: **принято**.

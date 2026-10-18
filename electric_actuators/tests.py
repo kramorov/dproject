@@ -678,3 +678,90 @@ class EaExtCodeTests(TestCase):
                                    context={'cu': 'IO'})
         self.assertIn('E1', code2)
         self.assertIn('L', code2)
+
+
+class Phase7LegacyRemovalSmokeTests(TestCase):
+    """Фаза 7: конструктор/админки/API не должны падать после удаления
+    сигнальных через-опций (ревью №8, F1–F7)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from producers.models import Brands
+        from electric_actuators.models import (ElectricActuatorModelLine,
+                                               ElectricActuatorModelLineItem,
+                                               ElectricActuatorConstructor)
+        cls.brand = Brands.objects.create(name='SMOKE-B', code='SMOKE-B')
+        cls.line = ElectricActuatorModelLine.objects.create(
+            name='Серия SMOKE', description='', code='SMK', brand=cls.brand)
+        cls.mli = ElectricActuatorModelLineItem.objects.create(
+            model_line=cls.line, name='SMOKE-ITEM', code='SMKI')
+        cls.constructor = ElectricActuatorConstructor.objects.create(
+            name='SMOKE-C', code='SMK-C', selected_model_line_item=cls.mli)
+
+    def test_constructor_save_generates_description(self):
+        """save() не должен падать на удалённых полях в get_description_data."""
+        from electric_actuators.models import ElectricActuatorConstructor
+        c = ElectricActuatorConstructor(name='smoke-new', code='SMK-N')
+        c.save()
+        self.assertTrue(c.pk)
+        self.assertIsInstance(c.description, str)
+
+    def test_description_and_structured_data_clean(self):
+        c = self.constructor
+        self.assertIsInstance(c.description, str)
+        structured = c.get_structured_data()
+        for removed in ('blinker', 'mechanical_indicator', 'end_switches',
+                        'way_switches', 'torque_switches'):
+            self.assertNotIn(removed, structured['selected_options'])
+
+    def test_get_available_options_with_mli(self):
+        from electric_actuators.models import ElectricActuatorConstructor
+        opts = ElectricActuatorConstructor(
+            selected_model_line_item=self.mli).get_available_options()
+        self.assertIsInstance(opts, dict)
+        for removed in ('blinker_options', 'mechanical_indicator_options',
+                        'end_switches_options', 'way_switches_options',
+                        'torque_switches_options', 'control_unit_options'):
+            self.assertNotIn(removed, opts)
+
+    def test_create_duplicate(self):
+        dup = self.constructor.create_duplicate()
+        self.assertTrue(dup.pk)
+
+    def test_constructor_admin_form_builds(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from django.contrib.auth.models import AnonymousUser
+        from electric_actuators.admin import ElectricActuatorConstructorAdmin
+        from electric_actuators.models import ElectricActuatorConstructor
+        req = RequestFactory().get('/admin/')
+        req.user = AnonymousUser()
+        ma = ElectricActuatorConstructorAdmin(
+            ElectricActuatorConstructor, admin.site)
+        self.assertTrue(ma.get_form(req)())
+
+    def test_selected_admin_form_builds(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from django.contrib.auth.models import AnonymousUser
+        from electric_actuators.admin import ElectricActuatorSelectedAdmin
+        from electric_actuators.models import ElectricActuatorSelected
+        req = RequestFactory().get('/admin/')
+        req.user = AnonymousUser()
+        ma = ElectricActuatorSelectedAdmin(ElectricActuatorSelected, admin.site)
+        self.assertTrue(ma.get_form(req)())
+
+    def test_constructor_viewset_serializes(self):
+        from electric_actuators.api.views_constructor import ConstructorViewSet
+        vs = ConstructorViewSet()
+
+        class R:
+            user = None
+            query_params = {}
+
+        vs.request = R()
+        qs = vs.get_queryset()
+        list(qs[:1])  # select_related без удалённых полей
+        data = vs._serialize(self.constructor)
+        self.assertEqual(data['id'], self.constructor.id)
+

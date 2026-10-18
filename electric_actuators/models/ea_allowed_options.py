@@ -9,7 +9,7 @@
 а encoding подставляется автоматически.
 
 is_default остаётся в through-моделях уровня model_line_item
-(ElectricControlUnitOption, ElectricSafetyPositionOption и т.д.).
+(ElectricSafetyPositionOption и т.д.).
 """
 
 from django.db import models

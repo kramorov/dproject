@@ -354,19 +354,8 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                     # Определяем ключ для результата
                     result_key = f"{field_name}_options".replace('selected_', '')
 
-                    # Особый случай: опция блока управления зависит от выбранного напряжения
-                    if field_name == 'selected_control_unit_option':
-                        if not self.selected_power_supply:
-                            result[result_key] = []
-                            continue
-
-                        # Фильтруем по выбранному напряжению
-                        filter_kwargs = {
-                            'power_supply_option': self.selected_power_supply,
-                            'is_active': True
-                        }
-                    # Особый случай 2 : model_body через model_line_item
-                    elif field_name == 'selected_cable_glands_holes' :
+                    # Особый случай: model_body через model_line_item
+                    if field_name == 'selected_cable_glands_holes' :
                         if not self.selected_model_line_item :
                             result[result_key] = []
                             continue
@@ -415,12 +404,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                             'is_default': getattr(opt, 'is_default', False),
                             'parent_field': config['parent_field']
                         }
-
-                        # Для опций блока управления добавляем дополнительную информацию
-                        if field_name == 'selected_control_unit_option':
-                            if hasattr(opt, 'control_unit'):
-                                option_data['control_unit_name'] = str(opt.control_unit)
-                                option_data['control_unit_id'] = opt.control_unit.id
 
                         options_list.append(option_data)
 
@@ -572,7 +555,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
 
     def create_duplicate(self):
         """Создать дубликат текущего объекта"""
-        #TODO добавить остальные поля в копирование selected_way_switches_option
         duplicate = self.__class__(
             # Копируем ForeignKey поля
             selected_model_line_item=self.selected_model_line_item,
@@ -845,7 +827,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         # print(f"selected_ip: {self.selected_ip}")
         # print(f"selected_exd: {self.selected_exd}")
         # print(f"selected_power_supply: {self.selected_power_supply}")
-        # print(f"selected_mechanical_indicator_option: {self.selected_mechanical_indicator_option}")
         try:
             # Получаем оригинальный объект
             original = None

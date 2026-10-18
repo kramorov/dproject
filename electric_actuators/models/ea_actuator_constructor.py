@@ -433,8 +433,7 @@ class ElectricActuatorConstructor(models.Model):
         if ml:
             for field_name in ['selected_temperature', 'selected_ip', 'selected_exd',
                                'selected_body_coating', 'selected_body_color_option',
-                               'selected_hand_wheel', 'selected_turn_angle_option',
-                               'selected_blinker_option', 'selected_mechanical_indicator_option']:
+                               'selected_hand_wheel', 'selected_turn_angle_option']:
                 config = self._OPTION_CONFIG[field_name]
                 ThroughModel = self._import_through_model(config)
                 through_attr = config.get('through_attr')
@@ -478,31 +477,6 @@ class ElectricActuatorConstructor(models.Model):
                         for opt in qs
                     ]
 
-        # --- model_line_item опции ---
-        if self.selected_model_line_item:
-            for field_name in ['selected_end_switches_option', 'selected_way_switches_option',
-                               'selected_torque_switches_option']:
-                config = self._OPTION_CONFIG[field_name]
-                ThroughModel = self._import_through_model(config)
-                through_attr = config.get('through_attr')
-                filter_kwargs = {config['parent_field']: self.selected_model_line_item, 'is_active': True}
-                qs = ThroughModel.objects.filter(**filter_kwargs).select_related(through_attr)
-                key = field_name.replace('selected_', '') + '_options'
-                if key.endswith('_option_options'):
-                    key = key.replace('_option_options', '_options')
-                result[key] = [
-                    {
-                        'id': opt.id,
-                        'option_id': getattr(opt, through_attr).id,
-                        'encoding': opt.encoding or '',
-                        'name': getattr(opt, through_attr).name,
-                        'code': getattr(opt, through_attr).code if hasattr(getattr(opt, through_attr), 'code') else '',
-                        'description': opt.description or '',
-                        'is_default': opt.is_default,
-                    }
-                    for opt in qs
-                ]
-
         # --- model_body опции ---
         body = self.selected_model_line_item.body if self.selected_model_line_item else None
         if body:
@@ -527,7 +501,7 @@ class ElectricActuatorConstructor(models.Model):
 
         # --- power_supply-зависимые опции (safety_position, control_unit) ---
         if self.selected_power_supply:
-            for field_name in ['selected_safety_position', 'selected_control_unit_option']:
+            for field_name in ['selected_safety_position']:
                 config = self._OPTION_CONFIG[field_name]
                 ThroughModel = self._import_through_model(config)
                 through_attr = config.get('through_attr')
@@ -588,7 +562,14 @@ class ElectricActuatorConstructor(models.Model):
             return
 
         filter_kwargs = {config['parent_field']: parent_obj, 'is_active': True}
-        default_option = ThroughModel.objects.filter(is_default=True, **filter_kwargs).first()
+        # У части through-моделей (например ElectricPowerSupplyOption) нет
+        # поля is_default — дефолт определяется порядком/sorting_order.
+        has_default = any(
+            f.name == 'is_default' for f in ThroughModel._meta.fields)
+        default_option = None
+        if has_default:
+            default_option = ThroughModel.objects.filter(
+                is_default=True, **filter_kwargs).first()
 
         if not default_option:
             default_option = ThroughModel.objects.filter(**filter_kwargs).first()
@@ -1021,28 +1002,6 @@ class ElectricActuatorConstructor(models.Model):
             'turn_angle_deviation_limit': ta.turn_angle_deviation_limit if ta else None,
         }
 
-        # blinker → params.BlinkerOption
-        bl = self.selected_blinker_option
-        data['blinker'] = {
-            'category': 'selected_options',
-            'title': 'Блинкер',
-            'data': bl.id if bl else None,
-            'display_data': bl.name if bl else 'Не указано',
-            'code': bl.code if bl else '',
-            'name': bl.name if bl else '',
-        }
-
-        # mechanical_indicator → params.MechanicalIndicatorInstalledOption
-        mi = self.selected_mechanical_indicator_option
-        data['mechanical_indicator'] = {
-            'category': 'selected_options',
-            'title': 'Механический индикатор',
-            'data': mi.id if mi else None,
-            'display_data': mi.name if mi else 'Не указано',
-            'code': mi.code if mi else '',
-            'name': mi.name if mi else '',
-        }
-
         # cable_glands_holes → CableGlandHolesSet
         cg = self.selected_cable_glands_holes
         data['cable_glands_holes'] = {
@@ -1050,39 +1009,6 @@ class ElectricActuatorConstructor(models.Model):
             'title': 'Кабельные вводы',
             'data': cg.id if cg else None,
             'display_data': str(cg) if cg else 'Не указано',
-        }
-
-        # end_switches → params.SwitchesParameters
-        es = self.selected_end_switches_option
-        data['end_switches'] = {
-            'category': 'selected_options',
-            'title': 'Концевые выключатели',
-            'data': es.id if es else None,
-            'display_data': es.name if es else 'Не указано',
-            'code': es.code if es else '',
-            'name': es.name if es else '',
-        }
-
-        # way_switches → params.SwitchesParameters
-        ws = self.selected_way_switches_option
-        data['way_switches'] = {
-            'category': 'selected_options',
-            'title': 'Путевые выключатели',
-            'data': ws.id if ws else None,
-            'display_data': ws.name if ws else 'Не указано',
-            'code': ws.code if ws else '',
-            'name': ws.name if ws else '',
-        }
-
-        # torque_switches → params.SwitchesParameters
-        ts = self.selected_torque_switches_option
-        data['torque_switches'] = {
-            'category': 'selected_options',
-            'title': 'Моментные выключатели',
-            'data': ts.id if ts else None,
-            'display_data': ts.name if ts else 'Не указано',
-            'code': ts.code if ts else '',
-            'name': ts.name if ts else '',
         }
 
         # --- MOUNTING ---
@@ -1158,8 +1084,7 @@ class ElectricActuatorConstructor(models.Model):
         selected_options = []
         for key in ['power_supply', 'safety_position', 'control_unit', 'temperature',
                      'ip', 'exd', 'body_coating', 'body_color', 'hand_wheel',
-                     'turn_angle', 'blinker', 'mechanical_indicator',
-                     'cable_glands_holes', 'end_switches', 'way_switches', 'torque_switches']:
+                     'turn_angle', 'cable_glands_holes']:
             opt = data.get(key, {})
             display = opt.get('display_data')
             if display and display != 'Не указано':
@@ -1223,12 +1148,7 @@ class ElectricActuatorConstructor(models.Model):
             ('Цвет корпуса', data.get('body_color', {})),
             ('Ручной дублер', data.get('hand_wheel', {})),
             ('Угол поворота', data.get('turn_angle', {})),
-            ('Блинкер', data.get('blinker', {})),
-            ('Механический индикатор', data.get('mechanical_indicator', {})),
             ('Кабельные вводы', data.get('cable_glands_holes', {})),
-            ('Концевые выключатели', data.get('end_switches', {})),
-            ('Путевые выключатели', data.get('way_switches', {})),
-            ('Моментные выключатели', data.get('torque_switches', {})),
             ('Монтажная площадка', data.get('mounting_plate', {})),
             ('Тип отверстия под шток', data.get('stem_shape', {})),
             ('Размер отверстия под шток', data.get('stem_size', {})),
@@ -1266,12 +1186,7 @@ class ElectricActuatorConstructor(models.Model):
                 'body_color': data.get('body_color', {}).get('display_data'),
                 'hand_wheel': data.get('hand_wheel', {}).get('display_data'),
                 'turn_angle': data.get('turn_angle', {}).get('display_data'),
-                'blinker': data.get('blinker', {}).get('display_data'),
-                'mechanical_indicator': data.get('mechanical_indicator', {}).get('display_data'),
                 'cable_glands_holes': data.get('cable_glands_holes', {}).get('display_data'),
-                'end_switches': data.get('end_switches', {}).get('display_data'),
-                'way_switches': data.get('way_switches', {}).get('display_data'),
-                'torque_switches': data.get('torque_switches', {}).get('display_data'),
             },
             'formatted': {
                 'short': self._generate_short_description(),
@@ -1396,12 +1311,7 @@ class ElectricActuatorConstructor(models.Model):
             selected_body_color_option=self.selected_body_color_option,
             selected_hand_wheel=self.selected_hand_wheel,
             selected_turn_angle_option=self.selected_turn_angle_option,
-            selected_blinker_option=self.selected_blinker_option,
-            selected_mechanical_indicator_option=self.selected_mechanical_indicator_option,
             selected_cable_glands_holes=self.selected_cable_glands_holes,
-            selected_end_switches_option=self.selected_end_switches_option,
-            selected_way_switches_option=self.selected_way_switches_option,
-            selected_torque_switches_option=self.selected_torque_switches_option,
             actual_mounting_plate=self.actual_mounting_plate,
             actual_stem_shape=self.actual_stem_shape,
             actual_stem_size=self.actual_stem_size,
