@@ -59,6 +59,9 @@ def resolve_matrix(model_line_item, control_unit, power_supply, mode,
     brand = model_line_item.model_line.brand
     line = model_line_item.model_line
     scope_levels = [
+        # Профиль БУ (фаза 9): строки без скоупов — базовый слой для типа БУ
+        {'brand': None, 'model_line': None, 'body': None,
+         'model_line_item': None},
         {'brand': brand, 'model_line': None, 'body': None, 'model_line_item': None},
         {'brand': None, 'model_line': line, 'body': None, 'model_line_item': None},
         {'brand': None, 'model_line': None, 'body': model_line_item.body, 'model_line_item': None},

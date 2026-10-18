@@ -193,13 +193,15 @@ class EaSignalMatrixEntry(CopyMixin, LocalizedDictFieldsMixin):
             models.Index(fields=['control_unit', 'power_supply', 'mode']),
         ]
         constraints = [
-            # ровно один скоуп
+            # ровно один скоуп ЛИБО профиль БУ (все скоупы пусты —
+            # строки профиля сигналов типа БУ, фаза 9)
             models.CheckConstraint(
                 check=(
                     models.Q(brand__isnull=False, model_line__isnull=True, body__isnull=True, model_line_item__isnull=True)
                     | models.Q(brand__isnull=True, model_line__isnull=False, body__isnull=True, model_line_item__isnull=True)
                     | models.Q(brand__isnull=True, model_line__isnull=True, body__isnull=False, model_line_item__isnull=True)
                     | models.Q(brand__isnull=True, model_line__isnull=True, body__isnull=True, model_line_item__isnull=False)
+                    | models.Q(brand__isnull=True, model_line__isnull=True, body__isnull=True, model_line_item__isnull=True)
                 ),
                 name='ea_matrix_scope_single'),
             # ровно один сигнал/протокол ЛИБО none-строка
