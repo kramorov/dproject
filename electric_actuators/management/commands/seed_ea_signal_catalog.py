@@ -111,9 +111,9 @@ class Command(BaseCommand):
             ('CMD_ESD_CLOSE_220AC', 'CMD_EMERGENCY_CLOSE', 'discrete', f('DISC_AC'),
              220, 15, 2, 'Аварийная команда «Закрыть» 220 В AC'),
             # Уставка 0-10 В (для позиционера 0-10В)
-            ('CMD_POS_0_10V_PASSIVE', 'CMD_4_20MA', 'analog', f('AN_0_10V_PASSIVE'),
+            ('CMD_POS_0_10V_PASSIVE', 'CMD_0_10V', 'analog', f('AN_0_10V_PASSIVE'),
              None, None, 2, 'Уставка положения 0-10 В, пассивный'),
-            ('CMD_POS_0_10V_ACTIVE', 'CMD_4_20MA', 'analog', f('AN_0_10V_ACTIVE'),
+            ('CMD_POS_0_10V_ACTIVE', 'CMD_0_10V', 'analog', f('AN_0_10V_ACTIVE'),
              None, None, 2, 'Уставка положения 0-10 В, активный'),
         ]
         for code, role, category, form, voltage, current, wires, name in control_signals:

@@ -40,6 +40,7 @@ class EaControlSignalRole(models.TextChoices):
     CMD_LOCK = 'CMD_LOCK', _('Блокировка')
     CMD_MANUAL_OVERRIDE = 'CMD_MANUAL_OVERRIDE', _('Ручное дублирование')
     CMD_4_20MA = 'CMD_4_20MA', _('Уставка положения 4–20 мА')
+    CMD_0_10V = 'CMD_0_10V', _('Уставка положения 0–10 В')
     CMD_EMERGENCY_OPEN = 'CMD_EMERGENCY_OPEN', _('Аварийная команда «Открыть»')
     CMD_EMERGENCY_CLOSE = 'CMD_EMERGENCY_CLOSE', _('Аварийная команда «Закрыть»')
     MODE = 'MODE', _('Переключение режима open-close ↔ modulating')
