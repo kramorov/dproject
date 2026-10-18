@@ -43,6 +43,12 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
     """
     Конструктор электропривода — пошаговый выбор модели и опций через прямые FK.
 
+    Описание генерируется из шаблонов (TemplateMixin): у серии шаблонов
+    name/description нет — цепочка идёт в EquipmentType 'electric-actuator'
+    (description_template + _i18n). name/code — артикул по
+    model_line.model_item_code_template + ext-код (skip_auto_generate=True).
+    Плейсхолдеры описания (cu_*/ctl_*/fb_* и прочие) — _get_data_dict().
+
     В отличие от старой версии (through-модели как FK), здесь FK указывают
     напрямую на реальные опции (params.IpOption, params.ExdOption, ...).
     Доступность опций проверяется через through-модели.
@@ -615,8 +621,19 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
     def get_available_options(self, locale=None) -> Dict[str, List[Dict]]:
         """
         Получить все доступные опции для выбранной модели.
-        Возвращает словарь: ключ — имя поля опции, значение — список {id, option_id, name, code, is_default, ...}.
-        option_id — это ID реальной опции (для подстановки в FK Конструктора).
+        Возвращает словарь: ключ — имя поля опции, значение — список
+        {id, option_id, name, code, is_default, ...}. Имена локализованы
+        через localized_name (locale из Accept-Language).
+
+        Ключи: power_supply_options, temperature_options, ip_options,
+        exd_options, body_coating_options, body_color_options,
+        hand_wheel_options, turn_angle_options, cable_glands_holes_options;
+        при выбранном напряжении — safety_position_options и
+        control_unit_options (AllowedControlUnitOption × resolve_cu_pair);
+        при выбранном БУ — access_device_options (ControlUnitAccessDeviceOption)
+        и signal_slots (профиль БУ через configurator_signal_data).
+
+        option_id — ID реальной опции (для подстановки в FK конструктора).
         Для through_attr=None: id и option_id совпадают (through-модель сама опция).
         """
         if not self.selected_model_line_item:
