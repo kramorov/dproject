@@ -785,7 +785,15 @@ class AllowedCuAndIndicatorTests(TestCase):
         cls.m2 = ElectricActuatorModelLineItem.objects.create(
             model_line=cls.line, name='M2', code='M2')
         cls.cu_int, _ = ControlUnitInstalledOption.objects.get_or_create(
-            code='int-t', defaults={'name': 'INT/T'})
+            code='int-t', defaults={'name': 'INT/T', 'kind': 'INTEGRATED'})
+        if cls.cu_int.kind != 'INTEGRATED':
+            cls.cu_int.kind = 'INTEGRATED'
+            cls.cu_int.save(update_fields=['kind'])
+        cls.cu_basic, _ = ControlUnitInstalledOption.objects.get_or_create(
+            code='basic', defaults={'name': 'Basic', 'kind': 'BASIC'})
+        if cls.cu_basic.kind != 'BASIC':
+            cls.cu_basic.kind = 'BASIC'
+            cls.cu_basic.save(update_fields=['kind'])
         cls.ps220, _ = PowerSupplies.objects.get_or_create(
             code='220-AC', defaults={'name': '220/50'})
         cls.ps380, _ = PowerSupplies.objects.get_or_create(
@@ -793,6 +801,14 @@ class AllowedCuAndIndicatorTests(TestCase):
         AllowedControlUnitOption.objects.create(
             model_line=cls.line, control_unit=cls.cu_int,
             power_supply=cls.ps380, encoding='INT/T', is_active=True)
+        AllowedControlUnitOption.objects.create(
+            model_line=cls.line, control_unit=cls.cu_basic,
+            power_supply=cls.ps380, encoding='', is_active=True)
+        # Запрет basic×380 для M1 (модельное перекрытие)
+        AllowedControlUnitOption.objects.create(
+            model_line=cls.line, control_unit=cls.cu_basic,
+            power_supply=cls.ps380, model_line_item=cls.m1,
+            encoding='', is_active=False)
         # Запрет пары для модели M1 (перекрытие серийной строки)
         AllowedControlUnitOption.objects.create(
             model_line=cls.line, control_unit=cls.cu_int,
@@ -852,5 +868,24 @@ class AllowedCuAndIndicatorTests(TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['availability'], 'std')
         self.assertTrue(rows[0]['is_default'])
+
+    def test_wide_export_no_and_heater_rules(self):
+        """Широкий формат: запрещённая пара БУ×напряжение → 'no';
+        обогрев БУ по kind (BASIC/NONE → 'no', INTEGRATED → по данным)."""
+        from electric_actuators.services.ea_matrix_io import export_wide_rows
+        headers, rows = export_wide_rows('TA')
+        m1_380 = [r for r in rows if r['item_code'] == 'M1'
+                  and r['power_supply'] == '380-AC'][0]
+        m2_380 = [r for r in rows if r['item_code'] == 'M2'
+                  and r['power_supply'] == '380-AC'][0]
+        # basic×380 запрещён для M1 → вся группа 'no'
+        self.assertEqual(m1_380['basic|CMD_OCS_220AC'], 'no')
+        self.assertEqual(m1_380['basic|FB_END_OPEN_SPDT'], 'no')
+        self.assertEqual(m1_380['basic|heater|SEPARATE_LINE'], 'no')
+        # для M2 пара доступна — данные пустые, но обогрева БУ нет (kind)
+        self.assertEqual(m2_380['basic|CMD_OCS_220AC'], '')
+        self.assertEqual(m2_380['basic|heater|SEPARATE_LINE'], 'no')
+        self.assertEqual(m2_380['basic|heater|CU_CIRCUIT'], 'no')
+
 
 

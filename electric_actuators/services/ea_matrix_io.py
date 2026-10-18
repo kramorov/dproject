@@ -493,9 +493,12 @@ FB_CODES = [
 ]
 
 HEATER_CODES = ['SEPARATE_LINE', 'CU_CIRCUIT']
-# БУ без своего обогревателя (basic — обогрев привода в temp-листе;
-# потенциометр/трансмиттер — устройства ОС)
-NO_HEATER_CU = {'basic', 'pote', 'tr-4-20', 'tr10'}
+
+
+def _cu_has_heater(cu):
+    """Обогреватель БУ возможен только у БУ с контроллером: BASIC/NONE —
+    нет БУ (обогрев привода — в temp-листе), позиционер — по матрице."""
+    return cu is not None and cu.kind not in ('NONE', 'BASIC')
 
 
 def _matrix_availability_map(item, cu, ps):
@@ -562,7 +565,7 @@ def export_wide_rows(model_line_code):
                     row[f'{cu_code}|{c}'] = avail.get(c, '')
                 for f in FB_CODES:
                     row[f'{cu_code}|{f}'] = avail.get(f, '')
-                if cu_code in NO_HEATER_CU:
+                if not _cu_has_heater(cu):
                     for h in HEATER_CODES:
                         row[f'{cu_code}|heater|{h}'] = 'no'
                 else:

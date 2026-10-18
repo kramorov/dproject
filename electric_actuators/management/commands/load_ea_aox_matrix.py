@@ -166,7 +166,7 @@ class Command(BaseCommand):
         wb = openpyxl.load_workbook(options['xlsx'], data_only=True)
         ws = wb.active
 
-        cu_none = ControlUnitInstalledOption.objects.get(code='basic')
+        cu_basic = ControlUnitInstalledOption.objects.get(code='basic')
         cu_int = {code: ControlUnitInstalledOption.objects.get(code=code)
                   for code in ('int-o', 'int-l', 'int-n')}
         ps_220 = PowerSupplies.objects.get(code=PS_220)
@@ -234,7 +234,7 @@ class Command(BaseCommand):
                 if avail is None:
                     continue
                 row_kwargs = dict(
-                    control_unit=cu_none, power_supply=ps_220,
+                    control_unit=cu_basic, power_supply=ps_220,
                     mode=BASIC_MODE[col], slot=slots[slot_code],
                     feedback_signal=signals[sig_code],
                     option=opt_by_code.get(f'{slot_code}:{sig_code}'),
@@ -251,7 +251,7 @@ class Command(BaseCommand):
                 if avail is None:
                     continue
                 batch.append(EaSignalMatrixEntry(
-                    control_unit=cu_none, power_supply=ps_220,
+                    control_unit=cu_basic, power_supply=ps_220,
                     mode=BASIC_MODE[col], slot=slots['THERMAL_SENSOR'],
                     feedback_signal=signals[sig_code],
                     device=thermal_relay,
@@ -261,7 +261,7 @@ class Command(BaseCommand):
 
             # Basic пары контактов (OPEN+CLOSE, bundle)
             for col, (slot_code, pair) in BASIC_PAIRS.items():
-                _pair_rows(col, ws.cell(r, col).value, cu_none, BASIC_MODE[col],
+                _pair_rows(col, ws.cell(r, col).value, cu_basic, BASIC_MODE[col],
                            slot_code, pair, scope, scope_code)
 
             # INT FB (аналог, трансмиттер, пары, OverHeat)
