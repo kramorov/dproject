@@ -324,8 +324,7 @@ class Command(BaseCommand):
         # 4b. Макс. обороты мехсчётчиков (корпуса AR21E) + дефолты AR11E
         from electric_actuators.models import ElectricActuatorBody
         TURN_LIMITS = {'AR21E007': 321, 'AR21E010': 228, 'AR21E020': 180,
-                       'AR21E050': 180, 'AR21E060': 144, 'AR21E080': 144,
-                       'AR21E100': 144}
+                       'AR21E050': 180, 'AR21E060-100': 144}
         for code, turns in TURN_LIMITS.items():
             body = ElectricActuatorBody.objects.filter(code=code).first()
             if body is not None and body.turn_counter_max_turns != turns:
