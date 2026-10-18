@@ -92,6 +92,25 @@ class ElectricTemperatureOption(BaseTemperatureThroughOption):
     def _get_parent_field_name(cls):
         return 'model_line'
 
+    def get_display_name(self):
+        """Имя с источником питания обогрева для LT/VLT."""
+        is_default = getattr(self, 'is_default', False)
+        suffix = ' (Стандарт)' if is_default else ' (Опция)'
+        if self.encoding and self.encoding.strip():
+            base = self.encoding
+        elif self.code and self.code not in ('', 'STD'):
+            base = self.code
+        else:
+            base = ''
+        if base:
+            name_str = f'{base} ({self.work_temp_min}...{self.work_temp_max}°C)'
+        else:
+            name_str = f'{self.work_temp_min}...{self.work_temp_max}°C'
+        if self.heater_supply_id and \
+                self.heater_supply.code not in ('NO_HEATER', ''):
+            name_str += f', обогрев: {self.heater_supply}'
+        return name_str + suffix
+
 
 class ElectricIpOption(BaseIpThroughOption):
     """Опции IP для электроприводов"""

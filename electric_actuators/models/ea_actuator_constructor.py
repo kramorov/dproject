@@ -565,6 +565,57 @@ class ElectricActuatorConstructor(models.Model):
                     for opt in qs
                 ]
 
+            # --- БУ: пара серия×напряжение через AllowedControlUnitOption ---
+            from electric_actuators.models import AllowedControlUnitOption
+            from electric_actuators.models.ea_allowed_options import resolve_cu_pair
+            ml = self.selected_model_line_item.model_line
+            mli = self.selected_model_line_item
+            ps = self.selected_power_supply.power_supply
+            cu_rows = (AllowedControlUnitOption.objects
+                       .filter(model_line=ml, is_active=True)
+                       .select_related('control_unit')
+                       .order_by('sorting_order'))
+            cu_options, seen = [], set()
+            for row in cu_rows:
+                pair = resolve_cu_pair(ml, mli, row.control_unit, ps)
+                if pair is None or pair.control_unit_id in seen:
+                    continue
+                seen.add(pair.control_unit_id)
+                cu_options.append({
+                    'id': pair.id,
+                    'option_id': pair.control_unit_id,
+                    'encoding': pair.encoding or '',
+                    'ext_encoding': pair.ext_encoding or '',
+                    'name': str(pair.control_unit),
+                    'code': pair.control_unit.code,
+                    'description': pair.control_unit.description or '',
+                    'is_default': False,
+                })
+            result['control_unit_options'] = cu_options
+
+        # --- Устройство ограничения доступа (зависит от выбранного БУ) ---
+        if self.selected_control_unit_option_id:
+            from electric_actuators.models.ea_access_device import (
+                ControlUnitAccessDeviceOption)
+            ad_qs = (ControlUnitAccessDeviceOption.objects
+                     .filter(control_unit=self.selected_control_unit_option,
+                             is_active=True)
+                     .select_related('access_device')
+                     .order_by('sorting_order'))
+            result['access_device_options'] = [
+                {
+                    'id': opt.id,
+                    'option_id': opt.access_device_id,
+                    'encoding': opt.encoding or '',
+                    'ext_encoding': opt.ext_encoding or '',
+                    'name': str(opt.access_device),
+                    'code': opt.access_device.code,
+                    'description': opt.access_device.description or '',
+                    'is_default': opt.is_default,
+                }
+                for opt in ad_qs
+            ]
+
         return result
 
     # ==================== ВАЛИДАЦИЯ ОПЦИЙ ====================

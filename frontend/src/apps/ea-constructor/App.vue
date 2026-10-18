@@ -71,7 +71,7 @@
             <label>{{ opt.label }}</label>
             <select v-model="form[opt.key]" :disabled="opt.disabled">
               <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
-                {{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}
+                {{ o.name }}
               </option>
             </select>
           </div>
@@ -85,12 +85,23 @@
               <label>{{ opt.label }}</label>
               <select v-model="form[opt.key]" :disabled="opt.disabled" @change="opt.key === 'selected_control_unit_option' && onControlUnitChange()">
                 <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
-                  {{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}
+                  {{ o.name }}
                 </option>
               </select>
             </div>
           </div>
         </template>
+
+        <!-- Устройство ограничения доступа -->
+        <div class="form-row" v-if="accessDeviceOptions.length">
+          <label>Устройство ограничения доступа</label>
+          <select v-model="form.selected_access_device_option">
+            <option :value="null">—</option>
+            <option v-for="o in accessDeviceOptions" :key="o.option_id" :value="o.option_id">
+              {{ o.name }}
+            </option>
+          </select>
+        </div>
 
         <!-- Сигнальные опции блока управления -->
         <template v-if="signalSlots.length">
@@ -101,7 +112,7 @@
               <select v-model="signalSelection[slot.code]" @change="onSignalChange">
                 <option :value="null">—</option>
                 <option v-for="r in slot.rows" :key="r.id" :value="r.id">
-                  {{ r.name }} ({{ r.availability }})</option>
+                  {{ r.name }}</option>
               </select>
             </div>
           </div>
@@ -165,12 +176,7 @@ const STANDARD_OPTIONS = {
   selected_body_color_option:        { label: 'Цвет корпуса',                 apiKey: 'body_color_options' },
   selected_hand_wheel:               { label: 'Ручной дублер',                apiKey: 'hand_wheel_options' },
   selected_turn_angle_option:        { label: 'Угол поворота',                apiKey: 'turn_angle_options' },
-  selected_blinker_option:           { label: 'Блинкер',                      apiKey: 'blinker_options' },
-  selected_mechanical_indicator_option: { label: 'Механический индикатор',    apiKey: 'mechanical_indicator_options' },
   selected_cable_glands_holes:       { label: 'Кабельные вводы',              apiKey: 'cable_glands_holes_options' },
-  selected_end_switches_option:      { label: 'Концевые выключатели',         apiKey: 'end_switches_options' },
-  selected_way_switches_option:      { label: 'Путевые выключатели',          apiKey: 'way_switches_options' },
-  selected_torque_switches_option:   { label: 'Моментные выключатели',        apiKey: 'torque_switches_options' },
 }
 
 // Опции, зависящие от выбранного напряжения
@@ -187,6 +193,7 @@ const defaultForm = () => ({
   selected_power_supply: null,
   selected_safety_position: null,
   selected_control_unit_option: null,
+  selected_access_device_option: null,
   selected_temperature: null,
   selected_ip: null,
   selected_exd: null,
@@ -194,12 +201,7 @@ const defaultForm = () => ({
   selected_body_color_option: null,
   selected_hand_wheel: null,
   selected_turn_angle_option: null,
-  selected_blinker_option: null,
-  selected_mechanical_indicator_option: null,
   selected_cable_glands_holes: null,
-  selected_end_switches_option: null,
-  selected_way_switches_option: null,
-  selected_torque_switches_option: null,
   selected_matrix_rows: [],
 })
 
@@ -237,7 +239,16 @@ const powerDependentOptions = computed(() => {
 })
 
 const signalSlots = computed(() => options.value?.signal_slots || [])
+const accessDeviceOptions = computed(() => options.value?.access_device_options || [])
 const signalSelection = reactive({})
+
+function autoFillAccessDevice() {
+  const items = accessDeviceOptions.value
+  if (!items?.length) { form.selected_access_device_option = null; return }
+  if (items.length === 1) { form.selected_access_device_option = items[0].option_id; return }
+  const def = items.find(o => o.is_default)
+  form.selected_access_device_option = def ? def.option_id : null
+}
 
 function autoFillSignalDefaults() {
   for (const slot of signalSlots.value) {
@@ -259,6 +270,7 @@ async function onControlUnitChange() {
   try {
     options.value = (await loadOptions()).data
     autoFillPowerDependent()
+    autoFillAccessDevice()
     autoFillSignalDefaults()
   } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
 }
@@ -311,6 +323,7 @@ async function loadItem(item) {
     if (d.selected_power_supply?.id) form.selected_power_supply = d.selected_power_supply.id
     if (d.selected_safety_position?.id) form.selected_safety_position = d.selected_safety_position.id
     if (d.selected_control_unit_option?.id) form.selected_control_unit_option = d.selected_control_unit_option.id
+    if (d.selected_access_device_option?.id) form.selected_access_device_option = d.selected_access_device_option.id
 
     // Загружаем опции (с power_supply_id и control_unit_id)
     if (form.selected_model_line_item) {
@@ -367,6 +380,7 @@ async function onPowerSupplyChange() {
     // Перезагружаем опции с power_supply_id — получаем safety_position + control_unit
     options.value = (await loadOptions()).data
     autoFillPowerDependent()
+    autoFillAccessDevice()
     // Строки профиля БУ зависят от напряжения — сбрасываем и заполняем заново
     Object.keys(signalSelection).forEach(k => delete signalSelection[k])
     autoFillSignalDefaults()
