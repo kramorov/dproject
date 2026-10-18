@@ -16,9 +16,12 @@ class Command(BaseCommand):
         parser.add_argument('--output', default=None)
 
     def handle(self, *args, **options):
-        rows = ea_matrix_io.export_series_rows(options['series'])
+        headers, rows = ea_matrix_io.export_wide_rows(options['series'])
+        d_fields, d_rows = ea_matrix_io.export_device_rows(options['series'])
         extra = ea_matrix_io.export_extra_sheets(options['series'])
         path = options['output'] or f'ea_matrix_{options["series"]}.xlsx'
-        ea_matrix_io.write_xlsx(path, rows, extra_sheets=extra)
+        ea_matrix_io.write_wide_xlsx(path, headers, rows, d_fields, d_rows,
+                                     extra_sheets=extra)
         self.stdout.write(self.style.SUCCESS(
-            f'{path}: {len(rows)} строк + листы {[s[0] for s in extra]}'))
+            f'{path}: {len(rows)} строк x {len(headers)} колонок + листы '
+            f'{[s[0] for s in extra]}'))

@@ -457,3 +457,181 @@ def apply_import(rows):
         except Exception as e:  # noqa: BLE001 — отчёт по строкам
             stats['errors'].append(f'{rec.get("item_code")}/{rec.get("slot")}: {e}')
     return stats
+
+
+# ==================== ШИРОКИЙ ФОРМАТ (проверка AOX) ====================
+# Строки = модель × напряжение; колонки = БУ × (команды, ОС, обогрев БУ).
+# Значения: std / opt / no (БУ×напряжение недоступно) / '' (нет данных —
+# заполнить вручную).
+
+CU_GROUPS = ['basic', 'pote', 'tr-4-20', 'tr10', 'posi-4-20', 'posi10',
+             'int-o', 'int-l', 'int-n', 'int-n-hr', 'int-n-mb', 'int-n-pb']
+
+CMD_CODES = [
+    'CMD_OCS_220AC', 'CMD_OCS_24DC', 'CMD_REMOTE_220AC', 'CMD_REMOTE_24DC',
+    'CMD_LOCK_220AC', 'CMD_LOCK_24DC', 'CMD_MANUAL_220AC', 'CMD_MANUAL_24DC',
+    'CMD_ESD_OPEN_220AC', 'CMD_ESD_OPEN_24DC', 'CMD_ESD_CLOSE_220AC',
+    'CMD_ESD_CLOSE_24DC', 'CMD_INTERLOCK_OPEN_220AC',
+    'CMD_INTERLOCK_OPEN_24DC', 'CMD_INTERLOCK_CLOSE_220AC',
+    'CMD_INTERLOCK_CLOSE_24DC', 'CMD_DRIVE_ENABLE_220AC',
+    'CMD_DRIVE_ENABLE_24DC', 'CMD_MODE_220AC', 'CMD_MODE_24DC',
+    'CMD_POS_4_20MA_ACTIVE', 'CMD_POS_4_20MA_PASSIVE',
+    'CMD_POS_0_10V_ACTIVE', 'CMD_POS_0_10V_PASSIVE',
+]
+
+FB_CODES = [
+    'FB_END_OPEN_SPDT', 'FB_END_CLOSE_SPDT', 'FB_END_OPEN_DPDT',
+    'FB_END_CLOSE_DPDT', 'FB_WAY_OPEN_SPDT', 'FB_WAY_CLOSE_SPDT',
+    'FB_WAY_OPEN_DPDT', 'FB_WAY_CLOSE_DPDT', 'FB_TORQUE_OPEN_SPDT',
+    'FB_TORQUE_CLOSE_SPDT', 'FB_TORQUE_OPEN_DPDT', 'FB_TORQUE_CLOSE_DPDT',
+    'FB_TORQUE_4_20MA', 'FB_POS_4_20MA_ACTIVE', 'FB_POS_4_20MA_PASSIVE',
+    'FB_POS_4_20MA_ACTIVE_HART', 'FB_POS_4_20MA_PASSIVE_HART',
+    'FB_POS_0_10V', 'FB_POS_POT_1K', 'FB_OVERHEAT_NC', 'FB_OVERHEAT_SPDT',
+    'FB_ALARM_SPDT', 'FB_ALARM2_SPDT', 'FB_READY_NO', 'FB_STOP',
+    'FB_LOCAL_REMOTE', 'FB_SELECTOR_POSITION', 'FB_PHASE_LOSS',
+    'FB_TURN_COUNTER_NO',
+]
+
+HEATER_CODES = ['SEPARATE_LINE', 'CU_CIRCUIT']
+# БУ без своего обогревателя (basic — обогрев привода в temp-листе;
+# потенциометр/трансмиттер — устройства ОС)
+NO_HEATER_CU = {'basic', 'pote', 'tr-4-20', 'tr10'}
+
+
+def _matrix_availability_map(item, cu, ps):
+    """Сводка доступности по сигналам/обогреву для (модель, БУ, напряжение):
+    объединение режимов on_off/modulating (std сильнее opt)."""
+    from electric_actuators.models import EaSignalMatrixEntry
+    avail = {}
+    for mode in ('on_off', 'modulating'):
+        res = resolve_matrix(item, cu, ps, mode)
+        for slot in res['slots']:
+            for srow in slot['rows']:
+                entry = EaSignalMatrixEntry.objects.get(pk=srow['id'])
+                if entry.heater_supply_id:
+                    key = 'heater:' + entry.heater_supply.code
+                elif entry.feedback_signal_id:
+                    key = entry.feedback_signal.code
+                elif entry.control_signal_id:
+                    key = entry.control_signal.code
+                elif entry.protocol_id:
+                    key = entry.protocol.code
+                else:
+                    continue
+                a = srow['availability']
+                if a in ('std', 'opt') and avail.get(key) != 'std':
+                    avail[key] = a
+    return avail
+
+
+def export_wide_rows(model_line_code):
+    """Широкая матрица серии: (headers, rows) — модель × напряжение ×
+    (БУ × сигналы). Значения std/opt/no/''."""
+    from electric_actuators.models.ea_allowed_options import resolve_cu_pair
+    line = ElectricActuatorModelLine.objects.get(code=model_line_code)
+    items = list(ElectricActuatorModelLineItem.objects.filter(
+        model_line=line).select_related('body').order_by('code'))
+    cus = {c.code: c for c in ControlUnitInstalledOption.objects.all()}
+    pss = list(PowerSupplies.objects.filter(
+        is_active=True).order_by('sorting_order'))
+
+    headers = ['series_code', 'item_code', 'body_code', 'power_supply']
+    for cu_code in CU_GROUPS:
+        headers += [f'{cu_code}|{c}' for c in CMD_CODES]
+        headers += [f'{cu_code}|{f}' for f in FB_CODES]
+        headers += [f'{cu_code}|heater|{h}' for h in HEATER_CODES]
+
+    rows = []
+    for item in items:
+        for ps in pss:
+            row = {'series_code': line.code,
+                   'item_code': item.code or item.name,
+                   'body_code': _scope_body_code(item.body),
+                   'power_supply': ps.code}
+            for cu_code in CU_GROUPS:
+                cu = cus.get(cu_code)
+                pair = resolve_cu_pair(line, item, cu, ps) if cu else None
+                if cu is None or pair is None:
+                    for c in CMD_CODES + FB_CODES:
+                        row[f'{cu_code}|{c}'] = 'no'
+                    for h in HEATER_CODES:
+                        row[f'{cu_code}|heater|{h}'] = 'no'
+                    continue
+                avail = _matrix_availability_map(item, cu, ps)
+                for c in CMD_CODES:
+                    row[f'{cu_code}|{c}'] = avail.get(c, '')
+                for f in FB_CODES:
+                    row[f'{cu_code}|{f}'] = avail.get(f, '')
+                if cu_code in NO_HEATER_CU:
+                    for h in HEATER_CODES:
+                        row[f'{cu_code}|heater|{h}'] = 'no'
+                else:
+                    for h in HEATER_CODES:
+                        row[f'{cu_code}|heater|{h}'] = avail.get(
+                            'heater:' + h, '')
+            rows.append(row)
+    return headers, rows
+
+
+def export_device_rows(model_line_code):
+    """Лист device: датчик перегрева (THERMAL_RELAY/PTC_THERMISTOR) на
+    (модель × напряжение); значения std/opt/''."""
+    from electric_actuators.models import EaSignalMatrixEntry
+    line = ElectricActuatorModelLine.objects.get(code=model_line_code)
+    items = list(ElectricActuatorModelLineItem.objects.filter(
+        model_line=line).select_related('body').order_by('code'))
+    cus = list(ControlUnitInstalledOption.objects.all())
+    pss = list(PowerSupplies.objects.filter(
+        is_active=True).order_by('sorting_order'))
+    dev_codes = ['THERMAL_RELAY', 'PTC_THERMISTOR']
+    fields = ['series_code', 'item_code', 'body_code', 'power_supply'] \
+        + dev_codes
+    rows = []
+    for item in items:
+        for ps in pss:
+            row = {'series_code': line.code,
+                   'item_code': item.code or item.name,
+                   'body_code': _scope_body_code(item.body),
+                   'power_supply': ps.code}
+            vals = {}
+            for cu in cus:
+                for mode in ('on_off', 'modulating'):
+                    res = resolve_matrix(item, cu, ps, mode)
+                    for slot in res['slots']:
+                        if slot['code'] != 'THERMAL_SENSOR':
+                            continue
+                        for srow in slot['rows']:
+                            entry = EaSignalMatrixEntry.objects.get(
+                                pk=srow['id'])
+                            if entry.device_id and \
+                                    entry.device.code in dev_codes:
+                                a = srow['availability']
+                                if a in ('std', 'opt') and \
+                                        vals.get(entry.device.code) != 'std':
+                                    vals[entry.device.code] = a
+            for d in dev_codes:
+                row[d] = vals.get(d, '')
+            rows.append(row)
+    return fields, rows
+
+
+def write_wide_xlsx(path, wide_headers, wide_rows, device_fields,
+                    device_rows, extra_sheets=None):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'ea_signal_matrix'
+    ws.append(wide_headers)
+    for row in wide_rows:
+        ws.append([row.get(f, '') for f in wide_headers])
+    ws2 = wb.create_sheet('device')
+    ws2.append(device_fields)
+    for row in device_rows:
+        ws2.append([row.get(f, '') for f in device_fields])
+    for sheet_name, fields, sheet_rows in (extra_sheets or []):
+        ws3 = wb.create_sheet(sheet_name)
+        ws3.append(fields)
+        for row in sheet_rows:
+            ws3.append([row.get(f, '') for f in fields])
+    wb.save(path)
+    return len(wide_rows)

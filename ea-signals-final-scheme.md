@@ -335,8 +335,11 @@ availability (std/opt/na) × is_default × bundle × encoding/ext_encoding.
 signal.code, heater_supply.code, form.code, body.code/item.code) — по ним
 идёт обратный импорт (upsert строк на уровне корпуса).
 
-Экспорт — **4 листа** (2026-10-18): основной `ea_signal_matrix` + доп. листы
-не-матричных опций, влияющих на сигналы/оснащение:
+Экспорт — **широкий формат (2026-10-18, для проверки AOX)**: листы
+`ea_signal_matrix` (строки = модель × напряжение; колонки = БУ × (команды,
+ОС, обогрев БУ); значения std/opt/no/пусто), `device` (датчик перегрева
+THERMAL_RELAY/PTC_THERMISTOR на модель×напряжение), плюс прежние
+`temp_options`/`cu_options`/`turn_counters` (не менялись):
 - `temp_options` — температурные опции серии и **питание обогрева привода**
   (STD→NO_HEATER, LT/VLT × SEPARATE_LINE/MOTOR_CIRCUIT) + is_default;
 - `cu_options` — пары БУ×напряжение (`AllowedControlUnitOption`) с
@@ -345,6 +348,14 @@ signal.code, heater_supply.code, form.code, body.code/item.code) — по ним
   (is_active=False — запрет пары для модели);
 - `turn_counters` — разрешённые **счётчики** серии (`AllowedTurnCounterOption`);
   лист создаётся и пустым (заголовок — подсказка для заполнения).
+
+Классификация БУ (2026-10-18): `none` переименован в `basic` (миграция 0062:
+Basic — управление подачей напряжения на мотор, kind=BASIC; «нет управления» —
+записей нет). Группы БУ выгрузки: basic, pote, tr-4-20, tr10, posi-4-20,
+posi10, int-o, int-l, int-n, int-n-hr, int-n-mb, int-n-pb. Командные сигналы —
+220VAC (стандарт) и 24VDC (опция) для каждого; уставка 4-20/0-10 В; ОС —
+end/way/torque × Откр/Закр × SPDT/DPDT + момент 4-20 + позиция (4-20 A/P/HART,
+0-10 В, пот). Обогрев БУ — SEPARATE_LINE/CU_CIRCUIT (basic/pote/tr — 'no').
 
 Оси пар (БУ×напряжение) — per-модель: серийные активные пары +
 перекрытия модели (`AllowedControlUnitOption.model_line_item`, миграция 0061;

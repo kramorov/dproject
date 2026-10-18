@@ -24,8 +24,8 @@ from electric_actuators.models import (
 AR01_SERIES = {
     ('int-l', '24-DC'): True, ('int-l', '220-AC'): True,
     ('int-l', '380-AC'): True,
-    ('none', '24-DC'): True, ('none', '220-AC'): True,
-    ('none', '380-AC'): False,
+    ('basic', '24-DC'): True, ('basic', '220-AC'): True,
+    ('basic', '380-AC'): False,
     ('posi-4-20', '24-DC'): True, ('posi-4-20', '220-AC'): True,
     ('posi-4-20', '380-AC'): True,
     ('posi10', '24-DC'): True, ('posi10', '220-AC'): True,
@@ -61,8 +61,8 @@ AR11_SERIES = {
     ('int-n-mb', '380-AC'): True,
     ('int-n-pb', '24-DC'): True, ('int-n-pb', '220-AC'): True,
     ('int-n-pb', '380-AC'): True,
-    ('none', '24-DC'): True, ('none', '220-AC'): True,
-    ('none', '380-AC'): False,
+    ('basic', '24-DC'): True, ('basic', '220-AC'): True,
+    ('basic', '380-AC'): False,
     ('posi-4-20', '24-DC'): True, ('posi-4-20', '220-AC'): True,
     ('posi-4-20', '380-AC'): True,
     ('posi10', '24-DC'): True, ('posi10', '220-AC'): True,
@@ -80,7 +80,7 @@ AR11_ITEM = {
 
 # INDICATOR: cu → [(option_code, availability)]
 INDICATOR_RULES = {
-    'none': [('INDICATOR:BLINKER', 'std')],
+    'basic': [('INDICATOR:BLINKER', 'std')],
     'int-l': [('INDICATOR:LCD_POSITION', 'std'),
               ('INDICATOR:LCD_BLINKER', 'opt')],
     'int-n': [('INDICATOR:LCD_POSITION', 'std'),
@@ -96,7 +96,7 @@ INDICATOR_RULES = {
 }
 # Напряжения, на которых заливаются INDICATOR-строки (none — без 380: стартера нет)
 INDICATOR_PS = {'24-DC': '24-DC', '220-AC': '220-AC', '380-AC': '380-AC'}
-INDICATOR_PS_NONE = ['24-DC', '220-AC']
+INDICATOR_PS_BASIC = ['24-DC', '220-AC']
 
 CAPABILITIES = {
     'int-o': {
@@ -188,7 +188,7 @@ class Command(BaseCommand):
             enc = {'int-l': 'INT/L', 'int-n': 'INT/N',
                    'int-n-hr': 'INT/N.HR', 'int-n-mb': 'INT/N.MB',
                    'int-n-pb': 'INT/N.PB', 'int-o': 'INT/O',
-                   'none': '', 'posi-4-20': 'POSI', 'posi10': 'POSI10',
+                   'basic': '', 'posi-4-20': 'POSI', 'posi10': 'POSI10',
                    'pote': 'POTE', 'tr-4-20': 'TR', 'tr10': 'TR10'}
             return enc.get(cu_code, '')
 
@@ -201,9 +201,9 @@ class Command(BaseCommand):
                 set_pair(line_code, cu_code, ps_code, active,
                          item_code=item_code)
 
-        # Правило стартера: none×380 — запрет во всех сериях
+        # Правило стартера: basic×380 — запрет во всех сериях
         for a in AllowedControlUnitOption.objects.filter(
-                control_unit__code='none', power_supply__code='380-AC',
+                control_unit__code='basic', power_supply__code='380-AC',
                 is_active=True):
             a.is_active = False
             a.save(update_fields=['is_active'])
@@ -215,7 +215,7 @@ class Command(BaseCommand):
         slot = EaSignalSlot.objects.get(code='INDICATOR')
         options = {o.code: o for o in EaSlotOption.objects.filter(slot=slot)}
         for cu_code, rules in INDICATOR_RULES.items():
-            ps_codes = (INDICATOR_PS_NONE if cu_code == 'none'
+            ps_codes = (INDICATOR_PS_BASIC if cu_code == 'basic'
                         else list(INDICATOR_PS.values()))
             for ps_code in ps_codes:
                 for opt_code, availability in rules:

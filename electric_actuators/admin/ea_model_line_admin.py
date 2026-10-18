@@ -445,9 +445,8 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
 
     def _build_export_response(self, queryset,
                                filename='ea_signal_matrix.xlsx'):
-        """xlsx-ответ с матрицами сигналов всех серий из queryset + доп. листы
-        (температурные опции/обогрев привода, пары БУ×напряжение с питанием
-        БУ, разрешённые счётчики)."""
+        """xlsx-ответ: широкая матрица + листы device/temp/cu/turn_counters
+        (мультисерийный экспорт объединяет строки по сериям)."""
         import io
         import openpyxl
         from django.http import HttpResponse
@@ -455,27 +454,36 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'ea_signal_matrix'
-        ws.append(ea_matrix_io.FIELDS)
-        extra = []  # [(name, fields, rows)] — объединение по сериям
+        extra = {}
+        wide_rows = []
+        device_rows = []
+        headers = device_fields = None
         for line in queryset:
             if not line.code:
                 continue
-            for row in ea_matrix_io.export_series_rows(line.code):
-                ws.append([row.get(f, '') for f in ea_matrix_io.FIELDS])
+            h, rows = ea_matrix_io.export_wide_rows(line.code)
+            if headers is None:
+                headers = h
+                ws.append(h)
+            for row in rows:
+                wide_rows.append(row)
+                ws.append([row.get(f, '') for f in headers])
+            df_, dr = ea_matrix_io.export_device_rows(line.code)
+            device_fields = df_
+            device_rows.extend(dr)
             for sheet_name, fields, sheet_rows in \
                     ea_matrix_io.export_extra_sheets(line.code):
-                extra.append((sheet_name, fields, sheet_rows))
-        # Объединяем доп. листы по имени (series_code различает строки)
-        merged = {}
-        for sheet_name, fields, sheet_rows in extra:
-            if sheet_name not in merged:
-                merged[sheet_name] = (fields, [])
-            merged[sheet_name][1].extend(sheet_rows)
-        for sheet_name, (fields, sheet_rows) in merged.items():
-            ws2 = wb.create_sheet(sheet_name)
-            ws2.append(fields)
+                extra.setdefault(sheet_name, (fields, []))
+                extra[sheet_name][1].extend(sheet_rows)
+        ws2 = wb.create_sheet('device')
+        ws2.append(device_fields or [])
+        for row in device_rows:
+            ws2.append([row.get(f, '') for f in (device_fields or [])])
+        for sheet_name, (fields, sheet_rows) in extra.items():
+            ws3 = wb.create_sheet(sheet_name)
+            ws3.append(fields)
             for row in sheet_rows:
-                ws2.append([row.get(f, '') for f in fields])
+                ws3.append([row.get(f, '') for f in fields])
         buf = io.BytesIO()
         wb.save(buf)
         resp = HttpResponse(

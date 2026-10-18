@@ -48,7 +48,7 @@ POSITION_TITLES = {
 
 # ext-коды CU (фиксированные, ≥2 символов; ни один не префикс другого)
 CU_EXT = {
-    'none': '', 'int-o': 'IO', 'int-l': 'IL', 'int-n': 'IN',
+    'basic': '', 'int-o': 'IO', 'int-l': 'IL', 'int-n': 'IN',
     'int-n-mb': 'IM', 'int-n-pb': 'IP', 'int-n-hr': 'IH',
     'pote': 'PT', 'tr-4-20': 'TR', 'tr10': 'T0', 'posi-4-20': 'PR',
     'posi10': 'P0',

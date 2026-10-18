@@ -166,7 +166,7 @@ class Command(BaseCommand):
         wb = openpyxl.load_workbook(options['xlsx'], data_only=True)
         ws = wb.active
 
-        cu_none = ControlUnitInstalledOption.objects.get(code='none')
+        cu_none = ControlUnitInstalledOption.objects.get(code='basic')
         cu_int = {code: ControlUnitInstalledOption.objects.get(code=code)
                   for code in ('int-o', 'int-l', 'int-n')}
         ps_220 = PowerSupplies.objects.get(code=PS_220)
