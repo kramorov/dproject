@@ -630,3 +630,51 @@ class EaExtCodeTests(TestCase):
         decoded2, warnings2 = decode_ext_code(self.line, code_dc)
         self.assertEqual(decoded2['cmd']['code'], 'DC')
         self.assertEqual(decoded2['ind']['code'], '')
+
+    def test_configurator_data_and_ext_from_rows(self):
+        """Фаза 6: слоты конфигуратора + ext-код из выбранных строк матрицы."""
+        from electric_actuators.models import (
+            EaSignalMatrixEntry, EaFeedbackSignal, EaSignalForm, EaSlotOption,
+            ElectricActuatorBody, ElectricActuatorBodyTable,
+            ElectricActuatorModelLineItem, ElectricTemperatureOption,
+        )
+        from electric_actuators.services.ea_configurator_data import (
+            configurator_signal_data, selection_ext_code)
+        table = ElectricActuatorBodyTable.objects.first()
+        body = ElectricActuatorBody.objects.create(
+            name='Корпус X1', description='', model_line=self.line,
+            body_table=table)
+        item = ElectricActuatorModelLineItem.objects.create(
+            name='X1', description='', code='X1', model_line=self.line,
+            body=body)
+        form_spdt, _ = EaSignalForm.objects.get_or_create(
+            code='DRY_SPDT', defaults={'name': 'SPDT', 'category': 'contact'})
+        for code, role, name in (('FB_END_OPEN_SPDT', 'END_OPEN',
+                                  'Конечное Открыто SPDT'),
+                                 ('FB_END_CLOSE_SPDT', 'END_CLOSE',
+                                  'Конечное Закрыто SPDT')):
+            EaFeedbackSignal.objects.get_or_create(
+                code=code, defaults={'role': role, 'category': 'contact',
+                                     'form': form_spdt, 'name': name})
+        option = EaSlotOption.objects.get(code='LIMIT_SWITCHES:END_SPDT')
+        for sig_code in ('FB_END_OPEN_SPDT', 'FB_END_CLOSE_SPDT'):
+            EaSignalMatrixEntry.objects.create(
+                body=body, control_unit=self.cu_int, power_supply=self.ps220,
+                mode='on_off', slot=option.slot, option=option,
+                feedback_signal=EaFeedbackSignal.objects.get(code=sig_code),
+                availability='std', bundle='END_SPDT:X1:on_off')
+        data = configurator_signal_data(item, self.cu_int, self.ps220,
+                                        'on_off')
+        lim = [s for s in data['slots'] if s['code'] == 'LIMIT_SWITCHES'][0]
+        self.assertEqual(len(lim['rows']), 2)
+        self.assertTrue(all(r['ext'] == 'end=E1' for r in lim['rows']))
+        row_ids = [r['id'] for r in lim['rows']]
+        code = selection_ext_code(item, row_ids)
+        self.assertIn('E1', code)
+        temp = ElectricTemperatureOption.objects.get(
+            model_line=self.line, code='LT',
+            heater_supply__code='SEPARATE_LINE')
+        code2 = selection_ext_code(item, row_ids, temp_option=temp,
+                                   context={'cu': 'IO'})
+        self.assertIn('E1', code2)
+        self.assertIn('L', code2)

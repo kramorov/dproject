@@ -313,3 +313,40 @@ def decode_ext_code(model_line, ext_code):
             result.setdefault(pos, {'code': '',
                                     'name': codes.get(pos, {}).get('', '')})
     return result, warnings
+
+
+def option_position_code(option):
+    """Позиция и ext-код опции слота (или None — позиции в ext нет).
+
+    Обратное к coding_rules отображение: опция каталога (EaSlotOption) →
+    (позиция, код). Используется конфигуратором при сборке ext-кода из
+    выбранных матричных строк.
+    """
+    slot = option.slot.code
+    suffix = option.code.split(':', 1)[1] if ':' in option.code else option.code
+    if slot in PAIR_PREFIX and option.kind == 'pair':
+        pos = {'LIMIT_SWITCHES': 'end', 'WAY_SWITCHES': 'way',
+               'TORQUE_SWITCHES': 'torq'}[slot]
+        code = PAIR_PREFIX[slot] + PAIR_CONTACT.get(
+            suffix.rsplit('_', 1)[-1], '')
+        return (pos, code)
+    if slot == 'POSITION_FEEDBACK' and option.kind == 'signal' \
+            and option.feedback_signal_id:
+        code = POS_EXT.get(option.feedback_signal.code)
+        return ('pos', code) if code else None
+    if slot == 'PROTOCOL' and option.protocol_id:
+        code = PROTO_EXT.get(option.protocol.code, '')
+        return ('proto', code) if code else None
+    if slot == 'HEATER_CONTROL_UNIT' and option.kind == 'heater':
+        code = HEATER_CU_EXT.get(option.heater_supply.code, '')
+        return ('h_cu', code)
+    if slot in NONE_SLOT_EXT:
+        pos_map = {'LOCAL_CONTROL': 'lc', 'CMD': 'cmd', 'SETPOINT': 'setp',
+                   'TURN_COUNTER': 'cnt', 'INDICATOR': 'ind',
+                   'THERMAL_SENSOR': 'therm'}
+        ext = NONE_SLOT_EXT[slot].get(suffix)
+        if ext is None and option.feedback_signal_id:
+            ext = THERM_EXT.get(option.feedback_signal.code)
+        if ext is not None:
+            return (pos_map[slot], ext)
+    return None
