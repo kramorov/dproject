@@ -145,6 +145,7 @@ class PnVarietyAdmin(admin.ModelAdmin):
 class PowerSuppliesAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'code', 'sorting_order', 'is_active']
     list_editable = ['name', 'code', 'sorting_order', 'is_active']
+    search_fields = ['name', 'code']
     ordering = ['sorting_order']
 
 
@@ -259,6 +260,18 @@ class ControlUnitInstalledOptionForm(forms.ModelForm):
         help_text="Редактируйте JSON напрямую или используйте таблицу ниже"
     )
 
+    capabilities_display = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'rows': 6,
+            'class': 'vLargeTextField json-editor',
+            'style': 'font-family: monospace;'
+        }),
+        label="Функции БУ (capabilities)",
+        help_text="JSON-флаги: local_controls, display, pst, datalogger, "
+                  "bluetooth, esd, pid, interrupter_timer"
+    )
+
     class Meta:
         model = ControlUnitInstalledOption
         fields = '__all__'
@@ -286,6 +299,14 @@ class ControlUnitInstalledOptionForm(forms.ModelForm):
                 ensure_ascii=False,
                 indent=2
             )
+        if self.instance and self.instance.capabilities:
+            try:
+                self.fields['capabilities_display'].initial = json.dumps(
+                    self.instance.capabilities, ensure_ascii=False, indent=2)
+            except Exception:
+                self.fields['capabilities_display'].initial = '{}'
+        else:
+            self.fields['capabilities_display'].initial = '{}'
 
     def clean(self):
         cleaned_data = super().clean()
@@ -311,6 +332,19 @@ class ControlUnitInstalledOptionForm(forms.ModelForm):
         else:
             cleaned_data['feature_list'] = []
 
+        # Парсим capabilities
+        caps_str = cleaned_data.get('capabilities_display', '{}')
+        if caps_str:
+            try:
+                parsed_caps = json.loads(caps_str)
+                if not isinstance(parsed_caps, dict):
+                    raise forms.ValidationError("Capabilities должен быть объектом (dict)")
+                cleaned_data['capabilities'] = parsed_caps
+            except json.JSONDecodeError as e:
+                raise forms.ValidationError(f"Ошибка в JSON capabilities: {e}")
+        else:
+            cleaned_data['capabilities'] = {}
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -331,16 +365,24 @@ class ControlUnitInstalledOptionForm(forms.ModelForm):
 @admin.register(ControlUnitInstalledOption)
 class ControlUnitInstalledOptionAdmin(admin.ModelAdmin):
     form = ControlUnitInstalledOptionForm
+    autocomplete_fields = ['accepts', 'emits', 'protocols', 'control_voltage']
 
-    list_display = ['name', 'code', 'encoding', 'sorting_order', 'is_active']
+    list_display = ['name', 'code', 'kind', 'encoding', 'sorting_order', 'is_active']
     list_editable = ['code', 'encoding', 'sorting_order', 'is_active']
-    list_filter = ['is_active', 'encoding']
+    list_filter = ['is_active', 'encoding', 'kind']
     search_fields = ['name', 'code', 'encoding']
     ordering = ['sorting_order']
 
     fieldsets = (
         ('Основная информация', {
-            'fields': ('name', 'code', 'encoding', 'description')
+            'fields': ('name', 'code', 'kind', 'encoding', 'description')
+        }),
+        ('Сигналы и функции (фаза 3)', {
+            'fields': ('accepts', 'emits', 'protocols', 'control_voltage',
+                       'capabilities_display'),
+            'description': 'Команды/ОС/шины БУ и напряжение цепи управления; '
+                           'capabilities — флаги функций (local_controls, display, '
+                           'pst, datalogger, bluetooth, esd, pid, interrupter_timer).'
         }),
         ('Параметры блока управления', {
             'fields': ('feature_list_display',),

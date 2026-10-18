@@ -564,6 +564,92 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
 
     ordering = ('sorting_order' , 'name')
 
+    change_form_template = (
+        'admin/electric_actuators/electricactuatormodelline/change_form.html')
+
+    actions = ['export_ea_signal_matrix']
+
+    @admin.action(description='Экспорт матрицы сигналов (xlsx)')
+    def export_ea_signal_matrix(self, request, queryset):
+        return self._build_export_response(queryset)
+
+    def _build_export_response(self, queryset,
+                               filename='ea_signal_matrix.xlsx'):
+        """xlsx-ответ с матрицами сигналов всех серий из queryset."""
+        import io
+        import openpyxl
+        from django.http import HttpResponse
+        from electric_actuators.services import ea_matrix_io
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'ea_signal_matrix'
+        ws.append(ea_matrix_io.FIELDS)
+        for line in queryset:
+            if not line.code:
+                continue
+            for row in ea_matrix_io.export_series_rows(line.code):
+                ws.append([row.get(f, '') for f in ea_matrix_io.FIELDS])
+        buf = io.BytesIO()
+        wb.save(buf)
+        resp = HttpResponse(
+            buf.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument'
+                         '.spreadsheetml.sheet')
+        resp['Content-Disposition'] = 'attachment; filename="%s"' % filename
+        return resp
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path('import-signal-matrix/',
+                 self.admin_site.admin_view(self.import_signal_matrix_view),
+                 name='electricactuatormodelline_import_matrix'),
+            path('<path:object_id>/export-signal-matrix/',
+                 self.admin_site.admin_view(self.export_signal_matrix_view),
+                 name='electricactuatormodelline_export_matrix'),
+        ]
+        return custom + urls
+
+    def export_signal_matrix_view(self, request, object_id):
+        """Экспорт матрицы одной серии (кнопка на странице редактирования)."""
+        from django.shortcuts import get_object_or_404
+        line = get_object_or_404(ElectricActuatorModelLine, pk=object_id)
+        return self._build_export_response(
+            ElectricActuatorModelLine.objects.filter(pk=line.pk),
+            filename='ea_signal_matrix_%s.xlsx' % line.code)
+
+    def import_signal_matrix_view(self, request):
+        import os
+        import tempfile
+        from django.shortcuts import redirect, render
+        from django.contrib import messages
+        from electric_actuators.services import ea_matrix_io
+        if request.method == 'POST' and request.FILES.get('file'):
+            upload = request.FILES['file']
+            fd, path = tempfile.mkstemp(suffix='.xlsx')
+            with os.fdopen(fd, 'wb') as fh:
+                for chunk in upload.chunks():
+                    fh.write(chunk)
+            try:
+                rows = ea_matrix_io.read_xlsx(path)
+                stats = ea_matrix_io.apply_import(rows)
+                messages.success(request, 'Импорт: создано %d, обновлено %d, '
+                                         'ошибок %d' % (
+                    stats['created'], stats['updated'], len(stats['errors'])))
+            finally:
+                os.unlink(path)
+            return redirect(request.path)
+        context = self.admin_site.each_context(request)
+        context.update({
+            'title': 'Импорт матрицы сигналов ЭП (xlsx)',
+            'errors_preview': '',
+        })
+        return render(
+            request,
+            'admin/electric_actuators/electricactuatormodelline/import.html',
+            context)
+
     # Поля для автодополнения
     # autocomplete_fields = [
     #     'brand' ,

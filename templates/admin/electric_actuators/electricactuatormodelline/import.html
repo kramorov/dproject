@@ -1,0 +1,28 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans "Импорт матрицы сигналов ЭП (xlsx)" %}</h1>
+
+    <div class="module">
+        <p>
+            {% trans "Загрузите файл, сформированный действием «Экспорт матрицы сигналов (xlsx)»." %}
+            {% trans "Колонки содержат коды опций; строки сопоставляются по кодам серии/модели и опций." %}
+        </p>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-row">
+                <label for="file">{% trans "Файл Excel:" %}</label>
+                <input type="file" name="file" accept=".xlsx" required>
+            </div>
+            <div class="submit-row">
+                <input type="submit" value="{% trans 'Импортировать' %}" class="default">
+                <a href="{% url 'admin:electric_actuators_electricactuatormodelline_changelist' %}"
+                   class="button">{% trans 'Отмена' %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

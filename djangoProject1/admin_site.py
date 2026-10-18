@@ -130,6 +130,15 @@ ADMIN_MODEL_BLOCK = {
     ('electric_actuators', 'ElectricExdOption'): 'electric_actuators',
     ('electric_actuators', 'ElectricPowerSupplyOption'): 'electric_actuators',
     ('electric_actuators', 'ModelBody'): 'electric_actuators',
+    # --- Электроприводы: сигналы/матрица (новые модели, 2026-10-18) ---
+    ('electric_actuators', 'EaSignalForm'): 'electric_actuators',
+    ('electric_actuators', 'EaControlSignal'): 'electric_actuators',
+    ('electric_actuators', 'EaFeedbackSignal'): 'electric_actuators',
+    ('electric_actuators', 'EaCommProtocol'): 'electric_actuators',
+    ('electric_actuators', 'EaFeedbackDevice'): 'electric_actuators',
+    ('electric_actuators', 'EaSignalSlot'): 'electric_actuators',
+    ('electric_actuators', 'EaSignalMatrixEntry'): 'electric_actuators',
+    ('electric_actuators', 'EaWiringDiagramBinding'): 'electric_actuators',
     # --- Электроприводы: опции (ETT) ---
     ('ett', 'DnType'): 'ett',
     ('ett', 'EttActuatorType'): 'ett',

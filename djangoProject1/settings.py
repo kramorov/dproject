@@ -259,6 +259,11 @@ DATABASES = {
     'default' : {
         'ENGINE' : 'django.db.backends.sqlite3' ,
         'NAME' : os.environ.get('DB_PATH', BASE_DIR / 'db.sqlite3'),
+        'OPTIONS': {
+            # Ждать блокировку, а не висеть бесконечно: при занятой БД
+            # (runserver/долгий запрос) — понятная ошибка через 30 с.
+            'timeout': 30,
+        },
         'TEST': {
             'NAME': BASE_DIR / 'test_db.sqlite3',
         },

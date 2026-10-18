@@ -1,0 +1,23 @@
+"""
+Экспорт матрицы сигналов серии ЭП в Excel.
+
+    python manage.py export_ea_signal_matrix --series AR01E [--output путь]
+"""
+from django.core.management.base import BaseCommand
+
+from electric_actuators.services import ea_matrix_io
+
+
+class Command(BaseCommand):
+    help = 'Экспорт матрицы сигналов серии ЭП в xlsx'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--series', required=True)
+        parser.add_argument('--output', default=None)
+
+    def handle(self, *args, **options):
+        rows = ea_matrix_io.export_series_rows(options['series'])
+        path = options['output'] or f'ea_matrix_{options["series"]}.xlsx'
+        ea_matrix_io.write_xlsx(path, rows)
+        self.stdout.write(self.style.SUCCESS(
+            f'{path}: {len(rows)} строк'))

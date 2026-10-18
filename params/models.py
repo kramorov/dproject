@@ -380,6 +380,18 @@ class MechanicalIndicatorInstalledOption(LocalizedDictFieldsMixin, OptionListToS
 
 
 class ControlUnitInstalledOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
+    """Вид блока управления электропривода.
+
+    Расширен в фазе 3 плана сигналов ЭП (2026-10-18):
+    ``kind`` — класс БУ (без БУ / базовый / интеллектуальный / позиционер);
+    ``accepts``/``emits`` — какие командные сигналы принимает и какие сигналы ОС
+    выдаёт; ``protocols`` — шинные протоколы (Modbus/Profibus/…, HART сюда не
+    входит — это атрибут сигнала); ``capabilities`` — функции БУ, не являющиеся
+    сигналами (местное управление, дисплей, PST, datalogger, Bluetooth, ESD, PID,
+    interrupter timer); ``control_voltage`` — напряжение цепи управления
+    (24 V DC / 115 V AC у AUMA; полосы Rotork — записи PowerSupplies),
+    null = напряжение задаёт форма сигнала (AOX).
+    """
     name = models.CharField(max_length=100, blank=True, null=True,
                             verbose_name=_("Название"),
                             help_text=_("Название обозначения установленного на приводе блока управления")
@@ -398,6 +410,54 @@ class ControlUnitInstalledOption(LocalizedDictFieldsMixin, OptionListToSelectMix
         default=list, blank=True, null=True,
         verbose_name="Параметры блока управления",
         help_text="Список параметров в формате [{'display_name': '...', 'value': '...'}]"
+    )
+    kind = models.CharField(
+        max_length=20,
+        choices=(
+            ('NONE', _('Без блока управления')),
+            ('BASIC', _('Базовый')),
+            ('INTEGRATED', _('Интеллектуальный')),
+            ('POSITIONER', _('Позиционер')),
+        ),
+        default='NONE',
+        verbose_name=_('Класс блока управления'),
+        help_text=_('NONE — клеммная колодка/устройство ОС без контроллера; '
+                    'BASIC — параллельное управление (AUMA AM); INTEGRATED — '
+                    'интеллектуальный БУ (INT ICU/SRCU/LCU, AUMATIC AC, Rotork IQ); '
+                    'POSITIONER — позиционер')
+    )
+    accepts = models.ManyToManyField(
+        'electric_actuators.EaControlSignal', blank=True,
+        related_name='accepting_control_units',
+        verbose_name=_('Принимает команды'),
+        help_text=_('Командные сигналы, которые БУ принимает')
+    )
+    emits = models.ManyToManyField(
+        'electric_actuators.EaFeedbackSignal', blank=True,
+        related_name='emitting_control_units',
+        verbose_name=_('Выдаёт сигналы ОС'),
+        help_text=_('Сигналы обратной связи, которые БУ способен выдать')
+    )
+    protocols = models.ManyToManyField(
+        'electric_actuators.EaCommProtocol', blank=True,
+        related_name='control_units',
+        verbose_name=_('Шинные протоколы'),
+        help_text=_('Протоколы связи БУ (Modbus, Profibus, …); HART — атрибут сигнала')
+    )
+    capabilities = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_('Функции БУ'),
+        help_text=_('Флаги функций, не являющихся сигналами: '
+                    '{"local_controls": true, "display": true, "pst": false, '
+                    '"datalogger": false, "bluetooth": false, "esd": false, '
+                    '"pid": false, "interrupter_timer": false}')
+    )
+    control_voltage = models.ForeignKey(
+        'PowerSupplies', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='control_voltage_units',
+        verbose_name=_('Напряжение цепи управления'),
+        help_text=_('Напряжение управляющих входов (24 V DC, 115 V AC, полосы…); '
+                    'null — напряжение задаёт форма сигнала')
     )
 
     class Meta:

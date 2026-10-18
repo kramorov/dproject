@@ -17,6 +17,7 @@ from .equipment_type import EquipmentType
 from .selection_wizard import SelectionWizard
 from .equipment_type_mixin import EquipmentTypeMixin
 from .image_gallery_mixin import ImageGalleryMixin
+from .question_graph import QuestionGraph
 from .mixins import (
     StructuredDataMixin ,
     TimestampMixin ,
@@ -34,6 +35,7 @@ __all__ = [
     'EquipmentType',
     'SelectionWizard',
     'EquipmentTypeMixin',
+    'QuestionGraph',
 
     # Миксины
     'StructuredDataMixin' ,

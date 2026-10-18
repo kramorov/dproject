@@ -16,4 +16,5 @@ from .ea_actuator_selected_admin import *
 from .ea_constructor_admin import *
 from .ea_allowed_options_admin import *
 from .ea_control_unit_wiring_admin import *
+from .ea_signals_admin import *
 
