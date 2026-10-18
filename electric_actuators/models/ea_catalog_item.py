@@ -30,6 +30,7 @@ from core.models import EquipmentTypeMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.mixins import TemplateMixin
 from core.utils.localization import localized_name
+from options.exd import ChosenExdRowMixin
 from sku.models import SKUMixin
 
 from electric_actuators.models.ea_catalog_item_fields import (
@@ -50,13 +51,20 @@ _MODE_LABELS = {
 
 
 class ElectricActuatorCatalogItem(
-    EquipmentTypeMixin, ConfigHashMixin, SKUMixin, TemplateMixin, models.Model,
+    EquipmentTypeMixin, ConfigHashMixin, SKUMixin,
+    ChosenExdRowMixin, TemplateMixin, models.Model,
 ):
     """Каталожная карточка исполнения электропривода (эталон каталога)."""
 
     class Origin(models.TextChoices):
         GENERATED = 'generated', _('Сгенерирована')
         MANUAL = 'manual', _('Ручная')
+
+    # Взрывозащита — общий паттерн (exd-option.md §3.6): выбранная строка
+    # серии (FK ``exd``) → кодировка + M2M видов (ChosenExdRowMixin).
+    exd_row_field = 'exd'
+    exd_through_model = 'electric_actuators.ElectricExdOption'
+    exd_parent_field = 'model_line'
 
     # Реестр полей (единый источник правды) + составы словарей.
     TEMPLATE_FIELDS = EA_CATALOG_ITEM_TEMPLATE_FIELDS
@@ -68,9 +76,9 @@ class ElectricActuatorCatalogItem(
         'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
         'fb_position_feedback', 'fb_hart', 'fb_thermal_sensor',
         'fb_indicator', 'fb_turn_counter',
-        'temperature', 'ip', 'exd', 'coating', 'color', 'hand_wheel',
-        'turn_angle', 'cable_glands', 'access_device', 'safety_position',
-        'article', 'ext_code',
+        'temperature', 'ip', 'exd', 'exd_short', 'coating', 'color',
+        'hand_wheel', 'turn_angle', 'cable_glands', 'access_device',
+        'safety_position', 'article', 'ext_code',
     )
     CODE_FIELD_KEYS = ('code', 'temperature', 'ip', 'cu_name', 'voltage', 'exd')
     VARS_FIELD_KEYS = (
@@ -79,7 +87,7 @@ class ElectricActuatorCatalogItem(
         'ctl_protocol', 'ctl_commands', 'ctl_setpoint',
         'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
         'fb_position_feedback', 'fb_hart',
-        'temperature', 'ip', 'exd', 'coating', 'color', 'hand_wheel',
+        'temperature', 'ip', 'exd', 'exd_short', 'coating', 'color', 'hand_wheel',
         'turn_angle', 'cable_glands', 'access_device', 'safety_position',
     )
 
@@ -268,11 +276,6 @@ class ElectricActuatorCatalogItem(
         labels = _MODE_LABELS.get(self.mode, {'ru': self.mode})
         locale = locale or 'ru'
         return labels.get(locale) or labels['ru']
-
-    def _res_exd(self, locale=None) -> str:
-        if not self.exd_id:
-            return ''
-        return self.exd.exd_short or self.exd.encoding or ''
 
     # ── Значения из матричных строк (локализованные) ──
     def _matrix_rows(self):
