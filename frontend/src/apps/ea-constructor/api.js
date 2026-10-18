@@ -13,9 +13,10 @@ export default {
   delete(id)             { return api.delete(E.detail(id)) },
 
   // Options & preview
-  getOptions(mliId, psId) {
+  getOptions(mliId, psId, cuId) {
     const params = { model_line_item_id: mliId }
     if (psId) params.power_supply_id = psId
+    if (cuId) params.control_unit_id = cuId
     return api.get(E.options, { params })
   },
   preview(data)          { return api.post(E.preview, data) },

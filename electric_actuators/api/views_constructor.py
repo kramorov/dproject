@@ -116,6 +116,12 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             if existing:
                 return Response(self._serialize_detail(existing), status=status.HTTP_200_OK)
         obj.save()
+        if 'selected_matrix_rows' in request.data:
+            from electric_actuators.models import EaSignalMatrixEntry
+            ids = [int(x) for x in request.data['selected_matrix_rows']
+                   if str(x).isdigit()]
+            obj.selected_matrix_rows.set(
+                EaSignalMatrixEntry.objects.filter(pk__in=ids))
         return Response(self._serialize_detail(obj), status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
@@ -137,6 +143,12 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             obj.sorting_order = request.data['sorting_order']
         if 'is_active' in request.data:
             obj.is_active = request.data['is_active']
+        if 'selected_matrix_rows' in request.data:
+            from electric_actuators.models import EaSignalMatrixEntry
+            ids = [int(x) for x in request.data['selected_matrix_rows']
+                   if str(x).isdigit()]
+            obj.selected_matrix_rows.set(
+                EaSignalMatrixEntry.objects.filter(pk__in=ids))
         obj.save()
         return Response(self._serialize_detail(obj))
 
@@ -147,7 +159,11 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):
-        """Доступные опции для модели. ?model_line_item_id=X&power_supply_id=Y"""
+        """Доступные опции для модели.
+        ?model_line_item_id=X&power_supply_id=Y&control_unit_id=Z"""
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(
+            request.headers.get('Accept-Language'))
         mli_id = request.query_params.get('model_line_item_id')
         if not mli_id:
             return Response({'error': 'model_line_item_id required'}, status=400)
@@ -156,8 +172,11 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         ps_id = request.query_params.get('power_supply_id')
         if ps_id:
             kwargs['selected_power_supply_id'] = ps_id
+        cu_id = request.query_params.get('control_unit_id')
+        if cu_id:
+            kwargs['selected_control_unit_option_id'] = cu_id
         obj = ElectricActuatorConstructor(**kwargs)
-        return Response(obj.get_available_options())
+        return Response(obj.get_available_options(locale=locale))
 
     @action(detail=False, methods=['get'], url_path='power-supplies')
     def power_supplies(self, request):
@@ -256,6 +275,8 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_hand_wheel': _fk_dict(obj.selected_hand_wheel),
             'selected_turn_angle_option': _fk_dict(obj.selected_turn_angle_option),
             'selected_cable_glands_holes': _fk_dict(obj.selected_cable_glands_holes),
+            'selected_matrix_rows': list(obj.selected_matrix_rows.values_list(
+                'pk', flat=True)) if obj.pk else [],
             'actual_mounting_plate': _fk_dict(obj.actual_mounting_plate),
             'actual_stem_shape': _fk_dict(obj.actual_stem_shape),
             'actual_stem_size': _fk_dict(obj.actual_stem_size),

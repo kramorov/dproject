@@ -221,6 +221,15 @@ class ElectricActuatorConstructor(models.Model):
         help_text=_('Отверстия под кабельные вводы')
     )
 
+    # Выбранные сигнальные опции БУ (профильные строки EaSignalMatrixEntry)
+    selected_matrix_rows = models.ManyToManyField(
+        'electric_actuators.EaSignalMatrixEntry',
+        blank=True,
+        related_name='constructor_selections',
+        verbose_name=_("Выбранные сигнальные опции БУ"),
+        help_text=_('Строки сигнального профиля выбранного типа БУ')
+    )
+
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
 
     # ==================== КОНФИГУРАЦИЯ ОПЦИЙ ====================
@@ -410,7 +419,7 @@ class ElectricActuatorConstructor(models.Model):
             return None
         return None
 
-    def get_available_options(self) -> Dict[str, List[Dict]]:
+    def get_available_options(self, locale=None) -> Dict[str, List[Dict]]:
         """
         Получить все доступные опции для выбранной модели.
         Возвращает словарь: ключ — имя поля опции, значение — список {id, option_id, name, code, is_default, ...}.
@@ -421,6 +430,23 @@ class ElectricActuatorConstructor(models.Model):
             return {}
 
         result = {}
+
+        # --- Сигнальные опции БУ (фаза 9): слоты профиля выбранного типа БУ ---
+        if self.selected_control_unit_option_id and \
+                self.selected_power_supply_id:
+            from electric_actuators.services.ea_configurator_data import (
+                configurator_signal_data)
+            try:
+                sig = configurator_signal_data(
+                    self.selected_model_line_item,
+                    self.selected_control_unit_option,
+                    self.selected_power_supply.power_supply,
+                    'on_off', locale=locale)
+                result['signal_slots'] = sig['slots']
+            except Exception:  # noqa: BLE001
+                result['signal_slots'] = []
+        else:
+            result['signal_slots'] = []
 
         # --- model_line_item опции ---
         if self.selected_model_line_item:

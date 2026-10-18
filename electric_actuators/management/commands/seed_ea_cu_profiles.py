@@ -17,7 +17,7 @@ from electric_actuators.models import (
 # Профили: cu_code -> {ps_code или '*': [(slot, opt_suffix, availability)]}
 # '*' — оба напряжения 24/220; '+380' — добавляет 380 к 24/220.
 PROFILES = {
-    'basic': {'*': [
+    'basic': {'24_220': [
         ('LIMIT_SWITCHES', 'END_SPDT', 'std'),
         ('LIMIT_SWITCHES', 'END_DPDT', 'opt'),
         ('WAY_SWITCHES', 'WAY_SPDT', 'opt'),
@@ -83,14 +83,14 @@ PROFILES = {
         ('HEATER_CONTROL_UNIT', 'SEPARATE_LINE', 'opt'),
         ('HEATER_CONTROL_UNIT', 'CU_CIRCUIT', 'opt'),
     ]},
-    'pote': {'*': [('POSITION_FEEDBACK', 'FB_POS_POT_1K', 'std')]},
-    'tr-4-20': {'*': [('POSITION_FEEDBACK', 'FB_POS_4_20MA_PASSIVE', 'std')]},
-    'tr10': {'*': [('POSITION_FEEDBACK', 'FB_POS_0_10V', 'opt')]},
-    'posi-4-20': {'*': [
+    'pote': {'24_220': [('POSITION_FEEDBACK', 'FB_POS_POT_1K', 'std')]},
+    'tr-4-20': {'24_220': [('POSITION_FEEDBACK', 'FB_POS_4_20MA_PASSIVE', 'std')]},
+    'tr10': {'24_220': [('POSITION_FEEDBACK', 'FB_POS_0_10V', 'opt')]},
+    'posi-4-20': {'24_220': [
         ('SETPOINT', 'CMD_POS_4_20MA_ACTIVE', 'opt'),
         ('POSITION_FEEDBACK', 'FB_POS_4_20MA_ACTIVE', 'opt'),
     ]},
-    'posi10': {'*': [
+    'posi10': {'24_220': [
         ('SETPOINT', 'CMD_POS_0_10V_ACTIVE', 'opt'),
         ('POSITION_FEEDBACK', 'FB_POS_0_10V', 'opt'),
     ]},
@@ -223,8 +223,9 @@ class Command(BaseCommand):
             profile = PROFILES[profile_name]
             # список ps: '*' → 24/220; '+380' → +380; явные ключи
             for ps_key, rules in profile.items():
-                ps_codes = (['24-DC', '220-AC'] if ps_key == '*'
-                            else [ps_key])
+                ps_codes = (['24-DC', '220-AC', '380-AC'] if ps_key == '*'
+                            else (['24-DC', '220-AC'] if ps_key == '24_220'
+                                  else [ps_key]))
                 if ps_key == '+380':
                     continue  # не используется — резерв
                 for ps_code in ps_codes:

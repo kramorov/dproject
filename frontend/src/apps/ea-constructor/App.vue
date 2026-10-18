@@ -69,7 +69,7 @@
         <div class="options-grid">
           <div class="form-row" v-for="opt in standardOptionFields" :key="opt.key">
             <label>{{ opt.label }}</label>
-            <select v-model="form[opt.key]" :disabled="opt.disabled">
+            <select v-model="form[opt.key]" :disabled="opt.disabled" @change="opt.key === 'selected_control_unit_option' && onControlUnitChange()">
               <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
                 {{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}
               </option>
@@ -90,7 +90,23 @@
               </select>
             </div>
           </div>
+        
+
+        <!-- Сигнальные опции блока управления -->
+        <template v-if="signalSlots.length">
+          <h3>Сигнальные опции блока управления</h3>
+          <div class="options-grid">
+            <div class="form-row" v-for="slot in signalSlots" :key="slot.code">
+              <label>{{ slot.name }}</label>
+              <select v-model="signalSelection[slot.code]" @change="onSignalChange">
+                <option :value="null">—</option>
+                <option v-for="r in slot.rows" :key="r.id" :value="r.id">
+                  {{ r.name }} ({{ r.availability }})</option>
+              </select>
+            </div>
+          </div>
         </template>
+</template>
       </template>
 
       <div class="preview" v-if="previewText">
@@ -185,6 +201,7 @@ const defaultForm = () => ({
   selected_end_switches_option: null,
   selected_way_switches_option: null,
   selected_torque_switches_option: null,
+  selected_matrix_rows: [],
 })
 
 const form = reactive(defaultForm())
@@ -219,6 +236,33 @@ const powerDependentOptions = computed(() => {
     disabled: (options.value[cfg.apiKey] || []).length <= 1,
   }))
 })
+
+const signalSlots = computed(() => options.value?.signal_slots || [])
+const signalSelection = reactive({})
+
+function autoFillSignalDefaults() {
+  for (const slot of signalSlots.value) {
+    const def = slot.rows.find(r => r.is_default) || slot.rows[0]
+    if (def && signalSelection[slot.code] == null) {
+      signalSelection[slot.code] = def.id
+    }
+  }
+  form.selected_matrix_rows = Object.values(signalSelection).filter(Boolean)
+}
+
+function onSignalChange() {
+  form.selected_matrix_rows = Object.values(signalSelection).filter(Boolean)
+}
+
+async function onControlUnitChange() {
+  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
+  if (!form.selected_model_line_item || !form.selected_power_supply) return
+  try {
+    options.value = (await loadOptions()).data
+    autoFillPowerDependent()
+    autoFillSignalDefaults()
+  } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
+}
 
 onMounted(async () => {
   try { modelLines.value = (await api.getModelLines()).data; await loadList() }
@@ -280,6 +324,14 @@ async function loadItem(item) {
 }
 
 function autoFillFromData(d) {
+  if (Array.isArray(d.selected_matrix_rows)) {
+    const ids = new Set(d.selected_matrix_rows)
+    for (const slot of signalSlots.value) {
+      const row = slot.rows.find(r => ids.has(r.id))
+      if (row) signalSelection[slot.code] = row.id
+    }
+  }
+
   // Заполняем стандартные опции
   for (const key of Object.keys(STANDARD_OPTIONS)) {
     if (d[key]?.id) form[key] = d[key].id
@@ -324,7 +376,7 @@ async function onPowerSupplyChange() {
 async function loadOptions() {
   const mliId = form.selected_model_line_item
   const psId = form.selected_power_supply
-  return api.getOptions(mliId, psId)
+  return api.getOptions(mliId, psId, form.selected_control_unit_option)
 }
 
 function autoFillStandardDefaults() {
