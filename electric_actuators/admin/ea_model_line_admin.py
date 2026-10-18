@@ -477,10 +477,7 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
             h, rows = ea_matrix_io.export_wide_rows(line.code)
             if headers is None:
                 headers = h
-                ws.append(h)
-            for row in rows:
-                wide_rows.append(row)
-                ws.append([row.get(f, '') for f in headers])
+            wide_rows.extend(rows)
             df_, dr = ea_matrix_io.export_device_rows(line.code)
             device_fields = df_
             device_rows.extend(dr)
@@ -488,6 +485,24 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
                     ea_matrix_io.export_extra_sheets(line.code):
                 extra.setdefault(sheet_name, (fields, []))
                 extra[sheet_name][1].extend(sheet_rows)
+        # Объединённые столбцы ссылок на листы сигналов БУ (union по сериям)
+        base_headers = [x for x in (headers or [])
+                        if not str(x).startswith('cu_ref|')]
+        cu_refs = []
+        _seen = set()
+        for row in wide_rows:
+            for k in row:
+                if str(k).startswith('cu_ref|') and k not in _seen:
+                    _seen.add(k)
+                    cu_refs.append(k)
+        headers = base_headers + cu_refs
+        ws.append(headers)
+        for row in wide_rows:
+            ws.append([
+                ('n/a' if str(f).startswith('cu_ref|') and not row.get(f)
+                 else row.get(f, ''))
+                for f in headers
+            ])
         ws2 = wb.create_sheet('device')
         ws2.append(device_fields or [])
         for row in device_rows:
