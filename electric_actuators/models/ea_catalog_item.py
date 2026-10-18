@@ -208,15 +208,19 @@ class ElectricActuatorCatalogItem(
 
     def _get_template_i18n(self, field_base: str):
         """Переводы шаблонов — с того же EquipmentType (карточка без шаблонов
-        на серии; базовый миксин для этого случая i18n не находит)."""
+        на серии; базовый миксин для этого случая i18n не находит).
+        Описание рендерится из spec_template → переводы из spec_template_i18n."""
         et = self._get_equipment_type()
         if et is None:
             from core.models.equipment_type import EquipmentType
             et = EquipmentType.objects.filter(
                 code='electric-actuator').first()
-        if et is not None:
-            return getattr(et, f'{field_base}_i18n', None)
-        return None
+        if et is None:
+            return None
+        i18n_field = f'{field_base}_i18n'
+        if field_base == 'description_template':
+            i18n_field = 'spec_template_i18n'
+        return getattr(et, i18n_field, None)
 
     # ── Ext-код: машинная сборка из матричных строк (не ext-шаблон серии) ──
     @property

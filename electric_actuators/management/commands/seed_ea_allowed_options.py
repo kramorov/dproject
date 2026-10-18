@@ -395,6 +395,38 @@ class Command(BaseCommand):
                     row.save(update_fields=['is_default'])
 
         # 5. EquipmentType: шаблоны наименования и спецификации (+i18n)
+        # 5a. Переводы названий БУ (локализация {cu_name} в шаблонах).
+        CU_NAME_I18N = {
+            'basic': ('Basic (no control unit, motor voltage switching)',
+                      'Basic（无控制单元，电机供电控制）'),
+            'pote': ('Potentiometer, 0-1 kOhm', '电位器，0-1kΩ'),
+            'posi10': ('Positioner, 0-10V feedback', '定位器，0-10V反馈'),
+            'posi-4-20': ('Positioner, 4-20mA feedback',
+                          '定位器，4-20mA反馈'),
+            'tr-4-20': ('Transmitter, 4-20mA feedback',
+                        '变送器，4-20mA反馈'),
+            'tr10': ('Transmitter, 0-10V', '变送器，0-10V'),
+            'int-o': ('With INT/O control unit', '带INT/O控制单元'),
+            'int-l': ('With INT/L control unit', '带INT/L控制单元'),
+            'int-n': ('With INT/N control unit', '带INT/N控制单元'),
+            'int-n-hr': ('With INT/N control unit, HART',
+                         '带INT/N控制单元，支持HART'),
+            'int-n-mb': ('With INT/N control unit, ModBus',
+                         '带INT/N控制单元，支持ModBus'),
+            'int-n-pb': ('With INT/N control unit, ProfiBus',
+                         '带INT/N控制单元，支持ProfiBus'),
+        }
+        for cu in ControlUnitInstalledOption.objects.filter(is_active=True):
+            pair = CU_NAME_I18N.get(cu.code)
+            if not pair:
+                continue
+            en, cn = pair
+            i18n = dict(cu.name_i18n or {})
+            if i18n.get('en') != en or i18n.get('cn') != cn:
+                i18n['en'] = en
+                i18n['cn'] = cn
+                cu.name_i18n = i18n
+                cu.save(update_fields=['name_i18n'])
         from core.models.equipment_type import EquipmentType
         et = EquipmentType.objects.filter(code='electric-actuator').first()
         if et is not None:

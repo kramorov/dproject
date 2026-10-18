@@ -19,11 +19,14 @@ class ElectricActuatorsConfig(AppConfig):
             if model.__name__ != 'ElectricActuatorCatalogItem':
                 return
             try:
+                # Артикул пересобирается первым — {article} в имени/описании
+                # должен взять уже свежее значение.
+                code = instance.generated_model_item_code or instance.code
+                instance.code = code
                 # name/description — из шаблонов EquipmentType через
                 # TemplateMixin.update_name/update_description.
                 instance.update_name(save=False)
                 instance.update_description(save=False)
-                code = instance.generated_model_item_code or instance.code
                 # Без save(): перегенерация артикула не должна поднимать
                 # коллизии хэша повторно (хэш уже сохранён ресивером core).
                 model.objects.filter(pk=instance.pk).update(
