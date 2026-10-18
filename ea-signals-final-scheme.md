@@ -656,7 +656,7 @@ round-trip импорта, is_default) → 6) `manage.py check` +
 
 Шаблон (блоки через «.»):
 
-    {cu}{cu_p}{ps}{mode}{proto} . {ip}{exd} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind} . {sp}
+    {cu}{cu_p}{ps}{mode}{proto} . {ip}{exd} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind} . {ad} . {sp}
 
 **Блок БУ** `{cu}{cu_p}{ps}{mode}{proto}`:
 - cu: NO=нет управления · BA=basic · LCU=int-o (ICU) · INT=int-l (SRCU) ·
@@ -697,6 +697,12 @@ round-trip импорта, is_default) → 6) `manage.py check` +
   AR21E007=321, AR21E010=228, AR21E020=180, AR21E050=180,
   AR21E060/080/100=144)
 - ind: N0=нет · D=LED-набор · B=blinker · DB=LED+blinker · L=LCD · LB=LCD+blinker
+- ad (отдельный блок, устройство ограничения несанкционированного доступа):
+  AD0=устройства нет (дефолт) · AD1=с устройством. Справочник
+  EaAccessDeviceOption (NO_DEVICE/DEVICE, локализован) + через-модель
+  ControlUnitAccessDeviceOption (БУ×вариант, encoding пусто/ext AD0/AD1):
+  для basic (и «нет управления») — только NO_DEVICE, для остальных — оба,
+  NO_DEVICE дефолт. Участвует в хэше карточки (config_hash_fields).
 - sp (отдельный блок, положение безопасности): FL=оставаться в текущем
   положении (дефолт везде, кроме AR11E) · NC=НЗ · NO=НО · BAT=«НЗ/НО/FL —
   выбирается настройкой» (требует батареи; дефолт AR11E). Кодировка в

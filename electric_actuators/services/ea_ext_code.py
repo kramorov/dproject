@@ -39,6 +39,7 @@ BLOCKS = [
     ('fb', 'Обратная связь', ['pos', 'hart']),
     ('cl', 'Климатика', ['temp', 'h_cu', 'therm']),
     ('op', 'Опции', ['lc', 'cmd', 'setp', 'cnt', 'ind']),
+    ('ad', 'Ограничение доступа', ['ad']),
     ('sp', 'Положение безопасности', ['sp']),
 ]
 POSITION_TITLES = {
@@ -49,7 +50,7 @@ POSITION_TITLES = {
     'temp': 'Температура/обогрев привода', 'h_cu': 'Обогрев БУ',
     'therm': 'Теплозащита', 'lc': 'Органы управления', 'cmd': 'Команды',
     'setp': 'Уставка', 'cnt': 'Счётчик', 'ind': 'Индикация',
-    'sp': 'Положение безопасности',
+    'sp': 'Положение безопасности', 'ad': 'Ограничение доступа',
 }
 
 # ext-коды CU (явные, ≥2 символов; ни один не префикс другого)
@@ -89,6 +90,8 @@ THERM_EXT = {'FB_OVERHEAT_NC': 'T1', 'FB_OVERHEAT_SPDT': 'T2'}
 BAT_EXT = {'BAT': 'BAT'}
 SP_EXT = {'fl': 'FL', 'nc': 'NC', 'no': 'NO', 'nc-no-fl': 'BAT'}
 SP_DEFAULT = 'FL'
+AD_EXT = {'NO_DEVICE': 'AD0', 'DEVICE': 'AD1'}
+AD_DEFAULT = 'AD0'
 # Позиции multi-choice (в слоте можно выбрать несколько опций)
 MULTI_POSITIONS = {'cmd'}
 NONE_SLOT_EXT = {
@@ -183,6 +186,12 @@ def _slot_rules(slot_code, position, line=None):
             code = s.ext_encoding or SP_EXT.get(s.safety_position.code, '')
             if code and code != SP_DEFAULT:
                 add(code, s.safety_position.name, False)
+        return opts
+    if position == 'ad':
+        from electric_actuators.models import EaAccessDeviceOption
+        add(AD_DEFAULT, str(_('Без устройства')), True)
+        for a in EaAccessDeviceOption.objects.filter(is_active=True):
+            add(AD_EXT.get(a.code), a.name, False)
         return opts
     if position == 'hart':
         add(HART_DEFAULT, str(_('Без HART')), True)
@@ -283,6 +292,8 @@ def coding_rules(model_line, locale=None):
                 opts = _slot_rules(None, pos) if pos == 'ip' else \
                     _slot_rules(None, pos, line)
             elif pos == 'sp':
+                opts = _slot_rules(None, pos, line)
+            elif pos == 'ad':
                 opts = _slot_rules(None, pos, line)
             elif pos == 'proto':
                 opts = _slot_rules('PROTOCOL', pos)

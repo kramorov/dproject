@@ -582,9 +582,9 @@ class EaExtCodeTests(TestCase):
     def test_coding_rules_structure(self):
         from electric_actuators.services.ea_ext_code import coding_rules
         rules = coding_rules(self.line)
-        self.assertEqual(len(rules), 7)
+        self.assertEqual(len(rules), 8)
         self.assertEqual([b['key'] for b in rules],
-                         ['bu', 'env', 'sw', 'fb', 'cl', 'op', 'sp'])
+                         ['bu', 'env', 'sw', 'fb', 'cl', 'op', 'ad', 'sp'])
         cu_opts = {o['code'] for o in rules[0]['positions'][0]['options']}
         self.assertIn('LCU', cu_opts)
         temp_opts = {o['code']

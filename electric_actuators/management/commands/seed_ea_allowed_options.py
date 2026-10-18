@@ -254,7 +254,7 @@ class Command(BaseCommand):
         # 4. ext-кодировки (позиции расширенного кода заказа)
         ext_stats = {'slot': 0, 'temp': 0, 'cu': 0, 'tpl': 0}
         from electric_actuators.services.ea_ext_code import (
-            option_position_code, CU_EXT)
+            option_position_code, CU_EXT, AD_EXT)
         from electric_actuators.models import ElectricTemperatureOption
         for opt in EaSlotOption.objects.filter(is_active=True):
             pos_code = option_position_code(opt)
@@ -282,7 +282,7 @@ class Command(BaseCommand):
                 ext_stats['cu'] += 1
         EXT_TPL = ('{cu}{cu_p}{ps}{mode}{proto}.{ip}{exd}.'
                    '{end}{way}{torq}.{pos}{hart}.{temp}{h_cu}{therm}.'
-                   '{lc}{cmd}{setp}{cnt}{ind}.{sp}')
+                   '{lc}{cmd}{setp}{cnt}{ind}.{ad}.{sp}')
         for ml in ElectricActuatorModelLine.objects.filter(is_active=True):
             if ml.ext_encoding_template != EXT_TPL:
                 ml.ext_encoding_template = EXT_TPL
@@ -320,6 +320,44 @@ class Command(BaseCommand):
             if short and e.exd_short != short:
                 e.exd_short = short
                 e.save(update_fields=['exd_short'])
+
+        # 4c. Устройство ограничения несанкционированного доступа
+        from electric_actuators.models import (EaAccessDeviceOption,
+                                               ControlUnitAccessDeviceOption)
+        ad_no, _ = EaAccessDeviceOption.objects.get_or_create(
+            code='NO_DEVICE',
+            defaults={'name': 'Устройства нет', 'sorting_order': 10})
+        ad_dev, _ = EaAccessDeviceOption.objects.get_or_create(
+            code='DEVICE',
+            defaults={'name': 'С устройством для ограничения '
+                             'несанкционированного доступа',
+                      'sorting_order': 20})
+        for opt, i18n in ((ad_no, {
+                'ru': 'Устройства нет',
+                'en': 'No anti-tamper device',
+                'cn': '无防拆装置'}),
+                          (ad_dev, {
+                'ru': 'С устройством для ограничения несанкционированного доступа',
+                'en': 'With anti-tamper device',
+                'cn': '带防拆装置'})):
+            if opt.name_i18n != i18n:
+                opt.name_i18n = i18n
+                opt.save(update_fields=['name_i18n'])
+        for c in ControlUnitInstalledOption.objects.filter(is_active=True):
+            basic_like = c.code in ('basic', 'none')
+            for opt, is_default in ((ad_no, True), (ad_dev, False)):
+                if basic_like and opt.code == 'DEVICE':
+                    continue  # для basic/нет управления — только «нет»
+                row, created = ControlUnitAccessDeviceOption.objects.get_or_create(
+                    control_unit=c, access_device=opt,
+                    defaults={'encoding': '',
+                              'ext_encoding': AD_EXT[opt.code],
+                              'is_default': is_default})
+                if not created and (row.ext_encoding != AD_EXT[opt.code]
+                                    or row.is_default != is_default):
+                    row.ext_encoding = AD_EXT[opt.code]
+                    row.is_default = is_default
+                    row.save(update_fields=['ext_encoding', 'is_default'])
 
         # 4b. Макс. обороты мехсчётчиков (корпуса AR21E) + дефолты AR11E
         from electric_actuators.models import ElectricActuatorBody
@@ -385,6 +423,7 @@ class Command(BaseCommand):
                        'Ручной дублёр: {hand_wheel}\n'
                        'Угол поворота: {turn_angle}\n'
                        'Кабельные вводы: {cable_glands}\n'
+                       'Ограничение доступа: {access_device}\n'
                        'Артикул: {article}')
             spec_en = ('Series: {series_code}\nModel: {model_code} ({body_code})\n'
                        'Torque: {torque} Nm, closing time: {time_to_close} s\n'
@@ -413,6 +452,7 @@ class Command(BaseCommand):
                        'Handwheel: {hand_wheel}\n'
                        'Rotation angle: {turn_angle}\n'
                        'Cable glands: {cable_glands}\n'
+                       'Anti-tamper device: {access_device}\n'
                        'Article: {article}')
             spec_cn = ('系列: {series_code}\n型号: {model_code} ({body_code})\n'
                        '力矩: {torque} N·m, 关闭时间: {time_to_close} s\n'
@@ -441,6 +481,7 @@ class Command(BaseCommand):
                        '手轮: {hand_wheel}\n'
                        '旋转角度: {turn_angle}\n'
                        '电缆接头: {cable_glands}\n'
+                       '防拆装置: {access_device}\n'
                        '物料号: {article}')
             changed = []
             if et.name_template != name_ru:

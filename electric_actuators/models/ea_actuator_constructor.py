@@ -135,6 +135,15 @@ class ElectricActuatorConstructor(models.Model):
         help_text=_("Выбранный блок управления")
     )
 
+    selected_access_device_option = models.ForeignKey(
+        'electric_actuators.EaAccessDeviceOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Устройство ограничения доступа"),
+        help_text=_('Выбранный вариант устройства ограничения '
+                    'несанкционированного доступа')
+    )
+
     selected_temperature = models.ForeignKey(
         'electric_actuators.ElectricTemperatureOption',
         on_delete=models.SET_NULL,
@@ -232,6 +241,13 @@ class ElectricActuatorConstructor(models.Model):
             'label': 'положение безопасности',
             'parent_field': 'power_supply_option',
             'parent_resolver': 'selected_power_supply',
+        },
+        'selected_access_device_option': {
+            'through_model_path': 'electric_actuators.models.ea_access_device.ControlUnitAccessDeviceOption',
+            'through_attr': 'access_device',
+            'label': 'устройство ограничения доступа',
+            'parent_field': 'control_unit',
+            'parent_resolver': 'selected_control_unit_option',
         },
         'selected_temperature': {
             'through_model_path': 'electric_actuators.models.ea_options.ElectricTemperatureOption',
@@ -800,6 +816,10 @@ class ElectricActuatorConstructor(models.Model):
         result = result.replace('{ip}', self._ip_ext())
         result = result.replace('{exd}', self._exd_ext())
         result = result.replace('{sp}', self._sp_ext())
+        result = result.replace('{ad}', self._ad_ext())
+        result = result.replace('{access_device}',
+                                self._get_option_encoding(
+                                    'selected_access_device_option'))
         result = result.replace('{h_cu}', '')
         result = result.replace('{therm}', '')
         result = result.replace('{lc}', '')
@@ -863,6 +883,11 @@ class ElectricActuatorConstructor(models.Model):
         from electric_actuators.services.ea_ext_code import SP_EXT
         sp = self.selected_safety_position
         return SP_EXT.get(sp.code, 'FL') if sp else 'FL'
+
+    def _ad_ext(self) -> str:
+        """ext-код устройства ограничения доступа: AD0 — нет, AD1 — есть."""
+        ad = self.selected_access_device_option
+        return 'AD1' if (ad and ad.code == 'DEVICE') else 'AD0'
 
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация кода"""
