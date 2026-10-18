@@ -6,7 +6,8 @@ import json
 
 from core.models.mixins import AdminCopyMixin
 
-from electric_actuators.models import ControlUnitAccessDeviceOption
+from electric_actuators.models import (ControlUnitAccessDeviceOption,
+                                          EaSignalMatrixEntry)
 
 from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
     EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
@@ -364,6 +365,24 @@ class ControlUnitInstalledOptionForm(forms.ModelForm):
         return instance
 
 
+class EaCuSignalProfileInline(admin.TabularInline):
+    """Профильные строки сигналов БУ (фаза 9): EaSignalMatrixEntry без
+    скоупов — варианты опций этого типа блока управления."""
+    model = EaSignalMatrixEntry
+    fk_name = 'control_unit'
+    extra = 0
+    fields = ['power_supply', 'mode', 'slot', 'option', 'availability',
+              'is_default', 'sorting_order']
+    raw_id_fields = ['option']
+    verbose_name = _("Опция сигнального профиля")
+    verbose_name_plural = _("Сигнальный профиль БУ")
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(brand__isnull=True, model_line__isnull=True,
+                         body__isnull=True, model_line_item__isnull=True)
+
+
 class ControlUnitAccessDeviceOptionInline(admin.TabularInline):
     """Через-строки «блок управления × устройство ограничения доступа»
     (electric_actuators.ControlUnitAccessDeviceOption)."""
@@ -382,7 +401,7 @@ class ControlUnitInstalledOptionAdmin(admin.ModelAdmin):
     form = ControlUnitInstalledOptionForm
     autocomplete_fields = ['accepts', 'emits', 'protocols', 'control_voltage']
 
-    inlines = [ControlUnitAccessDeviceOptionInline]
+    inlines = [EaCuSignalProfileInline, ControlUnitAccessDeviceOptionInline]
 
     list_display = ['name', 'code', 'kind', 'encoding', 'sorting_order', 'is_active']
     list_editable = ['code', 'encoding', 'sorting_order', 'is_active']
