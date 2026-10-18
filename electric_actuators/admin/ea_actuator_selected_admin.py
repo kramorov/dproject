@@ -103,13 +103,20 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
             return JsonResponse({'options' : []})
 
         try :
-            from electric_actuators.models.ea_model_line_item_options import ElectricControlUnitOption
+            from electric_actuators.models import (ElectricPowerSupplyOption,
+                                                   AllowedControlUnitOption)
 
-            # Получаем опции блоков управления
-            options = ElectricControlUnitOption.objects.filter(
-                power_supply_option_id=power_supply_id ,
-                is_active=True
-            ).select_related('control_unit').order_by('sorting_order')
+            pso = ElectricPowerSupplyOption.objects.select_related(
+                'power_supply', 'model_line_item__model_line').get(
+                id=power_supply_id)
+            line = pso.model_line_item.model_line
+            # БУ для напряжения — из новой связки серия×БУ×напряжение
+            options = [
+                o for o in AllowedControlUnitOption.objects.filter(
+                    model_line=line, is_active=True).select_related(
+                    'control_unit', 'power_supply')
+                if o.power_supply_id in (None, pso.power_supply_id)
+            ]
 
             options_list = []
             for option in options :
@@ -118,8 +125,8 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
                     'control_unit_id' : option.control_unit.id ,
                     'control_unit_name' : str(option.control_unit) ,
                     'encoding' : option.encoding or '' ,
-                    'is_default' : option.is_default ,
-                    'description' : option.description or '' ,
+                    'is_default' : False ,
+                    'description' : '' ,
                 })
 
             print(f"Found {len(options_list)} control unit options")

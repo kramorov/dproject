@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.utils.html import format_html
 from typing import List, Optional, Tuple, Any, Dict, Union
-from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption, ElectricControlUnitOption
+from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
 import logging
 logger = logging.getLogger(__name__)
 
@@ -38,41 +38,6 @@ logger = logging.getLogger(__name__)
 #
 #
 # copy_power_option_action.short_description = _("Копировать выбранные опции")
-
-class ElectricControlUnitOptionInline(admin.TabularInline):
-    """Inline для опций блоков управления"""
-    model = ElectricControlUnitOption
-    extra = 0
-    ordering = ['sorting_order']
-
-    fields = (
-        'control_unit' ,
-        'encoding' ,
-        'is_default' ,
-        'default_turn_counter' ,
-        'allowed_turn_counters' ,
-        'control_unit_wiring' ,
-        'is_active' ,
-        'sorting_order' ,
-    )
-
-    autocomplete_fields = ['control_unit' , 'default_turn_counter' , 'control_unit_wiring']
-
-    filter_horizontal = ('allowed_turn_counters',)
-
-    verbose_name = _("Опция блока управления")
-    verbose_name_plural = _("Опции блоков управления")
-
-    # Автодополнение для поиска блоков управления
-    # autocomplete_fields = ['control_unit']
-
-    # Можно добавить кастомные виджеты для полей
-    # def formfield_for_dbfield(self, db_field, request, **kwargs):
-    #     if db_field.name == 'encoding':
-    #         kwargs['widget'] = admin.widgets.AdminTextInputWidget(attrs={'size': '10'})
-    #     elif db_field.name == 'power_consumption':
-    #         kwargs['widget'] = admin.widgets.AdminTextInputWidget(attrs={'size': '8'})
-    #     return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 def copy_electric_power_supply_option(modeladmin, request, queryset):
@@ -182,7 +147,7 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    inlines = [ElectricControlUnitOptionInline]
+    inlines = []
     # Добавляем кастомные методы для отображения в списке
     actions = [
         copy_electric_power_supply_option
@@ -230,36 +195,3 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
     # Проверка уникальности дефолтных опций
     def save_model(self , request , obj , form , change) :
         super().save_model(request , obj , form , change)
-
-        # Добавляем метод для предотвращения дублирования дефолтных опций:
-        def save_formset(self, request, form, formset, change):
-            """Сохранение formset с валидацией"""
-            if formset.model == ElectricControlUnitOption:
-                instances = formset.save(commit=False)
-
-                # Проверяем, что только одна опция помечена как дефолтная
-                default_instances = [i for i in instances if i.is_default]
-
-                if len(default_instances) > 1:
-                    form.instance._default_validation_error = True
-                    messages.error(
-                        request,
-                        'Только одна опция блока управления может быть помечена как "По умолчанию"'
-                    )
-                    return
-
-                # Сохраняем все инстансы
-                for instance in instances:
-                    instance.save()
-                formset.save_m2m()
-            else:
-                super().save_formset(request, form, formset, change)
-
-        # Добавляем валидацию при сохранении:
-        def save_model(self, request, obj, form, change):
-            # Проверяем, была ли ошибка валидации в formset
-            if hasattr(obj, '_default_validation_error'):
-                delattr(obj, '_default_validation_error')
-                return  # Не сохраняем, если была ошибка
-
-            super().save_model(request, obj, form, change)

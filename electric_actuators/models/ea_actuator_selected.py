@@ -124,28 +124,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_('Напряжение питания')
     )
 
-    selected_control_unit_option = models.ForeignKey(
-        'ElectricControlUnitOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Блок управления"),
-        help_text=_("Выбранный блок управления с кодировкой")
-    )
-
-    selected_mechanical_indicator_option = models.ForeignKey(
-        'ElectricMechanicalIndicatorOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Механический индикатор"),
-        help_text=_("Выбранный механический индикатор с кодировкой")
-    )
-    selected_blinker_option = models.ForeignKey(
-        'ElectricBlinkerOption' ,
-        on_delete=models.SET_NULL ,
-        null=True , blank=True ,
-        verbose_name=_("Блинкер") ,
-        help_text=_("Тип установленного блинкера")
-    )
     selected_body_coating = models.ForeignKey(
         'ElectricBodyCoatingOption' ,
         on_delete=models.SET_NULL ,
@@ -168,32 +146,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         verbose_name=_("Кабельные вводы") ,
         help_text=_('Отверстия под кабельные вводы')
     )
-    selected_end_switches_option = models.ForeignKey(
-        'ElectricEndSwitchesOption' ,
-        on_delete=models.SET_NULL ,
-        null=True , blank=True ,
-        related_name='end_switches_model_line_item' ,
-        verbose_name=_("Конечные выключатели") ,
-        help_text=_("Конечные выключатели")
-    )
-
-    selected_way_switches_option = models.ForeignKey(
-        'ElectricWaySwitchesOption' ,
-        on_delete=models.SET_NULL ,
-        null=True , blank=True ,
-        related_name='way_switches_model_line_item',
-        verbose_name=_("Путевые выключатели") ,
-        help_text=_("Путевые выключатели")
-    )
-
-    selected_torque_switches_option = models.ForeignKey(
-        'ElectricTorqueSwitchesOption' ,
-        on_delete=models.SET_NULL ,
-        null=True , blank=True ,
-        related_name='torque_switches_model_line_item' ,
-        verbose_name=_("Моментные выключатели") ,
-        help_text=_("Моментные выключатели")
-    )
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
 
     # ОБЩАЯ КОНФИГУРАЦИЯ ДЛЯ ВСЕХ ВАЛИДАЦИЙ
@@ -204,24 +156,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         #     'parent_field': 'model_line_item',  # Для связи с моделью
         #     'model_path': 'electric_actuators.models.ea_options.ElectricSafetyPositionOption'
         # },
-        'selected_end_switches_option' : {
-            'model_class' : 'ElectricEndSwitchesOption' ,
-            'label' : 'Конечные выключатели' ,
-            'parent_field' : 'model_line_item' ,  # Здесь model_line_item
-            'model_path' : 'electric_actuators.models.ea_options.ElectricEndSwitchesOption'
-        } ,
-        'selected_way_switches_option' : {
-            'model_class' : 'ElectricWaySwitchesOption' ,
-            'label' : 'Путевые выключатели' ,
-            'parent_field' : 'model_line_item' ,  # Здесь model_line_item
-            'model_path' : 'electric_actuators.models.ea_options.ElectricWaySwitchesOption'
-        } ,
-        'selected_torque_switches_option' : {
-            'model_class' : 'ElectricTorqueSwitchesOption' ,
-            'label' : 'Моментные выключатели' ,
-            'parent_field' : 'model_line_item' ,  # Здесь model_line_item
-            'model_path' : 'electric_actuators.models.ea_options.ElectricTorqueSwitchesOption'
-        } ,
         'selected_temperature': {
             'model_class': 'ElectricTemperatureOption',
             'label': 'температурная опция',
@@ -264,18 +198,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'parent_field': 'model_line',
             'model_path': 'electric_actuators.models.ea_options.ElectricHandWheelOption'
         },
-        'selected_mechanical_indicator_option': {
-            'model_class': 'ElectricMechanicalIndicatorOption',
-            'label': 'механический индикатор',
-            'parent_field': 'model_line',
-            'model_path': 'electric_actuators.models.ea_options.ElectricMechanicalIndicatorOption'
-        },
-        'selected_blinker_option' : {
-            'model_class' : 'ElectricBlinkerOption' ,
-            'label' : 'Блинкер' ,
-            'parent_field' : 'model_line' ,
-            'model_path' : 'electric_actuators.models.ea_options.ElectricBlinkerOption'
-        } ,
         'selected_body_color_option' : {
             'model_class' : 'ElectricBodyColorOption' ,
             'label' : 'Цвет корпуса' ,
@@ -288,28 +210,16 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             'parent_field': 'model_line_item',
             'model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricPowerSupplyOption'
         },
-        # ДОБАВЛЯЕМ КОНФИГ ДЛЯ НОВОГО ПОЛЯ
-        'selected_control_unit_option': {
-            'model_class': 'ElectricControlUnitOption',
-            'label': 'опция блока управления',
-            'parent_field': 'power_supply_option',  # Фильтр по выбранному напряжению
-            'model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricControlUnitOption',
-            'dynamic_filter': True  # Флаг что фильтр динамический
-        },
     }
 
     @property
     def selected_control_unit_installed(self):
-        """Получить выбранный блок управления"""
-        if self.selected_control_unit_option:
-            return self.selected_control_unit_option.control_unit
+        """Выбранный БУ (фаза 7: опция БУ×напряжение удалена — возвращает None)."""
         return None
 
     @property
     def selected_control_encoding(self):
-        """Получить кодировку выбранного блока управления"""
-        if self.selected_control_unit_option:
-            return self.selected_control_unit_option.encoding
+        """Кодировка выбранного БУ (фаза 7: возвращает пустую строку)."""
         return ""
 
     @classmethod
@@ -373,7 +283,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             '{ip}': self._get_value('selected_ip__encoding'),
             '{voltage}': self._get_value('selected_power_supply__encoding'),
             '{exd}': self._get_value('selected_exd__encoding'),
-            '{control_unit}':self._get_value('selected_control_unit_option__encoding'),
         }
 
         # Заменяем все плейсхолдеры
@@ -400,7 +309,6 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
                 '{ip}': self._get_value('selected_ip__ext_encoding'),
                 '{voltage}': self._get_value('selected_power_supply__ext_encoding'),
                 '{exd}': self._get_value('selected_exd__ext_encoding'),
-                '{control_unit}': self._get_value('selected_control_unit_option__ext_encoding'),
             }
             ext = ext_template
             for placeholder, value in ext_replacements.items():
@@ -673,11 +581,7 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
             selected_exd=self.selected_exd,
             selected_body_coating=self.selected_body_coating,
             selected_hand_wheel=self.selected_hand_wheel,
-            selected_blinker_option=self.selected_blinker_option,
             selected_body_color_option=self.selected_body_color_option ,
-            selected_end_switches_option=self.selected_end_switches_option ,
-            selected_way_switches_option=self.selected_way_switches_option ,
-            selected_torque_switches_option=self.selected_torque_switches_option ,
 
             # Копируем конструктивные особенности
             actual_mounting_plate=self.actual_mounting_plate.all(),
@@ -842,25 +746,9 @@ class ElectricActuatorSelected(StructuredDataMixin, models.Model):
         if self.selected_hand_wheel:
             data['selected_hand_wheel'] = self.selected_hand_wheel.get_description_data()
 
-        if self.selected_blinker_option:
-            data['selected_blinker_option'] = self.selected_blinker_option.get_description_data()
-
         if self.selected_turn_angle_option:
             data['selected_turn_angle_option'] = self.selected_turn_angle_option.get_description_data()
 
-        if self.selected_end_switches_option:
-
-            data['selected_end_switches_option'] = self.selected_end_switches_option.get_description_data()
-            print(f'Found selected_end_switches_option: {data['selected_end_switches_option']}')
-        else:
-            print('selected_end_switches_option NOT FOUND')
-        if self.selected_way_switches_option:
-            data['selected_way_switches_option'] = self.selected_way_switches_option.get_description_data()
-        if self.selected_way_switches_option:
-            data['selected_torque_switches_option'] = self.selected_torque_switches_option.get_description_data()
-
-        if self.selected_control_unit_option:
-            data['selected_control_unit_option'] = self.selected_control_unit_option.get_description_data()
         data['generated_at'] = datetime.now().strftime('%d.%m.%Y %H:%M')
         print(f'data={data}')
         return data

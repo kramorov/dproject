@@ -425,13 +425,7 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
             ElectricIpOption ,
             ElectricExdOption ,
             ElectricBodyCoatingOption ,
-            ElectricBlinkerOption ,
-            ElectricWaySwitchesOption ,
-            # ElectricPowerSupplyOption ,
-            ElectricControlUnitInstalledOption ,
             ElectricHandWheelOption ,
-            ElectricMechanicalIndicatorOption ,
-            # ElectricOperatingModeOption ,
             ElectricTurnAngleOption
         )
 
@@ -440,13 +434,7 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
             ElectricIpOption ,
             ElectricExdOption ,
             ElectricBodyCoatingOption ,
-            ElectricBlinkerOption ,
-            ElectricWaySwitchesOption ,
-            # ElectricPowerSupplyOption ,
-            ElectricControlUnitInstalledOption ,
             ElectricHandWheelOption ,
-            ElectricMechanicalIndicatorOption ,
-            # ElectricOperatingModeOption ,
             ElectricTurnAngleOption
         ]
 
@@ -490,13 +478,6 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
         """Список всех опций покрытия корпуса"""
         return self.body_coating_options.all()
 
-
-
-    @property
-    def blinker_options_list(self) :
-        """Список всех опций блинкера"""
-        return self.blinker_options.all()
-
     # ==================== МЕТОДЫ ПОЛУЧЕНИЯ ОПЦИЙ ПО УМОЛЧАНИЮ ====================
 
     def get_default_temperature_option(self) :
@@ -519,35 +500,10 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
         from .ea_options import ElectricBodyCoatingOption
         return ElectricBodyCoatingOption.get_or_create_default(self)
 
-    def get_default_blinker_option(self) :
-        """Получить стандартную опцию блинкера"""
-        from .ea_options import ElectricBlinkerOption
-        return ElectricBlinkerOption.get_or_create_default(self)
-
-    def get_default_way_switches_option(self) :
-        """Получить стандартную опцию путевых выключателей"""
-        from .ea_options import ElectricWaySwitchesOption
-        return ElectricWaySwitchesOption.get_or_create_default(self)
-
-    def get_default_control_unit_option(self) :
-        """Получить стандартную опцию блока управления"""
-        from .ea_options import ElectricControlUnitInstalledOption
-        return ElectricControlUnitInstalledOption.get_or_create_default(self)
-
     def get_default_turn_angle_option(self) :
         """Получить стандартную опцию угла поворота"""
         from .ea_options import ElectricTurnAngleOption
         return ElectricTurnAngleOption.get_or_create_default(self)
-
-    def get_default_operating_mode_option(self) :
-        """Получить стандартную опцию режима работы"""
-        from .ea_options import ElectricOperatingModeOption
-        return ElectricOperatingModeOption.get_or_create_default(self)
-
-    def get_default_mechanical_indicator_option(self) :
-        """Получить стандартную опцию механического индикатора"""
-        from .ea_options import ElectricMechanicalIndicatorOption
-        return ElectricMechanicalIndicatorOption.get_or_create_default(self)
 
     def get_default_hand_wheel_option(self) :
         """Получить стандартную опцию ручного дублера"""
@@ -593,24 +549,9 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
         return "Не указано"
 
     @property
-    def control_unit_options_list(self) :
-        """Список всех опций блока управления"""
-        return self.control_unit_options.all()
-
-    @property
     def turn_angle_options_list(self) :
         """Список всех опций угла поворота"""
         return self.turn_angle_options.all()
-
-    @property
-    def operating_mode_options_list(self) :
-        """Список всех опций режима работы"""
-        return self.operating_mode_options.all()
-
-    @property
-    def mechanical_indicator_options_list(self) :
-        """Список всех опций механического индикатора"""
-        return self.mechanical_indicator_options.all()
 
     @property
     def hand_wheel_options_list(self) :
@@ -650,17 +591,6 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
                 if self.get_default_body_color_option() else None,
                 'options': [opt.get_option_info() for opt in self.body_color_options_list]
             },
-            'blinker' : {
-                'default' : self.get_default_blinker_option().get_option_info()
-                if self.get_default_blinker_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.blinker_options_list]
-            } ,
-
-            'control_unit' : {
-                'default' : self.get_default_control_unit_option().get_option_info()
-                if self.get_default_control_unit_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.control_unit_options_list]
-            } ,
             'hand_wheel' : {
                 'default' : self.get_default_hand_wheel_option().get_option_info()
                 if self.get_default_hand_wheel_option() else None ,
@@ -671,16 +601,6 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
                 if self.get_default_turn_angle_option() else None ,
                 'options' : [opt.get_option_info() for opt in self.turn_angle_options_list]
             } ,
-            'operating_mode' : {
-                'default' : self.get_default_operating_mode_option().get_option_info()
-                if self.get_default_operating_mode_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.operating_mode_options_list]
-            } ,
-            'mechanical_indicator' : {
-                'default' : self.get_default_mechanical_indicator_option().get_option_info()
-                if self.get_default_mechanical_indicator_option() else None ,
-                'options' : [opt.get_option_info() for opt in self.mechanical_indicator_options_list]
-            }
         }
         return option_info
 

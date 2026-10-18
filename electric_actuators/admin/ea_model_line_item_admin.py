@@ -6,8 +6,6 @@ from django.db import transaction
 
 import logging
 
-from electric_actuators.models import ElectricWaySwitchesOption , ElectricEndSwitchesOption , \
-    ElectricTorqueSwitchesOption
 from electric_actuators.models.ea_model_line_item import (
     ElectricActuatorModelLineItem ,
 
@@ -76,84 +74,6 @@ copy_model_line_items_action.short_description = _("Копировать выб�
 #
 
 # ============================= ОСНОВНАЯ АДМИНКА =============================
-class ElectricWaySwitchesOptionInline(admin.TabularInline) :
-    """Inline для напряжения питания"""
-    model = ElectricWaySwitchesOption
-    fk_name = 'model_line_item'
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['way_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
-    verbose_name = _("Путевые выключатели")
-    verbose_name_plural = _("Опции путевых выключателей")
-
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-
-        # Патчим метод __str__ для формы
-        original_str = formset.model.__str__
-
-        def safe_str(instance):
-            try:
-                return original_str(instance)
-            except Exception as e:
-                logger.debug(f"Ошибка в __str__: {e}")
-                return "Новая опция"
-
-        formset.model.__str__ = safe_str
-        return formset
-
-class ElectricEndSwitchesOptionInline(admin.TabularInline) :
-    """Inline для напряжения питания"""
-    model = ElectricEndSwitchesOption
-    fk_name = 'model_line_item'
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['end_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
-    verbose_name = _("Конечные выключатели")
-    verbose_name_plural = _("Опции конечных выключателей")
-
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-
-        # Патчим метод __str__ для формы
-        original_str = formset.model.__str__
-
-        def safe_str(instance):
-            try:
-                return original_str(instance)
-            except Exception as e:
-                logger.debug(f"Ошибка в __str__: {e}")
-                return "Новая опция"
-
-        formset.model.__str__ = safe_str
-        return formset
-class ElectricTorqueSwitchesOptionInline(admin.TabularInline) :
-    """Inline для напряжения питания"""
-    model = ElectricTorqueSwitchesOption
-    fk_name = 'model_line_item'
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['torque_switches_option', 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
-    verbose_name = _("Моментные выключатели")
-    verbose_name_plural = _("Опции моментных выключателей")
-
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-
-        # Патчим метод __str__ для формы
-        original_str = formset.model.__str__
-
-        def safe_str(instance):
-            try:
-                return original_str(instance)
-            except Exception as e:
-                logger.debug(f"Ошибка в __str__: {e}")
-                return "Новая опция"
-
-        formset.model.__str__ = safe_str
-        return formset
-
-
 class ElectricPowerSupplyOptionInline(admin.TabularInline) :
     """Inline для опций напряжения питания модели"""
     model = ElectricPowerSupplyOption
@@ -238,9 +158,6 @@ class ElectricActuatorModelLineItemAdmin(admin.ModelAdmin) :
 
     inlines = [
         ElectricPowerSupplyOptionInline ,
-        ElectricEndSwitchesOptionInline ,
-        ElectricWaySwitchesOptionInline ,
-        ElectricTorqueSwitchesOptionInline ,
     ]
     # ========== АВТОДОПОЛНЕНИЕ И ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР ==========
     autocomplete_fields = ['model_line' , 'body']

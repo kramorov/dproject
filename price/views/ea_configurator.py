@@ -31,7 +31,6 @@ from electric_actuators.models import (
     ElectricActuatorModelLineItem,
     ElectricPowerSupplyOption,
     ElectricActuatorConstructor,
-    ElectricWaySwitchesOption,
 )
 
 
@@ -78,15 +77,6 @@ class EaConfiguratorOptionsView(APIView):
             is_active=True,
         ).select_related('model_line_item')
         ps_by_mli = {p.model_line_item_id: p for p in all_ps}
-
-        # Pre-fetch WaySwitches for model items of this series
-        mli_ids = [item.id for item in model_items]
-        way_by_mli = {}
-        if mli_ids:
-            for ws in ElectricWaySwitchesOption.objects.filter(
-                model_line_item_id__in=mli_ids, is_active=True
-            ).select_related('way_switches_option'):
-                way_by_mli.setdefault(ws.model_line_item_id, []).append(ws)
 
         result = {
             'power_supply': {'id': ps.id, 'name': str(ps), 'encoding': ps.encoding},
@@ -425,22 +415,6 @@ class EaConfiguratorDocumentView(APIView):
                             'label': opt.get('encoding') or k,
                         })
             availability[item.id] = item_keys
-
-        # WaySwitches — вне конструктора, привязаны напрямую к model_line_item
-        mli_ids = [item.id for item in model_items]
-        if mli_ids:
-            way_qs = ElectricWaySwitchesOption.objects.filter(
-                model_line_item_id__in=mli_ids, is_active=True
-            ).select_related('way_switches_option')
-            for ws in way_qs:
-                k = f"way_switches_{ws.way_switches_option_id}"
-                if k not in seen:
-                    seen.add(k)
-                    cols.append({
-                        'key': k,
-                        'label': ws.encoding or ws.way_switches_option.code or k,
-                    })
-                availability.setdefault(ws.model_line_item_id, set()).add(k)
 
         return {'columns': cols, 'availability': availability, 'label_to_mli': label_to_mli}
 

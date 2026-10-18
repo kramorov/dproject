@@ -203,22 +203,6 @@ class ElectricActuatorConstructor(models.Model):
         help_text=_('Угол поворота')
     )
 
-    selected_blinker_option = models.ForeignKey(
-        'params.BlinkerOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Блинкер"),
-        help_text=_("Тип установленного блинкера")
-    )
-
-    selected_mechanical_indicator_option = models.ForeignKey(
-        'params.MechanicalIndicatorInstalledOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Механический индикатор"),
-        help_text=_("Выбранный механический индикатор")
-    )
-
     selected_cable_glands_holes = models.ForeignKey(
         'electric_actuators.CableGlandHolesSet',
         on_delete=models.SET_NULL,
@@ -226,33 +210,6 @@ class ElectricActuatorConstructor(models.Model):
         related_name='constructor_cg_option',
         verbose_name=_("Кабельные вводы"),
         help_text=_('Отверстия под кабельные вводы')
-    )
-
-    selected_end_switches_option = models.ForeignKey(
-        'params.SwitchesParameters',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='constructor_end_switches',
-        verbose_name=_("Конечные выключатели"),
-        help_text=_("Конечные выключатели")
-    )
-
-    selected_way_switches_option = models.ForeignKey(
-        'params.SwitchesParameters',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='constructor_way_switches',
-        verbose_name=_("Путевые выключатели"),
-        help_text=_("Путевые выключатели")
-    )
-
-    selected_torque_switches_option = models.ForeignKey(
-        'params.SwitchesParameters',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='constructor_torque_switches',
-        verbose_name=_("Моментные выключатели"),
-        help_text=_("Моментные выключатели")
     )
 
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
@@ -273,13 +230,6 @@ class ElectricActuatorConstructor(models.Model):
             'through_model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricSafetyPositionOption',
             'through_attr': 'safety_position',
             'label': 'положение безопасности',
-            'parent_field': 'power_supply_option',
-            'parent_resolver': 'selected_power_supply',
-        },
-        'selected_control_unit_option': {
-            'through_model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricControlUnitOption',
-            'through_attr': 'control_unit',
-            'label': 'блок управления',
             'parent_field': 'power_supply_option',
             'parent_resolver': 'selected_power_supply',
         },
@@ -325,41 +275,11 @@ class ElectricActuatorConstructor(models.Model):
             'label': 'угол поворота',
             'parent_field': 'model_line',
         },
-        'selected_blinker_option': {
-            'through_model_path': 'electric_actuators.models.ea_options.ElectricBlinkerOption',
-            'through_attr': 'blinker_option',
-            'label': 'блинкер',
-            'parent_field': 'model_line',
-        },
-        'selected_mechanical_indicator_option': {
-            'through_model_path': 'electric_actuators.models.ea_options.ElectricMechanicalIndicatorOption',
-            'through_attr': 'mechanical_indicator_option',
-            'label': 'механический индикатор',
-            'parent_field': 'model_line',
-        },
         'selected_cable_glands_holes': {
             'through_model_path': 'electric_actuators.models.ea_options.CableGlandHolesSetBodyOption',
             'through_attr': 'cg_set',
             'label': 'кабельные вводы',
             'parent_field': 'model_body',
-        },
-        'selected_end_switches_option': {
-            'through_model_path': 'electric_actuators.models.ea_options.ElectricEndSwitchesOption',
-            'through_attr': 'end_switches_option',
-            'label': 'концевые выключатели',
-            'parent_field': 'model_line_item',
-        },
-        'selected_way_switches_option': {
-            'through_model_path': 'electric_actuators.models.ea_options.ElectricWaySwitchesOption',
-            'through_attr': 'way_switches_option',
-            'label': 'путевые выключатели',
-            'parent_field': 'model_line_item',
-        },
-        'selected_torque_switches_option': {
-            'through_model_path': 'electric_actuators.models.ea_options.ElectricTorqueSwitchesOption',
-            'through_attr': 'torque_switches_option',
-            'label': 'моментные выключатели',
-            'parent_field': 'model_line_item',
         },
     }
 

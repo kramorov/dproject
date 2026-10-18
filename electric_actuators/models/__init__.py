@@ -25,9 +25,6 @@ from .ea_model_line import *
 from .ea_data import *
 from .ea_model_body import *
 from .ea_cg_holes_set import *
-from .ea_actual_actuator import *
-from .ea_wiring_diagram import *
-from .ea_control_unit_wiring import *
 from .ea_options import *
 from .ea_body import *
 from .ea_model_line_item_options import *
@@ -50,20 +47,14 @@ __all__ = [
     'ElectricActuatorData',
     'ModelBody',
     'CableGlandHolesSet',
-    # 'ActualActuator',
-    # 'WiringDiagram',
     'ElectricHandWheelOption',
     'ElectricTemperatureOption',
     'ElectricIpOption',
     'ElectricExdOption',
     'ElectricBodyCoatingOption',
     'ElectricTurnAngleOption',
-    'ElectricBlinkerOption',
     'ElectricPowerSupplyOption',
-    'ElectricWaySwitchesOption',
-    'ElectricControlUnitInstalledOption',
-    'ElectricMechanicalIndicatorOption',
-    'ElectricOperatingModeOption',
+    'ElectricSafetyPositionOption',
     'ElectricActuatorBody',
     'ElectricActuatorModelLineItem',
     'ElectricActuatorSelected',
@@ -73,8 +64,6 @@ __all__ = [
     'ElectricActuatorConstructor',
     'AllowedControlUnitOption',
     'AllowedTurnCounterOption',
-    'AllowedSignalProfileOption',
-    'ControlUnitWiring',
     'EaSignalForm',
     'EaControlSignal',
     'EaFeedbackSignal',

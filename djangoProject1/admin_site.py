@@ -116,10 +116,8 @@ ADMIN_MODEL_BLOCK = {
     ('valve_data', 'WeightDimensionParameterVariety'): 'valves',
     # --- Электроприводы ---
     ('electric_actuators', 'AllowedControlUnitOption'): 'electric_actuators',
-    ('electric_actuators', 'AllowedSignalProfileOption'): 'electric_actuators',
     ('electric_actuators', 'AllowedTurnCounterOption'): 'electric_actuators',
     ('electric_actuators', 'CableGlandHolesSet'): 'electric_actuators',
-    ('electric_actuators', 'ControlUnitWiring'): 'electric_actuators',
     ('electric_actuators', 'ElectricActuatorBody'): 'electric_actuators',
     ('electric_actuators', 'ElectricActuatorBodyTable'): 'electric_actuators',
     ('electric_actuators', 'ElectricActuatorConstructor'): 'electric_actuators',

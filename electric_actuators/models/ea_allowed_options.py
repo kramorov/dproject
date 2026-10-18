@@ -110,35 +110,3 @@ class AllowedTurnCounterOption(models.Model):
     def __str__(self):
         return f"{self.model_line} → {self.turn_counter} ({self.encoding})"
 
-
-class AllowedSignalProfileOption(models.Model):
-    """Профиль сигналов, разрешённый для серии, с кодировкой."""
-    model_line = models.ForeignKey(
-        'ElectricActuatorModelLine',
-        on_delete=models.CASCADE,
-        related_name='allowed_signal_profiles',
-        verbose_name=_("Серия"),
-        help_text=_("Серия электроприводов")
-    )
-    signal_profile = models.ForeignKey(
-        'params.ControlUnitSignalProfile',
-        on_delete=models.CASCADE,
-        related_name='allowed_in_model_lines',
-        verbose_name=_("Профиль сигналов")
-    )
-    encoding = models.CharField(
-        max_length=50,
-        verbose_name=_("Кодировка"),
-        help_text=_("Код для подстановки в артикул")
-    )
-    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
-    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
-
-    class Meta:
-        verbose_name = _("Разрешённый профиль сигналов для серии")
-        verbose_name_plural = _("Разрешённые профили сигналов для серий")
-        unique_together = ['model_line', 'signal_profile']
-        ordering = ['sorting_order']
-
-    def __str__(self):
-        return f"{self.model_line} → {self.signal_profile} ({self.encoding})"

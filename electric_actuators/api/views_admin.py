@@ -28,15 +28,9 @@ from electric_actuators.models import (
 )
 from electric_actuators.models.ea_model_line_item_options import (
     ElectricPowerSupplyOption,
-    ElectricControlUnitOption,
     ElectricSafetyPositionOption,
 )
 
-from electric_actuators.models.ea_options import (
-    ElectricWaySwitchesOption,
-    ElectricEndSwitchesOption,
-    ElectricTorqueSwitchesOption,
-)
 from params.models import PowerSupplies
 
 
@@ -441,19 +435,12 @@ class EACopyControlUnitsView(APIView):
         }
         ps_ids_with_rec = [r.id for r in ps_records.values()]
 
-        # Один запрос: все CU
-        all_cu_records = list(ElectricControlUnitOption.objects.filter(
-            power_supply_option_id__in=ps_ids_with_rec, is_active=True
-        ).select_related('control_unit'))
-        # Один запрос: все SP
+        # Один запрос: все SP (CU-опции удалены — фаза 7, БУ×напряжение в AllowedControlUnitOption)
         all_sp_records = list(ElectricSafetyPositionOption.objects.filter(
             power_supply_option_id__in=ps_ids_with_rec, is_active=True
         ).select_related('safety_position'))
 
-        # Группируем CU/SP по ps_id
-        cu_by_ps = {}
-        for cu in all_cu_records:
-            cu_by_ps.setdefault(cu.power_supply_option_id, []).append(cu)
+        # Группируем SP по ps_id
         sp_by_ps = {}
         for sp in all_sp_records:
             sp_by_ps.setdefault(sp.power_supply_option_id, []).append(sp)
@@ -463,15 +450,8 @@ class EACopyControlUnitsView(APIView):
         result = []
         for mli in models:
             ps_rec = ps_records.get(mli.id)
-            cu_set, sp_set = {}, {}
+            sp_set = {}
             if ps_rec:
-                for cu in cu_by_ps.get(ps_rec.id, []):
-                    all_cu[cu.control_unit_id] = {
-                        'id': cu.control_unit_id, 'name': cu.control_unit.name, 'encoding': cu.encoding,
-                    }
-                    cu_set[cu.control_unit_id] = {
-                        'id': cu.id, 'encoding': cu.encoding, 'is_default': cu.is_default,
-                    }
                 for sp in sp_by_ps.get(ps_rec.id, []):
                     all_sp[sp.safety_position_id] = {
                         'id': sp.safety_position_id, 'name': sp.safety_position.name, 'encoding': sp.encoding,
@@ -482,7 +462,7 @@ class EACopyControlUnitsView(APIView):
             result.append({
                 'id': mli.id, 'name': mli.name,
                 'has_power_supply': ps_rec is not None,
-                'cu': cu_set, 'sp': sp_set,
+                'cu': {}, 'sp': sp_set,
             })
 
         # Добавляем все возможные опции из справочников (даже те, которых нет ни у одной модели)
@@ -527,10 +507,8 @@ class EACopyControlUnitsView(APIView):
         if not source_ps:
             return Response({'error': 'Source model has no active power supply option for this voltage'}, status=400)
 
-        source_cus = list(ElectricControlUnitOption.objects.filter(power_supply_option=source_ps))
         source_sps = list(ElectricSafetyPositionOption.objects.filter(power_supply_option=source_ps))
 
-        created_cu = 0
         created_sp = 0
         skipped = 0
 
@@ -545,20 +523,9 @@ class EACopyControlUnitsView(APIView):
                 continue
 
             # Удалить старые опции целевой модели
-            ElectricControlUnitOption.objects.filter(power_supply_option=target_ps).delete()
             ElectricSafetyPositionOption.objects.filter(power_supply_option=target_ps).delete()
 
             # Скопировать
-            for cu in source_cus:
-                ElectricControlUnitOption.objects.create(
-                    power_supply_option=target_ps,
-                    control_unit=cu.control_unit,
-                    encoding=cu.encoding,
-                    is_default=cu.is_default,
-                    sorting_order=cu.sorting_order,
-                    is_active=True,
-                )
-                created_cu += 1
             for sp in source_sps:
                 ElectricSafetyPositionOption.objects.create(
                     power_supply_option=target_ps,
@@ -572,7 +539,7 @@ class EACopyControlUnitsView(APIView):
 
         return Response({
             'ok': True,
-            'created_control_units': created_cu,
+            'created_control_units': 0,
             'created_safety_positions': created_sp,
             'skipped_no_power_supply': skipped,
         })
@@ -582,7 +549,6 @@ class EACopyControlUnitsView(APIView):
         """Обновить CU/SP для одной модели (источник)."""
         mli_id = request.data.get('model_line_item_id')
         ps_id = request.data.get('power_supply_id')
-        cus = request.data.get('control_units', [])
         sps = request.data.get('safety_positions', [])
 
         if not mli_id or not ps_id:
@@ -595,31 +561,16 @@ class EACopyControlUnitsView(APIView):
             return Response({'error': 'No active power supply option for this model+voltage'}, status=400)
 
         # Validate FK existence
-        cu_ids = [cu.get('control_unit_id') for cu in cus if cu.get('control_unit_id')]
         sp_ids = [sp.get('safety_position_id') for sp in sps if sp.get('safety_position_id')]
-        from params.models import ControlUnitInstalledOption, SafetyPositionOption
-        valid_cu = set(ControlUnitInstalledOption.objects.filter(id__in=cu_ids).values_list('id', flat=True))
+        from params.models import SafetyPositionOption
         valid_sp = set(SafetyPositionOption.objects.filter(id__in=sp_ids).values_list('id', flat=True))
-        invalid_cu = [i for i in cu_ids if i not in valid_cu]
         invalid_sp = [i for i in sp_ids if i not in valid_sp]
-        if invalid_cu or invalid_sp:
+        if invalid_sp:
             return Response({
                 'error': 'Invalid option IDs',
-                'invalid_control_units': invalid_cu,
                 'invalid_safety_positions': invalid_sp,
             }, status=400)
 
-        # Replace CU
-        ElectricControlUnitOption.objects.filter(power_supply_option=ps_rec).delete()
-        for i, cu in enumerate(cus):
-            ElectricControlUnitOption.objects.create(
-                power_supply_option=ps_rec,
-                control_unit_id=cu.get('control_unit_id'),
-                encoding=cu.get('encoding', ''),
-                is_default=cu.get('is_default', False),
-                sorting_order=i,
-                is_active=True,
-            )
         # Replace SP
         ElectricSafetyPositionOption.objects.filter(power_supply_option=ps_rec).delete()
         for i, sp in enumerate(sps):
@@ -634,207 +585,9 @@ class EACopyControlUnitsView(APIView):
 
         return Response({
             'ok': True,
-            'control_units': len(cus),
+            'control_units': 0,
             'safety_positions': len(sps),
         })
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Copy Way / End / Torque Switches options
-# ═══════════════════════════════════════════════════════════════════════════
-
-class EASwitchesCopyView(APIView):
-    """GET: список моделей с их WaySwitches, EndSwitches, TorqueSwitches + палитра.
-       POST: копировать опции от модели к целевым."""
-    permission_classes = [SectionAccessPermission]
-    required_section = 'configurator_ea'
-
-    def get(self, request):
-        ml_id = request.query_params.get('model_line_id')
-        if not ml_id:
-            return Response({'error': 'model_line_id required'}, status=400)
-
-        models = list(ElectricActuatorModelLineItem.objects.filter(
-            model_line_id=ml_id, is_active=True
-        ).order_by('sorting_order'))
-        mli_ids = [m.id for m in models]
-
-        way_records = list(ElectricWaySwitchesOption.objects.filter(
-            model_line_item_id__in=mli_ids, is_active=True
-        ).select_related('way_switches_option'))
-        end_records = list(ElectricEndSwitchesOption.objects.filter(
-            model_line_item_id__in=mli_ids, is_active=True
-        ).select_related('end_switches_option'))
-        torque_records = list(ElectricTorqueSwitchesOption.objects.filter(
-            model_line_item_id__in=mli_ids, is_active=True
-        ).select_related('torque_switches_option'))
-
-        way_by_mli, end_by_mli, torque_by_mli = {}, {}, {}
-        for r in way_records:
-            way_by_mli.setdefault(r.model_line_item_id, {})[r.way_switches_option_id] = r
-        for r in end_records:
-            end_by_mli.setdefault(r.model_line_item_id, {})[r.end_switches_option_id] = r
-        for r in torque_records:
-            torque_by_mli.setdefault(r.model_line_item_id, {})[r.torque_switches_option_id] = r
-
-        # Palette
-        palette = {}
-        for r in way_records:
-            palette[('way', r.way_switches_option_id)] = {
-                'type': 'way', 'id': r.way_switches_option_id,
-                'name': r.way_switches_option.name,
-                'code': r.way_switches_option.code or '',
-            }
-        for r in end_records:
-            palette[('end', r.end_switches_option_id)] = {
-                'type': 'end', 'id': r.end_switches_option_id,
-                'name': r.end_switches_option.name,
-                'code': r.end_switches_option.code or '',
-            }
-        for r in torque_records:
-            palette[('torque', r.torque_switches_option_id)] = {
-                'type': 'torque', 'id': r.torque_switches_option_id,
-                'name': r.torque_switches_option.name,
-                'code': r.torque_switches_option.code or '',
-            }
-
-        # Add all SwitchesParameters from reference table
-        from params.models import SwitchesParameters
-        existing = {v['id'] for v in palette.values()}
-        for sp in SwitchesParameters.objects.filter(is_active=True):
-            if sp.id not in existing:
-                palette[('ref', sp.id)] = {
-                    'type': 'ref', 'id': sp.id,
-                    'name': sp.name or '', 'code': sp.code or '',
-                }
-
-        result = []
-        for mli in models:
-            way_set = {opt_id: {'id': r.id, 'encoding': r.encoding, 'is_default': r.is_default}
-                       for opt_id, r in way_by_mli.get(mli.id, {}).items()}
-            end_set = {opt_id: {'id': r.id, 'encoding': r.encoding, 'is_default': r.is_default}
-                       for opt_id, r in end_by_mli.get(mli.id, {}).items()}
-            torque_set = {opt_id: {'id': r.id, 'encoding': r.encoding, 'is_default': r.is_default}
-                          for opt_id, r in torque_by_mli.get(mli.id, {}).items()}
-            result.append({
-                'id': mli.id, 'name': mli.name,
-                'way': way_set, 'end': end_set, 'torque': torque_set,
-            })
-
-        return Response({
-            'models': result,
-            'palette': sorted(palette.values(), key=lambda x: (x['type'], x['name'])),
-        })
-
-    @transaction.atomic
-    def post(self, request):
-        source_id = request.data.get('source_mli_id')
-        target_ids = request.data.get('target_mli_ids', [])
-
-        if not source_id or not target_ids:
-            return Response({'error': 'source_mli_id and target_mli_ids required'}, status=400)
-
-        source_way = list(ElectricWaySwitchesOption.objects.filter(
-            model_line_item_id=source_id, is_active=True))
-        source_end = list(ElectricEndSwitchesOption.objects.filter(
-            model_line_item_id=source_id, is_active=True))
-        source_torque = list(ElectricTorqueSwitchesOption.objects.filter(
-            model_line_item_id=source_id, is_active=True))
-
-        created_way = created_end = created_torque = 0
-
-        for tid in target_ids:
-            if tid == source_id:
-                continue
-            ElectricWaySwitchesOption.objects.filter(model_line_item_id=tid).delete()
-            ElectricEndSwitchesOption.objects.filter(model_line_item_id=tid).delete()
-            ElectricTorqueSwitchesOption.objects.filter(model_line_item_id=tid).delete()
-
-            for r in source_way:
-                ElectricWaySwitchesOption.objects.create(
-                    model_line_item_id=tid, way_switches_option=r.way_switches_option,
-                    encoding=r.encoding, is_default=r.is_default,
-                    sorting_order=r.sorting_order, is_active=True)
-                created_way += 1
-            for r in source_end:
-                ElectricEndSwitchesOption.objects.create(
-                    model_line_item_id=tid, end_switches_option=r.end_switches_option,
-                    encoding=r.encoding, is_default=r.is_default,
-                    sorting_order=r.sorting_order, is_active=True)
-                created_end += 1
-            for r in source_torque:
-                ElectricTorqueSwitchesOption.objects.create(
-                    model_line_item_id=tid, torque_switches_option=r.torque_switches_option,
-                    encoding=r.encoding, is_default=r.is_default,
-                    sorting_order=r.sorting_order, is_active=True)
-                created_torque += 1
-
-        return Response({
-            'ok': True,
-            'created_way': created_way,
-            'created_end': created_end,
-            'created_torque': created_torque,
-        })
-
-    @transaction.atomic
-    def patch(self, request):
-        """Обновить Way/End/Torque опции для одной модели (источник)."""
-        mli_id = request.data.get('model_line_item_id')
-        way = request.data.get('way_switches', [])
-        end = request.data.get('end_switches', [])
-        torque = request.data.get('torque_switches', [])
-
-        if not mli_id:
-            return Response({'error': 'model_line_item_id required'}, status=400)
-
-        # Validate FK existence
-        from params.models import SwitchesParameters
-        all_sp_ids = set()
-        for item in way: all_sp_ids.add(item.get('switches_parameter_id'))
-        for item in end: all_sp_ids.add(item.get('switches_parameter_id'))
-        for item in torque: all_sp_ids.add(item.get('switches_parameter_id'))
-        all_sp_ids.discard(None)
-        valid_ids = set(SwitchesParameters.objects.filter(
-            id__in=all_sp_ids, is_active=True
-        ).values_list('id', flat=True))
-        invalid = all_sp_ids - valid_ids
-        if invalid:
-            return Response({'error': 'Invalid switches_parameter_id', 'invalid_ids': list(invalid)}, status=400)
-
-        # Delete old
-        ElectricWaySwitchesOption.objects.filter(model_line_item_id=mli_id).delete()
-        ElectricEndSwitchesOption.objects.filter(model_line_item_id=mli_id).delete()
-        ElectricTorqueSwitchesOption.objects.filter(model_line_item_id=mli_id).delete()
-
-        # Create new
-        for i, item in enumerate(way):
-            ElectricWaySwitchesOption.objects.create(
-                model_line_item_id=mli_id,
-                way_switches_option_id=item['switches_parameter_id'],
-                encoding=item.get('encoding', ''),
-                is_default=item.get('is_default', False),
-                sorting_order=i, is_active=True,
-            )
-        for i, item in enumerate(end):
-            ElectricEndSwitchesOption.objects.create(
-                model_line_item_id=mli_id,
-                end_switches_option_id=item['switches_parameter_id'],
-                encoding=item.get('encoding', ''),
-                is_default=item.get('is_default', False),
-                sorting_order=i, is_active=True,
-            )
-        for i, item in enumerate(torque):
-            ElectricTorqueSwitchesOption.objects.create(
-                model_line_item_id=mli_id,
-                torque_switches_option_id=item['switches_parameter_id'],
-                encoding=item.get('encoding', ''),
-                is_default=item.get('is_default', False),
-                sorting_order=i, is_active=True,
-            )
-
-        return Response({
-            'ok': True,
-            'way_switches': len(way),
-            'end_switches': len(end),
-            'torque_switches': len(torque),
-        })

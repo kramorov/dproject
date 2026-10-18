@@ -8,11 +8,12 @@ Through-модели опций уровня model_line_item.
 Модели:
     ElectricPowerSupplyOption     — напряжение + моторные параметры
     ElectricSafetyPositionOption  — положение безопасности
-    ElectricControlUnitOption     — блок управления + счётчики + сигналы
+
+Сигнальные опции БУ×напряжение (ElectricControlUnitOption) удалены в фазе 7 —
+заменены матрицей EaSignalMatrixEntry + AllowedControlUnitOption
+(power_supply, ext_encoding).
 """
 from django.db import models
-from django.utils.functional import cached_property
-
 from django.utils.translation import gettext_lazy as _
 from typing import List, Optional, Tuple, Any, Dict, Union
 from django.core.exceptions import ValidationError
@@ -24,7 +25,6 @@ from options.models import BaseThroughOptionNoDefault, BaseThroughOption
 import logging
 
 from params.models import PowerSupplies
-from electric_actuators.models.ea_allowed_options import AllowedControlUnitOption
 
 logger = logging.getLogger(__name__)
 
@@ -76,146 +76,6 @@ class ElectricSafetyPositionOption(BaseThroughOption):
         }
 
         return data
-
-class ElectricControlUnitOption(BaseThroughOption):
-    """Through-модель для блоков управления с encoding и дефолтами"""
-
-    power_supply_option = models.ForeignKey(
-        'ElectricPowerSupplyOption',
-        on_delete=models.CASCADE,
-        related_name='ea_model_line_item_options_power_supply_options',
-        verbose_name=_("Опция напряжения питания"),
-        help_text=_("Опция напряжения питания")
-    )
-
-    control_unit = models.ForeignKey(
-        'params.ControlUnitInstalledOption',
-        on_delete=models.CASCADE,
-        related_name='ea_model_lene_item_options_control_unit_options',
-        verbose_name=_("Блок управления"),
-        help_text=_("Тип блока управления")
-    )
-
-    control_unit_wiring = models.ForeignKey(
-        'ControlUnitWiring',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='control_unit_options',
-        verbose_name=_("Схема подключения"),
-        help_text=_("Связка БУ+напряжение+профиль+изображение из справочника ControlUnitWiring")
-    )
-
-
-    encoding = models.CharField(
-        max_length=50,
-        verbose_name=_("Кодировка"),
-        help_text=_("Код для генерации артикула"),
-        blank=True,  # ДОБАВЛЯЕМ - разрешаем пустые значения
-        null=True,  # ДОБАВЛЯЕМ - разрешаем NULL в базе
-        default=''  # ДОБАВЛЯЕМ - значение по умолчанию пустая строка
-    )
-
-    is_default = models.BooleanField(
-        default=False,
-        verbose_name=_("По умолчанию"),
-        help_text=_("Выбирать этот блок управления по умолчанию")
-    )
-
-    # ── Счётчики оборотов ──
-    default_turn_counter = models.ForeignKey(
-        'params.TurnCounterOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='default_for_control_unit_options',
-        verbose_name=_("Счётчик оборотов по умолчанию"),
-        help_text=_("Значение по умолчанию для этой пары БУ×напряжение")
-    )
-    allowed_turn_counters = models.ManyToManyField(
-        'params.TurnCounterOption',
-        blank=True,
-        related_name='allowed_in_control_unit_options',
-        verbose_name=_("Доступные счётчики оборотов"),
-        help_text=_("Все допустимые счётчики для этой пары БУ×напряжение")
-    )
-
-    # Дополнительные технические параметры если нужно
-    # power_consumption = models.DecimalField(
-    #     max_digits=6, decimal_places=2,
-    #     null=True, blank=True,
-    #     verbose_name=_("Потребляемая мощность, Вт"),
-    #     help_text=_("Мощность потребления блока управления")
-    # )
-
-    class Meta:
-        verbose_name = _("Опция блока управления для напряжения")
-        verbose_name_plural = _("Опции блоков управления для напряжений")
-        ordering = ['sorting_order']
-        # unique_together = ['power_supply_option', 'control_unit']
-
-    def __str__(self):
-        return f"{self.power_supply_option} -> {self.control_unit}"
-    def get_description_data(self) -> Dict[str, Any]:
-
-        """Получить структурированные данные для описания """
-        # logger.debug(f"EA logger get_description_data")
-        # print(f"EA model line item print get_description_data")
-        data = {
-            'control_unit': {
-                'display_name': 'Тип установленного блока управления',
-                'value': self.control_unit.name if self.control_unit else None,
-                'description': self.control_unit.description if self.control_unit else None,
-                'feature_list': self.control_unit.feature_list if self.control_unit else [],
-            },
-            'encoding': {
-                'display_name': 'Кодировка',
-                'value': self.resolved_encoding,
-            },
-            'is_default': {'display_name': 'Стандарт', 'value': self.is_default},
-            'is_installed': self.control_unit is not None and self.control_unit.name != 'none',
-            'default_turn_counter': {
-                'display_name': 'Счётчик оборотов',
-                'value': self.default_turn_counter.name if self.default_turn_counter else None,
-            },
-            'control_unit_wiring': {
-                'display_name': 'Схема подключения',
-                'value': self.control_unit_wiring.code if self.control_unit_wiring else None,
-                'name': self.control_unit_wiring.name if self.control_unit_wiring else None,
-                'signal_profile': self.control_unit_wiring.signal_profile.name
-                    if (self.control_unit_wiring and self.control_unit_wiring.signal_profile_id) else None,
-            },
-        }
-        return data
-
-    @cached_property
-    def resolved_encoding(self) -> str:
-        """Encoding БУ для данной серии — из AllowedControlUnitOption.
-        Если записи нет — собственный encoding (обратная совместимость).
-        Результат кешируется на время жизни объекта.
-        """
-        if not (self.power_supply_option_id and self.control_unit_id):
-            return self.encoding or ''
-        try:
-            ml = self.power_supply_option.model_line_item.model_line
-            allowed = AllowedControlUnitOption.objects.get(
-                model_line=ml, control_unit=self.control_unit
-            )
-            return allowed.encoding
-        except (AllowedControlUnitOption.DoesNotExist, AttributeError):
-            return self.encoding or ''
-
-    def clean(self):
-        """Валидация перед сохранением"""
-        # Убедимся что encoding уникален в рамках power_supply_option
-        # if self.encoding and self.power_supply_option:
-        #     exists = ElectricControlUnitOption.objects.filter(
-        #         power_supply_option=self.power_supply_option,
-        #         encoding=self.encoding
-        #     ).exclude(pk=self.pk).exists()
-        #     if exists:
-        #         raise ValidationError({
-        #             'encoding': _('Кодировка должна быть уникальной для данного напряжения')
-        #         })
-        return
 
 class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
     """Опции напряжения питания для модели в серии электроприводов"""
@@ -289,13 +149,6 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
             'torque_max': {'display_name': 'Вращающий момент макс, Нм', 'value': self.torque_max},
         }
         return data
-
-
-
-    @property
-    def available_control_units(self):
-        """Доступные блоки управления для этого напряжения"""
-        return self.control_unit_options.filter(is_active=True)
 
     @classmethod
     def _get_parent_field_name(cls):
@@ -375,10 +228,8 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
             return f"{self.model_line_item.name}.{self.power_supply.encoding}"
         return super().__str__()
 
-    # Явно указываем through-модели для копирования
-    COPY_THROUGH_MODELS = [
-        'ea_model_line_item_options_power_supply_options' ,  # ElectricControlUnitOption
-    ]
+    # Through-модели для копирования: сигнальные опции БУ удалены (фаза 7)
+    COPY_THROUGH_MODELS = []
 
     def create_copy(self) :
         """Создать копию элемента с копированием through-моделей"""
@@ -544,13 +395,6 @@ class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
             else :
                 setattr(new_through , field.name , value)
                 logger.debug(f"      Поле {field.name}: скопировано значение '{value}'")
-
-        # Обрабатываем encoding для through-объекта
-        # if hasattr(new_through , 'encoding') and new_through.encoding :
-        #     if not new_through.encoding.endswith('_copy') :
-        #         old_encoding = new_through.encoding
-        #         new_through.encoding = f"{new_through.encoding}_copy"
-        #         logger.debug(f"      Encoding изменен: '{old_encoding}' -> '{new_through.encoding}'")
 
         # Сохраняем through-объект
         new_through.save()
