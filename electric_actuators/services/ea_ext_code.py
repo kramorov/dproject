@@ -81,8 +81,8 @@ NONE_SLOT_EXT = {
     'TURN_COUNTER': {'NONE': '', 'MECH': 'M', 'ELECTRONIC': 'E',
                      'MECH_ELEC': 'EM', 'MECH_FB': 'MF',
                      'MECH_ELEC_FB': 'EMF'},
-    'CMD': {'CMD_OCS_220AC': '', 'CMD_OCS_24DC': 'D',
-            'CMD_REMOTE_220AC': 'R', 'CMD_REMOTE_24DC': 'RD'},
+    'CMD': {'CMD_OCS_220AC': '', 'CMD_OCS_24DC': 'DC',
+            'CMD_REMOTE_220AC': 'R', 'CMD_REMOTE_24DC': 'R2'},
     'SETPOINT': {'CMD_POS_4_20MA_ACTIVE': 'A',
                  'CMD_POS_4_20MA_PASSIVE': 'P'},
     'THERMAL_SENSOR': {'NO_SENSOR': '', 'THERMAL_NO_OUTPUT': 'T0',
@@ -155,16 +155,11 @@ def _slot_rules(slot_code, position):
 
 
 def coding_rules(model_line, locale=None):
-    """Правила кодирования серии: блоки → позиции → коды с именами."""
-    from django.utils import translation
+    """Правила кодирования серии: блоки → позиции → коды с именами.
 
-    def loc(name, locale):
-        """Локализованное имя записи (LocalizedDictFieldsMixin) или простое."""
-        try:
-            return name.localized_name(locale)
-        except AttributeError:
-            return str(name)
-
+    locale — зарезервирован для локализованных имён (фаза 6); сейчас имена
+    берутся из справочников как есть.
+    """
     rules = []
     for block_key, block_title, positions in BLOCKS:
         block = {'key': block_key, 'title': block_title, 'positions': []}

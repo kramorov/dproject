@@ -220,7 +220,9 @@ def export_series_rows(model_line_code):
                             line.code, item_code, body_code, cu_code,
                             ps_code, mode, slot_code, 'heater', key, '',
                             '', opt.heater_supply.code, availability,
-                            is_default, bundle, '', '', ''))
+                            is_default, bundle, '',
+                            entry.encoding if entry else '',
+                            entry.ext_encoding if entry else ''))
                     else:  # none
                         emitted.add(key)
                         rows.append(_work_row(
@@ -343,6 +345,9 @@ def apply_import(rows):
                 device = EaFeedbackDevice.objects.filter(
                     code=rec.get('device')).first() if rec.get('device') else None
                 kw['device'] = device
+                # Имя/опция — часть идентичности none-строки (иначе разные
+                # none-опции одного слота затирают друг друга)
+                lookup['name'] = kw['name']
                 obj, created = EaSignalMatrixEntry.objects.update_or_create(
                     defaults=kw, **lookup)
             else:

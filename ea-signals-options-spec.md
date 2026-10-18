@@ -45,7 +45,7 @@ OPEN, CLOSE, STOP, EMERGENCY, MODE, REMOTE («Удалённое управле�
 DISC_AC/DISC_DC + voltage (напряжение цепи управления — характеристика БУ:
 AUMA 24VDC std/115VAC opt; Rotork 20–60VDC/40–120VAC). Могут отсутствовать:
 modulating БУ — только уставка; приводы без БУ — команд нет. Ext: пусто
-(OPEN/STOP/CLOSE 220AC)/D(24DC)/R(REMOTE)/N(нет).
+(OPEN/STOP/CLOSE 220AC)/DC(24DC)/R(REMOTE 220AC)/R2(REMOTE 24DC)/N(нет).
 
 ### 2.3 SETPOINT — уставка положения (слот матрицы)
 AN_4_20_ACTIVE, AN_4_20_PASSIVE, AN_4_20_HART (HART поверх 4-20; 0–10В —
@@ -168,7 +168,7 @@ JSONField `ControlUnitInstalledOption.capabilities`.
 (позиция s2 — после появления каталога S2/стартера). Коды позиций — см. разд. 2
 и ea-signals-final-scheme.md 14.2 (cu: IO/IL/IN/IM/IP/IH/PT/TR/T0/PR/P0; cu_p:
 X; ps: 3/2; пары: E1/E2, W1/W2, T1/T2; temp: L/LM/V/VM; therm: T0/T1/T2;
-h_cu: C/S; ind: D/B/DB/L/LB; cnt: M/E/EM/MF/EMF; lc: S/N; cmd: D/R/RD;
+h_cu: C/S; ind: D/B/DB/L/LB; cnt: M/E/EM/MF/EMF; lc: S/N; cmd: DC/R/R2;
 setp: A/P; hart: H; proto: PB/PN/MB/MT/FF). Сборка — `generated_ext_code`
 (core.models.mixins). Сервис `services/ea_ext_code.py` (реализован):
 `decode_ext_code(model_line, code)` — расшифровка в {позиция: опция} с

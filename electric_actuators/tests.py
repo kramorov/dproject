@@ -476,6 +476,33 @@ class EaMatrixFrameworkTests(TestCase):
         self.assertEqual(stats['created'], 0)
         self.assertEqual(stats['updated'], 1)
 
+    def test_import_two_none_options_same_slot(self):
+        """Ревью №7 F1: две none-опции одного слота не затирают друг друга."""
+        from electric_actuators.models import (EaSignalSlot, EaSlotOption,
+                                               EaSignalMatrixEntry)
+        from electric_actuators.services.ea_matrix_io import apply_import
+        ind = EaSignalSlot.objects.create(code='INDICATOR', name='Индикация')
+        EaSlotOption.objects.create(
+            code='INDICATOR:LED_SET', slot=ind, kind='none',
+            name='Светодиодный набор')
+        EaSlotOption.objects.create(
+            code='INDICATOR:BLINKER', slot=ind, kind='none', name='Блинкер')
+        base = dict(series_code='TF', item_code='F1', body_code='Корпус F1',
+                    control_unit='none', power_supply='220-AC', mode='on_off',
+                    slot='INDICATOR', kind='none', signal_code='',
+                    form_code='', heater_supply='', availability='opt',
+                    is_default=False, bundle='', device='', encoding='',
+                    ext_encoding='')
+        stats = apply_import([
+            dict(base, option_code='INDICATOR:LED_SET'),
+            dict(base, option_code='INDICATOR:BLINKER')])
+        self.assertEqual(stats['errors'], [])
+        self.assertEqual(stats['created'], 2)
+        rows = EaSignalMatrixEntry.objects.filter(slot=ind)
+        self.assertEqual(rows.count(), 2)
+        self.assertEqual({r.name for r in rows},
+                         {'Светодиодный набор', 'Блинкер'})
+
 
 class EaExtCodeTests(TestCase):
     """Пакет 14: расширенный код — правила, сборка, расшифровка."""
@@ -484,8 +511,8 @@ class EaExtCodeTests(TestCase):
     def setUpTestData(cls):
         from electric_actuators.models import (
             EaSignalSlot, EaSlotOption, EaFeedbackSignal, EaSignalForm,
-            ElectricActuatorModelLine, AllowedControlUnitOption,
-            ElectricTemperatureOption,
+            EaControlSignal, ElectricActuatorModelLine,
+            AllowedControlUnitOption, ElectricTemperatureOption,
         )
         from producers.models import Brands
         from params.models import (ControlUnitInstalledOption, PowerSupplies,
@@ -535,6 +562,22 @@ class EaExtCodeTests(TestCase):
         EaSlotOption.objects.create(
             code='THERMAL_SENSOR:FB_OVERHEAT_NC', slot=slot_th, kind='signal',
             feedback_signal=sig_nc, name='Перегрев НЗ')
+        # Позиции op-блока для теста однозначности кодов
+        slot_ind = EaSignalSlot.objects.create(code='INDICATOR', name='Индикация')
+        for code, name in (('LED_SET', 'Светодиодный набор'),
+                           ('BLINKER', 'Блинкер'),
+                           ('LED_SET_BLINKER', 'Светодиоды + блинкер')):
+            EaSlotOption.objects.create(
+                code=f'INDICATOR:{code}', slot=slot_ind, kind='none', name=name)
+        slot_cmd = EaSignalSlot.objects.create(code='CMD', name='Команды')
+        form_dc = EaSignalForm.objects.create(
+            code='DISC_DC', name='Дискретная цепь DC', category='discrete')
+        ctrl_dc = EaControlSignal.objects.create(
+            role='CMD_OCS', category='discrete', form=form_dc,
+            code='CMD_OCS_24DC', name='Команда О/С/З 24 В DC')
+        EaSlotOption.objects.create(
+            code='CMD:CMD_OCS_24DC', slot=slot_cmd, kind='control',
+            control_signal=ctrl_dc, name='О/С/З 24 В DC')
 
     def test_coding_rules_structure(self):
         from electric_actuators.services.ea_ext_code import coding_rules
@@ -574,3 +617,16 @@ class EaExtCodeTests(TestCase):
             build_ext_code(self.line, {'cu': 'ZZ'})  # неизвестный код
         with self.assertRaises(ValueError):
             build_ext_code(self.line, {'cu_p': 'X'})  # питание БУ без БУ
+
+    def test_decode_op_block_unambiguous(self):
+        """Ревью №7 F2: 'DB' — индикация LED+блинкер, а не cmd+ind."""
+        from electric_actuators.services.ea_ext_code import (
+            build_ext_code, decode_ext_code)
+        code_db = build_ext_code(self.line, {'ind': 'DB'})
+        decoded, warnings = decode_ext_code(self.line, code_db)
+        self.assertEqual(decoded['ind']['code'], 'DB')
+        self.assertEqual(decoded['cmd']['code'], '')
+        code_dc = build_ext_code(self.line, {'cmd': 'DC'})
+        decoded2, warnings2 = decode_ext_code(self.line, code_dc)
+        self.assertEqual(decoded2['cmd']['code'], 'DC')
+        self.assertEqual(decoded2['ind']['code'], '')
