@@ -137,6 +137,7 @@ ADMIN_MODEL_BLOCK = {
     ('electric_actuators', 'EaCommProtocol'): 'electric_actuators',
     ('electric_actuators', 'EaFeedbackDevice'): 'electric_actuators',
     ('electric_actuators', 'EaSignalSlot'): 'electric_actuators',
+    ('electric_actuators', 'EaSlotOption'): 'electric_actuators',
     ('electric_actuators', 'EaSignalMatrixEntry'): 'electric_actuators',
     ('electric_actuators', 'EaWiringDiagramBinding'): 'electric_actuators',
     # --- Электроприводы: опции (ETT) ---

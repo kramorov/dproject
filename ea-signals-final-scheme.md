@@ -608,11 +608,11 @@ round-trip импорта, is_default) → 6) `manage.py check` +
     {cu}{ps}{mode}{proto} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {cmd}{setp}{cnt}{ind}{s2}
 
 **Блок БУ** `{cu}{cu_p}{ps}{mode}{proto}`:
-- cu: пусто=none (базовый) · O=int-o · L=int-l · I=int-n · M=int-n-mb ·
-  P=int-n-pb · H=int-n-hr · PT=pote · T=tr-4-20 · T0=tr10 · PR=posi-4-20 ·
-  P0=posi10
-- cu_p (питание БУ): пусто=от питания привода · иначе код PowerSupplies
-  (напр. 24, 110) — поле AllowedControlUnitOption.cu_power_supply
+- cu: пусто=none (базовый) · IO=int-o · IL=int-l · IN=int-n · IM=int-n-mb ·
+  IP=int-n-pb · IH=int-n-hr · PT=pote · TR=tr-4-20 · T0=tr10 · PR=posi-4-20 ·
+  P0=posi10 (коды ≥2 симв., однозначная расшифровка)
+- cu_p (питание БУ): пусто=от питания привода · X=отдельно (24 V DC) —
+  поле AllowedControlUnitOption.cu_power_supply
 - ps: пусто=220-AC · 3=380-AC · 2=24-DC
 - mode: пусто=on_off · M=modulating
 - proto: пусто · PB=ProfiBus · PN=Profinet · MB=Modbus RTU · MT=Modbus TCP ·

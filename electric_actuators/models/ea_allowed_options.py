@@ -37,6 +37,12 @@ class AllowedControlUnitOption(models.Model):
         verbose_name=_("Кодировка"),
         help_text=_("Код опции для подстановки в артикул, например «L», «N», «M1»")
     )
+    ext_encoding = models.CharField(
+        max_length=50, blank=True, default='',
+        verbose_name=_("Ext-кодировка"),
+        help_text=_("Код позиции расширенного кода заказа (ext); пусто — "
+                    "фиксированный справочник CU_EXT в ea_ext_code")
+    )
     power_supply = models.ForeignKey(
         'params.PowerSupplies',
         on_delete=models.PROTECT, null=True, blank=True,

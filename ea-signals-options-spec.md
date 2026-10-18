@@ -164,13 +164,17 @@ JSONField `ControlUnitInstalledOption.capabilities`.
 ## 9. Расширенный код заказа (ext)
 
 Шаблон (блоки через `.`, пусто = стандарт):
-`{cu}{cu_p}{ps}{mode}{proto} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind}{s2}`
-Коды позиций — см. разд. 2 (в скобках после каждого варианта). Сборка —
-`generated_ext_code` (core.models.mixins). Сервис `services/ea_ext_code.py`:
+`{cu}{cu_p}{ps}{mode}{proto} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind}`
+(позиция s2 — после появления каталога S2/стартера). Коды позиций — см. разд. 2
+и ea-signals-final-scheme.md 14.2 (cu: IO/IL/IN/IM/IP/IH/PT/TR/T0/PR/P0; cu_p:
+X; ps: 3/2; пары: E1/E2, W1/W2, T1/T2; temp: L/LM/V/VM; therm: T0/T1/T2;
+h_cu: C/S; ind: D/B/DB/L/LB; cnt: M/E/EM/MF/EMF; lc: S/N; cmd: D/R/RD;
+setp: A/P; hart: H; proto: PB/PN/MB/MT/FF). Сборка — `generated_ext_code`
+(core.models.mixins). Сервис `services/ea_ext_code.py` (реализован):
 `decode_ext_code(model_line, code)` — расшифровка в {позиция: опция} с
 локализованными именами и предупреждениями; `coding_rules(model_line)` —
 легенда позиций/кодов/дефолтов (админка, каталог, ai_assistant).
-Тест round-trip: decode(build(x)) == x.
+Тест round-trip: decode(build(x)) == x (зелёный).
 
 ---
 

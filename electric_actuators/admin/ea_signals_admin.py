@@ -17,6 +17,7 @@ from electric_actuators.models.ea_signal_slot import EaSignalSlot
 from electric_actuators.models.ea_signal_matrix import (
     EaSignalMatrixEntry, EaWiringDiagramBinding,
 )
+from electric_actuators.models.ea_slot_option import EaSlotOption
 
 
 @admin.register(EaSignalForm)
@@ -71,6 +72,19 @@ class EaSignalSlotAdmin(AdminCopyMixin, admin.ModelAdmin):
     list_editable = ['required', 'sorting_order', 'is_active']
     list_filter = ['required', 'is_active']
     search_fields = ['code', 'name']
+
+
+@admin.register(EaSlotOption)
+class EaSlotOptionAdmin(AdminCopyMixin, admin.ModelAdmin):
+    """Опции слотов матрицы — каталог для каркаса выгрузки и конфигуратора."""
+    list_display = ['code', 'slot', 'kind', 'feedback_signal',
+                    'control_signal', 'protocol', 'heater_supply',
+                    'sorting_order', 'is_active']
+    list_editable = ['sorting_order', 'is_active']
+    list_filter = ['slot', 'kind', 'is_active']
+    search_fields = ['code', 'name']
+    autocomplete_fields = ['slot', 'feedback_signal', 'control_signal',
+                           'protocol', 'heater_supply', 'device']
 
 
 @admin.register(EaSignalMatrixEntry)

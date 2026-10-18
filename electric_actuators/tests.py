@@ -475,3 +475,102 @@ class EaMatrixFrameworkTests(TestCase):
         # пустые ячейки пропущены: обновлена только существующая std-строка
         self.assertEqual(stats['created'], 0)
         self.assertEqual(stats['updated'], 1)
+
+
+class EaExtCodeTests(TestCase):
+    """Пакет 14: расширенный код — правила, сборка, расшифровка."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from electric_actuators.models import (
+            EaSignalSlot, EaSlotOption, EaFeedbackSignal, EaSignalForm,
+            ElectricActuatorModelLine, AllowedControlUnitOption,
+            ElectricTemperatureOption,
+        )
+        from producers.models import Brands
+        from params.models import (ControlUnitInstalledOption, PowerSupplies,
+                                   ActuatorHeaterSupply)
+        cls.brand = Brands.objects.create(name='AOX-X', code='AOX-X')
+        cls.line = ElectricActuatorModelLine.objects.create(
+            name='Серия X', description='', code='TX', brand=cls.brand)
+        cls.cu_int, _ = ControlUnitInstalledOption.objects.get_or_create(
+            code='int-o', defaults={'name': 'INT/O'})
+        cls.ps220, _ = PowerSupplies.objects.get_or_create(
+            code='220-AC', defaults={'name': '220/50'})
+        PowerSupplies.objects.get_or_create(code='380-AC',
+                                            defaults={'name': '380/50'})
+        PowerSupplies.objects.get_or_create(code='24-DC',
+                                            defaults={'name': '24DC'})
+        AllowedControlUnitOption.objects.create(
+            model_line=cls.line, control_unit=cls.cu_int,
+            power_supply=cls.ps220, encoding='INT/O',
+            ext_encoding='IO', is_active=True)
+        no_heater, _ = ActuatorHeaterSupply.objects.get_or_create(
+            code='NO_HEATER', defaults={'name': 'Нет обогрева'})
+        sep, _ = ActuatorHeaterSupply.objects.get_or_create(
+            code='SEPARATE_LINE', defaults={'name': 'Отдельная линия'})
+        motor, _ = ActuatorHeaterSupply.objects.get_or_create(
+            code='MOTOR_CIRCUIT', defaults={'name': 'От цепей устройства'})
+        ElectricTemperatureOption.objects.create(
+            model_line=cls.line, code='STD', heater_supply=no_heater,
+            is_default=True, work_temp_min=-20, work_temp_max=70)
+        ElectricTemperatureOption.objects.create(
+            model_line=cls.line, code='LT', heater_supply=sep,
+            work_temp_min=-40, work_temp_max=70)
+        ElectricTemperatureOption.objects.create(
+            model_line=cls.line, code='LT', heater_supply=motor,
+            work_temp_min=-40, work_temp_max=70)
+        slot_lim = EaSignalSlot.objects.create(
+            code='LIMIT_SWITCHES', name='Концевые')
+        EaSlotOption.objects.create(
+            code='LIMIT_SWITCHES:END_SPDT', slot=slot_lim, kind='pair',
+            name='Концевые SPDT')
+        slot_th = EaSignalSlot.objects.create(
+            code='THERMAL_SENSOR', name='Теплозащита')
+        form = EaSignalForm.objects.create(
+            code='DRY_SPST', name='SPST', category='contact')
+        sig_nc = EaFeedbackSignal.objects.create(
+            role='OVERHEAT', category='contact', form=form,
+            code='FB_OVERHEAT_NC', name='Перегрев НЗ')
+        EaSlotOption.objects.create(
+            code='THERMAL_SENSOR:FB_OVERHEAT_NC', slot=slot_th, kind='signal',
+            feedback_signal=sig_nc, name='Перегрев НЗ')
+
+    def test_coding_rules_structure(self):
+        from electric_actuators.services.ea_ext_code import coding_rules
+        rules = coding_rules(self.line)
+        self.assertEqual(len(rules), 5)
+        self.assertEqual([b['key'] for b in rules],
+                         ['bu', 'sw', 'fb', 'cl', 'op'])
+        cu_opts = {o['code'] for o in rules[0]['positions'][0]['options']}
+        self.assertIn('IO', cu_opts)
+        temp_opts = {o['code']
+                     for b in rules for p in b['positions']
+                     if p['key'] == 'temp' for o in p['options']}
+        self.assertIn('L', temp_opts)
+        self.assertIn('LM', temp_opts)
+
+    def test_build_decode_roundtrip(self):
+        from electric_actuators.services.ea_ext_code import (
+            build_ext_code, decode_ext_code)
+        selection = {'cu': 'IO', 'cu_p': 'X', 'ps': '3', 'mode': 'M',
+                     'end': 'E1', 'temp': 'LM', 'therm': 'T1'}
+        code = build_ext_code(self.line, selection)
+        self.assertIn('IOX3M', code)
+        self.assertIn('E1', code)
+        self.assertIn('LMT1', code)
+        decoded, warnings = decode_ext_code(self.line, code)
+        self.assertEqual(warnings, [])
+        for pos, sel_code in selection.items():
+            self.assertEqual(decoded[pos]['code'], sel_code, pos)
+        # обратная сборка даёт тот же код
+        rebuilt = build_ext_code(
+            self.line, {p: d['code'] for p, d in decoded.items()})
+        self.assertEqual(rebuilt, code)
+
+    def test_build_validation(self):
+        from electric_actuators.services.ea_ext_code import build_ext_code
+        with self.assertRaises(ValueError):
+            build_ext_code(self.line, {'cu': 'ZZ'})  # неизвестный код
+        with self.assertRaises(ValueError):
+            build_ext_code(self.line, {'cu_p': 'X'})  # питание БУ без БУ
