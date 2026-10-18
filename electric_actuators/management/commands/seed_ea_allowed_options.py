@@ -353,6 +353,139 @@ class Command(BaseCommand):
                             if created:
                                 stats['signal_created'] += 1
 
+        # 2c. Сигналы AR01E/AR11E по таблице AOX available-options-ea-AOX.xlsx
+        # (2026-10-18): наборы по профилям БУ (st — std, opt? — opt), заливка
+        # на уровень модели (item) — пары проверяются resolve_cu_pair (серийные
+        # + модельные запреты). Исключения корпусов: R — без моментных;
+        # R 005-008 — без DPDT/Way; Q 005-010 — без моментных; basic×24-DC
+        # теплозащита — только Q.
+        from electric_actuators.models.ea_allowed_options import \
+            resolve_cu_pair
+        PROFILE_COMMON = {
+            'basic': [
+                ('LIMIT_SWITCHES', 'END_SPDT', 'std'),
+                ('LIMIT_SWITCHES', 'END_DPDT', 'opt'),
+                ('WAY_SWITCHES', 'WAY_SPDT', 'opt'),
+                ('WAY_SWITCHES', 'WAY_DPDT', 'opt'),
+                ('TORQUE_SWITCHES', 'TORQUE_SPDT', 'std'),
+                ('TORQUE_SWITCHES', 'TORQUE_DPDT', 'opt'),
+                ('THERMAL_SENSOR', 'FB_OVERHEAT_NC', 'opt'),
+                ('THERMAL_SENSOR', 'FB_OVERHEAT_SPDT', 'opt'),
+            ],
+            'int': [
+                ('SETPOINT', 'CMD_POS_4_20MA_PASSIVE', 'std'),
+                ('SETPOINT', 'CMD_POS_4_20MA_ACTIVE', 'opt'),
+                ('LIMIT_SWITCHES', 'END_SPDT', 'std'),
+                ('LIMIT_SWITCHES', 'END_DPDT', 'opt'),
+                ('WAY_SWITCHES', 'WAY_SPDT', 'opt'),
+                ('WAY_SWITCHES', 'WAY_DPDT', 'opt'),
+                ('TORQUE_SWITCHES', 'TORQUE_SPDT', 'std'),
+                ('TORQUE_SWITCHES', 'TORQUE_DPDT', 'opt'),
+                ('POSITION_FEEDBACK', 'FB_POS_4_20MA_PASSIVE', 'std'),
+                ('POSITION_FEEDBACK', 'FB_POS_4_20MA_ACTIVE', 'opt'),
+                ('THERMAL_SENSOR', 'FB_OVERHEAT_NC', 'opt'),
+                ('THERMAL_SENSOR', 'FB_OVERHEAT_SPDT', 'opt'),
+                ('TURN_COUNTER', 'MECH', 'opt'),
+                ('HEATER_CONTROL_UNIT', 'SEPARATE_LINE', 'opt'),
+                ('HEATER_CONTROL_UNIT', 'CU_CIRCUIT', 'opt'),
+            ],
+            'pote': [('POSITION_FEEDBACK', 'FB_POS_POT_1K', 'std')],
+            'tr-4-20': [('POSITION_FEEDBACK', 'FB_POS_4_20MA_PASSIVE', 'std')],
+            'tr10': [('POSITION_FEEDBACK', 'FB_POS_0_10V', 'opt')],
+            'posi': [
+                ('SETPOINT', 'CMD_POS_4_20MA_ACTIVE', 'opt'),
+                ('POSITION_FEEDBACK', 'FB_POS_4_20MA_ACTIVE', 'opt'),
+                ('SETPOINT', 'CMD_POS_0_10V_ACTIVE', 'opt'),
+                ('POSITION_FEEDBACK', 'FB_POS_0_10V', 'opt'),
+            ],
+        }
+        AOX_PROFILES = {
+            'basic': PROFILE_COMMON['basic'],
+            'int-l': PROFILE_COMMON['int'],
+            'int-n': PROFILE_COMMON['int'],
+            'int-n-hr': PROFILE_COMMON['int'],
+            'int-n-mb': PROFILE_COMMON['int'],
+            'int-n-pb': PROFILE_COMMON['int'],
+            'int-o': PROFILE_COMMON['int'],
+            'pote': PROFILE_COMMON['pote'],
+            'tr-4-20': PROFILE_COMMON['tr-4-20'],
+            'tr10': PROFILE_COMMON['tr10'],
+            'posi-4-20': PROFILE_COMMON['posi'],
+            'posi10': PROFILE_COMMON['posi'],
+        }
+        SERIES_BODIES = {
+            'AR01E': ['AR01E003', 'AR01E005-008', 'AR01E010-015', 'AR01E020',
+                      'AR01E030', 'AR01E040', 'AR01E060', 'AR01E080',
+                      'AR01E100', 'AR01E160-500'],
+            'AR11E': ['AR11E005-010', 'AR11E015-020', 'AR11E030',
+                      'AR11E050-060', 'AR11E080-120', 'AR11E150',
+                      'AR11E200-600'],
+        }
+        NO_TORQUE_BODIES = {'AR01E003', 'AR01E005-008', 'AR01E010-015',
+                            'AR01E020', 'AR01E030', 'AR01E040', 'AR01E060',
+                            'AR01E080', 'AR01E100', 'AR01E160-500',  # R-серия
+                            'AR11E005-010'}  # Q 005-008-010
+        NO_DPDT_WAY_BODIES = {'AR01E005-008'}
+        option_by_code = {o.code: o for o in EaSlotOption.objects.all()}
+        pair_cache = {}
+        for line_code, body_codes in SERIES_BODIES.items():
+            line = ElectricActuatorModelLine.objects.get(code=line_code)
+            items = list(ElectricActuatorModelLineItem.objects.filter(
+                model_line=line).select_related('body'))
+            # Пакетная заливка: ключи существующих строк одним запросом
+            existing = set(EaSignalMatrixEntry.objects.filter(
+                model_line_item__model_line=line).values_list(
+                'model_line_item_id', 'control_unit_id', 'power_supply_id',
+                'slot_id', 'option_id'))
+            to_create = []
+            for item in items:
+                body_code = item.body.code if item.body_id else ''
+                for cu_code, profile in AOX_PROFILES.items():
+                    if cu_code not in cu:
+                        continue
+                    tpl_cu = cu[cu_code]
+                    for ps_code in ('24-DC', '220-AC', '380-AC'):
+                        key = (line.pk, item.pk, tpl_cu.pk, ps[ps_code].pk)
+                        if key not in pair_cache:
+                            pair_cache[key] = resolve_cu_pair(
+                                line, item, tpl_cu, ps[ps_code])
+                        if pair_cache[key] is None:
+                            continue
+                        for slot_code, opt_suffix, availability in profile:
+                            if slot_code == 'TORQUE_SWITCHES' and \
+                                    body_code in NO_TORQUE_BODIES:
+                                continue
+                            if slot_code in ('WAY_SWITCHES',) and \
+                                    opt_suffix.startswith('WAY') and \
+                                    body_code in NO_DPDT_WAY_BODIES:
+                                continue
+                            if slot_code == 'LIMIT_SWITCHES' and \
+                                    opt_suffix == 'END_DPDT' and \
+                                    body_code in NO_DPDT_WAY_BODIES:
+                                continue
+                            if slot_code == 'THERMAL_SENSOR' and \
+                                    ps_code == '24-DC' and \
+                                    line_code == 'AR01E':
+                                continue
+                            opt = option_by_code.get(
+                                '%s:%s' % (slot_code, opt_suffix))
+                            if opt is None:
+                                continue
+                            if (item.pk, tpl_cu.pk, ps[ps_code].pk,
+                                    opt.slot_id, opt.pk) in existing:
+                                continue
+                            to_create.append(EaSignalMatrixEntry(
+                                model_line_item=item, control_unit=tpl_cu,
+                                power_supply=ps[ps_code], mode='both',
+                                slot=opt.slot, option=opt,
+                                availability=availability,
+                                is_default=(availability == 'std'),
+                                name=opt.name))
+            if to_create:
+                EaSignalMatrixEntry.objects.bulk_create(
+                    to_create, batch_size=500)
+                stats['signal_created'] += len(to_create)
+
         # 3. capabilities
         for cu_code, caps in CAPABILITIES.items():
             for code in [cu_code] + (
