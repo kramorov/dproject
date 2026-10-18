@@ -14,4 +14,5 @@ from .ea_actuator_selected_admin import *
 from .ea_constructor_admin import *
 from .ea_allowed_options_admin import *
 from .ea_signals_admin import *
+from .ea_catalog_item_admin import *
 

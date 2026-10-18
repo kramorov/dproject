@@ -25,6 +25,7 @@ from .ea_model_line import *
 from .ea_data import *
 from .ea_model_body import *
 from .ea_access_device import *
+from .ea_catalog_item import *
 from .ea_cg_holes_set import *
 from .ea_options import *
 from .ea_body import *

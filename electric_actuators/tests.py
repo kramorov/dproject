@@ -579,6 +579,12 @@ class EaExtCodeTests(TestCase):
             code='CMD:CMD_OCS_24DC', slot=slot_cmd, kind='control',
             control_signal=ctrl_dc, name='О/С/З 24 В DC')
 
+    def test_code_invariants(self):
+        """Инвариант greedy-декода: коды позиций без префикс-конфликтов."""
+        from electric_actuators.services.ea_ext_code import (
+            check_code_invariants)
+        self.assertEqual(check_code_invariants(self.line), [])
+
     def test_coding_rules_structure(self):
         from electric_actuators.services.ea_ext_code import coding_rules
         rules = coding_rules(self.line)
@@ -627,9 +633,9 @@ class EaExtCodeTests(TestCase):
         decoded, warnings = decode_ext_code(self.line, code_db)
         self.assertEqual(decoded['ind']['code'], 'DB')
         self.assertEqual(decoded['cmd']['code'], 'C0')
-        code_d = build_ext_code(self.line, {'cmd': 'D'})
+        code_d = build_ext_code(self.line, {'cmd': 'OB'})
         decoded2, warnings2 = decode_ext_code(self.line, code_d)
-        self.assertEqual(decoded2['cmd']['code'], 'D')
+        self.assertEqual(decoded2['cmd']['code'], 'OB')
         self.assertEqual(decoded2['ind']['code'], 'N0')
 
     def test_configurator_data_and_ext_from_rows(self):
@@ -887,6 +893,18 @@ class AllowedCuAndIndicatorTests(TestCase):
         self.assertEqual(m2_380['basic|CMD_OCS_220AC'], '')
         self.assertEqual(m2_380['basic|heater|SEPARATE_LINE'], 'no')
         self.assertEqual(m2_380['basic|heater|CU_CIRCUIT'], 'no')
+
+    def test_catalog_item_config_hash(self):
+        """Карточка каталога: config_hash заполнен и различается по опциям."""
+        from electric_actuators.models import ElectricActuatorCatalogItem
+        item = ElectricActuatorCatalogItem.objects.create(
+            model_line=self.line, model_line_item=self.m1,
+            control_unit=self.cu_int)
+        self.assertTrue(item.config_hash)
+        item2 = ElectricActuatorCatalogItem.objects.create(
+            model_line=self.line, model_line_item=self.m1,
+            control_unit=self.cu_basic)
+        self.assertNotEqual(item.config_hash, item2.config_hash)
 
     def test_constructor_ext_helpers(self):
         """ext-хелперы конструктора: cu/temp коды для шаблона ext_encoding."""

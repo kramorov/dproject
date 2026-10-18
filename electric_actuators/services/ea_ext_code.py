@@ -102,16 +102,16 @@ NONE_SLOT_EXT = {
     'TURN_COUNTER': {'NONE': 'N0', 'MECH': 'M', 'ELECTRONIC': 'E',
                      'MECH_ELEC': 'EM', 'MECH_FB': 'MF',
                      'MECH_ELEC_FB': 'EMF'},
-    'CMD': {'CMD_OCS_220AC': 'O', 'CMD_OCS_24DC': 'D',
-            'CMD_REMOTE_220AC': 'R', 'CMD_REMOTE_24DC': 'RD',
-            'CMD_LOCK_220AC': 'LK', 'CMD_LOCK_24DC': 'LD',
-            'CMD_MANUAL_220AC': 'MK', 'CMD_MANUAL_24DC': 'MD',
-            'CMD_ESD_OPEN_220AC': 'EO', 'CMD_ESD_OPEN_24DC': 'EB',
-            'CMD_ESD_CLOSE_220AC': 'EC', 'CMD_ESD_CLOSE_24DC': 'EQ',
-            'CMD_INTERLOCK_OPEN_220AC': 'IO', 'CMD_INTERLOCK_OPEN_24DC': 'ID',
-            'CMD_INTERLOCK_CLOSE_220AC': 'IC', 'CMD_INTERLOCK_CLOSE_24DC': 'IK',
-            'CMD_DRIVE_ENABLE_220AC': 'DV', 'CMD_DRIVE_ENABLE_24DC': 'DW',
-            'CMD_MODE_220AC': 'MO', 'CMD_MODE_24DC': 'MW'},
+    'CMD': {'CMD_OCS_220AC': 'OA', 'CMD_OCS_24DC': 'OB',
+            'CMD_REMOTE_220AC': 'RA', 'CMD_REMOTE_24DC': 'RB',
+            'CMD_LOCK_220AC': 'LA', 'CMD_LOCK_24DC': 'LC',
+            'CMD_MANUAL_220AC': 'MA', 'CMD_MANUAL_24DC': 'MB',
+            'CMD_ESD_OPEN_220AC': 'EA', 'CMD_ESD_OPEN_24DC': 'EB',
+            'CMD_ESD_CLOSE_220AC': 'EC', 'CMD_ESD_CLOSE_24DC': 'ED',
+            'CMD_INTERLOCK_OPEN_220AC': 'IA', 'CMD_INTERLOCK_OPEN_24DC': 'IB',
+            'CMD_INTERLOCK_CLOSE_220AC': 'IC', 'CMD_INTERLOCK_CLOSE_24DC': 'ID',
+            'CMD_DRIVE_ENABLE_220AC': 'DA', 'CMD_DRIVE_ENABLE_24DC': 'DC',
+            'CMD_MODE_220AC': 'GA', 'CMD_MODE_24DC': 'GB'},
     'SETPOINT': {'NONE': 'N0', 'CMD_POS_4_20MA_ACTIVE': 'A',
                  'CMD_POS_4_20MA_PASSIVE': 'P',
                  'CMD_POS_0_10V_ACTIVE': 'A0',
@@ -475,6 +475,39 @@ def decode_ext_code(model_line, ext_code):
             result.setdefault(pos, {'code': d,
                                     'name': codes.get(pos, {}).get(d, '')})
     return result, warnings
+
+
+def check_code_invariants(model_line):
+    """Проверка однозначности greedy-декода (multi-позиции).
+
+    Возвращает список нарушений (пусто — коды корректны):
+    - коды multi-позиции не должны быть строгими префиксами кодов
+      последующих позиций своего блока (иначе multi съест их начало);
+    - дефолт multi-позиции не должен совпадать с их кодами.
+    Внутри single-позиций префиксы допустимы (greedy longest-match).
+    """
+    codes = _codes_for(model_line)
+    defaults = _default_codes(model_line)
+    problems = []
+    for block_key, _t, positions in BLOCKS:
+        multi_idx = {i: p for i, p in enumerate(positions)
+                     if p in MULTI_POSITIONS}
+        for i, pos in multi_idx.items():
+            dflt = defaults.get(pos, '')
+            for j in range(i + 1, len(positions)):
+                other = positions[j]
+                ocodes = [c for c in codes.get(other, {}) if c]
+                for m in [c for c in codes.get(pos, {}) if c]:
+                    for o in ocodes:
+                        if o.startswith(m) and len(m) < len(o):
+                            problems.append(
+                                f'Блок {block_key}: код {pos} {m!r} — '
+                                f'префикс кода {other} {o!r}')
+                if dflt and dflt in ocodes:
+                    problems.append(
+                        f'Блок {block_key}: дефолт {pos} {dflt!r} совпадает '
+                        f'с кодом позиции {other}')
+    return problems
 
 
 def option_position_code(option):
