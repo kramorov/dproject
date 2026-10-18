@@ -996,6 +996,32 @@ class AllowedCuAndIndicatorTests(TestCase):
         self.assertIn('E1', item.code)
         self.assertIn('E1', item.generated_ext_code)
 
+    def test_catalog_item_code_regeneration_on_option_change(self):
+        """Сгенерированная карточка: смена FK-опции пересобирает артикул;
+        ручная (origin=manual) — артикул стабилен."""
+        from electric_actuators.models import ElectricActuatorCatalogItem
+        self.line.model_item_code_template = '{model_code}.{cu_name}'
+        self.line.save(update_fields=['model_item_code_template'])
+        item = ElectricActuatorCatalogItem.objects.create(
+            model_line=self.line, model_line_item=self.m1,
+            control_unit=self.cu_basic)
+        self.assertIn('basic', item.code)
+        item.control_unit = self.cu_int
+        item.save()
+        item.refresh_from_db()
+        self.assertIn('int-t', item.code)
+        self.assertNotIn('basic', item.code)
+        # освобождаем конфигурацию (unique config_hash)
+        item.delete()
+        manual = ElectricActuatorCatalogItem.objects.create(
+            model_line=self.line, model_line_item=self.m1,
+            control_unit=self.cu_basic, code='CUSTOM-1',
+            origin='manual')
+        manual.control_unit = self.cu_int
+        manual.save()
+        manual.refresh_from_db()
+        self.assertEqual(manual.code, 'CUSTOM-1')
+
     def test_model_line_placeholder_admin_mixin(self):
         """Админка серии: TemplatePlaceholdersAdminMixin с template_item_model
         (как в БКВ) — справочник плейсхолдеров из реестра карточки."""

@@ -384,7 +384,10 @@ class ElectricActuatorCatalogItem(
                     code='electric-actuator').first()
             if et is not None:
                 self.equipment_type = et
-        if not self.code:
+        if not self.code or self.origin == self.Origin.GENERATED:
+            # Сгенерированные карточки: артикул — функция конфигурации,
+            # пересобирается при каждом сохранении (смена любой опции FK или
+            # M2M меняет артикул). Ручные (origin=manual) — артикул стабилен.
             self.code = self.generated_model_item_code or ''
         self.config_hash = self.compute_config_hash()
         self._check_config_hash_unique()
