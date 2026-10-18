@@ -28,6 +28,13 @@ FIELDS = ['series_code', 'item_code', 'body_code', 'control_unit',
           'signal_code', 'form_code', 'heater_supply', 'availability',
           'is_default', 'bundle', 'device', 'encoding', 'ext_encoding']
 
+# Дополнительные листы (не-матричные опции, влияющие на сигналы/оснащение)
+TEMP_FIELDS = ['series_code', 'temp_code', 'heater_supply', 'is_default',
+               'work_temp_min', 'work_temp_max', 'encoding', 'ext_encoding']
+CU_FIELDS = ['series_code', 'control_unit', 'power_supply', 'cu_power_supply',
+             'encoding', 'ext_encoding', 'is_active']
+COUNTER_FIELDS = ['series_code', 'turn_counter', 'encoding', 'is_active']
+
 
 def _scope_body_code(body):
     if not body:
@@ -200,7 +207,7 @@ def export_series_rows(model_line_code):
                                 ps_code, mode, slot_code, 'signal', key,
                                 sig_code, '', '', availability, is_default,
                                 bundle, '', '', ''))
-                    elif opt.kind == 'signal':
+                    elif opt.kind in ('signal', 'control', 'protocol'):
                         sig = opt.feedback_signal or opt.control_signal or opt.protocol
                         form_code = ''
                         if sig and getattr(sig, 'form_id', None):
@@ -253,7 +260,56 @@ def export_series_rows(model_line_code):
     return rows
 
 
-def write_xlsx(path, rows):
+def export_extra_sheets(model_line_code):
+    """Доп. листы выгрузки: температурные опции (обогрев привода),
+    пары БУ×напряжение с питанием БУ, разрешённые счётчики серии.
+    Возвращает list[(sheet_name, fields, rows)]."""
+    from electric_actuators.models import (ElectricTemperatureOption,
+                                           AllowedControlUnitOption,
+                                           AllowedTurnCounterOption)
+    line = ElectricActuatorModelLine.objects.get(code=model_line_code)
+
+    temp_rows = [
+        {'series_code': line.code, 'temp_code': t.code or '',
+         'heater_supply': t.heater_supply.code if t.heater_supply_id else '',
+         'is_default': bool(t.is_default),
+         'work_temp_min': t.work_temp_min if t.work_temp_min is not None else '',
+         'work_temp_max': t.work_temp_max if t.work_temp_max is not None else '',
+         'encoding': t.encoding or '',
+         'ext_encoding': t.ext_encoding or ''}
+        for t in ElectricTemperatureOption.objects.filter(
+            model_line=line, is_active=True).select_related(
+            'heater_supply').order_by('sorting_order', 'id')
+    ]
+
+    cu_rows = [
+        {'series_code': line.code, 'control_unit': a.control_unit.code,
+         'power_supply': a.power_supply.code if a.power_supply_id else '',
+         'cu_power_supply': a.cu_power_supply.code if a.cu_power_supply_id else '',
+         'encoding': a.encoding or '', 'ext_encoding': a.ext_encoding or '',
+         'is_active': bool(a.is_active)}
+        for a in AllowedControlUnitOption.objects.filter(
+            model_line=line).select_related(
+            'control_unit', 'power_supply', 'cu_power_supply').order_by(
+            'control_unit__code', 'power_supply__code')
+    ]
+
+    counter_rows = [
+        {'series_code': line.code, 'turn_counter': c.turn_counter.code,
+         'encoding': c.encoding or '', 'is_active': bool(c.is_active)}
+        for c in AllowedTurnCounterOption.objects.filter(
+            model_line=line).select_related(
+            'turn_counter').order_by('turn_counter__code')
+    ]
+
+    return [
+        ('temp_options', TEMP_FIELDS, temp_rows),
+        ('cu_options', CU_FIELDS, cu_rows),
+        ('turn_counters', COUNTER_FIELDS, counter_rows),
+    ]
+
+
+def write_xlsx(path, rows, extra_sheets=None):
     import openpyxl
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -261,6 +317,11 @@ def write_xlsx(path, rows):
     ws.append(FIELDS)
     for row in rows:
         ws.append([row.get(f, '') for f in FIELDS])
+    for sheet_name, fields, sheet_rows in (extra_sheets or []):
+        ws2 = wb.create_sheet(sheet_name)
+        ws2.append(fields)
+        for row in sheet_rows:
+            ws2.append([row.get(f, '') for f in fields])
     wb.save(path)
     return len(rows)
 

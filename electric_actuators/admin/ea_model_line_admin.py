@@ -445,7 +445,9 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
 
     def _build_export_response(self, queryset,
                                filename='ea_signal_matrix.xlsx'):
-        """xlsx-ответ с матрицами сигналов всех серий из queryset."""
+        """xlsx-ответ с матрицами сигналов всех серий из queryset + доп. листы
+        (температурные опции/обогрев привода, пары БУ×напряжение с питанием
+        БУ, разрешённые счётчики)."""
         import io
         import openpyxl
         from django.http import HttpResponse
@@ -454,11 +456,26 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
         ws = wb.active
         ws.title = 'ea_signal_matrix'
         ws.append(ea_matrix_io.FIELDS)
+        extra = []  # [(name, fields, rows)] — объединение по сериям
         for line in queryset:
             if not line.code:
                 continue
             for row in ea_matrix_io.export_series_rows(line.code):
                 ws.append([row.get(f, '') for f in ea_matrix_io.FIELDS])
+            for sheet_name, fields, sheet_rows in \
+                    ea_matrix_io.export_extra_sheets(line.code):
+                extra.append((sheet_name, fields, sheet_rows))
+        # Объединяем доп. листы по имени (series_code различает строки)
+        merged = {}
+        for sheet_name, fields, sheet_rows in extra:
+            if sheet_name not in merged:
+                merged[sheet_name] = (fields, [])
+            merged[sheet_name][1].extend(sheet_rows)
+        for sheet_name, (fields, sheet_rows) in merged.items():
+            ws2 = wb.create_sheet(sheet_name)
+            ws2.append(fields)
+            for row in sheet_rows:
+                ws2.append([row.get(f, '') for f in fields])
         buf = io.BytesIO()
         wb.save(buf)
         resp = HttpResponse(

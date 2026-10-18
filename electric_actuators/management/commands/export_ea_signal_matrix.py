@@ -17,7 +17,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         rows = ea_matrix_io.export_series_rows(options['series'])
+        extra = ea_matrix_io.export_extra_sheets(options['series'])
         path = options['output'] or f'ea_matrix_{options["series"]}.xlsx'
-        ea_matrix_io.write_xlsx(path, rows)
+        ea_matrix_io.write_xlsx(path, rows, extra_sheets=extra)
         self.stdout.write(self.style.SUCCESS(
-            f'{path}: {len(rows)} строк'))
+            f'{path}: {len(rows)} строк + листы {[s[0] for s in extra]}'))

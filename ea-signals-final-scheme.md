@@ -334,9 +334,20 @@ availability (std/opt/na) × is_default × bundle × encoding/ext_encoding.
 В файл входят **коды** (control_unit.code, power_supply.code, slot.code,
 signal.code, heater_supply.code, form.code, body.code/item.code) — по ним
 идёт обратный импорт (upsert строк на уровне корпуса).
-Реализация: `services/ea_matrix_io.py` + management-команды
+
+Экспорт — **4 листа** (2026-10-18): основной `ea_signal_matrix` + доп. листы
+не-матричных опций, влияющих на сигналы/оснащение:
+- `temp_options` — температурные опции серии и **питание обогрева привода**
+  (STD→NO_HEATER, LT/VLT × SEPARATE_LINE/MOTOR_CIRCUIT) + is_default;
+- `cu_options` — пары БУ×напряжение (`AllowedControlUnitOption`) с
+  **питанием БУ** (cu_power_supply) и кодировками encoding/ext_encoding;
+- `turn_counters` — разрешённые **счётчики** серии (`AllowedTurnCounterOption`);
+  лист создаётся и пустым (заголовок — подсказка для заполнения).
+
+Реализация: `services/ea_matrix_io.py` (`export_series_rows`,
+`export_extra_sheets`, `write_xlsx`) + management-команды
 `export_ea_signal_matrix`/`import_ea_signal_matrix` + админка серии ЭП
-(экспорт — admin action; импорт — кастомный view с загрузкой файла).
+(экспорт — кнопка на change_form + admin action; импорт — кастомный view).
 
 *Прогресс: фаза 1 (выгрузка) и фаза 2 (справочники) выполнены — команда
 `export_ea_signal_data`, снапшот `ea_signals_export_2026-10-18.json`, модели
