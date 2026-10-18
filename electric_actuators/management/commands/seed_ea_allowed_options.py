@@ -432,6 +432,10 @@ class Command(BaseCommand):
             line = ElectricActuatorModelLine.objects.get(code=line_code)
             items = list(ElectricActuatorModelLineItem.objects.filter(
                 model_line=line).select_related('body'))
+            # Старые body-строки (заливка AOX v2) заменяются item-строками:
+            # удаляем, чтобы резолвер не выдавал дубли сигналов.
+            EaSignalMatrixEntry.objects.filter(
+                body__code__in=body_codes).delete()
             # Пакетная заливка: ключи существующих строк одним запросом
             existing = set(EaSignalMatrixEntry.objects.filter(
                 model_line_item__model_line=line).values_list(
