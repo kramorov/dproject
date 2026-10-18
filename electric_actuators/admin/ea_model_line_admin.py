@@ -2,10 +2,18 @@
 from django.db import models
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from electric_actuators.models import ElectricTemperatureOption , ElectricIpOption , \
-    ElectricHandWheelOption , \
-    ElectricExdOption , ElectricBodyCoatingOption , ElectricActuatorModelLine , ElectricTurnAngleOption , \
-    ElectricBodyColorOption
+from core.admin_template_placeholders import TemplatePlaceholdersAdminMixin
+from electric_actuators.models import (
+    ElectricActuatorCatalogItem,
+    ElectricTemperatureOption,
+    ElectricIpOption,
+    ElectricHandWheelOption,
+    ElectricExdOption,
+    ElectricBodyCoatingOption,
+    ElectricActuatorModelLine,
+    ElectricTurnAngleOption,
+    ElectricBodyColorOption,
+)
 import logging
 from electric_actuators.models.ea_allowed_options import (
     AllowedControlUnitOption ,
@@ -405,8 +413,15 @@ class AllowedTurnCounterOptionInline(admin.TabularInline) :
 
 
 @admin.register(ElectricActuatorModelLine)
-class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
-    """Админка для серий пневмоприводов с through-опциями"""
+class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.ModelAdmin) :
+    """Админка серий электроприводов с through-опциями.
+
+    Справочник плейсхолдеров строится по реестру полей карточки каталога
+    (template_item_model=ElectricActuatorCatalogItem) — как в БКВ.
+    """
+
+    template_item_model = ElectricActuatorCatalogItem
+    template_placeholders_fieldset = _('Основная информация')
 
     list_display = (
         'name' ,
@@ -436,8 +451,6 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
 
     change_form_template = (
         'admin/electric_actuators/electricactuatormodelline/change_form.html')
-
-    actions = ['export_ea_signal_matrix']
 
     @admin.action(description='Экспорт матрицы сигналов (xlsx)')
     def export_ea_signal_matrix(self, request, queryset):
@@ -579,8 +592,8 @@ class ElectricActuatorModelLineAdmin(admin.ModelAdmin) :
             'fields' : ('sorting_order' , 'is_active')
         }) ,
     )
-    # Добавляем действие копирования
-    actions = [copy_electric_actuator_model_line]
+    # Действия: копирование серии + экспорт матрицы сигналов
+    actions = [copy_electric_actuator_model_line, 'export_ea_signal_matrix']
 
     def get_queryset(self, request):
         """Оптимизация запросов с учетом through-моделей"""

@@ -2,16 +2,21 @@
 """
 Эталонная каталожная карточка электропривода — ElectricActuatorCatalogItem.
 
-Работает по контракту каталога (образец — PneumaticActuatorCatalogItem):
+Работает по единому контракту каталога (template_mixin.md, образец —
+PneumaticActuatorCatalogItem):
 
-- config_hash_fields — каноническая конфигурация (все опции + M2M выбранных
-  матричных строк) → SHA-256 (ConfigHashMixin); M2M пересчитывается ресивером
-  m2m_changed (core/apps.py);
-- имя/описание — из шаблонов EquipmentType «Электропривод» (name_template /
-  spec_template + *_template_i18n, локализация);
-- артикул (code) — model_line.model_item_code_template + ext-код
-  (services/ea_ext_code.build_ext_code из выбранных матричных строк и
-  контекста: cu/cu_p/ps/mode/temp/ip/exd/sp/ad);
+- шаблоны имени/описания — EquipmentType «Электропривод» (name_template /
+  spec_template + *_template_i18n; цепочка TemplateMixin: _get_name_template_source
+  → EquipmentType → fallback);
+- словарь подстановок — реестр ``ea_catalog_item_fields.py`` (TEMPLATE_FIELDS +
+  NAME/CODE/VARS_FIELD_KEYS); сложные значения (сигналы матрицы) — resolver-методы
+  ``_res_*`` с локализацией через ``localized_name`` (locale из TemplateMixin);
+- артикул — ``model_line.model_item_code_template`` + ext-код
+  (property ``generated_ext_code`` переопределён: services.ea_ext_code /
+  ea_configurator_data.selection_ext_code из выбранных матричных строк и
+  контекста карточки);
+- config_hash — ConfigHashMixin (каноническая конфигурация: все опции +
+  M2M выбранных матричных строк), коллизия → ValidationError;
 - SKU — sync_sku() (SKUMixin);
 - каталог = карточки с is_catalog=True (стандартные конфигурации);
   нестандартные (конструктор → корзина) — is_catalog=False.
@@ -24,9 +29,24 @@ from django.utils.translation import gettext_lazy as _
 from core.models import EquipmentTypeMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.mixins import TemplateMixin
+from core.utils.localization import localized_name
 from sku.models import SKUMixin
 
+from electric_actuators.models.ea_catalog_item_fields import (
+    EA_CATALOG_ITEM_TEMPLATE_FIELDS)
+
 logger = logging.getLogger(__name__)
+
+# Роли управляющего сигнала уставки (0-10 В / 4-20 мА) — выводятся отдельным
+# плейсхолдером {ctl_setpoint}, а не в {ctl_commands}.
+_SETPOINT_ROLES = ('CMD_4_20MA', 'CMD_0_10V')
+
+# Локализованные подписи режима (ru — базовый; en/cn — переводы).
+_MODE_LABELS = {
+    'on_off': {'ru': 'Двухпозиционный', 'en': 'On-off', 'cn': '两位'},
+    'modulating': {'ru': 'Модулирующий', 'en': 'Modulating', 'cn': '调节'},
+    'both': {'ru': 'Оба режима', 'en': 'Both modes', 'cn': '两种模式'},
+}
 
 
 class ElectricActuatorCatalogItem(
@@ -38,6 +58,35 @@ class ElectricActuatorCatalogItem(
         GENERATED = 'generated', _('Сгенерирована')
         MANUAL = 'manual', _('Ручная')
 
+    # Реестр полей (единый источник правды) + составы словарей.
+    TEMPLATE_FIELDS = EA_CATALOG_ITEM_TEMPLATE_FIELDS
+    NAME_FIELD_KEYS = (
+        'code', 'series_code', 'body_code', 'torque', 'time_to_close',
+        'power_supply', 'voltage',
+        'cu_name', 'cu_power_supply', 'cu_mode', 'cu_heater',
+        'ctl_protocol', 'ctl_commands', 'ctl_setpoint', 'ctl_local_controls',
+        'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
+        'fb_position_feedback', 'fb_hart', 'fb_thermal_sensor',
+        'fb_indicator', 'fb_turn_counter',
+        'temperature', 'ip', 'exd', 'coating', 'color', 'hand_wheel',
+        'turn_angle', 'cable_glands', 'access_device', 'safety_position',
+        'article', 'ext_code',
+    )
+    CODE_FIELD_KEYS = ('code', 'temperature', 'ip', 'cu_name', 'voltage', 'exd')
+    VARS_FIELD_KEYS = (
+        'code', 'series_code', 'body_code', 'torque', 'time_to_close',
+        'power_supply', 'voltage', 'cu_name', 'cu_power_supply', 'cu_mode',
+        'ctl_protocol', 'ctl_commands', 'ctl_setpoint',
+        'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
+        'fb_position_feedback', 'fb_hart',
+        'temperature', 'ip', 'exd', 'coating', 'color', 'hand_wheel',
+        'turn_angle', 'cable_glands', 'access_device', 'safety_position',
+    )
+
+    # Шаблоны имени/описания живут в EquipmentType («Электропривод»), а не
+    # на model_line — поэтому серия обязательных полей шаблонов не имеет.
+    required_model_line_fields = ()
+
     # Каноническая конфигурация (порядок важен для хэша)
     config_hash_fields = (
         'model_line', 'body', 'model_line_item', 'power_supply',
@@ -45,10 +94,6 @@ class ElectricActuatorCatalogItem(
         'coating', 'color', 'hand_wheel', 'turn_angle', 'cable_glands',
         'safety_position', 'access_device', 'matrix_rows',
     )
-
-    # Шаблоны имени/описания живут в EquipmentType («Электропривод»),
-    # а не на model_line (см. update_name/update_description).
-    required_model_line_fields = ()
 
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine', on_delete=models.PROTECT,
@@ -143,167 +188,200 @@ class ElectricActuatorCatalogItem(
     def __str__(self):
         return self.code or self.name or f'EA item #{self.pk}'
 
-    # ── Шаблоны: источник — EquipmentType «Электропривод» ──
+    # ── Источники шаблонов: EquipmentType «Электропривод» (не model_line) ──
     def _get_equipment_type(self):
-        from core.models.equipment_type import EquipmentType
-        return EquipmentType.objects.filter(code='electric-actuator').first()
+        """EquipmentType карточки; для несохранённой — по коду
+        'electric-actuator' (цепочка миксина: серия → прямое поле)."""
+        et = super()._get_equipment_type()
+        if et is None:
+            from core.models.equipment_type import EquipmentType
+            et = EquipmentType.objects.filter(
+                code='electric-actuator').first()
+        return et
 
-    def equipment_type_or_default(self):
-        et = getattr(self, 'equipment_type', None)
-        if et is not None and et.pk:
-            return et
-        return self._get_equipment_type()
+    def _get_name_template_source(self):
+        return self._get_equipment_type_template('name_template') or None
 
-    def _et_name_template(self):
-        et = self.equipment_type_or_default()
-        return et.name_template if et else ''
+    def _get_description_template_source(self):
+        # Описание — spec_template EquipmentType (полная спецификация).
+        return self._get_equipment_type_template('spec_template') or None
 
-    def _et_spec_template(self):
-        et = self.equipment_type_or_default()
-        return et.spec_template if et else ''
+    def _get_template_i18n(self, field_base: str):
+        """Переводы шаблонов — с того же EquipmentType (карточка без шаблонов
+        на серии; базовый миксин для этого случая i18n не находит)."""
+        et = self._get_equipment_type()
+        if et is None:
+            from core.models.equipment_type import EquipmentType
+            et = EquipmentType.objects.filter(
+                code='electric-actuator').first()
+        if et is not None:
+            return getattr(et, f'{field_base}_i18n', None)
+        return None
 
-    def _flat_data(self):
-        """Плейсхолдеры шаблонов → готовые строки (ru)."""
-        mli = self.model_line_item
-        ps = self.power_supply
-        cu = self.control_unit
-        temp = self.temperature
-        sp = self.safety_position
-        rows = list(self.matrix_rows.select_related(
-            'slot', 'feedback_signal', 'control_signal')) if self.pk else []
-        by_slot = {}
-        for r in rows:
-            by_slot.setdefault(r.slot.code if r.slot_id else '?', []).append(r)
-        return {
-            'series_code': self.model_line.code or '' if self.model_line_id else '',
-            'model_code': (mli.code or mli.name) if mli else '',
-            'body_code': (self.body.code or self.body.name) if self.body_id else '',
-            'torque': str(mli.torque_max) if mli and mli.torque_max else '',
-            'time_to_close': str(mli.time_to_close) if mli and mli.time_to_close else '',
-            'power_supply': str(ps.power_supply) if ps and ps.power_supply_id else '',
-            'control_unit': cu.name if cu else '',
-            'cu_power_supply': str(self.cu_power_supply) if self.cu_power_supply_id else '',
-            'mode': dict(self._meta.get_field('mode').choices).get(self.mode, self.mode),
-            'temperature': str(temp) if temp else '',
-            'ip': str(self.ip) if self.ip_id else '',
-            'exd': (self.exd.exd_short or self.exd.encoding) if self.exd_id else '',
-            'coating': str(self.coating) if self.coating_id else '',
-            'color': str(self.color) if self.color_id else '',
-            'hand_wheel': str(self.hand_wheel) if self.hand_wheel_id else '',
-            'turn_angle': str(self.turn_angle) if self.turn_angle_id else '',
-            'cable_glands': str(self.cable_glands) if self.cable_glands_id else '',
-            'access_device': self.access_device.name if self.access_device_id else '',
-            'safety_position': (sp.safety_position.name
-                                if sp and sp.safety_position_id else ''),
-            'protocol': ', '.join(r.protocol.name for r in rows if r.protocol_id),
-            'commands': ', '.join(r.control_signal.name for r in rows
-                                  if r.control_signal_id),
-            'setpoint': ', '.join(r.control_signal.name for r in rows
-                                  if r.control_signal_id
-                                  and r.control_signal.role == 'CMD_4_20MA'),
-            'end_switches': ', '.join(r.feedback_signal.name for r in rows
-                                      if r.feedback_signal_id
-                                      and r.feedback_signal.role.startswith('END')),
-            'way_switches': ', '.join(r.feedback_signal.name for r in rows
-                                      if r.feedback_signal_id
-                                      and r.feedback_signal.role.startswith('WAY')),
-            'torque_switches': ', '.join(r.feedback_signal.name for r in rows
-                                         if r.feedback_signal_id
-                                         and r.feedback_signal.role.startswith(
-                                             'TORQUE')),
-            'position_feedback': ', '.join(r.feedback_signal.name for r in rows
-                                           if r.feedback_signal_id
-                                           and r.feedback_signal.role == 'POSITION'),
-            'hart': 'HART' if any(getattr(r.feedback_signal, 'hart', False)
-                                  for r in rows if r.feedback_signal_id) else '',
-            'heater_cu': ', '.join(r.heater_supply.name for r in rows
-                                   if r.heater_supply_id),
-            'thermal_sensor': ', '.join(r.device.name for r in rows
-                                        if r.device_id),
-            'local_control': '',
-            'indicator': '',
-            'turn_counter': '',
-            'article': self.code or '',
-            'ext_code': (self.generated_ext_code()
-                         if self.pk and self.model_line_item_id else ''),
-        }
-
-    def generated_ext_code(self):
+    # ── Ext-код: машинная сборка из матричных строк (не ext-шаблон серии) ──
+    @property
+    def generated_ext_code(self) -> str:
         """Ext-код из выбранных матричных строк + контекста карточки."""
         from electric_actuators.services.ea_configurator_data import (
             selection_ext_code)
         from electric_actuators.services.ea_ext_code import (
             CU_EXT, PS_EXT, MODE_EXT)
+        if not self.model_line_item_id:
+            return ''
         context = {}
         if self.control_unit_id:
             context['cu'] = CU_EXT.get(self.control_unit.code, '')
         if self.power_supply_id and self.power_supply.power_supply_id:
             context['ps'] = PS_EXT.get(self.power_supply.power_supply.code, '')
         context['mode'] = MODE_EXT.get(self.mode, '')
-        if self.model_line_item_id:
-            try:
-                row_ids = (list(self.matrix_rows.values_list(
-                    'pk', flat=True)) if self.pk else [])
-                return selection_ext_code(
-                    self.model_line_item, row_ids,
-                    temp_option=self.temperature, context=context)
-            except Exception as e:  # noqa: BLE001
-                logger.warning('ext-код карточки не собран: %s', e)
-        return ''
+        try:
+            row_ids = (list(self.matrix_rows.values_list('pk', flat=True))
+                       if self.pk else [])
+            return selection_ext_code(
+                self.model_line_item, row_ids,
+                temp_option=self.temperature, context=context)
+        except Exception as e:  # noqa: BLE001
+            logger.warning('ext-код карточки не собран: %s', e)
+            return ''
 
-    def generated_article(self):
-        """Артикул: основной шаблон + ext-код."""
-        base = ''
-        if self.model_line_id and self.model_line.model_item_code_template:
-            t = self.model_line.model_item_code_template
-            d = self._flat_data()
-            d['temperature'] = (self.temperature.encoding or ''
-                                if self.temperature_id else '')
-            d['ip'] = (self.ip.encoding or '' if self.ip_id else '')
-            d['exd'] = (self.exd.encoding or '' if self.exd_id else '')
-            d['voltage'] = (self.power_supply.encoding or ''
-                            if self.power_supply_id else '')
-            d['control_unit'] = (self.control_unit.code if self.control_unit_id
-                                 else '')
-            d['model_code'] = (self.model_line_item.code or ''
-                               if self.model_line_item_id else '')
-            for k, v in d.items():
-                t = t.replace('{%s}' % k, str(v or ''))
-            base = t.strip(' .')
-        ext = self.generated_ext_code()
-        return (base + ' ' + ext).strip() if ext else base
+    def _res_article(self, locale=None) -> str:
+        """Полный артикул (шаблон серии + ext-код)."""
+        return self.code or self.generated_model_item_code
 
-    # ── Генерация имени/описания из шаблонов EquipmentType ──
-    def _fill_simple(self, template):
-        result = template or ''
-        for k, v in self._flat_data().items():
-            result = result.replace('{%s}' % k, str(v or ''))
-        return result.strip()
+    def _res_ext_code(self, locale=None) -> str:
+        return self.generated_ext_code
 
-    def update_name(self, save=False):
-        tpl = self._et_name_template()
-        if tpl:
-            self.name = self._fill_simple(tpl)
-            return True
-        return False
+    # ── Простые значения (нелокализуемые) ──
+    def _res_torque(self, locale=None) -> str:
+        mli = self.model_line_item
+        return str(mli.torque_max) if mli and mli.torque_max else ''
 
-    def update_description(self, save=False):
-        tpl = self._et_spec_template()
-        if tpl:
-            self.description = self._fill_simple(tpl)
-            return True
-        return False
+    def _res_time_to_close(self, locale=None) -> str:
+        mli = self.model_line_item
+        return str(mli.time_to_close) if mli and mli.time_to_close else ''
 
+    def _res_mode(self, locale=None) -> str:
+        labels = _MODE_LABELS.get(self.mode, {'ru': self.mode})
+        locale = locale or 'ru'
+        return labels.get(locale) or labels['ru']
+
+    def _res_exd(self, locale=None) -> str:
+        if not self.exd_id:
+            return ''
+        return self.exd.exd_short or self.exd.encoding or ''
+
+    # ── Значения из матричных строк (локализованные) ──
+    def _matrix_rows(self):
+        """Выбранные строки матрицы (пусто для несохранённой карточки)."""
+        if not self.pk:
+            return []
+        return list(self.matrix_rows.select_related(
+            'slot', 'option', 'control_signal', 'feedback_signal',
+            'protocol', 'device', 'heater_supply').all())
+
+    @staticmethod
+    def _join_unique(values):
+        return ', '.join(dict.fromkeys(v for v in values if v))
+
+    def _res_protocol(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.protocol, locale) for r in self._matrix_rows()
+            if r.protocol_id and r.protocol.name)
+
+    def _res_commands(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.control_signal, locale) for r in self._matrix_rows()
+            if r.control_signal_id and r.control_signal.name
+            and r.control_signal.role not in _SETPOINT_ROLES)
+
+    def _res_setpoint(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.control_signal, locale) for r in self._matrix_rows()
+            if r.control_signal_id and r.control_signal.name
+            and r.control_signal.role in _SETPOINT_ROLES)
+
+    def _res_local_controls(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.option, locale) if r.option_id else r.name
+            for r in self._matrix_rows()
+            if r.slot_id and r.slot.code == 'LOCAL_CONTROL')
+
+    def _res_end_switches(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role.startswith('END'))
+
+    def _res_way_switches(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role.startswith('WAY'))
+
+    def _res_torque_switches(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role.startswith('TORQUE'))
+
+    def _res_position_feedback(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role == 'POSITION')
+
+    def _res_hart(self, locale=None) -> str:
+        return 'HART' if any(
+            r.feedback_signal_id and getattr(r.feedback_signal, 'hart', False)
+            for r in self._matrix_rows()) else ''
+
+    def _res_thermal_sensor(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.device, locale) for r in self._matrix_rows()
+            if r.device_id and r.device.name)
+
+    def _res_cu_heater(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.heater_supply, locale) for r in self._matrix_rows()
+            if r.heater_supply_id and r.heater_supply.name)
+
+    def _res_indicator(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.option, locale) if r.option_id else r.name
+            for r in self._matrix_rows()
+            if r.slot_id and r.slot.code == 'INDICATOR')
+
+    def _res_turn_counter(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.option, locale) if r.option_id else r.name
+            for r in self._matrix_rows()
+            if r.slot_id and r.slot.code == 'TURN_COUNTER')
+
+    # ── Сохранение (стандартный цикл каталога) ──
     def save(self, *args, **kwargs):
-        skip_auto_generate = kwargs.pop('skip_auto_generate', False)
-        et = self.equipment_type_or_default()
-        if et is not None and (not self.equipment_type_id):
-            self.equipment_type = et
-        if not skip_auto_generate:
-            self.update_name(save=False)
-            self.update_description(save=False)
+        """1) equipment_type автозаполняется (серия → код 'electric-actuator');
+        2) code автогенерируется из model_line.model_item_code_template + ext;
+        3) config_hash пересчитывается; коллизия → ValidationError;
+        4) super().save() → TemplateMixin.save() генерирует name/description
+           из шаблонов EquipmentType; 5) sync_sku().
+        """
+        if not self.equipment_type_id:
+            et = None
+            if self.model_line_id and getattr(self.model_line,
+                                              'equipment_type_id', None):
+                et = self.model_line.equipment_type
+            if et is None:
+                from core.models.equipment_type import EquipmentType
+                et = EquipmentType.objects.filter(
+                    code='electric-actuator').first()
+            if et is not None:
+                self.equipment_type = et
         if not self.code:
-            self.code = self.generated_article()
+            self.code = self.generated_model_item_code or ''
         self.config_hash = self.compute_config_hash()
         self._check_config_hash_unique()
         super().save(*args, **kwargs)

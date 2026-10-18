@@ -906,6 +906,97 @@ class AllowedCuAndIndicatorTests(TestCase):
             control_unit=self.cu_basic)
         self.assertNotEqual(item.config_hash, item2.config_hash)
 
+    def test_catalog_item_template_contract(self):
+        """Карточка: реестр TEMPLATE_FIELDS отдаёт плейсхолдеры cu_/ctl_/fb_;
+        имя генерируется из шаблона EquipmentType (ru + локализованный en)."""
+        from core.models.equipment_type import EquipmentType
+        from electric_actuators.models import ElectricActuatorCatalogItem
+        et, _ = EquipmentType.objects.get_or_create(
+            code='electric-actuator',
+            defaults={'name': 'Электропривод',
+                      'name_template': 'Электропривод {series_code} '
+                                       '{model_code} {cu_name}',
+                      'name_template_i18n': {
+                          'ru': 'Электропривод {series_code} {model_code} '
+                                '{cu_name}',
+                          'en': 'Electric actuator {series_code} '
+                                '{model_code} {cu_name}',
+                          'cn': '电动执行器 {series_code} {model_code} '
+                                '{cu_name}'}})
+        if not et.name_template:
+            et.name_template = 'Электропривод {series_code} {model_code} {cu_name}'
+            et.name_template_i18n = {
+                'ru': et.name_template,
+                'en': 'Electric actuator {series_code} {model_code} {cu_name}',
+                'cn': '电动执行器 {series_code} {model_code} {cu_name}'}
+            et.save(update_fields=['name_template', 'name_template_i18n'])
+        keys = set(ElectricActuatorCatalogItem()._get_data_dict().keys())
+        self.assertIn('{cu_name}', keys)
+        self.assertIn('{ctl_commands}', keys)
+        self.assertIn('{fb_end_switches}', keys)
+        self.assertIn('{safety_position}', keys)
+        self.assertNotIn('{control_unit}', keys)  # старый механизм убран
+        item = ElectricActuatorCatalogItem(
+            model_line=self.line, model_line_item=self.m1,
+            control_unit=self.cu_int)
+        name_ru = item.generate_name()
+        self.assertIn('Электропривод', name_ru)
+        name_en = item.generate_name(locale='en')
+        self.assertIn('Electric actuator', name_en)
+        self.assertIn(str(self.m1.code), name_en)
+
+    def test_catalog_item_ext_code_and_article(self):
+        """Карточка: ext-код из матричных строк; артикул = шаблон серии + ext;
+        после matrix_rows.set() артикул пересобирается (m2m-приёмник)."""
+        from electric_actuators.models import (
+            ElectricActuatorCatalogItem, EaSignalMatrixEntry,
+            EaSignalForm, EaFeedbackSignal, ElectricPowerSupplyOption,
+            ElectricTemperatureOption, EaSlotOption, EaSignalSlot)
+        self.line.model_item_code_template = '{model_code}.{voltage}.{cu_name}'
+        self.line.save(update_fields=['model_item_code_template'])
+        temp = ElectricTemperatureOption.objects.create(
+            model_line=self.line, code='STD', encoding='S45',
+            ext_encoding='', name_i18n={}, description='', is_default=True)
+        fb = EaFeedbackSignal.objects.create(
+            role='END_OPEN', category='contact',
+            form=EaSignalForm.objects.create(
+                code='DRY_SPDT_T', name='SPDT', category='contact'),
+            code='FB_END_OPEN_SPDT_T', name='Конечное Открыто SPDT')
+        slot_lim = EaSignalSlot.objects.create(
+            code='LIMIT_SWITCHES', name='Концевые')
+        opt = EaSlotOption.objects.create(
+            code='LIMIT_SWITCHES:END_SPDT', slot=slot_lim, kind='pair',
+            name='Концевые SPDT', ext_encoding='E1')
+        ps = ElectricPowerSupplyOption.objects.create(
+            model_line_item=self.m1, power_supply=self.ps220,
+            encoding='220', name_i18n={}, description='')
+        rows = [EaSignalMatrixEntry.objects.create(
+            model_line_item=self.m1,
+            control_unit=self.cu_int, power_supply=self.ps220,
+            mode='on_off', slot=slot_lim, option=opt,
+            feedback_signal=fb, availability='std', ext_encoding='E1')]
+        item = ElectricActuatorCatalogItem.objects.create(
+            model_line=self.line, model_line_item=self.m1,
+            power_supply=ps, control_unit=self.cu_int,
+            temperature=temp)
+        self.assertNotIn('E1', item.generated_ext_code)
+        item.matrix_rows.set(rows)
+        item.refresh_from_db()
+        self.assertIn('E1', item.code)
+        self.assertIn('E1', item.generated_ext_code)
+
+    def test_model_line_placeholder_admin_mixin(self):
+        """Админка серии: TemplatePlaceholdersAdminMixin с template_item_model
+        (как в БКВ) — справочник плейсхолдеров из реестра карточки."""
+        from django.contrib import admin as dj_admin
+        from electric_actuators.models import (ElectricActuatorCatalogItem,
+                                               ElectricActuatorModelLine)
+        cls = dj_admin.site._registry[ElectricActuatorModelLine]
+        self.assertEqual(cls.template_item_model, ElectricActuatorCatalogItem)
+        ph = cls._get_placeholder_list()
+        self.assertIn('{cu_name}', ph)
+        self.assertIn('{ext_code}', ph)
+
     def test_constructor_ext_helpers(self):
         """ext-хелперы конструктора: cu/temp коды для шаблона ext_encoding."""
         from params.models import ControlUnitInstalledOption, \

@@ -283,10 +283,18 @@ class Command(BaseCommand):
         EXT_TPL = ('{cu}{cu_p}{ps}{mode}{proto}.{ip}{exd}.'
                    '{end}{way}{torq}.{pos}{hart}.{temp}{h_cu}{therm}.'
                    '{lc}{cmd}{setp}{cnt}{ind}.{ad}.{sp}')
+        # Основной артикул: плейсхолдер БУ — {cu_name} (номенклатура cu_*).
+        ITEM_TPL = '{model_code}.{temperature}.{ip}.{cu_name}.{voltage}.{exd}'
         for ml in ElectricActuatorModelLine.objects.filter(is_active=True):
             if ml.ext_encoding_template != EXT_TPL:
                 ml.ext_encoding_template = EXT_TPL
                 ml.save(update_fields=['ext_encoding_template'])
+                ext_stats['tpl'] += 1
+            if ml.model_item_code_template and \
+                    '{control_unit}' in ml.model_item_code_template and \
+                    ml.model_item_code_template != ITEM_TPL:
+                ml.model_item_code_template = ITEM_TPL
+                ml.save(update_fields=['model_item_code_template'])
                 ext_stats['tpl'] += 1
 
         # 4a. Положение безопасности (BAT = encoding записи) + exd_short
@@ -391,31 +399,31 @@ class Command(BaseCommand):
         et = EquipmentType.objects.filter(code='electric-actuator').first()
         if et is not None:
             name_ru = ('Электропривод {series_code} {model_code} {torque} Нм '
-                       '{power_supply} {control_unit} {ext_code}')
+                       '{power_supply} {cu_name} {ext_code}')
             name_en = ('Electric actuator {series_code} {model_code} '
-                       '{torque} Nm {power_supply} {control_unit} {ext_code}')
+                       '{torque} Nm {power_supply} {cu_name} {ext_code}')
             name_cn = ('电动执行器 {series_code} {model_code} {torque} N·m '
-                       '{power_supply} {control_unit} {ext_code}')
+                       '{power_supply} {cu_name} {ext_code}')
             spec_ru = ('Серия: {series_code}\nМодель: {model_code} ({body_code})\n'
                        'Момент: {torque} Нм, время закрытия: {time_to_close} с\n'
                        'Напряжение питания: {power_supply}\n'
-                       'Блок управления: {control_unit}\n'
+                       'Блок управления: {cu_name}\n'
                        'Питание БУ: {cu_power_supply}\n'
-                       'Режим: {mode}\n'
-                       'Шина: {protocol}\n'
-                       'Команды: {commands}\n'
-                       'Уставка: {setpoint}\n'
-                       'Концевые выключатели: {end_switches}\n'
-                       'Промежуточные: {way_switches}\n'
-                       'Моментные: {torque_switches}\n'
-                       'Позиционная ОС: {position_feedback}\n'
-                       'HART: {hart}\n'
+                       'Режим: {cu_mode}\n'
+                       'Шина: {ctl_protocol}\n'
+                       'Команды: {ctl_commands}\n'
+                       'Уставка: {ctl_setpoint}\n'
+                       'Органы местного управления: {ctl_local_controls}\n'
+                       'Концевые выключатели: {fb_end_switches}\n'
+                       'Промежуточные: {fb_way_switches}\n'
+                       'Моментные: {fb_torque_switches}\n'
+                       'Позиционная ОС: {fb_position_feedback}\n'
+                       'HART: {fb_hart}\n'
                        'Температурное исполнение: {temperature}\n'
-                       'Обогрев БУ: {heater_cu}\n'
-                       'Теплозащита: {thermal_sensor}\n'
-                       'Органы местного управления: {local_control}\n'
-                       'Индикация: {indicator}\n'
-                       'Счётчик: {turn_counter}\n'
+                       'Обогрев БУ: {cu_heater}\n'
+                       'Теплозащита: {fb_thermal_sensor}\n'
+                       'Индикация: {fb_indicator}\n'
+                       'Счётчик: {fb_turn_counter}\n'
                        'IP: {ip}\n'
                        'Взрывозащита: {exd}\n'
                        'Покрытие: {coating}\n'
@@ -424,27 +432,29 @@ class Command(BaseCommand):
                        'Угол поворота: {turn_angle}\n'
                        'Кабельные вводы: {cable_glands}\n'
                        'Ограничение доступа: {access_device}\n'
-                       'Артикул: {article}')
+                       'Положение безопасности: {safety_position}\n'
+                       'Артикул: {article}\n'
+                       'Расширенный код: {ext_code}')
             spec_en = ('Series: {series_code}\nModel: {model_code} ({body_code})\n'
                        'Torque: {torque} Nm, closing time: {time_to_close} s\n'
                        'Power supply: {power_supply}\n'
-                       'Control unit: {control_unit}\n'
+                       'Control unit: {cu_name}\n'
                        'CU power supply: {cu_power_supply}\n'
-                       'Mode: {mode}\n'
-                       'Protocol: {protocol}\n'
-                       'Commands: {commands}\n'
-                       'Setpoint: {setpoint}\n'
-                       'Limit switches: {end_switches}\n'
-                       'Mid-position switches: {way_switches}\n'
-                       'Torque switches: {torque_switches}\n'
-                       'Position feedback: {position_feedback}\n'
-                       'HART: {hart}\n'
+                       'Mode: {cu_mode}\n'
+                       'Protocol: {ctl_protocol}\n'
+                       'Commands: {ctl_commands}\n'
+                       'Setpoint: {ctl_setpoint}\n'
+                       'Local controls: {ctl_local_controls}\n'
+                       'Limit switches: {fb_end_switches}\n'
+                       'Mid-position switches: {fb_way_switches}\n'
+                       'Torque switches: {fb_torque_switches}\n'
+                       'Position feedback: {fb_position_feedback}\n'
+                       'HART: {fb_hart}\n'
                        'Temperature version: {temperature}\n'
-                       'CU heater: {heater_cu}\n'
-                       'Thermal protection: {thermal_sensor}\n'
-                       'Local controls: {local_control}\n'
-                       'Indicator: {indicator}\n'
-                       'Turn counter: {turn_counter}\n'
+                       'CU heater: {cu_heater}\n'
+                       'Thermal protection: {fb_thermal_sensor}\n'
+                       'Indicator: {fb_indicator}\n'
+                       'Turn counter: {fb_turn_counter}\n'
                        'IP: {ip}\n'
                        'Explosion protection: {exd}\n'
                        'Coating: {coating}\n'
@@ -453,27 +463,29 @@ class Command(BaseCommand):
                        'Rotation angle: {turn_angle}\n'
                        'Cable glands: {cable_glands}\n'
                        'Anti-tamper device: {access_device}\n'
-                       'Article: {article}')
+                       'Fail position: {safety_position}\n'
+                       'Article: {article}\n'
+                       'Extended code: {ext_code}')
             spec_cn = ('系列: {series_code}\n型号: {model_code} ({body_code})\n'
                        '力矩: {torque} N·m, 关闭时间: {time_to_close} s\n'
                        '电源: {power_supply}\n'
-                       '控制单元: {control_unit}\n'
+                       '控制单元: {cu_name}\n'
                        '控制单元电源: {cu_power_supply}\n'
-                       '模式: {mode}\n'
-                       '总线: {protocol}\n'
-                       '指令: {commands}\n'
-                       '设定值: {setpoint}\n'
-                       '限位开关: {end_switches}\n'
-                       '中间位置开关: {way_switches}\n'
-                       '力矩开关: {torque_switches}\n'
-                       '位置反馈: {position_feedback}\n'
-                       'HART: {hart}\n'
+                       '模式: {cu_mode}\n'
+                       '总线: {ctl_protocol}\n'
+                       '指令: {ctl_commands}\n'
+                       '设定值: {ctl_setpoint}\n'
+                       '就地控制: {ctl_local_controls}\n'
+                       '限位开关: {fb_end_switches}\n'
+                       '中间位置开关: {fb_way_switches}\n'
+                       '力矩开关: {fb_torque_switches}\n'
+                       '位置反馈: {fb_position_feedback}\n'
+                       'HART: {fb_hart}\n'
                        '温度版本: {temperature}\n'
-                       '控制单元加热: {heater_cu}\n'
-                       '热保护: {thermal_sensor}\n'
-                       '就地控制: {local_control}\n'
-                       '指示: {indicator}\n'
-                       '计数器: {turn_counter}\n'
+                       '控制单元加热: {cu_heater}\n'
+                       '热保护: {fb_thermal_sensor}\n'
+                       '指示: {fb_indicator}\n'
+                       '计数器: {fb_turn_counter}\n'
                        '防护等级: {ip}\n'
                        '防爆: {exd}\n'
                        '涂层: {coating}\n'
@@ -482,7 +494,9 @@ class Command(BaseCommand):
                        '旋转角度: {turn_angle}\n'
                        '电缆接头: {cable_glands}\n'
                        '防拆装置: {access_device}\n'
-                       '物料号: {article}')
+                       '安全位置: {safety_position}\n'
+                       '物料号: {article}\n'
+                       '扩展代码: {ext_code}')
             changed = []
             if et.name_template != name_ru:
                 et.name_template = name_ru

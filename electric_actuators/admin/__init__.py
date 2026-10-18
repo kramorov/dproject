@@ -15,4 +15,5 @@ from .ea_constructor_admin import *
 from .ea_allowed_options_admin import *
 from .ea_signals_admin import *
 from .ea_catalog_item_admin import *
+from .ea_access_device_admin import *
 

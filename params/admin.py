@@ -6,6 +6,8 @@ import json
 
 from core.models.mixins import AdminCopyMixin
 
+from electric_actuators.models import ControlUnitAccessDeviceOption
+
 from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
     EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
     ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
@@ -362,10 +364,25 @@ class ControlUnitInstalledOptionForm(forms.ModelForm):
         return instance
 
 
+class ControlUnitAccessDeviceOptionInline(admin.TabularInline):
+    """Через-строки «блок управления × устройство ограничения доступа»
+    (electric_actuators.ControlUnitAccessDeviceOption)."""
+    model = ControlUnitAccessDeviceOption
+    fk_name = 'control_unit'
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['access_device', 'encoding', 'ext_encoding', 'is_default',
+              'is_active', 'sorting_order']
+    verbose_name = _("Устройство ограничения доступа")
+    verbose_name_plural = _("Устройства ограничения доступа для БУ")
+
+
 @admin.register(ControlUnitInstalledOption)
 class ControlUnitInstalledOptionAdmin(admin.ModelAdmin):
     form = ControlUnitInstalledOptionForm
     autocomplete_fields = ['accepts', 'emits', 'protocols', 'control_voltage']
+
+    inlines = [ControlUnitAccessDeviceOptionInline]
 
     list_display = ['name', 'code', 'kind', 'encoding', 'sorting_order', 'is_active']
     list_editable = ['code', 'encoding', 'sorting_order', 'is_active']

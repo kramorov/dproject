@@ -11,19 +11,24 @@ class ElectricActuatorsConfig(AppConfig):
 
         def recalc_catalog_item(sender, instance, action, **kwargs):
             """M2M matrix_rows изменился → пересобрать code/name/description
-            карточки (хэш уже пересчитан ресивером core.ConfigHashMixin)."""
+            карточки по единому контракту TemplateMixin (хэш уже пересчитан
+            ресивером core.ConfigHashMixin)."""
             if action not in ('post_add', 'post_remove', 'post_clear'):
                 return
             model = type(instance)
             if model.__name__ != 'ElectricActuatorCatalogItem':
                 return
             try:
+                # name/description — из шаблонов EquipmentType через
+                # TemplateMixin.update_name/update_description.
                 instance.update_name(save=False)
                 instance.update_description(save=False)
-                code = instance.generated_article()
+                code = instance.generated_model_item_code or instance.code
+                # Без save(): перегенерация артикула не должна поднимать
+                # коллизии хэша повторно (хэш уже сохранён ресивером core).
                 model.objects.filter(pk=instance.pk).update(
                     name=instance.name, description=instance.description,
-                    code=code or instance.code)
+                    code=code)
             except Exception:
                 pass
 
