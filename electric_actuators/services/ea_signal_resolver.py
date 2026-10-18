@@ -137,6 +137,7 @@ def resolve_matrix(model_line_item, control_unit, power_supply, mode,
         slots.append({
             'slot_id': slot.pk, 'code': slot.code,
             'name': slot.name, 'required': slot.required,
+            'multi_choice': slot.multi_choice,
             'rows': slot_rows,
         })
 
@@ -174,7 +175,9 @@ def validate_selection(selected_row_ids, resolved=None, matrix_kwargs=None):
             if row['id'] in selected:
                 row_by_slot[slot['slot_id']].append(row['id'])
     for slot_id, rows in row_by_slot.items():
-        if len(rows) > 1:
+        multi = next((s['multi_choice'] for s in resolved['slots']
+                      if s['slot_id'] == slot_id), False)
+        if len(rows) > 1 and not multi:
             errors.append(f'В слоте {slot_id} выбрано больше одной строки: {rows}')
     for (a, b) in resolved['conflicts']:
         if a in selected and b in selected:

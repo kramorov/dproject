@@ -17,7 +17,7 @@ from electric_actuators.services.ea_signal_resolver import (
     resolve_matrix, validate_selection, find_diagram_binding,
 )
 from electric_actuators.services.ea_ext_code import (
-    option_position_code, build_ext_code,
+    option_position_code, build_ext_code, MULTI_POSITIONS,
 )
 
 

@@ -38,7 +38,8 @@ BLOCKS = [
     ('sw', 'Коммутация', ['end', 'way', 'torq']),
     ('fb', 'Обратная связь', ['pos', 'hart']),
     ('cl', 'Климатика', ['temp', 'h_cu', 'therm']),
-    ('op', 'Опции', ['lc', 'cmd', 'setp', 'cnt', 'ind', 'bat']),
+    ('op', 'Опции', ['lc', 'cmd', 'setp', 'cnt', 'ind']),
+    ('sp', 'Положение безопасности', ['sp']),
 ]
 POSITION_TITLES = {
     'cu': 'Блок управления', 'cu_p': 'Питание БУ', 'ps': 'Напряжение мотора',
@@ -48,7 +49,7 @@ POSITION_TITLES = {
     'temp': 'Температура/обогрев привода', 'h_cu': 'Обогрев БУ',
     'therm': 'Теплозащита', 'lc': 'Органы управления', 'cmd': 'Команды',
     'setp': 'Уставка', 'cnt': 'Счётчик', 'ind': 'Индикация',
-    'bat': 'Батарея положения безопасности',
+    'sp': 'Положение безопасности',
 }
 
 # ext-коды CU (явные, ≥2 символов; ни один не префикс другого)
@@ -86,7 +87,10 @@ TEMP_BASE = {'STD': 'ST', 'LT': 'L', 'VLT': 'V'}
 HEATER_CU_EXT = {'NO_HEATER': 'H0', 'CU_CIRCUIT': 'C', 'SEPARATE_LINE': 'S'}
 THERM_EXT = {'FB_OVERHEAT_NC': 'T1', 'FB_OVERHEAT_SPDT': 'T2'}
 BAT_EXT = {'BAT': 'BAT'}
-BAT_DEFAULT = 'B0'
+SP_EXT = {'fl': 'FL', 'nc': 'NC', 'no': 'NO', 'nc-no-fl': 'BAT'}
+SP_DEFAULT = 'FL'
+# Позиции multi-choice (в слоте можно выбрать несколько опций)
+MULTI_POSITIONS = {'cmd'}
 NONE_SLOT_EXT = {
     # слот → {суффикс кода опции: ext}
     'LOCAL_CONTROL': {'BUTTONS': 'B', 'SELECTOR': 'S', 'NONE': 'N'},
@@ -96,7 +100,7 @@ NONE_SLOT_EXT = {
     'TURN_COUNTER': {'NONE': 'N0', 'MECH': 'M', 'ELECTRONIC': 'E',
                      'MECH_ELEC': 'EM', 'MECH_FB': 'MF',
                      'MECH_ELEC_FB': 'EMF'},
-    'CMD': {'NONE': 'N0', 'CMD_OCS_220AC': 'O', 'CMD_OCS_24DC': 'D',
+    'CMD': {'CMD_OCS_220AC': 'O', 'CMD_OCS_24DC': 'D',
             'CMD_REMOTE_220AC': 'R', 'CMD_REMOTE_24DC': 'RD',
             'CMD_LOCK_220AC': 'LK', 'CMD_LOCK_24DC': 'LD',
             'CMD_MANUAL_220AC': 'MK', 'CMD_MANUAL_24DC': 'MD',
@@ -169,20 +173,38 @@ def _slot_rules(slot_code, position, line=None):
             add(e.exd_short or e.encoding, e.name, False)
         return opts
     if position == 'bat':
-        from electric_actuators.models import ElectricBatteryOption
-        add(BAT_DEFAULT, str(_('Без батареи')), True)
-        for b in ElectricBatteryOption.objects.filter(
-                model_line=line, is_active=True).order_by('sorting_order'):
-            add(BAT_EXT.get(b.encoding, b.encoding or 'BAT'), b.name, False)
+        return opts
+    if position == 'sp':
+        from electric_actuators.models import ElectricSafetyPositionOption
+        add(SP_DEFAULT, str(_('Оставаться в текущем положении')), True)
+        for s in ElectricSafetyPositionOption.objects.filter(
+                power_supply_option__model_line_item__model_line=line,
+                is_active=True).select_related('safety_position').distinct():
+            code = s.ext_encoding or SP_EXT.get(s.safety_position.code, '')
+            if code and code != SP_DEFAULT:
+                add(code, s.safety_position.name, False)
         return opts
     if position == 'hart':
         add(HART_DEFAULT, str(_('Без HART')), True)
         add('H', 'HART', False)
         return opts
-    add(PAIR_DEFAULT if position in ('end', 'way', 'torq')
-        else (PROTO_DEFAULT if position == 'proto' else
-              POS_DEFAULT if position == 'pos' else
-              'N0'), str(_('Нет')), True)
+    default_code = None
+    if position in ('end', 'way', 'torq'):
+        default_code = PAIR_DEFAULT
+    elif position == 'proto':
+        default_code = PROTO_DEFAULT
+    elif position == 'pos':
+        default_code = POS_DEFAULT
+    elif slot_code == 'THERMAL_SENSOR':
+        default_code = NONE_SLOT_EXT[slot_code].get('NO_SENSOR')
+    elif slot_code == 'HEATER_CONTROL_UNIT':
+        default_code = HEATER_CU_EXT.get('NO_HEATER')
+    elif slot_code == 'CMD':
+        default_code = 'C0'  # уникальный дефолт multi-позиции (нет команд)
+    elif slot_code in NONE_SLOT_EXT:
+        default_code = NONE_SLOT_EXT[slot_code].get('NONE', 'N0')
+    if default_code:
+        add(default_code, str(_('Нет')), True)
     if position == 'proto':
         for p in EaCommProtocol.objects.filter(is_active=True).order_by('code'):
             add(PROTO_EXT.get(p.code), p.name, False)
@@ -257,9 +279,11 @@ def coding_rules(model_line, locale=None):
                                  'is_default': m == 'on_off'})
                 opts.append({'code': 'B', 'name': str(_('Оба режима')),
                              'is_default': False})
-            elif pos in ('ip', 'exd', 'bat', 'hart'):
+            elif pos in ('ip', 'exd', 'hart'):
                 opts = _slot_rules(None, pos) if pos == 'ip' else \
                     _slot_rules(None, pos, line)
+            elif pos == 'sp':
+                opts = _slot_rules(None, pos, line)
             elif pos == 'proto':
                 opts = _slot_rules('PROTOCOL', pos)
             elif pos in ('end', 'way', 'torq'):
@@ -338,7 +362,8 @@ def build_ext_code(model_line, selection):
     """Сборка ext-кода из выбора {позиция: code}.
 
     Все позиции заполняются явно (хэш-аналог): пропущенная позиция берёт
-    дефолтный код серии. Неизвестный код позиции — ValueError.
+    дефолтный код серии. Позиция cmd (multi-choice) может быть списком
+    кодов — они конкатенируются. Неизвестный код позиции — ValueError.
     """
     codes = _codes_for(model_line)
     defaults = _default_codes(model_line)
@@ -347,11 +372,13 @@ def build_ext_code(model_line, selection):
         parts = []
         for pos in positions:
             code = selection.get(pos) or defaults.get(pos, '')
+            if isinstance(code, (list, tuple)):
+                code = ''.join(code)
             if not code:
                 raise ValueError(f'Позиция {pos} без кода (нет дефолта).')
             if pos == 'cu_p' and not selection.get('cu'):
                 code = CU_P_DEFAULT
-            if code not in codes.get(pos, {}):
+            if pos not in MULTI_POSITIONS and code not in codes.get(pos, {}):
                 raise ValueError(f'Неизвестный код позиции {pos}: {code!r}')
             parts.append(code)
         blocks.append(''.join(parts))
@@ -361,8 +388,9 @@ def build_ext_code(model_line, selection):
 def decode_ext_code(model_line, ext_code):
     """Расшифровка ext-кода в {позиция: {code, name}} + warnings.
 
-    Все позиции заполнены (явные коды) — расшифровка полная. Неизвестный
-    остаток блока — в warnings.
+    Все позиции заполнены (явные коды) — расшифровка полная. Позиция cmd
+    (multi-choice) собирает все коды команд подряд (список в 'codes').
+    Неизвестный остаток блока — в warnings.
     """
     codes = _codes_for(model_line)
     defaults = _default_codes(model_line)
@@ -373,6 +401,42 @@ def decode_ext_code(model_line, ext_code):
         for pos in positions:
             pos_codes = [c for c in codes.get(pos, {}) if c]
             pos_codes.sort(key=len, reverse=True)
+            if pos == 'cu_p' and not result.get('cu', {}).get('code'):
+                result[pos] = {'code': defaults.get(pos, ''),
+                               'name': codes[pos].get(
+                                   defaults.get(pos, ''), '')}
+                continue
+            if pos in MULTI_POSITIONS:
+                dflt = defaults.get(pos, '')
+                pos_codes = [c for c in pos_codes if c != dflt]
+                if dflt and text.startswith(dflt):
+                    result[pos] = {'code': dflt,
+                                   'name': codes[pos].get(dflt, '')}
+                    text = text[len(dflt):]
+                    continue
+                matched_codes = []
+                while text:
+                    m = None
+                    for code in pos_codes:
+                        if text.startswith(code):
+                            m = code
+                            break
+                    if m:
+                        matched_codes.append(m)
+                        text = text[len(m):]
+                    else:
+                        break
+                if matched_codes:
+                    result[pos] = {
+                        'code': ''.join(matched_codes),
+                        'codes': matched_codes,
+                        'name': ', '.join(codes[pos].get(c, '')
+                                          for c in matched_codes)}
+                else:
+                    result[pos] = {'code': defaults.get(pos, ''),
+                                   'name': codes[pos].get(
+                                       defaults.get(pos, ''), '')}
+                continue
             matched = None
             for code in pos_codes:
                 if text.startswith(code):

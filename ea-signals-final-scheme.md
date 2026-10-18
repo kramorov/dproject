@@ -656,7 +656,7 @@ round-trip импорта, is_default) → 6) `manage.py check` +
 
 Шаблон (блоки через «.»):
 
-    {cu}{cu_p}{ps}{mode}{proto} . {ip}{exd} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind}{bat}
+    {cu}{cu_p}{ps}{mode}{proto} . {ip}{exd} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind} . {sp}
 
 **Блок БУ** `{cu}{cu_p}{ps}{mode}{proto}`:
 - cu: NO=нет управления · BA=basic · LCU=int-o (ICU) · INT=int-l (SRCU) ·
@@ -683,24 +683,24 @@ round-trip импорта, is_default) → 6) `manage.py check` +
 - therm: T0=нет датчика · TX=датчик без выхода · T1=термореле НЗ · T2=термореле SPDT
   (PTC-варианты P1/P2 — по данным пользователя)
 
-**Блок опций** `{lc}{cmd}{setp}{cnt}{ind}{bat}`:
+**Блок опций** `{lc}{cmd}{setp}{cnt}{ind}` + отдельный блок `{sp}`:
 - lc: B=кнопки · S=селекторы · N=нет
-- cmd (команды управления): N0=нет · O=О/С/З 220AC · D=О/С/З 24DC ·
-  R=Remote 220AC · RD=Remote 24DC · LK/LD=Lock 220/24 · MK/MD=Manual 220/24 ·
-  EO/EB=ESD Откр 220/24 · EC/EQ=ESD Закр 220/24 · IO/ID=Interlock Откр 220/24 ·
-  IC/IK=Interlock Закр 220/24 · DV/DW=Drive enable 220/24 · MO/MW=Mode 220/24
+- cmd (команды управления, слот CMD — MULTI-CHOICE: привод может иметь
+  несколько команд сразу, коды конкатенируются): C0=нет команд ·
+  O=О/С/З 220AC · D=О/С/З 24DC · R=Remote 220AC · RD=Remote 24DC ·
+  LK/LD=Lock 220/24 · MK/MD=Manual 220/24 · EO/EB=ESD Откр 220/24 ·
+  EC/EQ=ESD Закр 220/24 · IO/ID=Interlock Откр 220/24 · IC/IK=Interlock
+  Закр 220/24 · DV/DW=Drive enable 220/24 · MO/MW=Mode 220/24
 - setp: N0=нет · A=4-20 акт · P=4-20 пасс · A0=0-10 акт · P0=0-10 пасс
 - cnt: N0=нет · M=мех · E=эл · EM=эл+мех · MF=мех с ОС · EMF=эл+мех с ОС от мех
+  (макс. оборотов мехсчётчика — ElectricActuatorBody.turn_counter_max_turns:
+  AR21E007=321, AR21E010=228, AR21E020=180, AR21E050=180,
+  AR21E060/080/100=144)
 - ind: N0=нет · D=LED-набор · B=blinker · DB=LED+blinker · L=LCD · LB=LCD+blinker
-- bat: B0=нет · BAT=батарея положения безопасности (опция ElectricBatteryOption,
-  серия AR11E). Положение безопасности: «Оставаться в текущем положении» (fl) —
-  дефолт везде, КРОМЕ AR11E; для AR11E дефолт — «НЗ/НО/FL — выбирается
-  настройкой» (SafetyPositionOption code=nc-no-fl, requires_battery=True —
-  доступно только с BAT). Без BAT допустимо только fl.
-- Логика местного/удалённого управления: селектор «Местное/Удалённое» (lc=S) —
-  источник переключается на пульт/внешние команды; сигнал «Удалённое управление»
-  (CMD_REMOTE, cmd=R/RD) — переключение в удалённый режим внешним сигналом
-  (у int-l/int-n); у int-o — кнопки (lc=B) без CMD_REMOTE.
+- sp (отдельный блок, положение безопасности): FL=оставаться в текущем
+  положении (дефолт везде, кроме AR11E) · NC=НЗ · NO=НО · BAT=«НЗ/НО/FL —
+  выбирается настройкой» (требует батареи; дефолт AR11E). Кодировка в
+  артикуле — encoding ElectricSafetyPositionOption: BAT или пусто.
 
 Коды внутри позиции попарно не префиксы друг друга (расшифровка greedy
 longest-match однозначна).

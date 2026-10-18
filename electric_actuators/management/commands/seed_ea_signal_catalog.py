@@ -284,6 +284,9 @@ class Command(BaseCommand):
             if not created and not obj.is_active:
                 obj.is_active = True
                 obj.save(update_fields=['is_active'])
+            if code == 'CMD' and not obj.multi_choice:
+                obj.multi_choice = True
+                obj.save(update_fields=['multi_choice'])
             stats['slot'] += 1
             new['slot'] += int(created)
         # Обогрев привода ушёл в температурную опцию (плоская шкала LT/VLT)

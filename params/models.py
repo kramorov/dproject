@@ -110,11 +110,6 @@ class SafetyPositionOption(LocalizedDictFieldsMixin, OptionListToSelectMixin):
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"),
                                     help_text=_('Активно свойство или нет'))
-    requires_battery = models.BooleanField(
-        default=False, verbose_name=_("Требует батареи"),
-        help_text=_("Положение безопасности, доступное только с опцией батареи "
-                    "(BAT): НЗ/НО/FL выбирается настройкой")
-    )
 
     class Meta:
         verbose_name = _('Безопасное положение при отсутствии питания')

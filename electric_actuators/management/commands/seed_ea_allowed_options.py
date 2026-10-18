@@ -282,51 +282,31 @@ class Command(BaseCommand):
                 ext_stats['cu'] += 1
         EXT_TPL = ('{cu}{cu_p}{ps}{mode}{proto}.{ip}{exd}.'
                    '{end}{way}{torq}.{pos}{hart}.{temp}{h_cu}{therm}.'
-                   '{lc}{cmd}{setp}{cnt}{ind}{bat}')
+                   '{lc}{cmd}{setp}{cnt}{ind}.{sp}')
         for ml in ElectricActuatorModelLine.objects.filter(is_active=True):
             if ml.ext_encoding_template != EXT_TPL:
                 ml.ext_encoding_template = EXT_TPL
                 ml.save(update_fields=['ext_encoding_template'])
                 ext_stats['tpl'] += 1
 
-        # 4a. BAT для AR11E + exd_short у Ex-опций + положение безопасности AR11E
-        from electric_actuators.models import (ElectricBatteryOption,
-                                               ElectricExdOption,
+        # 4a. Положение безопасности (BAT = encoding записи) + exd_short
+        from electric_actuators.models import (ElectricExdOption,
                                                ElectricSafetyPositionOption)
         from params.models import SafetyPositionOption
-        line_ar11 = lines.get('AR11E')
-        if line_ar11 is not None:
-            bat, created = ElectricBatteryOption.objects.get_or_create(
-                model_line=line_ar11,
-                defaults={'encoding': 'BAT', 'ext_encoding': 'BAT',
-                          'is_default': False})
-            if not created:
-                bat.ext_encoding = 'BAT'
-                bat.save(update_fields=['ext_encoding'])
-        # Положение безопасности: «НЗ/НО/FL — выбирается настройкой» (требует BAT)
+        # Кодировки положений: fl — пусто (стандарт), nc-no-fl — 'BAT'
         adj_sp, _ = SafetyPositionOption.objects.get_or_create(
             code='nc-no-fl',
             defaults={'name': 'НЗ/НО/FL — выбирается настройкой',
-                      'requires_battery': True, 'sorting_order': 40})
-        if not adj_sp.requires_battery:
-            adj_sp.requires_battery = True
-            adj_sp.save(update_fields=['requires_battery'])
-        if line_ar11 is not None:
-            fl_sp = SafetyPositionOption.objects.filter(code='fl').first()
-            for s in ElectricSafetyPositionOption.objects.filter(
-                    power_supply_option__model_line_item__model_line=line_ar11,
-                    is_active=True):
-                if s.safety_position_id == (fl_sp.id if fl_sp else None):
-                    if s.is_default:
-                        s.is_default = False
-                        s.save(update_fields=['is_default'])
-                row, created = ElectricSafetyPositionOption.objects.get_or_create(
-                    power_supply_option=s.power_supply_option,
-                    safety_position=adj_sp,
-                    defaults={'is_default': True, 'encoding': 'ADJ'})
-                if not created and not row.is_default:
-                    row.is_default = True
-                    row.save(update_fields=['is_default'])
+                      'sorting_order': 40})
+        SP_ENC = {'fl': ('', 'FL'), 'nc': ('', 'NC'), 'no': ('', 'NO'),
+                  'nc-no-fl': ('BAT', 'BAT')}
+        for s in ElectricSafetyPositionOption.objects.filter(
+                is_active=True).select_related('safety_position'):
+            enc, ext = SP_ENC.get(s.safety_position.code, ('', ''))
+            if s.encoding != enc or s.ext_encoding != ext:
+                s.encoding = enc
+                s.ext_encoding = ext
+                s.save(update_fields=['encoding', 'ext_encoding'])
         for e in ElectricExdOption.objects.filter(is_active=True):
             short = ''
             if e.encoding or e.ext_encoding:
@@ -340,6 +320,34 @@ class Command(BaseCommand):
             if short and e.exd_short != short:
                 e.exd_short = short
                 e.save(update_fields=['exd_short'])
+
+        # 4b. Макс. обороты мехсчётчиков (корпуса AR21E) + дефолты AR11E
+        from electric_actuators.models import ElectricActuatorBody
+        TURN_LIMITS = {'AR21E007': 321, 'AR21E010': 228, 'AR21E020': 180,
+                       'AR21E050': 180, 'AR21E060': 144, 'AR21E080': 144,
+                       'AR21E100': 144}
+        for code, turns in TURN_LIMITS.items():
+            body = ElectricActuatorBody.objects.filter(code=code).first()
+            if body is not None and body.turn_counter_max_turns != turns:
+                body.turn_counter_max_turns = turns
+                body.save(update_fields=['turn_counter_max_turns'])
+        line_ar11 = lines.get('AR11E')
+        if line_ar11 is not None:
+            fl_sp = SafetyPositionOption.objects.filter(code='fl').first()
+            for s in ElectricSafetyPositionOption.objects.filter(
+                    power_supply_option__model_line_item__model_line=line_ar11,
+                    is_active=True):
+                if s.safety_position_id == (fl_sp.id if fl_sp else None) \
+                        and s.is_default:
+                    s.is_default = False
+                    s.save(update_fields=['is_default'])
+                row, created = ElectricSafetyPositionOption.objects.get_or_create(
+                    power_supply_option=s.power_supply_option,
+                    safety_position=adj_sp,
+                    defaults={'is_default': True})
+                if not created and not row.is_default:
+                    row.is_default = True
+                    row.save(update_fields=['is_default'])
 
         # 5. EquipmentType: шаблоны наименования и спецификации (+i18n)
         from core.models.equipment_type import EquipmentType

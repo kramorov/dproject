@@ -112,6 +112,12 @@ class ElectricActuatorBody(models.Model) :
                             help_text=_("Код модели корпуса привода"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание модели корпуса привода'))
+    turn_counter_max_turns = models.IntegerField(
+        null=True, blank=True,
+        verbose_name=_("Макс. оборотов мех. счётчика"),
+        help_text=_("Максимальное количество оборотов вала для механического "
+                    "счётчика (напр. AR21E007 — 321)")
+    )
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Порядок сортировки") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,

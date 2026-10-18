@@ -582,9 +582,9 @@ class EaExtCodeTests(TestCase):
     def test_coding_rules_structure(self):
         from electric_actuators.services.ea_ext_code import coding_rules
         rules = coding_rules(self.line)
-        self.assertEqual(len(rules), 6)
+        self.assertEqual(len(rules), 7)
         self.assertEqual([b['key'] for b in rules],
-                         ['bu', 'env', 'sw', 'fb', 'cl', 'op'])
+                         ['bu', 'env', 'sw', 'fb', 'cl', 'op', 'sp'])
         cu_opts = {o['code'] for o in rules[0]['positions'][0]['options']}
         self.assertIn('LCU', cu_opts)
         temp_opts = {o['code']
@@ -601,7 +601,7 @@ class EaExtCodeTests(TestCase):
         code = build_ext_code(self.line, selection)
         self.assertIn('LCUX380ACM', code)
         self.assertIn('E1', code)
-        self.assertIn('LMN0T1', code)
+        self.assertIn('LMH0T1', code)
         decoded, warnings = decode_ext_code(self.line, code)
         self.assertEqual(warnings, [])
         for pos, sel_code in selection.items():
@@ -626,7 +626,7 @@ class EaExtCodeTests(TestCase):
         code_db = build_ext_code(self.line, {'ind': 'DB'})
         decoded, warnings = decode_ext_code(self.line, code_db)
         self.assertEqual(decoded['ind']['code'], 'DB')
-        self.assertEqual(decoded['cmd']['code'], 'N0')
+        self.assertEqual(decoded['cmd']['code'], 'C0')
         code_d = build_ext_code(self.line, {'cmd': 'D'})
         decoded2, warnings2 = decode_ext_code(self.line, code_d)
         self.assertEqual(decoded2['cmd']['code'], 'D')

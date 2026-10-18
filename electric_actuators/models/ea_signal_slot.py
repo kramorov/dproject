@@ -47,6 +47,12 @@ class EaSignalSlot(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin)
         help_text=_("В слоте должна быть хотя бы одна доступная строка "
                     "(none-строка «нет» считается доступной)")
     )
+    multi_choice = models.BooleanField(
+        default=False,
+        verbose_name=_("Мультивыбор"),
+        help_text=_("Слот допускает выбор нескольких опций одновременно "
+                    "(например, CMD — команды О/С/З + Remote + Lock)")
+    )
     description = models.TextField(
         blank=True,
         verbose_name=_("Описание"),

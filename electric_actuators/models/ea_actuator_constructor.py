@@ -143,16 +143,6 @@ class ElectricActuatorConstructor(models.Model):
         help_text=_('Выбранная температурная опция')
     )
 
-    selected_battery_option = models.ForeignKey(
-        'electric_actuators.ElectricBatteryOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Батарея положения безопасности"),
-        help_text=_('Опция BAT: с батареей можно выбрать положение '
-                    'безопасности НЗ/НО (без неё — только оставаться в '
-                    'текущем положении)')
-    )
-
     # t° поля — синхронизируются с selected_temperature в save()
     work_temp_min = models.IntegerField(
         default=0,
@@ -247,12 +237,6 @@ class ElectricActuatorConstructor(models.Model):
             'through_model_path': 'electric_actuators.models.ea_options.ElectricTemperatureOption',
             'through_attr': None,  # ElectricTemperatureOption САМА является опцией
             'label': 'температурная опция',
-            'parent_field': 'model_line',
-        },
-        'selected_battery_option': {
-            'through_model_path': 'electric_actuators.models.ea_battery_option.ElectricBatteryOption',
-            'through_attr': None,
-            'label': 'батарея положения безопасности',
             'parent_field': 'model_line',
         },
         'selected_ip': {
@@ -629,13 +613,6 @@ class ElectricActuatorConstructor(models.Model):
 
     def clean(self):
         """Мягкая валидация выбранных опций через through-модели"""
-        # BAT: положение безопасности «НЗ/НО/FL — настройкой» требует батареи
-        sp = self.selected_safety_position
-        if sp is not None and getattr(sp, 'requires_battery', False) \
-                and not self.selected_battery_option:
-            logger.warning(
-                'Положение безопасности «%s» требует опции батареи (BAT).'
-                % sp)
         if not self.selected_model_line_item:
             return
 
@@ -822,7 +799,7 @@ class ElectricActuatorConstructor(models.Model):
         result = result.replace('{temp}', self._temp_ext())
         result = result.replace('{ip}', self._ip_ext())
         result = result.replace('{exd}', self._exd_ext())
-        result = result.replace('{bat}', self._bat_ext())
+        result = result.replace('{sp}', self._sp_ext())
         result = result.replace('{h_cu}', '')
         result = result.replace('{therm}', '')
         result = result.replace('{lc}', '')
@@ -881,10 +858,11 @@ class ElectricActuatorConstructor(models.Model):
             return exd.exd_short or exd.encoding or 'EX0'
         return 'EX0'
 
-    def _bat_ext(self) -> str:
-        """ext-код батареи положения безопасности: 'BAT' или 'B0'."""
-        bat = self.selected_battery_option
-        return bat.ext_encoding if (bat and bat.ext_encoding) else 'B0'
+    def _sp_ext(self) -> str:
+        """ext-код положения безопасности: FL/NC/NO/BAT (fail-safe)."""
+        from electric_actuators.services.ea_ext_code import SP_EXT
+        sp = self.selected_safety_position
+        return SP_EXT.get(sp.code, 'FL') if sp else 'FL'
 
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация кода"""
