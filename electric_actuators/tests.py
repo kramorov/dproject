@@ -876,6 +876,25 @@ class AllowedCuAndIndicatorTests(TestCase):
         self.assertEqual(rows[0]['availability'], 'std')
         self.assertTrue(rows[0]['is_default'])
 
+    def test_local_control_brand_rules(self):
+        """LOCAL_CONTROL-правило бренда: basic/простые БУ — только NONE;
+        int-o — только SELECTOR; int-l/int-n(+hr/mb/pb) — SELECTOR std +
+        BUTTONS opt."""
+        from electric_actuators.management.commands.seed_ea_allowed_options import (
+            LOCAL_CONTROL_RULES)
+        for cu_code in ('basic', 'pote', 'tr-4-20', 'tr10',
+                        'posi-4-20', 'posi10'):
+            self.assertEqual(LOCAL_CONTROL_RULES[cu_code],
+                             [('LOCAL_CONTROL:NONE', 'std')])
+        self.assertEqual(LOCAL_CONTROL_RULES['int-o'],
+                         [('LOCAL_CONTROL:SELECTOR', 'std')])
+        for cu_code in ('int-l', 'int-n', 'int-n-hr', 'int-n-mb',
+                        'int-n-pb'):
+            self.assertEqual(
+                LOCAL_CONTROL_RULES[cu_code],
+                [('LOCAL_CONTROL:SELECTOR', 'std'),
+                 ('LOCAL_CONTROL:BUTTONS', 'opt')])
+
     def test_wide_export_no_and_heater_rules(self):
         """Широкий формат: запрещённая пара БУ×напряжение → 'no';
         обогрев БУ по kind (BASIC/NONE → 'no', INTEGRATED → по данным)."""

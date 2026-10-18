@@ -94,6 +94,31 @@ INDICATOR_RULES = {
     'int-o': [('INDICATOR:LED_SET', 'std'),
               ('INDICATOR:LED_SET_BLINKER', 'opt')],
 }
+
+# LOCAL_CONTROL (органы местного управления): cu → [(option_code, availability)]
+# Правило пользователя 2026-10-18:
+#   none/basic/позиционер/потенциометр/трансмиттер → NONE (std, единственная);
+#   int-o → SELECTOR (std, единственная);
+#   int-l/int-n (+hr/mb/pb) → SELECTOR (std) + BUTTONS (opt).
+LOCAL_CONTROL_RULES = {
+    'basic': [('LOCAL_CONTROL:NONE', 'std')],
+    'pote': [('LOCAL_CONTROL:NONE', 'std')],
+    'tr-4-20': [('LOCAL_CONTROL:NONE', 'std')],
+    'tr10': [('LOCAL_CONTROL:NONE', 'std')],
+    'posi-4-20': [('LOCAL_CONTROL:NONE', 'std')],
+    'posi10': [('LOCAL_CONTROL:NONE', 'std')],
+    'int-o': [('LOCAL_CONTROL:SELECTOR', 'std')],
+    'int-l': [('LOCAL_CONTROL:SELECTOR', 'std'),
+              ('LOCAL_CONTROL:BUTTONS', 'opt')],
+    'int-n': [('LOCAL_CONTROL:SELECTOR', 'std'),
+              ('LOCAL_CONTROL:BUTTONS', 'opt')],
+    'int-n-hr': [('LOCAL_CONTROL:SELECTOR', 'std'),
+                 ('LOCAL_CONTROL:BUTTONS', 'opt')],
+    'int-n-mb': [('LOCAL_CONTROL:SELECTOR', 'std'),
+                 ('LOCAL_CONTROL:BUTTONS', 'opt')],
+    'int-n-pb': [('LOCAL_CONTROL:SELECTOR', 'std'),
+                 ('LOCAL_CONTROL:BUTTONS', 'opt')],
+}
 # Напряжения, на которых заливаются INDICATOR-строки (none — без 380: стартера нет)
 INDICATOR_PS = {'24-DC': '24-DC', '220-AC': '220-AC', '380-AC': '380-AC'}
 INDICATOR_PS_BASIC = ['24-DC', '220-AC']
@@ -162,7 +187,8 @@ class Command(BaseCommand):
         items = {i.code: i for i in ElectricActuatorModelLineItem.objects.all()}
 
         stats = {'allowed_created': 0, 'allowed_updated': 0,
-                 'indicator_created': 0, 'capabilities': 0}
+                 'indicator_created': 0, 'local_control_created': 0,
+                 'capabilities': 0}
 
         def set_pair(line_code, cu_code, ps_code, active, item_code=None):
             line = lines[line_code]
@@ -228,6 +254,39 @@ class Command(BaseCommand):
                                   'is_default': availability == 'std'})
                     if created:
                         stats['indicator_created'] += 1
+                    else:
+                        changed = []
+                        if obj.availability != availability:
+                            obj.availability = availability
+                            changed.append('availability')
+                        if obj.is_default != (availability == 'std'):
+                            obj.is_default = (availability == 'std')
+                            changed.append('is_default')
+                        if changed:
+                            obj.save(update_fields=changed)
+                            stats['allowed_updated'] += 1
+
+        # 2a. LOCAL_CONTROL — уровень бренда Архимед (кнопки/селектор/нет)
+        lc_slot = EaSignalSlot.objects.get(code='LOCAL_CONTROL')
+        lc_options = {o.code: o
+                      for o in EaSlotOption.objects.filter(slot=lc_slot)}
+        # БУ без интегрированного управления (и basic) — 24/220; int-* — все.
+        lc_ps_basic = set(LOCAL_CONTROL_RULES) - {
+            'int-o', 'int-l', 'int-n', 'int-n-hr', 'int-n-mb', 'int-n-pb'}
+        for cu_code, rules in LOCAL_CONTROL_RULES.items():
+            ps_codes = (INDICATOR_PS_BASIC if cu_code in lc_ps_basic
+                        else list(INDICATOR_PS.values()))
+            for ps_code in ps_codes:
+                for opt_code, availability in rules:
+                    obj, created = EaSignalMatrixEntry.objects.get_or_create(
+                        brand=brand, control_unit=cu[cu_code],
+                        power_supply=ps[ps_code], mode='both', slot=lc_slot,
+                        option=lc_options[opt_code],
+                        defaults={'availability': availability,
+                                  'name': lc_options[opt_code].name,
+                                  'is_default': availability == 'std'})
+                    if created:
+                        stats['local_control_created'] += 1
                     else:
                         changed = []
                         if obj.availability != availability:
@@ -553,10 +612,9 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             'Готово: Allowed создано %d/обновлено %d, INDICATOR строк %d, '
-            'capabilities %d; ext: опции слотов %d, temp %d, БУ %d, '
-            'шаблоны серий %d' % (stats['allowed_created'],
-                                  stats['allowed_updated'],
-                                  stats['indicator_created'],
-                                  stats['capabilities'],
-                                  ext_stats['slot'], ext_stats['temp'],
-                                  ext_stats['cu'], ext_stats['tpl'])))
+            'LOCAL_CONTROL строк %d, capabilities %d; ext: опции слотов %d, '
+            'temp %d, БУ %d, шаблоны серий %d' % (
+                stats['allowed_created'], stats['allowed_updated'],
+                stats['indicator_created'], stats['local_control_created'],
+                stats['capabilities'], ext_stats['slot'], ext_stats['temp'],
+                ext_stats['cu'], ext_stats['tpl'])))
