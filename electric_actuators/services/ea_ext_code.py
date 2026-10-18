@@ -529,6 +529,11 @@ def option_position_code(option):
             and option.feedback_signal_id:
         code = POS_EXT.get(option.feedback_signal.code)
         return ('pos', code) if code else None
+    if slot == 'TORQUE_SWITCHES' and option.kind == 'signal' \
+            and option.feedback_signal_id and \
+            option.feedback_signal.code == 'FB_TORQUE_4_20MA':
+        # Аналоговый момент 4-20 мА — позиция torq (T4; пары — T1/T2).
+        return ('torq', 'T4')
     if slot == 'POSITION_FEEDBACK' and option.kind == 'none':
         return ('pos', POS_DEFAULT)
     if slot == 'PROTOCOL' and option.protocol_id:

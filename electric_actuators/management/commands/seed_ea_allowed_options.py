@@ -381,6 +381,7 @@ class Command(BaseCommand):
                 ('WAY_SWITCHES', 'WAY_DPDT', 'opt'),
                 ('TORQUE_SWITCHES', 'TORQUE_SPDT', 'std'),
                 ('TORQUE_SWITCHES', 'TORQUE_DPDT', 'opt'),
+                ('TORQUE_SWITCHES', 'FB_TORQUE_4_20MA', 'opt'),
                 ('POSITION_FEEDBACK', 'FB_POS_4_20MA_PASSIVE', 'std'),
                 ('POSITION_FEEDBACK', 'FB_POS_4_20MA_ACTIVE', 'opt'),
                 ('THERMAL_SENSOR', 'FB_OVERHEAT_NC', 'opt'),
@@ -506,6 +507,52 @@ class Command(BaseCommand):
         from electric_actuators.services.ea_ext_code import (
             option_position_code, CU_EXT, AD_EXT)
         from electric_actuators.models import ElectricTemperatureOption
+        # Моментный аналог 4-20 мА (AOX «Torque switches → 4-20 Passive opt?»)
+        # — опция слота TORQUE_SWITCHES; ext позиции torq = T4.
+        from electric_actuators.models import EaFeedbackSignal
+        fb_tq = EaFeedbackSignal.objects.filter(
+            code='FB_TORQUE_4_20MA').first()
+        tq_slot = EaSignalSlot.objects.filter(code='TORQUE_SWITCHES').first()
+        if fb_tq is not None and tq_slot is not None:
+            tq_opt, created = EaSlotOption.objects.get_or_create(
+                slot=tq_slot, code='TORQUE_SWITCHES:FB_TORQUE_4_20MA',
+                defaults={'kind': 'signal', 'feedback_signal': fb_tq,
+                          'name': 'Моментный сигнал 4-20 мА',
+                          'sorting_order': 30})
+            tq_name = 'Моментный сигнал 4-20 мА'
+            tq_i18n = {'ru': tq_name,
+                       'en': 'Torque signal 4-20 mA',
+                       'cn': '力矩信号 4-20 mA'}
+            if tq_opt.name != tq_name:
+                tq_opt.name = tq_name
+                tq_opt.save(update_fields=['name'])
+            if (tq_opt.name_i18n or {}).get('ru') != tq_name:
+                tq_opt.name_i18n = tq_i18n
+                tq_opt.save(update_fields=['name_i18n'])
+        # Различимые имена теплозащиты НЗ/SPDT (ревью №14 F2)
+        for opt_code, nm, en, cn in [
+            ('THERMAL_SENSOR:FB_OVERHEAT_NC',
+             'Теплозащита, НЗ контакт',
+             'Thermal protection, NC contact', '热保护，常闭触点'),
+            ('THERMAL_SENSOR:FB_OVERHEAT_SPDT',
+             'Теплозащита, перекидной контакт (SPDT)',
+             'Thermal protection, changeover (SPDT)',
+             '热保护，转换触点（SPDT）'),
+        ]:
+            o = option_by_code.get(opt_code) if option_by_code else None
+            if o is None:
+                o = EaSlotOption.objects.filter(code=opt_code).first()
+            if o is None:
+                continue
+            if o.name != nm:
+                o.name = nm
+                o.save(update_fields=['name'])
+            i18n = dict(o.name_i18n or {})
+            if i18n.get('ru') != nm or i18n.get('en') != en or \
+                    i18n.get('cn') != cn:
+                i18n.update({'ru': nm, 'en': en, 'cn': cn})
+                o.name_i18n = i18n
+                o.save(update_fields=['name_i18n'])
         for opt in EaSlotOption.objects.filter(is_active=True):
             pos_code = option_position_code(opt)
             ext = pos_code[1] if pos_code else ''
