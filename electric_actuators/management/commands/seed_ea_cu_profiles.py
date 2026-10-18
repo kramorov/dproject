@@ -282,6 +282,19 @@ class Command(BaseCommand):
         EaSignalMatrixEntry.objects.bulk_create(to_create, batch_size=500)
         stats['created'] = len(to_create)
 
+        # 3a. Перепривязка схем EaWiringDiagramBinding к профильным строкам
+        # (M2M signals очищается при перезаливке — восстанавливаем по
+        # (БУ, напряжение) каждой схемы).
+        from electric_actuators.models import EaWiringDiagramBinding
+        stats['bindings'] = 0
+        for b in EaWiringDiagramBinding.objects.filter(is_active=True):
+            rows = EaSignalMatrixEntry.objects.filter(
+                control_unit=b.control_unit, power_supply=b.power_supply,
+                brand__isnull=True, model_line__isnull=True,
+                body__isnull=True, model_line_item__isnull=True)
+            b.signals.set(rows)
+            stats['bindings'] += 1
+
         # 4. Allowed: R-серия → -nq; Q005-010 → -q
         for a in AllowedControlUnitOption.objects.filter(
                 model_line__code='AR01E'):
@@ -303,5 +316,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             'Профили БУ: удалено %d старых строк, создано %d профильных '
-            'строк; вариантные БУ созданы' % (stats['deleted'],
-                                               stats['created'])))
+            'строк; вариантные БУ созданы; схем перепривязано %d' % (
+                stats['deleted'], stats['created'], stats['bindings'])))
