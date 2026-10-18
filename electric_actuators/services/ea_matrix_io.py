@@ -494,6 +494,16 @@ FB_CODES = [
 
 HEATER_CODES = ['SEPARATE_LINE', 'CU_CIRCUIT']
 
+# Слоты, чьи none/справочные опции выводятся отдельными группами колонок
+# (значение — через option: «каталог опций слота» — все опции в моделях).
+OPTION_SLOT_GROUPS = [
+    ('lc', 'LOCAL_CONTROL'),
+    ('ind', 'INDICATOR'),
+    ('cnt', 'TURN_COUNTER'),
+    ('proto', 'PROTOCOL'),
+]
+OPTION_SLOT_CODES = {slot for _, slot in OPTION_SLOT_GROUPS}
+
 
 def _cu_has_heater(cu):
     """Обогреватель БУ возможен только у БУ с контроллером: BASIC/NONE —
@@ -511,7 +521,10 @@ def _matrix_availability_map(item, cu, ps):
         for slot in res['slots']:
             for srow in slot['rows']:
                 entry = EaSignalMatrixEntry.objects.get(pk=srow['id'])
-                if entry.heater_supply_id:
+                if entry.option_id and entry.slot_id and \
+                        entry.slot.code in OPTION_SLOT_CODES:
+                    key = 'opt:' + entry.option.code
+                elif entry.heater_supply_id:
                     key = 'heater:' + entry.heater_supply.code
                 elif entry.feedback_signal_id:
                     key = entry.feedback_signal.code
@@ -539,10 +552,17 @@ def export_wide_rows(model_line_code):
         is_active=True).order_by('sorting_order'))
 
     headers = ['series_code', 'item_code', 'body_code', 'power_supply']
+    # Каталоги none-опций слотов (все опции в моделях — колонки не хардкодятся)
+    opt_codes = {}
+    for prefix, slot_code in OPTION_SLOT_GROUPS:
+        opt_codes[prefix] = [o.code for o in EaSlotOption.objects.filter(
+            slot__code=slot_code, is_active=True).order_by('sorting_order')]
     for cu_code in CU_GROUPS:
         headers += [f'{cu_code}|{c}' for c in CMD_CODES]
         headers += [f'{cu_code}|{f}' for f in FB_CODES]
         headers += [f'{cu_code}|heater|{h}' for h in HEATER_CODES]
+        for prefix, _ in OPTION_SLOT_GROUPS:
+            headers += [f'{cu_code}|{prefix}|{c}' for c in opt_codes[prefix]]
 
     rows = []
     for item in items:
@@ -559,12 +579,19 @@ def export_wide_rows(model_line_code):
                         row[f'{cu_code}|{c}'] = 'no'
                     for h in HEATER_CODES:
                         row[f'{cu_code}|heater|{h}'] = 'no'
+                    for prefix, _ in OPTION_SLOT_GROUPS:
+                        for c in opt_codes[prefix]:
+                            row[f'{cu_code}|{prefix}|{c}'] = 'no'
                     continue
                 avail = _matrix_availability_map(item, cu, ps)
                 for c in CMD_CODES:
                     row[f'{cu_code}|{c}'] = avail.get(c, '')
                 for f in FB_CODES:
                     row[f'{cu_code}|{f}'] = avail.get(f, '')
+                for prefix, _ in OPTION_SLOT_GROUPS:
+                    for c in opt_codes[prefix]:
+                        row[f'{cu_code}|{prefix}|{c}'] = avail.get(
+                            'opt:' + c, '')
                 if not _cu_has_heater(cu):
                     for h in HEATER_CODES:
                         row[f'{cu_code}|heater|{h}'] = 'no'
