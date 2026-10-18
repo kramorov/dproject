@@ -9,6 +9,7 @@ export default {
 
   // Options & preview
   getOptions(mliId)      { return api.get(E.options, { params: { model_line_item_id: mliId } }) },
+  getVarieties()         { return api.get(E.varieties) },
   preview(data)          { return api.post(E.preview, data) },
   createSku(data)        { return api.post(E.createSku, data) },
 

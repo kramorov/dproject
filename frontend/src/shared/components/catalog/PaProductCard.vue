@@ -4,15 +4,15 @@
   <div class="pa-product-card">
     <ProductDetail v-if="preview" :product="preview" :price="null" :breadcrumbs="[]" />
     <div class="pa-actions" v-if="preview">
-      <button class="btn primary" @click="$emit('addToCart')">🛒 Добавить в корзину</button>
-      <button class="btn secondary" @click="showSpec = true" v-if="preview.tech_description">Просмотр спецификации</button>
+      <button class="btn primary" @click="$emit('addToCart')">🛒 {{ t('paCard.addToCart') }}</button>
+      <button class="btn secondary" @click="showSpec = true" v-if="preview.tech_description">{{ t('paCard.viewSpec') }}</button>
     </div>
 
     <Teleport to="body">
       <div class="modal-overlay" v-if="showSpec" @click.self="showSpec = false">
         <div class="modal-content">
           <div class="modal-header">
-            <h3>Спецификация</h3>
+            <h3>{{ t('paCard.spec') }}</h3>
             <button class="btn-icon close" @click="showSpec = false">&times;</button>
           </div>
           <div class="modal-body" v-html="preview?.tech_description"></div>
@@ -24,7 +24,10 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from '@/shared/i18n'
 import ProductDetail from '@/shared/components/ProductDetail.vue'
+
+const { t } = useI18n()
 
 defineProps({
   preview: { type: Object, default: null },

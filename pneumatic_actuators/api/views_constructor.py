@@ -171,6 +171,14 @@ class ConstructorViewSet(viewsets.GenericViewSet):
         locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         return Response(obj.get_available_options(locale=locale))
 
+    @action(detail=False, methods=['get'], url_path='varieties')
+    def varieties(self, request):
+        """Виды привода DA/SR из справочника (локализованы)."""
+        from pneumatic_actuators.models import PneumaticActuatorVariety
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        return Response(PneumaticActuatorVariety.get_for_select(
+            active_only=True, locale=locale))
+
     @action(detail=False, methods=['get'])
     def model_lines(self, request):
         """Список активных серий пневмоприводов (с изображением и описанием)."""

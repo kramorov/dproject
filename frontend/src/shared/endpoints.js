@@ -108,6 +108,7 @@ export const ENDPOINTS = {
     list: '/pneumatic_actuators/constructor/',
     detail: (id) => `/pneumatic_actuators/constructor/${id}/`,
     options: '/pneumatic_actuators/constructor/options/',
+    varieties: '/pneumatic_actuators/constructor/varieties/',
     preview: '/pneumatic_actuators/constructor/preview/',
     modelLines: '/pneumatic_actuators/constructor/model_lines/',
     createSku: '/pneumatic_actuators/constructor/create-sku/',

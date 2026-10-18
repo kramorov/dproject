@@ -4,42 +4,43 @@
     <!-- Форма конструктора -->
     <main class="panel-right">
       <div class="builder-header">
-        <h2>Новая конфигурация</h2>
+        <h2>{{ t('paCtor.newConfig') }}</h2>
       </div>
 
       <div class="form-row-inline">
         <div class="form-row" style="flex:0.7">
-          <label>Серия пневмоприводов</label>
+          <label>{{ t('paCtor.series') }}</label>
           <select v-model="form.selected_model_line" @change="onModelLineChange">
-            <option :value="null">— выберите серию —</option>
+            <option :value="null">{{ t('paCtor.chooseSeries') }}</option>
             <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }} ({{ ml.code }})</option>
           </select>
         </div>
         <div class="form-row" style="flex:1" v-if="form.selected_model_line">
-          <label>Вид привода</label>
+          <label>{{ t('paCtor.variety') }}</label>
           <select v-model="form.selected_variety" @change="onVarietyChange">
-            <option :value="null">— выберите вид —</option>
-            <option value="DA">DA — двойного действия</option>
-            <option value="SR">SR — с возвратной пружиной</option>
+            <option :value="null">{{ t('paCtor.chooseVariety') }}</option>
+            <option v-for="v in varieties" :key="v.id" :value="v.code">
+              {{ v.name }} — {{ v.description }}
+            </option>
           </select>
         </div>
         <div class="form-row" style="flex:0.7" v-if="form.selected_variety">
-          <label>Модель</label>
+          <label>{{ t('paCtor.model') }}</label>
           <select v-model="form.selected_model_line_item" @change="onModelLineItemChange">
-            <option :value="null">— выберите модель —</option>
+            <option :value="null">{{ t('paCtor.chooseModel') }}</option>
             <option v-for="item in modelLineItems" :key="item.id" :value="item.id">{{ item.name }}</option>
           </select>
         </div>
       </div>
 
       <template v-if="form.selected_model_line_item && options">
-        <h3>Опции</h3>
+        <h3>{{ t('paCtor.options') }}</h3>
         <div class="options-grid">
           <div class="form-row" v-for="opt in optionFields" :key="opt.key">
             <label>{{ opt.label }}</label>
             <select v-model="form[opt.key]" :disabled="opt.disabled">
               <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
-                {{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}
+                {{ o.name }}
               </option>
             </select>
           </div>
@@ -53,9 +54,9 @@
 
       <div class="actions">
         <button class="btn primary" @click="save" :disabled="!canSave || saving">
-          {{ saving ? 'Сохранение...' : 'Создать' }}
+          {{ saving ? t('paCtor.saving') : t('paCtor.create') }}
         </button>
-        <button class="btn secondary" @click="resetForm">Сбросить</button>
+        <button class="btn secondary" @click="resetForm">{{ t('paCtor.reset') }}</button>
       </div>
 
       <div class="message" v-if="message" :class="message.type">{{ message.text }}</div>
@@ -65,11 +66,15 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useI18n } from '@/shared/i18n'
 import api from './api'
 import PaProductCard from '@/shared/components/catalog/PaProductCard.vue'
 
+const { t } = useI18n()
+
 const modelLines = ref([])
 const modelLineItems = ref([])
+const varieties = ref([])
 const options = ref(null)
 const message = ref(null)
 const previewData = ref(null)
@@ -77,14 +82,14 @@ const saving = ref(false)
 
 // Единый маппинг опций: ключ формы → ключ в ответе API
 const OPTION_MAP = {
-  selected_safety_position: { label: 'Положение безопасности', apiKey: 'safety_positions' },
-  selected_springs_qty:      { label: 'Количество пружин',     apiKey: 'springs_qty_options' },
-  selected_temperature:      { label: 'Температурное исполнение', apiKey: 'temperature_options' },
-  selected_ip:               { label: 'IP защита',             apiKey: 'ip_options' },
-  selected_exd:              { label: 'Взрывозащита',          apiKey: 'exd_options' },
-  selected_body_coating:     { label: 'Покрытие корпуса',      apiKey: 'body_coating_options' },
-  selected_body_color:       { label: 'Цвет корпуса',          apiKey: 'body_color_options' },
-  selected_manual_override:       { label: 'Ручной дублер',         apiKey: 'manual_override_options' },
+  selected_safety_position: { label: 'paCtor.lbl.safetyPosition', apiKey: 'safety_positions' },
+  selected_springs_qty:      { label: 'paCtor.lbl.springsQty',     apiKey: 'springs_qty_options' },
+  selected_temperature:      { label: 'paCtor.lbl.temperature',   apiKey: 'temperature_options' },
+  selected_ip:               { label: 'paCtor.lbl.ip',            apiKey: 'ip_options' },
+  selected_exd:              { label: 'paCtor.lbl.exd',           apiKey: 'exd_options' },
+  selected_body_coating:     { label: 'paCtor.lbl.coating',       apiKey: 'body_coating_options' },
+  selected_body_color:       { label: 'paCtor.lbl.color',         apiKey: 'body_color_options' },
+  selected_manual_override:       { label: 'paCtor.lbl.manualOverride', apiKey: 'manual_override_options' },
 }
 
 // Ключи формы → ключи опций для create-sku (sku_service ждёт springs_qty, temperature, ...)
@@ -126,15 +131,18 @@ const canSave = computed(() => form.selected_model_line_item)
 const optionFields = computed(() => {
   if (!options.value) return []
   return Object.entries(OPTION_MAP).map(([key, cfg]) => ({
-    key, label: cfg.label,
+    key, label: t(cfg.label),
     items: options.value[cfg.apiKey] || [],
     disabled: (options.value[cfg.apiKey] || []).length <= 1,
   }))
 })
 
 onMounted(async () => {
-  try { modelLines.value = (await api.getModelLines()).data }
-  catch (e) { showMessage('Ошибка загрузки', 'error') }
+  try {
+    modelLines.value = (await api.getModelLines()).data
+    varieties.value = (await api.getVarieties()).data
+  }
+  catch (e) { showMessage(t('paCtor.errLoad'), 'error') }
 })
 
 // --- cascade (no draft creation) ---
@@ -146,7 +154,7 @@ async function onVarietyChange() {
   form.selected_model_line_item = null; modelLineItems.value = []; options.value = null; previewData.value = null
   if (!form.selected_variety || !form.selected_model_line) return
   try { modelLineItems.value = (await api.getModelLineItems(form.selected_model_line, form.selected_variety)).data }
-  catch (e) { showMessage('Ошибка загрузки моделей', 'error') }
+  catch (e) { showMessage(t('paCtor.errLoadModels'), 'error') }
 }
 async function onModelLineItemChange() {
   options.value = null; previewData.value = null
@@ -154,7 +162,7 @@ async function onModelLineItemChange() {
   try {
     options.value = (await api.getOptions(form.selected_model_line_item)).data
     autoFillDefaults()
-  } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
+  } catch (e) { showMessage(t('paCtor.errLoadOptions'), 'error') }
 }
 
 function autoFillDefaults() {
@@ -176,7 +184,7 @@ async function save() {
   try {
     const res = await api.create({ ...form })
     const sku = res.data?.sku
-    const verb = res.data?.created === false ? 'Обновлена' : 'Создана'
+    const verb = res.data?.created === false ? t('paCtor.updated') : t('paCtor.created')
     const msg = sku
       ? verb + ': ' + (res.data.name || '') + ' | SKU: ' + sku.code
       : verb + ': ' + (res.data.name || '')
@@ -184,7 +192,7 @@ async function save() {
     // Refresh preview from API to get full to_dict() data
     try { const pr = await api.preview({ ...form }); previewData.value = pr.data } catch (e) { /* ignore */ }
   } catch (e) {
-    const msg = e.response?.data?.detail || e.response?.data?.error || 'Ошибка сохранения'
+    const msg = e.response?.data?.detail || e.response?.data?.error || t('paCtor.errSave')
     showMessage(msg, 'error')
   }
   finally { saving.value = false }
@@ -216,9 +224,9 @@ async function onAddToCart() {
       model_line_item_id: form.selected_model_line_item,
       options: buildSkuOptionsPayload(),
     })
-    showMessage('SKU создан: ' + (data.code || data.name), 'success')
+    showMessage(t('paCtor.skuCreated') + (data.code || data.name), 'success')
   } catch (e) {
-    showMessage('Ошибка: ' + (e.response?.data?.error || e.message), 'error')
+    showMessage(t('paCtor.err') + (e.response?.data?.error || e.message), 'error')
   }
 }
 
