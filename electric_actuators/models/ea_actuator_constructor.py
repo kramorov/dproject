@@ -629,6 +629,13 @@ class ElectricActuatorConstructor(models.Model):
 
     def clean(self):
         """Мягкая валидация выбранных опций через through-модели"""
+        # BAT: положение безопасности «НЗ/НО/FL — настройкой» требует батареи
+        sp = self.selected_safety_position
+        if sp is not None and getattr(sp, 'requires_battery', False) \
+                and not self.selected_battery_option:
+            logger.warning(
+                'Положение безопасности «%s» требует опции батареи (BAT).'
+                % sp)
         if not self.selected_model_line_item:
             return
 

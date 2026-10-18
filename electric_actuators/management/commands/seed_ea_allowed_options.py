@@ -289,9 +289,11 @@ class Command(BaseCommand):
                 ml.save(update_fields=['ext_encoding_template'])
                 ext_stats['tpl'] += 1
 
-        # 4a. BAT для AR11E + exd_short у Ex-опций
+        # 4a. BAT для AR11E + exd_short у Ex-опций + положение безопасности AR11E
         from electric_actuators.models import (ElectricBatteryOption,
-                                               ElectricExdOption)
+                                               ElectricExdOption,
+                                               ElectricSafetyPositionOption)
+        from params.models import SafetyPositionOption
         line_ar11 = lines.get('AR11E')
         if line_ar11 is not None:
             bat, created = ElectricBatteryOption.objects.get_or_create(
@@ -301,6 +303,30 @@ class Command(BaseCommand):
             if not created:
                 bat.ext_encoding = 'BAT'
                 bat.save(update_fields=['ext_encoding'])
+        # Положение безопасности: «НЗ/НО/FL — выбирается настройкой» (требует BAT)
+        adj_sp, _ = SafetyPositionOption.objects.get_or_create(
+            code='nc-no-fl',
+            defaults={'name': 'НЗ/НО/FL — выбирается настройкой',
+                      'requires_battery': True, 'sorting_order': 40})
+        if not adj_sp.requires_battery:
+            adj_sp.requires_battery = True
+            adj_sp.save(update_fields=['requires_battery'])
+        if line_ar11 is not None:
+            fl_sp = SafetyPositionOption.objects.filter(code='fl').first()
+            for s in ElectricSafetyPositionOption.objects.filter(
+                    power_supply_option__model_line_item__model_line=line_ar11,
+                    is_active=True):
+                if s.safety_position_id == (fl_sp.id if fl_sp else None):
+                    if s.is_default:
+                        s.is_default = False
+                        s.save(update_fields=['is_default'])
+                row, created = ElectricSafetyPositionOption.objects.get_or_create(
+                    power_supply_option=s.power_supply_option,
+                    safety_position=adj_sp,
+                    defaults={'is_default': True, 'encoding': 'ADJ'})
+                if not created and not row.is_default:
+                    row.is_default = True
+                    row.save(update_fields=['is_default'])
         for e in ElectricExdOption.objects.filter(is_active=True):
             short = ''
             if e.encoding or e.ext_encoding:
