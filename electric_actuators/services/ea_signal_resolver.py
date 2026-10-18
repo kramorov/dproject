@@ -23,6 +23,8 @@
 """
 from collections import defaultdict
 
+from core.utils.localization import localized_name
+
 from electric_actuators.models import (
     EaSignalMatrixEntry, EaWiringDiagramBinding, EaSignalSlot,
 )
@@ -139,7 +141,7 @@ def resolve_matrix(model_line_item, control_unit, power_supply, mode,
                 bundles[row.bundle].append(row.pk)
         slots.append({
             'slot_id': slot.pk, 'code': slot.code,
-            'name': slot.name, 'required': slot.required,
+            'name': localized_name(slot, locale), 'required': slot.required,
             'multi_choice': slot.multi_choice,
             'rows': slot_rows,
         })

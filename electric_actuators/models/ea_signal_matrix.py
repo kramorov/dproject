@@ -230,15 +230,16 @@ class EaSignalMatrixEntry(CopyMixin, LocalizedDictFieldsMixin):
             return localized_name(self.protocol, locale)
         if self.heater_supply_id:
             return localized_name(self.heater_supply, locale)
-        return str(self.slot)
+        return localized_name(self.slot, locale)
 
     def localized_name(self, locale=None):
-        """Имя + суффикс (Стандарт)/(Опция) — на лету, не хранится в name_i18n."""
+        """Имя + суффикс (Стандарт)/(Опция) — на лету, локализованный."""
+        from core.utils.localization import localize_service_word
         base = self._base_name(locale)
         if self.availability == EaAvailability.STD:
-            return f'{base} ({_("Стандарт")})'
+            return f'{base} {localize_service_word("(Стандарт)", locale)}'
         if self.availability == EaAvailability.OPT:
-            return f'{base} ({_("Опция")})'
+            return f'{base} {localize_service_word("(Опция)", locale)}'
         return base
 
     def save(self, *args, **kwargs):

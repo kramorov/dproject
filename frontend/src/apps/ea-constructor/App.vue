@@ -3,23 +3,23 @@
   <div class="constructor-app">
     <!-- Левая панель: список конфигураций + фильтры -->
     <aside class="panel-left">
-      <h2>Сохранённые конфигурации</h2>
+      <h2>{{ t('eaCtor.saved') }}</h2>
 
       <div class="filter-bar">
-        <input v-model="filters.search" placeholder="Поиск по коду/названию..." class="filter-input" />
+        <input v-model="filters.search" :placeholder="t('eaCtor.searchPlaceholder')" class="filter-input" />
         <select v-model="filters.model_line" @change="onFilterChange">
-          <option :value="null">Все серии</option>
+          <option :value="null">{{ t('eaCtor.allSeries') }}</option>
           <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }}</option>
         </select>
         <select v-model="filters.model_line_item" @change="onFilterChange" :disabled="!filters.model_line">
-          <option :value="null">Все модели</option>
+          <option :value="null">{{ t('eaCtor.allModels') }}</option>
           <option v-for="mli in filterModelLineItems" :key="mli.id" :value="mli.id">{{ mli.name }}</option>
         </select>
       </div>
 
       <div class="saved-list">
-        <div v-if="loadingList" class="list-status">Загрузка...</div>
-        <div v-else-if="!filteredList.length" class="list-status">Нет сохранённых конфигураций</div>
+        <div v-if="loadingList" class="list-status">{{ t('eaCtor.loading') }}</div>
+        <div v-else-if="!filteredList.length" class="list-status">{{ t('eaCtor.noSaved') }}</div>
         <div
           v-for="item in filteredList" :key="item.id"
           class="saved-card"
@@ -28,7 +28,7 @@
           <div class="card-code">{{ item.code || '—' }}</div>
           <div class="card-model">{{ item.model_line_item?.name || '' }}</div>
           <div class="card-desc">{{ item.description?.substring(0, 80) || '' }}</div>
-          <button class="btn-icon delete" @click.stop="deleteItem(item.id)" title="Удалить">×</button>
+          <button class="btn-icon delete" @click.stop="deleteItem(item.id)" :title="t('eaCtor.delete')">×</button>
         </div>
       </div>
     </aside>
@@ -36,36 +36,36 @@
     <!-- Правая панель: форма конструктора -->
     <main class="panel-right">
       <div class="builder-header">
-        <h2>Новая конфигурация</h2>
+        <h2>{{ t('eaCtor.newConfig') }}</h2>
       </div>
 
       <div class="form-row">
-        <label>Серия электроприводов</label>
+        <label>{{ t('eaCtor.series') }}</label>
         <select v-model="form.selected_model_line" @change="onModelLineChange">
-          <option :value="null">— выберите серию —</option>
+          <option :value="null">{{ t('eaCtor.chooseSeries') }}</option>
           <option v-for="ml in modelLines" :key="ml.id" :value="ml.id">{{ ml.name }} ({{ ml.code }})</option>
         </select>
       </div>
 
       <div class="form-row" v-if="form.selected_model_line">
-        <label>Модель</label>
+        <label>{{ t('eaCtor.model') }}</label>
         <select v-model="form.selected_model_line_item" @change="onModelLineItemChange" :disabled="!modelLineItems.length">
-          <option :value="null">— выберите модель —</option>
+          <option :value="null">{{ t('eaCtor.chooseModel') }}</option>
           <option v-for="item in modelLineItems" :key="item.id" :value="item.id">{{ item.name }}</option>
         </select>
       </div>
 
       <!-- Напряжение питания — появляется после выбора модели -->
       <div class="form-row" v-if="form.selected_model_line_item && powerSupplyOptions.length">
-        <label>Напряжение питания</label>
+        <label>{{ t('eaCtor.powerSupply') }}</label>
         <select v-model="form.selected_power_supply" @change="onPowerSupplyChange">
-          <option :value="null">— выберите напряжение —</option>
+          <option :value="null">{{ t('eaCtor.choosePowerSupply') }}</option>
           <option v-for="ps in powerSupplyOptions" :key="ps.option_id" :value="ps.option_id">{{ ps.name }}</option>
         </select>
       </div>
 
       <template v-if="form.selected_model_line_item && options">
-        <h3>Опции</h3>
+        <h3>{{ t('eaCtor.options') }}</h3>
         <div class="options-grid">
           <div class="form-row" v-for="opt in standardOptionFields" :key="opt.key">
             <label>{{ opt.label }}</label>
@@ -79,7 +79,7 @@
 
         <!-- Зависимые от напряжения опции -->
         <template v-if="powerDependentOptions.length">
-          <h3>Опции, зависящие от напряжения</h3>
+          <h3>{{ t('eaCtor.powerDependent') }}</h3>
           <div class="options-grid">
             <div class="form-row" v-for="opt in powerDependentOptions" :key="opt.key">
               <label>{{ opt.label }}</label>
@@ -94,9 +94,9 @@
 
         <!-- Устройство ограничения доступа -->
         <div class="form-row" v-if="accessDeviceOptions.length">
-          <label>Устройство ограничения доступа</label>
+          <label>{{ t('eaCtor.accessDevice') }}</label>
           <select v-model="form.selected_access_device_option">
-            <option :value="null">—</option>
+            <option :value="null">{{ t('eaCtor.choose') }}</option>
             <option v-for="o in accessDeviceOptions" :key="o.option_id" :value="o.option_id">
               {{ o.name }}
             </option>
@@ -105,12 +105,12 @@
 
         <!-- Сигнальные опции блока управления -->
         <template v-if="signalSlots.length">
-          <h3>Сигнальные опции блока управления</h3>
+          <h3>{{ t('eaCtor.signalOptions') }}</h3>
           <div class="options-grid">
             <div class="form-row" v-for="slot in signalSlots" :key="slot.code">
               <label>{{ slot.name }}</label>
               <select v-model="signalSelection[slot.code]" @change="onSignalChange">
-                <option :value="null">—</option>
+                <option :value="null">{{ t('eaCtor.choose') }}</option>
                 <option v-for="r in slot.rows" :key="r.id" :value="r.id">
                   {{ r.name }}</option>
               </select>
@@ -120,17 +120,17 @@
       </template>
 
       <div class="preview" v-if="previewText">
-        <h3>Предпросмотр
-          <button class="btn small" @click="showTechModal = true" v-if="techDescription">📄 Просмотр</button>
+        <h3>{{ t('eaCtor.preview') }}
+          <button class="btn small" @click="showTechModal = true" v-if="techDescription">{{ t('eaCtor.view') }}</button>
         </h3>
         <pre class="preview-text">{{ previewText }}</pre>
       </div>
 
       <div class="actions">
         <button class="btn primary" @click="save" :disabled="!canSave || saving">
-          {{ saving ? 'Сохранение...' : 'Создать' }}
+          {{ saving ? t('eaCtor.saving') : t('eaCtor.create') }}
         </button>
-        <button class="btn secondary" @click="resetForm">Сбросить</button>
+        <button class="btn secondary" @click="resetForm">{{ t('eaCtor.reset') }}</button>
       </div>
 
       <div class="message" v-if="message" :class="message.type">{{ message.text }}</div>
@@ -141,7 +141,7 @@
       <div class="modal-overlay" v-if="showTechModal" @click.self="showTechModal = false">
         <div class="modal-content">
           <div class="modal-header">
-            <h3>Техническое описание</h3>
+            <h3>{{ t('eaCtor.techDescription') }}</h3>
             <button class="btn-icon close" @click="showTechModal = false">×</button>
           </div>
           <div class="modal-body" v-html="techDescription"></div>
@@ -153,7 +153,10 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useI18n } from '@/shared/i18n'
 import api from './api'
+
+const { t } = useI18n()
 
 const modelLines = ref([])
 const modelLineItems = ref([])
@@ -169,20 +172,20 @@ const saving = ref(false)
 
 // Опции, не зависящие от напряжения (model_line + model_line_item + model_body)
 const STANDARD_OPTIONS = {
-  selected_temperature:              { label: 'Температурное исполнение',    apiKey: 'temperature_options' },
-  selected_ip:                       { label: 'IP защита',                    apiKey: 'ip_options' },
-  selected_exd:                      { label: 'Взрывозащита',                 apiKey: 'exd_options' },
-  selected_body_coating:             { label: 'Покрытие корпуса',             apiKey: 'body_coating_options' },
-  selected_body_color_option:        { label: 'Цвет корпуса',                 apiKey: 'body_color_options' },
-  selected_hand_wheel:               { label: 'Ручной дублер',                apiKey: 'hand_wheel_options' },
-  selected_turn_angle_option:        { label: 'Угол поворота',                apiKey: 'turn_angle_options' },
-  selected_cable_glands_holes:       { label: 'Кабельные вводы',              apiKey: 'cable_glands_holes_options' },
+  selected_temperature:              { label: 'eaCtor.lbl.temperature',   apiKey: 'temperature_options' },
+  selected_ip:                       { label: 'eaCtor.lbl.ip',            apiKey: 'ip_options' },
+  selected_exd:                      { label: 'eaCtor.lbl.exd',           apiKey: 'exd_options' },
+  selected_body_coating:             { label: 'eaCtor.lbl.coating',       apiKey: 'body_coating_options' },
+  selected_body_color_option:        { label: 'eaCtor.lbl.color',         apiKey: 'body_color_options' },
+  selected_hand_wheel:               { label: 'eaCtor.lbl.handWheel',     apiKey: 'hand_wheel_options' },
+  selected_turn_angle_option:        { label: 'eaCtor.lbl.turnAngle',     apiKey: 'turn_angle_options' },
+  selected_cable_glands_holes:       { label: 'eaCtor.lbl.cableGlands',   apiKey: 'cable_glands_holes_options' },
 }
 
 // Опции, зависящие от выбранного напряжения
 const POWER_DEPENDENT = {
-  selected_safety_position:      { label: 'Положение безопасности', apiKey: 'safety_position_options' },
-  selected_control_unit_option:  { label: 'Блок управления',         apiKey: 'control_unit_options' },
+  selected_safety_position:      { label: 'eaCtor.lbl.safetyPosition', apiKey: 'safety_position_options' },
+  selected_control_unit_option:  { label: 'eaCtor.lbl.controlUnit',     apiKey: 'control_unit_options' },
 }
 
 const filters = reactive({ search: '', model_line: null, model_line_item: null })
@@ -223,7 +226,7 @@ const powerSupplyOptions = computed(() => {
 const standardOptionFields = computed(() => {
   if (!options.value) return []
   return Object.entries(STANDARD_OPTIONS).map(([key, cfg]) => ({
-    key, label: cfg.label,
+    key, label: t(cfg.label),
     items: options.value[cfg.apiKey] || [],
     disabled: (options.value[cfg.apiKey] || []).length <= 1,
   }))
@@ -232,7 +235,7 @@ const standardOptionFields = computed(() => {
 const powerDependentOptions = computed(() => {
   if (!options.value || !form.selected_power_supply) return []
   return Object.entries(POWER_DEPENDENT).map(([key, cfg]) => ({
-    key, label: cfg.label,
+    key, label: t(cfg.label),
     items: options.value[cfg.apiKey] || [],
     disabled: (options.value[cfg.apiKey] || []).length <= 1,
   }))
@@ -272,12 +275,12 @@ async function onControlUnitChange() {
     autoFillPowerDependent()
     autoFillAccessDevice()
     autoFillSignalDefaults()
-  } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
+  } catch (e) { showMessage(t('eaCtor.errLoadOptions'), 'error') }
 }
 
 onMounted(async () => {
   try { modelLines.value = (await api.getModelLines()).data; await loadList() }
-  catch (e) { showMessage('Ошибка загрузки', 'error') }
+  catch (e) { showMessage(t('eaCtor.errLoad'), 'error') }
 })
 
 async function loadList() {
@@ -301,9 +304,9 @@ async function onFilterChange() {
 }
 
 async function deleteItem(id) {
-  if (!confirm('Удалить конфигурацию?')) return
-  try { await api.delete(id); await loadList(); showMessage('Удалено', 'success') }
-  catch (e) { showMessage('Ошибка удаления', 'error') }
+  if (!confirm(t('eaCtor.deleteConfirm'))) return
+  try { await api.delete(id); await loadList(); showMessage(t('eaCtor.deleted'), 'success') }
+  catch (e) { showMessage(t('eaCtor.errDelete'), 'error') }
 }
 
 async function loadItem(item) {
@@ -335,7 +338,7 @@ async function loadItem(item) {
     }
 
     previewText.value = d.description || ''
-  } catch (e) { showMessage('Ошибка загрузки', 'error') }
+  } catch (e) { showMessage(t('eaCtor.errLoad'), 'error') }
 }
 
 function autoFillFromData(d) {
@@ -360,7 +363,7 @@ async function onModelLineChange() {
   Object.keys(signalSelection).forEach(k => delete signalSelection[k])
   if (!form.selected_model_line) return
   try { modelLineItems.value = (await api.getModelLineItems(form.selected_model_line)).data }
-  catch (e) { showMessage('Ошибка загрузки моделей', 'error') }
+  catch (e) { showMessage(t('eaCtor.errLoadModels'), 'error') }
 }
 
 async function onModelLineItemChange() {
@@ -371,7 +374,7 @@ async function onModelLineItemChange() {
   try {
     options.value = (await loadOptions()).data
     autoFillStandardDefaults()
-  } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
+  } catch (e) { showMessage(t('eaCtor.errLoadOptions'), 'error') }
 }
 
 async function onPowerSupplyChange() {
@@ -391,7 +394,7 @@ async function onPowerSupplyChange() {
     // Строки профиля БУ зависят от напряжения — сбрасываем и заполняем заново
     Object.keys(signalSelection).forEach(k => delete signalSelection[k])
     autoFillSignalDefaults()
-  } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
+  } catch (e) { showMessage(t('eaCtor.errLoadOptions'), 'error') }
 }
 
 async function loadOptions() {
@@ -441,11 +444,11 @@ async function save() {
   saving.value = true
   try {
     const res = await api.create({ ...form })
-    showMessage(res.status === 201 ? 'Создано: ' + res.data.name : 'Найдена существующая: ' + res.data.name, 'success')
+    showMessage(res.status === 201 ? t('eaCtor.created') + res.data.name : t('eaCtor.foundExisting') + res.data.name, 'success')
     previewText.value = res.data.description || ''
     await loadList()
   } catch (e) {
-    const msg = e.response?.data?.detail || 'Ошибка сохранения'
+    const msg = e.response?.data?.detail || t('eaCtor.errSave')
     showMessage(msg, 'error')
   }
   finally { saving.value = false }

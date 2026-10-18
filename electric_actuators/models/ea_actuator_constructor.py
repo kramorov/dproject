@@ -33,6 +33,8 @@ import re
 
 import logging
 
+from core.utils.localization import localized_name
+
 logger = logging.getLogger(__name__)
 
 
@@ -462,7 +464,7 @@ class ElectricActuatorConstructor(models.Model):
                 {
                     'id': opt.id, 'option_id': opt.id,
                     'encoding': opt.power_supply.encoding or opt.encoding,
-                    'name': str(opt.power_supply),
+                    'name': localized_name(opt.power_supply, locale),
                     'description': opt.power_supply.description or opt.description or '',
                     'is_default': False,
                     'power_supply_id': opt.power_supply_id,
@@ -491,18 +493,10 @@ class ElectricActuatorConstructor(models.Model):
                         key = key.replace('_option_options', '_options')
                     opts = []
                     for opt in qs:
-                        if field_name == 'selected_exd':
-                            # только взрывозащита, без серии
-                            name = (opt.get_exd_list or opt.get_exd_short_list
-                                    or '—')
-                            suffix = ' (Стандарт)' if opt.is_default else ' (Опция)'
-                            name += suffix
-                        else:
-                            name = str(opt)
                         opts.append({
                             'id': opt.id, 'option_id': opt.id,
                             'encoding': opt.encoding or '',
-                            'name': name,
+                            'name': localized_name(opt, locale),
                             'description': opt.description or '',
                             'is_default': opt.is_default,
                         })
@@ -519,7 +513,7 @@ class ElectricActuatorConstructor(models.Model):
                             'id': opt.id,
                             'option_id': getattr(opt, through_attr).id,
                             'encoding': opt.encoding or '',
-                            'name': getattr(opt, through_attr).name,
+                            'name': localized_name(getattr(opt, through_attr), locale),
                             'code': getattr(opt, through_attr, None) and getattr(getattr(opt, through_attr), 'code', ''),
                             'description': opt.description or '',
                             'is_default': opt.is_default,
@@ -541,7 +535,7 @@ class ElectricActuatorConstructor(models.Model):
                     'id': opt.id,
                     'option_id': getattr(opt, through_attr).id,
                     'encoding': opt.encoding or '',
-                    'name': getattr(opt, through_attr).name,
+                    'name': localized_name(getattr(opt, through_attr), locale),
                     'code': getattr(opt, through_attr).code if hasattr(getattr(opt, through_attr), 'code') else '',
                     'description': opt.description or '',
                     'is_default': opt.is_default,
@@ -565,7 +559,7 @@ class ElectricActuatorConstructor(models.Model):
                         'id': opt.id,
                         'option_id': getattr(opt, through_attr).id,
                         'encoding': opt.encoding or '',
-                        'name': getattr(opt, through_attr).name,
+                        'name': localized_name(getattr(opt, through_attr), locale),
                         'code': getattr(opt, through_attr).code if hasattr(getattr(opt, through_attr), 'code') else '',
                         'description': opt.description or '',
                         'is_default': opt.is_default,
@@ -594,7 +588,7 @@ class ElectricActuatorConstructor(models.Model):
                     'option_id': pair.control_unit_id,
                     'encoding': pair.encoding or '',
                     'ext_encoding': pair.ext_encoding or '',
-                    'name': str(pair.control_unit),
+                    'name': localized_name(pair.control_unit, locale),
                     'code': pair.control_unit.code,
                     'description': pair.control_unit.description or '',
                     'is_default': False,
@@ -616,7 +610,7 @@ class ElectricActuatorConstructor(models.Model):
                     'option_id': opt.access_device_id,
                     'encoding': opt.encoding or '',
                     'ext_encoding': opt.ext_encoding or '',
-                    'name': str(opt.access_device),
+                    'name': localized_name(opt.access_device, locale),
                     'code': opt.access_device.code,
                     'description': opt.access_device.description or '',
                     'is_default': opt.is_default,

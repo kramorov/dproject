@@ -93,23 +93,37 @@ class ElectricTemperatureOption(BaseTemperatureThroughOption):
         return 'model_line'
 
     def get_display_name(self):
-        """Имя с источником питания обогрева для LT/VLT."""
+        """ru-имя с источником питания обогрева для LT/VLT (для __str__)."""
+        return self._build_name(None) + self._suffix(None)
+
+    def _suffix(self, locale):
+        from core.utils.localization import localize_service_word
         is_default = getattr(self, 'is_default', False)
-        suffix = ' (Стандарт)' if is_default else ' (Опция)'
+        return ' ' + localize_service_word(
+            '(Стандарт)' if is_default else '(Опция)', locale)
+
+    def _build_name(self, locale=None):
+        from core.utils.localization import (localize_service_word,
+                                             localized_name)
         if self.encoding and self.encoding.strip():
             base = self.encoding
         elif self.code and self.code not in ('', 'STD'):
             base = self.code
         else:
             base = ''
-        if base:
-            name_str = f'{base} ({self.work_temp_min}...{self.work_temp_max}°C)'
-        else:
-            name_str = f'{self.work_temp_min}...{self.work_temp_max}°C'
+        temps = localize_service_word(
+            f'{self.work_temp_min}...{self.work_temp_max}°C', locale)
+        name_str = f'{base} ({temps})' if base else temps
         if self.heater_supply_id and \
                 self.heater_supply.code not in ('NO_HEATER', ''):
-            name_str += f', обогрев: {self.heater_supply}'
-        return name_str + suffix
+            heating = {'ru': 'обогрев', 'en': 'heating', 'cn': '加热'}.get(
+                locale or 'ru', 'heating')
+            name_str += f', {heating}: {localized_name(self.heater_supply, locale)}'
+        return name_str
+
+    def _localized_base_name(self, locale=None):
+        """Базовое локализованное имя БЕЗ суффикса (паттерн through-опций)."""
+        return self._build_name(locale)
 
 
 class ElectricIpOption(BaseIpThroughOption):
@@ -130,8 +144,6 @@ class ElectricIpOption(BaseIpThroughOption):
     @classmethod
     def _get_parent_field_name(cls):
         return 'model_line'
-
-
 
 
 class ElectricExdOption(BaseM2MExdThroughOption):
@@ -162,6 +174,12 @@ class ElectricExdOption(BaseM2MExdThroughOption):
     @classmethod
     def _get_parent_field_name(cls):
         return 'model_line'
+
+    def _localized_base_name(self, locale=None):
+        """Без серии: только взрывозащита (для localized_name)."""
+        from core.utils.localization import localize_service_word
+        base = self.get_exd_list or self.get_exd_short_list or '—'
+        return localize_service_word(base, locale)
 
 class ElectricBodyColorOption(BaseColorThroughOption):
     """Опции взрывозащиты для электроприводов"""
