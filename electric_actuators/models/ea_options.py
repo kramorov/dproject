@@ -252,3 +252,12 @@ class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
     @classmethod
     def _get_parent_field_name(cls):
         return 'model_line'
+
+    def _localized_base_name(self, locale=None):
+        """Локализованный угол поворота (паттерн through-опций)."""
+        word = {'ru': 'Угол поворота', 'en': 'Turn angle',
+                'cn': '旋转角度'}.get(locale or 'ru', 'Turn angle')
+        name = f'{word} {self.turn_angle}° ±{self.turn_angle_deviation_limit}°'
+        if self.encoding and self.encoding.strip():
+            name = f'{self.encoding} ({name})'
+        return name
