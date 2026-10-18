@@ -299,6 +299,60 @@ class Command(BaseCommand):
                             obj.save(update_fields=changed)
                             stats['allowed_updated'] += 1
 
+        # 2b. Сигнальные наборы по корпусам AR21E/CLFZE (2026-10-18, правило
+        # пользователя): варианты сигналов на 220В и 380В одинаковые для всех
+        # корпусов серии; образец — корпус AR21E007 (220-AC). Для AR21E —
+        # включая int-o; для CLFZE — int-o нет. int-n-hr/mb/pb — как int-n.
+        from electric_actuators.models import ElectricActuatorBody
+        stats['signal_created'] = 0
+        SIGNAL_SERIES = {
+            'AR21E': (['AR21E007', 'AR21E010', 'AR21E020', 'AR21E050',
+                       'AR21E060'],
+                      ['basic', 'int-l', 'int-n', 'int-n-hr', 'int-n-mb',
+                       'int-n-pb', 'int-o']),
+            'CLFZE': (['CLFZ10-15', 'CLFZ20-30', 'CLFZ45-60', 'CLFZ90-120',
+                       'CLFZ180-250', 'CLFZ350'],
+                      ['basic', 'int-l', 'int-n', 'int-n-hr', 'int-n-mb',
+                       'int-n-pb']),
+        }
+        CU_TPL = {'int-n-hr': 'int-n', 'int-n-mb': 'int-n',
+                  'int-n-pb': 'int-n'}
+        src_body = ElectricActuatorBody.objects.get(code='AR21E007')
+        for line_code, (body_codes, cu_codes) in SIGNAL_SERIES.items():
+            for body_code in body_codes:
+                body = ElectricActuatorBody.objects.get(code=body_code)
+                for cu_code in cu_codes:
+                    tpl_cu = cu[cu_code]
+                    src_cu = cu[CU_TPL.get(cu_code, cu_code)]
+                    ps_codes = ['220-AC'] if cu_code == 'basic' else \
+                        ['220-AC', '380-AC']
+                    for ps_code in ps_codes:
+                        for src in EaSignalMatrixEntry.objects.filter(
+                                body=src_body, control_unit=src_cu,
+                                power_supply__code='220-AC'):
+                            bundle = src.bundle
+                            if bundle and 'AR21E007' in bundle:
+                                bundle = bundle.replace('AR21E007', body_code)
+                            obj, created = \
+                                EaSignalMatrixEntry.objects.get_or_create(
+                                    body=body, control_unit=tpl_cu,
+                                    power_supply=ps[ps_code], mode=src.mode,
+                                    slot=src.slot, option=src.option,
+                                    feedback_signal=src.feedback_signal,
+                                    control_signal=src.control_signal,
+                                    protocol=src.protocol, device=src.device,
+                                    heater_supply=src.heater_supply,
+                                    defaults={
+                                        'availability': src.availability,
+                                        'is_default': src.is_default,
+                                        'name': src.name, 'bundle': bundle,
+                                        'encoding': src.encoding,
+                                        'ext_encoding': src.ext_encoding,
+                                        'description': src.description,
+                                    })
+                            if created:
+                                stats['signal_created'] += 1
+
         # 3. capabilities
         for cu_code, caps in CAPABILITIES.items():
             for code in [cu_code] + (
@@ -612,9 +666,10 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             'Готово: Allowed создано %d/обновлено %d, INDICATOR строк %d, '
-            'LOCAL_CONTROL строк %d, capabilities %d; ext: опции слотов %d, '
-            'temp %d, БУ %d, шаблоны серий %d' % (
+            'LOCAL_CONTROL строк %d, сигналов по корпусам %d, capabilities %d; '
+            'ext: опции слотов %d, temp %d, БУ %d, шаблоны серий %d' % (
                 stats['allowed_created'], stats['allowed_updated'],
                 stats['indicator_created'], stats['local_control_created'],
-                stats['capabilities'], ext_stats['slot'], ext_stats['temp'],
-                ext_stats['cu'], ext_stats['tpl'])))
+                stats['signal_created'], stats['capabilities'],
+                ext_stats['slot'], ext_stats['temp'], ext_stats['cu'],
+                ext_stats['tpl'])))
