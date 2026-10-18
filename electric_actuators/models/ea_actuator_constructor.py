@@ -33,12 +33,13 @@ import re
 
 import logging
 
+from core.models.mixins import TemplateMixin
 from core.utils.localization import localized_name
 
 logger = logging.getLogger(__name__)
 
 
-class ElectricActuatorConstructor(models.Model):
+class ElectricActuatorConstructor(TemplateMixin, models.Model):
     """
     Конструктор электропривода — пошаговый выбор модели и опций через прямые FK.
 
@@ -233,6 +234,196 @@ class ElectricActuatorConstructor(models.Model):
     )
 
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
+
+    # ==================== ШАБЛОНЫ (TemplateMixin) ====================
+    # Серия-источник — selected_model_line (шаблонов name/description у неё
+    # нет — цепочка идёт в EquipmentType 'electric-actuator').
+    model_line_field = 'selected_model_line'
+    required_model_line_fields = ()
+
+    def _get_equipment_type(self):
+        """EquipmentType 'electric-actuator' — источник шаблонов."""
+        from core.models.equipment_type import EquipmentType
+        return EquipmentType.objects.filter(code='electric-actuator').first()
+
+    def _get_name_template_source(self):
+        return None  # шаблоны — из EquipmentType
+
+    def _get_description_template_source(self):
+        return None  # шаблоны — из EquipmentType
+
+    def _get_data_dict(self, locale=None):
+        """Плейсхолдер → путь/resolver конструктора (паттерн TemplateMixin)."""
+        return {
+            '{model_code}': 'selected_model_line_item__code',
+            '{series_code}': 'selected_model_line__code',
+            '{body_code}': 'selected_model_line_item__body__code',
+            '{torque}': '_res_torque',
+            '{time_to_close}': '_res_time_to_close',
+            '{power_supply}': 'selected_power_supply',
+            '{voltage}': 'selected_power_supply__power_supply',
+            '{cu_name}': 'selected_control_unit_option',
+            '{cu_power_supply}': '_res_cu_power_supply',
+            '{cu_mode}': '_res_mode',
+            '{cu_heater}': '_res_cu_heater',
+            '{ctl_protocol}': '_res_protocol',
+            '{ctl_commands}': '_res_commands',
+            '{ctl_setpoint}': '_res_setpoint',
+            '{ctl_local_controls}': '_res_local_controls',
+            '{fb_end_switches}': '_res_end_switches',
+            '{fb_way_switches}': '_res_way_switches',
+            '{fb_torque_switches}': '_res_torque_switches',
+            '{fb_position_feedback}': '_res_position_feedback',
+            '{fb_hart}': '_res_hart',
+            '{fb_thermal_sensor}': '_res_thermal_sensor',
+            '{fb_indicator}': '_res_indicator',
+            '{fb_turn_counter}': '_res_turn_counter',
+            '{temperature}': 'selected_temperature',
+            '{ip}': 'selected_ip',
+            '{exd}': '_res_exd',
+            '{exd_short}': 'selected_exd__get_exd_short_list',
+            '{coating}': 'selected_body_coating',
+            '{color}': 'selected_body_color_option',
+            '{hand_wheel}': 'selected_hand_wheel',
+            '{turn_angle}': 'selected_turn_angle_option',
+            '{cable_glands}': 'selected_cable_glands_holes',
+            '{access_device}': 'selected_access_device_option',
+            '{safety_position}': 'selected_safety_position',
+            '{article}': '_res_article',
+            '{ext_code}': '_res_ext_code',
+        }
+
+    def _matrix_rows(self):
+        """Выбранные строки матрицы (для превью — _preview_matrix_rows)."""
+        if self.pk:
+            return list(self.selected_matrix_rows.select_related(
+                'slot', 'option', 'control_signal', 'feedback_signal',
+                'protocol', 'device', 'heater_supply').all())
+        return list(getattr(self, '_preview_matrix_rows', None) or [])
+
+    @staticmethod
+    def _join_unique(values):
+        return ', '.join(dict.fromkeys(v for v in values if v))
+
+    # ── Простые значения ──
+    def _res_torque(self, locale=None) -> str:
+        mli = self.selected_model_line_item
+        return str(mli.torque_max) if mli and mli.torque_max else ''
+
+    def _res_time_to_close(self, locale=None) -> str:
+        mli = self.selected_model_line_item
+        return str(mli.time_to_close) if mli and mli.time_to_close else ''
+
+    def _res_mode(self, locale=None) -> str:
+        from electric_actuators.models.ea_catalog_item import _MODE_LABELS
+        labels = _MODE_LABELS.get('on_off', {'ru': 'on_off'})
+        locale = locale or 'ru'
+        return labels.get(locale) or labels['ru']
+
+    def _res_cu_power_supply(self, locale=None) -> str:
+        """Питание БУ из разрешённой пары (или пусто — от питания привода)."""
+        if not (self.selected_control_unit_option_id
+                and self.selected_power_supply_id):
+            return ''
+        from electric_actuators.models.ea_allowed_options import resolve_cu_pair
+        pair = resolve_cu_pair(
+            self.selected_model_line_item.model_line,
+            self.selected_model_line_item,
+            self.selected_control_unit_option,
+            self.selected_power_supply.power_supply)
+        if pair is None or not pair.cu_power_supply_id:
+            return ''
+        return localized_name(pair.cu_power_supply, locale)
+
+    # ── Значения из матричных строк (локализованные) ──
+    def _res_protocol(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.protocol, locale) for r in self._matrix_rows()
+            if r.protocol_id and r.protocol.name)
+
+    def _res_commands(self, locale=None) -> str:
+        from electric_actuators.models.ea_catalog_item import _SETPOINT_ROLES
+        return self._join_unique(
+            localized_name(r.control_signal, locale) for r in self._matrix_rows()
+            if r.control_signal_id and r.control_signal.name
+            and r.control_signal.role not in _SETPOINT_ROLES)
+
+    def _res_setpoint(self, locale=None) -> str:
+        from electric_actuators.models.ea_catalog_item import _SETPOINT_ROLES
+        return self._join_unique(
+            localized_name(r.control_signal, locale) for r in self._matrix_rows()
+            if r.control_signal_id and r.control_signal.name
+            and r.control_signal.role in _SETPOINT_ROLES)
+
+    def _res_local_controls(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.option, locale) if r.option_id else r.name
+            for r in self._matrix_rows()
+            if r.slot_id and r.slot.code == 'LOCAL_CONTROL')
+
+    def _res_end_switches(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role.startswith('END'))
+
+    def _res_way_switches(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role.startswith('WAY'))
+
+    def _res_torque_switches(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role.startswith('TORQUE'))
+
+    def _res_position_feedback(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.feedback_signal, locale)
+            for r in self._matrix_rows()
+            if r.feedback_signal_id and r.feedback_signal.name
+            and r.feedback_signal.role == 'POSITION')
+
+    def _res_hart(self, locale=None) -> str:
+        return 'HART' if any(
+            r.feedback_signal_id and getattr(r.feedback_signal, 'hart', False)
+            for r in self._matrix_rows()) else ''
+
+    def _res_thermal_sensor(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.device, locale) for r in self._matrix_rows()
+            if r.device_id and r.device.name)
+
+    def _res_cu_heater(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.heater_supply, locale) for r in self._matrix_rows()
+            if r.heater_supply_id and r.heater_supply.name)
+
+    def _res_indicator(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.option, locale) if r.option_id else r.name
+            for r in self._matrix_rows()
+            if r.slot_id and r.slot.code == 'INDICATOR')
+
+    def _res_turn_counter(self, locale=None) -> str:
+        return self._join_unique(
+            localized_name(r.option, locale) if r.option_id else r.name
+            for r in self._matrix_rows()
+            if r.slot_id and r.slot.code == 'TURN_COUNTER')
+
+    def _res_article(self, locale=None) -> str:
+        return self.generated_model_item_code or ''
+
+    def _res_ext_code(self, locale=None) -> str:
+        return self.generated_ext_code or ''
+
+    def _res_exd(self, locale=None) -> str:
+        return localized_name(self.selected_exd, locale) if self.selected_exd else ''
 
     # ==================== КОНФИГУРАЦИЯ ОПЦИЙ ====================
     # through_model_path — путь к through-модели для проверки доступности
@@ -842,6 +1033,10 @@ class ElectricActuatorConstructor(models.Model):
         result = result.replace('{voltage}', self._get_option_encoding('selected_power_supply'))
         result = result.replace('{exd}', self._get_option_encoding('selected_exd'))
         result = result.replace('{control_unit}', self._get_option_encoding('selected_control_unit_option'))
+        # {cu_name} — номенклатура TemplateMixin: код БУ из CU_EXT (BA/LCU/INT/AINT...)
+        from electric_actuators.services.ea_ext_code import CU_EXT
+        cu = self.selected_control_unit_option
+        result = result.replace('{cu_name}', CU_EXT.get(cu.code, cu.code) if cu else '')
 
         # Очистка
         result = re.sub(r'\.{2,}', '.', result)
@@ -1451,7 +1646,10 @@ class ElectricActuatorConstructor(models.Model):
 
         self.name = self.generated_model_item_code
         self.code = self.generated_model_item_code
-        self.description = self._generate_short_description()
+        # Описание — из шаблона (серия → EquipmentType 'electric-actuator');
+        # name/description НЕ пересобираются TemplateMixin.save
+        # (name — артикул, не шаблонное имя).
+        self.description = self.generate_description() or self._generate_short_description()
 
         duplicate_message = self._check_for_duplicates()
         if duplicate_message:
@@ -1461,7 +1659,7 @@ class ElectricActuatorConstructor(models.Model):
         else:
             self.is_unique = True
 
-        super().save(*args, **kwargs)
+        super().save(skip_auto_generate=True, *args, **kwargs)
 
     # ==================== ДУБЛИРОВАНИЕ ====================
 

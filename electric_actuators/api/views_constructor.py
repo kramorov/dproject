@@ -264,17 +264,30 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         Принимает: selected_model_line_item, + опции.
         Возвращает: {name, code, description, tech_description}.
         """
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(
+            request.headers.get('Accept-Language'))
         obj = self._build_from_request(request)
+        # Строки матрицы для плейсхолдеров cu_/ctl_/fb_ (превью без сохранения)
+        ids = [int(x) for x in (request.data.get('selected_matrix_rows') or [])
+               if str(x).isdigit()]
+        if ids:
+            from electric_actuators.models import EaSignalMatrixEntry
+            obj._preview_matrix_rows = list(
+                EaSignalMatrixEntry.objects.filter(pk__in=ids).select_related(
+                    'slot', 'option', 'control_signal', 'feedback_signal',
+                    'protocol', 'device', 'heater_supply'))
         # Генерация без сохранения
         obj._ensure_valid_options()
         if obj.selected_temperature:
             obj.work_temp_min = obj.selected_temperature.work_temp_min
             obj.work_temp_max = obj.selected_temperature.work_temp_max
+        description = obj.generate_description(locale=locale)
         return Response({
             'name': obj.generated_model_item_code,
             'code': obj.generated_model_item_code,
-            'description': obj._generate_short_description(),
-            'tech_description': obj._generate_tech_description(),
+            'description': description,
+            'tech_description': description.replace('\n', '<br>'),
         })
 
     # --- serialization helpers ---
