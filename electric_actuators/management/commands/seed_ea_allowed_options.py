@@ -361,6 +361,7 @@ class Command(BaseCommand):
         # теплозащита — только Q.
         from electric_actuators.models.ea_allowed_options import \
             resolve_cu_pair
+        from electric_actuators.models import EaFeedbackSignal
         PROFILE_COMMON = {
             'basic': [
                 ('LIMIT_SWITCHES', 'END_SPDT', 'std'),
@@ -428,20 +429,34 @@ class Command(BaseCommand):
                             'AR11E005-010'}  # Q 005-008-010
         NO_DPDT_WAY_BODIES = {'AR01E005-008'}
         option_by_code = {o.code: o for o in EaSlotOption.objects.all()}
+        fb_by_code = {f.code: f for f in EaFeedbackSignal.objects.all()}
+        FB_PAIR_CODES = {
+            'END_SPDT': ('FB_END_OPEN_SPDT', 'FB_END_CLOSE_SPDT'),
+            'END_DPDT': ('FB_END_OPEN_DPDT', 'FB_END_CLOSE_DPDT'),
+            'WAY_SPDT': ('FB_WAY_OPEN_SPDT', 'FB_WAY_CLOSE_SPDT'),
+            'WAY_DPDT': ('FB_WAY_OPEN_DPDT', 'FB_WAY_CLOSE_DPDT'),
+            'TORQUE_SPDT': ('FB_TORQUE_OPEN_SPDT', 'FB_TORQUE_CLOSE_SPDT'),
+            'TORQUE_DPDT': ('FB_TORQUE_OPEN_DPDT', 'FB_TORQUE_CLOSE_DPDT'),
+        }
         pair_cache = {}
         for line_code, body_codes in SERIES_BODIES.items():
             line = ElectricActuatorModelLine.objects.get(code=line_code)
             items = list(ElectricActuatorModelLineItem.objects.filter(
                 model_line=line).select_related('body'))
             # Старые body-строки (заливка AOX v2) заменяются item-строками:
-            # удаляем, чтобы резолвер не выдавал дубли сигналов.
+            # удаляем, чтобы резолвер не выдавал дубли сигналов. item-строки
+            # тоже перезаливаются (идемпотентно, bulk) — сигнальные ссылки
+            # (OPEN/CLOSE, control_signal) должны соответствовать каталогу.
             EaSignalMatrixEntry.objects.filter(
                 body__code__in=body_codes).delete()
+            EaSignalMatrixEntry.objects.filter(
+                model_line_item__model_line=line).delete()
             # Пакетная заливка: ключи существующих строк одним запросом
             existing = set(EaSignalMatrixEntry.objects.filter(
                 model_line_item__model_line=line).values_list(
                 'model_line_item_id', 'control_unit_id', 'power_supply_id',
-                'slot_id', 'option_id'))
+                'slot_id', 'option_id', 'feedback_signal_id',
+                'control_signal_id'))
             to_create = []
             for item in items:
                 body_code = item.body.code if item.body_id else ''
@@ -476,13 +491,44 @@ class Command(BaseCommand):
                                 '%s:%s' % (slot_code, opt_suffix))
                             if opt is None:
                                 continue
+                            pair_codes = FB_PAIR_CODES.get(opt_suffix)
+                            if pair_codes:
+                                # Пара контактов — две строки OPEN/CLOSE
+                                # (единый bundle), как в заливке AOX v2.
+                                bundle = '%s:%s:both' % (
+                                    opt_suffix, item.code)
+                                for fb_code in pair_codes:
+                                    fb = fb_by_code.get(fb_code)
+                                    if fb is None:
+                                        continue
+                                    if (item.pk, tpl_cu.pk, ps[ps_code].pk,
+                                            opt.slot_id, opt.pk, fb.pk,
+                                            None) in existing:
+                                        continue
+                                    to_create.append(EaSignalMatrixEntry(
+                                        model_line_item=item,
+                                        control_unit=tpl_cu,
+                                        power_supply=ps[ps_code],
+                                        mode='both', slot=opt.slot,
+                                        option=opt, feedback_signal=fb,
+                                        availability=availability,
+                                        is_default=(availability == 'std'),
+                                        name=opt.name, bundle=bundle))
+                                continue
                             if (item.pk, tpl_cu.pk, ps[ps_code].pk,
-                                    opt.slot_id, opt.pk) in existing:
+                                    opt.slot_id, opt.pk,
+                                    opt.feedback_signal_id,
+                                    opt.control_signal_id) in existing:
                                 continue
                             to_create.append(EaSignalMatrixEntry(
                                 model_line_item=item, control_unit=tpl_cu,
                                 power_supply=ps[ps_code], mode='both',
                                 slot=opt.slot, option=opt,
+                                feedback_signal=opt.feedback_signal,
+                                control_signal=opt.control_signal,
+                                protocol=opt.protocol,
+                                heater_supply=opt.heater_supply,
+                                device=opt.device,
                                 availability=availability,
                                 is_default=(availability == 'std'),
                                 name=opt.name))
