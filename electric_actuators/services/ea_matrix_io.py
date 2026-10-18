@@ -543,7 +543,8 @@ def _matrix_availability_map(item, cu, ps):
 def export_wide_rows(model_line_code):
     """Широкая матрица серии: (headers, rows) — модель × напряжение ×
     (БУ × сигналы). Значения std/opt/no/''."""
-    from electric_actuators.models.ea_allowed_options import resolve_cu_pair
+    from electric_actuators.models.ea_allowed_options import (
+        resolve_cu_pair, AllowedControlUnitOption)
     line = ElectricActuatorModelLine.objects.get(code=model_line_code)
     items = list(ElectricActuatorModelLineItem.objects.filter(
         model_line=line).select_related('body').order_by('code'))
@@ -552,6 +553,13 @@ def export_wide_rows(model_line_code):
         is_active=True).order_by('sorting_order'))
 
     headers = ['series_code', 'item_code', 'body_code', 'power_supply']
+    # Типы БУ серии (из разрешённых пар) — столбцы ссылок на листы сигналов
+    cu_series = list(AllowedControlUnitOption.objects.filter(
+        model_line=line, is_active=True).order_by().values_list(
+        'control_unit__code', flat=True).distinct())
+    cu_series.sort(key=lambda c: CU_GROUPS.index(c)
+                   if c in CU_GROUPS else len(CU_GROUPS))
+    headers += [f'cu_ref|{c}' for c in cu_series]
     # Каталоги none-опций слотов (все опции в моделях — колонки не хардкодятся)
     opt_codes = {}
     for prefix, slot_code in OPTION_SLOT_GROUPS:
@@ -599,8 +607,50 @@ def export_wide_rows(model_line_code):
                     for h in HEATER_CODES:
                         row[f'{cu_code}|heater|{h}'] = avail.get(
                             'heater:' + h, '')
+            # Столбцы ссылок на листы сигналов БУ
+            for cu_code in cu_series:
+                cu_r = cus.get(cu_code)
+                pair = resolve_cu_pair(line, item, cu_r, ps) if cu_r else None
+                row[f'cu_ref|{cu_code}'] = ('signals|' + cu_code
+                                            if pair is not None else 'n/a')
             rows.append(row)
     return headers, rows
+
+
+def export_cu_signal_sheets(model_line_code):
+    """Листы сигналов БУ: для каждого типа БУ серии — таблица профильных
+    строк (сигнальный профиль БУ). Возвращает list[(sheet_name, fields, rows)]."""
+    from electric_actuators.models.ea_allowed_options import \
+        AllowedControlUnitOption
+    line = ElectricActuatorModelLine.objects.get(code=model_line_code)
+    cu_codes = list(AllowedControlUnitOption.objects.filter(
+        model_line=line, is_active=True).order_by().values_list(
+        'control_unit__code', flat=True).distinct())
+    cu_codes.sort(key=lambda c: CU_GROUPS.index(c)
+                  if c in CU_GROUPS else len(CU_GROUPS))
+    fields = ['control_unit', 'power_supply', 'mode', 'slot', 'option',
+              'name', 'availability', 'is_default', 'ext_encoding']
+    sheets = []
+    for cu_code in cu_codes:
+        rows_qs = EaSignalMatrixEntry.objects.filter(
+            control_unit__code=cu_code,
+            brand__isnull=True, model_line__isnull=True,
+            body__isnull=True, model_line_item__isnull=True
+        ).select_related('control_unit', 'power_supply', 'slot', 'option')
+        rows = [{
+            'control_unit': cu_code,
+            'power_supply': r.power_supply.code if r.power_supply_id else '',
+            'mode': r.mode,
+            'slot': r.slot.code if r.slot_id else '',
+            'option': r.option.code if r.option_id else '',
+            'name': r.name or (r.option.name if r.option_id else ''),
+            'availability': r.availability,
+            'is_default': bool(r.is_default),
+            'ext_encoding': (r.option.ext_encoding if r.option_id else '')
+                            or r.ext_encoding or '',
+        } for r in rows_qs]
+        sheets.append(('signals|' + cu_code, fields, rows))
+    return sheets
 
 
 def export_device_rows(model_line_code):
@@ -646,7 +696,7 @@ def export_device_rows(model_line_code):
 
 
 def write_wide_xlsx(path, wide_headers, wide_rows, device_fields,
-                    device_rows, extra_sheets=None):
+                    device_rows, extra_sheets=None, cu_sheets=None):
     import openpyxl
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -654,6 +704,22 @@ def write_wide_xlsx(path, wide_headers, wide_rows, device_fields,
     ws.append(wide_headers)
     for row in wide_rows:
         ws.append([row.get(f, '') for f in wide_headers])
+    # Листы сигналов БУ + гиперссылки из столбцов cu_ref|...
+    cu_cols = [i for i, h in enumerate(wide_headers)
+               if str(h).startswith('cu_ref|')]
+    if cu_sheets:
+        for sheet_name, fields, sheet_rows in cu_sheets:
+            wcu = wb.create_sheet(sheet_name)
+            wcu.append(fields)
+            for row in sheet_rows:
+                wcu.append([row.get(f, '') for f in fields])
+        if cu_cols:
+            for row in ws.iter_rows(min_row=2, max_col=len(wide_headers)):
+                for ci in cu_cols:
+                    cell = row[ci]
+                    if cell.value and str(cell.value) != 'n/a':
+                        cell.hyperlink = "#'%s'!A1" % cell.value
+                        cell.style = 'Hyperlink'
     ws2 = wb.create_sheet('device')
     ws2.append(device_fields)
     for row in device_rows:

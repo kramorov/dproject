@@ -497,6 +497,29 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
             ws3.append(fields)
             for row in sheet_rows:
                 ws3.append([row.get(f, '') for f in fields])
+        # Листы сигналов БУ (одинаковый профиль — один лист на тип БУ)
+        cu_sheets = {}
+        for line in queryset:
+            if not line.code:
+                continue
+            for name, fields, sheet_rows in \
+                    ea_matrix_io.export_cu_signal_sheets(line.code):
+                cu_sheets.setdefault(name, (fields, sheet_rows))
+        for sheet_name, (fields, sheet_rows) in cu_sheets.items():
+            ws4 = wb.create_sheet(sheet_name)
+            ws4.append(fields)
+            for row in sheet_rows:
+                ws4.append([row.get(f, '') for f in fields])
+        # Гиперссылки из столбцов cu_ref|... основного листа
+        cu_cols = [i for i, h in enumerate(headers or [])
+                   if str(h).startswith('cu_ref|')]
+        if cu_cols:
+            for row in ws.iter_rows(min_row=2, max_col=len(headers or [])):
+                for ci in cu_cols:
+                    cell = row[ci]
+                    if cell.value and str(cell.value) != 'n/a':
+                        cell.hyperlink = "#'%s'!A1" % cell.value
+                        cell.style = 'Hyperlink'
         buf = io.BytesIO()
         wb.save(buf)
         resp = HttpResponse(

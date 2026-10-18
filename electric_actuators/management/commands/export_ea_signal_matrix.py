@@ -19,9 +19,10 @@ class Command(BaseCommand):
         headers, rows = ea_matrix_io.export_wide_rows(options['series'])
         d_fields, d_rows = ea_matrix_io.export_device_rows(options['series'])
         extra = ea_matrix_io.export_extra_sheets(options['series'])
+        cu_sheets = ea_matrix_io.export_cu_signal_sheets(options['series'])
         path = options['output'] or f'ea_matrix_{options["series"]}.xlsx'
         ea_matrix_io.write_wide_xlsx(path, headers, rows, d_fields, d_rows,
-                                     extra_sheets=extra)
+                                     extra_sheets=extra, cu_sheets=cu_sheets)
         self.stdout.write(self.style.SUCCESS(
             f'{path}: {len(rows)} строк x {len(headers)} колонок + листы '
-            f'{[s[0] for s in extra]}'))
+            f'{[s[0] for s in extra + cu_sheets]}'))

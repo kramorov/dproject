@@ -23,6 +23,29 @@ python manage.py generate_pa_cards
 В фитинги вставить поле материал уплотнительного кольца
 В ЭП блоки управления опцию "Запирающий механизм" - есть нет.
 
+ что означает "Both web tools are denied — the search backend is api.deepseek.com and requires network approval. The network policy blocks it."
 
+- https://www.auma.com/en_001/products/multi-turn-actuators (SA/SAR .2)
+- https://www.auma.com/en_001/service-support/document-finder (поиск документации)
+- https://www.rotork.com/en/products-and-services/electric-actuators/iq-range (IQ3/IQT3)
+- https://www.rotork.com/en/document-library (Rotork doc library)
+- auma-usa.com cross reference: https://www.auma-usa.com/en/... unknown; suggest site search.
+
+
+ E:\work\Контроль\Проект_приводы\Конкуренты_каталоги\AUMA и E:\work\Контроль\Проект_приводы\Конкуренты_каталоги\Rotork
+ 
+AUMA (проверяем коды разд. 10: RWG/EWG/MWG/WSR/DSR/TSR, AUMATIC):
+
+- https://www.auma.com/en_001/products/multi-turn-actuators — многооборотные SA/SAR
+- https://www.auma.com/en_001/products/actuator-controls-aumatic — блок управления AUMATIC AC.2
+- https://www.auma.com/en_001/service-support/document-finder — поиск документации
+
+Качай: брошюру/каталог серии SA 07.1–SA 48.1 / SAR 07.1–SAR 30.1 (там таблица опций: RWG 4020, EWG, MWG, WSR, DSR, TSR + электрические схемы) и описание AUMATIC AC 01.2/AC.2 (сигналы управления, шины Profibus/Modbus/FF, HART).
+
+ROTORK (проверяем IQ3: CPT, контакты S1–S4, напряжения управления, Pakscan/HART):
+
+- https://www.rotork.com/en/products-and-services/electric-actuators/iq-range — линейка IQ
+- https://www.rotork.com/en/document-library — библиотека документов
+Пропиши максимальное количество оборотов для механических счетчиков: AR21E007 - 321,AR21E010 - 228, AR21E020 - 180, AR21E050 - 180, AR21E060, AR21E080,AR21E100,- 144
 
 
