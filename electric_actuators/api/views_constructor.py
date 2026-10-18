@@ -98,6 +98,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         # Проверка дубликата: если конфигурация уже существует — возвращаем её
         existing_msg = obj._check_for_duplicates()
         if existing_msg:
+            # Дубликат: сигнальные опции применяем к найденной конфигурации
             existing = ElectricActuatorConstructor.objects.filter(
                 selected_model_line_item=obj.selected_model_line_item,
                 selected_power_supply=obj.selected_power_supply,
@@ -114,14 +115,12 @@ class ConstructorViewSet(viewsets.ModelViewSet):
                 is_active=True,
             ).first()
             if existing:
+                if 'selected_matrix_rows' in request.data:
+                    self._set_matrix_rows(existing, request.data)
                 return Response(self._serialize_detail(existing), status=status.HTTP_200_OK)
         obj.save()
         if 'selected_matrix_rows' in request.data:
-            from electric_actuators.models import EaSignalMatrixEntry
-            ids = [int(x) for x in request.data['selected_matrix_rows']
-                   if str(x).isdigit()]
-            obj.selected_matrix_rows.set(
-                EaSignalMatrixEntry.objects.filter(pk__in=ids))
+            self._set_matrix_rows(obj, request.data)
         return Response(self._serialize_detail(obj), status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
@@ -144,13 +143,42 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         if 'is_active' in request.data:
             obj.is_active = request.data['is_active']
         if 'selected_matrix_rows' in request.data:
-            from electric_actuators.models import EaSignalMatrixEntry
-            ids = [int(x) for x in request.data['selected_matrix_rows']
-                   if str(x).isdigit()]
-            obj.selected_matrix_rows.set(
-                EaSignalMatrixEntry.objects.filter(pk__in=ids))
+            self._set_matrix_rows(obj, request.data)
         obj.save()
         return Response(self._serialize_detail(obj))
+
+    @staticmethod
+    def _parse_matrix_row_ids(data):
+        """Список id строк матрицы из запроса (валидные числа)."""
+        return [int(x) for x in data if str(x).isdigit()]
+
+    def _valid_matrix_row_ids(self, obj):
+        """Валидные id строк сигнального профиля для конфигурации.
+        None — проверить нельзя (не хватает модели/БУ/напряжения)."""
+        if not (obj.selected_model_line_item_id
+                and obj.selected_control_unit_option_id
+                and obj.selected_power_supply_id):
+            return None
+        try:
+            from electric_actuators.services.ea_configurator_data import (
+                configurator_signal_data)
+            sig = configurator_signal_data(
+                obj.selected_model_line_item,
+                obj.selected_control_unit_option,
+                obj.selected_power_supply.power_supply,
+                'on_off')
+            return {row['id'] for slot in sig['slots'] for row in slot['rows']}
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _set_matrix_rows(self, obj, data):
+        from electric_actuators.models import EaSignalMatrixEntry
+        ids = self._parse_matrix_row_ids(data.get('selected_matrix_rows') or [])
+        valid = self._valid_matrix_row_ids(obj)
+        if valid is not None:
+            ids = [i for i in ids if i in valid]
+        obj.selected_matrix_rows.set(
+            EaSignalMatrixEntry.objects.filter(pk__in=ids))
 
     def destroy(self, request, *args, **kwargs):
         obj = self.get_object()

@@ -69,7 +69,7 @@
         <div class="options-grid">
           <div class="form-row" v-for="opt in standardOptionFields" :key="opt.key">
             <label>{{ opt.label }}</label>
-            <select v-model="form[opt.key]" :disabled="opt.disabled" @change="opt.key === 'selected_control_unit_option' && onControlUnitChange()">
+            <select v-model="form[opt.key]" :disabled="opt.disabled">
               <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
                 {{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}
               </option>
@@ -83,14 +83,14 @@
           <div class="options-grid">
             <div class="form-row" v-for="opt in powerDependentOptions" :key="opt.key">
               <label>{{ opt.label }}</label>
-              <select v-model="form[opt.key]" :disabled="opt.disabled">
+              <select v-model="form[opt.key]" :disabled="opt.disabled" @change="opt.key === 'selected_control_unit_option' && onControlUnitChange()">
                 <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
                   {{ o.name }}{{ o.is_default ? ' (стандарт)' : '' }}
                 </option>
               </select>
             </div>
           </div>
-        
+        </template>
 
         <!-- Сигнальные опции блока управления -->
         <template v-if="signalSlots.length">
@@ -106,7 +106,6 @@
             </div>
           </div>
         </template>
-</template>
       </template>
 
       <div class="preview" v-if="previewText">
@@ -308,15 +307,18 @@ async function loadItem(item) {
 
     form.selected_model_line_item = d.model_line_item?.id || null
 
-    // Сначала восстанавливаем power_supply, потом грузим опции
-    if (d.selected_power_supply?.id) {
-      form.selected_power_supply = d.selected_power_supply.id
-    }
+    // Восстанавливаем питание/БУ ДО загрузки опций — иначе signal_slots пусты
+    if (d.selected_power_supply?.id) form.selected_power_supply = d.selected_power_supply.id
+    if (d.selected_safety_position?.id) form.selected_safety_position = d.selected_safety_position.id
+    if (d.selected_control_unit_option?.id) form.selected_control_unit_option = d.selected_control_unit_option.id
 
-    // Загружаем опции (с power_supply_id если есть)
+    // Загружаем опции (с power_supply_id и control_unit_id)
     if (form.selected_model_line_item) {
       options.value = (await loadOptions()).data
+      Object.keys(signalSelection).forEach(k => delete signalSelection[k])
       autoFillFromData(d)
+      form.selected_matrix_rows = Array.isArray(d.selected_matrix_rows)
+        ? [...d.selected_matrix_rows] : []
     }
 
     previewText.value = d.description || ''
@@ -336,19 +338,13 @@ function autoFillFromData(d) {
   for (const key of Object.keys(STANDARD_OPTIONS)) {
     if (d[key]?.id) form[key] = d[key].id
   }
-  // Напряжение
-  if (d.selected_power_supply?.id) {
-    form.selected_power_supply = d.selected_power_supply.id
-  }
-  // Зависимые от напряжения
-  if (d.selected_safety_position?.id) form.selected_safety_position = d.selected_safety_position.id
-  if (d.selected_control_unit_option?.id) form.selected_control_unit_option = d.selected_control_unit_option.id
 }
 
 // --- cascade ---
 async function onModelLineChange() {
   form.selected_model_line_item = null; form.selected_power_supply = null
   modelLineItems.value = []; options.value = null; previewText.value = ''
+  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
   if (!form.selected_model_line) return
   try { modelLineItems.value = (await api.getModelLineItems(form.selected_model_line)).data }
   catch (e) { showMessage('Ошибка загрузки моделей', 'error') }
@@ -357,6 +353,7 @@ async function onModelLineChange() {
 async function onModelLineItemChange() {
   form.selected_power_supply = null
   options.value = null; previewText.value = ''
+  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
   if (!form.selected_model_line_item) return
   try {
     options.value = (await loadOptions()).data
@@ -370,6 +367,9 @@ async function onPowerSupplyChange() {
     // Перезагружаем опции с power_supply_id — получаем safety_position + control_unit
     options.value = (await loadOptions()).data
     autoFillPowerDependent()
+    // Строки профиля БУ зависят от напряжения — сбрасываем и заполняем заново
+    Object.keys(signalSelection).forEach(k => delete signalSelection[k])
+    autoFillSignalDefaults()
   } catch (e) { showMessage('Ошибка загрузки опций', 'error') }
 }
 
@@ -428,6 +428,7 @@ async function save() {
 
 function resetForm() {
   Object.assign(form, defaultForm())
+  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
   options.value = null; modelLineItems.value = []
   previewText.value = ''; techDescription.value = ''
 }
