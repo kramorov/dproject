@@ -101,6 +101,13 @@ class EaSignalMatrixEntry(CopyMixin, LocalizedDictFieldsMixin):
         verbose_name=_("Слот"),
         help_text=_("Группа взаимоисключающих опций (single-choice)")
     )
+    option = models.ForeignKey(
+        'EaSlotOption', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Опция слота"),
+        help_text=_("Ссылка на каталог опций слота (каркас выгрузки); пусто — "
+                    "строка вне каталога")
+    )
     bundle = models.CharField(
         max_length=50, null=True, blank=True,
         verbose_name=_("Пакет"),
@@ -231,6 +238,12 @@ class EaSignalMatrixEntry(CopyMixin, LocalizedDictFieldsMixin):
         if self.availability == EaAvailability.OPT:
             return f'{base} ({_("Опция")})'
         return base
+
+    def save(self, *args, **kwargs):
+        """std-строки всегда помечаются предвыбором (is_default=True)."""
+        if self.availability == EaAvailability.STD:
+            self.is_default = True
+        super().save(*args, **kwargs)
 
     def clean(self):
         super().clean()

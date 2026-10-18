@@ -471,7 +471,8 @@ class AllowedControlUnitOptionInline(admin.TabularInline) :
     fk_name = 'model_line'
     extra = 0
     ordering = ['sorting_order']
-    fields = ['control_unit' , 'encoding' , 'is_active' , 'sorting_order']
+    fields = ['control_unit' , 'power_supply' , 'cu_power_supply' ,
+              'encoding' , 'is_active' , 'sorting_order']
     verbose_name = _("Разрешённый БУ")
     verbose_name_plural = _("Разрешённые БУ для серии")
 

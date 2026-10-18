@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from electric_actuators.models import (
     EaSignalForm, EaControlSignal, EaFeedbackSignal, EaCommProtocol,
     EaFeedbackDevice, EaSignalSlot, ElectricTemperatureOption,
+    EaSlotOption,
 )
 
 
@@ -262,6 +263,121 @@ class Command(BaseCommand):
         # Обогрев привода ушёл в температурную опцию (плоская шкала LT/VLT)
         for code in ('HEATER_ACTUATOR',):
             EaSignalSlot.objects.filter(code=code).update(is_active=False)
+
+        # --- Опции слотов (каталог для каркаса выгрузки и конфигуратора) ---
+        from electric_actuators.models import EaSlotOption
+        slot_opts = {
+            'LOCAL_CONTROL': [
+                ('BUTTONS', 'none', None, 'Кнопки Открыто/Закрыто/Стоп'),
+                ('SELECTOR', 'none', None, 'Селекторы Местное/Удалённое + Открыто/Закрыто/Стоп'),
+                ('NONE', 'none', None, 'Без органов управления (без БУ)'),
+            ],
+            'CMD': [
+                ('CMD_OCS_220AC', 'control', None, None),
+                ('CMD_OCS_24DC', 'control', None, None),
+                ('CMD_REMOTE_220AC', 'control', None, None),
+                ('CMD_REMOTE_24DC', 'control', None, None),
+                ('CMD_ESD_OPEN_24DC', 'control', None, None),
+                ('CMD_ESD_CLOSE_24DC', 'control', None, None),
+                ('CMD_MODE_24DC', 'control', None, None),
+                ('CMD_LOCK_24DC', 'control', None, None),
+                ('CMD_MANUAL_24DC', 'control', None, None),
+                ('CMD_INTERLOCK_OPEN_24DC', 'control', None, None),
+                ('CMD_INTERLOCK_CLOSE_24DC', 'control', None, None),
+                ('CMD_DRIVE_ENABLE_24DC', 'control', None, None),
+            ],
+            'SETPOINT': [
+                ('CMD_POS_4_20MA_ACTIVE', 'control', None, None),
+                ('CMD_POS_4_20MA_PASSIVE', 'control', None, None),
+            ],
+            'LIMIT_SWITCHES': [
+                ('END_SPDT', 'pair', None, 'Концевые SPDT (Откр/Закр)'),
+                ('END_DPDT', 'pair', None, 'Концевые DPDT (Откр/Закр)'),
+            ],
+            'WAY_SWITCHES': [
+                ('WAY_SPDT', 'pair', None, 'Промежуточные SPDT (Откр/Закр)'),
+                ('WAY_DPDT', 'pair', None, 'Промежуточные DPDT (Откр/Закр)'),
+            ],
+            'TORQUE_SWITCHES': [
+                ('TORQUE_SPDT', 'pair', None, 'Моментные SPDT (Откр/Закр)'),
+                ('TORQUE_DPDT', 'pair', None, 'Моментные DPDT (Откр/Закр)'),
+            ],
+            'POSITION_FEEDBACK': [
+                ('FB_POS_4_20MA_ACTIVE', 'signal', None, None),
+                ('FB_POS_4_20MA_ACTIVE_HART', 'signal', None, None),
+                ('FB_POS_4_20MA_PASSIVE', 'signal', None, None),
+                ('FB_POS_4_20MA_PASSIVE_HART', 'signal', None, None),
+                ('FB_POS_POT_1K', 'signal', None, None),
+            ],
+            'PROTOCOL': [
+                ('MODBUS_RTU', 'protocol', None, None),
+                ('MODBUS_TCP', 'protocol', None, None),
+                ('PROFIBUS_DP', 'protocol', None, None),
+                ('PROFINET', 'protocol', None, None),
+                ('FOUNDATION_FIELDBUS', 'protocol', None, None),
+                ('PAKSCAN', 'protocol', None, None),
+                ('DEVICENET', 'protocol', None, None),
+                ('ETHERNET_IP', 'protocol', None, None),
+            ],
+            'THERMAL_SENSOR': [
+                ('NO_SENSOR', 'none', None, 'Нет датчика температуры'),
+                ('THERMAL_NO_OUTPUT', 'none', 'THERMAL_RELAY',
+                 'Датчик температуры без выхода ОС'),
+                ('FB_OVERHEAT_NC', 'signal', 'THERMAL_RELAY', None),
+                ('FB_OVERHEAT_SPDT', 'signal', 'THERMAL_RELAY', None),
+            ],
+            'HEATER_CONTROL_UNIT': [
+                ('NO_HEATER', 'heater', None, 'Нет обогрева БУ'),
+                ('CU_CIRCUIT', 'heater', None, 'От цепей питания БУ'),
+                ('SEPARATE_LINE', 'heater', None, 'Отдельная линия'),
+            ],
+            'INDICATOR': [
+                ('LED_SET', 'none', None,
+                 'Светодиоды ОТКРЫТО/ЗАКРЫТО/ХОД/АВАРИЯ/СТОП'),
+                ('BLINKER', 'none', None, 'Блинкер (мигающий светодиод)'),
+                ('LED_SET_BLINKER', 'none', None, 'Светодиоды + блинкер'),
+                ('LCD_POSITION', 'none', None, 'LCD-индикация позиции'),
+                ('LCD_BLINKER', 'none', None, 'LCD + блинкер'),
+            ],
+            'TURN_COUNTER': [
+                ('NONE', 'none', None, 'Без счётчика оборотов'),
+                ('MECH', 'none', None, 'Механический счётчик'),
+                ('ELECTRONIC', 'none', None, 'Электронный счётчик (в БУ)'),
+                ('MECH_ELEC', 'none', None, 'Механический + электронный'),
+                ('MECH_FB', 'none', None, 'Механический с ОС от него'),
+                ('MECH_ELEC_FB', 'none', None,
+                 'Механический + электронный, ОС от механического'),
+            ],
+        }
+        slot_opt_stats = {'total': 0, 'new': 0}
+        for slot_code, opts in slot_opts.items():
+            slot = EaSignalSlot.objects.get(code=slot_code)
+            for code, kind, device_code, name in opts:
+                defaults = {'slot': slot, 'kind': kind}
+                if kind == 'control':
+                    defaults['control_signal'] = EaControlSignal.objects.get(
+                        code=code)
+                elif kind == 'protocol':
+                    defaults['protocol'] = EaCommProtocol.objects.get(code=code)
+                elif kind == 'signal':
+                    defaults['feedback_signal'] = EaFeedbackSignal.objects.get(
+                        code=code)
+                elif kind == 'heater':
+                    from params.models import ActuatorHeaterSupply
+                    defaults['heater_supply'] = (
+                        ActuatorHeaterSupply.objects.get(code=code))
+                if device_code:
+                    defaults['device'] = EaFeedbackDevice.objects.get(
+                        code=device_code)
+                if name:
+                    defaults['name'] = name
+                _, created = EaSlotOption.objects.get_or_create(
+                    code=f'{slot_code}:{code}', defaults=defaults)
+                slot_opt_stats['total'] += 1
+                slot_opt_stats['new'] += int(created)
+        self.stdout.write(
+            f'Опции слотов: {slot_opt_stats["total"]} '
+            f'({slot_opt_stats["new"]} новых)')
 
         self.stdout.write(self.style.SUCCESS(
             'Seed завершён. Всего (создано новых):'))

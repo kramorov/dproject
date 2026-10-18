@@ -37,7 +37,7 @@ from django.core.management.base import BaseCommand
 
 from electric_actuators.models import (
     EaSignalSlot, EaFeedbackSignal, EaFeedbackDevice, EaSignalMatrixEntry,
-    ElectricActuatorModelLineItem,
+    EaSlotOption, ElectricActuatorModelLineItem,
 )
 from params.models import ControlUnitInstalledOption, PowerSupplies, ActuatorHeaterSupply
 
@@ -174,6 +174,7 @@ class Command(BaseCommand):
                   for code in ('SEPARATE_LINE', 'CU_CIRCUIT')}
         slots = {s.code: s for s in EaSignalSlot.objects.all()}
         signals = {s.code: s for s in EaFeedbackSignal.objects.all()}
+        opt_by_code = {o.code: o for o in EaSlotOption.objects.all()}
         transmitter = EaFeedbackDevice.objects.get(code='TRANSMITTER_4_20')
         thermal_relay = EaFeedbackDevice.objects.get(code='THERMAL_RELAY')
         col_status = _column_statuses(ws)
@@ -217,12 +218,13 @@ class Command(BaseCommand):
                 return
             bundle = _bundle(pair, mode, scope_code)
             kind, contact = pair.split('_', 1)  # 'END', 'SPDT'
+            option = opt_by_code.get(f'{slot_code}:{pair}')
             for pos in ('OPEN', 'CLOSE'):
                 sig_code = f'FB_{kind}_{pos}_{contact}'
                 _add(control_unit=cu, power_supply=ps_220, mode=mode,
                      slot=slots[slot_code], feedback_signal=signals[sig_code],
                      availability=avail, is_default=(avail == 'std'),
-                     bundle=bundle, **scope)
+                     bundle=bundle, option=option, **scope)
 
         for r, name, item, scope, scope_code in excel_rows:
             # Basic FB (аналог + трансмиттер)
@@ -235,6 +237,7 @@ class Command(BaseCommand):
                     control_unit=cu_none, power_supply=ps_220,
                     mode=BASIC_MODE[col], slot=slots[slot_code],
                     feedback_signal=signals[sig_code],
+                    option=opt_by_code.get(f'{slot_code}:{sig_code}'),
                     availability=avail, is_default=(avail == 'std'),
                     **scope)
                 if col in (19, 20):
@@ -252,6 +255,7 @@ class Command(BaseCommand):
                     mode=BASIC_MODE[col], slot=slots['THERMAL_SENSOR'],
                     feedback_signal=signals[sig_code],
                     device=thermal_relay,
+                    option=opt_by_code.get(f'THERMAL_SENSOR:{sig_code}'),
                     availability=avail, is_default=(avail == 'std'),
                     **scope))
 
@@ -273,6 +277,7 @@ class Command(BaseCommand):
                         power_supply=ps_220, mode='both',
                         slot=slots[slot_code],
                         feedback_signal=signals[sig_code],
+                        option=opt_by_code.get(f'{slot_code}:{sig_code}'),
                         availability=avail, is_default=(avail == 'std'),
                         **scope)
                     if base == 49:
@@ -299,6 +304,7 @@ class Command(BaseCommand):
                         slot=slots['THERMAL_SENSOR'],
                         feedback_signal=signals[sig_code],
                         device=thermal_relay,
+                        option=opt_by_code.get(f'THERMAL_SENSOR:{sig_code}'),
                         availability=avail, is_default=(avail == 'std'),
                         **scope))
 
@@ -315,6 +321,7 @@ class Command(BaseCommand):
                         power_supply=ps_220, mode='both',
                         slot=slots[slot_code],
                         heater_supply=heater[heater_code],
+                        option=opt_by_code.get(f'{slot_code}:{heater_code}'),
                         availability=avail, is_default=(avail == 'std'),
                         **scope))
 

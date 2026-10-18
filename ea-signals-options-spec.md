@@ -190,10 +190,12 @@ JSONField `ControlUnitInstalledOption.capabilities`.
    не матрица (обогрев привода — в температурные строки data-миграцией);
    перезаливка delete-first.
 3. **Экспорт-каркас + импорт (13.3):** полная таблица: все модели × пары
-   БУ×напряжение (из матрицы серии/бренда + legacy ElectricPowerSupplyOption×
-   ElectricControlUnitOption) × режимы × слоты × опции слота; пустые ячейки
-   пропускаются импортом; std/opt — upsert, na — запрет; device по коду;
-   новые пары (380/24DC) — из заполненного Excel.
+   БУ×напряжение (из матрицы серии/бренда + `AllowedControlUnitOption` — новая
+   связка «разрешённые БУ×напряжение», значения в неё перенесены из старой
+   схемы ОДНОКРАТНОЙ data-миграцией 0058) × режимы × слоты × опции слота
+   (каталог `EaSlotOption`); пустые ячейки пропускаются импортом; std/opt —
+   upsert, na — запрет; device по коду; новые пары (380/24DC) — из заполненного
+   Excel.
 4. **Резолвер (13.4):** THERMAL_SENSOR/HEATER_CONTROL_UNIT/новые слоты —
    обычная логика; HEATER_CONTROL_UNIT скрыт для kind=NONE.
 5. **Ext-код (14):** ext_encoding на строках/опциях; ext_encoding_template

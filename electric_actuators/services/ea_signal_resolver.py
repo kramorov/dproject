@@ -67,6 +67,7 @@ def resolve_matrix(model_line_item, control_unit, power_supply, mode,
 
     effective = {}   # (slot_id, signal_key) -> row
     warnings = []
+    all_rows = []
     for scope in scope_levels:
         qs = EaSignalMatrixEntry.objects.filter(
             control_unit=control_unit, power_supply=power_supply,
@@ -76,6 +77,7 @@ def resolve_matrix(model_line_item, control_unit, power_supply, mode,
                                      'device', 'heater_supply'):
             if row.mode not in (EaMatrixMode.BOTH, mode):
                 continue
+            all_rows.append(row)
             key = (row.slot_id, _row_key(row))
             if row.availability == EaAvailability.NA:
                 if key in effective:
@@ -87,13 +89,12 @@ def resolve_matrix(model_line_item, control_unit, power_supply, mode,
                 effective[key] = row
 
     # Пакеты: атомарность — если часть строк пакета отсутствует, убираем пакет.
+    # Члены пакета ищутся ТОЛЬКО среди строк цепочки скоупов (не глобально) —
+    # одинаковые коды пакетов разных корпусов не мешают друг другу.
     bundle_codes = {r.bundle for r in effective.values() if r.bundle}
     for code in bundle_codes:
-        members = list(EaSignalMatrixEntry.objects.filter(
-            bundle=code, control_unit=control_unit, power_supply=power_supply,
-            availability__in=(EaAvailability.STD, EaAvailability.OPT)))
-        members = [m for m in members
-                   if m.mode in (EaMatrixMode.BOTH, mode)]
+        members = [r for r in all_rows
+                   if r.bundle == code and r.availability != EaAvailability.NA]
         present = {_row_key(m) for m in members}
         effective_keys = {_row_key(r) for r in effective.values()}
         if not present.issubset(effective_keys):
@@ -110,6 +111,10 @@ def resolve_matrix(model_line_item, control_unit, power_supply, mode,
     by_id = {r.pk: r for r in effective.values()}
     for slot in EaSignalSlot.objects.filter(is_active=True).order_by(
             'sorting_order', 'code'):
+        # Обогрев БУ — только для интеллектуальных БУ (нет БУ — нет обогрева)
+        if (slot.code == 'HEATER_CONTROL_UNIT'
+                and getattr(control_unit, 'kind', '') == 'NONE'):
+            continue
         rows = [r for (sid, _), r in effective.items() if sid == slot.pk]
         if not rows:
             continue

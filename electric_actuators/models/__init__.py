@@ -39,6 +39,7 @@ from .ea_signal_form import *
 from .ea_signals import *
 from .ea_comm_protocol import *
 from .ea_feedback_device import *
+from .ea_slot_option import *
 from .ea_signal_slot import *
 from .ea_signal_matrix import *
 
@@ -82,5 +83,6 @@ __all__ = [
     'EaSignalSlot',
     'EaSignalMatrixEntry',
     'EaWiringDiagramBinding',
+    'EaSlotOption',
 
 ]

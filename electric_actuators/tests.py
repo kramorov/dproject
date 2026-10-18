@@ -402,3 +402,76 @@ class EaCatalogExt1301Tests(TestCase):
             work_temp_min=-40, work_temp_max=70)
         self.assertEqual(temp.code, 'LT')
         self.assertEqual(temp.heater_supply.code, 'SEPARATE_LINE')
+
+
+class EaMatrixFrameworkTests(TestCase):
+    """Пакет 13.3: каркас выгрузки — все модели, пустые ячейки, is_default."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from electric_actuators.models import (
+            EaSignalMatrixEntry, EaSignalSlot, EaSlotOption, EaFeedbackSignal,
+            EaSignalForm, ElectricActuatorModelLine,
+            ElectricActuatorModelLineItem, ElectricActuatorBody,
+            ElectricActuatorBodyTable)
+        from producers.models import Brands
+        from params.models import ControlUnitInstalledOption, PowerSupplies
+        cls.brand = Brands.objects.create(name='AOX-F', code='AOX-F')
+        cls.line = ElectricActuatorModelLine.objects.create(
+            name='Серия F', description='', code='TF', brand=cls.brand)
+        cls.cu, _ = ControlUnitInstalledOption.objects.get_or_create(
+            code='none', defaults={'name': 'нет'})
+        cls.ps, _ = PowerSupplies.objects.get_or_create(
+            code='220-AC', defaults={'name': '220/50'})
+        cls.slot = EaSignalSlot.objects.create(
+            code='LIMIT_SWITCHES', name='Концевые')
+        form = EaSignalForm.objects.create(
+            code='DRY_SPDT', name='SPDT', category='contact')
+        cls.sig = EaFeedbackSignal.objects.create(
+            role='END_OPEN', category='contact', form=form,
+            code='FB_END_OPEN_SPDT', name='Конечное Открыто SPDT')
+        cls.opt = EaSlotOption.objects.create(
+            code='LIMIT_SWITCHES:FB_END_OPEN_SPDT', slot=cls.slot,
+            kind='signal', feedback_signal=cls.sig, name='Концевое SPDT')
+        table = ElectricActuatorBodyTable.objects.first()
+        cls.body1 = ElectricActuatorBody.objects.create(
+            name='Корпус F1', description='', model_line=cls.line,
+            body_table=table)
+        cls.body2 = ElectricActuatorBody.objects.create(
+            name='Корпус F2', description='', model_line=cls.line,
+            body_table=table)
+        cls.item1 = ElectricActuatorModelLineItem.objects.create(
+            name='F1', description='', code='F1', model_line=cls.line,
+            body=cls.body1)
+        cls.item2 = ElectricActuatorModelLineItem.objects.create(
+            name='F2', description='', code='F2', model_line=cls.line,
+            body=cls.body2)
+        EaSignalMatrixEntry.objects.create(
+            body=cls.body1, control_unit=cls.cu, power_supply=cls.ps,
+            mode='on_off', slot=cls.slot, feedback_signal=cls.sig,
+            option=cls.opt, availability='std')
+
+    def test_framework_covers_all_items(self):
+        from electric_actuators.services.ea_matrix_io import export_series_rows
+        rows = export_series_rows('TF')
+        item_codes = {r['item_code'] for r in rows}
+        self.assertEqual(item_codes, {'F1', 'F2'})
+        r1 = [r for r in rows if r['item_code'] == 'F1'
+              and r['option_code'] == 'LIMIT_SWITCHES:FB_END_OPEN_SPDT']
+        r2 = [r for r in rows if r['item_code'] == 'F2'
+              and r['option_code'] == 'LIMIT_SWITCHES:FB_END_OPEN_SPDT']
+        self.assertEqual(len(r1), 1)
+        self.assertEqual(r1[0]['availability'], 'std')
+        self.assertTrue(r1[0]['is_default'])  # std → default
+        self.assertEqual(len(r2), 1)
+        self.assertEqual(r2[0]['availability'], '')  # пустая ячейка каркаса
+
+    def test_import_skips_empty_cells(self):
+        from electric_actuators.services.ea_matrix_io import (
+            export_series_rows, apply_import)
+        rows = export_series_rows('TF')
+        stats = apply_import(rows)
+        self.assertEqual(stats['errors'], [])
+        # пустые ячейки пропущены: обновлена только существующая std-строка
+        self.assertEqual(stats['created'], 0)
+        self.assertEqual(stats['updated'], 1)

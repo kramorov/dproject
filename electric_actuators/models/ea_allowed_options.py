@@ -37,6 +37,13 @@ class AllowedControlUnitOption(models.Model):
         verbose_name=_("Кодировка"),
         help_text=_("Код опции для подстановки в артикул, например «L», «N», «M1»")
     )
+    power_supply = models.ForeignKey(
+        'params.PowerSupplies',
+        on_delete=models.PROTECT, null=True, blank=True,
+        related_name='allowed_cu_power_supply_options',
+        verbose_name=_("Напряжение питания мотора"),
+        help_text=_("Напряжение, на котором доступен этот БУ (пусто — любое)")
+    )
     cu_power_supply = models.ForeignKey(
         'params.PowerSupplies',
         on_delete=models.PROTECT, null=True, blank=True,
@@ -58,7 +65,7 @@ class AllowedControlUnitOption(models.Model):
     class Meta:
         verbose_name = _("Разрешённый БУ для серии")
         verbose_name_plural = _("Разрешённые БУ для серий")
-        unique_together = ['model_line', 'control_unit']
+        unique_together = ['model_line', 'control_unit', 'power_supply']
         ordering = ['sorting_order']
 
     def __str__(self):
