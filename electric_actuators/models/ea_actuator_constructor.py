@@ -485,7 +485,7 @@ class ElectricActuatorConstructor(models.Model):
                     # through-модель сама опция
                     qs = ThroughModel.objects.filter(**filter_kwargs)
                     if field_name in ('selected_temperature', 'selected_ip', 'selected_exd'):
-                        qs = qs.order_by('is_default', 'sorting_order')
+                        qs = qs.order_by('-is_default', 'sorting_order')
                     key = field_name.replace('selected_', '') + '_options'
                     if key.endswith('_option_options'):
                         key = key.replace('_option_options', '_options')

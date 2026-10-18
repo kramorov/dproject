@@ -379,7 +379,13 @@ async function onPowerSupplyChange() {
   try {
     // Перезагружаем опции с power_supply_id — получаем safety_position + control_unit
     options.value = (await loadOptions()).data
+    const hadCu = form.selected_control_unit_option
     autoFillPowerDependent()
+    // Если БУ сменился/сбросился программно (1 вариант или стал недопустим
+    // для нового напряжения) — перезагружаем опции с актуальным CU
+    if (form.selected_control_unit_option !== hadCu) {
+      options.value = (await loadOptions()).data
+    }
     autoFillAccessDevice()
     // Строки профиля БУ зависят от напряжения — сбрасываем и заполняем заново
     Object.keys(signalSelection).forEach(k => delete signalSelection[k])
@@ -417,6 +423,10 @@ function autoFillPowerDependent() {
   for (const [key, cfg] of Object.entries(POWER_DEPENDENT)) {
     const items = options.value[cfg.apiKey]
     if (!items?.length) continue
+    // Текущее значение не в списке (другое напряжение/серия) — сбрасываем
+    if (form[key] != null && !items.some(o => o.option_id === form[key])) {
+      form[key] = null
+    }
     if (items.length === 1) form[key] = items[0].option_id
     else if (form[key] == null) {
       const def = items.find(o => o.is_default)
