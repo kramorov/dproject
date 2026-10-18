@@ -23,14 +23,13 @@ python manage.py generate_pa_cards
 В фитинги вставить поле материал уплотнительного кольца
 В ЭП блоки управления опцию "Запирающий механизм" - есть нет.
 
- что означает "Both web tools are denied — the search backend is api.deepseek.com and requires network approval. The network policy blocks it."
-
 - https://www.auma.com/en_001/products/multi-turn-actuators (SA/SAR .2)
 - https://www.auma.com/en_001/service-support/document-finder (поиск документации)
 - https://www.rotork.com/en/products-and-services/electric-actuators/iq-range (IQ3/IQT3)
 - https://www.rotork.com/en/document-library (Rotork doc library)
 - auma-usa.com cross reference: https://www.auma-usa.com/en/... unknown; suggest site search.
 
+обнови конструктор ЭП: http://localhost:5173/admin/ea-constructor. Добавь выбор опций сигналав и других характеристик БУ после выбора типа БУ. Проверим работу на нем, прежде чем будем генерировать карточки. Делай сразу с локализацией.
 
  E:\work\Контроль\Проект_приводы\Конкуренты_каталоги\AUMA и E:\work\Контроль\Проект_приводы\Конкуренты_каталоги\Rotork
  
