@@ -87,7 +87,6 @@ HART_DEFAULT = 'H0'
 TEMP_BASE = {'STD': 'ST', 'LT': 'L', 'VLT': 'V'}
 HEATER_CU_EXT = {'NO_HEATER': 'H0', 'CU_CIRCUIT': 'C', 'SEPARATE_LINE': 'S'}
 THERM_EXT = {'FB_OVERHEAT_NC': 'T1', 'FB_OVERHEAT_SPDT': 'T2'}
-BAT_EXT = {'BAT': 'BAT'}
 SP_EXT = {'fl': 'FL', 'nc': 'NC', 'no': 'NO', 'nc-no-fl': 'BAT'}
 SP_DEFAULT = 'FL'
 AD_EXT = {'NO_DEVICE': 'AD0', 'DEVICE': 'AD1'}
@@ -179,13 +178,21 @@ def _slot_rules(slot_code, position, line=None):
         return opts
     if position == 'sp':
         from electric_actuators.models import ElectricSafetyPositionOption
-        add(SP_DEFAULT, str(_('Оставаться в текущем положении')), True)
+        default_code = SP_DEFAULT
+        seen_sp = {}
         for s in ElectricSafetyPositionOption.objects.filter(
                 power_supply_option__model_line_item__model_line=line,
-                is_active=True).select_related('safety_position').distinct():
+                is_active=True).select_related('safety_position'):
+            seen_sp.setdefault(s.safety_position_id, s)
+        for s in seen_sp.values():
             code = s.ext_encoding or SP_EXT.get(s.safety_position.code, '')
-            if code and code != SP_DEFAULT:
-                add(code, s.safety_position.name, False)
+            if not code or code == SP_DEFAULT:
+                continue
+            add(code, s.safety_position.name, s.is_default)
+            if s.is_default:
+                default_code = code
+        add(SP_DEFAULT, str(_('Оставаться в текущем положении')),
+            default_code == SP_DEFAULT)
         return opts
     if position == 'ad':
         from electric_actuators.models import EaAccessDeviceOption
