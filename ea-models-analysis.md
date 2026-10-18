@@ -1,117 +1,80 @@
 # Анализ моделей electric_actuators — Chief System Architect / Chief Design Engineer
 
-Дата: 2026-10-18. Цель: подготовка фазы 7 (удаление старого) и приведение ЭП к
-эталонной схеме каталога, как у пневмоприводов.
+Дата: 2026-10-18 (актуализировано вечером — после фаз 7 и 9). Цель: приведение ЭП
+к эталонной схеме каталога, как у пневмоприводов.
 
-## 1. Эталон (пневмоприводы, согласовано ранее)
+## 1. Эталон (пневмоприводы)
 
 - **Карточка каталога** `PneumaticActuatorCatalogItem` — эталонная модель:
   `SKUMixin` (sync_sku → SKU с GenericFK), `TemplateMixin` (name/description
-  из шаблонов серии), артикул из `model_item_code_template` через encoding
-  через-опций. Каталог = набор таких карточек со стандартными опциями.
+  из шаблонов серии → EquipmentType), артикул из `model_item_code_template`
+  через encoding через-опций. Каталог = набор таких карточек.
 - **Конфигуратор** собирает нестандартную конфигурацию → создаётся карточка
-  (не эталонная) + SKU; в каталоге не отображается.
-- Старые `PneumaticActuatorSelected`/`PneumaticActuatorConstructor` оставлены
-  временно (отладка), с мостиком `source_model_line_item` (этап P8).
+  (не эталонная) + SKU.
 
-## 2. Вердикты по моделям electric_actuators
+## 2. Состояние моделей electric_actuators
 
-### 2.1 Ядро новой схемы — ОСТАВИТЬ (активно развивается)
+### 2.1 Ядро новой схемы — реализовано и работает
 
-- `ElectricActuatorModelLine` — серия (носитель шаблонов; фаза 6 добавит
-  name_template/description_template/model_item_code_template с плейсхолдерами сигналов).
-- `ElectricActuatorBodyTable` / `ElectricActuatorBody` / `ElectricActuatorModelLineItem` —
-  корпус и модель (карточка-источник стандартных опций).
-- `CableGlandHolesSet` (+kind CONNECTOR_PLUG) / `CableGlandHolesSetBodyOption`.
-- Через-опции серии (НЕ сигнальные, остаются): `ElectricTemperatureOption`
-  (уже +code+heater_supply), `ElectricIpOption`, `ElectricExdOption`,
-  `ElectricBodyCoatingOption`, `ElectricBodyColorOption`, `ElectricHandWheelOption`,
-  `ElectricTurnAngleOption`.
-- `AllowedControlUnitOption` — новая связка «серия×БУ×напряжение» (+encoding/
-  ext_encoding/cu_power_supply).
-- Вся новая сигнальная схема: `EaSignalForm/EaControlSignal/EaFeedbackSignal/
+- `ElectricActuatorModelLine` — серия: `model_item_code_template`,
+  `ext_encoding_template` (шаблонов name/description у серии нет — по цепочке
+  TemplateMixin берутся из EquipmentType 'electric-actuator').
+- `ElectricActuatorBodyTable` / `ElectricActuatorBody` / `ElectricActuatorModelLineItem`.
+- Через-опции серии (не сигнальные): `ElectricTemperatureOption` (+code+heater_supply,
+  `_localized_base_name`), `ElectricIpOption`, `ElectricExdOption`
+  (`_localized_base_name` — без серии), `ElectricBodyCoatingOption`,
+  `ElectricBodyColorOption`, `ElectricHandWheelOption`, `ElectricTurnAngleOption`.
+- `AllowedControlUnitOption` — связка «серия×БУ×напряжение» (+encoding/
+  ext_encoding/cu_power_supply); резолвер `resolve_cu_pair` (модельные запреты).
+- Сигнальная схема (фаза 9): `EaSignalForm/EaControlSignal/EaFeedbackSignal/
   EaCommProtocol/EaFeedbackDevice/EaSignalSlot/EaSlotOption/EaSignalMatrixEntry/
-  EaWiringDiagramBinding`.
+  EaWiringDiagramBinding`; матрица = **профиль БУ** (строки без скоупов),
+  резолвер `services/ea_signal_resolver.py`, ext-код `services/ea_ext_code.py`.
+- `EaAccessDeviceOption` + `ControlUnitAccessDeviceOption` (для БУ кроме
+  int-o/int-l/int-n — только «нет»).
 
-### 2.2 НУЖНА новая модель (ответ на вопрос Selected vs Constructor)
+### 2.2 Карточка каталога — создана (фаза 7–8)
 
-Ни `ElectricActuatorSelected`, ни `ElectricActuatorConstructor` не являются
-эталонной карточкой:
+- **`ElectricActuatorCatalogItem`** — эталонная каталожная карточка исполнения
+  ЭП по контракту `PneumaticActuatorCatalogItem`: SKUMixin + TemplateMixin
+  (реестр `ea_catalog_item_fields.py`, плейсхолдеры cu_/ctl_/fb_/прочие,
+  локализация через localized_name), M2M `matrix_rows` (EaSignalMatrixEntry),
+  is_catalog/is_unique, артикул = `model_item_code_template` + ext
+  (`selection_ext_code`), контекст БУ/напряжение/режим.
+- `ElectricActuatorConstructor` — черновик конфигуратора: выбор модели/опций +
+  `selected_matrix_rows` (профиль БУ); генерирует описание из шаблонов
+  EquipmentType (TemplateMixin, skip_auto_generate для name-артикула);
+  превью — локализовано (Accept-Language). Создание карточек из конструктора —
+  следующий шаг (список опций определяет пользователь после проверки).
+- `ElectricActuatorSelected` — legacy-карточка, заменяется
+  `ElectricActuatorCatalogItem` (перенос данных — data-миграцией).
 
-- `ElectricActuatorSelected` (code/ext_code/description + selected_* ссылки +
-  `is_unique`) — финальная конфигурация, но БЕЗ SKUMixin и TemplateMixin;
-  фактически legacy-карточка.
-- `ElectricActuatorConstructor` (71 КБ, _OPTION_CONFIG, мягкая валидация) —
-  РАБОЧИЙ ЧЕРНОВИК конфигуратора (состояние UI), не должен быть источником SKU.
+### 2.3 УДАЛЕНО в фазе 7 (сигнальные legacy)
 
-**Решение: вводим `ElectricActuatorCatalogItem`** — эталонная каталожная
-карточка исполнения ЭП, по контракту `PneumaticActuatorCatalogItem`:
-SKUMixin + TemplateMixin (+ ImageGallery/TechDoc/EquipmentType при
-необходимости); поля: model_line_item FK, БУ/напряжение/режим, через-опции
-(IP/Exd/температура/покрытие/цвет/угол/штурвал/ввод кабелей/положение
-безопасности), **M2M на EaSignalMatrixEntry** (выбранные строки матрицы),
-`is_catalog` (эталон каталога) / `is_unique` (нестандартная); артикул —
-`model_item_code_template` + ext-код из выбранных строк (`selection_ext_code`).
+`ElectricEndSwitchesOption`, `ElectricWaySwitchesOption`,
+`ElectricTorqueSwitchesOption`, `ElectricBlinkerOption`,
+`ElectricMechanicalIndicatorOption`, `ElectricOperatingModeOption`,
+`ElectricControlUnitInstalledOption`, `ElectricControlUnitOption`,
+`AllowedSignalProfileOption`, `ControlUnitWiring` (+ файлы
+`ea_control_unit_wiring.py`, `ea_actual_actuator.py`, `ea_wiring_diagram.py` и
+команды compare/export/transfer_ea_*). Миграция 0060. Конструктор/админки/API
+очищены (ревью №8 дорезало рантайм-ссылки).
 
-- `ElectricActuatorConstructor` — остаётся черновиком UI (как у пневмо);
-  хранит те же поля через-опций + выбор матричных строк; создаёт/обновляет
-  карточку. После стабилизации можно свести к временному состоянию.
-- `ElectricActuatorSelected` — заменить карточкой; данные переносятся
-  data-миграцией (переезд, как договаривались), затем удалить.
+### 2.4 УДАЛИТЬ позже (перенести данные) — актуальные хвосты
 
-### 2.3 УДАЛИТЬ в фазе 7 (сигнальные legacy, заменены матрицей)
-
-- `ElectricEndSwitchesOption`, `ElectricWaySwitchesOption`,
-  `ElectricTorqueSwitchesOption` → слоты LIMIT/WAY/TORQUE.
-- `ElectricBlinkerOption`, `ElectricMechanicalIndicatorOption` → слот INDICATOR.
-- `ElectricOperatingModeOption` → ось mode матрицы.
-- `ElectricControlUnitInstalledOption` (через-опция БУ серии) →
-  `AllowedControlUnitOption` + матрица.
-- `ElectricControlUnitOption` (БУ×напряжение на модели) → матрица;
-  encoding — в `AllowedControlUnitOption` (уже перенесён, миграция 0058).
-- `AllowedSignalProfileOption` — мёртв (проверено: только админка).
-- `ControlUnitWiring` + поле `ElectricControlUnitOption.control_unit_wiring` →
-  `EaWiringDiagramBinding`.
-- `params.ControlUnitSignalProfile` + Entry — после переноса (затрагивает
-  params; отдельным шагом).
-- Закомментированные файлы-пустышки: `ea_actual_actuator.py`,
-  `ea_wiring_diagram.py` — удалить файлы.
-
-### 2.4 УДАЛИТЬ позже (перенести данные)
-
-- `AllowedTurnCounterOption` — encoding счётчиков → слот TURN_COUNTER
-  (после решения о кодах MECH-вариантов).
-- `ElectricPowerSupplyOption` (моторные данные: токи/время/момент) — данные
-  переносятся в `ElectricActuatorCatalogItem` (напряжение + моторные поля);
-  **зависимость: `price.EAPriceConstructor` FK → ElectricPowerSupplyOption** —
+- `ElectricPowerSupplyOption` (моторные данные: токи/время/момент) — перенос в
+  карточку; **зависимость: `price.EAPriceConstructor` FK → ElectricPowerSupplyOption** —
   переносить вместе.
-- `ElectricSafetyPositionOption` (привязана к PS-опции) — не сигнальная;
-  перенести в карточку вместе с PS.
+- `ElectricSafetyPositionOption` (привязана к PS-опции) — перенести вместе с PS.
 - `ElectricActuatorData` + `ModelLine` + `ModelBody` — древний каталог;
-  единственный runtime-потребитель — `data_processor/processor.py`
-  (старый импорт прайсов) — удалить после перевода импорта на новые модели.
+  потребитель — `data_processor/processor.py` — подробный план в
+  `ea-legacy-removal-task.md`.
+- `AllowedTurnCounterOption` — encoding счётчиков → слот TURN_COUNTER.
 
-## 3. План фазы 7 (порядок)
+## 3. Что осталось (порядок)
 
-1. Создать `ElectricActuatorCatalogItem` (SKUMixin + TemplateMixin +
-   M2M matrix rows) + миграция + перенос данных из `ElectricActuatorSelected`
-   и моторных данных из `ElectricPowerSupplyOption` (data-миграция, выгрузка
-   уже есть: ea_signals_export_2026-10-18.json).
-2. Удалить мёртвые (2.3): AllowedSignalProfileOption, закомментированные
-   файлы; через-опции переключателей/блинкера/индикатора/режима/БУ; 
-   ControlUnitWiring; ElectricControlUnitOption (+ поле в PS-опции).
-3. Конструктор: убрать сигнальные поля (_OPTION_CONFIG), оставить
-   не-сигнальные + выбор матричных строк; экраны API.
-4. Починить `ensure_all_default_options_exist` (пре-экзист баг передачи серии
-   в ElectricWaySwitchesOption) — с удалением опций уйдёт сам.
-5. Проверка: тесты, `makemigrations --check`, фронт-смоук каталога ЭП.
-6. Позже (2.4): TurnCounter encoding, price/data_processor переносы.
-
-## 4. Вопросы на подтверждение
-
-1. Имя карточки: `ElectricActuatorCatalogItem` (симметрия с пневмо) — ок?
-2. `ElectricActuatorConstructor` оставляем как черновик конфигуратора
-   (без SKU), как у пневмо — ок?
-3. Удаление из п.2.3 делаем в этом заходе (после подтверждения)?
-4. `price.EAPriceConstructor` трогать сейчас или оставить FK на
-   ElectricPowerSupplyOption до этапа 2.4?
+1. Проверка конструктора пользователем (`/admin/ea-constructor`, локали /en/ /cn/).
+2. Генерация карточек `ElectricActuatorCatalogItem` из конструктора (список
+   опций — по результатам проверки).
+3. Хвосты 2.4 (price/data_processor, legacy-модели) — по `ea-legacy-removal-task.md`.
+4. Отдельно: генератор wiring-диаграмм (фаза 8), каталог S2/стартера.

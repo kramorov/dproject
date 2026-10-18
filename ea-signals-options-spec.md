@@ -1,6 +1,10 @@
 # Опции управления и обратной связи электроприводов — полное описание и план
 
-Дата: 2026-10-18. Состояние: согласовано с пользователем, готово к реализации.
+Дата: 2026-10-18. Состояние: **реализовано** (фазы 6–9: справочники, матрица
+как профиль БУ, резолвер, ext-код, экспорт/импорт, конструктор, локализация).
+Документ — справочник по текущей модели; детали кодировок —
+`services/ea_ext_code.py`, данные профилей — команда `seed_ea_cu_profiles`,
+переводы — `translate_ea_signal_options`.
 
 Источники: таблица AOX `available-options-ea-AOX.xlsx`; сводная БУ Архимед
 `Управление_приводами_блоки_Сводная_АРХИМЕД_2025-06-24.xlsx`; каталоги AUMA
@@ -166,7 +170,7 @@ JSONField `ControlUnitInstalledOption.capabilities`.
 Шаблон (блоки через `.`, пусто = стандарт):
 `{cu}{cu_p}{ps}{mode}{proto} . {end}{way}{torq} . {pos}{hart} . {temp}{h_cu}{therm} . {lc}{cmd}{setp}{cnt}{ind}`
 (позиция s2 — после появления каталога S2/стартера). Коды позиций — см. разд. 2
-и ea-signals-final-scheme.md 14.2 (cu: IO/IL/IN/IM/IP/IH/PT/TR/T0/PR/P0; cu_p:
+и `services/ea_ext_code.py` 14.2-аналог (CU_EXT/PS_EXT: IO/IL/IN/IM/IP/IH/PT/TR/T0/PR/P0; cu_p:
 X; ps: 3/2; пары: E1/E2, W1/W2, T1/T2; temp: L/LM/V/VM; therm: T0/T1/T2;
 h_cu: C/S; ind: D/B/DB/L/LB; cnt: M/E/EM/MF/EMF; lc: S/N; cmd: DC/R/R2;
 setp: A/P; hart: H; proto: PB/PN/MB/MT/FF). Сборка — `generated_ext_code`
