@@ -21,7 +21,8 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from project_customers.permissions import SectionAccessPermission
 from rest_framework.decorators import action
-from core.utils.localization import locale_from_accept_language, pick_i18n
+from core.utils.localization import (locale_from_accept_language, localized_name,
+                                     pick_i18n)
 
 from pneumatic_actuators.models import (
     PneumaticActuatorConstructor,
@@ -210,7 +211,7 @@ class ConstructorViewSet(viewsets.GenericViewSet):
                 'image': image,
                 'construction_variety_id': ml.pneumatic_actuator_construction_variety_id,
                 'construction_variety_code': ml.pneumatic_actuator_construction_variety.code if ml.pneumatic_actuator_construction_variety else None,
-                'construction_name': ml.pneumatic_actuator_construction_variety.name if ml.pneumatic_actuator_construction_variety else None,
+                'construction_name': localized_name(ml.pneumatic_actuator_construction_variety, locale) if ml.pneumatic_actuator_construction_variety else None,
             })
         return Response(result)
 
