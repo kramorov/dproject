@@ -393,10 +393,12 @@ class Command(BaseCommand):
                 opt.name_i18n = i18n
                 opt.save(update_fields=['name_i18n'])
         for c in ControlUnitInstalledOption.objects.filter(is_active=True):
-            basic_like = c.code in ('basic', 'none')
+            # Только int-o / int-l / int-n (и их варианты с протоколами) —
+            # оба варианта устройства; для остальных БУ — только «нет»
+            no_device_only = not c.code.startswith(('int-o', 'int-l', 'int-n'))
             for opt, is_default in ((ad_no, True), (ad_dev, False)):
-                if basic_like and opt.code == 'DEVICE':
-                    continue  # для basic/нет управления — только «нет»
+                if no_device_only and opt.code == 'DEVICE':
+                    continue  # для basic/потенциометра/трансмиттера/позиционера — только «нет»
                 row, created = ControlUnitAccessDeviceOption.objects.get_or_create(
                     control_unit=c, access_device=opt,
                     defaults={'encoding': '',

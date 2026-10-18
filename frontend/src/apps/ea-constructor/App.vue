@@ -379,6 +379,7 @@ async function onPowerSupplyChange() {
   try {
     // Перезагружаем опции с power_supply_id — получаем safety_position + control_unit
     options.value = (await loadOptions()).data
+    autoFillStandardDefaults()
     const hadCu = form.selected_control_unit_option
     autoFillPowerDependent()
     // Если БУ сменился/сбросился программно (1 вариант или стал недопустим

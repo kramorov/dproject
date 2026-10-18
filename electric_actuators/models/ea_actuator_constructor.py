@@ -489,16 +489,24 @@ class ElectricActuatorConstructor(models.Model):
                     key = field_name.replace('selected_', '') + '_options'
                     if key.endswith('_option_options'):
                         key = key.replace('_option_options', '_options')
-                    result[key] = [
-                        {
+                    opts = []
+                    for opt in qs:
+                        if field_name == 'selected_exd':
+                            # только взрывозащита, без серии
+                            name = (opt.get_exd_list or opt.get_exd_short_list
+                                    or '—')
+                            suffix = ' (Стандарт)' if opt.is_default else ' (Опция)'
+                            name += suffix
+                        else:
+                            name = str(opt)
+                        opts.append({
                             'id': opt.id, 'option_id': opt.id,
                             'encoding': opt.encoding or '',
-                            'name': str(opt),
+                            'name': name,
                             'description': opt.description or '',
                             'is_default': opt.is_default,
-                        }
-                        for opt in qs
-                    ]
+                        })
+                    result[key] = opts
                 else:
                     # FK на реальную опцию
                     select_related = [through_attr]
