@@ -33,6 +33,10 @@ class TemplateFieldSpec:
     code_path: str | None = None
     # Путь к ext_encoding-значению для ext-шаблона артикула (этап B, ext_encoding).
     ext_code_path: str | None = None
+    # Отдельные плейсхолдеры для encoding/ext_encoding (суффиксы _enc/_e_enc).
+    # Пусто — фолбэк на ``placeholder`` (обратная совместимость).
+    enc_placeholder: str = ''
+    ext_enc_placeholder: str = ''
     # Имя callable-а на модели вместо ``path`` (для сложных значений).
     resolver: str | None = None
 

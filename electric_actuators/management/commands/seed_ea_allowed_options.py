@@ -25,7 +25,7 @@ AR01_SERIES = {
     ('int-l', '24-DC'): True, ('int-l', '220-AC'): True,
     ('int-l', '380-AC'): True,
     ('basic', '24-DC'): True, ('basic', '220-AC'): True,
-    ('basic', '380-AC'): False,
+    ('basic', '380-AC'): True,
     ('posi-4-20', '24-DC'): True, ('posi-4-20', '220-AC'): True,
     ('posi-4-20', '380-AC'): True,
     ('posi10', '24-DC'): True, ('posi10', '220-AC'): True,
@@ -62,7 +62,7 @@ AR11_SERIES = {
     ('int-n-pb', '24-DC'): True, ('int-n-pb', '220-AC'): True,
     ('int-n-pb', '380-AC'): True,
     ('basic', '24-DC'): True, ('basic', '220-AC'): True,
-    ('basic', '380-AC'): False,
+    ('basic', '380-AC'): True,
     ('posi-4-20', '24-DC'): True, ('posi-4-20', '220-AC'): True,
     ('posi-4-20', '380-AC'): True,
     ('posi10', '24-DC'): True, ('posi10', '220-AC'): True,
@@ -227,14 +227,6 @@ class Command(BaseCommand):
                 set_pair(line_code, cu_code, ps_code, active,
                          item_code=item_code)
 
-        # Правило стартера: basic×380 — запрет во всех сериях
-        for a in AllowedControlUnitOption.objects.filter(
-                control_unit__code='basic', power_supply__code='380-AC',
-                is_active=True):
-            a.is_active = False
-            a.save(update_fields=['is_active'])
-            stats['allowed_updated'] += 1
-
         # 3. capabilities
         for cu_code, caps in CAPABILITIES.items():
             for code in [cu_code] + (
@@ -321,11 +313,11 @@ class Command(BaseCommand):
                 a.ext_encoding = ext
                 a.save(update_fields=['ext_encoding'])
                 ext_stats['cu'] += 1
-        EXT_TPL = ('{cu}{cu_p}{ps}{mode}{proto}.{ip}{exd}.'
-                   '{end}{way}{torq}.{pos}{hart}.{temp}{h_cu}{therm}.'
-                   '{lc}{cmd}{setp}{cnt}{ind}.{ad}.{sp}')
-        # Основной артикул: плейсхолдер БУ — {cu_name} (номенклатура cu_*).
-        ITEM_TPL = '{model_code}.{temperature}.{ip}.{cu_name}.{voltage}.{exd}'
+        EXT_TPL = ('{cu_e_enc}{cu_p_e_enc}{ps_e_enc}{mode_e_enc}{proto_e_enc}.{ip_e_enc}{exd_e_enc}.'
+                   '{end_e_enc}{way_e_enc}{torq_e_enc}.{pos_e_enc}{hart_e_enc}.{temp_e_enc}{h_cu_e_enc}{therm_e_enc}.'
+                   '{lc_e_enc}{cmd_e_enc}{setp_e_enc}{cnt_e_enc}{ind_e_enc}.{ad_e_enc}.{sp_e_enc}')
+        # Основной артикул: плейсхолдер БУ — {cu_name_enc} (номенклатура cu_*).
+        ITEM_TPL = '{model_code}.{temperature_enc}.{ip_enc}.{cu_name_enc}.{voltage_enc}.{exd_enc}'
         for ml in ElectricActuatorModelLine.objects.filter(is_active=True):
             if ml.ext_encoding_template != EXT_TPL:
                 ml.ext_encoding_template = EXT_TPL

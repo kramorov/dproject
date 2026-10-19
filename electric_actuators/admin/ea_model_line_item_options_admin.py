@@ -6,7 +6,10 @@ from django.contrib import messages
 from django.db import transaction
 from django.utils.html import format_html
 from typing import List, Optional, Tuple, Any, Dict, Union
-from electric_actuators.models.ea_model_line_item_options import ElectricPowerSupplyOption
+from electric_actuators.models.ea_model_line_item_options import (
+    ElectricPowerSupplyOption,
+    ElectricSafetyPositionOption,
+)
 import logging
 logger = logging.getLogger(__name__)
 
@@ -106,6 +109,26 @@ def copy_electric_power_supply_option(modeladmin, request, queryset):
 copy_electric_power_supply_option.short_description = "📋 Копировать выбранные опции питания"
 
 
+class ElectricSafetyPositionOptionInline(admin.TabularInline):
+    """Положения безопасности внутри окна редактирования опции напряжения питания."""
+    model = ElectricSafetyPositionOption
+    fk_name = 'power_supply_option'
+    extra = 1
+    fields = ('safety_position', 'encoding', 'ext_encoding', 'is_default', 'is_active', 'sorting_order')
+    verbose_name = _("Положение безопасности")
+    verbose_name_plural = _("Положения безопасности")
+
+
+@admin.register(ElectricSafetyPositionOption)
+class ElectricSafetyPositionOptionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'power_supply_option', 'safety_position', 'encoding', 'is_default', 'is_active', 'sorting_order')
+    list_editable = ('safety_position', 'encoding', 'is_default', 'is_active', 'sorting_order')
+    list_filter = ('is_active', 'is_default', 'safety_position')
+    search_fields = ('safety_position__name', 'encoding', 'ext_encoding','power_supply_option__power_supply__name')
+    ordering = ('power_supply_option', 'sorting_order')
+    autocomplete_fields = ('power_supply_option',)
+
+
 @admin.register(ElectricPowerSupplyOption)
 class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
     # list_display = ('id', 'display_name', 'encoding', 'display_params','sorting_order','is_active')
@@ -121,7 +144,7 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
             'fields': (
-                ('model_line_item','power_supply','encoding'),
+                ('model_line_item','power_supply','encoding', 'ext_encoding'),
                 ('is_active',
                 'sorting_order'),
             )
@@ -147,7 +170,7 @@ class ElectricPowerSupplyOptionAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    inlines = []
+    inlines = [ElectricSafetyPositionOptionInline]
     # Добавляем кастомные методы для отображения в списке
     actions = [
         copy_electric_power_supply_option

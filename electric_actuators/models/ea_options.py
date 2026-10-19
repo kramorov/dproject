@@ -35,6 +35,7 @@ from options.models import (
 
 class ElectricHandWheelOption(BaseHandWheelThroughOption):
     """Ручной дублер для электроприводов"""
+    enforce_encoding_unique = False
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -46,7 +47,7 @@ class ElectricHandWheelOption(BaseHandWheelThroughOption):
         verbose_name = _("Тип установленного ручного дублера")
         verbose_name_plural = _("Типы установленного ручного дублера электроприводов")
         ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'hand_wheel_option', 'encoding']
+        unique_together = ['model_line', 'hand_wheel_option']
 
     @classmethod
     def _get_parent_field_name(cls):
@@ -62,6 +63,7 @@ class ElectricTemperatureOption(BaseTemperatureThroughOption):
     обмена матрицей (xlsx) и ext-кода; `heater_supply` — откуда питается
     обогреватель привода.
     """
+    enforce_encoding_unique = False
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -128,6 +130,7 @@ class ElectricTemperatureOption(BaseTemperatureThroughOption):
 
 class ElectricIpOption(BaseIpThroughOption):
     """Опции IP для электроприводов"""
+    enforce_encoding_unique = False
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -183,6 +186,7 @@ class ElectricExdOption(BaseM2MExdThroughOption):
 
 class ElectricBodyColorOption(BaseColorThroughOption):
     """Опции взрывозащиты для электроприводов"""
+    enforce_encoding_unique = False
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -202,6 +206,7 @@ class ElectricBodyColorOption(BaseColorThroughOption):
 
 class ElectricBodyCoatingOption(BaseBodyCoatingThroughOption):
     """Опции покрытия корпуса для электроприводов"""
+    enforce_encoding_unique = False
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,
@@ -222,6 +227,7 @@ class ElectricBodyCoatingOption(BaseBodyCoatingThroughOption):
 
 class CableGlandHolesSetBodyOption(CableGlandHolesSetThroughOption):
     """Модель для сквозных опций CableGlandHolesSet"""
+    enforce_encoding_unique = False
 
     model_body = models.ForeignKey(
         'ElectricActuatorBody',
@@ -236,6 +242,7 @@ class CableGlandHolesSetBodyOption(CableGlandHolesSetThroughOption):
 
 class ElectricTurnAngleOption(BaseTurnAngleThroughOption):
     """Угол поворота для электроприводов"""
+    enforce_encoding_unique = False
     model_line = models.ForeignKey(
         'ElectricActuatorModelLine',
         on_delete=models.CASCADE,

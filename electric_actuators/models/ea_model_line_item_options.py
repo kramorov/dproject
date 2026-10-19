@@ -32,6 +32,7 @@ class ElectricSafetyPositionOption(BaseThroughOption):
     """Положение безопасности для опции напряжения питания.
        Привязывается к конкретному напряжению (как ControlUnit),
        может различаться для разных model_line_item."""
+    enforce_encoding_unique = False
     power_supply_option = models.ForeignKey(
         'ElectricPowerSupplyOption',
         on_delete=models.CASCADE,
@@ -79,6 +80,7 @@ class ElectricSafetyPositionOption(BaseThroughOption):
 
 class ElectricPowerSupplyOption(BaseThroughOptionNoDefault):
     """Опции напряжения питания для модели в серии электроприводов"""
+    enforce_encoding_unique = False
     """
         through-модель для температурных опций
         Наследует от BaseThroughOptionNoDefault (нет напряжения питания по дефолту и добавляет температурные поля

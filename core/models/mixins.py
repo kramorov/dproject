@@ -599,20 +599,27 @@ class TemplateMixin:
         Использует только поля с ``code_path``. Если ``CODE_FIELD_KEYS`` задан —
         берутся эти ключи; иначе — все поля реестра с ``code_path``. Без реестра —
         legacy-фолбэк на ``_get_data_dict()``.
+
+        Ключ словаря — ``enc_placeholder`` (фолбэк ``placeholder``).
         """
         keys = getattr(self, 'CODE_FIELD_KEYS', None)
-        if keys is not None:
-            return {f.placeholder: f.code_path for f in self._lookup_specs(keys) if f.code_path}
-        specs = self._get_field_specs()
+        specs = self._lookup_specs(keys) if keys is not None else self._get_field_specs()
         if not specs:
             return self._get_data_dict()
-        return {f.placeholder: f.code_path for f in specs if f.code_path}
+        out = {}
+        for f in specs:
+            if f.code_path:
+                out[f.enc_placeholder or f.placeholder] = f.code_path
+        return out
 
     def _get_ext_code_data_dict(self) -> Dict[str, str]:
         """Плейсхолдер ext-артикула → путь к ext_encoding-значению.
 
         Значение берётся из ``ext_code_path`` (фолбэк — ``code_path``, чтобы
         {model_code} и опции без ext-кодировки в ext-шаблоне не ломались).
+
+        Ключ словаря — ``ext_enc_placeholder`` (фолбэк ``enc_placeholder``,
+        затем ``placeholder``).
         """
         keys = getattr(self, 'CODE_FIELD_KEYS', None)
         specs = self._lookup_specs(keys) if keys is not None else self._get_field_specs()
@@ -620,11 +627,12 @@ class TemplateMixin:
             return {}
         out = {}
         for f in specs:
-            if not f.placeholder:
-                continue
             target = f.ext_code_path or f.code_path
-            if target:
-                out[f.placeholder] = target
+            if not target:
+                continue
+            ph = f.ext_enc_placeholder or f.enc_placeholder or f.placeholder
+            if ph:
+                out[ph] = target
         return out
 
     @property

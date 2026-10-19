@@ -17,7 +17,7 @@ from electric_actuators.models import (
 # Профили: cu_code -> {ps_code или '*': [(slot, opt_suffix, availability)]}
 # '*' — оба напряжения 24/220; '+380' — добавляет 380 к 24/220.
 PROFILES = {
-    'basic': {'24_220': [
+    'basic': {'*': [
         ('LIMIT_SWITCHES', 'END_SPDT', 'std'),
         ('LIMIT_SWITCHES', 'END_DPDT', 'opt'),
         ('WAY_SWITCHES', 'WAY_SPDT', 'opt'),
@@ -256,7 +256,7 @@ class Command(BaseCommand):
                 if opt is None:
                     continue
                 for ps_code in ('24-DC', '220-AC', '380-AC'):
-                    if cu_code in ('basic', 'basic-nq') and ps_code == '380-AC':
+                    if cu_code == 'basic-nq' and ps_code == '380-AC':
                         continue
                     to_create.append(EaSignalMatrixEntry(
                         control_unit=cu[cu_code], power_supply=ps[ps_code],
@@ -271,7 +271,7 @@ class Command(BaseCommand):
                 if opt is None:
                     continue
                 for ps_code in ('24-DC', '220-AC', '380-AC'):
-                    if cu_code in ('basic', 'basic-nq', 'pote', 'tr-4-20',
+                    if cu_code in ('basic-nq', 'pote', 'tr-4-20',
                                    'tr10', 'posi-4-20', 'posi10') and \
                             ps_code == '380-AC':
                         continue
@@ -299,7 +299,7 @@ class Command(BaseCommand):
         # 4. Allowed: R-серия → -nq; Q005-010 → -q
         for a in AllowedControlUnitOption.objects.filter(
                 model_line__code='AR01E'):
-            swap = {'basic': 'basic-nq', 'int-l': 'int-l-nq'}.get(
+            swap = {'int-l': 'int-l-nq'}.get(
                 a.control_unit.code)
             if swap and swap in cu:
                 a.control_unit = cu[swap]

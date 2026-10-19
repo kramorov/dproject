@@ -1,3 +1,19 @@
+В опциях в админке не выводится ext_encoding, для БУ нет дефолтных признаков.
+Сделать для model_line вывод таблицы всех опций с encoding и ext_encoding.
+
+Убрать ModelLine, AllowedOptions get_description_data
+Проверить механизм формирования артикула и расширенного артикула для model_line ЭП.
+
+Замечания
+
+1. Полный `python manage.py test electric_actuators` не запускается из-за уже существовавшей ошибки миграций, не связанной с моими правками:
+   foreign key mismatch - "electric_actuators_electricactuatorselected" referencing "electric_actuators_cableglandholessetbodyoption"
+Это падает на этапе migrate тестовой БД (PRAGMA foreign_key_check), до выполнения тестов. Моя миграция 0074 меняет только unique_together у ElectricHandWheelOption и к этому FK отношения не имеет. Нужно отдельно разобрать историю миграций ElectricActuatorSelected ↔ CableGlandHolesSetBodyOption.
+
+2. `access_device` намеренно без _enc/_e_enc: в карточке это FK на справочник EaAccessDeviceOption (у него нет полей encoding/ext_encoding — они живут на через-модели ControlUnitAccessDeviceOption). Если нужно — добавлю отдельно.
+
+3. Суффикс ext я сделал `_e_enc` (читается как твой e_enc). Если нужен ровно e_enc без нижнего подчёркивания ({cu_e_enc} vs {cue_enc}) — поправлю быстро.
+
 Прочитай session.md, CATALOG_PATTERN.md, lang.md
 
 Поле name_i18n осталось в схеме — оно объявлено в общей базе BaseThroughOptionNoDefault и всё ещё используется через-моделями ЭП/КВ/позиционеров/распределителей, которые ещё не переведены на паттерн «база из справочника». У ПП оно теперь всегда пустое. Удаление поля делаем после миграции остальных приложений на тот же механизм — скажи, если хочешь это следующим шагом.

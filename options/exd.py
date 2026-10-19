@@ -101,6 +101,11 @@ class BaseThroughOptionNoDefault(models.Model) :
 
     sync_name_i18n = True  # переопределить в False, если модель не использует name_i18n
 
+    # Уникальность encoding в пределах родителя. Отключается подклассом
+    # (enforce_encoding_unique = False) — например, для электроприводов,
+    # где одна опция имеет вложенные варианты с одинаковым encoding.
+    enforce_encoding_unique = True
+
     def save(self, *args, **kwargs):
         """Синхронизация name_i18n['ru'] с текущим отображаемым именем (паттерн sync_ru).
 
@@ -258,6 +263,8 @@ class BaseThroughOptionNoDefault(models.Model) :
         """
         Проверка уникальности кодирования - только для сохраненных объектов
         """
+        if not getattr(self, 'enforce_encoding_unique', True) :
+            return
         if not self.encoding :
             return
 

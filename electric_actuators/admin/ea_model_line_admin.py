@@ -251,7 +251,7 @@ class ElectricTemperatureOptionInline(admin.TabularInline) :
     model = ElectricTemperatureOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['encoding' , 'work_temp_min' , 'work_temp_max' , 'is_default' , 'is_active' , 'sorting_order']
+    fields = ['encoding' , 'ext_encoding','work_temp_min' , 'work_temp_max' , 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Температурная опция")
     verbose_name_plural = _("Температурные опции")
 
@@ -276,7 +276,7 @@ class ElectricIpOptionInline(admin.TabularInline) :
     model = ElectricIpOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['ip_option' , 'encoding' ,  'is_default' , 'is_active' , 'sorting_order']
+    fields = ['ip_option' , 'encoding' , 'ext_encoding', 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("IP опция")
     verbose_name_plural = _("IP опции")
 
@@ -300,7 +300,7 @@ class ElectricBodyColorOptionInline(admin.TabularInline) :
     model = ElectricBodyColorOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['color_option' ,  'encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    fields = ['color_option' ,  'encoding' , 'ext_encoding','is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Опция цвета корпуса")
     verbose_name_plural = _("Опции цвета корпуса")
 
@@ -344,7 +344,7 @@ class ElectricBodyCoatingOptionInline(admin.TabularInline) :
     model = ElectricBodyCoatingOption
     extra = 0
     ordering = ['sorting_order']
-    fields = ['body_coating_option' , 'encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    fields = ['body_coating_option' , 'encoding' ,'ext_encoding', 'is_default' , 'is_active' , 'sorting_order']
     verbose_name = _("Опция покрытия")
     verbose_name_plural = _("Опции покрытия")
 
@@ -372,7 +372,7 @@ class AllowedControlUnitOptionInline(admin.TabularInline) :
     extra = 0
     ordering = ['sorting_order']
     fields = ['control_unit' , 'power_supply' , 'cu_power_supply' ,
-              'encoding' , 'is_active' , 'sorting_order']
+              'encoding' , 'ext_encoding','is_active' , 'sorting_order']
     verbose_name = _("Разрешённый БУ")
     verbose_name_plural = _("Разрешённые БУ для серии")
 

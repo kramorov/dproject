@@ -85,6 +85,8 @@ class BaseTemperatureThroughOption(BaseThroughOption) :
 
     def validate_unique_encoding(self) -> None :
         """Валидация уникальности encoding для температурных опций"""
+        if not getattr(self, 'enforce_encoding_unique', True) :
+            return
         if self.encoding and self.encoding.strip() :
             parent = self._get_parent_object()
             if parent :
@@ -470,6 +472,8 @@ class BaseTurnAngleThroughOption(BaseThroughOption) :
 
     def validate_unique_encoding(self) -> None :
         """Валидация уникальности encoding опций угла поворота"""
+        if not getattr(self, 'enforce_encoding_unique', True) :
+            return
         if self.encoding and self.encoding.strip() :
             parent = self._get_parent_object()
             if parent :
