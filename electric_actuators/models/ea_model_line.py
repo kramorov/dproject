@@ -58,6 +58,12 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
                                               help_text=_('Шаблон расширенной части артикула (ext_encoding опций; '
                                                           'схема кодирования зависит от производителя). '
                                                           'Итоговый артикул = основной шаблон + « » + ext-шаблон.'))
+    description_template = models.TextField(blank=True , default='' ,
+                                            verbose_name=_("Шаблон описания") ,
+                                            help_text=_('Шаблон описания серии (пусто — берётся из EquipmentType)'))
+    description_template_i18n = models.JSONField(default=dict , blank=True ,
+                                                  verbose_name=_("Переводы шаблона описания (ru/en/cn)") ,
+                                                  help_text=_('JSON: {"ru": ..., "en": ..., "cn": ...}'))
     brand = models.ForeignKey(Brands , blank=True , null=True ,
                               related_name='electric_model_line_brand' ,
                               on_delete=models.SET_NULL ,
@@ -589,129 +595,132 @@ class ElectricActuatorModelLine(LocalizedDescriptionFieldsMixin, StructuredDataM
         return option_info
 
 
-class ModelLine(models.Model) :
-    name = models.CharField(max_length=20 , help_text='Название серии')
-    brand = \
-        models.ForeignKey(Brands , blank=True , null=True ,
-                          related_name='model_line_brand' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Бренд производителя')
-    default_output_type = \
-        models.ForeignKey('params.ActuatorGearboxOutputType' , blank=True , null=True ,
-                          related_name='default_output_type' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Тип работы серии приводов')
 
-    default_ip = \
-        models.ForeignKey('params.IpOption' , blank=True , null=True ,
-                          related_name='default_ip_option' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартное исполнение степени защиты IP для серии')
-    allowed_ip = \
-        models.ManyToManyField('params.IpOption' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_ip' ,
-                               help_text='Возможные для выбора степени защиты IP для серии (можно выбрать '
-                                         'несколько)')
 
-    default_body_coating = \
-        models.ForeignKey('params.BodyCoatingOption' , blank=True , null=True ,
-                          related_name='default_body_coating' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартное исполнение покрытия корпуса для серии')
-    allowed_body_coating = \
-        models.ManyToManyField('params.BodyCoatingOption' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_body_coating' ,
-                               help_text='Возможные для выбора покрытия корпуса для серии (можно выбрать несколько)')
+# ===== LEGACY: ModelLine закомментирована (2026-10-19) =====
+#class ModelLine(models.Model) :
+#    name = models.CharField(max_length=20 , help_text='Название серии')
+#    brand = \
+#        models.ForeignKey(Brands , blank=True , null=True ,
+#                          related_name='model_line_brand' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Бренд производителя')
+#    default_output_type = \
+#        models.ForeignKey('params.ActuatorGearboxOutputType' , blank=True , null=True ,
+#                          related_name='default_output_type' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Тип работы серии приводов')
 
-    default_blinker = \
-        models.ForeignKey('params.BlinkerOption' , blank=True , null=True ,
-                          related_name='default_blinker_option' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартное исполнение блинкера для серии')
+#    default_ip = \
+#        models.ForeignKey('params.IpOption' , blank=True , null=True ,
+#                          related_name='default_ip_option' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартное исполнение степени защиты IP для серии')
+#    allowed_ip = \
+#        models.ManyToManyField('params.IpOption' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_ip' ,
+#                               help_text='Возможные для выбора степени защиты IP для серии (можно выбрать '
+#                                         'несколько)')
 
-    default_end_switches = \
-        models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
-                          related_name='default_end_switches' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартное исполнение путевых выключателей для серии')
-    allowed_end_switches = \
-        models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_end_switches' ,
-                               help_text='Возможные для выбора исполнения путевых выключателей для '
-                                         'серии (можно выбрать несколько)')
-    default_way_switches = \
-        models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
-                          related_name='default_way_switches' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартное исполнение конечных выключателей для серии')
-    allowed_way_switches = \
-        models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_way_switches' ,
-                               help_text='Возможные для выбора исполнения конечных выключателей '
-                                         'для серии (можно выбрать несколько)')
-    default_torque_switches = models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
-                                                related_name='default_torque_switches' ,
-                                                on_delete=models.SET_NULL ,
-                                                help_text='Стандартное исполнение ограничителей момента для серии')
-    allowed_torque_switches = models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
-                                                     related_name='ea_model_line_allowed_torque_switches' ,
-                                                     help_text='Возможные для выбора исполнения ограничителей момента '
-                                                               'для серии (можно выбрать несколько)')
+#    default_body_coating = \
+#        models.ForeignKey('params.BodyCoatingOption' , blank=True , null=True ,
+#                          related_name='default_body_coating' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартное исполнение покрытия корпуса для серии')
+#    allowed_body_coating = \
+#        models.ManyToManyField('params.BodyCoatingOption' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_body_coating' ,
+#                               help_text='Возможные для выбора покрытия корпуса для серии (можно выбрать несколько)')
 
-    default_temperature = models.ForeignKey('params.EnvTempParameters' , blank=True , null=True ,
-                                            related_name='default_temperature' ,
-                                            on_delete=models.SET_NULL ,
-                                            help_text='Стандартное температурное исполнения для серии')
-    allowed_temperature = \
-        models.ManyToManyField('params.EnvTempParameters' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_temperature' ,
-                               help_text='Возможные для выбора температурные исполнения для серии ('
-                                         'можно выбрать несколько)')
+#    default_blinker = \
+#        models.ForeignKey('params.BlinkerOption' , blank=True , null=True ,
+#                          related_name='default_blinker_option' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартное исполнение блинкера для серии')
 
-    default_control_unit_installed = \
-        models.ForeignKey('params.ControlUnitInstalledOption' , blank=True , null=True ,
-                          related_name='default_control_unit_installed' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартно установленный блок управления для серии')
-    allowed_control_unit_installed = \
-        models.ManyToManyField('params.ControlUnitInstalledOption' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_control_unit_installed' ,
-                               help_text='Возможные для выбора блоки управления для серии (можно выбрать несколько)')
+#    default_end_switches = \
+#        models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
+#                          related_name='default_end_switches' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартное исполнение путевых выключателей для серии')
+#    allowed_end_switches = \
+#        models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_end_switches' ,
+#                               help_text='Возможные для выбора исполнения путевых выключателей для '
+#                                         'серии (можно выбрать несколько)')
+#    default_way_switches = \
+#        models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
+#                          related_name='default_way_switches' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартное исполнение конечных выключателей для серии')
+#    allowed_way_switches = \
+#        models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_way_switches' ,
+#                               help_text='Возможные для выбора исполнения конечных выключателей '
+#                                         'для серии (можно выбрать несколько)')
+#    default_torque_switches = models.ForeignKey('params.SwitchesParameters' , blank=True , null=True ,
+#                                                related_name='default_torque_switches' ,
+#                                                on_delete=models.SET_NULL ,
+#                                                help_text='Стандартное исполнение ограничителей момента для серии')
+#    allowed_torque_switches = models.ManyToManyField('params.SwitchesParameters' , blank=True , default=1 ,
+#                                                     related_name='ea_model_line_allowed_torque_switches' ,
+#                                                     help_text='Возможные для выбора исполнения ограничителей момента '
+#                                                               'для серии (можно выбрать несколько)')
 
-    default_hand_wheel = \
-        models.ForeignKey('params.HandWheelInstalledOption' , blank=True , null=True ,
-                          related_name='default_hand_wheel' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартно установленный ручной дублер для серии')
+#    default_temperature = models.ForeignKey('params.EnvTempParameters' , blank=True , null=True ,
+#                                            related_name='default_temperature' ,
+#                                            on_delete=models.SET_NULL ,
+#                                            help_text='Стандартное температурное исполнения для серии')
+#    allowed_temperature = \
+#        models.ManyToManyField('params.EnvTempParameters' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_temperature' ,
+#                               help_text='Возможные для выбора температурные исполнения для серии ('
+#                                         'можно выбрать несколько)')
 
-    allowed_hand_wheel = \
-        models.ManyToManyField('params.HandWheelInstalledOption' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_hand_wheel' ,
-                               help_text='Возможные для выбора ручные дублеры для серии (можно выбрать несколько)')
+#    default_control_unit_installed = \
+#        models.ForeignKey('params.ControlUnitInstalledOption' , blank=True , null=True ,
+#                          related_name='default_control_unit_installed' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартно установленный блок управления для серии')
+#    allowed_control_unit_installed = \
+#        models.ManyToManyField('params.ControlUnitInstalledOption' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_control_unit_installed' ,
+#                               help_text='Возможные для выбора блоки управления для серии (можно выбрать несколько)')
 
-    default_mechanical_indicator = \
-        models.ForeignKey('params.MechanicalIndicatorInstalledOption' , blank=True , null=True ,
-                          related_name='default_mechanical_indicator' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартно установленный механический индикатор для серии')
+#    default_hand_wheel = \
+#        models.ForeignKey('params.HandWheelInstalledOption' , blank=True , null=True ,
+#                          related_name='default_hand_wheel' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартно установленный ручной дублер для серии')
 
-    allowed_mechanical_indicator = \
-        models.ManyToManyField('params.MechanicalIndicatorInstalledOption' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_mechanical_indicator' ,
-                               help_text='Возможные для выбора варианты установки механического индикатора для серии '
-                                         '(можно выбрать несколько)')
-    default_operating_mode = \
-        models.ForeignKey('params.OperatingModeOption' , blank=True , null=True ,
-                          related_name='default_operating_mode' ,
-                          on_delete=models.SET_NULL ,
-                          help_text='Стандартный режим работы двигателя для серии')
-    allowed_operating_mode = \
-        models.ManyToManyField('params.OperatingModeOption' , blank=True , default=1 ,
-                               related_name='ea_model_line_allowed_operating_mode' ,
-                               help_text='Возможные для выбора режимы работы двигателя для серии (можно выбрать '
-                                         'несколько)')
+#    allowed_hand_wheel = \
+#        models.ManyToManyField('params.HandWheelInstalledOption' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_hand_wheel' ,
+#                               help_text='Возможные для выбора ручные дублеры для серии (можно выбрать несколько)')
 
-    # certificates = GenericRelation(CertData)
+#    default_mechanical_indicator = \
+#        models.ForeignKey('params.MechanicalIndicatorInstalledOption' , blank=True , null=True ,
+#                          related_name='default_mechanical_indicator' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартно установленный механический индикатор для серии')
 
-    def __str__(self) :
-        return self.name
+#    allowed_mechanical_indicator = \
+#        models.ManyToManyField('params.MechanicalIndicatorInstalledOption' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_mechanical_indicator' ,
+#                               help_text='Возможные для выбора варианты установки механического индикатора для серии '
+#                                         '(можно выбрать несколько)')
+#    default_operating_mode = \
+#        models.ForeignKey('params.OperatingModeOption' , blank=True , null=True ,
+#                          related_name='default_operating_mode' ,
+#                          on_delete=models.SET_NULL ,
+#                          help_text='Стандартный режим работы двигателя для серии')
+#    allowed_operating_mode = \
+#        models.ManyToManyField('params.OperatingModeOption' , blank=True , default=1 ,
+#                               related_name='ea_model_line_allowed_operating_mode' ,
+#                               help_text='Возможные для выбора режимы работы двигателя для серии (можно выбрать '
+#                                         'несколько)')
+
+#    # certificates = GenericRelation(CertData)
+
+#    def __str__(self) :
+#        return self.name

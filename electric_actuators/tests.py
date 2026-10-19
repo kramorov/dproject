@@ -1054,19 +1054,13 @@ class AllowedCuAndIndicatorTests(TestCase):
         self.assertIn('{ext_code}', ph)
 
     def test_constructor_ext_helpers(self):
-        """ext-хелперы конструктора: cu/temp коды для шаблона ext_encoding."""
-        from params.models import ControlUnitInstalledOption, \
-            ActuatorHeaterSupply
+        """ext-хелперы конструктора: ps/temp коды для шаблона ext_encoding."""
+        from params.models import ActuatorHeaterSupply
         from electric_actuators.models import (ElectricActuatorConstructor,
                                                ElectricTemperatureOption)
         c = ElectricActuatorConstructor()
-        self.assertEqual(c._cu_ext(), '')
         self.assertEqual(c._ps_ext(), '')
         self.assertEqual(c._temp_ext(), '')
-        cu_io, _ = ControlUnitInstalledOption.objects.get_or_create(
-            code='int-o', defaults={'name': 'INT/O'})
-        c.selected_control_unit_option = cu_io
-        self.assertEqual(c._cu_ext(), 'LCU')
         motor, _ = ActuatorHeaterSupply.objects.get_or_create(
             code='MOTOR_CIRCUIT', defaults={'name': 'От цепей устройства'})
         t = ElectricTemperatureOption.objects.create(

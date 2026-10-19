@@ -71,6 +71,11 @@ class AllowedControlUnitOption(models.Model):
         verbose_name=_("Активно"),
         help_text=_("Показывать ли в списках выбора")
     )
+    is_default = models.BooleanField(
+        default=False,
+        verbose_name=_("По умолчанию"),
+        help_text=_("Выбирать этот БУ по умолчанию при выборе напряжения")
+    )
     sorting_order = models.IntegerField(
         default=0,
         verbose_name=_("Порядок сортировки")

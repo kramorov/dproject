@@ -1,7 +1,7 @@
 from django.db.models import Model
 from collections import namedtuple
 
-from electric_actuators.models import ElectricActuatorData ,  ElectricActuatorModelLine
+from electric_actuators.models import ElectricActuatorModelLine  # ElectricActuatorData (LEGACY) отключена
 from params.models import IpOption, PowerSupplies, DigitalProtocolsSupportOption, ControlUnitInstalledOption, \
     EnvTempParameters
 from params.exd_models import ExdOption
@@ -118,8 +118,8 @@ def process_model_name(model_string):
     else:
         voltage = voltage_result.description
 
-    model_result = find_record_by_fields(ElectricActuatorData, {'name': model, 'voltage': voltage_result.record},
-                                         'name')
+    # ElectricActuatorData отключена (LEGACY) — технические данные недоступны
+    model_result = SearchResult(record=float('nan'), description='Ошибка!')
     if model_result.description == 'Ошибка!':
         model = 'Модель привода с названием = ' + model + ' не найдена.'
         result_table.extend([

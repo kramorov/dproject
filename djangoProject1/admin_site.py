@@ -121,13 +121,13 @@ ADMIN_MODEL_BLOCK = {
     ('electric_actuators', 'ElectricActuatorBody'): 'electric_actuators',
     ('electric_actuators', 'ElectricActuatorBodyTable'): 'electric_actuators',
     ('electric_actuators', 'ElectricActuatorConstructor'): 'electric_actuators',
-    ('electric_actuators', 'ElectricActuatorData'): 'electric_actuators',
+    # ('electric_actuators', 'ElectricActuatorData'): 'electric_actuators',  # LEGACY: отключена
     ('electric_actuators', 'ElectricActuatorModelLine'): 'electric_actuators',
     ('electric_actuators', 'ElectricActuatorModelLineItem'): 'electric_actuators',
     ('electric_actuators', 'ElectricActuatorSelected'): 'electric_actuators',
     ('electric_actuators', 'ElectricExdOption'): 'electric_actuators',
     ('electric_actuators', 'ElectricPowerSupplyOption'): 'electric_actuators',
-    ('electric_actuators', 'ModelBody'): 'electric_actuators',
+    # ('electric_actuators', 'ModelBody'): 'electric_actuators',  # LEGACY: отключена
     # --- Электроприводы: сигналы/матрица (новые модели, 2026-10-18) ---
     ('electric_actuators', 'EaSignalForm'): 'electric_actuators',
     ('electric_actuators', 'EaControlSignal'): 'electric_actuators',

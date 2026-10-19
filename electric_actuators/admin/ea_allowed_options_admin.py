@@ -10,9 +10,9 @@ from electric_actuators.models.ea_allowed_options import (
 
 @admin.register(AllowedControlUnitOption)
 class AllowedControlUnitOptionAdmin(admin.ModelAdmin):
-    list_display = ['model_line', 'control_unit', 'encoding', 'is_active', 'sorting_order']
-    list_editable = ['encoding', 'is_active', 'sorting_order']
-    list_filter = ['model_line', 'is_active']
+    list_display = ['model_line', 'control_unit', 'encoding', 'is_default', 'is_active', 'sorting_order']
+    list_editable = ['encoding', 'is_default', 'is_active', 'sorting_order']
+    list_filter = ['model_line', 'is_default', 'is_active']
     search_fields = ['model_line__name', 'control_unit__name', 'encoding']
     autocomplete_fields = ['model_line', 'control_unit']
 

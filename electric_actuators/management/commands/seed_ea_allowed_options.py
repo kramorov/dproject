@@ -196,15 +196,19 @@ class Command(BaseCommand):
             if item_code:
                 item = ElectricActuatorModelLineItem.objects.get(
                     model_line=line, code=item_code)
+            is_default = (cu_code == 'basic')
             obj, created = AllowedControlUnitOption.objects.get_or_create(
                 model_line=line, control_unit=cu[cu_code],
                 power_supply=ps.get(ps_code) if ps_code else None,
                 model_line_item=item,
                 defaults={'is_active': active,
+                          'is_default': is_default,
                           'encoding': obj_encoding(cu_code)})
-            if not created and obj.is_active != active:
+            if not created and (obj.is_active != active
+                                or obj.is_default != is_default):
                 obj.is_active = active
-                obj.save(update_fields=['is_active'])
+                obj.is_default = is_default
+                obj.save(update_fields=['is_active', 'is_default'])
                 stats['allowed_updated'] += 1
             elif created:
                 stats['allowed_created'] += 1
@@ -474,6 +478,7 @@ class Command(BaseCommand):
             spec_ru = ('Серия: {series_code}\nМодель: {model_code} ({body_code})\n'
                        'Момент: {torque} Нм, время закрытия: {time_to_close} с\n'
                        'Напряжение питания: {power_supply}\n'
+                       'Ток ном: {motor_current_rated} А, Ток пуск: {motor_current_starting} А, Мощность: {motor_power} кВт\n'
                        'Блок управления: {cu_name}\n'
                        'Питание БУ: {cu_power_supply}\n'
                        'Режим: {cu_mode}\n'
@@ -505,6 +510,7 @@ class Command(BaseCommand):
             spec_en = ('Series: {series_code}\nModel: {model_code} ({body_code})\n'
                        'Torque: {torque} Nm, closing time: {time_to_close} s\n'
                        'Power supply: {power_supply}\n'
+                       'Rated current: {motor_current_rated} A, starting current: {motor_current_starting} A, power: {motor_power} kW\n'
                        'Control unit: {cu_name}\n'
                        'CU power supply: {cu_power_supply}\n'
                        'Mode: {cu_mode}\n'
@@ -536,6 +542,7 @@ class Command(BaseCommand):
             spec_cn = ('系列: {series_code}\n型号: {model_code} ({body_code})\n'
                        '力矩: {torque} N·m, 关闭时间: {time_to_close} s\n'
                        '电源: {power_supply}\n'
+                       '额定电流: {motor_current_rated} A, 启动电流: {motor_current_starting} A, 功率: {motor_power} kW\n'
                        '控制单元: {cu_name}\n'
                        '控制单元电源: {cu_power_supply}\n'
                        '模式: {cu_mode}\n'

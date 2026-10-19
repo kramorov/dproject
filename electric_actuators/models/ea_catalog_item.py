@@ -71,6 +71,7 @@ class ElectricActuatorCatalogItem(
     NAME_FIELD_KEYS = (
         'code', 'series_code', 'body_code', 'torque', 'time_to_close',
         'power_supply', 'voltage',
+        'motor_current_rated', 'motor_current_starting', 'motor_power',
         'cu_name', 'cu_power_supply', 'cu_mode', 'cu_heater',
         'ctl_protocol', 'ctl_commands', 'ctl_setpoint', 'ctl_local_controls',
         'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
@@ -211,13 +212,14 @@ class ElectricActuatorCatalogItem(
         return self._get_equipment_type_template('name_template') or None
 
     def _get_description_template_source(self):
-        # Описание — spec_template EquipmentType (полная спецификация).
+        # Описание: сначала шаблон серии (model_line), затем spec_template EquipmentType.
+        ml = self.model_line
+        if ml and getattr(ml, 'description_template', '').strip():
+            return ml.description_template
         return self._get_equipment_type_template('spec_template') or None
 
     def _get_template_i18n(self, field_base: str):
-        """Переводы шаблонов — с того же EquipmentType (карточка без шаблонов
-        на серии; базовый миксин для этого случая i18n не находит).
-        Описание рендерится из spec_template → переводы из spec_template_i18n."""
+        """Переводы шаблонов: сначала из серии, затем из EquipmentType."""
         et = self._get_equipment_type()
         if et is None:
             from core.models.equipment_type import EquipmentType
@@ -227,6 +229,9 @@ class ElectricActuatorCatalogItem(
             return None
         i18n_field = f'{field_base}_i18n'
         if field_base == 'description_template':
+            ml = self.model_line
+            if ml and getattr(ml, 'description_template', '').strip():
+                return ml.description_template_i18n or None
             i18n_field = 'spec_template_i18n'
         return getattr(et, i18n_field, None)
 
@@ -262,6 +267,30 @@ class ElectricActuatorCatalogItem(
 
     def _res_ext_code(self, locale=None) -> str:
         return self.generated_ext_code
+
+    def _res_cu_encoding(self, locale=None) -> str:
+        """encoding БУ из through-модели AllowedControlUnitOption (для артикула)."""
+        from electric_actuators.models import AllowedControlUnitOption
+        if not self.control_unit_id or not self.model_line_id:
+            return ''
+        row = (AllowedControlUnitOption.objects
+               .filter(model_line_id=self.model_line_id,
+                       control_unit_id=self.control_unit_id,
+                       is_active=True)
+               .first())
+        return row.encoding if row and row.encoding else ''
+
+    def _res_cu_ext_encoding(self, locale=None) -> str:
+        """ext_encoding БУ из through-модели AllowedControlUnitOption (для ext-кода)."""
+        from electric_actuators.models import AllowedControlUnitOption
+        if not self.control_unit_id or not self.model_line_id:
+            return ''
+        row = (AllowedControlUnitOption.objects
+               .filter(model_line_id=self.model_line_id,
+                       control_unit_id=self.control_unit_id,
+                       is_active=True)
+               .first())
+        return row.ext_encoding if row and row.ext_encoding else ''
 
     # ── Простые значения (нелокализуемые) ──
     def _res_torque(self, locale=None) -> str:

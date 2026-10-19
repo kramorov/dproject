@@ -22,8 +22,8 @@
     ea_signal_matrix.py         — EaSignalMatrixEntry, EaWiringDiagramBinding
 """
 from .ea_model_line import *
-from .ea_data import *
-from .ea_model_body import *
+# from .ea_data import *  # LEGACY: ElectricActuatorData отключена (2026-10-19)
+# from .ea_model_body import *  # LEGACY: ModelBody отключена (2026-10-19)
 from .ea_access_device import *
 from .ea_catalog_item import *
 from .ea_cg_holes_set import *
@@ -45,9 +45,9 @@ from .ea_signal_matrix import *
 __all__ = [
     # все модели, которые должны быть доступны извне
     'ElectricActuatorModelLine',
-    'ModelLine',
-    'ElectricActuatorData',
-    'ModelBody',
+    # 'ModelLine',  # LEGACY: отключена
+    # 'ElectricActuatorData',  # LEGACY: отключена
+    # 'ModelBody',  # LEGACY: отключена
     'CableGlandHolesSet',
     'ElectricHandWheelOption',
     'ElectricTemperatureOption',

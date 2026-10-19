@@ -3,8 +3,8 @@
 
 Каждая админка в отдельном файле, импортируются для регистрации в Django.
 """
-from .ea_data_admin import *
-from .ea_model_body_admin import *
+# from .ea_data_admin import *  # LEGACY: ElectricActuatorData отключена (2026-10-19)
+# from .ea_model_body_admin import *  # LEGACY: ModelBody отключена (2026-10-19)
 from .ea_model_line_admin import *
 from .ea_cg_holes_set_admin import *
 from .ea_body_admin import *

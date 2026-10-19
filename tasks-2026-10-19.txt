@@ -2,7 +2,7 @@
 Сделать для model_line вывод таблицы всех опций с encoding и ext_encoding.
 
 Убрать ModelLine, AllowedOptions get_description_data
-Проверить механизм формирования артикула и расширенного артикула для model_line ЭП.
+
 
 Замечания
 

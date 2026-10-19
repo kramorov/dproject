@@ -256,7 +256,25 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         return None  # шаблоны — из EquipmentType
 
     def _get_description_template_source(self):
-        return None  # шаблоны — из EquipmentType
+        # Описание: сначала шаблон серии (model_line), затем spec_template EquipmentType.
+        ml = self.selected_model_line
+        if ml and getattr(ml, 'description_template', '').strip():
+            return ml.description_template
+        return self._get_equipment_type_template('spec_template') or None
+
+    def _get_template_i18n(self, field_base: str):
+        """Переводы шаблона: сначала из серии, затем из EquipmentType."""
+        if field_base == 'description_template':
+            ml = self.selected_model_line
+            if ml and getattr(ml, 'description_template', '').strip():
+                return ml.description_template_i18n or None
+        et = self._get_equipment_type()
+        if et is None:
+            return None
+        i18n_field = f'{field_base}_i18n'
+        if field_base == 'description_template':
+            i18n_field = 'spec_template_i18n'
+        return getattr(et, i18n_field, None)
 
     def _get_data_dict(self, locale=None):
         """Плейсхолдер → путь/resolver конструктора (паттерн TemplateMixin)."""
@@ -268,6 +286,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             '{time_to_close}': '_res_time_to_close',
             '{power_supply}': 'selected_power_supply',
             '{voltage}': 'selected_power_supply__power_supply',
+            '{motor_current_rated}': 'selected_power_supply__motor_current_rated',
+            '{motor_current_starting}': 'selected_power_supply__motor_current_starting',
+            '{motor_power}': 'selected_power_supply__motor_power',
             '{cu_name}': 'selected_control_unit_option',
             '{cu_power_supply}': '_res_cu_power_supply',
             '{cu_mode}': '_res_mode',
@@ -442,6 +463,12 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'through_attr': None,  # ElectricPowerSupplyOption САМА является опцией
             'label': 'напряжение питания',
             'parent_field': 'model_line_item',
+        },
+        'selected_control_unit_option': {
+            'through_model_path': 'electric_actuators.models.ea_allowed_options.AllowedControlUnitOption',
+            'through_attr': 'control_unit',
+            'label': 'блок управления',
+            'parent_field': 'model_line',
         },
         'selected_safety_position': {
             'through_model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricSafetyPositionOption',
@@ -799,7 +826,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
                     'name': localized_name(pair.control_unit, locale),
                     'code': pair.control_unit.code,
                     'description': pair.control_unit.description or '',
-                    'is_default': False,
+                    'is_default': bool(pair.is_default),
                 })
             result['control_unit_options'] = cu_options
 
@@ -1050,10 +1077,8 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         result = result.replace('{voltage_enc}', self._get_option_encoding('selected_power_supply'))
         result = result.replace('{exd_enc}', self._get_option_encoding('selected_exd'))
         result = result.replace('{control_unit_enc}', self._get_option_encoding('selected_control_unit_option'))
-        # {cu_name_enc} — номенклатура TemplateMixin: код БУ из CU_EXT (BA/LCU/INT/AINT...)
-        from electric_actuators.services.ea_ext_code import CU_EXT
-        cu = self.selected_control_unit_option
-        result = result.replace('{cu_name_enc}', CU_EXT.get(cu.code, cu.code) if cu else '')
+        # {cu_name_enc} — encoding БУ из through-модели AllowedControlUnitOption
+        result = result.replace('{cu_name_enc}', self._get_option_encoding('selected_control_unit_option'))
 
         # Очистка
         result = re.sub(r'\.{2,}', '.', result)
@@ -1093,7 +1118,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         result = result.replace('{control_unit_e_enc}', self._get_option_ext_encoding('selected_control_unit_option'))
         # ext-позиции (схема 14.2): сигнальные позиции пусты, пока конструктор
         # не переведён на матричный выбор (фаза 6)
-        result = result.replace('{cu_e_enc}', self._cu_ext())
+        result = result.replace('{cu_e_enc}', self._get_option_ext_encoding('selected_control_unit_option'))
         result = result.replace('{cu_p_e_enc}', '')
         result = result.replace('{ps_e_enc}', self._ps_ext())
         result = result.replace('{mode_e_enc}', '')
@@ -1127,12 +1152,6 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         result = re.sub(r'^[.\-\s]+', '', result)
         return result.strip()
 
-    def _cu_ext(self) -> str:
-        """ext-код блока управления (фиксированный справочник CU_EXT)."""
-        from electric_actuators.services.ea_ext_code import CU_EXT
-        cu = self.selected_control_unit_option
-        return CU_EXT.get(cu.code, '') if cu else ''
-
     def _ps_ext(self) -> str:
         """ext-код напряжения мотора ('' — 220AC, '3' — 380AC, '2' — 24DC)."""
         from electric_actuators.services.ea_ext_code import PS_EXT
@@ -1152,20 +1171,6 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
                 t.heater_supply.code == 'MOTOR_CIRCUIT':
             base = base + 'M'
         return base
-
-    def _ip_ext(self) -> str:
-        """ext-код степени защиты: код IpOption (IP54…IP69) или 'IP00'."""
-        ip = self.selected_ip
-        if ip and getattr(ip, 'ip_option_id', None):
-            return ip.ip_option.code or 'IP00'
-        return 'IP00'
-
-    def _exd_ext(self) -> str:
-        """ext-код взрывозащиты: exd_short записи или 'EX0'."""
-        exd = self.selected_exd
-        if exd:
-            return exd.exd_short or exd.encoding or 'EX0'
-        return 'EX0'
 
     def _sp_ext(self) -> str:
         """ext-код положения безопасности: FL/NC/NO/BAT (fail-safe)."""
