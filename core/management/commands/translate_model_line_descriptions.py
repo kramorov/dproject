@@ -32,7 +32,7 @@ DESCRIPTIONS = {
         ('Actuator series for explosion-proof and ultra-low-temperature service.',
          '防爆超低温型执行器系列。'),
     'Серия кулисных приводов с малым вращающим моментом':
-        ('Linkage actuator series with low output torque.', '低扭矩连杆执行器系列。'),
+        ('Scotch yoke actuator series with low output torque.', '小扭矩拨叉执行器系列。'),
     # solenoid_valves
     'Серия недорогих распределителей 3/2 и 5/2 для общепромышленного применения':
         ('Economical 3/2 and 5/2 valve series for general industrial use.',

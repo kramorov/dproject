@@ -182,7 +182,7 @@ TRANSLATIONS = {
         'Никелерованная латунь': ('Nickel-plated brass', '镀镍黄铜'),
     },
     'pneumatic_actuators.PneumaticActuatorConstructionVariety': {
-        'Кулисный': ('Linkage', '连杆'),
+        'Кулисный': ('Scotch Yoke', '拨叉式气动执行器'),
         'Шестерня-рейка': ('Rack-and-pinion', '齿轮齿条'),
     },
     'pneumatic_actuators.PneumaticActuatorSpringsQty': {
