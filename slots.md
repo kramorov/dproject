@@ -137,6 +137,18 @@
 с **требованиями**. Это снимает неоднозначность границы А↔В: оба паттерна
 принадлежат домену слотов.
 
+**Соглашение об именах моделей** (для новых моделей; существующие не
+переименовываем): имя несёт суффикс роли в паттерне — `Node` (узел
+иерархии/секция), `Slot` (точка конфигурации), `Option` (значение слота),
+`MatrixEntry` (строка доступности, Паттерн А), `Rule` (динамика, Паттерн В),
+`Snapshot` (снимок выбора), `Requirement` (условие подбора/сравнения),
+`Profile` (дефолты; концепт — реализуется бесскоуповыми строками матрицы,
+отдельной модели нет). Физические модели и справочники — без суффикса, обычные
+имена (`ControlUnit`, `EaControlSignal`): обычные Django-модели с
+типизированными полями (скаляры + FK/M2M на справочники), без композитных
+данных — всё, что зависит от точки конфигурации (доступность, дефолты,
+артикульные коды, правила), живёт в паттерн-моделях (матрица/правила/снимок).
+
 ### Детали
 
 - Мост «слот = подтип оборудования»: `slot_kind=subtype` = `options_config.model
@@ -257,6 +269,9 @@
 
 - Узел «Электропривод» = `core.EquipmentType` с `code='electric-actuator'` (источник шаблонов name/description — уже работает через `TemplateMixin`).
 - Узел «Блок управления» = дочерний `EquipmentType` (подтип) **и** слот `control_unit` с опциями-подтипами БУ — это и есть трансляция «слот = подтип».
+  *(Пересмотрено 2026-10-22: для БУ выбран вариант Б — слот `control_unit`
+  с `slot_kind=object` на реестр `ControlUnit`, без записей в дереве.
+  Обоснование — глава «План: отладка паттерна…» → «Решение: граница…».)*
 - Слоты = `configurator.EquipmentTypeParameter`, в которые отображаются существующие `EaSignalSlot` (`LOCAL_CONTROL`, `CMD`, `SETPOINT`, `LIMIT_SWITCHES`, `WAY_SWITCHES`, `TORQUE_SWITCHES`, `POSITION_FEEDBACK`, `PROTOCOL`, `THERMAL_SENSOR`, `HEATER_CONTROL_UNIT`, `INDICATOR`, `TURN_COUNTER` и отдельные сигналы состояния).
 - Опции слотов = `EaSlotOption` (каталог, `ext_encoding` = код позиции ext) + типизированные FK на `EaControlSignal`/`EaFeedbackSignal`/`EaCommProtocol`/`EaFeedbackDevice`/`ActuatorHeaterSupply`.
 - Доступность = `EaSignalMatrixEntry` (скоуп × БУ × напряжение × режим), бесскоуповые строки = профиль сигналов типа БУ.
@@ -589,6 +604,11 @@
 - Цена: `price/models/ea_price_constructor.py` → `EAPriceConstructor`.
 - Профиль сигналов (физический, роль → датчик): `params/control_unit_signal_profile.py` →
   `ControlUnitSignalProfile`/`ControlUnitSignalProfileEntry`.
+- БУ (приложение `ea_control`, фазы 0–3 реализованы): `models/` →
+  `ControlUnit`, `CuSectionNode`/`CuSlot`/`CuSlotOption`/`CuMatrixEntry`/
+  `CuSlotRule`, справочники-копии (`dictionaries.py`), схемотехника
+  (`cu_power.py`); абстракции паттерна — `models/abstract.py` (перенос в
+  `core` после стабилизации).
 
 **Бэкенд — сервисы:**
 
@@ -606,6 +626,15 @@
 - `electric_actuators/services/ea_ext_code.py` — ext-код заказа.
 - `electric_actuators/management/commands/seed_ea_cu_profiles.py` — заливка
   профилей БУ.
+- `ea_control/services/cu_matrix.py` — резолвер матрицы БУ (Паттерн А:
+  скоупы, na-запреты, resolve_control_units, profile-дефолты, валидация
+  bundle/conflicts).
+- `ea_control/services/cu_rules.py` — движок правил (Паттерн В).
+- `ea_control/services/cu_package.py` — пакет конфигуратора для фронта
+  (slots.md §5).
+- `ea_control/api.py` + `ea_control/urls.py` — CRUD-API моделей + units/meta/
+  series-units/package (под /api/ea-control/).
+- `ea_control/management/commands/seed_cu_demo.py` — демо-данные (идемпотентно).
 
 **Фронтенд:**
 
@@ -614,8 +643,389 @@
 - `frontend/src/pages/admin/SkillConfigPage.vue` — дерево состава
   (`TreeNode`/`CompositionGroupNode`/`EquipmentTypeNode`/`MBOMItemNode`).
 - `frontend/src/pages/admin/ConfiguratorRulesPage.vue` — заглушка-редирект.
+- `frontend/src/pages/admin/EaControlAdminPage.vue` — CRUD-админка ea_control
+  (вкладки БУ/Узлы/Слоты/Опции/Матрица/Правила + справочники).
+- `frontend/src/pages/admin/EaControlConfiguratorPage.vue` — тестовый
+  конфигуратор БУ (правила на лету, конфликты/пакеты, снимок, артикул).
 - `frontend/src/components/admin/EquipmentTypeEditor.vue` — редактор
   `EquipmentType` + частично `EquipmentTypeParameter`.
 - `frontend/src/components/bom/*.vue` — дерево BOM.
 - `frontend/src/router/index.js` — роуты (`/admin/pipeline-config`,
-  `/admin/skill-config`, `/configurator/pa-kit`, `/admin/assemblies` и др.).
+  `/admin/skill-config`, `/configurator/pa-kit`, `/admin/assemblies`,
+  `/admin/ea-control`, `/admin/ea-control-configurator` и др.).
+
+---
+
+## План: отладка паттерна на модели БУ ЭП (приложение ea_control)
+
+> План 2026-10-22. Цель — закончить модель электроприводов: вынести сущность
+> «Блок управления» (БУ) в новое приложение `ea_control` и отладить на ней
+> паттерны из глав «Предлагаемый паттерн» и «Предлагаемая реализация
+> паттерна…»: абстрактные модели Слот/Опция/Матрица/Правило сначала живут в
+> `ea_control`, после отладки переезжают в `core`. **Статус: фазы 0–3 и фронт
+> реализованы** (см. «Статус реализации» ниже); остались миграции из legacy,
+> интеграция в ЭП и перенос абстракций в core.
+>
+> Доменные факты: тип БУ характерен для **серии** (все модели серии делят его);
+> у разных серий БУ могут совпадать или различаться; БУ бывают простые и
+> сложные, с набором дополнительных возможностей. Сегодня это
+> `params.ControlUnitInstalledOption` (kind NONE/BASIC/INTEGRATED/POSITIONER,
+> accepts/emits/protocols/capabilities/control_voltage) + `AllowedControlUnitOption`
+> (серия × БУ × напряжение) + профильные строки `EaSignalMatrixEntry`.
+
+### Термины
+
+- **БУ (ControlUnit)** — сущность: конкретный тип блока управления производителя.
+- **Шаблон БУ** — не отдельная модель, а роль данных: `ControlUnit` + его
+  профильные строки матрицы (бесскоуповые строки = дефолты слотов) + правила.
+  Так же, как в ЭП (slots.md «Решения»: профиль = бесскоуповые строки).
+- **Слот** — точка конфигурации БУ: сигнальные слоты и БУ-специфичные
+  (питание цепей управления, логика управления, тип сигнала).
+- **Соглашение об именах** (общее, из глоссария): суффикс роли в паттерне —
+  `Node`/`Slot`/`Option`/`MatrixEntry`/`Rule`/`Snapshot`/`Requirement`/`Profile`;
+  физические модели и справочники — без суффикса. Применяется к новым моделям
+  `ea_control` и будущим абстракциям `core` (`ConfigSlot`, `SlotOption`,
+  `SlotMatrixEntry`, `SlotRule`, `ConfigSnapshot`); существующие модели не
+  переименовываем (`EaSignalSlot` и т.д. остаются до миграции).
+- **Физика vs паттерн**: физическая модель (БУ, сигнал, справочник) — обычная
+  Django-модель с типизированными полями; в ней нет композитных данных.
+  Коды артикула у опции — справочные дефолты (опция «сама себя кодирует»:
+  `encoding`/`ext_encoding`); фактические коды в точке конфигурации
+  переопределяются строками матрицы (приоритет матрицы).
+
+### Решение: граница «узел в дереве vs опция внутри изделия» (БУ — вариант Б)
+
+**Вопрос.** БУ ЭП — ветка от ЭП и больше ни к чему не относится; логично
+выбирать каскадом «выбрали ЭП → выбрали БУ». Чем тогда БУ отличается от КВ,
+который тоже выбирается после родителя? Заводить ли БУ в `EquipmentType`?
+
+**Почему критерий «обязательности» не работает.** Обязательность — свойство
+ребра состава (`CompositionGroup.group_type`: required|optional|xor), а не
+узла. Внутри БУ тоже есть обязательные и необязательные части (дисплей может
+быть, может не быть) — критерий обязан масштабироваться на любой уровень
+вложенности, обязательность не масштабируется (рекурсия).
+
+**Рабочая граница — три вопроса:**
+1. Есть ли у сущности **собственный каталог** (артикул/цена/документы как у
+   самостоятельного товара)?
+2. Подбирается ли она как **самостоятельная позиция** по универсальным
+   требованиям (temp/ip/exd/thread…), а не по матрице родителя?
+3. Или существует только как **вариант внутри конфигурации родителя**
+   (доступность — матрица серии, кодировка — позиция артикула родителя)?
+
+Ответы для БУ ЭП: 1 — нет; 2 — нет (сначала выбирается ЭП; поиск по
+вложенным признакам — см. «Поиск/фильтры» ниже — границу не меняет);
+3 — да. Вывод: БУ — опция внутри изделия, а не узел дерева.
+
+**Правила:**
+- «да, да, нет» (КВ, фитинг, соленоид, позиционер ПП) → узел `EquipmentType`
+  + ребро `CompositionGroup` + каскад интерфейса `DerivationRule`.
+- «нет, нет, да» (БУ ЭП) → физический реестр (`ControlUnit`) + слот
+  `control_unit` + матрица; в дереве ничего не заводим.
+- Сборка (арматура + привод + КВ…) — `CompositionGroup` поверх узлов (версии
+  — `assemblies`); структурно похожа на «ЭП → БУ», отличается тем, что её
+  позиции — самостоятельные изделия с собственными каталогами.
+
+**Подтверждение из кода (2026-10-22).** `CompositionGroup` в базе несёт
+только самостоятельные изделия (КВ, скобы, МК, фитинги, соленоид, позиционер
+ПП, ручной дублер); группы состава для ЭП нет вовсе. Прецедент границы уже
+реализован: позиционер ПП — узел (`pa-posi`, группа «Пневмопозиционер с КВ
+и фитингами и скобой»; в комплект ПП входит через xor-ветку references),
+потому что товар со своим каталогом; БУ ЭП — не узел, потому что не товар.
+Физически это одно и то же (блок управления приводом) — границу провела
+бизнес-роль, не физика. Подтипы `ea-posi`/`ea-int`/`ea-tr` в дереве не
+упомянуты ни в одной группе состава (экспериментальные; не трогаем).
+
+**Оценка «БУ в дереве» (вариант А) против варианта Б по трём осям:**
+- *Целостность архитектуры.* А даёт единый реестр и готовые механизмы
+  (требования/каскад/шаблоны), но размывает критерий входа (следом в дерево
+  попросятся компоненты БУ — дисплей, плата), создаёт двойное ведение
+  (узел ↔ матрица серии — одно знание в двух механизмах) и заставляет
+  AI-пайплайн учить исключение «этот узел — не позиция подбора». Б — одна
+  роль, один механизм; «второй реестр» де-факто уже есть
+  (`params.ControlUnitInstalledOption`) и просто переезжает в типизированную
+  модель.
+- *Администрирование.* В А ветка «ЭП → БУ» видна в дереве состава, но
+  доступность БУ для серии настраивается в двух местах (CompositionGroup и
+  матрица); узел-не-товар тянет пустые формы (шаблоны/семантики). В Б всё про
+  БУ — в одной админке (`/admin/ea-control`), изменение опций — правка
+  данных, не структуры (Decision Log №7); ветка видна в дереве конфигурации
+  (секция «БУ» со слотами).
+- *Поиск/фильтры.* «Момент 100 Нм + есть сигнал ОС Авария» — фильтр по ЭП:
+  признак лежит в конфигурационном пространстве ЭП, а не в отдельной
+  сущности. Дерево даёт бесплатно только «подобрать БУ отдельно» (такой
+  задачи нет), а искомый фильтр не решает (`EquipmentTypeParameter.field_path`
+  указывает на поле товара, «сигнал Авария» — не поле). В Б тот же фильтр —
+  предикат над слотом/матрицей серии; `EquipmentTypeParameter` расширяется
+  одним типом параметра (`slot_has_option`), покрывающим и будущие случаи
+  (есть Modbus, есть обогрев). Порядок применения фильтров (сначала основной
+  критерий, потом вложенный) — оптимизация запроса, не схемы.
+
+**Решение: вариант Б.** Промоушн из Б аддитивен и дёшев: появится собственный
+каталог БУ или состав БУ из позиций (сборка) — заводим узел `EquipmentType` и
+ребро `CompositionGroup`, реестр и матрица остаются как есть. Гипотеза «к БУ
+можно прописать компоненты, из которых его собирать» отложена — это триггер
+промоушна, не текущая задача (сейчас разбираемся с конфигуратором).
+
+**Отклонено:** (а) отдельная сущность `EquipmentComponent` — компоненты-изделия
+это те же узлы `EquipmentType`, роль «компонент» задаёт ребро состава, а не
+тип узла (один тип бывает и самостоятельным изделием, и компонентом сборки);
+(б) декларативный флаг «включать в дерево или нет» на типе — метаданные о
+метаданных: целостность начинает зависеть от дисциплины админа, граница
+должна быть структурной; (в) «разделы» внутри дерева — допустимы только как
+презентационная группировка в админке, не как структурная сущность (сейчас
+не требуются).
+
+### Бэкенд
+
+**Фаза 0 — каркас.** `ea_control` в INSTALLED_APPS (apps.py/urls/admin),
+папка `models/`; черновик `models.py` разобрать на файлы (текущий черновик
+бит кодировкой CP1251 — тексты восстановить при переносе, файлы — UTF-8).
+
+**Фаза 1 — абстрактные модели паттерна** (`ea_control/models/abstract.py`,
+потом перенос в `core`):
+
+- **Связные поля (FK/M2M) объявляет наследник** — абстракция несёт только
+  скалярные поля и общую логику (см. «Правила наследования» в
+  `ea_control/models/abstract.py`). `name`/`description` — ru-поля для
+  админки; локализация сайта — `name_i18n`/`description_i18n` миксином
+  `LocalizedDictFieldsMixin` у наследника.
+- `AbstractConfigNode` — узел-секция: `code`, `name`, `parent` (self-FK,
+  вложенность), `description`, `sorting_order`, `is_active`.
+- `AbstractConfigSlot` — обобщение `EaSignalSlot`: `code`, `name`,
+  `selection_mode` (single|multi|xor|bundle), `slot_kind`
+  (value|object|subtype), `required`, `description`, `sorting_order`,
+  `is_active`; связное поле `section` (FK на узел-секцию) объявляет
+  наследник.
+- `AbstractSlotOption` — общие поля `EaSlotOption`: `code`, `kind` (choices
+  задаёт наследник), `name`, `encoding`/`ext_encoding` (справочные коды
+  артикула; переопределяются матрицей), `description`, `sorting_order`,
+  `is_active`; связные поля — `slot` (FK) и типизированные FK-полезные
+  нагрузки (feedback_signal/control_signal/protocol/heater_supply/device/
+  control_unit/…) — объявляет наследник.
+- `AbstractSlotMatrixEntry` — общие поля `EaSignalMatrixEntry`: `availability`
+  std/opt/na, `is_default`, `bundle`, `conflicts` (M2M self), `encoding`,
+  `ext_encoding`, `name`, `description`, `sorting_order` + методы
+  `localized_name()`/`save()` (std → default); связные поля (`slot`/`option`
+  FK, скоуп brand/model_line/body/model_line_item, контекст
+  control_unit/power_supply/mode, типизированные полезные нагрузки строки)
+  объявляет наследник.
+- `AbstractSlotRule` (Паттерн В) — новое: `when_operator`, `when_value` (JSON),
+  `action` (show|hide|block|require|set_default), `action_value` (JSON — для
+  set_default), `priority`, `is_active`;
+  связные `when_slot`/`target_slot` (FK) объявляет наследник.
+- `AbstractConfigSnapshot` — `config_snapshot = JSONField({slot_code: value})`
+  + `set_option()`/`get_option()`/`apply_defaults()`/`full_code()` (аналог
+  `config_snapshot` из «Что изменить для унификации», п. 6).
+
+**Фаза 2 — конкретные модели БУ** (`ea_control/models/`):
+
+- Копии справочников ЭП (изоляция от `electric_actuators`, коды сохраняем
+  для маппинга): `CuSignalForm` ← EaSignalForm, `CuControlSignal` ←
+  EaControlSignal, `CuFeedbackSignal` ← EaFeedbackSignal, `CuCommProtocol` ←
+  EaCommProtocol, `CuFeedbackDevice` ← EaFeedbackDevice, `CuHeaterSupply` ←
+  params.ActuatorHeaterSupply, `CuLocationOption` ←
+  params.ControlUnitLocationOption. Глобальные не копируем — FK:
+  `params.PowerSupplies`, `producers.Brands`.
+- Справочники (физика БУ; из черновика пользователя): `CuSignalPowerSource`
+  (встроенный/внешний источник цепей управления), `CuSignalPower` (источник ×
+  напряжение `params.PowerSupplies`), `CuControlLogic`
+  (импульс/потенциал/настраиваемый, `has_self_holding`), `CuSignalType`
+  (сухой контакт/потенциал 220 В, `logic_type`, `voltage`).
+- `ControlUnit` — сущность БУ: `brand` (producers.Brands — глобальный, без
+  копии), `code`, `name_i18n`, `kind` (NONE/BASIC/INTEGRATED/POSITIONER),
+  `location` (CuLocationOption — копия params.ControlUnitLocationOption),
+  без `equipment_type` — в дерево ничего не добавляем (см. «Решение:
+  граница» ниже), `accepts`/`emits`/`protocols` (M2M на
+  копии ea_control: CuControlSignal/CuFeedbackSignal/CuCommProtocol),
+  `capabilities` (справочник CuCapability, M2M — «набор дополнительных
+  возможностей»), `control_voltage` (FK params.PowerSupplies — глобальный),
+  `signal_power` (FK CuSignalPower), `legacy_cu` (1:1-маппинг на
+  params.ControlUnitInstalledOption до миграции), описание (_i18n),
+  `is_active`. Шаблоны «БУ сам себя описывает»: собственные
+  `name_template`/`description_template`/`spec_template` (+`_i18n`) через
+  TemplateMixin; фолбэк-цепочка стандарта (свой → EquipmentType → дефолт)
+  подключается аддитивно FK `equipment_type` при промоушне БУ в узел.
+- `CuSectionNode(AbstractConfigNode)` — дерево узлов-секций БУ
+  (УПРАВЛЕНИЕ / ОБРАТНАЯ СВЯЗЬ / СВЯЗЬ / ПИТАНИЕ, вложенность; роль `Node`
+  в паттерне).
+- `CuSlot(AbstractConfigSlot)` — слоты БУ: сигнальные (коды совпадают с
+  `EaSignalSlot`: LOCAL_CONTROL/CMD/SETPOINT/LIMIT_SWITCHES/…/PROTOCOL/
+  HEATER_CONTROL_UNIT) + БУ-специфичные (SIGNAL_POWER_SOURCE, CONTROL_LOGIC,
+  SIGNAL_TYPE); `section` (FK CuSectionNode) — привязка к узлу-секции.
+- `CuSlotOption(AbstractSlotOption)` — опции: типизированные FK на копии
+  справочников (CuControlSignal/CuFeedbackSignal/CuCommProtocol/
+  CuHeaterSupply/CuFeedbackDevice) + новые (signal_power/logic/signal_type)
+  + `control_unit` (FK ControlUnit, null; только для слота `control_unit` —
+  опция-БУ).
+- `CuMatrixEntry(AbstractSlotMatrixEntry)` — матрица доступности: скоуп
+  brand/model_line/body/model_line_item + `control_unit` (FK ControlUnit) +
+  power_supply + mode; профильные строки (скоуп пуст) = дефолты типа БУ.
+- Слот `control_unit` (slot_kind=object) — выбор БУ: опции — записи
+  `ControlUnit` через типизированный FK (не подтипы дерева, см. «Решение:
+  граница» ниже); связь «серия → БУ» (замена `AllowedControlUnitOption`) —
+  строки матрицы этого слота: серия × опция-БУ × напряжение →
+  encoding/ext_encoding, `cu_power_supply`, `is_default`, `is_active`
+  (решено, вопрос 8).
+- `CuSlotRule(AbstractSlotRule)` — динамика конфигуратора БУ.
+
+**Фаза 3 — сервисы и данные:**
+
+- `services/cu_matrix.py` — доступность опций по контексту (наследование
+  скоупов серия→бренд + профиль БУ), defaults, валидация bundle/conflicts.
+- `services/cu_rules.py` — применение SlotRule (Паттерн В) к снимку конфигурации.
+- `services/cu_package.py` — JSON-пакет для фронта (контракт slots.md §5):
+  {unit, slots, options, defaults, rules, matrix}.
+- API: `GET /api/ea-control/units/`, `GET /api/ea-control/package/`.
+- Команды: `migrate_cu_from_params` (ControlUnitInstalledOption → ControlUnit
+  + справочники-копии, маппинг по кодам), `migrate_cu_series_links`
+  (AllowedControlUnitOption → строки матрицы слота `control_unit`),
+  `migrate_cu_profiles` (профильные строки EaSignalMatrixEntry → CuMatrixEntry).
+
+**Фаза 4 — интеграция в ЭП** (после отладки): переключить
+`AllowedControlUnitOption`/`EaSignalMatrixEntry.control_unit` на ControlUnit
+(или оставить мост), `config_snapshot` на `ElectricActuatorCatalogItem`.
+
+**Фаза 5 — перенос абстракций в core** (после стабилизации):
+`AbstractConfigSlot` и др. → `core`, обобщение EaSignalSlot → ConfigSlot,
+SlotRule в ЭП — пункты «Что изменить для унификации» slots.md.
+
+### Фронтенд
+
+1. **Админ-CRUD `/admin/ea-control`** (по образцу EaSwitchesAdminPage/
+   EaAdminPage): вкладки «БУ» (ControlUnit + справочники), «Узлы» (дерево
+   секций, drag-drop), «Слоты/Опции» (слоты → опции, сортировка), «Матрица»
+   (фильтр БУ × серия × напряжение × режим, inline availability/is_default/
+   bundle/conflicts), «Правила» (таблица when → then).
+2. **Конструктор ЭП** (`/admin/ea-constructor`): выбор БУ из ControlUnit,
+   слоты/доступность из пакета, правила на лету, локали ru/en/cn.
+3. **Позже** (после выноса в core): универсальные компоненты редактора
+   слоты/матрица/правила, реюз для ЭП/ПП/БКВ; граф-редактор из плана
+   «Что изменить для унификации».
+
+### Проверка
+
+- Итерация 1: тесты моделей (constraints: один скоуп, kind-соответствие,
+  уникальность кодов) и сервисов (наследование скоупов, профиль,
+  bundle/conflicts, правила); ручной прогон настройки узлов/правил в админке
+  `/admin/ea-control`; `manage.py check`, vite build.
+- При прикручивании к ЭП (после отладки): паритет с текущей матрицей
+  (AOX AR01E/AR11E/AR21E/CLFZE) — доступность опций до/после идентична;
+  ручной сценарий: БУ базовый vs интеллектуальный — набор слотов и дефолты.
+
+### Статус реализации (2026-10-22, вечер)
+
+**Готово (фазы 0–3 + фронт):**
+
+- Фаза 0 — каркас: apps.py/urls/admin, INSTALLED_APPS, черновик →
+  `_draft_legacy_models.py`.
+- Фаза 1 — абстракции `ea_control/models/abstract.py`:
+  AbstractConfigNode/ConfigSlot/SlotOption/SlotMatrixEntry/SlotRule/
+  ConfigSnapshot + словари (selection_mode, slot_kind, availability,
+  rule action/operator/action_value). Конвенция имён и контракт «связные
+  поля объявляет наследник» — в docstring модуля.
+- Фаза 2 — конкретные модели: справочники-копии (CuSignalForm/
+  CuControlSignal/CuFeedbackSignal/CuCommProtocol/CuFeedbackDevice/
+  CuHeaterSupply/CuLocationOption/CuCapability), новые (CuSignalPowerSource/
+  CuSignalPower/CuControlLogic/CuSignalType), ControlUnit (физика + шаблоны
+  «БУ сам себя описывает»: name/description/spec_template + _i18n через
+  TemplateMixin, фолбэк на EquipmentType — при промоушне; encoding/
+  ext_encoding у опций — справочные дефолты, переопределяются матрицей),
+  CuSectionNode/CuSlot/CuSlotOption/CuMatrixEntry/CuSlotRule (CheckConstraint
+  «один скоуп»/«одна нагрузка», clean-валидации).
+- Фаза 3 — сервисы: `cu_matrix` (наследование скоупов, na-запреты,
+  `resolve_control_units` с option_code, профиль-дефолты,
+  `validate_selection` bundle/conflicts), `cu_rules` (show/hide/block/
+  require/set_default), `cu_package` (пакет slots.md §5). API
+  `/api/ea-control/`: CRUD 18 моделей (DRF, IsAdminUser) + units/meta/
+  series-units/package.
+- Фронт: `/admin/ea-control` (CRUD-админка всего), `/admin/ea-control-
+  configurator` (тестовый конфигуратор: правила на лету, конфликты/пакеты,
+  снимок, артикул).
+- Данные: `seed_cu_demo` — 4 типа БУ (basic/int-n/int-n-mb/posi-4-20,
+  Архимед/AOX), 4 секции, 16 слотов, 47 опций, 69 строк матрицы (профили,
+  MWG-bundle, конфликт, серийные строки control_unit AR01E/AR11E),
+  6 правил; команда идемпотентна.
+- Проверки: 31 тест OK (модели/валидации/шаблоны/сервисы/пакет) на копии
+  рабочей БД (test_db.sqlite3 + --keepdb); `manage.py check` — 0; API-smoke
+  OK (package 15 слотов/6 правил, series-units фильтрует na-запреты).
+
+**Ловушки, найденные по пути (чтобы не наступать снова):**
+
+- `power_supply_id IN (x, NULL)` не матчит NULL в SQLite — фильтровать
+  `Q(power_supply=x) | Q(power_supply__isnull=True)`.
+- related_name новых FK не должен совпадать с legacy
+  (`control_voltage_units` → `cu_control_voltage_units`).
+- `TemplateMixin.save()` автообновляет name/description из шаблонов при
+  каждом save; сохранить без перегенерации — `save(skip_auto_generate=True)`.
+- Поле шаблона на модели затеняет одноимённое property миксина — переводы
+  подключать через `_get_template_i18n`.
+- Значение слота control_unit в снимке/правилах — код **опции** (CU_BASIC),
+  а не код БУ (basic); разводит резолвер (`option_code`).
+- Классы внутри фабрики (serializer/viewset) не видят параметр с тем же
+  именем (NameError) — параметр называть `model_cls`.
+
+**Осталось (дальнейший план):**
+
+1. Прогнать `vite build` (в сессии заблокирован safety-гейтом):
+   `cd frontend; npm run build`; поправить, если упадёт.
+2. Ручная проверка пользователем: админка `/admin/ea-control` и
+   конфигуратор `/admin/ea-control-configurator` (в т.ч. /en/ /cn/).
+3. Перенос абстракций из `ea_control/models/abstract.py` в `core`
+   (ConfigSlot/SlotOption/SlotMatrixEntry/SlotRule/ConfigSnapshot) после
+   стабилизации; финальный словарь операторов (выравнивание с FilterType/
+   ParameterRule.match_type).
+4. Migrate-команды из legacy: `migrate_cu_from_params`,
+   `migrate_cu_series_links` (AllowedControlUnitOption → строки слота
+   control_unit), `migrate_cu_profiles` (EaSignalMatrixEntry → CuMatrixEntry),
+   маппинг по кодам.
+5. Интеграция в ЭП (фаза 4): переключение `/admin/ea-constructor` на
+   ControlUnit/CuMatrixEntry по критерию готовности (данные перенесены +
+   паритет AOX AR01E/AR11E/AR21E/CLFZE + визуальная проверка). До этого
+   legacy не трогаем.
+6. `config_snapshot` на `ElectricActuatorCatalogItem` (+ общий
+   ConfiguredProduct) — AbstractConfigSnapshot готов.
+7. Судьба справочников-копий vs ЭП-оригиналов (слияние/замена) — после
+   отладки.
+8. Промоушн-триггеры БУ: собственный каталог или состав из позиций → узел
+   EquipmentType + CompositionGroup (аддитивно; тогда включается фолбэк
+   шаблонов на EquipmentType).
+9. Цена — вне scope; отдельная сущность по общему паттерну.
+
+### Вопросы для обсуждения
+
+1. **Имя приложения**: решено — `ea_control` (как создано).
+2. **Имя сущности**: решено — `ControlUnit` (физическая модель, без суффикса
+   роли); «шаблон БУ» — роль данных, не модель (см. «Термины»).
+3. **Legacy**: решено — поля `params.ControlUnitInstalledOption` переносятся
+   в ControlUnit, legacy остаётся справочником с 1:1-маппингом
+   (`ControlUnit.legacy_cu`) до полной миграции.
+4. **Слоты**: решено — новые `CuSlot` (коды как у EaSignalSlot) + копии
+   справочников; слияние с ЭП — при переносе в core.
+5. **Capabilities** (функции БУ, не сигналы: PST, datalogger, Bluetooth,
+   ESD, PID, interrupter timer) — два варианта:
+   - справочник + M2M: `CuCapability` (code/name_i18n/description/
+     sorting_order/is_active) + `ControlUnit.capabilities = M2M(CuCapability)`.
+     Типобезопасно (опечатка невозможна), i18n штатно, на код можно
+     ссылаться из правил/фильтров/ETP; legacy JSON мигрирует по кодам.
+   - JSON: `ControlUnit.capabilities = JSONField(default=list)` с кодами.
+     Быстрее завести; но коды без реестра, имена дублируются на фронте,
+     ссылки из правил невозможны (только строковое сравнение) — то, от чего
+     уходим (legacy `capabilities`/`feature_list` уже JSON).
+   Рекомендация — справочник + M2M (золотое правило: физика типизируется);
+   часть «capabilities» на деле уже слоты (INDICATOR/TURN_COUNTER/HEATER_*).
+   **Решено (2026-10-22): вариант 1 — справочник + M2M.**
+6. **Объём итерации 1**: решено — каркас + абстракции + справочники-копии +
+   `ControlUnit` + узлы-секции + слоты/опции + матрица (включая слот
+   `control_unit`) + профиль + `SlotRule` + migrate-команды. БУ и `ea_control`
+   в отладке рассматриваются как отдельная сущность; к ЭП прикручиваем после
+   отладки. Узлы и правила пробуем настраивать руками на бэке и фронте.
+7. **Момент переключения конструктора**: решено — переключаем **после
+   отладки слотовых паттернов на БУ** (этап прикручивания ea_control к ЭП).
+   Критерий готовности: (а) данные перенесены migrate-командами,
+   (б) паритет подтверждён (те же серии × БУ × напряжение → те же опции;
+   проверка на AOX AR01E/AR11E/AR21E/CLFZE), (в) админка `/admin/ea-control`
+   проверена визуально. До этого legacy не трогаем — конструктор работает
+   как работал.
+8. **Связь «серия → БУ»**: решено — строки матрицы слота `control_unit`
+   (опция — запись ControlUnit), отдельного линка нет.

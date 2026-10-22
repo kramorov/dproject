@@ -1,0 +1,485 @@
+# ea_control/models/cu_config.py
+"""
+Конкретные паттерн-модели конфигурации БУ (наследники абстракций).
+
+Каждая модель здесь — реализация одной роли паттерна для домена БУ
+(slots.md → «План: отладка паттерна…»):
+
+- ``CuSectionNode`` ← AbstractConfigNode — дерево узлов-секций БУ;
+- ``CuSlot`` ← AbstractConfigSlot — слоты конфигурации БУ;
+- ``CuSlotOption`` ← AbstractSlotOption — опции слотов БУ;
+- ``CuMatrixEntry`` ← AbstractSlotMatrixEntry — матрица доступности;
+- ``CuSlotRule`` ← AbstractSlotRule — динамика конфигуратора (Паттерн В).
+
+Профиль БУ (шаблон) — не отдельная модель: это бесскоуповые строки матрицы
+(все поля скоупа пустые) — дефолты слотов для типа БУ.
+"""
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+from core.models.mixins import LocalizedDictFieldsMixin
+from core.utils.localization import localized_name, pick_i18n
+
+from ea_control.models.abstract import (AbstractConfigNode, AbstractConfigSlot,
+                                        AbstractSlotMatrixEntry,
+                                        AbstractSlotOption, AbstractSlotRule)
+
+
+class CuSectionNode(LocalizedDictFieldsMixin, AbstractConfigNode):
+    """Узел-секция конфигурации БУ (роль ``Node``).
+
+    Зачем: дерево секций, по которому конфигуратор рисует разделы:
+    УПРАВЛЕНИЕ / ОБРАТНАЯ СВЯЗЬ / СВЯЗЬ / ПИТАНИЕ (с вложенностью).
+    Относительно AbstractConfigNode полей не добавлено — связь слотов идёт
+    обратной стороной (CuSlot.section).
+    """
+
+    class Meta:
+        verbose_name = _("Узел-секция БУ")
+        verbose_name_plural = _("Узлы-секции БУ")
+        ordering = ['sorting_order', 'code']
+
+
+class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
+    """Слот конфигурации БУ (роль ``Slot``).
+
+    Зачем: точка выбора в конфигураторе БУ. Коды сигнальных слотов совпадают
+    с EaSignalSlot (LOCAL_CONTROL/CMD/SETPOINT/LIMIT_SWITCHES/WAY_SWITCHES/
+    TORQUE_SWITCHES/POSITION_FEEDBACK/THERMAL_SENSOR/INDICATOR/TURN_COUNTER/
+    PROTOCOL/HEATER_CONTROL_UNIT) — они ключи маппинга при миграции; плюс
+    БУ-специфичные слоты (SIGNAL_POWER_SOURCE/CONTROL_LOGIC/SIGNAL_TYPE) и
+    слот ``control_unit`` (slot_kind=object) — выбор типа БУ.
+
+    Добавлено относительно AbstractConfigSlot:
+
+    - ``section`` — FK на узел-секцию (дерево конфигуратора).
+    """
+    section = models.ForeignKey(
+        CuSectionNode, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='slots',
+        verbose_name=_("Узел-секция"),
+        help_text=_("Раздел дерева конфигуратора, к которому привязан слот"),
+    )
+
+    class Meta:
+        verbose_name = _("Слот БУ")
+        verbose_name_plural = _("Слоты БУ")
+        ordering = ['sorting_order', 'code']
+
+
+class CuOptionKind(models.TextChoices):
+    """Тип опции слота БУ (значения домена, переопределяют абстрактный kind)."""
+    SIGNAL = 'signal', _('Сигнал')
+    HEATER = 'heater', _('Питание обогрева')
+    POWER = 'power', _('Питание цепей управления')
+    LOGIC = 'logic', _('Логика работы')
+    SIGNAL_TYPE = 'signal_type', _('Тип управляющего сигнала')
+    UNIT = 'unit', _('Блок управления (слот control_unit)')
+    NONE = 'none', _('Без сигнала (none-строка)')
+    PAIR = 'pair', _('Пара контактов (Откр/Закр)')
+
+
+class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
+    """Опция слота БУ (роль ``Option``).
+
+    Зачем: справочник возможных вариантов заполнения слота. Опция не хранит
+    доступность — это строки матрицы; опция описывает «что это за вариант» и
+    ссылается на физическую сущность по ``kind``.
+
+    Добавлено относительно AbstractSlotOption:
+
+    - ``slot`` — FK на слот (обратная связь related_name='slot_options');
+    - ``kind`` — переопределён словарём домена CuOptionKind;
+    - типизированные полезные нагрузки по kind: ``control_signal`` /
+      ``feedback_signal`` / ``protocol`` (signal), ``heater_supply``
+      (heater), ``signal_power`` (power), ``control_logic`` (logic),
+      ``signal_type`` (signal_type), ``control_unit`` (unit — только для
+      слота control_unit), ``device`` (датчик по умолчанию для опции);
+    - ``clean()`` — ровно одна полезная нагрузка на kind (образец
+      EaSlotOption.clean).
+    """
+    slot = models.ForeignKey(
+        CuSlot, on_delete=models.CASCADE,
+        related_name='slot_options',
+        verbose_name=_("Слот"),
+        help_text=_("Слот, к которому относится опция"),
+    )
+    kind = models.CharField(
+        max_length=20, choices=CuOptionKind.choices,
+        default=CuOptionKind.SIGNAL,
+        verbose_name=_("Тип опции"),
+        help_text=_("signal — сигнал/протокол; heater — обогрев; power — "
+                    "питание цепей; logic — логика работы; signal_type — тип "
+                    "сигнала; unit — БУ (слот control_unit); none — опция без "
+                    "полезной нагрузки; pair — пара контактов Откр/Закр"),
+    )
+    control_signal = models.ForeignKey(
+        'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Командный сигнал"),
+        help_text=_("Для kind=signal: входная команда (слоты CMD/SETPOINT)"),
+    )
+    feedback_signal = models.ForeignKey(
+        'CuFeedbackSignal', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Сигнал ОС"),
+        help_text=_("Для kind=signal: выходной сигнал"),
+    )
+    protocol = models.ForeignKey(
+        'CuCommProtocol', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Протокол"),
+        help_text=_("Для kind=signal: шина (слот PROTOCOL)"),
+    )
+    heater_supply = models.ForeignKey(
+        'CuHeaterSupply', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Питание обогрева"),
+        help_text=_("Для kind=heater (слот HEATER_CONTROL_UNIT)"),
+    )
+    signal_power = models.ForeignKey(
+        'CuSignalPower', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Питание цепей управления"),
+        help_text=_("Для kind=power (слот SIGNAL_POWER_SOURCE)"),
+    )
+    control_logic = models.ForeignKey(
+        'CuControlLogic', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Логика работы"),
+        help_text=_("Для kind=logic (слот CONTROL_LOGIC)"),
+    )
+    signal_type = models.ForeignKey(
+        'CuSignalType', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Тип управляющего сигнала"),
+        help_text=_("Для kind=signal_type (слот SIGNAL_TYPE)"),
+    )
+    control_unit = models.ForeignKey(
+        'ControlUnit', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Блок управления"),
+        help_text=_("Для kind=unit: опция слота control_unit — тип БУ"),
+    )
+    device = models.ForeignKey(
+        'CuFeedbackDevice', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Устройство"),
+        help_text=_("Датчик по умолчанию для опции (например, термореле)"),
+    )
+
+    class Meta:
+        verbose_name = _("Опция слота БУ")
+        verbose_name_plural = _("Опции слотов БУ")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        if self.kind == CuOptionKind.UNIT and self.control_unit_id:
+            return str(self.control_unit)
+        return self.name or self.code
+
+    def localized_name(self, locale=None):
+        """Имя опции; для kind=unit — имя типа БУ (с переводом)."""
+        if self.kind == CuOptionKind.UNIT and self.control_unit_id:
+            return localized_name(self.control_unit, locale)
+        return pick_i18n(self.name_i18n, locale, fallback=self.name or self.code)
+
+    def clean(self):
+        super().clean()
+        if self.kind == CuOptionKind.SIGNAL:
+            if sum(bool(x) for x in (self.control_signal_id,
+                                     self.feedback_signal_id,
+                                     self.protocol_id)) != 1:
+                raise ValidationError(
+                    _('Для опции-сигнала нужно ровно одно: сигнал ОС, команда '
+                      'или протокол.'))
+        elif self.kind == CuOptionKind.HEATER:
+            if not self.heater_supply_id:
+                raise ValidationError(_('Для опции-обогрева нужно питание обогрева.'))
+        elif self.kind == CuOptionKind.POWER:
+            if not self.signal_power_id:
+                raise ValidationError(_('Для опции питания цепей нужно CuSignalPower.'))
+        elif self.kind == CuOptionKind.LOGIC:
+            if not self.control_logic_id:
+                raise ValidationError(_('Для опции логики нужна CuControlLogic.'))
+        elif self.kind == CuOptionKind.SIGNAL_TYPE:
+            if not self.signal_type_id:
+                raise ValidationError(_('Для опции типа сигнала нужен CuSignalType.'))
+        elif self.kind == CuOptionKind.UNIT:
+            if not self.control_unit_id:
+                raise ValidationError(_('Для опции-БУ нужен ControlUnit.'))
+            if self.slot.code != 'control_unit':
+                raise ValidationError(
+                    {'control_unit': _('Опция-БУ допустима только в слоте '
+                                       'control_unit.')})
+        elif self.kind in (CuOptionKind.NONE, CuOptionKind.PAIR):
+            if not self.name:
+                raise ValidationError(_('Для none/pair-опции нужно имя (название).'))
+
+
+class CuMatrixMode(models.TextChoices):
+    """Режим работы, для которого актуальна строка матрицы."""
+    ON_OFF = 'on_off', _('Двухпозиционный (on-off)')
+    MODULATING = 'modulating', _('Модулирующий')
+    BOTH = 'both', _('Оба режима')
+
+
+class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
+    """Строка матрицы доступности БУ (Паттерн А).
+
+    Зачем: ответ «доступна ли опция X в точке Y». Точка Y — скоуп
+    (бренд/серия/корпус/модель) + координаты (БУ × напряжение × режим).
+    Строки с пустым скоупом — профиль типа БУ (дефолты слотов); строка
+    ``availability=na`` на специфичном уровне запрещает унаследованную.
+
+    Добавлено относительно AbstractSlotMatrixEntry:
+
+    - ``slot``/``option`` — FK на слот и опцию (option.slot должен
+      совпадать со slot — проверка в clean);
+    - скоуп: ``brand`` (producers.Brands) / ``model_line``
+      (ElectricActuatorModelLine) / ``body`` (ElectricActuatorBody) /
+      ``model_line_item`` (ElectricActuatorModelLineItem) — ровно один или
+      все пустые (CheckConstraint «один скоуп»);
+    - координаты: ``control_unit`` (ControlUnit, null — для строк слота
+      control_unit и профильных строк), ``power_supply`` (params.PowerSupplies,
+      null — любое напряжение), ``mode`` (CuMatrixMode);
+    - полезные нагрузки строки: ``control_signal``/``feedback_signal``/
+      ``protocol``/``device``/``heater_supply`` — типизированные FK
+      (CheckConstraint «одна нагрузка»);
+    - ``clean()`` — протокол только для слота PROTOCOL, обогрев только для
+      HEATER_*, устройство только с сигналом ОС (device.emits содержит его);
+    - ``_base_name()`` — имя из полезной нагрузки (сигнал/устройство/БУ).
+    """
+    slot = models.ForeignKey(
+        CuSlot, on_delete=models.PROTECT,
+        related_name='matrix_rows',
+        verbose_name=_("Слот"),
+        help_text=_("Группа взаимоисключающих опций (single-choice)"),
+    )
+    option = models.ForeignKey(
+        CuSlotOption, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Опция слота"),
+        help_text=_("Ссылка на каталог опций слота; пусто — строка вне каталога"),
+    )
+    brand = models.ForeignKey(
+        'producers.Brands', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='cu_matrix_rows',
+        verbose_name=_("Бренд"),
+        help_text=_("Уровень скоупа «бренд»"),
+    )
+    model_line = models.ForeignKey(
+        'electric_actuators.ElectricActuatorModelLine',
+        on_delete=models.CASCADE, null=True, blank=True,
+        related_name='cu_matrix_rows',
+        verbose_name=_("Серия"),
+        help_text=_("Уровень скоупа «серия»"),
+    )
+    body = models.ForeignKey(
+        'electric_actuators.ElectricActuatorBody',
+        on_delete=models.CASCADE, null=True, blank=True,
+        related_name='cu_matrix_rows',
+        verbose_name=_("Корпус"),
+        help_text=_("Уровень скоупа «корпус»"),
+    )
+    model_line_item = models.ForeignKey(
+        'electric_actuators.ElectricActuatorModelLineItem',
+        on_delete=models.CASCADE, null=True, blank=True,
+        related_name='cu_matrix_rows',
+        verbose_name=_("Модель"),
+        help_text=_("Уровень скоупа «модель» (самый специфичный)"),
+    )
+    control_unit = models.ForeignKey(
+        'ControlUnit', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Блок управления"),
+        help_text=_("Тип БУ, для которого актуальна строка; null — строки "
+                    "слота control_unit и профильные строки"),
+    )
+    power_supply = models.ForeignKey(
+        'params.PowerSupplies', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='cu_matrix_rows',
+        verbose_name=_("Напряжение питания"),
+        help_text=_("Напряжение питания мотора; null — любое"),
+    )
+    mode = models.CharField(
+        max_length=20, choices=CuMatrixMode.choices, default=CuMatrixMode.BOTH,
+        verbose_name=_("Режим"),
+        help_text=_("Режим работы, для которого актуальна строка"),
+    )
+    control_signal = models.ForeignKey(
+        'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Командный сигнал"),
+        help_text=_("Строка описывает входную команду"),
+    )
+    feedback_signal = models.ForeignKey(
+        'CuFeedbackSignal', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Сигнал ОС"),
+        help_text=_("Строка описывает выходной сигнал обратной связи"),
+    )
+    protocol = models.ForeignKey(
+        'CuCommProtocol', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Протокол"),
+        help_text=_("Строка описывает шину (только для слота PROTOCOL)"),
+    )
+    device = models.ForeignKey(
+        'CuFeedbackDevice', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Устройство ОС"),
+        help_text=_("Устройство, выдающее сигнал (только с feedback_signal; "
+                    "device.emits должен содержать его)"),
+    )
+    heater_supply = models.ForeignKey(
+        'CuHeaterSupply', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='matrix_rows',
+        verbose_name=_("Питание обогрева"),
+        help_text=_("Только для слота HEATER_CONTROL_UNIT"),
+    )
+
+    class Meta:
+        verbose_name = _("Строка матрицы БУ")
+        verbose_name_plural = _("Строки матрицы БУ")
+        ordering = ['sorting_order', 'id']
+        indexes = [
+            models.Index(fields=['brand']),
+            models.Index(fields=['model_line']),
+            models.Index(fields=['body']),
+            models.Index(fields=['model_line_item']),
+            models.Index(fields=['control_unit', 'power_supply', 'mode']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(brand__isnull=False, model_line__isnull=True,
+                             body__isnull=True, model_line_item__isnull=True)
+                    | models.Q(brand__isnull=True, model_line__isnull=False,
+                               body__isnull=True, model_line_item__isnull=True)
+                    | models.Q(brand__isnull=True, model_line__isnull=True,
+                               body__isnull=False, model_line_item__isnull=True)
+                    | models.Q(brand__isnull=True, model_line__isnull=True,
+                               body__isnull=True, model_line_item__isnull=False)
+                    | models.Q(brand__isnull=True, model_line__isnull=True,
+                               body__isnull=True, model_line_item__isnull=True)
+                ),
+                name='cu_matrix_scope_single'),
+            models.CheckConstraint(
+                check=(
+                    models.Q(control_signal__isnull=False, feedback_signal__isnull=True,
+                             protocol__isnull=True)
+                    | models.Q(control_signal__isnull=True, feedback_signal__isnull=False,
+                               protocol__isnull=True)
+                    | models.Q(control_signal__isnull=True, feedback_signal__isnull=True,
+                               protocol__isnull=False)
+                    | models.Q(control_signal__isnull=True, feedback_signal__isnull=True,
+                               protocol__isnull=True)
+                ),
+                name='cu_matrix_signal_single'),
+        ]
+
+    def _base_name(self, locale=None):
+        """Имя строки из полезной нагрузки; иначе своё name/имя слота."""
+        if self.name:
+            return pick_i18n(self.name_i18n, locale, fallback=self.name)
+        if self.option_id:
+            return localized_name(self.option, locale)
+        if self.feedback_signal_id:
+            return localized_name(self.feedback_signal, locale)
+        if self.control_signal_id:
+            return localized_name(self.control_signal, locale)
+        if self.protocol_id:
+            return localized_name(self.protocol, locale)
+        if self.heater_supply_id:
+            return localized_name(self.heater_supply, locale)
+        if self.control_unit_id:
+            return localized_name(self.control_unit, locale)
+        return localized_name(self.slot, locale)
+
+    def clean(self):
+        super().clean()
+        if self.option_id and self.option.slot_id != self.slot_id:
+            raise ValidationError(
+                {'option': _('Опция принадлежит другому слоту.')})
+        if self.protocol_id and self.slot.code != 'PROTOCOL':
+            raise ValidationError(
+                {'protocol': _('Протокол заполняется только для строк слота '
+                               'PROTOCOL.')})
+        if self.heater_supply_id and self.slot.code != 'HEATER_CONTROL_UNIT':
+            raise ValidationError(
+                {'heater_supply': _('Питание обогрева — только для слота '
+                                    'HEATER_CONTROL_UNIT.')})
+        if (self.device_id and not self.feedback_signal_id
+                and not self.name):
+            raise ValidationError(
+                {'device': _('Устройство ОС задаётся только вместе с сигналом '
+                             'ОС (или на none-строке с названием).')})
+        if (self.device_id and self.feedback_signal_id
+                and not self.device.emits.filter(pk=self.feedback_signal_id).exists()):
+            raise ValidationError(
+                {'device': _('Устройство не выдаёт указанный сигнал ОС.')})
+
+
+class CuSlotRule(LocalizedDictFieldsMixin, AbstractSlotRule):
+    """Правило динамики конфигуратора БУ (Паттерн В).
+
+    Зачем: «если значение слота-условия [оператор] значение → действие над
+    слотом-целью» (показать/скрыть/заблокировать/обязать/дефолт). Заменяет
+    хардкод: профиль БУ → слоты, HART ↔ SETPOINT, скрытие обогрева для
+    kind=NONE и т.п.
+
+    Добавлено относительно AbstractSlotRule:
+
+    - ``when_slot``/``target_slot`` — FK на слоты;
+    - ``evaluate(current_value)`` — сравнение по when_operator (отладочный
+      словарь; финальный выравнивается с фильтрами/требованиями).
+    """
+    when_slot = models.ForeignKey(
+        CuSlot, on_delete=models.CASCADE,
+        related_name='rules_when',
+        verbose_name=_("Слот-условие"),
+        help_text=_("Значение этого слота сравнивается с when_value"),
+    )
+    target_slot = models.ForeignKey(
+        CuSlot, on_delete=models.CASCADE,
+        related_name='rules_target',
+        verbose_name=_("Слот-действие"),
+        help_text=_("Слот, к которому применяется action"),
+    )
+
+    class Meta:
+        verbose_name = _("Правило конфигуратора БУ")
+        verbose_name_plural = _("Правила конфигуратора БУ")
+        ordering = ['-priority', 'id']
+
+    def evaluate(self, current_value):
+        """Сравнить значение слота-условия с when_value.
+
+        ``current_value`` — выбранное значение when-слота (строка/число/
+        список). Возвращает True, если условие выполнено.
+        """
+        op = self.when_operator
+        expected = self.when_value
+        if op == 'is_set':
+            return current_value not in (None, '', [])
+        if op == 'not_exact':
+            return current_value != expected
+        if op == 'icontains':
+            return expected is not None and str(expected) in str(current_value or '')
+        if op == 'gte':
+            try:
+                return float(current_value) >= float(expected)
+            except (TypeError, ValueError):
+                return False
+        if op == 'lte':
+            try:
+                return float(current_value) <= float(expected)
+            except (TypeError, ValueError):
+                return False
+        if op == 'in':
+            return expected is not None and current_value in expected
+        if op == 'not_in':
+            return expected is not None and current_value not in expected
+        return current_value == expected

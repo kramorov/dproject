@@ -1,0 +1,150 @@
+# ea_control/admin.py
+"""
+Админка ea_control — справочники БУ, паттерн-модели (узлы/слоты/опции/
+матрица/правила) и сущность ControlUnit.
+
+Это Django-админ для отладки паттерна на бэке; Vue-страница
+`/admin/ea-control` (вкладки «БУ»/«Узлы»/«Слоты-Опции»/«Матрица»/«Правила»)
+— фронтовая часть плана, делается отдельно.
+"""
+from django.contrib import admin
+
+from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
+                               CuControlSignal, CuFeedbackDevice,
+                               CuFeedbackSignal, CuHeaterSupply, CuLocationOption,
+                               CuMatrixEntry, CuSignalForm, CuSignalPower,
+                               CuSignalPowerSource, CuSignalType, CuSlot,
+                               CuSlotOption, CuSlotRule, ControlUnit,
+                               CuSectionNode)
+
+
+class _DictAdmin(admin.ModelAdmin):
+    """Общий админ справочников: поиск по коду/имени, фильтр активности."""
+    list_display = ('code', 'name', 'sorting_order', 'is_active')
+    list_editable = ('sorting_order', 'is_active')
+    search_fields = ('code', 'name')
+    list_filter = ('is_active',)
+    ordering = ('sorting_order', 'code')
+
+
+@admin.register(CuSignalForm)
+class CuSignalFormAdmin(_DictAdmin):
+    list_display = ('code', 'name', 'category', 'sorting_order', 'is_active')
+    list_filter = ('category', 'is_active')
+
+
+@admin.register(CuControlSignal)
+class CuControlSignalAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'role', 'category', 'form', 'is_active')
+    list_filter = ('category', 'form', 'is_active')
+    search_fields = ('code', 'name')
+    ordering = ('sorting_order', 'code')
+
+
+@admin.register(CuFeedbackSignal)
+class CuFeedbackSignalAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'role', 'category', 'form', 'is_active')
+    list_filter = ('category', 'form', 'is_active')
+    search_fields = ('code', 'name')
+    ordering = ('sorting_order', 'code')
+
+
+@admin.register(CuCommProtocol)
+class CuCommProtocolAdmin(_DictAdmin):
+    list_display = ('code', 'name', 'transport', 'sorting_order', 'is_active')
+    list_filter = ('transport', 'is_active')
+
+
+@admin.register(CuFeedbackDevice)
+class CuFeedbackDeviceAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'kind', 'technology', 'contactless', 'is_active')
+    list_filter = ('kind', 'technology', 'is_active')
+    search_fields = ('code', 'name')
+    filter_horizontal = ('emits', 'equivalents')
+
+
+@admin.register(CuHeaterSupply)
+class CuHeaterSupplyAdmin(_DictAdmin):
+    pass
+
+
+@admin.register(CuLocationOption)
+class CuLocationOptionAdmin(_DictAdmin):
+    pass
+
+
+@admin.register(CuCapability)
+class CuCapabilityAdmin(_DictAdmin):
+    pass
+
+
+@admin.register(CuSignalPowerSource)
+class CuSignalPowerSourceAdmin(_DictAdmin):
+    pass
+
+
+@admin.register(CuSignalPower)
+class CuSignalPowerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'source', 'power_supply', 'sorting_order', 'is_active')
+    list_filter = ('source', 'power_supply', 'is_active')
+    search_fields = ('name',)
+
+
+@admin.register(CuControlLogic)
+class CuControlLogicAdmin(_DictAdmin):
+    list_display = ('code', 'name', 'has_self_holding', 'sorting_order', 'is_active')
+
+
+@admin.register(CuSignalType)
+class CuSignalTypeAdmin(_DictAdmin):
+    list_display = ('code', 'name', 'logic_type', 'voltage', 'sorting_order', 'is_active')
+    list_filter = ('logic_type', 'is_active')
+
+
+@admin.register(ControlUnit)
+class ControlUnitAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'brand', 'kind', 'location', 'is_active')
+    list_filter = ('brand', 'kind', 'location', 'is_active')
+    search_fields = ('code', 'name')
+    filter_horizontal = ('accepts', 'emits', 'protocols', 'capabilities')
+    ordering = ('brand', 'sorting_order', 'code')
+
+
+@admin.register(CuSectionNode)
+class CuSectionNodeAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'parent', 'sorting_order', 'is_active')
+    list_filter = ('parent', 'is_active')
+    search_fields = ('code', 'name')
+
+
+@admin.register(CuSlot)
+class CuSlotAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'section', 'selection_mode', 'slot_kind',
+                    'required', 'is_active')
+    list_filter = ('section', 'selection_mode', 'slot_kind', 'required', 'is_active')
+    search_fields = ('code', 'name')
+
+
+@admin.register(CuSlotOption)
+class CuSlotOptionAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'slot', 'kind', 'is_active')
+    list_filter = ('slot', 'kind', 'is_active')
+    search_fields = ('code', 'name')
+    ordering = ('sorting_order', 'code')
+
+
+@admin.register(CuMatrixEntry)
+class CuMatrixEntryAdmin(admin.ModelAdmin):
+    list_display = ('slot', 'option', 'availability', 'is_default', 'bundle',
+                    'control_unit', 'power_supply', 'mode', 'sorting_order')
+    list_filter = ('slot', 'availability', 'mode', 'control_unit', 'power_supply')
+    search_fields = ('name', 'bundle')
+    ordering = ('sorting_order', 'id')
+
+
+@admin.register(CuSlotRule)
+class CuSlotRuleAdmin(admin.ModelAdmin):
+    list_display = ('when_slot', 'when_operator', 'when_value', 'action',
+                    'target_slot', 'priority', 'is_active')
+    list_filter = ('action', 'is_active')
+    ordering = ('-priority', 'id')

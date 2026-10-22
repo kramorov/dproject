@@ -183,6 +183,7 @@ INSTALLED_APPS = [
     'pa_controls.apps.PaControlsConfig',
     'filter_regulator.apps.FilterRegulatorConfig',
     'gearbox.apps.GearBoxConfig',
+    'ea_control.apps.EaControlConfig',
     'storage_manager.apps.StorageManagerConfig',
     'core.apps.CoreConfig',
     'documents.apps.DocumentsConfig',
