@@ -124,7 +124,6 @@ const routes = [
   { path: '/admin/ea-models', component: () => import('../pages/admin/EaModelAdminPage.vue'), meta: { title: 'Модели ЭП', section: 'configurator_ea' } },
   { path: '/admin/ea-wirings', component: () => import('../pages/admin/EaWiringAdminPage.vue'), meta: { title: 'Схемы БУ', section: 'configurator_ea' } },
   { path: '/admin/ea-control', component: () => import('../pages/admin/EaControlAdminPage.vue'), meta: { title: 'БУ ЭП — настройка', section: 'configurator_ea' } },
-  { path: '/admin/ea-control-configurator', component: () => import('../pages/admin/EaControlConfiguratorPage.vue'), meta: { title: 'Конфигуратор БУ', section: 'configurator_ea' } },
 
   // Администрирование — Настройка системы
   { path: '/admin/configurator-rules', component: () => import('../pages/admin/ConfiguratorRulesPage.vue'), meta: { title: 'Правила конфигуратора', object: 'configurator.rules', action: 'edit' } },

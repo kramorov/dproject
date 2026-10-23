@@ -49,53 +49,74 @@ class CuConfigTestCase(TestCase):
         cls.power = PowerSupplies.objects.first()
         if cls.brand is None or cls.power is None:
             raise unittest.SkipTest('В рабочей БД нет Brands/PowerSupplies')
-        cls.form_dry = CuSignalForm.objects.create(
-            code='DRY_SPDT', name='Сухой контакт SPDT', category='contact')
-        cls.form_analog = CuSignalForm.objects.create(
-            code='AN_4_20_ACTIVE', name='Петля 4-20 активная', category='analog')
-        cls.ctrl_signal = CuControlSignal.objects.create(
-            code='CMD_OCS', name='Команда О/С/З', role='CMD_OCS',
-            category='discrete', form=cls.form_dry)
-        cls.fb_signal = CuFeedbackSignal.objects.create(
-            code='FB_END_OPEN', name='Конечное «Открыто»', role='END_OPEN',
-            category='contact', form=cls.form_dry)
-        cls.protocol = CuCommProtocol.objects.create(
-            code='MODBUS_RTU', name='Modbus RTU', transport='RS485')
-        cls.device = CuFeedbackDevice.objects.create(
-            code='POT_1K', name='Потенциометр 1кОм',
-            kind='POSITION_SENSOR', technology='POTENTIOMETER')
+        # Идемпотентно: get_or_create, а не create — рабочая БД может быть уже
+        # засеяна seed_cu_demo с теми же кодами (иначе при перекопировании
+        # db.sqlite3 → test_db.sqlite3 падает IntegrityError).
+        cls.form_dry = CuSignalForm.objects.get_or_create(
+            code='DRY_SPDT',
+            defaults=dict(name='Сухой контакт SPDT', category='contact'))[0]
+        cls.form_analog = CuSignalForm.objects.get_or_create(
+            code='AN_4_20_ACTIVE',
+            defaults=dict(name='Петля 4-20 активная', category='analog'))[0]
+        cls.ctrl_signal = CuControlSignal.objects.get_or_create(
+            code='CMD_OCS',
+            defaults=dict(name='Команда О/С/З', role='CMD_OCS',
+                          category='discrete', form=cls.form_dry))[0]
+        cls.fb_signal = CuFeedbackSignal.objects.get_or_create(
+            code='FB_END_OPEN',
+            defaults=dict(name='Конечное «Открыто»', role='END_OPEN',
+                          category='contact', form=cls.form_dry))[0]
+        cls.protocol = CuCommProtocol.objects.get_or_create(
+            code='MODBUS_RTU',
+            defaults=dict(name='Modbus RTU', transport='RS485'))[0]
+        cls.device = CuFeedbackDevice.objects.get_or_create(
+            code='POT_1K',
+            defaults=dict(name='Потенциометр 1кОм', kind='POSITION_SENSOR',
+                          technology='POTENTIOMETER'))[0]
         cls.device.emits.add(cls.fb_signal)
-        cls.heater = CuHeaterSupply.objects.create(
-            code='MOTOR_CIRCUIT', name='От цепей питания')
-        cls.cap = CuCapability.objects.create(code='ESD', name='ESD')
-        cls.source = CuSignalPowerSource.objects.create(
-            code='EXTERNAL', name='Внешний')
-        cls.signal_power = CuSignalPower.objects.create(
-            name='Внешний 220', source=cls.source, power_supply=cls.power)
-        cls.logic = CuControlLogic.objects.create(
-            code='IMPULSE', name='Импульсная', has_self_holding=True)
-        cls.signal_type = CuSignalType.objects.create(
-            code='POT_220AC', name='Потенциал 220В',
-            logic_type='active_high', voltage='220V')
-        cls.cu = ControlUnit.objects.create(
-            brand=cls.brand, code='INT', name='Интеллектуальный БУ',
-            kind=ControlUnitKind.INTEGRATED, control_voltage=cls.power)
+        cls.heater = CuHeaterSupply.objects.get_or_create(
+            code='MOTOR_CIRCUIT',
+            defaults=dict(name='От цепей питания'))[0]
+        cls.cap = CuCapability.objects.get_or_create(
+            code='ESD', defaults=dict(name='ESD'))[0]
+        cls.source = CuSignalPowerSource.objects.get_or_create(
+            code='EXTERNAL', defaults=dict(name='Внешний'))[0]
+        cls.signal_power = CuSignalPower.objects.get_or_create(
+            source=cls.source, power_supply=cls.power,
+            defaults=dict(name='Внешний 220'))[0]
+        cls.logic = CuControlLogic.objects.get_or_create(
+            code='IMPULSE',
+            defaults=dict(name='Импульсная', has_self_holding=True))[0]
+        cls.signal_type = CuSignalType.objects.get_or_create(
+            code='POT_220AC',
+            defaults=dict(name='Потенциал 220В', logic_type='active_high',
+                          voltage=cls.power))[0]
+        cls.cu = ControlUnit.objects.get_or_create(
+            brand=cls.brand, code='INT',
+            defaults=dict(name='Интеллектуальный БУ',
+                          kind=ControlUnitKind.INTEGRATED,
+                          control_voltage=cls.power))[0]
         cls.cu.accepts.add(cls.ctrl_signal)
         cls.cu.emits.add(cls.fb_signal)
         cls.cu.protocols.add(cls.protocol)
         cls.cu.capabilities.add(cls.cap)
-        cls.section = CuSectionNode.objects.create(
-            code='CONTROL_SIGNALS', name='Сигналы управления')
-        cls.slot_cmd = CuSlot.objects.create(
-            code='CMD', name='Команды', section=cls.section,
-            selection_mode='multi')
-        cls.slot_cu = CuSlot.objects.create(
-            code='control_unit', name='Тип БУ', slot_kind='object',
-            selection_mode='single')
-        cls.slot_protocol = CuSlot.objects.create(
-            code='PROTOCOL', name='Шина', section=cls.section)
-        cls.slot_heater = CuSlot.objects.create(
-            code='HEATER_CONTROL_UNIT', name='Обогрев БУ')
+        cls.section = CuSectionNode.objects.get_or_create(
+            code='CONTROL_SIGNALS',
+            defaults=dict(name='Сигналы управления'))[0]
+        cls.slot_cmd = CuSlot.objects.get_or_create(
+            code='CMD',
+            defaults=dict(name='Команды', section=cls.section,
+                          selection_mode='multi'))[0]
+        cls.slot_cu = CuSlot.objects.get_or_create(
+            code='control_unit',
+            defaults=dict(name='Тип БУ', slot_kind='object',
+                          selection_mode='single'))[0]
+        cls.slot_protocol = CuSlot.objects.get_or_create(
+            code='PROTOCOL',
+            defaults=dict(name='Шина', section=cls.section))[0]
+        cls.slot_heater = CuSlot.objects.get_or_create(
+            code='HEATER_CONTROL_UNIT',
+            defaults=dict(name='Обогрев БУ'))[0]
 
     def make_option(self, **kwargs):
         return CuSlotOption.objects.create(**kwargs)

@@ -1,17 +1,32 @@
 <template>
   <div class="ec-admin">
     <h2>Блоки управления ЭП — настройка (ea_control)</h2>
+    <div class="sections">
+      <button v-for="s in SECTIONS" :key="s.key"
+              :class="{ active: section === s.key }"
+              @click="selectSection(s.key)">{{ s.label }}</button>
+    </div>
+
+    <div v-if="error" class="error-banner">{{ error }}</div>
+
+    <div v-if="section === 'configurator'">
+      <EaControlStructure />
+    </div>
+
+    <div v-else-if="section === 'preview'">
+      <EaControlConfigurator />
+    </div>
+
+    <template v-else>
     <div class="tabs">
       <button v-for="m in models" :key="m.endpoint"
               :class="{ active: m.endpoint === current.endpoint }"
               @click="selectModel(m)">{{ m.label }}</button>
     </div>
-
     <div class="toolbar">
       <button @click="openCreate()">+ Добавить</button>
       <button @click="load" :disabled="loading">Обновить</button>
       <span class="count">{{ rows.length }} записей</span>
-      <span v-if="error" class="error">{{ error }}</span>
     </div>
 
     <table v-if="rows.length" class="grid">
@@ -44,7 +59,7 @@
             <input v-else-if="f.type === 'number'" type="number" v-model.number="form[f.name]" />
             <input v-else-if="f.type === 'bool'" type="checkbox" v-model="form[f.name]" />
             <textarea v-else-if="f.type === 'json'" v-model="form[f.name]" rows="4"
-                      :placeholder="'{\"key\": \"value\"} или []'"></textarea>
+                      :placeholder="`{'key': 'value'} или []`"></textarea>
             <select v-else-if="f.type === 'select'" v-model="form[f.name]">
               <option :value="null">— не задано —</option>
               <option v-for="o in selectOptions(f)" :key="o.id" :value="o.id">{{ o.label }}</option>
@@ -65,6 +80,7 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -79,6 +95,8 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
+import EaControlStructure from './EaControlStructurePage.vue'
+import EaControlConfigurator from './EaControlConfiguratorPage.vue'
 
 const DICT_SOURCES = {
   'signal-forms': 'Формы сигналов',
@@ -92,14 +110,13 @@ const DICT_SOURCES = {
   'signal-power-sources': 'Источники питания',
   'signal-powers': 'Питания цепей',
   'control-logics': 'Логики работы',
-  'signal-types': 'Типы сигналов',
 }
 
 const F = (name, label, type = 'text', extra = {}) => ({ name, label, type, ...extra })
 
 const MODEL_CONFIGS = [
   {
-    endpoint: 'control-units', label: 'Блоки управления',
+    endpoint: 'control-units', label: 'Блоки управления', section: 'bu',
     columns: ['code', 'name', 'brand', 'kind', 'is_active'],
     fields: [
       F('brand', 'Бренд', 'select', { source: 'brands' }),
@@ -123,58 +140,9 @@ const MODEL_CONFIGS = [
       F('is_active', 'Активно', 'bool'),
     ],
   },
+
   {
-    endpoint: 'sections', label: 'Узлы-секции',
-    columns: ['code', 'name', 'parent', 'sorting_order', 'is_active'],
-    fields: [
-      F('code', 'Код'), F('name', 'Название'),
-      F('parent', 'Родитель', 'select', { source: 'sections' }),
-      F('description', 'Описание', 'textarea'),
-      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
-    ],
-  },
-  {
-    endpoint: 'slots', label: 'Слоты',
-    columns: ['code', 'name', 'section', 'selection_mode', 'slot_kind', 'required', 'is_active'],
-    fields: [
-      F('code', 'Код'), F('name', 'Название'),
-      F('section', 'Секция', 'select', { source: 'sections' }),
-      F('selection_mode', 'Режим выбора', 'select', { choices: [
-        ['single', 'Одиночный'], ['multi', 'Мульти'], ['xor', 'Взаимоисключающий'],
-        ['bundle', 'Пакет']] }),
-      F('slot_kind', 'Род значения', 'select', { choices: [
-        ['value', 'Значение'], ['object', 'Объект'], ['subtype', 'Подтип']] }),
-      F('required', 'Обязательный', 'bool'),
-      F('description', 'Описание', 'textarea'),
-      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
-    ],
-  },
-  {
-    endpoint: 'slot-options', label: 'Опции слотов',
-    columns: ['code', 'name', 'slot', 'kind', 'encoding', 'ext_encoding', 'is_active'],
-    fields: [
-      F('code', 'Код'), F('name', 'Название'),
-      F('slot', 'Слот', 'select', { source: 'slots' }),
-      F('kind', 'Тип опции', 'select', { choices: [
-        ['signal', 'Сигнал'], ['heater', 'Обогрев'], ['power', 'Питание цепей'],
-        ['logic', 'Логика'], ['signal_type', 'Тип сигнала'], ['unit', 'БУ'],
-        ['none', 'None-строка'], ['pair', 'Пара контактов']] }),
-      F('control_signal', 'Командный сигнал', 'select', { source: 'control-signals' }),
-      F('feedback_signal', 'Сигнал ОС', 'select', { source: 'feedback-signals' }),
-      F('protocol', 'Протокол', 'select', { source: 'comm-protocols' }),
-      F('heater_supply', 'Питание обогрева', 'select', { source: 'heater-supplies' }),
-      F('signal_power', 'Питание цепей', 'select', { source: 'signal-powers' }),
-      F('control_logic', 'Логика', 'select', { source: 'control-logics' }),
-      F('signal_type', 'Тип сигнала', 'select', { source: 'signal-types' }),
-      F('control_unit', 'БУ (kind=unit)', 'select', { source: 'units' }),
-      F('device', 'Устройство', 'select', { source: 'feedback-devices' }),
-      F('encoding', 'Кодировка'), F('ext_encoding', 'Ext-код'),
-      F('description', 'Описание', 'textarea'),
-      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
-    ],
-  },
-  {
-    endpoint: 'matrix-entries', label: 'Матрица',
+    endpoint: 'matrix-entries', label: 'Матрица', section: 'bu',
     columns: ['slot', 'option', 'control_unit', 'power_supply', 'availability',
               'is_default', 'bundle', 'mode', 'encoding', 'ext_encoding'],
     fields: [
@@ -203,7 +171,7 @@ const MODEL_CONFIGS = [
     ],
   },
   {
-    endpoint: 'slot-rules', label: 'Правила',
+    endpoint: 'slot-rules', label: 'Правила', section: 'bu',
     columns: ['when_slot', 'when_operator', 'when_value', 'action', 'target_slot',
               'action_value', 'priority', 'is_active'],
     fields: [
@@ -223,11 +191,23 @@ const MODEL_CONFIGS = [
       F('is_active', 'Активно', 'bool'),
     ],
   },
+  {
+    endpoint: 'signal-types', label: 'Типы сигналов', section: 'dicts',
+    columns: ['code', 'name', 'logic_type', 'voltage', 'sorting_order', 'is_active'],
+    fields: [
+      F('code', 'Код'), F('name', 'Название'),
+      F('logic_type', 'Тип логики', 'select', { choices: [
+        ['active_low', 'Active Low (NPN)'], ['active_high', 'Active High (PNP)']] }),
+      F('voltage', 'Напряжение сигнала', 'select', { source: 'power_supplies' }),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
 ]
 // справочники — одним конфигом
 for (const [endpoint, label] of Object.entries(DICT_SOURCES)) {
   MODEL_CONFIGS.push({
-    endpoint, label,
+    endpoint, label, section: 'dicts',
     columns: ['code', 'name', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
@@ -237,7 +217,15 @@ for (const [endpoint, label] of Object.entries(DICT_SOURCES)) {
   })
 }
 
-const models = MODEL_CONFIGS
+const SECTIONS = [
+  { key: 'configurator', label: 'Конфигуратор опций' },
+  { key: 'bu', label: 'Редактор БУ' },
+  { key: 'dicts', label: 'Справочники' },
+  { key: 'preview', label: 'Превью БУ' },
+]
+
+const section = ref('configurator')
+const models = computed(() => MODEL_CONFIGS.filter(m => m.section === section.value))
 const current = ref(MODEL_CONFIGS[0])
 const rows = ref([])
 const loading = ref(false)
@@ -257,6 +245,17 @@ function display(row, c) {
   const v = row[c]
   if (v === null || v === undefined || v === '') return ''
   if (typeof v === 'boolean') return v ? '✓' : ''
+  const f = current.value.fields.find(x => x.name === c)
+  if (f) {
+    if (f.choices) {
+      const o = f.choices.find(([id]) => id === v)
+      if (o) return o[1]
+    }
+    if (f.source && optionsMap[f.source]) {
+      const o = optionsMap[f.source].find(o => o.id === v)
+      if (o) return o.label
+    }
+  }
   return String(v)
 }
 
@@ -285,6 +284,17 @@ async function load() {
     error.value = e.displayMessage || 'Ошибка загрузки'
   } finally {
     loading.value = false
+  }
+}
+
+function selectSection(key) {
+  section.value = key
+  editing.value = null
+  if (key === 'configurator' || key === 'preview') return
+  const first = models.value[0]
+  if (first) {
+    current.value = first
+    load()
   }
 }
 
@@ -326,6 +336,13 @@ async function save() {
       try { v = JSON.parse(v) } catch { v = null }
     }
     if (v === '' || v === undefined) v = null
+    // null=False поля DRF отклоняет («may not be null»): пустые скаляры
+    // отправляем как '' / 0, а не null. select/json/multiselect не трогаем —
+    // там null валиден (nullable-FK очищается) или поле обязано быть выбрано.
+    if (v === null) {
+      if (field.type === 'text' || field.type === 'textarea') v = ''
+      else if (field.type === 'number') v = 0
+    }
     payload[field.name] = v
   }
   try {
@@ -384,12 +401,15 @@ async function loadOptions() {
 
 onMounted(async () => {
   await loadOptions()
-  await load()
 })
 </script>
 
 <style scoped>
 .ec-admin { padding: 16px; max-width: 1400px; }
+.sections { display: flex; gap: 4px; margin-bottom: 8px; }
+.sections button { padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; font-weight: 600; }
+.sections button.active { background: #2c6fb0; color: #fff; border-color: #2c6fb0; }
+.error-banner { background: #fdecea; color: #c62828; padding: 8px 10px; border-radius: 4px; margin-bottom: 10px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
 .tabs button { padding: 6px 10px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; }
 .tabs button.active { background: #2c6fb0; color: #fff; border-color: #2c6fb0; }

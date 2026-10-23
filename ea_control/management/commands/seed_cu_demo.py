@@ -243,9 +243,9 @@ class Command(BaseCommand):
         }
         stypes = {
             'DRY': _cu(CuSignalType, 'DRY', name='Сухой контакт',
-                       logic_type='active_high', voltage='24V'),
+                       logic_type='active_high', voltage=ps24),
             'POT220': _cu(CuSignalType, 'POT220', name='Потенциал 220 В AC',
-                          logic_type='active_high', voltage='220V'),
+                          logic_type='active_high', voltage=ps220),
         }
         return locations, sources, powers, logics, stypes
 

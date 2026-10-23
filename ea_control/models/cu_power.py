@@ -159,7 +159,8 @@ class CuSignalType(LocalizedDictFieldsMixin, CopyMixin):
     напрямую от термостатов/контакторов/ПЛК без промежуточных реле).
     Используется опцией слота SIGNAL_TYPE.
 
-    Поля: code, name, logic_type (active_low/active_high), voltage,
+    Поля: code, name, logic_type (active_low/active_high), voltage
+    (FK params.PowerSupplies — глобальный справочник напряжений),
     description, sorting_order, is_active.
     """
     LOGIC_CHOICES = (
@@ -181,10 +182,12 @@ class CuSignalType(LocalizedDictFieldsMixin, CopyMixin):
         max_length=20, choices=LOGIC_CHOICES,
         verbose_name=_("Тип логики"),
     )
-    voltage = models.CharField(
-        max_length=50,
+    voltage = models.ForeignKey(
+        'params.PowerSupplies', on_delete=models.PROTECT,
+        related_name='cu_signal_types',
         verbose_name=_("Напряжение сигнала"),
-        help_text=_("Например, 24V или 220V"),
+        help_text=_("Номинал напряжения управляющего сигнала (глобальный "
+                    "справочник напряжений)"),
     )
     description = models.TextField(blank=True, verbose_name=_("Описание"))
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))

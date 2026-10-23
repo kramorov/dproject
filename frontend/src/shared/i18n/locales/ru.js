@@ -15,6 +15,7 @@ export default {
   'menu.requests': 'Заявки клиентов',
   'menu.about': 'О проекте',
   'menu.admin': 'Администрирование',
+  'menu.eaControl': 'Блоки управления ЭП',
 
   'menu.catalogEquipment': 'Каталоги оборудования',
   'menu.catalogValves': 'Каталоги арматуры',

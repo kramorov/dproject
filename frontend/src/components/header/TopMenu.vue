@@ -64,6 +64,7 @@ const allItems = [
     { to:'/about/contacts', label:'menu.aboutContacts' },
   ]},
   { key:'admin', label:'menu.admin', adminOnly:true, children:[
+    { to:'/admin/ea-control', label:'menu.eaControl' },
     { label:'menu.itemsPrices', children:[
       { to:'/admin/price', label:'menu.prices' },
       { to:'/admin/sku', label:'SKU' },

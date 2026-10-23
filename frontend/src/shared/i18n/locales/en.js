@@ -15,6 +15,7 @@ export default {
   'menu.requests': 'Customer requests',
   'menu.about': 'About',
   'menu.admin': 'Administration',
+  'menu.eaControl': 'EA control units',
 
   'menu.catalogEquipment': 'Equipment catalogs',
   'menu.catalogValves': 'Valve catalogs',

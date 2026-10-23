@@ -15,6 +15,7 @@ export default {
   'menu.requests': '客户需求',
   'menu.about': '关于',
   'menu.admin': '管理',
+  'menu.eaControl': '电动执行器控制单元',
 
   'menu.catalogEquipment': '设备目录',
   'menu.catalogValves': '阀门目录',
