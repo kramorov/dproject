@@ -17,7 +17,11 @@
 - ``CuHeaterSupply`` ← params.ActuatorHeaterSupply — питание обогрева;
 - ``CuLocationOption`` ← params.ControlUnitLocationOption — место установки БУ;
 - ``CuCapability`` — новое: функции БУ, не являющиеся сигналами (PST,
-  datalogger, Bluetooth, ESD, PID, interrupter timer…).
+  datalogger, Bluetooth, ESD, PID, interrupter timer…);
+- ``CuLocalControlType`` — новое: вид органов местного управления
+  (кнопки/селекторы) для опций kind=local_control;
+- ``CuDisplayType`` — новое: вид отображения информации (светодиод /
+  мигающий светодиод / LCD) для опций kind=display.
 
 Локализация: ``name``/``description`` — ru-поля для админки; переводы сайта —
 ``name_i18n``/``description_i18n`` (LocalizedDictFieldsMixin). Коды и
@@ -405,6 +409,7 @@ class CuFeedbackTechnology(models.TextChoices):
     POTENTIOMETER = 'POTENTIOMETER', _('Потенциометрический')
     MWG = 'MWG', _('Магнитно-волновой (MWG)')
     ELECTRONIC = 'ELECTRONIC', _('Электронный')
+    MECHANICAL = 'MECHANICAL', _('Механический')
 
 
 class CuFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -580,6 +585,122 @@ class CuCapability(LocalizedDictFieldsMixin, CopyMixin, OptionListToSelectMixin)
     class Meta:
         verbose_name = _("Функция БУ")
         verbose_name_plural = _("Функции БУ")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+class CuLocalControlType(LocalizedDictFieldsMixin):
+    """Вид органов местного управления БУ (новая модель).
+
+    Зачем: чем оператор управляет приводом на месте — кнопки или селекторы
+    (ключ-переключатель). Используется опциями kind=local_control слота
+    LOCAL_CONTROL_DESIGN узла «Местная индикация».
+
+    Поля: code (ключ маппинга, напр. «BUTTONS»), name, description,
+    sorting_order, is_active.
+    """
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("Название"),
+        help_text=_("Например: «Кнопки», «Селекторы»"),
+    )
+    code = models.CharField(
+        max_length=50, unique=True,
+        verbose_name=_("Код"),
+        help_text=_("Уникальный код, например «BUTTONS», «SELECTOR»"),
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name=_("Описание"),
+        help_text=_("Примечания к виду органов управления"),
+    )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Орган местного управления")
+        verbose_name_plural = _("Органы местного управления")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+class CuDisplayType(LocalizedDictFieldsMixin):
+    """Вид отображения информации на БУ (новая модель).
+
+    Зачем: как показывается сигнал — светодиод, мигающий светодиод или на
+    LCD-экране. Используется опциями kind=display слотов сигналов узла
+    «Отображаемые сигналы» (IND_OPEN/IND_CLOSED/IND_STOP/IND_RUN/
+    IND_LOCAL_REMOTE/IND_ALARM/IND_POSITION).
+
+    Поля: code (ключ маппинга, напр. «LED»), name, description,
+    sorting_order, is_active.
+    """
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("Название"),
+        help_text=_("Например: «Светодиод», «Мигающий светодиод», "
+                    "«На LCD-экране»"),
+    )
+    code = models.CharField(
+        max_length=50, unique=True,
+        verbose_name=_("Код"),
+        help_text=_("Уникальный код, например «LED», «LED_BLINK», «LCD»"),
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name=_("Описание"),
+        help_text=_("Примечания к виду отображения"),
+    )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Вид отображения")
+        verbose_name_plural = _("Виды отображения")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+class CuUnitPowerSource(LocalizedDictFieldsMixin):
+    """Способ подвода питания к БУ (новая модель).
+
+    Зачем: БУ питается либо от цепей питания привода (общий кабель), либо
+    отдельным кабелем. Дефолт зависит от установки БУ: встроенный — от
+    цепей привода, навесной/отдельный — отдельный кабель (задаётся
+    профильными строками матрицы конкретного типа БУ). Используется
+    опциями kind=unit_power слота CU_POWER_SUPPLY.
+
+    Поля: code (ключ маппинга, напр. «SHARED_CABLE»), name, description,
+    sorting_order, is_active.
+    """
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("Название"),
+        help_text=_("Например: «От цепей питания привода (общий кабель)»"),
+    )
+    code = models.CharField(
+        max_length=50, unique=True,
+        verbose_name=_("Код"),
+        help_text=_("Уникальный код, например «SHARED_CABLE», "
+                    "«SEPARATE_CABLE»"),
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name=_("Описание"),
+        help_text=_("Примечания к способу подвода питания БУ"),
+    )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Питание БУ")
+        verbose_name_plural = _("Питания БУ")
         ordering = ['sorting_order', 'code']
 
     def __str__(self):

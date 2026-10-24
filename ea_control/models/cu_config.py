@@ -76,6 +76,10 @@ class CuOptionKind(models.TextChoices):
     LOGIC = 'logic', _('Логика работы')
     SIGNAL_TYPE = 'signal_type', _('Тип управляющего сигнала')
     UNIT = 'unit', _('Блок управления (слот control_unit)')
+    LOCAL_CONTROL = 'local_control', _('Орган местного управления')
+    DISPLAY = 'display', _('Вид отображения')
+    UNIT_POWER = 'unit_power', _('Питание БУ')
+    CABLE_GLAND = 'cable_gland', _('Кабельные вводы БУ')
     NONE = 'none', _('Без сигнала (none-строка)')
     PAIR = 'pair', _('Пара контактов (Откр/Закр)')
 
@@ -111,8 +115,11 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         verbose_name=_("Тип опции"),
         help_text=_("signal — сигнал/протокол; heater — обогрев; power — "
                     "питание цепей; logic — логика работы; signal_type — тип "
-                    "сигнала; unit — БУ (слот control_unit); none — опция без "
-                    "полезной нагрузки; pair — пара контактов Откр/Закр"),
+                    "сигнала; unit — БУ (слот control_unit); local_control — "
+                    "орган местного управления; display — вид(ы) отображения; "
+                    "unit_power — питание БУ; cable_gland — резьба кабельных "
+                    "вводов БУ; none — опция без полезной нагрузки; pair — "
+                    "пара контактов Откр/Закр"),
     )
     control_signal = models.ForeignKey(
         'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
@@ -168,6 +175,36 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         verbose_name=_("Устройство"),
         help_text=_("Датчик по умолчанию для опции (например, термореле)"),
     )
+    local_control_type = models.ForeignKey(
+        'CuLocalControlType', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Орган местного управления"),
+        help_text=_("Для kind=local_control: кнопки/селекторы (слот "
+                    "LOCAL_CONTROL_DESIGN узла «Местная индикация»)"),
+    )
+    display_types = models.ManyToManyField(
+        'CuDisplayType', blank=True,
+        related_name='slot_options',
+        verbose_name=_("Виды отображения"),
+        help_text=_("Для kind=display: один или несколько видов отображения "
+                    "(слоты сигналов индикации; комбинация — например, "
+                    "«на LCD + мигающий светодиод»)"),
+    )
+    unit_power_source = models.ForeignKey(
+        'CuUnitPowerSource', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Питание БУ"),
+        help_text=_("Для kind=unit_power: общий кабель с приводом или "
+                    "отдельный кабель (слот CU_POWER_SUPPLY)"),
+    )
+    cable_gland_set = models.ForeignKey(
+        'params.ThreadSizeSet', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='cu_slot_options',
+        verbose_name=_("Набор резьб кабельных вводов БУ"),
+        help_text=_("Для kind=cable_gland: набор резьбовых отверстий ввода "
+                    "кабелей БУ (глобальный справочник params.ThreadSizeSet — "
+                    "каждая резьба с количеством; слот CU_CABLE_GLANDS)"),
+    )
 
     class Meta:
         verbose_name = _("Опция слота БУ")
@@ -177,12 +214,33 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
     def __str__(self):
         if self.kind == CuOptionKind.UNIT and self.control_unit_id:
             return str(self.control_unit)
+        if self.kind == CuOptionKind.LOCAL_CONTROL and self.local_control_type_id:
+            return str(self.local_control_type)
+        if self.kind == CuOptionKind.UNIT_POWER and self.unit_power_source_id:
+            return str(self.unit_power_source)
+        if self.kind == CuOptionKind.CABLE_GLAND and self.cable_gland_set_id:
+            return str(self.cable_gland_set)
+        if self.kind == CuOptionKind.DISPLAY:
+            names = [str(d) for d in self.display_types.all().order_by('sorting_order')]
+            if names:
+                return ' + '.join(names)
         return self.name or self.code
 
     def localized_name(self, locale=None):
-        """Имя опции; для kind=unit — имя типа БУ (с переводом)."""
+        """Имя опции; для типизированных kind — имя сущности нагрузки."""
         if self.kind == CuOptionKind.UNIT and self.control_unit_id:
             return localized_name(self.control_unit, locale)
+        if self.kind == CuOptionKind.LOCAL_CONTROL and self.local_control_type_id:
+            return localized_name(self.local_control_type, locale)
+        if self.kind == CuOptionKind.UNIT_POWER and self.unit_power_source_id:
+            return localized_name(self.unit_power_source, locale)
+        if self.kind == CuOptionKind.CABLE_GLAND and self.cable_gland_set_id:
+            return localized_name(self.cable_gland_set, locale)
+        if self.kind == CuOptionKind.DISPLAY:
+            names = [localized_name(d, locale)
+                     for d in self.display_types.all().order_by('sorting_order')]
+            if names:
+                return ' + '.join(names)
         return pick_i18n(self.name_i18n, locale, fallback=self.name or self.code)
 
     def clean(self):
@@ -213,6 +271,25 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                 raise ValidationError(
                     {'control_unit': _('Опция-БУ допустима только в слоте '
                                        'control_unit.')})
+        elif self.kind == CuOptionKind.LOCAL_CONTROL:
+            if not self.local_control_type_id:
+                raise ValidationError(
+                    _('Для опции органа управления нужен CuLocalControlType.'))
+        elif self.kind == CuOptionKind.DISPLAY:
+            # M2M сохраняется после clean() (админка) — проверяем только
+            # для уже сохранённых объектов, чтобы не ломать создание.
+            if self.pk and not self.display_types.exists():
+                raise ValidationError(
+                    _('Для опции отображения нужен хотя бы один вид отображения.'))
+        elif self.kind == CuOptionKind.UNIT_POWER:
+            if not self.unit_power_source_id:
+                raise ValidationError(
+                    _('Для опции питания БУ нужен CuUnitPowerSource.'))
+        elif self.kind == CuOptionKind.CABLE_GLAND:
+            if not self.cable_gland_set_id:
+                raise ValidationError(
+                    _('Для опции кабельных вводов нужен набор резьб '
+                      '(params.ThreadSizeSet).'))
         elif self.kind in (CuOptionKind.NONE, CuOptionKind.PAIR):
             if not self.name:
                 raise ValidationError(_('Для none/pair-опции нужно имя (название).'))

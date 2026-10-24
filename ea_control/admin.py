@@ -7,15 +7,19 @@
 `/admin/ea-control` (вкладки «БУ»/«Узлы»/«Слоты-Опции»/«Матрица»/«Правила»)
 — фронтовая часть плана, делается отдельно.
 """
+from django import forms
 from django.contrib import admin
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
-                               CuControlSignal, CuFeedbackDevice,
-                               CuFeedbackSignal, CuHeaterSupply, CuLocationOption,
+                               CuControlSignal, CuDisplayType, CuFeedbackDevice,
+                               CuFeedbackSignal, CuHeaterSupply,
+                               CuLocalControlType, CuLocationOption,
                                CuMatrixEntry, CuSignalForm, CuSignalPower,
                                CuSignalPowerSource, CuSignalType, CuSlot,
-                               CuSlotOption, CuSlotRule, ControlUnit,
-                               CuSectionNode)
+                               CuSlotOption, CuSlotRule, CuUnitPowerSource,
+                               ControlUnit, CuSectionNode)
 
 
 class _DictAdmin(admin.ModelAdmin):
@@ -78,6 +82,21 @@ class CuCapabilityAdmin(_DictAdmin):
     pass
 
 
+@admin.register(CuLocalControlType)
+class CuLocalControlTypeAdmin(_DictAdmin):
+    pass
+
+
+@admin.register(CuDisplayType)
+class CuDisplayTypeAdmin(_DictAdmin):
+    pass
+
+
+@admin.register(CuUnitPowerSource)
+class CuUnitPowerSourceAdmin(_DictAdmin):
+    pass
+
+
 @admin.register(CuSignalPowerSource)
 class CuSignalPowerSourceAdmin(_DictAdmin):
     pass
@@ -125,12 +144,32 @@ class CuSlotAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name')
 
 
+class _CuSlotOptionForm(forms.ModelForm):
+    """Валидация M2M display_types.
+
+    В model.clean() M2M ещё не записан (admin вызывает save_m2m после
+    clean), поэтому проверку делаем в форме: cleaned_data['display_types']
+    уже содержит выбранные значения.
+    """
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('kind') == 'display' and not cleaned.get('display_types'):
+            raise ValidationError(
+                _('Для опции отображения нужен хотя бы один вид отображения.'))
+        return cleaned
+
+    class Meta:
+        model = CuSlotOption
+        fields = '__all__'
+
+
 @admin.register(CuSlotOption)
 class CuSlotOptionAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'slot', 'kind', 'is_active')
     list_filter = ('slot', 'kind', 'is_active')
     search_fields = ('code', 'name')
     ordering = ('sorting_order', 'code')
+    form = _CuSlotOptionForm
 
 
 @admin.register(CuMatrixEntry)

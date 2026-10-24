@@ -8,7 +8,8 @@ setUpTestData; тесты не изменяют данные (только чт�
 from django.core.management import call_command
 from django.test import TestCase
 
-from ea_control.models import ControlUnit
+from ea_control.models import (ControlUnit, CuMatrixEntry, CuSlotOption,
+                               CuSlotRule)
 from ea_control.services.cu_matrix import (get_profile_defaults,
                                            resolve_control_units, resolve_slots,
                                            validate_selection)
@@ -41,9 +42,23 @@ class CuMatrixServiceTests(TestCase):
         self.assertIn('HEATER_CONTROL_UNIT', resolved)
         # базовому шину не резолвим — строк нет
         self.assertNotIn('PROTOCOL', resolved)
-        buttons = [p for p in resolved['LOCAL_CONTROL']]
-        self.assertTrue(any(p['option_code'] == 'BUTTONS'
-                            and p['availability'] == 'std' for p in buttons))
+        # AOX-M базовый: органов местного управления нет — только «Нет» (std)
+        local = resolved['LOCAL_CONTROL']
+        self.assertTrue(any(p['option_code'] == 'LOCAL_NONE'
+                            and p['availability'] == 'std' for p in local))
+        self.assertFalse(any(p['option_code'] == 'BUTTONS' for p in local))
+        self.assertFalse(any(p['option_code'] == 'SELECTOR' for p in local))
+        # обогрев — отдельной линией (std), от цепей питания — опция
+        heater = resolved['HEATER_CONTROL_UNIT']
+        self.assertTrue(any(p['option_code'] == 'H_SEP'
+                            and p['availability'] == 'std' for p in heater))
+        self.assertTrue(any(p['option_code'] == 'H_MOTOR'
+                            and p['availability'] == 'opt' for p in heater))
+        # стартера у базового нет — только «Нет» (std)
+        starter = resolved['MOTOR_STARTER']
+        self.assertTrue(any(p['option_code'] == 'STARTER_NONE' for p in starter))
+        self.assertFalse(any(p['option_code'] == 'STARTER_BUILT_IN'
+                             for p in starter))
 
     def test_resolve_control_units_ar01e_380(self):
         units = resolve_control_units(self.ar01e, power_supply=self.ps380)
@@ -117,6 +132,65 @@ class CuRulesServiceTests(TestCase):
     def test_hart_set_default(self):
         state = apply_rules(self.rules, {'SETPOINT': 'SETPOINT_HART'})
         self.assertEqual(state['POSITION_FEEDBACK']['default'], 'POS_HART')
+
+
+class CuUnitCopyDeleteTests(TestCase):
+    """Actions copy/delete-unit у ControlUnitViewSet (связки матрицы/правил)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        call_command('seed_cu_demo')
+        cls.user = get_user_model().objects.create_superuser(
+            'cu-tester', 't@example.com', 't')
+        cls.basic = ControlUnit.objects.get(code='basic')
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_copy_duplicates_matrix_rules_and_option(self):
+        before_rows = CuMatrixEntry.objects.filter(
+            control_unit=self.basic).count()
+        r = self.client.post(
+            f'/api/ea-control/control-units/{self.basic.id}/copy/')
+        self.assertEqual(r.status_code, 201, r.content)
+        new = ControlUnit.objects.get(pk=r.data['id'])
+        self.assertIn('(копия)', new.name)
+        self.assertEqual(
+            CuMatrixEntry.objects.filter(control_unit=new).count(),
+            before_rows)
+        opt = CuSlotOption.objects.get(
+            slot__code='control_unit', control_unit=new)
+        # exact-правило (hide LOCAL_CONTROL) скопировано с новым кодом опции
+        self.assertTrue(CuSlotRule.objects.filter(
+            when_slot__code='control_unit', when_value=opt.code,
+            target_slot__code='LOCAL_CONTROL').exists())
+        # список 'in' расширен новым кодом опции
+        in_rules = CuSlotRule.objects.filter(
+            when_slot__code='control_unit',
+            target_slot__code='CU_POWER_SUPPLY')
+        self.assertTrue(any(opt.code in (rule.when_value or [])
+                            for rule in in_rules))
+
+    def test_delete_unit_cleans_option_rules_and_matrix(self):
+        unit = ControlUnit.objects.get(code='int-o')
+        opt = CuSlotOption.objects.get(
+            slot__code='control_unit', control_unit=unit)
+        r = self.client.delete(
+            f'/api/ea-control/control-units/{unit.id}/delete-unit/')
+        self.assertEqual(r.status_code, 204)
+        self.assertFalse(ControlUnit.objects.filter(pk=unit.id).exists())
+        self.assertFalse(CuSlotOption.objects.filter(pk=opt.pk).exists())
+        self.assertFalse(CuMatrixEntry.objects.filter(
+            control_unit=unit).exists())
+        # код int-o убран из списков правил 'in'
+        in_rules = CuSlotRule.objects.filter(
+            when_slot__code='control_unit',
+            target_slot__code='CU_POWER_SUPPLY')
+        for rule in in_rules:
+            self.assertNotIn(opt.code, rule.when_value or [])
 
 
 class CuPackageServiceTests(TestCase):

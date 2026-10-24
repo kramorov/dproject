@@ -20,6 +20,11 @@ router.register('feedback-devices', api.CuFeedbackDeviceViewSet, basename='cu-de
 router.register('heater-supplies', api.CuHeaterSupplyViewSet, basename='cu-heater')
 router.register('location-options', api.CuLocationOptionViewSet, basename='cu-location')
 router.register('capabilities', api.CuCapabilityViewSet, basename='cu-capability')
+router.register('local-control-types', api.CuLocalControlTypeViewSet,
+                basename='cu-local-ctl')
+router.register('display-types', api.CuDisplayTypeViewSet, basename='cu-display')
+router.register('unit-power-sources', api.CuUnitPowerSourceViewSet,
+                basename='cu-unit-power')
 router.register('signal-power-sources', api.CuSignalPowerSourceViewSet,
                 basename='cu-sp-source')
 router.register('signal-powers', api.CuSignalPowerViewSet, basename='cu-sp')
@@ -30,6 +35,7 @@ urlpatterns = [
     path('units/', api.units_view, name='cu_units'),
     path('meta/', api.meta_view, name='cu_meta'),
     path('series-units/', api.series_units_view, name='cu_series_units'),
+    path('describe/', api.describe_view, name='cu_describe'),
     path('package/', api.package_view, name='cu_package'),
     *router.urls,
 ]

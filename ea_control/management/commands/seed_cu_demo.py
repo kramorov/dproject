@@ -24,12 +24,13 @@
 from django.core.management.base import BaseCommand
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
-                               CuControlSignal, CuFeedbackDevice,
-                               CuFeedbackSignal, CuHeaterSupply, CuLocationOption,
+                               CuControlSignal, CuDisplayType, CuFeedbackDevice,
+                               CuFeedbackSignal, CuHeaterSupply,
+                               CuLocalControlType, CuLocationOption,
                                CuMatrixEntry, CuSignalForm, CuSignalPower,
                                CuSignalPowerSource, CuSignalType, CuSlot,
-                               CuSlotOption, CuSlotRule, ControlUnit,
-                               CuSectionNode)
+                               CuSlotOption, CuSlotRule, CuUnitPowerSource,
+                               ControlUnit, CuSectionNode)
 from ea_control.models.control_unit import ControlUnitKind
 
 
@@ -45,7 +46,7 @@ def _opt(code, slot, kind, **fields):
 
 
 def _row(slot, option, cu, model_line=None, power_supply=None, **fields):
-    obj, _ = CuMatrixEntry.objects.get_or_create(
+    obj, _ = CuMatrixEntry.objects.update_or_create(
         slot=slot, option=option, control_unit=cu,
         model_line=model_line, power_supply=power_supply,
         defaults=fields)
@@ -56,11 +57,14 @@ class Command(BaseCommand):
     help = 'Демо-данные ea_control: справочники, БУ, слоты, матрица, правила.'
 
     def handle(self, *args, **options):
-        forms, ctl, fb, proto, devices, heater, caps = self._seed_dictionaries()
+        forms, ctl, fb, proto, devices, heater, caps, local_ctrl, display, (
+            unit_power) = self._seed_dictionaries()
         locations, sources, powers, logics, stypes = self._seed_cu_power()
         sections, slots, opts = self._seed_structure(forms, ctl, fb, proto,
                                                      devices, heater, sources,
-                                                     powers, logics, stypes)
+                                                     powers, logics, stypes,
+                                                     local_ctrl, display,
+                                                     unit_power)
         cus = self._seed_units(caps, locations, ctl, fb, proto, powers, sources)
         self._seed_matrix(slots, opts, cus)
         self._seed_rules(slots, opts)
@@ -70,6 +74,8 @@ class Command(BaseCommand):
 
     def _seed_dictionaries(self):
         forms = {
+            'DRY_SPST': _cu(CuSignalForm, 'DRY_SPST', name='Сухой контакт SPST',
+                            category='contact'),
             'DRY_SPDT': _cu(CuSignalForm, 'DRY_SPDT', name='Сухой контакт SPDT',
                             category='contact'),
             'DRY_DPDT': _cu(CuSignalForm, 'DRY_DPDT', name='Сухой контакт DPDT',
@@ -154,6 +160,12 @@ class Command(BaseCommand):
                                   name='Перегрев (NC)', role='OVERHEAT',
                                   category='contact', form=forms['DRY_SPDT'],
                                   contact_normal='NC'),
+            'FB_OVERHEAT_SPST_NC': _cu(CuFeedbackSignal, 'FB_OVERHEAT_SPST_NC',
+                                       name='Перегрев, SPST (НЗ)',
+                                       role='OVERHEAT',
+                                       category='contact',
+                                       form=forms['DRY_SPST'],
+                                       contact_normal='NC'),
             'FB_ALARM': _cu(CuFeedbackSignal, 'FB_ALARM',
                             name='Авария', role='ALARM', category='contact',
                             form=forms['DRY_SPDT']),
@@ -161,6 +173,15 @@ class Command(BaseCommand):
                                name='Готовность (NO)', role='READY',
                                category='contact', form=forms['DRY_SPDT'],
                                contact_normal='NO'),
+            'FB_REMOTE_NO': _cu(CuFeedbackSignal, 'FB_REMOTE_NO',
+                                name='Удалённое управление (SPST НО)',
+                                role='LOCAL_REMOTE',
+                                category='contact', form=forms['DRY_SPST'],
+                                contact_normal='NO'),
+            'FB_ALARM_SPDT': _cu(CuFeedbackSignal, 'FB_ALARM_SPDT',
+                                 name='Авария (SPDT: НЗ + НО)', role='ALARM',
+                                 category='contact', form=forms['DRY_SPDT'],
+                                 contact_normal='CHANGEOVER'),
         }
         proto = {
             'MODBUS_RTU': _cu(CuCommProtocol, 'MODBUS_RTU', name='Modbus RTU',
@@ -183,10 +204,18 @@ class Command(BaseCommand):
                 code='THERMO', defaults=dict(name='Термореле',
                                              kind='THERMAL_SENSOR',
                                              technology='ELECTRONIC'))[0],
+            'LIMIT_MECH': CuFeedbackDevice.objects.get_or_create(
+                code='LIMIT_MECH',
+                defaults=dict(name='Концевые датчики, механические',
+                              kind='POSITION_SENSOR',
+                              technology='MECHANICAL'))[0],
         }
         devices['POT_1K'].emits.add(fb['FB_POS_POT'])
         devices['MWG'].emits.add(fb['FB_POS_4_20MA_ACTIVE'])
         devices['THERMO'].emits.add(fb['FB_OVERHEAT_NC'])
+        devices['THERMO'].emits.add(fb['FB_OVERHEAT_SPST_NC'])
+        devices['LIMIT_MECH'].emits.add(fb['FB_END_OPEN'])
+        devices['LIMIT_MECH'].emits.add(fb['FB_END_CLOSE'])
         heater = {
             'NO_HEATER': _cu(CuHeaterSupply, 'NO_HEATER', name='Без обогрева'),
             'MOTOR_CIRCUIT': _cu(CuHeaterSupply, 'MOTOR_CIRCUIT',
@@ -204,7 +233,24 @@ class Command(BaseCommand):
             'ESD': _cu(CuCapability, 'ESD', name='Аварийный останов (ESD)'),
             'PID': _cu(CuCapability, 'PID', name='PID-регулятор'),
         }
-        return forms, ctl, fb, proto, devices, heater, caps
+        local_ctrl = {
+            'BUTTONS': _cu(CuLocalControlType, 'BUTTONS', name='Кнопки'),
+            'SELECTOR': _cu(CuLocalControlType, 'SELECTOR', name='Селекторы'),
+        }
+        display = {
+            'LED': _cu(CuDisplayType, 'LED', name='Светодиод'),
+            'LED_BLINK': _cu(CuDisplayType, 'LED_BLINK',
+                             name='Мигающий светодиод'),
+            'LCD': _cu(CuDisplayType, 'LCD', name='На LCD-экране'),
+        }
+        unit_power = {
+            'SHARED_CABLE': _cu(CuUnitPowerSource, 'SHARED_CABLE',
+                                name='От цепей питания привода (общий кабель)'),
+            'SEPARATE_CABLE': _cu(CuUnitPowerSource, 'SEPARATE_CABLE',
+                                  name='Отдельный кабель питания БУ'),
+        }
+        return (forms, ctl, fb, proto, devices, heater, caps, local_ctrl,
+                display, unit_power)
 
     def _seed_cu_power(self):
         locations = {
@@ -233,6 +279,9 @@ class Command(BaseCommand):
             'EXT_220': CuSignalPower.objects.get_or_create(
                 source=sources['EXTERNAL'], power_supply=ps220,
                 defaults=dict(name='Внешний 220 В AC'))[0],
+            'EXT_24': CuSignalPower.objects.get_or_create(
+                source=sources['EXTERNAL'], power_supply=ps24,
+                defaults=dict(name='Внешний 24 В DC'))[0],
         }
         logics = {
             'IMPULSE': _cu(CuControlLogic, 'IMPULSE', name='Импульсная',
@@ -246,13 +295,16 @@ class Command(BaseCommand):
                        logic_type='active_high', voltage=ps24),
             'POT220': _cu(CuSignalType, 'POT220', name='Потенциал 220 В AC',
                           logic_type='active_high', voltage=ps220),
+            'POT24': _cu(CuSignalType, 'POT24',
+                         name='Потенциал +24 В (активный)',
+                         logic_type='active_high', voltage=ps24),
         }
         return locations, sources, powers, logics, stypes
 
     # ── Узлы / слоты / опции ───────────────────────────────────────────────
 
     def _seed_structure(self, forms, ctl, fb, proto, devices, heater, sources,
-                        powers, logics, stypes):
+                        powers, logics, stypes, local_ctrl, display, unit_power):
         sections = {
             'CONTROL_SIGNALS': CuSectionNode.objects.get_or_create(
                 code='CONTROL_SIGNALS', defaults=dict(name='Сигналы управления'))[0],
@@ -263,6 +315,16 @@ class Command(BaseCommand):
             'POWER': CuSectionNode.objects.get_or_create(
                 code='POWER', defaults=dict(name='Обогрев / питание'))[0],
         }
+        # местная индикация: узел + вложенный узел сигналов
+        ind_node = CuSectionNode.objects.get_or_create(
+            code='LOCAL_INDICATION',
+            defaults=dict(name='Местная индикация', sorting_order=40))[0]
+        ind_signals = CuSectionNode.objects.get_or_create(
+            code='IND_SIGNALS',
+            defaults=dict(name='Отображаемые сигналы', parent=ind_node))[0]
+        cabling = CuSectionNode.objects.get_or_create(
+            code='CABLING',
+            defaults=dict(name='Подключение кабелей', sorting_order=50))[0]
 
         def _slot(code, **defaults):
             return CuSlot.objects.get_or_create(code=code, defaults=defaults)[0]
@@ -297,9 +359,36 @@ class Command(BaseCommand):
                                section=sections['FEEDBACK']),
             'TURN_COUNTER': _slot('TURN_COUNTER', name='Счётчик оборотов',
                                   section=sections['FEEDBACK']),
+            'REMOTE_CONTROL': _slot('REMOTE_CONTROL', name='Удалённое управление',
+                                    section=sections['FEEDBACK']),
+            'ALARM_SIGNAL': _slot('ALARM_SIGNAL', name='Сигнал аварии',
+                                  section=sections['FEEDBACK']),
             'PROTOCOL': _slot('PROTOCOL', name='Шина', section=sections['COMM']),
             'HEATER_CONTROL_UNIT': _slot('HEATER_CONTROL_UNIT', name='Обогрев БУ',
                                          section=sections['POWER']),
+            'LOCAL_CONTROL_DESIGN': _slot('LOCAL_CONTROL_DESIGN',
+                                          name='Дизайн органов управления',
+                                          section=ind_node,
+                                          selection_mode='single', required=True),
+            'IND_OPEN': _slot('IND_OPEN', name='Открыто', section=ind_signals),
+            'IND_CLOSED': _slot('IND_CLOSED', name='Закрыто', section=ind_signals),
+            'IND_STOP': _slot('IND_STOP', name='Стоп', section=ind_signals),
+            'IND_ALARM': _slot('IND_ALARM', name='Авария', section=ind_signals),
+            'IND_LOCAL_REMOTE': _slot('IND_LOCAL_REMOTE',
+                                      name='Местное или удалённое управление',
+                                      section=ind_signals),
+            'IND_RUN': _slot('IND_RUN', name='Ход', section=ind_signals),
+            'IND_POSITION': _slot('IND_POSITION', name='Процент открытия',
+                                  section=ind_signals),
+            'CU_POWER_SUPPLY': _slot('CU_POWER_SUPPLY', name='Питание БУ',
+                                     section=sections['POWER'],
+                                     selection_mode='single', required=True),
+            'CU_CABLE_GLANDS': _slot('CU_CABLE_GLANDS', name='Кабельные вводы БУ',
+                                     section=cabling, selection_mode='single',
+                                     required=True),
+            'MOTOR_STARTER': _slot('MOTOR_STARTER', name='Стартер мотора',
+                                   section=sections['POWER'],
+                                   selection_mode='single', required=False),
         }
 
         def _none(code, slot, name, **kw):
@@ -314,12 +403,16 @@ class Command(BaseCommand):
                                  encoding='M')
         opts['CU_POSI'] = _opt('CU_POSI', slots['control_unit'], 'unit',
                                encoding='P')
+        opts['CU_INT_O'] = _opt('CU_INT_O', slots['control_unit'], 'unit',
+                                encoding='O')
         # управление
         opts['BUTTONS'] = _none('BUTTONS', slots['LOCAL_CONTROL'], 'Кнопки')
         opts['SELECTOR'] = _none('SELECTOR', slots['LOCAL_CONTROL'], 'Селектор')
         opts['LOCAL_NONE'] = _none('LOCAL_NONE', slots['LOCAL_CONTROL'], 'Нет')
         opts['CMD_OCS'] = _opt('CMD_OCS', slots['CMD'], 'signal',
                                control_signal=ctl['CMD_OCS_220AC'])
+        opts['CMD_OCS_24'] = _opt('CMD_OCS_24', slots['CMD'], 'signal',
+                                  control_signal=ctl['CMD_OCS_24DC'])
         opts['CMD_REMOTE'] = _opt('CMD_REMOTE', slots['CMD'], 'signal',
                                   control_signal=ctl['CMD_REMOTE_24DC'])
         opts['CMD_LOCK'] = _opt('CMD_LOCK', slots['CMD'], 'signal',
@@ -332,6 +425,8 @@ class Command(BaseCommand):
                                      control_signal=ctl['CMD_4_20MA_HART'])
         opts['SP_EXT_220'] = _opt('SP_EXT_220', slots['SIGNAL_POWER_SOURCE'],
                                   'power', signal_power=powers['EXT_220'])
+        opts['SP_EXT_24'] = _opt('SP_EXT_24', slots['SIGNAL_POWER_SOURCE'],
+                                 'power', signal_power=powers['EXT_24'])
         opts['SP_INT_24'] = _opt('SP_INT_24', slots['SIGNAL_POWER_SOURCE'],
                                  'power', signal_power=powers['INT_24'])
         opts['LOG_IMPULSE'] = _opt('LOG_IMPULSE', slots['CONTROL_LOGIC'], 'logic',
@@ -344,11 +439,17 @@ class Command(BaseCommand):
                               signal_type=stypes['DRY'])
         opts['ST_POT220'] = _opt('ST_POT220', slots['SIGNAL_TYPE'], 'signal_type',
                                  signal_type=stypes['POT220'])
+        opts['ST_POT24'] = _opt('ST_POT24', slots['SIGNAL_TYPE'], 'signal_type',
+                                signal_type=stypes['POT24'])
         # обратная связь
         opts['END_SPDT'] = _opt('END_SPDT', slots['LIMIT_SWITCHES'], 'pair',
                                 name='Концевые SPDT', ext_encoding='E1')
         opts['END_DPDT'] = _opt('END_DPDT', slots['LIMIT_SWITCHES'], 'pair',
                                 name='Концевые DPDT', ext_encoding='E2')
+        # концевые выключатели — механические датчики (справочник устройств)
+        for _end_opt in ('END_SPDT', 'END_DPDT'):
+            opts[_end_opt].device = devices['LIMIT_MECH']
+            opts[_end_opt].save(update_fields=['device'])
         opts['LIMIT_NONE'] = _none('LIMIT_NONE', slots['LIMIT_SWITCHES'],
                                    'Без концевых')
         opts['WAY_SPDT'] = _opt('WAY_SPDT', slots['WAY_SWITCHES'], 'pair',
@@ -380,6 +481,10 @@ class Command(BaseCommand):
         opts['OVERHEAT_NC'] = _opt('OVERHEAT_NC', slots['THERMAL_SENSOR'], 'signal',
                                    feedback_signal=fb['FB_OVERHEAT_NC'],
                                    device=devices['THERMO'])
+        opts['OVERHEAT_SPST_NC'] = _opt('OVERHEAT_SPST_NC', slots['THERMAL_SENSOR'],
+                                        'signal',
+                                        feedback_signal=fb['FB_OVERHEAT_SPST_NC'],
+                                        device=devices['THERMO'])
         opts['LED_SET'] = _none('LED_SET', slots['INDICATOR'], 'Светодиоды',
                                 ext_encoding='D')
         opts['BLINKER'] = _none('BLINKER', slots['INDICATOR'], 'Блинкер',
@@ -390,6 +495,15 @@ class Command(BaseCommand):
                                 ext_encoding='M')
         opts['TC_EL'] = _none('TC_EL', slots['TURN_COUNTER'], 'Электронный',
                               ext_encoding='E')
+        # удалённое управление и сигнал аварии (ОС INT/O)
+        opts['REMOTE_SPST_NO'] = _opt('REMOTE_SPST_NO', slots['REMOTE_CONTROL'],
+                                      'signal',
+                                      feedback_signal=fb['FB_REMOTE_NO'])
+        opts['REMOTE_NONE'] = _none('REMOTE_NONE', slots['REMOTE_CONTROL'],
+                                    'Нет')
+        opts['ALARM_SPDT'] = _opt('ALARM_SPDT', slots['ALARM_SIGNAL'], 'signal',
+                                  feedback_signal=fb['FB_ALARM_SPDT'])
+        opts['ALARM_NONE'] = _none('ALARM_NONE', slots['ALARM_SIGNAL'], 'Нет')
         # связь / обогрев
         opts['MB_RTU'] = _opt('MB_RTU', slots['PROTOCOL'], 'signal',
                               protocol=proto['MODBUS_RTU'])
@@ -405,6 +519,115 @@ class Command(BaseCommand):
         opts['H_SEP'] = _opt('H_SEP', slots['HEATER_CONTROL_UNIT'], 'heater',
                              heater_supply=heater['SEPARATE_LINE'],
                              ext_encoding='S')
+        # местная индикация (справочники CuLocalControlType/CuDisplayType)
+        opts['DESIGN_BTN'] = _opt('DESIGN_BTN', slots['LOCAL_CONTROL_DESIGN'],
+                                  'local_control',
+                                  local_control_type=local_ctrl['BUTTONS'])
+        opts['DESIGN_SEL'] = _opt('DESIGN_SEL', slots['LOCAL_CONTROL_DESIGN'],
+                                  'local_control',
+                                  local_control_type=local_ctrl['SELECTOR'])
+        opts['DESIGN_NONE'] = _none('DESIGN_NONE', slots['LOCAL_CONTROL_DESIGN'],
+                                    'Нет')
+
+        def _display_opt(code, slot, name, types):
+            obj, _ = CuSlotOption.objects.get_or_create(
+                code=code, defaults={'slot': slot, 'kind': 'display',
+                                     'name': name})
+            obj.display_types.set(types)
+            return obj
+
+        opts['IND_OPEN_LED'] = _display_opt('IND_OPEN_LED', slots['IND_OPEN'],
+                                            'Светодиод', [display['LED']])
+        opts['IND_OPEN_LCD'] = _display_opt('IND_OPEN_LCD', slots['IND_OPEN'],
+                                            'На LCD-экране', [display['LCD']])
+        opts['IND_CLOSED_LED'] = _display_opt('IND_CLOSED_LED', slots['IND_CLOSED'],
+                                              'Светодиод', [display['LED']])
+        opts['IND_CLOSED_LCD'] = _display_opt('IND_CLOSED_LCD', slots['IND_CLOSED'],
+                                              'На LCD-экране', [display['LCD']])
+        opts['IND_STOP_LED'] = _display_opt('IND_STOP_LED', slots['IND_STOP'],
+                                            'Светодиод', [display['LED']])
+        opts['IND_STOP_LCD'] = _display_opt('IND_STOP_LCD', slots['IND_STOP'],
+                                            'На LCD-экране', [display['LCD']])
+        opts['IND_ALARM_LED'] = _display_opt('IND_ALARM_LED', slots['IND_ALARM'],
+                                             'Светодиод', [display['LED']])
+        opts['IND_ALARM_LCD'] = _display_opt('IND_ALARM_LCD', slots['IND_ALARM'],
+                                             'На LCD-экране', [display['LCD']])
+        opts['IND_LR_LED'] = _display_opt('IND_LR_LED', slots['IND_LOCAL_REMOTE'],
+                                          'Светодиод', [display['LED']])
+        opts['IND_LR_LCD'] = _display_opt('IND_LR_LCD', slots['IND_LOCAL_REMOTE'],
+                                          'На LCD-экране', [display['LCD']])
+        opts['IND_RUN_BLINK'] = _display_opt('IND_RUN_BLINK', slots['IND_RUN'],
+                                             'Только мигающий светодиод',
+                                             [display['LED_BLINK']])
+        opts['IND_RUN_LCD_BLINK'] = _display_opt(
+            'IND_RUN_LCD_BLINK', slots['IND_RUN'],
+            'На LCD + мигающий светодиод',
+            [display['LCD'], display['LED_BLINK']])
+        opts['IND_POS_LCD'] = _display_opt('IND_POS_LCD', slots['IND_POSITION'],
+                                           'На LCD-экране', [display['LCD']])
+        opts['IND_POS_NONE'] = _none('IND_POS_NONE', slots['IND_POSITION'], 'Нет')
+        opts['IND_OPEN_NONE'] = _none('IND_OPEN_NONE', slots['IND_OPEN'], 'Нет')
+        opts['IND_CLOSED_NONE'] = _none('IND_CLOSED_NONE', slots['IND_CLOSED'], 'Нет')
+        opts['IND_STOP_NONE'] = _none('IND_STOP_NONE', slots['IND_STOP'], 'Нет')
+        opts['IND_ALARM_NONE'] = _none('IND_ALARM_NONE', slots['IND_ALARM'], 'Нет')
+        opts['IND_LR_NONE'] = _none('IND_LR_NONE', slots['IND_LOCAL_REMOTE'], 'Нет')
+        opts['IND_RUN_NONE'] = _none('IND_RUN_NONE', slots['IND_RUN'], 'Нет')
+        # питание БУ и кабельные вводы БУ
+        opts['PU_SHARED'] = _opt('PU_SHARED', slots['CU_POWER_SUPPLY'],
+                                 'unit_power',
+                                 unit_power_source=unit_power['SHARED_CABLE'])
+        opts['PU_SEPARATE'] = _opt('PU_SEPARATE', slots['CU_POWER_SUPPLY'],
+                                   'unit_power',
+                                   unit_power_source=unit_power['SEPARATE_CABLE'])
+        # стартер мотора: физика — только 380 В; у базового БУ его нет
+        opts['STARTER_BUILT_IN'] = _none('STARTER_BUILT_IN',
+                                         slots['MOTOR_STARTER'],
+                                         'Встроенный стартер мотора')
+        opts['STARTER_NONE'] = _none('STARTER_NONE', slots['MOTOR_STARTER'],
+                                     'Нет')
+
+        def _thread(code, name, type_code, type_name, diameter=None):
+            from params.models import ThreadSize, ThreadTypes
+            tt, _ = ThreadTypes.objects.get_or_create(
+                code=type_code, defaults=dict(name=type_name))
+            ts, _ = ThreadSize.objects.get_or_create(
+                code=code,
+                defaults=dict(name=name, thread_type=tt,
+                              thread_diameter=diameter))
+            return ts
+
+        def _gland_set_opt(opt_code, set_code, name, threads):
+            """Опция вводов БУ: набор резьб (каждая резьба с количеством)."""
+            from params.models import ThreadSizeSet, ThreadSizeSetItem
+            tset, _ = ThreadSizeSet.objects.get_or_create(
+                code=set_code, defaults=dict(name=name))
+            if not tset.thread_items.exists():
+                for pos, ts in enumerate(threads, start=1):
+                    ThreadSizeSetItem.objects.get_or_create(
+                        thread_set=tset, position=pos,
+                        defaults=dict(thread_size=ts))
+            opt = _opt(opt_code, slots['CU_CABLE_GLANDS'], 'cable_gland',
+                       cable_gland_set=tset)
+            opt.cable_gland_set = tset
+            opt.save(update_fields=['cable_gland_set'])
+            return opt
+
+        opts['CG_M20'] = _gland_set_opt(
+            'CG_M20', 'CU_M20', 'Одинаковая резьба M20×1,5',
+            [_thread('M20', 'M20×1,5', 'METRIC', 'Метрическая', diameter=20)])
+        opts['CG_M25'] = _gland_set_opt(
+            'CG_M25', 'CU_M25', 'Одинаковая резьба M25×1,5',
+            [_thread('M25', 'M25×1,5', 'METRIC', 'Метрическая', diameter=25)])
+        opts['CG_PG16'] = _gland_set_opt(
+            'CG_PG16', 'CU_PG16', 'Одинаковая резьба PG16',
+            [_thread('PG16', 'PG16', 'PG', 'PG')])
+        # набор вводов INT/O: 1×1½" NPT + 2×¾" NPT (из справочника резьб)
+        opts['CG_NPT_112_34'] = _gland_set_opt(
+            'CG_NPT_112_34', 'CU_NPT_112_34_34',
+            '1×1½" NPT + 2×¾" NPT',
+            [_thread('NPT_1_1_2', '1½" NPT', 'NPT', 'NPT', diameter=1.5),
+             _thread('NPT_3_4', '¾" NPT', 'NPT', 'NPT', diameter=0.75),
+             _thread('NPT_3_4', '¾" NPT', 'NPT', 'NPT', diameter=0.75)])
         return sections, slots, opts
 
     # ── Типы БУ ────────────────────────────────────────────────────────────
@@ -431,8 +654,13 @@ class Command(BaseCommand):
             location=locations['INTEGRATED'], control_voltage=ps380,
             signal_power=powers['EXT_220'], legacy_cu=_legacy('basic'),
             name_template='БУ базовый {code}',
-            description_template='Базовый блок управления {brand}: команды '
-                                 'О/С/З, концевые и моментные выключатели.',
+            description_template='Базовый блок управления {brand} (AOX-M): '
+                                 'команды О/С/З потенциальной логикой (стоп — '
+                                 'отсутствием сигнала), цепи управления от '
+                                 'внешнего источника 220 В (опция 24 В), '
+                                 'концевые и моментные выключатели, '
+                                 'перегрев SPST (НЗ), обогрев отдельной '
+                                 'линией.',
             spec_template={'Основные': {'Класс БУ': '_res_kind',
                                         'Питание цепей': '_res_signal_power'},
                            'Возможности': {'Функции': '_res_capabilities'}},
@@ -496,12 +724,31 @@ class Command(BaseCommand):
         posi.emits.set([fb['FB_POS_4_20MA_HART']])
         posi.capabilities.set([caps['DISPLAY'], caps['PID']])
 
+        int_o = _unit(
+            'int-o', 'БУ INT/O', ControlUnitKind.INTEGRATED,
+            location=locations['SEPARATE'], control_voltage=ps380,
+            signal_power=powers['INT_24'], legacy_cu=_legacy('int-o'),
+            name_template='БУ INT/O {code}',
+            description_template='БУ INT/O {brand}: навесной, команды О/С/З '
+                                 '(активный +24 В или внешние 220 В), '
+                                 'светодиодная индикация, стартер (380 В).',
+            spec_template={'Основные': {'Класс БУ': '_res_kind',
+                                        'Питание цепей': '_res_signal_power'},
+                           'Возможности': {'Функции': '_res_capabilities'}},
+        )
+        int_o.accepts.set([ctl['CMD_OCS_24DC'], ctl['CMD_OCS_220AC']])
+        int_o.emits.set([fb['FB_END_OPEN'], fb['FB_END_CLOSE'],
+                         fb['FB_REMOTE_NO'], fb['FB_ALARM_SPDT']])
+        int_o.capabilities.set([caps['LOCAL_CONTROL'], caps['DISPLAY']])
+
         # опции слота control_unit ссылаются на типы БУ
         CuSlotOption.objects.filter(code='CU_BASIC').update(control_unit=basic)
         CuSlotOption.objects.filter(code='CU_INT').update(control_unit=int_unit)
         CuSlotOption.objects.filter(code='CU_INT_MB').update(control_unit=int_mb)
         CuSlotOption.objects.filter(code='CU_POSI').update(control_unit=posi)
-        return {'basic': basic, 'int': int_unit, 'int_mb': int_mb, 'posi': posi}
+        CuSlotOption.objects.filter(code='CU_INT_O').update(control_unit=int_o)
+        return {'basic': basic, 'int': int_unit, 'int_mb': int_mb, 'posi': posi,
+                'int_o': int_o}
 
     # ── Матрица ────────────────────────────────────────────────────────────
 
@@ -511,28 +758,49 @@ class Command(BaseCommand):
 
         ps380 = PowerSupplies.objects.filter(code='380-AC').first()
         ps24 = PowerSupplies.objects.filter(code='24-DC').first()
+        ps220 = PowerSupplies.objects.filter(code='220-AC').first()
         ar01e = ElectricActuatorModelLine.objects.filter(code='AR01E').first()
         ar11e = ElectricActuatorModelLine.objects.filter(code='AR11E').first()
+        ar21e = ElectricActuatorModelLine.objects.filter(code='AR21E').first()
 
         std, opt, na = 'std', 'opt', 'na'
-        # профиль БУ базовый
+        # профиль БУ базовый (AOX-M, AR21E): местного управления нет;
+        # цепи управления — внешний источник 220 В (опция 24 В); логика
+        # потенциальная (стоп — отсутствием сигнала); перегрев — SPST НЗ;
+        # обогрев — отдельной линией (опция от питания привода)
         p = [
-            (slots['LOCAL_CONTROL'], opts['BUTTONS'], std),
+            (slots['LOCAL_CONTROL'], opts['LOCAL_NONE'], std),
             (slots['CMD'], opts['CMD_OCS'], std),
+            (slots['CMD'], opts['CMD_REMOTE'], std),
             (slots['CMD'], opts['CMD_EMERGENCY'], opt),
             (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
             (slots['TORQUE_SWITCHES'], opts['TORQUE_SPDT'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_NONE'], std),
-            (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
+            (slots['THERMAL_SENSOR'], opts['OVERHEAT_SPST_NC'], std),
             (slots['INDICATOR'], opts['LED_SET'], std),
             (slots['TURN_COUNTER'], opts['TC_NONE'], std),
-            (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
+            (slots['HEATER_CONTROL_UNIT'], opts['H_SEP'], std),
+            (slots['HEATER_CONTROL_UNIT'], opts['H_MOTOR'], opt),
             (slots['SIGNAL_POWER_SOURCE'], opts['SP_EXT_220'], std),
-            (slots['CONTROL_LOGIC'], opts['LOG_IMPULSE'], std),
+            (slots['SIGNAL_POWER_SOURCE'], opts['SP_EXT_24'], opt),
+            (slots['CONTROL_LOGIC'], opts['LOG_CONTINUOUS'], std),
             (slots['SIGNAL_TYPE'], opts['ST_POT220'], std),
+            (slots['SIGNAL_TYPE'], opts['ST_DRY'], opt),
         ]
         for slot, option, avail in p:
             _row(slot, option, cus['basic'], availability=avail)
+        # явные na для базового (update_or_create обновит прежние std-строки)
+        for slot_code, opt_codes in [
+                ('THERMAL_SENSOR', ['NO_SENSOR', 'OVERHEAT_NC']),
+                ('HEATER_CONTROL_UNIT', ['H_NO']),
+                ('SIGNAL_POWER_SOURCE', ['SP_INT_24']),
+                ('CONTROL_LOGIC', ['LOG_IMPULSE', 'LOG_CONFIGURABLE'])]:
+            for oc in opt_codes:
+                _row(slots[slot_code], opts[oc], cus['basic'], availability=na)
+        _row(slots['LOCAL_CONTROL'], opts['BUTTONS'], cus['basic'],
+             availability=na)
+        _row(slots['LOCAL_CONTROL'], opts['SELECTOR'], cus['basic'],
+             availability=na)
 
         # профиль БУ INT
         p = [
@@ -595,6 +863,163 @@ class Command(BaseCommand):
         for slot, option, avail in p:
             _row(slot, option, cus['posi'], availability=avail)
 
+        # местная индикация — профили БУ
+        led_lcd = {
+            'IND_OPEN': ('IND_OPEN_LED', 'IND_OPEN_LCD', 'IND_OPEN_NONE'),
+            'IND_CLOSED': ('IND_CLOSED_LED', 'IND_CLOSED_LCD', 'IND_CLOSED_NONE'),
+            'IND_STOP': ('IND_STOP_LED', 'IND_STOP_LCD', 'IND_STOP_NONE'),
+            'IND_ALARM': ('IND_ALARM_LED', 'IND_ALARM_LCD', 'IND_ALARM_NONE'),
+            'IND_LOCAL_REMOTE': ('IND_LR_LED', 'IND_LR_LCD', 'IND_LR_NONE'),
+        }
+        # базовый БУ (AOX-M): индикация — светодиоды Открыто/Закрыто;
+        # Ход — нет стандарт, блинкер опция; остальные сигналы скрыты правилами
+        for slot_code, (led_opt, lcd_opt, none_opt) in led_lcd.items():
+            if slot_code in ('IND_OPEN', 'IND_CLOSED'):
+                _row(slots[slot_code], opts[led_opt], cus['basic'],
+                     availability=std)
+                _row(slots[slot_code], opts[lcd_opt], cus['basic'],
+                     availability=na)
+                _row(slots[slot_code], opts[none_opt], cus['basic'],
+                     availability=na)
+            else:  # IND_STOP/IND_ALARM/IND_LOCAL_REMOTE — скрыты
+                _row(slots[slot_code], opts[none_opt], cus['basic'],
+                     availability=std)
+                _row(slots[slot_code], opts[led_opt], cus['basic'],
+                     availability=na)
+                _row(slots[slot_code], opts[lcd_opt], cus['basic'],
+                     availability=na)
+        _row(slots['IND_RUN'], opts['IND_RUN_NONE'], cus['basic'],
+             availability=std)
+        _row(slots['IND_RUN'], opts['IND_RUN_BLINK'], cus['basic'],
+             availability=opt)
+        _row(slots['IND_RUN'], opts['IND_RUN_LCD_BLINK'], cus['basic'],
+             availability=na)
+        _row(slots['IND_POSITION'], opts['IND_POS_NONE'], cus['basic'],
+             availability=std)
+        _row(slots['IND_POSITION'], opts['IND_POS_LCD'], cus['basic'],
+             availability=na)
+        _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_NONE'], cus['basic'],
+             availability=std)
+        _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], cus['basic'],
+             availability=na)
+        _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_SEL'], cus['basic'],
+             availability=na)
+        # INT / INT Modbus: оба органа управления; светодиоды стандарт,
+        # LCD опция; ход — блинкер или LCD+блинкер; процент открытия — LCD
+        for cu in (cus['int'], cus['int_mb']):
+            for slot_code, (led_opt, lcd_opt, none_opt) in led_lcd.items():
+                _row(slots[slot_code], opts[led_opt], cu, availability=std)
+                _row(slots[slot_code], opts[lcd_opt], cu, availability=opt)
+                _row(slots[slot_code], opts[none_opt], cu, availability=opt)
+            _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_SEL'], cu,
+                 availability=std)
+            _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], cu,
+                 availability=opt)
+            _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_NONE'], cu,
+                 availability=na)
+            _row(slots['IND_RUN'], opts['IND_RUN_BLINK'], cu, availability=std)
+            _row(slots['IND_RUN'], opts['IND_RUN_LCD_BLINK'], cu,
+                 availability=opt)
+            _row(slots['IND_RUN'], opts['IND_RUN_NONE'], cu, availability=opt)
+            _row(slots['IND_POSITION'], opts['IND_POS_LCD'], cu,
+                 availability=std)
+            _row(slots['IND_POSITION'], opts['IND_POS_NONE'], cu,
+                 availability=opt)
+        # позиционер: LCD стандарт, светодиоды опция
+        for slot_code, (led_opt, lcd_opt, none_opt) in led_lcd.items():
+            _row(slots[slot_code], opts[lcd_opt], cus['posi'], availability=std)
+            _row(slots[slot_code], opts[led_opt], cus['posi'], availability=opt)
+            _row(slots[slot_code], opts[none_opt], cus['posi'], availability=opt)
+        _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_SEL'], cus['posi'],
+             availability=std)
+        _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], cus['posi'],
+             availability=opt)
+        _row(slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_NONE'], cus['posi'],
+             availability=na)
+        _row(slots['IND_RUN'], opts['IND_RUN_LCD_BLINK'], cus['posi'],
+             availability=std)
+        _row(slots['IND_RUN'], opts['IND_RUN_BLINK'], cus['posi'],
+             availability=opt)
+        _row(slots['IND_RUN'], opts['IND_RUN_NONE'], cus['posi'],
+             availability=opt)
+        _row(slots['IND_POSITION'], opts['IND_POS_LCD'], cus['posi'],
+             availability=std)
+
+        # профиль БУ INT/O (AOX-M, навесной): кнопки std/селектор opt;
+        # команды О/С/З — активный +24 В std, внешние 220 В opt; цепи 24 В
+        # встроенные; логика потенциальная; светодиоды; стартер на 380 В
+        p = [
+            (slots['LOCAL_CONTROL'], opts['BUTTONS'], std),
+            (slots['LOCAL_CONTROL'], opts['SELECTOR'], opt),
+            (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], std),
+            (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_SEL'], opt),
+            (slots['CMD'], opts['CMD_OCS_24'], std),
+            (slots['CMD'], opts['CMD_OCS'], opt),
+            (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
+            (slots['LIMIT_SWITCHES'], opts['END_DPDT'], opt),
+            (slots['TORQUE_SWITCHES'], opts['TORQUE_NONE'], std),
+            (slots['POSITION_FEEDBACK'], opts['POS_NONE'], std),
+            (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
+            (slots['REMOTE_CONTROL'], opts['REMOTE_SPST_NO'], std),
+            (slots['REMOTE_CONTROL'], opts['REMOTE_NONE'], opt),
+            (slots['ALARM_SIGNAL'], opts['ALARM_SPDT'], std),
+            (slots['ALARM_SIGNAL'], opts['ALARM_NONE'], opt),
+            (slots['INDICATOR'], opts['LED_SET'], std),
+            (slots['TURN_COUNTER'], opts['TC_MECH'], std),
+            (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
+            (slots['HEATER_CONTROL_UNIT'], opts['H_MOTOR'], opt),
+            (slots['HEATER_CONTROL_UNIT'], opts['H_SEP'], opt),
+            (slots['SIGNAL_POWER_SOURCE'], opts['SP_INT_24'], std),
+            (slots['SIGNAL_POWER_SOURCE'], opts['SP_EXT_220'], opt),
+            (slots['CONTROL_LOGIC'], opts['LOG_CONTINUOUS'], std),
+            (slots['SIGNAL_TYPE'], opts['ST_POT24'], std),
+            (slots['SIGNAL_TYPE'], opts['ST_POT220'], opt),
+            (slots['CU_POWER_SUPPLY'], opts['PU_SEPARATE'], std),
+            (slots['CU_POWER_SUPPLY'], opts['PU_SHARED'], opt),
+            (slots['CU_CABLE_GLANDS'], opts['CG_NPT_112_34'], std),
+        ]
+        for slot, option, avail in p:
+            _row(slot, option, cus['int_o'], availability=avail)
+        # индикация INT/O: светодиоды; ход — только мигающий; процент — нет
+        for slot_code, (led_opt, lcd_opt, none_opt) in led_lcd.items():
+            _row(slots[slot_code], opts[led_opt], cus['int_o'], availability=std)
+        _row(slots['IND_RUN'], opts['IND_RUN_BLINK'], cus['int_o'],
+             availability=std)
+        _row(slots['IND_POSITION'], opts['IND_POS_NONE'], cus['int_o'],
+             availability=std)
+        # стартер INT/O — только 380 В
+        if ps380:
+            _row(slots['MOTOR_STARTER'], opts['STARTER_BUILT_IN'],
+                 cus['int_o'], power_supply=ps380, availability=std)
+            _row(slots['MOTOR_STARTER'], opts['STARTER_NONE'],
+                 cus['int_o'], availability=opt)
+
+        # питание БУ и кабельные вводы БУ: у встроенных БУ питание — от цепей
+        # привода (общий кабель), отдельный кабель недоступен; резьба вводов
+        # БУ — M20 стандарт (слоты у встроенных скрыты правилами)
+        for cu in (cus['basic'], cus['int'], cus['int_mb'], cus['posi']):
+            _row(slots['CU_POWER_SUPPLY'], opts['PU_SHARED'], cu,
+                 availability=std)
+            _row(slots['CU_POWER_SUPPLY'], opts['PU_SEPARATE'], cu,
+                 availability=na)
+            _row(slots['CU_CABLE_GLANDS'], opts['CG_M20'], cu, availability=std)
+            _row(slots['CU_CABLE_GLANDS'], opts['CG_M25'], cu, availability=opt)
+            _row(slots['CU_CABLE_GLANDS'], opts['CG_PG16'], cu,
+                 availability=opt)
+
+        # стартер мотора: только 380 В; у базового БУ нет, у интеллектуальных
+        # как правило есть (профильная строка с конкретным напряжением)
+        _row(slots['MOTOR_STARTER'], opts['STARTER_NONE'], cus['basic'],
+             availability=std)
+        _row(slots['MOTOR_STARTER'], opts['STARTER_BUILT_IN'], cus['basic'],
+             availability=na)
+        if ps380:
+            for cu in (cus['int'], cus['int_mb'], cus['posi']):
+                _row(slots['MOTOR_STARTER'], opts['STARTER_BUILT_IN'], cu,
+                     power_supply=ps380, availability=std)
+                _row(slots['MOTOR_STARTER'], opts['STARTER_NONE'], cu,
+                     availability=opt)
+
         # серийные строки слота control_unit: какой БУ доступен для серии
         if ar01e:
             _row(slots['control_unit'], opts['CU_BASIC'], None,
@@ -616,6 +1041,18 @@ class Command(BaseCommand):
             _row(slots['control_unit'], opts['CU_INT'], None,
                  model_line=ar11e, power_supply=ps380,
                  availability=std, encoding='L')
+        # AOX-M = AR21E: базовый БУ (380/220 В) и INT/O (380 В, опция)
+        if ar21e:
+            _row(slots['control_unit'], opts['CU_BASIC'], None,
+                 model_line=ar21e, power_supply=ps380,
+                 availability=std, encoding='N')
+            _row(slots['control_unit'], opts['CU_INT_O'], None,
+                 model_line=ar21e, power_supply=ps380,
+                 availability=opt, encoding='O')
+            if ps220:
+                _row(slots['control_unit'], opts['CU_BASIC'], None,
+                     model_line=ar21e, power_supply=ps220,
+                     availability=std, encoding='N')
 
     # ── Правила ────────────────────────────────────────────────────────────
 
@@ -649,3 +1086,24 @@ class Command(BaseCommand):
               when_value='SETPOINT_HART', action_value='POS_HART',
               priority=10,
               description='Уставка HART → позиционная ОС HART по умолчанию')
+        # базовому БУ (AOX-M) нет органов местного управления; из индикации —
+        # светодиоды Открыто/Закрыто и блинкер-опция (Ход); стартера нет
+        # (устаревшее правило удаляем — заменено циклом ниже; идемпотентность
+        # при повторном сиде поверх прежних данных)
+        CuSlotRule.objects.filter(
+            when_slot=slots['control_unit'],
+            target_slot=slots['IND_POSITION'], action='hide',
+            description='Базовому БУ процент открытия не показываем',
+        ).delete()
+        for hidden in ('LOCAL_CONTROL', 'LOCAL_CONTROL_DESIGN', 'IND_STOP',
+                       'IND_LOCAL_REMOTE', 'IND_POSITION', 'IND_ALARM',
+                       'MOTOR_STARTER'):
+            _rule(slots['control_unit'], slots[hidden], 'hide',
+                  when_value='CU_BASIC',
+                  description=f'Базовому БУ слот {hidden} не показываем')
+        # встроенным БУ питание БУ и вводы БУ не показываем (вводы — у привода)
+        for hidden in ('CU_POWER_SUPPLY', 'CU_CABLE_GLANDS'):
+            _rule(slots['control_unit'], slots[hidden], 'hide',
+                  when_value=['CU_BASIC', 'CU_INT', 'CU_INT_MB', 'CU_POSI'],
+                  operator='in',
+                  description=f'Встроенному БУ слот {hidden} не показываем')

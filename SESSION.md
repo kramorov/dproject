@@ -1,68 +1,96 @@
-# SESSION — конфигуратор БУ (ea_control) — 2026-10-23
+# SESSION — конфигуратор БУ (ea_control) — 2026-10-23, конец сессии
 
 Состояние на конец сессии. Продолжать можно с любого пункта «Не проверено».
 
 ## Что сделано за сессию
 
-1. **Бэкенд `ea_control`:**
-   - `CuSignalType.voltage`: `CharField` → FK `params.PowerSupplies`
-     (миграция `0005_cusignaltype_voltage_fk.py`, data-map `24V/220V/380V`).
-   - Сид и тесты обновлены под FK; `tests.py.setUpTestData` переведён на
-     `get_or_create` (идемпотентность к засеянной БД).
+1. **Фронт `/admin/ea-control`:**
+   - «Справочники» — двухколоночный макет (слева список справочников,
+     справа таблица значений с прокруткой >10 строк + встроенная форма
+     редактирования вместо поп-апа: Код+Название в строке,
+     Сортировка+Активно в строке; клик по строке открывает редактор;
+     конфирм при уходе с несохранёнными изменениями; двухшаговое удаление).
+   - `EditorActions.vue` переписан в универсальный блок кнопок
+     (`buttons: [{key, label, kind, disabled}]`, событие `action`, i18n-метки
+     через `t('eaControl.*')` в ru/en/cn) — используется во всех тулбарах,
+     формах и модалках обеих страниц.
+2. **Справочники/слоты ea_control (миграции 0006–0009, применены пользователем
+   до 0007 — 0008/0009 НУЖНО ПРОГНАТЬ):**
+   - Местная индикация: `CuLocalControlType`, `CuDisplayType`; узел
+     LOCAL_INDICATION → слот LOCAL_CONTROL_DESIGN (kind local_control) +
+     узел IND_SIGNALS с 7 слотами (kind display, M2M display_types;
+     «Ход» — комбинация LCD+мигающий).
+   - Питание/подключение: `CuUnitPowerSource`, слот CU_POWER_SUPPLY
+     (kind unit_power); слот CU_CABLE_GLANDS (kind cable_gland →
+     **набор резьб** `params.ThreadSizeSet` после 0009; NPT-набор INT/O);
+     слот MOTOR_STARTER (none-опции, доступность 380В матрицей).
+   - ОС INT/O: слоты REMOTE_CONTROL (SPST НО) и ALARM_SIGNAL (SPDT НЗ+НО);
+     форма DRY_SPST; тип сигнала POT24 «Потенциал +24 В (активный)»;
+     технология датчика MECHANICAL; устройство LIMIT_MECH на опциях
+     END_SPDT/END_DPDT.
+3. **БУ в сиде (`seed_cu_demo`, идемпотентно, `_row`=update_or_create):**
+   - `basic` — AOX-M (AR21E): внешние цепи 220В std/24В opt, логика
+     потенциальная, перегрев SPST НЗ, обогрев отдельной линией std,
+     светодиоды Открыто/Закрыто, Ход — нет std/блинкер opt, CMD_REMOTE std.
+   - `int-o` — AOX-M INT/O (навесной, 380В): кнопки std/селектор opt,
+     команды +24В активный std/220В внешний opt, светодиоды, Ход — блинкер,
+     авария SPDT, удалённое управление SPST НО, стартер std (380В),
+     питание БУ — отдельный кабель std, вводы БУ — 1×1½" NPT + 2×¾" NPT.
+   - Серийные строки control_unit: AR01E, AR11E, AR21E (380: basic std +
+     int-o opt; 220: basic std).
+4. **Документы:** `vendor.md` (механизм наследования valve_data → план для
+   слотовой модели: сейчас ничего вводить не нужно, только конвенции),
+   `bu_template.md` (шаблон описания БУ), slots.md §7 (9 решений).
+5. **Описание БУ для производителя:** сервис `services/cu_report.py` +
+   `GET /api/ea-control/describe/?unit=&locale=` + вкладка «Описание БУ»
+   (таблица: узлы → слоты → ячейки опций со метками st/op/na; кнопка
+   «Копировать текст» для отправки производителю).
+6. **«Редактор БУ» → «Блоки управления» переделан в макет Конфигуратора:**
+   слева фильтры (Бренд/Класс БУ), справа верх — список с кнопками
+   Добавить/Обновить и строками (⧉ копировать / ✕ удалить), низ —
+   inline-редактор (Код+Название; Бренд+Класс+Размещение; Напряжение+
+   Питание цепей; Сортировка+Активно; вкладки «Шаблоны и описания» /
+   «Настройки» — узлы со слотами; Сохранить/Отменить). Бэкенд: copy/ и
+   delete-unit/ actions у ControlUnitViewSet (копия БУ с профильной
+   матрицей/конфликтами/правилами и опцией control_unit; удаление снимает
+   опцию, чистит правила, матрица — каскадом). Матрица/Правила остались
+   generic CRUD с модалкой.
 
-2. **Фронтенд `/admin/ea-control`:**
-   - Вкладки верхнего уровня (4): **Конфигуратор опций** / **Редактор БУ** /
-     **Справочники** / **Превью БУ**.
-   - «Конфигуратор опций» = `EaControlStructurePage.vue`: дерево
-     узел→слоты→опции; локальный черновик + единая «Сохранить» (топологический
-     коммит: новые POST, изменённые PUT, помеченные DELETE); двухшаговое
-     удаление; форма опции kind-driven; селектор «Родитель» у слота
-     (перемещение между узлами).
-   - «Редактор БУ» = Блоки управления / Матрица / Правила.
-   - «Справочники» = 12 справочников.
-   - «Превью БУ» = `EaControlConfiguratorPage.vue` (бывший отдельный маршрут).
-   - `EditorActions.vue` — переиспользуемый блок «Сохранить»/«Удалить».
-   - Удалены маршруты `/admin/ea-control-structure` и
-     `/admin/ea-control-configurator`; пункт «Блоки управления ЭП» добавлен в
-     ТопМеню (Администрирование) + i18n (`menu.eaControl`).
+## Ключевые файлы
 
-3. **Документация:** `slots.md` переписан начисто (паттерн / модели /
-   фронтенд / план).
-
-## Ключевые файлы (изменённые/новые)
-
-- `ea_control/models/cu_power.py`, `migrations/0005_cusignaltype_voltage_fk.py`,
-  `management/commands/seed_cu_demo.py`, `tests.py`.
-- `frontend/src/pages/admin/EaControlAdminPage.vue`,
-  `frontend/src/pages/admin/EaControlStructurePage.vue` (новый),
-  `frontend/src/pages/admin/EaControlConfiguratorPage.vue`,
-  `frontend/src/components/EditorActions.vue` (новый),
-  `frontend/src/components/header/TopMenu.vue`,
-  `frontend/src/router/index.js`,
+- `ea_control/models/{dictionaries,cu_config}.py`,
+  `ea_control/migrations/0006…0009*.py` (0006–0007 применены, 0008–0009 — нет),
+  `ea_control/{api,urls,admin}.py`, `management/commands/seed_cu_demo.py`.
+- `frontend/src/components/EditorActions.vue`,
+  `frontend/src/pages/admin/{EaControlAdminPage,EaControlStructurePage}.vue`,
   `frontend/src/shared/i18n/locales/{ru,en,cn}.js`.
-- `slots.md`.
-
-Git: ~11 modified, 3 untracked (миграция 0005, EaControlStructurePage,
-EditorActions).
+- `vendor.md`, `bu_template.md`, `slots.md`, `session.md`.
 
 ## Не проверено (нужно прогнать)
 
-1. `cd frontend; npm run build` — сборка фронта **не гонялась** (гейт блокировал
-   `manage.py`/`npm run build`). Возможны мелкие синтаксические/рантайм-ошибки
-   во вновь написанных Vue-компонентах.
-2. `python manage.py makemigrations ea_control --check` (должно быть «No
-   changes detected»), `python manage.py check`, `python manage.py migrate`.
-3. Тесты: `test_db.sqlite3` устарел (от 19.10). Перекопировать
-   `Copy-Item db.sqlite3 test_db.sqlite3 -Force`, затем
-   `python manage.py test ea_control --keepdb`.
-4. Ручная проверка UI: создать узел/слот/опцию, «Сохранить» одним нажатием,
-   двухшаговое удаление, перемещение слота «Родителем», смена kind у опции,
-   превью (серия→напряжение→БУ).
+1. `python manage.py migrate` — применить **0008_mechanical_technology** и
+   **0009_cable_gland_set**.
+2. `python manage.py makemigrations ea_control --check` — должно быть
+   «No changes detected» (миграции написаны вручную под гейтом).
+3. `python manage.py seed_cu_demo` — обновить данные (0009 сменил
+   cable_gland_thread → cable_gland_set; старые опции CG_* получают наборы
+   через save()).
+4. ~~`python manage.py test ea_control --keepdb`~~ — пройдены после правки
+   test_resolve_slots_basic (✓).
+5. `cd frontend; npm run build` — гейт рантайма блокирует; компиляция SFC
+   проверена только через dev-сервер (HTTP 200).
+6. Визуально: /admin/ea-control — Справочники (прокрутка/форма/конфирмы),
+   Конфигуратор опций (новые kinds: local_control/display/unit_power/
+   cable_gland — у cable_gland селектор наборов резьб), Превью БУ
+   (AR21E×380 → basic + INT/O; AR21E×220 → basic; скрытие слотов правилами),
+   **Описание БУ** (новая вкладка; компиляция не проверялась — dev-сервер
+   был выключен; `npm run build` под гейтом).
 
-## Ближайшие шаги (после сборки/проверки)
+## Ближайшие шаги (следующая сессия)
 
-- Переименовать `EaControlStructurePage.vue` / `EaControlConfiguratorPage.vue`
-  → без суффикса «Page» (это встраиваемые компоненты).
-- Починить локаль превью: `route.meta.locale` → глобальная локаль из i18n.
-- Дальше по `slots.md` §5: перенос абстракций в `core`, migrate-команды из
-  legacy, интеграция в ЭП (фаза 4), `config_snapshot`.
+- Описание следующих БУ AOX по `bu_template.md` (очередь: int-l, int-n,
+  int-n-mb, posi и т.д.).
+- Перенос абстракций в core; migrate-команды из legacy; интеграция в ЭП
+  (фаза 4); `config_snapshot`; vendor/OEM-механизм (план — vendor.md).
+- Дубли старых правил/строк при уже засеянной БД: сид удаляет устаревшее
+  правило IND_POSITION; остальные изменения — через update_or_create.

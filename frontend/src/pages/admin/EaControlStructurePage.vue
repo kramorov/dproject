@@ -4,7 +4,9 @@
     <div class="left-pane">
       <div class="pane-head">
         <h3>Узлы</h3>
-        <button @click="onAddNode">+ Добавить узел</button>
+        <EditorActions align="start"
+                       :buttons="[{ key: 'add', label: t('eaControl.addNode'), kind: 'primary' }]"
+                       @action="onNodeAction" />
       </div>
       <div class="node-list">
         <div v-for="n in sectionTree" :key="n.id" class="node-item"
@@ -35,13 +37,7 @@
             <input class="entity-name" v-model="draft.node.name" placeholder="Название узла"
                    @input="markDirty('node')" />
             <span v-if="hasChanges" class="dirty">не сохранено</span>
-            <EditorActions
-              :can-save="hasChanges"
-              :deletable="true"
-              :delete-label="nodeDeleteLabel"
-              :pending-delete="draft.node._deleted"
-              @save="commitAll"
-              @delete="toggleDeleteNode" />
+            <EditorActions :buttons="nodeButtons" @action="onNodeAction" />
           </div>
           <div v-if="draft.node._deleted" class="del-banner">Узел будет удалён при сохранении.</div>
 
@@ -67,7 +63,9 @@
           <!-- СЛОТЫ (чипсы) -->
           <div class="sub-head">
             <h4>Слоты узла «{{ nodeName }}»</h4>
-            <button @click="addSlot">+ Добавить слот</button>
+            <EditorActions align="start"
+                           :buttons="[{ key: 'add', label: t('eaControl.addSlot'), kind: 'primary' }]"
+                           @action="onSlotAction" />
           </div>
           <div class="chips">
             <div v-for="(sl, i) in draft.slots" :key="i" class="chip"
@@ -85,11 +83,7 @@
               <span class="entity-label">Слот:</span>
               <input class="entity-name" v-model="selSlot.name" placeholder="Название слота"
                      @input="markDirty('slot')" />
-              <EditorActions
-                :show-save="false"
-                delete-label="Удалить слот"
-                :pending-delete="selSlot._deleted"
-                @delete="toggleDeleteSlot" />
+              <EditorActions :buttons="slotButtons" @action="onSlotAction" />
             </div>
             <div v-if="selSlot._deleted" class="del-banner">Слот будет удалён при сохранении.</div>
 
@@ -135,7 +129,9 @@
             <!-- ОПЦИИ (чипсы) -->
             <div class="sub-head">
               <h4>Опции слота «{{ slotName }}»</h4>
-              <button @click="addOption">+ Добавить опцию</button>
+              <EditorActions align="start"
+                             :buttons="[{ key: 'add', label: t('eaControl.addOption'), kind: 'primary' }]"
+                             @action="onOptionAction" />
             </div>
             <div class="chips">
               <div v-for="(op, i) in (selSlot.options || [])" :key="i" class="chip"
@@ -153,11 +149,7 @@
                 <span class="entity-label">Опция:</span>
                 <input class="entity-name" v-model="selOption.name" placeholder="Название опции"
                        @input="markDirty('option')" />
-                <EditorActions
-                  :show-save="false"
-                  delete-label="Удалить опцию"
-                  :pending-delete="selOption._deleted"
-                  @delete="toggleDeleteOption" />
+                <EditorActions :buttons="optionButtons" @action="onOptionAction" />
               </div>
               <div v-if="selOption._deleted" class="del-banner">Опция будет удалена при сохранении.</div>
 
@@ -172,6 +164,10 @@
                       <option value="logic">Логика</option>
                       <option value="signal_type">Тип сигнала</option>
                       <option value="unit">БУ</option>
+                      <option value="local_control">Орган управления</option>
+                      <option value="display">Вид отображения</option>
+                      <option value="unit_power">Питание БУ</option>
+                      <option value="cable_gland">Кабельные вводы</option>
                       <option value="none">None-строка</option>
                       <option value="pair">Пара контактов</option>
                     </select>
@@ -248,6 +244,43 @@
                     </select>
                   </label>
                 </div>
+                <div v-else-if="selOption.kind === 'local_control'" class="form-row">
+                  <label class="form-field"><span>Орган управления</span>
+                    <select v-model="selOption.local_control_type">
+                      <option :value="null">— —</option>
+                      <option v-for="o in dicts.localControlTypes" :key="o.id" :value="o.id">{{ o.label }}</option>
+                    </select>
+                  </label>
+                </div>
+                <div v-else-if="selOption.kind === 'display'" class="form-row">
+                  <div class="form-field">
+                    <span>Виды отображения</span>
+                    <div class="ms">
+                      <label v-for="o in dicts.displayTypes" :key="o.id" class="ms-item">
+                        <input type="checkbox" :value="o.id"
+                               :checked="(selOption.display_types || []).includes(o.id)"
+                               @change="toggleOptionMs('display_types', o.id)" />
+                        {{ o.label }}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="selOption.kind === 'unit_power'" class="form-row">
+                  <label class="form-field"><span>Питание БУ</span>
+                    <select v-model="selOption.unit_power_source">
+                      <option :value="null">— —</option>
+                      <option v-for="o in dicts.unitPowerSources" :key="o.id" :value="o.id">{{ o.label }}</option>
+                    </select>
+                  </label>
+                </div>
+                <div v-else-if="selOption.kind === 'cable_gland'" class="form-row">
+                  <label class="form-field"><span>Набор резьб вводов</span>
+                    <select v-model="selOption.cable_gland_set">
+                      <option :value="null">— —</option>
+                      <option v-for="o in dicts.threadSets" :key="o.id" :value="o.id">{{ o.label }}</option>
+                    </select>
+                  </label>
+                </div>
 
                 <div class="form-row">
                   <label class="form-field"><span>Кодировка</span><input v-model="selOption.encoding" /></label>
@@ -281,6 +314,7 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
+import { t } from '@/shared/i18n'
 import EditorActions from '@/components/EditorActions.vue'
 
 const loading = ref(false)
@@ -291,7 +325,8 @@ const options = ref([])
 const dicts = reactive({
   controlSignals: [], feedbackSignals: [], protocols: [], devices: [],
   heaterSupplies: [], signalPowers: [], controlLogics: [], signalTypes: [],
-  units: [],
+  units: [], localControlTypes: [], displayTypes: [], unitPowerSources: [],
+  threadSets: [],
 })
 
 // Черновик выбранного узла: { node, slots: [ { ..., options: [...] } ] }
@@ -312,7 +347,43 @@ const slotName = computed(() =>
   (selSlot.value && (selSlot.value.name || selSlot.value.code)) || 'новый')
 
 const nodeDeleteLabel = computed(() =>
-  (draft.node && draft.node.id == null) ? 'Отменить создание' : 'Удалить узел')
+  (draft.node && draft.node.id == null) ? t('eaControl.cancelCreate') : t('eaControl.deleteNode'))
+
+// Кнопки редакторов через общий EditorActions (label уже локализованы)
+const nodeButtons = computed(() => [
+  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !hasChanges.value },
+  { key: 'delete',
+    label: (draft.node && draft.node._deleted) ? t('eaControl.cancelDelete') : nodeDeleteLabel.value,
+    kind: (draft.node && draft.node._deleted) ? 'danger' : 'default' },
+])
+
+const slotButtons = computed(() => [
+  { key: 'delete',
+    label: (selSlot.value && selSlot.value._deleted) ? t('eaControl.cancelDelete') : t('eaControl.deleteSlot'),
+    kind: (selSlot.value && selSlot.value._deleted) ? 'danger' : 'default' },
+])
+
+const optionButtons = computed(() => [
+  { key: 'delete',
+    label: (selOption.value && selOption.value._deleted) ? t('eaControl.cancelDelete') : t('eaControl.deleteOption'),
+    kind: (selOption.value && selOption.value._deleted) ? 'danger' : 'default' },
+])
+
+function onNodeAction(b) {
+  if (b.key === 'save') commitAll()
+  else if (b.key === 'delete') toggleDeleteNode()
+  else if (b.key === 'add') onAddNode()
+}
+
+function onSlotAction(b) {
+  if (b.key === 'delete') toggleDeleteSlot()
+  else if (b.key === 'add') addSlot()
+}
+
+function onOptionAction(b) {
+  if (b.key === 'delete') toggleDeleteOption()
+  else if (b.key === 'add') addOption()
+}
 
 const sectionTree = computed(() => {
   const byParent = {}
@@ -387,7 +458,8 @@ async function reload() {
   loading.value = true
   error.value = ''
   try {
-    const [s, sl, o, units, ctl, fb, proto, dev, heater, power, logic, stype] =
+    const [s, sl, o, units, ctl, fb, proto, dev, heater, power, logic, stype,
+      lct, dsp, upw, meta] =
       await Promise.all([
         api.get('/ea-control/sections/'),
         api.get('/ea-control/slots/'),
@@ -401,6 +473,10 @@ async function reload() {
         api.get('/ea-control/signal-powers/'),
         api.get('/ea-control/control-logics/'),
         api.get('/ea-control/signal-types/'),
+        api.get('/ea-control/local-control-types/'),
+        api.get('/ea-control/display-types/'),
+        api.get('/ea-control/unit-power-sources/'),
+        api.get('/ea-control/meta/'),
       ])
     sections.value = s.data.results || s.data || []
     slots.value = sl.data.results || sl.data || []
@@ -414,6 +490,10 @@ async function reload() {
     dicts.signalPowers = dictList(power.data.results || power.data || [])
     dicts.controlLogics = dictList(logic.data.results || logic.data || [])
     dicts.signalTypes = dictList(stype.data.results || stype.data || [])
+    dicts.localControlTypes = dictList(lct.data.results || lct.data || [])
+    dicts.displayTypes = dictList(dsp.data.results || dsp.data || [])
+    dicts.unitPowerSources = dictList(upw.data.results || upw.data || [])
+    dicts.threadSets = dictList(meta.data.thread_sets || [])
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка загрузки'
   } finally {
@@ -430,6 +510,10 @@ function cloneOption(o) {
     protocol: o.protocol, heater_supply: o.heater_supply,
     signal_power: o.signal_power, control_logic: o.control_logic,
     signal_type: o.signal_type, control_unit: o.control_unit, device: o.device,
+    local_control_type: o.local_control_type,
+    display_types: [...(o.display_types || [])],
+    unit_power_source: o.unit_power_source,
+    cable_gland_set: o.cable_gland_set,
     encoding: o.encoding || '', ext_encoding: o.ext_encoding || '',
     description: o.description || '', sorting_order: o.sorting_order || 0,
     is_active: o.is_active,
@@ -517,6 +601,8 @@ function addOption() {
     control_signal: null, feedback_signal: null, protocol: null,
     heater_supply: null, signal_power: null, control_logic: null,
     signal_type: null, control_unit: null, device: null,
+    local_control_type: null, display_types: [],
+    unit_power_source: null, cable_gland_set: null,
     encoding: '', ext_encoding: '', description: '',
     sorting_order: maxOrder + 1, is_active: true,
   })
@@ -536,6 +622,20 @@ function resetOptionPayload() {
   o.signal_type = null
   o.control_unit = null
   o.device = null
+  o.local_control_type = null
+  o.display_types = []
+  o.unit_power_source = null
+  o.cable_gland_set = null
+}
+
+function toggleOptionMs(name, id) {
+  const o = selOption.value
+  if (!o) return
+  const arr = o[name] || []
+  const i = arr.indexOf(id)
+  if (i >= 0) arr.splice(i, 1)
+  else arr.push(id)
+  o[name] = arr
 }
 
 function toggleDeleteNode() {
@@ -606,6 +706,15 @@ function validateDraft() {
       if (!opt.code || !opt.code.trim()) errs.push(`опция в слоте «${slotLabel}»: код`)
       if ((opt.kind === 'none' || opt.kind === 'pair') && (!opt.name || !opt.name.trim())) {
         errs.push(`опция в слоте «${slotLabel}»: название (обязательно для none/pair)`)
+      }
+      if (opt.kind === 'display' && !(opt.display_types || []).length) {
+        errs.push(`опция в слоте «${slotLabel}»: вид отображения`)
+      }
+      if (opt.kind === 'unit_power' && !opt.unit_power_source) {
+        errs.push(`опция в слоте «${slotLabel}»: питание БУ`)
+      }
+      if (opt.kind === 'cable_gland' && !opt.cable_gland_set) {
+        errs.push(`опция в слоте «${slotLabel}»: набор резьб вводов`)
       }
     }
   }
@@ -722,7 +831,8 @@ onMounted(reload)
 
 .sub-head { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 6px; }
 .sub-head h4 { margin: 0; }
-.sub-head button { padding: 4px 10px; cursor: pointer; }
+.ms { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow: auto; border: 1px solid #eee; padding: 4px; }
+.ms-item { display: flex; gap: 4px; align-items: center; font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   padding: 4px 10px; border: 1px solid #ccc; border-radius: 14px; cursor: pointer;

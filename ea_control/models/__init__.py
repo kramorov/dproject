@@ -45,6 +45,9 @@ from ea_control.models.dictionaries import (  # noqa: F401
     CuHeaterSupply,
     CuLocationOption,
     CuCapability,
+    CuLocalControlType,
+    CuDisplayType,
+    CuUnitPowerSource,
 )
 from ea_control.models.cu_power import (  # noqa: F401
     CuSignalPowerSource,
