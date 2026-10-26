@@ -8,13 +8,16 @@ setUpTestData; тесты не изменяют данные (только чт�
 from django.core.management import call_command
 from django.test import TestCase
 
-from ea_control.models import (ControlUnit, CuMatrixEntry, CuSlotOption,
-                               CuSlotRule)
+from ea_control.models import (ControlUnit, CuControlSignal, CuMatrixEntry,
+                               CuSignalForm, CuSlot, CuSlotOption, CuSlotRule)
 from ea_control.services.cu_matrix import (get_profile_defaults,
                                            resolve_control_units, resolve_slots,
                                            validate_selection)
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_rules import apply_rules
+from ea_control.services.cu_unit_matrix import (MatrixValidationError,
+                                                apply_unit_matrix_changes,
+                                                build_unit_matrix)
 
 
 def _flatten(resolved):
@@ -193,6 +196,84 @@ class CuUnitCopyDeleteTests(TestCase):
             self.assertNotIn(opt.code, rule.when_value or [])
 
 
+class CuUnitMatrixServiceTests(TestCase):
+    """Редактируемая матрица профиля БУ (вкладка «Настройки»)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command('seed_cu_demo')
+        from params.models import PowerSupplies
+        cls.ps380 = PowerSupplies.objects.get(code='380-AC')
+        cls.basic = ControlUnit.objects.get(code='basic')
+        cls.int_unit = ControlUnit.objects.get(code='int-n')
+
+    def test_build_matrix_basic(self):
+        m = build_unit_matrix(self.basic)
+        slots = {s['code']: s for s in m['slots']}
+        self.assertIn('LOCAL_CONTROL', slots)
+        opts = {o['code']: o for o in slots['LOCAL_CONTROL']['options']}
+        self.assertEqual(opts['LOCAL_NONE']['availability'], 'std')
+        self.assertEqual(opts['BUTTONS']['availability'], 'na')
+        self.assertEqual(opts['SELECTOR']['availability'], 'na')
+
+    def test_build_matrix_voltage_override(self):
+        # на «любое напряжение» встроенного стартера нет (только на 380В)
+        m_null = build_unit_matrix(self.int_unit)
+        starter = next(s for s in m_null['slots']
+                       if s['code'] == 'MOTOR_STARTER')
+        sopts = {o['code']: o for o in starter['options']}
+        self.assertEqual(sopts['STARTER_BUILT_IN']['availability'], 'na')
+        self.assertEqual(sopts['STARTER_NONE']['availability'], 'opt')
+
+        m_380 = build_unit_matrix(self.int_unit, power_supply=self.ps380)
+        starter = next(s for s in m_380['slots']
+                       if s['code'] == 'MOTOR_STARTER')
+        sopts = {o['code']: o for o in starter['options']}
+        self.assertEqual(sopts['STARTER_BUILT_IN']['availability'], 'std')
+        self.assertFalse(sopts['STARTER_BUILT_IN']['inherited'])
+        self.assertEqual(sopts['STARTER_NONE']['availability'], 'opt')
+        self.assertTrue(sopts['STARTER_NONE']['inherited'])
+
+    def test_apply_changes_upsert(self):
+        # CMD — multi-слот, валидация single-default не мешает
+        target = CuSlotOption.objects.get(code='CMD_LOCK')
+        slot = target.slot
+        saved = apply_unit_matrix_changes(
+            self.basic, None,
+            [{'slot_id': slot.id, 'option_id': target.id,
+              'availability': 'std'}])
+        self.assertEqual(saved, 1)
+        row = CuMatrixEntry.objects.get(
+            slot=slot, option=target, control_unit=self.basic,
+            power_supply__isnull=True)
+        self.assertEqual(row.availability, 'std')
+        self.assertTrue(row.is_default)
+
+    def test_apply_na_deletes_voltage_row(self):
+        slot = CuSlot.objects.get(code='MOTOR_STARTER')
+        built_in = CuSlotOption.objects.get(code='STARTER_BUILT_IN')
+        self.assertTrue(CuMatrixEntry.objects.filter(
+            slot=slot, option=built_in, control_unit=self.int_unit,
+            power_supply=self.ps380).exists())
+        saved = apply_unit_matrix_changes(
+            self.int_unit, self.ps380,
+            [{'slot_id': slot.id, 'option_id': built_in.id,
+              'availability': 'na'}])
+        self.assertEqual(saved, 1)
+        self.assertFalse(CuMatrixEntry.objects.filter(
+            slot=slot, option=built_in, control_unit=self.int_unit,
+            power_supply=self.ps380).exists())
+
+    def test_apply_rejects_multiple_std_in_single_slot(self):
+        slot = CuSlot.objects.get(code='LOCAL_CONTROL')
+        buttons = CuSlotOption.objects.get(code='BUTTONS')
+        with self.assertRaises(MatrixValidationError):
+            apply_unit_matrix_changes(
+                self.basic, None,
+                [{'slot_id': slot.id, 'option_id': buttons.id,
+                  'availability': 'std'}])
+
+
 class CuPackageServiceTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -219,3 +300,33 @@ class CuPackageServiceTests(TestCase):
         self.assertEqual(lcd['availability'], 'std')
         self.assertEqual(pkg['defaults'].get('INDICATOR'), 'LCD')
         self.assertTrue(pkg['rules'])
+
+
+class CuDictionaryCrudTests(TestCase):
+    """Справочники с обязательными полями принимают полный PUT (регрессия 400)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        call_command('seed_cu_demo')
+        cls.user = get_user_model().objects.create_superuser(
+            'cu-dict-tester', 'd@example.com', 't')
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_control_signal_put_accepts_required_fields(self):
+        sig = CuControlSignal.objects.get(code='CMD_OCS_220AC')
+        form = CuSignalForm.objects.get(code='DISC_AC')
+        payload = {
+            'code': sig.code, 'name': sig.name, 'role': sig.role,
+            'category': sig.category, 'form': form.id,
+            'hart': sig.hart, 'description': sig.description,
+            'sorting_order': sig.sorting_order, 'is_active': sig.is_active,
+        }
+        r = self.client.put(
+            f'/api/ea-control/control-signals/{sig.id}/', payload,
+            format='json')
+        self.assertEqual(r.status_code, 200, r.content)

@@ -37,5 +37,7 @@ urlpatterns = [
     path('series-units/', api.series_units_view, name='cu_series_units'),
     path('describe/', api.describe_view, name='cu_describe'),
     path('package/', api.package_view, name='cu_package'),
+    path('unit-matrix/', api.unit_matrix_view, name='cu_unit_matrix'),
+    path('unit-matrix/save/', api.unit_matrix_save_view, name='cu_unit_matrix_save'),
     *router.urls,
 ]

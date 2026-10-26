@@ -182,16 +182,10 @@ import EditorActions from '@/components/EditorActions.vue'
 import { t } from '@/shared/i18n'
 
 const DICT_SOURCES = {
-  'signal-forms': 'Формы сигналов',
-  'control-signals': 'Командные сигналы',
-  'feedback-signals': 'Сигналы ОС',
-  'comm-protocols': 'Протоколы',
-  'feedback-devices': 'Устройства ОС',
   'heater-supplies': 'Обогрев',
   'location-options': 'Размещение',
   'capabilities': 'Функции БУ',
   'signal-power-sources': 'Источники питания',
-  'signal-powers': 'Питания цепей',
   'control-logics': 'Логики работы',
   'local-control-types': 'Вид органов местного управления',
   'display-types': 'Вид отображения информации',
@@ -259,6 +253,101 @@ const MODEL_CONFIGS = [
       F('logic_type', 'Тип логики', 'select', { choices: [
         ['active_low', 'Active Low (NPN)'], ['active_high', 'Active High (PNP)']] }),
       F('voltage', 'Напряжение сигнала', 'select', { source: 'power_supplies' }),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
+  {
+    endpoint: 'signal-forms', label: 'Формы сигналов', section: 'dicts',
+    columns: ['code', 'name', 'category', 'sorting_order', 'is_active'],
+    fields: [
+      F('code', 'Код'), F('name', 'Название'),
+      F('category', 'Категория', 'select', { choices: [
+        ['contact', 'Сухой контакт'], ['analog', 'Аналоговый (токовая петля)'],
+        ['discrete', 'Дискретная команда (напряжение)'], ['resistance', 'Сопротивление (потенциометр)']] }),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
+  {
+    endpoint: 'control-signals', label: 'Командные сигналы', section: 'dicts',
+    columns: ['code', 'name', 'role', 'category', 'form', 'sorting_order', 'is_active'],
+    fields: [
+      F('code', 'Код'), F('name', 'Название'),
+      F('role', 'Роль', 'select', { choices: [
+        ['CMD_OCS', 'О/С/З'], ['CMD_REMOTE', 'Дистанционное упр.'],
+        ['CMD_LOCK', 'Блокировка'], ['CMD_MANUAL_OVERRIDE', 'Ручное дублирование'],
+        ['CMD_4_20MA', 'Уставка 4–20 мА'], ['CMD_0_10V', 'Уставка 0–10 В'],
+        ['CMD_EMERGENCY_OPEN', 'Аварийное «Открыть»'], ['CMD_EMERGENCY_CLOSE', 'Аварийное «Закрыть»'],
+        ['MODE', 'Переключение режима'], ['INTERLOCK_OPEN', 'Блокировка «Открыть»'],
+        ['INTERLOCK_CLOSE', 'Блокировка «Закрыть»'], ['DRIVE_ENABLE', 'Разрешение хода']] }),
+      F('category', 'Категория', 'select', { choices: [
+        ['discrete', 'Дискретный'], ['analog', 'Аналоговый']] }),
+      F('form', 'Форма', 'select', { source: 'signal-forms' }),
+      F('hart', 'HART', 'bool'),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
+  {
+    endpoint: 'feedback-signals', label: 'Сигналы ОС', section: 'dicts',
+    columns: ['code', 'name', 'role', 'category', 'form', 'sorting_order', 'is_active'],
+    fields: [
+      F('code', 'Код'), F('name', 'Название'),
+      F('role', 'Роль', 'select', { choices: [
+        ['END_OPEN', 'Конечное «Открыто»'], ['END_CLOSE', 'Конечное «Закрыто»'],
+        ['WAY_OPEN', 'Промежуточное (открытие)'], ['WAY_CLOSE', 'Промежуточное (закрытие)'],
+        ['TORQUE_OPEN', 'Моментный «Открыто»'], ['TORQUE_CLOSE', 'Моментный «Закрыто»'],
+        ['POSITION', 'Положение (аналог)'], ['OVERHEAT', 'Перегрев'],
+        ['TURN_COUNTER', 'Счётчик оборотов'], ['ALARM', 'Авария'], ['READY', 'Готовность'],
+        ['TORQUE_ANALOG', 'Аналоговый момент'], ['STOP', 'Останов'],
+        ['LOCAL_REMOTE', 'Местное/удалённое'], ['SELECTOR_POSITION', 'Положение селектора'],
+        ['PHASE_LOSS', 'Потеря фазы']] }),
+      F('category', 'Категория', 'select', { choices: [
+        ['contact', 'Контакт'], ['analog', 'Аналоговый']] }),
+      F('form', 'Форма', 'select', { source: 'signal-forms' }),
+      F('contact_normal', 'Норма контакта', 'select', { choices: [
+        ['NO', 'NO'], ['NC', 'NC'], ['CHANGEOVER', 'Перекидной']] }),
+      F('hart', 'HART', 'bool'),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
+  {
+    endpoint: 'comm-protocols', label: 'Протоколы', section: 'dicts',
+    columns: ['code', 'name', 'transport', 'sorting_order', 'is_active'],
+    fields: [
+      F('code', 'Код'), F('name', 'Название'),
+      F('transport', 'Транспорт', 'select', { choices: [
+        ['RS485', 'RS-485'], ['ETHERNET', 'Ethernet'], ['OTHER', 'Прочее']] }),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
+  {
+    endpoint: 'feedback-devices', label: 'Устройства ОС', section: 'dicts',
+    columns: ['code', 'name', 'kind', 'technology', 'sorting_order', 'is_active'],
+    fields: [
+      F('code', 'Код'), F('name', 'Название'),
+      F('kind', 'Категория', 'select', { choices: [
+        ['POSITION_SENSOR', 'Датчик положения'], ['THERMAL_SENSOR', 'Датчик температуры']] }),
+      F('technology', 'Технология', 'select', { choices: [
+        ['POTENTIOMETER', 'Потенциометрический'], ['MWG', 'Магнитно-волновой (MWG)'],
+        ['ELECTRONIC', 'Электронный'], ['MECHANICAL', 'Механический']] }),
+      F('contactless', 'Бесконтактный', 'bool'),
+      F('accuracy', 'Точность'), F('life_cycles', 'Ресурс, циклов'),
+      F('temp_range', 'Рабочая температура'),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
+  {
+    endpoint: 'signal-powers', label: 'Питания цепей', section: 'dicts',
+    columns: ['name', 'source', 'power_supply', 'sorting_order', 'is_active'],
+    fields: [
+      F('name', 'Название'),
+      F('source', 'Источник', 'select', { source: 'signal-power-sources' }),
+      F('power_supply', 'Напряжение', 'select', { source: 'power_supplies' }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],

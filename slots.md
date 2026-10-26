@@ -163,6 +163,14 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 4. Полировка: переименовать `EaControlStructurePage.vue` /
    `EaControlConfiguratorPage.vue` (убрать суффикс «Page», т.к. это компоненты);
    починить локаль превью (`route.meta.locale` → глобальная локаль из i18n).
+5. **Справочники: вывести nullable-числовые поля физики в редактор.** Сейчас
+   формы типизированных справочников (`control-signals`/`feedback-signals`)
+   намеренно не показывают `voltage`/`current` (CuControlSignal) и
+   `max_voltage`/`max_current`/`resistance_kohm`/`max_power_w`/`turns`/`wires`
+   (CuFeedbackSignal) — generic-сохранение (`save()` в `EaControlAdminPage.vue`)
+   превращает пустое число в `0` и портит `null`. Нужна аккуратная обработка
+   пустого значения: для nullable-числовых полей отправлять `null`, а не `0`
+   (тогда их можно вернуть в формы).
 
 ---
 

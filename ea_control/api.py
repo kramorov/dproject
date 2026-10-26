@@ -39,6 +39,9 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
 from ea_control.services.cu_matrix import resolve_control_units
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description
+from ea_control.services.cu_unit_matrix import (MatrixValidationError,
+                                                 apply_unit_matrix_changes,
+                                                 build_unit_matrix)
 
 
 class _LargePagination(PageNumberPagination):
@@ -122,7 +125,6 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
             brand=unit.brand, code=code, name=unit.name,
             kind=unit.kind, location=unit.location,
             control_voltage=unit.control_voltage, signal_power=unit.signal_power,
-            legacy_cu=unit.legacy_cu,
             name_template=unit.name_template,
             description_template=unit.description_template,
             spec_template=unit.spec_template,
@@ -349,6 +351,53 @@ def describe_view(request):
         return Response({'error': 'unit обязателен'}, status=400)
     locale = request.query_params.get('locale', 'ru')
     return Response(build_description(unit, locale=locale))
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def unit_matrix_view(request):
+    """Редактируемая матрица профиля БУ: слоты → опции с std/opt/na."""
+    try:
+        unit = ControlUnit.objects.get(pk=request.query_params['unit'])
+    except (KeyError, ControlUnit.DoesNotExist):
+        return Response({'error': 'unit обязателен'}, status=400)
+    power_supply = None
+    ps_id = request.query_params.get('power_supply')
+    if ps_id:
+        from params.models import PowerSupplies
+        try:
+            power_supply = PowerSupplies.objects.get(pk=ps_id)
+        except PowerSupplies.DoesNotExist:
+            return Response({'error': 'power_supply не найден'}, status=400)
+    locale = request.query_params.get('locale', 'ru')
+    return Response(build_unit_matrix(unit, power_supply=power_supply,
+                                      locale=locale))
+
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def unit_matrix_save_view(request):
+    """Перезаписать профильные строки матрицы БУ (std/opt/na)."""
+    data = request.data
+    try:
+        unit = ControlUnit.objects.get(pk=data.get('unit'))
+    except (TypeError, ControlUnit.DoesNotExist):
+        return Response({'error': 'unit обязателен'}, status=400)
+    power_supply = None
+    ps_id = data.get('power_supply')
+    if ps_id:
+        from params.models import PowerSupplies
+        try:
+            power_supply = PowerSupplies.objects.get(pk=ps_id)
+        except PowerSupplies.DoesNotExist:
+            return Response({'error': 'power_supply не найден'}, status=400)
+    changes = data.get('changes') or []
+    try:
+        saved = apply_unit_matrix_changes(unit, power_supply=power_supply,
+                                          changes=changes)
+    except MatrixValidationError as exc:
+        return Response({'error': str(exc)}, status=400)
+    return Response({'ok': True, 'saved': saved})
 
 
 @api_view(['GET'])

@@ -93,7 +93,7 @@
 
         <div class="sub-tabs">
           <button :class="{ active: tab === 'templates' }" @click="tab = 'templates'">Шаблоны и описания</button>
-          <button :class="{ active: tab === 'settings' }" @click="tab = 'settings'">Настройки</button>
+          <button :class="{ active: tab === 'settings' }" @click="openSettingsTab()">Настройки</button>
         </div>
 
         <div v-if="tab === 'templates'" class="templates"
@@ -110,38 +110,44 @@
         </div>
 
         <div v-else class="settings">
-          <div class="node-tabs">
-            <button v-for="n in nodeTree" :key="n.id"
-                    :class="{ active: nodeId === n.id }"
-                    :style="{ paddingLeft: (6 + n.depth * 10) + 'px' }"
-                    @click="nodeId = n.id">{{ n.name }}</button>
-          </div>
-          <div v-if="nodeId" class="slot-editor">
-            <div class="slot-head">
-              <span>Код</span><span>Название</span><span>Режим</span><span>Род</span>
-              <span>Обяз.</span><span>Акт.</span><span>Сорт.</span>
-            </div>
-            <div v-for="s in slotsOfNode" :key="s.id" class="slot-row"
-                 @input="slotsDirty = true" @change="slotsDirty = true">
-              <input v-model="s.code" />
-              <input v-model="s.name" />
-              <select v-model="s.selection_mode">
-                <option value="single">Одиночный</option>
-                <option value="multi">Мульти</option>
-                <option value="xor">Взаимоисключающий</option>
-                <option value="bundle">Пакет</option>
+          <div class="matrix-toolbar">
+            <label class="mfield"><span>Напряжение</span>
+              <select v-model="matrixPowerSupply" @change="onVoltageChange">
+                <option :value="null">— любое напряжение —</option>
+                <option v-for="p in powerSupplies" :key="p.id" :value="p.id">{{ p.label }}</option>
               </select>
-              <select v-model="s.slot_kind">
-                <option value="value">Значение</option>
-                <option value="object">Объект</option>
-                <option value="subtype">Подтип</option>
-              </select>
-              <input type="checkbox" v-model="s.required" />
-              <input type="checkbox" v-model="s.is_active" />
-              <input type="number" v-model.number="s.sorting_order" class="num" />
-            </div>
-            <p v-if="!slotsOfNode.length" class="empty">В узле нет слотов.</p>
+            </label>
+            <span class="hint">std — стандарт · opt — опция · na — недоступно; на конкретном напряжении na снимает переопределение</span>
           </div>
+          <div v-if="!form.id" class="hint">Сначала сохраните блок управления, затем настраивайте опции.</div>
+          <template v-else>
+            <div class="node-tabs">
+              <button v-for="n in nodeTree" :key="n.id"
+                      :class="{ active: nodeId === n.id }"
+                      :style="{ paddingLeft: (6 + n.depth * 10) + 'px' }"
+                      @click="nodeId = n.id">{{ n.name }}</button>
+            </div>
+            <div v-if="nodeId" class="matrix-editor">
+              <div v-for="s in matrixSlotsOfNode" :key="s.code" class="mslot">
+                <div class="mslot-head">
+                  <strong>{{ s.name }}</strong>
+                  <span class="code">{{ s.code }}</span>
+                  <span v-if="s.required" class="req">обязателен</span>
+                </div>
+                <div v-for="o in s.options" :key="o.id" class="mopt"
+                     :class="'av-' + o.availability">
+                  <span class="oname">{{ o.name }}</span>
+                  <span v-if="o.inherited" class="inh" title="наследуется от «любое напряжение»">насл.</span>
+                  <div class="seg">
+                    <button :class="{ on: o.availability === 'std' }" @click="setAvail(o, 'std')">std</button>
+                    <button :class="{ on: o.availability === 'opt' }" @click="setAvail(o, 'opt')">opt</button>
+                    <button :class="{ on: o.availability === 'na' }" @click="setAvail(o, 'na')">na</button>
+                  </div>
+                </div>
+              </div>
+              <p v-if="!matrixSlotsOfNode.length" class="empty">В узле нет слотов.</p>
+            </div>
+          </template>
         </div>
 
         <div class="edit-actions">
@@ -157,8 +163,9 @@
  * «Блоки управления» — редактор типов БУ в макете «слева фильтры, справа
  * список/редактор». Копирование БУ копирует профильные строки матрицы и
  * правила выбора БУ (бэкенд, control-units/<id>/copy/); удаление снимает
- * опцию слота control_unit и чистит правила (delete-unit/). Слоты узлов
- * редактируются во вкладке «Настройки».
+ * опцию слота control_unit и чистит правила (delete-unit/). Вкладка
+ * «Настройки» редактирует профильную матрицу выбранного БУ: слоты → опции
+ * с пометкой std/opt/na (GET/PUT /api/ea-control/unit-matrix/).
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
@@ -175,16 +182,18 @@ const brands = ref([])
 const powerSupplies = ref([])
 const locations = ref([])
 const signalPowers = ref([])
-const slots = ref([])
 const nodes = ref([])
 const error = ref('')
-// снапшот оригиналов слотов (сравнение правок / откат при «Отменить»)
-const slotOriginals = new Map()
+// матрица профиля выбранного БУ (вкладка «Настройки»)
+const matrix = ref(null)
+const matrixPowerSupply = ref(null)
+const lastVoltage = ref(null)
+const matrixOriginals = new Map() // option id -> availability
+const matrixDirty = ref(false)
 
 const filters = reactive({ brand: null, kind: null })
 const form = ref(null)
 const dirty = ref(false)
-const slotsDirty = ref(false)
 const tab = ref('templates')
 const nodeId = ref(null)
 
@@ -210,8 +219,8 @@ const nodeTree = computed(() => {
   return out
 })
 
-const slotsOfNode = computed(() =>
-  slots.value.filter(s => s.section === nodeId.value))
+const matrixSlotsOfNode = computed(() =>
+  (matrix.value?.slots || []).filter(s => s.section_id === nodeId.value))
 
 const toolbarButtons = computed(() => [
   { key: 'create', label: t('eaControl.add'), kind: 'primary' },
@@ -219,7 +228,7 @@ const toolbarButtons = computed(() => [
 ])
 
 const editButtons = computed(() => [
-  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !(dirty.value || slotsDirty.value) },
+  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !(dirty.value || matrixDirty.value) },
   { key: 'cancel', label: t('eaControl.cancel') },
 ])
 
@@ -248,12 +257,11 @@ async function loadUnits() {
 }
 
 async function loadMeta() {
-  const [meta, loc, sp, sections, allSlots] = await Promise.all([
+  const [meta, loc, sp, sections] = await Promise.all([
     api.get('/ea-control/meta/'),
     api.get('/ea-control/location-options/'),
     api.get('/ea-control/signal-powers/'),
     api.get('/ea-control/sections/'),
-    api.get('/ea-control/slots/'),
   ])
   brands.value = meta.data.brands || []
   powerSupplies.value = (meta.data.power_supplies || []).map(o => ({
@@ -261,22 +269,10 @@ async function loadMeta() {
   locations.value = dictList(loc.data.results || loc.data || [])
   signalPowers.value = dictList(sp.data.results || sp.data || [])
   nodes.value = sections.data.results || sections.data || []
-  slots.value = (allSlots.data.results || allSlots.data || []).map(cloneSlot)
-  slotOriginals.clear()
-  for (const s of slots.value) slotOriginals.set(s.id, { ...s })
-}
-
-function cloneSlot(s) {
-  return {
-    id: s.id, code: s.code, name: s.name, section: s.section,
-    selection_mode: s.selection_mode, slot_kind: s.slot_kind,
-    required: s.required, sorting_order: s.sorting_order || 0,
-    is_active: s.is_active,
-  }
 }
 
 function openEdit(u) {
-  if (dirty.value || slotsDirty.value) {
+  if (dirty.value || matrixDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = {
@@ -290,12 +286,13 @@ function openEdit(u) {
       ? u.spec_template : JSON.stringify(u.spec_template || {}, null, 2),
   }
   dirty.value = false
-  slotsDirty.value = false
+  matrix.value = null
+  matrixDirty.value = false
   tab.value = 'templates'
 }
 
 function openCreate() {
-  if (dirty.value || slotsDirty.value) {
+  if (dirty.value || matrixDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = {
@@ -305,7 +302,8 @@ function openCreate() {
     name_template: '', description_template: '', spec_template: '',
   }
   dirty.value = false
-  slotsDirty.value = false
+  matrix.value = null
+  matrixDirty.value = false
   tab.value = 'templates'
 }
 
@@ -336,33 +334,63 @@ async function removeUnit(u) {
   }
 }
 
-async function saveSlots() {
-  const changed = slots.value.filter(s => {
-    const orig = slotOriginals.get(s.id)
-    if (!orig) return false
-    return orig.code !== s.code || orig.name !== s.name
-      || orig.selection_mode !== s.selection_mode
-      || orig.slot_kind !== s.slot_kind || orig.required !== s.required
-      || orig.is_active !== s.is_active
-      || (orig.sorting_order || 0) !== (s.sorting_order || 0)
-  })
-  for (const s of changed) {
-    const payload = {
-      code: s.code, name: s.name, section: s.section,
-      selection_mode: s.selection_mode, slot_kind: s.slot_kind,
-      required: s.required, sorting_order: s.sorting_order || 0,
-      is_active: s.is_active,
+async function loadMatrix() {
+  if (!form.value || !form.value.id) { matrix.value = null; return }
+  error.value = ''
+  try {
+    const { data } = await api.get('/ea-control/unit-matrix/', {
+      params: { unit: form.value.id, power_supply: matrixPowerSupply.value || undefined },
+    })
+    matrix.value = data
+    lastVoltage.value = matrixPowerSupply.value
+    matrixOriginals.clear()
+    for (const s of data.slots || []) {
+      for (const o of s.options || []) matrixOriginals.set(o.id, o.availability)
     }
-    await api.put(`/ea-control/slots/${s.id}/`, payload)
-    slotOriginals.set(s.id, { ...payload })
+    matrixDirty.value = false
+  } catch (e) {
+    error.value = e.displayMessage || 'Ошибка загрузки матрицы'
   }
 }
 
-function restoreSlots() {
-  for (const s of slots.value) {
-    const orig = slotOriginals.get(s.id)
-    if (orig) Object.assign(s, { ...orig })
+function setAvail(o, avail) {
+  if (o.availability === avail) return
+  o.availability = avail
+  matrixDirty.value = true
+}
+
+async function saveMatrix() {
+  if (!form.value || !form.value.id) return
+  const changes = []
+  for (const s of (matrix.value?.slots || [])) {
+    for (const o of s.options || []) {
+      const orig = matrixOriginals.get(o.id)
+      if (orig !== undefined && orig !== o.availability) {
+        changes.push({ slot_id: s.id, option_id: o.id, availability: o.availability })
+      }
+    }
   }
+  if (!changes.length) return
+  await api.put('/ea-control/unit-matrix/save/', {
+    unit: form.value.id,
+    power_supply: matrixPowerSupply.value || null,
+    changes,
+  })
+}
+
+function openSettingsTab() {
+  tab.value = 'settings'
+  if (nodeId.value == null && nodeTree.value.length) nodeId.value = nodeTree.value[0].id
+  loadMatrix()
+}
+
+function onVoltageChange() {
+  if (matrixDirty.value
+      && !confirm('Есть несохранённые изменения матрицы. Отменить их и переключить напряжение?')) {
+    matrixPowerSupply.value = lastVoltage.value
+    return
+  }
+  loadMatrix()
 }
 
 function onEdit(b) {
@@ -402,9 +430,12 @@ async function save() {
       const r = await api.post('/ea-control/control-units/', payload)
       f.id = r.data.id
     }
-    if (slotsDirty.value) await saveSlots()
+    if (matrixDirty.value) {
+      await saveMatrix()
+      await loadMatrix()
+    }
     dirty.value = false
-    slotsDirty.value = false
+    matrixDirty.value = false
     await loadUnits()
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка сохранения'
@@ -412,10 +443,10 @@ async function save() {
 }
 
 function cancelEdit() {
-  restoreSlots()
   form.value = null
+  matrix.value = null
   dirty.value = false
-  slotsDirty.value = false
+  matrixDirty.value = false
 }
 
 onMounted(async () => {
@@ -468,12 +499,25 @@ onMounted(async () => {
 .node-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 8px; max-height: 120px; overflow: auto; }
 .node-tabs button { padding: 4px 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; text-align: left; }
 .node-tabs button.active { background: #2c6fb0; color: #fff; }
-.slot-editor { border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px; max-width: 960px; }
-.slot-head, .slot-row { display: grid; grid-template-columns: 1.1fr 1.6fr 1fr 0.9fr 0.5fr 0.5fr 0.6fr; gap: 6px; align-items: center; }
-.slot-head { font-size: 12px; color: #666; padding: 2px 4px; }
-.slot-row { padding: 3px 4px; border-top: 1px solid #f0f0f0; }
-.slot-row input, .slot-row select { width: 100%; min-width: 0; padding: 3px 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; }
-.slot-row input[type='checkbox'] { width: auto; }
-.slot-row input.num { width: 100%; }
+.matrix-toolbar { display: flex; gap: 14px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.mfield { display: flex; align-items: center; gap: 8px; }
+.mfield span { color: #444; font-size: 13px; }
+.mfield select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; }
+.hint { color: #888; font-size: 12px; }
+.matrix-editor { border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; max-width: 960px; }
+.mslot { margin-bottom: 12px; }
+.mslot-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+.mslot-head .code { color: #888; font-size: 11px; }
+.mslot-head .req { color: #b60; font-size: 12px; }
+.mopt { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-top: 1px solid #f0f0f0; }
+.mopt .oname { flex: 1; font-size: 13px; }
+.mopt.av-std { background: #f2faf2; }
+.mopt.av-opt { background: #fffdf4; }
+.mopt.av-na { background: #fafafa; opacity: .6; }
+.inh { color: #2c6fb0; font-size: 11px; cursor: help; }
+.seg { display: flex; border: 1px solid #ccc; border-radius: 4px; overflow: hidden; }
+.seg button { border: none; background: #fff; padding: 3px 10px; font-size: 12px; cursor: pointer; border-left: 1px solid #eee; }
+.seg button:first-child { border-left: none; }
+.seg button.on { background: #2c6fb0; color: #fff; }
 .edit-actions { margin-top: 12px; }
 </style>
