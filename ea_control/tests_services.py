@@ -8,8 +8,9 @@ setUpTestData; тесты не изменяют данные (только чт�
 from django.core.management import call_command
 from django.test import TestCase
 
-from ea_control.models import (ControlUnit, CuControlSignal, CuMatrixEntry,
-                               CuSignalForm, CuSlot, CuSlotOption, CuSlotRule)
+from ea_control.models import (ControlUnit, CuControlSignal,
+                               CuControlSignalForm, CuMatrixEntry,
+                               CuSlot, CuSlotOption, CuSlotRule)
 from ea_control.services.cu_matrix import (get_profile_defaults,
                                            resolve_control_units, resolve_slots,
                                            validate_selection)
@@ -45,6 +46,15 @@ class CuMatrixServiceTests(TestCase):
         self.assertIn('HEATER_CONTROL_UNIT', resolved)
         # базовому шину не резолвим — строк нет
         self.assertNotIn('PROTOCOL', resolved)
+        # схема цепей: внешняя 220 В std, внутренний +24 В опция
+        wiring = resolved['CMD_WIRING']
+        self.assertTrue(any(p['option_code'] == 'W_EXT_220'
+                            and p['availability'] == 'std' for p in wiring))
+        self.assertTrue(any(p['option_code'] == 'W_INT_24'
+                            and p['availability'] == 'opt' for p in wiring))
+        # стоп — отсутствием сигнала (опция «Отсутствие сигнала» std)
+        stop = resolved['CMD_STOP']
+        self.assertEqual([p['option_code'] for p in stop], ['CMD_STOP_NONE'])
         # AOX-M базовый: органов местного управления нет — только «Нет» (std)
         local = resolved['LOCAL_CONTROL']
         self.assertTrue(any(p['option_code'] == 'LOCAL_NONE'
@@ -62,6 +72,22 @@ class CuMatrixServiceTests(TestCase):
         self.assertTrue(any(p['option_code'] == 'STARTER_NONE' for p in starter))
         self.assertFalse(any(p['option_code'] == 'STARTER_BUILT_IN'
                              for p in starter))
+
+    def test_signal_power_coordinate_posi(self):
+        """Набор сигналов зависит от схемы цепей (координата signal_power)."""
+        from ea_control.models import CuSignalPower
+        ext_pnp = CuSignalPower.objects.get(name__startswith='Внешний 24 В DC (PNP)')
+        without = resolve_slots(self.posi)
+        self.assertEqual(
+            [p['option_code'] for p in without['CMD_OPEN']],
+            ['CMD_OPEN_NONE'])
+        with_scheme = resolve_slots(self.posi, signal_power=ext_pnp)
+        self.assertEqual(
+            [p['option_code'] for p in with_scheme['CMD_OPEN']],
+            ['CMD_OPEN_NONE', 'CMD_OPEN_CONT'])
+        self.assertEqual(
+            [p['availability'] for p in with_scheme['CMD_OPEN']
+             if p['option_code'] == 'CMD_OPEN_CONT'], ['opt'])
 
     def test_resolve_control_units_ar01e_380(self):
         units = resolve_control_units(self.ar01e, power_supply=self.ps380)
@@ -235,8 +261,8 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertTrue(sopts['STARTER_NONE']['inherited'])
 
     def test_apply_changes_upsert(self):
-        # CMD — multi-слот, валидация single-default не мешает
-        target = CuSlotOption.objects.get(code='CMD_LOCK')
+        # CMD_STOP: NONE уже std — повторный std обновляет ту же строку
+        target = CuSlotOption.objects.get(code='CMD_STOP_NONE')
         slot = target.slot
         saved = apply_unit_matrix_changes(
             self.basic, None,
@@ -245,7 +271,7 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertEqual(saved, 1)
         row = CuMatrixEntry.objects.get(
             slot=slot, option=target, control_unit=self.basic,
-            power_supply__isnull=True)
+            power_supply__isnull=True, signal_power__isnull=True)
         self.assertEqual(row.availability, 'std')
         self.assertTrue(row.is_default)
 
@@ -302,6 +328,76 @@ class CuPackageServiceTests(TestCase):
         self.assertTrue(pkg['rules'])
 
 
+class CuReviewFixTests(TestCase):
+    """Регрессии по ревью 2026-10-26: полнота отчёта, имена опций схем,
+    уникальность NULL-пар, валидация dry_input по внутреннему источнику."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command('seed_cu_demo')
+        cls.basic = ControlUnit.objects.get(code='basic')
+
+    def test_describe_keeps_child_of_deactivated_section(self):
+        """M1: выключенный родитель не скрывает активных детей в отчёте."""
+        from ea_control.models import CuSectionNode
+        from ea_control.services.cu_report import build_description
+        parent = CuSectionNode.objects.get(code='CONTROL_SIGNALS')
+        prev = parent.is_active
+        parent.is_active = False
+        parent.save(update_fields=['is_active'])
+        try:
+            d = build_description(self.basic)
+            codes = [s['code'] for s in d['sections']]
+            self.assertIn('CMD_INPUTS', codes)
+            sec = next(s for s in d['sections'] if s['code'] == 'CMD_INPUTS')
+            self.assertIn('CMD_WIRING', [sl['code'] for sl in sec['slots']])
+            # выключенная секция помечена в отчёте
+            parent_sec = next(s for s in d['sections']
+                              if s['code'] == 'CONTROL_SIGNALS')
+            self.assertFalse(parent_sec['is_active'])
+        finally:
+            parent.is_active = prev
+            parent.save(update_fields=['is_active'])
+
+    def test_package_wiring_option_names_from_pairs(self):
+        """M2: опции CMD_WIRING показывают имя пары, а не код опции."""
+        pkg = build_package(self.basic, locale='ru')
+        wiring = next(s for s in pkg['slots'] if s['code'] == 'CMD_WIRING')
+        names = {o['code']: o['name'] for o in wiring['options']}
+        self.assertEqual(names['W_EXT_220'], 'Внешний 220 В AC (потенциал)')
+        self.assertEqual(names['W_INT_24'], 'Внутренний +24 В (сухой контакт)')
+
+    def test_null_input_form_pair_unique(self):
+        """L2: пары без формы входа уникальны (условный constraint)."""
+        from django.db import IntegrityError, transaction
+        from params.models import PowerSupplies
+        from ea_control.models import CuSignalPower, CuSignalPowerSource
+        source = CuSignalPowerSource.objects.get(code='EXTERNAL')
+        ps = PowerSupplies.objects.first()
+        CuSignalPower.objects.create(
+            source=source, power_supply=ps, input_form=None,
+            polarity='NOT_APPLICABLE', name='X')
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                CuSignalPower.objects.create(
+                    source=source, power_supply=ps, input_form=None,
+                    polarity='NOT_APPLICABLE', name='Y')
+
+    def test_dry_input_requires_internal_source(self):
+        """L3: сухой контакт (внутренний опрос) — только встроенный источник."""
+        from django.core.exceptions import ValidationError
+        from params.models import PowerSupplies
+        from ea_control.models import (CuControlSignalForm, CuSignalPower,
+                                       CuSignalPowerSource)
+        ext = CuSignalPowerSource.objects.get(code='EXTERNAL')
+        dry = CuControlSignalForm.objects.get(code='DRY_INPUT')
+        pair = CuSignalPower(
+            source=ext, power_supply=PowerSupplies.objects.first(),
+            input_form=dry, polarity='NOT_APPLICABLE', name='X')
+        with self.assertRaises(ValidationError):
+            pair.full_clean()
+
+
 class CuDictionaryCrudTests(TestCase):
     """Справочники с обязательными полями принимают полный PUT (регрессия 400)."""
 
@@ -318,8 +414,8 @@ class CuDictionaryCrudTests(TestCase):
         self.client.force_authenticate(self.user)
 
     def test_control_signal_put_accepts_required_fields(self):
-        sig = CuControlSignal.objects.get(code='CMD_OCS_220AC')
-        form = CuSignalForm.objects.get(code='DISC_AC')
+        sig = CuControlSignal.objects.get(code='CMD_4_20MA')
+        form = CuControlSignalForm.objects.get(code='AN_4_20_PASSIVE')
         payload = {
             'code': sig.code, 'name': sig.name, 'role': sig.role,
             'category': sig.category, 'form': form.id,

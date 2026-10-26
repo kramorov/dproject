@@ -26,7 +26,26 @@ api.interceptors.request.use(c => {
 })
 
 api.interceptors.response.use(r => r, error => {
-  const msg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Unknown error'
+  const data = error.response?.data
+  let msg = null
+  if (typeof data?.error === 'string') msg = data.error
+  else if (typeof data?.detail === 'string') msg = data.detail
+  if (!msg && data && typeof data === 'object') {
+    // DRF-ошибки полей вида {code: ['...'], section: ['...']} — собрать в строку
+    const parts = []
+    for (const [k, v] of Object.entries(data)) {
+      if (Array.isArray(v)) parts.push(`${k}: ${v.join('; ')}`)
+      else if (typeof v === 'string') parts.push(`${k}: ${v}`)
+      else if (v && typeof v === 'object') {
+        for (const [k2, v2] of Object.entries(v)) {
+          const val = Array.isArray(v2) ? v2.join('; ') : String(v2)
+          parts.push(`${k}.${k2}: ${val}`)
+        }
+      }
+    }
+    msg = parts.join('; ')
+  }
+  if (!msg) msg = error.message || 'Unknown error'
   return Promise.reject({ ...error, displayMessage: msg })
 })
 

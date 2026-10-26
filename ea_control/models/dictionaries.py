@@ -9,8 +9,12 @@
 
 Состав:
 
-- ``CuSignalForm`` ← EaSignalForm — электрические формы сигналов;
-- ``CuControlSignal`` ← EaControlSignal — входные команды БУ;
+- ``CuControlSignalForm`` — электрические формы ВХОДНЫХ сигналов
+  (сухой контакт с внутренним опросом / потенциал AC/DC / петля 4–20 мА);
+- ``CuFeedbackSignalForm`` — электрические формы ВЫХОДНЫХ сигналов
+  (сухой контакт реле / петля 4–20 мА / потенциометр);
+- ``CuControlSignal`` ← EaControlSignal — входные команды БУ (роли;
+  форма — только у аналоговых уставок);
 - ``CuFeedbackSignal`` ← EaFeedbackSignal — выходные сигналы ОС;
 - ``CuCommProtocol`` ← EaCommProtocol — шинные протоколы;
 - ``CuFeedbackDevice`` ← EaFeedbackDevice — устройства ОС (датчики);
@@ -35,29 +39,99 @@ from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
                                  OptionListToSelectMixin)
 
 
-class CuSignalFormCategory(models.TextChoices):
-    """Категория электрической формы сигнала."""
-    CONTACT = 'contact', _('Сухой контакт')
-    ANALOG = 'analog', _('Аналоговый (токовая петля)')
-    DISCRETE = 'discrete', _('Дискретная команда (напряжение)')
-    RESISTANCE = 'resistance', _('Сопротивление (потенциометр)')
+class CuControlSignalFormCategory(models.TextChoices):
+    """Категория электрической формы ВХОДНОГО (управляющего) сигнала."""
+    DRY_INPUT = 'dry_input', _('Сухой контакт (внутренний опрос БУ)')
+    VOLTAGE_AC = 'voltage_ac', _('Потенциал AC')
+    VOLTAGE_DC = 'voltage_dc', _('Потенциал DC')
+    CURRENT_4_20 = 'current_4_20', _('Токовая петля 4–20 мА')
 
 
-class CuSignalForm(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
-    """Электрическая форма сигнала БУ (копия EaSignalForm).
+class CuControlSignalForm(CopyMixin, LocalizedDictFieldsMixin,
+                          OptionListToSelectMixin):
+    """Электрическая форма входного (управляющего) сигнала БУ.
 
-    Зачем: физика клемм — в какой форме сигнал существует (сухой контакт,
-    петля 4–20 мА, дискретная команда, потенциометр). Расширяется данными
-    (записи, не миграции). На форму ссылаются CuControlSignal/CuFeedbackSignal
-    и валидации «категория сигнала × категория формы».
+    Зачем: физика ВХОДНЫХ клемм — как внешняя цепь подаёт команду:
 
-    Поля: code (ключ маппинга), name, category (contact/analog/discrete/
-    resistance), description, sorting_order, is_active.
+    - сухой контакт (внешняя сторона без потенциала; вход сам выдаёт
+      опорное напряжение — «+24 В от внутреннего источника»);
+    - потенциал AC/DC (напряжение подаётся прямо на клемму команды);
+    - токовая петля 4–20 мА (аналоговая уставка).
+
+    Форма дискретной команды определяется схемой цепей управления
+    (CuSignalPower.input_form), а не самим сигналом, поэтому
+    CuControlSignal ссылается на форму только для аналоговых уставок.
+    Отдельная сущность от CuFeedbackSignalForm: «сухой контакт» входа
+    (внутренний опрос) и выхода (коммутация реле) — разная физика.
+
+    Поля: code, name, category (dry_input/voltage_ac/voltage_dc/
+    current_4_20), description, sorting_order, is_active.
     """
     code = models.CharField(
         max_length=50, unique=True,
         verbose_name=_("Код"),
-        help_text=_("Уникальный код формы, например «DRY_SPDT», «AN_4_20_PASSIVE»"),
+        help_text=_("Уникальный код формы, например «DRY_INPUT», "
+                    "«AN_4_20_ACTIVE»"),
+    )
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("Название"),
+        help_text=_("Название формы, например «Сухой контакт, внутренний "
+                    "опрос +24 В»"),
+    )
+    category = models.CharField(
+        max_length=20, choices=CuControlSignalFormCategory.choices,
+        verbose_name=_("Категория"),
+        help_text=_("Категория входной формы: сухой контакт / потенциал AC / "
+                    "потенциал DC / петля 4–20 мА"),
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name=_("Описание"),
+        help_text=_("Пояснение формы: схема подключения, полярность, "
+                    "особенности"),
+    )
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Форма управляющего сигнала БУ")
+        verbose_name_plural = _("Формы управляющих сигналов БУ")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+class CuFeedbackSignalFormCategory(models.TextChoices):
+    """Категория электрической формы ВЫХОДНОГО сигнала обратной связи."""
+    DRY_OUTPUT = 'dry_output', _('Сухой контакт (выход реле)')
+    CURRENT_4_20 = 'current_4_20', _('Токовая петля 4–20 мА')
+    RESISTANCE = 'resistance', _('Сопротивление (потенциометр)')
+
+
+class CuFeedbackSignalForm(CopyMixin, LocalizedDictFieldsMixin,
+                           OptionListToSelectMixin):
+    """Электрическая форма выходного сигнала обратной связи БУ.
+
+    Зачем: физика ВЫХОДНЫХ клемм — чем БУ выдаёт сигнал наружу:
+
+    - сухие контакты реле (SPST/SPDT/DPDT — коммутируемая способность
+      описывается у сигнала: max_voltage/max_current/contact_normal);
+    - токовая петля 4–20 мА (активная/пассивная);
+    - потенциометр (сопротивление).
+
+    Отдельная сущность от CuControlSignalForm: «сухой контакт» выхода —
+    это коммутация внешней цепи, а не внутренний опрос входа.
+
+    Поля: code, name, category (dry_output/current_4_20/resistance),
+    description, sorting_order, is_active.
+    """
+    code = models.CharField(
+        max_length=50, unique=True,
+        verbose_name=_("Код"),
+        help_text=_("Уникальный код формы, например «DRY_SPDT», "
+                    "«AN_4_20_ACTIVE»"),
     )
     name = models.CharField(
         max_length=200,
@@ -65,22 +139,22 @@ class CuSignalForm(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin)
         help_text=_("Название формы, например «Сухой контакт SPDT»"),
     )
     category = models.CharField(
-        max_length=20, choices=CuSignalFormCategory.choices,
+        max_length=20, choices=CuFeedbackSignalFormCategory.choices,
         verbose_name=_("Категория"),
-        help_text=_("Категория формы: контакт / аналог / дискретная команда / "
-                    "сопротивление"),
+        help_text=_("Категория выходной формы: сухой контакт / петля 4–20 мА / "
+                    "потенциометр"),
     )
     description = models.TextField(
         blank=True,
         verbose_name=_("Описание"),
-        help_text=_("Пояснение формы: схема подключения, полярность, особенности"),
+        help_text=_("Пояснение формы: схема подключения, особенности"),
     )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
     class Meta:
-        verbose_name = _("Форма сигнала БУ")
-        verbose_name_plural = _("Формы сигналов БУ")
+        verbose_name = _("Форма сигнала ОС БУ")
+        verbose_name_plural = _("Формы сигналов ОС БУ")
         ordering = ['sorting_order', 'code']
 
     def __str__(self):
@@ -115,16 +189,18 @@ class _Analog4to20Mixin:
 
 class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
                       OptionListToSelectMixin):
-    """Входной (управляющий) сигнал БУ (копия EaControlSignal).
+    """Входной (управляющий) сигнал БУ — справочник ролей и аналоговых уставок.
 
-    Зачем: физика входных клемм БУ — какие команды он принимает и в какой
-    форме. Одна запись = один канал команды. ``voltage``/``current`` —
-    параметры входа БУ (что он ожидает на клемме), а не коммутируемая
-    способность.
+    Зачем: справочник входных каналов БУ. Дискретные команды (Открыть/
+    Закрыть/Стоп/ESD) конфигурируются слотами узла «Дистанционное
+    управление» (опции — логики работы), их электрическая форма задаётся
+    выбранной схемой цепей (CuSignalPower); поэтому дискретные записи форму
+    не хранят (``form`` = null). Аналоговые уставки (4–20 мА) хранят форму
+    петли здесь.
 
-    Поля: role (смысловая роль команды), category (discrete/analog),
-    form (FK CuSignalForm), voltage, current, wires, hart, code (ключ
-    маппинга), name, description, sorting_order, is_active.
+    Поля: role, category (discrete/analog), form (FK CuControlSignalForm,
+    только для аналоговых), current, wires, hart, code, name, description,
+    sorting_order, is_active.
     """
     role = models.CharField(
         max_length=40, choices=CuControlSignalRole.choices,
@@ -138,15 +214,12 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
         help_text=_("Дискретная команда или аналоговая уставка"),
     )
     form = models.ForeignKey(
-        CuSignalForm, on_delete=models.PROTECT,
+        CuControlSignalForm, on_delete=models.PROTECT, null=True, blank=True,
         related_name='control_signals',
         verbose_name=_("Форма"),
-        help_text=_("Электрическая форма на клеммах (DISC_AC/DISC_DC/AN_4_20_*)"),
-    )
-    voltage = models.DecimalField(
-        max_digits=7, decimal_places=1, null=True, blank=True,
-        verbose_name=_("Напряжение входа, В"),
-        help_text=_("Номинал цепи команды (для discrete); null для analog"),
+        help_text=_("Электрическая форма на клеммах; задаётся только для "
+                    "аналоговых уставок (AN_4_20_*), для дискретных команд — "
+                    "null (форма определяется схемой цепей управления)"),
     )
     current = models.DecimalField(
         max_digits=7, decimal_places=1, null=True, blank=True,
@@ -166,12 +239,12 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     code = models.CharField(
         max_length=50, unique=True,
         verbose_name=_("Код"),
-        help_text=_("Уникальный код сигнала, например «CMD_OCS_220AC»"),
+        help_text=_("Уникальный код сигнала, например «CMD_4_20MA»"),
     )
     name = models.CharField(
         max_length=200,
         verbose_name=_("Название"),
-        help_text=_("Название, например «Команда О/С/З 220 В AC»"),
+        help_text=_("Название, например «Уставка положения 4–20 мА»"),
     )
     description = models.TextField(
         blank=True,
@@ -192,13 +265,15 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     def clean(self):
         super().clean()
         self.validate_analog_fields(self.form, self.hart)
-        if self.category == 'discrete' and self.form.category not in (
-                'discrete', 'contact'):
+        if self.category == 'analog':
+            if not self.form or self.form.category != 'current_4_20':
+                raise ValidationError(
+                    {'form': _('Для аналоговой уставки нужна форма AN_4_20_*.')})
+        elif self.form is not None:
             raise ValidationError(
-                {'form': _('Для дискретной команды нужна форма DISC_*/контакт.')})
-        if self.category == 'analog' and self.form.category != 'analog':
-            raise ValidationError(
-                {'form': _('Для аналоговой уставки нужна форма AN_4_20_*.')})
+                {'form': _('Форма задаётся только для аналоговых уставок; '
+                           'дискретная команда получает форму из схемы цепей '
+                           'управления (CuSignalPower).')})
 
 
 class CuFeedbackSignalRole(models.TextChoices):
@@ -255,7 +330,7 @@ class CuFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
         help_text=_("Контакт (сухой) или аналоговый выход"),
     )
     form = models.ForeignKey(
-        CuSignalForm, on_delete=models.PROTECT,
+        CuFeedbackSignalForm, on_delete=models.PROTECT,
         related_name='feedback_signals',
         verbose_name=_("Форма"),
         help_text=_("Электрическая форма на клеммах "
@@ -330,15 +405,15 @@ class CuFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     def clean(self):
         super().clean()
         self.validate_analog_fields(self.form, self.hart)
-        if self.category == 'contact' and self.form.category != 'contact':
+        if self.category == 'contact' and self.form.category != 'dry_output':
             raise ValidationError(
-                {'form': _('Для контакта нужна форма DRY_*.')})
+                {'form': _('Для контакта нужна форма DRY_* (сухой выход).')})
         if self.category != 'contact' and self.contact_normal:
             raise ValidationError(
                 {'contact_normal': _('Нормальное состояние контакта задаётся '
                                      'только для контактных сигналов.')})
         if self.category == 'analog' and self.form.category not in (
-                'analog', 'resistance'):
+                'current_4_20', 'resistance'):
             raise ValidationError(
                 {'form': _('Для аналогового сигнала нужна форма AN_4_20_* или '
                            'RES_POTENTIOMETER.')})

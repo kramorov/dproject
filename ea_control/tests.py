@@ -25,10 +25,10 @@ from django.test import TestCase
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuControlSignal, CuFeedbackDevice,
-                               CuFeedbackSignal, CuHeaterSupply, CuMatrixEntry,
-                               CuSignalForm, CuSignalPower, CuSignalPowerSource,
-                               CuSignalType, CuSlot, CuSlotOption, CuSlotRule,
-                               ControlUnit, CuSectionNode,
+                               CuFeedbackSignal, CuFeedbackSignalForm,
+                               CuHeaterSupply, CuMatrixEntry, CuSignalPower,
+                               CuSignalPowerSource, CuSlot, CuSlotOption,
+                               CuSlotRule, ControlUnit, CuSectionNode,
                                AbstractConfigSnapshot)
 from ea_control.models.abstract import ConfigAvailability
 from ea_control.models.control_unit import ControlUnitKind
@@ -52,16 +52,16 @@ class CuConfigTestCase(TestCase):
         # Идемпотентно: get_or_create, а не create — рабочая БД может быть уже
         # засеяна seed_cu_demo с теми же кодами (иначе при перекопировании
         # db.sqlite3 → test_db.sqlite3 падает IntegrityError).
-        cls.form_dry = CuSignalForm.objects.get_or_create(
+        cls.form_dry = CuFeedbackSignalForm.objects.get_or_create(
             code='DRY_SPDT',
-            defaults=dict(name='Сухой контакт SPDT', category='contact'))[0]
-        cls.form_analog = CuSignalForm.objects.get_or_create(
+            defaults=dict(name='Сухой контакт SPDT', category='dry_output'))[0]
+        cls.form_analog = CuFeedbackSignalForm.objects.get_or_create(
             code='AN_4_20_ACTIVE',
-            defaults=dict(name='Петля 4-20 активная', category='analog'))[0]
+            defaults=dict(name='Петля 4-20 активная', category='current_4_20'))[0]
         cls.ctrl_signal = CuControlSignal.objects.get_or_create(
             code='CMD_OCS',
             defaults=dict(name='Команда О/С/З', role='CMD_OCS',
-                          category='discrete', form=cls.form_dry))[0]
+                          category='discrete'))[0]
         cls.fb_signal = CuFeedbackSignal.objects.get_or_create(
             code='FB_END_OPEN',
             defaults=dict(name='Конечное «Открыто»', role='END_OPEN',
@@ -83,14 +83,11 @@ class CuConfigTestCase(TestCase):
             code='EXTERNAL', defaults=dict(name='Внешний'))[0]
         cls.signal_power = CuSignalPower.objects.get_or_create(
             source=cls.source, power_supply=cls.power,
+            input_form=None, polarity='NOT_APPLICABLE',
             defaults=dict(name='Внешний 220'))[0]
         cls.logic = CuControlLogic.objects.get_or_create(
             code='IMPULSE',
             defaults=dict(name='Импульсная', has_self_holding=True))[0]
-        cls.signal_type = CuSignalType.objects.get_or_create(
-            code='POT_220AC',
-            defaults=dict(name='Потенциал 220В', logic_type='active_high',
-                          voltage=cls.power))[0]
         cls.cu = ControlUnit.objects.get_or_create(
             brand=cls.brand, code='INT',
             defaults=dict(name='Интеллектуальный БУ',
@@ -104,9 +101,9 @@ class CuConfigTestCase(TestCase):
             code='CONTROL_SIGNALS',
             defaults=dict(name='Сигналы управления'))[0]
         cls.slot_cmd = CuSlot.objects.get_or_create(
-            code='CMD',
-            defaults=dict(name='Команды', section=cls.section,
-                          selection_mode='multi'))[0]
+            code='CMD_OPEN',
+            defaults=dict(name='Открыть', section=cls.section,
+                          selection_mode='single'))[0]
         cls.slot_cu = CuSlot.objects.get_or_create(
             code='control_unit',
             defaults=dict(name='Тип БУ', slot_kind='object',

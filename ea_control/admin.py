@@ -13,13 +13,14 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
-                               CuControlSignal, CuDisplayType, CuFeedbackDevice,
-                               CuFeedbackSignal, CuHeaterSupply,
-                               CuLocalControlType, CuLocationOption,
-                               CuMatrixEntry, CuSignalForm, CuSignalPower,
-                               CuSignalPowerSource, CuSignalType, CuSlot,
-                               CuSlotOption, CuSlotRule, CuUnitPowerSource,
-                               ControlUnit, CuSectionNode)
+                               CuControlSignal, CuControlSignalForm,
+                               CuDisplayType, CuFeedbackDevice,
+                               CuFeedbackSignal, CuFeedbackSignalForm,
+                               CuHeaterSupply, CuLocalControlType,
+                               CuLocationOption, CuMatrixEntry, CuSignalPower,
+                               CuSignalPowerSource, CuSlot, CuSlotOption,
+                               CuSlotRule, CuUnitPowerSource, ControlUnit,
+                               CuSectionNode)
 
 
 class _DictAdmin(admin.ModelAdmin):
@@ -31,8 +32,14 @@ class _DictAdmin(admin.ModelAdmin):
     ordering = ('sorting_order', 'code')
 
 
-@admin.register(CuSignalForm)
-class CuSignalFormAdmin(_DictAdmin):
+@admin.register(CuControlSignalForm)
+class CuControlSignalFormAdmin(_DictAdmin):
+    list_display = ('code', 'name', 'category', 'sorting_order', 'is_active')
+    list_filter = ('category', 'is_active')
+
+
+@admin.register(CuFeedbackSignalForm)
+class CuFeedbackSignalFormAdmin(_DictAdmin):
     list_display = ('code', 'name', 'category', 'sorting_order', 'is_active')
     list_filter = ('category', 'is_active')
 
@@ -99,25 +106,22 @@ class CuUnitPowerSourceAdmin(_DictAdmin):
 
 @admin.register(CuSignalPowerSource)
 class CuSignalPowerSourceAdmin(_DictAdmin):
-    pass
+    list_display = ('code', 'name', 'internal', 'sorting_order', 'is_active')
+    list_editable = ('internal', 'sorting_order', 'is_active')
 
 
 @admin.register(CuSignalPower)
 class CuSignalPowerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'source', 'power_supply', 'sorting_order', 'is_active')
-    list_filter = ('source', 'power_supply', 'is_active')
+    list_display = ('name', 'source', 'power_supply', 'input_form',
+                    'polarity', 'sorting_order', 'is_active')
+    list_filter = ('source', 'power_supply', 'input_form', 'polarity',
+                   'is_active')
     search_fields = ('name',)
 
 
 @admin.register(CuControlLogic)
 class CuControlLogicAdmin(_DictAdmin):
     list_display = ('code', 'name', 'has_self_holding', 'sorting_order', 'is_active')
-
-
-@admin.register(CuSignalType)
-class CuSignalTypeAdmin(_DictAdmin):
-    list_display = ('code', 'name', 'logic_type', 'voltage', 'sorting_order', 'is_active')
-    list_filter = ('logic_type', 'is_active')
 
 
 @admin.register(ControlUnit)

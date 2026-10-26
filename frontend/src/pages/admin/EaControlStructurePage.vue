@@ -162,7 +162,6 @@
                       <option value="heater">Обогрев</option>
                       <option value="power">Питание цепей</option>
                       <option value="logic">Логика</option>
-                      <option value="signal_type">Тип сигнала</option>
                       <option value="unit">БУ</option>
                       <option value="local_control">Орган управления</option>
                       <option value="display">Вид отображения</option>
@@ -225,14 +224,6 @@
                     <select v-model="selOption.control_logic">
                       <option :value="null">— —</option>
                       <option v-for="o in dicts.controlLogics" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'signal_type'" class="form-row">
-                  <label class="form-field"><span>Тип сигнала</span>
-                    <select v-model="selOption.signal_type">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.signalTypes" :key="o.id" :value="o.id">{{ o.label }}</option>
                     </select>
                   </label>
                 </div>
@@ -324,7 +315,7 @@ const slots = ref([])
 const options = ref([])
 const dicts = reactive({
   controlSignals: [], feedbackSignals: [], protocols: [], devices: [],
-  heaterSupplies: [], signalPowers: [], controlLogics: [], signalTypes: [],
+  heaterSupplies: [], signalPowers: [], controlLogics: [],
   units: [], localControlTypes: [], displayTypes: [], unitPowerSources: [],
   threadSets: [],
 })
@@ -458,7 +449,7 @@ async function reload() {
   loading.value = true
   error.value = ''
   try {
-    const [s, sl, o, units, ctl, fb, proto, dev, heater, power, logic, stype,
+    const [s, sl, o, units, ctl, fb, proto, dev, heater, power, logic,
       lct, dsp, upw, meta] =
       await Promise.all([
         api.get('/ea-control/sections/'),
@@ -472,7 +463,6 @@ async function reload() {
         api.get('/ea-control/heater-supplies/'),
         api.get('/ea-control/signal-powers/'),
         api.get('/ea-control/control-logics/'),
-        api.get('/ea-control/signal-types/'),
         api.get('/ea-control/local-control-types/'),
         api.get('/ea-control/display-types/'),
         api.get('/ea-control/unit-power-sources/'),
@@ -489,7 +479,6 @@ async function reload() {
     dicts.heaterSupplies = dictList(heater.data.results || heater.data || [])
     dicts.signalPowers = dictList(power.data.results || power.data || [])
     dicts.controlLogics = dictList(logic.data.results || logic.data || [])
-    dicts.signalTypes = dictList(stype.data.results || stype.data || [])
     dicts.localControlTypes = dictList(lct.data.results || lct.data || [])
     dicts.displayTypes = dictList(dsp.data.results || dsp.data || [])
     dicts.unitPowerSources = dictList(upw.data.results || upw.data || [])
@@ -509,7 +498,7 @@ function cloneOption(o) {
     control_signal: o.control_signal, feedback_signal: o.feedback_signal,
     protocol: o.protocol, heater_supply: o.heater_supply,
     signal_power: o.signal_power, control_logic: o.control_logic,
-    signal_type: o.signal_type, control_unit: o.control_unit, device: o.device,
+    control_unit: null, device: null,
     local_control_type: o.local_control_type,
     display_types: [...(o.display_types || [])],
     unit_power_source: o.unit_power_source,
@@ -600,7 +589,7 @@ function addOption() {
     id: null, code: '', name: '', slot: null, kind: 'signal',
     control_signal: null, feedback_signal: null, protocol: null,
     heater_supply: null, signal_power: null, control_logic: null,
-    signal_type: null, control_unit: null, device: null,
+    control_unit: null, device: null,
     local_control_type: null, display_types: [],
     unit_power_source: null, cable_gland_set: null,
     encoding: '', ext_encoding: '', description: '',
@@ -619,7 +608,6 @@ function resetOptionPayload() {
   o.heater_supply = null
   o.signal_power = null
   o.control_logic = null
-  o.signal_type = null
   o.control_unit = null
   o.device = null
   o.local_control_type = null
@@ -696,14 +684,42 @@ function cleanOption(o) {
 function validateDraft() {
   const errs = []
   if (!draft.node.code || !draft.node.code.trim()) errs.push('узел: код')
+  else if (sections.value.some(s => s.code === draft.node.code.trim()
+      && s.id !== draft.node.id)) {
+    errs.push(`узел: код «${draft.node.code.trim()}» уже занят другим узлом`)
+  }
   if (!draft.node.name || !draft.node.name.trim()) errs.push('узел: название')
+  const seenSlotCodes = new Set()
   for (const slot of draft.slots) {
     if (slot._deleted) continue
     const slotLabel = slot.name || slot.code || 'новый слот'
     if (!slot.code || !slot.code.trim()) errs.push(`слот «${slotLabel}»: код`)
+    else {
+      const code = slot.code.trim()
+      if (seenSlotCodes.has(code)) {
+        errs.push(`слот «${slotLabel}»: код «${code}» повторяется в этом узле`)
+      }
+      seenSlotCodes.add(code)
+      if (slots.value.some(s => s.code === code && s.id !== slot.id)) {
+        errs.push(`слот «${slotLabel}»: код «${code}» уже занят другим слотом`)
+      }
+    }
+    const seenOptCodes = new Set()
     for (const opt of (slot.options || [])) {
       if (opt._deleted) continue
-      if (!opt.code || !opt.code.trim()) errs.push(`опция в слоте «${slotLabel}»: код`)
+      const optLabel = opt.name || opt.code || 'новая опция'
+      if (!opt.code || !opt.code.trim()) {
+        errs.push(`опция в слоте «${slotLabel}»: код`)
+        continue
+      }
+      const ocode = opt.code.trim()
+      if (seenOptCodes.has(ocode)) {
+        errs.push(`опция в слоте «${slotLabel}»: код «${ocode}» повторяется`)
+      }
+      seenOptCodes.add(ocode)
+      if (options.value.some(o => o.code === ocode && o.id !== opt.id)) {
+        errs.push(`опция в слоте «${slotLabel}»: код «${ocode}» уже занят другой опцией`)
+      }
       if ((opt.kind === 'none' || opt.kind === 'pair') && (!opt.name || !opt.name.trim())) {
         errs.push(`опция в слоте «${slotLabel}»: название (обязательно для none/pair)`)
       }
@@ -712,6 +728,12 @@ function validateDraft() {
       }
       if (opt.kind === 'unit_power' && !opt.unit_power_source) {
         errs.push(`опция в слоте «${slotLabel}»: питание БУ`)
+      }
+      if (opt.kind === 'power' && !opt.signal_power) {
+        errs.push(`опция в слоте «${slotLabel}»: схема цепей управления`)
+      }
+      if (opt.kind === 'logic' && !opt.control_logic) {
+        errs.push(`опция в слоте «${slotLabel}»: логика работы`)
       }
       if (opt.kind === 'cable_gland' && !opt.cable_gland_set) {
         errs.push(`опция в слоте «${slotLabel}»: набор резьб вводов`)

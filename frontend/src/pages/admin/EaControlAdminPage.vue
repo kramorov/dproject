@@ -185,7 +185,6 @@ const DICT_SOURCES = {
   'heater-supplies': 'Обогрев',
   'location-options': 'Размещение',
   'capabilities': 'Функции БУ',
-  'signal-power-sources': 'Источники питания',
   'control-logics': 'Логики работы',
   'local-control-types': 'Вид органов местного управления',
   'display-types': 'Вид отображения информации',
@@ -246,25 +245,27 @@ const MODEL_CONFIGS = [
     ],
   },
   {
-    endpoint: 'signal-types', label: 'Типы сигналов', section: 'dicts',
-    columns: ['code', 'name', 'logic_type', 'voltage', 'sorting_order', 'is_active'],
+    endpoint: 'control-signal-forms', label: 'Формы управляющих сигналов', section: 'dicts',
+    columns: ['code', 'name', 'category', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
-      F('logic_type', 'Тип логики', 'select', { choices: [
-        ['active_low', 'Active Low (NPN)'], ['active_high', 'Active High (PNP)']] }),
-      F('voltage', 'Напряжение сигнала', 'select', { source: 'power_supplies' }),
+      F('category', 'Категория', 'select', { choices: [
+        ['dry_input', 'Сухой контакт (внутренний опрос БУ)'],
+        ['voltage_ac', 'Потенциал AC'], ['voltage_dc', 'Потенциал DC'],
+        ['current_4_20', 'Токовая петля 4–20 мА']] }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],
   },
   {
-    endpoint: 'signal-forms', label: 'Формы сигналов', section: 'dicts',
+    endpoint: 'feedback-signal-forms', label: 'Формы сигналов ОС', section: 'dicts',
     columns: ['code', 'name', 'category', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
       F('category', 'Категория', 'select', { choices: [
-        ['contact', 'Сухой контакт'], ['analog', 'Аналоговый (токовая петля)'],
-        ['discrete', 'Дискретная команда (напряжение)'], ['resistance', 'Сопротивление (потенциометр)']] }),
+        ['dry_output', 'Сухой контакт (выход реле)'],
+        ['current_4_20', 'Токовая петля 4–20 мА'],
+        ['resistance', 'Сопротивление (потенциометр)']] }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],
@@ -283,7 +284,7 @@ const MODEL_CONFIGS = [
         ['INTERLOCK_CLOSE', 'Блокировка «Закрыть»'], ['DRIVE_ENABLE', 'Разрешение хода']] }),
       F('category', 'Категория', 'select', { choices: [
         ['discrete', 'Дискретный'], ['analog', 'Аналоговый']] }),
-      F('form', 'Форма', 'select', { source: 'signal-forms' }),
+      F('form', 'Форма', 'select', { source: 'control-signal-forms' }),
       F('hart', 'HART', 'bool'),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
@@ -305,7 +306,7 @@ const MODEL_CONFIGS = [
         ['PHASE_LOSS', 'Потеря фазы']] }),
       F('category', 'Категория', 'select', { choices: [
         ['contact', 'Контакт'], ['analog', 'Аналоговый']] }),
-      F('form', 'Форма', 'select', { source: 'signal-forms' }),
+      F('form', 'Форма', 'select', { source: 'feedback-signal-forms' }),
       F('contact_normal', 'Норма контакта', 'select', { choices: [
         ['NO', 'NO'], ['NC', 'NC'], ['CHANGEOVER', 'Перекидной']] }),
       F('hart', 'HART', 'bool'),
@@ -342,12 +343,29 @@ const MODEL_CONFIGS = [
     ],
   },
   {
-    endpoint: 'signal-powers', label: 'Питания цепей', section: 'dicts',
-    columns: ['name', 'source', 'power_supply', 'sorting_order', 'is_active'],
+    endpoint: 'signal-power-sources', label: 'Источники питания цепей', section: 'dicts',
+    columns: ['code', 'name', 'internal', 'sorting_order', 'is_active'],
+    fields: [
+      F('code', 'Код'), F('name', 'Название'),
+      F('internal', 'Встроенный (выдаёт опорное напряжение)', 'bool'),
+      F('description', 'Описание', 'textarea'),
+      F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
+    ],
+  },
+  {
+    endpoint: 'signal-powers', label: 'Схемы цепей управления', section: 'dicts',
+    columns: ['name', 'source', 'power_supply', 'input_form', 'polarity',
+              'sorting_order', 'is_active'],
     fields: [
       F('name', 'Название'),
       F('source', 'Источник', 'select', { source: 'signal-power-sources' }),
       F('power_supply', 'Напряжение', 'select', { source: 'power_supplies' }),
+      F('input_form', 'Форма входных цепей', 'select', { source: 'control-signal-forms' }),
+      F('polarity', 'Полярность', 'select', { choices: [
+        ['PNP', 'PNP — плюс-управление (активный высокий)'],
+        ['NPN', 'NPN — минус-управление (активный низкий)'],
+        ['BIDIRECTIONAL', 'Двунаправленный (DC, любая полярность)'],
+        ['NOT_APPLICABLE', 'Не применимо (AC или сухой контакт)']] }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],

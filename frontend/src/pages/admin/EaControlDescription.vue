@@ -19,7 +19,7 @@
 
       <div v-for="sec in report.sections" :key="sec.code || sec.name" class="sec"
            :style="{ paddingLeft: (sec.depth * 16) + 'px' }">
-        <h4>{{ sec.name }}</h4>
+        <h4>{{ sec.name }} <span v-if="!sec.is_active" class="inactive">раздел выключен</span></h4>
         <div v-for="slot in sec.slots" :key="slot.code" class="slot">
           <div class="slot-name">{{ slot.name }} <span class="code">{{ slot.code }}</span></div>
           <div class="cells">
@@ -68,7 +68,7 @@ function buildText() {
     if (!sec.slots.length) continue
     const indent = '  '.repeat(sec.depth)
     lines.push('')
-    lines.push(`${indent}== ${sec.name} ==`)
+    lines.push(`${indent}== ${sec.name}${sec.is_active ? '' : ' (раздел выключен)'} ==`)
     for (const slot of sec.slots) {
       const cells = slot.options
         .map(o => `${o.name} [${mark(o.availability)}]`).join(' | ')
@@ -123,6 +123,7 @@ onMounted(async () => {
 .unit-head span { color: #666; font-size: 13px; }
 .sec { margin-bottom: 12px; }
 .sec h4 { margin: 0 0 4px; }
+.inactive { color: #b60; font-size: 11px; font-weight: normal; }
 .slot { margin-bottom: 8px; }
 .slot-name { font-size: 13px; color: #333; margin-bottom: 3px; }
 .slot-name .code { color: #888; font-size: 11px; }

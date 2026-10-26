@@ -109,6 +109,9 @@ const seriesUnits = ref([])
 const pkg = ref(null)
 const selection = reactive({})
 const error = ref('')
+// выбранная схема цепей (опция слота CMD_WIRING): по ней сервер
+// перерезолвивает набор сигналов дистанционного управления
+const wiringSignalPowerId = ref(null)
 
 const errors = computed(() => {
   if (!pkg.value) return []
@@ -216,6 +219,11 @@ function evaluate(op, expected, current) {
 
 function selectOption(slot, o) {
   selection[slot.code] = o.code
+  if (slot.code === 'CMD_WIRING' && o.signal_power_id
+      && o.signal_power_id !== wiringSignalPowerId.value) {
+    reloadPackageForWiring(o.signal_power_id).catch(e => { error.value = e.displayMessage })
+    return
+  }
   applySetDefaults()
 }
 
@@ -273,6 +281,7 @@ async function loadSeriesUnits() {
 
 async function loadPackage() {
   pkg.value = null
+  wiringSignalPowerId.value = null
   for (const k of Object.keys(selection)) delete selection[k]
   if (!unitId.value) return
   const { data } = await api.get('/ea-control/package/', {
@@ -288,6 +297,25 @@ async function loadPackage() {
   // а не код типа БУ (basic…) — их разводит резолвер (option_code)
   selection['control_unit'] = (seriesUnits.value.find(u => u.unit_id === unitId.value)
                                || {}).option_code || null
+  applyProfileDefaults()
+}
+
+async function reloadPackageForWiring(signalPowerId) {
+  // схема цепей выбрана → перерезолвить набор сигналов на сервере
+  const keep = { ...selection }
+  const { data } = await api.get('/ea-control/package/', {
+    params: {
+      unit: unitId.value,
+      model_line: modelLine.value || undefined,
+      power_supply: powerSupply.value || undefined,
+      signal_power: signalPowerId || undefined,
+      locale: locale.value,
+    },
+  })
+  wiringSignalPowerId.value = signalPowerId
+  pkg.value = data
+  for (const k of Object.keys(selection)) delete selection[k]
+  Object.assign(selection, keep)
   applyProfileDefaults()
 }
 

@@ -52,10 +52,19 @@ def _scope_matches(row, brand, model_line, body, model_line_item):
     return True
 
 
-def _context_matches(row, power_supply, mode):
-    """Совпадение координат (напряжение, режим)."""
+def _context_matches(row, power_supply, mode, signal_power=None):
+    """Совпадение координат (напряжение, режим, схема цепей).
+
+    Строка с конкретной схемой цепей (``signal_power``) применяется только
+    при выбранной схеме; без выбранной схемы действуют строки «любой схемы».
+    """
     if power_supply is not None and row.power_supply_id is not None \
             and row.power_supply_id != power_supply.id:
+        return False
+    if signal_power is None:
+        if row.signal_power_id is not None:
+            return False
+    elif row.signal_power_id is not None and row.signal_power_id != signal_power.id:
         return False
     if mode and mode != CuMatrixMode.BOTH \
             and row.mode != CuMatrixMode.BOTH and row.mode != mode:
@@ -99,10 +108,11 @@ def _effective_row(rows, context):
     if not applicable:
         return None
     power_supply_id = None
-    # скоуповая сортировка: (уровень, есть ли конкретное напряжение)
+    # скоуповая сортировка: (уровень, есть ли конкретное напряжение, схема)
     applicable.sort(key=lambda r: (
         _scope_level(r),
         1 if getattr(r, '_ps_requested', False) else 0,
+        1 if getattr(r, '_sp_requested', False) else 0,
         r.id,
     ))
     return applicable[-1]
@@ -110,12 +120,16 @@ def _effective_row(rows, context):
 
 def resolve_slots(control_unit, *, model_line=None, body=None,
                   model_line_item=None, brand=None, power_supply=None,
-                  mode='both', locale=None):
+                  signal_power=None, mode='both', locale=None):
     """Доступные опции всех слотов конфигурации выбранного БУ.
 
     Возвращает ``{slot_code: [payload, …]}`` — список эффективных строк по
     слотам (включая none-строки «Нет»). Слот ``control_unit`` не входит:
     выбор БУ — отдельный шаг (``resolve_control_units``).
+
+    ``signal_power`` — выбранная схема цепей управления (CuSignalPower):
+    строки с конкретной схемой перекрывают строки «любой схемы» — так
+    «набор сигналов дистанционного управления» зависит от опции CMD_WIRING.
     """
     if brand is None and model_line is not None:
         brand = getattr(model_line, 'brand', None)
@@ -129,13 +143,19 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
     if power_supply is not None:
         rows_qs = rows_qs.filter(Q(power_supply=power_supply)
                                  | Q(power_supply__isnull=True))
+    if signal_power is not None:
+        rows_qs = rows_qs.filter(Q(signal_power=signal_power)
+                                 | Q(signal_power__isnull=True))
     rows = list(rows_qs)
 
     result = {}
     for row in rows:
         row._ps_requested = (
             power_supply is not None and row.power_supply_id == power_supply.id)
-        if not _context_matches(row, power_supply, mode):
+        row._sp_requested = (
+            signal_power is not None
+            and row.signal_power_id == signal_power.id)
+        if not _context_matches(row, power_supply, mode, signal_power):
             continue
         key = (row.slot.code, row.option.code if row.option_id else row.name)
         result.setdefault(key, []).append(row)
@@ -207,7 +227,8 @@ def resolve_control_units(model_line, *, body=None, model_line_item=None,
     return out
 
 
-def get_profile_defaults(control_unit, *, power_supply=None, mode='both'):
+def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
+                         signal_power=None):
     """Дефолты слотов типа БУ: {slot_code: option_code} из профильных строк.
 
     Профильные строки — весь скоуп пуст; берутся предвыбранные (std →
@@ -221,11 +242,14 @@ def get_profile_defaults(control_unit, *, power_supply=None, mode='both'):
     if power_supply is not None:
         rows = rows.filter(Q(power_supply=power_supply)
                            | Q(power_supply__isnull=True))
+    if signal_power is not None:
+        rows = rows.filter(Q(signal_power=signal_power)
+                           | Q(signal_power__isnull=True))
     defaults = {}
     for row in rows:
         if not row.option_id:
             continue
-        if not _context_matches(row, power_supply, mode):
+        if not _context_matches(row, power_supply, mode, signal_power):
             continue
         if row.is_default:
             defaults[row.slot.code] = row.option.code

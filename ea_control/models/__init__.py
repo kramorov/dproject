@@ -30,8 +30,10 @@ from ea_control.models.abstract import (  # noqa: F401
     ConfigRuleOperator,
 )
 from ea_control.models.dictionaries import (  # noqa: F401
-    CuSignalFormCategory,
-    CuSignalForm,
+    CuControlSignalFormCategory,
+    CuControlSignalForm,
+    CuFeedbackSignalFormCategory,
+    CuFeedbackSignalForm,
     CuControlSignalRole,
     CuControlSignal,
     CuFeedbackSignalRole,
@@ -52,8 +54,8 @@ from ea_control.models.dictionaries import (  # noqa: F401
 from ea_control.models.cu_power import (  # noqa: F401
     CuSignalPowerSource,
     CuSignalPower,
+    CuPolarity,
     CuControlLogic,
-    CuSignalType,
 )
 from ea_control.models.control_unit import (  # noqa: F401
     ControlUnitKind,

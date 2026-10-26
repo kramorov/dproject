@@ -45,11 +45,12 @@ class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
     """Слот конфигурации БУ (роль ``Slot``).
 
     Зачем: точка выбора в конфигураторе БУ. Коды сигнальных слотов совпадают
-    с EaSignalSlot (LOCAL_CONTROL/CMD/SETPOINT/LIMIT_SWITCHES/WAY_SWITCHES/
+    с EaSignalSlot (LOCAL_CONTROL/SETPOINT/LIMIT_SWITCHES/WAY_SWITCHES/
     TORQUE_SWITCHES/POSITION_FEEDBACK/THERMAL_SENSOR/INDICATOR/TURN_COUNTER/
     PROTOCOL/HEATER_CONTROL_UNIT) — они ключи маппинга при миграции; плюс
-    БУ-специфичные слоты (SIGNAL_POWER_SOURCE/CONTROL_LOGIC/SIGNAL_TYPE) и
-    слот ``control_unit`` (slot_kind=object) — выбор типа БУ.
+    БУ-специфичные слоты дистанционного управления (CMD_WIRING и
+    CMD_OPEN/CMD_CLOSE/CMD_STOP/CMD_ESD) и слот ``control_unit``
+    (slot_kind=object) — выбор типа БУ.
 
     Добавлено относительно AbstractConfigSlot:
 
@@ -72,9 +73,8 @@ class CuOptionKind(models.TextChoices):
     """Тип опции слота БУ (значения домена, переопределяют абстрактный kind)."""
     SIGNAL = 'signal', _('Сигнал')
     HEATER = 'heater', _('Питание обогрева')
-    POWER = 'power', _('Питание цепей управления')
-    LOGIC = 'logic', _('Логика работы')
-    SIGNAL_TYPE = 'signal_type', _('Тип управляющего сигнала')
+    POWER = 'power', _('Схема цепей управления (источник × напряжение)')
+    LOGIC = 'logic', _('Логика работы сигнала')
     UNIT = 'unit', _('Блок управления (слот control_unit)')
     LOCAL_CONTROL = 'local_control', _('Орган местного управления')
     DISPLAY = 'display', _('Вид отображения')
@@ -97,9 +97,10 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
     - ``kind`` — переопределён словарём домена CuOptionKind;
     - типизированные полезные нагрузки по kind: ``control_signal`` /
       ``feedback_signal`` / ``protocol`` (signal), ``heater_supply``
-      (heater), ``signal_power`` (power), ``control_logic`` (logic),
-      ``signal_type`` (signal_type), ``control_unit`` (unit — только для
-      слота control_unit), ``device`` (датчик по умолчанию для опции);
+      (heater), ``signal_power`` (power — схема цепей управления),
+      ``control_logic`` (logic — логика сигнала), ``control_unit`` (unit —
+      только для слота control_unit), ``device`` (датчик по умолчанию для
+      опции);
     - ``clean()`` — ровно одна полезная нагрузка на kind (образец
       EaSlotOption.clean).
     """
@@ -114,12 +115,12 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         default=CuOptionKind.SIGNAL,
         verbose_name=_("Тип опции"),
         help_text=_("signal — сигнал/протокол; heater — обогрев; power — "
-                    "питание цепей; logic — логика работы; signal_type — тип "
-                    "сигнала; unit — БУ (слот control_unit); local_control — "
-                    "орган местного управления; display — вид(ы) отображения; "
-                    "unit_power — питание БУ; cable_gland — резьба кабельных "
-                    "вводов БУ; none — опция без полезной нагрузки; pair — "
-                    "пара контактов Откр/Закр"),
+                    "схема цепей управления; logic — логика работы; unit — "
+                    "БУ (слот control_unit); local_control — орган местного "
+                    "управления; display — вид(ы) отображения; unit_power — "
+                    "питание БУ; cable_gland — резьба кабельных вводов БУ; "
+                    "none — опция без полезной нагрузки; pair — пара "
+                    "контактов Откр/Закр"),
     )
     control_signal = models.ForeignKey(
         'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
@@ -148,20 +149,17 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
     signal_power = models.ForeignKey(
         'CuSignalPower', on_delete=models.PROTECT, null=True, blank=True,
         related_name='slot_options',
-        verbose_name=_("Питание цепей управления"),
-        help_text=_("Для kind=power (слот SIGNAL_POWER_SOURCE)"),
+        verbose_name=_("Схема цепей управления"),
+        help_text=_("Для kind=power (слот CMD_WIRING «Схема цепей "
+                    "управления»): источник × напряжение × форма × полярность"),
     )
     control_logic = models.ForeignKey(
         'CuControlLogic', on_delete=models.PROTECT, null=True, blank=True,
         related_name='slot_options',
         verbose_name=_("Логика работы"),
-        help_text=_("Для kind=logic (слот CONTROL_LOGIC)"),
-    )
-    signal_type = models.ForeignKey(
-        'CuSignalType', on_delete=models.PROTECT, null=True, blank=True,
-        related_name='slot_options',
-        verbose_name=_("Тип управляющего сигнала"),
-        help_text=_("Для kind=signal_type (слот SIGNAL_TYPE)"),
+        help_text=_("Для kind=logic: логика сигнала (импульсная/потенциальная/"
+                    "настраиваемая) — опции слотов команд CMD_OPEN/CLOSE/"
+                    "STOP/ESD"),
     )
     control_unit = models.ForeignKey(
         'ControlUnit', on_delete=models.PROTECT, null=True, blank=True,
@@ -236,6 +234,17 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             return localized_name(self.unit_power_source, locale)
         if self.kind == CuOptionKind.CABLE_GLAND and self.cable_gland_set_id:
             return localized_name(self.cable_gland_set, locale)
+        if self.kind == CuOptionKind.POWER and self.signal_power_id:
+            return localized_name(self.signal_power, locale)
+        if self.kind == CuOptionKind.LOGIC and self.control_logic_id:
+            return localized_name(self.control_logic, locale)
+        if self.kind == CuOptionKind.HEATER and self.heater_supply_id:
+            return localized_name(self.heater_supply, locale)
+        if self.kind == CuOptionKind.SIGNAL:
+            for fk in ('control_signal', 'feedback_signal', 'protocol'):
+                obj = getattr(self, fk, None)
+                if obj is not None:
+                    return localized_name(obj, locale)
         if self.kind == CuOptionKind.DISPLAY:
             names = [localized_name(d, locale)
                      for d in self.display_types.all().order_by('sorting_order')]
@@ -261,9 +270,6 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         elif self.kind == CuOptionKind.LOGIC:
             if not self.control_logic_id:
                 raise ValidationError(_('Для опции логики нужна CuControlLogic.'))
-        elif self.kind == CuOptionKind.SIGNAL_TYPE:
-            if not self.signal_type_id:
-                raise ValidationError(_('Для опции типа сигнала нужен CuSignalType.'))
         elif self.kind == CuOptionKind.UNIT:
             if not self.control_unit_id:
                 raise ValidationError(_('Для опции-БУ нужен ControlUnit.'))
@@ -320,7 +326,9 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
       все пустые (CheckConstraint «один скоуп»);
     - координаты: ``control_unit`` (ControlUnit, null — для строк слота
       control_unit и профильных строк), ``power_supply`` (params.PowerSupplies,
-      null — любое напряжение), ``mode`` (CuMatrixMode);
+      null — любое напряжение), ``signal_power`` (CuSignalPower — схема цепей
+      управления; null — любая схема; «набор сигналов — опции схемы»),
+      ``mode`` (CuMatrixMode);
     - полезные нагрузки строки: ``control_signal``/``feedback_signal``/
       ``protocol``/``device``/``heater_supply`` — типизированные FK
       (CheckConstraint «одна нагрузка»);
@@ -379,6 +387,15 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
         related_name='cu_matrix_rows',
         verbose_name=_("Напряжение питания"),
         help_text=_("Напряжение питания мотора; null — любое"),
+    )
+    signal_power = models.ForeignKey(
+        'CuSignalPower', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='cu_matrix_rows',
+        verbose_name=_("Схема цепей управления"),
+        help_text=_("Схема цепей (источник × напряжение × полярность), при "
+                    "которой действует строка; null — любая схема. Набор "
+                    "сигналов дистанционного управления зависит от выбранной "
+                    "схемы"),
     )
     mode = models.CharField(
         max_length=20, choices=CuMatrixMode.choices, default=CuMatrixMode.BOTH,

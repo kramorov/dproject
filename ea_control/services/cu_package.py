@@ -30,13 +30,18 @@ def _slot_payload(slot, options_payloads, locale=None):
 
 
 def build_package(control_unit, *, model_line=None, body=None,
-                  model_line_item=None, power_supply=None, mode='both',
-                  locale=None):
-    """Собрать пакет конфигуратора для выбранного типа БУ."""
+                  model_line_item=None, power_supply=None, signal_power=None,
+                  mode='both', locale=None):
+    """Собрать пакет конфигуратора для выбранного типа БУ.
+
+    ``signal_power`` — выбранная схема цепей управления (опция слота
+    CMD_WIRING): с ней перерезолвивается набор сигналов дистанционного
+    управления (строки матрицы с координатой ``signal_power``).
+    """
     resolved = resolve_slots(
         control_unit, model_line=model_line, body=body,
         model_line_item=model_line_item, power_supply=power_supply,
-        mode=mode, locale=locale)
+        signal_power=signal_power, mode=mode, locale=locale)
 
     # опции слотов: каталог + доступность из матрицы
     slots = list(CuSlot.objects.filter(is_active=True)
@@ -56,8 +61,7 @@ def build_package(control_unit, *, model_line=None, body=None,
             matrix = by_code.get(option.code)
             options_payload.append({
                 'code': option.code,
-                'name': pick_i18n(option.name_i18n, locale,
-                                  fallback=option.name or option.code),
+                'name': option.localized_name(locale),
                 'kind': option.kind,
                 'availability': matrix['availability'] if matrix else None,
                 'is_default': matrix['is_default'] if matrix else False,
@@ -67,6 +71,9 @@ def build_package(control_unit, *, model_line=None, body=None,
                 'ext_encoding': (matrix['ext_encoding'] if matrix
                                  else option.ext_encoding),
                 'row_id': matrix['row_id'] if matrix else None,
+                # для опции схемы цепей (kind=power) — id пары CuSignalPower:
+                # по нему фронт перезапрашивает пакет с выбранной схемой
+                'signal_power_id': option.signal_power_id,
             })
         slots_payload.append(_slot_payload(slot, options_payload, locale))
 
@@ -119,6 +126,6 @@ def build_package(control_unit, *, model_line=None, body=None,
         'sections': sections,
         'slots': slots_payload,
         'defaults': get_profile_defaults(control_unit, power_supply=power_supply,
-                                         mode=mode),
+                                         mode=mode, signal_power=signal_power),
         'rules': rules_payload,
     }

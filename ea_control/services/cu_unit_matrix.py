@@ -34,7 +34,7 @@ def _option_name(option, locale=None):
     """Дружелюбное имя опции: из типизированной нагрузки по kind.
 
     ``CuSlotOption.localized_name`` раскрывает unit/local_control/unit_power/
-    cable_gland/display, но для signal/heater/power/logic/signal_type
+    cable_gland/display, но для signal/heater/power/logic
     возвращает код — здесь берём имя физической сущности напрямую.
     """
     kind = option.kind
@@ -49,8 +49,6 @@ def _option_name(option, locale=None):
         return localized_name(option.signal_power, locale)
     elif kind == 'logic' and option.control_logic_id:
         return localized_name(option.control_logic, locale)
-    elif kind == 'signal_type' and option.signal_type_id:
-        return localized_name(option.signal_type, locale)
     return option.localized_name(locale)
 
 
@@ -59,17 +57,24 @@ def _profile_rows(control_unit):
             .filter(control_unit=control_unit,
                     brand__isnull=True, model_line__isnull=True,
                     body__isnull=True, model_line_item__isnull=True,
+                    signal_power__isnull=True,
                     mode=CuMatrixMode.BOTH)
             .exclude(slot__code='control_unit')
             .select_related('slot', 'option'))
 
 
 def _profile_row_qs(control_unit, power_supply):
-    """Базовый queryset профильных строк на выбранном напряжении."""
+    """Базовый queryset профильных строк на выбранном напряжении.
+
+    Строки с координатой ``signal_power`` сюда не входят: это
+    переопределения конкретной схемы цепей (задаются сидом/отдельным
+    инструментом), а не общий профиль типа БУ.
+    """
     return CuMatrixEntry.objects.filter(
         control_unit=control_unit,
         brand__isnull=True, model_line__isnull=True,
         body__isnull=True, model_line_item__isnull=True,
+        signal_power__isnull=True,
         power_supply=power_supply, mode=CuMatrixMode.BOTH)
 
 

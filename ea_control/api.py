@@ -5,10 +5,11 @@ API ea_control: CRUD моделей для фронт-админки + паке�
 Эндпоинты (под префиксом /api/ea-control/):
 
 - CRUD (DRF-роутер, IsAdminUser): control-units, sections, slots,
-  slot-options, matrix-entries, slot-rules, signal-forms, control-signals,
-  feedback-signals, comm-protocols, feedback-devices, heater-supplies,
-  location-options, capabilities, local-control-types, display-types,
-  signal-power-sources, signal-powers, control-logics, signal-types;
+  slot-options, matrix-entries, slot-rules, control-signal-forms,
+  feedback-signal-forms, control-signals, feedback-signals,
+  comm-protocols, feedback-devices, heater-supplies, location-options,
+  capabilities, local-control-types, display-types, signal-power-sources,
+  signal-powers, control-logics;
 - GET units/ — список типов БУ (id/code/name/kind/brand);
 - GET meta/ — справочники для селекторов (серии, напряжения, бренды, БУ);
 - GET series-units/?model_line=&power_supply= — доступные БУ серии
@@ -29,13 +30,14 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
-                               CuControlSignal, CuDisplayType, CuFeedbackDevice,
-                               CuFeedbackSignal, CuHeaterSupply,
-                               CuLocalControlType, CuLocationOption,
-                               CuMatrixEntry, CuSignalForm, CuSignalPower,
-                               CuSignalPowerSource, CuSignalType, CuSlot,
-                               CuSlotOption, CuSlotRule, CuUnitPowerSource,
-                               ControlUnit, CuSectionNode)
+                               CuControlSignal, CuControlSignalForm,
+                               CuDisplayType, CuFeedbackDevice,
+                               CuFeedbackSignal, CuFeedbackSignalForm,
+                               CuHeaterSupply, CuLocalControlType,
+                               CuLocationOption, CuMatrixEntry, CuSignalPower,
+                               CuSignalPowerSource, CuSlot, CuSlotOption,
+                               CuSlotRule, CuUnitPowerSource, ControlUnit,
+                               CuSectionNode)
 from ea_control.services.cu_matrix import resolve_control_units
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description
@@ -165,7 +167,8 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
                 slot=r.slot, option=r.option, brand=r.brand,
                 model_line=r.model_line, body=r.body,
                 model_line_item=r.model_line_item, control_unit=new,
-                power_supply=r.power_supply, mode=r.mode,
+                power_supply=r.power_supply, signal_power=r.signal_power,
+                mode=r.mode,
                 control_signal=r.control_signal, feedback_signal=r.feedback_signal,
                 protocol=r.protocol, device=r.device,
                 heater_supply=r.heater_supply, availability=r.availability,
@@ -240,7 +243,10 @@ CuSlotViewSet = _viewset(CuSlot, _serializer(CuSlot))
 CuSlotOptionViewSet = _viewset(CuSlotOption, _slot_option_serializer())
 CuMatrixEntryViewSet = _viewset(CuMatrixEntry, _serializer(CuMatrixEntry))
 CuSlotRuleViewSet = _viewset(CuSlotRule, _serializer(CuSlotRule))
-CuSignalFormViewSet = _viewset(CuSignalForm, _serializer(CuSignalForm))
+CuControlSignalFormViewSet = _viewset(CuControlSignalForm,
+                                       _serializer(CuControlSignalForm))
+CuFeedbackSignalFormViewSet = _viewset(CuFeedbackSignalForm,
+                                       _serializer(CuFeedbackSignalForm))
 CuControlSignalViewSet = _viewset(CuControlSignal, _serializer(CuControlSignal))
 CuFeedbackSignalViewSet = _viewset(CuFeedbackSignal, _serializer(CuFeedbackSignal))
 CuCommProtocolViewSet = _viewset(CuCommProtocol, _serializer(CuCommProtocol))
@@ -257,7 +263,6 @@ CuSignalPowerSourceViewSet = _viewset(CuSignalPowerSource,
                                       _serializer(CuSignalPowerSource))
 CuSignalPowerViewSet = _viewset(CuSignalPower, _serializer(CuSignalPower))
 CuControlLogicViewSet = _viewset(CuControlLogic, _serializer(CuControlLogic))
-CuSignalTypeViewSet = _viewset(CuSignalType, _serializer(CuSignalType))
 
 
 # ── Особые эндпоинты ────────────────────────────────────────────────────────
@@ -425,8 +430,17 @@ def package_view(request):
                 pk=request.query_params['power_supply'])
         except PowerSupplies.DoesNotExist:
             return Response({'error': 'power_supply не найден'}, status=400)
+    signal_power = None
+    if request.query_params.get('signal_power'):
+        from ea_control.models import CuSignalPower
+        try:
+            signal_power = CuSignalPower.objects.get(
+                pk=request.query_params['signal_power'])
+        except CuSignalPower.DoesNotExist:
+            return Response({'error': 'signal_power не найден'}, status=400)
     mode = request.query_params.get('mode', 'both')
     locale = request.query_params.get('locale', 'ru')
     return Response(build_package(unit, model_line=model_line,
-                                  power_supply=power_supply, mode=mode,
+                                  power_supply=power_supply,
+                                  signal_power=signal_power, mode=mode,
                                   locale=locale))

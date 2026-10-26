@@ -24,11 +24,12 @@
 from django.core.management.base import BaseCommand
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
-                               CuControlSignal, CuDisplayType, CuFeedbackDevice,
-                               CuFeedbackSignal, CuHeaterSupply,
-                               CuLocalControlType, CuLocationOption,
-                               CuMatrixEntry, CuSignalForm, CuSignalPower,
-                               CuSignalPowerSource, CuSignalType, CuSlot,
+                               CuControlSignal, CuControlSignalForm,
+                               CuDisplayType, CuFeedbackDevice,
+                               CuFeedbackSignal, CuFeedbackSignalForm,
+                               CuHeaterSupply, CuLocalControlType,
+                               CuLocationOption, CuMatrixEntry,
+                               CuSignalPower, CuSignalPowerSource, CuSlot,
                                CuSlotOption, CuSlotRule, CuUnitPowerSource,
                                ControlUnit, CuSectionNode)
 from ea_control.models.control_unit import ControlUnitKind
@@ -45,10 +46,16 @@ def _opt(code, slot, kind, **fields):
     return obj
 
 
-def _row(slot, option, cu, model_line=None, power_supply=None, **fields):
+def _row(slot, option, cu, model_line=None, power_supply=None,
+         signal_power=None, body=None, model_line_item=None, mode='both',
+         **fields):
+    # lookups — полная идентичность строки (скоуп + координаты): иначе
+    # update_or_create мог бы перезатереть строку со специфичным скоупом
     obj, _ = CuMatrixEntry.objects.update_or_create(
         slot=slot, option=option, control_unit=cu,
         model_line=model_line, power_supply=power_supply,
+        signal_power=signal_power, body=body,
+        model_line_item=model_line_item, mode=mode,
         defaults=fields)
     return obj
 
@@ -59,128 +66,135 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         forms, ctl, fb, proto, devices, heater, caps, local_ctrl, display, (
             unit_power) = self._seed_dictionaries()
-        locations, sources, powers, logics, stypes = self._seed_cu_power()
+        locations, sources, powers, logics = self._seed_cu_power(forms)
         sections, slots, opts = self._seed_structure(forms, ctl, fb, proto,
                                                      devices, heater, sources,
-                                                     powers, logics, stypes,
+                                                     powers, logics,
                                                      local_ctrl, display,
                                                      unit_power)
         cus = self._seed_units(caps, locations, ctl, fb, proto, powers, sources)
-        self._seed_matrix(slots, opts, cus)
+        self._seed_matrix(slots, opts, cus, powers)
         self._seed_rules(slots, opts)
         self.stdout.write(self.style.SUCCESS('Демо-данные ea_control готовы.'))
 
     # ── Справочники-копии ──────────────────────────────────────────────────
 
     def _seed_dictionaries(self):
-        forms = {
-            'DRY_SPST': _cu(CuSignalForm, 'DRY_SPST', name='Сухой контакт SPST',
-                            category='contact'),
-            'DRY_SPDT': _cu(CuSignalForm, 'DRY_SPDT', name='Сухой контакт SPDT',
-                            category='contact'),
-            'DRY_DPDT': _cu(CuSignalForm, 'DRY_DPDT', name='Сухой контакт DPDT',
-                            category='contact'),
-            'AN_4_20_ACTIVE': _cu(CuSignalForm, 'AN_4_20_ACTIVE',
-                                  name='Петля 4-20 мА, активная', category='analog'),
-            'AN_4_20_PASSIVE': _cu(CuSignalForm, 'AN_4_20_PASSIVE',
-                                   name='Петля 4-20 мА, пассивная', category='analog'),
-            'DISC_AC': _cu(CuSignalForm, 'DISC_AC', name='Дискретная команда AC',
-                           category='discrete'),
-            'DISC_DC': _cu(CuSignalForm, 'DISC_DC', name='Дискретная команда DC',
-                           category='discrete'),
-            'RES_POTENTIOMETER': _cu(CuSignalForm, 'RES_POTENTIOMETER',
-                                     name='Потенциометр', category='resistance'),
+        ctl_forms = {
+            'DRY_INPUT': _cu(CuControlSignalForm, 'DRY_INPUT',
+                             name='Сухой контакт (внутренний опрос +24 В)',
+                             category='dry_input'),
+            'VOLTAGE_AC': _cu(CuControlSignalForm, 'VOLTAGE_AC',
+                              name='Потенциал AC',
+                              category='voltage_ac'),
+            'VOLTAGE_DC': _cu(CuControlSignalForm, 'VOLTAGE_DC',
+                              name='Потенциал DC',
+                              category='voltage_dc'),
+            'AN_4_20_ACTIVE': _cu(CuControlSignalForm, 'AN_4_20_ACTIVE',
+                                  name='Петля 4-20 мА, активная',
+                                  category='current_4_20'),
+            'AN_4_20_PASSIVE': _cu(CuControlSignalForm, 'AN_4_20_PASSIVE',
+                                   name='Петля 4-20 мА, пассивная',
+                                   category='current_4_20'),
         }
+        fb_forms = {
+            'DRY_SPST': _cu(CuFeedbackSignalForm, 'DRY_SPST',
+                            name='Сухой контакт SPST',
+                            category='dry_output'),
+            'DRY_SPDT': _cu(CuFeedbackSignalForm, 'DRY_SPDT',
+                            name='Сухой контакт SPDT',
+                            category='dry_output'),
+            'DRY_DPDT': _cu(CuFeedbackSignalForm, 'DRY_DPDT',
+                            name='Сухой контакт DPDT',
+                            category='dry_output'),
+            'AN_4_20_ACTIVE': _cu(CuFeedbackSignalForm, 'AN_4_20_ACTIVE',
+                                  name='Петля 4-20 мА, активная',
+                                  category='current_4_20'),
+            'AN_4_20_PASSIVE': _cu(CuFeedbackSignalForm, 'AN_4_20_PASSIVE',
+                                   name='Петля 4-20 мА, пассивная',
+                                   category='current_4_20'),
+            'RES_POTENTIOMETER': _cu(CuFeedbackSignalForm,
+                                     'RES_POTENTIOMETER',
+                                     name='Потенциометр',
+                                     category='resistance'),
+        }
+        forms = {'ctl': ctl_forms, 'fb': fb_forms}
         ctl = {
-            'CMD_OCS_220AC': _cu(CuControlSignal, 'CMD_OCS_220AC',
-                                 name='Команда О/С/З 220 В AC', role='CMD_OCS',
-                                 category='discrete', form=forms['DISC_AC'],
-                                 voltage=220, wires=3),
-            'CMD_OCS_24DC': _cu(CuControlSignal, 'CMD_OCS_24DC',
-                                name='Команда О/С/З 24 В DC', role='CMD_OCS',
-                                category='discrete', form=forms['DISC_DC'],
-                                voltage=24, wires=3),
-            'CMD_REMOTE_24DC': _cu(CuControlSignal, 'CMD_REMOTE_24DC',
-                                   name='Дистанционное управление 24 В DC',
-                                   role='CMD_REMOTE', category='discrete',
-                                   form=forms['DISC_DC'], voltage=24, wires=2),
-            'CMD_LOCK_24DC': _cu(CuControlSignal, 'CMD_LOCK_24DC',
-                                 name='Блокировка 24 В DC', role='CMD_LOCK',
-                                 category='discrete', form=forms['DISC_DC'],
-                                 voltage=24, wires=2),
-            'CMD_EMERGENCY_220AC': _cu(CuControlSignal, 'CMD_EMERGENCY_220AC',
-                                       name='Аварийная команда 220 В AC',
-                                       role='CMD_EMERGENCY_CLOSE',
-                                       category='discrete', form=forms['DISC_AC'],
-                                       voltage=220, wires=2),
             'CMD_4_20MA': _cu(CuControlSignal, 'CMD_4_20MA',
-                              name='Уставка положения 4-20 мА', role='CMD_4_20MA',
-                              category='analog', form=forms['AN_4_20_PASSIVE'],
+                              name='Уставка положения 4-20 мА',
+                              role='CMD_4_20MA',
+                              category='analog',
+                              form=ctl_forms['AN_4_20_PASSIVE'],
                               wires=2),
             'CMD_4_20MA_HART': _cu(CuControlSignal, 'CMD_4_20MA_HART',
-                                   name='Уставка 4-20 мА + HART', role='CMD_4_20MA',
-                                   category='analog', form=forms['AN_4_20_PASSIVE'],
+                                   name='Уставка 4-20 мА + HART',
+                                   role='CMD_4_20MA',
+                                   category='analog',
+                                   form=ctl_forms['AN_4_20_PASSIVE'],
                                    hart=True, wires=2),
         }
         fb = {
             'FB_END_OPEN': _cu(CuFeedbackSignal, 'FB_END_OPEN',
                                name='Конечное «Открыто»', role='END_OPEN',
-                               category='contact', form=forms['DRY_SPDT'],
+                               category='contact', form=fb_forms['DRY_SPDT'],
                                max_voltage=250, max_current=5),
             'FB_END_CLOSE': _cu(CuFeedbackSignal, 'FB_END_CLOSE',
                                 name='Конечное «Закрыто»', role='END_CLOSE',
-                                category='contact', form=forms['DRY_SPDT'],
+                                category='contact', form=fb_forms['DRY_SPDT'],
                                 max_voltage=250, max_current=5),
             'FB_WAY_OPEN': _cu(CuFeedbackSignal, 'FB_WAY_OPEN',
                                name='Промежуточное «Открытие»', role='WAY_OPEN',
-                               category='contact', form=forms['DRY_SPDT'],
+                               category='contact', form=fb_forms['DRY_SPDT'],
                                max_voltage=250, max_current=5),
             'FB_TORQUE_OPEN': _cu(CuFeedbackSignal, 'FB_TORQUE_OPEN',
                                   name='Моментный «Открыто»', role='TORQUE_OPEN',
-                                  category='contact', form=forms['DRY_SPDT'],
+                                  category='contact', form=fb_forms['DRY_SPDT'],
                                   max_voltage=250, max_current=5),
             'FB_POS_POT': _cu(CuFeedbackSignal, 'FB_POS_POT',
                               name='Позиция, потенциометр', role='POSITION',
-                              category='analog', form=forms['RES_POTENTIOMETER'],
+                              category='analog',
+                              form=fb_forms['RES_POTENTIOMETER'],
                               resistance_kohm=1),
             'FB_POS_4_20MA_ACTIVE': _cu(CuFeedbackSignal, 'FB_POS_4_20MA_ACTIVE',
                                         name='Позиция 4-20 мА, активный',
                                         role='POSITION', category='analog',
-                                        form=forms['AN_4_20_ACTIVE'], wires=2),
+                                        form=fb_forms['AN_4_20_ACTIVE'],
+                                        wires=2),
             'FB_POS_4_20MA_PASSIVE': _cu(CuFeedbackSignal, 'FB_POS_4_20MA_PASSIVE',
                                          name='Позиция 4-20 мА, пассивный',
                                          role='POSITION', category='analog',
-                                         form=forms['AN_4_20_PASSIVE'], wires=2),
+                                         form=fb_forms['AN_4_20_PASSIVE'],
+                                         wires=2),
             'FB_POS_4_20MA_HART': _cu(CuFeedbackSignal, 'FB_POS_4_20MA_HART',
                                       name='Позиция 4-20 мА + HART',
                                       role='POSITION', category='analog',
-                                      form=forms['AN_4_20_PASSIVE'], hart=True,
-                                      wires=2),
+                                      form=fb_forms['AN_4_20_PASSIVE'],
+                                      hart=True, wires=2),
             'FB_OVERHEAT_NC': _cu(CuFeedbackSignal, 'FB_OVERHEAT_NC',
                                   name='Перегрев (NC)', role='OVERHEAT',
-                                  category='contact', form=forms['DRY_SPDT'],
+                                  category='contact', form=fb_forms['DRY_SPDT'],
                                   contact_normal='NC'),
             'FB_OVERHEAT_SPST_NC': _cu(CuFeedbackSignal, 'FB_OVERHEAT_SPST_NC',
                                        name='Перегрев, SPST (НЗ)',
                                        role='OVERHEAT',
                                        category='contact',
-                                       form=forms['DRY_SPST'],
+                                       form=fb_forms['DRY_SPST'],
                                        contact_normal='NC'),
             'FB_ALARM': _cu(CuFeedbackSignal, 'FB_ALARM',
                             name='Авария', role='ALARM', category='contact',
-                            form=forms['DRY_SPDT']),
+                            form=fb_forms['DRY_SPDT']),
             'FB_READY_NO': _cu(CuFeedbackSignal, 'FB_READY_NO',
                                name='Готовность (NO)', role='READY',
-                               category='contact', form=forms['DRY_SPDT'],
+                               category='contact', form=fb_forms['DRY_SPDT'],
                                contact_normal='NO'),
             'FB_REMOTE_NO': _cu(CuFeedbackSignal, 'FB_REMOTE_NO',
                                 name='Удалённое управление (SPST НО)',
                                 role='LOCAL_REMOTE',
-                                category='contact', form=forms['DRY_SPST'],
+                                category='contact', form=fb_forms['DRY_SPST'],
                                 contact_normal='NO'),
             'FB_ALARM_SPDT': _cu(CuFeedbackSignal, 'FB_ALARM_SPDT',
                                  name='Авария (SPDT: НЗ + НО)', role='ALARM',
-                                 category='contact', form=forms['DRY_SPDT'],
+                                 category='contact', form=fb_forms['DRY_SPDT'],
                                  contact_normal='CHANGEOVER'),
         }
         proto = {
@@ -252,7 +266,7 @@ class Command(BaseCommand):
         return (forms, ctl, fb, proto, devices, heater, caps, local_ctrl,
                 display, unit_power)
 
-    def _seed_cu_power(self):
+    def _seed_cu_power(self, forms):
         locations = {
             'INTEGRATED': _cu(CuLocationOption, 'INTEGRATED', name='Встроенный'),
             'SEPARATE': _cu(CuLocationOption, 'SEPARATE', name='Навесной'),
@@ -260,28 +274,51 @@ class Command(BaseCommand):
         sources = {
             'INTERNAL': _cu(CuSignalPowerSource, 'INTERNAL',
                             name='Встроенный (выдаётся приводом)',
+                            internal=True,
                             description='БУ содержит собственный источник; на '
                                         'внешнюю клемму общего провода выдаётся '
                                         '+24 В.'),
             'EXTERNAL': _cu(CuSignalPowerSource, 'EXTERNAL',
                             name='Внешний (от сторонней системы)',
+                            internal=False,
                             description='Цепи управления изолированы от '
                                         'внутренней логики; напряжение подаётся '
                                         'от стороннего источника.'),
         }
+        # флаг internal у уже существующих записей (переход на семантику)
+        for code, value in (('INTERNAL', True), ('EXTERNAL', False)):
+            CuSignalPowerSource.objects.filter(code=code).update(
+                internal=value)
         from params.models import PowerSupplies
         ps24 = PowerSupplies.objects.filter(code='24-DC').first() or PowerSupplies.objects.first()
         ps220 = PowerSupplies.objects.filter(code='220-AC').first() or PowerSupplies.objects.first()
+        ctl_forms = forms['ctl']
+
+        def _power(key, source, ps, name, input_form=None, polarity='NOT_APPLICABLE'):
+            return CuSignalPower.objects.get_or_create(
+                source=source, power_supply=ps, input_form=input_form,
+                polarity=polarity,
+                defaults=dict(name=name))[0]
+
         powers = {
-            'INT_24': CuSignalPower.objects.get_or_create(
-                source=sources['INTERNAL'], power_supply=ps24,
-                defaults=dict(name='Встроенный 24 В DC'))[0],
-            'EXT_220': CuSignalPower.objects.get_or_create(
-                source=sources['EXTERNAL'], power_supply=ps220,
-                defaults=dict(name='Внешний 220 В AC'))[0],
-            'EXT_24': CuSignalPower.objects.get_or_create(
-                source=sources['EXTERNAL'], power_supply=ps24,
-                defaults=dict(name='Внешний 24 В DC'))[0],
+            'INT_24': _power(
+                'INT_24', sources['INTERNAL'], ps24,
+                'Внутренний +24 В (сухой контакт)',
+                input_form=ctl_forms['DRY_INPUT'],
+                polarity='NOT_APPLICABLE'),
+            'EXT_220': _power(
+                'EXT_220', sources['EXTERNAL'], ps220,
+                'Внешний 220 В AC (потенциал)',
+                input_form=ctl_forms['VOLTAGE_AC'],
+                polarity='NOT_APPLICABLE'),
+            'EXT_24_PNP': _power(
+                'EXT_24_PNP', sources['EXTERNAL'], ps24,
+                'Внешний 24 В DC (PNP)',
+                input_form=ctl_forms['VOLTAGE_DC'], polarity='PNP'),
+            'EXT_24_NPN': _power(
+                'EXT_24_NPN', sources['EXTERNAL'], ps24,
+                'Внешний 24 В DC (NPN)',
+                input_form=ctl_forms['VOLTAGE_DC'], polarity='NPN'),
         }
         logics = {
             'IMPULSE': _cu(CuControlLogic, 'IMPULSE', name='Импульсная',
@@ -290,21 +327,40 @@ class Command(BaseCommand):
             'CONFIGURABLE': _cu(CuControlLogic, 'CONFIGURABLE',
                                 name='Настраиваемая', has_self_holding=True),
         }
-        stypes = {
-            'DRY': _cu(CuSignalType, 'DRY', name='Сухой контакт',
-                       logic_type='active_high', voltage=ps24),
-            'POT220': _cu(CuSignalType, 'POT220', name='Потенциал 220 В AC',
-                          logic_type='active_high', voltage=ps220),
-            'POT24': _cu(CuSignalType, 'POT24',
-                         name='Потенциал +24 В (активный)',
-                         logic_type='active_high', voltage=ps24),
-        }
-        return locations, sources, powers, logics, stypes
+        return locations, sources, powers, logics
 
     # ── Узлы / слоты / опции ───────────────────────────────────────────────
 
     def _seed_structure(self, forms, ctl, fb, proto, devices, heater, sources,
-                        powers, logics, stypes, local_ctrl, display, unit_power):
+                        powers, logics, local_ctrl, display, unit_power):
+        # ── очистка устаревших слотов/опций/сигналов (переход на новую
+        #    структуру «Дистанционное управление»; идемпотентно) ──
+        obsolete_slots = ('CMD', 'SIGNAL_POWER_SOURCE', 'CONTROL_LOGIC',
+                          'SIGNAL_TYPE')
+        CuMatrixEntry.objects.filter(
+            slot__code__in=obsolete_slots).delete()
+        CuSlot.objects.filter(code__in=obsolete_slots).delete()
+        CuSlotOption.objects.filter(code__in=(
+            'CMD_OCS', 'CMD_OCS_24', 'CMD_REMOTE', 'CMD_LOCK',
+            'CMD_EMERGENCY', 'SP_EXT_220', 'SP_EXT_24', 'SP_INT_24',
+            'LOG_IMPULSE', 'LOG_CONTINUOUS', 'LOG_CONFIGURABLE',
+            'ST_DRY', 'ST_POT220', 'ST_POT24')).delete()
+        # дискретные команды-справочники (напряжение ушло в схему цепей):
+        # удаляем все, на которые больше не ссылаются ни опция, ни строка
+        # матрицы (PROTECT не даст удалить используемые — напр. уставки)
+        CuControlSignal.objects.filter(
+            category='discrete', slot_options__isnull=True,
+            matrix_rows__isnull=True).delete()
+        # устаревшая пара «Внешний 24 В DC» без полярности (ссылки PROTECT
+        # уже сняты удалением опций и строк выше)
+        from params.models import PowerSupplies
+        ps24 = PowerSupplies.objects.filter(code='24-DC').first()
+        if ps24:
+            CuSignalPower.objects.filter(
+                source=sources['EXTERNAL'], power_supply=ps24,
+                input_form__isnull=True).exclude(
+                pk__in=[p.pk for p in powers.values()]).delete()
+
         sections = {
             'CONTROL_SIGNALS': CuSectionNode.objects.get_or_create(
                 code='CONTROL_SIGNALS', defaults=dict(name='Сигналы управления'))[0],
@@ -325,6 +381,12 @@ class Command(BaseCommand):
         cabling = CuSectionNode.objects.get_or_create(
             code='CABLING',
             defaults=dict(name='Подключение кабелей', sorting_order=50))[0]
+        # узел «Дистанционное управление»: схема цепей + состав сигналов
+        cmd_inputs = CuSectionNode.objects.get_or_create(
+            code='CMD_INPUTS',
+            defaults=dict(name='Дистанционное управление',
+                          parent=sections['CONTROL_SIGNALS'],
+                          sorting_order=10))[0]
 
         def _slot(code, **defaults):
             return CuSlot.objects.get_or_create(code=code, defaults=defaults)[0]
@@ -334,17 +396,19 @@ class Command(BaseCommand):
                                   selection_mode='single'),
             'LOCAL_CONTROL': _slot('LOCAL_CONTROL', name='Местное управление',
                                    section=sections['CONTROL_SIGNALS']),
-            'CMD': _slot('CMD', name='Команды', selection_mode='multi',
-                         section=sections['CONTROL_SIGNALS']),
+            'CMD_WIRING': _slot('CMD_WIRING', name='Схема цепей управления',
+                                section=cmd_inputs, selection_mode='single',
+                                required=True),
+            'CMD_OPEN': _slot('CMD_OPEN', name='Открыть', section=cmd_inputs,
+                              selection_mode='single'),
+            'CMD_CLOSE': _slot('CMD_CLOSE', name='Закрыть', section=cmd_inputs,
+                               selection_mode='single'),
+            'CMD_STOP': _slot('CMD_STOP', name='Стоп', section=cmd_inputs,
+                              selection_mode='single'),
+            'CMD_ESD': _slot('CMD_ESD', name='ESD (аварийная команда)',
+                             section=cmd_inputs, selection_mode='single'),
             'SETPOINT': _slot('SETPOINT', name='Уставка 4-20',
                               section=sections['CONTROL_SIGNALS']),
-            'SIGNAL_POWER_SOURCE': _slot('SIGNAL_POWER_SOURCE',
-                                         name='Питание цепей управления',
-                                         section=sections['POWER']),
-            'CONTROL_LOGIC': _slot('CONTROL_LOGIC', name='Логика работы',
-                                   section=sections['CONTROL_SIGNALS']),
-            'SIGNAL_TYPE': _slot('SIGNAL_TYPE', name='Тип управляющего сигнала',
-                                 section=sections['CONTROL_SIGNALS']),
             'LIMIT_SWITCHES': _slot('LIMIT_SWITCHES', name='Концевые выключатели',
                                     section=sections['FEEDBACK']),
             'WAY_SWITCHES': _slot('WAY_SWITCHES', name='Путевые выключатели',
@@ -409,38 +473,35 @@ class Command(BaseCommand):
         opts['BUTTONS'] = _none('BUTTONS', slots['LOCAL_CONTROL'], 'Кнопки')
         opts['SELECTOR'] = _none('SELECTOR', slots['LOCAL_CONTROL'], 'Селектор')
         opts['LOCAL_NONE'] = _none('LOCAL_NONE', slots['LOCAL_CONTROL'], 'Нет')
-        opts['CMD_OCS'] = _opt('CMD_OCS', slots['CMD'], 'signal',
-                               control_signal=ctl['CMD_OCS_220AC'])
-        opts['CMD_OCS_24'] = _opt('CMD_OCS_24', slots['CMD'], 'signal',
-                                  control_signal=ctl['CMD_OCS_24DC'])
-        opts['CMD_REMOTE'] = _opt('CMD_REMOTE', slots['CMD'], 'signal',
-                                  control_signal=ctl['CMD_REMOTE_24DC'])
-        opts['CMD_LOCK'] = _opt('CMD_LOCK', slots['CMD'], 'signal',
-                                control_signal=ctl['CMD_LOCK_24DC'])
-        opts['CMD_EMERGENCY'] = _opt('CMD_EMERGENCY', slots['CMD'], 'signal',
-                                     control_signal=ctl['CMD_EMERGENCY_220AC'])
+        # схема цепей управления: опция = пара источник × напряжение ×
+        # форма × полярность (kind=power → CuSignalPower)
+        opts['W_INT_24'] = _opt('W_INT_24', slots['CMD_WIRING'], 'power',
+                                signal_power=powers['INT_24'])
+        opts['W_EXT_220'] = _opt('W_EXT_220', slots['CMD_WIRING'], 'power',
+                                 signal_power=powers['EXT_220'])
+        opts['W_EXT_24_PNP'] = _opt('W_EXT_24_PNP', slots['CMD_WIRING'], 'power',
+                                    signal_power=powers['EXT_24_PNP'])
+        opts['W_EXT_24_NPN'] = _opt('W_EXT_24_NPN', slots['CMD_WIRING'], 'power',
+                                    signal_power=powers['EXT_24_NPN'])
+        # сигнальные слоты дистанционного управления: опция = логика работы
+        # сигнала + явная опция «Отсутствие сигнала» (в основном для СТОП,
+        # но доступна в каждом слоте — единообразно)
+        for prefix, name in (('CMD_OPEN', 'Открыть'), ('CMD_CLOSE', 'Закрыть'),
+                             ('CMD_STOP', 'Стоп'), ('CMD_ESD', 'ESD')):
+            opts[f'{prefix}_IMP'] = _opt(f'{prefix}_IMP', slots[prefix], 'logic',
+                                         control_logic=logics['IMPULSE'])
+            opts[f'{prefix}_CONT'] = _opt(f'{prefix}_CONT', slots[prefix],
+                                          'logic',
+                                          control_logic=logics['CONTINUOUS'])
+            opts[f'{prefix}_CONF'] = _opt(f'{prefix}_CONF', slots[prefix],
+                                          'logic',
+                                          control_logic=logics['CONFIGURABLE'])
+            opts[f'{prefix}_NONE'] = _none(f'{prefix}_NONE', slots[prefix],
+                                           'Отсутствие сигнала')
         opts['SETPOINT_4_20'] = _opt('SETPOINT_4_20', slots['SETPOINT'], 'signal',
                                      control_signal=ctl['CMD_4_20MA'])
         opts['SETPOINT_HART'] = _opt('SETPOINT_HART', slots['SETPOINT'], 'signal',
                                      control_signal=ctl['CMD_4_20MA_HART'])
-        opts['SP_EXT_220'] = _opt('SP_EXT_220', slots['SIGNAL_POWER_SOURCE'],
-                                  'power', signal_power=powers['EXT_220'])
-        opts['SP_EXT_24'] = _opt('SP_EXT_24', slots['SIGNAL_POWER_SOURCE'],
-                                 'power', signal_power=powers['EXT_24'])
-        opts['SP_INT_24'] = _opt('SP_INT_24', slots['SIGNAL_POWER_SOURCE'],
-                                 'power', signal_power=powers['INT_24'])
-        opts['LOG_IMPULSE'] = _opt('LOG_IMPULSE', slots['CONTROL_LOGIC'], 'logic',
-                                   control_logic=logics['IMPULSE'])
-        opts['LOG_CONTINUOUS'] = _opt('LOG_CONTINUOUS', slots['CONTROL_LOGIC'],
-                                      'logic', control_logic=logics['CONTINUOUS'])
-        opts['LOG_CONFIGURABLE'] = _opt('LOG_CONFIGURABLE', slots['CONTROL_LOGIC'],
-                                        'logic', control_logic=logics['CONFIGURABLE'])
-        opts['ST_DRY'] = _opt('ST_DRY', slots['SIGNAL_TYPE'], 'signal_type',
-                              signal_type=stypes['DRY'])
-        opts['ST_POT220'] = _opt('ST_POT220', slots['SIGNAL_TYPE'], 'signal_type',
-                                 signal_type=stypes['POT220'])
-        opts['ST_POT24'] = _opt('ST_POT24', slots['SIGNAL_TYPE'], 'signal_type',
-                                signal_type=stypes['POT24'])
         # обратная связь
         opts['END_SPDT'] = _opt('END_SPDT', slots['LIMIT_SWITCHES'], 'pair',
                                 name='Концевые SPDT', ext_encoding='E1')
@@ -655,17 +716,18 @@ class Command(BaseCommand):
             signal_power=powers['EXT_220'], legacy_cu=_legacy('basic'),
             name_template='БУ базовый {code}',
             description_template='Базовый блок управления {brand} (AOX-M): '
-                                 'команды О/С/З потенциальной логикой (стоп — '
-                                 'отсутствием сигнала), цепи управления от '
-                                 'внешнего источника 220 В (опция 24 В), '
-                                 'концевые и моментные выключатели, '
-                                 'перегрев SPST (НЗ), обогрев отдельной '
-                                 'линией.',
+                                 'команды Открыть/Закрыть потенциальной '
+                                 'логикой (Стоп — отсутствием сигнала), цепи '
+                                 'управления от внешнего источника 220 В '
+                                 '(опция: +24 В от внутреннего источника, '
+                                 'сухой контакт), концевые и моментные '
+                                 'выключатели, перегрев SPST (НЗ), обогрев '
+                                 'отдельной линией.',
             spec_template={'Основные': {'Класс БУ': '_res_kind',
                                         'Питание цепей': '_res_signal_power'},
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
-        basic.accepts.set([ctl['CMD_OCS_220AC'], ctl['CMD_EMERGENCY_220AC']])
+        basic.accepts.set([])
         basic.emits.set([fb['FB_END_OPEN'], fb['FB_END_CLOSE'],
                          fb['FB_TORQUE_OPEN']])
         basic.capabilities.set([caps['LOCAL_CONTROL']])
@@ -683,8 +745,7 @@ class Command(BaseCommand):
                            'Связь': {'Протоколы': '_res_protocols'},
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
-        int_unit.accepts.set([ctl['CMD_OCS_220AC'], ctl['CMD_REMOTE_24DC'],
-                              ctl['CMD_LOCK_24DC'], ctl['CMD_4_20MA']])
+        int_unit.accepts.set([ctl['CMD_4_20MA']])
         int_unit.emits.set([fb['FB_END_OPEN'], fb['FB_END_CLOSE'],
                             fb['FB_WAY_OPEN'], fb['FB_TORQUE_OPEN'],
                             fb['FB_POS_4_20MA_ACTIVE'], fb['FB_ALARM'],
@@ -729,14 +790,16 @@ class Command(BaseCommand):
             location=locations['SEPARATE'], control_voltage=ps380,
             signal_power=powers['INT_24'], legacy_cu=_legacy('int-o'),
             name_template='БУ INT/O {code}',
-            description_template='БУ INT/O {brand}: навесной, команды О/С/З '
-                                 '(активный +24 В или внешние 220 В), '
-                                 'светодиодная индикация, стартер (380 В).',
+            description_template='БУ INT/O {brand}: навесной, команды '
+                                 'Открыть/Закрыть (+24 В от внутреннего '
+                                 'источника — сухой контакт; опция: внешние '
+                                 '220 В AC), светодиодная индикация, стартер '
+                                 '(380 В).',
             spec_template={'Основные': {'Класс БУ': '_res_kind',
                                         'Питание цепей': '_res_signal_power'},
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
-        int_o.accepts.set([ctl['CMD_OCS_24DC'], ctl['CMD_OCS_220AC']])
+        int_o.accepts.set([])
         int_o.emits.set([fb['FB_END_OPEN'], fb['FB_END_CLOSE'],
                          fb['FB_REMOTE_NO'], fb['FB_ALARM_SPDT']])
         int_o.capabilities.set([caps['LOCAL_CONTROL'], caps['DISPLAY']])
@@ -747,12 +810,24 @@ class Command(BaseCommand):
         CuSlotOption.objects.filter(code='CU_INT_MB').update(control_unit=int_mb)
         CuSlotOption.objects.filter(code='CU_POSI').update(control_unit=posi)
         CuSlotOption.objects.filter(code='CU_INT_O').update(control_unit=int_o)
+
+        # типовая схема цепей — на новые пары (старые пары без input_form
+        # удаляются: они остались от прежней структуры SIGNAL_POWER_SOURCE)
+        for unit, pair in ((basic, powers['EXT_220']),
+                           (int_unit, powers['INT_24']),
+                           (int_mb, powers['INT_24']),
+                           (posi, powers['INT_24']),
+                           (int_o, powers['INT_24'])):
+            if unit.signal_power_id != pair.id:
+                unit.signal_power = pair
+                unit.save(update_fields=['signal_power'])
+        CuSignalPower.objects.filter(input_form__isnull=True).delete()
         return {'basic': basic, 'int': int_unit, 'int_mb': int_mb, 'posi': posi,
                 'int_o': int_o}
 
     # ── Матрица ────────────────────────────────────────────────────────────
 
-    def _seed_matrix(self, slots, opts, cus):
+    def _seed_matrix(self, slots, opts, cus, powers):
         from params.models import PowerSupplies
         from electric_actuators.models import ElectricActuatorModelLine
 
@@ -770,9 +845,26 @@ class Command(BaseCommand):
         # обогрев — отдельной линией (опция от питания привода)
         p = [
             (slots['LOCAL_CONTROL'], opts['LOCAL_NONE'], std),
-            (slots['CMD'], opts['CMD_OCS'], std),
-            (slots['CMD'], opts['CMD_REMOTE'], std),
-            (slots['CMD'], opts['CMD_EMERGENCY'], opt),
+            (slots['CMD_WIRING'], opts['W_EXT_220'], std),
+            (slots['CMD_WIRING'], opts['W_INT_24'], opt),
+            (slots['CMD_WIRING'], opts['W_EXT_24_PNP'], na),
+            (slots['CMD_WIRING'], opts['W_EXT_24_NPN'], na),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_CONT'], std),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_IMP'], na),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_CONF'], na),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_NONE'], na),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_CONT'], std),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_IMP'], na),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_CONF'], na),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_NONE'], na),
+            (slots['CMD_STOP'], opts['CMD_STOP_NONE'], std),
+            (slots['CMD_STOP'], opts['CMD_STOP_CONT'], na),
+            (slots['CMD_STOP'], opts['CMD_STOP_IMP'], na),
+            (slots['CMD_STOP'], opts['CMD_STOP_CONF'], na),
+            (slots['CMD_ESD'], opts['CMD_ESD_NONE'], std),
+            (slots['CMD_ESD'], opts['CMD_ESD_CONT'], na),
+            (slots['CMD_ESD'], opts['CMD_ESD_IMP'], na),
+            (slots['CMD_ESD'], opts['CMD_ESD_CONF'], na),
             (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
             (slots['TORQUE_SWITCHES'], opts['TORQUE_SPDT'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_NONE'], std),
@@ -781,20 +873,13 @@ class Command(BaseCommand):
             (slots['TURN_COUNTER'], opts['TC_NONE'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_SEP'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_MOTOR'], opt),
-            (slots['SIGNAL_POWER_SOURCE'], opts['SP_EXT_220'], std),
-            (slots['SIGNAL_POWER_SOURCE'], opts['SP_EXT_24'], opt),
-            (slots['CONTROL_LOGIC'], opts['LOG_CONTINUOUS'], std),
-            (slots['SIGNAL_TYPE'], opts['ST_POT220'], std),
-            (slots['SIGNAL_TYPE'], opts['ST_DRY'], opt),
         ]
         for slot, option, avail in p:
             _row(slot, option, cus['basic'], availability=avail)
         # явные na для базового (update_or_create обновит прежние std-строки)
         for slot_code, opt_codes in [
                 ('THERMAL_SENSOR', ['NO_SENSOR', 'OVERHEAT_NC']),
-                ('HEATER_CONTROL_UNIT', ['H_NO']),
-                ('SIGNAL_POWER_SOURCE', ['SP_INT_24']),
-                ('CONTROL_LOGIC', ['LOG_IMPULSE', 'LOG_CONFIGURABLE'])]:
+                ('HEATER_CONTROL_UNIT', ['H_NO'])]:
             for oc in opt_codes:
                 _row(slots[slot_code], opts[oc], cus['basic'], availability=na)
         _row(slots['LOCAL_CONTROL'], opts['BUTTONS'], cus['basic'],
@@ -805,9 +890,26 @@ class Command(BaseCommand):
         # профиль БУ INT
         p = [
             (slots['LOCAL_CONTROL'], opts['SELECTOR'], std),
-            (slots['CMD'], opts['CMD_OCS'], std),
-            (slots['CMD'], opts['CMD_REMOTE'], opt),
-            (slots['CMD'], opts['CMD_LOCK'], opt),
+            (slots['CMD_WIRING'], opts['W_INT_24'], std),
+            (slots['CMD_WIRING'], opts['W_EXT_220'], opt),
+            (slots['CMD_WIRING'], opts['W_EXT_24_PNP'], na),
+            (slots['CMD_WIRING'], opts['W_EXT_24_NPN'], na),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_CONF'], std),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_IMP'], opt),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_CONT'], opt),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_NONE'], na),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_CONF'], std),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_IMP'], opt),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_CONT'], opt),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_NONE'], na),
+            (slots['CMD_STOP'], opts['CMD_STOP_CONF'], std),
+            (slots['CMD_STOP'], opts['CMD_STOP_NONE'], opt),
+            (slots['CMD_STOP'], opts['CMD_STOP_IMP'], opt),
+            (slots['CMD_STOP'], opts['CMD_STOP_CONT'], opt),
+            (slots['CMD_ESD'], opts['CMD_ESD_NONE'], std),
+            (slots['CMD_ESD'], opts['CMD_ESD_CONF'], opt),
+            (slots['CMD_ESD'], opts['CMD_ESD_CONT'], opt),
+            (slots['CMD_ESD'], opts['CMD_ESD_IMP'], na),
             (slots['SETPOINT'], opts['SETPOINT_4_20'], opt),
             (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
             (slots['WAY_SWITCHES'], opts['WAY_SPDT'], opt),
@@ -818,9 +920,6 @@ class Command(BaseCommand):
             (slots['INDICATOR'], opts['LCD'], std),
             (slots['TURN_COUNTER'], opts['TC_EL'], opt),
             (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
-            (slots['SIGNAL_POWER_SOURCE'], opts['SP_INT_24'], std),
-            (slots['CONTROL_LOGIC'], opts['LOG_CONFIGURABLE'], std),
-            (slots['SIGNAL_TYPE'], opts['ST_DRY'], std),
         ]
         rows = {}
         for slot, option, avail in p:
@@ -849,6 +948,15 @@ class Command(BaseCommand):
         # профиль БУ позиционер
         p = [
             (slots['LOCAL_CONTROL'], opts['SELECTOR'], std),
+            (slots['CMD_WIRING'], opts['W_INT_24'], std),
+            (slots['CMD_WIRING'], opts['W_EXT_24_PNP'], opt),
+            (slots['CMD_WIRING'], opts['W_EXT_24_NPN'], na),
+            (slots['CMD_WIRING'], opts['W_EXT_220'], na),
+            # дискретного управления нет — управление уставкой по петле
+            (slots['CMD_OPEN'], opts['CMD_OPEN_NONE'], std),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_NONE'], std),
+            (slots['CMD_STOP'], opts['CMD_STOP_NONE'], std),
+            (slots['CMD_ESD'], opts['CMD_ESD_NONE'], std),
             (slots['SETPOINT'], opts['SETPOINT_HART'], std),
             (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
             (slots['TORQUE_SWITCHES'], opts['TORQUE_SPDT'], std),
@@ -856,12 +964,16 @@ class Command(BaseCommand):
             (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
             (slots['INDICATOR'], opts['LCD'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
-            (slots['SIGNAL_POWER_SOURCE'], opts['SP_INT_24'], std),
-            (slots['CONTROL_LOGIC'], opts['LOG_CONTINUOUS'], std),
-            (slots['SIGNAL_TYPE'], opts['ST_DRY'], std),
         ]
         for slot, option, avail in p:
             _row(slot, option, cus['posi'], availability=avail)
+        # «набор сигналов — опции схемы»: у позиционера дискретные команды
+        # появляются только при внешней схеме 24 В DC (PNP) — строки с
+        # координатой signal_power перекрывают профильные «нет сигнала»
+        for slot_code, opt_code in (('CMD_OPEN', 'CMD_OPEN_CONT'),
+                                    ('CMD_CLOSE', 'CMD_CLOSE_CONT')):
+            _row(slots[slot_code], opts[opt_code], cus['posi'],
+                 signal_power=powers['EXT_24_PNP'], availability=opt)
 
         # местная индикация — профили БУ
         led_lcd = {
@@ -953,8 +1065,6 @@ class Command(BaseCommand):
             (slots['LOCAL_CONTROL'], opts['SELECTOR'], opt),
             (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], std),
             (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_SEL'], opt),
-            (slots['CMD'], opts['CMD_OCS_24'], std),
-            (slots['CMD'], opts['CMD_OCS'], opt),
             (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
             (slots['LIMIT_SWITCHES'], opts['END_DPDT'], opt),
             (slots['TORQUE_SWITCHES'], opts['TORQUE_NONE'], std),
@@ -969,11 +1079,26 @@ class Command(BaseCommand):
             (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_MOTOR'], opt),
             (slots['HEATER_CONTROL_UNIT'], opts['H_SEP'], opt),
-            (slots['SIGNAL_POWER_SOURCE'], opts['SP_INT_24'], std),
-            (slots['SIGNAL_POWER_SOURCE'], opts['SP_EXT_220'], opt),
-            (slots['CONTROL_LOGIC'], opts['LOG_CONTINUOUS'], std),
-            (slots['SIGNAL_TYPE'], opts['ST_POT24'], std),
-            (slots['SIGNAL_TYPE'], opts['ST_POT220'], opt),
+            (slots['CMD_WIRING'], opts['W_INT_24'], std),
+            (slots['CMD_WIRING'], opts['W_EXT_220'], opt),
+            (slots['CMD_WIRING'], opts['W_EXT_24_PNP'], na),
+            (slots['CMD_WIRING'], opts['W_EXT_24_NPN'], na),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_CONT'], std),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_IMP'], na),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_CONF'], na),
+            (slots['CMD_OPEN'], opts['CMD_OPEN_NONE'], na),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_CONT'], std),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_IMP'], na),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_CONF'], na),
+            (slots['CMD_CLOSE'], opts['CMD_CLOSE_NONE'], na),
+            (slots['CMD_STOP'], opts['CMD_STOP_NONE'], std),
+            (slots['CMD_STOP'], opts['CMD_STOP_CONT'], opt),
+            (slots['CMD_STOP'], opts['CMD_STOP_IMP'], na),
+            (slots['CMD_STOP'], opts['CMD_STOP_CONF'], na),
+            (slots['CMD_ESD'], opts['CMD_ESD_NONE'], std),
+            (slots['CMD_ESD'], opts['CMD_ESD_CONT'], na),
+            (slots['CMD_ESD'], opts['CMD_ESD_IMP'], na),
+            (slots['CMD_ESD'], opts['CMD_ESD_CONF'], na),
             (slots['CU_POWER_SUPPLY'], opts['PU_SEPARATE'], std),
             (slots['CU_POWER_SUPPLY'], opts['PU_SHARED'], opt),
             (slots['CU_CABLE_GLANDS'], opts['CG_NPT_112_34'], std),
@@ -1072,12 +1197,10 @@ class Command(BaseCommand):
         _rule(slots['control_unit'], slots['SETPOINT'], 'hide',
               when_value='CU_BASIC',
               description='Базовому БУ уставку не показываем')
-        _rule(slots['control_unit'], slots['CMD'], 'hide',
-              when_value='CU_POSI',
-              description='Позиционеру дискретные команды не показываем')
-        _rule(slots['control_unit'], slots['SIGNAL_TYPE'], 'hide',
-              when_value='CU_POSI',
-              description='Позиционеру тип управляющего сигнала не показываем')
+        for cmd_slot in ('CMD_OPEN', 'CMD_CLOSE', 'CMD_STOP', 'CMD_ESD'):
+            _rule(slots['control_unit'], slots[cmd_slot], 'hide',
+                  when_value='CU_POSI',
+                  description='Позиционеру дискретные команды не показываем')
         _rule(slots['control_unit'], slots['PROTOCOL'], 'show',
               when_value='CU_INT_MB',
               description='БУ INT Modbus — показываем шину')

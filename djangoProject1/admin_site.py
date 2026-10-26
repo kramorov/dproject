@@ -152,7 +152,8 @@ ADMIN_MODEL_BLOCK = {
     ('ea_control', 'CuSlotOption'): 'ea_control',
     ('ea_control', 'CuMatrixEntry'): 'ea_control',
     ('ea_control', 'CuSlotRule'): 'ea_control',
-    ('ea_control', 'CuSignalForm'): 'ea_control',
+    ('ea_control', 'CuControlSignalForm'): 'ea_control',
+    ('ea_control', 'CuFeedbackSignalForm'): 'ea_control',
     ('ea_control', 'CuControlSignal'): 'ea_control',
     ('ea_control', 'CuFeedbackSignal'): 'ea_control',
     ('ea_control', 'CuCommProtocol'): 'ea_control',
@@ -163,7 +164,6 @@ ADMIN_MODEL_BLOCK = {
     ('ea_control', 'CuSignalPowerSource'): 'ea_control',
     ('ea_control', 'CuSignalPower'): 'ea_control',
     ('ea_control', 'CuControlLogic'): 'ea_control',
-    ('ea_control', 'CuSignalType'): 'ea_control',
     # --- Электроприводы: опции (ETT) ---
     ('ett', 'DnType'): 'ett',
     ('ett', 'EttActuatorType'): 'ett',

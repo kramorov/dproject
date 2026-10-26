@@ -14,7 +14,14 @@ from ea_control.models import CuMatrixEntry, CuSectionNode, CuSlot
 
 
 def build_description(control_unit, locale=None):
-    """Структурированное описание БУ: {unit, sections[{slots[{options}]}]}."""
+    """Структурированное описание БУ: {unit, sections[{slots[{options}]}]}.
+
+    В отчёт входят ВСЕ узлы дерева (включая выключенные — с пометкой
+    ``is_active=False``): описание предназначено для сверки с производителем,
+    полнота важнее видимости в конфигураторе. Так выключенный родитель не
+    скрывает активных детей (например, «Дистанционное управление» под
+    выключенной секцией «Сигналы управления»).
+    """
     rows = (CuMatrixEntry.objects
             .filter(control_unit=control_unit)
             .exclude(slot__code='control_unit')
@@ -44,7 +51,7 @@ def build_description(control_unit, locale=None):
                         key=lambda o: (o.sorting_order, o.code)):
             options.append({
                 'code': o.code,
-                'name': pick_i18n(o.name_i18n, locale, fallback=o.name or o.code),
+                'name': o.localized_name(locale),
                 'availability': marks.get(o.id, 'na'),
             })
         slot_payloads[s.id] = {
@@ -54,8 +61,7 @@ def build_description(control_unit, locale=None):
         }
         slots_by_section.setdefault(s.section_id, []).append(s)
 
-    nodes = list(CuSectionNode.objects.filter(is_active=True)
-                 .order_by('sorting_order', 'code'))
+    nodes = list(CuSectionNode.objects.all().order_by('sorting_order', 'code'))
     by_parent = {}
     for n in nodes:
         by_parent.setdefault(n.parent_id or 0, []).append(n)
@@ -66,8 +72,10 @@ def build_description(control_unit, locale=None):
         for n in by_parent.get(parent_id, []):
             sections.append({
                 'code': n.code,
-                'name': pick_i18n(n.name_i18n, locale, fallback=n.name or n.code),
+                'name': pick_i18n(n.name_i18n, locale,
+                                  fallback=n.name or n.code),
                 'depth': depth,
+                'is_active': n.is_active,
                 'slots': [slot_payloads[s.id]
                           for s in slots_by_section.get(n.id, [])],
             })
@@ -80,6 +88,7 @@ def build_description(control_unit, locale=None):
             'code': '',
             'name': 'Без раздела',
             'depth': 0,
+            'is_active': True,
             'slots': [slot_payloads[s.id] for s in orphans],
         })
 

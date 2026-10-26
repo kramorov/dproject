@@ -12,7 +12,10 @@ router.register('slots', api.CuSlotViewSet, basename='cu-slot')
 router.register('slot-options', api.CuSlotOptionViewSet, basename='cu-slot-option')
 router.register('matrix-entries', api.CuMatrixEntryViewSet, basename='cu-matrix')
 router.register('slot-rules', api.CuSlotRuleViewSet, basename='cu-rule')
-router.register('signal-forms', api.CuSignalFormViewSet, basename='cu-form')
+router.register('control-signal-forms', api.CuControlSignalFormViewSet,
+                basename='cu-ctl-form')
+router.register('feedback-signal-forms', api.CuFeedbackSignalFormViewSet,
+                basename='cu-fb-form')
 router.register('control-signals', api.CuControlSignalViewSet, basename='cu-ctl')
 router.register('feedback-signals', api.CuFeedbackSignalViewSet, basename='cu-fb')
 router.register('comm-protocols', api.CuCommProtocolViewSet, basename='cu-proto')
@@ -29,7 +32,6 @@ router.register('signal-power-sources', api.CuSignalPowerSourceViewSet,
                 basename='cu-sp-source')
 router.register('signal-powers', api.CuSignalPowerViewSet, basename='cu-sp')
 router.register('control-logics', api.CuControlLogicViewSet, basename='cu-logic')
-router.register('signal-types', api.CuSignalTypeViewSet, basename='cu-stype')
 
 urlpatterns = [
     path('units/', api.units_view, name='cu_units'),
