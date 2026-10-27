@@ -14,9 +14,23 @@ function getCSRF() {
   const m = document.cookie.match(/csrftoken=([^;]+)/)
   return m ? m[1] : ''
 }
-api.interceptors.request.use(c => {
+
+// Если csrftoken-куки нет — один раз дозапросить её с бэка
+// (GET /auth/login/ ставит куку через ensure_csrf_cookie), чтобы
+// запись не падала с «CSRF Failed: CSRF cookie not set».
+let csrfBootstrap = null
+function ensureCsrfToken() {
+  if (getCSRF()) return Promise.resolve()
+  if (!csrfBootstrap) {
+    csrfBootstrap = api.get('/auth/login/').catch(() => {}).finally(() => { csrfBootstrap = null })
+  }
+  return csrfBootstrap
+}
+
+api.interceptors.request.use(async c => {
   const method = c.method?.toLowerCase()
   if (method === 'post' || method === 'put' || method === 'patch' || method === 'delete') {
+    await ensureCsrfToken()
     c.headers['X-CSRFToken'] = getCSRF()
   }
   // Локализация данных на бэкенде (Фаза 4)

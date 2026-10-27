@@ -57,6 +57,9 @@ def _serializer(model_cls):
         class Meta:
             model = model_cls
             fields = '__all__'
+            # i18n синхронизируется миксином из name/description (только ru);
+            # полный PUT без этих полей не должен сбрасывать переводы en/cn.
+            read_only_fields = ('name_i18n', 'description_i18n')
     S.__name__ = f'{model_cls.__name__}Serializer'
     return S
 
@@ -82,6 +85,7 @@ def _slot_option_serializer():
         class Meta:
             model = CuSlotOption
             fields = '__all__'
+            read_only_fields = ('name_i18n', 'description_i18n')
 
         def validate(self, attrs):
             kind = attrs.get('kind', getattr(self.instance, 'kind', None))

@@ -30,6 +30,7 @@
 
       <div v-else class="editors">
         <div v-if="error" class="save-error">{{ error }}</div>
+        <div v-if="success" class="save-ok">{{ success }}</div>
         <!-- УЗЕЛ -->
         <div class="editor">
           <div class="editor-head">
@@ -90,9 +91,9 @@
             <div class="form" @input="markDirty('slot')" @change="markDirty('slot')">
               <div class="form-row">
                 <label class="form-field"><span>Код</span><input v-model="selSlot.code" /></label>
-                <label class="form-field"><span>Родитель</span>
+                <label class="form-field"><span>Раздел</span>
                   <select v-model="selSlot.section">
-                    <option :value="null">— без секции —</option>
+                    <option :value="null">— без раздела —</option>
                     <option v-for="o in sectionOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
                   </select>
                 </label>
@@ -310,6 +311,7 @@ import EditorActions from '@/components/EditorActions.vue'
 
 const loading = ref(false)
 const error = ref('')
+const success = ref('')
 const sections = ref([])
 const slots = ref([])
 const options = ref([])
@@ -349,6 +351,8 @@ const nodeButtons = computed(() => [
 ])
 
 const slotButtons = computed(() => [
+  { key: 'copy', label: 'Копировать', kind: 'default' },
+  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !hasSlotChanges.value },
   { key: 'delete',
     label: (selSlot.value && selSlot.value._deleted) ? t('eaControl.cancelDelete') : t('eaControl.deleteSlot'),
     kind: (selSlot.value && selSlot.value._deleted) ? 'danger' : 'default' },
@@ -367,7 +371,9 @@ function onNodeAction(b) {
 }
 
 function onSlotAction(b) {
-  if (b.key === 'delete') toggleDeleteSlot()
+  if (b.key === 'save') commitSlot()
+  else if (b.key === 'copy') copySlot()
+  else if (b.key === 'delete') toggleDeleteSlot()
   else if (b.key === 'add') addSlot()
 }
 
@@ -436,6 +442,11 @@ const hasPendingDeletes = computed(() => {
 
 const hasChanges = computed(() =>
   dirty.node || dirty.slot || dirty.option || hasPendingDeletes.value)
+
+const hasSlotChanges = computed(() =>
+  dirty.slot || dirty.option
+  || (selSlot.value && selSlot.value._deleted)
+  || (selSlot.value && (selSlot.value.options || []).some(o => o._deleted)))
 
 function markDirty(kind) {
   dirty[kind] = true
@@ -681,6 +692,59 @@ function cleanOption(o) {
   return p
 }
 
+function validateSlotDraft(slot, seenSlotCodes) {
+  const errs = []
+  const slotLabel = slot.name || slot.code || 'новый слот'
+  if (!slot.code || !slot.code.trim()) {
+    errs.push(`слот «${slotLabel}»: код`)
+  } else {
+    const code = slot.code.trim()
+    if (seenSlotCodes.has(code)) {
+      errs.push(`слот «${slotLabel}»: код «${code}» повторяется в этом узле`)
+    }
+    seenSlotCodes.add(code)
+    if (slots.value.some(s => s.code === code && s.id !== slot.id)) {
+      errs.push(`слот «${slotLabel}»: код «${code}» уже занят другим слотом`)
+    }
+  }
+  const seenOptCodes = new Set()
+  for (const opt of (slot.options || [])) {
+    if (opt._deleted) continue
+    const optLabel = opt.name || opt.code || 'новая опция'
+    if (!opt.code || !opt.code.trim()) {
+      errs.push(`опция в слоте «${slotLabel}»: код`)
+      continue
+    }
+    const ocode = opt.code.trim()
+    if (seenOptCodes.has(ocode)) {
+      errs.push(`опция в слоте «${slotLabel}»: код «${ocode}» повторяется`)
+    }
+    seenOptCodes.add(ocode)
+    if (options.value.some(o => o.code === ocode && o.id !== opt.id)) {
+      errs.push(`опция в слоте «${slotLabel}»: код «${ocode}» уже занят другой опцией`)
+    }
+    if ((opt.kind === 'none' || opt.kind === 'pair') && (!opt.name || !opt.name.trim())) {
+      errs.push(`опция в слоте «${slotLabel}»: название (обязательно для none/pair)`)
+    }
+    if (opt.kind === 'display' && !(opt.display_types || []).length) {
+      errs.push(`опция в слоте «${slotLabel}»: вид отображения`)
+    }
+    if (opt.kind === 'unit_power' && !opt.unit_power_source) {
+      errs.push(`опция в слоте «${slotLabel}»: питание БУ`)
+    }
+    if (opt.kind === 'power' && !opt.signal_power) {
+      errs.push(`опция в слоте «${slotLabel}»: схема цепей управления`)
+    }
+    if (opt.kind === 'logic' && !opt.control_logic) {
+      errs.push(`опция в слоте «${slotLabel}»: логика работы`)
+    }
+    if (opt.kind === 'cable_gland' && !opt.cable_gland_set) {
+      errs.push(`опция в слоте «${slotLabel}»: набор резьб вводов`)
+    }
+  }
+  return errs
+}
+
 function validateDraft() {
   const errs = []
   if (!draft.node.code || !draft.node.code.trim()) errs.push('узел: код')
@@ -692,55 +756,62 @@ function validateDraft() {
   const seenSlotCodes = new Set()
   for (const slot of draft.slots) {
     if (slot._deleted) continue
-    const slotLabel = slot.name || slot.code || 'новый слот'
-    if (!slot.code || !slot.code.trim()) errs.push(`слот «${slotLabel}»: код`)
-    else {
-      const code = slot.code.trim()
-      if (seenSlotCodes.has(code)) {
-        errs.push(`слот «${slotLabel}»: код «${code}» повторяется в этом узле`)
-      }
-      seenSlotCodes.add(code)
-      if (slots.value.some(s => s.code === code && s.id !== slot.id)) {
-        errs.push(`слот «${slotLabel}»: код «${code}» уже занят другим слотом`)
-      }
-    }
-    const seenOptCodes = new Set()
-    for (const opt of (slot.options || [])) {
-      if (opt._deleted) continue
-      const optLabel = opt.name || opt.code || 'новая опция'
-      if (!opt.code || !opt.code.trim()) {
-        errs.push(`опция в слоте «${slotLabel}»: код`)
-        continue
-      }
-      const ocode = opt.code.trim()
-      if (seenOptCodes.has(ocode)) {
-        errs.push(`опция в слоте «${slotLabel}»: код «${ocode}» повторяется`)
-      }
-      seenOptCodes.add(ocode)
-      if (options.value.some(o => o.code === ocode && o.id !== opt.id)) {
-        errs.push(`опция в слоте «${slotLabel}»: код «${ocode}» уже занят другой опцией`)
-      }
-      if ((opt.kind === 'none' || opt.kind === 'pair') && (!opt.name || !opt.name.trim())) {
-        errs.push(`опция в слоте «${slotLabel}»: название (обязательно для none/pair)`)
-      }
-      if (opt.kind === 'display' && !(opt.display_types || []).length) {
-        errs.push(`опция в слоте «${slotLabel}»: вид отображения`)
-      }
-      if (opt.kind === 'unit_power' && !opt.unit_power_source) {
-        errs.push(`опция в слоте «${slotLabel}»: питание БУ`)
-      }
-      if (opt.kind === 'power' && !opt.signal_power) {
-        errs.push(`опция в слоте «${slotLabel}»: схема цепей управления`)
-      }
-      if (opt.kind === 'logic' && !opt.control_logic) {
-        errs.push(`опция в слоте «${slotLabel}»: логика работы`)
-      }
-      if (opt.kind === 'cable_gland' && !opt.cable_gland_set) {
-        errs.push(`опция в слоте «${slotLabel}»: набор резьб вводов`)
-      }
-    }
+    errs.push(...validateSlotDraft(slot, seenSlotCodes))
   }
   return errs
+}
+
+let successTimer = null
+function flashSuccess(msg) {
+  success.value = msg
+  if (successTimer) clearTimeout(successTimer)
+  successTimer = setTimeout(() => { success.value = '' }, 2500)
+}
+
+async function persistSlot(slot, fallbackSection) {
+  if (slot._deleted) {
+    if (slot.id != null) await api.delete(`/ea-control/slots/${slot.id}/`)
+    return null
+  }
+  let slotId = slot.id
+  if (slotId == null) {
+    const section = (slot.section == null && fallbackSection != null) ? fallbackSection : slot.section
+    const r = await api.post('/ea-control/slots/', { ...cleanSlot(slot), section })
+    slotId = r.data.id
+    slot.id = slotId
+  } else {
+    await api.put(`/ea-control/slots/${slotId}/`, cleanSlot(slot))
+  }
+  return slotId
+}
+
+async function persistSlotOptions(slot, slotId) {
+  for (const opt of (slot.options || [])) {
+    if (opt._deleted) {
+      if (opt.id != null) await api.delete(`/ea-control/slot-options/${opt.id}/`)
+      continue
+    }
+    if (opt.id == null) {
+      const r = await api.post('/ea-control/slot-options/',
+        { ...cleanOption(opt), slot: slotId })
+      opt.id = r.data.id
+    } else {
+      await api.put(`/ea-control/slot-options/${opt.id}/`, cleanOption(opt))
+    }
+  }
+}
+
+// Перечитать слоты текущего узла после сохранения одного слота,
+// не трогая черновик узла и его флаг dirty.node.
+function refreshSlotDraft() {
+  const nodeId = draft.node ? draft.node.id : null
+  draft.slots = slots.value
+    .filter(s => s.section === nodeId)
+    .sort((a, b) => a.sorting_order - b.sorting_order)
+    .map(cloneSlot)
+  selSlotIdx.value = -1
+  selOptionIdx.value = -1
+  dirty.slot = dirty.option = false
 }
 
 async function commitAll() {
@@ -760,6 +831,7 @@ async function commitAll() {
       selOptionIdx.value = -1
       dirty.node = dirty.slot = dirty.option = false
       await reload()
+      flashSuccess('Узел удалён')
       return
     }
     const nodeWasNew = draft.node.id == null
@@ -774,41 +846,75 @@ async function commitAll() {
 
     // 2. Слоты, 3. опции (топологически)
     for (const slot of draft.slots) {
-      if (slot._deleted) {
-        if (slot.id != null) await api.delete(`/ea-control/slots/${slot.id}/`)
-        continue
-      }
-      let slotId = slot.id
-      if (slotId == null) {
-        const section = (slot.section == null && nodeWasNew) ? nodeId : slot.section
-        const r = await api.post('/ea-control/slots/',
-          { ...cleanSlot(slot), section })
-        slotId = r.data.id
-        slot.id = slotId
-      } else {
-        await api.put(`/ea-control/slots/${slotId}/`, cleanSlot(slot))
-      }
-      for (const opt of (slot.options || [])) {
-        if (opt._deleted) {
-          if (opt.id != null) await api.delete(`/ea-control/slot-options/${opt.id}/`)
-          continue
-        }
-        if (opt.id == null) {
-          const r = await api.post('/ea-control/slot-options/',
-            { ...cleanOption(opt), slot: slotId })
-          opt.id = r.data.id
-        } else {
-          await api.put(`/ea-control/slot-options/${opt.id}/`, cleanOption(opt))
-        }
-      }
+      const slotId = await persistSlot(slot, nodeWasNew ? nodeId : null)
+      if (slotId != null) await persistSlotOptions(slot, slotId)
     }
 
     dirty.node = dirty.slot = dirty.option = false
     await reload()
     const n = sections.value.find(s => s.id === nodeId)
     if (n) selectNode(n)
+    flashSuccess('Сохранено')
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка сохранения'
+  }
+}
+
+// Сохранить только выбранный слот (и его опции), не трогая узел и другие слоты.
+async function commitSlot() {
+  error.value = ''
+  const s = selSlot.value
+  if (!s) return
+  if (!s._deleted) {
+    const errs = validateSlotDraft(s, new Set())
+    if (errs.length) {
+      error.value = 'Заполните обязательные поля: ' + errs.join('; ')
+      return
+    }
+  }
+  try {
+    const slotId = await persistSlot(s, draft.node ? draft.node.id : null)
+    if (slotId != null) await persistSlotOptions(s, slotId)
+    await reload()
+    refreshSlotDraft()
+    flashSuccess('Слот сохранён')
+  } catch (e) {
+    error.value = e.displayMessage || 'Ошибка сохранения'
+  }
+}
+
+function uniqueCode(base, taken) {
+  if (!taken.has(base)) return base
+  let n = 2
+  while (taken.has(`${base}${n}`)) n += 1
+  return `${base}${n}`
+}
+
+// Копировать выбранный слот и все его опции: коды получают суффикс `_Copy`
+// (коды слотов и опций глобально уникальны). Секция берётся из текущей формы.
+async function copySlot() {
+  const src = selSlot.value
+  if (!src) return
+  error.value = ''
+  try {
+    const slotTaken = new Set(slots.value.map(s => s.code))
+    const newCode = uniqueCode(`${(src.code || 'slot').trim()}_Copy`, slotTaken)
+    const r = await api.post('/ea-control/slots/', { ...cleanSlot(src), code: newCode })
+    const slotId = r.data.id
+
+    const optTaken = new Set(options.value.map(o => o.code))
+    for (const opt of (src.options || [])) {
+      if (opt._deleted) continue
+      const optCode = uniqueCode(`${(opt.code || 'opt').trim()}_Copy`, optTaken)
+      optTaken.add(optCode)
+      await api.post('/ea-control/slot-options/', { ...cleanOption(opt), code: optCode, slot: slotId })
+    }
+
+    await reload()
+    refreshSlotDraft()
+    flashSuccess(`Слот скопирован: ${newCode}`)
+  } catch (e) {
+    error.value = e.displayMessage || 'Ошибка копирования'
   }
 }
 
@@ -832,6 +938,7 @@ onMounted(reload)
 .error { color: #c00; margin-top: 8px; }
 .empty { color: #999; padding: 20px; }
 .save-error { background: #fdecea; color: #c62828; padding: 8px 10px; border-radius: 4px; margin-bottom: 10px; }
+.save-ok { background: #eaf5ea; color: #1e7e34; padding: 8px 10px; border-radius: 4px; margin-bottom: 10px; }
 
 .editors { display: flex; flex-direction: column; gap: 12px; }
 .editor { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; }

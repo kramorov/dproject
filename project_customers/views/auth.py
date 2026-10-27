@@ -90,6 +90,7 @@ class LogoutView(APIView):
 class CurrentUserView(APIView):
     permission_classes = [AllowAny]
 
+    @method_decorator(ensure_csrf_cookie)
     def get(self, request):
         user = request.user
 
