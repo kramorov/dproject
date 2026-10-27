@@ -1,4 +1,8 @@
-codewhale resume d53d23af-803f-4718-b60a-677321bfecaf
+npm install --no-save playwright
+npx playwright install chromium
+npm install --no-save puppeteer
+puppeteer-core без браузера:
+npm install --no-save puppeteer-core
 
 
 Устройства ОС ЭП здесь у нас смешаны датчики и сигналы обратной связи. Нужно как-то изменить, так как датчик может быть, а обратной связи не выводится. 

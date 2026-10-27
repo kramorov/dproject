@@ -92,10 +92,20 @@
               <div class="form-row">
                 <label class="form-field"><span>Код</span><input v-model="selSlot.code" /></label>
                 <label class="form-field"><span>Раздел</span>
-                  <select v-model="selSlot.section">
-                    <option :value="null">— без раздела —</option>
-                    <option v-for="o in sectionOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
-                  </select>
+                  <div class="section-picker">
+                    <button type="button" class="sp-btn" @click="toggleSectionMenu">
+                      <span class="sp-val">{{ sectionLabel(selSlot.section) }}</span>
+                      <span class="sp-caret">▾</span>
+                    </button>
+                    <div v-if="sectionOpen" class="sp-menu">
+                      <div class="sp-item" :class="{ active: selSlot.section == null }"
+                           @mousedown.prevent="pickSection(null)">— без раздела —</div>
+                      <div v-for="o in sectionTree" :key="o.id" class="sp-item"
+                           :class="{ active: selSlot.section === o.id }"
+                           :style="{ paddingLeft: (o.depth * 14 + 10) + 'px' }"
+                           @mousedown.prevent="pickSection(o.id)">{{ o.name || o.code }}</div>
+                    </div>
+                  </div>
                 </label>
               </div>
               <div class="form-row">
@@ -304,7 +314,7 @@
  * опции (новые — POST, изменённые — PUT, помеченные «удалить» — DELETE).
  * Удаление двухшаговое: пометка `_deleted` обратима до сохранения.
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import api from '@/shared/api'
 import { t } from '@/shared/i18n'
 import EditorActions from '@/components/EditorActions.vue'
@@ -435,6 +445,37 @@ const parentOptions = computed(() => {
 const sectionOptions = computed(() =>
   sections.value.map(s => ({ id: s.id, label: s.name || s.code })))
 
+// ── Селектор «Раздел»: свой dropdown вместо нативного select ────────────
+// Нативный popup в Chrome периодически закрывается, не закоммитив выбор
+// (change приходит со СТАРЫМ значением — см. журнал отладки 2026-10-27),
+// поэтому выбор раздела сделан детерминированным списком на mousedown.prevent.
+const sectionOpen = ref(false)
+
+function sectionLabel(id) {
+  if (id == null) return '— без раздела —'
+  const s = sections.value.find(x => x.id === id)
+  return (s && (s.name || s.code)) || ('#' + id)
+}
+
+function toggleSectionMenu() {
+  sectionOpen.value = !sectionOpen.value
+}
+
+function pickSection(id) {
+  const s = selSlot.value
+  if (s) {
+    s.section = id
+    markDirty('slot')
+  }
+  sectionOpen.value = false
+}
+
+function onDocClick(e) {
+  if (!(e.target && e.target.closest && e.target.closest('.section-picker'))) {
+    sectionOpen.value = false
+  }
+}
+
 const hasPendingDeletes = computed(() => {
   if (draft.node && draft.node._deleted) return true
   return draft.slots.some(s => s._deleted || (s.options || []).some(o => o._deleted))
@@ -451,6 +492,17 @@ const hasSlotChanges = computed(() =>
 function markDirty(kind) {
   dirty[kind] = true
 }
+
+// DEBUG: ловим ЛЮБОЕ изменение раздела черновика слота — со стеком вызовов,
+// чтобы увидеть, кто откатывает значение обратно.
+watch(() => selSlot.value && selSlot.value.section, (v, old) => {
+  if (old === undefined) return
+  console.log('[DEBUG] selSlot.section changed:', old, '→', v, '| slot code =', selSlot.value && selSlot.value.code)
+  console.trace('[DEBUG] кто изменил section: стек')
+})
+
+onMounted(() => document.addEventListener('click', onDocClick))
+onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 function dictList(rows) {
   return rows.map(o => ({ id: o.id, label: o.name || o.code || String(o.id) }))
@@ -482,6 +534,9 @@ async function reload() {
     sections.value = s.data.results || s.data || []
     slots.value = sl.data.results || sl.data || []
     options.value = o.data.results || o.data || []
+    const dbg = slots.value.filter(x => x.code === 'SETPOINT')
+    console.log('[DEBUG] reload(): всего слотов =', slots.value.length,
+      '| SETPOINT из GET =', dbg.map(x => ({ id: x.id, section: x.section })))
     dicts.units = dictList(units.data)
     dicts.controlSignals = dictList(ctl.data.results || ctl.data || [])
     dicts.feedbackSignals = dictList(fb.data.results || fb.data || [])
@@ -774,13 +829,18 @@ async function persistSlot(slot, fallbackSection) {
     return null
   }
   let slotId = slot.id
+  console.log('[DEBUG] persistSlot: slot.code =', slot.code, '| slot.id =', slot.id,
+    '| slot.section =', slot.section, '| fallbackSection =', fallbackSection)
   if (slotId == null) {
     const section = (slot.section == null && fallbackSection != null) ? fallbackSection : slot.section
     const r = await api.post('/ea-control/slots/', { ...cleanSlot(slot), section })
     slotId = r.data.id
     slot.id = slotId
   } else {
-    await api.put(`/ea-control/slots/${slotId}/`, cleanSlot(slot))
+    const payload = cleanSlot(slot)
+    console.log('[DEBUG] PUT /ea-control/slots/' + slotId + '/ payload =', JSON.stringify(payload))
+    const r = await api.put(`/ea-control/slots/${slotId}/`, payload)
+    console.log('[DEBUG] PUT response status =', r.status, '| data.section =', r.data && r.data.section)
   }
   return slotId
 }
@@ -920,7 +980,6 @@ async function copySlot() {
 
 onMounted(reload)
 </script>
-
 <style scoped>
 .structure-page { display: flex; height: calc(100vh - 80px); }
 .left-pane { width: 300px; border-right: 1px solid #ddd; overflow: auto; padding: 12px; }
@@ -957,6 +1016,24 @@ onMounted(reload)
   flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box;
 }
 .form-field.chk > input { flex: 0 0 auto; }
+
+.section-picker { position: relative; flex: 1; min-width: 0; }
+.sp-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; background: #fff;
+  font-size: 13px; cursor: pointer; box-sizing: border-box;
+}
+.sp-btn:hover { border-color: #999; }
+.sp-val { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-caret { color: #888; font-size: 11px; }
+.sp-menu {
+  position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; z-index: 60;
+  background: #fff; border: 1px solid #ccc; border-radius: 3px; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  max-height: 280px; overflow: auto;
+}
+.sp-item { padding: 4px 8px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.sp-item:hover { background: #eef4fb; }
+.sp-item.active { background: #2c6fb0; color: #fff; }
 
 .sub-head { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 6px; }
 .sub-head h4 { margin: 0; }
