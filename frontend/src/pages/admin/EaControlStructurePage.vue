@@ -314,7 +314,7 @@
  * опции (новые — POST, изменённые — PUT, помеченные «удалить» — DELETE).
  * Удаление двухшаговое: пометка `_deleted` обратима до сохранения.
  */
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
 import { t } from '@/shared/i18n'
 import EditorActions from '@/components/EditorActions.vue'
@@ -442,13 +442,10 @@ const parentOptions = computed(() => {
     .map(s => ({ id: s.id, label: s.name || s.code }))
 })
 
-const sectionOptions = computed(() =>
-  sections.value.map(s => ({ id: s.id, label: s.name || s.code })))
-
 // ── Селектор «Раздел»: свой dropdown вместо нативного select ────────────
 // Нативный popup в Chrome периодически закрывается, не закоммитив выбор
-// (change приходит со СТАРЫМ значением — см. журнал отладки 2026-10-27),
-// поэтому выбор раздела сделан детерминированным списком на mousedown.prevent.
+// (change приходит со СТАРЫМ значением), поэтому выбор раздела сделан
+// детерминированным списком на mousedown.prevent.
 const sectionOpen = ref(false)
 
 function sectionLabel(id) {
@@ -493,14 +490,6 @@ function markDirty(kind) {
   dirty[kind] = true
 }
 
-// DEBUG: ловим ЛЮБОЕ изменение раздела черновика слота — со стеком вызовов,
-// чтобы увидеть, кто откатывает значение обратно.
-watch(() => selSlot.value && selSlot.value.section, (v, old) => {
-  if (old === undefined) return
-  console.log('[DEBUG] selSlot.section changed:', old, '→', v, '| slot code =', selSlot.value && selSlot.value.code)
-  console.trace('[DEBUG] кто изменил section: стек')
-})
-
 onMounted(() => document.addEventListener('click', onDocClick))
 onUnmounted(() => document.removeEventListener('click', onDocClick))
 
@@ -534,9 +523,6 @@ async function reload() {
     sections.value = s.data.results || s.data || []
     slots.value = sl.data.results || sl.data || []
     options.value = o.data.results || o.data || []
-    const dbg = slots.value.filter(x => x.code === 'SETPOINT')
-    console.log('[DEBUG] reload(): всего слотов =', slots.value.length,
-      '| SETPOINT из GET =', dbg.map(x => ({ id: x.id, section: x.section })))
     dicts.units = dictList(units.data)
     dicts.controlSignals = dictList(ctl.data.results || ctl.data || [])
     dicts.feedbackSignals = dictList(fb.data.results || fb.data || [])
@@ -829,18 +815,13 @@ async function persistSlot(slot, fallbackSection) {
     return null
   }
   let slotId = slot.id
-  console.log('[DEBUG] persistSlot: slot.code =', slot.code, '| slot.id =', slot.id,
-    '| slot.section =', slot.section, '| fallbackSection =', fallbackSection)
   if (slotId == null) {
     const section = (slot.section == null && fallbackSection != null) ? fallbackSection : slot.section
     const r = await api.post('/ea-control/slots/', { ...cleanSlot(slot), section })
     slotId = r.data.id
     slot.id = slotId
   } else {
-    const payload = cleanSlot(slot)
-    console.log('[DEBUG] PUT /ea-control/slots/' + slotId + '/ payload =', JSON.stringify(payload))
-    const r = await api.put(`/ea-control/slots/${slotId}/`, payload)
-    console.log('[DEBUG] PUT response status =', r.status, '| data.section =', r.data && r.data.section)
+    await api.put(`/ea-control/slots/${slotId}/`, cleanSlot(slot))
   }
   return slotId
 }
