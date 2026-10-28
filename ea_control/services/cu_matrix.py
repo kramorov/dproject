@@ -169,6 +169,15 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
             continue
         payload = _row_payload(effective, locale)
         out.setdefault(slot_code, []).append(payload)
+
+    # Детерминированный порядок для фронта и тестов: стандарт → опция,
+    # затем по коду опции (не зависеть от порядка строк в БД).
+    _avail_rank = {'std': 0, 'opt': 1, 'na': 2}
+    for payloads in out.values():
+        payloads.sort(key=lambda p: (
+            _avail_rank.get(p['availability'], 3),
+            p['option_code'] or '',
+        ))
     return out
 
 

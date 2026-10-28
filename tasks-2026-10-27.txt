@@ -1,3 +1,6 @@
+codewhale resume 6e78368e-5b07-4708-b73c-20369d969d5e
+на фронте http://localhost:5173/admin/ea-control на вкладке "Справочники" добавь к каждой записи в списке кнопку "Копировать" - как это сделано на вкладке "Редактор БУ". При копировании должен добавляться суффикс "_Copy" - как на вкладке "Редактор БУ
+
 npm install --no-save playwright
 npx playwright install chromium
 npm install --no-save puppeteer

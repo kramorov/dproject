@@ -244,7 +244,10 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    паритет AOX AR01E/AR11E/AR21E/CLFZE).
 4. `config_snapshot` на `ElectricActuatorCatalogItem` (+ общий
    `ConfiguredProduct`).
-5. Судьба справочников-копий vs ЭП-оригиналов (слияние/замена).
+5. Судьба справочников-копий vs ЭП-оригиналов (слияние/замена). Частично
+   сделано 2026-10-28: `CuFeedbackSignal` обогащён из `EaFeedbackSignal`
+   (`enrich_cu_feedback_signals`); `CuControlSignal` намеренно остаётся только
+   аналоговым — дискретные команды выражены слотами CMD_*.
 6. Промоушн БУ в узел `EquipmentType` — триггер: собственный каталог или
    состав из позиций.
 7. Цена — вне scope; отдельная сущность по общему паттерну.
@@ -263,7 +266,7 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 
 ---
 
-## 7. Решения (журнал, 2026-10-23…27)
+## 7. Решения (журнал, 2026-10-23…28)
 
 1. **Класс БУ «интеллектуальный с цифровыми протоколами» отдельным kind не
    вводим.** Протоколы — ортогональная ось: M2M `ControlUnit.protocols` +
@@ -437,3 +440,26 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
     `mousedown.prevent` сразу пишет `selSlot.section` + dirty; закрытие
     по клику вне). Аналогичный нативный паттерн остался у «Родитель» узла
     и селекторов опций — при той же флейке переводить на тот же dropdown.
+
+17. **Наведение порядка в справочниках ОС и дрейфе CMD_WIRING (2026-10-28).**
+    (а) `CuFeedbackSignal` доведён до канонической схемы: код = роль, форма —
+    полем `form` (не вшивается в код). Добавлены недостающие роли из
+    `EaFeedbackSignal`: WAY_CLOSE/TORQUE_CLOSE/TORQUE_ANALOG/TURN_COUNTER/
+    STOP/SELECTOR_POSITION/PHASE_LOSS; объединены дубли FB_ALARM+FB_ALARM_SPDT
+    и FB_OVERHEAT_NC+FB_OVERHEAT_SPST_NC; поправлены формы/нормы
+    (SPDT→CHANGEOVER, READY→SPST); FB_REMOTE_NO→FB_LOCAL_REMOTE,
+    FB_READY_NO→FB_READY. Итог — 19 сигналов. Команда
+    `enrich_cu_feedback_signals` (идемпотентна, перенаправляет ссылки перед
+    удалением дублей). Дискретные командные сигналы из `EaControlSignal`
+    намеренно НЕ переносятся — они уже выражены слотами CMD_* + логикой +
+    схемой цепей (форма входит в `CuSignalPower.input_form`).
+    (б) Дрейф структуры закрыт командой `reconcile_cu_structure`:
+    CMD_SIGNAL_SOURCE → CMD_WIRING (канонический код), удалены дрейфовые
+    CMD_SIGNAL_SOURCE_ESD и SETPOINT_Copy (и опции *_Copy), удалены
+    bare-строки матрицы «нет сигнала» (option=None) у CMD_OPEN/CLOSE/STOP/ESD,
+    опция STOP_SPDT перепривязана к FB_STOP (была на сигнале аварии).
+    (в) `resolve_slots` сортирует опции детерминированно (std → opt → по
+    коду), чтобы фронт и тесты не зависели от порядка строк в БД.
+    (г) Остаток дрейфа (не трогали в этом шаге): раздел ESD (id 12) со слотом
+    CMD_ESD — в сиде CMD_ESD лежит в CMD_INPUTS; слот STOP_SIGNAL есть в живой
+    БД, но пока не в сиде.
