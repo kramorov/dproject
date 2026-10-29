@@ -122,7 +122,7 @@ class CuMatrixServiceTests(TestCase):
         resolved = resolve_slots(self.int_unit)
         available = _flatten(resolved)
         mwg = [p for p in available if p.get('bundle') == 'MWG']
-        self.assertEqual(len(mwg), 3)
+        self.assertEqual(len(mwg), 5)
         # выбрана одна строка пакета — ошибка
         errors = validate_selection([mwg[0]], available)
         self.assertTrue(any('MWG' in e for e in errors))
@@ -136,8 +136,8 @@ class CuMatrixServiceTests(TestCase):
                    if p['slot_code'] == 'POSITION_FEEDBACK'
                    and p['option_code'] == 'POS_MWG')
         torque = next(p for p in available
-                      if p['slot_code'] == 'TORQUE_SWITCHES'
-                      and p['option_code'] == 'TORQUE_SPDT')
+                      if p['slot_code'] == 'TORQUE_SWITCHES_OPEN'
+                      and p['option_code'] == 'TORQUE_OPEN_SPDT')
         errors = validate_selection([mwg, torque], available)
         self.assertTrue(any('Конфликт' in e for e in errors))
 

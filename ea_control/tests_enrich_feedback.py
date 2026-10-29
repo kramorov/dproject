@@ -3,9 +3,9 @@
 
 setUp сбрасывает и старые, и канонические коды сигналов (чтобы тест не
 зависел от того, прогнана ли уже команда по БД --keepdb), затем создаёт
-исходное «до команды» состояние с дублями и нестыковками. Ссылки для
-проверки перенаправления создаются внутри тестов с уникальными кодами
-(транзакция TestCase откатывается).
+исходное «до команды» состояние с дублями и форм-агностичными направленными
+сигналами. Ссылки для проверки перенаправления создаются внутри тестов с
+уникальными кодами (транзакция TestCase откатывается).
 """
 from django.core.management import call_command
 from django.test import TestCase
@@ -14,6 +14,15 @@ from ea_control.models import (
     CuFeedbackSignal, CuFeedbackSignalForm, CuFeedbackDevice, CuSlotOption,
     CuSlot, CuSectionNode, CuMatrixEntry,
 )
+
+DIRECTIONS = [
+    ('END_OPEN', 'Конечное «Открыто»'),
+    ('END_CLOSE', 'Конечное «Закрыто»'),
+    ('WAY_OPEN', 'Промежуточное (открытие)'),
+    ('WAY_CLOSE', 'Промежуточное (закрытие)'),
+    ('TORQUE_OPEN', 'Моментный «Открыто»'),
+    ('TORQUE_CLOSE', 'Моментный «Закрыто»'),
+]
 
 
 def _reset_feedback_signals(codes):
@@ -37,15 +46,16 @@ class EnrichCuFeedbackSignalsTests(TestCase):
 
         # Сбрасываем и старые, и канонические коды — тест не должен зависеть
         # от того, прогнана ли уже команда по БД (--keepdb).
-        all_codes = [
+        codes = [
             'FB_ALARM', 'FB_ALARM_SPDT', 'FB_OVERHEAT_NC',
             'FB_OVERHEAT_SPST_NC', 'FB_REMOTE_NO', 'FB_READY_NO',
-            'FB_END_OPEN', 'FB_OVERHEAT', 'FB_LOCAL_REMOTE', 'FB_READY',
-            'FB_WAY_CLOSE', 'FB_TORQUE_CLOSE', 'FB_TORQUE_4_20MA',
-            'FB_TURN_COUNTER', 'FB_STOP', 'FB_SELECTOR_POSITION',
-            'FB_PHASE_LOSS',
+            'FB_OVERHEAT', 'FB_LOCAL_REMOTE', 'FB_READY',
+            'FB_TORQUE_4_20MA', 'FB_TURN_COUNTER', 'FB_STOP',
+            'FB_SELECTOR_POSITION', 'FB_PHASE_LOSS',
         ]
-        _reset_feedback_signals(all_codes)
+        for role, _ in DIRECTIONS:
+            codes += [f'FB_{role}', f'FB_{role}_SPDT', f'FB_{role}_DPDT']
+        _reset_feedback_signals(codes)
 
         # Исходное (до команды) состояние: дубли и нестыковки.
         CuFeedbackSignal.objects.create(
@@ -66,9 +76,13 @@ class EnrichCuFeedbackSignalsTests(TestCase):
         CuFeedbackSignal.objects.create(
             code='FB_READY_NO', name='Готовность', role='READY',
             category='contact', form=self.dry_spdt, contact_normal='NO')
-        CuFeedbackSignal.objects.create(
-            code='FB_END_OPEN', name='Конечное Открыто', role='END_OPEN',
-            category='contact', form=self.dry_spdt, contact_normal=None)
+
+        # Направленные сигналы — старые форм-агностичные коды, которые
+        # команда должна переименовать в *_SPDT (и довести норму контакта).
+        for role, base in DIRECTIONS:
+            CuFeedbackSignal.objects.create(
+                code=f'FB_{role}', name=base, role=role, category='contact',
+                form=self.dry_spdt, contact_normal=None)
 
     def _make_references(self):
         """Ссылки на дубли, которые команда должна перенаправить."""
@@ -90,9 +104,20 @@ class EnrichCuFeedbackSignalsTests(TestCase):
     def test_enrich_produces_canonical_dictionary(self):
         call_command('enrich_cu_feedback_signals')
 
-        for code in ('FB_WAY_CLOSE', 'FB_TORQUE_CLOSE', 'FB_TORQUE_4_20MA',
-                     'FB_TURN_COUNTER', 'FB_STOP', 'FB_SELECTOR_POSITION',
-                     'FB_PHASE_LOSS'):
+        # Направленные контакты: форма в коде — SPDT и DPDT.
+        for role, _ in DIRECTIONS:
+            self.assertFalse(CuFeedbackSignal.objects.filter(
+                code=f'FB_{role}').exists(), f'FB_{role}')
+            spdt = CuFeedbackSignal.objects.get(code=f'FB_{role}_SPDT')
+            self.assertEqual(spdt.form.code, 'DRY_SPDT')
+            self.assertEqual(spdt.contact_normal, 'CHANGEOVER')
+            dpdt = CuFeedbackSignal.objects.get(code=f'FB_{role}_DPDT')
+            self.assertEqual(dpdt.form.code, 'DRY_DPDT')
+            self.assertEqual(dpdt.contact_normal, 'CHANGEOVER')
+
+        # Остальные роли.
+        for code in ('FB_TORQUE_4_20MA', 'FB_TURN_COUNTER', 'FB_STOP',
+                     'FB_SELECTOR_POSITION', 'FB_PHASE_LOSS'):
             self.assertTrue(CuFeedbackSignal.objects.filter(code=code).exists(),
                             code)
 
@@ -119,9 +144,6 @@ class EnrichCuFeedbackSignalsTests(TestCase):
         ready = CuFeedbackSignal.objects.get(code='FB_READY')
         self.assertEqual(ready.form.code, 'DRY_SPST')
         self.assertEqual(ready.contact_normal, 'NO')
-
-        end = CuFeedbackSignal.objects.get(code='FB_END_OPEN')
-        self.assertEqual(end.contact_normal, 'CHANGEOVER')
 
         torque_analog = CuFeedbackSignal.objects.get(code='FB_TORQUE_4_20MA')
         self.assertEqual(torque_analog.role, 'TORQUE_ANALOG')

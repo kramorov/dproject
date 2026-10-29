@@ -63,9 +63,10 @@ class CuConfigTestCase(TestCase):
             defaults=dict(name='Команда О/С/З', role='CMD_OCS',
                           category='discrete'))[0]
         cls.fb_signal = CuFeedbackSignal.objects.get_or_create(
-            code='FB_END_OPEN',
-            defaults=dict(name='Конечное «Открыто»', role='END_OPEN',
-                          category='contact', form=cls.form_dry))[0]
+            code='FB_END_OPEN_SPDT',
+            defaults=dict(name='Конечное «Открыто», SPDT', role='END_OPEN',
+                          category='contact', form=cls.form_dry,
+                          contact_normal='CHANGEOVER'))[0]
         cls.protocol = CuCommProtocol.objects.get_or_create(
             code='MODBUS_RTU',
             defaults=dict(name='Modbus RTU', transport='RS485'))[0]

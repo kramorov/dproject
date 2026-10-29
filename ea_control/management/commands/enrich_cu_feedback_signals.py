@@ -4,14 +4,13 @@
 
 Что делает (только справочник «Сигналы ОС», слоты/матрицу не трогает):
 
-- добавляет недостающие роли из EaFeedbackSignal: WAY_CLOSE, TORQUE_CLOSE,
-  TORQUE_ANALOG, TURN_COUNTER, STOP, SELECTOR_POSITION, PHASE_LOSS;
+- направленные контакты (концевые/путевые/моментные ОТКРЫТО/ЗАКРЫТО) —
+  форма в коде сигнала: FB_<ROLE>_SPDT и FB_<ROLE>_DPDT (SPDT из ЭП + DPDT);
+- добавляет остальные роли из EaFeedbackSignal: TORQUE_ANALOG, TURN_COUNTER,
+  STOP, SELECTOR_POSITION, PHASE_LOSS;
 - объединяет дубли «Авария» (FB_ALARM + FB_ALARM_SPDT) и «Перегрев»
   (FB_OVERHEAT_NC + FB_OVERHEAT_SPST_NC) в канонические FB_ALARM / FB_OVERHEAT;
-- правит нестыковки формы/нормы контакта: концевые/путевые/моментные SPDT
-  получают CHANGEOVER, «Готовность» переводится на SPST;
-- переименовывает FB_REMOTE_NO → FB_LOCAL_REMOTE, FB_READY_NO → FB_READY
-  (код по роли, форма — полем form, а не в коде).
+- переименовывает FB_REMOTE_NO → FB_LOCAL_REMOTE, FB_READY_NO → FB_READY.
 
 Ссылки (CuSlotOption/CuMatrixEntry/CuFeedbackDevice.emits/ControlUnit.emits)
 перенаправляются со старых записей на канонические перед удалением дублей.
@@ -38,16 +37,17 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             added = self._add_missing(forms)
-            fixed = self._fix_existing(forms)
+            renamed_dir, created_dir = self._add_direction_form_variants(forms)
             merged_alarm = self._merge_alarm(forms)
             merged_overheat = self._merge_overheat(forms)
-            renamed = self._rename_remote_and_ready(forms)
+            renamed_remote_ready = self._rename_remote_and_ready(forms)
 
+        created_total = len(added) + len(created_dir)
+        renamed_total = len(renamed_dir) + len(renamed_remote_ready)
+        merged_total = len(merged_alarm) + len(merged_overheat)
         self.stdout.write(self.style.SUCCESS(
-            'Готово: +%d записей, исправлено %d, объединено %d, '
-            'переименовано %d.' % (
-                len(added), len(fixed),
-                len(merged_alarm) + len(merged_overheat), len(renamed),
+            'Готово: +%d записей, переименовано %d, объединено %d.' % (
+                created_total, renamed_total, merged_total,
             )))
 
     # ── Справочник форм (существует из seed, создаём при необходимости) ──
@@ -73,13 +73,9 @@ class Command(BaseCommand):
         return obj, created
 
     def _add_missing(self, f):
-        """Недостающие роли из EaFeedbackSignal (по одной записи на роль)."""
+        """Остальные недостающие роли из EaFeedbackSignal (одна запись)."""
         specs = [
             # code, name, role, category, form, contact_normal, max_v, max_a
-            ('FB_WAY_CLOSE', 'Промежуточное «Закрытие»', 'WAY_CLOSE',
-             'contact', f['DRY_SPDT'], 'CHANGEOVER', 250, Decimal('5')),
-            ('FB_TORQUE_CLOSE', 'Моментный «Закрыто»', 'TORQUE_CLOSE',
-             'contact', f['DRY_SPDT'], 'CHANGEOVER', 250, Decimal('5')),
             ('FB_STOP', 'Останов (NO)', 'STOP',
              'contact', f['DRY_SPST'], 'NO', 250, Decimal('5')),
             ('FB_TURN_COUNTER', 'Счётчик оборотов (NO)', 'TURN_COUNTER',
@@ -107,31 +103,45 @@ class Command(BaseCommand):
             created.append('FB_TORQUE_4_20MA')
         return created
 
-    def _fix_existing(self, f):
-        """Правка формы/нормы контакта у уже существующих записей."""
-        fixes = [
-            # (code, поля, которые надо довести до канона)
-            ('FB_END_OPEN', dict(form=f['DRY_SPDT'], contact_normal='CHANGEOVER',
-                                 max_voltage=250, max_current=Decimal('5'))),
-            ('FB_END_CLOSE', dict(form=f['DRY_SPDT'], contact_normal='CHANGEOVER',
-                                  max_voltage=250, max_current=Decimal('5'))),
-            ('FB_WAY_OPEN', dict(form=f['DRY_SPDT'], contact_normal='CHANGEOVER',
-                                 max_voltage=250, max_current=Decimal('5'))),
-            ('FB_TORQUE_OPEN', dict(form=f['DRY_SPDT'], contact_normal='CHANGEOVER',
-                                    max_voltage=250, max_current=Decimal('5'))),
+    def _add_direction_form_variants(self, f):
+        """Направленные контакты: форма в коде — FB_<ROLE>_SPDT/_DPDT.
+
+        SPDT — существующие/старые форм-агностичные записи (FB_END_OPEN →
+        FB_END_OPEN_SPDT), DPDT — новые варианты из EaFeedbackSignal.
+        """
+        specs = [
+            ('END_OPEN', 'Конечное «Открыто»'),
+            ('END_CLOSE', 'Конечное «Закрыто»'),
+            ('WAY_OPEN', 'Промежуточное (открытие)'),
+            ('WAY_CLOSE', 'Промежуточное (закрытие)'),
+            ('TORQUE_OPEN', 'Моментный «Открыто»'),
+            ('TORQUE_CLOSE', 'Моментный «Закрыто»'),
         ]
-        fixed = []
-        for code, fields in fixes:
-            obj = CuFeedbackSignal.objects.filter(code=code).first()
-            if not obj:
-                continue
-            changed = any(getattr(obj, k) != v for k, v in fields.items())
-            if changed:
-                for k, v in fields.items():
-                    setattr(obj, k, v)
-                obj.save()
-                fixed.append(code)
-        return fixed
+        renamed = []
+        created = []
+        for role, base in specs:
+            spdt = f'FB_{role}_SPDT'
+            dpdt = f'FB_{role}_DPDT'
+            if self._rename(f'FB_{role}', spdt, name=f'{base}, SPDT',
+                            role=role, category='contact', form=f['DRY_SPDT'],
+                            contact_normal='CHANGEOVER', max_voltage=250,
+                            max_current=Decimal('5')):
+                renamed.append(f'FB_{role}')
+            obj, is_new = self._signal(spdt, name=f'{base}, SPDT', role=role,
+                                       category='contact', form=f['DRY_SPDT'],
+                                       contact_normal='CHANGEOVER',
+                                       max_voltage=250,
+                                       max_current=Decimal('5'))
+            if is_new:
+                created.append(spdt)
+            obj, is_new = self._signal(dpdt, name=f'{base}, DPDT', role=role,
+                                       category='contact', form=f['DRY_DPDT'],
+                                       contact_normal='CHANGEOVER',
+                                       max_voltage=250,
+                                       max_current=Decimal('5'))
+            if is_new:
+                created.append(dpdt)
+        return renamed, created
 
     # ── Перенаправление ссылок перед удалением дубля ────────────────────
     def _repoint(self, old, new):
@@ -182,10 +192,13 @@ class Command(BaseCommand):
             return None
         existing = CuFeedbackSignal.objects.filter(code=new_code).first()
         if existing and existing.pk != old.pk:
-            # Целевой код уже есть — не переименовываем, просто доводим его.
+            # Целевой код уже есть — сливаем: доводим целевой до канона,
+            # перенаправляем ссылки со старого и удаляем старый.
             for k, v in updates.items():
                 setattr(existing, k, v)
             existing.save()
+            self._repoint(old, existing)
+            old.delete()
             return new_code
         for k, v in updates.items():
             setattr(old, k, v)

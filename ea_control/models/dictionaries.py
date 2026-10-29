@@ -485,6 +485,10 @@ class CuFeedbackTechnology(models.TextChoices):
     MWG = 'MWG', _('Магнитно-волновой (MWG)')
     ELECTRONIC = 'ELECTRONIC', _('Электронный')
     MECHANICAL = 'MECHANICAL', _('Механический')
+    HALL = 'HALL', _('Датчик Холла')
+    ABSOLUTE_ENCODER = 'ABSOLUTE_ENCODER', _('Абсолютный энкодер')
+    MAGNETIC = 'MAGNETIC', _('Магнитный')
+    INDUCTIVE = 'INDUCTIVE', _('Индуктивный')
 
 
 class CuFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):

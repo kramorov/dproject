@@ -21,6 +21,8 @@
   — «тип БУ характерен для серии», na-запрет;
 - правила: профиль БУ → show/hide слотов, HART → set_default.
 """
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
@@ -41,7 +43,7 @@ def _cu(model, code, **defaults):
 
 
 def _opt(code, slot, kind, **fields):
-    obj, _ = CuSlotOption.objects.get_or_create(
+    obj, _ = CuSlotOption.objects.update_or_create(
         code=code, defaults={'slot': slot, 'kind': kind, **fields})
     return obj
 
@@ -133,23 +135,26 @@ class Command(BaseCommand):
                                    form=ctl_forms['AN_4_20_PASSIVE'],
                                    hart=True, wires=2),
         }
-        fb = {
-            'FB_END_OPEN': _cu(CuFeedbackSignal, 'FB_END_OPEN',
-                               name='Конечное «Открыто»', role='END_OPEN',
-                               category='contact', form=fb_forms['DRY_SPDT'],
-                               max_voltage=250, max_current=5),
-            'FB_END_CLOSE': _cu(CuFeedbackSignal, 'FB_END_CLOSE',
-                                name='Конечное «Закрыто»', role='END_CLOSE',
-                                category='contact', form=fb_forms['DRY_SPDT'],
-                                max_voltage=250, max_current=5),
-            'FB_WAY_OPEN': _cu(CuFeedbackSignal, 'FB_WAY_OPEN',
-                               name='Промежуточное «Открытие»', role='WAY_OPEN',
-                               category='contact', form=fb_forms['DRY_SPDT'],
-                               max_voltage=250, max_current=5),
-            'FB_TORQUE_OPEN': _cu(CuFeedbackSignal, 'FB_TORQUE_OPEN',
-                                  name='Моментный «Открыто»', role='TORQUE_OPEN',
-                                  category='contact', form=fb_forms['DRY_SPDT'],
-                                  max_voltage=250, max_current=5),
+        fb = {}
+        for role, base in (
+                ('END_OPEN', 'Конечное «Открыто»'),
+                ('END_CLOSE', 'Конечное «Закрыто»'),
+                ('WAY_OPEN', 'Промежуточное (открытие)'),
+                ('WAY_CLOSE', 'Промежуточное (закрытие)'),
+                ('TORQUE_OPEN', 'Моментный «Открыто»'),
+                ('TORQUE_CLOSE', 'Моментный «Закрыто»'),
+        ):
+            fb[f'FB_{role}_SPDT'] = _cu(
+                CuFeedbackSignal, f'FB_{role}_SPDT',
+                name=f'{base}, SPDT', role=role, category='contact',
+                form=fb_forms['DRY_SPDT'], contact_normal='CHANGEOVER',
+                max_voltage=250, max_current=5)
+            fb[f'FB_{role}_DPDT'] = _cu(
+                CuFeedbackSignal, f'FB_{role}_DPDT',
+                name=f'{base}, DPDT', role=role, category='contact',
+                form=fb_forms['DRY_DPDT'], contact_normal='CHANGEOVER',
+                max_voltage=250, max_current=5)
+        fb.update({
             'FB_POS_POT': _cu(CuFeedbackSignal, 'FB_POS_POT',
                               name='Позиция, потенциометр', role='POSITION',
                               category='analog',
@@ -170,33 +175,52 @@ class Command(BaseCommand):
                                       role='POSITION', category='analog',
                                       form=fb_forms['AN_4_20_PASSIVE'],
                                       hart=True, wires=2),
-            'FB_OVERHEAT_NC': _cu(CuFeedbackSignal, 'FB_OVERHEAT_NC',
-                                  name='Перегрев (NC)', role='OVERHEAT',
-                                  category='contact', form=fb_forms['DRY_SPDT'],
-                                  contact_normal='NC'),
-            'FB_OVERHEAT_SPST_NC': _cu(CuFeedbackSignal, 'FB_OVERHEAT_SPST_NC',
-                                       name='Перегрев, SPST (НЗ)',
-                                       role='OVERHEAT',
-                                       category='contact',
-                                       form=fb_forms['DRY_SPST'],
-                                       contact_normal='NC'),
+            'FB_TORQUE_4_20MA': _cu(CuFeedbackSignal, 'FB_TORQUE_4_20MA',
+                                    name='Аналоговый момент 4-20 мА',
+                                    role='TORQUE_ANALOG', category='analog',
+                                    form=fb_forms['AN_4_20_ACTIVE'], wires=2),
+            'FB_OVERHEAT': _cu(CuFeedbackSignal, 'FB_OVERHEAT',
+                               name='Перегрев, SPST (НЗ)', role='OVERHEAT',
+                               category='contact', form=fb_forms['DRY_SPST'],
+                               contact_normal='NC', max_voltage=250,
+                               max_current=5),
             'FB_ALARM': _cu(CuFeedbackSignal, 'FB_ALARM',
-                            name='Авария', role='ALARM', category='contact',
-                            form=fb_forms['DRY_SPDT']),
-            'FB_READY_NO': _cu(CuFeedbackSignal, 'FB_READY_NO',
-                               name='Готовность (NO)', role='READY',
-                               category='contact', form=fb_forms['DRY_SPDT'],
-                               contact_normal='NO'),
-            'FB_REMOTE_NO': _cu(CuFeedbackSignal, 'FB_REMOTE_NO',
-                                name='Удалённое управление (SPST НО)',
-                                role='LOCAL_REMOTE',
-                                category='contact', form=fb_forms['DRY_SPST'],
-                                contact_normal='NO'),
-            'FB_ALARM_SPDT': _cu(CuFeedbackSignal, 'FB_ALARM_SPDT',
-                                 name='Авария (SPDT: НЗ + НО)', role='ALARM',
-                                 category='contact', form=fb_forms['DRY_SPDT'],
-                                 contact_normal='CHANGEOVER'),
-        }
+                            name='Авария (SPDT: НЗ + НО)', role='ALARM',
+                            category='contact', form=fb_forms['DRY_SPDT'],
+                            contact_normal='CHANGEOVER', max_voltage=250,
+                            max_current=5),
+            'FB_READY': _cu(CuFeedbackSignal, 'FB_READY',
+                            name='Готовность (NO)', role='READY',
+                            category='contact', form=fb_forms['DRY_SPST'],
+                            contact_normal='NO', max_voltage=250,
+                            max_current=5),
+            'FB_LOCAL_REMOTE': _cu(CuFeedbackSignal, 'FB_LOCAL_REMOTE',
+                                   name='Местное/удалённое (SPST НО)',
+                                   role='LOCAL_REMOTE', category='contact',
+                                   form=fb_forms['DRY_SPST'],
+                                   contact_normal='NO', max_voltage=250,
+                                   max_current=5),
+            'FB_STOP': _cu(CuFeedbackSignal, 'FB_STOP',
+                           name='Останов (NO)', role='STOP', category='contact',
+                           form=fb_forms['DRY_SPST'], contact_normal='NO',
+                           max_voltage=250, max_current=5),
+            'FB_TURN_COUNTER': _cu(CuFeedbackSignal, 'FB_TURN_COUNTER',
+                                   name='Счётчик оборотов (NO)',
+                                   role='TURN_COUNTER', category='contact',
+                                   form=fb_forms['DRY_SPST'],
+                                   contact_normal='NO', max_voltage=250,
+                                   max_current=Decimal('0.5')),
+            'FB_SELECTOR_POSITION': _cu(
+                CuFeedbackSignal, 'FB_SELECTOR_POSITION',
+                name='Положение ключа-селектора', role='SELECTOR_POSITION',
+                category='contact', form=fb_forms['DRY_SPDT'],
+                contact_normal='CHANGEOVER', max_voltage=250, max_current=5),
+            'FB_PHASE_LOSS': _cu(CuFeedbackSignal, 'FB_PHASE_LOSS',
+                                 name='Авария: потеря фазы', role='PHASE_LOSS',
+                                 category='contact', form=fb_forms['DRY_SPST'],
+                                 contact_normal='NO', max_voltage=250,
+                                 max_current=5),
+        })
         proto = {
             'MODBUS_RTU': _cu(CuCommProtocol, 'MODBUS_RTU', name='Modbus RTU',
                               transport='RS485'),
@@ -226,10 +250,11 @@ class Command(BaseCommand):
         }
         devices['POT_1K'].emits.add(fb['FB_POS_POT'])
         devices['MWG'].emits.add(fb['FB_POS_4_20MA_ACTIVE'])
-        devices['THERMO'].emits.add(fb['FB_OVERHEAT_NC'])
-        devices['THERMO'].emits.add(fb['FB_OVERHEAT_SPST_NC'])
-        devices['LIMIT_MECH'].emits.add(fb['FB_END_OPEN'])
-        devices['LIMIT_MECH'].emits.add(fb['FB_END_CLOSE'])
+        devices['THERMO'].emits.add(fb['FB_OVERHEAT'])
+        devices['LIMIT_MECH'].emits.add(fb['FB_END_OPEN_SPDT'])
+        devices['LIMIT_MECH'].emits.add(fb['FB_END_OPEN_DPDT'])
+        devices['LIMIT_MECH'].emits.add(fb['FB_END_CLOSE_SPDT'])
+        devices['LIMIT_MECH'].emits.add(fb['FB_END_CLOSE_DPDT'])
         heater = {
             'NO_HEATER': _cu(CuHeaterSupply, 'NO_HEATER', name='Без обогрева'),
             'MOTOR_CIRCUIT': _cu(CuHeaterSupply, 'MOTOR_CIRCUIT',
@@ -336,7 +361,8 @@ class Command(BaseCommand):
         # ── очистка устаревших слотов/опций/сигналов (переход на новую
         #    структуру «Дистанционное управление»; идемпотентно) ──
         obsolete_slots = ('CMD', 'SIGNAL_POWER_SOURCE', 'CONTROL_LOGIC',
-                          'SIGNAL_TYPE')
+                          'SIGNAL_TYPE', 'LIMIT_SWITCHES', 'WAY_SWITCHES',
+                          'TORQUE_SWITCHES')
         CuMatrixEntry.objects.filter(
             slot__code__in=obsolete_slots).delete()
         CuSlot.objects.filter(code__in=obsolete_slots).delete()
@@ -345,6 +371,16 @@ class Command(BaseCommand):
             'CMD_EMERGENCY', 'SP_EXT_220', 'SP_EXT_24', 'SP_INT_24',
             'LOG_IMPULSE', 'LOG_CONTINUOUS', 'LOG_CONFIGURABLE',
             'ST_DRY', 'ST_POT220', 'ST_POT24')).delete()
+        # устаревшие пары контактов: слоты переименованы в понаправленные,
+        # поэтому удаляем и строки матрицы, и сами опции (иначе строки
+        # останутся с option=None)
+        obsolete_pair_options = ('END_SPDT', 'END_DPDT', 'LIMIT_NONE',
+                                 'WAY_SPDT', 'TORQUE_SPDT', 'TORQUE_DPDT',
+                                 'TORQUE_NONE')
+        CuMatrixEntry.objects.filter(
+            option__code__in=obsolete_pair_options).delete()
+        CuSlotOption.objects.filter(
+            code__in=obsolete_pair_options).delete()
         # дискретные команды-справочники (напряжение ушло в схему цепей):
         # удаляем все, на которые больше не ссылаются ни опция, ни строка
         # матрицы (PROTECT не даст удалить используемые — напр. уставки)
@@ -409,12 +445,24 @@ class Command(BaseCommand):
                              section=cmd_inputs, selection_mode='single'),
             'SETPOINT': _slot('SETPOINT', name='Уставка 4-20',
                               section=sections['CONTROL_SIGNALS']),
-            'LIMIT_SWITCHES': _slot('LIMIT_SWITCHES', name='Концевые выключатели',
-                                    section=sections['FEEDBACK']),
-            'WAY_SWITCHES': _slot('WAY_SWITCHES', name='Путевые выключатели',
-                                  section=sections['FEEDBACK']),
-            'TORQUE_SWITCHES': _slot('TORQUE_SWITCHES', name='Моментные выключатели',
-                                     section=sections['FEEDBACK']),
+            'LIMIT_SWITCHES_OPENED': _slot(
+                'LIMIT_SWITCHES_OPENED', name='Концевые выключатели ОТКРЫТО',
+                section=sections['FEEDBACK']),
+            'LIMIT_SWITCHES_CLOSED': _slot(
+                'LIMIT_SWITCHES_CLOSED', name='Концевые выключатели ЗАКРЫТО',
+                section=sections['FEEDBACK']),
+            'WAY_SWITCHES_OPEN': _slot(
+                'WAY_SWITCHES_OPEN', name='Путевые выключатели ОТКРЫТО',
+                section=sections['FEEDBACK']),
+            'WAY_SWITCHES_CLOSED': _slot(
+                'WAY_SWITCHES_CLOSED', name='Путевые выключатели ЗАКРЫТО',
+                section=sections['FEEDBACK']),
+            'TORQUE_SWITCHES_OPEN': _slot(
+                'TORQUE_SWITCHES_OPEN', name='Моментные выключатели ОТКРЫТО',
+                section=sections['FEEDBACK']),
+            'TORQUE_SWITCHES_CLOSE': _slot(
+                'TORQUE_SWITCHES_CLOSE', name='Моментные выключатели ЗАКРЫТО',
+                section=sections['FEEDBACK']),
             'POSITION_FEEDBACK': _slot('POSITION_FEEDBACK', name='Позиционная ОС',
                                        section=sections['FEEDBACK']),
             'THERMAL_SENSOR': _slot('THERMAL_SENSOR', name='Теплозащита',
@@ -502,25 +550,73 @@ class Command(BaseCommand):
                                      control_signal=ctl['CMD_4_20MA'])
         opts['SETPOINT_HART'] = _opt('SETPOINT_HART', slots['SETPOINT'], 'signal',
                                      control_signal=ctl['CMD_4_20MA_HART'])
-        # обратная связь
-        opts['END_SPDT'] = _opt('END_SPDT', slots['LIMIT_SWITCHES'], 'pair',
-                                name='Концевые SPDT', ext_encoding='E1')
-        opts['END_DPDT'] = _opt('END_DPDT', slots['LIMIT_SWITCHES'], 'pair',
-                                name='Концевые DPDT', ext_encoding='E2')
-        # концевые выключатели — механические датчики (справочник устройств)
-        for _end_opt in ('END_SPDT', 'END_DPDT'):
-            opts[_end_opt].device = devices['LIMIT_MECH']
-            opts[_end_opt].save(update_fields=['device'])
-        opts['LIMIT_NONE'] = _none('LIMIT_NONE', slots['LIMIT_SWITCHES'],
-                                   'Без концевых')
-        opts['WAY_SPDT'] = _opt('WAY_SPDT', slots['WAY_SWITCHES'], 'pair',
-                                name='Путевые SPDT', ext_encoding='W1')
-        opts['TORQUE_SPDT'] = _opt('TORQUE_SPDT', slots['TORQUE_SWITCHES'], 'pair',
-                                   name='Моментные SPDT', ext_encoding='T1')
-        opts['TORQUE_DPDT'] = _opt('TORQUE_DPDT', slots['TORQUE_SWITCHES'], 'pair',
-                                   name='Моментные DPDT', ext_encoding='T2')
-        opts['TORQUE_NONE'] = _none('TORQUE_NONE', slots['TORQUE_SWITCHES'],
-                                    'Без моментных')
+        # обратная связь — понаправленные контакты, форма в коде сигнала
+        opts['OPEN_SPDT'] = _opt('OPEN_SPDT', slots['LIMIT_SWITCHES_OPENED'],
+                                 'signal',
+                                 feedback_signal=fb['FB_END_OPEN_SPDT'],
+                                 device=devices['LIMIT_MECH'],
+                                 ext_encoding='E1')
+        opts['OPEN_DPDT'] = _opt('OPEN_DPDT', slots['LIMIT_SWITCHES_OPENED'],
+                                 'signal',
+                                 feedback_signal=fb['FB_END_OPEN_DPDT'],
+                                 device=devices['LIMIT_MECH'],
+                                 ext_encoding='E2')
+        opts['CLOSE_SPDT'] = _opt('CLOSE_SPDT', slots['LIMIT_SWITCHES_CLOSED'],
+                                  'signal',
+                                  feedback_signal=fb['FB_END_CLOSE_SPDT'],
+                                  device=devices['LIMIT_MECH'])
+        opts['CLOSE_DPDT'] = _opt('CLOSE_DPDT', slots['LIMIT_SWITCHES_CLOSED'],
+                                  'signal',
+                                  feedback_signal=fb['FB_END_CLOSE_DPDT'],
+                                  device=devices['LIMIT_MECH'])
+        opts['LIMIT_OPEN_NONE'] = _none('LIMIT_OPEN_NONE',
+                                        slots['LIMIT_SWITCHES_OPENED'],
+                                        'Без концевых')
+        opts['LIMIT_CLOSE_NONE'] = _none('LIMIT_CLOSE_NONE',
+                                         slots['LIMIT_SWITCHES_CLOSED'],
+                                         'Без концевых')
+        opts['WAY_OPEN_SPDT'] = _opt('WAY_OPEN_SPDT', slots['WAY_SWITCHES_OPEN'],
+                                     'signal',
+                                     feedback_signal=fb['FB_WAY_OPEN_SPDT'],
+                                     ext_encoding='W1')
+        opts['WAY_OPEN_DPDT'] = _opt('WAY_OPEN_DPDT', slots['WAY_SWITCHES_OPEN'],
+                                     'signal',
+                                     feedback_signal=fb['FB_WAY_OPEN_DPDT'])
+        opts['WAY_CLOSE_SPDT'] = _opt('WAY_CLOSE_SPDT',
+                                      slots['WAY_SWITCHES_CLOSED'], 'signal',
+                                      feedback_signal=fb['FB_WAY_CLOSE_SPDT'])
+        opts['WAY_CLOSE_DPDT'] = _opt('WAY_CLOSE_DPDT',
+                                      slots['WAY_SWITCHES_CLOSED'], 'signal',
+                                      feedback_signal=fb['FB_WAY_CLOSE_DPDT'])
+        opts['WAY_OPEN_NONE'] = _none('WAY_OPEN_NONE', slots['WAY_SWITCHES_OPEN'],
+                                      'Без путевых')
+        opts['WAY_CLOSE_NONE'] = _none('WAY_CLOSE_NONE',
+                                       slots['WAY_SWITCHES_CLOSED'],
+                                       'Без путевых')
+        opts['TORQUE_OPEN_SPDT'] = _opt('TORQUE_OPEN_SPDT',
+                                        slots['TORQUE_SWITCHES_OPEN'],
+                                        'signal',
+                                        feedback_signal=fb['FB_TORQUE_OPEN_SPDT'],
+                                        ext_encoding='T1')
+        opts['TORQUE_OPEN_DPDT'] = _opt('TORQUE_OPEN_DPDT',
+                                        slots['TORQUE_SWITCHES_OPEN'],
+                                        'signal',
+                                        feedback_signal=fb['FB_TORQUE_OPEN_DPDT'],
+                                        ext_encoding='T2')
+        opts['TORQUE_CLOSE_SPDT'] = _opt('TORQUE_CLOSE_SPDT',
+                                         slots['TORQUE_SWITCHES_CLOSE'],
+                                         'signal',
+                                         feedback_signal=fb['FB_TORQUE_CLOSE_SPDT'])
+        opts['TORQUE_CLOSE_DPDT'] = _opt('TORQUE_CLOSE_DPDT',
+                                         slots['TORQUE_SWITCHES_CLOSE'],
+                                         'signal',
+                                         feedback_signal=fb['FB_TORQUE_CLOSE_DPDT'])
+        opts['TORQUE_OPEN_NONE'] = _none('TORQUE_OPEN_NONE',
+                                         slots['TORQUE_SWITCHES_OPEN'],
+                                         'Без моментных')
+        opts['TORQUE_CLOSE_NONE'] = _none('TORQUE_CLOSE_NONE',
+                                          slots['TORQUE_SWITCHES_CLOSE'],
+                                          'Без моментных')
         opts['POS_POT'] = _opt('POS_POT', slots['POSITION_FEEDBACK'], 'signal',
                                feedback_signal=fb['FB_POS_POT'],
                                device=devices['POT_1K'], ext_encoding='P')
@@ -540,11 +636,11 @@ class Command(BaseCommand):
         opts['NO_SENSOR'] = _none('NO_SENSOR', slots['THERMAL_SENSOR'],
                                   'Без датчика')
         opts['OVERHEAT_NC'] = _opt('OVERHEAT_NC', slots['THERMAL_SENSOR'], 'signal',
-                                   feedback_signal=fb['FB_OVERHEAT_NC'],
+                                   feedback_signal=fb['FB_OVERHEAT'],
                                    device=devices['THERMO'])
         opts['OVERHEAT_SPST_NC'] = _opt('OVERHEAT_SPST_NC', slots['THERMAL_SENSOR'],
                                         'signal',
-                                        feedback_signal=fb['FB_OVERHEAT_SPST_NC'],
+                                        feedback_signal=fb['FB_OVERHEAT'],
                                         device=devices['THERMO'])
         opts['LED_SET'] = _none('LED_SET', slots['INDICATOR'], 'Светодиоды',
                                 ext_encoding='D')
@@ -559,11 +655,11 @@ class Command(BaseCommand):
         # удалённое управление и сигнал аварии (ОС INT/O)
         opts['REMOTE_SPST_NO'] = _opt('REMOTE_SPST_NO', slots['REMOTE_CONTROL'],
                                       'signal',
-                                      feedback_signal=fb['FB_REMOTE_NO'])
+                                      feedback_signal=fb['FB_LOCAL_REMOTE'])
         opts['REMOTE_NONE'] = _none('REMOTE_NONE', slots['REMOTE_CONTROL'],
                                     'Нет')
         opts['ALARM_SPDT'] = _opt('ALARM_SPDT', slots['ALARM_SIGNAL'], 'signal',
-                                  feedback_signal=fb['FB_ALARM_SPDT'])
+                                  feedback_signal=fb['FB_ALARM'])
         opts['ALARM_NONE'] = _none('ALARM_NONE', slots['ALARM_SIGNAL'], 'Нет')
         # связь / обогрев
         opts['MB_RTU'] = _opt('MB_RTU', slots['PROTOCOL'], 'signal',
@@ -728,8 +824,8 @@ class Command(BaseCommand):
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
         basic.accepts.set([])
-        basic.emits.set([fb['FB_END_OPEN'], fb['FB_END_CLOSE'],
-                         fb['FB_TORQUE_OPEN']])
+        basic.emits.set([fb['FB_END_OPEN_SPDT'], fb['FB_END_CLOSE_SPDT'],
+                         fb['FB_TORQUE_OPEN_SPDT']])
         basic.capabilities.set([caps['LOCAL_CONTROL']])
 
         int_unit = _unit(
@@ -746,10 +842,10 @@ class Command(BaseCommand):
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
         int_unit.accepts.set([ctl['CMD_4_20MA']])
-        int_unit.emits.set([fb['FB_END_OPEN'], fb['FB_END_CLOSE'],
-                            fb['FB_WAY_OPEN'], fb['FB_TORQUE_OPEN'],
+        int_unit.emits.set([fb['FB_END_OPEN_SPDT'], fb['FB_END_CLOSE_SPDT'],
+                            fb['FB_WAY_OPEN_SPDT'], fb['FB_TORQUE_OPEN_SPDT'],
                             fb['FB_POS_4_20MA_ACTIVE'], fb['FB_ALARM'],
-                            fb['FB_READY_NO'], fb['FB_OVERHEAT_NC']])
+                            fb['FB_READY'], fb['FB_OVERHEAT']])
         int_unit.capabilities.set([caps['LOCAL_CONTROL'], caps['DISPLAY'],
                                    caps['DATALOGGER'], caps['PST'],
                                    caps['BLUETOOTH'], caps['ESD']])
@@ -800,8 +896,8 @@ class Command(BaseCommand):
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
         int_o.accepts.set([])
-        int_o.emits.set([fb['FB_END_OPEN'], fb['FB_END_CLOSE'],
-                         fb['FB_REMOTE_NO'], fb['FB_ALARM_SPDT']])
+        int_o.emits.set([fb['FB_END_OPEN_SPDT'], fb['FB_END_CLOSE_SPDT'],
+                         fb['FB_LOCAL_REMOTE'], fb['FB_ALARM']])
         int_o.capabilities.set([caps['LOCAL_CONTROL'], caps['DISPLAY']])
 
         # опции слота control_unit ссылаются на типы БУ
@@ -865,8 +961,10 @@ class Command(BaseCommand):
             (slots['CMD_ESD'], opts['CMD_ESD_CONT'], na),
             (slots['CMD_ESD'], opts['CMD_ESD_IMP'], na),
             (slots['CMD_ESD'], opts['CMD_ESD_CONF'], na),
-            (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
-            (slots['TORQUE_SWITCHES'], opts['TORQUE_SPDT'], std),
+            (slots['LIMIT_SWITCHES_OPENED'], opts['OPEN_SPDT'], std),
+            (slots['LIMIT_SWITCHES_CLOSED'], opts['CLOSE_SPDT'], std),
+            (slots['TORQUE_SWITCHES_OPEN'], opts['TORQUE_OPEN_SPDT'], std),
+            (slots['TORQUE_SWITCHES_CLOSE'], opts['TORQUE_CLOSE_SPDT'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_NONE'], std),
             (slots['THERMAL_SENSOR'], opts['OVERHEAT_SPST_NC'], std),
             (slots['INDICATOR'], opts['LED_SET'], std),
@@ -911,9 +1009,12 @@ class Command(BaseCommand):
             (slots['CMD_ESD'], opts['CMD_ESD_CONT'], opt),
             (slots['CMD_ESD'], opts['CMD_ESD_IMP'], na),
             (slots['SETPOINT'], opts['SETPOINT_4_20'], opt),
-            (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
-            (slots['WAY_SWITCHES'], opts['WAY_SPDT'], opt),
-            (slots['TORQUE_SWITCHES'], opts['TORQUE_SPDT'], std),
+            (slots['LIMIT_SWITCHES_OPENED'], opts['OPEN_SPDT'], std),
+            (slots['LIMIT_SWITCHES_CLOSED'], opts['CLOSE_SPDT'], std),
+            (slots['WAY_SWITCHES_OPEN'], opts['WAY_OPEN_SPDT'], opt),
+            (slots['WAY_SWITCHES_CLOSED'], opts['WAY_CLOSE_SPDT'], opt),
+            (slots['TORQUE_SWITCHES_OPEN'], opts['TORQUE_OPEN_SPDT'], std),
+            (slots['TORQUE_SWITCHES_CLOSE'], opts['TORQUE_CLOSE_SPDT'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_4_20_ACTIVE'], std),
             (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
             (slots['THERMAL_SENSOR'], opts['OVERHEAT_NC'], opt),
@@ -926,18 +1027,23 @@ class Command(BaseCommand):
             rows[(slot.code, option.code)] = _row(
                 slot, option, cus['int'], availability=avail)
 
-        # пакет MWG (три слота, общий bundle; нет концевых/моментных)
+        # пакет MWG (общий bundle; нет концевых/моментных в обе стороны)
         mwg_rows = [
             _row(slots['POSITION_FEEDBACK'], opts['POS_MWG'], cus['int'],
                  availability=opt, bundle='MWG'),
-            _row(slots['LIMIT_SWITCHES'], opts['LIMIT_NONE'], cus['int'],
-                 availability=opt, bundle='MWG'),
-            _row(slots['TORQUE_SWITCHES'], opts['TORQUE_NONE'], cus['int'],
-                 availability=opt, bundle='MWG'),
+            _row(slots['LIMIT_SWITCHES_OPENED'], opts['LIMIT_OPEN_NONE'],
+                 cus['int'], availability=opt, bundle='MWG'),
+            _row(slots['LIMIT_SWITCHES_CLOSED'], opts['LIMIT_CLOSE_NONE'],
+                 cus['int'], availability=opt, bundle='MWG'),
+            _row(slots['TORQUE_SWITCHES_OPEN'], opts['TORQUE_OPEN_NONE'],
+                 cus['int'], availability=opt, bundle='MWG'),
+            _row(slots['TORQUE_SWITCHES_CLOSE'], opts['TORQUE_CLOSE_NONE'],
+                 cus['int'], availability=opt, bundle='MWG'),
         ]
         # конфликт: MWG несовместим с моментными SPDT
-        torque_row = rows[('TORQUE_SWITCHES', 'TORQUE_SPDT')]
-        torque_row.conflicts.add(mwg_rows[0])
+        for key in (('TORQUE_SWITCHES_OPEN', 'TORQUE_OPEN_SPDT'),
+                    ('TORQUE_SWITCHES_CLOSE', 'TORQUE_CLOSE_SPDT')):
+            rows[key].conflicts.add(mwg_rows[0])
 
         # профиль БУ INT Modbus: как INT + шина
         for slot, option, avail in p:
@@ -958,8 +1064,10 @@ class Command(BaseCommand):
             (slots['CMD_STOP'], opts['CMD_STOP_NONE'], std),
             (slots['CMD_ESD'], opts['CMD_ESD_NONE'], std),
             (slots['SETPOINT'], opts['SETPOINT_HART'], std),
-            (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
-            (slots['TORQUE_SWITCHES'], opts['TORQUE_SPDT'], std),
+            (slots['LIMIT_SWITCHES_OPENED'], opts['OPEN_SPDT'], std),
+            (slots['LIMIT_SWITCHES_CLOSED'], opts['CLOSE_SPDT'], std),
+            (slots['TORQUE_SWITCHES_OPEN'], opts['TORQUE_OPEN_SPDT'], std),
+            (slots['TORQUE_SWITCHES_CLOSE'], opts['TORQUE_CLOSE_SPDT'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_HART'], std),
             (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
             (slots['INDICATOR'], opts['LCD'], std),
@@ -1065,9 +1173,12 @@ class Command(BaseCommand):
             (slots['LOCAL_CONTROL'], opts['SELECTOR'], opt),
             (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], std),
             (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_SEL'], opt),
-            (slots['LIMIT_SWITCHES'], opts['END_SPDT'], std),
-            (slots['LIMIT_SWITCHES'], opts['END_DPDT'], opt),
-            (slots['TORQUE_SWITCHES'], opts['TORQUE_NONE'], std),
+            (slots['LIMIT_SWITCHES_OPENED'], opts['OPEN_SPDT'], std),
+            (slots['LIMIT_SWITCHES_OPENED'], opts['OPEN_DPDT'], opt),
+            (slots['LIMIT_SWITCHES_CLOSED'], opts['CLOSE_SPDT'], std),
+            (slots['LIMIT_SWITCHES_CLOSED'], opts['CLOSE_DPDT'], opt),
+            (slots['TORQUE_SWITCHES_OPEN'], opts['TORQUE_OPEN_NONE'], std),
+            (slots['TORQUE_SWITCHES_CLOSE'], opts['TORQUE_CLOSE_NONE'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_NONE'], std),
             (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
             (slots['REMOTE_CONTROL'], opts['REMOTE_SPST_NO'], std),

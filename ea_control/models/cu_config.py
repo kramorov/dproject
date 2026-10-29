@@ -72,6 +72,7 @@ class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
 class CuOptionKind(models.TextChoices):
     """Тип опции слота БУ (значения домена, переопределяют абстрактный kind)."""
     SIGNAL = 'signal', _('Сигнал')
+    DEVICE = 'device', _('Устройство ОС')
     HEATER = 'heater', _('Питание обогрева')
     POWER = 'power', _('Схема цепей управления (источник × напряжение)')
     LOGIC = 'logic', _('Логика работы сигнала')
@@ -218,6 +219,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             return str(self.unit_power_source)
         if self.kind == CuOptionKind.CABLE_GLAND and self.cable_gland_set_id:
             return str(self.cable_gland_set)
+        if self.kind == CuOptionKind.DEVICE and self.device_id:
+            return str(self.device)
         if self.kind == CuOptionKind.DISPLAY:
             names = [str(d) for d in self.display_types.all().order_by('sorting_order')]
             if names:
@@ -234,6 +237,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             return localized_name(self.unit_power_source, locale)
         if self.kind == CuOptionKind.CABLE_GLAND and self.cable_gland_set_id:
             return localized_name(self.cable_gland_set, locale)
+        if self.kind == CuOptionKind.DEVICE and self.device_id:
+            return localized_name(self.device, locale)
         if self.kind == CuOptionKind.POWER and self.signal_power_id:
             return localized_name(self.signal_power, locale)
         if self.kind == CuOptionKind.LOGIC and self.control_logic_id:
@@ -264,6 +269,9 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         elif self.kind == CuOptionKind.HEATER:
             if not self.heater_supply_id:
                 raise ValidationError(_('Для опции-обогрева нужно питание обогрева.'))
+        elif self.kind == CuOptionKind.DEVICE:
+            if not self.device_id:
+                raise ValidationError(_('Для опции-устройства нужно устройство ОС.'))
         elif self.kind == CuOptionKind.POWER:
             if not self.signal_power_id:
                 raise ValidationError(_('Для опции питания цепей нужно CuSignalPower.'))

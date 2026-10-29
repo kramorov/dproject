@@ -170,6 +170,7 @@
                   <label class="form-field"><span>Тип опции</span>
                     <select v-model="selOption.kind" @change="resetOptionPayload">
                       <option value="signal">Сигнал</option>
+                      <option value="device">Устройство ОС</option>
                       <option value="heater">Обогрев</option>
                       <option value="power">Питание цепей</option>
                       <option value="logic">Логика</option>
@@ -206,7 +207,7 @@
                         <option v-for="o in dicts.protocols" :key="o.id" :value="o.id">{{ o.label }}</option>
                       </select>
                     </label>
-                    <label class="form-field"><span>Устройство</span>
+                    <label class="form-field"><span>Датчик по умолчанию</span>
                       <select v-model="selOption.device">
                         <option :value="null">— —</option>
                         <option v-for="o in dicts.devices" :key="o.id" :value="o.id">{{ o.label }}</option>
@@ -214,6 +215,14 @@
                     </label>
                   </div>
                 </template>
+                <div v-else-if="selOption.kind === 'device'" class="form-row">
+                  <label class="form-field"><span>Устройство ОС</span>
+                    <select v-model="selOption.device">
+                      <option :value="null">— —</option>
+                      <option v-for="o in dicts.devices" :key="o.id" :value="o.id">{{ o.label }}</option>
+                    </select>
+                  </label>
+                </div>
                 <div v-else-if="selOption.kind === 'heater'" class="form-row">
                   <label class="form-field"><span>Обогрев</span>
                     <select v-model="selOption.heater_supply">
@@ -550,7 +559,7 @@ function cloneOption(o) {
     control_signal: o.control_signal, feedback_signal: o.feedback_signal,
     protocol: o.protocol, heater_supply: o.heater_supply,
     signal_power: o.signal_power, control_logic: o.control_logic,
-    control_unit: null, device: null,
+    control_unit: o.control_unit, device: o.device,
     local_control_type: o.local_control_type,
     display_types: [...(o.display_types || [])],
     unit_power_source: o.unit_power_source,
