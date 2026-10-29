@@ -8,8 +8,10 @@
   «Схема цепей управления»);
 - удаляет дрейфовые слоты CMD_SIGNAL_SOURCE_ESD и SETPOINT_Copy (и их опции);
 - удаляет мусорные опции-копии (ALARM_NONE_Copy и прочие *_Copy);
-- удаляет устаревшие bare-строки матрицы «нет сигнала» (option=None) у
-  CMD_OPEN/CMD_CLOSE/CMD_STOP/CMD_ESD — их заменили явные опции *_NONE;
+- удаляет устаревшие bare-строки матрицы «нет сигнала» (option=None) —
+  их заменили явные опции *_NONE в новой структуре сигналов (во всех
+  слотах: такие строки игнорируются редактором и резолверами, но могли
+  ломать валидацию «одна std» у single-слотов);
 - перепривязывает опцию слота STOP_SIGNAL (STOP_SPDT) к сигналу FB_STOP
   (была ошибочно привязана к сигналу аварии FB_ALARM*).
 
@@ -78,10 +80,11 @@ class Command(BaseCommand):
 
     def _remove_bare_rows(self):
         # устаревшие bare-строки «нет сигнала» (option=None) — заменены
-        # явными опциями *_NONE в новой структуре сигналов
-        qs = CuMatrixEntry.objects.filter(
-            slot__code__in=('CMD_OPEN', 'CMD_CLOSE', 'CMD_STOP', 'CMD_ESD'),
-            option__isnull=True)
+        # явными опциями *_NONE в новой структуре сигналов. Редактор
+        # матрицы и резолверы такие строки игнорируют; удаляем во всех
+        # слотах, а не только CMD_* (напр. TORQUE_SWITCHES_OPEN/WAY_* —
+        # остаток старой структуры пар контактов).
+        qs = CuMatrixEntry.objects.filter(option__isnull=True)
         ids = list(qs.values_list('id', flat=True))
         qs.delete()
         return ids

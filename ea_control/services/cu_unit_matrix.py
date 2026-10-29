@@ -202,6 +202,11 @@ def _validate_single_default(control_unit, power_supply, slots, valid):
     Проверяем итоговое множество std после применения изменений: текущие
     std-строки слота (кроме изменяемых опций) плюс опции, переключаемые в
     std. Для multi/bundle-слотов несколько std допустимы.
+
+    Bare-строки (``option=None``, наследие старой структуры «нет сигнала»)
+    не считаются std-опциями: редактор и резолверы их игнорируют, а SQL
+    ``NOT IN`` не отсеивает NULL — иначе одна такая строка превращала бы
+    любое изменение слота в ложную ошибку «две std».
     """
     by_slot = {}
     for slot, option, availability in valid:
@@ -213,7 +218,8 @@ def _validate_single_default(control_unit, power_supply, slots, valid):
         changed_ids = {oid for oid, _ in items}
         existing_std = set(
             _profile_row_qs(control_unit, power_supply)
-            .filter(slot_id=slot_id, availability='std')
+            .filter(slot_id=slot_id, availability='std',
+                    option_id__isnull=False)
             .exclude(option_id__in=changed_ids)
             .values_list('option_id', flat=True))
         new_std = {oid for oid, avail in items if avail == 'std'}

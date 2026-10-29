@@ -300,6 +300,35 @@ class CuUnitMatrixServiceTests(TestCase):
                 [{'slot_id': slot.id, 'option_id': buttons.id,
                   'availability': 'std'}])
 
+    def test_apply_ignores_bare_rows_in_single_slot(self):
+        # устаревшая bare-строка (option=None, «нет сигнала» старой
+        # структуры) не считается std-опцией: пометка другой опции как
+        # opt не должна давать ложную ошибку «две std»
+        slot = CuSlot.objects.get(code='TORQUE_SWITCHES_OPEN')
+        CuMatrixEntry.objects.create(
+            slot=slot, option=None, control_unit=self.basic,
+            availability='std')
+        target = CuSlotOption.objects.get(code='TORQUE_OPEN_DPDT')
+        saved = apply_unit_matrix_changes(
+            self.basic, None,
+            [{'slot_id': slot.id, 'option_id': target.id,
+              'availability': 'opt'}])
+        self.assertEqual(saved, 1)
+        self.assertTrue(CuMatrixEntry.objects.filter(
+            slot=slot, option=target, control_unit=self.basic,
+            power_supply__isnull=True, signal_power__isnull=True,
+            availability='opt').exists())
+        # при этом два реальных std по-прежнему запрещены
+        spdt = CuSlotOption.objects.get(code='TORQUE_OPEN_SPDT')
+        with self.assertRaises(MatrixValidationError):
+            apply_unit_matrix_changes(
+                self.basic, None,
+                [{'slot_id': slot.id, 'option_id': target.id,
+                  'availability': 'std'}])
+        self.assertEqual(CuMatrixEntry.objects.filter(
+            slot=slot, option=spdt, control_unit=self.basic,
+            availability='std').count(), 1)
+
     def test_apply_rule_changes(self):
         slot = CuSlot.objects.get(code='POSITION_FEEDBACK')
         saved = apply_unit_rule_changes(
