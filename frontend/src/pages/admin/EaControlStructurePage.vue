@@ -295,10 +295,10 @@
                   </label>
                 </div>
                 <div v-else-if="selOption.kind === 'cable_gland'" class="form-row">
-                  <label class="form-field"><span>Набор резьб вводов</span>
+                  <label class="form-field"><span>Набор отверстий КВ</span>
                     <select v-model="selOption.cable_gland_set">
                       <option :value="null">— —</option>
-                      <option v-for="o in dicts.threadSets" :key="o.id" :value="o.id">{{ o.label }}</option>
+                      <option v-for="o in dicts.cgHoleSets" :key="o.id" :value="o.id">{{ o.label }}</option>
                     </select>
                   </label>
                 </div>
@@ -356,7 +356,7 @@ const dicts = reactive({
   controlSignals: [], feedbackSignals: [], protocols: [], devices: [],
   heaterSupplies: [], signalPowers: [], controlLogics: [],
   units: [], localControlTypes: [], displayTypes: [], unitPowerSources: [],
-  threadSets: [], locationOptions: [],
+  cgHoleSets: [], locationOptions: [],
 })
 
 // Черновик выбранного узла: { node, slots: [ { ..., options: [...] } ] }
@@ -563,7 +563,7 @@ async function reload() {
     dicts.displayTypes = dictList(dsp.data.results || dsp.data || [])
     dicts.unitPowerSources = dictList(upw.data.results || upw.data || [])
     dicts.locationOptions = dictList(loc.data.results || loc.data || [])
-    dicts.threadSets = dictList(meta.data.thread_sets || [])
+    dicts.cgHoleSets = dictList(meta.data.cg_hole_sets || [])
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка загрузки'
   } finally {
@@ -811,7 +811,7 @@ function validateSlotDraft(slot, seenSlotCodes) {
       errs.push(`опция в слоте «${slotLabel}»: логика работы`)
     }
     if (opt.kind === 'cable_gland' && !opt.cable_gland_set) {
-      errs.push(`опция в слоте «${slotLabel}»: набор резьб вводов`)
+      errs.push(`опция в слоте «${slotLabel}»: набор отверстий КВ`)
     }
     if (opt.kind === 'location' && !opt.location_option) {
       errs.push(`опция в слоте «${slotLabel}»: размещение БУ`)

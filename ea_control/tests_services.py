@@ -163,6 +163,23 @@ class CuRulesServiceTests(TestCase):
         state = apply_rules(self.rules, {'SETPOINT': 'SETPOINT_HART'})
         self.assertEqual(state['POSITION_FEEDBACK']['default'], 'POS_HART')
 
+    def test_power_supply_controls_cu_cable_glands(self):
+        # общий кабель — вводы БУ скрыты; отдельный кабель — показаны
+        hidden = apply_rules(self.rules, {'CU_POWER_SUPPLY': 'PU_SHARED'})
+        self.assertFalse(hidden.get('CU_CABLE_GLANDS', {})
+                         .get('visible', True))
+        shown = apply_rules(self.rules, {'CU_POWER_SUPPLY': 'PU_SEPARATE'})
+        self.assertTrue(shown.get('CU_CABLE_GLANDS', {})
+                        .get('visible', True))
+
+    def test_int_o_keeps_cu_cable_glands_on_shared_power(self):
+        # исключение: навесному БУ (CU_INT_O) вводы БУ видны всегда,
+        # даже при общем кабеле питания (show с priority 1 перебивает hide)
+        state = apply_rules(self.rules, {'control_unit': 'CU_INT_O',
+                                         'CU_POWER_SUPPLY': 'PU_SHARED'})
+        self.assertTrue(state.get('CU_CABLE_GLANDS', {})
+                        .get('visible', True))
+
 
 class CuUnitCopyDeleteTests(TestCase):
     """Actions copy/delete-unit у ControlUnitViewSet (связки матрицы/правил)."""

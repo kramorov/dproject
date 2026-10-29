@@ -767,38 +767,57 @@ class Command(BaseCommand):
                               thread_diameter=diameter))
             return ts
 
-        def _gland_set_opt(opt_code, set_code, name, threads):
-            """Опция вводов БУ: набор резьб (каждая резьба с количеством)."""
-            from params.models import ThreadSizeSet, ThreadSizeSetItem
-            tset, _ = ThreadSizeSet.objects.get_or_create(
-                code=set_code, defaults=dict(name=name))
-            if not tset.thread_items.exists():
-                for pos, ts in enumerate(threads, start=1):
-                    ThreadSizeSetItem.objects.get_or_create(
-                        thread_set=tset, position=pos,
-                        defaults=dict(thread_size=ts))
-            opt = _opt(opt_code, slots['CU_CABLE_GLANDS'], 'cable_gland',
-                       cable_gland_set=tset)
-            opt.cable_gland_set = tset
-            opt.save(update_fields=['cable_gland_set'])
-            return opt
+        def _gland_set_opt(opt_code, name, text, threads):
+            """Опция вводов БУ: набор отверстий — общая модель ЭП.
 
+            Совместимость с ЭП: опция ссылается на
+            electric_actuators.CableGlandHolesSet (как и корпуса привода),
+            а не на отдельный справочник БУ. ``threads`` — до 4 резьб по
+            числу отверстий (cg1..cg4).
+            """
+            from electric_actuators.models import CableGlandHolesSet
+            lookup = {'name': name, 'kind': 'GLAND_SET'}
+            fields = dict(lookup, text_description=text)
+            for i, ts in enumerate(threads[:4], start=1):
+                fields[f'cg{i}'] = ts
+            # name не уникален — не get_or_create (MultipleObjectsReturned
+            # при дубле имени); при дублях берём первую запись
+            obj = CableGlandHolesSet.objects.filter(**lookup).first()
+            if obj is None:
+                obj = CableGlandHolesSet.objects.create(**fields)
+            return _opt(opt_code, slots['CU_CABLE_GLANDS'], 'cable_gland',
+                        cable_gland_set=obj)
+
+        # резьбы — общий справочник params.ThreadSize; коды ЭП (M20x1.5…)
+        # переиспользуем, чтобы наборы БУ и корпуса ссылались на одни записи
         opts['CG_M20'] = _gland_set_opt(
-            'CG_M20', 'CU_M20', 'Одинаковая резьба M20×1,5',
-            [_thread('M20', 'M20×1,5', 'METRIC', 'Метрическая', diameter=20)])
+            'CG_M20', '3xM20x1.5',
+            'Одинаковая резьба M20×1,5 (3 отверстия)',
+            [_thread('M20x1.5', 'M20x1.5', 'METRIC', 'Метрическая',
+                     diameter=20)] * 3)
         opts['CG_M25'] = _gland_set_opt(
-            'CG_M25', 'CU_M25', 'Одинаковая резьба M25×1,5',
-            [_thread('M25', 'M25×1,5', 'METRIC', 'Метрическая', diameter=25)])
+            'CG_M25', '3xM25x1.5',
+            'Одинаковая резьба M25×1,5 (3 отверстия)',
+            [_thread('M25x1.5', 'M25x1.5', 'METRIC', 'Метрическая',
+                     diameter=25)] * 3)
         opts['CG_PG16'] = _gland_set_opt(
-            'CG_PG16', 'CU_PG16', 'Одинаковая резьба PG16',
-            [_thread('PG16', 'PG16', 'PG', 'PG')])
+            'CG_PG16', '3xPG16', 'Одинаковая резьба PG16 (3 отверстия)',
+            [_thread('PG16', 'PG16', 'PG', 'PG')] * 3)
         # набор вводов INT/O: 1×1½" NPT + 2×¾" NPT (из справочника резьб)
         opts['CG_NPT_112_34'] = _gland_set_opt(
-            'CG_NPT_112_34', 'CU_NPT_112_34_34',
+            'CG_NPT_112_34', '1xNPT11/2", 2xNPT3/4"',
             '1×1½" NPT + 2×¾" NPT',
             [_thread('NPT_1_1_2', '1½" NPT', 'NPT', 'NPT', diameter=1.5),
              _thread('NPT_3_4', '¾" NPT', 'NPT', 'NPT', diameter=0.75),
              _thread('NPT_3_4', '¾" NPT', 'NPT', 'NPT', diameter=0.75)])
+
+        # старые наборы БУ из params.ThreadSizeSet больше не используются
+        # (опции переключены на CableGlandHolesSet) — чистим идемпотентно;
+        # записи ThreadSize остаются (общий справочник резьб)
+        from params.models import ThreadSizeSet
+        ThreadSizeSet.objects.filter(
+            code__in=('CU_M20', 'CU_M25', 'CU_PG16',
+                      'CU_NPT_112_34_34')).delete()
         return sections, slots, opts
 
     # ── Типы БУ ────────────────────────────────────────────────────────────
@@ -1362,3 +1381,18 @@ class Command(BaseCommand):
                   when_value=['CU_BASIC', 'CU_INT', 'CU_INT_MB', 'CU_POSI'],
                   operator='in',
                   description=f'Встроенному БУ слот {hidden} не показываем')
+        # питание БУ → чьи отверстия для подбора КВ: общий кабель — отверстия
+        # корпуса привода (вводы БУ не используем), отдельный кабель — вводы БУ
+        _rule(slots['CU_POWER_SUPPLY'], slots['CU_CABLE_GLANDS'], 'hide',
+              when_value='PU_SHARED',
+              description='Общий кабель питания — отверстия корпуса привода, '
+                          'вводы БУ не показываем')
+        _rule(slots['CU_POWER_SUPPLY'], slots['CU_CABLE_GLANDS'], 'show',
+              when_value='PU_SEPARATE',
+              description='Отдельный кабель питания — показываем вводы БУ')
+        # исключение: навесному БУ (INT/O) вводы БУ есть всегда — сигналы
+        # заходят в БУ и при общем кабеле питания (show с priority 1
+        # перебивает PU_SHARED-hide)
+        _rule(slots['control_unit'], slots['CU_CABLE_GLANDS'], 'show',
+              when_value='CU_INT_O', priority=1,
+              description='Навесному БУ вводы БУ показываем всегда ')

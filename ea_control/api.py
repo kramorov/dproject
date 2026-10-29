@@ -292,10 +292,11 @@ def units_view(request):
 @permission_classes([IsAdminUser])
 def meta_view(request):
     """Справочники для селекторов конфигуратора и админки."""
-    from electric_actuators.models import (ElectricActuatorBody,
+    from electric_actuators.models import (CableGlandHolesSet,
+                                           ElectricActuatorBody,
                                            ElectricActuatorModelLine,
                                            ElectricActuatorModelLineItem)
-    from params.models import PowerSupplies, ThreadSize, ThreadSizeSet
+    from params.models import PowerSupplies, ThreadSize
     from producers.models import Brands
 
     model_lines = [{'id': m.id, 'code': m.code, 'name': m.name}
@@ -311,9 +312,8 @@ def meta_view(request):
     thread_sizes = [{'id': t.id, 'code': t.code or '', 'name': t.name or str(t.id)}
                     for t in ThreadSize.objects.filter(is_active=True)
                     .order_by('sorting_order', 'name')]
-    thread_sets = [{'id': s.id, 'code': s.code or '', 'name': s.name or str(s.id)}
-                   for s in ThreadSizeSet.objects.filter(is_active=True)
-                   .order_by('sorting_order', 'name')]
+    cg_hole_sets = [{'id': s.id, 'name': s.text_description or s.name or str(s.id)}
+                    for s in CableGlandHolesSet.objects.order_by('name')]
     return Response({
         'model_lines': model_lines,
         'power_supplies': power_supplies,
@@ -321,7 +321,7 @@ def meta_view(request):
         'bodies': bodies,
         'model_line_items': model_line_items,
         'thread_sizes': thread_sizes,
-        'thread_sets': thread_sets,
+        'cg_hole_sets': cg_hole_sets,
     })
 
 

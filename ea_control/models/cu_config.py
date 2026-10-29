@@ -103,7 +103,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
       ``control_logic`` (logic — логика сигнала), ``control_unit`` (unit —
       только для слота control_unit), ``device`` (датчик по умолчанию для
       опции), ``location_option`` (location — размещение БУ, слот
-      CU_LOCATION);
+      CU_LOCATION), ``cable_gland_set`` (cable_gland — набор отверстий
+      под КВ, общая модель ЭП electric_actuators.CableGlandHolesSet);
     - ``clean()`` — ровно одна полезная нагрузка на kind (образец
       EaSlotOption.clean).
     """
@@ -121,7 +122,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                     "схема цепей управления; logic — логика работы; unit — "
                     "БУ (слот control_unit); local_control — орган местного "
                     "управления; display — вид(ы) отображения; unit_power — "
-                    "питание БУ; cable_gland — резьба кабельных вводов БУ; "
+                    "питание БУ; cable_gland — набор отверстий под КВ БУ "
+                    "(общая модель ЭП CableGlandHolesSet); "
                     "location — размещение БУ; none — опция без полезной "
                     "нагрузки; pair — пара контактов Откр/Закр"),
     )
@@ -199,12 +201,13 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                     "отдельный кабель (слот CU_POWER_SUPPLY)"),
     )
     cable_gland_set = models.ForeignKey(
-        'params.ThreadSizeSet', on_delete=models.PROTECT, null=True, blank=True,
-        related_name='cu_slot_options',
-        verbose_name=_("Набор резьб кабельных вводов БУ"),
-        help_text=_("Для kind=cable_gland: набор резьбовых отверстий ввода "
-                    "кабелей БУ (глобальный справочник params.ThreadSizeSet — "
-                    "каждая резьба с количеством; слот CU_CABLE_GLANDS)"),
+        'electric_actuators.CableGlandHolesSet', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='cu_slot_options',
+        verbose_name=_("Набор отверстий под КВ БУ"),
+        help_text=_("Для kind=cable_gland: набор отверстий под кабельные "
+                    "вводы БУ — общая модель ЭП "
+                    "electric_actuators.CableGlandHolesSet (kind: набор "
+                    "отверстий или разъём; слот CU_CABLE_GLANDS)"),
     )
     location_option = models.ForeignKey(
         'CuLocationOption', on_delete=models.PROTECT, null=True, blank=True,
@@ -315,8 +318,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         elif self.kind == CuOptionKind.CABLE_GLAND:
             if not self.cable_gland_set_id:
                 raise ValidationError(
-                    _('Для опции кабельных вводов нужен набор резьб '
-                      '(params.ThreadSizeSet).'))
+                    _('Для опции кабельных вводов нужен набор отверстий '
+                      '(electric_actuators.CableGlandHolesSet).'))
         elif self.kind == CuOptionKind.LOCATION:
             if not self.location_option_id:
                 raise ValidationError(

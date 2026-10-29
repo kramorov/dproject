@@ -51,6 +51,7 @@
               <strong>{{ slot.name }}</strong>
               <span class="mode">{{ slot.selection_mode }}</span>
               <span v-if="slot.required || slotState(slot.code).required" class="req">обязателен</span>
+              <span v-if="glandsSourceHint(slot)" class="gland-hint">{{ glandsSourceHint(slot) }}</span>
             </div>
             <div class="opts">
               <label v-for="o in slot.options" :key="o.code"
@@ -206,6 +207,23 @@ function slotState(slotCode) {
   return state
 }
 
+// производная подпись: чьи отверстия брать для подбора КВ (не слот —
+// следствие выбора PU_SHARED/PU_SEPARATE; висит на слоте питания БУ).
+// «+ БУ» — когда вводы БУ видны и при общем кабеле (исключение для
+// навесного БУ, правило show CU_INT_O)
+function glandsSourceHint(slot) {
+  if (slot.code !== 'CU_POWER_SUPPLY') return ''
+  const pu = selection['CU_POWER_SUPPLY']
+  if (!pu) return ''
+  const cuGlandsVisible = slotState('CU_CABLE_GLANDS').visible
+  if (pu === 'PU_SHARED') {
+    return cuGlandsVisible
+      ? 'отверстия для подбора КВ: корпус привода + БУ'
+      : 'отверстия для подбора КВ: корпус привода'
+  }
+  return 'отверстия для подбора КВ: БУ (отдельный кабель)'
+}
+
 function evaluate(op, expected, current) {
   if (op === 'is_set') return current !== null && current !== undefined && current !== ''
   if (op === 'not_exact') return current !== expected
@@ -359,6 +377,7 @@ onMounted(async () => {
 .slot-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
 .mode { color: #888; font-size: 12px; }
 .req { color: #b60; font-size: 12px; }
+.gland-hint { color: #2c6fb0; font-size: 12px; }
 .opts { display: flex; flex-wrap: wrap; gap: 8px; }
 .opt { display: flex; gap: 6px; align-items: center; border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; font-size: 13px; }
 .opt.na { opacity: .4; }
