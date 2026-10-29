@@ -18,6 +18,7 @@ from ea_control.services.cu_package import build_package
 from ea_control.services.cu_rules import apply_rules
 from ea_control.services.cu_unit_matrix import (MatrixValidationError,
                                                 apply_unit_matrix_changes,
+                                                apply_unit_rule_changes,
                                                 build_unit_matrix)
 
 
@@ -298,6 +299,47 @@ class CuUnitMatrixServiceTests(TestCase):
                 self.basic, None,
                 [{'slot_id': slot.id, 'option_id': buttons.id,
                   'availability': 'std'}])
+
+    def test_apply_rule_changes(self):
+        slot = CuSlot.objects.get(code='POSITION_FEEDBACK')
+        saved = apply_unit_rule_changes(
+            self.basic, [{'slot_id': slot.id, 'action': 'hide',
+                          'action_value': None}])
+        self.assertEqual(saved, 1)
+        rule = CuSlotRule.objects.get(
+            when_slot__code='control_unit', target_slot=slot,
+            when_operator='exact', when_value='CU_BASIC')
+        self.assertEqual(rule.action, 'hide')
+
+        saved = apply_unit_rule_changes(
+            self.basic, [{'slot_id': slot.id, 'action': 'require',
+                          'action_value': None}])
+        self.assertEqual(saved, 1)
+        rule.refresh_from_db()
+        self.assertEqual(rule.action, 'require')
+
+        saved = apply_unit_rule_changes(
+            self.basic, [{'slot_id': slot.id, 'action': None,
+                          'action_value': None}])
+        self.assertEqual(saved, 1)
+        self.assertFalse(CuSlotRule.objects.filter(
+            when_slot__code='control_unit', target_slot=slot,
+            when_operator='exact', when_value='CU_BASIC').exists())
+
+    def test_apply_rule_changes_in_list(self):
+        slot = CuSlot.objects.get(code='WAY_SWITCHES_OPEN')
+        saved = apply_unit_rule_changes(
+            self.basic,
+            [{'slot_id': slot.id, 'action': 'hide', 'action_value': None,
+              'operator': 'in', 'when_value': ['CU_INT']}])
+        self.assertEqual(saved, 1)
+        rule = CuSlotRule.objects.get(
+            when_slot__code='control_unit', target_slot=slot,
+            when_operator='in')
+        self.assertEqual(rule.action, 'hide')
+        # текущий БУ (CU_BASIC) автоматически добавлен в список
+        self.assertIn('CU_BASIC', rule.when_value)
+        self.assertIn('CU_INT', rule.when_value)
 
 
 class CuPackageServiceTests(TestCase):

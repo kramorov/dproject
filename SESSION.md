@@ -1,93 +1,74 @@
-# SESSION — фиксы конфигуратора БУ: перенос слота, CSRF, i18n, копирование, dropdown «Раздел» — 2026-10-27, конец сессии
+# SESSION — БУ: справочник ОС (формы), Path B, device-kind, редактор правил — 2026-10-29, конец сессии
 
-Состояние на конец дня. Продолжать с пункта «Не проверено / осталось».
+Состояние на конец дня 2026-10-29. Продолжать с «Не проверено / осталось».
 
-## Что сделано за сессию
+## Что сделано за сессию (2026-10-28…29)
 
-1. **Перенос слота между разделами заработал.** Корень: (а) поле слота раньше
-   путалось с «Родитель» узла — подписи разведены (у слота «Раздел», у узла
-   «Родитель»); (б) селектор оставлен на штатном `v-model` — эксперимент с
-   `:value` + ручным `@change` при реальном клике откатывал селект к старому
-   значению (диагностировали по логам консоли), возвращён `v-model`.
-2. **CSRF-кука.** `GET /api/auth/me/` получил `ensure_csrf_cookie`; фронт
-   (`shared/api.js`) перед записью дозапрашивает `csrftoken` через
-   `GET /auth/login/`, если куки нет. Раньше PUT/POST падали молча
-   «CSRF Failed: CSRF cookie not set.» (красный баннер на странице, не консоль).
-3. **i18n не затирается.** Сериализаторы ea_control
-   (`_serializer`, `_slot_option_serializer`) объявили
-   `name_i18n`/`description_i18n` read-only: полный PUT из фронта больше не
-   сбрасывает en/cn (миксин синхронизирует только ru).
-4. **Редактор слота.** Добавлены кнопки «Сохранить» (скоуп — только выбранный
-   слот и его опции, не трогает узел/другие слоты; при удалении слота валидация
-   пропускается) и «Копировать» (клон слота + всех опций, коды с суффиксом
-   `_Copy` + авто-номер при коллизии, раздел берётся из формы). Зелёный баннер
-   успеха: «Сохранено» / «Слот сохранён» / «Слот скопирован». Общая логика
-   вынесена: `validateSlotDraft`, `persistSlot`, `persistSlotOptions`,
-   `refreshSlotDraft`.
-5. **Вечером: перенос слота снова «не сохранялся» — настоящая причина и фикс.**
-   Диагноз по логам браузера (debug-вывод в консоли, см. ниже): нативный
-   `<select>` «Раздел» в Chrome периодически закрывал popup, не закоммитив
-   выбор — событие `change` приходило со СТАРЫМ значением, PUT уходил с
-   прежним разделом (200, без ошибки, «слот на месте»). Этим объясняется и
-   эффект «с отладкой работает, без — нет» (тайминги нативного popup).
-   Фикс: нативный select заменён на собственный dropdown `.section-picker`
-   (кнопка + меню, пункты с отступом по вложенности, выбор по
-   `mousedown.prevent` → сразу пишет `selSlot.section` + dirty; закрытие по
-   клику вне через `onDocClick`). Отладочные `[DEBUG]`-логи и временные файлы
-   после проверки удалены (эта чистка не закоммичена — закоммитить).
+1. **Справочник «Сигналы ОС» приведён к канону.**
+   - Команда `enrich_cu_feedback_signals` (идемпотентна): направленные
+     контакты — форма в коде `FB_<ROLE>_SPDT` / `FB_<ROLE>_DPDT` (6 ролей);
+     объединены дубли FB_ALARM/FB_OVERHEAT; переименованы FB_REMOTE_NO→
+     FB_LOCAL_REMOTE, FB_READY_NO→FB_READY; добавлены недостающие роли.
+   - `_rename` умеет корректно сливать (repoint + delete + канон полей).
+
+2. **Сид переведён на Path B** (`seed_cu_demo.py`):
+   - понаправленные слоты `LIMIT/WAY/TORQUE_SWITCHES_OPENED/CLOSED`;
+   - опции `kind=signal` → форм-вариант сигнала (+ `*_NONE`);
+   - матрица и MWG-пакет (5 строк) обновлены;
+   - `_opt` → `update_or_create` (payload проставляется и у существующих).
+   - `reconcile_cu_structure` (CMD_WIRING, удаление дрейфа, STOP_SPDT→FB_STOP).
+
+3. **Новый тип опции `device`** (`CuOptionKind.DEVICE` + фронт) — «Устройства
+   ОС» стало можно выбирать отдельным видом опции.
+
+4. **Технологии датчиков** += `HALL`, `ABSOLUTE_ENCODER`, `MAGNETIC`,
+   `INDUCTIVE` (`CuFeedbackTechnology`).
+
+5. **Редактор БУ: матрица + правила в одном дереве.**
+   - `EaControlUnitsEditor.vue`: две вкладки «Основное» / «Редактор доступных
+     опций»; дерево узлов → слоты → опции (std/opt/na) + правило на слот
+     (show/hide/block/require/set_default) с операторами exact/in/not_in.
+   - Бэкенд: `build_unit_matrix` отдаёт `rule` и `control_unit_options`;
+     `apply_unit_rule_changes` пишет правила; `unit-matrix/save` принимает
+     `changes` + `rule_changes`.
+   - Легенда и подсказки значений правил.
 
 ## Ключевые файлы
 
-- `frontend/src/pages/admin/EaControlStructurePage.vue` — редактор структуры
-  («Раздел», «Копировать», «Сохранить» слота, баннер, рефакторинг сохранения).
-- `frontend/src/shared/api.js` — CSRF-бутстрап перед записью.
-- `project_customers/views/auth.py` — `ensure_csrf_cookie` на `/auth/me/`.
-- `ea_control/api.py` — read-only i18n-поля сериализаторов.
+- `ea_control/models/cu_config.py` — `CuOptionKind.DEVICE`, clean/name.
+- `ea_control/models/dictionaries.py` — технологии датчиков.
+- `ea_control/services/cu_unit_matrix.py` — матрица + правила.
+- `ea_control/api.py` — `unit-matrix/save` (matrix + rules).
+- `ea_control/management/commands/enrich_cu_feedback_signals.py`
+- `ea_control/management/commands/reconcile_cu_structure.py`
+- `ea_control/management/commands/seed_cu_demo.py`
+- `frontend/src/pages/admin/EaControlUnitsEditor.vue`
+- `frontend/src/pages/admin/EaControlStructurePage.vue` (device-kind)
+- миграции `ea_control/0012_alter_cuslotoption_kind`,
+  `0013_alter_cufeedbackdevice_technology`.
 
 ## Проверено
 
 - `python manage.py check` — 0 issues.
-- `python manage.py test ea_control --keepdb` — 44/44 OK.
-- SFC-компиляция `EaControlStructurePage.vue` — OK (node + @vue/compiler-sfc),
-  в т.ч. после чистки отладки: parse/template/script — 0 ошибок.
-- Живой прогон (headless Chrome): перенос слота в другой раздел сохраняется,
-  в т.ч. без заранее установленной csrf-куки (подтянулась автоматически).
-- Автопрогон нового dropdown (headless Chrome, сценарий 5→11): change → 11,
-  PUT `"section":11`, 200, после reload слот в целевом разделе.
-- Ручной тест пользователя с новым dropdown — перенос работает.
-- `GET /api/auth/me/` на работающем сервере ставит `Set-Cookie: csrftoken`.
-
-## Внимание: живая БД
-
-- `SETPOINT` → раздел 5 («Питание БУ») — последнее состояние после вечерних
-  тестов переноса (1→5→11→5). В конце пользователь хотел «Дистанционное
-  управление» (CMD_INPUTS, id 11) — проверить и перенести при желании.
-- `SETPOINT_Copy` (id 39) → раздел 5 («Питание БУ») — результат ручного теста
-  пользователя. Если не нужна — удалить через редактор слота
-  («Удалить слот» → «Сохранить»).
-- Секции 6 (LOCAL_CONTROL_BUTTONS) и 7 (LOCAL_INDICATORS) удалены ранее;
-  `control_unit` и `BUTTONS_SELECTOR` — сироты (section=None).
+- `python manage.py test ea_control --keepdb` — 49/49 OK.
+- SFC-компиляция `EaControlUnitsEditor.vue` / `EaControlStructurePage.vue` — 0 ошибок.
 
 ## Не проверено / осталось
 
-0. Закоммитить чистку отладки в `EaControlStructurePage.vue` (+ удаление
-   временных debug-файлов) — она не в коммите с фиксом dropdown.
-1. `cd frontend; npm run build` — safety-гейт блокирует в сессии; прогнать
-   вручную. Vite dev (5173) сейчас остановлен — для проверки фронта
-   `cd frontend; npm run dev`.
-2. slots.md §4: nullable-числовые поля справочников (current/max_voltage/…),
-   переименование *Page.vue компонентов, локаль превью.
-3. Описать остальные БУ по bu_template.md в новой структуре сигналов
-   (int-l, int-n, int-n-mb, posi, int-o); фаза 4 (интеграция в ЭП), перенос
-   абстракций в core, config_snapshot.
-4. Нативные `<select>` остались у «Родитель» узла и селекторов опций
-   (сигнал/обогрев/логика и т.д.) — при той же флейке переводить на
-   dropdown-паттерн `.section-picker`.
+1. **`cd frontend; npm run build`** — прогнать вручную (safety-гейт).
+2. **Визуально потестировать** `/admin/ea-control`:
+   - Редактор БУ → «Основное» и «Редактор доступных опций» (дерево, std/opt/na,
+     правило exact/in/not_in, «Раздел выключен», сохранение матрицы+правил);
+   - Конфигуратор опций → новый тип опции «Устройство ОС».
+3. **Задача-кандидат** (slots.md §5.8): список правил с приоритетом на слот —
+   решить после тестирования, нужна ли такая сложность.
+4. Legacy из slots.md §4: nullable-числовые поля справочников, переименование
+   `*Page.vue`, локаль превью, `npm run build`.
+5. Дрейф: раздел `ESD` (id 12) + `CMD_ESD` (в сиде CMD_ESD в CMD_INPUTS);
+   слот `STOP_SIGNAL` есть в живой БД, но не в сиде.
 
 ## Ближайшие шаги
 
-- Закоммитить чистку отладки (см. п. 0 «Не проверено»).
 - Прогнать `cd frontend; npm run build`.
-- При необходимости убрать тестовую копию `SETPOINT_Copy` из живой БД
-  и перенести SETPOINT в целевой раздел.
-- Продолжить описание БУ AOX по bu_template.md.
+- Потестировать редактор правил вживую; решить судьбу §5.8.
+- При желании — закрыть дрейф ESD/STOP_SIGNAL в сиде.

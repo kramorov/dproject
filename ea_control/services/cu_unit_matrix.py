@@ -22,7 +22,8 @@
 этот сервис возвращает эффективную доступность с привязкой к строке
 (``row_id``) и умеет перезаписывать профильные строки.
 """
-from ea_control.models import CuMatrixEntry, CuMatrixMode, CuSlot, CuSlotOption
+from ea_control.models import (CuMatrixEntry, CuMatrixMode, CuSlot,
+                               CuSlotOption, CuSlotRule)
 from core.utils.localization import localized_name
 
 
@@ -78,6 +79,39 @@ def _profile_row_qs(control_unit, power_supply):
         power_supply=power_supply, mode=CuMatrixMode.BOTH)
 
 
+def _control_unit_option_code(control_unit):
+    """Код опции слота control_unit для типа БУ (значение в снимке/правилах)."""
+    opt = (CuSlotOption.objects
+           .filter(slot__code='control_unit', control_unit=control_unit)
+           .first())
+    return opt.code if opt else None
+
+
+def _unit_rules(control_unit):
+    """Правила типа БУ для каждого целевого слота (exact / in / not_in).
+
+    Возвращает {target_slot_id: CuSlotRule} — применимое правило для этого
+    БУ (exact по коду опции приоритетнее списка in/not_in, содержащего код).
+    """
+    opt_code = _control_unit_option_code(control_unit)
+    if not opt_code:
+        return {}
+    rules = list(CuSlotRule.objects.filter(
+        when_slot__code='control_unit', is_active=True))
+    out = {}
+    for op in ('exact', 'in', 'not_in'):
+        for r in rules:
+            if r.target_slot_id in out or r.when_operator != op:
+                continue
+            if op == 'exact':
+                if r.when_value == opt_code:
+                    out[r.target_slot_id] = r
+            else:
+                if isinstance(r.when_value, list) and opt_code in r.when_value:
+                    out[r.target_slot_id] = r
+    return out
+
+
 def build_unit_matrix(control_unit, power_supply=None, locale=None):
     """Эффективная матрица профиля БУ: слоты с опциями и доступностью.
 
@@ -100,8 +134,10 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
                  .order_by('sorting_order', 'code'))
 
     ps_id = power_supply.id if power_supply is not None else None
+    rules_by_slot = _unit_rules(control_unit)
     slots_payload = []
     for slot in slots:
+        rule = rules_by_slot.get(slot.id)
         options = []
         for option in sorted(
                 [o for o in slot.slot_options.all() if o.is_active],
@@ -133,16 +169,30 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
             'selection_mode': slot.selection_mode,
             'required': slot.required,
             'options': options,
+            'rule': {
+                'action': rule.action if rule else None,
+                'action_value': rule.action_value if rule else None,
+                'operator': rule.when_operator if rule else None,
+                'when_value': rule.when_value if rule else None,
+            },
         })
+
+    control_unit_options = [
+        {'code': o.code, 'name': o.localized_name(locale) or o.name or o.code}
+        for o in CuSlotOption.objects.filter(
+            slot__code='control_unit', is_active=True).order_by(
+            'sorting_order', 'code')]
 
     return {
         'unit': {
             'id': control_unit.id,
             'code': control_unit.code,
             'name': localized_name(control_unit, locale) or control_unit.name,
+            'option_code': _control_unit_option_code(control_unit),
         },
         'power_supply': ps_id,
         'slots': slots_payload,
+        'control_unit_options': control_unit_options,
     }
 
 
@@ -218,5 +268,78 @@ def apply_unit_matrix_changes(control_unit, power_supply, changes):
             row.availability = availability
             row.is_default = (availability == 'std')
             row.save(update_fields=['availability', 'is_default'])
+        saved += 1
+    return saved
+
+
+def apply_unit_rule_changes(control_unit, rule_changes):
+    """Перезаписать правила типа БУ (show/hide/block/require/set_default).
+
+    ``rule_changes`` — список ``{slot_id, action, action_value, operator,
+    when_value}``. Правило привязывается к типу БУ через
+    ``when_slot=control_unit``; ``operator`` — exact (только этот БУ), in
+    (список кодов опций control_unit), not_in (кроме списка). ``action=None``
+    удаляет правило; ``set_default`` требует ``action_value``.
+    """
+    opt_code = _control_unit_option_code(control_unit)
+    if not opt_code:
+        return 0
+    control_slot = CuSlot.objects.filter(code='control_unit').first()
+    if not control_slot:
+        return 0
+    current = _unit_rules(control_unit)  # target_slot_id -> правило
+    slots = {s.id: s for s in CuSlot.objects.filter(
+        id__in=[c.get('slot_id') for c in rule_changes])}
+
+    saved = 0
+    for change in rule_changes:
+        slot = slots.get(change.get('slot_id'))
+        if slot is None:
+            continue
+        action = change.get('action') or None
+        action_value = change.get('action_value') or None
+        if action not in (None, 'show', 'hide', 'block', 'require',
+                          'set_default'):
+            continue
+        if action == 'set_default' and not action_value:
+            continue
+
+        operator = change.get('operator') or 'exact'
+        raw_wv = change.get('when_value')
+        if operator == 'exact':
+            when_value = opt_code
+        elif operator in ('in', 'not_in'):
+            when_value = raw_wv if isinstance(raw_wv, list) else (
+                [raw_wv] if raw_wv else [])
+            if operator == 'in' and opt_code not in when_value:
+                when_value = when_value + [opt_code]
+            elif operator == 'not_in' and opt_code in when_value:
+                when_value = [x for x in when_value if x != opt_code]
+        else:
+            continue
+
+        old = current.get(slot.id)
+        if action is None:
+            if old is not None:
+                old.delete()
+                saved += 1
+            continue
+        priority = old.priority if old is not None else 0
+        description = old.description if old is not None else ''
+        if old is not None and (old.when_operator != operator
+                                or old.when_value != when_value):
+            old.delete()
+            old = None
+        if old is None:
+            CuSlotRule.objects.create(
+                when_slot=control_slot, target_slot=slot,
+                when_operator=operator, when_value=when_value,
+                action=action, action_value=action_value,
+                priority=priority, description=description, is_active=True)
+        else:
+            old.action = action
+            old.action_value = action_value
+            old.is_active = True
+            old.save(update_fields=['action', 'action_value', 'is_active'])
         saved += 1
     return saved

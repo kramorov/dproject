@@ -45,71 +45,74 @@
           <h3>{{ form.id ? 'Изменить' : 'Создать' }} — блок управления</h3>
         </div>
 
-        <div class="edit-form" @input="dirty = true" @change="dirty = true">
-          <div class="form-row">
-            <label class="field"><span>Код</span><input v-model="form.code" /></label>
-            <label class="field"><span>Название</span><input v-model="form.name" /></label>
-          </div>
-          <div class="form-row">
-            <label class="field"><span>Бренд</span>
-              <select v-model="form.brand">
-                <option :value="null">— —</option>
-                <option v-for="b in brands" :key="b.id" :value="b.id">{{ b.name }}</option>
-              </select>
-            </label>
-            <label class="field"><span>Класс БУ</span>
-              <select v-model="form.kind">
-                <option v-for="k in KIND_CHOICES" :key="k[0]" :value="k[0]">{{ k[1] }}</option>
-              </select>
-            </label>
-            <label class="field"><span>Размещение</span>
-              <select v-model="form.location">
-                <option :value="null">— —</option>
-                <option v-for="o in locations" :key="o.id" :value="o.id">{{ o.label }}</option>
-              </select>
-            </label>
-          </div>
-          <div class="form-row">
-            <label class="field"><span>Напряжение цепей</span>
-              <select v-model="form.control_voltage">
-                <option :value="null">— —</option>
-                <option v-for="p in powerSupplies" :key="p.id" :value="p.id">{{ p.label }}</option>
-              </select>
-            </label>
-            <label class="field"><span>Питание цепей</span>
-              <select v-model="form.signal_power">
-                <option :value="null">— —</option>
-                <option v-for="o in signalPowers" :key="o.id" :value="o.id">{{ o.label }}</option>
-              </select>
-            </label>
-          </div>
-          <div class="form-row">
-            <label class="field"><span>Сортировка</span>
-              <input type="number" v-model.number="form.sorting_order" /></label>
-            <label class="field chk"><span>Активно</span>
-              <input type="checkbox" v-model="form.is_active" /></label>
-          </div>
-        </div>
-
         <div class="sub-tabs">
-          <button :class="{ active: tab === 'templates' }" @click="tab = 'templates'">Шаблоны и описания</button>
-          <button :class="{ active: tab === 'settings' }" @click="openSettingsTab()">Настройки</button>
+          <button :class="{ active: tab === 'basic' }" @click="tab = 'basic'">Основное</button>
+          <button :class="{ active: tab === 'options' }" @click="openOptionsTab()">Редактор доступных опций</button>
         </div>
 
-        <div v-if="tab === 'templates'" class="templates"
-             @input="dirty = true" @change="dirty = true">
-          <label class="field wide"><span>Описание</span>
-            <textarea v-model="form.description" rows="2"></textarea></label>
-          <label class="field wide"><span>Шаблон названия</span>
-            <textarea v-model="form.name_template" rows="2"></textarea></label>
-          <label class="field wide"><span>Шаблон описания</span>
-            <textarea v-model="form.description_template" rows="3"></textarea></label>
-          <label class="field wide"><span>Шаблон спецификации (JSON)</span>
-            <textarea v-model="form.spec_template" rows="4"
-                      placeholder="{'Раздел': {'Поле': 'ключ'}}"></textarea></label>
+        <!-- ОСНОВНОЕ -->
+        <div v-if="tab === 'basic'">
+          <div class="edit-form" @input="dirty = true" @change="dirty = true">
+            <div class="form-row">
+              <label class="field"><span>Код</span><input v-model="form.code" /></label>
+              <label class="field"><span>Название</span><input v-model="form.name" /></label>
+            </div>
+            <div class="form-row">
+              <label class="field"><span>Бренд</span>
+                <select v-model="form.brand">
+                  <option :value="null">— —</option>
+                  <option v-for="b in brands" :key="b.id" :value="b.id">{{ b.name }}</option>
+                </select>
+              </label>
+              <label class="field"><span>Класс БУ</span>
+                <select v-model="form.kind">
+                  <option v-for="k in KIND_CHOICES" :key="k[0]" :value="k[0]">{{ k[1] }}</option>
+                </select>
+              </label>
+              <label class="field"><span>Размещение</span>
+                <select v-model="form.location">
+                  <option :value="null">— —</option>
+                  <option v-for="o in locations" :key="o.id" :value="o.id">{{ o.label }}</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field"><span>Напряжение цепей</span>
+                <select v-model="form.control_voltage">
+                  <option :value="null">— —</option>
+                  <option v-for="p in powerSupplies" :key="p.id" :value="p.id">{{ p.label }}</option>
+                </select>
+              </label>
+              <label class="field"><span>Питание цепей</span>
+                <select v-model="form.signal_power">
+                  <option :value="null">— —</option>
+                  <option v-for="o in signalPowers" :key="o.id" :value="o.id">{{ o.label }}</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field"><span>Сортировка</span>
+                <input type="number" v-model.number="form.sorting_order" /></label>
+              <label class="field chk"><span>Активно</span>
+                <input type="checkbox" v-model="form.is_active" /></label>
+            </div>
+          </div>
+
+          <div class="templates" @input="dirty = true" @change="dirty = true">
+            <label class="field wide"><span>Описание</span>
+              <textarea v-model="form.description" rows="2"></textarea></label>
+            <label class="field wide"><span>Шаблон названия</span>
+              <textarea v-model="form.name_template" rows="2"></textarea></label>
+            <label class="field wide"><span>Шаблон описания</span>
+              <textarea v-model="form.description_template" rows="3"></textarea></label>
+            <label class="field wide"><span>Шаблон спецификации (JSON)</span>
+              <textarea v-model="form.spec_template" rows="4"
+                        placeholder="{'Раздел': {'Поле': 'ключ'}}"></textarea></label>
+          </div>
         </div>
 
-        <div v-else class="settings">
+        <!-- РЕДАКТОР ДОСТУПНЫХ ОПЦИЙ -->
+        <div v-else class="options-editor">
           <div class="matrix-toolbar">
             <label class="mfield"><span>Напряжение</span>
               <select v-model="matrixPowerSupply" @change="onVoltageChange">
@@ -119,33 +122,80 @@
             </label>
             <span class="hint">std — стандарт · opt — опция · na — недоступно; на конкретном напряжении na снимает переопределение</span>
           </div>
+          <div class="rules-legend hint">
+            <span>Правило слота:</span>
+            <b>Показать</b> — слот отображается в конфигураторе ·
+            <b>Скрыть</b> — слот не отображается (убирается из раздела) ·
+            <b>Заблокировать</b> — слот виден, но опции выбрать нельзя ·
+            <b>Обязать</b> — метка «обязателен» ·
+            <b>Дефолт</b> — опция подставляется по умолчанию (при выполнении условия)
+          </div>
+          <div class="rules-legend hint">
+            <span>Оператор:</span>
+            <b>только этот БУ</b> — точное условие ·
+            <b>несколько БУ</b> — список БУ ·
+            <b>все, кроме</b> — список исключений (пусто = все БУ)
+          </div>
           <div v-if="!form.id" class="hint">Сначала сохраните блок управления, затем настраивайте опции.</div>
           <template v-else>
-            <div class="node-tabs">
-              <button v-for="n in nodeTree" :key="n.id"
-                      :class="{ active: nodeId === n.id }"
-                      :style="{ paddingLeft: (6 + n.depth * 10) + 'px' }"
-                      @click="nodeId = n.id">{{ n.name }}</button>
-            </div>
-            <div v-if="nodeId" class="matrix-editor">
-              <div v-for="s in matrixSlotsOfNode" :key="s.code" class="mslot">
-                <div class="mslot-head">
-                  <strong>{{ s.name }}</strong>
-                  <span class="code">{{ s.code }}</span>
-                  <span v-if="s.required" class="req">обязателен</span>
+            <div class="tree-editor">
+              <div v-for="n in optionTree" :key="n.id" class="node-block"
+                   :style="{ marginLeft: (n.depth * 10) + 'px' }">
+                <div class="node-head" :class="{ off: n.allNa }">
+                  <strong>{{ n.name }}</strong>
+                  <span class="code">{{ n.code }}</span>
+                  <span v-if="n.allNa" class="off-mark">Раздел выключен</span>
                 </div>
-                <div v-for="o in s.options" :key="o.id" class="mopt"
-                     :class="'av-' + o.availability">
-                  <span class="oname">{{ o.name }}</span>
-                  <span v-if="o.inherited" class="inh" title="наследуется от «любое напряжение»">насл.</span>
-                  <div class="seg">
-                    <button :class="{ on: o.availability === 'std' }" @click="setAvail(o, 'std')">std</button>
-                    <button :class="{ on: o.availability === 'opt' }" @click="setAvail(o, 'opt')">opt</button>
-                    <button :class="{ on: o.availability === 'na' }" @click="setAvail(o, 'na')">na</button>
+                <div v-for="s in n.slots" :key="s.code" class="mslot">
+                  <div class="mslot-head">
+                    <strong>{{ s.name }}</strong>
+                    <span class="code">{{ s.code }}</span>
+                    <span v-if="s.required" class="req">обязателен</span>
+                  </div>
+                  <div v-for="o in s.options" :key="o.id" class="mopt"
+                       :class="'av-' + o.availability">
+                    <span class="oname">{{ o.name }}</span>
+                    <span v-if="o.inherited" class="inh" title="наследуется от «любое напряжение»">насл.</span>
+                    <div class="seg">
+                      <button :class="{ on: o.availability === 'std' }" @click="setAvail(o, 'std')">std</button>
+                      <button :class="{ on: o.availability === 'opt' }" @click="setAvail(o, 'opt')">opt</button>
+                      <button :class="{ on: o.availability === 'na' }" @click="setAvail(o, 'na')">na</button>
+                    </div>
+                  </div>
+                  <div class="mrule">
+                    <span>Правило</span>
+                    <select v-model="s.rule.action" @change="onRuleActionChange(s)">
+                      <option :value="null">— нет —</option>
+                      <option value="show">Показать</option>
+                      <option value="hide">Скрыть</option>
+                      <option value="block">Заблокировать</option>
+                      <option value="require">Обязать</option>
+                      <option value="set_default">Дефолт</option>
+                    </select>
+                    <select v-if="s.rule.action" v-model="s.rule.operator" @change="onRuleOperatorChange(s)">
+                      <option value="exact">только этот БУ</option>
+                      <option value="in">несколько БУ</option>
+                      <option value="not_in">все, кроме</option>
+                    </select>
+                    <template v-if="s.rule.action && (s.rule.operator === 'in' || s.rule.operator === 'not_in')">
+                      <label v-for="cu in (matrix?.control_unit_options || [])" :key="cu.code" class="cu-chk"
+                             :title="cu.code === (matrix?.unit?.option_code) ? 'текущий БУ (фиксирован)' : ''">
+                        <input type="checkbox"
+                               :checked="ruleCodeChecked(s.rule, cu.code)"
+                               :disabled="cu.code === (matrix?.unit?.option_code)"
+                               @change="toggleRuleCode(s.rule, cu.code)" />
+                        {{ cu.name }}
+                      </label>
+                    </template>
+                    <select v-if="s.rule.action === 'set_default'" v-model="s.rule.action_value" @change="matrixDirty = true">
+                      <option :value="null">— —</option>
+                      <option v-for="o in s.options" :key="o.code" :value="o.code">{{ o.name }}</option>
+                    </select>
+                    <span class="rule-desc">{{ ruleDesc(s.rule.action) }}</span>
                   </div>
                 </div>
+                <p v-if="!n.slots.length" class="empty">В узле нет слотов.</p>
               </div>
-              <p v-if="!matrixSlotsOfNode.length" class="empty">В узле нет слотов.</p>
             </div>
           </template>
         </div>
@@ -164,8 +214,9 @@
  * список/редактор». Копирование БУ копирует профильные строки матрицы и
  * правила выбора БУ (бэкенд, control-units/<id>/copy/); удаление снимает
  * опцию слота control_unit и чистит правила (delete-unit/). Вкладка
- * «Настройки» редактирует профильную матрицу выбранного БУ: слоты → опции
- * с пометкой std/opt/na (GET/PUT /api/ea-control/unit-matrix/).
+ * «Редактор доступных опций» — дерево узлов → слоты → опции с пометкой
+ * std/opt/na (GET/PUT /api/ea-control/unit-matrix/). Узел, у которого во
+ * всех слотах все опции «na», помечается «Раздел выключен».
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
@@ -184,43 +235,56 @@ const locations = ref([])
 const signalPowers = ref([])
 const nodes = ref([])
 const error = ref('')
-// матрица профиля выбранного БУ (вкладка «Настройки»)
+// матрица профиля выбранного БУ (вкладка «Редактор доступных опций»)
 const matrix = ref(null)
 const matrixPowerSupply = ref(null)
 const lastVoltage = ref(null)
 const matrixOriginals = new Map() // option id -> availability
+const ruleOriginals = new Map() // slot id -> {action, action_value}
 const matrixDirty = ref(false)
 
 const filters = reactive({ brand: null, kind: null })
 const form = ref(null)
 const dirty = ref(false)
-const tab = ref('templates')
-const nodeId = ref(null)
+const tab = ref('basic')
 
 const filtered = computed(() => units.value.filter(u =>
   (!filters.brand || u.brand === filters.brand)
   && (!filters.kind || u.kind === filters.kind)))
 
-const nodeTree = computed(() => {
+// Дерево узлов с привязанными слотами для визуального редактора опций.
+const optionTree = computed(() => {
+  if (!matrix.value) return []
+  const slotsBySection = {}
+  for (const s of matrix.value.slots || []) {
+    const key = s.section_id || 0
+    if (!slotsBySection[key]) slotsBySection[key] = []
+    slotsBySection[key].push(s)
+  }
   const byParent = {}
   for (const n of nodes.value) {
     const key = n.parent || 0
     if (!byParent[key]) byParent[key] = []
     byParent[key].push(n)
   }
+  const allNa = (slots) =>
+    slots.length > 0 && slots.every(s =>
+      (s.options || []).length > 0 && (s.options || []).every(o => o.availability === 'na'))
   const out = []
   const walk = (pid, depth) => {
     for (const n of (byParent[pid] || [])) {
-      out.push({ ...n, depth })
+      const slots = slotsBySection[n.id] || []
+      out.push({ ...n, depth, slots, allNa: allNa(slots) })
       walk(n.id, depth + 1)
     }
   }
   walk(0, 0)
+  const orphanSlots = slotsBySection[0] || []
+  if (orphanSlots.length) {
+    out.push({ id: 0, code: '', name: 'Без раздела', depth: 0, slots: orphanSlots, allNa: allNa(orphanSlots) })
+  }
   return out
 })
-
-const matrixSlotsOfNode = computed(() =>
-  (matrix.value?.slots || []).filter(s => s.section_id === nodeId.value))
 
 const toolbarButtons = computed(() => [
   { key: 'create', label: t('eaControl.add'), kind: 'primary' },
@@ -240,6 +304,56 @@ function kindLabel(k) {
 function brandName(id) {
   const b = brands.value.find(x => x.id === id)
   return b ? b.name : ''
+}
+
+function ruleDesc(action) {
+  switch (action) {
+    case 'show': return 'слот отображается'
+    case 'hide': return 'слот не отображается'
+    case 'block': return 'слот виден, опции выбрать нельзя'
+    case 'require': return 'метка «обязателен»'
+    case 'set_default': return 'опция по умолчанию'
+    default: return 'без правила'
+  }
+}
+
+function onRuleActionChange(s) {
+  const r = s.rule
+  if (r.action && !r.operator) {
+    r.operator = 'exact'
+    r.when_value = null
+  }
+  matrixDirty.value = true
+}
+
+function onRuleOperatorChange(s) {
+  const r = s.rule
+  if (r.operator === 'exact') {
+    r.when_value = null
+  } else if (!Array.isArray(r.when_value)) {
+    r.when_value = []
+  }
+  matrixDirty.value = true
+}
+
+function ruleHasCode(rule, code) {
+  return Array.isArray(rule.when_value) && rule.when_value.includes(code)
+}
+
+function ruleCodeChecked(rule, code) {
+  const self = matrix.value?.unit?.option_code
+  if (code === self) return rule.operator === 'in'
+  return Array.isArray(rule.when_value) && rule.when_value.includes(code)
+}
+
+function toggleRuleCode(rule, code) {
+  if (code === matrix.value?.unit?.option_code) return
+  const list = Array.isArray(rule.when_value) ? [...rule.when_value] : []
+  const i = list.indexOf(code)
+  if (i >= 0) list.splice(i, 1)
+  else list.push(code)
+  rule.when_value = list
+  matrixDirty.value = true
 }
 
 function dictList(rows) {
@@ -288,7 +402,7 @@ function openEdit(u) {
   dirty.value = false
   matrix.value = null
   matrixDirty.value = false
-  tab.value = 'templates'
+  tab.value = 'basic'
 }
 
 function openCreate() {
@@ -304,7 +418,7 @@ function openCreate() {
   dirty.value = false
   matrix.value = null
   matrixDirty.value = false
-  tab.value = 'templates'
+  tab.value = 'basic'
 }
 
 function onToolbar(b) {
@@ -344,8 +458,15 @@ async function loadMatrix() {
     matrix.value = data
     lastVoltage.value = matrixPowerSupply.value
     matrixOriginals.clear()
+    ruleOriginals.clear()
     for (const s of data.slots || []) {
       for (const o of s.options || []) matrixOriginals.set(o.id, o.availability)
+      ruleOriginals.set(s.id, {
+        action: s.rule?.action || null,
+        action_value: s.rule?.action_value || null,
+        operator: s.rule?.operator || null,
+        when_value: s.rule?.when_value || null,
+      })
     }
     matrixDirty.value = false
   } catch (e) {
@@ -362,6 +483,7 @@ function setAvail(o, avail) {
 async function saveMatrix() {
   if (!form.value || !form.value.id) return
   const changes = []
+  const ruleChanges = []
   for (const s of (matrix.value?.slots || [])) {
     for (const o of s.options || []) {
       const orig = matrixOriginals.get(o.id)
@@ -369,18 +491,29 @@ async function saveMatrix() {
         changes.push({ slot_id: s.id, option_id: o.id, availability: o.availability })
       }
     }
+    const rOrig = ruleOriginals.get(s.id)
+    const curAction = s.rule?.action || null
+    const curValue = s.rule?.action_value || null
+    const curOp = s.rule?.operator || null
+    const curWv = s.rule?.when_value || null
+    if (rOrig && (rOrig.action !== curAction || rOrig.action_value !== curValue
+        || rOrig.operator !== curOp
+        || JSON.stringify(rOrig.when_value) !== JSON.stringify(curWv))) {
+      ruleChanges.push({ slot_id: s.id, action: curAction, action_value: curValue,
+                         operator: curOp, when_value: curWv })
+    }
   }
-  if (!changes.length) return
+  if (!changes.length && !ruleChanges.length) return
   await api.put('/ea-control/unit-matrix/save/', {
     unit: form.value.id,
     power_supply: matrixPowerSupply.value || null,
     changes,
+    rule_changes: ruleChanges,
   })
 }
 
-function openSettingsTab() {
-  tab.value = 'settings'
-  if (nodeId.value == null && nodeTree.value.length) nodeId.value = nodeTree.value[0].id
+function openOptionsTab() {
+  tab.value = 'options'
   loadMatrix()
 }
 
@@ -482,6 +615,9 @@ onMounted(async () => {
 .empty { color: #999; padding: 10px; }
 .edit-area { border-top: 2px solid #2c6fb0; margin-top: 12px; padding-top: 10px; }
 .edit-head h3 { margin: 0 0 8px; font-size: 15px; }
+.sub-tabs { display: flex; gap: 4px; margin: 8px 0 12px; }
+.sub-tabs button { padding: 6px 12px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; }
+.sub-tabs button.active { background: #2c6fb0; color: #fff; border-color: #2c6fb0; }
 .edit-form { display: flex; flex-direction: column; gap: 8px; max-width: 900px; }
 .form-row { display: flex; gap: 12px; }
 .field { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
@@ -492,19 +628,21 @@ onMounted(async () => {
 .field.chk > input { flex: 0 0 auto; }
 .field.wide { align-items: flex-start; }
 .field.wide > span { padding-top: 4px; }
-.sub-tabs { display: flex; gap: 4px; margin: 14px 0 8px; }
-.sub-tabs button { padding: 6px 12px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; }
-.sub-tabs button.active { background: #2c6fb0; color: #fff; border-color: #2c6fb0; }
-.templates { display: flex; flex-direction: column; gap: 8px; max-width: 900px; }
-.node-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 8px; max-height: 120px; overflow: auto; }
-.node-tabs button { padding: 4px 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; text-align: left; }
-.node-tabs button.active { background: #2c6fb0; color: #fff; }
+.templates { display: flex; flex-direction: column; gap: 8px; max-width: 900px; margin-top: 12px; }
+.options-editor { max-width: 960px; }
 .matrix-toolbar { display: flex; gap: 14px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
 .mfield { display: flex; align-items: center; gap: 8px; }
 .mfield span { color: #444; font-size: 13px; }
 .mfield select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; }
 .hint { color: #888; font-size: 12px; }
-.matrix-editor { border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; max-width: 960px; }
+.rules-legend { display: flex; gap: 6px; align-items: baseline; margin: 6px 0; flex-wrap: wrap; }
+.rules-legend b { color: #2c6fb0; font-weight: 600; }
+.tree-editor { border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; }
+.node-block { margin-bottom: 12px; }
+.node-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+.node-head .code { color: #888; font-size: 11px; }
+.node-head.off { opacity: .55; }
+.off-mark { color: #b60; font-size: 12px; }
 .mslot { margin-bottom: 12px; }
 .mslot-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
 .mslot-head .code { color: #888; font-size: 11px; }
@@ -519,5 +657,11 @@ onMounted(async () => {
 .seg button { border: none; background: #fff; padding: 3px 10px; font-size: 12px; cursor: pointer; border-left: 1px solid #eee; }
 .seg button:first-child { border-left: none; }
 .seg button.on { background: #2c6fb0; color: #fff; }
+.mrule { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-top: 1px dashed #e0e0e0; }
+.mrule > span { color: #666; font-size: 12px; flex: 0 0 auto; }
+.mrule select { padding: 3px 6px; border: 1px solid #ccc; border-radius: 3px; }
+.rule-desc { color: #666; font-size: 12px; }
+.cu-chk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #444; }
+.cu-chk input { margin: 0; }
 .edit-actions { margin-top: 12px; }
 </style>

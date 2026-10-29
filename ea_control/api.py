@@ -43,6 +43,7 @@ from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description
 from ea_control.services.cu_unit_matrix import (MatrixValidationError,
                                                  apply_unit_matrix_changes,
+                                                 apply_unit_rule_changes,
                                                  build_unit_matrix)
 
 
@@ -386,7 +387,7 @@ def unit_matrix_view(request):
 @api_view(['PUT'])
 @permission_classes([IsAdminUser])
 def unit_matrix_save_view(request):
-    """Перезаписать профильные строки матрицы БУ (std/opt/na)."""
+    """Перезаписать профильные строки матрицы и правила БУ."""
     data = request.data
     try:
         unit = ControlUnit.objects.get(pk=data.get('unit'))
@@ -401,12 +402,14 @@ def unit_matrix_save_view(request):
         except PowerSupplies.DoesNotExist:
             return Response({'error': 'power_supply не найден'}, status=400)
     changes = data.get('changes') or []
+    rule_changes = data.get('rule_changes') or []
     try:
         saved = apply_unit_matrix_changes(unit, power_supply=power_supply,
                                           changes=changes)
+        saved_rules = apply_unit_rule_changes(unit, rule_changes)
     except MatrixValidationError as exc:
         return Response({'error': str(exc)}, status=400)
-    return Response({'ok': True, 'saved': saved})
+    return Response({'ok': True, 'saved': saved, 'saved_rules': saved_rules})
 
 
 @api_view(['GET'])
