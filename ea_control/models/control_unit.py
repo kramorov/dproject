@@ -24,18 +24,20 @@
 - ``code`` — код типа БУ, уникален в рамках бренда;
 - ``name``/``description`` — ru-поля для админки; i18n — миксином;
 - ``kind`` — класс БУ: без БУ / базовый / интеллектуальный / позиционер;
-- ``location`` — место размещения (CuLocationOption — копия справочника);
 - ``accepts``/``emits``/``protocols`` — жёсткая физика клемм: какие команды
   принимает, какие сигналы ОС выдаёт, какие шины поддерживает (M2M на копии
   справочников CuControlSignal/CuFeedbackSignal/CuCommProtocol);
 - ``capabilities`` — набор дополнительных возможностей, не покрытых слотами
   (PST, datalogger, ESD…; справочник CuCapability, M2M);
-- ``control_voltage`` — напряжение цепей управления (params.PowerSupplies —
-  глобальный справочник; null = напряжение задаёт форма сигнала);
-- ``signal_power`` — источник и напряжение цепей управления по умолчанию
-  (CuSignalPower);
 - ``legacy_cu`` — 1:1-маппинг на params.ControlUnitInstalledOption до
   миграции (перенос данных — командами фазы 3).
+
+Поля ``location``/``control_voltage``/``signal_power`` (размещение, напряжение
+и схема цепей) из модели убраны: БУ описывает сигналы и датчики, и это
+описание подходит к разным моделям и напряжениям приводов серии.
+Размещение — слот ``CU_LOCATION`` (опции ссылаются на справочник
+CuLocationOption); напряжение/схема цепей — слот ``CMD_WIRING``. Привязка БУ
+к model_line_item — отдельная задача (опция со своей кодировкой).
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -91,12 +93,6 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         verbose_name=_("Класс БУ"),
         help_text=_("Без БУ / базовый / интеллектуальный / позиционер"),
     )
-    location = models.ForeignKey(
-        'CuLocationOption', on_delete=models.PROTECT, null=True, blank=True,
-        related_name='control_units',
-        verbose_name=_("Место размещения"),
-        help_text=_("Где размещается БУ (встроен, навесной, шкаф…)"),
-    )
     accepts = models.ManyToManyField(
         'CuControlSignal', blank=True,
         related_name='control_units',
@@ -123,19 +119,6 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         help_text=_("Набор дополнительных возможностей, не покрытых слотами "
                     "(PST, datalogger, ESD, PID…)"),
     )
-    control_voltage = models.ForeignKey(
-        'params.PowerSupplies', on_delete=models.PROTECT, null=True, blank=True,
-        related_name='cu_control_voltage_units',
-        verbose_name=_("Напряжение цепей управления"),
-        help_text=_("Номинал цепей управления БУ (24 В DC / 115 В AC…); "
-                    "null — напряжение задаёт форма сигнала"),
-    )
-    signal_power = models.ForeignKey(
-        'CuSignalPower', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='control_units',
-        verbose_name=_("Питание цепей управления"),
-        help_text=_("Источник × напряжение цепей управления по умолчанию"),
-    )
     legacy_cu = models.OneToOneField(
         'params.ControlUnitInstalledOption', on_delete=models.SET_NULL,
         null=True, blank=True,
@@ -148,7 +131,7 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         null=True, blank=True,
         verbose_name=_("Шаблон названия"),
         help_text=_("Плейсхолдеры из _get_data_dict: {code}, {brand}, {kind}, "
-                    "{name}, {location}, {control_voltage}, {protocols}, "
+                    "{name}, {protocols}, "
                     "{capabilities}. Пусто — генерация не выполняется"),
     )
     description_template = models.TextField(
@@ -219,19 +202,12 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
             '{name}': 'name',
             '{brand}': 'brand',
             '{kind}': '_res_kind',
-            '{location}': 'location',
-            '{control_voltage}': 'control_voltage',
             '{protocols}': '_res_protocols',
             '{capabilities}': '_res_capabilities',
         }
 
     def _res_kind(self, locale=None):
         return self.get_kind_display()
-
-    def _res_signal_power(self, locale=None):
-        if not self.signal_power_id:
-            return ''
-        return localized_name(self.signal_power, locale)
 
     def _res_protocols(self, locale=None):
         names = [localized_name(p, locale) for p in self.protocols.all()]

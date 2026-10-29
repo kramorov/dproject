@@ -98,10 +98,7 @@ def build_description(control_unit, locale=None):
             'code': control_unit.code,
             'name': control_unit.generate_name(locale=locale) or control_unit.name,
             'kind_display': control_unit.get_kind_display(),
-            'location': str(control_unit.location) if control_unit.location_id else '',
             'brand_name': str(control_unit.brand) if control_unit.brand_id else '',
-            'control_voltage': str(control_unit.control_voltage)
-                               if control_unit.control_voltage_id else '',
         },
         'sections': sections,
     }

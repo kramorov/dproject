@@ -69,26 +69,6 @@
                   <option v-for="k in KIND_CHOICES" :key="k[0]" :value="k[0]">{{ k[1] }}</option>
                 </select>
               </label>
-              <label class="field"><span>Размещение</span>
-                <select v-model="form.location">
-                  <option :value="null">— —</option>
-                  <option v-for="o in locations" :key="o.id" :value="o.id">{{ o.label }}</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field"><span>Напряжение цепей</span>
-                <select v-model="form.control_voltage">
-                  <option :value="null">— —</option>
-                  <option v-for="p in powerSupplies" :key="p.id" :value="p.id">{{ p.label }}</option>
-                </select>
-              </label>
-              <label class="field"><span>Питание цепей</span>
-                <select v-model="form.signal_power">
-                  <option :value="null">— —</option>
-                  <option v-for="o in signalPowers" :key="o.id" :value="o.id">{{ o.label }}</option>
-                </select>
-              </label>
             </div>
             <div class="form-row">
               <label class="field"><span>Сортировка</span>
@@ -231,8 +211,6 @@ const KIND_CHOICES = [
 const units = ref([])
 const brands = ref([])
 const powerSupplies = ref([])
-const locations = ref([])
-const signalPowers = ref([])
 const nodes = ref([])
 const error = ref('')
 // матрица профиля выбранного БУ (вкладка «Редактор доступных опций»)
@@ -356,10 +334,6 @@ function toggleRuleCode(rule, code) {
   matrixDirty.value = true
 }
 
-function dictList(rows) {
-  return rows.map(o => ({ id: o.id, label: o.name || o.code || String(o.id) }))
-}
-
 async function loadUnits() {
   error.value = ''
   try {
@@ -371,17 +345,13 @@ async function loadUnits() {
 }
 
 async function loadMeta() {
-  const [meta, loc, sp, sections] = await Promise.all([
+  const [meta, sections] = await Promise.all([
     api.get('/ea-control/meta/'),
-    api.get('/ea-control/location-options/'),
-    api.get('/ea-control/signal-powers/'),
     api.get('/ea-control/sections/'),
   ])
   brands.value = meta.data.brands || []
   powerSupplies.value = (meta.data.power_supplies || []).map(o => ({
     id: o.id, label: o.code ? `${o.name} (${o.code})` : o.name }))
-  locations.value = dictList(loc.data.results || loc.data || [])
-  signalPowers.value = dictList(sp.data.results || sp.data || [])
   nodes.value = sections.data.results || sections.data || []
 }
 
@@ -391,8 +361,7 @@ function openEdit(u) {
   }
   form.value = {
     id: u.id, code: u.code, name: u.name, brand: u.brand, kind: u.kind,
-    location: u.location, control_voltage: u.control_voltage,
-    signal_power: u.signal_power, sorting_order: u.sorting_order || 0,
+    sorting_order: u.sorting_order || 0,
     is_active: u.is_active, description: u.description || '',
     name_template: u.name_template || '',
     description_template: u.description_template || '',
@@ -411,7 +380,6 @@ function openCreate() {
   }
   form.value = {
     id: null, code: '', name: '', brand: null, kind: 'INTEGRATED',
-    location: null, control_voltage: null, signal_power: null,
     sorting_order: 0, is_active: true, description: '',
     name_template: '', description_template: '', spec_template: '',
   }
@@ -549,8 +517,7 @@ async function save() {
   }
   const payload = {
     code: f.code, name: f.name, brand: f.brand, kind: f.kind,
-    location: f.location, control_voltage: f.control_voltage,
-    signal_power: f.signal_power, sorting_order: f.sorting_order || 0,
+    sorting_order: f.sorting_order || 0,
     is_active: f.is_active, description: f.description || '',
     name_template: f.name_template || '',
     description_template: f.description_template || '',

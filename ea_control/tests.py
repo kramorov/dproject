@@ -92,8 +92,7 @@ class CuConfigTestCase(TestCase):
         cls.cu = ControlUnit.objects.get_or_create(
             brand=cls.brand, code='INT',
             defaults=dict(name='Интеллектуальный БУ',
-                          kind=ControlUnitKind.INTEGRATED,
-                          control_voltage=cls.power))[0]
+                          kind=ControlUnitKind.INTEGRATED))[0]
         cls.cu.accepts.add(cls.ctrl_signal)
         cls.cu.emits.add(cls.fb_signal)
         cls.cu.protocols.add(cls.protocol)

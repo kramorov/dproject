@@ -12,8 +12,7 @@
     <div v-if="report" class="report">
       <div class="unit-head">
         <h3>{{ report.unit.name }} ({{ report.unit.code }})</h3>
-        <span>{{ [report.unit.kind_display, report.unit.brand_name,
-                  report.unit.location, report.unit.control_voltage]
+        <span>{{ [report.unit.kind_display, report.unit.brand_name]
                   .filter(Boolean).join(' · ') }}</span>
       </div>
 
@@ -62,8 +61,8 @@ function buildText() {
   if (!r) return ''
   const lines = []
   lines.push(`Описание блока управления: ${r.unit.name} (${r.unit.code})`)
-  lines.push([r.unit.kind_display, r.unit.brand_name, r.unit.location,
-              r.unit.control_voltage].filter(Boolean).join(' · '))
+  lines.push([r.unit.kind_display, r.unit.brand_name]
+              .filter(Boolean).join(' · '))
   for (const sec of r.sections) {
     if (!sec.slots.length) continue
     const indent = '  '.repeat(sec.depth)

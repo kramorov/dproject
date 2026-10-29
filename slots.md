@@ -82,8 +82,9 @@
   типизированные нагрузки по `kind`:
   - `signal` → ровно одно из `control_signal`/`feedback_signal`/`protocol`;
   - `heater` → `heater_supply`; `power` → `signal_power`; `logic` →
-    `control_logic`; `signal_type` → `signal_type`; `unit` → `control_unit`
-    (только слот `control_unit`); `none`/`pair` → только `name`;
+    `control_logic`; `unit` → `control_unit`
+    (только слот `control_unit`); `location` → `location_option`
+    (слот `CU_LOCATION`); `none`/`pair` → только `name`;
   - `device` — датчик по умолчанию.
 - `CuMatrixEntry(AbstractSlotMatrixEntry)` — доступность: `slot`/`option` FK,
   скоуп (`brand`/`model_line`/`body`/`model_line_item` — ровно один),
@@ -96,10 +97,16 @@
 ### Физическая модель БУ (`models/control_unit.py`)
 
 - `ControlUnit` — тип БУ: `brand`, `code` (уникален в рамках бренда),
-  `name_i18n`, `kind` (NONE/BASIC/INTEGRATED/POSITIONER), `location`,
-  `control_voltage`, `signal_power`, M2M `accepts`/`emits`/`protocols`/
-  `capabilities`, шаблоны `name_template`/`description_template`/`spec_template`
-  (+ `_i18n`), `legacy_cu` (1:1 маппинг на legacy справочник).
+  `name_i18n`, `kind` (NONE/BASIC/INTEGRATED/POSITIONER), M2M
+  `accepts`/`emits`/`protocols`/`capabilities`, шаблоны
+  `name_template`/`description_template`/`spec_template` (+ `_i18n`),
+  `legacy_cu` (1:1 маппинг на legacy справочник). Поля `location`/
+  `control_voltage`/`signal_power` из модели убраны (2026-10-29): БУ
+  описывает сигналы и датчики — описание подходит к разным моделям и
+  напряжениям серии. Размещение — слот `CU_LOCATION` (опции kind=`location`
+  → `CuLocationOption`); напряжение/схема цепей — слот `CMD_WIRING`.
+  Привязка БУ к model_line_item — отдельная задача (§4/§5, опция со своей
+  кодировкой через through-модели).
 
 ### Справочники физики
 
@@ -143,6 +150,15 @@
   `SIGNAL_TYPE`, справочник `CuSignalType`; `CuControlSignal` больше не
   хранит `voltage`/дискретные формы (остались аналоговые уставки).
 
+### Узел «Общие параметры» (2026-10-29)
+
+Узел `GENERAL` «Общие параметры»: слот `CU_LOCATION` (single, required)
+«Размещение БУ» — **опция = справочник `CuLocationOption`** (kind=`location`:
+встроенный/навесной). Доступность — профильные строки матрицы типа БУ.
+Поля `location`/`control_voltage`/`signal_power` из модели `ControlUnit`
+убраны (§7.20): БУ описывает сигналы и датчики без привязки к модели и
+напряжению привода; привязка к model_line_item — отдельная задача (§4.1).
+
 ### Сервисы (`services/`)
 
 - `cu_matrix.py` — резолвер доступности: наследование скоупов, na-запреты,
@@ -169,8 +185,8 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 
 ### Данные
 
-`seed_cu_demo` (идемпотентно): 5 типов БУ, 31 слот, 93 опции,
-297 строк матрицы, 19 правил.
+`seed_cu_demo` (идемпотентно): 5 типов БУ, 32 слота, 95 опций,
+307 строк матрицы, 19 правил.
 
 ### Правила (Паттерн В) — назначение и примеры
 
@@ -242,7 +258,18 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 
 ## 4. Ближайшие действия
 
-1. Вывести nullable-числовые поля физики в редактор справочников
+1. **Привязка БУ к model_line_item (опция со своей кодировкой).** После
+   удаления `control_voltage`/`signal_power`/`location` из ControlUnit
+   (2026-10-29) БУ стал чисто «описанием сигналов и датчиков», пригодным
+   для разных моделей и напряжений серии. Привязку делаем отдельно: БУ
+   доступен для конкретной модели привода (model_line_item) как опция со
+   своей кодировкой. Направление (обсудить): оставляем схему с
+   through-моделями и кодировками (как у valve_data/EaSignalMatrixEntry),
+   привязка — к новой модели БУ (ControlUnit), а не к legacy-справочнику.
+   Требует выработки: сущность привязки, кодировка (вклад в артикул),
+   приоритет строк, обратная совместимость с `series-units` (серия ×
+   напряжение → набор БУ).
+2. Вывести nullable-числовые поля физики в редактор справочников
    (`control-signals`/`feedback-signals`): формы намеренно не показывают
    `current` (CuControlSignal) и `max_voltage`/`max_current`/
    `resistance_kohm`/`max_power_w`/`turns`/`wires` (CuFeedbackSignal) —
@@ -277,10 +304,12 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    сделано 2026-10-28: `CuFeedbackSignal` обогащён из `EaFeedbackSignal`
    (`enrich_cu_feedback_signals`); `CuControlSignal` намеренно остаётся только
    аналоговым — дискретные команды выражены слотами CMD_*.
-6. Промоушн БУ в узел `EquipmentType` — триггер: собственный каталог или
+6. **Привязка БУ к model_line_item** — выработка и реализация решения из
+   §4.1 (через through-модели и кодировки, привязка к ControlUnit).
+7. Промоушн БУ в узел `EquipmentType` — триггер: собственный каталог или
    состав из позиций.
-7. Цена — вне scope; отдельная сущность по общему паттерну.
-8. **Правила: перейти от «одно правило на слот» к списку правил с
+8. Цена — вне scope; отдельная сущность по общему паттерну.
+9. **Правила: перейти от «одно правило на слот» к списку правил с
    приоритетом** (в «Редакторе БУ» → «Редактор доступных опций»). Сейчас на
    слот хранится одно правило (exact > in > not_in); несколько правил разного
    действия/приоритета на одном слоте невыразимы. Кандидат после проверки
@@ -521,4 +550,19 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
     обязательна, остальные опции могут быть opt. Команда
     `reconcile_cu_structure` расширена: удаляет bare-строки во всех слотах
     (не только CMD_*).
+
+20. **БУ — описание сигналов/датчиков, а не «модель × напряжение»
+    (2026-10-29).** Из `ControlUnit` убраны `location`, `control_voltage`,
+    `signal_power`: текущая редакция БУ описывает сигналы и датчики, и это
+    описание подходит к разным моделям и напряжениям приводов серии.
+    Размещение стало слотом `CU_LOCATION` (узел `GENERAL` «Общие параметры»;
+    опции kind=`location` → справочник `CuLocationOption`; профиль: у
+    встроенных INTEGRATED std/SEPARATE na, у INT/O наоборот). Напряжение и
+    схема цепей и так выбираются слотом `CMD_WIRING`. Привязка БУ к
+    model_line_item — отдельно, как опция со своей кодировкой (§4.1/§5.6;
+    обсудить: через through-модели и кодировки, привязка — к ControlUnit).
+    Шаблоны БУ: плейсхолдеры `{location}`/`{control_voltage}` и resolver
+    `_res_signal_power` удалены. В редакторе слота «Конфигуратора опций»
+    поля Код/Раздел/Сортировка/Активно в одной строке, Обязательный/Режим
+    выбора/Род значения — в другой, с пиктограммой-подсказкой ⓘ.
 

@@ -73,8 +73,8 @@ class Command(BaseCommand):
                                                      devices, heater, sources,
                                                      powers, logics,
                                                      local_ctrl, display,
-                                                     unit_power)
-        cus = self._seed_units(caps, locations, ctl, fb, proto, powers, sources)
+                                                     unit_power, locations)
+        cus = self._seed_units(caps, ctl, fb, proto)
         self._seed_matrix(slots, opts, cus, powers)
         self._seed_rules(slots, opts)
         self.stdout.write(self.style.SUCCESS('Демо-данные ea_control готовы.'))
@@ -357,7 +357,8 @@ class Command(BaseCommand):
     # ── Узлы / слоты / опции ───────────────────────────────────────────────
 
     def _seed_structure(self, forms, ctl, fb, proto, devices, heater, sources,
-                        powers, logics, local_ctrl, display, unit_power):
+                        powers, logics, local_ctrl, display, unit_power,
+                        locations):
         # ── очистка устаревших слотов/опций/сигналов (переход на новую
         #    структуру «Дистанционное управление»; идемпотентно) ──
         obsolete_slots = ('CMD', 'SIGNAL_POWER_SOURCE', 'CONTROL_LOGIC',
@@ -398,6 +399,9 @@ class Command(BaseCommand):
                 pk__in=[p.pk for p in powers.values()]).delete()
 
         sections = {
+            'GENERAL': CuSectionNode.objects.get_or_create(
+                code='GENERAL', defaults=dict(name='Общие параметры',
+                                              sorting_order=0))[0],
             'CONTROL_SIGNALS': CuSectionNode.objects.get_or_create(
                 code='CONTROL_SIGNALS', defaults=dict(name='Сигналы управления'))[0],
             'FEEDBACK': CuSectionNode.objects.get_or_create(
@@ -430,6 +434,9 @@ class Command(BaseCommand):
         slots = {
             'control_unit': _slot('control_unit', name='Тип БУ', slot_kind='object',
                                   selection_mode='single'),
+            'CU_LOCATION': _slot('CU_LOCATION', name='Размещение БУ',
+                                 section=sections['GENERAL'],
+                                 selection_mode='single', required=True),
             'LOCAL_CONTROL': _slot('LOCAL_CONTROL', name='Местное управление',
                                    section=sections['CONTROL_SIGNALS']),
             'CMD_WIRING': _slot('CMD_WIRING', name='Схема цепей управления',
@@ -517,6 +524,13 @@ class Command(BaseCommand):
                                encoding='P')
         opts['CU_INT_O'] = _opt('CU_INT_O', slots['control_unit'], 'unit',
                                 encoding='O')
+        # размещение БУ: опция = справочник CuLocationOption (kind=location)
+        opts['CU_LOC_INTEGRATED'] = _opt(
+            'CU_LOC_INTEGRATED', slots['CU_LOCATION'], 'location',
+            location_option=locations['INTEGRATED'])
+        opts['CU_LOC_SEPARATE'] = _opt(
+            'CU_LOC_SEPARATE', slots['CU_LOCATION'], 'location',
+            location_option=locations['SEPARATE'])
         # управление
         opts['BUTTONS'] = _none('BUTTONS', slots['LOCAL_CONTROL'], 'Кнопки')
         opts['SELECTOR'] = _none('SELECTOR', slots['LOCAL_CONTROL'], 'Селектор')
@@ -789,13 +803,11 @@ class Command(BaseCommand):
 
     # ── Типы БУ ────────────────────────────────────────────────────────────
 
-    def _seed_units(self, caps, locations, ctl, fb, proto, powers, sources):
+    def _seed_units(self, caps, ctl, fb, proto):
         from producers.models import Brands
-        from params.models import ControlUnitInstalledOption, PowerSupplies
+        from params.models import ControlUnitInstalledOption
 
         brand = Brands.objects.filter(code='arhimed').first() or Brands.objects.first()
-        ps380 = PowerSupplies.objects.filter(code='380-AC').first() or PowerSupplies.objects.first()
-        ps24 = PowerSupplies.objects.filter(code='24-DC').first() or PowerSupplies.objects.first()
 
         def _legacy(code):
             return ControlUnitInstalledOption.objects.filter(code=code).first()
@@ -808,8 +820,7 @@ class Command(BaseCommand):
 
         basic = _unit(
             'basic', 'БУ базовый', ControlUnitKind.BASIC,
-            location=locations['INTEGRATED'], control_voltage=ps380,
-            signal_power=powers['EXT_220'], legacy_cu=_legacy('basic'),
+            legacy_cu=_legacy('basic'),
             name_template='БУ базовый {code}',
             description_template='Базовый блок управления {brand} (AOX-M): '
                                  'команды Открыть/Закрыть потенциальной '
@@ -819,8 +830,7 @@ class Command(BaseCommand):
                                  'сухой контакт), концевые и моментные '
                                  'выключатели, перегрев SPST (НЗ), обогрев '
                                  'отдельной линией.',
-            spec_template={'Основные': {'Класс БУ': '_res_kind',
-                                        'Питание цепей': '_res_signal_power'},
+            spec_template={'Основные': {'Класс БУ': '_res_kind'},
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
         basic.accepts.set([])
@@ -830,14 +840,12 @@ class Command(BaseCommand):
 
         int_unit = _unit(
             'int-n', 'БУ INT', ControlUnitKind.INTEGRATED,
-            location=locations['INTEGRATED'], control_voltage=ps380,
-            signal_power=powers['INT_24'], legacy_cu=_legacy('int-n'),
+            legacy_cu=_legacy('int-n'),
             name_template='БУ INT {code}',
             description_template='Интеллектуальный блок управления {brand}: '
                                  'дисплей, настройка логики, позиционная ОС '
                                  '4-20 мА. Функции: {capabilities}.',
-            spec_template={'Основные': {'Класс БУ': '_res_kind',
-                                        'Питание цепей': '_res_signal_power'},
+            spec_template={'Основные': {'Класс БУ': '_res_kind'},
                            'Связь': {'Протоколы': '_res_protocols'},
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
@@ -852,8 +860,7 @@ class Command(BaseCommand):
 
         int_mb = _unit(
             'int-n-mb', 'БУ INT Modbus', ControlUnitKind.INTEGRATED,
-            location=locations['INTEGRATED'], control_voltage=ps380,
-            signal_power=powers['INT_24'], legacy_cu=_legacy('int-n-mb'),
+            legacy_cu=_legacy('int-n-mb'),
             name_template='БУ INT {code} (Modbus)',
             description_template='Интеллектуальный блок управления {brand} с '
                                  'шиной: {protocols}.',
@@ -868,13 +875,11 @@ class Command(BaseCommand):
 
         posi = _unit(
             'posi-4-20', 'БУ позиционер 4-20', ControlUnitKind.POSITIONER,
-            location=locations['INTEGRATED'], control_voltage=ps24,
-            signal_power=powers['INT_24'], legacy_cu=_legacy('posi-4-20'),
+            legacy_cu=_legacy('posi-4-20'),
             name_template='БУ позиционер {code}',
             description_template='Позиционер {brand}: уставка и обратная связь '
                                  'по петле 4-20 мА (HART).',
-            spec_template={'Основные': {'Класс БУ': '_res_kind',
-                                        'Питание цепей': '_res_signal_power'},
+            spec_template={'Основные': {'Класс БУ': '_res_kind'},
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
         posi.accepts.set([ctl['CMD_4_20MA_HART']])
@@ -883,16 +888,14 @@ class Command(BaseCommand):
 
         int_o = _unit(
             'int-o', 'БУ INT/O', ControlUnitKind.INTEGRATED,
-            location=locations['SEPARATE'], control_voltage=ps380,
-            signal_power=powers['INT_24'], legacy_cu=_legacy('int-o'),
+            legacy_cu=_legacy('int-o'),
             name_template='БУ INT/O {code}',
             description_template='БУ INT/O {brand}: навесной, команды '
                                  'Открыть/Закрыть (+24 В от внутреннего '
                                  'источника — сухой контакт; опция: внешние '
                                  '220 В AC), светодиодная индикация, стартер '
                                  '(380 В).',
-            spec_template={'Основные': {'Класс БУ': '_res_kind',
-                                        'Питание цепей': '_res_signal_power'},
+            spec_template={'Основные': {'Класс БУ': '_res_kind'},
                            'Возможности': {'Функции': '_res_capabilities'}},
         )
         int_o.accepts.set([])
@@ -907,17 +910,29 @@ class Command(BaseCommand):
         CuSlotOption.objects.filter(code='CU_POSI').update(control_unit=posi)
         CuSlotOption.objects.filter(code='CU_INT_O').update(control_unit=int_o)
 
-        # типовая схема цепей — на новые пары (старые пары без input_form
-        # удаляются: они остались от прежней структуры SIGNAL_POWER_SOURCE)
-        for unit, pair in ((basic, powers['EXT_220']),
-                           (int_unit, powers['INT_24']),
-                           (int_mb, powers['INT_24']),
-                           (posi, powers['INT_24']),
-                           (int_o, powers['INT_24'])):
-            if unit.signal_power_id != pair.id:
-                unit.signal_power = pair
-                unit.save(update_fields=['signal_power'])
+        # устаревшие пары без формы входа (остались от прежней структуры
+        # SIGNAL_POWER_SOURCE) — защищены от удаления, только пока на них
+        # ссылаются опции CMD_WIRING; лишние чистим
         CuSignalPower.objects.filter(input_form__isnull=True).delete()
+
+        # старые шаблоны спецификации ссылались на удалённый resolver
+        # _res_signal_power (поле signal_power убрано из модели) — чистим,
+        # иначе в спецификации остаётся пустая ячейка «Питание цепей»
+        for unit in (basic, int_unit, int_mb, posi, int_o):
+            spec = unit.spec_template or {}
+            changed = False
+            for section, fields in list(spec.items()):
+                if not isinstance(fields, dict):
+                    continue
+                for label, path in list(fields.items()):
+                    if path == '_res_signal_power':
+                        del fields[label]
+                        changed = True
+            if changed:
+                # .update() в обход TemplateMixin.save() — не перегенерируем
+                # name/description при чистке шаблона
+                ControlUnit.objects.filter(pk=unit.pk).update(
+                    spec_template=spec)
         return {'basic': basic, 'int': int_unit, 'int_mb': int_mb, 'posi': posi,
                 'int_o': int_o}
 
@@ -1169,6 +1184,8 @@ class Command(BaseCommand):
         # команды О/С/З — активный +24 В std, внешние 220 В opt; цепи 24 В
         # встроенные; логика потенциальная; светодиоды; стартер на 380 В
         p = [
+            (slots['CU_LOCATION'], opts['CU_LOC_SEPARATE'], std),
+            (slots['CU_LOCATION'], opts['CU_LOC_INTEGRATED'], na),
             (slots['LOCAL_CONTROL'], opts['BUTTONS'], std),
             (slots['LOCAL_CONTROL'], opts['SELECTOR'], opt),
             (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], std),
@@ -1234,6 +1251,10 @@ class Command(BaseCommand):
         # привода (общий кабель), отдельный кабель недоступен; резьба вводов
         # БУ — M20 стандарт (слоты у встроенных скрыты правилами)
         for cu in (cus['basic'], cus['int'], cus['int_mb'], cus['posi']):
+            _row(slots['CU_LOCATION'], opts['CU_LOC_INTEGRATED'], cu,
+                 availability=std)
+            _row(slots['CU_LOCATION'], opts['CU_LOC_SEPARATE'], cu,
+                 availability=na)
             _row(slots['CU_POWER_SUPPLY'], opts['PU_SHARED'], cu,
                  availability=std)
             _row(slots['CU_POWER_SUPPLY'], opts['PU_SEPARATE'], cu,

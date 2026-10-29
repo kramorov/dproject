@@ -81,6 +81,7 @@ class CuOptionKind(models.TextChoices):
     DISPLAY = 'display', _('Вид отображения')
     UNIT_POWER = 'unit_power', _('Питание БУ')
     CABLE_GLAND = 'cable_gland', _('Кабельные вводы БУ')
+    LOCATION = 'location', _('Размещение БУ')
     NONE = 'none', _('Без сигнала (none-строка)')
     PAIR = 'pair', _('Пара контактов (Откр/Закр)')
 
@@ -101,7 +102,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
       (heater), ``signal_power`` (power — схема цепей управления),
       ``control_logic`` (logic — логика сигнала), ``control_unit`` (unit —
       только для слота control_unit), ``device`` (датчик по умолчанию для
-      опции);
+      опции), ``location_option`` (location — размещение БУ, слот
+      CU_LOCATION);
     - ``clean()`` — ровно одна полезная нагрузка на kind (образец
       EaSlotOption.clean).
     """
@@ -120,8 +122,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                     "БУ (слот control_unit); local_control — орган местного "
                     "управления; display — вид(ы) отображения; unit_power — "
                     "питание БУ; cable_gland — резьба кабельных вводов БУ; "
-                    "none — опция без полезной нагрузки; pair — пара "
-                    "контактов Откр/Закр"),
+                    "location — размещение БУ; none — опция без полезной "
+                    "нагрузки; pair — пара контактов Откр/Закр"),
     )
     control_signal = models.ForeignKey(
         'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
@@ -204,6 +206,13 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                     "кабелей БУ (глобальный справочник params.ThreadSizeSet — "
                     "каждая резьба с количеством; слот CU_CABLE_GLANDS)"),
     )
+    location_option = models.ForeignKey(
+        'CuLocationOption', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Размещение БУ"),
+        help_text=_("Для kind=location: место размещения БУ (встроен/навесной; "
+                    "слот CU_LOCATION)"),
+    )
 
     class Meta:
         verbose_name = _("Опция слота БУ")
@@ -219,6 +228,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             return str(self.unit_power_source)
         if self.kind == CuOptionKind.CABLE_GLAND and self.cable_gland_set_id:
             return str(self.cable_gland_set)
+        if self.kind == CuOptionKind.LOCATION and self.location_option_id:
+            return str(self.location_option)
         if self.kind == CuOptionKind.DEVICE and self.device_id:
             return str(self.device)
         if self.kind == CuOptionKind.DISPLAY:
@@ -237,6 +248,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             return localized_name(self.unit_power_source, locale)
         if self.kind == CuOptionKind.CABLE_GLAND and self.cable_gland_set_id:
             return localized_name(self.cable_gland_set, locale)
+        if self.kind == CuOptionKind.LOCATION and self.location_option_id:
+            return localized_name(self.location_option, locale)
         if self.kind == CuOptionKind.DEVICE and self.device_id:
             return localized_name(self.device, locale)
         if self.kind == CuOptionKind.POWER and self.signal_power_id:
@@ -304,6 +317,10 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                 raise ValidationError(
                     _('Для опции кабельных вводов нужен набор резьб '
                       '(params.ThreadSizeSet).'))
+        elif self.kind == CuOptionKind.LOCATION:
+            if not self.location_option_id:
+                raise ValidationError(
+                    _('Для опции размещения нужен CuLocationOption.'))
         elif self.kind in (CuOptionKind.NONE, CuOptionKind.PAIR):
             if not self.name:
                 raise ValidationError(_('Для none/pair-опции нужно имя (название).'))

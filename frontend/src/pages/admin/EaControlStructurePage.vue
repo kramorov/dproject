@@ -107,11 +107,11 @@
                     </div>
                   </div>
                 </label>
+                <label class="form-field"><span>Сортировка</span><input type="number" v-model.number="selSlot.sorting_order" /></label>
+                <label class="form-field chk"><span>Активно</span><input type="checkbox" v-model="selSlot.is_active" /></label>
               </div>
               <div class="form-row">
                 <label class="form-field chk"><span>Обязательный</span><input type="checkbox" v-model="selSlot.required" /></label>
-              </div>
-              <div class="form-row">
                 <label class="form-field"><span>Режим выбора</span>
                   <select v-model="selSlot.selection_mode">
                     <option value="single">Одиночный</option>
@@ -127,13 +127,22 @@
                     <option value="subtype">Подтип</option>
                   </select>
                 </label>
+                <span class="hint-icon" tabindex="0" role="img" aria-label="Подсказка">ⓘ
+                  <span class="hint-pop">
+                    <b>Обязательный</b> — в слоте должна быть выбрана хотя бы одна
+                    доступная опция; в конфигураторе такой слот помечается
+                    «обязателен» и без выбора конфигурация неполная.<br />
+                    <b>Режим выбора</b> — сколько опций можно выбрать: Одиночный —
+                    одна; Мульти — несколько; Взаимоисключающий — одна из набора;
+                    Пакет — атомарный набор строк матрицы с общим кодом пакета.<br />
+                    <b>Род значения</b> — тип значения слота в снимке: Значение —
+                    простой код опции; Объект — ссылка на физическую модель
+                    (типизированный FK опции); Подтип — подтип оборудования.
+                  </span>
+                </span>
               </div>
               <div class="form-row">
                 <label class="form-field"><span>Описание</span><textarea v-model="selSlot.description" rows="2"></textarea></label>
-              </div>
-              <div class="form-row">
-                <label class="form-field"><span>Сортировка</span><input type="number" v-model.number="selSlot.sorting_order" /></label>
-                <label class="form-field chk"><span>Активно</span><input type="checkbox" v-model="selSlot.is_active" /></label>
               </div>
             </div>
 
@@ -179,6 +188,7 @@
                       <option value="display">Вид отображения</option>
                       <option value="unit_power">Питание БУ</option>
                       <option value="cable_gland">Кабельные вводы</option>
+                      <option value="location">Размещение БУ</option>
                       <option value="none">None-строка</option>
                       <option value="pair">Пара контактов</option>
                     </select>
@@ -292,6 +302,14 @@
                     </select>
                   </label>
                 </div>
+                <div v-else-if="selOption.kind === 'location'" class="form-row">
+                  <label class="form-field"><span>Размещение</span>
+                    <select v-model="selOption.location_option">
+                      <option :value="null">— —</option>
+                      <option v-for="o in dicts.locationOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
+                    </select>
+                  </label>
+                </div>
 
                 <div class="form-row">
                   <label class="form-field"><span>Кодировка</span><input v-model="selOption.encoding" /></label>
@@ -338,7 +356,7 @@ const dicts = reactive({
   controlSignals: [], feedbackSignals: [], protocols: [], devices: [],
   heaterSupplies: [], signalPowers: [], controlLogics: [],
   units: [], localControlTypes: [], displayTypes: [], unitPowerSources: [],
-  threadSets: [],
+  threadSets: [], locationOptions: [],
 })
 
 // Черновик выбранного узла: { node, slots: [ { ..., options: [...] } ] }
@@ -511,7 +529,7 @@ async function reload() {
   error.value = ''
   try {
     const [s, sl, o, units, ctl, fb, proto, dev, heater, power, logic,
-      lct, dsp, upw, meta] =
+      lct, dsp, upw, loc, meta] =
       await Promise.all([
         api.get('/ea-control/sections/'),
         api.get('/ea-control/slots/'),
@@ -527,6 +545,7 @@ async function reload() {
         api.get('/ea-control/local-control-types/'),
         api.get('/ea-control/display-types/'),
         api.get('/ea-control/unit-power-sources/'),
+        api.get('/ea-control/location-options/'),
         api.get('/ea-control/meta/'),
       ])
     sections.value = s.data.results || s.data || []
@@ -543,6 +562,7 @@ async function reload() {
     dicts.localControlTypes = dictList(lct.data.results || lct.data || [])
     dicts.displayTypes = dictList(dsp.data.results || dsp.data || [])
     dicts.unitPowerSources = dictList(upw.data.results || upw.data || [])
+    dicts.locationOptions = dictList(loc.data.results || loc.data || [])
     dicts.threadSets = dictList(meta.data.thread_sets || [])
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка загрузки'
@@ -564,6 +584,7 @@ function cloneOption(o) {
     display_types: [...(o.display_types || [])],
     unit_power_source: o.unit_power_source,
     cable_gland_set: o.cable_gland_set,
+    location_option: o.location_option,
     encoding: o.encoding || '', ext_encoding: o.ext_encoding || '',
     description: o.description || '', sorting_order: o.sorting_order || 0,
     is_active: o.is_active,
@@ -652,7 +673,7 @@ function addOption() {
     heater_supply: null, signal_power: null, control_logic: null,
     control_unit: null, device: null,
     local_control_type: null, display_types: [],
-    unit_power_source: null, cable_gland_set: null,
+    unit_power_source: null, cable_gland_set: null, location_option: null,
     encoding: '', ext_encoding: '', description: '',
     sorting_order: maxOrder + 1, is_active: true,
   })
@@ -675,6 +696,7 @@ function resetOptionPayload() {
   o.display_types = []
   o.unit_power_source = null
   o.cable_gland_set = null
+  o.location_option = null
 }
 
 function toggleOptionMs(name, id) {
@@ -790,6 +812,9 @@ function validateSlotDraft(slot, seenSlotCodes) {
     }
     if (opt.kind === 'cable_gland' && !opt.cable_gland_set) {
       errs.push(`опция в слоте «${slotLabel}»: набор резьб вводов`)
+    }
+    if (opt.kind === 'location' && !opt.location_option) {
+      errs.push(`опция в слоте «${slotLabel}»: размещение БУ`)
     }
   }
   return errs
@@ -1006,6 +1031,22 @@ onMounted(reload)
   flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box;
 }
 .form-field.chk > input { flex: 0 0 auto; }
+.hint-icon {
+  position: relative; flex: 0 0 auto; align-self: center;
+  width: 18px; height: 18px; line-height: 18px;
+  border-radius: 50%; border: 1px solid #2c6fb0; color: #2c6fb0;
+  text-align: center; font-size: 12px; cursor: help; outline: none;
+}
+.hint-icon .hint-pop {
+  display: none; position: absolute; right: 0; top: calc(100% + 6px);
+  z-index: 30; width: 320px; max-width: calc(100vw - 48px);
+  padding: 10px 12px; box-sizing: border-box;
+  background: #fff; border: 1px solid #c9d8ea; border-radius: 4px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .15);
+  font-size: 12px; line-height: 1.5; color: #333; text-align: left;
+  font-weight: normal;
+}
+.hint-icon:hover .hint-pop, .hint-icon:focus .hint-pop { display: block; }
 
 .section-picker { position: relative; flex: 1; min-width: 0; }
 .sp-btn {

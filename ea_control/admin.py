@@ -126,8 +126,8 @@ class CuControlLogicAdmin(_DictAdmin):
 
 @admin.register(ControlUnit)
 class ControlUnitAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'brand', 'kind', 'location', 'is_active')
-    list_filter = ('brand', 'kind', 'location', 'is_active')
+    list_display = ('code', 'name', 'brand', 'kind', 'is_active')
+    list_filter = ('brand', 'kind', 'is_active')
     search_fields = ('code', 'name')
     filter_horizontal = ('accepts', 'emits', 'protocols', 'capabilities')
     ordering = ('brand', 'sorting_order', 'code')

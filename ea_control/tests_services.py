@@ -233,6 +233,7 @@ class CuUnitMatrixServiceTests(TestCase):
         cls.ps380 = PowerSupplies.objects.get(code='380-AC')
         cls.basic = ControlUnit.objects.get(code='basic')
         cls.int_unit = ControlUnit.objects.get(code='int-n')
+        cls.int_o = ControlUnit.objects.get(code='int-o')
 
     def test_build_matrix_basic(self):
         m = build_unit_matrix(self.basic)
@@ -242,6 +243,21 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertEqual(opts['LOCAL_NONE']['availability'], 'std')
         self.assertEqual(opts['BUTTONS']['availability'], 'na')
         self.assertEqual(opts['SELECTOR']['availability'], 'na')
+
+    def test_build_matrix_location_slot(self):
+        # размещение БУ — слот CU_LOCATION: встроенным — INTEGRATED std,
+        # навесному INT/O — SEPARATE std
+        m = build_unit_matrix(self.basic)
+        loc = next(s for s in m['slots'] if s['code'] == 'CU_LOCATION')
+        opts = {o['code']: o for o in loc['options']}
+        self.assertEqual(opts['CU_LOC_INTEGRATED']['availability'], 'std')
+        self.assertEqual(opts['CU_LOC_SEPARATE']['availability'], 'na')
+
+        m2 = build_unit_matrix(self.int_o)
+        loc2 = next(s for s in m2['slots'] if s['code'] == 'CU_LOCATION')
+        opts2 = {o['code']: o for o in loc2['options']}
+        self.assertEqual(opts2['CU_LOC_INTEGRATED']['availability'], 'na')
+        self.assertEqual(opts2['CU_LOC_SEPARATE']['availability'], 'std')
 
     def test_build_matrix_voltage_override(self):
         # на «любое напряжение» встроенного стартера нет (только на 380В)

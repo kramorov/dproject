@@ -130,8 +130,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
             code = f'{base}-cp{n}'
         new = ControlUnit.objects.create(
             brand=unit.brand, code=code, name=unit.name,
-            kind=unit.kind, location=unit.location,
-            control_voltage=unit.control_voltage, signal_power=unit.signal_power,
+            kind=unit.kind,
             name_template=unit.name_template,
             description_template=unit.description_template,
             spec_template=unit.spec_template,
