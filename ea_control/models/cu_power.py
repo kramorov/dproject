@@ -26,7 +26,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
+from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
+                                 OptionListToSelectMixin)
 
 
 class CuSignalPowerSource(LocalizedDictFieldsMixin, CopyMixin):
@@ -75,7 +76,15 @@ class CuSignalPowerSource(LocalizedDictFieldsMixin, CopyMixin):
         return self.name
 
 
-class CuPolarity(models.TextChoices):
+POLARITIES = (
+    ('PNP', 'PNP — плюс-управление (активный высокий)'),
+    ('NPN', 'NPN — минус-управление (активный низкий)'),
+    ('BIDIRECTIONAL', 'Двунаправленный (DC, любая полярность)'),
+    ('NOT_APPLICABLE', 'Не применимо (AC или сухой контакт)'),
+)
+
+
+class CuPolarity(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Полярность входных цепей управления (DC-схемы).
 
     Терминология автоматизации: PNP/NPN описывают, каким проводом внешняя
@@ -91,11 +100,30 @@ class CuPolarity(models.TextChoices):
     - Двунаправленный: вход срабатывает при любой полярности DC;
     - Не применимо: цепь AC (полярности нет) или сухой контакт (опрос задан
       внутри БУ и наружу не виден).
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель.
     """
-    PNP = 'PNP', _('PNP — плюс-управление (активный высокий)')
-    NPN = 'NPN', _('NPN — минус-управление (активный низкий)')
-    BIDIRECTIONAL = 'BIDIRECTIONAL', _('Двунаправленный (DC, любая полярность)')
-    NOT_APPLICABLE = 'NOT_APPLICABLE', _('Не применимо (AC или сухой контакт)')
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Полярность входных цепей")
+        verbose_name_plural = _("Полярности входных цепей")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+def _default_polarity():
+    """Дефолтная полярность: не применимо (как было до перевода на FK)."""
+    obj, _ = CuPolarity.objects.get_or_create(
+        code='NOT_APPLICABLE',
+        defaults={'name': 'Не применимо (AC или сухой контакт)'})
+    return obj.pk
 
 
 class CuSignalPower(LocalizedDictFieldsMixin, CopyMixin):
@@ -140,22 +168,12 @@ class CuSignalPower(LocalizedDictFieldsMixin, CopyMixin):
                     "потенциал DC (VOLTAGE_DC); null — пара не про входы "
                     "команд"),
     )
-    polarity = models.CharField(
-        max_length=20, choices=CuPolarity.choices,
-        default=CuPolarity.NOT_APPLICABLE,
+    polarity = models.ForeignKey(
+        CuPolarity, on_delete=models.PROTECT,
+        default=_default_polarity,
+        related_name='signal_powers',
         verbose_name=_("Полярность"),
-        help_text=_(
-            'PNP («плюс-управление», активный высокий): команда активна, '
-            'когда на клемме входа положительный потенциал (+24/+110 В DC) '
-            'относительно общего провода — внешняя сторона коммутирует '
-            'плюсовой провод. '
-            'NPN («минус-управление», активный низкий): команда активна, '
-            'когда клемма замкнута на общий провод (0 В) — внешняя сторона '
-            'коммутирует минусовой провод. '
-            'Двунаправленный: вход срабатывает при любой полярности DC. '
-            'Не применимо: цепь AC (полярности нет) или сухой контакт '
-            '(опрос задан внутри БУ и наружу не виден).'
-        ),
+        help_text=_( 'PNP («плюс-управление», активный высокий): команда активна, ' 'когда на клемме входа положительный потенциал (+24/+110 В DC) ' 'относительно общего провода — внешняя сторона коммутирует ' 'плюсовой провод. ' 'NPN («минус-управление», активный низкий): команда активна, ' 'когда клемма замкнута на общий провод (0 В) — внешняя сторона ' 'коммутирует минусовой провод. ' 'Двунаправленный: вход срабатывает при любой полярности DC. ' 'Не применимо: цепь AC (полярности нет) или сухой контакт ' '(опрос задан внутри БУ и наружу не виден).' ),
     )
     description = models.TextField(
         blank=True,
@@ -184,7 +202,7 @@ class CuSignalPower(LocalizedDictFieldsMixin, CopyMixin):
     def clean(self):
         super().clean()
         if self.input_form_id:
-            category = self.input_form.category
+            category = self.input_form.category.code
             if category == 'dry_input' \
                     and not getattr(self.source, 'internal', False):
                 raise ValidationError(
@@ -202,9 +220,9 @@ class CuSignalPower(LocalizedDictFieldsMixin, CopyMixin):
                     {'power_supply': _('Для формы «Потенциал DC» нужно '
                                        'напряжение постоянного тока (код '
                                        '*-DC).')})
-        if self.input_form_id and self.input_form.category in (
+        if self.input_form_id and self.input_form.category.code in (
                 'dry_input', 'voltage_ac') \
-                and self.polarity != CuPolarity.NOT_APPLICABLE:
+                and self.polarity.code != 'NOT_APPLICABLE':
             raise ValidationError(
                 {'polarity': _('Для сухого контакта и цепей AC полярность '
                                'не применима.')})

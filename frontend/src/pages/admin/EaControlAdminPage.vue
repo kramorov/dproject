@@ -330,11 +330,8 @@ const MODEL_CONFIGS = [
     columns: ['code', 'name', 'kind', 'technology', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
-      F('kind', 'Категория', 'select', { choices: [
-        ['POSITION_SENSOR', 'Датчик положения'], ['THERMAL_SENSOR', 'Датчик температуры']] }),
-      F('technology', 'Технология', 'select', { choices: [
-        ['POTENTIOMETER', 'Потенциометрический'], ['MWG', 'Магнитно-волновой (MWG)'],
-        ['ELECTRONIC', 'Электронный'], ['MECHANICAL', 'Механический']] }),
+      F('kind', 'Категория', 'select', { source: 'feedback-device-kinds' }),
+      F('technology', 'Технология', 'select', { source: 'feedback-technologies' }),
       F('contactless', 'Бесконтактный', 'bool'),
       F('accuracy', 'Точность'), F('life_cycles', 'Ресурс, циклов'),
       F('temp_range', 'Рабочая температура'),

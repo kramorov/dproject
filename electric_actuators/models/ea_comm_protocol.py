@@ -21,13 +21,37 @@ from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
                                  OptionListToSelectMixin)
 
 
-class EaProtocolTransport(models.TextChoices):
-    """Транспорт шины."""
-    RS485 = 'rs485', _('RS-485')
-    ETHERNET = 'ethernet', _('Ethernet')
-    CURRENT_LOOP = 'current_loop', _('Токовая петля (20 мА)')
-    H1 = 'h1', _('Fieldbus H1')
-    OTHER = 'other', _('Прочее')
+# Единый набор транспортов шины (ЭП + БУ; коды в нижнем регистре).
+PROTOCOL_TRANSPORTS = (
+    ('rs485', 'RS-485'),
+    ('ethernet', 'Ethernet'),
+    ('current_loop', 'Токовая петля (20 мА)'),
+    ('h1', 'Fieldbus H1'),
+    ('other', 'Прочее'),
+)
+
+
+class EaProtocolTransport(CopyMixin, LocalizedDictFieldsMixin,
+                          OptionListToSelectMixin):
+    """Транспорт шины.
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель;
+    общая для ЭП и БУ (коды БУ RS485/ETHERNET/OTHER приведены к нижнему
+    регистру ЭП).
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Транспорт протокола")
+        verbose_name_plural = _("Транспорты протоколов")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
 
 
 class EaCommProtocol(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -46,8 +70,9 @@ class EaCommProtocol(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixi
         verbose_name=_("Название"),
         help_text=_("Название протокола, например «Modbus RTU»")
     )
-    transport = models.CharField(
-        max_length=20, choices=EaProtocolTransport.choices,
+    transport = models.ForeignKey(
+        EaProtocolTransport, on_delete=models.PROTECT,
+        related_name='protocols',
         verbose_name=_("Транспорт"),
         help_text=_("Физический транспорт шины (RS-485, Ethernet, …)")
     )

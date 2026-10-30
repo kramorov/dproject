@@ -29,21 +29,79 @@ from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
                                  OptionListToSelectMixin)
 
 
-class EaFeedbackTechnology(models.TextChoices):
-    """Технология устройства ОС."""
-    POTENTIOMETER = 'POTENTIOMETER', _('Потенциометр')
-    POT_CONVERTER = 'POT_CONVERTER', _('Потенциометр + преобразователь')
-    HALL = 'HALL', _('Бесконтактный (датчики Холла)')
-    MAGNETIC = 'MAGNETIC', _('Магнитный (пределы/момент/положение)')
-    BIMETAL = 'BIMETAL', _('Биметаллическое термореле')
-    PTC = 'PTC', _('PTC-термистор с реле оценки')
-    OTHER = 'OTHER', _('Прочее')
+# Канонический набор значений справочников (единый источник для сидов ЭП и БУ).
+FEEDBACK_DEVICE_KINDS = (
+    ('POSITION_SENSOR', 'Датчик положения'),
+    ('THERMAL_SENSOR', 'Датчик температуры (теплозащита)'),
+)
+
+FEEDBACK_TECHNOLOGIES = (
+    ('POTENTIOMETER', 'Потенциометрический'),
+    ('POT_CONVERTER', 'Потенциометр + преобразователь'),
+    ('HALL', 'Датчик Холла'),
+    ('MAGNETIC', 'Магнитный'),
+    ('BIMETAL', 'Биметаллическое термореле'),
+    ('PTC', 'PTC-термистор с реле оценки'),
+    ('OTHER', 'Прочее'),
+    ('MWG', 'Магнитно-волновой (MWG)'),
+    ('ELECTRONIC', 'Электронный'),
+    ('MECHANICAL', 'Механический'),
+    ('ABSOLUTE_ENCODER', 'Абсолютный энкодер'),
+    ('INDUCTIVE', 'Индуктивный'),
+)
 
 
-class EaFeedbackDeviceKind(models.TextChoices):
-    """Категория устройства ОС: позиционный датчик или теплозащита."""
-    POSITION_SENSOR = 'POSITION_SENSOR', _('Датчик положения')
-    THERMAL_SENSOR = 'THERMAL_SENSOR', _('Датчик температуры (теплозащита)')
+def _default_device_kind():
+    """Дефолтная категория устройства (как было до перевода kind на FK)."""
+    return EaFeedbackDeviceKind.objects.get_or_create(
+        code='POSITION_SENSOR',
+        defaults={'name': 'Датчик положения'})[0]
+
+
+class EaFeedbackDeviceKind(CopyMixin, LocalizedDictFieldsMixin,
+                           OptionListToSelectMixin):
+    """Категория устройства ОС: позиционный датчик или теплозащита.
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель, чтобы
+    значения редактировались данными, а не хардкодом. Разделяется с БУ
+    (``ea_control.CuFeedbackDevice`` ссылается на эту же модель).
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Категория устройства ОС")
+        verbose_name_plural = _("Категории устройств ОС")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+class EaFeedbackTechnology(CopyMixin, LocalizedDictFieldsMixin,
+                           OptionListToSelectMixin):
+    """Технология устройства ОС.
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель.
+    Значения объединены из ЭП и БУ (POT_CONVERTER/BIMETAL/PTC/OTHER из ЭП;
+    MWG/ELECTRONIC/MECHANICAL/ABSOLUTE_ENCODER/INDUCTIVE из БУ).
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Технология устройства ОС")
+        verbose_name_plural = _("Технологии устройств ОС")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
 
 
 class EaFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -58,9 +116,10 @@ class EaFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMi
         verbose_name=_("Код"),
         help_text=_("Уникальный код устройства, например «RWG_4020», «MWG»")
     )
-    kind = models.CharField(
-        max_length=20, choices=EaFeedbackDeviceKind.choices,
-        default=EaFeedbackDeviceKind.POSITION_SENSOR,
+    kind = models.ForeignKey(
+        EaFeedbackDeviceKind, on_delete=models.PROTECT,
+        default=_default_device_kind,
+        related_name='devices_by_kind',
         verbose_name=_("Категория"),
         help_text=_("Датчик положения (RWG/EWG/потенциометр) или теплозащита "
                     "(термореле/PTC)")
@@ -70,8 +129,9 @@ class EaFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMi
         verbose_name=_("Название"),
         help_text=_("Название устройства, например «RWG 4020»")
     )
-    technology = models.CharField(
-        max_length=20, choices=EaFeedbackTechnology.choices,
+    technology = models.ForeignKey(
+        EaFeedbackTechnology, on_delete=models.PROTECT,
+        related_name='devices_by_technology',
         verbose_name=_("Технология"),
         help_text=_("Технология датчика: потенциометр, Холл, магнитный, …")
     )
@@ -115,7 +175,7 @@ class EaFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMi
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
     class Meta:
-        verbose_name = _("Устройство ОС ЭП")
+        verbose_name = _("Устройство ОС ЭП EaFeedbackDevice")
         verbose_name_plural = _("Устройства ОС ЭП")
         ordering = ['sorting_order', 'code']
 

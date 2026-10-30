@@ -9,10 +9,17 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
 from core.models.mixins import AdminCopyMixin
-from electric_actuators.models.ea_signal_form import EaSignalForm
-from electric_actuators.models.ea_signals import EaControlSignal, EaFeedbackSignal
-from electric_actuators.models.ea_comm_protocol import EaCommProtocol
-from electric_actuators.models.ea_feedback_device import EaFeedbackDevice
+from electric_actuators.models.ea_signal_form import EaSignalForm, EaSignalFormCategory
+from electric_actuators.models.ea_signals import (EaControlSignal,
+                                                  EaFeedbackSignal,
+                                                  EaControlSignalRole,
+                                                  EaFeedbackSignalRole,
+                                                  EaContactNormal)
+from electric_actuators.models.ea_comm_protocol import (EaCommProtocol,
+                                                        EaProtocolTransport)
+from electric_actuators.models.ea_feedback_device import (
+    EaFeedbackDevice, EaFeedbackDeviceKind, EaFeedbackTechnology,
+)
 from electric_actuators.models.ea_signal_slot import EaSignalSlot
 from electric_actuators.models.ea_signal_matrix import (
     EaSignalMatrixEntry, EaWiringDiagramBinding,
@@ -26,6 +33,17 @@ class EaSignalFormAdmin(AdminCopyMixin, admin.ModelAdmin):
     list_editable = ['sorting_order', 'is_active']
     list_filter = ['category', 'is_active']
     search_fields = ['code', 'name']
+
+
+class _SimpleDictAdmin(AdminCopyMixin, admin.ModelAdmin):
+    list_display = ['code', 'name', 'sorting_order', 'is_active']
+    list_editable = ['sorting_order', 'is_active']
+    search_fields = ['code', 'name']
+
+
+for _model in (EaSignalFormCategory, EaControlSignalRole, EaFeedbackSignalRole,
+               EaContactNormal, EaProtocolTransport):
+    admin.site.register(_model, _SimpleDictAdmin)
 
 
 @admin.register(EaControlSignal)
@@ -58,12 +76,28 @@ class EaCommProtocolAdmin(AdminCopyMixin, admin.ModelAdmin):
 
 @admin.register(EaFeedbackDevice)
 class EaFeedbackDeviceAdmin(AdminCopyMixin, admin.ModelAdmin):
-    list_display = ['code', 'name', 'technology', 'contactless',
+    list_display = ['code', 'name', 'kind', 'technology', 'contactless',
                     'sorting_order', 'is_active']
     list_editable = ['sorting_order', 'is_active']
-    list_filter = ['technology', 'contactless', 'is_active']
+    list_filter = ['kind', 'technology', 'contactless', 'is_active']
     search_fields = ['code', 'name']
     autocomplete_fields = ['emits', 'equivalents']
+
+
+@admin.register(EaFeedbackDeviceKind)
+class EaFeedbackDeviceKindAdmin(AdminCopyMixin, admin.ModelAdmin):
+    list_display = ['code', 'name', 'sorting_order', 'is_active']
+    list_editable = ['sorting_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['code', 'name']
+
+
+@admin.register(EaFeedbackTechnology)
+class EaFeedbackTechnologyAdmin(AdminCopyMixin, admin.ModelAdmin):
+    list_display = ['code', 'name', 'sorting_order', 'is_active']
+    list_editable = ['sorting_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['code', 'name']
 
 
 @admin.register(EaSignalSlot)

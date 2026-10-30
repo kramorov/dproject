@@ -33,8 +33,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuLocationOption, CuMatrixEntry,
                                CuSignalPower, CuSignalPowerSource, CuSlot,
                                CuSlotOption, CuSlotRule, CuUnitPowerSource,
-                               ControlUnit, CuSectionNode)
-from ea_control.models.control_unit import ControlUnitKind
+                               ControlUnit, ControlUnitKind, CuSectionNode)
 
 
 def _cu(model, code, **defaults):
@@ -66,71 +65,150 @@ class Command(BaseCommand):
     help = 'Демо-данные ea_control: справочники, БУ, слоты, матрица, правила.'
 
     def handle(self, *args, **options):
+        kinds = self._seed_kinds()
         forms, ctl, fb, proto, devices, heater, caps, local_ctrl, display, (
-            unit_power) = self._seed_dictionaries()
-        locations, sources, powers, logics = self._seed_cu_power(forms)
+            unit_power) = self._seed_dictionaries(kinds)
+        locations, sources, powers, logics = self._seed_cu_power(forms, kinds)
         sections, slots, opts = self._seed_structure(forms, ctl, fb, proto,
                                                      devices, heater, sources,
                                                      powers, logics,
                                                      local_ctrl, display,
                                                      unit_power, locations)
-        cus = self._seed_units(caps, ctl, fb, proto)
+        cus = self._seed_units(kinds, caps, ctl, fb, proto)
         self._seed_matrix(slots, opts, cus, powers)
         self._seed_rules(slots, opts)
         self.stdout.write(self.style.SUCCESS('Демо-данные ea_control готовы.'))
 
+    # ── Классы/категории/технологии: справочники вместо TextChoices ─────────
+
+    def _seed_kinds(self):
+        """Общие справочники (ЭП и БУ) вместо хардкод-перечислений.
+
+        Набор значений — единый источник ``electric_actuators.models``
+        (FEEDBACK_DEVICE_KINDS / FEEDBACK_TECHNOLOGIES / SIGNAL_FORM_CATEGORIES /
+        CONTROL_SIGNAL_ROLES / FEEDBACK_SIGNAL_ROLES / CONTACT_NORMALS /
+        PROTOCOL_TRANSPORTS) + CuPolarity.
+        """
+        from electric_actuators.models import (EaFeedbackDeviceKind,
+                                               EaFeedbackTechnology,
+                                               FEEDBACK_DEVICE_KINDS,
+                                               FEEDBACK_TECHNOLOGIES,
+                                               EaSignalFormCategory,
+                                               SIGNAL_FORM_CATEGORIES,
+                                               EaControlSignalRole,
+                                               CONTROL_SIGNAL_ROLES,
+                                               EaFeedbackSignalRole,
+                                               FEEDBACK_SIGNAL_ROLES,
+                                               EaContactNormal,
+                                               CONTACT_NORMALS,
+                                               EaProtocolTransport,
+                                               PROTOCOL_TRANSPORTS)
+        from ea_control.models.cu_power import CuPolarity, POLARITIES
+
+        device_kinds = {
+            code: _cu(EaFeedbackDeviceKind, code, name=name)
+            for code, name in FEEDBACK_DEVICE_KINDS
+        }
+        technologies = {
+            code: _cu(EaFeedbackTechnology, code, name=name)
+            for code, name in FEEDBACK_TECHNOLOGIES
+        }
+        form_categories = {
+            code: _cu(EaSignalFormCategory, code, name=name)
+            for code, name in SIGNAL_FORM_CATEGORIES
+        }
+        control_roles = {
+            code: _cu(EaControlSignalRole, code, name=name)
+            for code, name in CONTROL_SIGNAL_ROLES
+        }
+        feedback_roles = {
+            code: _cu(EaFeedbackSignalRole, code, name=name)
+            for code, name in FEEDBACK_SIGNAL_ROLES
+        }
+        contact_normals = {
+            code: _cu(EaContactNormal, code, name=name)
+            for code, name in CONTACT_NORMALS
+        }
+        transports = {
+            code: _cu(EaProtocolTransport, code, name=name)
+            for code, name in PROTOCOL_TRANSPORTS
+        }
+        polarities = {
+            code: _cu(CuPolarity, code, name=name)
+            for code, name in POLARITIES
+        }
+        cu_kinds = {
+            'NONE': _cu(ControlUnitKind, 'NONE', name='Без БУ'),
+            'BASIC': _cu(ControlUnitKind, 'BASIC', name='Базовый'),
+            'INTEGRATED': _cu(ControlUnitKind, 'INTEGRATED',
+                              name='Интеллектуальный'),
+            'POSITIONER': _cu(ControlUnitKind, 'POSITIONER', name='Позиционер'),
+        }
+        return {'device_kind': device_kinds, 'technology': technologies,
+                'cu_kind': cu_kinds, 'form_category': form_categories,
+                'control_role': control_roles, 'feedback_role': feedback_roles,
+                'contact_normal': contact_normals, 'transport': transports,
+                'polarity': polarities}
+
     # ── Справочники-копии ──────────────────────────────────────────────────
 
-    def _seed_dictionaries(self):
+    def _seed_dictionaries(self, kinds):
+        dk = kinds['device_kind']
+        tech = kinds['technology']
+        fc = kinds['form_category']
+        cr = kinds['control_role']
+        fr = kinds['feedback_role']
+        cn = kinds['contact_normal']
+        tr = kinds['transport']
         ctl_forms = {
             'DRY_INPUT': _cu(CuControlSignalForm, 'DRY_INPUT',
                              name='Сухой контакт (внутренний опрос +24 В)',
-                             category='dry_input'),
+                             category=fc['dry_input']),
             'VOLTAGE_AC': _cu(CuControlSignalForm, 'VOLTAGE_AC',
                               name='Потенциал AC',
-                              category='voltage_ac'),
+                              category=fc['voltage_ac']),
             'VOLTAGE_DC': _cu(CuControlSignalForm, 'VOLTAGE_DC',
                               name='Потенциал DC',
-                              category='voltage_dc'),
+                              category=fc['voltage_dc']),
             'AN_4_20_ACTIVE': _cu(CuControlSignalForm, 'AN_4_20_ACTIVE',
                                   name='Петля 4-20 мА, активная',
-                                  category='current_4_20'),
+                                  category=fc['current_4_20']),
             'AN_4_20_PASSIVE': _cu(CuControlSignalForm, 'AN_4_20_PASSIVE',
                                    name='Петля 4-20 мА, пассивная',
-                                   category='current_4_20'),
+                                   category=fc['current_4_20']),
         }
         fb_forms = {
             'DRY_SPST': _cu(CuFeedbackSignalForm, 'DRY_SPST',
                             name='Сухой контакт SPST',
-                            category='dry_output'),
+                            category=fc['dry_output']),
             'DRY_SPDT': _cu(CuFeedbackSignalForm, 'DRY_SPDT',
                             name='Сухой контакт SPDT',
-                            category='dry_output'),
+                            category=fc['dry_output']),
             'DRY_DPDT': _cu(CuFeedbackSignalForm, 'DRY_DPDT',
                             name='Сухой контакт DPDT',
-                            category='dry_output'),
+                            category=fc['dry_output']),
             'AN_4_20_ACTIVE': _cu(CuFeedbackSignalForm, 'AN_4_20_ACTIVE',
                                   name='Петля 4-20 мА, активная',
-                                  category='current_4_20'),
+                                  category=fc['current_4_20']),
             'AN_4_20_PASSIVE': _cu(CuFeedbackSignalForm, 'AN_4_20_PASSIVE',
                                    name='Петля 4-20 мА, пассивная',
-                                   category='current_4_20'),
+                                   category=fc['current_4_20']),
             'RES_POTENTIOMETER': _cu(CuFeedbackSignalForm,
                                      'RES_POTENTIOMETER',
                                      name='Потенциометр',
-                                     category='resistance'),
+                                     category=fc['resistance']),
         }
         forms = {'ctl': ctl_forms, 'fb': fb_forms}
         ctl = {
             'CMD_4_20MA': _cu(CuControlSignal, 'CMD_4_20MA',
                               name='Уставка положения 4-20 мА',
-                              role='CMD_4_20MA',
+                              role=cr['CMD_4_20MA'],
                               category='analog',
                               form=ctl_forms['AN_4_20_PASSIVE'],
                               wires=2),
             'CMD_4_20MA_HART': _cu(CuControlSignal, 'CMD_4_20MA_HART',
                                    name='Уставка 4-20 мА + HART',
-                                   role='CMD_4_20MA',
+                                   role=cr['CMD_4_20MA'],
                                    category='analog',
                                    form=ctl_forms['AN_4_20_PASSIVE'],
                                    hart=True, wires=2),
@@ -146,107 +224,108 @@ class Command(BaseCommand):
         ):
             fb[f'FB_{role}_SPDT'] = _cu(
                 CuFeedbackSignal, f'FB_{role}_SPDT',
-                name=f'{base}, SPDT', role=role, category='contact',
-                form=fb_forms['DRY_SPDT'], contact_normal='CHANGEOVER',
+                name=f'{base}, SPDT', role=fr[role], category='contact',
+                form=fb_forms['DRY_SPDT'], contact_normal=cn['CHANGEOVER'],
                 max_voltage=250, max_current=5)
             fb[f'FB_{role}_DPDT'] = _cu(
                 CuFeedbackSignal, f'FB_{role}_DPDT',
-                name=f'{base}, DPDT', role=role, category='contact',
-                form=fb_forms['DRY_DPDT'], contact_normal='CHANGEOVER',
+                name=f'{base}, DPDT', role=fr[role], category='contact',
+                form=fb_forms['DRY_DPDT'], contact_normal=cn['CHANGEOVER'],
                 max_voltage=250, max_current=5)
         fb.update({
             'FB_POS_POT': _cu(CuFeedbackSignal, 'FB_POS_POT',
-                              name='Позиция, потенциометр', role='POSITION',
+                              name='Позиция, потенциометр', role=fr['POSITION'],
                               category='analog',
                               form=fb_forms['RES_POTENTIOMETER'],
                               resistance_kohm=1),
             'FB_POS_4_20MA_ACTIVE': _cu(CuFeedbackSignal, 'FB_POS_4_20MA_ACTIVE',
                                         name='Позиция 4-20 мА, активный',
-                                        role='POSITION', category='analog',
+                                        role=fr['POSITION'], category='analog',
                                         form=fb_forms['AN_4_20_ACTIVE'],
                                         wires=2),
             'FB_POS_4_20MA_PASSIVE': _cu(CuFeedbackSignal, 'FB_POS_4_20MA_PASSIVE',
                                          name='Позиция 4-20 мА, пассивный',
-                                         role='POSITION', category='analog',
+                                         role=fr['POSITION'], category='analog',
                                          form=fb_forms['AN_4_20_PASSIVE'],
                                          wires=2),
             'FB_POS_4_20MA_HART': _cu(CuFeedbackSignal, 'FB_POS_4_20MA_HART',
                                       name='Позиция 4-20 мА + HART',
-                                      role='POSITION', category='analog',
+                                      role=fr['POSITION'], category='analog',
                                       form=fb_forms['AN_4_20_PASSIVE'],
                                       hart=True, wires=2),
             'FB_TORQUE_4_20MA': _cu(CuFeedbackSignal, 'FB_TORQUE_4_20MA',
                                     name='Аналоговый момент 4-20 мА',
-                                    role='TORQUE_ANALOG', category='analog',
+                                    role=fr['TORQUE_ANALOG'], category='analog',
                                     form=fb_forms['AN_4_20_ACTIVE'], wires=2),
             'FB_OVERHEAT': _cu(CuFeedbackSignal, 'FB_OVERHEAT',
-                               name='Перегрев, SPST (НЗ)', role='OVERHEAT',
+                               name='Перегрев, SPST (НЗ)', role=fr['OVERHEAT'],
                                category='contact', form=fb_forms['DRY_SPST'],
-                               contact_normal='NC', max_voltage=250,
+                               contact_normal=cn['NC'], max_voltage=250,
                                max_current=5),
             'FB_ALARM': _cu(CuFeedbackSignal, 'FB_ALARM',
-                            name='Авария (SPDT: НЗ + НО)', role='ALARM',
+                            name='Авария (SPDT: НЗ + НО)', role=fr['ALARM'],
                             category='contact', form=fb_forms['DRY_SPDT'],
-                            contact_normal='CHANGEOVER', max_voltage=250,
+                            contact_normal=cn['CHANGEOVER'], max_voltage=250,
                             max_current=5),
             'FB_READY': _cu(CuFeedbackSignal, 'FB_READY',
-                            name='Готовность (NO)', role='READY',
+                            name='Готовность (NO)', role=fr['READY'],
                             category='contact', form=fb_forms['DRY_SPST'],
-                            contact_normal='NO', max_voltage=250,
+                            contact_normal=cn['NO'], max_voltage=250,
                             max_current=5),
             'FB_LOCAL_REMOTE': _cu(CuFeedbackSignal, 'FB_LOCAL_REMOTE',
                                    name='Местное/удалённое (SPST НО)',
-                                   role='LOCAL_REMOTE', category='contact',
+                                   role=fr['LOCAL_REMOTE'], category='contact',
                                    form=fb_forms['DRY_SPST'],
-                                   contact_normal='NO', max_voltage=250,
+                                   contact_normal=cn['NO'], max_voltage=250,
                                    max_current=5),
             'FB_STOP': _cu(CuFeedbackSignal, 'FB_STOP',
-                           name='Останов (NO)', role='STOP', category='contact',
-                           form=fb_forms['DRY_SPST'], contact_normal='NO',
+                           name='Останов (NO)', role=fr['STOP'], category='contact',
+                           form=fb_forms['DRY_SPST'], contact_normal=cn['NO'],
                            max_voltage=250, max_current=5),
             'FB_TURN_COUNTER': _cu(CuFeedbackSignal, 'FB_TURN_COUNTER',
                                    name='Счётчик оборотов (NO)',
-                                   role='TURN_COUNTER', category='contact',
+                                   role=fr['TURN_COUNTER'], category='contact',
                                    form=fb_forms['DRY_SPST'],
-                                   contact_normal='NO', max_voltage=250,
+                                   contact_normal=cn['NO'], max_voltage=250,
                                    max_current=Decimal('0.5')),
             'FB_SELECTOR_POSITION': _cu(
                 CuFeedbackSignal, 'FB_SELECTOR_POSITION',
-                name='Положение ключа-селектора', role='SELECTOR_POSITION',
+                name='Положение ключа-селектора', role=fr['SELECTOR_POSITION'],
                 category='contact', form=fb_forms['DRY_SPDT'],
-                contact_normal='CHANGEOVER', max_voltage=250, max_current=5),
+                contact_normal=cn['CHANGEOVER'], max_voltage=250, max_current=5),
             'FB_PHASE_LOSS': _cu(CuFeedbackSignal, 'FB_PHASE_LOSS',
-                                 name='Авария: потеря фазы', role='PHASE_LOSS',
+                                 name='Авария: потеря фазы', role=fr['PHASE_LOSS'],
                                  category='contact', form=fb_forms['DRY_SPST'],
-                                 contact_normal='NO', max_voltage=250,
+                                 contact_normal=cn['NO'], max_voltage=250,
                                  max_current=5),
         })
         proto = {
             'MODBUS_RTU': _cu(CuCommProtocol, 'MODBUS_RTU', name='Modbus RTU',
-                              transport='RS485'),
+                              transport=tr['rs485']),
             'PROFIBUS_DP': _cu(CuCommProtocol, 'PROFIBUS_DP', name='PROFIBUS DP',
-                               transport='RS485'),
+                               transport=tr['rs485']),
             'PROFINET': _cu(CuCommProtocol, 'PROFINET', name='PROFINET',
-                            transport='ETHERNET'),
+                            transport=tr['ethernet']),
         }
         devices = {
             'POT_1K': CuFeedbackDevice.objects.get_or_create(
                 code='POT_1K', defaults=dict(name='Потенциометр 1 кОм',
-                                             kind='POSITION_SENSOR',
-                                             technology='POTENTIOMETER'))[0],
+                                             kind=dk['POSITION_SENSOR'],
+                                             technology=tech['POTENTIOMETER']))[0],
             'MWG': CuFeedbackDevice.objects.get_or_create(
                 code='MWG', defaults=dict(name='Датчик MWG',
-                                          kind='POSITION_SENSOR',
-                                          technology='MWG', contactless=True))[0],
+                                          kind=dk['POSITION_SENSOR'],
+                                          technology=tech['MWG'],
+                                          contactless=True))[0],
             'THERMO': CuFeedbackDevice.objects.get_or_create(
                 code='THERMO', defaults=dict(name='Термореле',
-                                             kind='THERMAL_SENSOR',
-                                             technology='ELECTRONIC'))[0],
+                                             kind=dk['THERMAL_SENSOR'],
+                                             technology=tech['ELECTRONIC']))[0],
             'LIMIT_MECH': CuFeedbackDevice.objects.get_or_create(
                 code='LIMIT_MECH',
                 defaults=dict(name='Концевые датчики, механические',
-                              kind='POSITION_SENSOR',
-                              technology='MECHANICAL'))[0],
+                              kind=dk['POSITION_SENSOR'],
+                              technology=tech['MECHANICAL']))[0],
         }
         devices['POT_1K'].emits.add(fb['FB_POS_POT'])
         devices['MWG'].emits.add(fb['FB_POS_4_20MA_ACTIVE'])
@@ -291,7 +370,8 @@ class Command(BaseCommand):
         return (forms, ctl, fb, proto, devices, heater, caps, local_ctrl,
                 display, unit_power)
 
-    def _seed_cu_power(self, forms):
+    def _seed_cu_power(self, forms, kinds):
+        pol = kinds['polarity']
         locations = {
             'INTEGRATED': _cu(CuLocationOption, 'INTEGRATED', name='Встроенный'),
             'SEPARATE': _cu(CuLocationOption, 'SEPARATE', name='Навесной'),
@@ -319,7 +399,7 @@ class Command(BaseCommand):
         ps220 = PowerSupplies.objects.filter(code='220-AC').first() or PowerSupplies.objects.first()
         ctl_forms = forms['ctl']
 
-        def _power(key, source, ps, name, input_form=None, polarity='NOT_APPLICABLE'):
+        def _power(key, source, ps, name, input_form=None, polarity=pol['NOT_APPLICABLE']):
             return CuSignalPower.objects.get_or_create(
                 source=source, power_supply=ps, input_form=input_form,
                 polarity=polarity,
@@ -330,20 +410,20 @@ class Command(BaseCommand):
                 'INT_24', sources['INTERNAL'], ps24,
                 'Внутренний +24 В (сухой контакт)',
                 input_form=ctl_forms['DRY_INPUT'],
-                polarity='NOT_APPLICABLE'),
+                polarity=pol['NOT_APPLICABLE']),
             'EXT_220': _power(
                 'EXT_220', sources['EXTERNAL'], ps220,
                 'Внешний 220 В AC (потенциал)',
                 input_form=ctl_forms['VOLTAGE_AC'],
-                polarity='NOT_APPLICABLE'),
+                polarity=pol['NOT_APPLICABLE']),
             'EXT_24_PNP': _power(
                 'EXT_24_PNP', sources['EXTERNAL'], ps24,
                 'Внешний 24 В DC (PNP)',
-                input_form=ctl_forms['VOLTAGE_DC'], polarity='PNP'),
+                input_form=ctl_forms['VOLTAGE_DC'], polarity=pol['PNP']),
             'EXT_24_NPN': _power(
                 'EXT_24_NPN', sources['EXTERNAL'], ps24,
                 'Внешний 24 В DC (NPN)',
-                input_form=ctl_forms['VOLTAGE_DC'], polarity='NPN'),
+                input_form=ctl_forms['VOLTAGE_DC'], polarity=pol['NPN']),
         }
         logics = {
             'IMPULSE': _cu(CuControlLogic, 'IMPULSE', name='Импульсная',
@@ -822,9 +902,11 @@ class Command(BaseCommand):
 
     # ── Типы БУ ────────────────────────────────────────────────────────────
 
-    def _seed_units(self, caps, ctl, fb, proto):
+    def _seed_units(self, kinds, caps, ctl, fb, proto):
         from producers.models import Brands
         from params.models import ControlUnitInstalledOption
+
+        cu_kinds = kinds['cu_kind']
 
         brand = Brands.objects.filter(code='arhimed').first() or Brands.objects.first()
 
@@ -832,13 +914,27 @@ class Command(BaseCommand):
             return ControlUnitInstalledOption.objects.filter(code=code).first()
 
         def _unit(code, name, kind, **defaults):
+            """Идемпотентный upsert по стабильной id-связи legacy (не по code/key).
+
+            code/name — человекочитаемые и могут меняться; key — короткий UUID
+            (генерится в ``save()``, сид его не знает). Единственная стабильная
+            натуральная связь для сида — ``legacy_cu`` (FK по id). Её и
+            используем, а mutable-поля (code/name/kind/шаблоны) приводим к канону.
+            Записи без legacy по-прежнему ищем по (brand, code).
+            """
+            legacy = defaults.pop('legacy_cu', None)
+            fields = dict(name=name, kind=kind, **defaults)
+            if legacy is not None:
+                unit, _ = ControlUnit.objects.update_or_create(
+                    legacy_cu=legacy,
+                    defaults=dict(brand=brand, code=code, **fields))
+                return unit
             unit, _ = ControlUnit.objects.get_or_create(
-                brand=brand, code=code,
-                defaults=dict(name=name, kind=kind, **defaults))
+                brand=brand, code=code, defaults=fields)
             return unit
 
         basic = _unit(
-            'basic', 'БУ базовый', ControlUnitKind.BASIC,
+            'basic', 'БУ базовый', cu_kinds['BASIC'],
             legacy_cu=_legacy('basic'),
             name_template='БУ базовый {code}',
             description_template='Базовый блок управления {brand} (AOX-M): '
@@ -858,7 +954,7 @@ class Command(BaseCommand):
         basic.capabilities.set([caps['LOCAL_CONTROL']])
 
         int_unit = _unit(
-            'int-n', 'БУ INT', ControlUnitKind.INTEGRATED,
+            'int-n', 'БУ INT', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-n'),
             name_template='БУ INT {code}',
             description_template='Интеллектуальный блок управления {brand}: '
@@ -878,7 +974,7 @@ class Command(BaseCommand):
                                    caps['BLUETOOTH'], caps['ESD']])
 
         int_mb = _unit(
-            'int-n-mb', 'БУ INT Modbus', ControlUnitKind.INTEGRATED,
+            'int-n-mb', 'БУ INT Modbus', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-n-mb'),
             name_template='БУ INT {code} (Modbus)',
             description_template='Интеллектуальный блок управления {brand} с '
@@ -893,7 +989,7 @@ class Command(BaseCommand):
         int_mb.capabilities.set(int_unit.capabilities.all())
 
         posi = _unit(
-            'posi-4-20', 'БУ позиционер 4-20', ControlUnitKind.POSITIONER,
+            'posi-4-20', 'БУ позиционер 4-20', cu_kinds['POSITIONER'],
             legacy_cu=_legacy('posi-4-20'),
             name_template='БУ позиционер {code}',
             description_template='Позиционер {brand}: уставка и обратная связь '
@@ -906,7 +1002,7 @@ class Command(BaseCommand):
         posi.capabilities.set([caps['DISPLAY'], caps['PID']])
 
         int_o = _unit(
-            'int-o', 'БУ INT/O', ControlUnitKind.INTEGRATED,
+            'int-o', 'БУ INT/O', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-o'),
             name_template='БУ INT/O {code}',
             description_template='БУ INT/O {brand}: навесной, команды '

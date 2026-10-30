@@ -32,6 +32,23 @@ router.register('signal-power-sources', api.CuSignalPowerSourceViewSet,
                 basename='cu-sp-source')
 router.register('signal-powers', api.CuSignalPowerViewSet, basename='cu-sp')
 router.register('control-logics', api.CuControlLogicViewSet, basename='cu-logic')
+router.register('feedback-device-kinds', api.EaFeedbackDeviceKindViewSet,
+                basename='cu-device-kind')
+router.register('feedback-technologies', api.EaFeedbackTechnologyViewSet,
+                basename='cu-device-technology')
+router.register('control-unit-kinds', api.ControlUnitKindViewSet,
+                basename='cu-kind')
+router.register('signal-form-categories', api.EaSignalFormCategoryViewSet,
+                basename='cu-form-category')
+router.register('control-signal-roles', api.EaControlSignalRoleViewSet,
+                basename='cu-control-role')
+router.register('feedback-signal-roles', api.EaFeedbackSignalRoleViewSet,
+                basename='cu-feedback-role')
+router.register('contact-normals', api.EaContactNormalViewSet,
+                basename='cu-contact-normal')
+router.register('protocol-transports', api.EaProtocolTransportViewSet,
+                basename='cu-transport')
+router.register('polarities', api.CuPolarityViewSet, basename='cu-polarity')
 
 urlpatterns = [
     path('units/', api.units_view, name='cu_units'),

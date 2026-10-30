@@ -12,7 +12,7 @@
       <label class="filter"><span>Класс БУ</span>
         <select v-model="filters.kind">
           <option :value="null">Все</option>
-          <option v-for="k in KIND_CHOICES" :key="k[0]" :value="k[0]">{{ k[1] }}</option>
+          <option v-for="k in kinds" :key="k.id" :value="k.id">{{ k.name }}</option>
         </select>
       </label>
       <div class="count">{{ filtered.length }} из {{ units.length }}</div>
@@ -66,7 +66,7 @@
               </label>
               <label class="field"><span>Класс БУ</span>
                 <select v-model="form.kind">
-                  <option v-for="k in KIND_CHOICES" :key="k[0]" :value="k[0]">{{ k[1] }}</option>
+                  <option v-for="k in kinds" :key="k.id" :value="k.id">{{ k.name }}</option>
                 </select>
               </label>
             </div>
@@ -203,10 +203,8 @@ import api from '@/shared/api'
 import { t } from '@/shared/i18n'
 import EditorActions from '@/components/EditorActions.vue'
 
-const KIND_CHOICES = [
-  ['NONE', 'Без БУ'], ['BASIC', 'Базовый'],
-  ['INTEGRATED', 'Интеллектуальный'], ['POSITIONER', 'Позиционер'],
-]
+// Классы БУ приходят с API (справочник control-unit-kinds вместо хардкода).
+const kinds = ref([])
 
 const units = ref([])
 const brands = ref([])
@@ -275,8 +273,8 @@ const editButtons = computed(() => [
 ])
 
 function kindLabel(k) {
-  const o = KIND_CHOICES.find(([id]) => id === k)
-  return o ? o[1] : k
+  const o = kinds.value.find(x => x.id === k)
+  return o ? o.name : (k ?? '')
 }
 
 function brandName(id) {
@@ -379,7 +377,7 @@ function openCreate() {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = {
-    id: null, code: '', name: '', brand: null, kind: 'INTEGRATED',
+    id: null, code: '', name: '', brand: null, kind: defaultKindId(),
     sorting_order: 0, is_active: true, description: '',
     name_template: '', description_template: '', spec_template: '',
   }
@@ -549,9 +547,25 @@ function cancelEdit() {
   matrixDirty.value = false
 }
 
+async function loadKinds() {
+  try {
+    const { data } = await api.get('/ea-control/control-unit-kinds/')
+    const list = Array.isArray(data) ? data : data.results || []
+    kinds.value = list.map(o => ({ id: o.id, code: o.code, name: o.name }))
+  } catch (e) {
+    error.value = e.displayMessage || 'Ошибка загрузки классов БУ'
+  }
+}
+
+function defaultKindId() {
+  const o = kinds.value.find(x => x.code === 'INTEGRATED')
+  return o ? o.id : null
+}
+
 onMounted(async () => {
   try {
     await loadMeta()
+    await loadKinds()
     await loadUnits()
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка инициализации'

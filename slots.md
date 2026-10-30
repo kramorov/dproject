@@ -1,3 +1,58 @@
+<!-- HANDOFF: состояние на 2026-10-30 (незавершённый рефакторинг) — продолжать отсюда -->
+
+# НЕЗАВЕРШЁННАЯ ЗАДАЧА (продолжать в следующем сеансе)
+
+Цель: убрать TextChoices-хардкод (категории/роли/норма контакта/транспорт/полярность) → справочные модели.
+
+## Уже сделано и применено к БД (db.sqlite3)
+- kind/technology устройств ОС: `electric_actuators.EaFeedbackDeviceKind`/`EaFeedbackTechnology` (общие); `EaFeedbackDevice.kind/technology` и `ea_control.CuFeedbackDevice.kind/technology` → FK.
+- `ControlUnit.kind` → FK `ea_control.ControlUnitKind`; добавлен неизменяемый `ControlUnit.key` (короткий UUID `uuid.uuid4().hex[:16]`, генерится в `save()`).
+- Модели в ea_control: `ControlUnitKind`, `CuPolarity`.
+- Общие модели в electric_actuators: `EaSignalFormCategory`, `EaControlSignalRole`, `EaFeedbackSignalRole`, `EaContactNormal`, `EaProtocolTransport`.
+- Поля → FK:
+  - ЭП: `EaSignalForm.category`, `EaControlSignal.role`, `EaFeedbackSignal.role/contact_normal`, `EaCommProtocol.transport`.
+  - БУ: `CuControlSignalForm.category`, `CuFeedbackSignalForm.category`, `CuControlSignal.role`, `CuFeedbackSignal.role/contact_normal`, `CuCommProtocol.transport`, `CuSignalPower.polarity`.
+- `clean()`/валидация переведены на `.code` (`form.category.code`, `polarity.code` и т.д.).
+- Единые наборы значений (константы): `FEEDBACK_DEVICE_KINDS`, `FEEDBACK_TECHNOLOGIES`, `SIGNAL_FORM_CATEGORIES`, `CONTROL_SIGNAL_ROLES`, `FEEDBACK_SIGNAL_ROLES`, `CONTACT_NORMALS`, `PROTOCOL_TRANSPORTS` (в electric_actuators.models) + `POLARITIES` (ea_control.models.cu_power).
+- Миграции (применены): electric_actuators 0078..0081; ea_control 0016..0019. Бэкфилл выполнен (0 NULL; транспорт БУ нормализован к нижнему регистру: RS485→rs485).
+- Сиды `seed_cu_demo` / `seed_ea_signal_catalog` и команда `enrich_cu_feedback_signals` переведены на FK.
+
+## Ключевые решения
+- Общие справочники живут в electric_actuators (прецедент CableGlandHolesSet/EaFeedbackDeviceKind); `CuPolarity` — в ea_control (аналога в ЭП нет).
+- Транспорт: канон — нижний регистр (`rs485`/`ethernet`/`current_loop`/`h1`/`other`).
+- Форма: одна общая `EaSignalFormCategory` (объединение ЭП `contact/analog/discrete/resistance` + БУ `dry_input/voltage_ac/voltage_dc/current_4_20/dry_output`).
+- `ControlUnit.key` — read-only в API; сид идентифицирует БУ по `legacy_cu` (id), не по `code`/`key`.
+- callable-дефолты FK должны возвращать **pk (int)**, а не инстанс — иначе SQLite-миграция падает на `_remake_table` (см. `_default_polarity`).
+
+## ОСТАЛОСЬ СДЕЛАТЬ (порядок)
+1. `ea_control/admin.py`: зарегистрировать `CuPolarity` (`ControlUnitKind` уже зарегистрирован).
+2. `djangoProject1/admin_site.py`: привязать новые справочники к блоку `'ea_control'` (EaSignalFormCategory, EaControlSignalRole, EaFeedbackSignalRole, EaContactNormal, EaProtocolTransport, CuPolarity).
+3. Тесты (перевести строковые значения на FK-объекты):
+   - `ea_control/tests.py`: `CuFeedbackSignalForm(category='dry_output')`, `CuControlSignal(role='CMD_OCS')`, `CuFeedbackSignal(role='END_OPEN', contact_normal='CHANGEOVER')`, `CuCommProtocol(transport='RS485')`, `CuSignalPower(polarity='NOT_APPLICABLE')`, `CuFeedbackSignal.objects.create(role='ALARM', ...)` → FK.
+   - `ea_control/tests_enrich_feedback.py`: `CuFeedbackSignal.objects.create(role='ALARM'/'OVERHEAT'/'LOCAL_REMOTE'/'READY', contact_normal='CHANGEOVER'/'NC'/'NO')` → FK.
+   - `electric_actuators/tests.py`: `EaSignalForm(category='contact'...)`, `EaControlSignal(role=...)`, `EaFeedbackSignal(role=..., contact_normal=...)`, `EaCommProtocol(transport='rs485'...)` → FK.
+4. `frontend/src/pages/admin/EaControlAdminPage.vue`: хардкод-`choices` → `source`-селекты:
+   - control-signal-forms.category → `'signal-form-categories'`
+   - feedback-signal-forms.category → `'signal-form-categories'`
+   - control-signals.role → `'control-signal-roles'`
+   - feedback-signals.role → `'feedback-signal-roles'`; contact_normal → `'contact-normals'`
+   - comm-protocols.transport → `'protocol-transports'`
+   - signal-powers.polarity → `'polarities'`
+5. Проверка:
+   - `call_command('check')`;
+   - `call_command('makemigrations', 'electric_actuators', 'ea_control', check=True, dry_run=True)` — должно быть «No changes»;
+   - перекопировать `db.sqlite3` → `test_db.sqlite3` и `call_command('test','ea_control', keepdb=True, interactive=False)`;
+   - `npm run build` не запускается (safety-gate).
+
+## Технические ловушки
+- На Windows-шелл `manage.py`/`npm` блокируются safety-gate. Django-команды гонять через:
+  `python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','djangoProject1.settings'); import django; django.setup(); from django.core.management import call_command; call_command('...')"`.
+- `CuSignalPower` имеет `unique_together` + частичный `UniqueConstraint` по `polarity`; миграция 0018 сначала их снимает и в конце возвращает.
+- `_default_polarity`/`_default_device_kind` возвращают `obj.pk` (не инстанс).
+- ЭП-справочники уже зарегистрированы в `electric_actuators/admin/ea_signals_admin.py` (через `_SimpleDictAdmin`).
+
+---
+
 # Узлы, Слоты и Матрицы — конфигуратор БУ (ea_control)
 
 Назначение: конфигурирование сложного оборудования без комбинаторного взрыва

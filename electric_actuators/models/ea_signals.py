@@ -33,40 +33,89 @@ from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
                                  OptionListToSelectMixin)
 
 
-class EaControlSignalRole(models.TextChoices):
-    """Смысловые роли входных (управляющих) сигналов."""
-    CMD_OCS = 'CMD_OCS', _('Команда Открыть/Стоп/Закрыть')
-    CMD_REMOTE = 'CMD_REMOTE', _('Команда дистанционного управления')
-    CMD_LOCK = 'CMD_LOCK', _('Блокировка')
-    CMD_MANUAL_OVERRIDE = 'CMD_MANUAL_OVERRIDE', _('Ручное дублирование')
-    CMD_4_20MA = 'CMD_4_20MA', _('Уставка положения 4–20 мА')
-    CMD_0_10V = 'CMD_0_10V', _('Уставка положения 0–10 В')
-    CMD_EMERGENCY_OPEN = 'CMD_EMERGENCY_OPEN', _('Аварийная команда «Открыть»')
-    CMD_EMERGENCY_CLOSE = 'CMD_EMERGENCY_CLOSE', _('Аварийная команда «Закрыть»')
-    MODE = 'MODE', _('Переключение режима open-close ↔ modulating')
-    INTERLOCK_OPEN = 'INTERLOCK_OPEN', _('Блокировка «Открыть» (interlock)')
-    INTERLOCK_CLOSE = 'INTERLOCK_CLOSE', _('Блокировка «Закрыть» (interlock)')
-    DRIVE_ENABLE = 'DRIVE_ENABLE', _('Разрешение хода (drive enable)')
+CONTROL_SIGNAL_ROLES = (
+    ('CMD_OCS', 'Команда Открыть/Стоп/Закрыть'),
+    ('CMD_REMOTE', 'Команда дистанционного управления'),
+    ('CMD_LOCK', 'Блокировка'),
+    ('CMD_MANUAL_OVERRIDE', 'Ручное дублирование'),
+    ('CMD_4_20MA', 'Уставка положения 4–20 мА'),
+    ('CMD_0_10V', 'Уставка положения 0–10 В'),
+    ('CMD_EMERGENCY_OPEN', 'Аварийная команда «Открыть»'),
+    ('CMD_EMERGENCY_CLOSE', 'Аварийная команда «Закрыть»'),
+    ('MODE', 'Переключение режима open-close ↔ modulating'),
+    ('INTERLOCK_OPEN', 'Блокировка «Открыть» (interlock)'),
+    ('INTERLOCK_CLOSE', 'Блокировка «Закрыть» (interlock)'),
+    ('DRIVE_ENABLE', 'Разрешение хода (drive enable)'),
+)
+
+FEEDBACK_SIGNAL_ROLES = (
+    ('END_OPEN', 'Конечное положение «Открыто»'),
+    ('END_CLOSE', 'Конечное положение «Закрыто»'),
+    ('WAY_OPEN', 'Промежуточное положение (открытие)'),
+    ('WAY_CLOSE', 'Промежуточное положение (закрытие)'),
+    ('TORQUE_OPEN', 'Моментный выключатель «Открыто»'),
+    ('TORQUE_CLOSE', 'Моментный выключатель «Закрыто»'),
+    ('POSITION', 'Текущее положение (аналоговая ОС)'),
+    ('OVERHEAT', 'Перегрев электродвигателя'),
+    ('TURN_COUNTER', 'Счётчик оборотов'),
+    ('ALARM', 'Авария'),
+    ('READY', 'Готовность'),
+    ('TORQUE_ANALOG', 'Аналоговый момент'),
+    ('STOP', 'Останов (привод не в работе)'),
+    ('LOCAL_REMOTE', 'Режим местное/удалённое управление'),
+    ('SELECTOR_POSITION', 'Положение ключа-селектора'),
+    ('PHASE_LOSS', 'Авария: потеря фазы'),
+)
+
+CONTACT_NORMALS = (
+    ('NO', 'Нормально-разомкнутый (NO)'),
+    ('NC', 'Нормально-замкнутый (NC)'),
+    ('CHANGEOVER', 'Перекидной (переключающий)'),
+)
 
 
-class EaFeedbackSignalRole(models.TextChoices):
-    """Смысловые роли выходных сигналов обратной связи."""
-    END_OPEN = 'END_OPEN', _('Конечное положение «Открыто»')
-    END_CLOSE = 'END_CLOSE', _('Конечное положение «Закрыто»')
-    WAY_OPEN = 'WAY_OPEN', _('Промежуточное положение (открытие)')
-    WAY_CLOSE = 'WAY_CLOSE', _('Промежуточное положение (закрытие)')
-    TORQUE_OPEN = 'TORQUE_OPEN', _('Моментный выключатель «Открыто»')
-    TORQUE_CLOSE = 'TORQUE_CLOSE', _('Моментный выключатель «Закрыто»')
-    POSITION = 'POSITION', _('Текущее положение (аналоговая ОС)')
-    OVERHEAT = 'OVERHEAT', _('Перегрев электродвигателя')
-    TURN_COUNTER = 'TURN_COUNTER', _('Счётчик оборотов')
-    ALARM = 'ALARM', _('Авария')
-    READY = 'READY', _('Готовность')
-    TORQUE_ANALOG = 'TORQUE_ANALOG', _('Аналоговый момент')
-    STOP = 'STOP', _('Останов (привод не в работе)')
-    LOCAL_REMOTE = 'LOCAL_REMOTE', _('Режим местное/удалённое управление')
-    SELECTOR_POSITION = 'SELECTOR_POSITION', _('Положение ключа-селектора')
-    PHASE_LOSS = 'PHASE_LOSS', _('Авария: потеря фазы')
+class EaControlSignalRole(CopyMixin, LocalizedDictFieldsMixin,
+                          OptionListToSelectMixin):
+    """Смысловая роль входного (управляющего) сигнала.
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель;
+    общая для ЭП и БУ.
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Роль командного сигнала")
+        verbose_name_plural = _("Роли командных сигналов")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+class EaFeedbackSignalRole(CopyMixin, LocalizedDictFieldsMixin,
+                           OptionListToSelectMixin):
+    """Смысловая роль выходного сигнала обратной связи (справочник).
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель;
+    общая для ЭП и БУ.
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Роль сигнала ОС")
+        verbose_name_plural = _("Роли сигналов ОС")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
 
 
 class _Analog4to20Mixin:
@@ -74,16 +123,31 @@ class _Analog4to20Mixin:
 
     def validate_analog_fields(self, form, hart):
         """HART допустим только на аналоговой петле (категория формы analog)."""
-        if hart and form and form.category != 'analog':
+        if hart and form and form.category.code != 'analog':
             raise ValidationError(
                 {'hart': _('HART допустим только для аналоговых форм 4–20 мА.')})
 
 
-class EaContactNormal(models.TextChoices):
-    """Нормальное состояние контакта (для выходных контактных сигналов)."""
-    NO = 'NO', _('Нормально-разомкнутый (NO)')
-    NC = 'NC', _('Нормально-замкнутый (NC)')
-    CHANGEOVER = 'CHANGEOVER', _('Перекидной (переключающий)')
+class EaContactNormal(CopyMixin, LocalizedDictFieldsMixin,
+                      OptionListToSelectMixin):
+    """Нормальное состояние контакта (для выходных контактных сигналов).
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель;
+    общая для ЭП и БУ.
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Нормальное состояние контакта")
+        verbose_name_plural = _("Нормальные состояния контактов")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
 
 
 class EaControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
@@ -93,8 +157,9 @@ class EaControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     Одна запись = один канал команды. ``voltage``/``current`` — параметры входа
     БУ (что он ожидает на клемме), а не коммутируемая способность.
     """
-    role = models.CharField(
-        max_length=40, choices=EaControlSignalRole.choices,
+    role = models.ForeignKey(
+        EaControlSignalRole, on_delete=models.PROTECT,
+        related_name='control_signals',
         verbose_name=_("Роль"),
         help_text=_("Смысловая роль команды: О/С/З, уставка, ESD, блокировка…")
     )
@@ -159,11 +224,11 @@ class EaControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     def clean(self):
         super().clean()
         self.validate_analog_fields(self.form, self.hart)
-        if self.category == 'discrete' and self.form.category not in (
+        if self.category == 'discrete' and self.form.category.code not in (
                 'discrete', 'contact'):
             raise ValidationError(
                 {'form': _('Для дискретной команды нужна форма DISC_*/контакт.')})
-        if self.category == 'analog' and self.form.category != 'analog':
+        if self.category == 'analog' and self.form.category.code != 'analog':
             raise ValidationError(
                 {'form': _('Для аналоговой уставки нужна форма AN_4_20_*.')})
 
@@ -176,8 +241,9 @@ class EaFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     коммутируемая способность; для потенциометра — ``resistance_kohm``/
     ``max_power_w``/``turns``; для петли — признак active/passive уже в форме.
     """
-    role = models.CharField(
-        max_length=40, choices=EaFeedbackSignalRole.choices,
+    role = models.ForeignKey(
+        EaFeedbackSignalRole, on_delete=models.PROTECT,
+        related_name='feedback_signals',
         verbose_name=_("Роль"),
         help_text=_("Смысловая роль: концевые/путевые/моментные, позиция, авария…")
     )
@@ -203,8 +269,9 @@ class EaFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
         verbose_name=_("Макс. коммутируемый ток, А"),
         help_text=_("Для контактов; null для аналоговых форм")
     )
-    contact_normal = models.CharField(
-        max_length=10, choices=EaContactNormal.choices, null=True, blank=True,
+    contact_normal = models.ForeignKey(
+        EaContactNormal, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='feedback_signals',
         verbose_name=_("Нормальное состояние контакта"),
         help_text=_("NO/NC/перекидной — для контактных форм; null иначе")
     )
@@ -262,15 +329,15 @@ class EaFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     def clean(self):
         super().clean()
         self.validate_analog_fields(self.form, self.hart)
-        if self.category == 'contact' and self.form.category != 'contact':
+        if self.category == 'contact' and self.form.category.code != 'contact':
             raise ValidationError(
                 {'form': _('Для контакта нужна форма DRY_*.')})
         if self.category != 'contact' and self.contact_normal:
             raise ValidationError(
                 {'contact_normal': _('Нормальное состояние контакта задаётся только для контактных сигналов.')})
-        if self.category == 'analog' and self.form.category not in ('analog', 'resistance'):
+        if self.category == 'analog' and self.form.category.code not in ('analog', 'resistance'):
             raise ValidationError(
                 {'form': _('Для аналогового сигнала нужна форма AN_4_20_* или RES_POTENTIOMETER.')})
-        if self.form.category == 'resistance' and not self.resistance_kohm:
+        if self.form.category.code == 'resistance' and not self.resistance_kohm:
             raise ValidationError(
                 {'resistance_kohm': _('Для потенциометра обязательно сопротивление.')})

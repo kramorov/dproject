@@ -20,7 +20,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuLocationOption, CuMatrixEntry, CuSignalPower,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
-                               CuSectionNode)
+                               ControlUnitKind, CuSectionNode)
 
 
 class _DictAdmin(admin.ModelAdmin):
@@ -124,11 +124,17 @@ class CuControlLogicAdmin(_DictAdmin):
     list_display = ('code', 'name', 'has_self_holding', 'sorting_order', 'is_active')
 
 
+@admin.register(ControlUnitKind)
+class ControlUnitKindAdmin(_DictAdmin):
+    pass
+
+
 @admin.register(ControlUnit)
 class ControlUnitAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'brand', 'kind', 'is_active')
+    list_display = ('code', 'key', 'name', 'brand', 'kind', 'is_active')
     list_filter = ('brand', 'kind', 'is_active')
-    search_fields = ('code', 'name')
+    search_fields = ('code', 'key', 'name')
+    readonly_fields = ('key',)
     filter_horizontal = ('accepts', 'emits', 'protocols', 'capabilities')
     ordering = ('brand', 'sorting_order', 'code')
 

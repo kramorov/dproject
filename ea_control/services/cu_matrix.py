@@ -226,9 +226,10 @@ def resolve_control_units(model_line, *, body=None, model_line_item=None,
         out.append({
             'unit_id': unit.id,
             'option_code': effective.option.code,
+            'key': unit.key,
             'code': unit.code,
             'name': localized_name(unit, locale),
-            'kind': unit.kind,
+            'kind': unit.kind_id,
             'encoding': effective.encoding or effective.option.encoding,
             'is_default': effective.is_default,
         })

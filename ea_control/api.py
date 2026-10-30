@@ -37,7 +37,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuLocationOption, CuMatrixEntry, CuSignalPower,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
-                               CuSectionNode)
+                               ControlUnitKind, CuSectionNode)
 from ea_control.services.cu_matrix import resolve_control_units
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description
@@ -107,13 +107,28 @@ def _slot_option_serializer():
     return S
 
 
+def _control_unit_serializer():
+    """ControlUnit: ``key`` — неизменяемый стабильный ключ (read-only).
+
+    Заполняется в ``ControlUnit.save()`` из ``code`` при создании и больше
+    не меняется; фронт не должен его писать.
+    """
+    class S(serializers.ModelSerializer):
+        class Meta:
+            model = ControlUnit
+            fields = '__all__'
+            read_only_fields = ('name_i18n', 'description_i18n', 'key')
+    S.__name__ = 'ControlUnitSerializer'
+    return S
+
+
 # ── CRUD-вьюсеты (регистрируются в urls.py роутером) ────────────────────────
 
 
 class ControlUnitViewSet(viewsets.ModelViewSet):
     """Типы БУ + копирование (с матрицей/правилами) и удаление с очисткой."""
     queryset = ControlUnit.objects.all().order_by('brand', 'sorting_order', 'code')
-    serializer_class = _serializer(ControlUnit)
+    serializer_class = _control_unit_serializer()
     permission_classes = [IsAdminUser]
     pagination_class = _LargePagination
 
@@ -268,6 +283,32 @@ CuSignalPowerSourceViewSet = _viewset(CuSignalPowerSource,
 CuSignalPowerViewSet = _viewset(CuSignalPower, _serializer(CuSignalPower))
 CuControlLogicViewSet = _viewset(CuControlLogic, _serializer(CuControlLogic))
 
+# Общие справочники ЭП, используемые и БУ (kind/technology устройств ОС).
+from electric_actuators.models import (EaFeedbackDeviceKind,  # noqa: E402
+                                       EaFeedbackTechnology,
+                                       EaSignalFormCategory,
+                                       EaControlSignalRole,
+                                       EaFeedbackSignalRole,
+                                       EaContactNormal,
+                                       EaProtocolTransport)
+from ea_control.models.cu_power import CuPolarity  # noqa: E402
+EaFeedbackDeviceKindViewSet = _viewset(
+    EaFeedbackDeviceKind, _serializer(EaFeedbackDeviceKind))
+EaFeedbackTechnologyViewSet = _viewset(
+    EaFeedbackTechnology, _serializer(EaFeedbackTechnology))
+ControlUnitKindViewSet = _viewset(ControlUnitKind, _serializer(ControlUnitKind))
+EaSignalFormCategoryViewSet = _viewset(
+    EaSignalFormCategory, _serializer(EaSignalFormCategory))
+EaControlSignalRoleViewSet = _viewset(
+    EaControlSignalRole, _serializer(EaControlSignalRole))
+EaFeedbackSignalRoleViewSet = _viewset(
+    EaFeedbackSignalRole, _serializer(EaFeedbackSignalRole))
+EaContactNormalViewSet = _viewset(
+    EaContactNormal, _serializer(EaContactNormal))
+EaProtocolTransportViewSet = _viewset(
+    EaProtocolTransport, _serializer(EaProtocolTransport))
+CuPolarityViewSet = _viewset(CuPolarity, _serializer(CuPolarity))
+
 
 # ── Особые эндпоинты ────────────────────────────────────────────────────────
 
@@ -276,13 +317,15 @@ CuControlLogicViewSet = _viewset(CuControlLogic, _serializer(CuControlLogic))
 def units_view(request):
     """Список типов БУ (для селекторов админки и конфигуратора)."""
     units = []
-    for u in ControlUnit.objects.select_related('brand').order_by(
+    for u in ControlUnit.objects.select_related('brand', 'kind').order_by(
             'brand__name', 'sorting_order', 'code'):
         units.append({
             'id': u.id,
             'code': u.code,
+            'key': u.key,
             'name': u.name,
-            'kind': u.kind,
+            'kind': u.kind_id,
+            'kind_name': u.kind.name if u.kind_id else '',
             'brand_name': u.brand.name if u.brand_id else '',
         })
     return Response(units)

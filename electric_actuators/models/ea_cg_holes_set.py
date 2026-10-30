@@ -19,7 +19,7 @@ class CableGlandHolesSet(LocalizedNameFieldsMixin):
         verbose_name=_('Вид ввода кабелей'),
         help_text=_('CONNECTOR_PLUG — разъём «подсолнух» вместо отверстий')
     )
-    name = models.CharField(max_length=20, blank=True,
+    name = models.CharField(max_length=200, blank=True,
                             help_text='Название варианта набора отверстий под КВ')
     cg1 = models.ForeignKey('params.ThreadSize', related_name='cable_gland1', blank=True, null=True, on_delete=models.SET_NULL,
                             verbose_name=_('КВ1'), help_text=_('Отверстие под КВ1'))
@@ -51,12 +51,17 @@ class CableGlandHolesSet(LocalizedNameFieldsMixin):
 
     def get_description_data(self) -> Dict[str , Any] :
         """Получить структурированные данные для набора кабельных вводов"""
+        # data = {
+        #     'cg_set': {'display_name': 'Кабельные вводы', 'value': self.text_description}}
+        # if self.kind == CableGlandHolesSetKind.CONNECTOR_PLUG:
+        #     data.append= ['cg1' : {'display_name' : 'Штепсельный разъем' , 'value' : self.name} ]
         data = {
             'cg_set' : {'display_name' : 'Кабельные вводы' , 'value' : self.text_description} ,
             'cg1' : {'display_name' : 'Отверстие под КВ1' , 'value' : self.cg1.name if self.cg1 else None} ,
             'cg2' : {'display_name' : 'Отверстие под КВ2' , 'value' : self.cg2.name if self.cg2 else None} ,
             'cg3': {'display_name': 'Отверстие под КВ3', 'value': self.cg3.name if self.cg3 else 'не предусмотрен'},
             'cg4': {'display_name': 'Отверстие под КВ4', 'value': self.cg4.name if self.cg4 else 'не предусмотрен'},
+            # 'plug': {'display_name': 'Отверстие под КВ4', 'value': self.cg4.name if self.cg4 else 'не предусмотрен'},
         }
         return data
 

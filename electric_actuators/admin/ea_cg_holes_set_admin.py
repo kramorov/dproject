@@ -13,7 +13,7 @@ class CableGlandHolesSetAdmin(admin.ModelAdmin):
     # Показать важные поля в списке объектов модели
     list_display = ('name', 'cg1', 'cg2','cg3','cg4',)
 
-    fields = ('name', 'cg1', 'cg2','cg3','cg4','text_description')
+    fields = ('name', 'kind', 'cg1', 'cg2','cg3','cg4','text_description')
     # Поля для редактирования в админке
     # fieldsets = (
     #     ('Основные параметры', {

@@ -97,7 +97,9 @@ def build_description(control_unit, locale=None):
             'id': control_unit.id,
             'code': control_unit.code,
             'name': control_unit.generate_name(locale=locale) or control_unit.name,
-            'kind_display': control_unit.get_kind_display(),
+            'kind_display': (pick_i18n(control_unit.kind.name_i18n, locale,
+                                       fallback=control_unit.kind.name)
+                             if control_unit.kind_id else ''),
             'brand_name': str(control_unit.brand) if control_unit.brand_id else '',
         },
         'sections': sections,

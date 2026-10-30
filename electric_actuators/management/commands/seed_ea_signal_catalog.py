@@ -26,9 +26,13 @@ from django.core.management.base import BaseCommand
 from django.utils.translation import gettext_lazy as _
 
 from electric_actuators.models import (
-    EaSignalForm, EaControlSignal, EaFeedbackSignal, EaCommProtocol,
-    EaFeedbackDevice, EaSignalSlot, ElectricTemperatureOption,
-    EaSlotOption,
+    EaSignalForm, EaSignalFormCategory, EaControlSignal, EaControlSignalRole,
+    EaFeedbackSignal, EaFeedbackSignalRole, EaContactNormal, EaCommProtocol,
+    EaProtocolTransport, EaFeedbackDevice, EaFeedbackDeviceKind,
+    EaFeedbackTechnology, EaSignalSlot, ElectricTemperatureOption, EaSlotOption,
+    FEEDBACK_DEVICE_KINDS, FEEDBACK_TECHNOLOGIES, SIGNAL_FORM_CATEGORIES,
+    CONTROL_SIGNAL_ROLES, FEEDBACK_SIGNAL_ROLES, CONTACT_NORMALS,
+    PROTOCOL_TRANSPORTS,
 )
 
 
@@ -40,6 +44,22 @@ class Command(BaseCommand):
                  'device': 0, 'slot': 0}
         new = {'form': 0, 'control': 0, 'feedback': 0, 'protocol': 0,
                'device': 0, 'slot': 0}
+
+        form_categories = {code: EaSignalFormCategory.objects.get_or_create(
+            code=code, defaults={'name': name})[0]
+            for code, name in SIGNAL_FORM_CATEGORIES}
+        control_roles = {code: EaControlSignalRole.objects.get_or_create(
+            code=code, defaults={'name': name})[0]
+            for code, name in CONTROL_SIGNAL_ROLES}
+        feedback_roles = {code: EaFeedbackSignalRole.objects.get_or_create(
+            code=code, defaults={'name': name})[0]
+            for code, name in FEEDBACK_SIGNAL_ROLES}
+        contact_normals = {code: EaContactNormal.objects.get_or_create(
+            code=code, defaults={'name': name})[0]
+            for code, name in CONTACT_NORMALS}
+        transports = {code: EaProtocolTransport.objects.get_or_create(
+            code=code, defaults={'name': name})[0]
+            for code, name in PROTOCOL_TRANSPORTS}
 
         # --- Формы ---
         forms = [
@@ -56,7 +76,8 @@ class Command(BaseCommand):
         ]
         for code, name, category in forms:
             _, created = EaSignalForm.objects.get_or_create(
-                code=code, defaults={'name': name, 'category': category})
+                code=code, defaults={'name': name,
+                                     'category': form_categories[category]})
             stats['form'] += 1
             new['form'] += int(created)
 
@@ -119,7 +140,7 @@ class Command(BaseCommand):
         for code, role, category, form, voltage, current, wires, name in control_signals:
             _, created = EaControlSignal.objects.get_or_create(
                 code=code, defaults={
-                    'role': role, 'category': category, 'form': form,
+                    'role': control_roles[role], 'category': category, 'form': form,
                     'voltage': voltage, 'current': current, 'wires': wires,
                     'name': name,
                 })
@@ -193,8 +214,9 @@ class Command(BaseCommand):
              power, turns, wires, hart, name) in feedback_signals:
             _, created = EaFeedbackSignal.objects.get_or_create(
                 code=code, defaults={
-                    'role': role, 'category': category, 'form': f(form_code),
-                    'contact_normal': cnormal, 'max_voltage': max_v,
+                    'role': feedback_roles[role], 'category': category, 'form': f(form_code),
+                    'contact_normal': contact_normals[cnormal] if cnormal else None,
+                    'max_voltage': max_v,
                     'max_current': max_a, 'resistance_kohm': r_kohm,
                     'max_power_w': power, 'turns': turns, 'wires': wires,
                     'hart': hart, 'name': name,
@@ -215,11 +237,22 @@ class Command(BaseCommand):
         ]
         for code, name, transport in protocols:
             _, created = EaCommProtocol.objects.get_or_create(
-                code=code, defaults={'name': name, 'transport': transport})
+                code=code, defaults={'name': name, 'transport': transports[transport]})
             stats['protocol'] += 1
             new['protocol'] += int(created)
 
         # --- Устройства ОС ---
+        device_kinds = {
+            code: EaFeedbackDeviceKind.objects.get_or_create(
+                code=code, defaults={'name': name})[0]
+            for code, name in FEEDBACK_DEVICE_KINDS
+        }
+        technologies = {
+            code: EaFeedbackTechnology.objects.get_or_create(
+                code=code, defaults={'name': name})[0]
+            for code, name in FEEDBACK_TECHNOLOGIES
+        }
+
         devices = [
             ('POT_RAW', 'Потенциометр (свой)', 'POTENTIOMETER', False,
              'POSITION_SENSOR'),
@@ -238,11 +271,16 @@ class Command(BaseCommand):
         ]
         for code, name, technology, contactless, kind in devices:
             obj, created = EaFeedbackDevice.objects.get_or_create(
-                code=code, defaults={'name': name, 'technology': technology,
-                                     'contactless': contactless, 'kind': kind})
-            if not created and obj.kind != kind:
-                obj.kind = kind
-                obj.save(update_fields=['kind'])
+                code=code, defaults={
+                    'name': name,
+                    'technology': technologies[technology],
+                    'contactless': contactless,
+                    'kind': device_kinds[kind]})
+            if not created and (obj.kind_id != device_kinds[kind].id
+                                or obj.technology_id != technologies[technology].id):
+                obj.kind = device_kinds[kind]
+                obj.technology = technologies[technology]
+                obj.save(update_fields=['kind', 'technology'])
             stats['device'] += 1
             new['device'] += int(created)
 

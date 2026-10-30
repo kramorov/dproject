@@ -355,6 +355,8 @@ class EaCatalogExt1301Tests(TestCase):
 
     def test_device_on_none_row_with_name(self):
         from electric_actuators.models import (EaFeedbackDevice,
+                                               EaFeedbackDeviceKind,
+                                               EaFeedbackTechnology,
                                                EaSignalMatrixEntry, EaSignalSlot,
                                                ElectricActuatorModelLine,
                                                ElectricActuatorModelLineItem)
@@ -365,9 +367,15 @@ class EaCatalogExt1301Tests(TestCase):
             name='Серия T', description='', code='T1', brand=brand)
         item = ElectricActuatorModelLineItem.objects.create(
             name='T1', description='', code='T1', model_line=line)
+        kind = EaFeedbackDeviceKind.objects.get_or_create(
+            code='THERMAL_SENSOR',
+            defaults={'name': 'Датчик температуры (теплозащита)'})[0]
+        tech = EaFeedbackTechnology.objects.get_or_create(
+            code='BIMETAL',
+            defaults={'name': 'Биметаллическое термореле'})[0]
         dev = EaFeedbackDevice.objects.create(
-            code='THERMAL_RELAY', name='Термореле', technology='BIMETAL',
-            kind='THERMAL_SENSOR')
+            code='THERMAL_RELAY', name='Термореле', technology=tech,
+            kind=kind)
         slot = EaSignalSlot.objects.create(
             code='THERMAL_SENSOR', name='Датчик температуры')
         cu, _ = ControlUnitInstalledOption.objects.get_or_create(

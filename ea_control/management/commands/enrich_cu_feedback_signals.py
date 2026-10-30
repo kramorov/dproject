@@ -27,7 +27,6 @@ from ea_control.models import (
     CuMatrixEntry, ControlUnit,
 )
 
-
 class Command(BaseCommand):
     help = ('Доводит справочник CuFeedbackSignal до канонической схемы '
             '(недостающие роли + объединение дублей + правка форм/норм).')
@@ -67,7 +66,21 @@ class Command(BaseCommand):
         return out
 
     # ── Канонический набор сигналов ──────────────────────────────────────
+    def _role(self, code):
+        from electric_actuators.models import EaFeedbackSignalRole
+        return EaFeedbackSignalRole.objects.get_or_create(
+            code=code, defaults={'name': code})[0]
+
+    def _normal(self, code):
+        from electric_actuators.models import EaContactNormal
+        return EaContactNormal.objects.get_or_create(
+            code=code, defaults={'name': code})[0]
+
     def _signal(self, code, **fields):
+        if fields.get('role') and not hasattr(fields['role'], 'pk'):
+            fields['role'] = self._role(fields['role'])
+        if fields.get('contact_normal') and not hasattr(fields['contact_normal'], 'pk'):
+            fields['contact_normal'] = self._normal(fields['contact_normal'])
         obj, created = CuFeedbackSignal.objects.update_or_create(
             code=code, defaults=fields)
         return obj, created

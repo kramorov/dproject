@@ -86,9 +86,16 @@ class EnrichCuFeedbackSignalsTests(TestCase):
 
     def _make_references(self):
         """Ссылки на дубли, которые команда должна перенаправить."""
+        from electric_actuators.models import (EaFeedbackDeviceKind,
+                                               EaFeedbackTechnology)
+        kind = EaFeedbackDeviceKind.objects.get_or_create(
+            code='THERMAL_SENSOR',
+            defaults={'name': 'Датчик температуры (теплозащита)'})[0]
+        tech = EaFeedbackTechnology.objects.get_or_create(
+            code='ELECTRONIC', defaults={'name': 'Электронный'})[0]
         dev = CuFeedbackDevice.objects.create(
-            code='T_THERMO', name='Термо', kind='THERMAL_SENSOR',
-            technology='ELECTRONIC')
+            code='T_THERMO', name='Термо', kind=kind,
+            technology=tech)
         fb_overheat_nc = CuFeedbackSignal.objects.get(code='FB_OVERHEAT_NC')
         fb_overheat_spst = CuFeedbackSignal.objects.get(
             code='FB_OVERHEAT_SPST_NC')

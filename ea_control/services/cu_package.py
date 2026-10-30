@@ -116,8 +116,10 @@ def build_package(control_unit, *, model_line=None, body=None,
             'id': control_unit.id,
             'code': control_unit.code,
             'name': control_unit.generate_name(locale=locale) or control_unit.name,
-            'kind': control_unit.kind,
-            'kind_display': control_unit.get_kind_display(),
+            'kind': control_unit.kind_id,
+            'kind_display': (pick_i18n(control_unit.kind.name_i18n, locale,
+                                       fallback=control_unit.kind.name)
+                             if control_unit.kind_id else ''),
             'description': control_unit.generate_description(locale=locale)
                            or control_unit.description,
             'spec': control_unit.generate_spec_sections(),

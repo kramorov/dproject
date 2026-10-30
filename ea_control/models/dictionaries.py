@@ -39,14 +39,6 @@ from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
                                  OptionListToSelectMixin)
 
 
-class CuControlSignalFormCategory(models.TextChoices):
-    """Категория электрической формы ВХОДНОГО (управляющего) сигнала."""
-    DRY_INPUT = 'dry_input', _('Сухой контакт (внутренний опрос БУ)')
-    VOLTAGE_AC = 'voltage_ac', _('Потенциал AC')
-    VOLTAGE_DC = 'voltage_dc', _('Потенциал DC')
-    CURRENT_4_20 = 'current_4_20', _('Токовая петля 4–20 мА')
-
-
 class CuControlSignalForm(CopyMixin, LocalizedDictFieldsMixin,
                           OptionListToSelectMixin):
     """Электрическая форма входного (управляющего) сигнала БУ.
@@ -79,8 +71,9 @@ class CuControlSignalForm(CopyMixin, LocalizedDictFieldsMixin,
         help_text=_("Название формы, например «Сухой контакт, внутренний "
                     "опрос +24 В»"),
     )
-    category = models.CharField(
-        max_length=20, choices=CuControlSignalFormCategory.choices,
+    category = models.ForeignKey(
+        'electric_actuators.EaSignalFormCategory', on_delete=models.PROTECT,
+        related_name='cu_control_signal_forms',
         verbose_name=_("Категория"),
         help_text=_("Категория входной формы: сухой контакт / потенциал AC / "
                     "потенциал DC / петля 4–20 мА"),
@@ -101,13 +94,6 @@ class CuControlSignalForm(CopyMixin, LocalizedDictFieldsMixin,
 
     def __str__(self):
         return self.name
-
-
-class CuFeedbackSignalFormCategory(models.TextChoices):
-    """Категория электрической формы ВЫХОДНОГО сигнала обратной связи."""
-    DRY_OUTPUT = 'dry_output', _('Сухой контакт (выход реле)')
-    CURRENT_4_20 = 'current_4_20', _('Токовая петля 4–20 мА')
-    RESISTANCE = 'resistance', _('Сопротивление (потенциометр)')
 
 
 class CuFeedbackSignalForm(CopyMixin, LocalizedDictFieldsMixin,
@@ -138,8 +124,9 @@ class CuFeedbackSignalForm(CopyMixin, LocalizedDictFieldsMixin,
         verbose_name=_("Название"),
         help_text=_("Название формы, например «Сухой контакт SPDT»"),
     )
-    category = models.CharField(
-        max_length=20, choices=CuFeedbackSignalFormCategory.choices,
+    category = models.ForeignKey(
+        'electric_actuators.EaSignalFormCategory', on_delete=models.PROTECT,
+        related_name='cu_feedback_signal_forms',
         verbose_name=_("Категория"),
         help_text=_("Категория выходной формы: сухой контакт / петля 4–20 мА / "
                     "потенциометр"),
@@ -161,28 +148,12 @@ class CuFeedbackSignalForm(CopyMixin, LocalizedDictFieldsMixin,
         return self.name
 
 
-class CuControlSignalRole(models.TextChoices):
-    """Смысловые роли входных (управляющих) сигналов."""
-    CMD_OCS = 'CMD_OCS', _('Команда Открыть/Стоп/Закрыть')
-    CMD_REMOTE = 'CMD_REMOTE', _('Команда дистанционного управления')
-    CMD_LOCK = 'CMD_LOCK', _('Блокировка')
-    CMD_MANUAL_OVERRIDE = 'CMD_MANUAL_OVERRIDE', _('Ручное дублирование')
-    CMD_4_20MA = 'CMD_4_20MA', _('Уставка положения 4–20 мА')
-    CMD_0_10V = 'CMD_0_10V', _('Уставка положения 0–10 В')
-    CMD_EMERGENCY_OPEN = 'CMD_EMERGENCY_OPEN', _('Аварийная команда «Открыть»')
-    CMD_EMERGENCY_CLOSE = 'CMD_EMERGENCY_CLOSE', _('Аварийная команда «Закрыть»')
-    MODE = 'MODE', _('Переключение режима open-close ↔ modulating')
-    INTERLOCK_OPEN = 'INTERLOCK_OPEN', _('Блокировка «Открыть» (interlock)')
-    INTERLOCK_CLOSE = 'INTERLOCK_CLOSE', _('Блокировка «Закрыть» (interlock)')
-    DRIVE_ENABLE = 'DRIVE_ENABLE', _('Разрешение хода (drive enable)')
-
-
 class _Analog4to20Mixin:
     """Общая валидация для сигналов с петлёй 4–20 мА и HART."""
 
     def validate_analog_fields(self, form, hart):
         """HART допустим только на аналоговой петле (категория формы analog)."""
-        if hart and form and form.category != 'analog':
+        if hart and form and form.category.code != 'analog':
             raise ValidationError(
                 {'hart': _('HART допустим только для аналоговых форм 4–20 мА.')})
 
@@ -202,8 +173,9 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     только для аналоговых), current, wires, hart, code, name, description,
     sorting_order, is_active.
     """
-    role = models.CharField(
-        max_length=40, choices=CuControlSignalRole.choices,
+    role = models.ForeignKey(
+        'electric_actuators.EaControlSignalRole', on_delete=models.PROTECT,
+        related_name='cu_control_signals',
         verbose_name=_("Роль"),
         help_text=_("Смысловая роль команды: О/С/З, уставка, ESD, блокировка…"),
     )
@@ -266,7 +238,7 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
         super().clean()
         self.validate_analog_fields(self.form, self.hart)
         if self.category == 'analog':
-            if not self.form or self.form.category != 'current_4_20':
+            if not self.form or self.form.category.code != 'current_4_20':
                 raise ValidationError(
                     {'form': _('Для аналоговой уставки нужна форма AN_4_20_*.')})
         elif self.form is not None:
@@ -274,33 +246,6 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
                 {'form': _('Форма задаётся только для аналоговых уставок; '
                            'дискретная команда получает форму из схемы цепей '
                            'управления (CuSignalPower).')})
-
-
-class CuFeedbackSignalRole(models.TextChoices):
-    """Смысловые роли выходных сигналов обратной связи."""
-    END_OPEN = 'END_OPEN', _('Конечное положение «Открыто»')
-    END_CLOSE = 'END_CLOSE', _('Конечное положение «Закрыто»')
-    WAY_OPEN = 'WAY_OPEN', _('Промежуточное положение (открытие)')
-    WAY_CLOSE = 'WAY_CLOSE', _('Промежуточное положение (закрытие)')
-    TORQUE_OPEN = 'TORQUE_OPEN', _('Моментный выключатель «Открыто»')
-    TORQUE_CLOSE = 'TORQUE_CLOSE', _('Моментный выключатель «Закрыто»')
-    POSITION = 'POSITION', _('Текущее положение (аналоговая ОС)')
-    OVERHEAT = 'OVERHEAT', _('Перегрев электродвигателя')
-    TURN_COUNTER = 'TURN_COUNTER', _('Счётчик оборотов')
-    ALARM = 'ALARM', _('Авария')
-    READY = 'READY', _('Готовность')
-    TORQUE_ANALOG = 'TORQUE_ANALOG', _('Аналоговый момент')
-    STOP = 'STOP', _('Останов (привод не в работе)')
-    LOCAL_REMOTE = 'LOCAL_REMOTE', _('Режим местное/удалённое управление')
-    SELECTOR_POSITION = 'SELECTOR_POSITION', _('Положение ключа-селектора')
-    PHASE_LOSS = 'PHASE_LOSS', _('Авария: потеря фазы')
-
-
-class CuContactNormal(models.TextChoices):
-    """Нормальное состояние контакта (для выходных контактных сигналов)."""
-    NO = 'NO', _('Нормально-разомкнутый (NO)')
-    NC = 'NC', _('Нормально-замкнутый (NC)')
-    CHANGEOVER = 'CHANGEOVER', _('Перекидной (переключающий)')
 
 
 class CuFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
@@ -318,8 +263,9 @@ class CuFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     turns, wires, hart, code (ключ маппинга), name, description,
     sorting_order, is_active.
     """
-    role = models.CharField(
-        max_length=40, choices=CuFeedbackSignalRole.choices,
+    role = models.ForeignKey(
+        'electric_actuators.EaFeedbackSignalRole', on_delete=models.PROTECT,
+        related_name='cu_feedback_signals',
         verbose_name=_("Роль"),
         help_text=_("Смысловая роль: концевые/путевые/моментные, позиция, авария…"),
     )
@@ -346,8 +292,10 @@ class CuFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
         verbose_name=_("Макс. коммутируемый ток, А"),
         help_text=_("Для контактов; null для аналоговых форм"),
     )
-    contact_normal = models.CharField(
-        max_length=10, choices=CuContactNormal.choices, null=True, blank=True,
+    contact_normal = models.ForeignKey(
+        'electric_actuators.EaContactNormal', on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name='cu_feedback_signals',
         verbose_name=_("Нормальное состояние контакта"),
         help_text=_("NO/NC/перекидной — для контактных форм; null иначе"),
     )
@@ -405,29 +353,22 @@ class CuFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     def clean(self):
         super().clean()
         self.validate_analog_fields(self.form, self.hart)
-        if self.category == 'contact' and self.form.category != 'dry_output':
+        if self.category == 'contact' and self.form.category.code != 'dry_output':
             raise ValidationError(
                 {'form': _('Для контакта нужна форма DRY_* (сухой выход).')})
         if self.category != 'contact' and self.contact_normal:
             raise ValidationError(
                 {'contact_normal': _('Нормальное состояние контакта задаётся '
                                      'только для контактных сигналов.')})
-        if self.category == 'analog' and self.form.category not in (
+        if self.category == 'analog' and self.form.category.code not in (
                 'current_4_20', 'resistance'):
             raise ValidationError(
                 {'form': _('Для аналогового сигнала нужна форма AN_4_20_* или '
                            'RES_POTENTIOMETER.')})
-        if self.form.category == 'resistance' and not self.resistance_kohm:
+        if self.form.category.code == 'resistance' and not self.resistance_kohm:
             raise ValidationError(
                 {'resistance_kohm': _('Для потенциометра обязательно '
                                       'сопротивление.')})
-
-
-class CuProtocolTransport(models.TextChoices):
-    """Физический транспорт шины."""
-    RS485 = 'RS485', _('RS-485')
-    ETHERNET = 'ETHERNET', _('Ethernet')
-    OTHER = 'OTHER', _('Прочее')
 
 
 class CuCommProtocol(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -450,8 +391,9 @@ class CuCommProtocol(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixi
         verbose_name=_("Название"),
         help_text=_("Название протокола, например «Modbus RTU»"),
     )
-    transport = models.CharField(
-        max_length=20, choices=CuProtocolTransport.choices,
+    transport = models.ForeignKey(
+        'electric_actuators.EaProtocolTransport', on_delete=models.PROTECT,
+        related_name='cu_protocols',
         verbose_name=_("Транспорт"),
         help_text=_("Физический транспорт шины (RS-485, Ethernet, …)"),
     )
@@ -473,24 +415,6 @@ class CuCommProtocol(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixi
         return self.name
 
 
-class CuFeedbackDeviceKind(models.TextChoices):
-    """Категория устройства ОС: позиционный датчик или теплозащита."""
-    POSITION_SENSOR = 'POSITION_SENSOR', _('Датчик положения')
-    THERMAL_SENSOR = 'THERMAL_SENSOR', _('Датчик температуры (теплозащита)')
-
-
-class CuFeedbackTechnology(models.TextChoices):
-    """Технология датчика."""
-    POTENTIOMETER = 'POTENTIOMETER', _('Потенциометрический')
-    MWG = 'MWG', _('Магнитно-волновой (MWG)')
-    ELECTRONIC = 'ELECTRONIC', _('Электронный')
-    MECHANICAL = 'MECHANICAL', _('Механический')
-    HALL = 'HALL', _('Датчик Холла')
-    ABSOLUTE_ENCODER = 'ABSOLUTE_ENCODER', _('Абсолютный энкодер')
-    MAGNETIC = 'MAGNETIC', _('Магнитный')
-    INDUCTIVE = 'INDUCTIVE', _('Индуктивный')
-
-
 class CuFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Устройство обратной связи (копия EaFeedbackDevice).
 
@@ -499,18 +423,23 @@ class CuFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMi
     ``emits`` связывает их (устройство выдаёт конкретные сигналы — валидация
     матрицы).
 
-    Поля: code (ключ маппинга), kind (POSITION_SENSOR/THERMAL_SENSOR), name,
-    technology, contactless, emits (M2M CuFeedbackSignal), equivalents
-    (M2M self), accuracy, life_cycles, temp_range, description,
-    sorting_order, is_active.
+    ``kind``/``technology`` — общие справочники ЭП
+    ``electric_actuators.EaFeedbackDeviceKind``/``EaFeedbackTechnology``
+    (не копии — единый набор значений для ЭП и БУ).
+
+    Поля: code (ключ маппинга), kind (FK EaFeedbackDeviceKind), name,
+    technology (FK EaFeedbackTechnology), contactless, emits (M2M
+    CuFeedbackSignal), equivalents (M2M self), accuracy, life_cycles,
+    temp_range, description, sorting_order, is_active.
     """
     code = models.CharField(
         max_length=50, unique=True,
         verbose_name=_("Код"),
         help_text=_("Уникальный код устройства, например «POT_1K»"),
     )
-    kind = models.CharField(
-        max_length=20, choices=CuFeedbackDeviceKind.choices,
+    kind = models.ForeignKey(
+        'electric_actuators.EaFeedbackDeviceKind', on_delete=models.PROTECT,
+        related_name='cu_devices_by_kind',
         verbose_name=_("Категория"),
         help_text=_("Датчик положения или датчик температуры (теплозащита)"),
     )
@@ -519,8 +448,9 @@ class CuFeedbackDevice(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMi
         verbose_name=_("Название"),
         help_text=_("Название устройства, например «Потенциометр 1 кОм»"),
     )
-    technology = models.CharField(
-        max_length=20, choices=CuFeedbackTechnology.choices,
+    technology = models.ForeignKey(
+        'electric_actuators.EaFeedbackTechnology', on_delete=models.PROTECT,
+        related_name='cu_devices_by_technology',
         verbose_name=_("Технология"),
         help_text=_("Потенциометрический / магнитно-волновой / электронный"),
     )

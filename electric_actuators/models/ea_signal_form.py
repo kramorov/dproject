@@ -26,12 +26,42 @@ from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
                                  OptionListToSelectMixin)
 
 
-class EaSignalFormCategory(models.TextChoices):
-    """Категория электрической формы сигнала."""
-    CONTACT = 'contact', _('Сухой контакт')
-    ANALOG = 'analog', _('Аналоговый (токовая петля)')
-    DISCRETE = 'discrete', _('Дискретная команда (напряжение)')
-    RESISTANCE = 'resistance', _('Сопротивление (потенциометр)')
+# Единый набор категорий форм (ЭП + БУ).
+SIGNAL_FORM_CATEGORIES = (
+    ('contact', 'Сухой контакт'),
+    ('analog', 'Аналоговый (токовая петля)'),
+    ('discrete', 'Дискретная команда (напряжение)'),
+    ('resistance', 'Сопротивление (потенциометр)'),
+    ('dry_input', 'Сухой контакт (внутренний опрос БУ)'),
+    ('voltage_ac', 'Потенциал AC'),
+    ('voltage_dc', 'Потенциал DC'),
+    ('current_4_20', 'Токовая петля 4–20 мА'),
+    ('dry_output', 'Сухой контакт (выход реле)'),
+)
+
+
+class EaSignalFormCategory(CopyMixin, LocalizedDictFieldsMixin,
+                           OptionListToSelectMixin):
+    """Категория электрической формы сигнала.
+
+    Раньше была ``models.TextChoices`` — заменена на справочную модель.
+    Общая для ЭП и БУ: объединяет EaSignalFormCategory (contact/analog/
+    discrete/resistance) и CuControlSignalFormCategory/CuFeedbackSignalFormCategory
+    (dry_input/voltage_ac/voltage_dc/current_4_20/dry_output).
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Категория формы сигнала")
+        verbose_name_plural = _("Категории форм сигналов")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
 
 
 class EaSignalForm(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -50,8 +80,9 @@ class EaSignalForm(CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin)
         verbose_name=_("Название"),
         help_text=_("Название формы, например «Сухой контакт SPDT»")
     )
-    category = models.CharField(
-        max_length=20, choices=EaSignalFormCategory.choices,
+    category = models.ForeignKey(
+        EaSignalFormCategory, on_delete=models.PROTECT,
+        related_name='signal_forms',
         verbose_name=_("Категория"),
         help_text=_("Категория формы: контакт / аналог / дискретная команда / сопротивление")
     )

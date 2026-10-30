@@ -41,17 +41,33 @@ CuLocationOption); напряжение/схема цепей — слот ``CMD
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+import uuid
 
-from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin, TemplateMixin
+from core.models.mixins import (CopyMixin, LocalizedDictFieldsMixin,
+                                 OptionListToSelectMixin, TemplateMixin)
 from core.utils.localization import localized_name
 
 
-class ControlUnitKind(models.TextChoices):
-    """Класс блока управления."""
-    NONE = 'NONE', _('Без блока управления')
-    BASIC = 'BASIC', _('Базовый')
-    INTEGRATED = 'INTEGRATED', _('Интеллектуальный')
-    POSITIONER = 'POSITIONER', _('Позиционер')
+class ControlUnitKind(CopyMixin, LocalizedDictFieldsMixin,
+                      OptionListToSelectMixin):
+    """Класс блока управления (справочник).
+
+    Раньше был ``models.TextChoices`` — заменён на справочную модель, чтобы
+    классы БУ редактировались данными, а не хардкодом.
+    """
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("Код"))
+    name = models.CharField(max_length=200, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
+
+    class Meta:
+        verbose_name = _("Класс блока управления")
+        verbose_name_plural = _("Классы блоков управления")
+        ordering = ['sorting_order', 'code']
+
+    def __str__(self):
+        return self.name
 
 
 class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
@@ -80,16 +96,24 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
     code = models.CharField(
         max_length=50,
         verbose_name=_("Код"),
-        help_text=_("Код типа БУ (уникален в рамках бренда), например «INT»"),
+        help_text=_("Код типа БУ (уникален в рамках бренда), например «INT»; "
+                    "может переименовываться без потери связей"),
+    )
+    key = models.CharField(
+        max_length=60, unique=True, blank=True, editable=False,
+        verbose_name=_("Стабильный ключ"),
+        help_text=_("Неизменяемый идентификатор типа БУ (короткий UUID). "
+                    "Генерируется один раз при создании и не зависит от "
+                    "code/name — по нему связываются записи и сид."),
     )
     name = models.CharField(
         max_length=200,
         verbose_name=_("Название"),
         help_text=_("Название типа БУ, например «Интеллектуальный блок INT»"),
     )
-    kind = models.CharField(
-        max_length=20, choices=ControlUnitKind.choices,
-        default=ControlUnitKind.BASIC,
+    kind = models.ForeignKey(
+        ControlUnitKind, on_delete=models.PROTECT,
+        related_name='control_units',
         verbose_name=_("Класс БУ"),
         help_text=_("Без БУ / базовый / интеллектуальный / позиционер"),
     )
@@ -167,12 +191,18 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         verbose_name_plural = _("Блоки управления")
         ordering = ['brand', 'sorting_order', 'code']
         unique_together = ['brand', 'code']
-        indexes = [
-            models.Index(fields=['kind']),
-        ]
 
     def __str__(self):
         return f"{self.brand} — {self.name}" if self.name else self.code
+
+    def save(self, *args, **kwargs):
+        """Стабильный ``key`` — короткий UUID, задаётся один раз при создании.
+
+        code/name — человекочитаемые и могут меняться; key неизменяем.
+        """
+        if not self.key:
+            self.key = uuid.uuid4().hex[:16]
+        super().save(*args, **kwargs)
 
     # ── Шаблоны (TemplateMixin): БУ сам себя описывает ─────────────────────
     # Поля name_template/description_template объявлены выше и затеняют
@@ -207,7 +237,9 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         }
 
     def _res_kind(self, locale=None):
-        return self.get_kind_display()
+        if not self.kind_id:
+            return ''
+        return localized_name(self.kind, locale)
 
     def _res_protocols(self, locale=None):
         names = [localized_name(p, locale) for p in self.protocols.all()]

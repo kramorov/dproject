@@ -28,10 +28,9 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuFeedbackSignal, CuFeedbackSignalForm,
                                CuHeaterSupply, CuMatrixEntry, CuSignalPower,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
-                               CuSlotRule, ControlUnit, CuSectionNode,
-                               AbstractConfigSnapshot)
+                               CuSlotRule, ControlUnit, ControlUnitKind,
+                               CuSectionNode, AbstractConfigSnapshot)
 from ea_control.models.abstract import ConfigAvailability
-from ea_control.models.control_unit import ControlUnitKind
 
 
 class CuConfigTestCase(TestCase):
@@ -49,6 +48,15 @@ class CuConfigTestCase(TestCase):
         cls.power = PowerSupplies.objects.first()
         if cls.brand is None or cls.power is None:
             raise unittest.SkipTest('В рабочей БД нет Brands/PowerSupplies')
+        # Справочники вместо хардкод-перечислений (kind/technology/класс БУ).
+        from electric_actuators.models import (EaFeedbackDeviceKind,
+                                               EaFeedbackTechnology)
+        cls.device_kind = EaFeedbackDeviceKind.objects.get_or_create(
+            code='POSITION_SENSOR', defaults=dict(name='Датчик положения'))[0]
+        cls.tech_pot = EaFeedbackTechnology.objects.get_or_create(
+            code='POTENTIOMETER', defaults=dict(name='Потенциометрический'))[0]
+        cls.cu_kind = ControlUnitKind.objects.get_or_create(
+            code='INTEGRATED', defaults=dict(name='Интеллектуальный'))[0]
         # Идемпотентно: get_or_create, а не create — рабочая БД может быть уже
         # засеяна seed_cu_demo с теми же кодами (иначе при перекопировании
         # db.sqlite3 → test_db.sqlite3 падает IntegrityError).
@@ -72,8 +80,8 @@ class CuConfigTestCase(TestCase):
             defaults=dict(name='Modbus RTU', transport='RS485'))[0]
         cls.device = CuFeedbackDevice.objects.get_or_create(
             code='POT_1K',
-            defaults=dict(name='Потенциометр 1кОм', kind='POSITION_SENSOR',
-                          technology='POTENTIOMETER'))[0]
+            defaults=dict(name='Потенциометр 1кОм', kind=cls.device_kind,
+                          technology=cls.tech_pot))[0]
         cls.device.emits.add(cls.fb_signal)
         cls.heater = CuHeaterSupply.objects.get_or_create(
             code='MOTOR_CIRCUIT',
@@ -92,7 +100,7 @@ class CuConfigTestCase(TestCase):
         cls.cu = ControlUnit.objects.get_or_create(
             brand=cls.brand, code='INT',
             defaults=dict(name='Интеллектуальный БУ',
-                          kind=ControlUnitKind.INTEGRATED))[0]
+                          kind=cls.cu_kind))[0]
         cls.cu.accepts.add(cls.ctrl_signal)
         cls.cu.emits.add(cls.fb_signal)
         cls.cu.protocols.add(cls.protocol)
@@ -254,7 +262,7 @@ class CuSlotRuleTests(CuConfigTestCase):
 class ControlUnitTests(CuConfigTestCase):
     def test_creation_and_m2m(self):
         cu = ControlUnit.objects.get(code='INT')
-        self.assertEqual(cu.kind, ControlUnitKind.INTEGRATED)
+        self.assertEqual(cu.kind.code, 'INTEGRATED')
         self.assertIn(self.ctrl_signal, cu.accepts.all())
         self.assertIn(self.fb_signal, cu.emits.all())
         self.assertIn(self.protocol, cu.protocols.all())
@@ -265,6 +273,17 @@ class ControlUnitTests(CuConfigTestCase):
             with transaction.atomic():
                 ControlUnit.objects.create(
                     brand=self.brand, code='INT', name='Дубль')
+
+    def test_key_immutable_after_code_rename(self):
+        """key — короткий UUID и не зависит от переименования code."""
+        cu = ControlUnit.objects.get(code='INT')
+        self.assertTrue(cu.key)
+        old_key = cu.key
+        cu.code = 'INT-RENAMED'
+        cu.save()
+        cu.refresh_from_db()
+        self.assertEqual(cu.code, 'INT-RENAMED')
+        self.assertEqual(cu.key, old_key)
 
     def test_template_generation(self):
         """БУ сам себя описывает: имя/описание/спецификация из собственных
