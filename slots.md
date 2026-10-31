@@ -1,58 +1,3 @@
-<!-- HANDOFF: состояние на 2026-10-30 (незавершённый рефакторинг) — продолжать отсюда -->
-
-# НЕЗАВЕРШЁННАЯ ЗАДАЧА (продолжать в следующем сеансе)
-
-Цель: убрать TextChoices-хардкод (категории/роли/норма контакта/транспорт/полярность) → справочные модели.
-
-## Уже сделано и применено к БД (db.sqlite3)
-- kind/technology устройств ОС: `electric_actuators.EaFeedbackDeviceKind`/`EaFeedbackTechnology` (общие); `EaFeedbackDevice.kind/technology` и `ea_control.CuFeedbackDevice.kind/technology` → FK.
-- `ControlUnit.kind` → FK `ea_control.ControlUnitKind`; добавлен неизменяемый `ControlUnit.key` (короткий UUID `uuid.uuid4().hex[:16]`, генерится в `save()`).
-- Модели в ea_control: `ControlUnitKind`, `CuPolarity`.
-- Общие модели в electric_actuators: `EaSignalFormCategory`, `EaControlSignalRole`, `EaFeedbackSignalRole`, `EaContactNormal`, `EaProtocolTransport`.
-- Поля → FK:
-  - ЭП: `EaSignalForm.category`, `EaControlSignal.role`, `EaFeedbackSignal.role/contact_normal`, `EaCommProtocol.transport`.
-  - БУ: `CuControlSignalForm.category`, `CuFeedbackSignalForm.category`, `CuControlSignal.role`, `CuFeedbackSignal.role/contact_normal`, `CuCommProtocol.transport`, `CuSignalPower.polarity`.
-- `clean()`/валидация переведены на `.code` (`form.category.code`, `polarity.code` и т.д.).
-- Единые наборы значений (константы): `FEEDBACK_DEVICE_KINDS`, `FEEDBACK_TECHNOLOGIES`, `SIGNAL_FORM_CATEGORIES`, `CONTROL_SIGNAL_ROLES`, `FEEDBACK_SIGNAL_ROLES`, `CONTACT_NORMALS`, `PROTOCOL_TRANSPORTS` (в electric_actuators.models) + `POLARITIES` (ea_control.models.cu_power).
-- Миграции (применены): electric_actuators 0078..0081; ea_control 0016..0019. Бэкфилл выполнен (0 NULL; транспорт БУ нормализован к нижнему регистру: RS485→rs485).
-- Сиды `seed_cu_demo` / `seed_ea_signal_catalog` и команда `enrich_cu_feedback_signals` переведены на FK.
-
-## Ключевые решения
-- Общие справочники живут в electric_actuators (прецедент CableGlandHolesSet/EaFeedbackDeviceKind); `CuPolarity` — в ea_control (аналога в ЭП нет).
-- Транспорт: канон — нижний регистр (`rs485`/`ethernet`/`current_loop`/`h1`/`other`).
-- Форма: одна общая `EaSignalFormCategory` (объединение ЭП `contact/analog/discrete/resistance` + БУ `dry_input/voltage_ac/voltage_dc/current_4_20/dry_output`).
-- `ControlUnit.key` — read-only в API; сид идентифицирует БУ по `legacy_cu` (id), не по `code`/`key`.
-- callable-дефолты FK должны возвращать **pk (int)**, а не инстанс — иначе SQLite-миграция падает на `_remake_table` (см. `_default_polarity`).
-
-## ОСТАЛОСЬ СДЕЛАТЬ (порядок)
-1. `ea_control/admin.py`: зарегистрировать `CuPolarity` (`ControlUnitKind` уже зарегистрирован).
-2. `djangoProject1/admin_site.py`: привязать новые справочники к блоку `'ea_control'` (EaSignalFormCategory, EaControlSignalRole, EaFeedbackSignalRole, EaContactNormal, EaProtocolTransport, CuPolarity).
-3. Тесты (перевести строковые значения на FK-объекты):
-   - `ea_control/tests.py`: `CuFeedbackSignalForm(category='dry_output')`, `CuControlSignal(role='CMD_OCS')`, `CuFeedbackSignal(role='END_OPEN', contact_normal='CHANGEOVER')`, `CuCommProtocol(transport='RS485')`, `CuSignalPower(polarity='NOT_APPLICABLE')`, `CuFeedbackSignal.objects.create(role='ALARM', ...)` → FK.
-   - `ea_control/tests_enrich_feedback.py`: `CuFeedbackSignal.objects.create(role='ALARM'/'OVERHEAT'/'LOCAL_REMOTE'/'READY', contact_normal='CHANGEOVER'/'NC'/'NO')` → FK.
-   - `electric_actuators/tests.py`: `EaSignalForm(category='contact'...)`, `EaControlSignal(role=...)`, `EaFeedbackSignal(role=..., contact_normal=...)`, `EaCommProtocol(transport='rs485'...)` → FK.
-4. `frontend/src/pages/admin/EaControlAdminPage.vue`: хардкод-`choices` → `source`-селекты:
-   - control-signal-forms.category → `'signal-form-categories'`
-   - feedback-signal-forms.category → `'signal-form-categories'`
-   - control-signals.role → `'control-signal-roles'`
-   - feedback-signals.role → `'feedback-signal-roles'`; contact_normal → `'contact-normals'`
-   - comm-protocols.transport → `'protocol-transports'`
-   - signal-powers.polarity → `'polarities'`
-5. Проверка:
-   - `call_command('check')`;
-   - `call_command('makemigrations', 'electric_actuators', 'ea_control', check=True, dry_run=True)` — должно быть «No changes»;
-   - перекопировать `db.sqlite3` → `test_db.sqlite3` и `call_command('test','ea_control', keepdb=True, interactive=False)`;
-   - `npm run build` не запускается (safety-gate).
-
-## Технические ловушки
-- На Windows-шелл `manage.py`/`npm` блокируются safety-gate. Django-команды гонять через:
-  `python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','djangoProject1.settings'); import django; django.setup(); from django.core.management import call_command; call_command('...')"`.
-- `CuSignalPower` имеет `unique_together` + частичный `UniqueConstraint` по `polarity`; миграция 0018 сначала их снимает и в конце возвращает.
-- `_default_polarity`/`_default_device_kind` возвращают `obj.pk` (не инстанс).
-- ЭП-справочники уже зарегистрированы в `electric_actuators/admin/ea_signals_admin.py` (через `_SimpleDictAdmin`).
-
----
-
 # Узлы, Слоты и Матрицы — конфигуратор БУ (ea_control)
 
 Назначение: конфигурирование сложного оборудования без комбинаторного взрыва
@@ -87,6 +32,14 @@
 Вложенность жёсткая: **узел → слот → опция**. Вложенных слотов нет: слот —
 лист узла, опция — лист-значение слота.
 
+Слот принадлежит ровно одному узлу (инвариант 1:1): позиция слота в дереве —
+презентация; значение живёт в снимке, доступность — в матрице, динамика — в
+правилах. Если слот нужно показать в двух местах — вводим ссылочные узлы
+(read-only отображение чужих слотов), а не M2M-владение. Несколько слотов
+могут ссылаться на один справочник — это штатный способ «горизонтальной
+гибкости»: два слота = две независимые точки со своими строками матрицы и
+правилами.
+
 ### Три паттерна
 
 - **Паттерн А — Матрица.** Доступность опции по контексту (скоуп + координаты):
@@ -110,12 +63,14 @@
 
 Общие поля и логика; связные поля (FK/M2M) объявляет наследник.
 
-- `AbstractConfigNode` — узел: `code`, `name`, `parent` (self-FK), `description`,
+- `AbstractConfigNode` — узел: `code`, `key` (стабильный UUID для синхронизации, read-only),
+  `name`, `parent` (self-FK), `description`,
   `sorting_order`, `is_active`.
-- `AbstractConfigSlot` — слот: `code`, `name`, `selection_mode`
+- `AbstractConfigSlot` — слот: `code`, `key` (стабильный UUID), `name`, `selection_mode`
   (single/multi/xor/bundle), `slot_kind` (value/object/subtype), `required`,
   `description`, `sorting_order`, `is_active`.
-- `AbstractSlotOption` — опция: `code`, `kind`, `name`, `encoding`/`ext_encoding`,
+- `AbstractSlotOption` — опция: `code`, `key` (стабильный UUID), `kind`, `name`,
+  `encoding`/`ext_encoding`,
   `description`, `sorting_order`, `is_active`.
 - `AbstractSlotMatrixEntry` — строка матрицы: `availability` (std/opt/na),
   `is_default`, `bundle`, `conflicts` (M2M self), `encoding`/`ext_encoding`,
@@ -153,43 +108,104 @@
 ### Физическая модель БУ (`models/control_unit.py`)
 
 - `ControlUnit` — тип БУ: `brand`, `code` (уникален в рамках бренда),
-  `name_i18n`, `kind` (NONE/BASIC/INTEGRATED/POSITIONER), M2M
+  `name_i18n`, `kind` (FK → справочник `ControlUnitKind`: NONE/BASIC/
+  INTEGRATED/POSITIONER), неизменяемый `key` (короткий UUID
+  `uuid.uuid4().hex[:16]`, генерится в `save()`, read-only в API), M2M
   `accepts`/`emits`/`protocols`/`capabilities`, шаблоны
   `name_template`/`description_template`/`spec_template` (+ `_i18n`),
-  `legacy_cu` (1:1 маппинг на legacy справочник). Поля `location`/
-  `control_voltage`/`signal_power` из модели убраны (2026-10-29): БУ
-  описывает сигналы и датчики — описание подходит к разным моделям и
-  напряжениям серии. Размещение — слот `CU_LOCATION` (опции kind=`location`
-  → `CuLocationOption`); напряжение/схема цепей — слот `CMD_WIRING`.
-  Привязка БУ к model_line_item — отдельная задача (§4/§5, опция со своей
+  `legacy_cu` (1:1 маппинг на legacy справочник; сид идентифицирует БУ по
+  `legacy_cu`, а не по `code`/`key`). Поля `location`/`control_voltage`/
+  `signal_power` из модели убраны (2026-10-29): БУ описывает сигналы и
+  датчики — описание подходит к разным моделям и напряжениям серии.
+  Размещение — слот `CU_LOCATION` (опции kind=`location` →
+  `CuLocationOption`); напряжение/схема цепей — слот `CMD_WIRING`.
+  Привязка БУ к model_line_item — отдельная задача (§4.2, опция со своей
   кодировкой через through-модели).
 
-### Справочники физики
+### Справочники физики (`models/dictionaries.py`)
 
-- `models/dictionaries.py` — копии справочников ЭП (изоляция от
-  `electric_actuators`): `CuControlSignalForm` (формы ВХОДНЫХ сигналов:
-  сухой контакт с внутренним опросом / потенциал AC/DC / петля 4–20 мА) и
-  `CuFeedbackSignalForm` (формы ВЫХОДНЫХ: сухой контакт реле / петля /
-  потенциометр), `CuControlSignal`, `CuFeedbackSignal`, `CuCommProtocol`,
-  `CuFeedbackDevice`, `CuHeaterSupply`, `CuLocationOption`, `CuCapability`,
-  `CuLocalControlType`, `CuDisplayType`, `CuUnitPowerSource`.
-- `models/cu_power.py` — схемотехника цепей управления: `CuSignalPowerSource`
-  (INTERNAL/EXTERNAL + флаг ``internal`` — встроенный источник выдаёт
-  опорное напряжение), `CuSignalPower` (схема цепей: источник × напряжение ×
-  форма входа × полярность; unique_together + условный UniqueConstraint для
-  пар без формы входа — SQLite с NULL в индексе не защищает), `CuPolarity`
-  (PNP/NPN/двунаправленный/не применимо — с подробным объяснением
-  терминов), `CuControlLogic` (импульсная/потенциальная/настраиваемая).
-  Напряжение — FK `params.PowerSupplies`.
+Копии справочников ЭП (изоляция от `electric_actuators`): `CuControlSignalForm`
+(формы ВХОДНЫХ сигналов: сухой контакт с внутренним опросом / потенциал AC/DC
+/ петля 4–20 мА) и `CuFeedbackSignalForm` (формы ВЫХОДНЫХ: сухой контакт реле
+/ петля / потенциометр), `CuControlSignal`, `CuFeedbackSignal`,
+`CuCommProtocol`, `CuFeedbackDevice`, `CuHeaterSupply`, `CuLocationOption`,
+`CuCapability`, `CuLocalControlType`, `CuDisplayType`, `CuUnitPowerSource`.
 
-### Структура «Дистанционное управление» (2026-10-26)
+Классифицирующие поля переведены с TextChoices на **общие справочники ЭП**
+(прецедент — `CableGlandHolesSet`/`EaFeedbackDeviceKind`):
+
+- категория формы: `CuControlSignalForm.category` и
+  `CuFeedbackSignalForm.category` → `EaSignalFormCategory` (одна общая:
+  объединение категорий ЭП `contact/analog/discrete/resistance` и БУ
+  `dry_input/voltage_ac/voltage_dc/current_4_20/dry_output`);
+- роль: `CuControlSignal.role` → `EaControlSignalRole`; `CuFeedbackSignal.role`
+  → `EaFeedbackSignalRole`;
+- норма контакта: `CuFeedbackSignal.contact_normal` → `EaContactNormal`;
+- транспорт: `CuCommProtocol.transport` → `EaProtocolTransport` (канон —
+  нижний регистр: `rs485`/`ethernet`/`current_loop`/`h1`/`other`);
+- устройство ОС: `CuFeedbackDevice.kind`/`technology` →
+  `EaFeedbackDeviceKind`/`EaFeedbackTechnology`.
+
+Единые наборы значений — константы в `electric_actuators.models`
+(`FEEDBACK_DEVICE_KINDS`, `FEEDBACK_TECHNOLOGIES`, `SIGNAL_FORM_CATEGORIES`,
+`CONTROL_SIGNAL_ROLES`, `FEEDBACK_SIGNAL_ROLES`, `CONTACT_NORMALS`,
+`PROTOCOL_TRANSPORTS`) и `POLARITIES` в `ea_control.models.cu_power`.
+`clean()`/валидация работают по `.code`. Собственная классификация
+`CuControlSignal.category` (discrete/analog) и `CuFeedbackSignal.category`
+(contact/analog) осталась CharField — это внутренняя ось сигнала, не общий
+справочник. Миграции применены (ea_control 0016–0019, electric_actuators
+0078–0081), бэкфилл без NULL; `makemigrations` — «No changes».
+
+Дискретные командные сигналы из `EaControlSignal` намеренно не переносятся в
+`CuControlSignal` (он только аналоговый) — команды выражены слотами CMD_* +
+логикой + схемой цепей.
+
+### Схемотехника цепей управления (`models/cu_power.py`)
+
+- `CuSignalPowerSource` (INTERNAL/EXTERNAL + флаг ``internal`` — встроенный
+  источник выдаёт опорное напряжение);
+- `CuSignalPower` (схема цепей: источник × напряжение × форма входа ×
+  полярность; unique_together + условный UniqueConstraint для пар без формы
+  входа — SQLite с NULL в индексе не защищает);
+- `CuPolarity` (PNP/NPN/двунаправленный/не применимо — с подробным
+  объяснением терминов в help_text) — `CuSignalPower.polarity` → FK;
+  callable-дефолты FK возвращают **pk (int)**, а не инстанс (иначе
+  SQLite-миграция падает на `_remake_table`);
+- `CuControlLogic` (импульсная/потенциальная/настраиваемая). Напряжение — FK
+  `params.PowerSupplies`.
+
+### Питание БУ и кабельные вводы
+
+- Слот `CU_POWER_SUPPLY` «Питание БУ» → справочник `CuUnitPowerSource`
+  (SHARED_CABLE «От цепей питания привода (общий кабель)» / SEPARATE_CABLE
+  «Отдельный кабель питания БУ»). Дефолт кодируется профильными строками
+  матрицы типа БУ (встроенный — общий std / отдельный na; навесной —
+  отдельный std / общий opt); встроенным слот скрыт правилом.
+- Слот `CU_CABLE_GLANDS` «Кабельные вводы БУ» → **общая модель ЭП**
+  `electric_actuators.CableGlandHolesSet` (набор отверстий `cg1..cg4` →
+  `params.ThreadSize`; свои записи БУ: 3xM20x1.5 / 3xM25x1.5 / 3xPG16 /
+  1×1½" NPT + 2×¾" NPT). Для встроенного БУ слот скрыт правилом (вводы —
+  у привода).
+- **«Чьи отверстия для подбора КВ» — производное, не слот**: `PU_SHARED`
+  (общий кабель) → отверстия корпуса привода, вводы БУ не используются
+  (правило hide `CU_CABLE_GLANDS`); `PU_SEPARATE` → отверстия БУ (show).
+  Отдельный справочник «Используются КВ» не вводим (вторая точка правды
+  разошлась бы с выбором питания). Исключение: навесному БУ (`CU_INT_O`)
+  вводы БУ показываются всегда (show с priority 1 перебивает PU_SHARED-hide)
+  — сигналы заходят в БУ и при общем кабеле питания. «Корпус+Блок» —
+  агрегация при подборе КВ (у привода корпусные вводы есть всегда),
+  считается кодом сборки, не хранится.
+
+### Структура «Дистанционное управление»
 
 Узел `CONTROL_SIGNALS` → подузел `CMD_INPUTS` «Дистанционное управление»:
 
 - `CMD_WIRING` (single, required) — «Схема цепей управления»: **опция =
   пара источник × напряжение × форма × полярность** (`CuSignalPower`,
   kind=power). Активность (сухой контакт/потенциал) и полярность — атрибуты
-  пары, не отдельные слоты.
+  пары, не отдельные слоты. Пара вместо каскада слотов: недопустимые
+  сочетания невыразимы в принципе, описание БУ — одна матрица слота вместо
+  трёх + связок. К каскаду вернуться, если оси размножатся комбинаторно.
 - `CMD_OPEN` / `CMD_CLOSE` / `CMD_STOP` / `CMD_ESD` (single) — сигналы
   дистанционного управления. **Опция слота = логика работы сигнала**
   (дискретный = импульс с самоподхватом / продолжительный = потенциал /
@@ -206,14 +222,14 @@
   `SIGNAL_TYPE`, справочник `CuSignalType`; `CuControlSignal` больше не
   хранит `voltage`/дискретные формы (остались аналоговые уставки).
 
-### Узел «Общие параметры» (2026-10-29)
+### Узел «Общие параметры»
 
 Узел `GENERAL` «Общие параметры»: слот `CU_LOCATION` (single, required)
 «Размещение БУ» — **опция = справочник `CuLocationOption`** (kind=`location`:
 встроенный/навесной). Доступность — профильные строки матрицы типа БУ.
 Поля `location`/`control_voltage`/`signal_power` из модели `ControlUnit`
-убраны (§7.20): БУ описывает сигналы и датчики без привязки к модели и
-напряжению привода; привязка к model_line_item — отдельная задача (§4.1).
+убраны: БУ описывает сигналы и датчики без привязки к модели и напряжению
+привода; привязка к model_line_item — отдельная задача (§4.2).
 
 ### Сервисы (`services/`)
 
@@ -237,12 +253,22 @@
 ### API (`api.py`, `/api/ea-control/`)
 
 DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты: `units/`, `meta/`,
-`series-units/`, `package/`.
+`series-units/`, `describe/`, `package/`, `unit-matrix/`,
+`unit-matrix/save/`. `ControlUnit.key` и `key` сущностей схемы — read-only.
+
+Удаление сущностей схемы (`sections/`, `slots/`, `slot-options/`) и
+справочников физики (`control-signal-forms/`, `feedback-signal-forms/`,
+`control-signals/`, `feedback-signals/`, `comm-protocols/`,
+`feedback-devices/`, `signal-power-sources/`, `signal-powers/`) не
+блокируется защитой FK: DELETE без параметра при наличии зависимостей
+возвращает 409 с перечнем использования (`usage`: строки матрицы, опции,
+правила, слоты всей ветки секции, схемы цепей); DELETE с `?cascade=1`
+удаляет зависимые строки вместе с объектом.
 
 ### Данные
 
-`seed_cu_demo` (идемпотентно): 5 типов БУ, 32 слота, 95 опций,
-307 строк матрицы, 19 правил.
+`seed_cu_demo` (идемпотентно): 5 типов БУ, 43 слота, 133 опции,
+331 строка матрицы, 27 правил.
 
 ### Правила (Паттерн В) — назначение и примеры
 
@@ -268,20 +294,22 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 - `hide CU_POWER_SUPPLY when control_unit in [CU_BASIC, CU_INT, CU_INT_MB,
   CU_POSI]` — встроенным БУ не показываем «Питание БУ» (вводы — у привода);
 - `hide MOTOR_STARTER when control_unit = CU_BASIC` — у базового БУ стартера
-  нет.
+  нет;
+- `PU_SHARED → hide CU_CABLE_GLANDS` / `PU_SEPARATE → show CU_CABLE_GLANDS` —
+  универсальные правила (when_slot = CU_POWER_SUPPLY): «чьи отверстия для
+  подбора КВ» — производное от выбора питания.
 
 В «Редакторе БУ» → «Редактор доступных опций» профильные правила типа БУ
 редактируются через `when_slot=control_unit` с операторами exact/in/not_in.
-Универсальные правила с `when_slot` ≠ `control_unit` (например,
-`PU_SHARED → hide CU_CABLE_GLANDS`) в профильном редакторе не показываются —
-они общие для всех БУ и задаются сидом.
+Универсальные правила с `when_slot` ≠ `control_unit` в профильном редакторе
+не показываются — они общие для всех БУ и задаются сидом.
 
 ---
 
 ## 3. Фронтенд
 
-Страница `/admin/ea-control` (`pages/admin/EaControlAdminPage.vue`) — четыре
-раздела верхнего уровня:
+Страница `/admin/ea-control` (`pages/admin/EaControlAdminPage.vue`) — пять
+разделов верхнего уровня:
 
 1. **Конфигуратор опций** — редактор структуры
    (`EaControlStructurePage.vue`): дерево узел → слоты → опции. Редактирование
@@ -296,11 +324,17 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    «Родитель» для вложенности дерева (подписи разведены). В редакторе слота
    свои кнопки: «Сохранить» (только выбранный слот и его опции), «Копировать»
    (клон слота + опций с суффиксом `_Copy` в кодах — глобальная уникальность),
-   «Удалить слот». Успех виден зелёным баннером «Сохранено»/«Слот сохранён».
+   «Удалить слот». Если удаляемый узел/слот/опция используются (матрица,
+   правила, опции), сервер возвращает 409 с перечнем — фронт спрашивает
+   «данные используются в …, действительно удалить?» и по подтверждению
+   удаляет вместе с зависимыми записями (`?cascade=1`).
+   Успех виден зелёным баннером «Сохранено»/«Слот сохранён».
 2. **Редактор БУ** — `Блоки управления` (ControlUnit) / `Матрица` / `Правила`.
 3. **Справочники** — типизированные формы (входные/выходные отдельно),
    сигналы, схемы цепей (источник × напряжение × форма × полярность),
-   протоколы, устройства и т.д.
+   протоколы, устройства и т.д. Гэп текущей версии: поля новых FK (категории
+   форм, роли, норма контакта, транспорт, полярность) пока редактируются
+   хардкод-`choices` — перевод на `source`-селекты в плане (§4.1).
 4. **Превью БУ** — `EaControlConfiguratorPage.vue`: серия → напряжение → БУ →
    пакет; выбор опции слота `CMD_WIRING` перезапрашивает пакет с выбранной
    схемой цепей (сервер перерезолвивает набор сигналов, выбор сохраняется);
@@ -317,34 +351,53 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 
 ## 4. Ближайшие действия
 
-1. **Привязка БУ к model_line_item (опция со своей кодировкой).** После
-   удаления `control_voltage`/`signal_power`/`location` из ControlUnit
-   (2026-10-29) БУ стал чисто «описанием сигналов и датчиков», пригодным
-   для разных моделей и напряжений серии. Привязку делаем отдельно: БУ
-   доступен для конкретной модели привода (model_line_item) как опция со
-   своей кодировкой. Направление (обсудить): оставляем схему с
-   through-моделями и кодировками (как у valve_data/EaSignalMatrixEntry),
-   привязка — к новой модели БУ (ControlUnit), а не к legacy-справочнику.
-   Требует выработки: сущность привязки, кодировка (вклад в артикул),
-   приоритет строк, обратная совместимость с `series-units` (серия ×
-   напряжение → набор БУ).
-2. Вывести nullable-числовые поля физики в редактор справочников
+1. **Завершить рефакторинг «TextChoices → справочники».** Модели, миграции,
+   сиды и данные уже переведены на FK (см. §2); осталась обвязка:
+   - тесты: перевести строковые значения на FK-объекты в
+     `ea_control/tests.py`, `ea_control/tests_enrich_feedback.py`,
+     `ea_control/tests_services.py`, `electric_actuators/tests.py` (сейчас
+     10 тестов падают: строковые значения на FK-полях);
+   - `ea_control/admin.py`: зарегистрировать `CuPolarity` (`ControlUnitKind`
+     уже зарегистрирован);
+   - `djangoProject1/admin_site.py`: привязать `EaSignalFormCategory`,
+     `EaControlSignalRole`, `EaFeedbackSignalRole`, `EaContactNormal`,
+     `EaProtocolTransport`, `CuPolarity` к блоку `'ea_control'`;
+   - фронт `EaControlAdminPage.vue`: хардкод-`choices` → `source`-селекты
+     (`signal-form-categories`, `control-signal-roles`,
+     `feedback-signal-roles`, `contact-normals`, `protocol-transports`,
+     `polarities`) и выдать новые справочники через `meta/` (или generic
+     CRUD);
+   - проверка: тесты `ea_control` (+ `electric_actuators`), `makemigrations`
+     dry-run (сейчас «No changes»), сборка фронта.
+2. **Привязка БУ к model_line_item (опция со своей кодировкой).** После
+   удаления `control_voltage`/`signal_power`/`location` из ControlUnit БУ стал
+   чисто «описанием сигналов и датчиков», пригодным для разных моделей и
+   напряжений серии. Привязку делаем отдельно: БУ доступен для конкретной
+   модели привода (model_line_item) как опция со своей кодировкой.
+   Направление (обсудить): оставляем схему с through-моделями и кодировками
+   (как у valve_data/EaSignalMatrixEntry), привязка — к новой модели БУ
+   (ControlUnit), а не к legacy-справочнику. Требует выработки: сущность
+   привязки, кодировка (вклад в артикул), приоритет строк, обратная
+   совместимость с `series-units` (серия × напряжение → набор БУ).
+3. Вывести nullable-числовые поля физики в редактор справочников
    (`control-signals`/`feedback-signals`): формы намеренно не показывают
    `current` (CuControlSignal) и `max_voltage`/`max_current`/
    `resistance_kohm`/`max_power_w`/`turns`/`wires` (CuFeedbackSignal) —
    generic-сохранение (`save()` в `EaControlAdminPage.vue`) превращает пустое
    число в `0` и портит `null`. Нужна аккуратная обработка пустого значения:
    для nullable-числовых полей отправлять `null`, а не `0`.
-2. Проверить визуально: /admin/ea-control → Конфигуратор опций (новые слоты
-   CMD_*), Редактор БУ (матрица с CMD_WIRING/сигнальными слотами),
-   Справочники (новые формы, полярность), Превью БУ (выбор схемы цепей →
-   перерезолв набора сигналов), Описание БУ.
-3. Прогнать `cd frontend; npm run build`.
-4. Полировка: переименовать `EaControlStructurePage.vue` /
+4. Проверить визуально: /admin/ea-control → Конфигуратор опций (слоты CMD_*),
+   Редактор БУ (матрица с CMD_WIRING/сигнальными слотами), Справочники
+   (формы, полярность), Превью БУ (выбор схемы цепей → перерезолв набора
+   сигналов), Описание БУ.
+5. Прогнать `cd frontend; npm run build`.
+6. Полировка: переименовать `EaControlStructurePage.vue` /
    `EaControlConfiguratorPage.vue` (убрать суффикс «Page», т.к. это
    компоненты); починить локаль превью (`route.meta.locale` → глобальная
    локаль из i18n).
-5. Описать остальные БУ по `bu_template.md` в новой структуре сигналов.
+7. Описать остальные БУ по `bu_template.md` в новой структуре сигналов;
+   уточнить количества отверстий демо-наборов M20/M25/PG16 (сейчас
+   placeholder — 3 шт.).
 
 ---
 
@@ -356,15 +409,17 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    `migrate_cu_series_links`, `migrate_cu_profiles` (маппинг по кодам).
 3. Интеграция в ЭП (фаза 4): переключение `/admin/ea-constructor` на
    `ControlUnit`/`CuMatrixEntry` по критерию готовности (данные перенесены +
-   паритет AOX AR01E/AR11E/AR21E/CLFZE).
+   паритет AOX AR01E/AR11E/AR21E/CLFZE). Сюда же — агрегация «Корпус+Блок»
+   для подбора КВ (код сборки, не хранение) и скрытие/замена вводов корпуса
+   у навесного БУ.
 4. `config_snapshot` на `ElectricActuatorCatalogItem` (+ общий
    `ConfiguredProduct`).
-5. Судьба справочников-копий vs ЭП-оригиналов (слияние/замена). Частично
-   сделано 2026-10-28: `CuFeedbackSignal` обогащён из `EaFeedbackSignal`
+5. Судьба справочников-копий vs ЭП-оригиналов (слияние/замена).
+   Классифицирующие поля уже общие с ЭП (см. §2); в копиях осталась физика,
+   специфичная для БУ. `CuFeedbackSignal` обогащён из `EaFeedbackSignal`
    (`enrich_cu_feedback_signals`); `CuControlSignal` намеренно остаётся только
    аналоговым — дискретные команды выражены слотами CMD_*.
-6. **Привязка БУ к model_line_item** — выработка и реализация решения из
-   §4.1 (через through-модели и кодировки, привязка к ControlUnit).
+6. Привязка БУ к model_line_item — реализация решения из §4.2.
 7. Промоушн БУ в узел `EquipmentType` — триггер: собственный каталог или
    состав из позиций.
 8. Цена — вне scope; отдельная сущность по общему паттерну.
@@ -373,284 +428,3 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    слот хранится одно правило (exact > in > not_in); несколько правил разного
    действия/приоритета на одном слоте невыразимы. Кандидат после проверки
    пользователем — возможно, сложность не понадобится.
-
----
-
-## 6. Связанные документы
-
-- `configurator.md` — концепция конфигуратора (снапшот).
-- `ai-assistant.md` — AI-пайплайн (снапшот).
-- `ea-models-analysis.md` — состояние моделей ЭП.
-- `EXECUTION_PLAN.md` — план assemblies/configurator.
-- `vendor.md` — вендор → OEM: наследование моделей с транскодированием
-  опций (механизм valve_data, план ввода в слотовую модель).
-- `bu_template.md` — шаблон описания БУ для сверки с слотовой базой.
-
----
-
-## 7. Решения (журнал, 2026-10-23…28)
-
-1. **Класс БУ «интеллектуальный с цифровыми протоколами» отдельным kind не
-   вводим.** Протоколы — ортогональная ось: M2M `ControlUnit.protocols` +
-   слот `PROTOCOL` (тип БУ `int-n-mb` = kind INTEGRATED + Modbus — уже
-   демонстрирует композицию). Фильтры опросных листов — композиция
-   условий: «интеллектуальный» = `kind=INTEGRATED`; «интеллектуальный с
-   Modbus» = `kind=INTEGRATED` + протокол MODBUS_RTU.
-
-2. **Слот принадлежит ровно одному узлу (1:1) — инвариант паттерна.**
-   Дерево узлов — презентационный слой (группировка/навигация): значение
-   живёт в снимке `{slot_code: value}`, доступность — в матрице, динамика —
-   в правилах; ни один механизм не ссылается на позицию слота в дереве.
-   M2M-принадлежность («слот в двух ветках») выразила бы только повторное
-   отображение той же точки с тем же значением — при этом правила/матрица
-   привязаны к слоту, а не к позиции, поэтому «разное поведение по веткам»
-   через M2M невыразимо и стало бы тихим нарушением логики. Горизонтальная
-   гибкость реализуется штатными средствами: правила между ветками,
-   матрица по контексту, отдельные слоты для независимых выборов. Если
-   понадобится показать слот в двух местах — вводим ссылочные узлы
-   (read-only отображение чужих слотов), а не M2M-владение; владелец всегда
-   один (редактор управляет единственным «Родителем»).
-
-3. **Местная индикация по классам БУ:** базовый — органов местного
-   управления нет (спрятаны правилами), из индикации только блинкер (Ход)
-   и Авария; интеллектуальный — оба органа (кнопки/селекторы), LED/LCD;
-   «Ход» — только мигающий светодиод или LCD+мигающий (одна опция, M2M
-   `display_types`); «Процент открытия» — только LCD (у базового скрыт).
-
-4. **Несколько слотов могут ссылаться на один справочник — это штатный
-   способ «горизонтальной гибкости», не обход инварианта 1:1.** Ограничение
-   паттерна структурное (слот — лист одного узла); ограничений на число
-   слотов над одним справочником нет (все слоты `IND_*` ссылаются на один
-   `CuDisplayType`). Семантика: два слота = две **независимые** точки с
-   двумя значениями в снимке, своими строками матрицы и правилами (ничего
-   между слотами не наследуется — поведение описывается заново или
-   связывается правилами). Если нужен «тот же выбор, показанный в двух
-   местах, с одним значением» — это ссылочное отображение (п. 2), а не
-   второй слот. Практика: коды слотов уникальны и семантичны;
-   `AbstractSlotOption.code` глобально уникален, поэтому опции второго
-   слота получают свои коды, ссылаясь на те же записи справочника
-   (`IND_OPEN_LED` и `IND_CLOSED_LED` обе → `CuDisplayType.LED`).
-
-5. **Питание БУ и кабельные вводы БУ.**
-   - Слот `CU_POWER_SUPPLY` «Питание БУ» → справочник `CuUnitPowerSource`
-     (SHARED_CABLE «От цепей питания привода (общий кабель)» /
-     SEPARATE_CABLE «Отдельный кабель питания БУ»), kind `unit_power`.
-     Дефолт кодируется профильными строками матрицы типа БУ: встроенный —
-     общий кабель std / отдельный na; навесной — отдельный std / общий opt
-     (требование «питание от цепей питания привода»). Встроенным слот скрыт
-     правилом (`hide`, оператор `in`).
-   - Слот `CU_CABLE_GLANDS` «Кабельные вводы БУ» (узел CABLING «Подключение
-     кабелей») → **общая модель ЭП** `electric_actuators.CableGlandHolesSet`
-     (набор отверстий `cg1..cg4` → `params.ThreadSize`, `kind` GLAND_SET /
-     CONNECTOR_PLUG — разъём «подсолнух»), kind `cable_gland` → FK
-     `cable_gland_set`. Совместимость с ЭП: вводы БУ и корпуса привода
-     живут в одном справочнике (свои записи БУ: 3xM20x1.5 / 3xM25x1.5 /
-     3xPG16 / 1×1½" NPT + 2×¾" NPT). Для встроенного БУ слот скрыт
-     правилом (вводы — у привода).
-   - **Чьи отверстия для подбора КВ — производное, не слот.** `PU_SHARED`
-     (общий кабель) → отверстия корпуса привода, вводы БУ не используются
-     (правило hide `CU_CABLE_GLANDS`); `PU_SEPARATE` → отверстия БУ (show).
-     Отдельный справочник «Используются КВ» не вводим: две точки правды
-     разошлись бы с выбором питания. В конфигураторе на слоте питания —
-     производная подпись «отверстия для подбора КВ: …». «Корпус+Блок» —
-     агрегация (у привода корпусные вводы есть всегда), считается кодом
-     сборки, а не хранится.
-   - Кросс-доменная связка с ЭП: у встроенного БУ вводы — привода (слоты
-     скрыты правилами); у навесного БУ вводы привода не используются — при
-     интеграции в ЭП (фаза 4) каталог ЭП должен скрывать/заменять вводы
-     корпуса (`CableGlandHolesSet`).
-
-6. **Стартер мотора** — слот `MOTOR_STARTER` «Стартер мотора» (узел POWER,
-   опции none: «Встроенный стартер мотора»/«Нет»). Физика в матрице:
-   доступен только на 380 В (профильная строка с `power_supply=380-AC`),
-   у базового БУ нет (NONE std + правило hide), у интеллектуальных —
-   стандарт на 380. В ОЛ-фильтры попадёт как композиция условий
-   (слот/опция + напряжение), отдельная модель не нужна.
-
-7. **Вендор → OEM (наследование)** — см. `vendor.md`. В слотовую модель
-   сейчас ничего вводить не требуется: механизм ложится как «слой
-   оригиналов» (self-FK `original_*` + per-field fallback-геттеры из
-   valve_data) поверх существующих моделей. Конвенции уже сейчас: коды
-   вендорских сущностей — стабильные ключи маппинга; OEM — отдельные
-   записи со ссылкой на вендорскую; переопределение кодировок — строками
-   матрицы/опциями OEM (приоритет строки уже реализован).
-
-8. **БУ INT/O (AOX-M, навесной) — расширения базы при описании:**
-   - новые слоты ОС: `REMOTE_CONTROL` «Удалённое управление» (сухой SPST
-     НО) и `ALARM_SIGNAL` «Сигнал аварии» (SPDT НЗ+НО) — физика сигналов
-     в справочниках, не хардкод;
-   - тип сигнала `ST_POT24` «Потенциал +24 В (активный)» — вариант
-     «активный +24 В от внутреннего источника» относится к SIGNAL_TYPE;
-   - концевые выключатели помечаются устройством (`CuSlotOption.device` →
-     `CuFeedbackDevice LIMIT_MECH`, новая технология `MECHANICAL`) — датчик
-     это справочник устройств, не сигнал;
-   - вводы БУ — набор резьб с количествами (`params.ThreadSizeSet`,
-     «1×1½" NPT + 2×¾" NPT»);
-   - питание навесного БУ — отдельный кабель std / от цепей привода opt;
-   - описание БУ заполняется по шаблону `bu_template.md`.
-
-9. **Описание БУ для производителя** — сервис `services/cu_report.py` +
-   эндпоинт `GET /api/ea-control/describe/?unit=&locale=` + вкладка
-   «Описание БУ» в /admin/ea-control: все слоты по узлам, каждая опция —
-   ячейка с доступностью std/opt/na (агрегат по профильным строкам,
-   напряжение-специфичные — std побеждает); кнопка «Копировать текст» —
-   текстовая версия для отправки. Слот `control_unit` в описание не входит
-   (выбор БУ — заголовок отчёта).
-
-10. **Сигналы управления: узел «Дистанционное управление» (2026-10-26).**
-    Управление бывает и сухим контактом (массовый случай: вход с внутренним
-    опросным напряжением БУ, «+24 В от внутреннего источника» — это и есть
-    сухой контакт снаружи) и потенциальным (фаза 220 В на клемму). Слова
-    «сухой контакт» для входа и выхода описывают разную физику → формы
-    разделены на две сущности: `CuControlSignalForm` (входы: DRY_INPUT/
-    VOLTAGE_AC/VOLTAGE_DC/CURRENT_4_20) и `CuFeedbackSignalForm` (выходы:
-    DRY_OUTPUT/CURRENT_4_20/RESISTANCE). Дискретные команды форму не хранят:
-    электрическая форма определяется схемой цепей (пара `CuSignalPower`).
-
-11. **Структура сигналов управления** (п. «Структура» выше): слоты CMD_WIRING
-    (опция = пара источник × напряжение × форма × полярность) + CMD_OPEN/
-    CMD_CLOSE/CMD_STOP/CMD_ESD (опция = логика: дискретный=импульс с
-    самоподхватом / продолжительный=потенциал / настраиваемый + «Отсутствие
-    сигнала» — явная опция, в основном для СТОП, но в каждом слоте). Состав
-    сигналов — профильная матрица БУ; «набор сигналов — опции схемы» —
-    координата `signal_power` строк матрицы. ESD — одна команда, направление
-    настраивается в меню БУ (в конфигураторе не выбирается).
-
-12. **PNP/NPN — терминология входов, не полупроводников.** PNP «плюс-
-    управление» (активный высокий): команда активна при положительном
-    потенциале на клемме относительно общего провода — внешняя сторона
-    коммутирует плюсовой провод; NPN «минус-управление» (активный низкий):
-    клемма замкнута на общий провод. Двунаправленный — любая полярность DC.
-    Не применимо — AC или сухой контакт (опрос внутри БУ). Хранится
-    атрибутом `CuSignalPower.polarity` (полный текст — в help_text модели);
-    пары с разной полярностью — отдельные записи (EXT_24_PNP/EXT_24_NPN).
-
-13. **Пара схем против каскада слотов (2026-10-26).** Рассматривали
-    «каскад узлов: напряжение → источник → полярность → набор сигналов».
-    Оставили пару (`CMD_WIRING`, опция = готовая комбинация): недопустимые
-    сочетания невыразимы в принципе (в каскаде они запрещаются только
-    правилами), описание БУ — одна матрица слота вместо трёх + связок,
-    типовая схема БУ (`ControlUnit.signal_power`) — одна ссылка. К каскаду
-    вернуться, если оси размножатся комбинаторно; пошаговый UX при
-    желании рисуется поверх пар без изменения модели (опции группируются
-    по источнику/напряжению/полярности в превью).
-
-14. **Фиксы по ревью 2026-10-26.** (а) «Описание БУ» включает ВСЕ секции
-    (выключенные — с `is_active: False`): выключенный родитель не прячет
-    активных детей. (б) `CuSlotOption.localized_name` раскрывает
-    power/logic/heater/signal → в превью и отчёте имена сущностей, не
-    коды опций. (в) `CuSignalPowerSource.internal` (bool) — валидация
-    «сухой контакт → только встроенный источник» без хардкода кода.
-    (г) условный UniqueConstraint (input_form IS NULL) — SQLite с NULL в
-    уникальном индексе не защищает, частичный индекс защищает.
-    (д) `_row` сида — lookups с body/model_line_item/mode. (е) чистка
-    дискретных CuControlSignal по отсутствию ссылок, не по списку кодов.
-
-15. **Фиксы 2026-10-27 (перенос слота + CSRF + i18n).**
-    (а) Селектор раздела слота остался на штатном `v-model` (пробовали
-    `:value`+ручной `@change` — при реальном клике селект откатывался к
-    старому значению; вернули `v-model`). Подпись слота «Раздел» отделена
-    от подписи узла «Родитель». (б) CSRF-кука: `GET /api/auth/me/` получил
-    `ensure_csrf_cookie`; фронт (`shared/api.js`) перед записью дозапрашивает
-    `csrftoken` через `GET /auth/login/`, если куки нет — раньше PUT/POST
-    падали «CSRF Failed: CSRF cookie not set» молча (баннер, не консоль).
-    (в) i18n: сериализаторы ea_control (`_serializer`, `_slot_option_serializer`)
-    объявили `name_i18n`/`description_i18n` read-only — полный PUT из фронта
-    больше не затирает en/cn (остаётся только ru-синхронизация миксином).
-    (г) В редакторе слота добавлены «Сохранить» (скоуп только слот) и
-    «Копировать» (клон с `_Copy`), баннер успеха.
-
-16. **Фикс 2026-10-27 (вечер): нативный select «Раздел» → свой dropdown.**
-    Повторное проявление «смена раздела слота не сохраняется» (узел
-    CONTROL_SIGNALS, слот SETPOINT). Диагноз по логам браузера: `change`
-    нативного `<select>` приходил со СТАРЫМ значением — popup Chrome
-    закрывался, не закоммитив выбор; PUT уходил с прежним разделом (200,
-    без ошибки — «слот на месте»). Этим же объяснялся эффект «с отладкой
-    работает, без — нет» (тайминги нативного popup). Решение: нативный
-    select заменён на детерминированный dropdown (выбор по
-    `mousedown.prevent` сразу пишет `selSlot.section` + dirty; закрытие
-    по клику вне). Аналогичный нативный паттерн остался у «Родитель» узла
-    и селекторов опций — при той же флейке переводить на тот же dropdown.
-
-17. **Наведение порядка в справочниках ОС и дрейфе CMD_WIRING (2026-10-28).**
-    (а) `CuFeedbackSignal` доведён до канонической схемы: код = роль, форма —
-    полем `form` (не вшивается в код). Добавлены недостающие роли из
-    `EaFeedbackSignal`: WAY_CLOSE/TORQUE_CLOSE/TORQUE_ANALOG/TURN_COUNTER/
-    STOP/SELECTOR_POSITION/PHASE_LOSS; объединены дубли FB_ALARM+FB_ALARM_SPDT
-    и FB_OVERHEAT_NC+FB_OVERHEAT_SPST_NC; поправлены формы/нормы
-    (SPDT→CHANGEOVER, READY→SPST); FB_REMOTE_NO→FB_LOCAL_REMOTE,
-    FB_READY_NO→FB_READY. Итог — 19 сигналов. Команда
-    `enrich_cu_feedback_signals` (идемпотентна, перенаправляет ссылки перед
-    удалением дублей). Дискретные командные сигналы из `EaControlSignal`
-    намеренно НЕ переносятся — они уже выражены слотами CMD_* + логикой +
-    схемой цепей (форма входит в `CuSignalPower.input_form`).
-    (б) Дрейф структуры закрыт командой `reconcile_cu_structure`:
-    CMD_SIGNAL_SOURCE → CMD_WIRING (канонический код), удалены дрейфовые
-    CMD_SIGNAL_SOURCE_ESD и SETPOINT_Copy (и опции *_Copy), удалены
-    bare-строки матрицы «нет сигнала» (option=None) у CMD_OPEN/CLOSE/STOP/ESD,
-    опция STOP_SPDT перепривязана к FB_STOP (была на сигнале аварии).
-    (в) `resolve_slots` сортирует опции детерминированно (std → opt → по
-    коду), чтобы фронт и тесты не зависели от порядка строк в БД.
-    (г) Остаток дрейфа (не трогали в этом шаге): раздел ESD (id 12) со слотом
-    CMD_ESD — в сиде CMD_ESD лежит в CMD_INPUTS; слот STOP_SIGNAL есть в живой
-    БД, но пока не в сиде.
-
-18. **Редактор БУ: матрица и правила в одном дереве (2026-10-29).**
-    В «Редактор БУ» → «Изменить — блок управления» две вкладки: «Основное»
-    (поля + шаблоны) и «Редактор доступных опций» (дерево узлов → слоты →
-    опции с std/opt/na + правило на слот). Правило профиля БУ редактируется с
-    операторами exact/in/not_in (списки кодов опций control_unit); при записи
-    обновляются и матрица (`unit-matrix/save`), и правила
-    (`apply_unit_rule_changes`). Задача-кандидат — список правил с приоритетом
-    на слот (§5.8), отложена до проверки пользователем.
-
-19. **Фикс ложной ошибки «только одна std» из-за bare-строк (2026-10-29).**
-    В «Редактор БУ» пометка опции opt в слоте TORQUE_SWITCHES_OPEN (при уже
-    имеющейся std) давала ошибку «только одна опция может быть стандартной
-    (std)». Причина: в живой БД остались legacy bare-строки матрицы
-    (`option=None`, std — наследие старой структуры «нет сигнала» до сплита
-    слотов на понаправленные). Редактор/резолверы их игнорируют
-    (`if not r.option_id: continue`), а валидация `_validate_single_default`
-    считала их через `values_list('option_id')`: SQL `NOT IN` не отсеивает
-    NULL, поэтому строка без опции попадала в множество std → `{None, SPDT}`
-    = «две std» при любом изменении слота. Фикс: валидация не считает
-    bare-строки (`option_id__isnull=False`) — единственная std по-прежнему
-    обязательна, остальные опции могут быть opt. Команда
-    `reconcile_cu_structure` расширена: удаляет bare-строки во всех слотах
-    (не только CMD_*).
-
-20. **БУ — описание сигналов/датчиков, а не «модель × напряжение»
-    (2026-10-29).** Из `ControlUnit` убраны `location`, `control_voltage`,
-    `signal_power`: текущая редакция БУ описывает сигналы и датчики, и это
-    описание подходит к разным моделям и напряжениям приводов серии.
-    Размещение стало слотом `CU_LOCATION` (узел `GENERAL` «Общие параметры»;
-    опции kind=`location` → справочник `CuLocationOption`; профиль: у
-    встроенных INTEGRATED std/SEPARATE na, у INT/O наоборот). Напряжение и
-    схема цепей и так выбираются слотом `CMD_WIRING`. Привязка БУ к
-    model_line_item — отдельно, как опция со своей кодировкой (§4.1/§5.6;
-    обсудить: через through-модели и кодировки, привязка — к ControlUnit).
-    Шаблоны БУ: плейсхолдеры `{location}`/`{control_voltage}` и resolver
-    `_res_signal_power` удалены. В редакторе слота «Конфигуратора опций»
-    поля Код/Раздел/Сортировка/Активно в одной строке, Обязательный/Режим
-    выбора/Род значения — в другой, с пиктограммой-подсказкой ⓘ.
-
-21. **Вводы БУ — общая модель ЭП; «чьи отверстия» — производное, не слот
-    (2026-10-29).** ЭП не трогаем: корпуса привода как привязывали наборы
-    отверстий через-моделью `CableGlandHolesSetBodyOption` (кодировки +
-    `is_default`), так и привязывают. В БУ опция слота `CU_CABLE_GLANDS`
-    переключена с отдельного `params.ThreadSizeSet` на ту же модель
-    `electric_actuators.CableGlandHolesSet` (совместимость: вводы БУ и
-    корпуса — один справочник, общие записи `params.ThreadSize`; наборы БУ
-    — свои записи `3xM20x1.5`/`3xM25x1.5`/`3xPG16`/`1×1½" NPT + 2×¾" NPT`).
-    Старые `CU_*`-наборы из `params.ThreadSizeSet` удалены сидом. Отдельный
-    справочник «Используются КВ» НЕ вводим: «какие отверстия брать для
-    подбора КВ» — следствие выбора питания (правила: `PU_SHARED` → hide
-    `CU_CABLE_GLANDS`, `PU_SEPARATE` → show), а не вторая точка правды;
-    `CU_POWER_SUPPLY` остаётся single-слотом (не узлом из двух слотов).
-    В конфигураторе на слоте питания — производная подпись «отверстия для
-    подбора КВ: корпус привода / корпус+БУ / БУ». Исключение: навесному БУ
-    (`CU_INT_O`) вводы БУ показываются всегда (show с priority 1 перебивает
-    PU_SHARED-hide) — сигналы заходят в БУ и при общем кабеле питания.
-    «Корпус+Блок» — агрегация при подборе КВ (у привода корпусные вводы
-    есть всегда), считается кодом, не хранится.
-

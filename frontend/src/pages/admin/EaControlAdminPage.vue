@@ -174,6 +174,7 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
+import { guardedDelete } from '@/shared/guardedDelete'
 import EaControlStructure from './EaControlStructurePage.vue'
 import EaControlConfigurator from './EaControlConfiguratorPage.vue'
 import EaControlDescription from './EaControlDescription.vue'
@@ -595,13 +596,14 @@ async function save() {
   if (deletePending.value) {
     try {
       if (editing.value && editing.value.id) {
-        await api.delete(`/ea-control/${current.value.endpoint}/${editing.value.id}/`)
+        await guardedDelete(`/ea-control/${current.value.endpoint}/${editing.value.id}/`)
       }
       editing.value = null
       deletePending.value = false
       dirty.value = false
       await load()
     } catch (e) {
+      if (e && e.cancelled) return
       error.value = e.displayMessage || 'Ошибка удаления'
     }
     return
@@ -640,7 +642,7 @@ async function save() {
 async function remove(row) {
   if (!confirm(`Удалить запись #${row.id}?`)) return
   try {
-    await api.delete(`/ea-control/${current.value.endpoint}/${row.id}/`)
+    await guardedDelete(`/ea-control/${current.value.endpoint}/${row.id}/`)
     if (editing.value && editing.value.id === row.id) {
       editing.value = null
       deletePending.value = false
@@ -648,6 +650,7 @@ async function remove(row) {
     }
     await load()
   } catch (e) {
+    if (e && e.cancelled) return
     error.value = e.displayMessage || 'Ошибка удаления'
   }
 }

@@ -24,6 +24,8 @@
   отладочным словарём): конкретные значения задаёт наследник переопределением
   поля или финальным словарём при переносе в core.
 """
+import uuid
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -83,7 +85,26 @@ class ConfigRuleOperator(models.TextChoices):
 
 # ── Узел ─────────────────────────────────────────────────────────────────────
 
-class AbstractConfigNode(CopyMixin, models.Model):
+class StableKeyMixin:
+    """Неизменяемый ``key`` (короткий UUID) — стабильный идентификатор
+    сущности схемы для синхронизации между средами/сидом.
+
+    ``code`` — человекочитаемый и редактируемый (может дрейфовать); ``key``
+    генерируется один раз при первом сохранении и больше не меняется.
+    CopyMixin при клонировании ``key`` не копирует.
+
+    Внимание: ``bulk_create`` и ``save(update_fields=...)`` ``save()`` не
+    вызывают — для таких вставок ``key`` нужно задавать явно (иначе вторая
+    запись с пустым key нарушит уникальность).
+    """
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = uuid.uuid4().hex[:16]
+        super().save(*args, **kwargs)
+
+
+class AbstractConfigNode(StableKeyMixin, CopyMixin, models.Model):
     """Узел-секция — группировка слотов в дерево конфигурации (роль ``Node``).
 
     Место в схеме: дерево секций конфигуратора, например БУ → «Сигналы
@@ -117,6 +138,13 @@ class AbstractConfigNode(CopyMixin, models.Model):
         verbose_name=_("Код"),
         help_text=_("Уникальный код узла, например «CONTROL_SIGNALS»"),
     )
+    key = models.CharField(
+        max_length=60, unique=True, blank=True, editable=False,
+        verbose_name=_("Стабильный ключ"),
+        help_text=_("Неизменяемый идентификатор узла (короткий UUID). "
+                    "Генерируется один раз при создании и не зависит от code/name — "
+                    "по нему связываются записи при синхронизации."),
+    )
     name = models.CharField(
         max_length=200,
         verbose_name=_("Название"),
@@ -142,7 +170,7 @@ class AbstractConfigNode(CopyMixin, models.Model):
 
 # ── Слот ─────────────────────────────────────────────────────────────────────
 
-class AbstractConfigSlot(CopyMixin, models.Model):
+class AbstractConfigSlot(StableKeyMixin, CopyMixin, models.Model):
     """Слот — точка конфигурации изделия (роль ``Slot``); обобщение EaSignalSlot.
 
     Место в схеме: лист дерева конфигуратора; декларирует «розетку», в
@@ -179,6 +207,13 @@ class AbstractConfigSlot(CopyMixin, models.Model):
         max_length=50, unique=True,
         verbose_name=_("Код"),
         help_text=_("Уникальный код слота, например «POSITION_FEEDBACK»"),
+    )
+    key = models.CharField(
+        max_length=60, unique=True, blank=True, editable=False,
+        verbose_name=_("Стабильный ключ"),
+        help_text=_("Неизменяемый идентификатор слота (короткий UUID). "
+                    "Генерируется один раз при создании и не зависит от code/name — "
+                    "по нему связываются записи при синхронизации."),
     )
     name = models.CharField(
         max_length=200, blank=True,
@@ -220,7 +255,7 @@ class AbstractConfigSlot(CopyMixin, models.Model):
 
 # ── Опция ────────────────────────────────────────────────────────────────────
 
-class AbstractSlotOption(CopyMixin, models.Model):
+class AbstractSlotOption(StableKeyMixin, CopyMixin, models.Model):
     """Опция — вариант заполнения слота (роль ``Option``); обобщение EaSlotOption.
 
     Место в схеме: справочник возможных значений слота. Опция не хранит
@@ -260,6 +295,13 @@ class AbstractSlotOption(CopyMixin, models.Model):
         max_length=50, unique=True,
         verbose_name=_("Код"),
         help_text=_("Уникальный код опции, например «END_SPDT», «BLINKER»"),
+    )
+    key = models.CharField(
+        max_length=60, unique=True, blank=True, editable=False,
+        verbose_name=_("Стабильный ключ"),
+        help_text=_("Неизменяемый идентификатор опции (короткий UUID). "
+                    "Генерируется один раз при создании и не зависит от code/name — "
+                    "по нему связываются записи при синхронизации."),
     )
     kind = models.CharField(
         max_length=20, blank=True, default='',

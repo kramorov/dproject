@@ -2295,6 +2295,11 @@ class CopyMixin:
             elif field_name == 'sku':
                 setattr(copied_obj, field_name, None)
 
+            # Стабильный ключ (StableKeyMixin) не копируем —
+            # копия получит свой UUID при сохранении
+            elif field_name == 'key':
+                setattr(copied_obj, field_name, '')
+
             # Копируем остальные поля
             else:
                 value = getattr(self, field_name)

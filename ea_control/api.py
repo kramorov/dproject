@@ -23,7 +23,7 @@ API ea_control: CRUD моделей для фронт-админки + паке�
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from rest_framework import serializers, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser
@@ -60,7 +60,7 @@ def _serializer(model_cls):
             fields = '__all__'
             # i18n синхронизируется миксином из name/description (только ru);
             # полный PUT без этих полей не должен сбрасывать переводы en/cn.
-            read_only_fields = ('name_i18n', 'description_i18n')
+            read_only_fields = ('name_i18n', 'description_i18n', 'key')
     S.__name__ = f'{model_cls.__name__}Serializer'
     return S
 
@@ -76,6 +76,191 @@ def _viewset(model_cls, serializer_cls):
     return V
 
 
+def _guarded_delete_viewset(model_cls, serializer_cls, usage_specs):
+    """ModelViewSet, у которого DELETE не блокируется защитой FK.
+
+    ``usage_specs`` — список (label, count_qs_fn, cascade_fn):
+    count_qs_fn(obj) → QuerySet зависимых строк (для отчёта), cascade_fn(obj)
+    удаляет их при подтверждении (?cascade=1); None — зависимость удаляется
+    сама (FK с on_delete=CASCADE).
+
+    Без ?cascade=1 при наличии зависимостей возвращается 409 с перечнем
+    ``usage`` — фронт спрашивает «данные используются в …, удалить?» и
+    повторяет DELETE с ?cascade=1.
+    """
+    base = _viewset(model_cls, serializer_cls)
+
+    class V(base):
+        def destroy(self, request, *args, **kwargs):
+            obj = self.get_object()
+            force = request.query_params.get('cascade') in ('1', 'true', 'yes')
+            usage = []
+            for label, count_qs, _cascade_fn in usage_specs:
+                count = count_qs(obj).count()
+                if count:
+                    usage.append({'label': str(label), 'count': count})
+            if usage and not force:
+                return Response(
+                    {'detail': _('Объект используется. '
+                                 'Удалить вместе с зависимыми данными?'),
+                     'usage': usage,
+                     'cascade_url': request.path + '?cascade=1'},
+                    status=status.HTTP_409_CONFLICT)
+            if force:
+                for _label, _count_qs, cascade_fn in usage_specs:
+                    if cascade_fn:
+                        cascade_fn(obj)
+            self.perform_destroy(obj)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    V.__name__ = f'{model_cls.__name__}ViewSet'
+    return V
+
+
+def _slot_usage_specs():
+    """Слот: блокируют строки матрицы (PROTECT); опции и правила каскадят сами."""
+    def matrix(o):
+        return CuMatrixEntry.objects.filter(slot=o)
+
+    return [
+        (_('строки матрицы'), matrix, lambda o: matrix(o).delete()),
+        (_('опции слота'), lambda o: CuSlotOption.objects.filter(slot=o), None),
+        (_('правила'),
+         lambda o: CuSlotRule.objects.filter(Q(when_slot=o) | Q(target_slot=o)),
+         None),
+    ]
+
+
+def _option_usage_specs():
+    """Опция: строки матрицы со ссылкой на неё (SET_NULL) — при подтверждении
+    удаляются вместе с опцией (без опции строки бесполезны)."""
+    def matrix(o):
+        return CuMatrixEntry.objects.filter(option=o)
+
+    return [
+        (_('строки матрицы'), matrix, lambda o: matrix(o).delete()),
+    ]
+
+
+def _node_usage_specs():
+    """Узел: слоты всей ветки (SET_NULL) — при подтверждении удаляются вместе
+    со своими строками матрицы; вложенные узлы каскадят сами (CASCADE)."""
+
+    def _subtree_ids(root_id):
+        ids = [root_id]
+        frontier = [root_id]
+        while frontier:
+            children = list(
+                CuSectionNode.objects.filter(parent_id__in=frontier)
+                .values_list('id', flat=True))
+            ids.extend(children)
+            frontier = children
+        return ids
+
+    def slots(o):
+        return CuSlot.objects.filter(section_id__in=_subtree_ids(o.id))
+
+    def cascade(o):
+        for slot in slots(o):
+            CuMatrixEntry.objects.filter(slot=slot).delete()
+            slot.delete()
+
+    return [
+        (_('слоты'), slots, cascade),
+        (_('вложенные узлы'),
+         lambda o: CuSectionNode.objects.filter(parent=o), None),
+    ]
+
+
+def _delete_options_with_matrix(options_qs):
+    """Удалить опции слотов вместе со строками матрицы, ссылающимися на них."""
+    ids = list(options_qs.values_list('id', flat=True))
+    if ids:
+        CuMatrixEntry.objects.filter(option_id__in=ids).delete()
+    options_qs.delete()
+
+
+def _delete_signal_power_rows(pairs_qs):
+    """Удалить схемы цепей вместе с опциями и строками матрицы по ним."""
+    ids = list(pairs_qs.values_list('id', flat=True))
+    if ids:
+        opt_ids = list(CuSlotOption.objects.filter(signal_power_id__in=ids)
+                       .values_list('id', flat=True))
+        if opt_ids:
+            CuMatrixEntry.objects.filter(option_id__in=opt_ids).delete()
+        CuSlotOption.objects.filter(signal_power_id__in=ids).delete()
+        CuMatrixEntry.objects.filter(signal_power_id__in=ids).delete()
+    pairs_qs.delete()
+
+
+def _delete_signal_rows(signals_qs, field):
+    """Удалить сигналы вместе с опциями и строками матрицы, ссылающимися по
+    полю ``field`` ('control_signal'/'feedback_signal')."""
+    ids = list(signals_qs.values_list('id', flat=True))
+    if ids:
+        kw = {field + '_id__in': ids}
+        opt_ids = list(CuSlotOption.objects.filter(**kw)
+                       .values_list('id', flat=True))
+        if opt_ids:
+            CuMatrixEntry.objects.filter(option_id__in=opt_ids).delete()
+        CuSlotOption.objects.filter(**kw).delete()
+        CuMatrixEntry.objects.filter(**kw).delete()
+    signals_qs.delete()
+
+
+def _ref_usage_specs(option_field=None, matrix_field=None, extra_specs=None):
+    """Usage-спеки для справочников физики: опции слотов и строки матрицы,
+    ссылающиеся на справочник по option_field/matrix_field (+extra_specs)."""
+    specs = []
+    if option_field:
+        def options(o, _f=option_field):
+            return CuSlotOption.objects.filter(**{_f: o})
+        specs.append((_('опции слотов'), options,
+                      lambda o: _delete_options_with_matrix(options(o))))
+    if matrix_field:
+        def rows(o, _f=matrix_field):
+            return CuMatrixEntry.objects.filter(**{_f: o})
+        specs.append((_('строки матрицы'), rows, lambda o: rows(o).delete()))
+    if extra_specs:
+        specs.extend(extra_specs)
+    return specs
+
+
+def _ctl_form_extra_specs():
+    def pairs(o):
+        return CuSignalPower.objects.filter(input_form=o)
+
+    def signals(o):
+        return CuControlSignal.objects.filter(form=o)
+
+    return [
+        (_('схемы цепей'), pairs,
+         lambda o: _delete_signal_power_rows(pairs(o))),
+        (_('командные сигналы'), signals,
+         lambda o: _delete_signal_rows(signals(o), 'control_signal')),
+    ]
+
+
+def _fb_form_extra_specs():
+    def signals(o):
+        return CuFeedbackSignal.objects.filter(form=o)
+
+    return [
+        (_('сигналы ОС'), signals,
+         lambda o: _delete_signal_rows(signals(o), 'feedback_signal')),
+    ]
+
+
+def _sp_source_usage_specs():
+    def pairs(o):
+        return CuSignalPower.objects.filter(source=o)
+
+    return [
+        (_('схемы цепей'), pairs,
+         lambda o: _delete_signal_power_rows(pairs(o))),
+    ]
+
+
 def _slot_option_serializer():
     """CuSlotOption + валидация «display-опция без видов отображения».
 
@@ -86,7 +271,7 @@ def _slot_option_serializer():
         class Meta:
             model = CuSlotOption
             fields = '__all__'
-            read_only_fields = ('name_i18n', 'description_i18n')
+            read_only_fields = ('name_i18n', 'description_i18n', 'key')
 
         def validate(self, attrs):
             kind = attrs.get('kind', getattr(self.instance, 'kind', None))
@@ -257,19 +442,32 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
             o.delete()
         unit.delete()
         return Response(status=204)
-CuSectionNodeViewSet = _viewset(CuSectionNode, _serializer(CuSectionNode))
-CuSlotViewSet = _viewset(CuSlot, _serializer(CuSlot))
-CuSlotOptionViewSet = _viewset(CuSlotOption, _slot_option_serializer())
+CuSectionNodeViewSet = _guarded_delete_viewset(
+    CuSectionNode, _serializer(CuSectionNode), _node_usage_specs())
+CuSlotViewSet = _guarded_delete_viewset(
+    CuSlot, _serializer(CuSlot), _slot_usage_specs())
+CuSlotOptionViewSet = _guarded_delete_viewset(
+    CuSlotOption, _slot_option_serializer(), _option_usage_specs())
 CuMatrixEntryViewSet = _viewset(CuMatrixEntry, _serializer(CuMatrixEntry))
 CuSlotRuleViewSet = _viewset(CuSlotRule, _serializer(CuSlotRule))
-CuControlSignalFormViewSet = _viewset(CuControlSignalForm,
-                                       _serializer(CuControlSignalForm))
-CuFeedbackSignalFormViewSet = _viewset(CuFeedbackSignalForm,
-                                       _serializer(CuFeedbackSignalForm))
-CuControlSignalViewSet = _viewset(CuControlSignal, _serializer(CuControlSignal))
-CuFeedbackSignalViewSet = _viewset(CuFeedbackSignal, _serializer(CuFeedbackSignal))
-CuCommProtocolViewSet = _viewset(CuCommProtocol, _serializer(CuCommProtocol))
-CuFeedbackDeviceViewSet = _viewset(CuFeedbackDevice, _serializer(CuFeedbackDevice))
+CuControlSignalFormViewSet = _guarded_delete_viewset(
+    CuControlSignalForm, _serializer(CuControlSignalForm),
+    _ref_usage_specs(extra_specs=_ctl_form_extra_specs()))
+CuFeedbackSignalFormViewSet = _guarded_delete_viewset(
+    CuFeedbackSignalForm, _serializer(CuFeedbackSignalForm),
+    _ref_usage_specs(extra_specs=_fb_form_extra_specs()))
+CuControlSignalViewSet = _guarded_delete_viewset(
+    CuControlSignal, _serializer(CuControlSignal),
+    _ref_usage_specs('control_signal', 'control_signal'))
+CuFeedbackSignalViewSet = _guarded_delete_viewset(
+    CuFeedbackSignal, _serializer(CuFeedbackSignal),
+    _ref_usage_specs('feedback_signal', 'feedback_signal'))
+CuCommProtocolViewSet = _guarded_delete_viewset(
+    CuCommProtocol, _serializer(CuCommProtocol),
+    _ref_usage_specs('protocol', 'protocol'))
+CuFeedbackDeviceViewSet = _guarded_delete_viewset(
+    CuFeedbackDevice, _serializer(CuFeedbackDevice),
+    _ref_usage_specs('device', 'device'))
 CuHeaterSupplyViewSet = _viewset(CuHeaterSupply, _serializer(CuHeaterSupply))
 CuLocationOptionViewSet = _viewset(CuLocationOption, _serializer(CuLocationOption))
 CuCapabilityViewSet = _viewset(CuCapability, _serializer(CuCapability))
@@ -278,9 +476,12 @@ CuLocalControlTypeViewSet = _viewset(CuLocalControlType,
 CuDisplayTypeViewSet = _viewset(CuDisplayType, _serializer(CuDisplayType))
 CuUnitPowerSourceViewSet = _viewset(CuUnitPowerSource,
                                     _serializer(CuUnitPowerSource))
-CuSignalPowerSourceViewSet = _viewset(CuSignalPowerSource,
-                                      _serializer(CuSignalPowerSource))
-CuSignalPowerViewSet = _viewset(CuSignalPower, _serializer(CuSignalPower))
+CuSignalPowerSourceViewSet = _guarded_delete_viewset(
+    CuSignalPowerSource, _serializer(CuSignalPowerSource),
+    _sp_source_usage_specs())
+CuSignalPowerViewSet = _guarded_delete_viewset(
+    CuSignalPower, _serializer(CuSignalPower),
+    _ref_usage_specs('signal_power', 'signal_power'))
 CuControlLogicViewSet = _viewset(CuControlLogic, _serializer(CuControlLogic))
 
 # Общие справочники ЭП, используемые и БУ (kind/technology устройств ОС).

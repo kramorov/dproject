@@ -343,6 +343,7 @@
  */
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
+import { guardedDelete, deleteCancelled } from '@/shared/guardedDelete'
 import { t } from '@/shared/i18n'
 import EditorActions from '@/components/EditorActions.vue'
 
@@ -843,9 +844,12 @@ function flashSuccess(msg) {
   successTimer = setTimeout(() => { success.value = '' }, 2500)
 }
 
+// DELETE с защитой FK: на 409 показывается вопрос с перечнем использования
+// (общий хелпер — shared/guardedDelete.js).
+
 async function persistSlot(slot, fallbackSection) {
   if (slot._deleted) {
-    if (slot.id != null) await api.delete(`/ea-control/slots/${slot.id}/`)
+    if (slot.id != null) await guardedDelete(`/ea-control/slots/${slot.id}/`)
     return null
   }
   let slotId = slot.id
@@ -863,7 +867,7 @@ async function persistSlot(slot, fallbackSection) {
 async function persistSlotOptions(slot, slotId) {
   for (const opt of (slot.options || [])) {
     if (opt._deleted) {
-      if (opt.id != null) await api.delete(`/ea-control/slot-options/${opt.id}/`)
+      if (opt.id != null) await guardedDelete(`/ea-control/slot-options/${opt.id}/`)
       continue
     }
     if (opt.id == null) {
@@ -899,7 +903,7 @@ async function commitAll() {
   try {
     // 1. Узел
     if (draft.node._deleted) {
-      if (draft.node.id != null) await api.delete(`/ea-control/sections/${draft.node.id}/`)
+      if (draft.node.id != null) await guardedDelete(`/ea-control/sections/${draft.node.id}/`)
       draft.node = null
       draft.slots = []
       selSlotIdx.value = -1
@@ -931,6 +935,7 @@ async function commitAll() {
     if (n) selectNode(n)
     flashSuccess('Сохранено')
   } catch (e) {
+    if (e && e.cancelled) return
     error.value = e.displayMessage || 'Ошибка сохранения'
   }
 }
@@ -954,6 +959,7 @@ async function commitSlot() {
     refreshSlotDraft()
     flashSuccess('Слот сохранён')
   } catch (e) {
+    if (e && e.cancelled) return
     error.value = e.displayMessage || 'Ошибка сохранения'
   }
 }
