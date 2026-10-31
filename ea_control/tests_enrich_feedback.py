@@ -36,13 +36,36 @@ def _reset_feedback_signals(codes):
 
 class EnrichCuFeedbackSignalsTests(TestCase):
     def setUp(self):
+        from electric_actuators.models import (EaContactNormal,
+                                               EaFeedbackSignalRole,
+                                               EaSignalFormCategory)
+
+        def _cat(code, name):
+            return EaSignalFormCategory.objects.get_or_create(
+                code=code, defaults={'name': name})[0]
+
+        def _role(code, name):
+            return EaFeedbackSignalRole.objects.get_or_create(
+                code=code, defaults={'name': name})[0]
+
+        def _normal(code, name):
+            return EaContactNormal.objects.get_or_create(
+                code=code, defaults={'name': name})[0]
+
+        self._role = _role
+        self._normal = _normal
         self.dry_spst, _ = CuFeedbackSignalForm.objects.get_or_create(
-            code='DRY_SPST', defaults={'name': 'SPST', 'category': 'dry_output'})
+            code='DRY_SPST',
+            defaults={'name': 'SPST',
+                      'category': _cat('dry_output', 'Сухой контакт (выход реле)')})
         self.dry_spdt, _ = CuFeedbackSignalForm.objects.get_or_create(
-            code='DRY_SPDT', defaults={'name': 'SPDT', 'category': 'dry_output'})
+            code='DRY_SPDT',
+            defaults={'name': 'SPDT',
+                      'category': _cat('dry_output', 'Сухой контакт (выход реле)')})
         self.an_active, _ = CuFeedbackSignalForm.objects.get_or_create(
             code='AN_4_20_ACTIVE',
-            defaults={'name': '4-20 active', 'category': 'current_4_20'})
+            defaults={'name': '4-20 active',
+                      'category': _cat('current_4_20', 'Токовая петля 4–20 мА')})
 
         # Сбрасываем и старые, и канонические коды — тест не должен зависеть
         # от того, прогнана ли уже команда по БД (--keepdb).
@@ -59,29 +82,41 @@ class EnrichCuFeedbackSignalsTests(TestCase):
 
         # Исходное (до команды) состояние: дубли и нестыковки.
         CuFeedbackSignal.objects.create(
-            code='FB_ALARM', name='Авария', role='ALARM', category='contact',
+            code='FB_ALARM', name='Авария',
+            role=self._role('ALARM', 'Авария'), category='contact',
             form=self.dry_spdt, contact_normal=None)
         CuFeedbackSignal.objects.create(
-            code='FB_ALARM_SPDT', name='Авария SPDT', role='ALARM',
-            category='contact', form=self.dry_spdt, contact_normal='CHANGEOVER')
+            code='FB_ALARM_SPDT', name='Авария SPDT',
+            role=self._role('ALARM', 'Авария'),
+            category='contact', form=self.dry_spdt,
+            contact_normal=self._normal('CHANGEOVER', 'Перекидной'))
         CuFeedbackSignal.objects.create(
-            code='FB_OVERHEAT_NC', name='Перегрев NC', role='OVERHEAT',
-            category='contact', form=self.dry_spdt, contact_normal='NC')
+            code='FB_OVERHEAT_NC', name='Перегрев NC',
+            role=self._role('OVERHEAT', 'Перегрев'),
+            category='contact', form=self.dry_spdt,
+            contact_normal=self._normal('NC', 'Нормально-замкнутый'))
         CuFeedbackSignal.objects.create(
-            code='FB_OVERHEAT_SPST_NC', name='Перегрев SPST NC', role='OVERHEAT',
-            category='contact', form=self.dry_spst, contact_normal='NC')
+            code='FB_OVERHEAT_SPST_NC', name='Перегрев SPST NC',
+            role=self._role('OVERHEAT', 'Перегрев'),
+            category='contact', form=self.dry_spst,
+            contact_normal=self._normal('NC', 'Нормально-замкнутый'))
         CuFeedbackSignal.objects.create(
-            code='FB_REMOTE_NO', name='Удалённое', role='LOCAL_REMOTE',
-            category='contact', form=self.dry_spst, contact_normal='NO')
+            code='FB_REMOTE_NO', name='Удалённое',
+            role=self._role('LOCAL_REMOTE', 'Режим местное/удалённое'),
+            category='contact', form=self.dry_spst,
+            contact_normal=self._normal('NO', 'Нормально-разомкнутый'))
         CuFeedbackSignal.objects.create(
-            code='FB_READY_NO', name='Готовность', role='READY',
-            category='contact', form=self.dry_spdt, contact_normal='NO')
+            code='FB_READY_NO', name='Готовность',
+            role=self._role('READY', 'Готовность'),
+            category='contact', form=self.dry_spdt,
+            contact_normal=self._normal('NO', 'Нормально-разомкнутый'))
 
         # Направленные сигналы — старые форм-агностичные коды, которые
         # команда должна переименовать в *_SPDT (и довести норму контакта).
         for role, base in DIRECTIONS:
             CuFeedbackSignal.objects.create(
-                code=f'FB_{role}', name=base, role=role, category='contact',
+                code=f'FB_{role}', name=base,
+                role=self._role(role, base), category='contact',
                 form=self.dry_spdt, contact_normal=None)
 
     def _make_references(self):
@@ -117,10 +152,10 @@ class EnrichCuFeedbackSignalsTests(TestCase):
                 code=f'FB_{role}').exists(), f'FB_{role}')
             spdt = CuFeedbackSignal.objects.get(code=f'FB_{role}_SPDT')
             self.assertEqual(spdt.form.code, 'DRY_SPDT')
-            self.assertEqual(spdt.contact_normal, 'CHANGEOVER')
+            self.assertEqual(spdt.contact_normal.code, 'CHANGEOVER')
             dpdt = CuFeedbackSignal.objects.get(code=f'FB_{role}_DPDT')
             self.assertEqual(dpdt.form.code, 'DRY_DPDT')
-            self.assertEqual(dpdt.contact_normal, 'CHANGEOVER')
+            self.assertEqual(dpdt.contact_normal.code, 'CHANGEOVER')
 
         # Остальные роли.
         for code in ('FB_TORQUE_4_20MA', 'FB_TURN_COUNTER', 'FB_STOP',
@@ -131,7 +166,7 @@ class EnrichCuFeedbackSignalsTests(TestCase):
         self.assertFalse(CuFeedbackSignal.objects.filter(
             code='FB_ALARM_SPDT').exists())
         alarm = CuFeedbackSignal.objects.get(code='FB_ALARM')
-        self.assertEqual(alarm.contact_normal, 'CHANGEOVER')
+        self.assertEqual(alarm.contact_normal.code, 'CHANGEOVER')
         self.assertEqual(alarm.form.code, 'DRY_SPDT')
 
         self.assertFalse(CuFeedbackSignal.objects.filter(
@@ -139,7 +174,7 @@ class EnrichCuFeedbackSignalsTests(TestCase):
         self.assertFalse(CuFeedbackSignal.objects.filter(
             code='FB_OVERHEAT_SPST_NC').exists())
         overheat = CuFeedbackSignal.objects.get(code='FB_OVERHEAT')
-        self.assertEqual(overheat.contact_normal, 'NC')
+        self.assertEqual(overheat.contact_normal.code, 'NC')
         self.assertEqual(overheat.form.code, 'DRY_SPST')
 
         self.assertFalse(CuFeedbackSignal.objects.filter(
@@ -150,10 +185,10 @@ class EnrichCuFeedbackSignalsTests(TestCase):
             code='FB_READY_NO').exists())
         ready = CuFeedbackSignal.objects.get(code='FB_READY')
         self.assertEqual(ready.form.code, 'DRY_SPST')
-        self.assertEqual(ready.contact_normal, 'NO')
+        self.assertEqual(ready.contact_normal.code, 'NO')
 
         torque_analog = CuFeedbackSignal.objects.get(code='FB_TORQUE_4_20MA')
-        self.assertEqual(torque_analog.role, 'TORQUE_ANALOG')
+        self.assertEqual(torque_analog.role.code, 'TORQUE_ANALOG')
         self.assertEqual(torque_analog.category, 'analog')
         self.assertEqual(torque_analog.form.code, 'AN_4_20_ACTIVE')
 

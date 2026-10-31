@@ -250,10 +250,7 @@ const MODEL_CONFIGS = [
     columns: ['code', 'name', 'category', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
-      F('category', 'Категория', 'select', { choices: [
-        ['dry_input', 'Сухой контакт (внутренний опрос БУ)'],
-        ['voltage_ac', 'Потенциал AC'], ['voltage_dc', 'Потенциал DC'],
-        ['current_4_20', 'Токовая петля 4–20 мА']] }),
+      F('category', 'Категория', 'select', { source: 'signal-form-categories' }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],
@@ -263,10 +260,7 @@ const MODEL_CONFIGS = [
     columns: ['code', 'name', 'category', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
-      F('category', 'Категория', 'select', { choices: [
-        ['dry_output', 'Сухой контакт (выход реле)'],
-        ['current_4_20', 'Токовая петля 4–20 мА'],
-        ['resistance', 'Сопротивление (потенциометр)']] }),
+      F('category', 'Категория', 'select', { source: 'signal-form-categories' }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],
@@ -276,13 +270,7 @@ const MODEL_CONFIGS = [
     columns: ['code', 'name', 'role', 'category', 'form', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
-      F('role', 'Роль', 'select', { choices: [
-        ['CMD_OCS', 'О/С/З'], ['CMD_REMOTE', 'Дистанционное упр.'],
-        ['CMD_LOCK', 'Блокировка'], ['CMD_MANUAL_OVERRIDE', 'Ручное дублирование'],
-        ['CMD_4_20MA', 'Уставка 4–20 мА'], ['CMD_0_10V', 'Уставка 0–10 В'],
-        ['CMD_EMERGENCY_OPEN', 'Аварийное «Открыть»'], ['CMD_EMERGENCY_CLOSE', 'Аварийное «Закрыть»'],
-        ['MODE', 'Переключение режима'], ['INTERLOCK_OPEN', 'Блокировка «Открыть»'],
-        ['INTERLOCK_CLOSE', 'Блокировка «Закрыть»'], ['DRIVE_ENABLE', 'Разрешение хода']] }),
+      F('role', 'Роль', 'select', { source: 'control-signal-roles' }),
       F('category', 'Категория', 'select', { choices: [
         ['discrete', 'Дискретный'], ['analog', 'Аналоговый']] }),
       F('form', 'Форма', 'select', { source: 'control-signal-forms' }),
@@ -296,20 +284,11 @@ const MODEL_CONFIGS = [
     columns: ['code', 'name', 'role', 'category', 'form', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
-      F('role', 'Роль', 'select', { choices: [
-        ['END_OPEN', 'Конечное «Открыто»'], ['END_CLOSE', 'Конечное «Закрыто»'],
-        ['WAY_OPEN', 'Промежуточное (открытие)'], ['WAY_CLOSE', 'Промежуточное (закрытие)'],
-        ['TORQUE_OPEN', 'Моментный «Открыто»'], ['TORQUE_CLOSE', 'Моментный «Закрыто»'],
-        ['POSITION', 'Положение (аналог)'], ['OVERHEAT', 'Перегрев'],
-        ['TURN_COUNTER', 'Счётчик оборотов'], ['ALARM', 'Авария'], ['READY', 'Готовность'],
-        ['TORQUE_ANALOG', 'Аналоговый момент'], ['STOP', 'Останов'],
-        ['LOCAL_REMOTE', 'Местное/удалённое'], ['SELECTOR_POSITION', 'Положение селектора'],
-        ['PHASE_LOSS', 'Потеря фазы']] }),
+      F('role', 'Роль', 'select', { source: 'feedback-signal-roles' }),
       F('category', 'Категория', 'select', { choices: [
         ['contact', 'Контакт'], ['analog', 'Аналоговый']] }),
       F('form', 'Форма', 'select', { source: 'feedback-signal-forms' }),
-      F('contact_normal', 'Норма контакта', 'select', { choices: [
-        ['NO', 'NO'], ['NC', 'NC'], ['CHANGEOVER', 'Перекидной']] }),
+      F('contact_normal', 'Норма контакта', 'select', { source: 'contact-normals' }),
       F('hart', 'HART', 'bool'),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
@@ -320,8 +299,7 @@ const MODEL_CONFIGS = [
     columns: ['code', 'name', 'transport', 'sorting_order', 'is_active'],
     fields: [
       F('code', 'Код'), F('name', 'Название'),
-      F('transport', 'Транспорт', 'select', { choices: [
-        ['RS485', 'RS-485'], ['ETHERNET', 'Ethernet'], ['OTHER', 'Прочее']] }),
+      F('transport', 'Транспорт', 'select', { source: 'protocol-transports' }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],
@@ -359,11 +337,7 @@ const MODEL_CONFIGS = [
       F('source', 'Источник', 'select', { source: 'signal-power-sources' }),
       F('power_supply', 'Напряжение', 'select', { source: 'power_supplies' }),
       F('input_form', 'Форма входных цепей', 'select', { source: 'control-signal-forms' }),
-      F('polarity', 'Полярность', 'select', { choices: [
-        ['PNP', 'PNP — плюс-управление (активный высокий)'],
-        ['NPN', 'NPN — минус-управление (активный низкий)'],
-        ['BIDIRECTIONAL', 'Двунаправленный (DC, любая полярность)'],
-        ['NOT_APPLICABLE', 'Не применимо (AC или сухой контакт)']] }),
+      F('polarity', 'Полярность', 'select', { source: 'polarities' }),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
     ],

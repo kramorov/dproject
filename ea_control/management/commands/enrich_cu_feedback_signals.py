@@ -62,10 +62,16 @@ class Command(BaseCommand):
         out = {}
         for code, (name, category) in specs.items():
             out[code], _ = CuFeedbackSignalForm.objects.get_or_create(
-                code=code, defaults={'name': name, 'category': category})
+                code=code,
+                defaults={'name': name, 'category': self._form_category(category)})
         return out
 
     # ── Канонический набор сигналов ──────────────────────────────────────
+    def _form_category(self, code):
+        from electric_actuators.models import EaSignalFormCategory
+        return EaSignalFormCategory.objects.get_or_create(
+            code=code, defaults={'name': code})[0]
+
     def _role(self, code):
         from electric_actuators.models import EaFeedbackSignalRole
         return EaFeedbackSignalRole.objects.get_or_create(
@@ -200,6 +206,11 @@ class Command(BaseCommand):
         return merged
 
     def _rename(self, old_code, new_code, **updates):
+        if updates.get('role') and not hasattr(updates['role'], 'pk'):
+            updates['role'] = self._role(updates['role'])
+        if updates.get('contact_normal') and not hasattr(
+                updates['contact_normal'], 'pk'):
+            updates['contact_normal'] = self._normal(updates['contact_normal'])
         old = CuFeedbackSignal.objects.filter(code=old_code).first()
         if not old:
             return None

@@ -23,4 +23,10 @@ class Migration(migrations.Migration):
             name='model_body',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='cg_set_options_through', to='electric_actuators.electricactuatorbody', verbose_name='Модель корпуса'),
         ),
+        # Возвращаем FK (снят в 0030), теперь ссылающийся на parent-link PK.
+        migrations.AddField(
+            model_name='electricactuatorselected',
+            name='selected_cable_glands_holes',
+            field=models.ForeignKey(blank=True, help_text='Отверстия под кабельные вводы', null=True, on_delete=django.db.models.deletion.SET_NULL, to='electric_actuators.cableglandholessetbodyoption', verbose_name='Кабельные вводы'),
+        ),
     ]

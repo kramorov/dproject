@@ -57,27 +57,55 @@ class CuConfigTestCase(TestCase):
             code='POTENTIOMETER', defaults=dict(name='Потенциометрический'))[0]
         cls.cu_kind = ControlUnitKind.objects.get_or_create(
             code='INTEGRATED', defaults=dict(name='Интеллектуальный'))[0]
+        # Общие справочники ЭП (категории/роли/норма/транспорт) + CuPolarity.
+        from electric_actuators.models import (EaSignalFormCategory,
+                                               EaControlSignalRole,
+                                               EaFeedbackSignalRole,
+                                               EaContactNormal,
+                                               EaProtocolTransport)
+        from ea_control.models.cu_power import CuPolarity
+        cls.cat_dry_output = EaSignalFormCategory.objects.get_or_create(
+            code='dry_output',
+            defaults=dict(name='Сухой контакт (выход реле)'))[0]
+        cls.cat_4_20 = EaSignalFormCategory.objects.get_or_create(
+            code='current_4_20', defaults=dict(name='Токовая петля 4–20 мА'))[0]
+        cls.role_cmd_ocs = EaControlSignalRole.objects.get_or_create(
+            code='CMD_OCS',
+            defaults=dict(name='Команда Открыть/Стоп/Закрыть'))[0]
+        cls.role_end_open = EaFeedbackSignalRole.objects.get_or_create(
+            code='END_OPEN',
+            defaults=dict(name='Конечное положение «Открыто»'))[0]
+        cls.role_alarm = EaFeedbackSignalRole.objects.get_or_create(
+            code='ALARM', defaults=dict(name='Авария'))[0]
+        cls.normal_changeover = EaContactNormal.objects.get_or_create(
+            code='CHANGEOVER', defaults=dict(name='Перекидной'))[0]
+        cls.transport_rs485 = EaProtocolTransport.objects.get_or_create(
+            code='rs485', defaults=dict(name='RS-485'))[0]
+        cls.polarity_na = CuPolarity.objects.get_or_create(
+            code='NOT_APPLICABLE', defaults=dict(name='Не применимо'))[0]
         # Идемпотентно: get_or_create, а не create — рабочая БД может быть уже
         # засеяна seed_cu_demo с теми же кодами (иначе при перекопировании
         # db.sqlite3 → test_db.sqlite3 падает IntegrityError).
         cls.form_dry = CuFeedbackSignalForm.objects.get_or_create(
             code='DRY_SPDT',
-            defaults=dict(name='Сухой контакт SPDT', category='dry_output'))[0]
+            defaults=dict(name='Сухой контакт SPDT',
+                          category=cls.cat_dry_output))[0]
         cls.form_analog = CuFeedbackSignalForm.objects.get_or_create(
             code='AN_4_20_ACTIVE',
-            defaults=dict(name='Петля 4-20 активная', category='current_4_20'))[0]
+            defaults=dict(name='Петля 4-20 активная',
+                          category=cls.cat_4_20))[0]
         cls.ctrl_signal = CuControlSignal.objects.get_or_create(
             code='CMD_OCS',
-            defaults=dict(name='Команда О/С/З', role='CMD_OCS',
+            defaults=dict(name='Команда О/С/З', role=cls.role_cmd_ocs,
                           category='discrete'))[0]
         cls.fb_signal = CuFeedbackSignal.objects.get_or_create(
             code='FB_END_OPEN_SPDT',
-            defaults=dict(name='Конечное «Открыто», SPDT', role='END_OPEN',
+            defaults=dict(name='Конечное «Открыто», SPDT', role=cls.role_end_open,
                           category='contact', form=cls.form_dry,
-                          contact_normal='CHANGEOVER'))[0]
+                          contact_normal=cls.normal_changeover))[0]
         cls.protocol = CuCommProtocol.objects.get_or_create(
             code='MODBUS_RTU',
-            defaults=dict(name='Modbus RTU', transport='RS485'))[0]
+            defaults=dict(name='Modbus RTU', transport=cls.transport_rs485))[0]
         cls.device = CuFeedbackDevice.objects.get_or_create(
             code='POT_1K',
             defaults=dict(name='Потенциометр 1кОм', kind=cls.device_kind,
@@ -92,7 +120,7 @@ class CuConfigTestCase(TestCase):
             code='EXTERNAL', defaults=dict(name='Внешний'))[0]
         cls.signal_power = CuSignalPower.objects.get_or_create(
             source=cls.source, power_supply=cls.power,
-            input_form=None, polarity='NOT_APPLICABLE',
+            input_form=None, polarity=cls.polarity_na,
             defaults=dict(name='Внешний 220'))[0]
         cls.logic = CuControlLogic.objects.get_or_create(
             code='IMPULSE',
@@ -217,8 +245,8 @@ class CuMatrixEntryTests(CuConfigTestCase):
 
     def test_device_must_emit_feedback_signal(self):
         other = CuFeedbackSignal.objects.create(
-            code='FB_OTHER', name='Другой', role='ALARM', category='contact',
-            form=self.form_dry)
+            code='FB_OTHER', name='Другой', role=self.role_alarm,
+            category='contact', form=self.form_dry)
         row = self._row(feedback_signal=other, device=self.device)
         with self.assertRaises(ValidationError):
             row.full_clean()

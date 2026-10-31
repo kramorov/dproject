@@ -10,6 +10,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Сначала снимаем FK из electricactuatorselected на через-модель:
+        # иначе SQLite падает «foreign key mismatch» при удалении id
+        # (ребёнок ссылается на колонку, которой больше нет).
+        migrations.RemoveField(
+            model_name='electricactuatorselected',
+            name='selected_cable_glands_holes',
+        ),
         migrations.RemoveField(
             model_name='cableglandholessetbodyoption',
             name='description',

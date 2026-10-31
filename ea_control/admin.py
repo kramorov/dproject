@@ -21,6 +21,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
                                ControlUnitKind, CuSectionNode)
+from ea_control.models.cu_power import CuPolarity
 
 
 class _DictAdmin(admin.ModelAdmin):
@@ -126,6 +127,11 @@ class CuControlLogicAdmin(_DictAdmin):
 
 @admin.register(ControlUnitKind)
 class ControlUnitKindAdmin(_DictAdmin):
+    pass
+
+
+@admin.register(CuPolarity)
+class CuPolarityAdmin(_DictAdmin):
     pass
 
 

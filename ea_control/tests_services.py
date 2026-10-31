@@ -475,29 +475,32 @@ class CuReviewFixTests(TestCase):
         """L2: пары без формы входа уникальны (условный constraint)."""
         from django.db import IntegrityError, transaction
         from params.models import PowerSupplies
-        from ea_control.models import CuSignalPower, CuSignalPowerSource
+        from ea_control.models import (CuPolarity, CuSignalPower,
+                                       CuSignalPowerSource)
         source = CuSignalPowerSource.objects.get(code='EXTERNAL')
         ps = PowerSupplies.objects.first()
+        polarity = CuPolarity.objects.get(code='NOT_APPLICABLE')
         CuSignalPower.objects.create(
             source=source, power_supply=ps, input_form=None,
-            polarity='NOT_APPLICABLE', name='X')
+            polarity=polarity, name='X')
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 CuSignalPower.objects.create(
                     source=source, power_supply=ps, input_form=None,
-                    polarity='NOT_APPLICABLE', name='Y')
+                    polarity=polarity, name='Y')
 
     def test_dry_input_requires_internal_source(self):
         """L3: сухой контакт (внутренний опрос) — только встроенный источник."""
         from django.core.exceptions import ValidationError
         from params.models import PowerSupplies
-        from ea_control.models import (CuControlSignalForm, CuSignalPower,
-                                       CuSignalPowerSource)
+        from ea_control.models import (CuControlSignalForm, CuPolarity,
+                                       CuSignalPower, CuSignalPowerSource)
         ext = CuSignalPowerSource.objects.get(code='EXTERNAL')
         dry = CuControlSignalForm.objects.get(code='DRY_INPUT')
         pair = CuSignalPower(
             source=ext, power_supply=PowerSupplies.objects.first(),
-            input_form=dry, polarity='NOT_APPLICABLE', name='X')
+            input_form=dry, polarity=CuPolarity.objects.get(code='NOT_APPLICABLE'),
+            name='X')
         with self.assertRaises(ValidationError):
             pair.full_clean()
 
@@ -521,7 +524,7 @@ class CuDictionaryCrudTests(TestCase):
         sig = CuControlSignal.objects.get(code='CMD_4_20MA')
         form = CuControlSignalForm.objects.get(code='AN_4_20_PASSIVE')
         payload = {
-            'code': sig.code, 'name': sig.name, 'role': sig.role,
+            'code': sig.code, 'name': sig.name, 'role': sig.role_id,
             'category': sig.category, 'form': form.id,
             'hart': sig.hart, 'description': sig.description,
             'sorting_order': sig.sorting_order, 'is_active': sig.is_active,

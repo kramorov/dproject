@@ -351,25 +351,7 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 
 ## 4. Ближайшие действия
 
-1. **Завершить рефакторинг «TextChoices → справочники».** Модели, миграции,
-   сиды и данные уже переведены на FK (см. §2); осталась обвязка:
-   - тесты: перевести строковые значения на FK-объекты в
-     `ea_control/tests.py`, `ea_control/tests_enrich_feedback.py`,
-     `ea_control/tests_services.py`, `electric_actuators/tests.py` (сейчас
-     10 тестов падают: строковые значения на FK-полях);
-   - `ea_control/admin.py`: зарегистрировать `CuPolarity` (`ControlUnitKind`
-     уже зарегистрирован);
-   - `djangoProject1/admin_site.py`: привязать `EaSignalFormCategory`,
-     `EaControlSignalRole`, `EaFeedbackSignalRole`, `EaContactNormal`,
-     `EaProtocolTransport`, `CuPolarity` к блоку `'ea_control'`;
-   - фронт `EaControlAdminPage.vue`: хардкод-`choices` → `source`-селекты
-     (`signal-form-categories`, `control-signal-roles`,
-     `feedback-signal-roles`, `contact-normals`, `protocol-transports`,
-     `polarities`) и выдать новые справочники через `meta/` (или generic
-     CRUD);
-   - проверка: тесты `ea_control` (+ `electric_actuators`), `makemigrations`
-     dry-run (сейчас «No changes»), сборка фронта.
-2. **Привязка БУ к model_line_item (опция со своей кодировкой).** После
+1. **Привязка БУ к model_line_item (опция со своей кодировкой).** После
    удаления `control_voltage`/`signal_power`/`location` из ControlUnit БУ стал
    чисто «описанием сигналов и датчиков», пригодным для разных моделей и
    напряжений серии. Привязку делаем отдельно: БУ доступен для конкретной
@@ -379,25 +361,31 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    (ControlUnit), а не к legacy-справочнику. Требует выработки: сущность
    привязки, кодировка (вклад в артикул), приоритет строк, обратная
    совместимость с `series-units` (серия × напряжение → набор БУ).
-3. Вывести nullable-числовые поля физики в редактор справочников
+2. Вывести nullable-числовые поля физики в редактор справочников
    (`control-signals`/`feedback-signals`): формы намеренно не показывают
    `current` (CuControlSignal) и `max_voltage`/`max_current`/
    `resistance_kohm`/`max_power_w`/`turns`/`wires` (CuFeedbackSignal) —
    generic-сохранение (`save()` в `EaControlAdminPage.vue`) превращает пустое
    число в `0` и портит `null`. Нужна аккуратная обработка пустого значения:
    для nullable-числовых полей отправлять `null`, а не `0`.
-4. Проверить визуально: /admin/ea-control → Конфигуратор опций (слоты CMD_*),
+3. Проверить визуально: /admin/ea-control → Конфигуратор опций (слоты CMD_*),
    Редактор БУ (матрица с CMD_WIRING/сигнальными слотами), Справочники
    (формы, полярность), Превью БУ (выбор схемы цепей → перерезолв набора
    сигналов), Описание БУ.
-5. Прогнать `cd frontend; npm run build`.
-6. Полировка: переименовать `EaControlStructurePage.vue` /
+4. Прогнать `cd frontend; npm run build`.
+5. Полировка: переименовать `EaControlStructurePage.vue` /
    `EaControlConfiguratorPage.vue` (убрать суффикс «Page», т.к. это
    компоненты); починить локаль превью (`route.meta.locale` → глобальная
    локаль из i18n).
-7. Описать остальные БУ по `bu_template.md` в новой структуре сигналов;
+6. Описать остальные БУ по `bu_template.md` в новой структуре сигналов;
    уточнить количества отверстий демо-наборов M20/M25/PG16 (сейчас
    placeholder — 3 шт.).
+
+Выполнено 2026-10-31: рефакторинг «TextChoices → справочники» доведён до
+конца — тесты на FK-объектах (ea_control и electric_actuators: 108/108),
+`CuPolarity` зарегистрирован в админке, новые справочники привязаны в
+`admin_site.py` к блоку 'ea_control', фронт переведён на `source`-селекты
+(справочники выдаются generic CRUD).
 
 ---
 
@@ -428,3 +416,13 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    слот хранится одно правило (exact > in > not_in); несколько правил разного
    действия/приоритета на одном слоте невыразимы. Кандидат после проверки
    пользователем — возможно, сложность не понадобится.
+10. **Починка свежей цепочки миграций (fresh-установка).** Частично сделано
+    2026-10-31: `electric_actuators/0030` (снятие FK перед удалением id
+    через-модели), `electric_actuators/0031` (возврат FK на parent-link PK),
+    `options/0002` (дубль CreateModel убран). Дальше падает
+    `pa_controls/0050_posi_feedback_seed` — data-миграция ищет словари
+    (ContactForm/ContactState/SignalType/LimitSwitchSensorVariety) через
+    `.first()`, на свежей БД их ещё нет — нужно get_or_create внутри
+    миграции. После — прогнать полный `migrate` на scratch-БД до конца и
+    фиксить следующие сломанные звенья (тест `electric_actuators` на свежей
+    БД — контрольная точка).

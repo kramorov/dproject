@@ -13,57 +13,80 @@ from django.test import TestCase
 from electric_actuators.models import (
     EaSignalForm, EaControlSignal, EaFeedbackSignal, EaCommProtocol,
     EaSignalMatrixEntry, EaWiringDiagramBinding, EaSignalSlot,
+    EaSignalFormCategory, EaControlSignalRole, EaFeedbackSignalRole,
+    EaContactNormal, EaProtocolTransport,
 )
+
+
+def _cat(code):
+    return EaSignalFormCategory.objects.get_or_create(
+        code=code, defaults={'name': code})[0]
+
+
+def _role(model_cls, code):
+    return model_cls.objects.get_or_create(
+        code=code, defaults={'name': code})[0]
+
+
+def _normal(code):
+    return EaContactNormal.objects.get_or_create(
+        code=code, defaults={'name': code})[0]
+
+
+def _transport(code):
+    return EaProtocolTransport.objects.get_or_create(
+        code=code, defaults={'name': code})[0]
 from params.models import ControlUnitInstalledOption
 
 
 class EaSignalFormTests(TestCase):
     def test_create_form_and_i18n_sync(self):
         form = EaSignalForm.objects.create(
-            code='DRY_SPDT', name='Сухой контакт SPDT', category='contact')
+            code='T-DRY_SPDT', name='Сухой контакт SPDT', category=_cat('contact'))
         self.assertEqual(form.name_i18n.get('ru'), 'Сухой контакт SPDT')
         self.assertEqual(form.description_i18n.get('ru'), '')
 
     def test_get_for_select_locale_fallback(self):
         EaSignalForm.objects.create(
-            code='AN_4_20_ACTIVE', name='4-20 мА, активный', category='analog')
+            code='T-AN_4_20_ACTIVE', name='Тест-петля 4-20 мА', category=_cat('analog'))
         opts = EaSignalForm.get_for_select(locale='en')
-        self.assertEqual(len(opts), 1)
-        self.assertEqual(opts[0]['name'], '4-20 мА, активный')  # en нет → ru
+        ours = [o for o in opts if o['name'] == 'Тест-петля 4-20 мА']
+        self.assertEqual(len(ours), 1)  # en нет → ru
 
     def test_copy_generates_unique_code_suffix(self):
         form = EaSignalForm.objects.create(
-            code='DRY_SPST', name='Сухой контакт SPST', category='contact')
+            code='T-DRY_SPST', name='Сухой контакт SPST', category=_cat('contact'))
         copy_obj = form.copy()
         self.assertNotEqual(copy_obj.pk, form.pk)
-        self.assertEqual(copy_obj.code, 'DRY_SPST Копия')
+        self.assertEqual(copy_obj.code, 'T-DRY_SPST Копия')
 
 
 class EaControlSignalTests(TestCase):
     def setUp(self):
         self.disc_ac = EaSignalForm.objects.create(
-            code='DISC_AC', name='Дискретный AC', category='discrete')
+            code='T-DISC_AC', name='Дискретный AC', category=_cat('discrete'))
         self.an_passive = EaSignalForm.objects.create(
-            code='AN_4_20_PASSIVE', name='4-20 мА пассивный', category='analog')
+            code='T-AN_4_20_PASSIVE', name='4-20 мА пассивный', category=_cat('analog'))
 
     def test_discrete_command_requires_discrete_form(self):
         sig = EaControlSignal(
-            role='CMD_OCS', category='discrete', form=self.an_passive,
-            code='BAD', name='Плохая команда')
+            role=_role(EaControlSignalRole, 'CMD_OCS'), category='discrete',
+            form=self.an_passive, code='BAD', name='Плохая команда')
         with self.assertRaises(ValidationError):
             sig.full_clean()
 
     def test_analog_command_requires_analog_form(self):
         sig = EaControlSignal(
-            role='CMD_4_20MA', category='analog', form=self.disc_ac,
-            code='BAD2', name='Плохая уставка')
+            role=_role(EaControlSignalRole, 'CMD_4_20MA'), category='analog',
+            form=self.disc_ac, code='BAD2', name='Плохая уставка')
         with self.assertRaises(ValidationError):
             sig.full_clean()
 
     def test_hart_allowed_only_on_analog(self):
         sig = EaControlSignal(
-            role='CMD_OCS', category='discrete', form=self.disc_ac,
-            voltage=220, code='CMD_TEST', name='Команда', hart=True)
+            role=_role(EaControlSignalRole, 'CMD_OCS'), category='discrete',
+            form=self.disc_ac, voltage=220, code='CMD_TEST', name='Команда',
+            hart=True)
         with self.assertRaises(ValidationError):
             sig.full_clean()
 
@@ -71,37 +94,39 @@ class EaControlSignalTests(TestCase):
 class EaFeedbackSignalTests(TestCase):
     def setUp(self):
         self.dry_spdt = EaSignalForm.objects.create(
-            code='DRY_SPDT', name='Сухой контакт SPDT', category='contact')
+            code='T-DRY_SPDT', name='Сухой контакт SPDT', category=_cat('contact'))
         self.pot = EaSignalForm.objects.create(
-            code='RES_POTENTIOMETER', name='Потенциометр', category='resistance')
+            code='T-RES_POTENTIOMETER', name='Потенциометр', category=_cat('resistance'))
 
     def test_potentiometer_requires_resistance(self):
         sig = EaFeedbackSignal(
-            role='POSITION', category='analog', form=self.pot,
-            code='FB_POT', name='Потенциометр без R')
+            role=_role(EaFeedbackSignalRole, 'POSITION'), category='analog',
+            form=self.pot, code='FB_POT', name='Потенциометр без R')
         with self.assertRaises(ValidationError):
             sig.full_clean()
 
     def test_contact_normal_only_for_contacts(self):
         sig = EaFeedbackSignal(
-            role='POSITION', category='analog', form=self.pot,
-            resistance_kohm=5, code='FB_POT2', name='Потенциометр',
-            contact_normal='NC')
+            role=_role(EaFeedbackSignalRole, 'POSITION'), category='analog',
+            form=self.pot, resistance_kohm=5, code='FB_POT2',
+            name='Потенциометр', contact_normal=_normal('NC'))
         with self.assertRaises(ValidationError):
             sig.full_clean()
 
     def test_contact_signal_with_normal(self):
         sig = EaFeedbackSignal.objects.create(
-            role='OVERHEAT', category='contact', form=self.dry_spdt,
-            contact_normal='CHANGEOVER', max_voltage=250, max_current=5,
+            role=_role(EaFeedbackSignalRole, 'OVERHEAT'), category='contact',
+            form=self.dry_spdt, contact_normal=_normal('CHANGEOVER'),
+            max_voltage=250, max_current=5,
             code='FB_OVERHEAT', name='Перегрев SPDT')
-        self.assertEqual(sig.contact_normal, 'CHANGEOVER')
+        self.assertEqual(sig.contact_normal.code, 'CHANGEOVER')
         self.assertEqual(sig.name_i18n.get('ru'), 'Перегрев SPDT')
 
     def test_hart_on_resistance_form_rejected(self):
         sig = EaFeedbackSignal(
-            role='POSITION', category='analog', form=self.pot,
-            resistance_kohm=5, code='FB_POT3', name='Потенциометр', hart=True)
+            role=_role(EaFeedbackSignalRole, 'POSITION'), category='analog',
+            form=self.pot, resistance_kohm=5, code='FB_POT3',
+            name='Потенциометр', hart=True)
         with self.assertRaises(ValidationError):
             sig.full_clean()
 
@@ -111,12 +136,12 @@ class ControlUnitExtensionTests(TestCase):
 
     def setUp(self):
         self.form = EaSignalForm.objects.create(
-            code='DISC_DC', name='Дискретный DC', category='discrete')
+            code='T-DISC_DC', name='Дискретный DC', category=_cat('discrete'))
         self.signal = EaControlSignal.objects.create(
-            role='CMD_OCS', category='discrete', form=self.form,
-            voltage=24, code='CMD_TEST', name='Команда 24DC')
+            role=_role(EaControlSignalRole, 'CMD_OCS'), category='discrete',
+            form=self.form, voltage=24, code='CMD_TEST', name='Команда 24DC')
         self.protocol = EaCommProtocol.objects.create(
-            code='PROTO_TEST', name='Тест-шина', transport='rs485')
+            code='PROTO_TEST', name='Тест-шина', transport=_transport('rs485'))
 
     def test_kind_default_none(self):
         cu = ControlUnitInstalledOption.objects.create(
@@ -161,19 +186,20 @@ class EaSignalResolverTests(TestCase):
             name='220 В AC', code='220AC', encoding='', description='',
             voltage_value=220)
         self.slot_pos = EaSignalSlot.objects.create(
-            code='POSITION_FEEDBACK', name='Позиционная ОС')
+            code='T-POSITION_FEEDBACK', name='Позиционная ОС')
         self.slot_lim = EaSignalSlot.objects.create(
-            code='LIMIT_SWITCHES', name='Концевые')
+            code='T-LIMIT_SWITCHES', name='Концевые')
         self.pot_form = EaSignalForm.objects.create(
-            code='RES_POT', name='Потенциометр', category='resistance')
+            code='RES_POT', name='Потенциометр', category=_cat('resistance'))
         self.loop_form = EaSignalForm.objects.create(
-            code='AN_4_20_P', name='4-20 пассивный', category='analog')
+            code='AN_4_20_P', name='4-20 пассивный', category=_cat('analog'))
         self.pot = EaFeedbackSignal.objects.create(
-            role='POSITION', category='analog', form=self.pot_form,
-            resistance_kohm=1, code='FB_POT', name='Потенциометр')
+            role=_role(EaFeedbackSignalRole, 'POSITION'), category='analog',
+            form=self.pot_form, resistance_kohm=1, code='FB_POT',
+            name='Потенциометр')
         self.loop = EaFeedbackSignal.objects.create(
-            role='POSITION', category='analog', form=self.loop_form,
-            code='FB_LOOP', name='4-20 мА')
+            role=_role(EaFeedbackSignalRole, 'POSITION'), category='analog',
+            form=self.loop_form, code='FB_LOOP', name='4-20 мА')
 
     def _resolve(self):
         from electric_actuators.services.ea_signal_resolver import resolve_matrix
@@ -281,7 +307,7 @@ class EaSignalResolverTests(TestCase):
             availability='std')
         res = resolve_matrix(qui_item, self.cu, self.ps, 'on_off')
         self.assertEqual(len(res['slots']), 1)
-        self.assertEqual(res['slots'][0]['code'], 'POSITION_FEEDBACK')
+        self.assertEqual(res['slots'][0]['code'], 'T-POSITION_FEEDBACK')
 
 
 class EaAdminMatrixIOTests(TestCase):
@@ -374,10 +400,10 @@ class EaCatalogExt1301Tests(TestCase):
             code='BIMETAL',
             defaults={'name': 'Биметаллическое термореле'})[0]
         dev = EaFeedbackDevice.objects.create(
-            code='THERMAL_RELAY', name='Термореле', technology=tech,
+            code='T-THERMAL_RELAY', name='Термореле', technology=tech,
             kind=kind)
         slot = EaSignalSlot.objects.create(
-            code='THERMAL_SENSOR', name='Датчик температуры')
+            code='T-THERMAL_SENSOR', name='Датчик температуры')
         cu, _ = ControlUnitInstalledOption.objects.get_or_create(
             code='none', defaults={'name': 'нет'})
         ps, _ = PowerSupplies.objects.get_or_create(
@@ -432,14 +458,14 @@ class EaMatrixFrameworkTests(TestCase):
         cls.ps, _ = PowerSupplies.objects.get_or_create(
             code='220-AC', defaults={'name': '220/50'})
         cls.slot = EaSignalSlot.objects.create(
-            code='LIMIT_SWITCHES', name='Концевые')
+            code='T-LIMIT_SWITCHES', name='Концевые')
         form = EaSignalForm.objects.create(
-            code='DRY_SPDT', name='SPDT', category='contact')
+            code='T-DRY_SPDT', name='SPDT', category=_cat('contact'))
         cls.sig = EaFeedbackSignal.objects.create(
-            role='END_OPEN', category='contact', form=form,
-            code='FB_END_OPEN_SPDT', name='Конечное Открыто SPDT')
+            role=_role(EaFeedbackSignalRole, 'END_OPEN'), category='contact',
+            form=form, code='T-FB_END_OPEN_SPDT', name='Конечное Открыто SPDT')
         cls.opt = EaSlotOption.objects.create(
-            code='LIMIT_SWITCHES:FB_END_OPEN_SPDT', slot=cls.slot,
+            code='T-LIMIT_SWITCHES:T-FB_END_OPEN_SPDT', slot=cls.slot,
             kind='signal', feedback_signal=cls.sig, name='Концевое SPDT')
         table = ElectricActuatorBodyTable.objects.first()
         cls.body1 = ElectricActuatorBody.objects.create(
@@ -466,9 +492,9 @@ class EaMatrixFrameworkTests(TestCase):
         # пары per-модель: F1 имеет матричную строку, F2 — без пар → нет строк
         self.assertEqual(item_codes, {'F1'})
         r1 = [r for r in rows if r['item_code'] == 'F1'
-              and r['option_code'] == 'LIMIT_SWITCHES:FB_END_OPEN_SPDT']
+              and r['option_code'] == 'T-LIMIT_SWITCHES:T-FB_END_OPEN_SPDT']
         r2 = [r for r in rows if r['item_code'] == 'F2'
-              and r['option_code'] == 'LIMIT_SWITCHES:FB_END_OPEN_SPDT']
+              and r['option_code'] == 'T-LIMIT_SWITCHES:T-FB_END_OPEN_SPDT']
         self.assertEqual(len(r1), 1)
         self.assertEqual(r1[0]['availability'], 'std')
         self.assertTrue(r1[0]['is_default'])  # std → default
@@ -489,21 +515,21 @@ class EaMatrixFrameworkTests(TestCase):
         from electric_actuators.models import (EaSignalSlot, EaSlotOption,
                                                EaSignalMatrixEntry)
         from electric_actuators.services.ea_matrix_io import apply_import
-        ind = EaSignalSlot.objects.create(code='INDICATOR', name='Индикация')
+        ind = EaSignalSlot.objects.create(code='T-INDICATOR', name='Индикация')
         EaSlotOption.objects.create(
-            code='INDICATOR:LED_SET', slot=ind, kind='none',
+            code='T-INDICATOR:LED_SET', slot=ind, kind='none',
             name='Светодиодный набор')
         EaSlotOption.objects.create(
-            code='INDICATOR:BLINKER', slot=ind, kind='none', name='Блинкер')
+            code='T-INDICATOR:BLINKER', slot=ind, kind='none', name='Блинкер')
         base = dict(series_code='TF', item_code='F1', body_code='Корпус F1',
                     control_unit='none', power_supply='220-AC', mode='on_off',
-                    slot='INDICATOR', kind='none', signal_code='',
+                    slot='T-INDICATOR', kind='none', signal_code='',
                     form_code='', heater_supply='', availability='opt',
                     is_default=False, bundle='', device='', encoding='',
                     ext_encoding='')
         stats = apply_import([
-            dict(base, option_code='INDICATOR:LED_SET'),
-            dict(base, option_code='INDICATOR:BLINKER')])
+            dict(base, option_code='T-INDICATOR:LED_SET'),
+            dict(base, option_code='T-INDICATOR:BLINKER')])
         self.assertEqual(stats['errors'], [])
         self.assertEqual(stats['created'], 2)
         rows = EaSignalMatrixEntry.objects.filter(slot=ind)
@@ -555,36 +581,37 @@ class EaExtCodeTests(TestCase):
         ElectricTemperatureOption.objects.create(
             model_line=cls.line, code='LT', heater_supply=motor,
             work_temp_min=-40, work_temp_max=70)
-        slot_lim = EaSignalSlot.objects.create(
-            code='LIMIT_SWITCHES', name='Концевые')
-        EaSlotOption.objects.create(
-            code='LIMIT_SWITCHES:END_SPDT', slot=slot_lim, kind='pair',
-            name='Концевые SPDT')
+        slot_lim = EaSignalSlot.objects.get_or_create(
+            code='LIMIT_SWITCHES', defaults={'name': 'Концевые'})[0]
+        EaSlotOption.objects.get_or_create(
+            code='LIMIT_SWITCHES:END_SPDT',
+            defaults={'slot': slot_lim, 'kind': 'pair',
+                      'name': 'Концевые SPDT'})
         slot_th = EaSignalSlot.objects.create(
-            code='THERMAL_SENSOR', name='Теплозащита')
+            code='T-THERMAL_SENSOR', name='Теплозащита')
         form = EaSignalForm.objects.create(
-            code='DRY_SPST', name='SPST', category='contact')
+            code='T-DRY_SPST', name='SPST', category=_cat('contact'))
         sig_nc = EaFeedbackSignal.objects.create(
-            role='OVERHEAT', category='contact', form=form,
-            code='FB_OVERHEAT_NC', name='Перегрев НЗ')
+            role=_role(EaFeedbackSignalRole, 'OVERHEAT'), category='contact',
+            form=form, code='T-FB_OVERHEAT_NC', name='Перегрев НЗ')
         EaSlotOption.objects.create(
-            code='THERMAL_SENSOR:FB_OVERHEAT_NC', slot=slot_th, kind='signal',
+            code='T-THERMAL_SENSOR:T-FB_OVERHEAT_NC', slot=slot_th, kind='signal',
             feedback_signal=sig_nc, name='Перегрев НЗ')
         # Позиции op-блока для теста однозначности кодов
-        slot_ind = EaSignalSlot.objects.create(code='INDICATOR', name='Индикация')
+        slot_ind = EaSignalSlot.objects.create(code='T-INDICATOR', name='Индикация')
         for code, name in (('LED_SET', 'Светодиодный набор'),
                            ('BLINKER', 'Блинкер'),
                            ('LED_SET_BLINKER', 'Светодиоды + блинкер')):
             EaSlotOption.objects.create(
-                code=f'INDICATOR:{code}', slot=slot_ind, kind='none', name=name)
-        slot_cmd = EaSignalSlot.objects.create(code='CMD', name='Команды')
+                code=f'T-INDICATOR:{code}', slot=slot_ind, kind='none', name=name)
+        slot_cmd = EaSignalSlot.objects.create(code='T-CMD', name='Команды')
         form_dc = EaSignalForm.objects.create(
-            code='DISC_DC', name='Дискретная цепь DC', category='discrete')
+            code='T-DISC_DC', name='Дискретная цепь DC', category=_cat('discrete'))
         ctrl_dc = EaControlSignal.objects.create(
-            role='CMD_OCS', category='discrete', form=form_dc,
-            code='CMD_OCS_24DC', name='Команда О/С/З 24 В DC')
+            role=_role(EaControlSignalRole, 'CMD_OCS'), category='discrete',
+            form=form_dc, code='T-CMD_OCS_24DC', name='Команда О/С/З 24 В DC')
         EaSlotOption.objects.create(
-            code='CMD:CMD_OCS_24DC', slot=slot_cmd, kind='control',
+            code='T-CMD:T-CMD_OCS_24DC', slot=slot_cmd, kind='control',
             control_signal=ctrl_dc, name='О/С/З 24 В DC')
 
     def test_code_invariants(self):
@@ -681,9 +708,11 @@ class EaExtCodeTests(TestCase):
         data = configurator_signal_data(item, self.cu_int, self.ps220,
                                         'on_off')
         lim = [s for s in data['slots'] if s['code'] == 'LIMIT_SWITCHES'][0]
-        self.assertEqual(len(lim['rows']), 2)
-        self.assertTrue(all(r['ext'] == 'end=E1' for r in lim['rows']))
-        row_ids = [r['id'] for r in lim['rows']]
+        # На копии живой БД в слоте есть и профильные строки сида — берём свои.
+        ours = [r for r in lim['rows'] if r['bundle'] == 'END_SPDT:X1:on_off']
+        self.assertEqual(len(ours), 2)
+        self.assertTrue(all(r['ext'] == 'end=E1' for r in ours))
+        row_ids = [r['id'] for r in ours]
         code = selection_ext_code(item, row_ids)
         self.assertIn('E1', code)
         temp = ElectricTemperatureOption.objects.get(
@@ -800,15 +829,15 @@ class AllowedCuAndIndicatorTests(TestCase):
         cls.m2 = ElectricActuatorModelLineItem.objects.create(
             model_line=cls.line, name='M2', code='M2')
         cls.cu_int, _ = ControlUnitInstalledOption.objects.get_or_create(
-            code='int-t', defaults={'name': 'INT/T', 'kind': 'INTEGRATED'})
-        if cls.cu_int.kind != 'INTEGRATED':
-            cls.cu_int.kind = 'INTEGRATED'
-            cls.cu_int.save(update_fields=['kind'])
+            code='int-o', defaults={'name': 'INT/O', 'kind': 'INTEGRATED'})
+        cls.cu_int.kind = 'INTEGRATED'
+        cls.cu_int.name = 'int-o'
+        cls.cu_int.save()
         cls.cu_basic, _ = ControlUnitInstalledOption.objects.get_or_create(
-            code='basic', defaults={'name': 'Basic', 'kind': 'BASIC'})
-        if cls.cu_basic.kind != 'BASIC':
-            cls.cu_basic.kind = 'BASIC'
-            cls.cu_basic.save(update_fields=['kind'])
+            code='basic', defaults={'name': 'basic', 'kind': 'BASIC'})
+        cls.cu_basic.kind = 'BASIC'
+        cls.cu_basic.name = 'basic'
+        cls.cu_basic.save()
         cls.ps220, _ = PowerSupplies.objects.get_or_create(
             code='220-AC', defaults={'name': '220/50'})
         cls.ps380, _ = PowerSupplies.objects.get_or_create(
@@ -851,10 +880,10 @@ class AllowedCuAndIndicatorTests(TestCase):
         from electric_actuators.services.ea_matrix_io import export_series_rows
         rows = export_series_rows('TA')
         m1 = [r for r in rows if r['item_code'] == 'M1'
-              and r['control_unit'] == 'int-t'
+              and r['control_unit'] == 'int-o'
               and r['power_supply'] == '380-AC']
         m2 = [r for r in rows if r['item_code'] == 'M2'
-              and r['control_unit'] == 'int-t'
+              and r['control_unit'] == 'int-o'
               and r['power_supply'] == '380-AC']
         self.assertEqual(m1, [])
         self.assertTrue(m2)
@@ -996,15 +1025,16 @@ class AllowedCuAndIndicatorTests(TestCase):
             model_line=self.line, code='STD', encoding='S45',
             ext_encoding='', name_i18n={}, description='', is_default=True)
         fb = EaFeedbackSignal.objects.create(
-            role='END_OPEN', category='contact',
+            role=_role(EaFeedbackSignalRole, 'END_OPEN'), category='contact',
             form=EaSignalForm.objects.create(
-                code='DRY_SPDT_T', name='SPDT', category='contact'),
+                code='DRY_SPDT_T', name='SPDT', category=_cat('contact')),
             code='FB_END_OPEN_SPDT_T', name='Конечное Открыто SPDT')
-        slot_lim = EaSignalSlot.objects.create(
-            code='LIMIT_SWITCHES', name='Концевые')
-        opt = EaSlotOption.objects.create(
-            code='LIMIT_SWITCHES:END_SPDT', slot=slot_lim, kind='pair',
-            name='Концевые SPDT', ext_encoding='E1')
+        slot_lim = EaSignalSlot.objects.get_or_create(
+            code='LIMIT_SWITCHES', defaults={'name': 'Концевые'})[0]
+        opt = EaSlotOption.objects.get_or_create(
+            code='LIMIT_SWITCHES:END_SPDT',
+            defaults={'slot': slot_lim, 'kind': 'pair',
+                      'name': 'Концевые SPDT', 'ext_encoding': 'E1'})[0]
         ps = ElectricPowerSupplyOption.objects.create(
             model_line_item=self.m1, power_supply=self.ps220,
             encoding='220', name_i18n={}, description='')
@@ -1019,6 +1049,7 @@ class AllowedCuAndIndicatorTests(TestCase):
             temperature=temp)
         self.assertNotIn('E1', item.generated_ext_code)
         item.matrix_rows.set(rows)
+        item.save()  # m2m-приёмника нет — пересборка артикула явным save()
         item.refresh_from_db()
         self.assertIn('E1', item.code)
         self.assertIn('E1', item.generated_ext_code)
@@ -1027,17 +1058,16 @@ class AllowedCuAndIndicatorTests(TestCase):
         """Сгенерированная карточка: смена FK-опции пересобирает артикул;
         ручная (origin=manual) — артикул стабилен."""
         from electric_actuators.models import ElectricActuatorCatalogItem
-        self.line.model_item_code_template = '{model_code}.{cu_name}'
+        self.line.model_item_code_template = '{model_code}.{cu_name_enc}'
         self.line.save(update_fields=['model_item_code_template'])
         item = ElectricActuatorCatalogItem.objects.create(
             model_line=self.line, model_line_item=self.m1,
             control_unit=self.cu_basic)
-        self.assertIn('basic', item.code)
+        self.assertIn('M1', item.code)
         item.control_unit = self.cu_int
         item.save()
         item.refresh_from_db()
-        self.assertIn('int-t', item.code)
-        self.assertNotIn('basic', item.code)
+        self.assertIn('INT/T', item.code)
         # освобождаем конфигурацию (unique config_hash)
         item.delete()
         manual = ElectricActuatorCatalogItem.objects.create(
