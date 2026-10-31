@@ -1014,7 +1014,8 @@ class AllowedCuAndIndicatorTests(TestCase):
 
     def test_catalog_item_ext_code_and_article(self):
         """Карточка: ext-код из матричных строк; артикул = шаблон серии + ext;
-        после matrix_rows.set() артикул пересобирается (m2m-приёмник)."""
+        после matrix_rows.set() артикул пересобирается явным save() (m2m-
+        приёмника регенерации нет)."""
         from electric_actuators.models import (
             ElectricActuatorCatalogItem, EaSignalMatrixEntry,
             EaSignalForm, EaFeedbackSignal, ElectricPowerSupplyOption,
