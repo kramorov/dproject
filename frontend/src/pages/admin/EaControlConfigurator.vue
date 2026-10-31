@@ -96,11 +96,10 @@
  * и собранный артикул. Конфликты/пакеты подсвечиваются списком ошибок.
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import api from '@/shared/api'
+import { useI18n } from '@/shared/i18n'
 
-const route = useRoute()
-const locale = computed(() => route.meta.locale || 'ru')
+const { locale } = useI18n()
 
 const meta = reactive({ model_lines: [], power_supplies: [] })
 const modelLine = ref(null)

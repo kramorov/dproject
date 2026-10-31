@@ -111,7 +111,8 @@ class CuMatrixServiceTests(TestCase):
     def test_resolve_control_units_ar11e(self):
         units = resolve_control_units(self.ar11e, power_supply=self.ps380)
         codes = {u['code'] for u in units}
-        self.assertEqual(codes, {'int-n'})  # у AR11E только INT
+        # у AR11E (Q) — INT (SRCU) и вариант LCU (местное управление)
+        self.assertEqual(codes, {'int-n', 'int-l'})
         self.assertTrue(units[0]['is_default'])
 
     def test_profile_defaults_int(self):

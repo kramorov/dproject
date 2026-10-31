@@ -175,8 +175,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
 import { guardedDelete } from '@/shared/guardedDelete'
-import EaControlStructure from './EaControlStructurePage.vue'
-import EaControlConfigurator from './EaControlConfiguratorPage.vue'
+import EaControlStructure from './EaControlStructure.vue'
+import EaControlConfigurator from './EaControlConfigurator.vue'
 import EaControlDescription from './EaControlDescription.vue'
 import EaControlUnitsEditor from './EaControlUnitsEditor.vue'
 import EditorActions from '@/components/EditorActions.vue'
@@ -274,6 +274,8 @@ const MODEL_CONFIGS = [
       F('category', 'Категория', 'select', { choices: [
         ['discrete', 'Дискретный'], ['analog', 'Аналоговый']] }),
       F('form', 'Форма', 'select', { source: 'control-signal-forms' }),
+      F('current', 'Ток входа, мА', 'number', { nullable: true }),
+      F('wires', 'Проводов на канал', 'number', { nullable: true }),
       F('hart', 'HART', 'bool'),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
@@ -289,6 +291,12 @@ const MODEL_CONFIGS = [
         ['contact', 'Контакт'], ['analog', 'Аналоговый']] }),
       F('form', 'Форма', 'select', { source: 'feedback-signal-forms' }),
       F('contact_normal', 'Норма контакта', 'select', { source: 'contact-normals' }),
+      F('max_voltage', 'Макс. напряжение, В', 'number', { nullable: true }),
+      F('max_current', 'Макс. ток, А', 'number', { nullable: true }),
+      F('resistance_kohm', 'Сопротивление, кОм', 'number', { nullable: true }),
+      F('max_power_w', 'Мощность, Вт', 'number', { nullable: true }),
+      F('turns', 'Обороты', 'number', { nullable: true }),
+      F('wires', 'Проводов на канал', 'number', { nullable: true }),
       F('hart', 'HART', 'bool'),
       F('description', 'Описание', 'textarea'),
       F('sorting_order', 'Сортировка', 'number'), F('is_active', 'Активно', 'bool'),
@@ -594,7 +602,7 @@ async function save() {
     // там null валиден (nullable-FK очищается) или поле обязано быть выбрано.
     if (v === null) {
       if (field.type === 'text' || field.type === 'textarea') v = ''
-      else if (field.type === 'number') v = 0
+      else if (field.type === 'number' && !field.nullable) v = 0
     }
     payload[field.name] = v
   }

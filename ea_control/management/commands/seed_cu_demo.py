@@ -600,6 +600,12 @@ class Command(BaseCommand):
         opts['CU_INT'] = _opt('CU_INT', slots['control_unit'], 'unit', encoding='L')
         opts['CU_INT_MB'] = _opt('CU_INT_MB', slots['control_unit'], 'unit',
                                  encoding='M')
+        opts['CU_INT_HR'] = _opt('CU_INT_HR', slots['control_unit'], 'unit',
+                                 encoding='H')
+        opts['CU_INT_PB'] = _opt('CU_INT_PB', slots['control_unit'], 'unit',
+                                 encoding='B')
+        opts['CU_INT_L'] = _opt('CU_INT_L', slots['control_unit'], 'unit',
+                                encoding='Q')
         opts['CU_POSI'] = _opt('CU_POSI', slots['control_unit'], 'unit',
                                encoding='P')
         opts['CU_INT_O'] = _opt('CU_INT_O', slots['control_unit'], 'unit',
@@ -870,19 +876,30 @@ class Command(BaseCommand):
 
         # резьбы — общий справочник params.ThreadSize; коды ЭП (M20x1.5…)
         # переиспользуем, чтобы наборы БУ и корпуса ссылались на одни записи
+        # наборы вводов БУ: 2 отверстия (уточнено вместо placeholder 3×;
+        # сверка с каталогом — slots.md §4.6)
         opts['CG_M20'] = _gland_set_opt(
-            'CG_M20', '3xM20x1.5',
-            'Одинаковая резьба M20×1,5 (3 отверстия)',
+            'CG_M20', '2xM20x1.5',
+            'Одинаковая резьба M20×1,5 (2 отверстия)',
             [_thread('M20x1.5', 'M20x1.5', 'METRIC', 'Метрическая',
-                     diameter=20)] * 3)
+                     diameter=20)] * 2)
         opts['CG_M25'] = _gland_set_opt(
-            'CG_M25', '3xM25x1.5',
-            'Одинаковая резьба M25×1,5 (3 отверстия)',
+            'CG_M25', '2xM25x1.5',
+            'Одинаковая резьба M25×1,5 (2 отверстия)',
             [_thread('M25x1.5', 'M25x1.5', 'METRIC', 'Метрическая',
-                     diameter=25)] * 3)
+                     diameter=25)] * 2)
         opts['CG_PG16'] = _gland_set_opt(
-            'CG_PG16', '3xPG16', 'Одинаковая резьба PG16 (3 отверстия)',
-            [_thread('PG16', 'PG16', 'PG', 'PG')] * 3)
+            'CG_PG16', '2xPG16', 'Одинаковая резьба PG16 (2 отверстия)',
+            [_thread('PG16', 'PG16', 'PG', 'PG')] * 2)
+        # старые демо-наборы «3×» — чистим, если на них больше никто не
+        # ссылается (опции БУ переключены на «2×» выше)
+        from electric_actuators.models import CableGlandHolesSet
+        for old_name in ('3xM20x1.5', '3xM25x1.5', '3xPG16'):
+            for old in CableGlandHolesSet.objects.filter(
+                    name=old_name, kind='GLAND_SET'):
+                if (not old.cu_slot_options.exists()
+                        and not old.cableglandholessetthroughoption_set.exists()):
+                    old.delete()
         # набор вводов INT/O: 1×1½" NPT + 2×¾" NPT (из справочника резьб)
         opts['CG_NPT_112_34'] = _gland_set_opt(
             'CG_NPT_112_34', '1xNPT11/2", 2xNPT3/4"',
@@ -988,6 +1005,51 @@ class Command(BaseCommand):
         int_mb.protocols.set([proto['MODBUS_RTU'], proto['PROFIBUS_DP']])
         int_mb.capabilities.set(int_unit.capabilities.all())
 
+        # варианты INT (данные каталога AOX: ICU/SRCU/LCU и протокольные
+        # модификации SRCU): HART — уставка и ОС по HART; PROFIBUS — шина;
+        # LCU — местное управление (серии Q/M)
+        int_hr = _unit(
+            'int-n-hr', 'БУ INT HART', cu_kinds['INTEGRATED'],
+            legacy_cu=_legacy('int-n-hr'),
+            name_template='БУ INT {code} (HART)',
+            description_template='Интеллектуальный блок управления {brand} с '
+                                 'HART: уставка и позиционная ОС 4-20 мА '
+                                 '(HART).',
+            spec_template={'Основные': {'Класс БУ': '_res_kind'},
+                           'Возможности': {'Функции': '_res_capabilities'}},
+        )
+        int_hr.accepts.set([ctl['CMD_4_20MA_HART']])
+        int_hr.emits.set([fb['FB_POS_4_20MA_HART']])
+        int_hr.capabilities.set(int_unit.capabilities.all())
+
+        int_pb = _unit(
+            'int-n-pb', 'БУ INT PROFIBUS', cu_kinds['INTEGRATED'],
+            legacy_cu=_legacy('int-n-pb'),
+            name_template='БУ INT {code} (PROFIBUS)',
+            description_template='Интеллектуальный блок управления {brand} с '
+                                 'шиной: {protocols}.',
+            spec_template={'Основные': {'Класс БУ': '_res_kind'},
+                           'Связь': {'Протоколы': '_res_protocols'},
+                           'Возможности': {'Функции': '_res_capabilities'}},
+        )
+        int_pb.accepts.set(int_unit.accepts.all())
+        int_pb.emits.set(int_unit.emits.all())
+        int_pb.protocols.set([proto['PROFIBUS_DP']])
+        int_pb.capabilities.set(int_unit.capabilities.all())
+
+        int_l = _unit(
+            'int-l', 'БУ INT LCU', cu_kinds['INTEGRATED'],
+            legacy_cu=_legacy('int-l'),
+            name_template='БУ INT {code} (LCU)',
+            description_template='Интеллектуальный блок управления {brand} '
+                                 'с местным управлением (LCU).',
+            spec_template={'Основные': {'Класс БУ': '_res_kind'},
+                           'Возможности': {'Функции': '_res_capabilities'}},
+        )
+        int_l.accepts.set(int_unit.accepts.all())
+        int_l.emits.set(int_unit.emits.all())
+        int_l.capabilities.set(int_unit.capabilities.all())
+
         posi = _unit(
             'posi-4-20', 'БУ позиционер 4-20', cu_kinds['POSITIONER'],
             legacy_cu=_legacy('posi-4-20'),
@@ -1022,6 +1084,9 @@ class Command(BaseCommand):
         CuSlotOption.objects.filter(code='CU_BASIC').update(control_unit=basic)
         CuSlotOption.objects.filter(code='CU_INT').update(control_unit=int_unit)
         CuSlotOption.objects.filter(code='CU_INT_MB').update(control_unit=int_mb)
+        CuSlotOption.objects.filter(code='CU_INT_HR').update(control_unit=int_hr)
+        CuSlotOption.objects.filter(code='CU_INT_PB').update(control_unit=int_pb)
+        CuSlotOption.objects.filter(code='CU_INT_L').update(control_unit=int_l)
         CuSlotOption.objects.filter(code='CU_POSI').update(control_unit=posi)
         CuSlotOption.objects.filter(code='CU_INT_O').update(control_unit=int_o)
 
@@ -1048,8 +1113,9 @@ class Command(BaseCommand):
                 # name/description при чистке шаблона
                 ControlUnit.objects.filter(pk=unit.pk).update(
                     spec_template=spec)
-        return {'basic': basic, 'int': int_unit, 'int_mb': int_mb, 'posi': posi,
-                'int_o': int_o}
+        return {'basic': basic, 'int': int_unit, 'int_mb': int_mb,
+                'int_hr': int_hr, 'int_pb': int_pb, 'int_l': int_l,
+                'posi': posi, 'int_o': int_o}
 
     # ── Матрица ────────────────────────────────────────────────────────────
 
@@ -1181,6 +1247,21 @@ class Command(BaseCommand):
         _row(slots['PROTOCOL'], opts['MB_RTU'], cus['int_mb'], availability=std)
         _row(slots['PROTOCOL'], opts['PB_DP'], cus['int_mb'], availability=opt)
 
+        # профили вариантов INT (производные от INT; каталог AOX):
+        # HART — уставка и ОС по HART; PROFIBUS — шина; LCU — как INT
+        for cu in (cus['int_hr'], cus['int_pb'], cus['int_l']):
+            for slot, option, avail in p:
+                _row(slot, option, cu, availability=avail)
+        _row(slots['SETPOINT'], opts['SETPOINT_HART'], cus['int_hr'],
+             availability=std)
+        _row(slots['SETPOINT'], opts['SETPOINT_4_20'], cus['int_hr'],
+             availability=opt)
+        _row(slots['POSITION_FEEDBACK'], opts['POS_HART'], cus['int_hr'],
+             availability=std)
+        _row(slots['POSITION_FEEDBACK'], opts['POS_4_20_ACTIVE'], cus['int_hr'],
+             availability=opt)
+        _row(slots['PROTOCOL'], opts['PB_DP'], cus['int_pb'], availability=std)
+
         # профиль БУ позиционер
         p = [
             (slots['LOCAL_CONTROL'], opts['SELECTOR'], std),
@@ -1256,7 +1337,8 @@ class Command(BaseCommand):
              availability=na)
         # INT / INT Modbus: оба органа управления; светодиоды стандарт,
         # LCD опция; ход — блинкер или LCD+блинкер; процент открытия — LCD
-        for cu in (cus['int'], cus['int_mb']):
+        for cu in (cus['int'], cus['int_mb'], cus['int_hr'], cus['int_pb'],
+                   cus['int_l']):
             for slot_code, (led_opt, lcd_opt, none_opt) in led_lcd.items():
                 _row(slots[slot_code], opts[led_opt], cu, availability=std)
                 _row(slots[slot_code], opts[lcd_opt], cu, availability=opt)
@@ -1365,7 +1447,8 @@ class Command(BaseCommand):
         # питание БУ и кабельные вводы БУ: у встроенных БУ питание — от цепей
         # привода (общий кабель), отдельный кабель недоступен; резьба вводов
         # БУ — M20 стандарт (слоты у встроенных скрыты правилами)
-        for cu in (cus['basic'], cus['int'], cus['int_mb'], cus['posi']):
+        for cu in (cus['basic'], cus['int'], cus['int_mb'], cus['int_hr'],
+                   cus['int_pb'], cus['int_l'], cus['posi']):
             _row(slots['CU_LOCATION'], opts['CU_LOC_INTEGRATED'], cu,
                  availability=std)
             _row(slots['CU_LOCATION'], opts['CU_LOC_SEPARATE'], cu,
@@ -1403,6 +1486,12 @@ class Command(BaseCommand):
             _row(slots['control_unit'], opts['CU_INT_MB'], None,
                  model_line=ar01e, power_supply=ps380,
                  availability=opt, encoding='M')
+            _row(slots['control_unit'], opts['CU_INT_HR'], None,
+                 model_line=ar01e, power_supply=ps380,
+                 availability=opt, encoding='H')
+            _row(slots['control_unit'], opts['CU_INT_PB'], None,
+                 model_line=ar01e, power_supply=ps380,
+                 availability=opt, encoding='B')
             _row(slots['control_unit'], opts['CU_POSI'], None,
                  model_line=ar01e, power_supply=ps24,
                  availability=opt, encoding='P')
@@ -1413,6 +1502,10 @@ class Command(BaseCommand):
             _row(slots['control_unit'], opts['CU_INT'], None,
                  model_line=ar11e, power_supply=ps380,
                  availability=std, encoding='L')
+            # LCU — только серии Q/M (каталог AOX)
+            _row(slots['control_unit'], opts['CU_INT_L'], None,
+                 model_line=ar11e, power_supply=ps380,
+                 availability=opt, encoding='Q')
         # AOX-M = AR21E: базовый БУ (380/220 В) и INT/O (380 В, опция)
         if ar21e:
             _row(slots['control_unit'], opts['CU_BASIC'], None,
@@ -1451,6 +1544,9 @@ class Command(BaseCommand):
         _rule(slots['control_unit'], slots['PROTOCOL'], 'show',
               when_value='CU_INT_MB',
               description='БУ INT Modbus — показываем шину')
+        _rule(slots['control_unit'], slots['PROTOCOL'], 'show',
+              when_value='CU_INT_PB',
+              description='БУ INT PROFIBUS — показываем шину')
         # HART: уставка HART тянет позиционную ОС HART
         _rule(slots['SETPOINT'], slots['POSITION_FEEDBACK'], 'set_default',
               when_value='SETPOINT_HART', action_value='POS_HART',
@@ -1474,7 +1570,8 @@ class Command(BaseCommand):
         # встроенным БУ питание БУ и вводы БУ не показываем (вводы — у привода)
         for hidden in ('CU_POWER_SUPPLY', 'CU_CABLE_GLANDS'):
             _rule(slots['control_unit'], slots[hidden], 'hide',
-                  when_value=['CU_BASIC', 'CU_INT', 'CU_INT_MB', 'CU_POSI'],
+                  when_value=['CU_BASIC', 'CU_INT', 'CU_INT_MB', 'CU_INT_HR',
+                              'CU_INT_PB', 'CU_INT_L', 'CU_POSI'],
                   operator='in',
                   description=f'Встроенному БУ слот {hidden} не показываем')
         # питание БУ → чьи отверстия для подбора КВ: общий кабель — отверстия
