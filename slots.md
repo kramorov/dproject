@@ -288,7 +288,8 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 
 Примеры:
 
-- `hide PROTOCOL when control_unit = CU_BASIC` — базовому БУ не показываем шину;
+- `hide PROTOCOL when control_unit in [CU_BASIC, CU_INT, CU_INT_HR, CU_INT_L,
+  CU_INT_O, CU_POSI]` — БУ без шины протокол не показываем (пустой слот);
 - `set_default POSITION_FEEDBACK = POS_HART when SETPOINT = SETPOINT_HART` —
   выбор HART-уставки тянет позиционную ОС HART;
 - `hide CU_POWER_SUPPLY when control_unit in [CU_BASIC, CU_INT, CU_INT_MB,
@@ -384,9 +385,11 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
 6. Описать остальные БУ по `bu_template.md` в новой структуре сигналов;
    уточнить количества отверстий демо-наборов M20/M25/PG16 (сейчас
    placeholder — 3 шт.).
-   Частично выполнено 2026-10-31: отверстия — 2× (M20/M25/PG16); добавлены
-   варианты INT (HART/PROFIBUS/LCU) с профилями. Осталось: pote/tr-4-20/
-   tr10/posi10 — нужны данные каталога (формы 0–10 В и семантика «трансмиттер»).
+   Частично выполнено 2026-10-31: отверстия — 2× (M20/M25/PG16; предварительно,
+   подтвердить по каталогу); добавлены варианты INT (HART/PROFIBUS/LCU) с
+   профилями (кодировки H/B/Q — provisional, сверка с каталогом). Осталось:
+   pote/tr-4-20/tr10/posi10 — нужны данные каталога (формы 0–10 В и семантика
+   «трансмиттер»).
 
 Выполнено 2026-10-31: рефакторинг «TextChoices → справочники» доведён до
 конца — тесты на FK-объектах (ea_control и electric_actuators: 108/108),

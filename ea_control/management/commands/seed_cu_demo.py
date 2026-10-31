@@ -600,6 +600,7 @@ class Command(BaseCommand):
         opts['CU_INT'] = _opt('CU_INT', slots['control_unit'], 'unit', encoding='L')
         opts['CU_INT_MB'] = _opt('CU_INT_MB', slots['control_unit'], 'unit',
                                  encoding='M')
+        # кодировки H/B/Q — provisional (для демо); буквы сверяются с каталогом
         opts['CU_INT_HR'] = _opt('CU_INT_HR', slots['control_unit'], 'unit',
                                  encoding='H')
         opts['CU_INT_PB'] = _opt('CU_INT_PB', slots['control_unit'], 'unit',
@@ -1531,9 +1532,16 @@ class Command(BaseCommand):
                               priority=priority, when_operator=operator))
 
         # профиль БУ → доступность слотов
+        # шину не показываем БУ без протоколов (иначе пустой слот);
+        # старое правило (только CU_BASIC) чистим — идемпотентность
+        CuSlotRule.objects.filter(
+            when_slot=slots['control_unit'],
+            target_slot=slots['PROTOCOL'], action='hide').delete()
         _rule(slots['control_unit'], slots['PROTOCOL'], 'hide',
-              when_value='CU_BASIC',
-              description='Базовому БУ шину не показываем')
+              when_value=['CU_BASIC', 'CU_INT', 'CU_INT_HR', 'CU_INT_L',
+                          'CU_INT_O', 'CU_POSI'],
+              operator='in',
+              description='БУ без шины протокол не показываем')
         _rule(slots['control_unit'], slots['SETPOINT'], 'hide',
               when_value='CU_BASIC',
               description='Базовому БУ уставку не показываем')
