@@ -41,6 +41,48 @@ class CuSectionNode(LocalizedDictFieldsMixin, AbstractConfigNode):
         ordering = ['sorting_order', 'code']
 
 
+class CuSlotSource(models.TextChoices):
+    """Источник значений object-слота — справочник, из которого опции.
+
+    Решение 2026-11-01 (slots.md «Решение: два рода слота…»): object-слот
+    объявляет источник; опции слота — срез записей этого справочника,
+    имя/описание берутся из справочника. Для value-слотов поле пустое.
+    """
+    CONTROL_SIGNAL = 'control_signal', _('Командные сигналы (CuControlSignal)')
+    FEEDBACK_SIGNAL = 'feedback_signal', _('Сигналы ОС (CuFeedbackSignal)')
+    PROTOCOL = 'protocol', _('Протоколы (CuCommProtocol)')
+    HEATER_SUPPLY = 'heater_supply', _('Питание обогрева (CuHeaterSupply)')
+    SIGNAL_POWER = 'signal_power', _('Схемы цепей (CuSignalPower)')
+    CONTROL_LOGIC = 'control_logic', _('Логика работы (CuControlLogic)')
+    CONTROL_UNIT = 'control_unit', _('Блоки управления (ControlUnit)')
+    DEVICE = 'device', _('Устройства ОС (CuFeedbackDevice)')
+    LOCAL_CONTROL = 'local_control', _('Органы управления (CuLocalControlType)')
+    DISPLAY = 'display', _('Виды отображения (CuDisplayType)')
+    UNIT_POWER = 'unit_power', _('Питание БУ (CuUnitPowerSource)')
+    CABLE_GLAND = 'cable_gland', _('Наборы отверстий КВ (CableGlandHolesSet)')
+    LOCATION = 'location', _('Размещение БУ (CuLocationOption)')
+    ACCESS_DEVICE = 'access_device', _('Устройства доступа (EaAccessDeviceOption)')
+
+
+# источник слота → (kind опции, поле полезной нагрузки опции)
+SLOT_SOURCE_PAYLOAD = {
+    CuSlotSource.CONTROL_SIGNAL: ('signal', 'control_signal'),
+    CuSlotSource.FEEDBACK_SIGNAL: ('signal', 'feedback_signal'),
+    CuSlotSource.PROTOCOL: ('signal', 'protocol'),
+    CuSlotSource.HEATER_SUPPLY: ('heater', 'heater_supply'),
+    CuSlotSource.SIGNAL_POWER: ('power', 'signal_power'),
+    CuSlotSource.CONTROL_LOGIC: ('logic', 'control_logic'),
+    CuSlotSource.CONTROL_UNIT: ('unit', 'control_unit'),
+    CuSlotSource.DEVICE: ('device', 'device'),
+    CuSlotSource.LOCAL_CONTROL: ('local_control', 'local_control_type'),
+    CuSlotSource.DISPLAY: ('display', 'display_types'),
+    CuSlotSource.UNIT_POWER: ('unit_power', 'unit_power_source'),
+    CuSlotSource.CABLE_GLAND: ('cable_gland', 'cable_gland_set'),
+    CuSlotSource.LOCATION: ('location', 'location_option'),
+    CuSlotSource.ACCESS_DEVICE: ('access_device', 'access_device_option'),
+}
+
+
 class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
     """Слот конфигурации БУ (роль ``Slot``).
 
@@ -54,7 +96,9 @@ class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
 
     Добавлено относительно AbstractConfigSlot:
 
-    - ``section`` — FK на узел-секцию (дерево конфигуратора).
+    - ``section`` — FK на узел-секцию (дерево конфигуратора);
+    - ``source`` — источник значений object-слота (словарь CuSlotSource);
+      для value-слотов пусто.
     """
     section = models.ForeignKey(
         CuSectionNode, on_delete=models.SET_NULL, null=True, blank=True,
@@ -62,11 +106,27 @@ class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
         verbose_name=_("Узел-секция"),
         help_text=_("Раздел дерева конфигуратора, к которому привязан слот"),
     )
+    source = models.CharField(
+        max_length=20, choices=CuSlotSource.choices, blank=True, default='',
+        verbose_name=_("Источник значений"),
+        help_text=_("Для slot_kind=object — справочник, из которого опции "
+                    "слота (срез записей); для value — пусто."),
+    )
 
     class Meta:
         verbose_name = _("Слот БУ")
         verbose_name_plural = _("Слоты БУ")
         ordering = ['sorting_order', 'code']
+
+    def clean(self):
+        super().clean()
+        if self.slot_kind == 'object' and not self.source:
+            raise ValidationError(
+                {'source': _('Object-слот должен объявлять источник значений.')})
+        if self.slot_kind != 'object' and self.source:
+            raise ValidationError(
+                {'source': _('Источник значений задаётся только для '
+                             'object-слотов.')})
 
 
 class CuOptionKind(models.TextChoices):
@@ -82,6 +142,7 @@ class CuOptionKind(models.TextChoices):
     UNIT_POWER = 'unit_power', _('Питание БУ')
     CABLE_GLAND = 'cable_gland', _('Кабельные вводы БУ')
     LOCATION = 'location', _('Размещение БУ')
+    ACCESS_DEVICE = 'access_device', _('Устройство ограничения доступа')
     NONE = 'none', _('Без сигнала (none-строка)')
     PAIR = 'pair', _('Пара контактов (Откр/Закр)')
 
@@ -216,6 +277,13 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         help_text=_("Для kind=location: место размещения БУ (встроен/навесной; "
                     "слот CU_LOCATION)"),
     )
+    access_device_option = models.ForeignKey(
+        'electric_actuators.EaAccessDeviceOption', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='cu_slot_options',
+        verbose_name=_("Устройство ограничения доступа"),
+        help_text=_("Для kind=access_device (слот ACCESS_DEVICE): общая модель "
+                    "ЭП electric_actuators.EaAccessDeviceOption"),
+    )
 
     class Meta:
         verbose_name = _("Опция слота БУ")
@@ -233,6 +301,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             return str(self.cable_gland_set)
         if self.kind == CuOptionKind.LOCATION and self.location_option_id:
             return str(self.location_option)
+        if self.kind == CuOptionKind.ACCESS_DEVICE and self.access_device_option_id:
+            return str(self.access_device_option)
         if self.kind == CuOptionKind.DEVICE and self.device_id:
             return str(self.device)
         if self.kind == CuOptionKind.DISPLAY:
@@ -253,6 +323,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             return localized_name(self.cable_gland_set, locale)
         if self.kind == CuOptionKind.LOCATION and self.location_option_id:
             return localized_name(self.location_option, locale)
+        if self.kind == CuOptionKind.ACCESS_DEVICE and self.access_device_option_id:
+            return localized_name(self.access_device_option, locale)
         if self.kind == CuOptionKind.DEVICE and self.device_id:
             return localized_name(self.device, locale)
         if self.kind == CuOptionKind.POWER and self.signal_power_id:
@@ -324,9 +396,43 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
             if not self.location_option_id:
                 raise ValidationError(
                     _('Для опции размещения нужен CuLocationOption.'))
+        elif self.kind == CuOptionKind.ACCESS_DEVICE:
+            if not self.access_device_option_id:
+                raise ValidationError(
+                    _('Для опции доступа нужно устройство ограничения доступа '
+                      '(electric_actuators.EaAccessDeviceOption).'))
         elif self.kind in (CuOptionKind.NONE, CuOptionKind.PAIR):
             if not self.name:
                 raise ValidationError(_('Для none/pair-опции нужно имя (название).'))
+        # «Решение: два рода слота» (2026-11-01): object-слот — kind фиксирован
+        # источником слота, опция — запись справочника-источника; value-слот —
+        # только none/pair.
+        if self.slot_id and self.slot.slot_kind == 'object' and self.slot.source:
+            expected_kind, _field = SLOT_SOURCE_PAYLOAD.get(
+                self.slot.source, (None, None))
+            if self.kind != CuOptionKind.NONE and expected_kind \
+                    and self.kind != expected_kind:
+                raise ValidationError(
+                    {'kind': _('Слот «%(slot)s» (источник %(src)s): у опции '
+                               'должен быть kind=%(kind)s.')
+                     % {'slot': self.slot.code, 'src': self.slot.source,
+                        'kind': expected_kind}})
+            if expected_kind == 'signal' and self.kind != CuOptionKind.NONE:
+                allowed = {
+                    CuSlotSource.CONTROL_SIGNAL: 'control_signal',
+                    CuSlotSource.FEEDBACK_SIGNAL: 'feedback_signal',
+                    CuSlotSource.PROTOCOL: 'protocol',
+                }[self.slot.source]
+                for other in ('control_signal', 'feedback_signal', 'protocol'):
+                    if other != allowed and getattr(self, f'{other}_id'):
+                        raise ValidationError(
+                            {other: _('Слот с источником %(src)s допускает '
+                                      'только ссылку на %(field)s.')
+                             % {'src': self.slot.source, 'field': allowed}})
+        elif self.slot_id and self.slot.slot_kind == 'value' \
+                and self.kind not in (CuOptionKind.NONE, CuOptionKind.PAIR):
+            raise ValidationError(
+                {'kind': _('Опция value-слота может быть только none или pair.')})
 
 
 class CuMatrixMode(models.TextChoices):

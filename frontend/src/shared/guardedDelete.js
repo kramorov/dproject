@@ -3,6 +3,7 @@
 // ?cascade=1 — зависимые строки удаляются вместе с объектом.
 // При отказе бросается ошибка с флагом cancelled (тихая отмена).
 import api from '@/shared/api'
+import { API_PREFIX } from '@/shared/config'
 
 export function deleteCancelled() {
   const e = new Error('cancelled')
@@ -23,8 +24,14 @@ export async function guardedDelete(url) {
         `Удаляемые данные используются в: ${parts}. ` +
         'Действительно удалить вместе с зависимыми записями?')
       if (!ok) throw deleteCancelled()
-      await api.delete(data.cascade_url ||
-        (url + (url.includes('?') ? '&' : '?') + 'cascade=1'))
+      // сервер отдаёт абсолютный путь (/api/...), у клиента свой baseURL —
+      // префикс снимаем, иначе получится /api/api/...
+      const cascadeUrl = data.cascade_url ||
+        (url + (url.includes('?') ? '&' : '?') + 'cascade=1')
+      const stripped = cascadeUrl.startsWith(API_PREFIX + '/')
+        ? cascadeUrl.slice(API_PREFIX.length)
+        : cascadeUrl
+      await api.delete(stripped)
     } else {
       throw e
     }

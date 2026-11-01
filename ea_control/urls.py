@@ -34,6 +34,8 @@ router.register('signal-powers', api.CuSignalPowerViewSet, basename='cu-sp')
 router.register('control-logics', api.CuControlLogicViewSet, basename='cu-logic')
 router.register('feedback-device-kinds', api.EaFeedbackDeviceKindViewSet,
                 basename='cu-device-kind')
+router.register('access-device-options', api.EaAccessDeviceOptionViewSet,
+                basename='cu-access-device')
 router.register('feedback-technologies', api.EaFeedbackTechnologyViewSet,
                 basename='cu-device-technology')
 router.register('control-unit-kinds', api.ControlUnitKindViewSet,

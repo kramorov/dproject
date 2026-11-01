@@ -45,15 +45,20 @@
       <div v-for="section in sectionTree" :key="section.code" class="section">
         <h4>{{ section.name }}</h4>
         <template v-for="slot in slotsOf(section)" :key="slot.code">
-          <div v-if="slotState(slot.code).visible" class="slot"
-               :class="{ blocked: slotState(slot.code).blocked }">
+          <div v-if="slotState(slot.code).visible && availableOptions(slot).length"
+               class="slot" :class="{ blocked: slotState(slot.code).blocked }">
             <div class="slot-head">
               <strong>{{ slot.name }}</strong>
               <span class="mode">{{ slot.selection_mode }}</span>
               <span v-if="slot.required || slotState(slot.code).required" class="req">обязателен</span>
               <span v-if="glandsSourceHint(slot)" class="gland-hint">{{ glandsSourceHint(slot) }}</span>
             </div>
-            <div class="opts">
+            <!-- один std и нет opt-опций: выбора нет — read-only -->
+            <div v-if="slotReadonly(slot)" class="opts readonly">
+              <span class="avail">std</span>
+              <span class="name">{{ availableOptions(slot)[0].name }}</span>
+            </div>
+            <div v-else class="opts">
               <label v-for="o in slot.options" :key="o.code"
                      :class="['opt', { na: o.availability === null, std: o.availability === 'std' }]">
                 <input v-if="slot.selection_mode === 'multi'" type="checkbox"
@@ -187,6 +192,17 @@ const sectionTree = computed(() => {
 
 function slotsOf(section) {
   return (pkg.value.slots || []).filter(s => s.section_code === section.code)
+}
+
+// §4.4: доступные опции слота (na-строки резолвер исключает — availability null)
+function availableOptions(slot) {
+  return (slot.options || []).filter(o => o.availability !== null)
+}
+
+// §4.4: один std и нет opt-опций — выбора нет, слот рисуется read-only
+function slotReadonly(slot) {
+  const avail = availableOptions(slot)
+  return avail.length === 1 && avail[0].availability === 'std'
 }
 
 function slotState(slotCode) {
@@ -384,6 +400,8 @@ onMounted(async () => {
 .name { }
 .avail { color: #999; font-size: 11px; }
 .bundle { color: #2c6fb0; font-size: 11px; cursor: help; }
+.opts.readonly { opacity: 0.85; }
+.opts.readonly .name { font-weight: 500; }
 .result { border: 1px solid #ccc; border-radius: 6px; padding: 12px; background: #fafafa; }
 .result pre { background: #fff; border: 1px solid #eee; padding: 8px; font-size: 12px; }
 .errors { color: #c00; }

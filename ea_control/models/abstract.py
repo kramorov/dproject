@@ -38,9 +38,8 @@ from core.utils.localization import localize_service_word
 class ConfigSelectionMode(models.TextChoices):
     """Семантика выбора в слоте."""
     SINGLE = 'single', _('Одиночный выбор')
-    MULTI = 'multi', _('Мультивыбор')
+    MULTI = 'multi', _('Мультивыбор (исключение, не правило)')
     XOR = 'xor', _('Взаимоисключающий (одна опция из набора)')
-    BUNDLE = 'bundle', _('Пакет (атомарный набор строк с общим кодом)')
 
 
 class ConfigSlotKind(models.TextChoices):
@@ -183,9 +182,9 @@ class AbstractConfigSlot(StableKeyMixin, CopyMixin, models.Model):
 
     - ``code`` — системный уникальный код слота (ключ в config_snapshot);
     - ``name`` — ru-название группы (админка); i18n — у наследника;
-    - ``selection_mode`` — single (одна опция) | multi (несколько, напр. CMD)
-      | xor (одна из взаимоисключающих) | bundle (атомарный пакет строк
-      матрицы с общим bundle-кодом);
+    - ``selection_mode`` — single (одна опция) | multi (несколько, напр. CMD;
+      осознанное исключение — слот в общем случае держит один тип
+      значения) | xor (одна из взаимоисключающих);
     - ``slot_kind`` — value (простое значение) | object (типизированный FK
       опции на физическую модель) | subtype (подтип оборудования
       EquipmentType; в БУ-отладке не используется — slots.md «Решение:
@@ -224,9 +223,8 @@ class AbstractConfigSlot(StableKeyMixin, CopyMixin, models.Model):
         max_length=10, choices=ConfigSelectionMode.choices,
         default=ConfigSelectionMode.SINGLE,
         verbose_name=_("Режим выбора"),
-        help_text=_("single — одна опция; multi — несколько (CMD); xor — одна "
-                    "из взаимоисключающих; bundle — атомарный пакет строк "
-                    "матрицы с общим bundle-кодом"),
+        help_text=_("single — одна опция; multi — несколько (исключение, "
+                    "не правило); xor — одна из взаимоисключающих"),
     )
     slot_kind = models.CharField(
         max_length=10, choices=ConfigSlotKind.choices,
@@ -356,9 +354,11 @@ class AbstractSlotMatrixEntry(CopyMixin, models.Model):
       унаследованной строки на специфичном уровне);
     - ``is_default`` — предвыбор в слоте; std-строки всегда предвыбраны
       (реализовано в save());
-    - ``bundle`` — код пакета: строки с общим кодом выбираются атомарно
-      (MWG = три строки в трёх слотах); если хоть одна недоступна — пакет
-      недоступен целиком;
+    - ``bundle`` — код пакета: именованный фрагмент конфигурации (набор
+      строк из разных слотов — частичный снимок {slot_code: option_code}),
+      выбирается атомарно (MWG = пять строк в пяти слотах); правило
+      целостности реализовано в ``validate_selection``: выбрана строка
+      пакета → выбраны все доступные строки пакета;
     - ``conflicts`` — симметричный M2M-self: парный запрет одновременного
       выбора (составные запреты — правилами/clean наследника);
     - ``encoding``/``ext_encoding`` — вклад в основной/ext артикул;
@@ -464,7 +464,8 @@ class AbstractSlotRule(CopyMixin, models.Model):
     доступность/обязательность полей при выборе опции». В отличие от матрицы
     (Паттерн А — статичная доступность по контексту) правило срабатывает на
     выбранное значение. Хардкод-логика резолвера (ЭП: профиль БУ → слоты,
-    HART ↔ SETPOINT, MWG-пакеты) заменяется декларативными правилами.
+    HART ↔ SETPOINT) заменяется декларативными правилами; атомарные
+    наборы опций разных слотов (MWG) — пакетами строк матрицы (bundle).
 
     Поля:
 

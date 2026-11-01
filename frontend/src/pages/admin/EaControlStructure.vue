@@ -114,17 +114,20 @@
                 <label class="form-field chk"><span>Обязательный</span><input type="checkbox" v-model="selSlot.required" /></label>
                 <label class="form-field"><span>Режим выбора</span>
                   <select v-model="selSlot.selection_mode">
-                    <option value="single">Одиночный</option>
-                    <option value="multi">Мульти</option>
-                    <option value="xor">Взаимоисключающий</option>
-                    <option value="bundle">Пакет</option>
+                    <option v-for="m in dicts.selectionModes" :key="m.value"
+                            :value="m.value">{{ m.label }}</option>
                   </select>
                 </label>
                 <label class="form-field"><span>Род значения</span>
                   <select v-model="selSlot.slot_kind">
-                    <option value="value">Значение</option>
-                    <option value="object">Объект</option>
-                    <option value="subtype">Подтип</option>
+                    <option v-for="k in dicts.slotKinds" :key="k.value"
+                            :value="k.value">{{ k.label }}</option>
+                  </select>
+                </label>
+                <label v-if="selSlot.slot_kind === 'object'" class="form-field"><span>Источник значений</span>
+                  <select v-model="selSlot.source">
+                    <option value="">— —</option>
+                    <option v-for="s in dicts.slotSources" :key="s.value" :value="s.value">{{ s.label }}</option>
                   </select>
                 </label>
                 <span class="hint-icon" tabindex="0" role="img" aria-label="Подсказка">ⓘ
@@ -133,8 +136,8 @@
                     доступная опция; в конфигураторе такой слот помечается
                     «обязателен» и без выбора конфигурация неполная.<br />
                     <b>Режим выбора</b> — сколько опций можно выбрать: Одиночный —
-                    одна; Мульти — несколько; Взаимоисключающий — одна из набора;
-                    Пакет — атомарный набор строк матрицы с общим кодом пакета.<br />
+                    одна; Мульти — несколько (исключение, использовать осознанно);
+                    Взаимоисключающий — одна из набора.<br />
                     <b>Род значения</b> — тип значения слота в снимке: Значение —
                     простой код опции; Объект — ссылка на физическую модель
                     (типизированный FK опции); Подтип — подтип оборудования.
@@ -149,7 +152,14 @@
             <!-- ОПЦИИ (чипсы) -->
             <div class="sub-head">
               <h4>Опции слота «{{ slotName }}»</h4>
-              <EditorActions align="start"
+              <template v-if="selSlot.slot_kind === 'object' && sourceSpec">
+                <select class="add-src" :value="''" @change="onAddFromSource">
+                  <option value="">+ Добавить из справочника…</option>
+                  <option v-for="r in unusedSourceRecords" :key="r.id" :value="r.id">{{ r.label }}</option>
+                </select>
+                <button class="btn small" @click="onAddNoneOption">+ «Нет»</button>
+              </template>
+              <EditorActions v-else align="start"
                              :buttons="[{ key: 'add', label: t('eaControl.addOption'), kind: 'primary' }]"
                              @action="onOptionAction" />
             </div>
@@ -157,7 +167,7 @@
               <div v-for="(op, i) in (selSlot.options || [])" :key="i" class="chip"
                    :class="{ active: selOptionIdx === i, deleted: op._deleted }"
                    @click="selectOptionAt(i)">
-                {{ op.name || op.code || 'новая опция' }}
+                {{ optionChipLabel(op) }}
                 <span v-if="op._deleted" class="del-mark">×</span>
               </div>
               <div v-if="!(selSlot.options || []).length" class="hint">Опций нет — добавьте первую.</div>
@@ -167,155 +177,71 @@
             <div v-if="selOption" class="editor nested">
               <div class="editor-head">
                 <span class="entity-label">Опция:</span>
-                <input class="entity-name" v-model="selOption.name" placeholder="Название опции"
-                       @input="markDirty('option')" />
+                <input v-if="showOptionNameInput" class="entity-name" v-model="selOption.name"
+                       placeholder="Название опции" @input="markDirty('option')" />
+                <span v-else class="entity-name static">{{ optionDisplayName }}</span>
                 <EditorActions :buttons="optionButtons" @action="onOptionAction" />
               </div>
               <div v-if="selOption._deleted" class="del-banner">Опция будет удалена при сохранении.</div>
 
               <div class="form" @input="markDirty('option')" @change="markDirty('option')">
                 <div class="form-row">
-                  <label class="form-field"><span>Код</span><input v-model="selOption.code" /></label>
-                  <label class="form-field"><span>Тип опции</span>
+                  <label v-if="showOptionNameInput" class="form-field"><span>Код</span><input v-model="selOption.code" /></label>
+                  <label v-if="selSlot.slot_kind !== 'object'" class="form-field"><span>Тип опции</span>
                     <select v-model="selOption.kind" @change="resetOptionPayload">
-                      <option value="signal">Сигнал</option>
-                      <option value="device">Устройство ОС</option>
-                      <option value="heater">Обогрев</option>
-                      <option value="power">Питание цепей</option>
-                      <option value="logic">Логика</option>
-                      <option value="unit">БУ</option>
-                      <option value="local_control">Орган управления</option>
-                      <option value="display">Вид отображения</option>
-                      <option value="unit_power">Питание БУ</option>
-                      <option value="cable_gland">Кабельные вводы</option>
-                      <option value="location">Размещение БУ</option>
                       <option value="none">None-строка</option>
                       <option value="pair">Пара контактов</option>
                     </select>
                   </label>
                 </div>
 
-                <template v-if="selOption.kind === 'signal'">
+                <!-- object-слот: опция = запись справочника-источника (+ «Нет») -->
+                <template v-if="selSlot.slot_kind === 'object' && sourceSpec">
                   <div class="form-row">
-                    <label class="form-field"><span>Командный</span>
-                      <select v-model="selOption.control_signal">
-                        <option :value="null">— —</option>
-                        <option v-for="o in dicts.controlSignals" :key="o.id" :value="o.id">{{ o.label }}</option>
-                      </select>
-                    </label>
-                    <label class="form-field"><span>Сигнал ОС</span>
-                      <select v-model="selOption.feedback_signal">
-                        <option :value="null">— —</option>
-                        <option v-for="o in dicts.feedbackSignals" :key="o.id" :value="o.id">{{ o.label }}</option>
+                    <label class="form-field"><span>Опция</span>
+                      <select :value="selOption.kind === 'none' ? 'none' : 'value'"
+                              @change="onOptionModeChange">
+                        <option value="value">Значение из справочника</option>
+                        <option value="none">«Нет» (без значения)</option>
                       </select>
                     </label>
                   </div>
-                  <div class="form-row">
-                    <label class="form-field"><span>Протокол</span>
-                      <select v-model="selOption.protocol">
+                  <div v-if="selOption.kind !== 'none'" class="form-row">
+                    <div class="form-field">
+                      <span>{{ sourceSpec.label }}</span>
+                      <select v-if="!sourceSpec.multiple" v-model="selOption[sourceSpec.field]"
+                              @change="onSourcePick">
                         <option :value="null">— —</option>
-                        <option v-for="o in dicts.protocols" :key="o.id" :value="o.id">{{ o.label }}</option>
+                        <option v-for="o in dicts[sourceSpec.dict]" :key="o.id" :value="o.id">{{ o.label }}</option>
                       </select>
-                    </label>
-                    <label class="form-field"><span>Датчик по умолчанию</span>
-                      <select v-model="selOption.device">
-                        <option :value="null">— —</option>
-                        <option v-for="o in dicts.devices" :key="o.id" :value="o.id">{{ o.label }}</option>
-                      </select>
-                    </label>
-                  </div>
-                </template>
-                <div v-else-if="selOption.kind === 'device'" class="form-row">
-                  <label class="form-field"><span>Устройство ОС</span>
-                    <select v-model="selOption.device">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.devices" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'heater'" class="form-row">
-                  <label class="form-field"><span>Обогрев</span>
-                    <select v-model="selOption.heater_supply">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.heaterSupplies" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'power'" class="form-row">
-                  <label class="form-field"><span>Питание цепей</span>
-                    <select v-model="selOption.signal_power">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.signalPowers" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'logic'" class="form-row">
-                  <label class="form-field"><span>Логика</span>
-                    <select v-model="selOption.control_logic">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.controlLogics" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'unit'" class="form-row">
-                  <label class="form-field"><span>Блок управления</span>
-                    <select v-model="selOption.control_unit">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.units" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'local_control'" class="form-row">
-                  <label class="form-field"><span>Орган управления</span>
-                    <select v-model="selOption.local_control_type">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.localControlTypes" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'display'" class="form-row">
-                  <div class="form-field">
-                    <span>Виды отображения</span>
-                    <div class="ms">
-                      <label v-for="o in dicts.displayTypes" :key="o.id" class="ms-item">
-                        <input type="checkbox" :value="o.id"
-                               :checked="(selOption.display_types || []).includes(o.id)"
-                               @change="toggleOptionMs('display_types', o.id)" />
-                        {{ o.label }}
-                      </label>
+                      <div v-else class="ms">
+                        <label v-for="o in dicts[sourceSpec.dict]" :key="o.id" class="ms-item">
+                          <input type="checkbox" :value="o.id"
+                                 :checked="(selOption[sourceSpec.field] || []).includes(o.id)"
+                                 @change="onSourcePickMs(sourceSpec.field, o.id)" />
+                          {{ o.label }}
+                        </label>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div v-else-if="selOption.kind === 'unit_power'" class="form-row">
-                  <label class="form-field"><span>Питание БУ</span>
-                    <select v-model="selOption.unit_power_source">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.unitPowerSources" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'cable_gland'" class="form-row">
-                  <label class="form-field"><span>Набор отверстий КВ</span>
-                    <select v-model="selOption.cable_gland_set">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.cgHoleSets" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div v-else-if="selOption.kind === 'location'" class="form-row">
-                  <label class="form-field"><span>Размещение</span>
-                    <select v-model="selOption.location_option">
-                      <option :value="null">— —</option>
-                      <option v-for="o in dicts.locationOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
-                    </select>
-                  </label>
-                </div>
+                  <div v-if="selOption.kind !== 'none'" class="form-row">
+                    <div class="rec-preview">
+                      <div v-for="r in pickedRecords" :key="r.id" class="rec-line">
+                        <b>{{ r.label }}</b>
+                        <span v-if="r.description" class="rec-desc">{{ r.description }}</span>
+                      </div>
+                      <div v-if="!pickedRecords.length" class="hint">
+                        Выберите значение — имя и описание возьмутся из справочника (как в спецификации).
+                      </div>
+                    </div>
+                  </div>
+                </template>
 
                 <div class="form-row">
                   <label class="form-field"><span>Кодировка</span><input v-model="selOption.encoding" /></label>
                   <label class="form-field"><span>Ext-код</span><input v-model="selOption.ext_encoding" /></label>
                 </div>
-                <div class="form-row">
+                <div v-if="selSlot.slot_kind !== 'object'" class="form-row">
                   <label class="form-field"><span>Описание</span><textarea v-model="selOption.description" rows="2"></textarea></label>
                 </div>
                 <div class="form-row">
@@ -522,7 +448,12 @@ onMounted(() => document.addEventListener('click', onDocClick))
 onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 function dictList(rows) {
-  return rows.map(o => ({ id: o.id, label: o.name || o.code || String(o.id) }))
+  return rows.map(o => ({
+    id: o.id,
+    label: o.name || o.code || String(o.id),
+    code: o.code || '',
+    description: o.description || '',
+  }))
 }
 
 async function reload() {
@@ -530,7 +461,7 @@ async function reload() {
   error.value = ''
   try {
     const [s, sl, o, units, ctl, fb, proto, dev, heater, power, logic,
-      lct, dsp, upw, loc, meta] =
+      lct, dsp, upw, loc, ad, meta] =
       await Promise.all([
         api.get('/ea-control/sections/'),
         api.get('/ea-control/slots/'),
@@ -547,6 +478,7 @@ async function reload() {
         api.get('/ea-control/display-types/'),
         api.get('/ea-control/unit-power-sources/'),
         api.get('/ea-control/location-options/'),
+        api.get('/ea-control/access-device-options/'),
         api.get('/ea-control/meta/'),
       ])
     sections.value = s.data.results || s.data || []
@@ -564,7 +496,11 @@ async function reload() {
     dicts.displayTypes = dictList(dsp.data.results || dsp.data || [])
     dicts.unitPowerSources = dictList(upw.data.results || upw.data || [])
     dicts.locationOptions = dictList(loc.data.results || loc.data || [])
+    dicts.accessDevices = dictList(ad.data.results || ad.data || [])
     dicts.cgHoleSets = dictList(meta.data.cg_hole_sets || [])
+    dicts.selectionModes = meta.data.selection_modes || []
+    dicts.slotKinds = meta.data.slot_kinds || []
+    dicts.slotSources = meta.data.slot_sources || []
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка загрузки'
   } finally {
@@ -596,6 +532,7 @@ function cloneSlot(s) {
   return {
     id: s.id, code: s.code, name: s.name, section: s.section,
     selection_mode: s.selection_mode, slot_kind: s.slot_kind,
+    source: s.source || '',
     required: s.required, description: s.description || '',
     sorting_order: s.sorting_order || 0, is_active: s.is_active,
     options: options.value
@@ -651,7 +588,7 @@ function addSlot() {
   const maxOrder = draft.slots.reduce((m, s) => Math.max(m, s.sorting_order || 0), -1)
   draft.slots.push({
     id: null, code: '', name: '', section: draft.node ? draft.node.id : null, selection_mode: 'single',
-    slot_kind: 'value', required: false, description: '',
+    slot_kind: 'value', source: '', required: false, description: '',
     sorting_order: maxOrder + 1, is_active: true, options: [],
   })
   selSlotIdx.value = draft.slots.length - 1
@@ -663,23 +600,151 @@ function selectOptionAt(i) {
   selOptionIdx.value = i
 }
 
+function sourceSpecFor(slot) {
+  if (!slot || slot.slot_kind !== 'object' || !slot.source) return null
+  return (dicts.slotSources || []).find(x => x.value === slot.source) || null
+}
+
+const sourceSpec = computed(() => sourceSpecFor(selSlot.value))
+
+// object-опция без «Нет»: имя/код берутся из записи справочника,
+// поля name/code в форме скрыты
+const showOptionNameInput = computed(() => {
+  if (!selSlot.value || !selOption.value) return true
+  return selSlot.value.slot_kind !== 'object' || selOption.value.kind === 'none'
+})
+
+const pickedRecords = computed(() => {
+  const spec = sourceSpec.value
+  const o = selOption.value
+  if (!spec || !o || o.kind === 'none') return []
+  const list = dicts[spec.dict] || []
+  const ids = spec.multiple ? (o[spec.field] || []) : [o[spec.field]]
+  return list.filter(r => ids.includes(r.id))
+})
+
+const optionDisplayName = computed(() => {
+  const names = pickedRecords.value.map(r => r.label)
+  return names.length ? names.join(' + ') : 'новая опция'
+})
+
+function onOptionModeChange(e) {
+  const o = selOption.value
+  if (!o) return
+  if (e.target.value === 'none') {
+    o.kind = 'none'
+    resetOptionPayload()
+  } else {
+    const spec = sourceSpec.value
+    o.kind = spec ? spec.kind : 'none'
+  }
+  markDirty('option')
+}
+
+function setAutoCode(o, spec, ids) {
+  const list = dicts[spec.dict] || []
+  const parts = (ids || []).map(id => {
+    const rec = list.find(x => x.id === id)
+    return rec ? (rec.code || '') : ''
+  }).filter(Boolean)
+  let code = parts.join('_')
+  if (!code) {
+    code = `${selSlot.value ? selSlot.value.code : 'OPT'}_${(ids || []).join('_')}`
+  }
+  code = code.slice(0, 50)
+  // коды опций глобально уникальны: при коллизии — префикс кода слота
+  if (options.value.some(x => x.code === code && x.id !== o.id)) {
+    code = `${selSlot.value ? selSlot.value.code : 'OPT'}_${code}`.slice(0, 50)
+  }
+  o.code = code
+}
+
+function onSourcePick() {
+  const spec = sourceSpec.value
+  const o = selOption.value
+  if (!spec || !o) return
+  if (!o.code || !o.code.trim()) setAutoCode(o, spec, [o[spec.field]])
+  markDirty('option')
+}
+
+function onSourcePickMs(field, id) {
+  toggleOptionMs(field, id)
+  const spec = sourceSpec.value
+  const o = selOption.value
+  if (!spec || !o) return
+  if (!o.code || !o.code.trim()) setAutoCode(o, spec, o[spec.field] || [])
+  markDirty('option')
+}
+
 function addOption() {
+  makeDraftOption()
+}
+
+// object-слот: опция добавляется выбором записи из справочника-источника
+function makeDraftOption(payload = {}) {
   const s = selSlot.value
-  if (!s) return
-  s.options = s.options || []
-  const maxOrder = s.options.reduce((m, o) => Math.max(m, o.sorting_order || 0), -1)
-  s.options.push({
-    id: null, code: '', name: '', slot: null, kind: 'signal',
+  if (!s) return null
+  const spec = sourceSpecFor(s)
+  const maxOrder = (s.options || []).reduce(
+    (m, o) => Math.max(m, o.sorting_order || 0), -1)
+  const o = {
+    id: null, code: '', name: '', slot: null,
+    kind: spec ? spec.kind : 'none',
     control_signal: null, feedback_signal: null, protocol: null,
     heater_supply: null, signal_power: null, control_logic: null,
     control_unit: null, device: null,
     local_control_type: null, display_types: [],
     unit_power_source: null, cable_gland_set: null, location_option: null,
+    access_device_option: null,
     encoding: '', ext_encoding: '', description: '',
     sorting_order: maxOrder + 1, is_active: true,
-  })
+    ...payload,
+  }
+  s.options = s.options || []
+  s.options.push(o)
   selOptionIdx.value = s.options.length - 1
   dirty.option = true
+  return o
+}
+
+// записи справочника, ещё не добавленные в слот (для multiple — все)
+const unusedSourceRecords = computed(() => {
+  const spec = sourceSpec.value
+  if (!spec || !selSlot.value) return []
+  const list = dicts[spec.dict] || []
+  if (spec.multiple) return list
+  const used = new Set(
+    (selSlot.value.options || []).map(o => o[spec.field]).filter(Boolean))
+  return list.filter(r => !used.has(r.id))
+})
+
+function onAddFromSource(e) {
+  const id = Number(e.target.value)
+  if (!id) return
+  const spec = sourceSpec.value
+  if (!spec) return
+  const o = makeDraftOption(
+    spec.multiple ? { [spec.field]: [id] } : { [spec.field]: id })
+  if (o) setAutoCode(o, spec, [id])
+  e.target.value = ''
+}
+
+function onAddNoneOption() {
+  makeDraftOption({ kind: 'none', name: 'Нет' })
+}
+
+// чип: для object-опций — имя записи справочника, иначе имя/код
+function optionChipLabel(op) {
+  const spec = sourceSpec.value
+  if (spec && op.kind !== 'none') {
+    const ids = spec.multiple ? (op[spec.field] || []) : [op[spec.field]]
+    const labels = ids.map(id => {
+      const rec = (dicts[spec.dict] || []).find(x => x.id === id)
+      return rec ? rec.label : ''
+    }).filter(Boolean)
+    if (labels.length) return labels.join(' + ')
+  }
+  return op.name || op.code || 'новая опция'
 }
 
 function resetOptionPayload() {
@@ -780,6 +845,10 @@ function validateSlotDraft(slot, seenSlotCodes) {
       errs.push(`слот «${slotLabel}»: код «${code}» уже занят другим слотом`)
     }
   }
+  if (slot.slot_kind === 'object' && !slot.source) {
+    errs.push(`слот «${slotLabel}»: источник значений (обязателен для object)`)
+  }
+  const spec = sourceSpecFor(slot)
   const seenOptCodes = new Set()
   for (const opt of (slot.options || [])) {
     if (opt._deleted) continue
@@ -795,6 +864,14 @@ function validateSlotDraft(slot, seenSlotCodes) {
     seenOptCodes.add(ocode)
     if (options.value.some(o => o.code === ocode && o.id !== opt.id)) {
       errs.push(`опция в слоте «${slotLabel}»: код «${ocode}» уже занят другой опцией`)
+    }
+    if (slot.slot_kind === 'object' && spec && opt.kind !== 'none') {
+      const hasPayload = spec.multiple
+        ? (opt[spec.field] || []).length > 0
+        : !!opt[spec.field]
+      if (!hasPayload) {
+        errs.push(`опция в слоте «${slotLabel}»: ${spec.label}`)
+      }
     }
     if ((opt.kind === 'none' || opt.kind === 'pair') && (!opt.name || !opt.name.trim())) {
       errs.push(`опция в слоте «${slotLabel}»: название (обязательно для none/pair)`)
@@ -1026,6 +1103,7 @@ onMounted(reload)
 .editor-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .entity-label { color: #444; font-weight: 600; white-space: nowrap; }
 .entity-name { flex: 1; min-width: 120px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 15px; font-weight: 600; }
+.entity-name.static { border-color: transparent; background: transparent; display: inline-block; }
 .dirty { color: #c77700; font-size: 12px; }
 .del-banner { background: #fdecea; color: #c62828; padding: 6px 8px; border-radius: 3px; margin-bottom: 8px; font-size: 13px; }
 
@@ -1086,4 +1164,8 @@ onMounted(reload)
 .chip.deleted { background: #fdecea; border-color: #c62828; color: #c62828; text-decoration: line-through; }
 .del-mark { color: #c62828; font-weight: bold; }
 .hint { color: #999; font-size: 12px; }
+.rec-preview { margin-top: 4px; padding: 8px 10px; background: #f4f6f8; border-radius: 4px; }
+.rec-preview .rec-desc { display: block; color: #555; font-size: 12px; margin-top: 2px; }
+.add-src { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
 </style>

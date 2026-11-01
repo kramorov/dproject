@@ -11,7 +11,8 @@ API ea_control: CRUD моделей для фронт-админки + паке�
   capabilities, local-control-types, display-types, signal-power-sources,
   signal-powers, control-logics;
 - GET units/ — список типов БУ (id/code/name/kind/brand);
-- GET meta/ — справочники для селекторов (серии, напряжения, бренды, БУ);
+- GET meta/ — справочники для селекторов (серии, напряжения, бренды, БУ,
+  режимы выбора, род значения);
 - GET series-units/?model_line=&power_supply= — доступные БУ серии
   (резолвер слота control_unit);
 - GET package/?unit=&model_line=&power_supply=&mode=&locale= — пакет
@@ -37,7 +38,8 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuLocationOption, CuMatrixEntry, CuSignalPower,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
-                               ControlUnitKind, CuSectionNode)
+                               ControlUnitKind, CuSectionNode, CuSlotSource,
+                               SLOT_SOURCE_PAYLOAD)
 from ea_control.services.cu_matrix import resolve_control_units
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description
@@ -50,6 +52,30 @@ from ea_control.services.cu_unit_matrix import (MatrixValidationError,
 class _LargePagination(PageNumberPagination):
     """Админ-таблицы: без жёсткого лимита страницы по умолчанию."""
     page_size = 1000
+
+
+def _clean_via_model(instance, model_cls, attrs, extra_fields=()):
+    """Прогнать model.clean() для API-пути (DRF full_clean не вызывает).
+
+    Недостающие для проверки поля подставляются из редактируемого
+    экземпляра; M2M исключаются (их clean проверяет только при pk).
+    """
+    from django.core.exceptions import ValidationError as DjValidationError
+    m2m = {f.name for f in model_cls._meta.many_to_many}
+    probe_kwargs = {k: v for k, v in attrs.items() if k not in m2m}
+    if instance is not None:
+        for f in extra_fields:
+            if f not in probe_kwargs:
+                val = getattr(instance, f)
+                if val is not None:
+                    probe_kwargs[f] = val
+    probe = model_cls(**probe_kwargs)
+    try:
+        probe.clean()
+    except DjValidationError as exc:
+        raise serializers.ValidationError(
+            exc.message_dict if hasattr(exc, 'message_dict')
+            else {'non_field_errors': exc.messages})
 
 
 def _serializer(model_cls):
@@ -261,6 +287,23 @@ def _sp_source_usage_specs():
     ]
 
 
+def _slot_serializer():
+    """CuSlot + model.clean() (object обязан объявить источник и т.п.)."""
+    class S(serializers.ModelSerializer):
+        class Meta:
+            model = CuSlot
+            fields = '__all__'
+            read_only_fields = ('name_i18n', 'description_i18n', 'key')
+
+        def validate(self, attrs):
+            _clean_via_model(self.instance, CuSlot, attrs,
+                             ('code', 'name', 'slot_kind', 'source'))
+            return attrs
+
+    S.__name__ = 'CuSlotSerializer'
+    return S
+
+
 def _slot_option_serializer():
     """CuSlotOption + валидация «display-опция без видов отображения».
 
@@ -274,6 +317,21 @@ def _slot_option_serializer():
             read_only_fields = ('name_i18n', 'description_i18n', 'key')
 
         def validate(self, attrs):
+            # object-слот: kind опции определяется источником слота
+            slot = attrs.get('slot', getattr(self.instance, 'slot', None))
+            src = getattr(slot, 'source', '') if slot is not None else ''
+            if src:
+                expected_kind, _field = SLOT_SOURCE_PAYLOAD.get(src, (None, None))
+                kind = attrs.get('kind', getattr(self.instance, 'kind', None))
+                if not kind and expected_kind:
+                    attrs['kind'] = expected_kind
+                elif kind and expected_kind and kind != expected_kind \
+                        and kind != 'none':
+                    raise serializers.ValidationError(
+                        {'kind': _('Слот «%(slot)s» (источник %(src)s): у опции '
+                                   'должен быть kind=%(kind)s (или none).')
+                         % {'slot': slot.code, 'src': src,
+                            'kind': expected_kind}})
             kind = attrs.get('kind', getattr(self.instance, 'kind', None))
             if kind == 'display':
                 if 'display_types' in attrs:
@@ -286,10 +344,21 @@ def _slot_option_serializer():
                     raise serializers.ValidationError(
                         {'display_types': _('Для опции отображения нужен '
                                             'хотя бы один вид отображения.')})
+            # источник: правила model.clean() должны действовать и через API
+            _clean_via_model(self.instance, CuSlotOption, attrs,
+                             _OPT_CLEAN_FIELDS)
             return attrs
 
     S.__name__ = 'CuSlotOptionSerializer'
     return S
+
+
+_OPT_CLEAN_FIELDS = (
+    'code', 'name', 'slot', 'kind', 'control_signal', 'feedback_signal',
+    'protocol', 'heater_supply', 'signal_power', 'control_logic',
+    'control_unit', 'device', 'local_control_type', 'unit_power_source',
+    'cable_gland_set', 'location_option', 'access_device_option',
+)
 
 
 def _control_unit_serializer():
@@ -445,7 +514,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
 CuSectionNodeViewSet = _guarded_delete_viewset(
     CuSectionNode, _serializer(CuSectionNode), _node_usage_specs())
 CuSlotViewSet = _guarded_delete_viewset(
-    CuSlot, _serializer(CuSlot), _slot_usage_specs())
+    CuSlot, _slot_serializer(), _slot_usage_specs())
 CuSlotOptionViewSet = _guarded_delete_viewset(
     CuSlotOption, _slot_option_serializer(), _option_usage_specs())
 CuMatrixEntryViewSet = _viewset(CuMatrixEntry, _serializer(CuMatrixEntry))
@@ -487,6 +556,7 @@ CuControlLogicViewSet = _viewset(CuControlLogic, _serializer(CuControlLogic))
 # Общие справочники ЭП, используемые и БУ (kind/technology устройств ОС).
 from electric_actuators.models import (EaFeedbackDeviceKind,  # noqa: E402
                                        EaFeedbackTechnology,
+                                       EaAccessDeviceOption,
                                        EaSignalFormCategory,
                                        EaControlSignalRole,
                                        EaFeedbackSignalRole,
@@ -497,6 +567,8 @@ EaFeedbackDeviceKindViewSet = _viewset(
     EaFeedbackDeviceKind, _serializer(EaFeedbackDeviceKind))
 EaFeedbackTechnologyViewSet = _viewset(
     EaFeedbackTechnology, _serializer(EaFeedbackTechnology))
+EaAccessDeviceOptionViewSet = _viewset(
+    EaAccessDeviceOption, _serializer(EaAccessDeviceOption))
 ControlUnitKindViewSet = _viewset(ControlUnitKind, _serializer(ControlUnitKind))
 EaSignalFormCategoryViewSet = _viewset(
     EaSignalFormCategory, _serializer(EaSignalFormCategory))
@@ -558,6 +630,36 @@ def meta_view(request):
                     .order_by('sorting_order', 'name')]
     cg_hole_sets = [{'id': s.id, 'name': s.text_description or s.name or str(s.id)}
                     for s in CableGlandHolesSet.objects.order_by('name')]
+    # словари режима выбора/рода значения — единый источник для фронта
+    from ea_control.models import CuSlot, SLOT_SOURCE_PAYLOAD
+    selection_modes = [{'value': v, 'label': str(l)}
+                       for v, l in CuSlot._meta.get_field('selection_mode').choices]
+    slot_kinds = [{'value': v, 'label': str(l)}
+                  for v, l in CuSlot._meta.get_field('slot_kind').choices]
+    _source_dicts = {
+        'control_signal': 'controlSignals',
+        'feedback_signal': 'feedbackSignals',
+        'protocol': 'protocols',
+        'heater_supply': 'heaterSupplies',
+        'signal_power': 'signalPowers',
+        'control_logic': 'controlLogics',
+        'control_unit': 'units',
+        'device': 'devices',
+        'local_control': 'localControlTypes',
+        'display': 'displayTypes',
+        'unit_power': 'unitPowerSources',
+        'cable_gland': 'cgHoleSets',
+        'location': 'locationOptions',
+        'access_device': 'accessDevices',
+    }
+    slot_sources = []
+    for value, label in CuSlot._meta.get_field('source').choices:
+        kind, field = SLOT_SOURCE_PAYLOAD.get(value, (None, None))
+        slot_sources.append({
+            'value': value, 'label': str(label), 'kind': kind,
+            'field': field, 'dict': _source_dicts.get(value, ''),
+            'multiple': field == 'display_types',
+        })
     return Response({
         'model_lines': model_lines,
         'power_supplies': power_supplies,
@@ -566,6 +668,9 @@ def meta_view(request):
         'model_line_items': model_line_items,
         'thread_sizes': thread_sizes,
         'cg_hole_sets': cg_hole_sets,
+        'selection_modes': selection_modes,
+        'slot_kinds': slot_kinds,
+        'slot_sources': slot_sources,
     })
 
 

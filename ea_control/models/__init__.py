@@ -57,6 +57,8 @@ from ea_control.models.cu_config import (  # noqa: F401
     CuSectionNode,
     CuSlot,
     CuOptionKind,
+    CuSlotSource,
+    SLOT_SOURCE_PAYLOAD,
     CuSlotOption,
     CuMatrixMode,
     CuMatrixEntry,

@@ -334,6 +334,24 @@ class CuUnitMatrixServiceTests(TestCase):
                 [{'slot_id': slot.id, 'option_id': buttons.id,
                   'availability': 'std'}])
 
+    def test_multi_slot_allows_multiple_std(self):
+        # multi — осознанное исключение: несколько предвыборов допустимы
+        slot = CuSlot.objects.create(
+            code='TMP_MULTI', name='x', selection_mode='multi')
+        a = CuSlotOption.objects.create(
+            slot=slot, code='TMP_MULTI_A', kind='none', name='A')
+        b = CuSlotOption.objects.create(
+            slot=slot, code='TMP_MULTI_B', kind='none', name='B')
+        saved = apply_unit_matrix_changes(
+            self.basic, None,
+            [{'slot_id': slot.id, 'option_id': a.id,
+              'availability': 'std'},
+             {'slot_id': slot.id, 'option_id': b.id,
+              'availability': 'std'}])
+        self.assertEqual(saved, 2)
+        self.assertEqual(CuMatrixEntry.objects.filter(
+            slot=slot, availability='std').count(), 2)
+
     def test_apply_ignores_bare_rows_in_single_slot(self):
         # устаревшая bare-строка (option=None, «нет сигнала» старой
         # структуры) не считается std-опцией: пометка другой опции как
@@ -534,3 +552,52 @@ class CuDictionaryCrudTests(TestCase):
             f'/api/ea-control/control-signals/{sig.id}/', payload,
             format='json')
         self.assertEqual(r.status_code, 200, r.content)
+
+class SeedCleanupTests(TestCase):
+    """Сид — канон: устаревшие слоты удаляются, счётчики сходятся."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command('seed_cu_demo')
+
+    def test_seed_canonical_state(self):
+        self.assertEqual(CuSlot.objects.count(), 42)
+        self.assertEqual(
+            CuSlot.objects.exclude(selection_mode='single').count(), 0)
+        # §4.3: 40 object-слотов с источником, 2 value-слота (none-опции)
+        self.assertEqual(CuSlot.objects.filter(slot_kind='object').count(), 40)
+        self.assertEqual(
+            CuSlot.objects.filter(slot_kind='object', source='').count(), 0)
+        self.assertEqual(CuSlot.objects.filter(slot_kind='value').count(), 2)
+        self.assertEqual(
+            CuSlot.objects.get(code='POSITION_FEEDBACK').source,
+            'feedback_signal')
+        self.assertEqual(
+            CuSlot.objects.get(code='LOCAL_CONTROL').source, 'local_control')
+        self.assertEqual(CuSlot.objects.get(code='INDICATOR').source, 'display')
+        self.assertEqual(
+            CuSlot.objects.get(code='ACCESS_DEVICE').source, 'access_device')
+        # узел «Датчики» — тип датчика (device), не сигнал: концевые/путевые/
+        # моментные × основные/дополнительные + теплозащита
+        for code in ('END_SWITCHES_SENSOR_MAIN', 'END_SWITCHES_SENSOR_EXT',
+                     'WAY_SWITCHES_SENSOR_MAIN', 'WAY_SWITCHES_SENSOR_EXT',
+                     'TORQUE_SWITCHES_SENSOR_MAIN',
+                     'TORQUE_SWITCHES_SENSOR_EXT', 'THERMO_SENSOR'):
+            slot = CuSlot.objects.get(code=code)
+            self.assertEqual(slot.source, 'device')
+            self.assertEqual(slot.section.code, 'SENSOR')
+        self.assertEqual(CuSlot.objects.get(code='TURN_COUNTER').source, '')
+        self.assertEqual(ControlUnit.objects.count(), 8)
+
+    def test_seed_removes_stale_slots(self):
+        junk = CuSlot.objects.create(code='е1', name='junk')
+        CuMatrixEntry.objects.create(
+            slot=junk, option=None,
+            control_unit=ControlUnit.objects.get(code='basic'),
+            availability='opt')
+        CuSlot.objects.create(
+            code='TORQUE_SWITCHES_SENSOR_MAIN_Copy', name='junk2')
+        call_command('seed_cu_demo')
+        self.assertFalse(CuSlot.objects.filter(
+            code__in=['е1', 'TORQUE_SWITCHES_SENSOR_MAIN_Copy']).exists())
+        self.assertEqual(CuSlot.objects.count(), 42)

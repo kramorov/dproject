@@ -22,6 +22,8 @@ evaluate правил, снимок.
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.contrib.auth.models import User
+from rest_framework.test import APITestCase
 
 from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuControlSignal, CuFeedbackDevice,
@@ -348,3 +350,126 @@ class SnapshotTests(TestCase):
         self.assertEqual(
             s.full_code([{'encoding': 'L', 'ext_encoding': 'E1'},
                          {}, {'encoding': 'M'}]), 'LME1')
+
+class CuSlotModeTests(TestCase):
+    """Режим выбора: словарь без bundle, сериализатор отвергает bundle."""
+
+    def test_selection_mode_choices(self):
+        self.assertEqual(
+            [c[0] for c in CuSlot._meta.get_field('selection_mode').choices],
+            ['single', 'multi', 'xor'])
+
+    def test_slot_serializer_rejects_bundle_mode(self):
+        from ea_control.api import CuSlotViewSet
+        ser = CuSlotViewSet.serializer_class(data={
+            'code': 'TMP_BUNDLE', 'name': '', 'selection_mode': 'bundle',
+            'slot_kind': 'value', 'section': None})
+        self.assertFalse(ser.is_valid())
+        self.assertIn('selection_mode', ser.errors)
+
+
+class CuApiSourceTests(CuConfigTestCase):
+    """API-путь исполняет model.clean(): источник и payload слота."""
+
+    def test_option_serializer_rejects_wrong_source_payload(self):
+        from ea_control.api import CuSlotOptionViewSet
+        ser = CuSlotOptionViewSet.serializer_class(data={
+            'code': 'API_BAD_PAYLOAD', 'name': '',
+            'slot': self.slot_protocol.id,
+            'feedback_signal': self.fb_signal.id})
+        self.assertFalse(ser.is_valid())
+        self.assertTrue(ser.errors)
+
+    def test_option_serializer_derives_kind_from_source(self):
+        from ea_control.api import CuSlotOptionViewSet
+        ser = CuSlotOptionViewSet.serializer_class(data={
+            'code': 'API_OK', 'name': '', 'slot': self.slot_protocol.id,
+            'protocol': self.protocol.id})
+        self.assertTrue(ser.is_valid(), ser.errors)
+        self.assertEqual(ser.validated_data['kind'], 'signal')
+
+    def test_option_serializer_rejects_payload_kind_on_value_slot(self):
+        from ea_control.api import CuSlotOptionViewSet
+        slot = CuSlot.objects.create(code='API_VAL', name='x', slot_kind='value')
+        ser = CuSlotOptionViewSet.serializer_class(data={
+            'code': 'API_VAL_BAD', 'name': '', 'slot': slot.id,
+            'kind': 'signal', 'feedback_signal': self.fb_signal.id})
+        self.assertFalse(ser.is_valid())
+        self.assertIn('kind', ser.errors)
+
+    def test_slot_serializer_requires_source_for_object(self):
+        from ea_control.api import CuSlotViewSet
+        ser = CuSlotViewSet.serializer_class(data={
+            'code': 'API_OBJ_NO_SRC', 'name': 'x', 'slot_kind': 'object'})
+        self.assertFalse(ser.is_valid())
+        self.assertIn('source', ser.errors)
+
+
+class CuMetaApiTests(APITestCase):
+    """meta/ — единый источник режима выбора/рода значения."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            'meta_admin', password='x', is_staff=True)
+
+    def setUp(self):
+        self.client.force_authenticate(self.user)
+
+    def test_meta_exposes_modes_without_bundle(self):
+        resp = self.client.get('/api/ea-control/meta/')
+        self.assertEqual(resp.status_code, 200)
+        modes = [m['value'] for m in resp.data['selection_modes']]
+        self.assertEqual(modes, ['single', 'multi', 'xor'])
+        kinds = [k['value'] for k in resp.data['slot_kinds']]
+        self.assertEqual(kinds, ['value', 'object', 'subtype'])
+        sources = {s['value']: s for s in resp.data['slot_sources']}
+        self.assertEqual(sources['feedback_signal']['field'], 'feedback_signal')
+        self.assertEqual(sources['feedback_signal']['kind'], 'signal')
+        self.assertEqual(sources['feedback_signal']['dict'], 'feedbackSignals')
+        self.assertFalse(sources['control_signal']['multiple'])
+        self.assertTrue(sources['display']['multiple'])
+
+
+class CuSlotSourceTests(CuConfigTestCase):
+    """Источник значений: object-слот обязан объявить источник."""
+
+    def test_object_slot_requires_source(self):
+        slot = CuSlot(code='SRC_OBJ', name='x', slot_kind='object')
+        with self.assertRaises(ValidationError):
+            slot.full_clean()
+        slot.source = 'feedback_signal'
+        slot.full_clean()  # не падает
+
+    def test_value_slot_rejects_source(self):
+        slot = CuSlot(code='SRC_VAL', name='x', slot_kind='value',
+                      source='feedback_signal')
+        with self.assertRaises(ValidationError):
+            slot.full_clean()
+
+    def test_option_kind_must_match_slot_source(self):
+        # слот CMD_OPEN (источник control_logic): kind=signal — ошибка
+        opt = self.make_option(
+            code='SRC_OPT_BAD', slot=self.slot_cmd, kind='signal',
+            feedback_signal=self.fb_signal)
+        with self.assertRaises(ValidationError):
+            opt.full_clean()
+        # слот PROTOCOL (источник protocol): kind=signal с payload «сигнал
+        # ОС» вместо протокола — ошибка
+        opt2 = self.make_option(
+            code='SRC_OPT_WRONG_FIELD', slot=self.slot_protocol, kind='signal',
+            feedback_signal=self.fb_signal)
+        with self.assertRaises(ValidationError):
+            opt2.full_clean()
+
+    def test_value_slot_option_kinds_limited_to_none_pair(self):
+        slot = CuSlot.objects.create(
+            code='SRC_VAL_OPT', name='x', slot_kind='value')
+        opt = self.make_option(
+            code='SRC_VAL_BAD', slot=slot, kind='signal',
+            feedback_signal=self.fb_signal)
+        with self.assertRaises(ValidationError):
+            opt.full_clean()
+        ok = self.make_option(
+            code='SRC_VAL_OK', slot=slot, kind='none', name='Нет')
+        ok.full_clean()  # не падает

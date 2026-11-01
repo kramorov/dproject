@@ -213,6 +213,10 @@ class Command(BaseCommand):
                                    form=ctl_forms['AN_4_20_PASSIVE'],
                                    hart=True, wires=2),
         }
+        # физика явно (get_or_create не обновляет существующие строки):
+        # петля 4-20 мА всегда 2 провода
+        for _code in ('CMD_4_20MA', 'CMD_4_20MA_HART'):
+            CuControlSignal.objects.filter(code=_code).update(wires=2)
         fb = {}
         for role, base in (
                 ('END_OPEN', 'Конечное «Открыто»'),
@@ -326,8 +330,28 @@ class Command(BaseCommand):
                 defaults=dict(name='Концевые датчики, механические',
                               kind=dk['POSITION_SENSOR'],
                               technology=tech['MECHANICAL']))[0],
+            # тип датчика для узла «Датчики» (не сигнал — устройство)
+            'MECH': CuFeedbackDevice.objects.get_or_create(
+                code='MECH', defaults=dict(name='Механические',
+                                           kind=dk['POSITION_SENSOR'],
+                                           technology=tech['MECHANICAL']))[0],
+            'ENC': CuFeedbackDevice.objects.get_or_create(
+                code='ENC', defaults=dict(name='Энкодер',
+                                          kind=dk['POSITION_SENSOR'],
+                                          technology=tech['ELECTRONIC'],
+                                          contactless=True))[0],
+            'PTC_THERMISTOR': CuFeedbackDevice.objects.get_or_create(
+                code='PTC_THERMISTOR',
+                defaults=dict(name='PTC-термистор',
+                              kind=dk['THERMAL_SENSOR'],
+                              technology=tech['ELECTRONIC'],
+                              contactless=True))[0],
         }
         devices['POT_1K'].emits.add(fb['FB_POS_POT'])
+        # имя устройства MECH — канон исходного дизайна (множественное число)
+        if devices['MECH'].name != 'Механические':
+            devices['MECH'].name = 'Механические'
+            devices['MECH'].save(update_fields=['name'])
         devices['MWG'].emits.add(fb['FB_POS_4_20MA_ACTIVE'])
         devices['THERMO'].emits.add(fb['FB_OVERHEAT'])
         devices['LIMIT_MECH'].emits.add(fb['FB_END_OPEN_SPDT'])
@@ -443,10 +467,21 @@ class Command(BaseCommand):
         #    структуру «Дистанционное управление»; идемпотентно) ──
         obsolete_slots = ('CMD', 'SIGNAL_POWER_SOURCE', 'CONTROL_LOGIC',
                           'SIGNAL_TYPE', 'LIMIT_SWITCHES', 'WAY_SWITCHES',
-                          'TORQUE_SWITCHES')
+                          'TORQUE_SWITCHES',
+                          # переименован в END_SWITCHES_SENSOR_MAIN
+                          'WAY_SWITCHES_SENSOR_BASIC')
         CuMatrixEntry.objects.filter(
             slot__code__in=obsolete_slots).delete()
         CuSlot.objects.filter(code__in=obsolete_slots).delete()
+        # устаревшие слоты от ранних версий сида и ручных проб в админке
+        # (2026-11-01, review): матрица удаляется явно (PROTECT), правила и
+        # опции — каскадом вместе со слотом
+        # только явный мусор (копии/пробы). Слоты осознанного дизайна
+        # («Датчики» и пр.) сид НЕ удаляет.
+        stale_slots = ('TORQUE_SWITCHES_SENSOR_MAIN_Copy',
+                       'LOCAL_CONTROL_DESIGN2', 'е1')
+        CuMatrixEntry.objects.filter(slot__code__in=stale_slots).delete()
+        CuSlot.objects.filter(code__in=stale_slots).delete()
         CuSlotOption.objects.filter(code__in=(
             'CMD_OCS', 'CMD_OCS_24', 'CMD_REMOTE', 'CMD_LOCK',
             'CMD_EMERGENCY', 'SP_EXT_220', 'SP_EXT_24', 'SP_INT_24',
@@ -462,12 +497,22 @@ class Command(BaseCommand):
             option__code__in=obsolete_pair_options).delete()
         CuSlotOption.objects.filter(
             code__in=obsolete_pair_options).delete()
+        # одинокая опция без полезной нагрузки (ручная проба в админке,
+        # 2026-11-01): kind=signal без сигнала нарушает clean() — удаляем
+        CuSlotOption.objects.filter(code='POS_0_10_PASSIVE').delete()
         # дискретные команды-справочники (напряжение ушло в схему цепей):
         # удаляем все, на которые больше не ссылаются ни опция, ни строка
         # матрицы (PROTECT не даст удалить используемые — напр. уставки)
         CuControlSignal.objects.filter(
             category='discrete', slot_options__isnull=True,
             matrix_rows__isnull=True).delete()
+        # устаревшие аналоговые уставки старого поколения имён (канон —
+        # CMD_4_20MA/CMD_4_20MA_HART): сначала опция-дубль слота SETPOINT,
+        # затем сами сигналы (PROTECT снят удалением опции)
+        CuSlotOption.objects.filter(code='CMD_4_20_ACTIVE').delete()
+        CuControlSignal.objects.filter(
+            code__in=('CMD_4_20_ACTIVE', 'CMD_4_20_PASSIVE',
+                      'CMD_4_20_HART_PASSIVE')).delete()
         # устаревшая пара «Внешний 24 В DC» без полярности (ссылки PROTECT
         # уже сняты удалением опций и строк выше)
         from params.models import PowerSupplies
@@ -501,6 +546,11 @@ class Command(BaseCommand):
         cabling = CuSectionNode.objects.get_or_create(
             code='CABLING',
             defaults=dict(name='Подключение кабелей', sorting_order=50))[0]
+        # узел «Датчики»: тип датчика (механический/электронный/нет) —
+        # не сигнал ОС; осознанно отдельный узел (git e0a1849, секция SENSOR)
+        sensors = CuSectionNode.objects.get_or_create(
+            code='SENSOR',
+            defaults=dict(name='Датчики', sorting_order=25))[0]
         # узел «Дистанционное управление»: схема цепей + состав сигналов
         cmd_inputs = CuSectionNode.objects.get_or_create(
             code='CMD_INPUTS',
@@ -569,6 +619,36 @@ class Command(BaseCommand):
                                           name='Дизайн органов управления',
                                           section=ind_node,
                                           selection_mode='single', required=True),
+            'ACCESS_DEVICE': _slot('ACCESS_DEVICE',
+                                   name='Устройство ограничения доступа',
+                                   section=ind_node, selection_mode='single'),
+            'END_SWITCHES_SENSOR_MAIN': _slot(
+                'END_SWITCHES_SENSOR_MAIN',
+                name='Тип датчиков конечных положений (основные)',
+                section=sensors, selection_mode='single'),
+            'END_SWITCHES_SENSOR_EXT': _slot(
+                'END_SWITCHES_SENSOR_EXT',
+                name='Тип датчиков конечных положений (дополнительные)',
+                section=sensors, selection_mode='single'),
+            'WAY_SWITCHES_SENSOR_MAIN': _slot(
+                'WAY_SWITCHES_SENSOR_MAIN',
+                name='Тип датчиков путевых (основные)',
+                section=sensors, selection_mode='single'),
+            'WAY_SWITCHES_SENSOR_EXT': _slot(
+                'WAY_SWITCHES_SENSOR_EXT',
+                name='Тип датчиков путевых (дополнительные)',
+                section=sensors, selection_mode='single'),
+            'TORQUE_SWITCHES_SENSOR_MAIN': _slot(
+                'TORQUE_SWITCHES_SENSOR_MAIN',
+                name='Тип датчиков момента (основные)',
+                section=sensors, selection_mode='single'),
+            'TORQUE_SWITCHES_SENSOR_EXT': _slot(
+                'TORQUE_SWITCHES_SENSOR_EXT',
+                name='Тип датчиков момента (дополнительные)',
+                section=sensors, selection_mode='single'),
+            'THERMO_SENSOR': _slot('THERMO_SENSOR',
+                                   name='Тип датчика теплозащиты',
+                                   section=sensors, selection_mode='single'),
             'IND_OPEN': _slot('IND_OPEN', name='Открыто', section=ind_signals),
             'IND_CLOSED': _slot('IND_CLOSED', name='Закрыто', section=ind_signals),
             'IND_STOP': _slot('IND_STOP', name='Стоп', section=ind_signals),
@@ -589,6 +669,57 @@ class Command(BaseCommand):
                                    section=sections['POWER'],
                                    selection_mode='single', required=False),
         }
+
+        # §4.3 «Решение: два рода слота» — слот объявляет род значения и
+        # источник (object) или остаётся value. Существующие строки обновляем
+        # явно: get_or_create не трогает поля уже созданных слотов.
+        slot_flags = {
+            'control_unit': ('object', 'control_unit'),
+            'CU_LOCATION': ('object', 'location'),
+            'CMD_WIRING': ('object', 'signal_power'),
+            'CMD_OPEN': ('object', 'control_logic'),
+            'CMD_CLOSE': ('object', 'control_logic'),
+            'CMD_STOP': ('object', 'control_logic'),
+            'CMD_ESD': ('object', 'control_logic'),
+            'SETPOINT': ('object', 'control_signal'),
+            'LIMIT_SWITCHES_OPENED': ('object', 'feedback_signal'),
+            'LIMIT_SWITCHES_CLOSED': ('object', 'feedback_signal'),
+            'WAY_SWITCHES_OPEN': ('object', 'feedback_signal'),
+            'WAY_SWITCHES_CLOSED': ('object', 'feedback_signal'),
+            'TORQUE_SWITCHES_OPEN': ('object', 'feedback_signal'),
+            'TORQUE_SWITCHES_CLOSE': ('object', 'feedback_signal'),
+            'POSITION_FEEDBACK': ('object', 'feedback_signal'),
+            'THERMAL_SENSOR': ('object', 'feedback_signal'),
+            'REMOTE_CONTROL': ('object', 'feedback_signal'),
+            'ALARM_SIGNAL': ('object', 'feedback_signal'),
+            'PROTOCOL': ('object', 'protocol'),
+            'HEATER_CONTROL_UNIT': ('object', 'heater_supply'),
+            'LOCAL_CONTROL_DESIGN': ('object', 'local_control'),
+            'IND_OPEN': ('object', 'display'),
+            'IND_CLOSED': ('object', 'display'),
+            'IND_STOP': ('object', 'display'),
+            'IND_ALARM': ('object', 'display'),
+            'IND_LOCAL_REMOTE': ('object', 'display'),
+            'IND_RUN': ('object', 'display'),
+            'IND_POSITION': ('object', 'display'),
+            'CU_POWER_SUPPLY': ('object', 'unit_power'),
+            'CU_CABLE_GLANDS': ('object', 'cable_gland'),
+            'ACCESS_DEVICE': ('object', 'access_device'),
+            'END_SWITCHES_SENSOR_MAIN': ('object', 'device'),
+            'END_SWITCHES_SENSOR_EXT': ('object', 'device'),
+            'WAY_SWITCHES_SENSOR_MAIN': ('object', 'device'),
+            'WAY_SWITCHES_SENSOR_EXT': ('object', 'device'),
+            'TORQUE_SWITCHES_SENSOR_MAIN': ('object', 'device'),
+            'TORQUE_SWITCHES_SENSOR_EXT': ('object', 'device'),
+            'THERMO_SENSOR': ('object', 'device'),
+            'LOCAL_CONTROL': ('object', 'local_control'),
+            'INDICATOR': ('object', 'display'),
+            'TURN_COUNTER': ('value', ''),
+            'MOTOR_STARTER': ('value', ''),
+        }
+        for code, (kind, source) in slot_flags.items():
+            CuSlot.objects.filter(code=code).update(
+                slot_kind=kind, source=source)
 
         def _none(code, slot, name, **kw):
             return _opt(code, slot, 'none', name=name, **kw)
@@ -619,8 +750,10 @@ class Command(BaseCommand):
             'CU_LOC_SEPARATE', slots['CU_LOCATION'], 'location',
             location_option=locations['SEPARATE'])
         # управление
-        opts['BUTTONS'] = _none('BUTTONS', slots['LOCAL_CONTROL'], 'Кнопки')
-        opts['SELECTOR'] = _none('SELECTOR', slots['LOCAL_CONTROL'], 'Селектор')
+        opts['BUTTONS'] = _opt('BUTTONS', slots['LOCAL_CONTROL'], 'local_control',
+                               local_control_type=local_ctrl['BUTTONS'])
+        opts['SELECTOR'] = _opt('SELECTOR', slots['LOCAL_CONTROL'], 'local_control',
+                                local_control_type=local_ctrl['SELECTOR'])
         opts['LOCAL_NONE'] = _none('LOCAL_NONE', slots['LOCAL_CONTROL'], 'Нет')
         # схема цепей управления: опция = пара источник × напряжение ×
         # форма × полярность (kind=power → CuSignalPower)
@@ -743,11 +876,15 @@ class Command(BaseCommand):
                                         'signal',
                                         feedback_signal=fb['FB_OVERHEAT'],
                                         device=devices['THERMO'])
-        opts['LED_SET'] = _none('LED_SET', slots['INDICATOR'], 'Светодиоды',
-                                ext_encoding='D')
-        opts['BLINKER'] = _none('BLINKER', slots['INDICATOR'], 'Блинкер',
-                                ext_encoding='B')
-        opts['LCD'] = _none('LCD', slots['INDICATOR'], 'Дисплей', ext_encoding='L')
+        opts['LED_SET'] = _opt('LED_SET', slots['INDICATOR'], 'display',
+                               name='Светодиоды', ext_encoding='D')
+        opts['LED_SET'].display_types.set([display['LED']])
+        opts['BLINKER'] = _opt('BLINKER', slots['INDICATOR'], 'display',
+                               name='Блинкер', ext_encoding='B')
+        opts['BLINKER'].display_types.set([display['LED_BLINK']])
+        opts['LCD'] = _opt('LCD', slots['INDICATOR'], 'display',
+                           name='Дисплей', ext_encoding='L')
+        opts['LCD'].display_types.set([display['LCD']])
         opts['TC_NONE'] = _none('TC_NONE', slots['TURN_COUNTER'], 'Нет')
         opts['TC_MECH'] = _none('TC_MECH', slots['TURN_COUNTER'], 'Механический',
                                 ext_encoding='M')
@@ -786,6 +923,51 @@ class Command(BaseCommand):
                                   local_control_type=local_ctrl['SELECTOR'])
         opts['DESIGN_NONE'] = _none('DESIGN_NONE', slots['LOCAL_CONTROL_DESIGN'],
                                     'Нет')
+
+        # устройство ограничения несанкционированного доступа — общая модель
+        # ЭП electric_actuators.EaAccessDeviceOption (NO_DEVICE/DEVICE)
+        from electric_actuators.models import EaAccessDeviceOption
+        ad_no, _ = EaAccessDeviceOption.objects.get_or_create(
+            code='NO_DEVICE',
+            defaults={'name': 'Устройства нет', 'sorting_order': 10})
+        ad_dev, _ = EaAccessDeviceOption.objects.get_or_create(
+            code='DEVICE',
+            defaults={'name': 'С устройством для ограничения '
+                             'несанкционированного доступа',
+                      'sorting_order': 20})
+        opts['NO_DEVICE'] = _opt('NO_DEVICE', slots['ACCESS_DEVICE'],
+                                 'access_device',
+                                 access_device_option=ad_no,
+                                 ext_encoding='AD0')
+        opts['DEVICE'] = _opt('DEVICE', slots['ACCESS_DEVICE'],
+                              'access_device', access_device_option=ad_dev,
+                              ext_encoding='AD1')
+
+        # узел «Датчики» — тип датчика (механический/электронный/нет), а не
+        # сигнал ОС: концевые/путевые/моментные × основные/дополнительные +
+        # теплозащита (термореле/PTC). Опции — срез справочника устройств;
+        # коды опций с префиксом слота (одни и те же записи в разных слотах).
+        sensor_slots = {
+            'END_SWITCHES_SENSOR_MAIN': 'END_MAIN',
+            'END_SWITCHES_SENSOR_EXT': 'END_EXT',
+            'WAY_SWITCHES_SENSOR_MAIN': 'WAY_MAIN',
+            'WAY_SWITCHES_SENSOR_EXT': 'WAY_EXT',
+            'TORQUE_SWITCHES_SENSOR_MAIN': 'TORQUE_MAIN',
+            'TORQUE_SWITCHES_SENSOR_EXT': 'TORQUE_EXT',
+        }
+        for slot_code, prefix in sensor_slots.items():
+            opts[f'{prefix}_MECH'] = _opt(f'{prefix}_MECH', slots[slot_code],
+                                          'device', device=devices['MECH'])
+            opts[f'{prefix}_ENC'] = _opt(f'{prefix}_ENC', slots[slot_code],
+                                         'device', device=devices['ENC'])
+            opts[f'{prefix}_NONE'] = _none(f'{prefix}_NONE', slots[slot_code],
+                                           'Нет датчика')
+        opts['THERMO_RELAY'] = _opt('THERMO_RELAY', slots['THERMO_SENSOR'],
+                                    'device', device=devices['THERMO'])
+        opts['THERMO_PTC'] = _opt('THERMO_PTC', slots['THERMO_SENSOR'],
+                                  'device', device=devices['PTC_THERMISTOR'])
+        opts['THERMO_NONE'] = _none('THERMO_NONE', slots['THERMO_SENSOR'],
+                                    'Нет датчика')
 
         def _display_opt(code, slot, name, types):
             obj, _ = CuSlotOption.objects.get_or_create(
@@ -829,6 +1011,29 @@ class Command(BaseCommand):
         opts['IND_STOP_NONE'] = _none('IND_STOP_NONE', slots['IND_STOP'], 'Нет')
         opts['IND_ALARM_NONE'] = _none('IND_ALARM_NONE', slots['IND_ALARM'], 'Нет')
         opts['IND_LR_NONE'] = _none('IND_LR_NONE', slots['IND_LOCAL_REMOTE'], 'Нет')
+
+        # §4.3 дополнение (2026-11-01): опции LOCAL_CONTROL/INDICATOR ссылаются
+        # на записи справочников; существующие строки обновляем явно
+        # (get_or_create не трогает kind/нагрузки созданных опций).
+        _repoint_lc = {
+            'BUTTONS': local_ctrl['BUTTONS'],
+            'SELECTOR': local_ctrl['SELECTOR'],
+        }
+        for _code, _rec in _repoint_lc.items():
+            _obj = CuSlotOption.objects.filter(code=_code).first()
+            if _obj:
+                _obj.kind = 'local_control'
+                _obj.local_control_type = _rec
+                _obj.name = ''
+                _obj.save()
+        _repoint_disp = {'LED_SET': 'LED', 'BLINKER': 'LED_BLINK', 'LCD': 'LCD'}
+        for _code, _dk in _repoint_disp.items():
+            _obj = CuSlotOption.objects.filter(code=_code).first()
+            if _obj:
+                _obj.kind = 'display'
+                _obj.name = ''
+                _obj.save()
+                _obj.display_types.set([display[_dk]])
         opts['IND_RUN_NONE'] = _none('IND_RUN_NONE', slots['IND_RUN'], 'Нет')
         # питание БУ и кабельные вводы БУ
         opts['PU_SHARED'] = _opt('PU_SHARED', slots['CU_POWER_SUPPLY'],
@@ -1294,6 +1499,19 @@ class Command(BaseCommand):
                                     ('CMD_CLOSE', 'CMD_CLOSE_CONT')):
             _row(slots[slot_code], opts[opt_code], cus['posi'],
                  signal_power=powers['EXT_24_PNP'], availability=opt)
+
+        # устройство ограничения несанкционированного доступа: у линейки INT
+        # (int-n и варианты, int-l, int-o) — оба варианта; у basic/позиционера —
+        # только «нет» (как в legacy seed_ea_allowed_options)
+        for cu in (cus['int'], cus['int_mb'], cus['int_hr'], cus['int_pb'],
+                   cus['int_l'], cus['int_o']):
+            _row(slots['ACCESS_DEVICE'], opts['NO_DEVICE'], cu,
+                 availability=std)
+            _row(slots['ACCESS_DEVICE'], opts['DEVICE'], cu, availability=opt)
+        for cu in (cus['basic'], cus['posi']):
+            _row(slots['ACCESS_DEVICE'], opts['NO_DEVICE'], cu,
+                 availability=std)
+            _row(slots['ACCESS_DEVICE'], opts['DEVICE'], cu, availability=na)
 
         # местная индикация — профили БУ
         led_lcd = {
