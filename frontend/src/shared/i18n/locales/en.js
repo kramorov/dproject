@@ -16,6 +16,7 @@ export default {
   'menu.about': 'About',
   'menu.admin': 'Administration',
   'menu.eaControl': 'EA control units',
+  'menu.eaControlEmulation': 'EA control units — configurator emulation',
 
   'eaControl.save': 'Save',
   'eaControl.cancel': 'Cancel',

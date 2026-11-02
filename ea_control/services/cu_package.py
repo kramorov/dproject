@@ -12,7 +12,8 @@
 """
 from core.utils.localization import pick_i18n
 
-from ea_control.models import CuSlot, CuSlotRule
+from ea_control.models import CuSlot, CuSlotOption, CuSlotRule
+from ea_control.services.cu_description import build_description
 from ea_control.services.cu_matrix import (get_profile_defaults, resolve_slots)
 
 
@@ -115,14 +116,20 @@ def build_package(control_unit, *, model_line=None, body=None,
         'unit': {
             'id': control_unit.id,
             'code': control_unit.code,
+            # код ОПЦИИ слота control_unit (CU_BASIC…) — значение для правил/снимка
+            'option_code': (CuSlotOption.objects.filter(
+                slot__code='control_unit',
+                control_unit=control_unit).values_list('code', flat=True).first()
+                or ''),
             'name': control_unit.generate_name(locale=locale) or control_unit.name,
             'kind': control_unit.kind_id,
             'kind_display': (pick_i18n(control_unit.kind.name_i18n, locale,
                                        fallback=control_unit.kind.name)
                              if control_unit.kind_id else ''),
-            'description': control_unit.generate_description(locale=locale)
-                           or control_unit.description,
-            'spec': control_unit.generate_spec_sections(),
+            # описание модификации — генератор по структуре+правилам
+            # (std-дефолты профиля; после выбора опций фронт может запросить
+            # /api/ea-control/description/ со снимком)
+            'description': build_description(control_unit, locale=locale),
             'brand_name': str(control_unit.brand) if control_unit.brand_id else '',
         },
         'sections': sections,

@@ -402,10 +402,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
             brand=unit.brand, code=code, name=unit.name,
             kind=unit.kind,
             name_template=unit.name_template,
-            description_template=unit.description_template,
-            spec_template=unit.spec_template,
             name_template_i18n=unit.name_template_i18n,
-            description_template_i18n=unit.description_template_i18n,
             description=unit.description,
             sorting_order=(unit.sorting_order or 0) + 1, is_active=unit.is_active)
         # имя «(копия)» без перегенерации шаблоном (TemplateMixin.save)
@@ -800,6 +797,62 @@ def package_view(request):
                                   power_supply=power_supply,
                                   signal_power=signal_power, mode=mode,
                                   locale=locale))
+
+
+def _unit_from_body(request):
+    """ControlUnit из тела запроса {unit: id} + snapshot/signal_power/locale.
+
+    ``signal_power`` — id схемы цепей (CuSignalPower): строки матрицы с
+    координатой перекрывают профильные (набор сигналов CMD_* зависит от
+    выбранной схемы CMD_WIRING). Возвращает (unit, kwargs) или
+    (None, error_response).
+    """
+    data = request.data
+    try:
+        unit = ControlUnit.objects.get(pk=data.get('unit'))
+    except (TypeError, ValueError, ControlUnit.DoesNotExist):
+        return None, Response({'error': 'unit обязателен'}, status=400)
+    snapshot = data.get('snapshot') or None
+    if snapshot is not None and not isinstance(snapshot, dict):
+        return None, Response({'error': 'snapshot должен быть объектом'},
+                              status=400)
+    signal_power = None
+    if data.get('signal_power'):
+        from ea_control.models import CuSignalPower
+        try:
+            signal_power = CuSignalPower.objects.get(pk=data['signal_power'])
+        except (ValueError, CuSignalPower.DoesNotExist):
+            return None, Response({'error': 'signal_power не найден'},
+                                  status=400)
+    return unit, {'snapshot': snapshot,
+                  'signal_power': signal_power,
+                  'locale': data.get('locale', 'ru')}
+
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def specification_view(request):
+    """Спецификация модификации БУ: видимые узлы/слоты, значения из снимка
+    (или std-дефолты профиля). Тело: {unit, snapshot?, signal_power?,
+    locale?}."""
+    from ea_control.services.cu_description import build_specification
+    unit, err_or_kw = _unit_from_body(request)
+    if unit is None:
+        return err_or_kw
+    return Response(build_specification(unit, **err_or_kw))
+
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def description_view(request):
+    """Текстовое описание модификации БУ (локализованное).
+    Тело: {unit, snapshot?, signal_power?, locale?}."""
+    from ea_control.services.cu_description import (
+        build_description as build_mod_description)
+    unit, err_or_kw = _unit_from_body(request)
+    if unit is None:
+        return err_or_kw
+    return Response({'text': build_mod_description(unit, **err_or_kw)})
 
 
 @api_view(['GET'])

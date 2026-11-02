@@ -43,7 +43,7 @@ class CuMatrixServiceTests(TestCase):
 
     def test_resolve_slots_basic(self):
         resolved = resolve_slots(self.basic)
-        self.assertIn('LOCAL_CONTROL', resolved)
+        self.assertIn('LOCAL_CONTROL_DESIGN', resolved)
         self.assertIn('HEATER_CONTROL_UNIT', resolved)
         # базовому шину не резолвим — строк нет
         self.assertNotIn('PROTOCOL', resolved)
@@ -57,11 +57,11 @@ class CuMatrixServiceTests(TestCase):
         stop = resolved['CMD_STOP']
         self.assertEqual([p['option_code'] for p in stop], ['CMD_STOP_NONE'])
         # AOX-M базовый: органов местного управления нет — только «Нет» (std)
-        local = resolved['LOCAL_CONTROL']
-        self.assertTrue(any(p['option_code'] == 'LOCAL_NONE'
+        local = resolved['LOCAL_CONTROL_DESIGN']
+        self.assertTrue(any(p['option_code'] == 'DESIGN_NONE'
                             and p['availability'] == 'std' for p in local))
-        self.assertFalse(any(p['option_code'] == 'BUTTONS' for p in local))
-        self.assertFalse(any(p['option_code'] == 'SELECTOR' for p in local))
+        self.assertFalse(any(p['option_code'] == 'DESIGN_BTN' for p in local))
+        self.assertFalse(any(p['option_code'] == 'DESIGN_SEL' for p in local))
         # обогрев — отдельной линией (std), от цепей питания — опция
         heater = resolved['HEATER_CONTROL_UNIT']
         self.assertTrue(any(p['option_code'] == 'H_SEP'
@@ -117,7 +117,7 @@ class CuMatrixServiceTests(TestCase):
 
     def test_profile_defaults_int(self):
         defaults = get_profile_defaults(self.int_unit)
-        self.assertEqual(defaults.get('INDICATOR'), 'LCD')
+        self.assertEqual(defaults.get('HEATER_CONTROL_UNIT'), 'H_NO')
         self.assertEqual(defaults.get('POSITION_FEEDBACK'), 'POS_4_20_ACTIVE')
 
     def test_bundle_atomicity(self):
@@ -211,10 +211,10 @@ class CuUnitCopyDeleteTests(TestCase):
             before_rows)
         opt = CuSlotOption.objects.get(
             slot__code='control_unit', control_unit=new)
-        # exact-правило (hide LOCAL_CONTROL) скопировано с новым кодом опции
+        # exact-правило (hide LOCAL_CONTROL_DESIGN) скопировано с новым кодом опции
         self.assertTrue(CuSlotRule.objects.filter(
             when_slot__code='control_unit', when_value=opt.code,
-            target_slot__code='LOCAL_CONTROL').exists())
+            target_slot__code='LOCAL_CONTROL_DESIGN').exists())
         # список 'in' расширен новым кодом опции
         in_rules = CuSlotRule.objects.filter(
             when_slot__code='control_unit',
@@ -256,11 +256,11 @@ class CuUnitMatrixServiceTests(TestCase):
     def test_build_matrix_basic(self):
         m = build_unit_matrix(self.basic)
         slots = {s['code']: s for s in m['slots']}
-        self.assertIn('LOCAL_CONTROL', slots)
-        opts = {o['code']: o for o in slots['LOCAL_CONTROL']['options']}
-        self.assertEqual(opts['LOCAL_NONE']['availability'], 'std')
-        self.assertEqual(opts['BUTTONS']['availability'], 'na')
-        self.assertEqual(opts['SELECTOR']['availability'], 'na')
+        self.assertIn('LOCAL_CONTROL_DESIGN', slots)
+        opts = {o['code']: o for o in slots['LOCAL_CONTROL_DESIGN']['options']}
+        self.assertEqual(opts['DESIGN_NONE']['availability'], 'std')
+        self.assertEqual(opts['DESIGN_BTN']['availability'], 'na')
+        self.assertEqual(opts['DESIGN_SEL']['availability'], 'na')
 
     def test_build_matrix_location_slot(self):
         # размещение БУ — слот CU_LOCATION: встроенным — INTEGRATED std,
@@ -326,8 +326,8 @@ class CuUnitMatrixServiceTests(TestCase):
             power_supply=self.ps380).exists())
 
     def test_apply_rejects_multiple_std_in_single_slot(self):
-        slot = CuSlot.objects.get(code='LOCAL_CONTROL')
-        buttons = CuSlotOption.objects.get(code='BUTTONS')
+        slot = CuSlot.objects.get(code='LOCAL_CONTROL_DESIGN')
+        buttons = CuSlotOption.objects.get(code='DESIGN_BTN')
         with self.assertRaises(MatrixValidationError):
             apply_unit_matrix_changes(
                 self.basic, None,
@@ -443,11 +443,13 @@ class CuPackageServiceTests(TestCase):
         # слот PROTOCOL в пакете есть, но все опции недоступны (None)
         protocol = next(s for s in pkg['slots'] if s['code'] == 'PROTOCOL')
         self.assertTrue(all(o['availability'] is None for o in protocol['options']))
-        # опции INDICATOR: LCD доступна как std
-        indicator = next(s for s in pkg['slots'] if s['code'] == 'INDICATOR')
-        lcd = next(o for o in indicator['options'] if o['code'] == 'LCD')
-        self.assertEqual(lcd['availability'], 'std')
-        self.assertEqual(pkg['defaults'].get('INDICATOR'), 'LCD')
+        # опции POSITION_FEEDBACK: POS_4_20_ACTIVE доступна как std
+        pos_fb = next(s for s in pkg['slots'] if s['code'] == 'POSITION_FEEDBACK')
+        active = next(o for o in pos_fb['options']
+                      if o['code'] == 'POS_4_20_ACTIVE')
+        self.assertEqual(active['availability'], 'std')
+        self.assertEqual(pkg['defaults'].get('POSITION_FEEDBACK'),
+                         'POS_4_20_ACTIVE')
         self.assertTrue(pkg['rules'])
 
 
@@ -462,21 +464,27 @@ class CuReviewFixTests(TestCase):
 
     def test_describe_keeps_child_of_deactivated_section(self):
         """M1: выключенный родитель не скрывает активных детей в отчёте."""
-        from ea_control.models import CuSectionNode
+        from ea_control.models import ControlUnit, CuSectionNode
         from ea_control.services.cu_report import build_description
-        parent = CuSectionNode.objects.get(code='CONTROL_SIGNALS')
+        unit = ControlUnit.objects.get(code='int-n')
+        parent = CuSectionNode.objects.get(code='GENERAL')
         prev = parent.is_active
         parent.is_active = False
         parent.save(update_fields=['is_active'])
         try:
-            d = build_description(self.basic)
+            d = build_description(unit)
             codes = [s['code'] for s in d['sections']]
-            self.assertIn('CMD_INPUTS', codes)
-            sec = next(s for s in d['sections'] if s['code'] == 'CMD_INPUTS')
-            self.assertIn('CMD_WIRING', [sl['code'] for sl in sec['slots']])
-            # выключенная секция помечена в отчёте
+            # ребёнок выключенной секции виден (PHASE_3_OPTIONS →
+            # PHASE_PROTECTION — видим для int-n)
+            self.assertIn('PHASE_3_OPTIONS', codes)
+            child = next(s for s in d['sections']
+                         if s['code'] == 'PHASE_3_OPTIONS')
+            self.assertIn('PHASE_PROTECTION',
+                          [sl['code'] for sl in child['slots']])
+            # выключенная секция помечена в отчёте (если у неё есть
+            # видимые слоты)
             parent_sec = next(s for s in d['sections']
-                              if s['code'] == 'CONTROL_SIGNALS')
+                              if s['code'] == 'GENERAL')
             self.assertFalse(parent_sec['is_active'])
         finally:
             parent.is_active = prev
@@ -562,21 +570,35 @@ class SeedCleanupTests(TestCase):
 
     def test_seed_canonical_state(self):
         self.assertEqual(CuSlot.objects.count(), 42)
+        # единственный не-single — PHASE_PROTECTION (xor, слот пользователя)
         self.assertEqual(
-            CuSlot.objects.exclude(selection_mode='single').count(), 0)
-        # §4.3: 40 object-слотов с источником, 2 value-слота (none-опции)
-        self.assertEqual(CuSlot.objects.filter(slot_kind='object').count(), 40)
+            CuSlot.objects.exclude(selection_mode='single').count(), 1)
+        self.assertEqual(
+            CuSlot.objects.get(code='PHASE_PROTECTION').selection_mode, 'xor')
+        # 39 object-слотов с источником, 3 value-слота
+        self.assertEqual(CuSlot.objects.filter(slot_kind='object').count(), 39)
         self.assertEqual(
             CuSlot.objects.filter(slot_kind='object', source='').count(), 0)
-        self.assertEqual(CuSlot.objects.filter(slot_kind='value').count(), 2)
+        self.assertEqual(CuSlot.objects.filter(slot_kind='value').count(), 3)
         self.assertEqual(
             CuSlot.objects.get(code='POSITION_FEEDBACK').source,
             'feedback_signal')
         self.assertEqual(
-            CuSlot.objects.get(code='LOCAL_CONTROL').source, 'local_control')
-        self.assertEqual(CuSlot.objects.get(code='INDICATOR').source, 'display')
+            CuSlot.objects.get(code='LOCAL_CONTROL_DESIGN').source,
+            'local_control')
         self.assertEqual(
             CuSlot.objects.get(code='ACCESS_DEVICE').source, 'access_device')
+        # слоты LOCAL_CONTROL/INDICATOR заменены (решение 2026-11-02):
+        # обогрев привода (object/heater_supply) и защита фаз (value/xor)
+        self.assertFalse(CuSlot.objects.filter(
+            code__in=('LOCAL_CONTROL', 'INDICATOR')).exists())
+        self.assertEqual(
+            CuSlot.objects.get(code='ACTUATOR_HEATER').source,
+            'heater_supply')
+        self.assertEqual(
+            CuSlot.objects.get(code='PHASE_PROTECTION').slot_kind, 'value')
+        self.assertEqual(
+            CuSlot.objects.get(code='PHASE_PROTECTION').selection_mode, 'xor')
         # узел «Датчики» — тип датчика (device), не сигнал: концевые/путевые/
         # моментные × основные/дополнительные + теплозащита
         for code in ('END_SWITCHES_SENSOR_MAIN', 'END_SWITCHES_SENSOR_EXT',

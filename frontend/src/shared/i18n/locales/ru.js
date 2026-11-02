@@ -16,6 +16,7 @@ export default {
   'menu.about': 'О проекте',
   'menu.admin': 'Администрирование',
   'menu.eaControl': 'Блоки управления ЭП',
+  'menu.eaControlEmulation': 'БУ ЭП — эмуляция конфигуратора',
 
   'eaControl.save': 'Сохранить',
   'eaControl.cancel': 'Отмена',

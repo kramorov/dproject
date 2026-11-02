@@ -479,7 +479,11 @@ class Command(BaseCommand):
         # только явный мусор (копии/пробы). Слоты осознанного дизайна
         # («Датчики» и пр.) сид НЕ удаляет.
         stale_slots = ('TORQUE_SWITCHES_SENSOR_MAIN_Copy',
-                       'LOCAL_CONTROL_DESIGN2', 'е1')
+                       'LOCAL_CONTROL_DESIGN2', 'е1',
+                       # заменены по решению пользователя (2026-11-02):
+                       # органы управления — LOCAL_CONTROL_DESIGN, индикация —
+                       # IND_*; добавлены ACTUATOR_HEATER/PHASE_PROTECTION
+                       'LOCAL_CONTROL', 'INDICATOR')
         CuMatrixEntry.objects.filter(slot__code__in=stale_slots).delete()
         CuSlot.objects.filter(code__in=stale_slots).delete()
         CuSlotOption.objects.filter(code__in=(
@@ -536,6 +540,12 @@ class Command(BaseCommand):
             'POWER': CuSectionNode.objects.get_or_create(
                 code='POWER', defaults=dict(name='Обогрев / питание'))[0],
         }
+        # опции 3-фазного питания привода (узел создан пользователем
+        # сознательно, 2026-11-02; слот PHASE_PROTECTION)
+        phase_3_options = CuSectionNode.objects.get_or_create(
+            code='PHASE_3_OPTIONS',
+            defaults=dict(name='Опции 3-фазного питания привода',
+                          parent=sections['GENERAL'], sorting_order=10))[0]
         # местная индикация: узел + вложенный узел сигналов
         ind_node = CuSectionNode.objects.get_or_create(
             code='LOCAL_INDICATION',
@@ -570,8 +580,15 @@ class Command(BaseCommand):
             'CU_LOCATION': _slot('CU_LOCATION', name='Размещение БУ',
                                  section=sections['GENERAL'],
                                  selection_mode='single', required=True),
-            'LOCAL_CONTROL': _slot('LOCAL_CONTROL', name='Местное управление',
-                                   section=sections['CONTROL_SIGNALS']),
+            # обогрев привода и защита от чередования фаз — слоты,
+            # созданные пользователем сознательно (2026-11-02)
+            'ACTUATOR_HEATER': _slot('ACTUATOR_HEATER', name='Обогрев привода',
+                                     section=sections['GENERAL'],
+                                     selection_mode='single'),
+            'PHASE_PROTECTION': _slot(
+                'PHASE_PROTECTION',
+                name='Автоматическая защита от неправильного чередования фаз',
+                section=phase_3_options, selection_mode='xor'),
             'CMD_WIRING': _slot('CMD_WIRING', name='Схема цепей управления',
                                 section=cmd_inputs, selection_mode='single',
                                 required=True),
@@ -607,8 +624,6 @@ class Command(BaseCommand):
                                        section=sections['FEEDBACK']),
             'THERMAL_SENSOR': _slot('THERMAL_SENSOR', name='Теплозащита',
                                     section=sections['FEEDBACK']),
-            'INDICATOR': _slot('INDICATOR', name='Индикация',
-                               section=sections['FEEDBACK']),
             'TURN_COUNTER': _slot('TURN_COUNTER', name='Счётчик оборотов',
                                   section=sections['FEEDBACK']),
             'REMOTE_CONTROL': _slot('REMOTE_CONTROL', name='Удалённое управление',
@@ -715,10 +730,10 @@ class Command(BaseCommand):
             'TORQUE_SWITCHES_SENSOR_MAIN': ('object', 'device'),
             'TORQUE_SWITCHES_SENSOR_EXT': ('object', 'device'),
             'THERMO_SENSOR': ('object', 'device'),
-            'LOCAL_CONTROL': ('object', 'local_control'),
-            'INDICATOR': ('object', 'display'),
             'TURN_COUNTER': ('value', ''),
             'MOTOR_STARTER': ('value', ''),
+            'ACTUATOR_HEATER': ('object', 'heater_supply'),
+            'PHASE_PROTECTION': ('value', ''),
         }
         for code, (kind, source) in slot_flags.items():
             CuSlot.objects.filter(code=code).update(
@@ -752,12 +767,6 @@ class Command(BaseCommand):
         opts['CU_LOC_SEPARATE'] = _opt(
             'CU_LOC_SEPARATE', slots['CU_LOCATION'], 'location',
             location_option=locations['SEPARATE'])
-        # управление
-        opts['BUTTONS'] = _opt('BUTTONS', slots['LOCAL_CONTROL'], 'local_control',
-                               local_control_type=local_ctrl['BUTTONS'])
-        opts['SELECTOR'] = _opt('SELECTOR', slots['LOCAL_CONTROL'], 'local_control',
-                                local_control_type=local_ctrl['SELECTOR'])
-        opts['LOCAL_NONE'] = _none('LOCAL_NONE', slots['LOCAL_CONTROL'], 'Нет')
         # схема цепей управления: опция = пара источник × напряжение ×
         # форма × полярность (kind=power → CuSignalPower)
         opts['W_INT_24'] = _opt('W_INT_24', slots['CMD_WIRING'], 'power',
@@ -879,15 +888,6 @@ class Command(BaseCommand):
                                         'signal',
                                         feedback_signal=fb['FB_OVERHEAT'],
                                         device=devices['THERMO'])
-        opts['LED_SET'] = _opt('LED_SET', slots['INDICATOR'], 'display',
-                               name='Светодиоды', ext_encoding='D')
-        opts['LED_SET'].display_types.set([display['LED']])
-        opts['BLINKER'] = _opt('BLINKER', slots['INDICATOR'], 'display',
-                               name='Блинкер', ext_encoding='B')
-        opts['BLINKER'].display_types.set([display['LED_BLINK']])
-        opts['LCD'] = _opt('LCD', slots['INDICATOR'], 'display',
-                           name='Дисплей', ext_encoding='L')
-        opts['LCD'].display_types.set([display['LCD']])
         opts['TC_NONE'] = _none('TC_NONE', slots['TURN_COUNTER'], 'Нет')
         opts['TC_MECH'] = _opt('TC_MECH', slots['TURN_COUNTER'], 'value',
                                name='Механический', ext_encoding='M')
@@ -1015,28 +1015,6 @@ class Command(BaseCommand):
         opts['IND_ALARM_NONE'] = _none('IND_ALARM_NONE', slots['IND_ALARM'], 'Нет')
         opts['IND_LR_NONE'] = _none('IND_LR_NONE', slots['IND_LOCAL_REMOTE'], 'Нет')
 
-        # §4.3 дополнение (2026-11-01): опции LOCAL_CONTROL/INDICATOR ссылаются
-        # на записи справочников; существующие строки обновляем явно
-        # (get_or_create не трогает kind/нагрузки созданных опций).
-        _repoint_lc = {
-            'BUTTONS': local_ctrl['BUTTONS'],
-            'SELECTOR': local_ctrl['SELECTOR'],
-        }
-        for _code, _rec in _repoint_lc.items():
-            _obj = CuSlotOption.objects.filter(code=_code).first()
-            if _obj:
-                _obj.kind = 'local_control'
-                _obj.local_control_type = _rec
-                _obj.name = ''
-                _obj.save()
-        _repoint_disp = {'LED_SET': 'LED', 'BLINKER': 'LED_BLINK', 'LCD': 'LCD'}
-        for _code, _dk in _repoint_disp.items():
-            _obj = CuSlotOption.objects.filter(code=_code).first()
-            if _obj:
-                _obj.kind = 'display'
-                _obj.name = ''
-                _obj.save()
-                _obj.display_types.set([display[_dk]])
         opts['IND_RUN_NONE'] = _none('IND_RUN_NONE', slots['IND_RUN'], 'Нет')
         # питание БУ и кабельные вводы БУ
         opts['PU_SHARED'] = _opt('PU_SHARED', slots['CU_POWER_SUPPLY'],
@@ -1051,6 +1029,33 @@ class Command(BaseCommand):
                                         name='Встроенный стартер мотора')
         opts['STARTER_NONE'] = _none('STARTER_NONE', slots['MOTOR_STARTER'],
                                      'Нет')
+        # обогрев привода и защита от чередования фаз (слоты, созданные
+        # пользователем сознательно, 2026-11-02; опции — копии опций
+        # обогрева БУ + value-пара защиты)
+        opts['H_MOTOR_Copy'] = _opt(
+            'H_MOTOR_Copy', slots['ACTUATOR_HEATER'], 'heater',
+            heater_supply=heater['MOTOR_CIRCUIT'], ext_encoding='C',
+            sorting_order=2,
+            description='Питание антиконденсатного нагревателя от '
+                        'внутреннего блока питания')
+        opts['H_SEP_Copy'] = _opt(
+            'H_SEP_Copy', slots['ACTUATOR_HEATER'], 'heater',
+            heater_supply=heater['SEPARATE_LINE'], ext_encoding='S',
+            sorting_order=4,
+            description='Питание антиконденсатного нагревателя от '
+                        'отдельной линии')
+        opts['H_NO_Copy'] = _opt(
+            'H_NO_Copy', slots['ACTUATOR_HEATER'], 'heater',
+            heater_supply=heater['NO_HEATER'], sorting_order=6,
+            description='Антикондесатный нагреватель не установлен')
+        opts['PHASE_PROTECTION_YES'] = _opt(
+            'PHASE_PROTECTION_YES', slots['PHASE_PROTECTION'], 'value',
+            name='ЕСТЬ защита от неправильного чередования фаз',
+            description='ЕСТЬ', sorting_order=0)
+        opts['PHASE_PROTECTION_NONE'] = _none(
+            'PHASE_PROTECTION_NONE', slots['PHASE_PROTECTION'],
+            'Нет защита от неправильного чередования фаз',
+            description='Нет', sorting_order=1)
 
         def _thread(code, name, type_code, type_name, diameter=None):
             from params.models import ThreadSize, ThreadTypes
@@ -1071,14 +1076,20 @@ class Command(BaseCommand):
             числу отверстий (cg1..cg4).
             """
             from electric_actuators.models import CableGlandHolesSet
-            lookup = {'name': name, 'kind': 'GLAND_SET'}
-            fields = dict(lookup, text_description=text)
+            # поиск набора по составу резьб cg1..cg4, а не по имени:
+            # имена пользователь правит в админке, состав — стабильная
+            # идентичность набора (дубли имени/состава не плодим)
+            qs = CableGlandHolesSet.objects.filter(kind='GLAND_SET')
             for i, ts in enumerate(threads[:4], start=1):
-                fields[f'cg{i}'] = ts
-            # name не уникален — не get_or_create (MultipleObjectsReturned
-            # при дубле имени); при дублях берём первую запись
-            obj = CableGlandHolesSet.objects.filter(**lookup).first()
+                qs = qs.filter(**{f'cg{i}': ts})
+            for i in range(len(threads[:4]) + 1, 5):
+                qs = qs.filter(**{f'cg{i}__isnull': True})
+            obj = qs.order_by('id').first()
             if obj is None:
+                fields = {'name': name, 'kind': 'GLAND_SET',
+                          'text_description': text}
+                for i, ts in enumerate(threads[:4], start=1):
+                    fields[f'cg{i}'] = ts
                 obj = CableGlandHolesSet.objects.create(**fields)
             return _opt(opt_code, slots['CU_CABLE_GLANDS'], 'cable_gland',
                         cable_gland_set=obj)
@@ -1087,13 +1098,17 @@ class Command(BaseCommand):
         # переиспользуем, чтобы наборы БУ и корпуса ссылались на одни записи
         # наборы вводов БУ: 2 отверстия (уточнено вместо placeholder 3×;
         # сверка с каталогом — slots.md §4.6)
+        # канон опций вводов БУ (2026-11-02): оставлены старые коды
+        # 2хM20*1,5 / 2хM25*1,5 / 1x11/2NPT+2x3/4NPT; новые коды CG_*
+        # (дубли одного набора) удаляются чисткой ниже. Ключи словаря opts
+        # (CG_M20 и т.д.) сохранены для ссылок в _seed_matrix.
         opts['CG_M20'] = _gland_set_opt(
-            'CG_M20', '2xM20x1.5',
+            '2хM20*1,5', '2xM20x1.5',
             'Одинаковая резьба M20×1,5 (2 отверстия)',
             [_thread('M20x1.5', 'M20x1.5', 'METRIC', 'Метрическая',
                      diameter=20)] * 2)
         opts['CG_M25'] = _gland_set_opt(
-            'CG_M25', '2xM25x1.5',
+            '2хM25*1,5', '2xM25x1.5',
             'Одинаковая резьба M25×1,5 (2 отверстия)',
             [_thread('M25x1.5', 'M25x1.5', 'METRIC', 'Метрическая',
                      diameter=25)] * 2)
@@ -1109,9 +1124,16 @@ class Command(BaseCommand):
                 if (not old.cu_slot_options.exists()
                         and not old.cableglandholessetthroughoption_set.exists()):
                     old.delete()
+        # дубликаты опций вводов БУ (2026-11-02): новые коды CG_M20/CG_M25/
+        # CG_NPT_112_34 ссылались на те же наборы, что и старые опции —
+        # удаляем их вместе со строками матрицы; строки канона сид создаёт
+        # заново в _seed_matrix на оставленных (старых) опциях
+        for dup_code in ('CG_M20', 'CG_M25', 'CG_NPT_112_34'):
+            CuMatrixEntry.objects.filter(option__code=dup_code).delete()
+            CuSlotOption.objects.filter(code=dup_code).delete()
         # набор вводов INT/O: 1×1½" NPT + 2×¾" NPT (из справочника резьб)
         opts['CG_NPT_112_34'] = _gland_set_opt(
-            'CG_NPT_112_34', '1xNPT11/2", 2xNPT3/4"',
+            '1x11/2NPT+2x3/4NPT', '1xNPT11/2", 2xNPT3/4"',
             '1×1½" NPT + 2×¾" NPT',
             [_thread('NPT_1_1_2', '1½" NPT', 'NPT', 'NPT', diameter=1.5),
              _thread('NPT_3_4', '¾" NPT', 'NPT', 'NPT', diameter=0.75),
@@ -1163,7 +1185,7 @@ class Command(BaseCommand):
             'basic', 'БУ базовый', cu_kinds['BASIC'],
             legacy_cu=_legacy('basic'),
             name_template='БУ базовый {code}',
-            description_template='Базовый блок управления {brand} (AOX-M): '
+            description='Базовый блок управления {brand} (AOX-M): '
                                  'команды Открыть/Закрыть потенциальной '
                                  'логикой (Стоп — отсутствием сигнала), цепи '
                                  'управления от внешнего источника 220 В '
@@ -1171,8 +1193,7 @@ class Command(BaseCommand):
                                  'сухой контакт), концевые и моментные '
                                  'выключатели, перегрев SPST (НЗ), обогрев '
                                  'отдельной линией.',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         basic.accepts.set([])
         basic.emits.set([fb['FB_END_OPEN_SPDT'], fb['FB_END_CLOSE_SPDT'],
@@ -1183,12 +1204,10 @@ class Command(BaseCommand):
             'int-n', 'БУ INT', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-n'),
             name_template='БУ INT {code}',
-            description_template='Интеллектуальный блок управления {brand}: '
+            description='Интеллектуальный блок управления {brand}: '
                                  'дисплей, настройка логики, позиционная ОС '
                                  '4-20 мА. Функции: {capabilities}.',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Связь': {'Протоколы': '_res_protocols'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         int_unit.accepts.set([ctl['CMD_4_20MA']])
         int_unit.emits.set([fb['FB_END_OPEN_SPDT'], fb['FB_END_CLOSE_SPDT'],
@@ -1203,11 +1222,9 @@ class Command(BaseCommand):
             'int-n-mb', 'БУ INT Modbus', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-n-mb'),
             name_template='БУ INT {code} (Modbus)',
-            description_template='Интеллектуальный блок управления {brand} с '
+            description='Интеллектуальный блок управления {brand} с '
                                  'шиной: {protocols}.',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Связь': {'Протоколы': '_res_protocols'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         int_mb.accepts.set(int_unit.accepts.all())
         int_mb.emits.set(int_unit.emits.all())
@@ -1221,11 +1238,10 @@ class Command(BaseCommand):
             'int-n-hr', 'БУ INT HART', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-n-hr'),
             name_template='БУ INT {code} (HART)',
-            description_template='Интеллектуальный блок управления {brand} с '
+            description='Интеллектуальный блок управления {brand} с '
                                  'HART: уставка и позиционная ОС 4-20 мА '
                                  '(HART).',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         int_hr.accepts.set([ctl['CMD_4_20MA_HART']])
         int_hr.emits.set([fb['FB_POS_4_20MA_HART']])
@@ -1235,11 +1251,9 @@ class Command(BaseCommand):
             'int-n-pb', 'БУ INT PROFIBUS', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-n-pb'),
             name_template='БУ INT {code} (PROFIBUS)',
-            description_template='Интеллектуальный блок управления {brand} с '
+            description='Интеллектуальный блок управления {brand} с '
                                  'шиной: {protocols}.',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Связь': {'Протоколы': '_res_protocols'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         int_pb.accepts.set(int_unit.accepts.all())
         int_pb.emits.set(int_unit.emits.all())
@@ -1250,10 +1264,9 @@ class Command(BaseCommand):
             'int-l', 'БУ INT LCU', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-l'),
             name_template='БУ INT {code} (LCU)',
-            description_template='Интеллектуальный блок управления {brand} '
+            description='Интеллектуальный блок управления {brand} '
                                  'с местным управлением (LCU).',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         int_l.accepts.set(int_unit.accepts.all())
         int_l.emits.set(int_unit.emits.all())
@@ -1263,10 +1276,9 @@ class Command(BaseCommand):
             'posi-4-20', 'БУ позиционер 4-20', cu_kinds['POSITIONER'],
             legacy_cu=_legacy('posi-4-20'),
             name_template='БУ позиционер {code}',
-            description_template='Позиционер {brand}: уставка и обратная связь '
+            description='Позиционер {brand}: уставка и обратная связь '
                                  'по петле 4-20 мА (HART).',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         posi.accepts.set([ctl['CMD_4_20MA_HART']])
         posi.emits.set([fb['FB_POS_4_20MA_HART']])
@@ -1276,13 +1288,12 @@ class Command(BaseCommand):
             'int-o', 'БУ INT/O', cu_kinds['INTEGRATED'],
             legacy_cu=_legacy('int-o'),
             name_template='БУ INT/O {code}',
-            description_template='БУ INT/O {brand}: навесной, команды '
+            description='БУ INT/O {brand}: навесной, команды '
                                  'Открыть/Закрыть (+24 В от внутреннего '
                                  'источника — сухой контакт; опция: внешние '
                                  '220 В AC), светодиодная индикация, стартер '
                                  '(380 В).',
-            spec_template={'Основные': {'Класс БУ': '_res_kind'},
-                           'Возможности': {'Функции': '_res_capabilities'}},
+            
         )
         int_o.accepts.set([])
         int_o.emits.set([fb['FB_END_OPEN_SPDT'], fb['FB_END_CLOSE_SPDT'],
@@ -1304,24 +1315,6 @@ class Command(BaseCommand):
         # ссылаются опции CMD_WIRING; лишние чистим
         CuSignalPower.objects.filter(input_form__isnull=True).delete()
 
-        # старые шаблоны спецификации ссылались на удалённый resolver
-        # _res_signal_power (поле signal_power убрано из модели) — чистим,
-        # иначе в спецификации остаётся пустая ячейка «Питание цепей»
-        for unit in (basic, int_unit, int_mb, posi, int_o):
-            spec = unit.spec_template or {}
-            changed = False
-            for section, fields in list(spec.items()):
-                if not isinstance(fields, dict):
-                    continue
-                for label, path in list(fields.items()):
-                    if path == '_res_signal_power':
-                        del fields[label]
-                        changed = True
-            if changed:
-                # .update() в обход TemplateMixin.save() — не перегенерируем
-                # name/description при чистке шаблона
-                ControlUnit.objects.filter(pk=unit.pk).update(
-                    spec_template=spec)
         return {'basic': basic, 'int': int_unit, 'int_mb': int_mb,
                 'int_hr': int_hr, 'int_pb': int_pb, 'int_l': int_l,
                 'posi': posi, 'int_o': int_o}
@@ -1345,7 +1338,8 @@ class Command(BaseCommand):
         # потенциальная (стоп — отсутствием сигнала); перегрев — SPST НЗ;
         # обогрев — отдельной линией (опция от питания привода)
         p = [
-            (slots['LOCAL_CONTROL'], opts['LOCAL_NONE'], std),
+            (slots['ACTUATOR_HEATER'], opts['H_MOTOR_Copy'], opt),
+            (slots['ACTUATOR_HEATER'], opts['H_SEP_Copy'], std),
             (slots['CMD_WIRING'], opts['W_EXT_220'], std),
             (slots['CMD_WIRING'], opts['W_INT_24'], opt),
             (slots['CMD_WIRING'], opts['W_EXT_24_PNP'], na),
@@ -1372,7 +1366,6 @@ class Command(BaseCommand):
             (slots['TORQUE_SWITCHES_CLOSE'], opts['TORQUE_CLOSE_SPDT'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_NONE'], std),
             (slots['THERMAL_SENSOR'], opts['OVERHEAT_SPST_NC'], std),
-            (slots['INDICATOR'], opts['LED_SET'], std),
             (slots['TURN_COUNTER'], opts['TC_NONE'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_SEP'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_MOTOR'], opt),
@@ -1385,14 +1378,9 @@ class Command(BaseCommand):
                 ('HEATER_CONTROL_UNIT', ['H_NO'])]:
             for oc in opt_codes:
                 _row(slots[slot_code], opts[oc], cus['basic'], availability=na)
-        _row(slots['LOCAL_CONTROL'], opts['BUTTONS'], cus['basic'],
-             availability=na)
-        _row(slots['LOCAL_CONTROL'], opts['SELECTOR'], cus['basic'],
-             availability=na)
 
         # профиль БУ INT
         p = [
-            (slots['LOCAL_CONTROL'], opts['SELECTOR'], std),
             (slots['CMD_WIRING'], opts['W_INT_24'], std),
             (slots['CMD_WIRING'], opts['W_EXT_220'], opt),
             (slots['CMD_WIRING'], opts['W_EXT_24_PNP'], na),
@@ -1423,7 +1411,6 @@ class Command(BaseCommand):
             (slots['POSITION_FEEDBACK'], opts['POS_4_20_ACTIVE'], std),
             (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
             (slots['THERMAL_SENSOR'], opts['OVERHEAT_NC'], opt),
-            (slots['INDICATOR'], opts['LCD'], std),
             (slots['TURN_COUNTER'], opts['TC_EL'], opt),
             (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
         ]
@@ -1473,7 +1460,6 @@ class Command(BaseCommand):
 
         # профиль БУ позиционер
         p = [
-            (slots['LOCAL_CONTROL'], opts['SELECTOR'], std),
             (slots['CMD_WIRING'], opts['W_INT_24'], std),
             (slots['CMD_WIRING'], opts['W_EXT_24_PNP'], opt),
             (slots['CMD_WIRING'], opts['W_EXT_24_NPN'], na),
@@ -1490,7 +1476,6 @@ class Command(BaseCommand):
             (slots['TORQUE_SWITCHES_CLOSE'], opts['TORQUE_CLOSE_SPDT'], std),
             (slots['POSITION_FEEDBACK'], opts['POS_HART'], std),
             (slots['THERMAL_SENSOR'], opts['NO_SENSOR'], std),
-            (slots['INDICATOR'], opts['LCD'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
         ]
         for slot, option, avail in p:
@@ -1605,8 +1590,10 @@ class Command(BaseCommand):
         p = [
             (slots['CU_LOCATION'], opts['CU_LOC_SEPARATE'], std),
             (slots['CU_LOCATION'], opts['CU_LOC_INTEGRATED'], na),
-            (slots['LOCAL_CONTROL'], opts['BUTTONS'], std),
-            (slots['LOCAL_CONTROL'], opts['SELECTOR'], opt),
+            (slots['ACTUATOR_HEATER'], opts['H_MOTOR_Copy'], opt),
+            (slots['ACTUATOR_HEATER'], opts['H_SEP_Copy'], std),
+            (slots['ACTUATOR_HEATER'], opts['H_NO_Copy'], opt),
+            (slots['PHASE_PROTECTION'], opts['PHASE_PROTECTION_NONE'], std),
             (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_BTN'], std),
             (slots['LOCAL_CONTROL_DESIGN'], opts['DESIGN_SEL'], opt),
             (slots['LIMIT_SWITCHES_OPENED'], opts['OPEN_SPDT'], std),
@@ -1621,7 +1608,6 @@ class Command(BaseCommand):
             (slots['REMOTE_CONTROL'], opts['REMOTE_NONE'], opt),
             (slots['ALARM_SIGNAL'], opts['ALARM_SPDT'], std),
             (slots['ALARM_SIGNAL'], opts['ALARM_NONE'], opt),
-            (slots['INDICATOR'], opts['LED_SET'], std),
             (slots['TURN_COUNTER'], opts['TC_MECH'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_NO'], std),
             (slots['HEATER_CONTROL_UNIT'], opts['H_MOTOR'], opt),
@@ -1790,12 +1776,32 @@ class Command(BaseCommand):
             target_slot=slots['IND_POSITION'], action='hide',
             description='Базовому БУ процент открытия не показываем',
         ).delete()
-        for hidden in ('LOCAL_CONTROL', 'LOCAL_CONTROL_DESIGN', 'IND_STOP',
+        for hidden in ('LOCAL_CONTROL_DESIGN', 'IND_STOP',
                        'IND_LOCAL_REMOTE', 'IND_POSITION', 'IND_ALARM',
                        'MOTOR_STARTER'):
             _rule(slots['control_unit'], slots[hidden], 'hide',
                   when_value='CU_BASIC',
                   description=f'Базовому БУ слот {hidden} не показываем')
+        # обогрев привода и защита от чередования фаз (слоты пользователя,
+        # 2026-11-02): обогрев показываем базовому и навесному БУ; защиту —
+        # не показываем им же. Старые правила (без описания) чистим —
+        # идемпотентность при повторном сиде поверх данных пользователя.
+        CuSlotRule.objects.filter(
+            when_slot=slots['control_unit'],
+            target_slot__in=[slots['ACTUATOR_HEATER'],
+                             slots['PHASE_PROTECTION']]).delete()
+        _rule(slots['control_unit'], slots['ACTUATOR_HEATER'], 'show',
+              when_value='CU_BASIC',
+              description='Базовому БУ обогрев привода показываем')
+        _rule(slots['control_unit'], slots['ACTUATOR_HEATER'], 'show',
+              when_value='CU_INT_O',
+              description='Навесному БУ обогрев привода показываем')
+        _rule(slots['control_unit'], slots['PHASE_PROTECTION'], 'hide',
+              when_value='CU_BASIC',
+              description='Базовому БУ защиту от чередования фаз не показываем')
+        _rule(slots['control_unit'], slots['PHASE_PROTECTION'], 'hide',
+              when_value='CU_INT_O',
+              description='Навесному БУ защиту от чередования фаз не показываем')
         # встроенным БУ питание БУ и вводы БУ не показываем (вводы — у привода)
         for hidden in ('CU_POWER_SUPPLY', 'CU_CABLE_GLANDS'):
             _rule(slots['control_unit'], slots[hidden], 'hide',

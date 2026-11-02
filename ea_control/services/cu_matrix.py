@@ -248,7 +248,8 @@ def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
             .filter(control_unit=control_unit, brand__isnull=True,
                     model_line__isnull=True, body__isnull=True,
                     model_line_item__isnull=True)
-            .exclude(slot__code='control_unit'))
+            .exclude(slot__code='control_unit')
+            .order_by('id'))  # детерминизм: при нескольких std побеждает ранняя
     if power_supply is not None:
         rows = rows.filter(Q(power_supply=power_supply)
                            | Q(power_supply__isnull=True))

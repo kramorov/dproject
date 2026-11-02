@@ -65,6 +65,7 @@ const allItems = [
   ]},
   { key:'admin', label:'menu.admin', adminOnly:true, children:[
     { to:'/admin/ea-control', label:'menu.eaControl' },
+    { to:'/admin/cu-emulation', label:'menu.eaControlEmulation' },
     { label:'menu.itemsPrices', children:[
       { to:'/admin/price', label:'menu.prices' },
       { to:'/admin/sku', label:'SKU' },

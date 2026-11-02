@@ -16,6 +16,7 @@ export default {
   'menu.about': '关于',
   'menu.admin': '管理',
   'menu.eaControl': '电动执行器控制单元',
+  'menu.eaControlEmulation': '电动执行器控制单元 — 配置器仿真',
 
   'eaControl.save': '保存',
   'eaControl.cancel': '取消',

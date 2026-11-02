@@ -382,7 +382,7 @@ onMounted(async () => {
 .content { display: flex; flex-direction: column; gap: 14px; }
 .unit-card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; }
 .unit-card h3 { margin: 0 0 6px; }
-.desc { color: #444; margin: 0 0 8px; }
+.desc { color: #444; margin: 0 0 8px; white-space: pre-line; }
 .spec { border-collapse: collapse; font-size: 13px; }
 .spec th, .spec td { border: 1px solid #eee; padding: 3px 8px; text-align: left; }
 .section { border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; }

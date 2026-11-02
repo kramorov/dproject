@@ -316,30 +316,23 @@ class ControlUnitTests(CuConfigTestCase):
         self.assertEqual(cu.key, old_key)
 
     def test_template_generation(self):
-        """generate_*() рендерят из собственных шаблонов; save() НЕ
-        перезаписывает name/description из шаблонов (название и код —
-        разные сущности)."""
+        """generate_name() рендерит из собственного шаблона названия; save()
+        НЕ перезаписывает name/description (название и код — разные
+        сущности). Шаблоны описания/спецификации убраны (2026-11-02) —
+        описание/спецификация считаются генератором cu_description."""
         cu = ControlUnit.objects.get(code='INT')
         cu.name = 'Мой БУ'
         cu.description = 'Моё описание'
         cu.name_template = 'БУ {code} ({kind})'
-        cu.description_template = 'Тип {name}; протоколы: {protocols}'
-        cu.spec_template = {'Основные': {'Класс БУ': '_res_kind', 'Код': 'code'}}
         cu.name_template_i18n = {'en': 'CU {code} ({kind})'}
         cu.save()
-        # name/description — самостоятельные поля, не перетираются шаблонами
+        # name/description — самостоятельные поля, не перетираются шаблоном
         self.assertEqual(cu.name, 'Мой БУ')
         self.assertEqual(cu.description, 'Моё описание')
-        # рендеринг из шаблонов доступен явно (generate_*)
+        # рендеринг названия из шаблона доступен явно (generate_name)
         self.assertEqual(cu.generate_name(), 'БУ INT (Интеллектуальный)')
         self.assertEqual(cu.generate_name(locale='en'),
                          'CU INT (Интеллектуальный)')
-        self.assertEqual(
-            cu.generate_description(),
-            'Тип Мой БУ; протоколы: Modbus RTU')
-        self.assertEqual(
-            cu.generate_spec_sections(),
-            {'Основные': {'Класс БУ': 'Интеллектуальный', 'Код': 'INT'}})
 
 
 class SnapshotTests(TestCase):

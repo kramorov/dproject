@@ -73,18 +73,16 @@ class ControlUnitKind(CopyMixin, LocalizedDictFieldsMixin,
 class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
     """Тип блока управления электропривода производителя.
 
-    Шаблоны (идея «БУ сам себя описывает»): модель несёт собственные шаблоны
-    названия/описания/спецификации + ``_i18n``-переводы. Фолбэк-цепочка
-    стандарта (свой шаблон → EquipmentType → дефолт) подключается аддитивно:
-    при появлении узла-категории «БУ ЭП» добавляется FK ``equipment_type`` —
-    ``TemplateMixin._get_equipment_type()`` сам найдёт его и подхватит
-    шаблоны узла как дефолт (slots.md → «Решение: граница»). Пока узла нет —
-    работают только собственные шаблоны; пустой шаблон = генерация не
-    выполняется (остаётся поле name/description).
+    Шаблон названия (TemplateMixin): модель несёт собственный ``name_template``
+    + ``name_template_i18n`` (генерация имени, напр. «БУ INT {code}»).
+    Описание и спецификация шаблонами НЕ задаются — их считает генератор
+    ``ea_control.services.cu_description`` из структуры/матрицы/правил БУ
+    (решение 2026-11-02).
 
-    Внимание: ``TemplateMixin.save()`` автоматически обновляет ``name``/
-    ``description`` из шаблонов при каждом сохранении (если шаблон не пуст);
-    сохранить без перегенерации — ``save(skip_auto_generate=True)``.
+    Внимание: ``TemplateMixin.save()`` автоматически обновляет ``name`` из
+    шаблона при каждом сохранении (если шаблон не пуст); сохранить без
+    перегенерации — ``save(skip_auto_generate=True)`` (в ``ControlUnit.save``
+    включён по умолчанию).
     """
 
     brand = models.ForeignKey(
@@ -158,25 +156,9 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
                     "{name}, {protocols}, "
                     "{capabilities}. Пусто — генерация не выполняется"),
     )
-    description_template = models.TextField(
-        null=True, blank=True,
-        verbose_name=_("Шаблон описания"),
-        help_text=_("Те же плейсхолдеры, что у шаблона названия"),
-    )
-    spec_template = models.JSONField(
-        null=True, blank=True,
-        verbose_name=_("Шаблон спецификации"),
-        help_text=_("Структура секций: {\"Основные\": {\"Класс БУ\": "
-                    "\"_res_kind\"}} — метка → путь поля или resolver"
-                    "(_res_*)"),
-    )
     name_template_i18n = models.JSONField(
         default=dict, blank=True,
         verbose_name=_("Переводы шаблона названия (ru/en/cn)"),
-    )
-    description_template_i18n = models.JSONField(
-        default=dict, blank=True,
-        verbose_name=_("Переводы шаблона описания (ru/en/cn)"),
     )
     description = models.TextField(
         blank=True,
@@ -201,31 +183,26 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         code/name — человекочитаемые и могут меняться; key неизменяем.
 
         ``name``/``description`` — самостоятельные поля: при обычном
-        сохранении НЕ перегенерируются из шаблонов (TemplateMixin.save
-        подставил бы в name значение {model_code} = код). Шаблоны остаются
-        данными для generate_name()/generate_description()/спецификации;
-        явная перегенерация — save(skip_auto_generate=False).
+        сохранении НЕ перегенерируются из шаблона (TemplateMixin.save
+        подставил бы в name значение {model_code} = код). Шаблон названия
+        остаётся данными для generate_name(); описание/спецификация
+        модификации считаются генератором cu_description (по структуре и
+        правилам, без шаблонов — решение 2026-11-02).
         """
         if not self.key:
             self.key = uuid.uuid4().hex[:16]
         kwargs.setdefault('skip_auto_generate', True)
         super().save(*args, **kwargs)
 
-    # ── Шаблоны (TemplateMixin): БУ сам себя описывает ─────────────────────
-    # Поля name_template/description_template объявлены выше и затеняют
-    # одноимённые property миксина; хуки ниже отдают их как источник,
-    # чтобы переводы (_get_template_i18n) брались из тех же собственных
-    # полей. Фолбэк на EquipmentType подключается позже (см. docstring
-    # класса) — тогда переопределяем _resolve_template цепочкой
-    # свой → EquipmentType → дефолт.
+    # ── Шаблоны (TemplateMixin): только название БУ ───────────────────────
+    # Поле name_template объявлено выше и затеняет property миксина; хук
+    # ниже отдаёт его как источник, чтобы переводы (_get_template_i18n)
+    # брались из собственного name_template_i18n. Описание/спецификация
+    # шаблонами больше не описываются (убраны 2026-11-02).
 
     def _get_name_template_source(self):
         """Собственный шаблон названия БУ (или None)."""
         return self.name_template or None
-
-    def _get_description_template_source(self):
-        """Собственный шаблон описания БУ (или None)."""
-        return self.description_template or None
 
     def _get_template_i18n(self, field_base):
         """Переводы шаблона — из собственных *_i18n полей."""
@@ -255,18 +232,3 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
     def _res_capabilities(self, locale=None):
         names = [localized_name(c, locale) for c in self.capabilities.all()]
         return ', '.join(names)
-
-    def generate_spec_sections(self):
-        """Рендер секций спецификации БУ: {секция: {метка: значение}}.
-
-        Структура из spec_template; значение метки — путь поля или
-        resolver-метод (_res_*) — резолвится через
-        TemplateMixin._resolve_data_dict_target.
-        """
-        result = {}
-        for section, fields in (self.spec_template or {}).items():
-            result[section] = {
-                label: self._resolve_data_dict_target(path)
-                for label, path in fields.items()
-            }
-        return result

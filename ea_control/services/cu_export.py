@@ -126,11 +126,16 @@ def _tree_sections():
 
 
 def build_settings_xlsx(control_unit):
-    """xlsx-байты выгрузки настроек типа БУ."""
+    """xlsx-байты выгрузки настроек типа БУ (видимые слоты — как в
+    описании/спецификации: всё, кроме скрытых правилом ``hide``)."""
     import openpyxl
+
+    from ea_control.services.cu_description import hidden_slot_codes
+    hidden = hidden_slot_codes(control_unit)
 
     sections = _tree_sections()
     slots = (CuSlot.objects.exclude(code='control_unit')
+             .exclude(code__in=hidden)
              .select_related('section')
              .order_by('sorting_order', 'code'))
     slots_by_section = {}
@@ -189,8 +194,11 @@ def build_settings_xlsx(control_unit):
 
     def write_block(ws, avail_map):
         for node, _depth in sections:
+            node_slots = slots_by_section.get(node.id, [])
+            if not node_slots:
+                continue  # узел без видимых слотов не выводим
             ws.append([_text(node.description, node.name, node.code)])
-            for slot in slots_by_section.get(node.id, []):
+            for slot in node_slots:
                 ws.append(slot_row(slot, avail_map))
         orphans = slots_by_section.get(None, [])
         if orphans:
