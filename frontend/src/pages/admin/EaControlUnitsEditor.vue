@@ -43,6 +43,7 @@
       <div v-if="form" class="edit-area">
         <div class="edit-head">
           <h3>{{ form.id ? 'Изменить' : 'Создать' }} — блок управления</h3>
+          <button v-if="form && form.id" class="export-btn" @click="exportSettings">Экспорт настроек в Excel</button>
         </div>
 
         <div class="sub-tabs">
@@ -547,6 +548,31 @@ function cancelEdit() {
   matrixDirty.value = false
 }
 
+async function exportSettings() {
+  if (!form.value || !form.value.id) return
+  error.value = ''
+  try {
+    const r = await api.get('/ea-control/export-settings/', {
+      params: { unit: form.value.id },
+      responseType: 'blob',
+    })
+    let filename = `cu_settings_${form.value.code || form.value.id}.xlsx`
+    const disposition = r.headers['content-disposition'] || ''
+    const m = /filename="?([^";]+)"?/.exec(disposition)
+    if (m) filename = m[1]
+    const url = URL.createObjectURL(r.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    error.value = e.displayMessage || 'Ошибка экспорта'
+  }
+}
+
 async function loadKinds() {
   try {
     const { data } = await api.get('/ea-control/control-unit-kinds/')
@@ -595,7 +621,13 @@ onMounted(async () => {
 .row-actions button { cursor: pointer; }
 .empty { color: #999; padding: 10px; }
 .edit-area { border-top: 2px solid #2c6fb0; margin-top: 12px; padding-top: 10px; }
+.edit-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .edit-head h3 { margin: 0 0 8px; font-size: 15px; }
+.export-btn {
+  padding: 5px 12px; border: 1px solid #2c6fb0; background: #fff;
+  color: #2c6fb0; border-radius: 4px; cursor: pointer; font-size: 13px;
+}
+.export-btn:hover { background: #eef4fb; }
 .sub-tabs { display: flex; gap: 4px; margin: 8px 0 12px; }
 .sub-tabs button { padding: 6px 12px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; }
 .sub-tabs button.active { background: #2c6fb0; color: #fff; border-color: #2c6fb0; }

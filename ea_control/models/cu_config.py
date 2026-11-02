@@ -143,8 +143,9 @@ class CuOptionKind(models.TextChoices):
     CABLE_GLAND = 'cable_gland', _('Кабельные вводы БУ')
     LOCATION = 'location', _('Размещение БУ')
     ACCESS_DEVICE = 'access_device', _('Устройство ограничения доступа')
-    NONE = 'none', _('Без сигнала (none-строка)')
-    PAIR = 'pair', _('Пара контактов (Откр/Закр)')
+    VALUE = 'value', _('Значение')
+    NONE = 'none', _('Нет (без значения)')
+    PAIR = 'pair', _('Пара контактов (устаревший)')
 
 
 class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
@@ -185,8 +186,9 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                     "управления; display — вид(ы) отображения; unit_power — "
                     "питание БУ; cable_gland — набор отверстий под КВ БУ "
                     "(общая модель ЭП CableGlandHolesSet); "
-                    "location — размещение БУ; none — опция без полезной "
-                    "нагрузки; pair — пара контактов Откр/Закр"),
+                    "location — размещение БУ; value — значение (value-слот); "
+                    "none — «нет» (без значения); pair — пара контактов "
+                    "(устаревший)"),
     )
     control_signal = models.ForeignKey(
         'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
@@ -401,12 +403,12 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                 raise ValidationError(
                     _('Для опции доступа нужно устройство ограничения доступа '
                       '(electric_actuators.EaAccessDeviceOption).'))
-        elif self.kind in (CuOptionKind.NONE, CuOptionKind.PAIR):
+        elif self.kind in (CuOptionKind.VALUE, CuOptionKind.NONE):
             if not self.name:
-                raise ValidationError(_('Для none/pair-опции нужно имя (название).'))
+                raise ValidationError(_('Для value/none-опции нужно имя (название).'))
         # «Решение: два рода слота» (2026-11-01): object-слот — kind фиксирован
         # источником слота, опция — запись справочника-источника; value-слот —
-        # только none/pair.
+        # только value/none.
         if self.slot_id and self.slot.slot_kind == 'object' and self.slot.source:
             expected_kind, _field = SLOT_SOURCE_PAYLOAD.get(
                 self.slot.source, (None, None))
@@ -430,9 +432,9 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                                       'только ссылку на %(field)s.')
                              % {'src': self.slot.source, 'field': allowed}})
         elif self.slot_id and self.slot.slot_kind == 'value' \
-                and self.kind not in (CuOptionKind.NONE, CuOptionKind.PAIR):
+                and self.kind not in (CuOptionKind.VALUE, CuOptionKind.NONE):
             raise ValidationError(
-                {'kind': _('Опция value-слота может быть только none или pair.')})
+                {'kind': _('Опция value-слота может быть только «Значение» или «Нет».')})
 
 
 class CuMatrixMode(models.TextChoices):

@@ -551,11 +551,14 @@ class Command(BaseCommand):
         sensors = CuSectionNode.objects.get_or_create(
             code='SENSOR',
             defaults=dict(name='Датчики', sorting_order=25))[0]
-        # узел «Дистанционное управление»: схема цепей + состав сигналов
+        # узел «Дистанционное управление»: схема цепей + состав сигналов.
+        # Корневой узел (parent=None) — не вложен в CONTROL_SIGNALS.
+        # get_or_create не трогает parent у существующего узла, поэтому
+        # повторный запуск сида не возвращает его под «Команды управления».
         cmd_inputs = CuSectionNode.objects.get_or_create(
             code='CMD_INPUTS',
             defaults=dict(name='Дистанционное управление',
-                          parent=sections['CONTROL_SIGNALS'],
+                          parent=None,
                           sorting_order=10))[0]
 
         def _slot(code, **defaults):
@@ -886,10 +889,10 @@ class Command(BaseCommand):
                            name='Дисплей', ext_encoding='L')
         opts['LCD'].display_types.set([display['LCD']])
         opts['TC_NONE'] = _none('TC_NONE', slots['TURN_COUNTER'], 'Нет')
-        opts['TC_MECH'] = _none('TC_MECH', slots['TURN_COUNTER'], 'Механический',
-                                ext_encoding='M')
-        opts['TC_EL'] = _none('TC_EL', slots['TURN_COUNTER'], 'Электронный',
-                              ext_encoding='E')
+        opts['TC_MECH'] = _opt('TC_MECH', slots['TURN_COUNTER'], 'value',
+                               name='Механический', ext_encoding='M')
+        opts['TC_EL'] = _opt('TC_EL', slots['TURN_COUNTER'], 'value',
+                             name='Электронный', ext_encoding='E')
         # удалённое управление и сигнал аварии (ОС INT/O)
         opts['REMOTE_SPST_NO'] = _opt('REMOTE_SPST_NO', slots['REMOTE_CONTROL'],
                                       'signal',
@@ -1043,9 +1046,9 @@ class Command(BaseCommand):
                                    'unit_power',
                                    unit_power_source=unit_power['SEPARATE_CABLE'])
         # стартер мотора: физика — только 380 В; у базового БУ его нет
-        opts['STARTER_BUILT_IN'] = _none('STARTER_BUILT_IN',
-                                         slots['MOTOR_STARTER'],
-                                         'Встроенный стартер мотора')
+        opts['STARTER_BUILT_IN'] = _opt('STARTER_BUILT_IN',
+                                        slots['MOTOR_STARTER'], 'value',
+                                        name='Встроенный стартер мотора')
         opts['STARTER_NONE'] = _none('STARTER_NONE', slots['MOTOR_STARTER'],
                                      'Нет')
 

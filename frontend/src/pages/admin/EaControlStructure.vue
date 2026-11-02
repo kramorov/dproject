@@ -5,7 +5,10 @@
       <div class="pane-head">
         <h3>Узлы</h3>
         <EditorActions align="start"
-                       :buttons="[{ key: 'add', label: t('eaControl.addNode'), kind: 'primary' }]"
+                       :buttons="[
+                         { key: 'refresh', label: 'Обновить', kind: 'default', disabled: loading },
+                         { key: 'add', label: t('eaControl.addNode'), kind: 'primary' },
+                       ]"
                        @action="onNodeAction" />
       </div>
       <div class="node-list">
@@ -46,10 +49,19 @@
             <div class="form-row">
               <label class="form-field"><span>Код</span><input v-model="draft.node.code" /></label>
               <label class="form-field"><span>Родитель</span>
-                <select v-model="draft.node.parent">
-                  <option :value="null">— корневой —</option>
-                  <option v-for="o in parentOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
-                </select>
+                <div class="section-picker">
+                  <button type="button" class="sp-btn" @click="toggleParentMenu">
+                    <span class="sp-val">{{ parentLabel(draft.node.parent) }}</span>
+                    <span class="sp-caret">▾</span>
+                  </button>
+                  <div v-if="parentOpen" class="sp-menu">
+                    <div class="sp-item" :class="{ active: draft.node.parent == null }"
+                         @mousedown.prevent="pickParent(null)">— корневой —</div>
+                    <div v-for="o in parentOptions" :key="o.id" class="sp-item"
+                         :class="{ active: draft.node.parent === o.id }"
+                         @mousedown.prevent="pickParent(o.id)">{{ o.label }}</div>
+                  </div>
+                </div>
               </label>
             </div>
             <div class="form-row">
@@ -189,8 +201,8 @@
                   <label v-if="showOptionNameInput" class="form-field"><span>Код</span><input v-model="selOption.code" /></label>
                   <label v-if="selSlot.slot_kind !== 'object'" class="form-field"><span>Тип опции</span>
                     <select v-model="selOption.kind" @change="resetOptionPayload">
-                      <option value="none">None-строка</option>
-                      <option value="pair">Пара контактов</option>
+                      <option value="value">Значение</option>
+                      <option value="none">Нет</option>
                     </select>
                   </label>
                 </div>
@@ -283,7 +295,7 @@ const dicts = reactive({
   controlSignals: [], feedbackSignals: [], protocols: [], devices: [],
   heaterSupplies: [], signalPowers: [], controlLogics: [],
   units: [], localControlTypes: [], displayTypes: [], unitPowerSources: [],
-  cgHoleSets: [], locationOptions: [],
+  cgHoleSets: [], locationOptions: [], accessDevices: [],
 })
 
 // Черновик выбранного узла: { node, slots: [ { ..., options: [...] } ] }
@@ -332,6 +344,7 @@ function onNodeAction(b) {
   if (b.key === 'save') commitAll()
   else if (b.key === 'delete') toggleDeleteNode()
   else if (b.key === 'add') onAddNode()
+  else if (b.key === 'refresh') refresh()
 }
 
 function onSlotAction(b) {
@@ -401,6 +414,7 @@ const parentOptions = computed(() => {
 // (change приходит со СТАРЫМ значением), поэтому выбор раздела сделан
 // детерминированным списком на mousedown.prevent.
 const sectionOpen = ref(false)
+const parentOpen = ref(false)
 
 function sectionLabel(id) {
   if (id == null) return '— без раздела —'
@@ -408,8 +422,20 @@ function sectionLabel(id) {
   return (s && (s.name || s.code)) || ('#' + id)
 }
 
+function parentLabel(id) {
+  if (id == null) return '— корневой —'
+  const s = sections.value.find(x => x.id === id)
+  return (s && (s.name || s.code)) || ('#' + id)
+}
+
 function toggleSectionMenu() {
+  parentOpen.value = false
   sectionOpen.value = !sectionOpen.value
+}
+
+function toggleParentMenu() {
+  sectionOpen.value = false
+  parentOpen.value = !parentOpen.value
 }
 
 function pickSection(id) {
@@ -421,9 +447,18 @@ function pickSection(id) {
   sectionOpen.value = false
 }
 
+function pickParent(id) {
+  if (draft.node) {
+    draft.node.parent = id
+    markDirty('node')
+  }
+  parentOpen.value = false
+}
+
 function onDocClick(e) {
   if (!(e.target && e.target.closest && e.target.closest('.section-picker'))) {
     sectionOpen.value = false
+    parentOpen.value = false
   }
 }
 
@@ -508,6 +543,27 @@ async function reload() {
   }
 }
 
+// Перечитать справочники/узлы/слоты/опции, сохранив текущий выбор.
+// Нужно, когда значения добавлены в БД «на стороне» (другая вкладка, SQL) —
+// редактор кэширует справочники при монтировании и сам их не обновляет.
+async function refresh() {
+  if (hasChanges.value && !confirm('Есть несохранённые изменения. Перезагрузить и отменить их?')) return
+  const nodeId = draft.node ? draft.node.id : null
+  const slotIdx = selSlotIdx.value
+  error.value = ''
+  await reload()
+  if (nodeId != null) {
+    const n = sections.value.find(x => x.id === nodeId)
+    if (n) {
+      selectNode(n)
+      if (slotIdx >= 0 && slotIdx < draft.slots.length) {
+        selSlotIdx.value = slotIdx
+        selOptionIdx.value = -1
+      }
+    }
+  }
+}
+
 // ── Черновик ──────────────────────────────────────────────────────────────
 
 function cloneOption(o) {
@@ -522,6 +578,7 @@ function cloneOption(o) {
     unit_power_source: o.unit_power_source,
     cable_gland_set: o.cable_gland_set,
     location_option: o.location_option,
+    access_device_option: o.access_device_option,
     encoding: o.encoding || '', ext_encoding: o.ext_encoding || '',
     description: o.description || '', sorting_order: o.sorting_order || 0,
     is_active: o.is_active,
@@ -689,7 +746,7 @@ function makeDraftOption(payload = {}) {
     (m, o) => Math.max(m, o.sorting_order || 0), -1)
   const o = {
     id: null, code: '', name: '', slot: null,
-    kind: spec ? spec.kind : 'none',
+    kind: spec ? spec.kind : 'value',
     control_signal: null, feedback_signal: null, protocol: null,
     heater_supply: null, signal_power: null, control_logic: null,
     control_unit: null, device: null,
@@ -763,6 +820,7 @@ function resetOptionPayload() {
   o.unit_power_source = null
   o.cable_gland_set = null
   o.location_option = null
+  o.access_device_option = null
 }
 
 function toggleOptionMs(name, id) {
@@ -873,8 +931,8 @@ function validateSlotDraft(slot, seenSlotCodes) {
         errs.push(`опция в слоте «${slotLabel}»: ${spec.label}`)
       }
     }
-    if ((opt.kind === 'none' || opt.kind === 'pair') && (!opt.name || !opt.name.trim())) {
-      errs.push(`опция в слоте «${slotLabel}»: название (обязательно для none/pair)`)
+    if ((opt.kind === 'value' || opt.kind === 'none') && (!opt.name || !opt.name.trim())) {
+      errs.push(`опция в слоте «${slotLabel}»: название (обязательно для value/none)`)
     }
     if (opt.kind === 'display' && !(opt.display_types || []).length) {
       errs.push(`опция в слоте «${slotLabel}»: вид отображения`)

@@ -199,9 +199,16 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         """Стабильный ``key`` — короткий UUID, задаётся один раз при создании.
 
         code/name — человекочитаемые и могут меняться; key неизменяем.
+
+        ``name``/``description`` — самостоятельные поля: при обычном
+        сохранении НЕ перегенерируются из шаблонов (TemplateMixin.save
+        подставил бы в name значение {model_code} = код). Шаблоны остаются
+        данными для generate_name()/generate_description()/спецификации;
+        явная перегенерация — save(skip_auto_generate=False).
         """
         if not self.key:
             self.key = uuid.uuid4().hex[:16]
+        kwargs.setdefault('skip_auto_generate', True)
         super().save(*args, **kwargs)
 
     # ── Шаблоны (TemplateMixin): БУ сам себя описывает ─────────────────────

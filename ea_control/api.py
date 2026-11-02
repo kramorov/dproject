@@ -22,6 +22,7 @@ API ea_control: CRUD моделей для фронт-админки + паке�
 резолвятся на бэке (ea_control.services).
 """
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers, status, viewsets
@@ -799,3 +800,24 @@ def package_view(request):
                                   power_supply=power_supply,
                                   signal_power=signal_power, mode=mode,
                                   locale=locale))
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def export_settings_view(request):
+    """Экспорт настроек БУ в Excel (xlsx) — вкладка «Редактор БУ»."""
+    import re
+    from ea_control.services.cu_export import build_settings_xlsx
+
+    try:
+        unit = ControlUnit.objects.get(pk=request.query_params['unit'])
+    except (KeyError, ValueError, ControlUnit.DoesNotExist):
+        return Response({'error': 'unit обязателен'}, status=400)
+    safe_code = re.sub(r'[^A-Za-z0-9_.-]+', '_', unit.code or 'unit')
+    filename = f'cu_settings_{safe_code}.xlsx'
+    resp = HttpResponse(
+        build_settings_xlsx(unit),
+        content_type='application/vnd.openxmlformats-officedocument'
+                     '.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return resp

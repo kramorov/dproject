@@ -316,21 +316,27 @@ class ControlUnitTests(CuConfigTestCase):
         self.assertEqual(cu.key, old_key)
 
     def test_template_generation(self):
-        """БУ сам себя описывает: имя/описание/спецификация из собственных
-        шаблонов; save() автообновляет name/description из шаблонов."""
+        """generate_*() рендерят из собственных шаблонов; save() НЕ
+        перезаписывает name/description из шаблонов (название и код —
+        разные сущности)."""
         cu = ControlUnit.objects.get(code='INT')
+        cu.name = 'Мой БУ'
+        cu.description = 'Моё описание'
         cu.name_template = 'БУ {code} ({kind})'
         cu.description_template = 'Тип {name}; протоколы: {protocols}'
         cu.spec_template = {'Основные': {'Класс БУ': '_res_kind', 'Код': 'code'}}
         cu.name_template_i18n = {'en': 'CU {code} ({kind})'}
         cu.save()
-        self.assertEqual(cu.name, 'БУ INT (Интеллектуальный)')
+        # name/description — самостоятельные поля, не перетираются шаблонами
+        self.assertEqual(cu.name, 'Мой БУ')
+        self.assertEqual(cu.description, 'Моё описание')
+        # рендеринг из шаблонов доступен явно (generate_*)
         self.assertEqual(cu.generate_name(), 'БУ INT (Интеллектуальный)')
         self.assertEqual(cu.generate_name(locale='en'),
                          'CU INT (Интеллектуальный)')
         self.assertEqual(
             cu.generate_description(),
-            'Тип БУ INT (Интеллектуальный); протоколы: Modbus RTU')
+            'Тип Мой БУ; протоколы: Modbus RTU')
         self.assertEqual(
             cu.generate_spec_sections(),
             {'Основные': {'Класс БУ': 'Интеллектуальный', 'Код': 'INT'}})
@@ -462,7 +468,7 @@ class CuSlotSourceTests(CuConfigTestCase):
         with self.assertRaises(ValidationError):
             opt2.full_clean()
 
-    def test_value_slot_option_kinds_limited_to_none_pair(self):
+    def test_value_slot_option_kinds_limited_to_value_none(self):
         slot = CuSlot.objects.create(
             code='SRC_VAL_OPT', name='x', slot_kind='value')
         opt = self.make_option(
@@ -470,6 +476,9 @@ class CuSlotSourceTests(CuConfigTestCase):
             feedback_signal=self.fb_signal)
         with self.assertRaises(ValidationError):
             opt.full_clean()
-        ok = self.make_option(
-            code='SRC_VAL_OK', slot=slot, kind='none', name='Нет')
-        ok.full_clean()  # не падает
+        ok_val = self.make_option(
+            code='SRC_VAL_OK', slot=slot, kind='value', name='Механический')
+        ok_val.full_clean()  # не падает
+        ok_none = self.make_option(
+            code='SRC_VAL_NONE', slot=slot, kind='none', name='Нет')
+        ok_none.full_clean()  # не падает

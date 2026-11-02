@@ -60,5 +60,6 @@ urlpatterns = [
     path('package/', api.package_view, name='cu_package'),
     path('unit-matrix/', api.unit_matrix_view, name='cu_unit_matrix'),
     path('unit-matrix/save/', api.unit_matrix_save_view, name='cu_unit_matrix_save'),
+    path('export-settings/', api.export_settings_view, name='cu_export_settings'),
     *router.urls,
 ]
