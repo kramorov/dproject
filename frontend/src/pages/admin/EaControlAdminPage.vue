@@ -21,6 +21,10 @@
       <EaControlDescription />
     </div>
 
+    <div v-else-if="section === 'emulation'">
+      <CuEmulationPage />
+    </div>
+
     <div v-else-if="section === 'dicts'" class="split-layout">
       <!-- ЛЕВАЯ ЧАСТЬ: список справочников -->
       <div class="left-pane">
@@ -178,6 +182,7 @@ import { guardedDelete } from '@/shared/guardedDelete'
 import EaControlStructure from './EaControlStructure.vue'
 import EaControlConfigurator from './EaControlConfigurator.vue'
 import EaControlDescription from './EaControlDescription.vue'
+import CuEmulationPage from './CuEmulationPage.vue'
 import EaControlUnitsEditor from './EaControlUnitsEditor.vue'
 import EditorActions from '@/components/EditorActions.vue'
 import { t } from '@/shared/i18n'
@@ -370,6 +375,7 @@ const SECTIONS = [
   { key: 'dicts', label: 'Справочники' },
   { key: 'preview', label: 'Превью БУ' },
   { key: 'description', label: 'Описание БУ' },
+  { key: 'emulation', label: 'Тест фильтров' },
 ]
 
 const section = ref('configurator')
@@ -502,7 +508,7 @@ function selectSection(key) {
   editing.value = null
   deletePending.value = false
   dirty.value = false
-  if (key === 'configurator' || key === 'preview' || key === 'description') return
+  if (key === 'configurator' || key === 'preview' || key === 'description' || key === 'emulation') return
   const first = models.value[0]
   if (!first) return
   current.value = first

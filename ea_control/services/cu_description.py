@@ -27,12 +27,31 @@
 JSON на модификации — потребуется либо FK на опции, либо перегенерация
 при изменении настроек (см. slots.md §4).
 """
+from django.db.models import Prefetch
+
 from core.utils.localization import pick_i18n
 
 from ea_control.models import (CuSectionNode, CuSlot, CuSlotOption,
                                CuSlotRule)
 from ea_control.services.cu_matrix import get_profile_defaults, resolve_slots
 from ea_control.services.cu_rules import apply_rules
+
+# FK полезных нагрузок CuSlotOption — для select_related в префетче опций
+# (иначе value/value_description/артикул тянут справочную запись на каждую
+# выбранную опцию отдельным запросом).
+_PAYLOAD_FKS = ('control_signal', 'feedback_signal', 'protocol',
+                'heater_supply', 'signal_power', 'control_logic',
+                'control_unit', 'device', 'local_control_type',
+                'unit_power_source', 'cable_gland_set', 'location_option',
+                'access_device_option')
+
+
+def _slot_options_prefetch():
+    """Префетч опций с полезными нагрузками (FK + display M2M)."""
+    return Prefetch(
+        'slot_options',
+        queryset=(CuSlotOption.objects.select_related(*_PAYLOAD_FKS)
+                  .prefetch_related('display_types')))
 
 
 def _unit_option(control_unit):
@@ -68,7 +87,7 @@ def visible_slots(control_unit, snapshot=None):
     slots = list(CuSlot.objects.filter(is_active=True)
                  .exclude(code='control_unit')
                  .select_related('section')
-                 .prefetch_related('slot_options')
+                 .prefetch_related(_slot_options_prefetch())
                  .order_by('sorting_order', 'code'))
     visible = [s for s in slots if s.code not in hidden]
     node_ids = {s.section_id for s in visible}
@@ -83,7 +102,45 @@ def _option_text(option, locale=None):
         text = pick_i18n(option.description_i18n, locale, fallback='')
         if text:
             return text
+    if option.kind == 'none':
+        # явное «Нет»: none-опция всегда выводится текстом, не кодом
+        return option.localized_name(locale) or 'Нет'
     return option.localized_name(locale)
+
+
+def _payload_description(obj, locale=None):
+    """Описание справочной записи: description_i18n → description → ''."""
+    return pick_i18n(getattr(obj, 'description_i18n', None), locale,
+                     fallback=getattr(obj, 'description', '') or '')
+
+
+def _option_description(option, locale=None):
+    """Описание опции для колонки спецификации.
+
+    - none — явное «Нет» (у none-опций нет описания, пусто не выводим);
+    - value — собственное описание опции (description_i18n → description);
+    - объектные (типизированные полезные нагрузки) — описание справочной
+      записи; display — объединение описаний видов отображения через «+».
+    """
+    if option.kind == 'none':
+        return option.localized_name(locale) or 'Нет'
+    if option.kind == 'value':
+        return pick_i18n(option.description_i18n, locale,
+                         fallback=option.description or '')
+    if option.kind == 'display':
+        descs = [_payload_description(d, locale)
+                 for d in option.display_types.all().order_by('sorting_order')]
+        return ' + '.join(x for x in descs if x)
+    for fk in ('control_signal', 'feedback_signal', 'protocol',
+               'heater_supply', 'signal_power', 'control_logic',
+               'control_unit', 'device', 'local_control_type',
+               'unit_power_source', 'cable_gland_set', 'location_option',
+               'access_device_option'):
+        obj = getattr(option, fk, None)
+        if obj is not None:
+            return _payload_description(obj, locale)
+    return pick_i18n(option.description_i18n, locale,
+                     fallback=option.description or '')
 
 
 def _effective_snapshot(control_unit, snapshot, *, power_supply=None,
@@ -97,10 +154,11 @@ def _effective_snapshot(control_unit, snapshot, *, power_supply=None,
     return merged, defaults
 
 
-def _slot_chosen_codes(slot, options_by_slot, merged, defaults):
-    """Коды выбранных опций слота: снимок → профильный std; чужие коды —
-    отброшены."""
-    codes = [o.code for o in options_by_slot.get(slot.id, [])]
+def _slot_chosen_options(slot, options_by_slot, merged, defaults):
+    """Объекты выбранных опций слота: снимок → профильный std; чужие
+    коды — отброшены."""
+    options = options_by_slot.get(slot.id, [])
+    codes = [o.code for o in options]
     chosen = merged.get(slot.code)
     if isinstance(chosen, (list, tuple)):
         chosen = [c for c in chosen if c in codes] or None
@@ -109,22 +167,37 @@ def _slot_chosen_codes(slot, options_by_slot, merged, defaults):
     if not chosen:
         d = defaults.get(slot.code)
         chosen = [d] if d and d in codes else []
-    return chosen
+    return [o for o in options if o.code in chosen]
+
+
+def _slot_chosen_codes(slot, options_by_slot, merged, defaults):
+    """Коды выбранных опций слота: снимок → профильный std; чужие коды —
+    отброшены."""
+    return [o.code for o in _slot_chosen_options(slot, options_by_slot,
+                                                 merged, defaults)]
 
 
 def _slot_value(slot, options_by_slot, merged, defaults, locale=None):
     """Выбранное значение слота: код(ы) → локализованный текст(ы)."""
-    chosen = _slot_chosen_codes(slot, options_by_slot, merged, defaults)
+    chosen = _slot_chosen_options(slot, options_by_slot, merged, defaults)
     if not chosen:
         return None
-    options = options_by_slot.get(slot.id, [])
-    texts = []
-    for c in chosen:
-        opt = next((o for o in options if o.code == c), None)
-        texts.append(_option_text(opt, locale) if opt else c)
+    texts = [_option_text(o, locale) for o in chosen]
     if len(texts) > 1:
         return texts
     return texts[0]
+
+
+def _slot_value_description(slot, options_by_slot, merged, defaults,
+                            locale=None):
+    """Описание выбранной опции слота (колонка «Описание» спецификации)."""
+    chosen = _slot_chosen_options(slot, options_by_slot, merged, defaults)
+    if not chosen:
+        return None
+    descs = [_option_description(o, locale) for o in chosen]
+    if len(descs) > 1:
+        return descs
+    return descs[0]
 
 
 def build_specification(control_unit, *, snapshot=None, locale=None,
@@ -132,8 +205,8 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
     """Спецификация модификации БУ: видимые узлы → слоты → значения.
 
     Возвращает {unit, sections: [{code, name, description, slots:
-    [{code, name, description, selection_mode, value, options:
-    [{code, name, availability}]}]}]}.
+    [{code, name, description, selection_mode, value, value_description,
+    options: [{code, name, availability}]}]}]}.
     """
     merged, defaults = _effective_snapshot(
         control_unit, snapshot, power_supply=power_supply, mode=mode,
@@ -177,6 +250,8 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
                 'selection_mode': s.selection_mode,
                 'value': _slot_value(s, options_by_slot, merged, defaults,
                                      locale),
+                'value_description': _slot_value_description(
+                    s, options_by_slot, merged, defaults, locale),
                 'options': options_payload,
             })
         sections.append({

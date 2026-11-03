@@ -19,6 +19,7 @@ from ea_control.services.cu_description import (assemble_article,
                                                 build_description,
                                                 build_specification,
                                                 hidden_slot_codes,
+                                                _option_description,
                                                 _option_text)
 
 
@@ -93,6 +94,49 @@ class CuDescriptionGeneratorTests(TestCase):
                   for sec in spec['sections'] for s in sec['slots']}
         self.assertEqual(values['CMD_WIRING'],
                          'Внутренний +24 В (сухой контакт)')
+
+    def test_value_description_none_option(self):
+        """Колонка «Описание»: у none-опции — явное «Нет», не пусто."""
+        spec = build_specification(self.basic)
+        slots = {s['code']: s
+                 for sec in spec['sections'] for s in sec['slots']}
+        self.assertEqual(slots['IND_OPEN']['value'], 'Нет')
+        self.assertEqual(slots['IND_OPEN']['value_description'], 'Нет')
+
+    def test_value_description_from_payload_record(self):
+        """Колонка «Описание» объектной опции — описание справочной
+        записи (локализованное)."""
+        heater = CuSlotOption.objects.get(code='H_SEP_Copy').heater_supply
+        heater.description_i18n = {'en': 'Separate heater line'}
+        heater.save()
+        try:
+            spec = build_specification(self.basic, locale='en')
+            slots = {s['code']: s
+                     for sec in spec['sections'] for s in sec['slots']}
+            self.assertEqual(slots['ACTUATOR_HEATER']['value_description'],
+                             'Separate heater line')
+        finally:
+            heater.description_i18n = {}
+            heater.save()
+
+    def test_value_description_snapshot_override(self):
+        """Смена выбранной опции снимком меняет и описание выбранной."""
+        spec = build_specification(
+            self.basic, snapshot={'CMD_WIRING': 'W_INT_24'})
+        wiring = next(s for sec in spec['sections'] for s in sec['slots']
+                      if s['code'] == 'CMD_WIRING')
+        self.assertEqual(wiring['value'],
+                         'Внутренний +24 В (сухой контакт)')
+        # описание — у записи схемы (CuSignalPower.description), может
+        # быть пустым; главное — поле присутствует и не «Нет»/не None
+        self.assertIn('value_description', wiring)
+        self.assertNotEqual(wiring['value_description'], 'Нет')
+
+    def test_none_option_description_explicit(self):
+        """_option_description none-опции — имя («Нет»), а не пусто/код."""
+        opt = CuSlotOption.objects.get(code='POS_NONE')
+        self.assertEqual(opt.kind, 'none')
+        self.assertEqual(_option_description(opt), 'Нет')
 
     def test_stale_snapshot_codes_ignored(self):
         """Рассинхрон снимка с составом БУ: чужие коды — без ошибок,

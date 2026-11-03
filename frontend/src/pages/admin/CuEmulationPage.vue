@@ -20,6 +20,7 @@
               title="Случайная комбинация среди разрешённых опций (std/opt)">
         Сгенерировать случайный
       </button>
+      <button v-if="unitId" class="btn" @click="showSnapshot">{{ t('eaControlEmu.viewSnapshot') }}</button>
       <button v-if="unitId" class="btn" @click="showSpecification">Просмотреть спецификацию</button>
       <button v-if="unitId" class="btn" @click="showDescription">Просмотреть описание</button>
       <span v-if="error" class="error">{{ error }}</span>
@@ -28,7 +29,6 @@
     <div v-if="pkg" class="content">
       <div class="unit-card">
         <h3>{{ pkg.unit.name }} <small>{{ pkg.unit.kind_display }}</small></h3>
-        <p class="desc">{{ pkg.unit.description }}</p>
       </div>
 
       <div v-for="section in sectionTree" :key="section.code" class="section">
@@ -63,35 +63,57 @@
           </div>
         </template>
       </div>
-
-      <div class="result">
-        <h4>Снимок модификации</h4>
-        <pre>{{ snapshotJson }}</pre>
-      </div>
     </div>
 
-    <div v-if="view" class="view">
-      <div class="view-head">
-        <h3>{{ view.title }}</h3>
-        <button class="btn" @click="view = null">Закрыть</button>
-      </div>
-      <template v-if="view.kind === 'spec'">
-        <div v-for="section in view.data.sections" :key="section.code" class="section">
-          <h4>{{ section.name }} <span v-if="section.is_active === false" class="off">(раздел выключен)</span></h4>
-          <table class="spec">
-            <tbody>
-              <tr v-for="s in section.slots" :key="s.code">
-                <td class="k">{{ s.name }}</td>
-                <td>
-                  <template v-if="Array.isArray(s.value)">{{ s.value.join(', ') }}</template>
-                  <template v-else>{{ s.value ?? '—' }}</template>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+    <div v-if="view" class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>{{ viewTitle }}</h3>
+          <div class="modal-head-actions">
+            <label class="lang">
+              <span>{{ tLoc('eaControlEmu.language') }}</span>
+              <select v-model="viewLocale">
+                <option v-for="l in LOCALES" :key="l" :value="l">{{ l }}</option>
+              </select>
+            </label>
+            <EditorActions :buttons="closeButtons" @action="onViewAction" />
+          </div>
         </div>
-      </template>
-      <pre v-else class="desc-view">{{ view.data.text }}</pre>
+        <div class="modal-body">
+          <template v-if="view.kind === 'spec'">
+            <div v-for="section in view.data.sections" :key="section.code" class="section">
+              <h4>{{ section.name }} <span v-if="section.is_active === false" class="off">{{ tLoc('eaControlEmu.sectionOff') }}</span></h4>
+              <table class="spec">
+                <thead>
+                  <tr>
+                    <th>{{ tLoc('eaControlEmu.parameter') }}</th>
+                    <th>{{ tLoc('eaControlEmu.value') }}</th>
+                    <th>{{ tLoc('eaControlEmu.description') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="s in section.slots" :key="s.code">
+                    <td class="k">{{ s.name }}</td>
+                    <td>
+                      <template v-if="Array.isArray(s.value)">{{ s.value.join(', ') }}</template>
+                      <template v-else>{{ s.value ?? '—' }}</template>
+                    </td>
+                    <td class="desc">
+                      <template v-if="Array.isArray(s.value_description)">{{ s.value_description.join(', ') }}</template>
+                      <template v-else>{{ s.value_description ?? '—' }}</template>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+          <pre v-else-if="view.kind === 'desc'" class="desc-view">{{ view.data.text }}</pre>
+          <pre v-else class="snap-view">{{ view.data.json }}</pre>
+        </div>
+        <div class="modal-foot">
+          <EditorActions :buttons="closeButtons" @action="onViewAction" />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -108,18 +130,56 @@
  * другую разрешённую и сохранить» — серверный генератор принимает снимок
  * с произвольной валидной комбинацией и пересчитывает вывод.
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import api from '@/shared/api'
-import { useI18n } from '@/shared/i18n'
+import { DEFAULT_LOCALE, t, useI18n } from '@/shared/i18n'
+import { messages } from '@/shared/i18n/locales'
+import EditorActions from '@/components/EditorActions.vue'
 
-const { locale } = useI18n()
+const { locale, LOCALES } = useI18n()
 
 const units = ref([])
 const unitId = ref(null)
 const pkg = ref(null)
 const selection = reactive({})
 const error = ref('')
+// view = { kind: 'spec' | 'desc' | 'snapshot', data }
 const view = ref(null)
+// Локаль попапа — отдельная от глобальной: глобальная меняет ключ
+// <router-view> в App.vue и перемонтирует страницу (попап бы исчез).
+const viewLocale = ref(locale.value)
+
+// Перевод подписей попапа на локаль попапа (отладка локализации).
+function tLoc(key) {
+  const dict = messages[viewLocale.value] || messages[DEFAULT_LOCALE]
+  return dict[key] ?? messages[DEFAULT_LOCALE][key] ?? key
+}
+
+// Кнопка «Закрыть» попапа — из переиспользуемого EditorActions;
+// попап закрывается только этой кнопкой (клик по фону не закрывает).
+const closeButtons = computed(() => [
+  { key: 'close', label: tLoc('eaControlEmu.close'), kind: 'default' },
+])
+
+const viewTitle = computed(() => {
+  if (!view.value) return ''
+  if (view.value.kind === 'spec') return tLoc('eaControlEmu.specTitle')
+  if (view.value.kind === 'desc') return tLoc('eaControlEmu.descTitle')
+  return tLoc('eaControlEmu.snapshotTitle')
+})
+
+function onViewAction(b) {
+  if (b.key === 'close') view.value = null
+}
+
+// Селектор языка попапа (отладка локализации): перезапрашиваем контент
+// в выбранной локали — текст попапа перерисовывается.
+watch(viewLocale, () => {
+  if (!view.value) return
+  if (view.value.kind === 'spec' || view.value.kind === 'desc') {
+    fetchView(view.value.kind)
+  }
+})
 
 onMounted(async () => {
   try {
@@ -253,11 +313,18 @@ function generateRandom() {
 }
 
 async function showSpecification() {
+  viewLocale.value = locale.value
   await fetchView('spec')
 }
 
 async function showDescription() {
+  viewLocale.value = locale.value
   await fetchView('desc')
+}
+
+function showSnapshot() {
+  viewLocale.value = locale.value
+  view.value = { kind: 'snapshot', data: { json: snapshotJson.value } }
 }
 
 async function fetchView(kind) {
@@ -269,11 +336,11 @@ async function fetchView(kind) {
       // выбранная схема цепей (CMD_WIRING) перерезолвивает набор сигналов
       // CMD_*: строки матрицы с координатой signal_power
       signal_power: wiringSignalPowerId(),
-      locale: locale.value,
+      locale: viewLocale.value,
     })
     view.value = kind === 'spec'
-      ? { kind, title: 'Спецификация модификации', data: r.data }
-      : { kind, title: 'Описание модификации', data: { text: r.data.text } }
+      ? { kind, data: r.data }
+      : { kind, data: { text: r.data.text } }
   } catch (e) {
     error.value = e.displayMessage || e.message || 'Не удалось сгенерировать'
   }
@@ -297,27 +364,38 @@ function wiringSignalPowerId() {
 .error { color: #b00; }
 .unit-card h3 { margin: 0 0 4px; }
 .unit-card small { color: #888; font-weight: normal; }
-.desc { color: #444; white-space: pre-line; margin: 0 0 10px; }
 .section { margin: 10px 0; border-left: 3px solid #e3e8f0; padding-left: 10px; }
 .section h4 { margin: 4px 0; }
-.slot { margin: 6px 0; }
-.slot-head { display: flex; gap: 8px; align-items: center; margin-bottom: 3px; }
+.slot { display: flex; align-items: flex-start; gap: 12px; margin: 4px 0; }
+.slot-head { flex: 0 0 250px; min-width: 0; display: flex; gap: 8px; align-items: center; }
 .slot-head .mode, .slot-head .req { font-size: 11px; color: #888; border: 1px solid #ddd; border-radius: 3px; padding: 0 4px; }
 .slot-head .req { color: #a40; border-color: #ecb; }
-.opts { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.opts { flex: 1; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .opts.readonly { display: flex; gap: 8px; }
 .opt { display: flex; gap: 5px; align-items: center; }
 .opt.na { opacity: .45; }
 .opt.std .name { font-weight: 600; }
 .avail { font-size: 11px; color: #888; }
-.result { margin-top: 14px; }
-.result pre { background: #f6f8fa; border: 1px solid #e3e8f0; padding: 8px; max-height: 200px; overflow: auto; }
-.view { margin-top: 16px; border: 1px solid #cfe0d0; background: #f7fcf7; border-radius: 6px; padding: 12px; }
-.view-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.view-head h3 { margin: 0; }
+/* Попап спецификации/описания: закрывается только кнопкой «Закрыть»
+   (у .modal-backdrop нет обработчика клика). */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .45);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal { background: #fff; border-radius: 6px; padding: 16px; width: min(960px, 92vw); max-height: 88vh; display: flex; flex-direction: column; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.modal-head h3 { margin: 0; }
+.modal-head-actions { display: flex; align-items: center; gap: 14px; }
+.modal-head-actions .lang { display: flex; align-items: center; gap: 6px; color: #444; font-size: 13px; }
+.modal-head-actions .lang select { padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; }
+.modal-body { overflow: auto; flex: 1; }
+.modal-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
 .off { color: #a66; font-weight: normal; font-size: 12px; }
 table.spec { border-collapse: collapse; font-size: 13px; width: 100%; }
-table.spec td { border: 1px solid #e0e7e0; padding: 3px 8px; vertical-align: top; }
-table.spec td.k { width: 45%; font-weight: 600; }
-.desc-view { white-space: pre-wrap; background: #fff; border: 1px solid #e3e8f0; padding: 10px; }
+table.spec th, table.spec td { border: 1px solid #e0e7e0; padding: 3px 8px; vertical-align: top; text-align: left; }
+table.spec th { background: #f2f6f2; }
+table.spec td.k { width: 32%; font-weight: 600; }
+table.spec td.desc { color: #555; width: 40%; }
+.desc-view { white-space: pre-wrap; background: #fff; border: 1px solid #e3e8f0; padding: 10px; margin: 0; }
+.snap-view { white-space: pre-wrap; background: #f6f8fa; border: 1px solid #e3e8f0; padding: 8px; margin: 0; font-family: ui-monospace, Consolas, monospace; }
 </style>
