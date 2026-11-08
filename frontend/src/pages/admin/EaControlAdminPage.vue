@@ -7,8 +7,6 @@
               @click="selectSection(s.key)">{{ s.label }}</button>
     </div>
 
-    <div v-if="error" class="error-banner">{{ error }}</div>
-
     <div v-if="section === 'configurator'">
       <EaControlStructure />
     </div>
@@ -41,62 +39,16 @@
         </div>
       </div>
 
-      <!-- ПРАВАЯ ЧАСТЬ: сверху — значения справочника, ниже — редактирование -->
+      <!-- ПРАВАЯ ЧАСТЬ: общий CRUD-редактор справочника -->
       <div class="right-pane">
-        <div class="toolbar">
-          <EditorActions align="start" :buttons="toolbarButtons" @action="onToolbarAction" />
-          <span class="count">{{ rows.length }} записей</span>
-        </div>
-
-        <div class="table-scroll">
-          <table v-if="rows.length" class="grid">
-            <thead>
-              <tr>
-                <th v-for="c in columns" :key="c">{{ colLabel(c) }}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in rows" :key="row.id" class="row"
-                  :class="{ editing: editing && editing.id === row.id }"
-                  @click="onRowClick(row)">
-                <td v-for="c in columns" :key="c">{{ display(row, c) }}</td>
-                <td class="actions">
-                  <button title="Удалить" @click.stop="remove(row)">✕</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p v-else class="empty">Записей нет.</p>
-        </div>
-
-        <div v-if="editing" class="edit-area">
-          <div class="edit-head">
-            <h3>{{ editing.id ? 'Изменить' : 'Создать' }} — {{ current.label }}</h3>
-            <EditorActions :buttons="editButtons" @action="onEditAction" />
-          </div>
-          <div v-if="deletePending" class="del-banner">Запись будет удалена при сохранении.</div>
-          <div class="edit-form" @input="markDirty" @change="markDirty">
-            <label v-for="f in current.fields" :key="f.name" class="edit-field"
-                   :class="{ wide: isWide(f) }">
-              <span>{{ f.label }}</span>
-              <input v-if="f.type === 'text'" v-model="form[f.name]" />
-              <textarea v-else-if="f.type === 'textarea'" v-model="form[f.name]" rows="2"></textarea>
-              <input v-else-if="f.type === 'number'" type="number" v-model.number="form[f.name]" />
-              <input v-else-if="f.type === 'bool'" type="checkbox" v-model="form[f.name]" />
-              <select v-else-if="f.type === 'select'" v-model="form[f.name]">
-                <option :value="null">— не задано —</option>
-                <option v-for="o in selectOptions(f)" :key="o.id" :value="o.id">{{ o.label }}</option>
-              </select>
-            </label>
-          </div>
-        </div>
+        <DictEditor ref="dictEditor" :config="current" :options-map="optionsMap"
+                    variant="inline" />
       </div>
     </div>
 
     <template v-else>
       <div class="tabs">
-        <button :class="{ active: buTab === 'units' }" @click="buTab = 'units'">Блоки управления</button>
+        <button :class="{ active: buTab === 'units' }" @click="selectBuUnits()">Блоки управления</button>
         <button v-for="m in models" :key="m.endpoint"
                 :class="{ active: buTab !== 'units' && m.endpoint === current.endpoint }"
                 @click="selectBuModel(m)">{{ m.label }}</button>
@@ -106,64 +58,9 @@
         <EaControlUnitsEditor />
       </div>
 
-      <template v-else>
-        <div class="toolbar">
-          <EditorActions align="start" :buttons="toolbarButtons" @action="onToolbarAction" />
-          <span class="count">{{ rows.length }} записей</span>
-        </div>
-
-        <table v-if="rows.length" class="grid">
-          <thead>
-            <tr>
-              <th v-for="c in columns" :key="c">{{ colLabel(c) }}</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id">
-              <td v-for="c in columns" :key="c">{{ display(row, c) }}</td>
-              <td class="actions">
-                <button title="Изменить" @click="openEdit(row)">✎</button>
-                <button title="Удалить" @click="remove(row)">✕</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="empty">Записей нет.</p>
-      </template>
+      <DictEditor v-else ref="buEditor" :key="current.endpoint" :config="current"
+                  :options-map="optionsMap" variant="modal" />
     </template>
-
-    <div v-if="editing && section === 'bu' && buTab !== 'units'" class="modal-backdrop" @click.self="editing = null">
-      <div class="modal">
-        <h3>{{ editing.id ? 'Изменить' : 'Создать' }} — {{ current.label }}</h3>
-        <div class="form">
-          <label v-for="f in current.fields" :key="f.name">
-            <span>{{ f.label }}</span>
-            <input v-if="f.type === 'text'" v-model="form[f.name]" />
-            <textarea v-else-if="f.type === 'textarea'" v-model="form[f.name]" rows="3"></textarea>
-            <input v-else-if="f.type === 'number'" type="number" v-model.number="form[f.name]" />
-            <input v-else-if="f.type === 'bool'" type="checkbox" v-model="form[f.name]" />
-            <textarea v-else-if="f.type === 'json'" v-model="form[f.name]" rows="4"
-                      :placeholder="`{'key': 'value'} или []`"></textarea>
-            <select v-else-if="f.type === 'select'" v-model="form[f.name]">
-              <option :value="null">— не задано —</option>
-              <option v-for="o in selectOptions(f)" :key="o.id" :value="o.id">{{ o.label }}</option>
-            </select>
-            <div v-else-if="f.type === 'multiselect'" class="ms">
-              <label v-for="o in selectOptions(f)" :key="o.id" class="ms-item">
-                <input type="checkbox" :value="o.id"
-                       :checked="(form[f.name] || []).includes(o.id)"
-                       @change="toggleMs(f.name, o.id)" />
-                {{ o.label }}
-              </label>
-            </div>
-          </label>
-        </div>
-        <div class="modal-actions">
-          <EditorActions :buttons="modalButtons" @action="onModalAction" />
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -171,21 +68,20 @@
 /**
  * Админка ea_control: CRUD всех моделей приложения через /api/ea-control/.
  *
- * Модель редактируемой сущности описывается конфигом MODEL_CONFIGS:
- * endpoint, заголовок, колонки таблицы и поля формы (тип, choices,
- * источник опций для select/multiselect). Выборы подгружаются с API —
- * админке не нужно знать схему бэкенда.
+ * Модель редактируемой сущности описывается конфигом MODEL_CONFIGS
+ * (endpoint, заголовок, колонки таблицы и поля формы). Списки и формы —
+ * общий компонент DictEditor (inline-форма для «Справочников», модалка для
+ * «Редактора БУ»); поля — общий FieldInput; кнопки — общий EditorActions.
+ * Выборы подгружаются с API — админке не нужно знать схему бэкенда.
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
-import { guardedDelete } from '@/shared/guardedDelete'
 import EaControlStructure from './EaControlStructure.vue'
 import EaControlConfigurator from './EaControlConfigurator.vue'
 import EaControlDescription from './EaControlDescription.vue'
 import CuEmulationPage from './CuEmulationPage.vue'
 import EaControlUnitsEditor from './EaControlUnitsEditor.vue'
-import EditorActions from '@/components/EditorActions.vue'
-import { t } from '@/shared/i18n'
+import DictEditor from '@/components/admin/DictEditor.vue'
 
 const DICT_SOURCES = {
   'heater-supplies': 'Обогрев',
@@ -195,6 +91,16 @@ const DICT_SOURCES = {
   'local-control-types': 'Вид органов местного управления',
   'display-types': 'Вид отображения информации',
   'unit-power-sources': 'Питание БУ',
+  'polarities': 'Полярность входных цепей',
+  'control-unit-kinds': 'Классы БУ',
+  'signal-form-categories': 'Категории форм сигналов',
+  'control-signal-roles': 'Роли командных сигналов',
+  'feedback-signal-roles': 'Роли сигналов ОС',
+  'contact-normals': 'Норма контакта',
+  'protocol-transports': 'Транспорты протоколов',
+  'feedback-device-kinds': 'Категории устройств ОС',
+  'feedback-technologies': 'Технологии устройств ОС',
+  'access-device-options': 'Устройства ограничения доступа',
 }
 
 const F = (name, label, type = 'text', extra = {}) => ({ name, label, type, ...extra })
@@ -382,132 +288,15 @@ const section = ref('configurator')
 const buTab = ref('units')
 const models = computed(() => MODEL_CONFIGS.filter(m => m.section === section.value))
 const current = ref(MODEL_CONFIGS[0])
-const rows = ref([])
-const loading = ref(false)
-const error = ref('')
-const editing = ref(null)
-const form = reactive({})
 const optionsMap = reactive({})
-// Грязное состояние встроенной формы справочников и двухшаговое удаление
-const dirty = ref(false)
-const deletePending = ref(false)
-
-const columns = computed(() => current.value.columns)
-
-const editingDeleteLabel = computed(() =>
-  (editing.value && editing.value.id == null) ? t('eaControl.cancelCreate') : t('eaControl.deleteValue'))
-
-// Кнопки тулбара списка, встроенной формы и модалки — через общий EditorActions
-const toolbarButtons = computed(() => [
-  { key: 'create', label: t('eaControl.add'), kind: 'primary' },
-  { key: 'refresh', label: t('eaControl.refresh'), disabled: loading.value },
-])
-
-const editButtons = computed(() => [
-  { key: 'save', label: t('eaControl.save'), kind: 'primary',
-    disabled: !(dirty.value || deletePending.value) },
-  { key: 'delete', label: deletePending.value ? t('eaControl.cancelDelete') : editingDeleteLabel.value,
-    kind: deletePending.value ? 'danger' : 'default' },
-])
-
-const modalButtons = computed(() => [
-  { key: 'save', label: t('eaControl.save'), kind: 'primary' },
-  { key: 'cancel', label: t('eaControl.cancel') },
-])
-
-function onToolbarAction(b) {
-  if (b.key === 'create') openCreate()
-  else if (b.key === 'refresh') load()
-}
-
-function onEditAction(b) {
-  if (b.key === 'save') save()
-  else if (b.key === 'delete') toggleDeleteEditing()
-}
-
-function onModalAction(b) {
-  if (b.key === 'save') save()
-  else if (b.key === 'cancel') editing.value = null
-}
-
-function colLabel(c) {
-  const f = current.value.fields.find(x => x.name === c)
-  return f ? f.label : c
-}
-
-function display(row, c) {
-  const v = row[c]
-  if (v === null || v === undefined || v === '') return ''
-  if (typeof v === 'boolean') return v ? '✓' : ''
-  const f = current.value.fields.find(x => x.name === c)
-  if (f) {
-    if (f.choices) {
-      const o = f.choices.find(([id]) => id === v)
-      if (o) return o[1]
-    }
-    if (f.source && optionsMap[f.source]) {
-      const o = optionsMap[f.source].find(o => o.id === v)
-      if (o) return o.label
-    }
-  }
-  return String(v)
-}
-
-function selectOptions(f) {
-  if (f.choices) {
-    return f.choices.map(([id, label]) => ({ id, label }))
-  }
-  return optionsMap[f.source] || []
-}
-
-function toggleMs(name, id) {
-  const arr = form[name] || []
-  const i = arr.indexOf(id)
-  if (i >= 0) arr.splice(i, 1)
-  else arr.push(id)
-  form[name] = arr
-}
-
-// Поля, занимающие всю ширину встроенной формы справочников
-function isWide(f) {
-  return f.type === 'textarea' || f.type === 'json' || f.type === 'multiselect'
-}
-
-function markDirty() {
-  dirty.value = true
-}
-
-// Есть несохранённые изменения — спросить подтверждение перед уходом
-function confirmUnsaved() {
-  if (!editing.value || !dirty.value) return true
-  return confirm('Есть несохранённые изменения. Отменить их и переключиться?')
-}
-
-function onRowClick(row) {
-  if (editing.value && editing.value.id === row.id) return
-  if (!confirmUnsaved()) return
-  openEdit(row)
-}
-
-async function load() {
-  loading.value = true
-  error.value = ''
-  try {
-    const { data } = await api.get(`/ea-control/${current.value.endpoint}/`)
-    rows.value = Array.isArray(data) ? data : data.results || []
-  } catch (e) {
-    error.value = e.displayMessage || 'Ошибка загрузки'
-  } finally {
-    loading.value = false
-  }
-}
+const dictEditor = ref(null)
+const buEditor = ref(null)
 
 function selectSection(key) {
-  if (!confirmUnsaved()) return
+  const ed = section.value === 'dicts' ? dictEditor.value
+    : section.value === 'bu' ? buEditor.value : null
+  if (ed && !ed.confirmUnsaved()) return
   section.value = key
-  editing.value = null
-  deletePending.value = false
-  dirty.value = false
   if (key === 'configurator' || key === 'preview' || key === 'description' || key === 'emulation') return
   const first = models.value[0]
   if (!first) return
@@ -516,131 +305,22 @@ function selectSection(key) {
     buTab.value = 'units'
     return
   }
-  load()
 }
 
 function selectModel(m) {
-  if (!confirmUnsaved()) return
+  if (dictEditor.value && !dictEditor.value.confirmUnsaved()) return
   current.value = m
-  editing.value = null
-  deletePending.value = false
-  dirty.value = false
-  load()
+}
+
+function selectBuUnits() {
+  if (buEditor.value && !buEditor.value.confirmUnsaved()) return
+  buTab.value = 'units'
 }
 
 function selectBuModel(m) {
-  if (!confirmUnsaved()) return
+  if (buEditor.value && !buEditor.value.confirmUnsaved()) return
   buTab.value = m.endpoint
   current.value = m
-  editing.value = null
-  deletePending.value = false
-  dirty.value = false
-  load()
-}
-
-function openCreate() {
-  if (!confirmUnsaved()) return
-  const f = {}
-  for (const field of current.value.fields) {
-    f[field.name] = field.type === 'bool' ? true
-      : field.type === 'multiselect' ? [] : (field.type === 'json' ? '' : null)
-  }
-  editing.value = { id: null }
-  deletePending.value = false
-  dirty.value = false
-  Object.assign(form, f)
-}
-
-function openEdit(row) {
-  const f = {}
-  for (const field of current.value.fields) {
-    let v = row[field.name]
-    if (field.type === 'json' && v !== null && v !== undefined) {
-      v = JSON.stringify(v, null, 2)
-    }
-    f[field.name] = v
-  }
-  editing.value = row
-  deletePending.value = false
-  dirty.value = false
-  Object.assign(form, f)
-}
-
-function toggleDeleteEditing() {
-  if (!editing.value) return
-  if (editing.value.id == null) {
-    // новый (несохранённый) — сразу отменяем создание
-    editing.value = null
-    deletePending.value = false
-    dirty.value = false
-    return
-  }
-  deletePending.value = !deletePending.value
-}
-
-async function save() {
-  error.value = ''
-  // Двухшаговое удаление: «Сохранить» с пометкой удаления выполняет DELETE
-  if (deletePending.value) {
-    try {
-      if (editing.value && editing.value.id) {
-        await guardedDelete(`/ea-control/${current.value.endpoint}/${editing.value.id}/`)
-      }
-      editing.value = null
-      deletePending.value = false
-      dirty.value = false
-      await load()
-    } catch (e) {
-      if (e && e.cancelled) return
-      error.value = e.displayMessage || 'Ошибка удаления'
-    }
-    return
-  }
-  const payload = {}
-  for (const field of current.value.fields) {
-    let v = form[field.name]
-    if (field.type === 'json' && typeof v === 'string' && v.trim()) {
-      try { v = JSON.parse(v) } catch { v = null }
-    }
-    if (v === '' || v === undefined) v = null
-    // null=False поля DRF отклоняет («may not be null»): пустые скаляры
-    // отправляем как '' / 0, а не null. select/json/multiselect не трогаем —
-    // там null валиден (nullable-FK очищается) или поле обязано быть выбрано.
-    if (v === null) {
-      if (field.type === 'text' || field.type === 'textarea') v = ''
-      else if (field.type === 'number' && !field.nullable) v = 0
-    }
-    payload[field.name] = v
-  }
-  try {
-    if (editing.value && editing.value.id) {
-      await api.put(`/ea-control/${current.value.endpoint}/${editing.value.id}/`, payload)
-    } else {
-      await api.post(`/ea-control/${current.value.endpoint}/`, payload)
-    }
-    editing.value = null
-    deletePending.value = false
-    dirty.value = false
-    await load()
-  } catch (e) {
-    error.value = e.displayMessage || 'Ошибка сохранения'
-  }
-}
-
-async function remove(row) {
-  if (!confirm(`Удалить запись #${row.id}?`)) return
-  try {
-    await guardedDelete(`/ea-control/${current.value.endpoint}/${row.id}/`)
-    if (editing.value && editing.value.id === row.id) {
-      editing.value = null
-      deletePending.value = false
-      dirty.value = false
-    }
-    await load()
-  } catch (e) {
-    if (e && e.cancelled) return
-    error.value = e.displayMessage || 'Ошибка удаления'
-  }
 }
 
 async function loadOptions() {
@@ -684,36 +364,9 @@ onMounted(async () => {
 .sections { display: flex; gap: 4px; margin-bottom: 8px; }
 .sections button { padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; font-weight: 600; }
 .sections button.active { background: #2c6fb0; color: #fff; border-color: #2c6fb0; }
-.error-banner { background: #fdecea; color: #c62828; padding: 8px 10px; border-radius: 4px; margin-bottom: 10px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
 .tabs button { padding: 6px 10px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; }
 .tabs button.active { background: #2c6fb0; color: #fff; border-color: #2c6fb0; }
-.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-.count { color: #666; }
-.error { color: #c00; }
-.empty { color: #999; }
-.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
-.grid th, .grid td { border: 1px solid #ddd; padding: 4px 8px; text-align: left; }
-.grid th { background: #f0f0f0; position: sticky; top: 0; }
-.grid tbody tr.row { cursor: pointer; }
-.grid tbody tr.row:hover { background: #f5f8fc; }
-.grid tbody tr.row.editing { background: #e8f0fa; }
-.actions { white-space: nowrap; }
-.actions button { margin-right: 4px; cursor: pointer; }
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,.4);
-  display: flex; align-items: flex-start; justify-content: center; padding-top: 40px; z-index: 100;
-}
-.modal { background: #fff; padding: 16px; width: 720px; max-height: 85vh; overflow: auto; border-radius: 6px; }
-.form { display: grid; grid-template-columns: 1fr 2fr; gap: 8px 12px; align-items: center; }
-.form label { display: contents; }
-.form label span { text-align: right; color: #444; font-size: 13px; }
-.form input, .form textarea, .form select {
-  width: 100%; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box;
-}
-.ms { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow: auto; border: 1px solid #eee; padding: 4px; }
-.ms-item { display: flex; gap: 4px; align-items: center; font-size: 13px; }
-.modal-actions { margin-top: 14px; display: flex; gap: 8px; justify-content: flex-end; }
 
 /* Справочники: слева список справочников, справа таблица значений */
 .split-layout { display: flex; height: calc(100vh - 80px); border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
@@ -728,20 +381,4 @@ onMounted(async () => {
 .model-item .label { flex: 1; }
 .model-item .code { color: #888; font-size: 11px; }
 .model-item.active .code { color: #dbe7f3; }
-
-/* Прокрутка таблицы справочника (свыше ~10 строк) */
-.table-scroll { overflow-y: auto; max-height: 320px; }
-/* Встроенная форма редактирования значения */
-.edit-area { border-top: 2px solid #2c6fb0; margin-top: 12px; padding-top: 10px; }
-.edit-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.del-banner { background: #fdecea; color: #c62828; padding: 6px 8px; border-radius: 3px; margin-bottom: 8px; font-size: 13px; }
-.edit-head h3 { margin: 0; font-size: 15px; }
-.edit-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; max-width: 760px; }
-.edit-field { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.edit-field > span { flex: 0 0 110px; text-align: right; color: #444; font-size: 13px; }
-.edit-field > input, .edit-field > select, .edit-field > textarea {
-  flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box;
-}
-.edit-field > input[type='checkbox'] { flex: 0 0 auto; }
-.edit-field.wide { grid-column: 1 / -1; }
 </style>

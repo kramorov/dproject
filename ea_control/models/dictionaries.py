@@ -152,10 +152,10 @@ class _Analog4to20Mixin:
     """Общая валидация для сигналов с петлёй 4–20 мА и HART."""
 
     def validate_analog_fields(self, form, hart):
-        """HART допустим только на аналоговой петле (категория формы analog)."""
-        if hart and form and form.category.code != 'analog':
+        """HART допустим только на токовой петле 4–20 мА (AN_4_20_*)."""
+        if hart and form and form.category.code != 'current_4_20':
             raise ValidationError(
-                {'hart': _('HART допустим только для аналоговых форм 4–20 мА.')})
+                {'hart': _('HART допустим только для петли 4–20 мА (AN_4_20_*).')})
 
 
 class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
@@ -206,7 +206,8 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
     hart = models.BooleanField(
         default=False,
         verbose_name=_("HART"),
-        help_text=_("HART поверх петли 4–20 мА (только для форм AN_4_20_*)"),
+        help_text=_("HART поверх петли 4–20 мА (только на токовой петле "
+                    "AN_4_20_*)"),
     )
     code = models.CharField(
         max_length=50, unique=True,
@@ -238,9 +239,11 @@ class CuControlSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
         super().clean()
         self.validate_analog_fields(self.form, self.hart)
         if self.category == 'analog':
-            if not self.form or self.form.category.code != 'current_4_20':
+            if not self.form or self.form.category.code not in (
+                    'current_4_20', 'analog'):
                 raise ValidationError(
-                    {'form': _('Для аналоговой уставки нужна форма AN_4_20_*.')})
+                    {'form': _('Для аналоговой уставки нужна форма AN_4_20_* '
+                               'или AN_0_10V_*.')})
         elif self.form is not None:
             raise ValidationError(
                 {'form': _('Форма задаётся только для аналоговых уставок; '
@@ -361,10 +364,10 @@ class CuFeedbackSignal(_Analog4to20Mixin, CopyMixin, LocalizedDictFieldsMixin,
                 {'contact_normal': _('Нормальное состояние контакта задаётся '
                                      'только для контактных сигналов.')})
         if self.category == 'analog' and self.form.category.code not in (
-                'current_4_20', 'resistance'):
+                'current_4_20', 'resistance', 'analog'):
             raise ValidationError(
                 {'form': _('Для аналогового сигнала нужна форма AN_4_20_* или '
-                           'RES_POTENTIOMETER.')})
+                           'AN_0_10V_* или RES_POTENTIOMETER.')})
         if self.form.category.code == 'resistance' and not self.resistance_kohm:
             raise ValidationError(
                 {'resistance_kohm': _('Для потенциометра обязательно '

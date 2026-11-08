@@ -10,7 +10,6 @@
   в спецификации;
 - изменение правил (hide) сразу убирает слот из описания/спецификации.
 """
-from django.core.management import call_command
 from django.test import TestCase
 
 from ea_control.models import (CuMatrixEntry, CuSectionNode, CuSlot,
@@ -26,11 +25,10 @@ from ea_control.services.cu_description import (assemble_article,
 class CuDescriptionGeneratorTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        call_command('seed_cu_demo')
         from ea_control.models import ControlUnit
-        cls.basic = ControlUnit.objects.get(code='basic')
-        cls.int_unit = ControlUnit.objects.get(code='int-n')
-        cls.int_o = ControlUnit.objects.get(code='int-o')
+        cls.basic = ControlUnit.objects.get(code='basic AR21')
+        cls.int_unit = ControlUnit.objects.get(code='INT/N')
+        cls.int_o = ControlUnit.objects.get(code='INT/O')
         cls.posi = ControlUnit.objects.get(code='posi-4-20')
 
     # ── видимость: «всё, кроме hide» ────────────────────────────────────
@@ -38,17 +36,19 @@ class CuDescriptionGeneratorTests(TestCase):
     def test_hidden_slots_by_rules(self):
         hidden = hidden_slot_codes(self.basic)
         # exact-hide для базового
-        for code in ('LOCAL_CONTROL_DESIGN', 'IND_STOP', 'IND_LOCAL_REMOTE',
-                     'IND_POSITION', 'IND_ALARM', 'MOTOR_STARTER',
+        for code in ('LOCAL_CONTROL_DESIGN', 'IND_LOCAL_REMOTE',
+                     'IND_ALARM', 'MOTOR_STARTER', 'CMD_ESD',
+                     'POSITION_FEEDBACK', 'REMOTE_CONTROL',
                      'PHASE_PROTECTION'):
             self.assertIn(code, hidden)
-        # in-hide для встроенных БУ без шины
+        # exact-hide для встроенных БУ (питание/вводы/протокол)
         self.assertIn('CU_POWER_SUPPLY', hidden)
         self.assertIn('CU_CABLE_GLANDS', hidden)
         self.assertIn('PROTOCOL', hidden)
         # видимые остаются
         for code in ('CU_LOCATION', 'CMD_WIRING', 'ACTUATOR_HEATER',
-                     'HEATER_CONTROL_UNIT', 'IND_OPEN'):
+                     'HEATER_CONTROL_UNIT', 'IND_OPEN', 'IND_STOP',
+                     'IND_POSITION_MECH'):
             self.assertNotIn(code, hidden)
 
     def test_spec_contains_only_visible_slots(self):
@@ -67,11 +67,13 @@ class CuDescriptionGeneratorTests(TestCase):
         # узлы только с видимыми слотами; пустых нет
         for sec in spec['sections']:
             self.assertTrue(sec['slots'])
-        # местная индикация: только видимые сигналы (СТОП/Авария скрыты)
+        # местная индикация: видимые сигналы базового БУ (Авария/Местное-удалённое
+        # скрыты правилами; LCD-индикатор без hide-правила — виден)
         ind_signals = next(sec for sec in spec['sections']
                            if sec['code'] == 'IND_SIGNALS')
         self.assertEqual({s['code'] for s in ind_signals['slots']},
-                         {'IND_OPEN', 'IND_CLOSED', 'IND_RUN'})
+                         {'IND_OPEN', 'IND_CLOSED', 'IND_STOP', 'IND_RUN',
+                          'IND_POSITION_MECH', 'IND_POSITION_LCD'})
         # узел LOCAL_INDICATION — только ACCESS_DEVICE
         loc_ind = next(sec for sec in spec['sections']
                        if sec['code'] == 'LOCAL_INDICATION')
@@ -221,9 +223,8 @@ class CuDescriptionGeneratorTests(TestCase):
         self.assertIn('GENERAL.ACTUATOR_HEATER.H_SEP_Copy', parts)
         self.assertIn('CMD_INPUTS.CMD_WIRING.W_EXT_220', parts)
         self.assertIn('CMD_INPUTS.CMD_STOP.CMD_STOP_NONE', parts)
-        heater_sec = CuSlot.objects.get(
-            code='HEATER_CONTROL_UNIT').section.code
-        self.assertIn(f'{heater_sec}.HEATER_CONTROL_UNIT.H_SEP', parts)
+        # обогрев БУ у базового — H_NO (na-дефолт канона БД; в артикул входит)
+        self.assertIn('GENERAL.HEATER_CONTROL_UNIT.H_NO', parts)
         # каждый вклад — ровно один на слот: «узел.слот.опция»
         self.assertTrue(all(p.count('.') == 2 for p in parts[1:]))
         # скрытые слоты в артикул не входят

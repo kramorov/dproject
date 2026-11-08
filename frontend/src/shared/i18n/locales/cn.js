@@ -33,6 +33,7 @@ export default {
   'eaControl.refresh': '刷新',
   'eaControl.deleteValue': '删除值',
   'eaControl.cancelDelete': '取消删除',
+  'eaControl.copy': '复制',
   'eaControl.cancelCreate': '取消创建',
   'eaControl.deleteNode': '删除节点',
   'eaControl.deleteSlot': '删除槽位',

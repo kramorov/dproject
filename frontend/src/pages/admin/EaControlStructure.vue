@@ -283,6 +283,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
 import { guardedDelete, deleteCancelled } from '@/shared/guardedDelete'
 import { t } from '@/shared/i18n'
+import { uniqueCode } from '@/shared/uniqueCode'
 import EditorActions from '@/components/EditorActions.vue'
 
 const loading = ref(false)
@@ -1097,13 +1098,6 @@ async function commitSlot() {
     if (e && e.cancelled) return
     error.value = e.displayMessage || 'Ошибка сохранения'
   }
-}
-
-function uniqueCode(base, taken) {
-  if (!taken.has(base)) return base
-  let n = 2
-  while (taken.has(`${base}${n}`)) n += 1
-  return `${base}${n}`
 }
 
 // Копировать выбранный слот и все его опции: коды получают суффикс `_Copy`

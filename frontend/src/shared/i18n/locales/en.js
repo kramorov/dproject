@@ -33,6 +33,7 @@ export default {
   'eaControl.refresh': 'Refresh',
   'eaControl.deleteValue': 'Delete value',
   'eaControl.cancelDelete': 'Cancel deletion',
+  'eaControl.copy': 'Copy',
   'eaControl.cancelCreate': 'Cancel creation',
   'eaControl.deleteNode': 'Delete node',
   'eaControl.deleteSlot': 'Delete slot',

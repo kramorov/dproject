@@ -86,7 +86,7 @@ class CuConfigTestCase(TestCase):
         cls.polarity_na = CuPolarity.objects.get_or_create(
             code='NOT_APPLICABLE', defaults=dict(name='Не применимо'))[0]
         # Идемпотентно: get_or_create, а не create — рабочая БД может быть уже
-        # засеяна seed_cu_demo с теми же кодами (иначе при перекопировании
+        # наполнена теми же кодами (иначе при перекопировании
         # db.sqlite3 → test_db.sqlite3 падает IntegrityError).
         cls.form_dry = CuFeedbackSignalForm.objects.get_or_create(
             code='DRY_SPDT',

@@ -33,6 +33,7 @@ export default {
   'eaControl.refresh': 'Обновить',
   'eaControl.deleteValue': 'Удалить значение',
   'eaControl.cancelDelete': 'Отменить удаление',
+  'eaControl.copy': 'Копировать',
   'eaControl.cancelCreate': 'Отменить создание',
   'eaControl.deleteNode': 'Удалить узел',
   'eaControl.deleteSlot': 'Удалить слот',
