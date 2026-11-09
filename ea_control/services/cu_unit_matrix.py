@@ -121,7 +121,13 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
     ``power_supply`` — координата напряжения (None = «любое»). Для каждой
     опции возвращается ``availability`` (std/opt/na), ``row_id`` (строка,
     определяющая доступность; None — строки нет), ``inherited`` (при просмотре
-    конкретного напряжения доступность взята из строки «любое напряжение»).
+    конкретного напряжения у опции нет собственного переопределения — её
+    значение наследуется из профиля «любое напряжение», включая случай
+    «нет строки = na» и «перенаслоение» — строка, повторяющая базовое
+    значение). Для просмотра «любое напряжение» также возвращается
+    ``has_voltage_diff`` — есть ли хотя бы на одном конкретном напряжении
+    строка с доступностью, отличной от базовой (фронт подсвечивает такую
+    опцию как «есть отличия по напряжениям»).
     """
     rows = list(_profile_rows(control_unit))
     by_pair = {}
@@ -145,14 +151,28 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
         for option in sorted(
                 [o for o in slot.slot_options.all() if o.is_active],
                 key=lambda o: (o.sorting_order, o.code)):
+            pairs = by_pair.get((slot.id, option.id), [])
             exact = None
             fallback = None
-            for r in by_pair.get((slot.id, option.id), []):
+            for r in pairs:
                 if ps_id is not None and r.power_supply_id == ps_id:
                     exact = r
                 elif r.power_supply_id is None:
                     fallback = r
             effective = exact or fallback
+            base_av = fallback.availability if fallback else 'na'
+            # строка на конкретном напряжении, повторяющая базовое значение, —
+            # перенаслоение: считаем её наследуемой (без собственного выбора)
+            redundant = (exact is not None and fallback is not None
+                         and exact.availability == fallback.availability)
+            inherited = (ps_id is not None and (exact is None or redundant))
+            has_voltage_diff = False
+            if ps_id is None:
+                # на «любом напряжении»: есть ли на каком-то конкретном
+                # напряжении строка с доступностью, отличной от базовой
+                has_voltage_diff = any(
+                    r.power_supply_id is not None and r.availability != base_av
+                    for r in pairs)
             options.append({
                 'id': option.id,
                 'code': option.code,
@@ -160,9 +180,9 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
                 'kind': option.kind,
                 'availability': effective.availability if effective else 'na',
                 'is_default': effective.is_default if effective else False,
-                'row_id': effective.id if effective else None,
-                'inherited': (ps_id is not None and exact is None
-                              and effective is not None),
+                'row_id': None if inherited else (effective.id if effective else None),
+                'inherited': inherited,
+                'has_voltage_diff': has_voltage_diff,
             })
         slots_payload.append({
             'id': slot.id,
@@ -241,6 +261,8 @@ def apply_unit_matrix_changes(control_unit, power_supply, changes):
     напряжении» удаляет строку (опция недоступна), на конкретном — пишет
     явную na-строку (перекрывает базовую std/opt); ``inherit`` на конкретном
     напряжении удаляет переопределение (возврат к «любому напряжению»).
+    На конкретном напряжении значение, совпадающее с базовым, отдельной
+    строкой не пишется (перенаслоение) — применяется как наследование.
     Возвращает число изменённых строк.
     """
     slot_ids = {c.get('slot_id') for c in changes}
@@ -273,6 +295,17 @@ def apply_unit_matrix_changes(control_unit, power_supply, changes):
                 row.delete()
                 saved += 1
             continue
+        if power_supply is not None:
+            # перенаслоение: значение на конкретном напряжении совпадает с
+            # базовым — отдельную строку не пишем, наследуем базовое
+            base_row = _profile_row_qs(control_unit, None).filter(
+                slot=slot, option=option).first()
+            base_av = base_row.availability if base_row else 'na'
+            if availability == base_av:
+                if row is not None:
+                    row.delete()
+                    saved += 1
+                continue
         if availability == 'na':
             if power_supply is None:
                 # базовый профиль: «нет строки» = опция недоступна для БУ

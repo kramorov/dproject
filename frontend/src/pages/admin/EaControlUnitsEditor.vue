@@ -17,6 +17,18 @@
       </label>
       <div class="count">{{ filtered.length }} из {{ units.length }}</div>
       <div v-if="error" class="error">{{ error }}</div>
+
+      <div class="pane-head nodes-head"><h3>Узлы</h3></div>
+      <div class="node-list">
+        <div v-for="n in nodeTree" :key="n.id" class="node-item"
+             :class="{ active: selectedNodeId === n.id }"
+             :style="{ paddingLeft: (n.depth * 12) + 'px' }"
+             @click="selectedNodeId = n.id">
+          <span class="label">{{ n.name || n.code }}</span>
+          <span class="code">{{ n.code }}</span>
+        </div>
+        <div v-if="!nodeTree.length" class="hint">Узлов нет.</div>
+      </div>
     </div>
 
     <!-- ПРАВАЯ ПАНЕЛЬ: сверху список, снизу редактор -->
@@ -119,23 +131,25 @@
           </div>
           <div v-if="!form.id" class="hint">Сначала сохраните блок управления, затем настраивайте опции.</div>
           <template v-else>
-            <div class="tree-editor">
-              <div v-for="n in optionTree" :key="n.id" class="node-block"
-                   :style="{ marginLeft: (n.depth * 10) + 'px' }">
-                <div class="node-head" :class="{ off: n.allNa }">
-                  <strong>{{ n.name }}</strong>
-                  <span class="code">{{ n.code }}</span>
-                  <span v-if="n.allNa" class="off-mark">Раздел выключен</span>
+            <div v-if="!selectedNode" class="hint">Выберите узел слева.</div>
+            <div v-else class="tree-editor">
+              <div class="node-block">
+                <div class="node-head" :class="{ off: selectedNodeAllNa }">
+                  <strong>{{ selectedNode.name }}</strong>
+                  <span class="code">{{ selectedNode.code }}</span>
+                  <span v-if="selectedNodeAllNa" class="off-mark">Раздел выключен</span>
                 </div>
-                <div v-for="s in n.slots" :key="s.code" class="mslot">
+                <div v-for="s in selectedNodeSlots" :key="s.code" class="mslot">
                   <div class="mslot-head">
                     <strong>{{ s.name }}</strong>
                     <span class="code">{{ s.code }}</span>
                     <span v-if="s.required" class="req">обязателен</span>
                   </div>
                   <div v-for="o in s.options" :key="o.id" class="mopt"
-                       :class="'av-' + o.availability">
+                       :class="optionRowClass(o)"
+                       :title="o.has_voltage_diff ? 'Есть отличия по напряжениям' : null">
                     <span class="oname">{{ o.name }}</span>
+                    <span v-if="o.inherited" class="inh-val">{{ o.availability }}</span>
                     <div class="seg">
                       <button :class="{ on: o.availability === 'std' && !o.inherited }" @click="setAvail(o, 'std')">std</button>
                       <button :class="{ on: o.availability === 'opt' && !o.inherited }" @click="setAvail(o, 'opt')">opt</button>
@@ -178,7 +192,7 @@
                     <span class="rule-desc">{{ ruleDesc(s.rule.action) }}</span>
                   </div>
                 </div>
-                <p v-if="!n.slots.length" class="empty">В узле нет слотов.</p>
+                <p v-if="!selectedNodeSlots.length" class="empty">В узле нет слотов.</p>
               </div>
             </div>
           </template>
@@ -198,9 +212,9 @@
  * список/редактор». Копирование БУ копирует профильные строки матрицы и
  * правила выбора БУ (бэкенд, control-units/<id>/copy/); удаление снимает
  * опцию слота control_unit и чистит правила (delete-unit/). Вкладка
- * «Редактор доступных опций» — дерево узлов → слоты → опции с пометкой
- * std/opt/na (GET/PUT /api/ea-control/unit-matrix/). Узел, у которого во
- * всех слотах все опции «na», помечается «Раздел выключен».
+ * «Редактор доступных опций» — слоты выбранного узла (слева «Узлы»)
+ * с пометкой std/opt/na (GET/PUT /api/ea-control/unit-matrix/). Узел, у
+ * которого во всех слотах все опции «na», помечается «Раздел выключен».
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
@@ -228,43 +242,59 @@ const filters = reactive({ brand: null, kind: null })
 const form = ref(null)
 const dirty = ref(false)
 const tab = ref('basic')
+const selectedNodeId = ref(null)
 
 const filtered = computed(() => units.value.filter(u =>
   (!filters.brand || u.brand === filters.brand)
   && (!filters.kind || u.kind === filters.kind)))
 
-// Дерево узлов с привязанными слотами для визуального редактора опций.
-const optionTree = computed(() => {
-  if (!matrix.value) return []
-  const slotsBySection = {}
-  for (const s of matrix.value.slots || []) {
-    const key = s.section_id || 0
-    if (!slotsBySection[key]) slotsBySection[key] = []
-    slotsBySection[key].push(s)
-  }
+// Дерево узлов (секций) для левой панели «Узлы» — тот же вид, что на
+// закладке «Конфигуратор опций» (вложенность через parent).
+const nodeTree = computed(() => {
   const byParent = {}
   for (const n of nodes.value) {
     const key = n.parent || 0
     if (!byParent[key]) byParent[key] = []
     byParent[key].push(n)
   }
-  const allNa = (slots) =>
-    slots.length > 0 && slots.every(s =>
-      (s.options || []).length > 0 && (s.options || []).every(o => o.availability === 'na'))
   const out = []
+  const seen = new Set()
   const walk = (pid, depth) => {
-    for (const n of (byParent[pid] || [])) {
-      const slots = slotsBySection[n.id] || []
-      out.push({ ...n, depth, slots, allNa: allNa(slots) })
+    const kids = (byParent[pid] || []).slice()
+      .sort((a, b) => (a.sorting_order || 0) - (b.sorting_order || 0))
+    for (const n of kids) {
+      if (seen.has(n.id)) continue
+      seen.add(n.id)
+      out.push({ ...n, depth })
       walk(n.id, depth + 1)
     }
   }
   walk(0, 0)
-  const orphanSlots = slotsBySection[0] || []
-  if (orphanSlots.length) {
-    out.push({ id: 0, code: '', name: 'Без раздела', depth: 0, slots: orphanSlots, allNa: allNa(orphanSlots) })
+  // узлы с битой цепочкой parent (недостижимые из корня) — в корень
+  for (const n of nodes.value) {
+    if (!seen.has(n.id)) {
+      out.push({ ...n, depth: 0 })
+      seen.add(n.id)
+    }
   }
   return out
+})
+
+const selectedNode = computed(() => {
+  if (selectedNodeId.value == null) return null
+  return nodes.value.find(n => n.id === selectedNodeId.value) || null
+})
+
+// Слоты выбранного узла из загруженной матрицы профиля (по section_id).
+const selectedNodeSlots = computed(() => {
+  if (!matrix.value || selectedNodeId.value == null) return []
+  return (matrix.value.slots || []).filter(s => s.section_id === selectedNodeId.value)
+})
+
+const selectedNodeAllNa = computed(() => {
+  const slots = selectedNodeSlots.value
+  return slots.length > 0 && slots.every(s =>
+    (s.options || []).length > 0 && (s.options || []).every(o => o.availability === 'na'))
 })
 
 const toolbarButtons = computed(() => [
@@ -285,6 +315,15 @@ function kindLabel(k) {
 function brandName(id) {
   const b = brands.value.find(x => x.id === id)
   return b ? b.name : ''
+}
+
+// Фон строки опции: наследуемое (конкретное напряжение) — светло-зелёный,
+// отличие по напряжениям (вид «любое напряжение») — светло-оранжевый,
+// иначе — по доступности std/opt/na.
+function optionRowClass(o) {
+  if (o.inherited) return 'mopt-inh'
+  if (o.has_voltage_diff) return 'mopt-diff'
+  return 'av-' + o.availability
 }
 
 function ruleDesc(action) {
@@ -499,9 +538,14 @@ async function saveMatrix() {
   })
 }
 
-function openOptionsTab() {
+async function openOptionsTab() {
   tab.value = 'options'
-  loadMatrix()
+  await loadMatrix()
+  // Узел не сбрасывается при смене напряжения; выбираем первый, только
+  // если выбора нет или выбранный узел больше не существует.
+  if (selectedNodeId.value == null || !nodeTree.value.some(n => n.id === selectedNodeId.value)) {
+    selectedNodeId.value = nodeTree.value.length ? nodeTree.value[0].id : null
+  }
 }
 
 function onVoltageChange() {
@@ -562,6 +606,9 @@ async function save() {
 }
 
 function cancelEdit() {
+  if (dirty.value || matrixDirty.value) {
+    if (!confirm('Есть несохранённые изменения. Отменить их?')) return
+  }
   form.value = null
   matrix.value = null
   dirty.value = false
@@ -629,6 +676,14 @@ onMounted(async () => {
 .filter select { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; }
 .count { color: #666; font-size: 12px; margin-top: 8px; }
 .error { color: #c00; margin-top: 8px; font-size: 13px; }
+.nodes-head { margin-top: 18px; }
+.node-list { display: flex; flex-direction: column; gap: 2px; }
+.node-item { display: flex; gap: 6px; padding: 5px 8px; cursor: pointer; border-radius: 3px; font-size: 13px; }
+.node-item:hover { background: #f0f0f0; }
+.node-item.active { background: #2c6fb0; color: #fff; }
+.node-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-item .code { color: #888; font-size: 11px; }
+.node-item.active .code { color: #dbe7f3; }
 .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .list-scroll { overflow-y: auto; max-height: 260px; border: 1px solid #eee; border-radius: 3px; }
 .unit-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
@@ -685,6 +740,9 @@ onMounted(async () => {
 .mopt.av-std { background: #f2faf2; }
 .mopt.av-opt { background: #fffdf4; }
 .mopt.av-na { background: #fafafa; opacity: .6; }
+.mopt.mopt-inh { background: #e8f5e9; }
+.mopt.mopt-diff { background: #fff3e0; }
+.inh-val { flex: 0 0 auto; color: #5a7d5a; font-size: 11px; font-style: italic; }
 .inh { color: #2c6fb0; font-size: 11px; cursor: help; }
 .seg { display: flex; border: 1px solid #ccc; border-radius: 4px; overflow: hidden; }
 .seg button { border: none; background: #fff; padding: 3px 10px; font-size: 12px; cursor: pointer; border-left: 1px solid #eee; }

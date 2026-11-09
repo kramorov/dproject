@@ -323,6 +323,95 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertEqual(sopts['STARTER_NONE']['availability'], 'opt')
         self.assertTrue(sopts['STARTER_NONE']['inherited'])
 
+    def test_build_matrix_inherits_na_when_no_base_row(self):
+        # регрессия: опция без базовой строки (нет строки = na) на конкретном
+        # напряжении тоже «наследуется», а не показывается как явный na
+        from params.models import PowerSupplies
+        ps24 = PowerSupplies.objects.get(code='24-DC')
+        m = build_unit_matrix(self.basic, power_supply=ps24)
+        slot = next(s for s in m['slots'] if s['code'] == 'CU_LOCATION')
+        opts = {o['code']: o for o in slot['options']}
+        # BUILT_IN наследует std из базовой строки
+        self.assertEqual(opts['BUILT_IN']['availability'], 'std')
+        self.assertTrue(opts['BUILT_IN']['inherited'])
+        # SEPARATE наследует явную na-строку базы
+        self.assertEqual(opts['CU_LOC_SEPARATE']['availability'], 'na')
+        self.assertTrue(opts['CU_LOC_SEPARATE']['inherited'])
+        # MOUNTED: нет ни базовой, ни специфичной строки → наследуется как na
+        self.assertEqual(opts['CU_LOC_MOUNTED']['availability'], 'na')
+        self.assertTrue(opts['CU_LOC_MOUNTED']['inherited'])
+
+    def test_build_matrix_flags_voltage_diff(self):
+        # на «любом напряжении» опция помечается has_voltage_diff, если на
+        # каком-то конкретном напряжении есть строка с иной доступностью
+        from params.models import PowerSupplies
+        ps24 = PowerSupplies.objects.get(code='24-DC')
+        slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
+        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        # базовая std, на 24В ставим na → отличие
+        apply_unit_matrix_changes(
+            self.basic, ps24,
+            [{'slot_id': slot.id, 'option_id': opt.id,
+              'availability': 'na'}])
+        m = build_unit_matrix(self.basic)
+        s = next(x for x in m['slots'] if x['code'] == 'LIMIT_SWITCHES_OPENED')
+        o = next(x for x in s['options'] if x['code'] == 'OPEN_SPDT')
+        self.assertEqual(o['availability'], 'std')
+        self.assertTrue(o['has_voltage_diff'])
+        # опция без отличий по напряжениям не помечается
+        o2 = next(x for x in s['options'] if x['code'] == 'OPEN_DPDT')
+        self.assertFalse(o2['has_voltage_diff'])
+
+    def test_build_matrix_collapses_redundant_override(self):
+        # строка на конкретном напряжении, повторяющая базовое значение,
+        # отображается как «наследуемая», а не как явное переопределение
+        from params.models import PowerSupplies
+        ps24 = PowerSupplies.objects.get(code='24-DC')
+        slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
+        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        # перенаслоение: на 24В та же std, что и в базе
+        CuMatrixEntry.objects.create(
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply=ps24, availability='std')
+        m = build_unit_matrix(self.basic, power_supply=ps24)
+        s = next(x for x in m['slots'] if x['code'] == 'LIMIT_SWITCHES_OPENED')
+        o = next(x for x in s['options'] if x['code'] == 'OPEN_SPDT')
+        self.assertEqual(o['availability'], 'std')
+        self.assertTrue(o['inherited'])
+        self.assertIsNone(o['row_id'])
+
+    def test_apply_collapses_redundant_voltage_override(self):
+        # на конкретном напряжении значение, совпадающее с базовым,
+        # отдельной строкой не пишется (перенаслоение → наследование)
+        from params.models import PowerSupplies
+        ps24 = PowerSupplies.objects.get(code='24-DC')
+        slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
+        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        self.assertTrue(CuMatrixEntry.objects.filter(
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply__isnull=True, availability='std').exists())
+        # 1) новую строку не создаём
+        saved = apply_unit_matrix_changes(
+            self.basic, ps24,
+            [{'slot_id': slot.id, 'option_id': opt.id,
+              'availability': 'std'}])
+        self.assertEqual(saved, 0)
+        self.assertFalse(CuMatrixEntry.objects.filter(
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply=ps24).exists())
+        # 2) уже существующую перенаслаивающую строку — удаляем
+        CuMatrixEntry.objects.create(
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply=ps24, availability='std')
+        saved = apply_unit_matrix_changes(
+            self.basic, ps24,
+            [{'slot_id': slot.id, 'option_id': opt.id,
+              'availability': 'std'}])
+        self.assertEqual(saved, 1)
+        self.assertFalse(CuMatrixEntry.objects.filter(
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply=ps24).exists())
+
     def test_apply_changes_upsert(self):
         # CMD_STOP: NONE уже std — повторный std обновляет ту же строку
         target = CuSlotOption.objects.get(code='CMD_STOP_NONE')
@@ -339,21 +428,23 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertTrue(row.is_default)
 
     def test_apply_na_writes_voltage_row(self):
-        # na на конкретном напряжении пишет явную na-строку (не удаляет):
-        # она перекрывает унаследованную std/opt из базового профиля
-        slot = CuSlot.objects.get(code='MOTOR_STARTER')
-        built_in = CuSlotOption.objects.get(code='STARTER_BUILT_IN')
+        # na на конкретном напряжении, где базовое значение не na, пишет явную
+        # na-строку (перекрывает унаследованную std/opt из базового профиля)
+        from params.models import PowerSupplies
+        ps24 = PowerSupplies.objects.get(code='24-DC')
+        slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
+        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
         self.assertTrue(CuMatrixEntry.objects.filter(
-            slot=slot, option=built_in, control_unit=self.int_unit,
-            power_supply=self.ps380, availability='std').exists())
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply__isnull=True, availability='std').exists())
         saved = apply_unit_matrix_changes(
-            self.int_unit, self.ps380,
-            [{'slot_id': slot.id, 'option_id': built_in.id,
+            self.basic, ps24,
+            [{'slot_id': slot.id, 'option_id': opt.id,
               'availability': 'na'}])
         self.assertEqual(saved, 1)
         row = CuMatrixEntry.objects.get(
-            slot=slot, option=built_in, control_unit=self.int_unit,
-            power_supply=self.ps380)
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply=ps24)
         self.assertEqual(row.availability, 'na')
         self.assertFalse(row.is_default)
 
