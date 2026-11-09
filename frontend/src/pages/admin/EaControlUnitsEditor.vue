@@ -101,7 +101,7 @@
                 <option v-for="p in powerSupplies" :key="p.id" :value="p.id">{{ p.label }}</option>
               </select>
             </label>
-            <span class="hint">std — стандарт · opt — опция · na — недоступно; на конкретном напряжении na снимает переопределение</span>
+            <span class="hint">std — стандарт · opt — опция · na — недоступно · насл. — наследовать от «любое напряжение»</span>
           </div>
           <div class="rules-legend hint">
             <span>Правило слота:</span>
@@ -136,11 +136,14 @@
                   <div v-for="o in s.options" :key="o.id" class="mopt"
                        :class="'av-' + o.availability">
                     <span class="oname">{{ o.name }}</span>
-                    <span v-if="o.inherited" class="inh" title="наследуется от «любое напряжение»">насл.</span>
                     <div class="seg">
-                      <button :class="{ on: o.availability === 'std' }" @click="setAvail(o, 'std')">std</button>
-                      <button :class="{ on: o.availability === 'opt' }" @click="setAvail(o, 'opt')">opt</button>
-                      <button :class="{ on: o.availability === 'na' }" @click="setAvail(o, 'na')">na</button>
+                      <button :class="{ on: o.availability === 'std' && !o.inherited }" @click="setAvail(o, 'std')">std</button>
+                      <button :class="{ on: o.availability === 'opt' && !o.inherited }" @click="setAvail(o, 'opt')">opt</button>
+                      <button :class="{ on: o.availability === 'na' && !o.inherited }" @click="setAvail(o, 'na')">na</button>
+                      <button v-if="matrixPowerSupply !== null"
+                              :class="{ on: o.inherited }"
+                              :title="o.inherited ? 'наследуется от «любое напряжение»' : 'наследовать от «любое напряжение»'"
+                              @click="setInherit(o)">насл.</button>
                     </div>
                   </div>
                   <div class="mrule">
@@ -217,6 +220,7 @@ const matrix = ref(null)
 const matrixPowerSupply = ref(null)
 const lastVoltage = ref(null)
 const matrixOriginals = new Map() // option id -> availability
+const matrixInheritedOriginals = new Map() // option id -> inherited(bool)
 const ruleOriginals = new Map() // slot id -> {action, action_value}
 const matrixDirty = ref(false)
 
@@ -425,9 +429,13 @@ async function loadMatrix() {
     matrix.value = data
     lastVoltage.value = matrixPowerSupply.value
     matrixOriginals.clear()
+    matrixInheritedOriginals.clear()
     ruleOriginals.clear()
     for (const s of data.slots || []) {
-      for (const o of s.options || []) matrixOriginals.set(o.id, o.availability)
+      for (const o of s.options || []) {
+        matrixOriginals.set(o.id, o.availability)
+        matrixInheritedOriginals.set(o.id, !!o.inherited)
+      }
       ruleOriginals.set(s.id, {
         action: s.rule?.action || null,
         action_value: s.rule?.action_value || null,
@@ -442,8 +450,15 @@ async function loadMatrix() {
 }
 
 function setAvail(o, avail) {
-  if (o.availability === avail) return
+  if (!o.inherited && o.availability === avail) return
   o.availability = avail
+  o.inherited = false
+  matrixDirty.value = true
+}
+
+function setInherit(o) {
+  if (o.inherited) return
+  o.inherited = true
   matrixDirty.value = true
 }
 
@@ -454,7 +469,12 @@ async function saveMatrix() {
   for (const s of (matrix.value?.slots || [])) {
     for (const o of s.options || []) {
       const orig = matrixOriginals.get(o.id)
-      if (orig !== undefined && orig !== o.availability) {
+      const origInh = matrixInheritedOriginals.get(o.id)
+      if (o.inherited) {
+        if (origInh === false) {
+          changes.push({ slot_id: s.id, option_id: o.id, availability: 'inherit' })
+        }
+      } else if (origInh || orig !== o.availability) {
         changes.push({ slot_id: s.id, option_id: o.id, availability: o.availability })
       }
     }

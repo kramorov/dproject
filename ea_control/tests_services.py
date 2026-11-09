@@ -338,7 +338,27 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertEqual(row.availability, 'std')
         self.assertTrue(row.is_default)
 
-    def test_apply_na_deletes_voltage_row(self):
+    def test_apply_na_writes_voltage_row(self):
+        # na на конкретном напряжении пишет явную na-строку (не удаляет):
+        # она перекрывает унаследованную std/opt из базового профиля
+        slot = CuSlot.objects.get(code='MOTOR_STARTER')
+        built_in = CuSlotOption.objects.get(code='STARTER_BUILT_IN')
+        self.assertTrue(CuMatrixEntry.objects.filter(
+            slot=slot, option=built_in, control_unit=self.int_unit,
+            power_supply=self.ps380, availability='std').exists())
+        saved = apply_unit_matrix_changes(
+            self.int_unit, self.ps380,
+            [{'slot_id': slot.id, 'option_id': built_in.id,
+              'availability': 'na'}])
+        self.assertEqual(saved, 1)
+        row = CuMatrixEntry.objects.get(
+            slot=slot, option=built_in, control_unit=self.int_unit,
+            power_supply=self.ps380)
+        self.assertEqual(row.availability, 'na')
+        self.assertFalse(row.is_default)
+
+    def test_apply_inherit_deletes_voltage_row(self):
+        # inherit на конкретном напряжении снимает переопределение (возврат к базе)
         slot = CuSlot.objects.get(code='MOTOR_STARTER')
         built_in = CuSlotOption.objects.get(code='STARTER_BUILT_IN')
         self.assertTrue(CuMatrixEntry.objects.filter(
@@ -347,11 +367,31 @@ class CuUnitMatrixServiceTests(TestCase):
         saved = apply_unit_matrix_changes(
             self.int_unit, self.ps380,
             [{'slot_id': slot.id, 'option_id': built_in.id,
-              'availability': 'na'}])
+              'availability': 'inherit'}])
         self.assertEqual(saved, 1)
         self.assertFalse(CuMatrixEntry.objects.filter(
             slot=slot, option=built_in, control_unit=self.int_unit,
             power_supply=self.ps380).exists())
+
+    def test_na_override_hides_inherited_std(self):
+        # регрессия: na на конкретном напряжении перекрывает базовую std,
+        # а не «наследует» её (основной сигнал недоступен на 24В)
+        from params.models import PowerSupplies
+        ps24 = PowerSupplies.objects.get(code='24-DC')
+        slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
+        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        self.assertTrue(CuMatrixEntry.objects.filter(
+            slot=slot, option=opt, control_unit=self.basic,
+            power_supply__isnull=True, availability='std').exists())
+        apply_unit_matrix_changes(
+            self.basic, ps24,
+            [{'slot_id': slot.id, 'option_id': opt.id,
+              'availability': 'na'}])
+        m = build_unit_matrix(self.basic, power_supply=ps24)
+        s = next(x for x in m['slots'] if x['code'] == 'LIMIT_SWITCHES_OPENED')
+        o = next(x for x in s['options'] if x['code'] == 'OPEN_SPDT')
+        self.assertEqual(o['availability'], 'na')
+        self.assertFalse(o['inherited'])
 
     def test_apply_rejects_multiple_std_in_single_slot(self):
         slot = CuSlot.objects.get(code='LOCAL_CONTROL_DESIGN')

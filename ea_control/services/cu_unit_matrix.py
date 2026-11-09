@@ -13,10 +13,13 @@
 
 - ``std``/``opt`` — создать/обновить профильную строку на выбранном
   напряжении; ``std`` помечает ``is_default``;
-- ``na`` — «нет строки на этом напряжении»: удалить профильную строку на
-  выбранном напряжении. На «любом напряжении» это «опция недоступна для БУ»,
-  на конкретном — «вернуться к правилу из „любое напряжение“» (снять
-  переопределение/запрет).
+- ``na`` — «опция недоступна»: на «любом напряжении» удаляет профильную
+  строку (нет строки = недоступно); на конкретном напряжении пишет явную
+  ``na``-строку, перекрывающую унаследованную ``std``/``opt`` из базового
+  профиля (тот же смысл, что в ``cu_matrix.resolve_slots``);
+- ``inherit`` — «наследовать от базового профиля»: снять переопределение
+  на конкретном напряжении (удалить строку) и вернуться к значению
+  «любого напряжения». На «любом напряжении» действия не имеет.
 
 В отличие от «Описания БУ» (``cu_report``, только чтение, агрегат std > opt),
 этот сервис возвращает эффективную доступность с привязкой к строке
@@ -158,7 +161,8 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
                 'availability': effective.availability if effective else 'na',
                 'is_default': effective.is_default if effective else False,
                 'row_id': effective.id if effective else None,
-                'inherited': (exact is None and effective is not None),
+                'inherited': (ps_id is not None and exact is None
+                              and effective is not None),
             })
         slots_payload.append({
             'id': slot.id,
@@ -232,10 +236,12 @@ def _validate_single_default(control_unit, power_supply, slots, valid):
 def apply_unit_matrix_changes(control_unit, power_supply, changes):
     """Перезаписать профильные строки матрицы из редактора.
 
-    ``changes`` — список ``{slot_id, option_id, availability}``. ``std``/``opt``
-    upsert строку на заданном напряжении; ``na`` удаляет строку на этом
-    напряжении (на «любом» — опция недоступна, на конкретном — снятие
-    переопределения). Возвращает число изменённых строк.
+    ``changes`` — список ``{slot_id, option_id, availability}``.
+    ``std``/``opt`` upsert строку на заданном напряжении; ``na`` на «любом
+    напряжении» удаляет строку (опция недоступна), на конкретном — пишет
+    явную na-строку (перекрывает базовую std/opt); ``inherit`` на конкретном
+    напряжении удаляет переопределение (возврат к «любому напряжению»).
+    Возвращает число изменённых строк.
     """
     slot_ids = {c.get('slot_id') for c in changes}
     option_ids = {c.get('option_id') for c in changes}
@@ -249,7 +255,7 @@ def apply_unit_matrix_changes(control_unit, power_supply, changes):
         if slot is None or option is None or option.slot_id != slot.id:
             continue
         availability = change.get('availability')
-        if availability not in ('std', 'opt', 'na'):
+        if availability not in ('std', 'opt', 'na', 'inherit'):
             continue
         valid.append((slot, option, availability))
 
@@ -259,9 +265,32 @@ def apply_unit_matrix_changes(control_unit, power_supply, changes):
     for slot, option, availability in valid:
         row = _profile_row_qs(control_unit, power_supply).filter(
             slot=slot, option=option).first()
-        if availability == 'na':
-            if row is not None:
+        if availability == 'inherit':
+            # «наследовать от базового профиля»: снять переопределение на
+            # конкретном напряжении. На «любом напряжении» наследовать не
+            # от чего — действие без эффекта.
+            if power_supply is not None and row is not None:
                 row.delete()
+                saved += 1
+            continue
+        if availability == 'na':
+            if power_supply is None:
+                # базовый профиль: «нет строки» = опция недоступна для БУ
+                if row is not None:
+                    row.delete()
+                    saved += 1
+            else:
+                # конкретное напряжение: явная na-строка перекрывает
+                # унаследованную std/opt из базового профиля
+                if row is None:
+                    CuMatrixEntry.objects.create(
+                        slot=slot, option=option, control_unit=control_unit,
+                        power_supply=power_supply, mode=CuMatrixMode.BOTH,
+                        availability='na', is_default=False)
+                elif row.availability != 'na':
+                    row.availability = 'na'
+                    row.is_default = False
+                    row.save(update_fields=['availability', 'is_default'])
                 saved += 1
             continue
         if row is None:
