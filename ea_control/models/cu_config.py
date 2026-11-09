@@ -54,7 +54,7 @@ class CuSlotSource(models.TextChoices):
     HEATER_SUPPLY = 'heater_supply', _('Питание обогрева (CuHeaterSupply)')
     SIGNAL_POWER = 'signal_power', _('Схемы цепей (CuSignalPower)')
     CONTROL_LOGIC = 'control_logic', _('Логика работы (CuControlLogic)')
-    CONTROL_UNIT = 'control_unit', _('Блоки управления (ControlUnit)')
+    CONTROL_UNIT_KIND = 'control_unit_kind', _('Классы БУ (ControlUnitKind)')
     DEVICE = 'device', _('Устройства ОС (CuFeedbackDevice)')
     LOCAL_CONTROL = 'local_control', _('Органы управления (CuLocalControlType)')
     DISPLAY = 'display', _('Виды отображения (CuDisplayType)')
@@ -72,7 +72,7 @@ SLOT_SOURCE_PAYLOAD = {
     CuSlotSource.HEATER_SUPPLY: ('heater', 'heater_supply'),
     CuSlotSource.SIGNAL_POWER: ('power', 'signal_power'),
     CuSlotSource.CONTROL_LOGIC: ('logic', 'control_logic'),
-    CuSlotSource.CONTROL_UNIT: ('unit', 'control_unit'),
+    CuSlotSource.CONTROL_UNIT_KIND: ('unit_kind', 'control_unit_kind'),
     CuSlotSource.DEVICE: ('device', 'device'),
     CuSlotSource.LOCAL_CONTROL: ('local_control', 'local_control_type'),
     CuSlotSource.DISPLAY: ('display', 'display_types'),
@@ -137,6 +137,7 @@ class CuOptionKind(models.TextChoices):
     POWER = 'power', _('Схема цепей управления (источник × напряжение)')
     LOGIC = 'logic', _('Логика работы сигнала')
     UNIT = 'unit', _('Блок управления (слот control_unit)')
+    UNIT_KIND = 'unit_kind', _('Класс БУ')
     LOCAL_CONTROL = 'local_control', _('Орган местного управления')
     DISPLAY = 'display', _('Вид отображения')
     UNIT_POWER = 'unit_power', _('Питание БУ')
@@ -182,7 +183,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         verbose_name=_("Тип опции"),
         help_text=_("signal — сигнал/протокол; heater — обогрев; power — "
                     "схема цепей управления; logic — логика работы; unit — "
-                    "БУ (слот control_unit); local_control — орган местного "
+                    "БУ (слот control_unit); unit_kind — класс БУ "
+                    "(ControlUnitKind); local_control — орган местного "
                     "управления; display — вид(ы) отображения; unit_power — "
                     "питание БУ; cable_gland — набор отверстий под КВ БУ "
                     "(общая модель ЭП CableGlandHolesSet); "
@@ -234,6 +236,13 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         related_name='slot_options',
         verbose_name=_("Блок управления"),
         help_text=_("Для kind=unit: опция слота control_unit — тип БУ"),
+    )
+    control_unit_kind = models.ForeignKey(
+        'ControlUnitKind', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='slot_options',
+        verbose_name=_("Класс БУ"),
+        help_text=_("Для kind=unit_kind: опция — класс БУ из справочника "
+                    "ControlUnitKind"),
     )
     device = models.ForeignKey(
         'CuFeedbackDevice', on_delete=models.PROTECT, null=True, blank=True,
@@ -295,6 +304,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
     def __str__(self):
         if self.kind == CuOptionKind.UNIT and self.control_unit_id:
             return str(self.control_unit)
+        if self.kind == CuOptionKind.UNIT_KIND and self.control_unit_kind_id:
+            return str(self.control_unit_kind)
         if self.kind == CuOptionKind.LOCAL_CONTROL and self.local_control_type_id:
             return str(self.local_control_type)
         if self.kind == CuOptionKind.UNIT_POWER and self.unit_power_source_id:
@@ -317,6 +328,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         """Имя опции; для типизированных kind — имя сущности нагрузки."""
         if self.kind == CuOptionKind.UNIT and self.control_unit_id:
             return localized_name(self.control_unit, locale)
+        if self.kind == CuOptionKind.UNIT_KIND and self.control_unit_kind_id:
+            return localized_name(self.control_unit_kind, locale)
         if self.kind == CuOptionKind.LOCAL_CONTROL and self.local_control_type_id:
             return localized_name(self.local_control_type, locale)
         if self.kind == CuOptionKind.UNIT_POWER and self.unit_power_source_id:
@@ -375,6 +388,10 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                 raise ValidationError(
                     {'control_unit': _('Опция-БУ допустима только в слоте '
                                        'control_unit.')})
+        elif self.kind == CuOptionKind.UNIT_KIND:
+            if not self.control_unit_kind_id:
+                raise ValidationError(
+                    _('Для опции класса БУ нужен ControlUnitKind.'))
         elif self.kind == CuOptionKind.LOCAL_CONTROL:
             if not self.local_control_type_id:
                 raise ValidationError(

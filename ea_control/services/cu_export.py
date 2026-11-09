@@ -145,7 +145,8 @@ def build_settings_xlsx(control_unit):
     options = (CuSlotOption.objects.filter(is_active=True)
                .select_related('slot', 'control_signal', 'feedback_signal',
                                'protocol', 'heater_supply', 'signal_power',
-                               'control_logic', 'control_unit', 'device',
+                               'control_logic', 'control_unit',
+                               'control_unit_kind', 'device',
                                'local_control_type', 'unit_power_source',
                                'cable_gland_set', 'location_option',
                                'access_device_option')

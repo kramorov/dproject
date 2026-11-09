@@ -357,8 +357,9 @@ def _slot_option_serializer():
 _OPT_CLEAN_FIELDS = (
     'code', 'name', 'slot', 'kind', 'control_signal', 'feedback_signal',
     'protocol', 'heater_supply', 'signal_power', 'control_logic',
-    'control_unit', 'device', 'local_control_type', 'unit_power_source',
-    'cable_gland_set', 'location_option', 'access_device_option',
+    'control_unit', 'control_unit_kind', 'device', 'local_control_type',
+    'unit_power_source', 'cable_gland_set', 'location_option',
+    'access_device_option',
 )
 
 
@@ -641,7 +642,7 @@ def meta_view(request):
         'heater_supply': 'heaterSupplies',
         'signal_power': 'signalPowers',
         'control_logic': 'controlLogics',
-        'control_unit': 'units',
+        'control_unit_kind': 'controlUnitKinds',
         'device': 'devices',
         'local_control': 'localControlTypes',
         'display': 'displayTypes',

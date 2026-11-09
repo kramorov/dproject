@@ -250,7 +250,8 @@ none-опциями (2: TURN_COUNTER/MOTOR_STARTER). Bare-строки матр�
   - `signal` → ровно одно из `control_signal`/`feedback_signal`/`protocol`;
   - `heater` → `heater_supply`; `power` → `signal_power`; `logic` →
     `control_logic`; `unit` → `control_unit`
-    (только слот `control_unit`); `location` → `location_option`
+    (только слот `control_unit`); `unit_kind` → `control_unit_kind`
+    (класс БУ из `ControlUnitKind`); `location` → `location_option`
     (слот `CU_LOCATION`); `cable_gland` → `cable_gland_set` (общая модель
     ЭП `electric_actuators.CableGlandHolesSet`); `value`/`none` → только
     `name` (опции value-слота); `pair` — устаревший;
@@ -579,7 +580,9 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
    рода слота: value — kind «Значение»/«Нет» + имя/описание; object —
    выбор записи справочника-источника + чекбокс «Опция „Нет“» (без
    name/description/kind; kind выводит сервер из source слота). Форма
-   слота — селектор «Источник значений» для object.
+   слота — селектор «Источник значений» для object (список — словарь
+   `CuSlotSource`; 2026-11-09: «Блоки управления» убран из списка,
+   добавлен «Классы БУ» → `ControlUnitKind`, kind `unit_kind`).
    Слот перемещается между узлами селектором «Раздел» — собственный
    dropdown (`.section-picker`: кнопка + меню, пункты с отступом по
    вложенности) вместо нативного `<select>`: нативный popup в Chrome
@@ -993,6 +996,13 @@ DRF CRUD всех моделей (IsAdminUser) + особые эндпоинты
   единственный падающий `test_apply_rule_changes` — устаревшая ссылка на
   `POSITION_FEEDBACK` (в БД он `FB_POSITION`), дрейф данных, не связан с
   этой правкой. `npm run build` OK.
+
+**Источник значений слота (2026-11-09):** в словарь `CuSlotSource` добавлен
+`control_unit_kind` «Классы БУ» (→ `ControlUnitKind`, kind опции `unit_kind`,
+поле нагрузки `control_unit_kind`); `control_unit` «Блоки управления» убран
+из списка источников (слот `control_unit` с опциями ControlUnit остаётся —
+убран только выбор справочника в форме слота). Миграция `ea_control/0025`;
+фронт — загрузка `controlUnitKinds` в `dicts`, поле в draft/сохранении опции.
 
 **Канон БД вырос (пользователь):** теперь 7 БУ (добавлены basic AR01,
 POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Данные»

@@ -41,8 +41,9 @@ from ea_control.services.cu_rules import apply_rules
 # выбранную опцию отдельным запросом).
 _PAYLOAD_FKS = ('control_signal', 'feedback_signal', 'protocol',
                 'heater_supply', 'signal_power', 'control_logic',
-                'control_unit', 'device', 'local_control_type',
-                'unit_power_source', 'cable_gland_set', 'location_option',
+                'control_unit', 'control_unit_kind', 'device',
+                'local_control_type', 'unit_power_source',
+                'cable_gland_set', 'location_option',
                 'access_device_option')
 
 
@@ -133,8 +134,9 @@ def _option_description(option, locale=None):
         return ' + '.join(x for x in descs if x)
     for fk in ('control_signal', 'feedback_signal', 'protocol',
                'heater_supply', 'signal_power', 'control_logic',
-               'control_unit', 'device', 'local_control_type',
-               'unit_power_source', 'cable_gland_set', 'location_option',
+               'control_unit', 'control_unit_kind', 'device',
+               'local_control_type', 'unit_power_source',
+               'cable_gland_set', 'location_option',
                'access_device_option'):
         obj = getattr(option, fk, None)
         if obj is not None:

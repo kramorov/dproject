@@ -297,6 +297,7 @@ const dicts = reactive({
   heaterSupplies: [], signalPowers: [], controlLogics: [],
   units: [], localControlTypes: [], displayTypes: [], unitPowerSources: [],
   cgHoleSets: [], locationOptions: [], accessDevices: [],
+  controlUnitKinds: [],
 })
 
 // Черновик выбранного узла: { node, slots: [ { ..., options: [...] } ] }
@@ -497,7 +498,7 @@ async function reload() {
   error.value = ''
   try {
     const [s, sl, o, units, ctl, fb, proto, dev, heater, power, logic,
-      lct, dsp, upw, loc, ad, meta] =
+      lct, dsp, upw, loc, ad, cuk, meta] =
       await Promise.all([
         api.get('/ea-control/sections/'),
         api.get('/ea-control/slots/'),
@@ -515,6 +516,7 @@ async function reload() {
         api.get('/ea-control/unit-power-sources/'),
         api.get('/ea-control/location-options/'),
         api.get('/ea-control/access-device-options/'),
+        api.get('/ea-control/control-unit-kinds/'),
         api.get('/ea-control/meta/'),
       ])
     sections.value = s.data.results || s.data || []
@@ -533,6 +535,7 @@ async function reload() {
     dicts.unitPowerSources = dictList(upw.data.results || upw.data || [])
     dicts.locationOptions = dictList(loc.data.results || loc.data || [])
     dicts.accessDevices = dictList(ad.data.results || ad.data || [])
+    dicts.controlUnitKinds = dictList(cuk.data.results || cuk.data || [])
     dicts.cgHoleSets = dictList(meta.data.cg_hole_sets || [])
     dicts.selectionModes = meta.data.selection_modes || []
     dicts.slotKinds = meta.data.slot_kinds || []
@@ -573,7 +576,8 @@ function cloneOption(o) {
     control_signal: o.control_signal, feedback_signal: o.feedback_signal,
     protocol: o.protocol, heater_supply: o.heater_supply,
     signal_power: o.signal_power, control_logic: o.control_logic,
-    control_unit: o.control_unit, device: o.device,
+    control_unit: o.control_unit, control_unit_kind: o.control_unit_kind,
+    device: o.device,
     local_control_type: o.local_control_type,
     display_types: [...(o.display_types || [])],
     unit_power_source: o.unit_power_source,
@@ -750,7 +754,7 @@ function makeDraftOption(payload = {}) {
     kind: spec ? spec.kind : 'value',
     control_signal: null, feedback_signal: null, protocol: null,
     heater_supply: null, signal_power: null, control_logic: null,
-    control_unit: null, device: null,
+    control_unit: null, control_unit_kind: null, device: null,
     local_control_type: null, display_types: [],
     unit_power_source: null, cable_gland_set: null, location_option: null,
     access_device_option: null,
@@ -815,6 +819,7 @@ function resetOptionPayload() {
   o.signal_power = null
   o.control_logic = null
   o.control_unit = null
+  o.control_unit_kind = null
   o.device = null
   o.local_control_type = null
   o.display_types = []
@@ -952,6 +957,9 @@ function validateSlotDraft(slot, seenSlotCodes) {
     }
     if (opt.kind === 'location' && !opt.location_option) {
       errs.push(`опция в слоте «${slotLabel}»: размещение БУ`)
+    }
+    if (opt.kind === 'unit_kind' && !opt.control_unit_kind) {
+      errs.push(`опция в слоте «${slotLabel}»: класс БУ`)
     }
   }
   return errs
