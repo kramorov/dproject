@@ -51,6 +51,7 @@ router.register('contact-normals', api.EaContactNormalViewSet,
 router.register('protocol-transports', api.EaProtocolTransportViewSet,
                 basename='cu-transport')
 router.register('polarities', api.CuPolarityViewSet, basename='cu-polarity')
+router.register('bindings', api.ControlUnitBindingViewSet, basename='cu-binding')
 
 urlpatterns = [
     path('units/', api.units_view, name='cu_units'),
@@ -62,6 +63,9 @@ urlpatterns = [
     path('description/', api.description_view, name='cu_mod_description'),
     path('unit-matrix/', api.unit_matrix_view, name='cu_unit_matrix'),
     path('unit-matrix/save/', api.unit_matrix_save_view, name='cu_unit_matrix_save'),
+    path('unit-bindings/', api.unit_bindings_view, name='cu_unit_bindings'),
+    path('unit-bindings/save/', api.unit_bindings_save_view,
+         name='cu_unit_bindings_save'),
     path('export-settings/', api.export_settings_view, name='cu_export_settings'),
     *router.urls,
 ]

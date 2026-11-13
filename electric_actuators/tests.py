@@ -765,8 +765,11 @@ class Phase7LegacyRemovalSmokeTests(TestCase):
         self.assertIsInstance(opts, dict)
         for removed in ('blinker_options', 'mechanical_indicator_options',
                         'end_switches_options', 'way_switches_options',
-                        'torque_switches_options', 'control_unit_options'):
+                        'torque_switches_options'):
             self.assertNotIn(removed, opts)
+        # слотовая модель: ключи БУ присутствуют всегда (пусто/без пакета)
+        self.assertEqual(opts.get('control_unit_options'), [])
+        self.assertIsNone(opts.get('control_unit_package'))
 
     def test_create_duplicate(self):
         dup = self.constructor.create_duplicate()
@@ -808,6 +811,64 @@ class Phase7LegacyRemovalSmokeTests(TestCase):
         list(qs[:1])  # select_related без удалённых полей
         data = vs._serialize(self.constructor)
         self.assertEqual(data['id'], self.constructor.id)
+
+    def test_get_spec_sections_from_json_template(self):
+        """Спека строится из JSON spec_template; пустые значения отбрасываются."""
+        from core.models.equipment_type import EquipmentType
+        from electric_actuators.models import ElectricActuatorConstructor
+        et = EquipmentType.objects.get(code='electric-actuator')
+        et.spec_template = {
+            'Основные': {
+                'Модель': 'model_code',
+                'Серия': 'series_code',
+                'Исполнение': 'body_code',
+            },
+        }
+        et.save()
+        c = ElectricActuatorConstructor(
+            selected_model_line=self.line, selected_model_line_item=self.mli)
+        spec = c._get_spec_sections()
+        self.assertEqual(spec['Основные']['Модель'], 'SMKI')
+        self.assertEqual(spec['Основные']['Серия'], 'SMK')
+        # body_code пуст (у SMKI нет body) → ключ «Исполнение» не выводится
+        self.assertNotIn('Исполнение', spec['Основные'])
+
+    def test_cu_spec_groups_empty_without_control_unit(self):
+        from electric_actuators.models import ElectricActuatorConstructor
+        c = ElectricActuatorConstructor(
+            selected_model_line=self.line, selected_model_line_item=self.mli)
+        self.assertEqual(c._cu_spec_groups(), {})
+
+    def test_preview_returns_spec(self):
+        """preview отдаёт структурированную спеку (ключ spec)."""
+        from core.models.equipment_type import EquipmentType
+        from electric_actuators.api.views_constructor import ConstructorViewSet
+        et = EquipmentType.objects.get(code='electric-actuator')
+        et.spec_template = {'Основные': {'Модель': 'model_code'}}
+        et.save()
+
+        vs = ConstructorViewSet()
+
+        class R:
+            data = {'selected_model_line': self.line.id,
+                    'selected_model_line_item': self.mli.id}
+            headers = {}
+
+        vs.request = R()
+        resp = vs.preview(vs.request)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('spec', resp.data)
+        self.assertEqual(resp.data['spec']['Основные']['Модель'], 'SMKI')
+
+    def test_preview_and_spec_docx_routes_registered(self):
+        """Роуты preview/spec-docx зарегистрированы (декоратор @action на месте)."""
+        from django.urls import reverse
+        self.assertEqual(
+            reverse('ea-constructor-preview'),
+            '/api/electric_actuators/constructor/preview/')
+        self.assertEqual(
+            reverse('ea-constructor-spec-docx'),
+            '/api/electric_actuators/constructor/spec-docx/')
 
 
 class AllowedCuAndIndicatorTests(TestCase):

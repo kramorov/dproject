@@ -34,7 +34,7 @@ import re
 import logging
 
 from core.models.mixins import TemplateMixin
-from core.utils.localization import localized_name
+from core.utils.localization import localized_name, pick_i18n
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +142,22 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         null=True, blank=True,
         verbose_name=_("Блок управления"),
         help_text=_("Выбранный блок управления")
+    )
+
+    # Новый БУ (слотовая модель): ControlUnit + снимок выбранных опций слотов.
+    selected_control_unit = models.ForeignKey(
+        'ea_control.ControlUnit',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='constructor_selections',
+        verbose_name=_("Блок управления (слотовая модель)"),
+        help_text=_("Выбранный тип БУ из ea_control; привязка к модели — "
+                    "через ControlUnitBinding")
+    )
+    control_unit_snapshot = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Снимок конфигурации БУ"),
+        help_text=_("Выбранные опции слотов БУ: {slot_code: option_code}")
     )
 
     selected_access_device_option = models.ForeignKey(
@@ -256,11 +272,11 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         return None  # шаблоны — из EquipmentType
 
     def _get_description_template_source(self):
-        # Описание: сначала шаблон серии (model_line), затем spec_template EquipmentType.
+        # Описание: сначала шаблон серии (model_line), затем description_template EquipmentType.
         ml = self.selected_model_line
         if ml and getattr(ml, 'description_template', '').strip():
             return ml.description_template
-        return self._get_equipment_type_template('spec_template') or None
+        return self._get_equipment_type_template('description_template') or None
 
     def _get_template_i18n(self, field_base: str):
         """Переводы шаблона: сначала из серии, затем из EquipmentType."""
@@ -271,10 +287,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         et = self._get_equipment_type()
         if et is None:
             return None
-        i18n_field = f'{field_base}_i18n'
-        if field_base == 'description_template':
-            i18n_field = 'spec_template_i18n'
-        return getattr(et, i18n_field, None)
+        return getattr(et, f'{field_base}_i18n', None)
 
     def _get_data_dict(self, locale=None):
         """Плейсхолдер → путь/resolver конструктора (паттерн TemplateMixin)."""
@@ -289,22 +302,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             '{motor_current_rated}': 'selected_power_supply__motor_current_rated',
             '{motor_current_starting}': 'selected_power_supply__motor_current_starting',
             '{motor_power}': 'selected_power_supply__motor_power',
-            '{cu_name}': 'selected_control_unit_option',
-            '{cu_power_supply}': '_res_cu_power_supply',
-            '{cu_mode}': '_res_mode',
-            '{cu_heater}': '_res_cu_heater',
-            '{ctl_protocol}': '_res_protocol',
-            '{ctl_commands}': '_res_commands',
-            '{ctl_setpoint}': '_res_setpoint',
-            '{ctl_local_controls}': '_res_local_controls',
-            '{fb_end_switches}': '_res_end_switches',
-            '{fb_way_switches}': '_res_way_switches',
-            '{fb_torque_switches}': '_res_torque_switches',
-            '{fb_position_feedback}': '_res_position_feedback',
-            '{fb_hart}': '_res_hart',
-            '{fb_thermal_sensor}': '_res_thermal_sensor',
-            '{fb_indicator}': '_res_indicator',
-            '{fb_turn_counter}': '_res_turn_counter',
+            '{cu_block}': '_res_cu_block',
+            '{cu_code}': '_res_cu_code',
+            '{cu_description}': '_res_cu_description',
             '{temperature}': 'selected_temperature',
             '{ip}': 'selected_ip',
             '{exd}': '_res_exd',
@@ -314,23 +314,10 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             '{hand_wheel}': 'selected_hand_wheel',
             '{turn_angle}': 'selected_turn_angle_option',
             '{cable_glands}': 'selected_cable_glands_holes',
-            '{access_device}': 'selected_access_device_option',
             '{safety_position}': 'selected_safety_position',
             '{article}': '_res_article',
             '{ext_code}': '_res_ext_code',
         }
-
-    def _matrix_rows(self):
-        """Выбранные строки матрицы (для превью — _preview_matrix_rows)."""
-        if self.pk:
-            return list(self.selected_matrix_rows.select_related(
-                'slot', 'option', 'control_signal', 'feedback_signal',
-                'protocol', 'device', 'heater_supply').all())
-        return list(getattr(self, '_preview_matrix_rows', None) or [])
-
-    @staticmethod
-    def _join_unique(values):
-        return ', '.join(dict.fromkeys(v for v in values if v))
 
     # ── Простые значения ──
     def _res_torque(self, locale=None) -> str:
@@ -339,109 +326,53 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
 
     def _res_time_to_close(self, locale=None) -> str:
         mli = self.selected_model_line_item
-        return str(mli.time_to_close) if mli and mli.time_to_close else ''
-
-    def _res_mode(self, locale=None) -> str:
-        from electric_actuators.models.ea_catalog_item import _MODE_LABELS
-        labels = _MODE_LABELS.get('on_off', {'ru': 'on_off'})
-        locale = locale or 'ru'
-        return labels.get(locale) or labels['ru']
-
-    def _res_cu_power_supply(self, locale=None) -> str:
-        """Питание БУ из разрешённой пары (или пусто — от питания привода)."""
-        if not (self.selected_control_unit_option_id
-                and self.selected_power_supply_id):
+        if not mli:
             return ''
-        from electric_actuators.models.ea_allowed_options import resolve_cu_pair
-        pair = resolve_cu_pair(
-            self.selected_model_line_item.model_line,
-            self.selected_model_line_item,
-            self.selected_control_unit_option,
-            self.selected_power_supply.power_supply)
-        if pair is None or not pair.cu_power_supply_id:
+        # если время закрытия не задано (0), берём время открытия — в большинстве
+        # случаев они совпадают, в данных заполнено одно из двух.
+        value = mli.time_to_close or mli.time_to_open
+        if not value:
             return ''
-        return localized_name(pair.cu_power_supply, locale)
+        return str(value).rstrip('0').rstrip('.')
 
-    # ── Значения из матричных строк (локализованные) ──
-    def _res_protocol(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.protocol, locale) for r in self._matrix_rows()
-            if r.protocol_id and r.protocol.name)
+    def _res_cu_block(self, locale=None) -> str:
+        """Блок описания БУ (слотовая модель) — клеится в описание привода.
 
-    def _res_commands(self, locale=None) -> str:
-        from electric_actuators.models.ea_catalog_item import _SETPOINT_ROLES
-        return self._join_unique(
-            localized_name(r.control_signal, locale) for r in self._matrix_rows()
-            if r.control_signal_id and r.control_signal.name
-            and r.control_signal.role not in _SETPOINT_ROLES)
+        Тот же генератор, что в ea_control (видимость по правилам, значения
+        из снимка/дефолтов) — спецификация и описание БУ не дублируются.
+        """
+        if not self.selected_control_unit_id:
+            return ''
+        from ea_control.services.cu_description import build_description
+        ps = (self.selected_power_supply.power_supply
+              if self.selected_power_supply_id else None)
+        try:
+            return build_description(
+                self.selected_control_unit,
+                snapshot=self.control_unit_snapshot or None,
+                power_supply=ps, mode='both', locale=locale,
+                include_name=False)
+        except Exception:  # noqa: BLE001
+            logger.exception('Ошибка генерации блока описания БУ')
+            return ''
 
-    def _res_setpoint(self, locale=None) -> str:
-        from electric_actuators.models.ea_catalog_item import _SETPOINT_ROLES
-        return self._join_unique(
-            localized_name(r.control_signal, locale) for r in self._matrix_rows()
-            if r.control_signal_id and r.control_signal.name
-            and r.control_signal.role in _SETPOINT_ROLES)
+    def _res_cu_code(self, locale=None) -> str:
+        """Код выбранного БУ (слотовая модель)."""
+        if not self.selected_control_unit_id:
+            return ''
+        return self.selected_control_unit.code or ''
 
-    def _res_local_controls(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.option, locale) if r.option_id else r.name
-            for r in self._matrix_rows()
-            if r.slot_id and r.slot.code == 'LOCAL_CONTROL')
+    def _res_cu_description(self, locale=None) -> str:
+        """Описание выбранного БУ (локализованное, слотовая модель)."""
+        if not self.selected_control_unit_id:
+            return ''
+        cu = self.selected_control_unit
+        return pick_i18n(cu.description_i18n, locale,
+                         fallback=cu.description or '')
 
-    def _res_end_switches(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role.startswith('END'))
-
-    def _res_way_switches(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role.startswith('WAY'))
-
-    def _res_torque_switches(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role.startswith('TORQUE'))
-
-    def _res_position_feedback(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role == 'POSITION')
-
-    def _res_hart(self, locale=None) -> str:
-        return 'HART' if any(
-            r.feedback_signal_id and getattr(r.feedback_signal, 'hart', False)
-            for r in self._matrix_rows()) else ''
-
-    def _res_thermal_sensor(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.device, locale) for r in self._matrix_rows()
-            if r.device_id and r.device.name)
-
-    def _res_cu_heater(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.heater_supply, locale) for r in self._matrix_rows()
-            if r.heater_supply_id and r.heater_supply.name)
-
-    def _res_indicator(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.option, locale) if r.option_id else r.name
-            for r in self._matrix_rows()
-            if r.slot_id and r.slot.code == 'INDICATOR')
-
-    def _res_turn_counter(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.option, locale) if r.option_id else r.name
-            for r in self._matrix_rows()
-            if r.slot_id and r.slot.code == 'TURN_COUNTER')
+    # ── Снимок конфигурации БУ (слотовая модель) ──
+    def _snapshot(self) -> dict:
+        return self.control_unit_snapshot or {}
 
     def _res_article(self, locale=None) -> str:
         return self.generated_model_item_code or ''
@@ -451,6 +382,95 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
 
     def _res_exd(self, locale=None) -> str:
         return localized_name(self.selected_exd, locale) if self.selected_exd else ''
+
+    # ==================== СПЕЦИФИКАЦИЯ (spec_template + БУ) ====================
+    @staticmethod
+    def _parse_spec_template_dict(tpl):
+        """Нормализовать spec_template в dict (str → json.loads), иначе None."""
+        if isinstance(tpl, str):
+            import json
+            try:
+                tpl = json.loads(tpl)
+            except Exception:
+                return None
+        return tpl if isinstance(tpl, dict) and tpl else None
+
+    def _get_spec_template_json(self) -> dict:
+        """JSON spec_template ({группа: {подпись: ключ}}) из серии → EquipmentType."""
+        ml = self.selected_model_line
+        tpl = self._parse_spec_template_dict(
+            getattr(ml, 'spec_template', None) if ml is not None else None)
+        if tpl:
+            return tpl
+        et = self._get_equipment_type()
+        return self._parse_spec_template_dict(
+            getattr(et, 'spec_template', None) if et is not None else None) or {}
+
+    def _cu_spec_groups(self, locale=None) -> dict:
+        """Вложенная спецификация БУ: {описание_узла: {слот: значение}}.
+
+        Описание узла БУ — заголовок подраздела (фолбэк name → code).
+        """
+        if not self.selected_control_unit_id:
+            return {}
+        from ea_control.services.cu_description import build_specification
+        ps = (self.selected_power_supply.power_supply
+              if self.selected_power_supply_id else None)
+        try:
+            spec = build_specification(
+                self.selected_control_unit,
+                snapshot=self.control_unit_snapshot or None,
+                power_supply=ps, mode='both', locale=locale)
+        except Exception:  # noqa: BLE001
+            logger.exception('Ошибка генерации спецификации БУ')
+            return {}
+        groups = {}
+        for section in spec.get('sections', []):
+            fields = {}
+            for s in section.get('slots', []):
+                value = s.get('value')
+                if isinstance(value, list):
+                    value = ', '.join(str(v) for v in value if v)
+                if value in (None, ''):
+                    continue
+                fields[s.get('name') or s.get('code')] = value
+            if not fields:
+                continue
+            title = (section.get('description') or section.get('name')
+                     or section.get('code') or '')
+            groups[title] = fields
+        return groups
+
+    def _get_spec_sections(self, locale=None) -> dict:
+        """Спецификация привода: {группа: {подпись: значение}}.
+
+        Стандартные группы — из JSON ``spec_template`` (ключ = поле из
+        ``_get_data_dict()`` без фигурных скобок); далее добавляется БУ
+        (узлы как подразделы). Пустые значения не выводятся.
+        """
+        template = self._get_spec_template_json()
+        data_dict = self._get_data_dict(locale)
+        norm = {k.strip('{}'): v for k, v in data_dict.items()}
+        result = {}
+        for group_title, fields in template.items():
+            if not isinstance(fields, dict):
+                continue
+            group_fields = {}
+            for label, key in fields.items():
+                target = norm.get(key)
+                if not target:
+                    continue
+                try:
+                    value = self._resolve_data_dict_target(target, locale)
+                except Exception:  # noqa: BLE001
+                    value = ''
+                if value in (None, ''):
+                    continue
+                group_fields[label] = value
+            if group_fields:
+                result[group_title] = group_fields
+        result.update(self._cu_spec_groups(locale))
+        return result
 
     # ==================== КОНФИГУРАЦИЯ ОПЦИЙ ====================
     # through_model_path — путь к through-модели для проверки доступности
@@ -464,25 +484,12 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'label': 'напряжение питания',
             'parent_field': 'model_line_item',
         },
-        'selected_control_unit_option': {
-            'through_model_path': 'electric_actuators.models.ea_allowed_options.AllowedControlUnitOption',
-            'through_attr': 'control_unit',
-            'label': 'блок управления',
-            'parent_field': 'model_line',
-        },
         'selected_safety_position': {
             'through_model_path': 'electric_actuators.models.ea_model_line_item_options.ElectricSafetyPositionOption',
             'through_attr': 'safety_position',
             'label': 'положение безопасности',
             'parent_field': 'power_supply_option',
             'parent_resolver': 'selected_power_supply',
-        },
-        'selected_access_device_option': {
-            'through_model_path': 'electric_actuators.models.ea_access_device.ControlUnitAccessDeviceOption',
-            'through_attr': 'access_device',
-            'label': 'устройство ограничения доступа',
-            'parent_field': 'control_unit',
-            'parent_resolver': 'selected_control_unit_option',
         },
         'selected_temperature': {
             'through_model_path': 'electric_actuators.models.ea_options.ElectricTemperatureOption',
@@ -645,6 +652,46 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             return None
         return None
 
+    def _bound_control_unit_options(self, locale=None):
+        """Доступные БУ (слотовая модель) для выбранной модели — из привязок."""
+        if not self.selected_model_line_item_id:
+            return []
+        from ea_control.models import resolve_bound_units
+        bindings = list(resolve_bound_units(self.selected_model_line_item))
+        out = []
+        for idx, b in enumerate(bindings):
+            cu = b.control_unit
+            out.append({
+                'id': b.id,
+                'option_id': cu.id,
+                'key': cu.key,
+                'code': cu.code,
+                'name': localized_name(cu, locale),
+                'kind': cu.kind_id,
+                'kind_display': (localized_name(cu.kind, locale)
+                                 if cu.kind_id else ''),
+                'is_default': idx == 0,
+            })
+        return out
+
+    def _control_unit_package(self, locale=None):
+        """Пакет конфигуратора выбранного БУ (слоты/опции/правила)."""
+        if not self.selected_control_unit_id or not self.selected_model_line_item_id:
+            return None
+        from ea_control.services.cu_package import build_package
+        ps = (self.selected_power_supply.power_supply
+              if self.selected_power_supply_id else None)
+        try:
+            return build_package(
+                self.selected_control_unit,
+                model_line=self.selected_model_line_item.model_line,
+                model_line_item=self.selected_model_line_item,
+                power_supply=ps,
+                mode='both',
+                locale=locale)
+        except Exception:  # noqa: BLE001
+            return None
+
     def get_available_options(self, locale=None) -> Dict[str, List[Dict]]:
         """
         Получить все доступные опции для выбранной модели.
@@ -655,10 +702,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         Ключи: power_supply_options, temperature_options, ip_options,
         exd_options, body_coating_options, body_color_options,
         hand_wheel_options, turn_angle_options, cable_glands_holes_options;
-        при выбранном напряжении — safety_position_options и
-        control_unit_options (AllowedControlUnitOption × resolve_cu_pair);
-        при выбранном БУ — access_device_options (ControlUnitAccessDeviceOption)
-        и signal_slots (профиль БУ через configurator_signal_data).
+        при выбранном напряжении — safety_position_options;
+        control_unit_options — БУ из ControlUnitBinding (слотовая модель),
+        control_unit_package — пакет слотов выбранного БУ (build_package).
 
         option_id — ID реальной опции (для подстановки в FK конструктора).
         Для through_attr=None: id и option_id совпадают (through-модель сама опция).
@@ -668,22 +714,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
 
         result = {}
 
-        # --- Сигнальные опции БУ (фаза 9): слоты профиля выбранного типа БУ ---
-        if self.selected_control_unit_option_id and \
-                self.selected_power_supply_id:
-            from electric_actuators.services.ea_configurator_data import (
-                configurator_signal_data)
-            try:
-                sig = configurator_signal_data(
-                    self.selected_model_line_item,
-                    self.selected_control_unit_option,
-                    self.selected_power_supply.power_supply,
-                    'on_off', locale=locale)
-                result['signal_slots'] = sig['slots']
-            except Exception:  # noqa: BLE001
-                result['signal_slots'] = []
-        else:
-            result['signal_slots'] = []
+        # --- БУ (слотовая модель): доступные БУ из привязок + пакет выбранного ---
+        result['control_unit_options'] = self._bound_control_unit_options(locale)
+        result['control_unit_package'] = self._control_unit_package(locale)
 
         # --- model_line_item опции ---
         if self.selected_model_line_item:
@@ -802,57 +835,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
                     for opt in qs
                 ]
 
-            # --- БУ: пара серия×напряжение через AllowedControlUnitOption ---
-            from electric_actuators.models import AllowedControlUnitOption
-            from electric_actuators.models.ea_allowed_options import resolve_cu_pair
-            ml = self.selected_model_line_item.model_line
-            mli = self.selected_model_line_item
-            ps = self.selected_power_supply.power_supply
-            cu_rows = (AllowedControlUnitOption.objects
-                       .filter(model_line=ml, is_active=True)
-                       .select_related('control_unit')
-                       .order_by('sorting_order'))
-            cu_options, seen = [], set()
-            for row in cu_rows:
-                pair = resolve_cu_pair(ml, mli, row.control_unit, ps)
-                if pair is None or pair.control_unit_id in seen:
-                    continue
-                seen.add(pair.control_unit_id)
-                cu_options.append({
-                    'id': pair.id,
-                    'option_id': pair.control_unit_id,
-                    'encoding': pair.encoding or '',
-                    'ext_encoding': pair.ext_encoding or '',
-                    'name': localized_name(pair.control_unit, locale),
-                    'code': pair.control_unit.code,
-                    'description': pair.control_unit.description or '',
-                    'is_default': bool(pair.is_default),
-                })
-            result['control_unit_options'] = cu_options
-
-        # --- Устройство ограничения доступа (зависит от выбранного БУ) ---
-        if self.selected_control_unit_option_id:
-            from electric_actuators.models.ea_access_device import (
-                ControlUnitAccessDeviceOption)
-            ad_qs = (ControlUnitAccessDeviceOption.objects
-                     .filter(control_unit=self.selected_control_unit_option,
-                             is_active=True)
-                     .select_related('access_device')
-                     .order_by('sorting_order'))
-            result['access_device_options'] = [
-                {
-                    'id': opt.id,
-                    'option_id': opt.access_device_id,
-                    'encoding': opt.encoding or '',
-                    'ext_encoding': opt.ext_encoding or '',
-                    'name': localized_name(opt.access_device, locale),
-                    'code': opt.access_device.code,
-                    'description': opt.access_device.description or '',
-                    'is_default': opt.is_default,
-                }
-                for opt in ad_qs
-            ]
-
+        # --- Устройство ограничения доступа теперь слот ACCESS_DEVICE ---
         return result
 
     # ==================== ВАЛИДАЦИЯ ОПЦИЙ ====================
@@ -1179,9 +1162,22 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         return SP_EXT.get(sp.code, 'FL') if sp else 'FL'
 
     def _ad_ext(self) -> str:
-        """ext-код устройства ограничения доступа: AD0 — нет, AD1 — есть."""
-        ad = self.selected_access_device_option
-        return 'AD1' if (ad and ad.code == 'DEVICE') else 'AD0'
+        """ext-код устройства ограничения доступа: AD0 — нет, AD1 — есть.
+
+        В слотовой модели устройство доступа — слот ACCESS_DEVICE; берём
+        выбранную опцию слота из снимка и её ext-код/код записи.
+        """
+        code = self._snapshot().get('ACCESS_DEVICE')
+        if not code:
+            return 'AD0'
+        from ea_control.models import CuSlotOption
+        opt = (CuSlotOption.objects.filter(code=code)
+               .select_related('access_device_option').first())
+        if opt and opt.access_device_option_id:
+            if opt.ext_encoding:
+                return opt.ext_encoding
+            return 'AD1' if opt.access_device_option.code == 'DEVICE' else 'AD0'
+        return 'AD0'
 
     def _generate_fallback_code(self) -> str:
         """Простая резервная генерация кода"""
@@ -1197,7 +1193,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
 
     # ==================== ГЕНЕРАЦИЯ ОПИСАНИЙ ====================
 
-    def get_description_data(self) -> Dict[str, Dict[str, Any]]:
+    def get_description_data(self, locale=None) -> Dict[str, Dict[str, Any]]:
         """
         Унифицированная плоская структура данных для описания.
         Использует прямые FK (не through-модели).
@@ -1297,14 +1293,21 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'name': sp.name if sp else '',
         }
 
-        # control_unit → params.ControlUnitInstalledOption
-        cu = self.selected_control_unit_option
+        # control_unit → ea_control.ControlUnit (слотовая модель)
+        cu = self.selected_control_unit
         data['control_unit'] = {
             'category': 'selected_options',
             'title': 'Блок управления',
             'data': cu.id if cu else None,
             'display_data': cu.name if cu else 'Не указано',
             'code': cu.code if cu else '',
+            'name': cu.name if cu else '',
+        }
+        data['cu_block'] = {
+            'category': 'selected_options',
+            'title': 'Блок управления',
+            'data': cu.id if cu else None,
+            'display_data': self._res_cu_block(locale),
             'name': cu.name if cu else '',
         }
 
@@ -1586,8 +1589,8 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
 
     # ==================== ДУБЛИКАТЫ ====================
 
-    def _check_for_duplicates(self):
-        """Проверка на дубликаты в базе данных"""
+    def _find_existing(self):
+        """Первый дубликат по выбранным опциям (+ БУ и снимок) или None."""
         filters = {}
         if self.selected_model_line_item:
             filters['selected_model_line_item'] = self.selected_model_line_item
@@ -1606,13 +1609,28 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         else:
             filters['selected_model_line__isnull'] = True
 
-        if filters:
-            duplicates = self.__class__.objects.filter(**filters)
-            if self.pk:
-                duplicates = duplicates.exclude(pk=self.pk)
-            if duplicates.exists():
-                duplicate = duplicates.first()
-                return f"Найдена похожая конфигурация: {duplicate} (ID: {duplicate.id})"
+        if self.selected_control_unit:
+            filters['selected_control_unit'] = self.selected_control_unit
+        else:
+            filters['selected_control_unit__isnull'] = True
+
+        qs = self.__class__.objects.filter(**filters)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        snap = sorted((self._snapshot() or {}).items())
+        for duplicate in qs:
+            dup_snap = sorted(
+                (duplicate.control_unit_snapshot or {}).items())
+            if dup_snap == snap:
+                return duplicate
+        return None
+
+    def _check_for_duplicates(self):
+        """Сообщение о дубликате (или None)."""
+        duplicate = self._find_existing()
+        if duplicate:
+            return (f"Найдена похожая конфигурация: {duplicate} "
+                    f"(ID: {duplicate.id})")
         return None
 
     def _adjust_for_duplicate(self):

@@ -29,7 +29,7 @@ from django.utils.translation import gettext_lazy as _
 from core.models import EquipmentTypeMixin
 from core.models.config_hash import ConfigHashMixin
 from core.models.mixins import TemplateMixin
-from core.utils.localization import localized_name
+from core.utils.localization import localized_name, pick_i18n
 from options.exd import ChosenExdRowMixin
 from sku.models import SKUMixin
 
@@ -72,7 +72,7 @@ class ElectricActuatorCatalogItem(
         'code', 'series_code', 'body_code', 'torque', 'time_to_close',
         'power_supply', 'voltage',
         'motor_current_rated', 'motor_current_starting', 'motor_power',
-        'cu_name', 'cu_power_supply', 'cu_mode', 'cu_heater',
+        'cu_name', 'cu_code', 'cu_description', 'cu_block', 'cu_power_supply', 'cu_mode', 'cu_heater',
         'ctl_protocol', 'ctl_commands', 'ctl_setpoint', 'ctl_local_controls',
         'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
         'fb_position_feedback', 'fb_hart', 'fb_thermal_sensor',
@@ -84,7 +84,8 @@ class ElectricActuatorCatalogItem(
     CODE_FIELD_KEYS = ('code', 'temperature', 'ip', 'cu_name', 'voltage', 'exd')
     VARS_FIELD_KEYS = (
         'code', 'series_code', 'body_code', 'torque', 'time_to_close',
-        'power_supply', 'voltage', 'cu_name', 'cu_power_supply', 'cu_mode',
+        'power_supply', 'voltage', 'cu_name', 'cu_code', 'cu_description',
+        'cu_power_supply', 'cu_mode',
         'ctl_protocol', 'ctl_commands', 'ctl_setpoint',
         'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
         'fb_position_feedback', 'fb_hart',
@@ -299,12 +300,59 @@ class ElectricActuatorCatalogItem(
 
     def _res_time_to_close(self, locale=None) -> str:
         mli = self.model_line_item
-        return str(mli.time_to_close) if mli and mli.time_to_close else ''
+        if not mli:
+            return ''
+        # если время закрытия не задано (0), берём время открытия — в большинстве
+        # случаев они совпадают, в данных заполнено одно из двух.
+        value = mli.time_to_close or mli.time_to_open
+        if not value:
+            return ''
+        return str(value).rstrip('0').rstrip('.')
 
     def _res_mode(self, locale=None) -> str:
         labels = _MODE_LABELS.get(self.mode, {'ru': self.mode})
         locale = locale or 'ru'
         return labels.get(locale) or labels['ru']
+
+    def _res_cu_block(self, locale=None) -> str:
+        """Блок описания БУ (legacy-схема) — для общего шаблона {cu_block}.
+
+        Каталожная карточка остаётся на legacy-матрице, но описание клеит
+        БУ одним блоком, как конструктор (унификация шаблона equipment_type).
+        """
+        if not self.control_unit_id:
+            return ''
+        lines = [localized_name(self.control_unit, locale)]
+        entries = [
+            ('Питание БУ', localized_name(self.cu_power_supply, locale)
+             if self.cu_power_supply_id else ''),
+            ('Режим', self._res_mode(locale)),
+            ('Шина', self._res_protocol(locale)),
+            ('Команды', self._res_commands(locale)),
+            ('Уставка', self._res_setpoint(locale)),
+            ('Органы местного управления', self._res_local_controls(locale)),
+            ('Концевые выключатели', self._res_end_switches(locale)),
+            ('Промежуточные', self._res_way_switches(locale)),
+            ('Моментные', self._res_torque_switches(locale)),
+            ('Позиционная ОС', self._res_position_feedback(locale)),
+            ('HART', self._res_hart(locale)),
+            ('Обогрев БУ', self._res_cu_heater(locale)),
+            ('Теплозащита', self._res_thermal_sensor(locale)),
+            ('Индикация', self._res_indicator(locale)),
+            ('Счётчик', self._res_turn_counter(locale)),
+        ]
+        for label, value in entries:
+            if value:
+                lines.append(f'{label}: {value}')
+        return '\n'.join(lines)
+
+    def _res_cu_description(self, locale=None) -> str:
+        """Описание БУ (legacy-схема) — локализованное."""
+        if not self.control_unit_id:
+            return ''
+        cu = self.control_unit
+        return pick_i18n(cu.description_i18n, locale,
+                         fallback=cu.description or '')
 
     # ── Значения из матричных строк (локализованные) ──
     def _matrix_rows(self):

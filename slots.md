@@ -185,6 +185,11 @@ MOTOR_STARTER — none-опции; PHASE_PROTECTION — value-пара с xor-в
 - Один std и нет opt-опций → слот без выбора: показывается как
   read-only («std: X», без inputs). [реализовано — Превью БУ:
   `slotReadonly(slot)`]
+- **Правило видимости слота (2026-11-13):** слот показывается, только если
+  у него есть значение к выводу — дефолт (`std`) или выбор из снимка. Если
+  предвыбора нет (все опции `na`, либо только `opt` без выбора) — слот
+  скрывается целиком: и в конфигураторе, и в описании/спецификации
+  (`cu_description`).
 
 **Приведение данных (выполнено 2026-11-01):** слоты с payload-опциями —
 `slot_kind=object` + источник (40 слотов, сид `slot_flags`; LOCAL_CONTROL →
@@ -1009,6 +1014,59 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
 (5 БУ / 45 слотов) устарели; канон-тесты и часть `tests_services` тоже
 держат старые коды (`POSITION_FEEDBACK`, 45 слотов) — нужна отдельная
 ревизия ожиданий под новый канон.
+
+### Выполнено 2026-11-13 — спецификация привода из spec_template + БУ
+
+Конструктор ЭП переведён на вывод спецификации по общему правилу
+`equipment_type` (JSON `spec_template`), с вложенной спецификацией БУ.
+
+- **Данные `equipment_type` electric-actuator**: `description_template` =
+  текст описания (с `{cu_block}`), `spec_template` = JSON
+  `{группа: {подпись: ключ}}` (ключ — поле из `_get_data_dict()` **без**
+  фигурных скобок); `description_template_i18n`/`spec_template_i18n`
+  (`ru`) синхронизированы. Правка данных — одноразовая (не миграция),
+  держится на закоммиченной `db.sqlite3`.
+- **Конструктор** (`ea_actuator_constructor.py`): `_get_spec_sections(locale)`
+  разворачивает JSON-шаблон + добавляет БУ (`_cu_spec_groups`): узлы БУ —
+  подразделы, **заголовок подраздела = описание узла** (фолбэк name → code),
+  слоты — «подпись: значение»; пустые значения не выводятся. Порядок
+  узлов/слотов/опций — по `sorting_order` (как в описании, так и в спеке;
+  `cu_description` уже упорядочивает). Описание привода читает
+  `description_template` (а не `spec_template`).
+- **API** (`views_constructor.py`): `preview` возвращает `spec`; добавлен
+  `POST /electric_actuators/constructor/spec-docx/` — скачивание `.docx`
+  (общий `render_spec_docx_bytes`). Общая подготовка превью —
+  `_prepare_preview(request)` (мёртвый `_preview_matrix_rows` вычищен).
+- **Фронт** (`ea-constructor/App.vue`): «Просмотр» рендерит спецификацию
+  (группы → подразделы → подпись/значение) + кнопка «⬇ .docx»; локали —
+  только UI-подписи (`eaCtor.specification|downloadSpec|downloading|
+  errDownload`). Значения локализуются на сервере из `*_i18n`.
+
+### Выполнено 2026-11-13 (доп.) — описание БУ, плейсхолдеры, фиксы по review
+
+- **Описание БУ** (`cu_description.build_description`): разделитель слотов
+  «; » вместо «- »; имя БУ выводится при `include_name=True` (по умолчанию),
+  конструктор передаёт `include_name=False` — шапку формирует шаблон.
+- **Плейсхолдеры `{cu_code}` / `{cu_description}`** (код + локализованное
+  описание БУ): добавлены в конструктор (`_res_cu_code`/`_res_cu_description`)
+  и в каталожную карточку (`TemplateFieldSpec` + `NAME_FIELD_KEYS`;
+  `_res_cu_description` через `pick_i18n`). Шаблон описания привода:
+  «Блок управления: {cu_code}; {cu_description}; {cu_block}».
+- **Время закрытия** (`_res_time_to_close`, конструктор + карточка):
+  fallback на `time_to_open`, если `time_to_close` = 0/пусто (в данных заполнено
+  одно из двух); хвостовые нули срезаются (`93.00` → `93`).
+- **Сортировка узлов** — depth-first обход дерева `parent` в
+  `cu_description.visible_slots` (как `cu_report`): плоская сортировка по
+  `sorting_order` перемешивала уровни вложенности. Регрессионные тесты в
+  `tests_placeholders`.
+- **Список плейсхолдеров в pipeline-config**: `core/template_field_registry.py`
+  — мост `_EQUIPMENT_TYPE_MODEL_OVERRIDES['electric-actuator']` →
+  `ElectricActuatorCatalogItem` (stale `content_type` указывал на
+  `ElectricActuatorModelLineItem` без `TEMPLATE_FIELDS`, список был пуст).
+- **Review-фиксы**: `@action` возвращён на `preview` (был ошибочно на
+  `_prepare_preview` → роут `/constructor/preview/` пропал); `cu_code`/
+  `cu_description` добавлены в `NAME_FIELD_KEYS` (а не только в
+  `VARS_FIELD_KEYS`); `_parse_spec_template_dict` парсит строковый JSON.
 
 ---
 

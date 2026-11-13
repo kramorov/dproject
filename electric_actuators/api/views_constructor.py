@@ -78,6 +78,8 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             selected_safety_position_id=request.data.get('selected_safety_position'),
             selected_control_unit_option_id=request.data.get('selected_control_unit_option'),
             selected_access_device_option_id=request.data.get('selected_access_device_option'),
+            selected_control_unit_id=request.data.get('selected_control_unit'),
+            control_unit_snapshot=request.data.get('control_unit_snapshot') or {},
             selected_temperature_id=request.data.get('selected_temperature'),
             selected_ip_id=request.data.get('selected_ip'),
             selected_exd_id=request.data.get('selected_exd'),
@@ -97,28 +99,13 @@ class ConstructorViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         obj = self._build_from_request(request)
         # Проверка дубликата: если конфигурация уже существует — возвращаем её
-        existing_msg = obj._check_for_duplicates()
-        if existing_msg:
-            # Дубликат: сигнальные опции применяем к найденной конфигурации
-            existing = ElectricActuatorConstructor.objects.filter(
-                selected_model_line_item=obj.selected_model_line_item,
-                selected_power_supply=obj.selected_power_supply,
-                selected_safety_position=obj.selected_safety_position,
-                selected_control_unit_option=obj.selected_control_unit_option,
-                selected_temperature=obj.selected_temperature,
-                selected_ip=obj.selected_ip,
-                selected_exd=obj.selected_exd,
-                selected_body_coating=obj.selected_body_coating,
-                selected_body_color_option=obj.selected_body_color_option,
-                selected_hand_wheel=obj.selected_hand_wheel,
-                selected_turn_angle_option=obj.selected_turn_angle_option,
-                selected_cable_glands_holes=obj.selected_cable_glands_holes,
-                is_active=True,
-            ).first()
-            if existing:
-                if 'selected_matrix_rows' in request.data:
-                    self._set_matrix_rows(existing, request.data)
-                return Response(self._serialize_detail(existing), status=status.HTTP_200_OK)
+        existing = obj._find_existing()
+        if existing:
+            # Дубликат: возвращаем найденную конфигурацию
+            if 'selected_matrix_rows' in request.data:
+                self._set_matrix_rows(existing, request.data)
+            return Response(self._serialize_detail(existing),
+                            status=status.HTTP_200_OK)
         obj.save()
         if 'selected_matrix_rows' in request.data:
             self._set_matrix_rows(obj, request.data)
@@ -130,6 +117,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_model_line', 'selected_model_line_item',
             'selected_power_supply', 'selected_safety_position',
             'selected_control_unit_option', 'selected_access_device_option',
+            'selected_control_unit',
             'selected_temperature',
             'selected_ip', 'selected_exd', 'selected_body_coating',
             'selected_body_color_option', 'selected_hand_wheel',
@@ -140,6 +128,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             value = request.data.get(field)
             if value is not None:
                 setattr(obj, f'{field}_id', value)
+        if 'control_unit_snapshot' in request.data:
+            obj.control_unit_snapshot = request.data.get(
+                'control_unit_snapshot') or {}
         if 'sorting_order' in request.data:
             obj.sorting_order = request.data['sorting_order']
         if 'is_active' in request.data:
@@ -204,7 +195,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             kwargs['selected_power_supply_id'] = ps_id
         cu_id = request.query_params.get('control_unit_id')
         if cu_id:
-            kwargs['selected_control_unit_option_id'] = cu_id
+            kwargs['selected_control_unit_id'] = cu_id
         obj = ElectricActuatorConstructor(**kwargs)
         return Response(obj.get_available_options(locale=locale))
 
@@ -257,38 +248,69 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             for item in qs
         ])
 
-    @action(detail=False, methods=['post'])
-    def preview(self, request):
-        """
-        Превью кода и описания без сохранения в базу.
-        Принимает: selected_model_line_item, + опции.
-        Возвращает: {name, code, description, tech_description}.
+    def _prepare_preview(self, request):
+        """Собрать и подготовить инстанс конструктора для превью без сохранения.
+
+        Возвращает (obj, locale): строит инстанс из запроса, выполняет
+        _ensure_valid_options и копирует рабочий диапазон температур.
         """
         from core.utils.localization import locale_from_accept_language
         locale = locale_from_accept_language(
             request.headers.get('Accept-Language'))
         obj = self._build_from_request(request)
-        # Строки матрицы для плейсхолдеров cu_/ctl_/fb_ (превью без сохранения)
-        ids = [int(x) for x in (request.data.get('selected_matrix_rows') or [])
-               if str(x).isdigit()]
-        if ids:
-            from electric_actuators.models import EaSignalMatrixEntry
-            obj._preview_matrix_rows = list(
-                EaSignalMatrixEntry.objects.filter(pk__in=ids).select_related(
-                    'slot', 'option', 'control_signal', 'feedback_signal',
-                    'protocol', 'device', 'heater_supply'))
-        # Генерация без сохранения
         obj._ensure_valid_options()
         if obj.selected_temperature:
             obj.work_temp_min = obj.selected_temperature.work_temp_min
             obj.work_temp_max = obj.selected_temperature.work_temp_max
+        return obj, locale
+
+    @action(detail=False, methods=['post'])
+    def preview(self, request):
+        """
+        Превью кода и описания без сохранения в базу.
+        Принимает: selected_model_line_item, + опции.
+        Возвращает: {name, code, description, tech_description, spec}.
+        """
+        obj, locale = self._prepare_preview(request)
         description = obj.generate_description(locale=locale)
         return Response({
             'name': obj.generated_model_item_code,
             'code': obj.generated_model_item_code,
             'description': description,
             'tech_description': description.replace('\n', '<br>'),
+            'spec': obj._get_spec_sections(locale),
         })
+
+    @action(detail=False, methods=['post'], url_path='spec-docx')
+    def spec_docx(self, request):
+        """Скачивание спецификации (слотами + БУ) в .docx без сохранения."""
+        import io
+        import re
+        from django.conf import settings
+        from django.http import FileResponse
+        from core.models.spec_docx import render_spec_docx_bytes
+
+        obj, locale = self._prepare_preview(request)
+        code = obj.generated_model_item_code or 'drive'
+        obj.code = code
+        obj.name = code
+        obj.description = obj.generate_description(locale=locale)
+
+        base_url = settings.SITE_BASE_URL or request.build_absolute_uri('/')
+        data = render_spec_docx_bytes(obj, base_url=base_url, locale=locale)
+
+        safe_code = re.sub(r'[\\/*?:"<>|]', '-', str(code))
+        filename_tpl = {
+            'ru': 'Спецификация %s.docx',
+            'en': 'Specification %s.docx',
+            'cn': '规格 %s.docx',
+        }.get(locale, 'Specification %s.docx')
+        return FileResponse(
+            io.BytesIO(data),
+            as_attachment=True,
+            filename=filename_tpl % safe_code,
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
 
     # --- serialization helpers ---
 
@@ -311,6 +333,8 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_safety_position': _fk_dict(obj.selected_safety_position),
             'selected_control_unit_option': _fk_dict(obj.selected_control_unit_option),
             'selected_access_device_option': _fk_dict(obj.selected_access_device_option),
+            'selected_control_unit': _fk_dict(obj.selected_control_unit),
+            'control_unit_snapshot': obj.control_unit_snapshot or {},
             'selected_temperature': _fk_dict(obj.selected_temperature),
             'selected_ip': _fk_dict(obj.selected_ip),
             'selected_exd': _fk_dict(obj.selected_exd),

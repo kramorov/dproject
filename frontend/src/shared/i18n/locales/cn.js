@@ -554,6 +554,11 @@ export default {
   'eaCtor.lbl.cableGlands': '电缆接头',
   'eaCtor.lbl.safetyPosition': '安全位置',
   'eaCtor.lbl.controlUnit': '控制单元',
+  'eaCtor.controlUnitOptions': '控制单元设置（槽位）',
+  'eaCtor.specification': '规格',
+  'eaCtor.downloadSpec': '⬇ .docx',
+  'eaCtor.downloading': '生成中...',
+  'eaCtor.errDownload': '规格下载失败',
 
   'paCtor.newConfig': '新配置',
   'paCtor.series': '气动执行器系列',

@@ -80,9 +80,11 @@ def hidden_slot_codes(control_unit, snapshot=None):
 def visible_slots(control_unit, snapshot=None):
     """Активные видимые слоты БУ в порядке дерева: (nodes, slots).
 
+    Узлы идут depth-first (родитель → дети по ``sorting_order``), как в
+    cu_report — порядок в описании/спеке совпадает с деревом конфигуратора.
     В узлы попадают ВСЕ узлы видимых слотов, включая выключенные
-    (``is_active=False``) — как в cu_report: выключенная секция не прячет
-    слоты и не роняет артикул; флаг передаётся в спецификации.
+    (``is_active=False``): выключенная секция не прячет слоты и не роняет
+    артикул; флаг передаётся в спецификации.
     """
     hidden = hidden_slot_codes(control_unit, snapshot)
     slots = list(CuSlot.objects.filter(is_active=True)
@@ -91,9 +93,23 @@ def visible_slots(control_unit, snapshot=None):
                  .prefetch_related(_slot_options_prefetch())
                  .order_by('sorting_order', 'code'))
     visible = [s for s in slots if s.code not in hidden]
-    node_ids = {s.section_id for s in visible}
-    nodes = list(CuSectionNode.objects.filter(id__in=node_ids)
-                 .order_by('sorting_order', 'code'))
+    slot_node_ids = {s.section_id for s in visible}
+
+    all_nodes = list(CuSectionNode.objects.all()
+                     .order_by('sorting_order', 'code'))
+    by_parent = {}
+    for n in all_nodes:
+        by_parent.setdefault(n.parent_id or 0, []).append(n)
+
+    nodes = []
+
+    def walk(parent_id):
+        for n in by_parent.get(parent_id, []):
+            if n.id in slot_node_ids:
+                nodes.append(n)
+            walk(n.id)
+
+    walk(0)
     return nodes, visible
 
 
@@ -224,6 +240,12 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
             [o for o in s.slot_options.all() if o.is_active],
             key=lambda o: (o.sorting_order, o.code))
 
+    # Видимость слота (slots.md 2026-11-13): показываем только слоты, у
+    # которых есть значение к выводу — std-дефолт или выбор из снимка.
+    # Слоты без предвыбора (все na / только opt без выбора) не выводим.
+    visible = [s for s in visible
+               if _slot_chosen_options(s, options_by_slot, merged, defaults)]
+
     slots_by_node = {}
     for s in visible:
         slots_by_node.setdefault(s.section_id, []).append(s)
@@ -282,22 +304,28 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
 
 
 def build_description(control_unit, *, snapshot=None, locale=None,
-                      power_supply=None, mode='both', signal_power=None):
+                      power_supply=None, mode='both', signal_power=None,
+                      include_name=True):
     """Текстовое описание модификации БУ (локализованное).
 
-    Структура: имя БУ, затем строки «Узел:», «- Слот: значение».
+    Структура: имя БУ (если ``include_name``), затем строки
+    «Узел: Слот: значение; Слот: значение; …». Разделитель слотов — «; ».
+    ``include_name=False`` — для шаблона привода, где шапку формируют
+    плейсхолдеры ``{cu_code}``/``{cu_description}``.
     """
     spec = build_specification(control_unit, snapshot=snapshot, locale=locale,
                                power_supply=power_supply, mode=mode,
                                signal_power=signal_power)
-    lines = [spec['unit']['name']]
+    lines = [spec['unit']['name']] if include_name else []
     for section in spec['sections']:
-        lines.append(section['name'] + ':')
+        parts = []
         for s in section['slots']:
             value = s['value']
             if isinstance(value, list):
                 value = ', '.join(value)
-            lines.append(f"- {s['name']}: {value or '—'}")
+            parts.append(f"{s['name']}: {value or '—'}")
+        if parts:
+            lines.append(section['name'] + ': ' + '; '.join(parts))
     return '\n'.join(lines)
 
 

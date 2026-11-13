@@ -551,6 +551,11 @@ export default {
   'eaCtor.lbl.cableGlands': 'Кабельные вводы',
   'eaCtor.lbl.safetyPosition': 'Положение безопасности',
   'eaCtor.lbl.controlUnit': 'Блок управления',
+  'eaCtor.controlUnitOptions': 'Настройка блока управления (слоты)',
+  'eaCtor.specification': 'Спецификация',
+  'eaCtor.downloadSpec': '⬇ .docx',
+  'eaCtor.downloading': 'Формирование...',
+  'eaCtor.errDownload': 'Ошибка скачивания спецификации',
 
   'paCtor.newConfig': 'Новая конфигурация',
   'paCtor.series': 'Серия пневмоприводов',

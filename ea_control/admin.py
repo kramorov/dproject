@@ -20,7 +20,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuLocationOption, CuMatrixEntry, CuSignalPower,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
-                               ControlUnitKind, CuSectionNode)
+                               ControlUnitKind, CuSectionNode, ControlUnitBinding)
 from ea_control.models.cu_power import CuPolarity
 
 
@@ -203,3 +203,13 @@ class CuSlotRuleAdmin(admin.ModelAdmin):
                     'target_slot', 'priority', 'is_active')
     list_filter = ('action', 'is_active')
     ordering = ('-priority', 'id')
+
+
+@admin.register(ControlUnitBinding)
+class ControlUnitBindingAdmin(admin.ModelAdmin):
+    list_display = ('control_unit', 'model_line_item', 'is_active',
+                    'sorting_order')
+    list_filter = ('is_active', 'control_unit', 'model_line_item__model_line')
+    search_fields = ('control_unit__code', 'model_line_item__code',
+                     'model_line_item__name')
+    ordering = ('sorting_order', 'id')

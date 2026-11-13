@@ -66,6 +66,7 @@
             </div>
             <div class="form-row">
               <label class="form-field"><span>Описание</span><textarea v-model="draft.node.description" rows="2"></textarea></label>
+              <label class="form-field"><span>Плейсхолдер</span><input v-model="draft.node.placeholder" /></label>
             </div>
             <div class="form-row">
               <label class="form-field"><span>Сортировка</span><input type="number" v-model.number="draft.node.sorting_order" /></label>
@@ -158,6 +159,7 @@
               </div>
               <div class="form-row">
                 <label class="form-field"><span>Описание</span><textarea v-model="selSlot.description" rows="2"></textarea></label>
+                <label class="form-field"><span>Плейсхолдер</span><input v-model="selSlot.placeholder" /></label>
               </div>
             </div>
 
@@ -252,6 +254,7 @@
                 <div class="form-row">
                   <label class="form-field"><span>Кодировка</span><input v-model="selOption.encoding" /></label>
                   <label class="form-field"><span>Ext-код</span><input v-model="selOption.ext_encoding" /></label>
+                  <label class="form-field"><span>Плейсхолдер</span><input v-model="selOption.placeholder" /></label>
                 </div>
                 <div v-if="selSlot.slot_kind !== 'object'" class="form-row">
                   <label class="form-field"><span>Описание</span><textarea v-model="selOption.description" rows="2"></textarea></label>
@@ -585,7 +588,8 @@ function cloneOption(o) {
     location_option: o.location_option,
     access_device_option: o.access_device_option,
     encoding: o.encoding || '', ext_encoding: o.ext_encoding || '',
-    description: o.description || '', sorting_order: o.sorting_order || 0,
+    description: o.description || '', placeholder: o.placeholder || '',
+    sorting_order: o.sorting_order || 0,
     is_active: o.is_active,
   }
 }
@@ -596,6 +600,7 @@ function cloneSlot(s) {
     selection_mode: s.selection_mode, slot_kind: s.slot_kind,
     source: s.source || '',
     required: s.required, description: s.description || '',
+    placeholder: s.placeholder || '',
     sorting_order: s.sorting_order || 0, is_active: s.is_active,
     options: options.value
       .filter(o => o.slot === s.id)
@@ -617,7 +622,8 @@ function onAddNode() {
 function selectNode(n) {
   draft.node = {
     id: n.id, code: n.code, name: n.name, parent: n.parent,
-    description: n.description || '', sorting_order: n.sorting_order || 0,
+    description: n.description || '', placeholder: n.placeholder || '',
+    sorting_order: n.sorting_order || 0,
     is_active: n.is_active,
   }
   draft.slots = slots.value
@@ -632,7 +638,7 @@ function selectNode(n) {
 function addNode() {
   draft.node = {
     id: null, code: '', name: '', parent: null, description: '',
-    sorting_order: 0, is_active: true,
+    placeholder: '', sorting_order: 0, is_active: true,
   }
   draft.slots = []
   selSlotIdx.value = -1
@@ -651,7 +657,7 @@ function addSlot() {
   draft.slots.push({
     id: null, code: '', name: '', section: draft.node ? draft.node.id : null, selection_mode: 'single',
     slot_kind: 'value', source: '', required: false, description: '',
-    sorting_order: maxOrder + 1, is_active: true, options: [],
+    placeholder: '', sorting_order: maxOrder + 1, is_active: true, options: [],
   })
   selSlotIdx.value = draft.slots.length - 1
   selOptionIdx.value = -1
@@ -758,7 +764,7 @@ function makeDraftOption(payload = {}) {
     local_control_type: null, display_types: [],
     unit_power_source: null, cable_gland_set: null, location_option: null,
     access_device_option: null,
-    encoding: '', ext_encoding: '', description: '',
+    encoding: '', ext_encoding: '', description: '', placeholder: '',
     sorting_order: maxOrder + 1, is_active: true,
     ...payload,
   }

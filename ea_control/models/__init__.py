@@ -53,6 +53,11 @@ from ea_control.models.control_unit import (  # noqa: F401
     ControlUnitKind,
     ControlUnit,
 )
+from ea_control.models.control_unit_binding import (  # noqa: F401
+    ControlUnitBinding,
+    resolve_bound_units,
+    resolve_bound_unit_ids_for_series,
+)
 from ea_control.models.cu_config import (  # noqa: F401
     CuSectionNode,
     CuSlot,

@@ -156,6 +156,13 @@ class AbstractConfigNode(StableKeyMixin, CopyMixin, models.Model):
         help_text=_("Вложенность: узлы образуют дерево секций конфигуратора"),
     )
     description = models.TextField(blank=True, verbose_name=_("Описание"))
+    placeholder = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name=_("Плейсхолдер"),
+        help_text=_("Ключ плейсхолдера для шаблонов описания/спецификации. "
+                    "При подстановке подставляется поле description (при "
+                    "пустом description — name/code)."),
+    )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
@@ -240,6 +247,13 @@ class AbstractConfigSlot(StableKeyMixin, CopyMixin, models.Model):
         help_text=_("В слоте должна быть хотя бы одна доступная опция"),
     )
     description = models.TextField(blank=True, verbose_name=_("Описание"))
+    placeholder = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name=_("Плейсхолдер"),
+        help_text=_("Ключ плейсхолдера для шаблонов описания/спецификации. "
+                    "При подстановке подставляется поле description (при "
+                    "пустом description — name/code)."),
+    )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
@@ -325,6 +339,13 @@ class AbstractSlotOption(StableKeyMixin, CopyMixin, models.Model):
                     "не кодируется; переопределяется строкой матрицы"),
     )
     description = models.TextField(blank=True, verbose_name=_("Описание"))
+    placeholder = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name=_("Плейсхолдер"),
+        help_text=_("Ключ плейсхолдера для шаблонов описания/спецификации. "
+                    "При подстановке подставляется поле description (при "
+                    "пустом description — name/code)."),
+    )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 

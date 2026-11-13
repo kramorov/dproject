@@ -61,6 +61,7 @@
         <div class="sub-tabs">
           <button :class="{ active: tab === 'basic' }" @click="tab = 'basic'">Основное</button>
           <button :class="{ active: tab === 'options' }" @click="openOptionsTab()">Редактор доступных опций</button>
+          <button :class="{ active: tab === 'bindings' }" @click="openBindingsTab()">Привязки</button>
         </div>
 
         <!-- ОСНОВНОЕ -->
@@ -105,7 +106,7 @@
         </div>
 
         <!-- РЕДАКТОР ДОСТУПНЫХ ОПЦИЙ -->
-        <div v-else class="options-editor">
+        <div v-else-if="tab === 'options'" class="options-editor">
           <div class="matrix-toolbar">
             <label class="mfield"><span>Напряжение</span>
               <select v-model="matrixPowerSupply" @change="onVoltageChange">
@@ -198,6 +199,56 @@
           </template>
         </div>
 
+        <!-- ПРИВЯЗКИ -->
+        <div v-else class="bindings-editor">
+          <div v-if="!form.id" class="hint">Сначала сохраните блок управления, затем настраивайте привязки.</div>
+          <template v-else>
+            <div class="bind-add">
+              <label class="mfield"><span>Серия</span>
+                <select v-model="addSeriesId">
+                  <option :value="null">— выберите серию —</option>
+                  <option v-for="s in bindingSeries" :key="s.id" :value="s.id">
+                    {{ s.name }}<template v-if="s.code"> ({{ s.code }})</template>
+                  </option>
+                </select>
+              </label>
+              <button class="btn-ghost" :disabled="!addSeries" @click="addWholeSeries">Вся серия</button>
+            </div>
+            <div v-if="addSeries" class="bind-models">
+              <div class="bind-models-head">
+                <span class="hint">Модели серии — отметьте и добавьте выборочно:</span>
+                <button class="btn-ghost" @click="toggleAllModels">Выбрать все</button>
+                <button class="btn-ghost" :disabled="!selectedModels.size" @click="addSelectedModels">Добавить выбранные</button>
+              </div>
+              <div class="bind-model-list">
+                <label v-for="it in addSeries.items" :key="it.id" class="bind-model-chk">
+                  <input type="checkbox" :checked="selectedModels.has(it.id)" @change="toggleModel(it.id)" />
+                  <span>{{ it.name }} <i class="code">{{ it.code }}</i></span>
+                </label>
+                <p v-if="!addSeries.items.length" class="hint">В серии нет моделей.</p>
+              </div>
+            </div>
+
+            <div class="bind-groups">
+              <div v-for="g in bindingGroups" :key="g.model_line" class="bind-group">
+                <div class="bind-group-head">
+                  <strong>{{ g.model_line_name }}</strong>
+                  <span class="code">{{ g.model_line_code }}</span>
+                  <span v-if="g.whole" class="whole">Вся серия ({{ g.bindings.length }})</span>
+                  <button class="btn-ghost" @click="removeSeries(g)">Убрать серию</button>
+                </div>
+                <div class="bind-items">
+                  <div v-for="b in g.bindings" :key="b.id || b.model_line_item" class="bind-item">
+                    <span>{{ b.item_name }} <i class="code">{{ b.item_code }}</i></span>
+                    <button title="Убрать модель" @click="removeBinding(b)">✕</button>
+                  </div>
+                </div>
+              </div>
+              <p v-if="!bindingGroups.length" class="empty">Привязок нет.</p>
+            </div>
+          </template>
+        </div>
+
         <div class="edit-actions">
           <EditorActions :buttons="editButtons" @action="onEdit" />
         </div>
@@ -243,6 +294,11 @@ const form = ref(null)
 const dirty = ref(false)
 const tab = ref('basic')
 const selectedNodeId = ref(null)
+// привязки БУ к моделям ЭП (вкладка «Привязки»)
+const bindingData = ref(null)   // {bindings, series}
+const addSeriesId = ref(null)
+const selectedModels = ref(new Set())
+const bindingsDirty = ref(false)
 
 const filtered = computed(() => units.value.filter(u =>
   (!filters.brand || u.brand === filters.brand)
@@ -297,13 +353,52 @@ const selectedNodeAllNa = computed(() => {
     (s.options || []).length > 0 && (s.options || []).every(o => o.availability === 'na'))
 })
 
+// ── Привязки ────────────────────────────────────────────────────────────
+const bindingSeries = computed(() => bindingData.value?.series || [])
+
+const addSeries = computed(() => {
+  if (addSeriesId.value == null) return null
+  return bindingSeries.value.find(s => s.id === addSeriesId.value) || null
+})
+
+// Группировка привязок по сериям; whole = привязаны все текущие модели серии.
+const bindingGroups = computed(() => {
+  const data = bindingData.value
+  if (!data) return []
+  const byLine = new Map()
+  for (const b of data.bindings || []) {
+    const key = b.model_line
+    if (!byLine.has(key)) {
+      const s = bindingSeries.value.find(x => x.id === key)
+      byLine.set(key, {
+        model_line: key,
+        model_line_code: b.model_line_code || '',
+        model_line_name: b.model_line_name || '',
+        series: s || null,
+        bindings: [],
+      })
+    }
+    byLine.get(key).bindings.push(b)
+  }
+  const out = []
+  for (const g of byLine.values()) {
+    g.bindings.sort((a, b) => (a.sorting_order || 0) - (b.sorting_order || 0))
+    const allIds = new Set((g.series?.items || []).map(i => i.id))
+    const boundIds = new Set(g.bindings.map(b => b.model_line_item))
+    g.whole = allIds.size > 0 && boundIds.size === allIds.size
+    out.push(g)
+  }
+  out.sort((a, b) => (a.model_line_name || '').localeCompare(b.model_line_name || ''))
+  return out
+})
+
 const toolbarButtons = computed(() => [
   { key: 'create', label: t('eaControl.add'), kind: 'primary' },
   { key: 'refresh', label: t('eaControl.refresh') },
 ])
 
 const editButtons = computed(() => [
-  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !(dirty.value || matrixDirty.value) },
+  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !(dirty.value || matrixDirty.value || bindingsDirty.value) },
   { key: 'cancel', label: t('eaControl.cancel') },
 ])
 
@@ -398,7 +493,7 @@ async function loadMeta() {
 }
 
 function openEdit(u) {
-  if (dirty.value || matrixDirty.value) {
+  if (dirty.value || matrixDirty.value || bindingsDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = {
@@ -413,11 +508,15 @@ function openEdit(u) {
   dirty.value = false
   matrix.value = null
   matrixDirty.value = false
+  bindingData.value = null
+  bindingsDirty.value = false
+  addSeriesId.value = null
+  selectedModels.value = new Set()
   tab.value = 'basic'
 }
 
 function openCreate() {
-  if (dirty.value || matrixDirty.value) {
+  if (dirty.value || matrixDirty.value || bindingsDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = {
@@ -428,6 +527,10 @@ function openCreate() {
   dirty.value = false
   matrix.value = null
   matrixDirty.value = false
+  bindingData.value = null
+  bindingsDirty.value = false
+  addSeriesId.value = null
+  selectedModels.value = new Set()
   tab.value = 'basic'
 }
 
@@ -438,8 +541,9 @@ function onToolbar(b) {
 
 async function copyUnit(u) {
   error.value = ''
+  const copyBindings = confirm('Копировать привязки к сериям/моделям вместе с БУ?')
   try {
-    await api.post(`/ea-control/control-units/${u.id}/copy/`)
+    await api.post(`/ea-control/control-units/${u.id}/copy/`, { copy_bindings: copyBindings })
     await loadUnits()
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка копирования'
@@ -548,6 +652,113 @@ async function openOptionsTab() {
   }
 }
 
+// ── Привязки ────────────────────────────────────────────────────────────
+async function openBindingsTab() {
+  tab.value = 'bindings'
+  if (bindingData.value === null) await loadBindings()
+}
+
+async function loadBindings() {
+  if (!form.value || !form.value.id) { bindingData.value = null; return }
+  error.value = ''
+  try {
+    const { data } = await api.get('/ea-control/unit-bindings/', {
+      params: { unit: form.value.id },
+    })
+    bindingData.value = data
+    addSeriesId.value = null
+    selectedModels.value = new Set()
+    bindingsDirty.value = false
+  } catch (e) {
+    error.value = e.displayMessage || 'Ошибка загрузки привязок'
+  }
+}
+
+function makeBindingEntry(line, item, idx) {
+  return {
+    id: null,
+    model_line: line.id,
+    model_line_code: line.code || '',
+    model_line_name: line.name || '',
+    model_line_item: item.id,
+    item_code: item.code || '',
+    item_name: item.name || '',
+    is_active: true,
+    sorting_order: idx,
+  }
+}
+
+function addWholeSeries() {
+  const s = addSeries.value
+  if (!s || !bindingData.value) return
+  const kept = (bindingData.value.bindings || []).filter(b => b.model_line !== s.id)
+  const added = s.items.map((it, idx) => makeBindingEntry(s, it, kept.length + idx))
+  bindingData.value.bindings = kept.concat(added)
+  selectedModels.value = new Set()
+  bindingsDirty.value = true
+}
+
+function addSelectedModels() {
+  const s = addSeries.value
+  if (!s || !bindingData.value || !selectedModels.value.size) return
+  const list = bindingData.value.bindings || []
+  const existing = new Set(list.filter(b => b.model_line === s.id).map(b => b.model_line_item))
+  const add = []
+  for (const it of s.items) {
+    if (selectedModels.value.has(it.id) && !existing.has(it.id)) {
+      add.push(makeBindingEntry(s, it, list.length + add.length))
+    }
+  }
+  if (add.length) {
+    bindingData.value.bindings = list.concat(add)
+    bindingsDirty.value = true
+  }
+  selectedModels.value = new Set()
+}
+
+function removeBinding(b) {
+  if (!bindingData.value) return
+  bindingData.value.bindings = (bindingData.value.bindings || []).filter(x => x !== b)
+  bindingsDirty.value = true
+}
+
+function removeSeries(g) {
+  if (!bindingData.value) return
+  bindingData.value.bindings = (bindingData.value.bindings || []).filter(x => x.model_line !== g.model_line)
+  bindingsDirty.value = true
+}
+
+function toggleModel(id) {
+  const s = selectedModels.value
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+}
+
+function toggleAllModels() {
+  const s = addSeries.value
+  if (!s) return
+  const all = s.items.map(i => i.id)
+  const cur = selectedModels.value
+  if (all.length && all.every(id => cur.has(id))) {
+    selectedModels.value = new Set()
+  } else {
+    selectedModels.value = new Set(all)
+  }
+}
+
+async function saveBindings() {
+  if (!form.value || !form.value.id) return
+  const bindings = (bindingData.value?.bindings || []).map((b, idx) => ({
+    model_line_item: b.model_line_item,
+    sorting_order: b.sorting_order ?? idx,
+    is_active: b.is_active ?? true,
+  }))
+  await api.put('/ea-control/unit-bindings/save/', {
+    unit: form.value.id,
+    bindings,
+  })
+}
+
 function onVoltageChange() {
   if (matrixDirty.value
       && !confirm('Есть несохранённые изменения матрицы. Отменить их и переключить напряжение?')) {
@@ -597,8 +808,13 @@ async function save() {
       await saveMatrix()
       await loadMatrix()
     }
+    if (bindingsDirty.value && f.id) {
+      await saveBindings()
+      await loadBindings()
+    }
     dirty.value = false
     matrixDirty.value = false
+    bindingsDirty.value = false
     await loadUnits()
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка сохранения'
@@ -606,13 +822,17 @@ async function save() {
 }
 
 function cancelEdit() {
-  if (dirty.value || matrixDirty.value) {
+  if (dirty.value || matrixDirty.value || bindingsDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = null
   matrix.value = null
+  bindingData.value = null
   dirty.value = false
   matrixDirty.value = false
+  bindingsDirty.value = false
+  addSeriesId.value = null
+  selectedModels.value = new Set()
 }
 
 async function exportSettings() {
@@ -755,4 +975,26 @@ onMounted(async () => {
 .cu-chk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #444; }
 .cu-chk input { margin: 0; }
 .edit-actions { margin-top: 12px; }
+
+/* Привязки */
+.bindings-editor { max-width: 960px; }
+.bind-add { display: flex; gap: 14px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.btn-ghost { padding: 5px 12px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-ghost:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost:hover:not(:disabled) { background: #eef4fb; border-color: #2c6fb0; }
+.bind-models { border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; margin-bottom: 12px; }
+.bind-models-head { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.bind-model-list { display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto; }
+.bind-model-chk { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.bind-model-chk .code { color: #888; font-size: 11px; font-style: normal; }
+.bind-groups { display: flex; flex-direction: column; gap: 10px; }
+.bind-group { border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; }
+.bind-group-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; flex-wrap: wrap; }
+.bind-group-head .code { color: #888; font-size: 11px; }
+.bind-group-head .whole { color: #2c6fb0; font-size: 12px; }
+.bind-items { display: flex; flex-direction: column; gap: 2px; }
+.bind-item { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-top: 1px solid #f0f0f0; font-size: 13px; }
+.bind-item span { flex: 1; }
+.bind-item .code { color: #888; font-size: 11px; font-style: normal; }
+.bind-item button { cursor: pointer; border: none; background: none; color: #a00; }
 </style>

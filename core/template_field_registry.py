@@ -26,6 +26,7 @@ from core.models.template_fields import TemplateFieldSpec
 # без реестра ``TEMPLATE_FIELDS``. Явный мостик на актуальную модель-каталог.
 _EQUIPMENT_TYPE_MODEL_OVERRIDES = {
     'pneumatic-actuator': 'pneumatic_actuators.PneumaticActuatorCatalogItem',
+    'electric-actuator': 'electric_actuators.ElectricActuatorCatalogItem',
 }
 
 

@@ -133,6 +133,7 @@ export const ENDPOINTS = {
     detail: (id) => `/electric_actuators/constructor/${id}/`,
     options: '/electric_actuators/constructor/options/',
     preview: '/electric_actuators/constructor/preview/',
+    specDocx: '/electric_actuators/constructor/spec-docx/',
     modelLines: '/electric_actuators/constructor/model_lines/',
     modelLineItems: (mlId) => `/electric_actuators/constructor/model-lines/${mlId}/items/`,
   },

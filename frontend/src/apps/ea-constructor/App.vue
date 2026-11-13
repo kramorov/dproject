@@ -83,7 +83,7 @@
           <div class="options-grid">
             <div class="form-row" v-for="opt in powerDependentOptions" :key="opt.key">
               <label>{{ opt.label }}</label>
-              <select v-model="form[opt.key]" :disabled="opt.disabled" @change="opt.key === 'selected_control_unit_option' && onControlUnitChange()">
+              <select v-model="form[opt.key]" :disabled="opt.disabled">
                 <option v-for="o in opt.items" :key="o.option_id" :value="o.option_id">
                   {{ o.name }}
                 </option>
@@ -92,31 +92,22 @@
           </div>
         </template>
 
-        <!-- Устройство ограничения доступа -->
-        <div class="form-row" v-if="accessDeviceOptions.length">
-          <label>{{ t('eaCtor.accessDevice') }}</label>
-          <select v-model="form.selected_access_device_option">
+        <!-- Блок управления (слотовая модель) -->
+        <div class="form-row" v-if="controlUnitOptions.length">
+          <label>{{ t('eaCtor.lbl.controlUnit') }}</label>
+          <select v-model="form.selected_control_unit" @change="onControlUnitChange">
             <option :value="null">{{ t('eaCtor.choose') }}</option>
-            <option v-for="o in accessDeviceOptions" :key="o.option_id" :value="o.option_id">
-              {{ o.name }}
+            <option v-for="o in controlUnitOptions" :key="o.option_id" :value="o.option_id">
+              {{ o.name }}<template v-if="o.code"> ({{ o.code }})</template>
             </option>
           </select>
         </div>
 
-        <!-- Сигнальные опции блока управления -->
-        <template v-if="signalSlots.length">
-          <h3>{{ t('eaCtor.signalOptions') }}</h3>
-          <div class="options-grid">
-            <div class="form-row" v-for="slot in signalSlots" :key="slot.code">
-              <label>{{ slot.name }}</label>
-              <select v-model="signalSelection[slot.code]" @change="onSignalChange">
-                <option :value="null">{{ t('eaCtor.choose') }}</option>
-                <option v-for="r in slot.rows" :key="r.id" :value="r.id">
-                  {{ r.name }}</option>
-              </select>
-            </div>
-          </div>
-        </template>
+        <!-- Слоты выбранного БУ -->
+        <div v-if="controlUnitPackage" class="cu-package">
+          <h3>{{ t('eaCtor.controlUnitOptions') }}</h3>
+          <CuSlotConfigurator :key="form.selected_control_unit" :pkg="controlUnitPackage" v-model="form.control_unit_snapshot" />
+        </div>
       </template>
 
       <div class="preview" v-if="previewText">
@@ -141,10 +132,24 @@
       <div class="modal-overlay" v-if="showTechModal" @click.self="showTechModal = false">
         <div class="modal-content">
           <div class="modal-header">
-            <h3>{{ t('eaCtor.techDescription') }}</h3>
+            <h3>{{ t('eaCtor.specification') }}</h3>
+            <button class="btn small" @click="downloadSpec" :disabled="downloadingSpec">
+              {{ downloadingSpec ? t('eaCtor.downloading') : t('eaCtor.downloadSpec') }}
+            </button>
             <button class="btn-icon close" @click="showTechModal = false">×</button>
           </div>
-          <div class="modal-body" v-html="techDescription"></div>
+          <div class="modal-body">
+            <div v-if="spec" class="spec">
+              <div v-for="(group, gtitle) in spec" :key="gtitle" class="spec-group">
+                <h4 class="spec-group-title">{{ gtitle }}</h4>
+                <div v-for="(value, label) in group" :key="label" class="spec-row">
+                  <span class="spec-label">{{ label }}</span>
+                  <span class="spec-value">{{ value }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else v-html="techDescription"></div>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -155,6 +160,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/shared/i18n'
 import api from './api'
+import CuSlotConfigurator from '@/components/admin/CuSlotConfigurator.vue'
 
 const { t } = useI18n()
 
@@ -167,7 +173,9 @@ const options = ref(null)
 const message = ref(null)
 const previewText = ref('')
 const techDescription = ref('')
+const spec = ref(null)
 const showTechModal = ref(false)
+const downloadingSpec = ref(false)
 const saving = ref(false)
 
 // Опции, не зависящие от напряжения (model_line + model_line_item + model_body)
@@ -185,7 +193,6 @@ const STANDARD_OPTIONS = {
 // Опции, зависящие от выбранного напряжения
 const POWER_DEPENDENT = {
   selected_safety_position:      { label: 'eaCtor.lbl.safetyPosition', apiKey: 'safety_position_options' },
-  selected_control_unit_option:  { label: 'eaCtor.lbl.controlUnit',     apiKey: 'control_unit_options' },
 }
 
 const filters = reactive({ search: '', model_line: null, model_line_item: null })
@@ -195,8 +202,8 @@ const defaultForm = () => ({
   selected_model_line_item: null,
   selected_power_supply: null,
   selected_safety_position: null,
-  selected_control_unit_option: null,
-  selected_access_device_option: null,
+  selected_control_unit: null,
+  control_unit_snapshot: {},
   selected_temperature: null,
   selected_ip: null,
   selected_exd: null,
@@ -205,11 +212,10 @@ const defaultForm = () => ({
   selected_hand_wheel: null,
   selected_turn_angle_option: null,
   selected_cable_glands_holes: null,
-  selected_matrix_rows: [],
 })
 
 const form = reactive(defaultForm())
-const canSave = computed(() => form.selected_model_line_item && form.selected_power_supply)
+const canSave = computed(() => form.selected_model_line_item && form.selected_power_supply && form.selected_control_unit)
 
 const filteredList = computed(() => {
   let list = savedList.value
@@ -241,40 +247,29 @@ const powerDependentOptions = computed(() => {
   }))
 })
 
-const signalSlots = computed(() => options.value?.signal_slots || [])
-const accessDeviceOptions = computed(() => options.value?.access_device_options || [])
-const signalSelection = reactive({})
+const controlUnitOptions = computed(() => options.value?.control_unit_options || [])
+const controlUnitPackage = computed(() => options.value?.control_unit_package || null)
 
-function autoFillAccessDevice() {
-  const items = accessDeviceOptions.value
-  if (!items?.length) { form.selected_access_device_option = null; return }
-  if (items.length === 1) { form.selected_access_device_option = items[0].option_id; return }
-  const def = items.find(o => o.is_default)
-  form.selected_access_device_option = def ? def.option_id : null
-}
-
-function autoFillSignalDefaults() {
-  for (const slot of signalSlots.value) {
-    const def = slot.rows.find(r => r.is_default) || slot.rows[0]
-    if (def && signalSelection[slot.code] == null) {
-      signalSelection[slot.code] = def.id
-    }
+function autoFillControlUnit() {
+  const items = controlUnitOptions.value
+  if (!items?.length) { form.selected_control_unit = null; return }
+  if (items.length === 1) { form.selected_control_unit = items[0].option_id; return }
+  // Текущее значение не в списке (другая модель) — сбрасываем
+  if (form.selected_control_unit != null
+      && !items.some(o => o.option_id === form.selected_control_unit)) {
+    form.selected_control_unit = null
   }
-  form.selected_matrix_rows = Object.values(signalSelection).filter(Boolean)
-}
-
-function onSignalChange() {
-  form.selected_matrix_rows = Object.values(signalSelection).filter(Boolean)
+  if (form.selected_control_unit == null) {
+    const def = items.find(o => o.is_default) || items[0]
+    form.selected_control_unit = def.option_id
+  }
 }
 
 async function onControlUnitChange() {
-  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
-  if (!form.selected_model_line_item || !form.selected_power_supply) return
+  form.control_unit_snapshot = {}
+  if (!form.selected_model_line_item || !form.selected_control_unit) return
   try {
     options.value = (await loadOptions()).data
-    autoFillPowerDependent()
-    autoFillAccessDevice()
-    autoFillSignalDefaults()
   } catch (e) { showMessage(t('eaCtor.errLoadOptions'), 'error') }
 }
 
@@ -322,19 +317,15 @@ async function loadItem(item) {
 
     form.selected_model_line_item = d.model_line_item?.id || null
 
-    // Восстанавливаем питание/БУ ДО загрузки опций — иначе signal_slots пусты
     if (d.selected_power_supply?.id) form.selected_power_supply = d.selected_power_supply.id
     if (d.selected_safety_position?.id) form.selected_safety_position = d.selected_safety_position.id
-    if (d.selected_control_unit_option?.id) form.selected_control_unit_option = d.selected_control_unit_option.id
-    if (d.selected_access_device_option?.id) form.selected_access_device_option = d.selected_access_device_option.id
+    if (d.selected_control_unit?.id) form.selected_control_unit = d.selected_control_unit.id
+    if (d.control_unit_snapshot) form.control_unit_snapshot = { ...d.control_unit_snapshot }
 
     // Загружаем опции (с power_supply_id и control_unit_id)
     if (form.selected_model_line_item) {
       options.value = (await loadOptions()).data
-      Object.keys(signalSelection).forEach(k => delete signalSelection[k])
       autoFillFromData(d)
-      form.selected_matrix_rows = Array.isArray(d.selected_matrix_rows)
-        ? [...d.selected_matrix_rows] : []
     }
 
     previewText.value = d.description || ''
@@ -342,12 +333,8 @@ async function loadItem(item) {
 }
 
 function autoFillFromData(d) {
-  if (Array.isArray(d.selected_matrix_rows)) {
-    const ids = new Set(d.selected_matrix_rows)
-    for (const slot of signalSlots.value) {
-      const row = slot.rows.find(r => ids.has(r.id))
-      if (row) signalSelection[slot.code] = row.id
-    }
+  if (d.control_unit_snapshot && typeof d.control_unit_snapshot === 'object') {
+    form.control_unit_snapshot = { ...d.control_unit_snapshot }
   }
 
   // Заполняем стандартные опции
@@ -359,8 +346,8 @@ function autoFillFromData(d) {
 // --- cascade ---
 async function onModelLineChange() {
   form.selected_model_line_item = null; form.selected_power_supply = null
+  form.selected_control_unit = null; form.control_unit_snapshot = {}
   modelLineItems.value = []; options.value = null; previewText.value = ''
-  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
   if (!form.selected_model_line) return
   try { modelLineItems.value = (await api.getModelLineItems(form.selected_model_line)).data }
   catch (e) { showMessage(t('eaCtor.errLoadModels'), 'error') }
@@ -368,39 +355,37 @@ async function onModelLineChange() {
 
 async function onModelLineItemChange() {
   form.selected_power_supply = null
+  form.selected_control_unit = null; form.control_unit_snapshot = {}
   options.value = null; previewText.value = ''
-  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
   if (!form.selected_model_line_item) return
   try {
     options.value = (await loadOptions()).data
     autoFillStandardDefaults()
+    if (form.selected_power_supply) return  // одна опция — onPowerSupplyChange уже отработал
+    autoFillControlUnit()
+    if (form.selected_control_unit) {
+      options.value = (await loadOptions()).data
+    }
   } catch (e) { showMessage(t('eaCtor.errLoadOptions'), 'error') }
 }
 
 async function onPowerSupplyChange() {
   if (!form.selected_model_line_item || !form.selected_power_supply) return
   try {
-    // Перезагружаем опции с power_supply_id — получаем safety_position + control_unit
+    // Перезагружаем опции с power_supply_id — получаем safety_position
     options.value = (await loadOptions()).data
-    autoFillStandardDefaults()
-    const hadCu = form.selected_control_unit_option
     autoFillPowerDependent()
-    // Если БУ сменился/сбросился программно (1 вариант или стал недопустим
-    // для нового напряжения) — перезагружаем опции с актуальным CU
-    if (form.selected_control_unit_option !== hadCu) {
+    autoFillControlUnit()
+    if (form.selected_control_unit) {
       options.value = (await loadOptions()).data
     }
-    autoFillAccessDevice()
-    // Строки профиля БУ зависят от напряжения — сбрасываем и заполняем заново
-    Object.keys(signalSelection).forEach(k => delete signalSelection[k])
-    autoFillSignalDefaults()
   } catch (e) { showMessage(t('eaCtor.errLoadOptions'), 'error') }
 }
 
 async function loadOptions() {
   const mliId = form.selected_model_line_item
   const psId = form.selected_power_supply
-  return api.getOptions(mliId, psId, form.selected_control_unit_option)
+  return api.getOptions(mliId, psId, form.selected_control_unit)
 }
 
 function autoFillStandardDefaults() {
@@ -456,9 +441,8 @@ async function save() {
 
 function resetForm() {
   Object.assign(form, defaultForm())
-  Object.keys(signalSelection).forEach(k => delete signalSelection[k])
   options.value = null; modelLineItems.value = []
-  previewText.value = ''; techDescription.value = ''
+  previewText.value = ''; techDescription.value = ''; spec.value = null
 }
 
 // --- live preview ---
@@ -471,6 +455,7 @@ watch(() => ({ ...form }), () => {
       const res = await api.preview({ ...form })
       previewText.value = `${res.data.name}\n${res.data.description}`
       techDescription.value = res.data.tech_description || ''
+      spec.value = res.data.spec || null
     } catch (e) { /* */ }
   }, 300)
 }, { deep: true })
@@ -478,6 +463,30 @@ watch(() => ({ ...form }), () => {
 function showMessage(text, type = 'info') {
   message.value = { text, type }
   setTimeout(() => { message.value = null }, 3000)
+}
+
+async function downloadSpec() {
+  if (downloadingSpec.value) return
+  downloadingSpec.value = true
+  try {
+    const res = await api.specDocx({ ...form })
+    const blob = res.data
+    const cd = res.headers?.['content-disposition'] || ''
+    const m = cd.match(/filename\*?=(?:UTF-8''|")?([^;"]+)/i)
+    const filename = m ? decodeURIComponent(m[1]) : 'Спецификация.docx'
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    showMessage(e.displayMessage || t('eaCtor.errDownload'), 'error')
+  } finally {
+    downloadingSpec.value = false
+  }
 }
 </script>
 
@@ -524,6 +533,7 @@ h3 { font-size: 15px; color: #555; margin: 16px 0 8px; }
 .form-row select { width: 100%; padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
 .form-row select:focus { outline: none; border-color: #4a6cf7; }
 .form-row select:disabled { background: #f3f3f5; color: #555; cursor: not-allowed; border-color: #ddd; }
+.cu-package { margin-top: 8px; }
 .preview { margin-top: 20px; }
 .preview h3 { display: flex; align-items: center; gap: 10px; }
 .preview-text { background: #f7f7f9; border: 1px solid #e0e0e6; border-radius: 6px; padding: 12px; font-size: 13px; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
@@ -538,8 +548,13 @@ h3 { font-size: 15px; color: #555; margin: 16px 0 8px; }
 .message.error { background: #fde6e6; color: #a33; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { background: #fff; border-radius: 10px; max-width: 780px; width: 92%; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.2); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eee; }
-.modal-header h3 { margin: 0; font-size: 16px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #eee; }
+.modal-header h3 { margin: 0; font-size: 16px; flex: 1; }
 .modal-header .close { font-size: 22px; border: none; background: none; cursor: pointer; color: #888; }
 .modal-body { padding: 20px; overflow-y: auto; font-size: 13px; line-height: 1.6; flex: 1; }
+.spec-group { margin-bottom: 18px; }
+.spec-group-title { margin: 0 0 8px; font-size: 14px; color: #1a1a2e; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+.spec-row { display: flex; gap: 12px; padding: 3px 0; }
+.spec-label { flex: 0 0 46%; color: #666; }
+.spec-value { flex: 1; color: #1a1a2e; word-break: break-word; }
 </style>

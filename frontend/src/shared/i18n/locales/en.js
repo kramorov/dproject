@@ -554,6 +554,11 @@ export default {
   'eaCtor.lbl.cableGlands': 'Cable glands',
   'eaCtor.lbl.safetyPosition': 'Fail-safe position',
   'eaCtor.lbl.controlUnit': 'Control unit',
+  'eaCtor.controlUnitOptions': 'Control unit settings (slots)',
+  'eaCtor.specification': 'Specification',
+  'eaCtor.downloadSpec': '⬇ .docx',
+  'eaCtor.downloading': 'Generating...',
+  'eaCtor.errDownload': 'Failed to download specification',
 
   'paCtor.newConfig': 'New configuration',
   'paCtor.series': 'Pneumatic actuator series',

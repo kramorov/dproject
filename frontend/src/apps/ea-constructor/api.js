@@ -20,6 +20,7 @@ export default {
     return api.get(E.options, { params })
   },
   preview(data)          { return api.post(E.preview, data) },
+  specDocx(data)         { return api.post(E.specDocx, data, { responseType: 'blob' }) },
 
   // Cascading selects
   getModelLines()        { return api.get(E.modelLines) },

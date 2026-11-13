@@ -40,7 +40,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
                                ControlUnitKind, CuSectionNode, CuSlotSource,
-                               SLOT_SOURCE_PAYLOAD)
+                               SLOT_SOURCE_PAYLOAD, ControlUnitBinding)
 from ea_control.services.cu_matrix import resolve_control_units
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description
@@ -378,6 +378,25 @@ def _control_unit_serializer():
     return S
 
 
+def _binding_serializer():
+    """ControlUnitBinding + проверка «модель принадлежит серии»."""
+    class S(serializers.ModelSerializer):
+        class Meta:
+            model = ControlUnitBinding
+            fields = '__all__'
+
+        def validate(self, attrs):
+            item = attrs.get('model_line_item',
+                             getattr(self.instance, 'model_line_item', None))
+            if item is not None and item.model_line_id is None:
+                raise serializers.ValidationError(
+                    {'model_line_item': _('Модель не привязана к серии.')})
+            return attrs
+
+    S.__name__ = 'ControlUnitBindingSerializer'
+    return S
+
+
 # ── CRUD-вьюсеты (регистрируются в urls.py роутером) ────────────────────────
 
 
@@ -391,8 +410,17 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def copy(self, request, pk=None):
         """Копия БУ: скаляры + M2M + опция слота control_unit +
-        профильные строки матрицы + правила, завязанные на код опции."""
+        профильные строки матрицы + правила, завязанные на код опции.
+        Привязки копируются по подтверждению пользователя
+        (body/query ``copy_bindings``)."""
         unit = get_object_or_404(ControlUnit, pk=pk)
+        data = request.data if isinstance(request.data, dict) else {}
+
+        def _flag(v):
+            return v in (True, 1, '1', 'true', 'yes', 'on')
+
+        copy_bindings = (_flag(data.get('copy_bindings'))
+                         or _flag(request.query_params.get('copy_bindings')))
         base = unit.code
         n = 1
         code = f'{base}-cp{n}'
@@ -478,6 +506,13 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
                         action=rule.action, action_value=av,
                         priority=rule.priority, is_active=rule.is_active,
                         description=rule.description)
+
+        if copy_bindings:
+            for b in unit.bindings.all():
+                ControlUnitBinding.objects.update_or_create(
+                    control_unit=new, model_line_item=b.model_line_item,
+                    defaults={'is_active': b.is_active,
+                              'sorting_order': b.sorting_order})
         return Response({'id': new.id, 'code': new.code}, status=201)
 
     @action(detail=True, methods=['delete'], url_path='delete-unit')
@@ -510,6 +545,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
             o.delete()
         unit.delete()
         return Response(status=204)
+ControlUnitBindingViewSet = _viewset(ControlUnitBinding, _binding_serializer())
 CuSectionNodeViewSet = _guarded_delete_viewset(
     CuSectionNode, _serializer(CuSectionNode), _node_usage_specs())
 CuSlotViewSet = _guarded_delete_viewset(
@@ -875,3 +911,112 @@ def export_settings_view(request):
                      '.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="{filename}"'
     return resp
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def unit_bindings_view(request):
+    """Привязки выбранного БУ + дерево серий/моделей для селектора.
+
+    ``bindings`` — привязанные модели (сгруппированы по сериям на фронте);
+    ``series`` — все серии с моделями для выбора «вся серия / выборочные».
+    """
+    from electric_actuators.models import ElectricActuatorModelLine
+
+    try:
+        unit = ControlUnit.objects.get(pk=request.query_params['unit'])
+    except (KeyError, ValueError, ControlUnit.DoesNotExist):
+        return Response({'error': 'unit обязателен'}, status=400)
+
+    bindings = []
+    qs = (unit.bindings
+          .select_related('model_line_item', 'model_line_item__model_line')
+          .order_by('sorting_order', 'id'))
+    for b in qs:
+        item = b.model_line_item
+        line = item.model_line if item.model_line_id else None
+        bindings.append({
+            'id': b.id,
+            'model_line': line.id if line else None,
+            'model_line_code': line.code if line else '',
+            'model_line_name': line.name if line else '',
+            'model_line_item': item.id,
+            'item_code': item.code or '',
+            'item_name': item.name,
+            'is_active': b.is_active,
+            'sorting_order': b.sorting_order,
+        })
+
+    series = []
+    for line in ElectricActuatorModelLine.objects.order_by(
+            'sorting_order', 'name'):
+        items = [{'id': i.id, 'code': i.code or '', 'name': i.name}
+                 for i in line.model_line_item_model_line.order_by(
+                     'sorting_order', 'name')]
+        series.append({
+            'id': line.id, 'code': line.code or '', 'name': line.name,
+            'items': items,
+        })
+
+    return Response({'bindings': bindings, 'series': series})
+
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def unit_bindings_save_view(request):
+    """Полная замена привязок БУ: body {unit, bindings:[{model_line_item,
+    sorting_order?, is_active?}]}.
+
+    Кнопка «вся серия» на фронте разворачивается в строки по моделям до
+    вызова — здесь хранятся только явные пары (БУ, модель).
+    """
+    from electric_actuators.models import ElectricActuatorModelLineItem
+
+    data = request.data
+    try:
+        unit = ControlUnit.objects.get(pk=data.get('unit'))
+    except (TypeError, ValueError, ControlUnit.DoesNotExist):
+        return Response({'error': 'unit обязателен'}, status=400)
+    raw = data.get('bindings')
+    if not isinstance(raw, list):
+        return Response({'error': 'bindings должен быть списком'}, status=400)
+
+    # нормализация + дедуп по model_line_item
+    items = []
+    seen = set()
+    for idx, it in enumerate(raw):
+        if not isinstance(it, dict):
+            return Response({'error': 'Каждая привязка — объект'}, status=400)
+        try:
+            item_id = int(it.get('model_line_item'))
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'model_line_item должен быть id'}, status=400)
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        items.append({
+            'model_line_item_id': item_id,
+            'sorting_order': it.get('sorting_order', idx),
+            'is_active': bool(it.get('is_active', True)),
+        })
+
+    found = {m.id: m for m in ElectricActuatorModelLineItem.objects.filter(
+        id__in=[i['model_line_item_id'] for i in items])}
+    missing = [i['model_line_item_id'] for i in items
+               if i['model_line_item_id'] not in found]
+    if missing:
+        return Response({'error': f'Модели не найдены: {missing}'}, status=400)
+    no_line = [m.id for m in found.values() if m.model_line_id is None]
+    if no_line:
+        return Response({'error': f'Модели без серии: {no_line}'}, status=400)
+
+    unit.bindings.all().delete()
+    objs = [
+        ControlUnitBinding(
+            control_unit=unit, model_line_item=found[i['model_line_item_id']],
+            is_active=i['is_active'], sorting_order=i['sorting_order'])
+        for i in items
+    ]
+    ControlUnitBinding.objects.bulk_create(objs)
+    return Response({'ok': True, 'count': len(objs)})
