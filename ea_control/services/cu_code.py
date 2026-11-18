@@ -2,50 +2,55 @@
 """
 Системный и артикульный коды конфигурации БУ (кодировки, slots.md §4.3).
 
+Терминология TemplateMixin: шаблон с плейсхолдерами в фигурных скобках,
+подстановка по словарям «ключ → сущность»; для узлов/слотов роль
+плейсхолдера-ключа играет их поле ``code`` (глобально уникально в БД —
+никакого рассинхрона между ключом и значением).
+
 Два уровня кодировок:
 
-- **системный код** — стабильный, единый для всех вариантов БУ; собирается
-  шаблоном ``CuCodeSettings.system_code_template`` (синглтон). Плейсхолдеры:
-  ``{node:X}``/``{slot:X}``/``{opt:X}`` — токен сущности (``placeholder``,
-  фолбэк ``code``); ``{slots:X}`` — разворот всех активных слотов узла X в
-  виде ``slot_token + opt_token`` (в порядке дерева, без show/hide). Пустой
-  шаблон — фолбэк «узел.слот.опция» через «/»;
+- **системный код** — структурный «хэш» конфигурации, единый для всех
+  производителей: код модели БУ (``{model_code}`` → ``ControlUnit.code``),
+  коды всех активных узлов и слотов (``{node:X}``/``{slot:X}``/
+  ``{slots:X}``, X — ``code`` сущности — адрес-плейсхолдер в шаблоне;
+  подставляется ``encoding`` сущности, пусто — фолбэк на ``code``) и
+  кодировки (``encoding``) выбранных опций: одна опция — одна кодировка,
+  multi — все выбранные в порядке сортировки; слоты внутри ``{slots:X}``
+  разделяются ``.``; слот без выбранного (или с пустыми кодировками) —
+  «голый» код слота. Пустой шаблон — фолбэк
+  ``model_code/узел.слот+кодировки`` через ``/``.
+  ``decode_system_code`` разбирает код обратно в набор выбранных опций
+  (best effort: неоднозначность/неизвестные фрагменты — честный отчёт);
 
-- **артикульный код** — вклад конкретного БУ в артикул модели; собирается
-  шаблонами ``ControlUnit.article_code_template`` /
+- **артикульный код** — вклад конкретного БУ в артикул производителя;
+  собирается шаблонами ``ControlUnit.article_code_template`` /
   ``ext_article_code_template``, значения — ``encoding``/``ext_encoding``
-  выбранных опций (приоритет: строка матрицы → опция слота).
+  выбранных опций (приоритет: строка матрицы → опция слота). Пусто —
+  позиция не кодируется.
 """
 import re
+from collections import defaultdict
 
-from ea_control.models import CuCodeSettings, CuSectionNode, CuSlot
+from ea_control.models import (CuCodeSettings, CuSectionNode, CuSlot,
+                               CuSlotOption, ControlUnit)
 from ea_control.models.abstract import ConfigSlotKind
 from ea_control.services.cu_description import (
-    _effective_snapshot, _product_type_option, _slot_chosen_options,
-    visible_slots)
+    _effective_snapshot, _slot_chosen_options, visible_slots)
 from ea_control.services.cu_matrix import resolve_slots
 
-_PH_RE = re.compile(r'\{(node|slot|opt|slots):([^{}]+)\}')
+_PH_RE = re.compile(r'\{(model_code|node|slot|opt|slots)(?::([^{}]+))?\}')
+
+
+def _token(entity):
+    """Кодировка сущности в системном коде (encoding → фолбэк code)."""
+    if entity is None:
+        return ''
+    return (getattr(entity, 'encoding', '') or entity.code or '')
 
 
 def _system_code_template():
     """Шаблон системного кода из синглтона настроек (или None)."""
     return CuCodeSettings.get().system_code_template
-
-
-def _token(entity):
-    """Системный токен сущности (placeholder → code)."""
-    return (getattr(entity, 'placeholder', '') or entity.code or '')
-
-
-def _dual_key_map(entities):
-    """Словарь сущностей по ``code`` и по ``placeholder`` (если задан)."""
-    m = {}
-    for e in entities:
-        m[e.code] = e
-        if getattr(e, 'placeholder', ''):
-            m[e.placeholder] = e
-    return m
 
 
 def _all_nodes_tree():
@@ -70,6 +75,24 @@ def _all_nodes_tree():
     return ordered
 
 
+def _structural_slots(nodes):
+    """Активные слоты (без subtype) активных узлов — узел по дереву → слот.
+
+    Слоты выключенных узлов (и безузловые сироты) в системный код не
+    входят — дерево кода строится только по активным узлам.
+    """
+    slots = list(CuSlot.objects.filter(is_active=True, section__is_active=True)
+                 .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
+                 .select_related('section')
+                 .prefetch_related('slot_options')
+                 .order_by('sorting_order', 'code'))
+    node_pos = {n.id: i for i, n in enumerate(nodes)}
+    slots.sort(key=lambda s: (
+        node_pos.get(s.section_id, len(nodes)),
+        s.sorting_order, s.code))
+    return slots
+
+
 def _resolved(control_unit, snapshot, power_supply=None, mode='both',
               signal_power=None, model_line=None, body=None,
               model_line_item=None, structural=False):
@@ -80,11 +103,7 @@ def _resolved(control_unit, snapshot, power_supply=None, mode='both',
     """
     if structural:
         nodes = _all_nodes_tree()
-        slots = list(CuSlot.objects.filter(is_active=True)
-                     .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
-                     .select_related('section')
-                     .prefetch_related('slot_options')
-                     .order_by('sorting_order', 'code'))
+        slots = _structural_slots(nodes)
     else:
         nodes, slots = visible_slots(control_unit, snapshot)
     merged, defaults = _effective_snapshot(
@@ -122,16 +141,282 @@ def _eff_enc(option, rows_by_option, ext):
     return getattr(option, field) or ''
 
 
+def _chosen_encodings(slot, chosen):
+    """Кодировки выбранных опций слота (в порядке сортировки), подряд."""
+    return ''.join(o.encoding or '' for o in chosen.get(slot.id, []))
+
+
 def build_system_code(control_unit, snapshot=None, *, power_supply=None,
                       mode='both', signal_power=None, model_line=None,
                       body=None, model_line_item=None):
-    """Полный системный код конфигурации (структурный, без show/hide)."""
+    """Полный системный код конфигурации (структурный, без show/hide).
+
+    Код модели БУ + коды всех активных узлов/слотов + кодировки выбранных
+    опций (multi — все в порядке сортировки; слоты в ``{slots:X}`` — через
+    ``.``). Пустой шаблон — фолбэк ``model_code/узел.слот+кодировки``.
+    """
     nodes, slots, chosen, options_by_slot, _ = _resolved(
         control_unit, snapshot, power_supply, mode, signal_power,
         model_line, body, model_line_item, structural=True)
-    return _system_code_string(control_unit, nodes, slots, chosen,
-                               options_by_slot)
+    return _system_code_string(control_unit, nodes, slots, chosen)
 
+
+def _system_code_string(control_unit, nodes, slots, chosen):
+    template = _system_code_template()
+    node_by_code = {n.code: n for n in nodes}
+    slot_by_code = {s.code: s for s in slots}
+
+    if not template:
+        parts = [control_unit.code or '']
+        for s in slots:
+            node_token = _token(s.section) if s.section_id else ''
+            parts.append(f'{node_token}.{_token(s)}'
+                         + _chosen_encodings(s, chosen))
+        return '/'.join(parts)
+
+    slots_by_node = defaultdict(list)
+    for s in slots:
+        slots_by_node[s.section_id].append(s)
+
+    def _slots_of(node):
+        out = []
+        for s in slots_by_node.get(node.id, []):
+            out.append(_token(s) + _chosen_encodings(s, chosen))
+        return '.'.join(out)
+
+    def repl(m):
+        kind, code = m.group(1), (m.group(2) or '').strip()
+        if kind == 'model_code':
+            return control_unit.code or ''
+        if kind == 'node':
+            node = node_by_code.get(code)
+            return _token(node) if node else ''
+        if kind == 'slot':
+            slot = slot_by_code.get(code)
+            return _token(slot) if slot else ''
+        if kind == 'slots':
+            node = node_by_code.get(code)
+            return _slots_of(node) if node else ''
+        return ''  # {opt:X} в системном коде не поддерживается
+
+    return _PH_RE.sub(repl, template)
+
+
+# ── Декодирование ───────────────────────────────────────────────────────────
+
+def _template_pattern(template, unit_codes):
+    """Шаблон → (regex, [(номер_группы, kind, arg)]).
+
+    Литералы — как есть; ``{model_code}`` — альтернация известных кодов
+    ControlUnit (longest-first — коды могут содержать ``-``/``/``);
+    ``{node:X}``/``{slot:X}`` — захватывающие группы, значение сверяется
+    с текущим токеном сущности X (интегральная проверка схемы);
+    ``{slots:X}`` — захватывающий регион. Токены/кодировки — только
+    [A-Za-z0-9] (валидация clean), поэтому литералы не конфликтуют.
+    """
+    out = []
+    groups = []
+    idx = 1
+    pos = 0
+    for m in _PH_RE.finditer(template):
+        if m.start() > pos:
+            out.append(re.escape(template[pos:m.start()]))
+        kind, arg = m.group(1), (m.group(2) or '').strip()
+        if kind == 'model_code':
+            alts = sorted({re.escape(c) for c in unit_codes if c},
+                          key=len, reverse=True)
+            out.append(f'({ "|".join(alts) })' if alts else '(.+?)')
+            groups.append((idx, 'model_code', None))
+            idx += 1
+        elif kind in ('node', 'slot'):
+            out.append('(.+?)')
+            groups.append((idx, kind, arg))
+            idx += 1
+        elif kind == 'slots':
+            out.append('(.*?)')
+            groups.append((idx, 'slots', arg))
+            idx += 1
+        else:  # {opt:X} — в системном коде нет; как литерал
+            out.append(re.escape(m.group(0)))
+        pos = m.end()
+    if pos < len(template):
+        out.append(re.escape(template[pos:]))
+    return re.compile('^' + ''.join(out) + '$'), groups
+
+
+def _active_slots_of_node(node):
+    return list(CuSlot.objects.filter(section=node, is_active=True)
+                .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
+                .prefetch_related('slot_options')
+                .order_by('sorting_order', 'code'))
+
+
+def _parse_segment(slots, seg):
+    """Сегмент ``токен_слота + encodings`` → список разборов (slot_code, opts).
+
+    ``slots`` — кандидаты (слоты узла); токен слота — ``encoding`` или
+    ``code`` (longest-match); ``opts`` — список опций с непустыми
+    кодировками; single/xor — не более одной. Пустой остаток — слот есть,
+    выбранное с пустыми кодировками (опций не видно).
+    """
+    results = []
+    candidates = []
+    for slot in slots:
+        for tok in {_token(slot), slot.code}:
+            if tok:
+                candidates.append((tok, slot))
+    candidates.sort(key=lambda t: len(t[0]), reverse=True)
+    for tok, slot in candidates:
+        if not seg.startswith(tok):
+            continue
+        rest = seg[len(tok):]
+        opts_by_enc = {}
+        for o in slot.slot_options.filter(is_active=True).exclude(encoding=''):
+            opts_by_enc.setdefault(o.encoding, []).append(o)
+
+        found = []
+
+        def dfs(pos, acc):
+            if pos == len(rest):
+                found.append(sorted(acc, key=lambda o: (o.sorting_order, o.code)))
+                return
+            for enc, opts in opts_by_enc.items():
+                if rest.startswith(enc, pos):
+                    for o in opts:
+                        dfs(pos + len(enc), acc + [o])
+
+        dfs(0, [])
+        for opts in found:
+            if slot.selection_mode != 'multi' and len(opts) > 1:
+                continue  # single/xor — ровно одна кодировка
+            results.append((slot.code, [o.code for o in opts]))
+    # дедупликация идентичных разборов
+    uniq = []
+    for r in results:
+        if r not in uniq:
+            uniq.append(r)
+    return uniq
+
+
+def decode_system_code(code):
+    """Разбор системного кода в набор выбранных опций (best effort).
+
+    Возвращает::
+
+      {'format': 'template' | 'fallback' | None,
+       'model_code': str | None, 'unit': ControlUnit | None,
+       'slots': {slot_code: [option_codes...]},
+       'ambiguous': [...], 'unknown': [...], 'mismatch': bool}
+
+    ``mismatch=True`` — литералы шаблона не совпали (код сгенерирован
+    другой версией шаблона/схемы). ``ambiguous``/``unknown`` — честный
+    отчёт о неоднозначных и нераспознанных фрагментах; пустые кодировки
+    выбранных опций в коде не видны (слот декодируется без опций).
+    """
+    base = {
+        'format': None, 'model_code': None, 'unit': None, 'slots': {},
+        'ambiguous': [], 'unknown': [], 'mismatch': False,
+    }
+    if not isinstance(code, str) or not code.strip():
+        return base
+
+    template = _system_code_template()
+    if template:
+        unit_codes = list(ControlUnit.objects.values_list('code', flat=True))
+        pat, groups = _template_pattern(template, unit_codes)
+        m = pat.match(code)
+        if not m:
+            base['format'] = 'template'
+            base['mismatch'] = True
+            return base
+        base['format'] = 'template'
+        nodes = _all_nodes_tree()
+        node_by_code = {n.code: n for n in nodes}
+        slot_by_code = {s.code: s for s in _structural_slots(nodes)}
+        for gi, kind, arg in groups:
+            text = m.group(gi)
+            if kind == 'model_code':
+                base['model_code'] = text
+                base['unit'] = ControlUnit.objects.filter(code=text).first()
+            elif kind == 'slots':
+                node = node_by_code.get(arg)
+                if node is None:
+                    if text:
+                        base['unknown'].append(f'{arg}: {text}')
+                    continue
+                _decode_region(base, node, text)
+            elif kind == 'node':
+                node = node_by_code.get(arg)
+                if node is None or text != _token(node):
+                    base['mismatch'] = True
+            elif kind == 'slot':
+                slot = slot_by_code.get(arg)
+                if slot is None or text != _token(slot):
+                    base['mismatch'] = True
+        return base
+
+    return _decode_fallback(code, base)
+
+
+def _decode_region(result, node, region):
+    """Регион ``{slots:X}``: сегменты через ``.`` → разборы сегментов."""
+    slots = _active_slots_of_node(node)
+    for seg in region.split('.'):
+        if not seg:
+            continue
+        parses = _parse_segment(slots, seg)
+        if not parses:
+            result['unknown'].append(seg)
+        elif len(parses) > 1:
+            result['ambiguous'].append({'segment': seg, 'parses': parses})
+        else:
+            slot_code, opts = parses[0]
+            result['slots'][slot_code] = opts
+
+
+def _decode_fallback(code, base):
+    """Фолбэк-формат ``model_code/узел.слот+кодировки`` (через ``/``).
+
+    ``model_code`` может сам содержать ``/`` (например «INT/N») — модель
+    ищем по списку кодов ControlUnit (самый длинный подходящий).
+    """
+    base['format'] = 'fallback'
+    unit_codes = list(ControlUnit.objects.values_list('code', flat=True))
+    model = next((c for c in sorted(unit_codes, key=len, reverse=True)
+                  if code == c or code.startswith(c + '/')), None)
+    base['model_code'] = model
+    base['unit'] = (ControlUnit.objects.filter(code=model).first()
+                    if model else None)
+    nodes = _all_nodes_tree()
+    node_by_token = {}
+    for n in nodes:
+        node_by_token[_token(n)] = n
+        node_by_token[n.code] = n
+    slots_by_node = {n.id: _active_slots_of_node(n) for n in nodes}
+    rest = code[len(model) + 1:] if model else code
+    for part in rest.split('/'):
+        if not part:
+            continue
+        if '.' not in part:
+            base['unknown'].append(part)
+            continue
+        node_token, seg = part.split('.', 1)
+        node = node_by_token.get(node_token)
+        if node is None:
+            base['unknown'].append(part)
+            continue
+        parses = _parse_segment(slots_by_node[node.id], seg)
+        if not parses:
+            base['unknown'].append(part)
+        elif len(parses) > 1:
+            base['ambiguous'].append({'segment': seg, 'parses': parses})
+        else:
+            slot_code, opts = parses[0]
+            base['slots'][slot_code] = opts
+    return base
+
+
+# ── Артикульный код (производитель) ─────────────────────────────────────────
 
 def _article_code(control_unit, snapshot, *, power_supply=None, mode='both',
                   signal_power=None, model_line=None, body=None,
@@ -177,15 +462,14 @@ def build_codes(control_unit, snapshot=None, *, power_supply=None, mode='both',
     код считается по полной структуре (без show/hide), артикульный — по
     видимым слотам.
     """
-    s_nodes, s_slots, s_chosen, s_options, _ = _resolved(
+    s_nodes, s_slots, s_chosen, _s_options, _ = _resolved(
         control_unit, snapshot, power_supply, mode, signal_power,
         model_line, body, model_line_item, structural=True)
     v_nodes, v_slots, v_chosen, v_options, rows = _resolved(
         control_unit, snapshot, power_supply, mode, signal_power,
         model_line, body, model_line_item)
 
-    system_code = _system_code_string(
-        control_unit, s_nodes, s_slots, s_chosen, s_options)
+    system_code = _system_code_string(control_unit, s_nodes, s_slots, s_chosen)
     article_code = _article_code_string(
         control_unit, v_slots, v_chosen, v_options, rows, ext=False)
     ext_article_code = _article_code_string(
@@ -194,47 +478,14 @@ def build_codes(control_unit, snapshot=None, *, power_supply=None, mode='both',
             'ext_article_code': ext_article_code}
 
 
-def _system_code_string(control_unit, nodes, slots, chosen, options_by_slot):
-    template = _system_code_template()
-    if not template:
-        unit_opt = _product_type_option(control_unit)
-        parts = [unit_opt.code if unit_opt else control_unit.code]
-        for s in slots:
-            for o in chosen.get(s.id, []):
-                node_code = s.section.code if s.section else ''
-                parts.append(f'{node_code}.{s.code}.{o.code}')
-        return '/'.join(parts)
-
-    node_by_key = _dual_key_map(nodes)
-    slot_by_key = _dual_key_map(slots)
-    opt_by_key = {}
-    for s in slots:
-        for o in options_by_slot[s.id]:
-            opt_by_key[o.code] = o
-            if o.placeholder:
-                opt_by_key[o.placeholder] = o
-
-    def _slots_of(node):
-        out = []
-        for s in slots:
-            if s.section_id != node.id:
-                continue
-            for o in chosen.get(s.id, []):
-                out.append(_token(s) + _token(o))
-        return ''.join(out)
-
-    def repl(m):
-        kind, code = m.group(1), m.group(2).strip()
-        if kind == 'node':
-            return _token(node_by_key.get(code)) if node_by_key.get(code) else ''
-        if kind == 'slots':
-            node = node_by_key.get(code)
-            return _slots_of(node) if node else ''
-        if kind == 'slot':
-            return _token(slot_by_key.get(code)) if slot_by_key.get(code) else ''
-        return _token(opt_by_key.get(code)) if opt_by_key.get(code) else ''
-
-    return _PH_RE.sub(repl, template)
+def _dual_key_map(entities):
+    """Словарь сущностей по ``code`` и по ``placeholder`` (если задан)."""
+    m = {}
+    for e in entities:
+        m[e.code] = e
+        if getattr(e, 'placeholder', ''):
+            m[e.placeholder] = e
+    return m
 
 
 def _article_code_string(control_unit, visible, chosen, options_by_slot,
@@ -253,13 +504,16 @@ def _article_code_string(control_unit, visible, chosen, options_by_slot,
     chosen_codes = {o.code for s in visible for o in chosen.get(s.id, [])}
 
     def repl(m):
-        kind, code = m.group(1), m.group(2).strip()
+        kind, code = m.group(1), (m.group(2) or '').strip()
         if kind == 'slot':
             s = slot_by_key.get(code)
             opts = chosen.get(s.id, []) if s else []
             return _eff_enc(opts[0], rows_by_option, ext) if opts else ''
-        o = opt_by_key.get(code)
-        return _eff_enc(o, rows_by_option, ext) if (o and o.code in chosen_codes) else ''
+        if kind == 'opt':
+            o = opt_by_key.get(code)
+            return (_eff_enc(o, rows_by_option, ext)
+                    if (o and o.code in chosen_codes) else '')
+        return ''
 
     return _PH_RE.sub(repl, template)
 

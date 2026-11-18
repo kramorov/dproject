@@ -5,15 +5,24 @@
     <div class="tmpl-block">
       <label class="field wide"><span>Шаблон системного кода</span>
         <textarea v-model="systemCodeTemplate" rows="3"
-                  placeholder="{node:SENSOR}:[{slots:SENSOR}]-{node:GENERAL}:[{slots:GENERAL}]"></textarea>
+                  @input="templateDirty = true"
+                  placeholder="{model_code}-{node:GENERAL}:[{slots:GENERAL}]-…"></textarea>
       </label>
       <div class="tmpl-hint">
-        Плейсхолдеры: <b>{node:X}</b> — токен узла, <b>{slot:X}</b> — токен слота,
-        <b>{opt:X}</b> — токен опции, <b>{slots:X}</b> — разворот слотов узла
-        (slot_token+opt_token, в порядке дерева). Пусто — фоллбэк «узел.слот.опция» через «/».
+        Плейсхолдеры: <b>{model_code}</b> — код модели БУ;
+        <b>{node:X}</b> / <b>{slot:X}</b> — X = поле <b>code</b> сущности (адрес в
+        шаблоне; подставляется <b>кодировка</b> сущности, пусто — code);
+        <b>{slots:X}</b> — все активные слоты узла X: кодировка слота + кодировки
+        выбранных опций подряд (multi — в порядке сортировки), слоты разделяются
+        <b>точкой</b>; слот без выбранного — «голый». Пусто — фолбэк
+        «model_code/узел.слот+кодировки».
       </div>
-      <button :disabled="savingTemplate" @click="saveTemplate">Сохранить шаблон</button>
+      <button :disabled="savingTemplate" @click="saveAll">Сохранить</button>
       <span v-if="templateSaved" class="ok">Сохранено</span>
+      <div class="tmpl-hint">
+        «Сохранить» сохраняет шаблон и <b>все изменённые кодировки</b> узлов,
+        слотов и опций; «✓» у строки — сохранить только эту строку.
+      </div>
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
@@ -22,23 +31,32 @@
          :style="{ paddingLeft: (node.depth * 16) + 'px' }">
       <div class="node-row">
         <span class="label">{{ node.name || node.code }}</span>
-        <input v-model="node.placeholder" placeholder="плейсхолдер" @input="node._dirty = true" />
-        <button v-if="node._dirty" @click="saveSection(node)">✓</button>
+        <code class="token">{{ node.code }}</code>
+        <input v-if="node.id !== null" v-model="node.encoding" placeholder="кодировка"
+               @input="node._dirty = true" />
+        <button v-if="node.id !== null && node._dirty" @click="saveSection(node)">✓</button>
       </div>
 
-      <div v-for="slot in node.slots" :key="'s' + slot.id" class="slot-row"
-           :style="{ paddingLeft: ((node.depth + 1) * 16) + 'px' }">
-        <span class="label">{{ slot.name || slot.code }}</span>
-        <input v-model="slot.placeholder" placeholder="плейсхолдер" @input="slot._dirty = true" />
-        <button v-if="slot._dirty" @click="saveSlot(slot)">✓</button>
+      <div v-for="slot in node.slots" :key="'s' + slot.id" class="slot-block">
+        <div class="slot-row">
+          <span class="label">{{ slot.name || slot.code }}</span>
+          <code class="token">{{ slot.code }}</code>
+          <input v-model="slot.encoding" placeholder="кодировка" @input="slot._dirty = true" />
+          <button v-if="slot._dirty" @click="saveSlot(slot)">✓</button>
+        </div>
 
-        <div v-for="opt in slot.options" :key="'o' + opt.id" class="opt-row"
-             :style="{ paddingLeft: ((node.depth + 2) * 16) + 'px' }">
-          <span class="label">{{ opt.name || opt.code }}</span>
-          <input v-model="opt.placeholder" placeholder="плейсхолдер" @input="opt._dirty = true" />
-          <input v-model="opt.encoding" placeholder="encoding" @input="opt._dirty = true" />
-          <input v-model="opt.ext_encoding" placeholder="ext" @input="opt._dirty = true" />
-          <button v-if="opt._dirty" @click="saveOption(opt)">✓</button>
+        <div class="opt-table">
+          <div class="opt-head">
+            <span>Название опции</span>
+            <span>Кодировка</span>
+            <span></span>
+          </div>
+          <div v-for="opt in slot.options" :key="'o' + opt.id" class="opt-row">
+            <span class="opt-name">{{ opt.name || opt.code }}</span>
+            <input v-model="opt.encoding" placeholder="кодировка" @input="opt._dirty = true" />
+            <button v-if="opt._dirty" @click="saveOption(opt)">✓</button>
+          </div>
+          <div v-if="!slot.options.length" class="opt-empty">Опций нет</div>
         </div>
       </div>
     </div>
@@ -48,7 +66,14 @@
 <script setup>
 /**
  * Редактор системных кодировок: шаблон системного кода (синглтон CuCodeSettings)
- * + плейсхолдеры узлов/слотов и плейсхолдер/encoding/ext_encoding опций.
+ * + кодировки (encoding) узлов/слотов и опций.
+ *
+ * Узлы и слоты: ``code`` — адрес-плейсхолдер в шаблоне (правится в
+ * «Конфигураторе опций», здесь — read-only бейдж); ``encoding`` — кодировка,
+ * подставляемая в системный код (пусто — фолбэк на code), редактируется здесь.
+ * Опция даёт только кодировку (1-2 говорящих символа, уникальна внутри слота);
+ * ext_encoding — кодировка конкретного БУ (вкладка «Кодировки» в «Редакторе БУ»).
+ * Каждый слот — отдельной строкой, опции — таблицей: название / кодировка.
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
@@ -60,6 +85,7 @@ const options = ref([])
 const error = ref('')
 const savingTemplate = ref(false)
 const templateSaved = ref(false)
+const templateDirty = ref(false)
 
 const tree = computed(() => {
   const byParent = {}
@@ -96,7 +122,7 @@ const tree = computed(() => {
   const orphanSlots = (slotsBySection[null] || []).map(wrapSlot)
   if (orphanSlots.length) {
     out.push(reactive({
-      id: null, code: '', name: 'Без раздела', depth: 0, _dirty: false,
+      id: null, code: '', name: 'Без раздела', depth: 0,
       slots: orphanSlots,
     }))
   }
@@ -121,18 +147,50 @@ async function reload() {
   }
 }
 
-async function saveTemplate() {
+async function saveAll() {
   error.value = ''
   templateSaved.value = false
   savingTemplate.value = true
-  try {
-    const { data } = await api.put('/ea-control/code-settings/', {
+  const tasks = []
+  if (templateDirty.value) {
+    tasks.push(api.put('/ea-control/code-settings/', {
       system_code_template: systemCodeTemplate.value,
-    })
-    systemCodeTemplate.value = data.system_code_template || ''
+    }).then(({ data }) => {
+      systemCodeTemplate.value = data.system_code_template || ''
+      templateDirty.value = false
+    }))
+  }
+  for (const node of tree.value) {
+    if (node.id !== null && node._dirty) {
+      tasks.push(api.patch(`/ea-control/sections/${node.id}/`, {
+        encoding: node.encoding || '',
+      }).then(() => { node._dirty = false }))
+    }
+    for (const slot of node.slots) {
+      if (slot._dirty) {
+        tasks.push(api.patch(`/ea-control/slots/${slot.id}/`, {
+          encoding: slot.encoding || '',
+        }).then(() => { slot._dirty = false }))
+      }
+      for (const opt of slot.options) {
+        if (opt._dirty) {
+          tasks.push(api.patch(`/ea-control/slot-options/${opt.id}/`, {
+            encoding: opt.encoding || '',
+          }).then(() => { opt._dirty = false }))
+        }
+      }
+    }
+  }
+  if (!tasks.length) {
+    savingTemplate.value = false
+    return
+  }
+  try {
+    await Promise.all(tasks)
     templateSaved.value = true
+    await reload()
   } catch (e) {
-    error.value = e.displayMessage || 'Ошибка сохранения шаблона'
+    error.value = e.displayMessage || 'Ошибка сохранения'
   } finally {
     savingTemplate.value = false
   }
@@ -141,20 +199,20 @@ async function saveTemplate() {
 async function saveSection(node) {
   error.value = ''
   try {
-    await api.patch(`/ea-control/sections/${node.id}/`, { placeholder: node.placeholder || '' })
+    await api.patch(`/ea-control/sections/${node.id}/`, { encoding: node.encoding || '' })
     node._dirty = false
   } catch (e) {
-    error.value = e.displayMessage || 'Ошибка сохранения узла'
+    error.value = e.displayMessage || 'Ошибка сохранения кодировки узла'
   }
 }
 
 async function saveSlot(slot) {
   error.value = ''
   try {
-    await api.patch(`/ea-control/slots/${slot.id}/`, { placeholder: slot.placeholder || '' })
+    await api.patch(`/ea-control/slots/${slot.id}/`, { encoding: slot.encoding || '' })
     slot._dirty = false
   } catch (e) {
-    error.value = e.displayMessage || 'Ошибка сохранения слота'
+    error.value = e.displayMessage || 'Ошибка сохранения кодировки слота'
   }
 }
 
@@ -162,9 +220,7 @@ async function saveOption(opt) {
   error.value = ''
   try {
     await api.patch(`/ea-control/slot-options/${opt.id}/`, {
-      placeholder: opt.placeholder || '',
       encoding: opt.encoding || '',
-      ext_encoding: opt.ext_encoding || '',
     })
     opt._dirty = false
   } catch (e) {
@@ -187,11 +243,38 @@ button { padding: 6px 12px; cursor: pointer; }
 .ok { color: #2c6fb0; margin-left: 8px; }
 .error { color: #c00; margin: 6px 0; }
 .node-block { border: 1px solid #eee; border-radius: 6px; padding: 6px; margin-bottom: 8px; }
-.node-row, .slot-row, .opt-row { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
-.node-row .label, .slot-row .label, .opt-row .label { width: 280px; font-size: 13px; color: #333; }
+.node-row { display: flex; gap: 8px; align-items: center; margin: 3px 0 8px; }
+.node-row .label { width: 280px; font-size: 13px; color: #333; }
 .node-row input { width: 180px; }
+.node-row button { padding: 3px 8px; }
+.token { font-size: 12px; color: #2c6fb0; background: #f2f6fa; padding: 1px 6px; border-radius: 3px; }
+
+/* каждый слот — отдельной строкой (блоком) */
+.slot-block { margin: 0 0 10px; }
+.slot-row { display: flex; gap: 8px; align-items: center; margin: 3px 0; }
+.slot-row .label { width: 280px; font-size: 13px; color: #333; }
 .slot-row input { width: 180px; }
-.opt-row input { width: 130px; }
-.opt-row input:first-of-type { width: 180px; }
-.node-row button, .slot-row button, .opt-row button { padding: 3px 8px; }
+.slot-row button { padding: 3px 8px; }
+
+/* опции слота — таблица: название / кодировка */
+.opt-table { margin-left: 16px; border: 1px solid #eee; border-radius: 4px; }
+.opt-head, .opt-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 130px 40px;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 8px;
+}
+.opt-head {
+  font-size: 11px;
+  color: #777;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  border-radius: 4px 4px 0 0;
+}
+.opt-row + .opt-row { border-top: 1px solid #f2f2f2; }
+.opt-name { font-size: 12px; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-row input { width: 100%; }
+.opt-row button { padding: 3px 8px; }
+.opt-empty { padding: 4px 8px; font-size: 12px; color: #999; }
 </style>

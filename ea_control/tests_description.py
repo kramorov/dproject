@@ -2,7 +2,8 @@
 """
 Тесты генератора описания/спецификации/артикула модификации БУ
 (cu_description) — решение 2026-11-02: видимость «всё, кроме hide»,
-артикул из кодов узла/слота/опции, локализация через *_i18n, без хранения.
+артикул = системный код (коды узлов/слотов + кодировки выбранных опций),
+локализация через *_i18n, без хранения.
 
 Сценарии рассинхрона (модель без хранения):
 - снимок с устаревшими/чужими кодами опций не ломает генерацию;
@@ -14,6 +15,7 @@ from django.test import TestCase
 
 from ea_control.models import (CuMatrixEntry, CuSectionNode, CuSlot,
                                CuSlotOption)
+from ea_control.services.cu_code import decode_system_code
 from ea_control.services.cu_description import (assemble_article,
                                                 build_description,
                                                 build_specification,
@@ -26,10 +28,10 @@ class CuDescriptionGeneratorTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         from ea_control.models import ControlUnit
-        cls.basic = ControlUnit.objects.get(code='basic AR21')
+        cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
         cls.int_unit = ControlUnit.objects.get(code='INT/N')
-        cls.int_o = ControlUnit.objects.get(code='INT/O')
-        cls.posi = ControlUnit.objects.get(code='posi-4-20')
+        cls.int_o = ControlUnit.objects.get(code='INT-O-AR21')
+        cls.posi = ControlUnit.objects.get(code='POSI-AR01')
 
     # ── видимость: «всё, кроме hide» ────────────────────────────────────
 
@@ -192,7 +194,9 @@ class CuDescriptionGeneratorTests(TestCase):
             self.assertIn('ACTUATOR_HEATER',
                           [s['code'] for s in sec['slots']])
             article = assemble_article(self.basic)
-            self.assertIn(f'{node.code}.ACTUATOR_HEATER', article)
+            decoded = decode_system_code(article)
+            # системный код — структурный: слоты выключенного узла не входят
+            self.assertNotIn('ACTUATOR_HEATER', decoded['slots'])
         finally:
             node.is_active = prev
             node.save(update_fields=['is_active'])
@@ -214,34 +218,99 @@ class CuDescriptionGeneratorTests(TestCase):
         self.assertIn('SETPOINT', slots)
         self.assertNotIn('CMD_OPEN', slots)  # hide-правило позиционера
 
-    # ── артикул из кодов ────────────────────────────────────────────────
+    # ── артикул = системный код ────────────────────────────────────────
 
     def test_article_from_codes(self):
         article = assemble_article(self.basic)
-        parts = article.split('/')
-        self.assertEqual(parts[0], 'CU_BASIC')
-        self.assertIn('GENERAL.ACTUATOR_HEATER.H_SEP_Copy', parts)
-        self.assertIn('CMD_INPUTS.CMD_WIRING.W_EXT_220', parts)
-        self.assertIn('CMD_INPUTS.CMD_STOP.CMD_STOP_NONE', parts)
-        # обогрев БУ у базового — H_NO (na-дефолт канона БД; в артикул входит)
-        self.assertIn('GENERAL.HEATER_CONTROL_UNIT.H_NO', parts)
-        # каждый вклад — ровно один на слот: «узел.слот.опция»
-        self.assertTrue(all(p.count('.') == 2 for p in parts[1:]))
-        # скрытые слоты в артикул не входят
-        self.assertFalse(any('MOTOR_STARTER' in p for p in parts))
-        self.assertFalse(any('CU_POWER_SUPPLY' in p for p in parts))
-        self.assertFalse(any('CU_CABLE_GLANDS' in p for p in parts))
+        decoded = decode_system_code(article)
+        self.assertEqual(decoded['model_code'], self.basic.code)
+        self.assertEqual(decoded['unit'], self.basic)
+        self.assertFalse(decoded['mismatch'])
+        self.assertEqual(decoded['ambiguous'], [])
+        self.assertEqual(decoded['unknown'], [])
+        # структурный код: полный набор активных слотов (без show/hide)
+        for code in ('ACTUATOR_HEATER', 'CU_HEATER', 'CMD_WIRING',
+                     'MOTOR_STARTER', 'CU_POWER_SUPPLY', 'CU_CABLE_GLANDS'):
+            self.assertIn(code, decoded['slots'])
+        # выбранные опции декодируются по кодировкам
+        self.assertEqual(decoded['slots']['CMD_WIRING'], ['W_EXT_220'])
+        self.assertEqual(decoded['slots']['CMD_STOP'], ['CMD_STOP_NONE'])
+        self.assertEqual(decoded['slots']['ACTUATOR_HEATER'], ['H_SEP_Copy'])
+        self.assertEqual(decoded['slots']['CU_HEATER'], ['H_NO'])
 
     def test_article_uses_snapshot_choice(self):
         article = assemble_article(
             self.basic, snapshot={'CMD_WIRING': 'W_INT_24'})
-        self.assertIn('CMD_INPUTS.CMD_WIRING.W_INT_24', article.split('/'))
-        self.assertNotIn('CMD_INPUTS.CMD_WIRING.W_EXT_220', article.split('/'))
+        decoded = decode_system_code(article)
+        self.assertEqual(decoded['slots']['CMD_WIRING'], ['W_INT_24'])
+        article2 = assemble_article(self.basic)
+        decoded2 = decode_system_code(article2)
+        self.assertEqual(decoded2['slots']['CMD_WIRING'], ['W_EXT_220'])
 
     def test_article_stale_code_falls_back_to_std(self):
         article = assemble_article(
             self.basic, snapshot={'CMD_WIRING': 'GONE_OPTION'})
-        self.assertIn('CMD_INPUTS.CMD_WIRING.W_EXT_220', article.split('/'))
+        decoded = decode_system_code(article)
+        self.assertEqual(decoded['slots']['CMD_WIRING'], ['W_EXT_220'])
+
+    def test_article_multi_slot_decodes_in_sorting_order(self):
+        snapshot = {'OPEN_LOG': ['OPEN_LOG_YES_LIFETIME',
+                                 'OPEN_LOG_YES_LAST_HOUR']}
+        article = assemble_article(self.basic, snapshot=snapshot)
+        decoded = decode_system_code(article)
+        self.assertEqual(decoded['slots']['OPEN_LOG'],
+                         ['OPEN_LOG_YES_LIFETIME', 'OPEN_LOG_YES_LAST_HOUR'])
+
+    def test_article_fallback_format(self):
+        """Пустой шаблон — фолбэк ``model_code/узел.слот+кодировки``."""
+        from ea_control.models import CuCodeSettings
+        cs = CuCodeSettings.get()
+        prev = cs.system_code_template
+        cs.system_code_template = None
+        cs.save()
+        try:
+            article = assemble_article(self.basic)
+            decoded = decode_system_code(article)
+            self.assertEqual(decoded['format'], 'fallback')
+            self.assertEqual(decoded['model_code'], self.basic.code)
+            self.assertEqual(decoded['slots']['CMD_WIRING'], ['W_EXT_220'])
+        finally:
+            cs.system_code_template = prev
+            cs.save()
+
+    def test_decode_mismatch_reported(self):
+        """Код от другой версии шаблона — mismatch, а не тихая ложь."""
+        decoded = decode_system_code('INT/N-GENERAL:[CU_TYPE]')
+        self.assertTrue(decoded['mismatch'])
+        self.assertEqual(decoded['slots'], {})
+
+    def test_slot_encoding_used_in_system_code(self):
+        """Кодировка слота подставляется в код (code — адрес в шаблоне)."""
+        slot = CuSlot.objects.get(code='CMD_WIRING')
+        slot.encoding = 'CW'
+        slot.save()
+        try:
+            article = assemble_article(self.basic)
+            decoded = decode_system_code(article)
+            self.assertFalse(decoded['mismatch'])
+            self.assertEqual(decoded['slots']['CMD_WIRING'], ['W_EXT_220'])
+        finally:
+            slot.encoding = ''
+            slot.save()
+
+    def test_node_encoding_used_in_system_code(self):
+        """Кодировка узла подставляется в код; декодер её разбирает."""
+        node = CuSectionNode.objects.get(code='GENERAL')
+        node.encoding = 'GN'
+        node.save()
+        try:
+            article = assemble_article(self.basic)
+            decoded = decode_system_code(article)
+            self.assertFalse(decoded['mismatch'])
+            self.assertEqual(decoded['slots']['CMD_WIRING'], ['W_EXT_220'])
+        finally:
+            node.encoding = ''
+            node.save()
 
     # ── локализация ─────────────────────────────────────────────────────
 

@@ -16,8 +16,10 @@
 - **значение слота** — из снимка модификации (опция выбрана) или
   std-дефолт профиля; устаревшие/чужие коды в снимке игнорируются —
   рассинхрон снимка с составом БУ не ломает генерацию;
-- **артикул** — из кодов узла/слота/опции вместо плейсхолдеров кодировок
-  (``encoding``/``ext_encoding`` не используются);
+- **артикул** (``assemble_article``) — делегирует в
+  ``cu_code.build_system_code`` (системный код из плейсхолдеров);
+  ``encoding``/``ext_encoding`` здесь не используются — они только в
+  артикульном коде БУ (``cu_code.build_article_code``);
 - **локализация** — узлы/слоты: ``name_i18n``/``description_i18n``;
   текстовые опции (value/none): ``description_i18n`` → имя; объектные
   опции — локализованное имя справочной записи (``localized_name``).
@@ -331,8 +333,10 @@ def assemble_article(control_unit, *, snapshot=None, power_supply=None,
                      mode='both', signal_power=None):
     """Артикул модификации — системный код (cu_code.build_system_code).
 
-    Фоллбэк без шаблона — прежний вид «код опции типа + узел.слот.опция»
-    через «/». Кодировки ``encoding``/``ext_encoding`` не используются.
+    Фолбэк без шаблона — ``model_code/узел.слот+кодировки`` через «/».
+    Кодировки ``encoding``/``ext_encoding`` производителя здесь не
+    используются — они только в артикульном коде БУ
+    (``cu_code.build_article_code``).
     """
     from ea_control.services.cu_code import build_system_code
     return build_system_code(control_unit, snapshot, power_supply=power_supply,

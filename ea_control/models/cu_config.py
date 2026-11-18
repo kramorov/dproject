@@ -17,6 +17,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+import re
 
 from core.models.mixins import LocalizedDictFieldsMixin
 from core.utils.localization import localized_name, pick_i18n
@@ -30,7 +31,8 @@ class CuSectionNode(LocalizedDictFieldsMixin, AbstractConfigNode):
     """Узел-секция конфигурации БУ (роль ``Node``).
 
     Зачем: дерево секций, по которому конфигуратор рисует разделы:
-    УПРАВЛЕНИЕ / ОБРАТНАЯ СВЯЗЬ / СВЯЗЬ / ПИТАНИЕ (с вложенностью).
+    GENERAL / PHASE_3_OPTIONS / LOCAL_INDICATION / IND_SIGNALS /
+    CMD_INPUTS / FEEDBACK / SENSOR / LOG … (с вложенностью).
     Относительно AbstractConfigNode полей не добавлено — связь слотов идёт
     обратной стороной (CuSlot.section).
     """
@@ -39,6 +41,24 @@ class CuSectionNode(LocalizedDictFieldsMixin, AbstractConfigNode):
         verbose_name = _("Узел-секция БУ")
         verbose_name_plural = _("Узлы-секции БУ")
         ordering = ['sorting_order', 'code']
+
+    def clean(self):
+        super().clean()
+        if not re.fullmatch(r'[A-Za-z0-9_]+', self.code):
+            raise ValidationError(
+                {'code': _('Код узла — только латиница, цифры и «_» '
+                           '(без разделителей и спецсимволов).')})
+        if self.encoding:
+            if not re.fullmatch(r'[A-Za-z0-9]+', self.encoding):
+                raise ValidationError(
+                    {'encoding': _('Кодировка — только латиница и цифры '
+                                   '(без разделителей и спецсимволов).')})
+            dup = (CuSectionNode.objects.filter(encoding=self.encoding)
+                   .exclude(pk=self.pk))
+            if dup.exists():
+                raise ValidationError(
+                    {'encoding': _('Кодировка должна быть уникальной среди '
+                                   'узлов.')})
 
 
 class CuSlotSource(models.TextChoices):
@@ -86,19 +106,22 @@ SLOT_SOURCE_PAYLOAD = {
 class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
     """Слот конфигурации БУ (роль ``Slot``).
 
-    Зачем: точка выбора в конфигураторе БУ. Коды сигнальных слотов совпадают
-    с EaSignalSlot (LOCAL_CONTROL/SETPOINT/LIMIT_SWITCHES/WAY_SWITCHES/
-    TORQUE_SWITCHES/POSITION_FEEDBACK/THERMAL_SENSOR/INDICATOR/TURN_COUNTER/
-    PROTOCOL/HEATER_CONTROL_UNIT) — они ключи маппинга при миграции; плюс
-    БУ-специфичные слоты дистанционного управления (CMD_WIRING и
-    CMD_OPEN/CMD_CLOSE/CMD_STOP/CMD_ESD) и слот ``control_unit``
-    (slot_kind=object) — выбор типа БУ.
+    Зачем: точка выбора в конфигураторе БУ. Часть слотов совпадает по коду с
+    legacy EaSignalSlot (SETPOINT/PROTOCOL/TURN_COUNTER/HEATER_CONTROL_UNIT —
+    теперь CU_HEATER) —
+    они ключи маппинга при миграции; остальные сигнальные слоты канон БУ
+    развёл/переименовал (LIMIT_SWITCHES_OPENED/CLOSED…, TORQUE_SWITCHES_OPEN/
+    CLOSE, POSITION_FEEDBACK → FB_POSITION, LOCAL_CONTROL →
+    LOCAL_CONTROL_DESIGN, INDICATOR → IND_*, THERMAL_SENSOR → THERMO_SENSOR);
+    плюс БУ-специфичные слоты дистанционного управления (CMD_WIRING и
+    CMD_OPEN/CMD_CLOSE/CMD_STOP/CMD_ESD) и слот-селектор ``control_unit``
+    (slot_kind=subtype) — выбор типа изделия (БУ).
 
     Добавлено относительно AbstractConfigSlot:
 
     - ``section`` — FK на узел-секцию (дерево конфигуратора);
     - ``source`` — источник значений object-слота (словарь CuSlotSource);
-      для value-слотов пусто.
+      для value/subtype-слотов пусто.
     """
     section = models.ForeignKey(
         CuSectionNode, on_delete=models.SET_NULL, null=True, blank=True,
@@ -110,7 +133,7 @@ class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
         max_length=20, choices=CuSlotSource.choices, blank=True, default='',
         verbose_name=_("Источник значений"),
         help_text=_("Для slot_kind=object — справочник, из которого опции "
-                    "слота (срез записей); для value — пусто."),
+                    "слота (срез записей); для value/subtype — пусто."),
     )
 
     class Meta:
@@ -133,6 +156,21 @@ class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
                 raise ValidationError(
                     {'slot_kind': _('Слот-селектор типа изделия может быть '
                                     'только один.')})
+        if not re.fullmatch(r'[A-Za-z0-9_]+', self.code):
+            raise ValidationError(
+                {'code': _('Код слота — только латиница, цифры и «_» '
+                           '(без разделителей и спецсимволов).')})
+        if self.encoding:
+            if not re.fullmatch(r'[A-Za-z0-9]+', self.encoding):
+                raise ValidationError(
+                    {'encoding': _('Кодировка — только латиница и цифры '
+                                   '(без разделителей и спецсимволов).')})
+            dup = (CuSlot.objects.filter(encoding=self.encoding)
+                   .exclude(pk=self.pk))
+            if dup.exists():
+                raise ValidationError(
+                    {'encoding': _('Кодировка должна быть уникальной среди '
+                                   'слотов.')})
 
 
 class CuOptionKind(models.TextChoices):
@@ -169,11 +207,17 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
     - типизированные полезные нагрузки по kind: ``control_signal`` /
       ``feedback_signal`` / ``protocol`` (signal), ``heater_supply``
       (heater), ``signal_power`` (power — схема цепей управления),
-      ``control_logic`` (logic — логика сигнала), ``control_unit`` (unit —
-      только для слота control_unit), ``device`` (датчик по умолчанию для
-      опции), ``location_option`` (location — размещение БУ, слот
-      CU_LOCATION), ``cable_gland_set`` (cable_gland — набор отверстий
-      под КВ, общая модель ЭП electric_actuators.CableGlandHolesSet);
+      ``control_logic`` (logic — логика сигнала), ``control_unit``
+      (product_type — тип изделия, только слот-селектор subtype),
+      ``control_unit_kind`` (unit_kind — класс БУ), ``device`` (датчик по
+      умолчанию для опции), ``local_control_type`` (local_control — орган
+      местного управления), ``display_types`` (display — M2M видов
+      отображения), ``unit_power_source`` (unit_power — питание БУ),
+      ``location_option`` (location — размещение БУ, слот CU_LOCATION),
+      ``cable_gland_set`` (cable_gland — набор отверстий под КВ, общая
+      модель ЭП electric_actuators.CableGlandHolesSet),
+      ``access_device_option`` (access_device — устройство ограничения
+      доступа, общая модель ЭП EaAccessDeviceOption);
     - ``clean()`` — ровно одна полезная нагрузка на kind (образец
       EaSlotOption.clean).
     """
@@ -202,7 +246,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
         related_name='slot_options',
         verbose_name=_("Командный сигнал"),
-        help_text=_("Для kind=signal: входная команда (слоты CMD/SETPOINT)"),
+        help_text=_("Для kind=signal: входная команда (слоты команд CMD_* "
+                    "и уставки SETPOINT)"),
     )
     feedback_signal = models.ForeignKey(
         'CuFeedbackSignal', on_delete=models.PROTECT, null=True, blank=True,
@@ -220,7 +265,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         'CuHeaterSupply', on_delete=models.PROTECT, null=True, blank=True,
         related_name='slot_options',
         verbose_name=_("Питание обогрева"),
-        help_text=_("Для kind=heater (слот HEATER_CONTROL_UNIT)"),
+        help_text=_("Для kind=heater (слот CU_HEATER, ранее "
+                    "HEATER_CONTROL_UNIT)"),
     )
     signal_power = models.ForeignKey(
         'CuSignalPower', on_delete=models.PROTECT, null=True, blank=True,
@@ -430,6 +476,19 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         elif self.kind in (CuOptionKind.VALUE, CuOptionKind.NONE):
             if not self.name:
                 raise ValidationError(_('Для value/none-опции нужно имя (название).'))
+        if self.encoding:
+            if not re.fullmatch(r'[A-Za-z0-9]+', self.encoding):
+                raise ValidationError(
+                    {'encoding': _('Кодировка — только латиница и цифры '
+                                   '(без разделителей и спецсимволов).')})
+            if self.slot_id and self.slot.slot_kind != 'subtype':
+                dup = (CuSlotOption.objects
+                       .filter(slot_id=self.slot_id, encoding=self.encoding)
+                       .exclude(pk=self.pk))
+                if dup.exists():
+                    raise ValidationError(
+                        {'encoding': _('Кодировка должна быть уникальной '
+                                       'внутри слота.')})
         # «Решение: два рода слота» (2026-11-01): object-слот — kind фиксирован
         # источником слота, опция — запись справочника-источника; value-слот —
         # только value/none.
@@ -484,8 +543,9 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
       (ElectricActuatorModelLine) / ``body`` (ElectricActuatorBody) /
       ``model_line_item`` (ElectricActuatorModelLineItem) — ровно один или
       все пустые (CheckConstraint «один скоуп»);
-    - координаты: ``control_unit`` (ControlUnit, null — для строк слота
-      control_unit и профильных строк), ``power_supply`` (params.PowerSupplies,
+    - координаты: ``control_unit`` (ControlUnit, null — для строк слота-
+      селектора типа (subtype) и профильных строк), ``power_supply``
+      (params.PowerSupplies,
       null — любое напряжение), ``signal_power`` (CuSignalPower — схема цепей
       управления; null — любая схема; «набор сигналов — опции схемы»),
       ``mode`` (CuMatrixMode);
@@ -493,7 +553,8 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
       ``protocol``/``device``/``heater_supply`` — типизированные FK
       (CheckConstraint «одна нагрузка»);
     - ``clean()`` — протокол только для слота PROTOCOL, обогрев только для
-      HEATER_*, устройство только с сигналом ОС (device.emits содержит его);
+      слота обогрева (CU_HEATER, ранее HEATER_CONTROL_UNIT), устройство
+      только с сигналом ОС (device.emits содержит его);
     - ``_base_name()`` — имя из полезной нагрузки (сигнал/устройство/БУ).
     """
     slot = models.ForeignKey(
@@ -540,7 +601,7 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
         related_name='matrix_rows',
         verbose_name=_("Блок управления"),
         help_text=_("Тип БУ, для которого актуальна строка; null — строки "
-                    "слота control_unit и профильные строки"),
+                    "слота-селектора типа (subtype) и профильные строки"),
     )
     power_supply = models.ForeignKey(
         'params.PowerSupplies', on_delete=models.CASCADE, null=True, blank=True,
@@ -591,7 +652,7 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
         'CuHeaterSupply', on_delete=models.PROTECT, null=True, blank=True,
         related_name='matrix_rows',
         verbose_name=_("Питание обогрева"),
-        help_text=_("Только для слота HEATER_CONTROL_UNIT"),
+        help_text=_("Только для слота CU_HEATER (ранее HEATER_CONTROL_UNIT)"),
     )
 
     class Meta:
@@ -661,10 +722,11 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
             raise ValidationError(
                 {'protocol': _('Протокол заполняется только для строк слота '
                                'PROTOCOL.')})
-        if self.heater_supply_id and self.slot.code != 'HEATER_CONTROL_UNIT':
+        if self.heater_supply_id and self.slot.code not in (
+                'HEATER_CONTROL_UNIT', 'CU_HEATER'):
             raise ValidationError(
                 {'heater_supply': _('Питание обогрева — только для слота '
-                                    'HEATER_CONTROL_UNIT.')})
+                                    'CU_HEATER/HEATER_CONTROL_UNIT.')})
         if (self.device_id and not self.feedback_signal_id
                 and not self.name):
             raise ValidationError(

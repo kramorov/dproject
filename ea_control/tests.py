@@ -512,3 +512,87 @@ class CuSlotSourceTests(CuConfigTestCase):
         ok_none = self.make_option(
             code='SRC_VAL_NONE', slot=slot, kind='none', name='Нет')
         ok_none.full_clean()  # не падает
+
+class CuEncodingValidationTests(TestCase):
+    """Валидации системной кодировки: коды/кодировки узлов, слотов, опций."""
+
+    def test_slot_code_charset(self):
+        slot = CuSlot.objects.get(code='CMD_WIRING')
+        slot.code = 'CMD-WIRING'
+        with self.assertRaises(ValidationError):
+            slot.full_clean()
+
+    def test_node_code_charset(self):
+        node = CuSectionNode.objects.get(code='GENERAL')
+        node.code = 'GEN!'
+        with self.assertRaises(ValidationError):
+            node.full_clean()
+
+    def test_slot_encoding_unique(self):
+        s1 = CuSlot.objects.get(code='CMD_WIRING')
+        s2 = CuSlot.objects.get(code='CMD_CLOSE')
+        s1.encoding = 'CW'
+        s1.save()
+        try:
+            s2.encoding = 'CW'
+            with self.assertRaises(ValidationError):
+                s2.full_clean()
+        finally:
+            s1.encoding = ''
+            s1.save()
+
+    def test_node_encoding_unique(self):
+        n1 = CuSectionNode.objects.get(code='GENERAL')
+        n2 = CuSectionNode.objects.get(code='SENSOR')
+        n1.encoding = 'GN'
+        n1.save()
+        try:
+            n2.encoding = 'GN'
+            with self.assertRaises(ValidationError):
+                n2.full_clean()
+        finally:
+            n1.encoding = ''
+            n1.save()
+
+    def test_encoding_charset(self):
+        slot = CuSlot.objects.get(code='CMD_WIRING')
+        slot.encoding = 'C-W'
+        with self.assertRaises(ValidationError):
+            slot.full_clean()
+        opt = CuSlotOption.objects.get(code='W_INT_24')
+        opt.encoding = 'I.'
+        with self.assertRaises(ValidationError):
+            opt.full_clean()
+
+    def test_api_patch_duplicate_slot_encoding_rejected(self):
+        """PATCH из «Системных кодировок» — дубль кодировки отклоняется 400."""
+        admin = User.objects.filter(is_superuser=True).first()
+        if admin is None:
+            admin = User.objects.create_superuser('t', 't@t.tt', 'p')
+        self.client.force_login(admin)
+        s1 = CuSlot.objects.get(code='CMD_WIRING')
+        s2 = CuSlot.objects.get(code='CMD_CLOSE')
+        s1.encoding = 'CW'
+        s1.save()
+        try:
+            resp = self.client.patch(f'/api/ea-control/slots/{s2.id}/',
+                                     {'encoding': 'CW'},
+                                     content_type='application/json')
+            self.assertEqual(resp.status_code, 400)
+            self.assertIn('encoding', resp.json())
+        finally:
+            s1.encoding = ''
+            s1.save()
+
+    def test_api_patch_bad_code_rejected(self):
+        """Код с недопустимым символом — 400 с сообщением о поле code."""
+        admin = User.objects.filter(is_superuser=True).first()
+        if admin is None:
+            admin = User.objects.create_superuser('t', 't@t.tt', 'p')
+        self.client.force_login(admin)
+        slot = CuSlot.objects.get(code='CMD_WIRING')
+        resp = self.client.patch(f'/api/ea-control/slots/{slot.id}/',
+                                 {'code': 'CMD-WIRING'},
+                                 content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('code', resp.json())

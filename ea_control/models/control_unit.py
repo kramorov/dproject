@@ -11,9 +11,10 @@
 изделия**, а не узел дерева EquipmentType (в дерево ничего не добавляем).
 Связи с конфигурацией — через паттерн-модели:
 
-- выбор БУ в конфигураторе — слот ``control_unit`` (slot_kind=object), опции
-  которого ссылаются на записи этой модели;
-- доступность БУ для серии/напряжения — строки матрицы слота ``control_unit``
+- выбор БУ в конфигураторе — слот-селектор ``control_unit``
+  (slot_kind=subtype), опции (kind=product_type) ссылаются на записи этой
+  модели;
+- доступность БУ для серии/напряжения — строки матрицы слота-селектора
   (замена AllowedControlUnitOption);
 - дефолты слотов БУ — профильные (бесскоуповые) строки CuMatrixEntry;
 - динамика конфигуратора — CuSlotRule.
@@ -23,7 +24,7 @@
 - ``brand`` — производитель (producers.Brands — глобальная модель, не копируем);
 - ``code`` — код типа БУ, уникален в рамках бренда;
 - ``name``/``description`` — ru-поля для админки; i18n — миксином;
-- ``kind`` — класс БУ: без БУ / базовый / интеллектуальный / позиционер;
+- ``kind`` — класс БУ: без БУ / базовый / интеллектуальный / регулирующий;
 - ``accepts``/``emits``/``protocols`` — жёсткая физика клемм: какие команды
   принимает, какие сигналы ОС выдаёт, какие шины поддерживает (M2M на копии
   справочников CuControlSignal/CuFeedbackSignal/CuCommProtocol);
@@ -74,15 +75,15 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
     """Тип блока управления электропривода производителя.
 
     Шаблон названия (TemplateMixin): модель несёт собственный ``name_template``
-    + ``name_template_i18n`` (генерация имени, напр. «БУ INT {code}»).
-    Описание и спецификация шаблонами НЕ задаются — их считает генератор
-    ``ea_control.services.cu_description`` из структуры/матрицы/правил БУ
-    (решение 2026-11-02).
+    + ``name_template_i18n``. Описание и спецификация шаблонами НЕ задаются —
+    их считает генератор ``ea_control.services.cu_description`` из
+    структуры/матрицы/правил БУ (решение 2026-11-02).
 
-    Внимание: ``TemplateMixin.save()`` автоматически обновляет ``name`` из
-    шаблона при каждом сохранении (если шаблон не пуст); сохранить без
-    перегенерации — ``save(skip_auto_generate=True)`` (в ``ControlUnit.save``
-    включён по умолчанию).
+    Внимание: обычный ``TemplateMixin.save()`` перегенерирует ``name`` из
+    шаблона, но ``ControlUnit.save()`` по умолчанию ставит
+    ``skip_auto_generate=True`` — имя/описание самостоятельные поля и при
+    сохранении НЕ пересчитываются; ``name_template`` остаётся данными для
+    ``generate_name()``.
     """
 
     brand = models.ForeignKey(
@@ -113,7 +114,7 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         ControlUnitKind, on_delete=models.PROTECT,
         related_name='control_units',
         verbose_name=_("Класс БУ"),
-        help_text=_("Без БУ / базовый / интеллектуальный / позиционер"),
+        help_text=_("Без БУ / базовый / интеллектуальный / регулирующий"),
     )
     accepts = models.ManyToManyField(
         'CuControlSignal', blank=True,

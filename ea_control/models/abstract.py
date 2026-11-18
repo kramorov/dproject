@@ -106,8 +106,9 @@ class StableKeyMixin:
 class AbstractConfigNode(StableKeyMixin, CopyMixin, models.Model):
     """Узел-секция — группировка слотов в дерево конфигурации (роль ``Node``).
 
-    Место в схеме: дерево секций конфигуратора, например БУ → «Сигналы
-    управления» → слоты LOCAL_CONTROL/CMD/SETPOINT. Узлы вкладываются друг
+    Место в схеме: дерево секций конфигуратора, например БУ →
+    «Дистанционное управление» → слоты CMD_OPEN/CMD_CLOSE/CMD_STOP/CMD_ESD.
+    Узлы вкладываются друг
     в друга через ``parent`` и образуют структуру, по которой фронт рисует
     разделы конфигуратора. Узел не хранит данные конфигурации — только
     декларирует структуру: слоты крепятся к нему полем ``section`` у
@@ -120,6 +121,10 @@ class AbstractConfigNode(StableKeyMixin, CopyMixin, models.Model):
       наследника (LocalizedDictFieldsMixin);
     - ``parent`` — self-FK: вложенность узлов (null — корневой);
     - ``description`` — пояснение секции;
+    - ``placeholder`` — ключ для шаблонов описания/спецификации
+      (``cu_placeholders``); в системной кодировке не участвует;
+    - ``encoding`` — кодировка узла в системной кодировке (подставляется
+      шаблоном вместо узла; пусто — фолбэк на ``code``);
     - ``sorting_order`` — порядок отрисовки;
     - ``is_active`` — выключенный узел скрыт из конфигуратора.
 
@@ -135,7 +140,7 @@ class AbstractConfigNode(StableKeyMixin, CopyMixin, models.Model):
     code = models.CharField(
         max_length=50, unique=True,
         verbose_name=_("Код"),
-        help_text=_("Уникальный код узла, например «CONTROL_SIGNALS»"),
+        help_text=_("Уникальный код узла, например «GENERAL»"),
     )
     key = models.CharField(
         max_length=60, unique=True, blank=True, editable=False,
@@ -163,6 +168,12 @@ class AbstractConfigNode(StableKeyMixin, CopyMixin, models.Model):
                     "При подстановке подставляется поле description (при "
                     "пустом description — name/code)."),
     )
+    encoding = models.CharField(
+        max_length=50, blank=True, default='',
+        verbose_name=_("Кодировка"),
+        help_text=_("Код сущности в системной кодировке (подставляется "
+                    "шаблоном вместо сущности); пусто — фолбэк на code."),
+    )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
 
@@ -189,15 +200,20 @@ class AbstractConfigSlot(StableKeyMixin, CopyMixin, models.Model):
 
     - ``code`` — системный уникальный код слота (ключ в config_snapshot);
     - ``name`` — ru-название группы (админка); i18n — у наследника;
-    - ``selection_mode`` — single (одна опция) | multi (несколько, напр. CMD;
-      осознанное исключение — слот в общем случае держит один тип
-      значения) | xor (одна из взаимоисключающих);
+    - ``selection_mode`` — single (одна опция) | multi (несколько
+      одновременно — осознанное исключение, не правило; в текущем каноне БУ
+      не используется) | xor (одна из взаимоисключающих);
     - ``slot_kind`` — value (простое значение) | object (типизированный FK
-      опции на физическую модель) | subtype (подтип оборудования
-      EquipmentType; в БУ-отладке не используется — slots.md «Решение:
-      граница»);
+      опции на физическую модель) | subtype (слот-селектор типа изделия:
+      ровно один в конфигурации, опции — доступные типы изделия, например
+      БУ);
     - ``required`` — в слоте должна быть хотя бы одна доступная опция;
-    - ``description``/``sorting_order``/``is_active`` — как у узла.
+    - ``description`` — пояснение слота;
+    - ``placeholder`` — ключ для шаблонов описания/спецификации
+      (``cu_placeholders``); в системной кодировке не участвует;
+    - ``encoding`` — кодировка слота в системной кодировке (подставляется
+      шаблоном вместо слота; пусто — фолбэк на ``code``);
+    - ``sorting_order``/``is_active`` — как у узла.
 
     Наследник должен:
 
@@ -212,7 +228,7 @@ class AbstractConfigSlot(StableKeyMixin, CopyMixin, models.Model):
     code = models.CharField(
         max_length=50, unique=True,
         verbose_name=_("Код"),
-        help_text=_("Уникальный код слота, например «POSITION_FEEDBACK»"),
+        help_text=_("Уникальный код слота, например «CMD_WIRING»"),
     )
     key = models.CharField(
         max_length=60, unique=True, blank=True, editable=False,
@@ -253,6 +269,12 @@ class AbstractConfigSlot(StableKeyMixin, CopyMixin, models.Model):
         help_text=_("Ключ плейсхолдера для шаблонов описания/спецификации. "
                     "При подстановке подставляется поле description (при "
                     "пустом description — name/code)."),
+    )
+    encoding = models.CharField(
+        max_length=50, blank=True, default='',
+        verbose_name=_("Кодировка"),
+        help_text=_("Код сущности в системной кодировке (подставляется "
+                    "шаблоном вместо сущности); пусто — фолбэк на code."),
     )
     sorting_order = models.IntegerField(default=0, verbose_name=_("Порядок сортировки"))
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
@@ -295,7 +317,10 @@ class AbstractSlotOption(StableKeyMixin, CopyMixin, models.Model):
       control_signal → CuControlSignal, feedback_signal → CuFeedbackSignal,
       protocol → CuCommProtocol, heater_supply → CuHeaterSupply,
       device → CuFeedbackDevice, control_unit → ControlUnit,
-      signal_power/logic/signal_type → свои справочники);
+      control_unit_kind → ControlUnitKind, signal_power → CuSignalPower,
+      control_logic → CuControlLogic, local_control_type/display_types/
+      unit_power_source/cable_gland_set/location_option/access_device_option
+      → свои справочники);
     - переопределить ``kind`` своими choices и добавить валидацию (clean):
       ровно одна полезная нагрузка на kind (образец: EaSlotOption.clean).
 
@@ -399,7 +424,7 @@ class AbstractSlotMatrixEntry(CopyMixin, models.Model):
     - объявить ``slot`` (FK на свой слот) и ``option`` (FK на свою опцию);
     - объявить контекст: скоуп (brand/model_line/body/model_line_item —
       ровно один или все пустые для профильных строк) и координаты
-      (control_unit/power_supply/mode);
+      (control_unit/power_supply/signal_power/mode);
     - объявить типизированные полезные нагрузки строки (сигнал/протокол/
       обогрев/устройство/БУ) и валидацию clean + CheckConstraint «один
       скоуп» (образец: EaSignalMatrixEntry).
@@ -578,7 +603,8 @@ class AbstractConfigSnapshot(CopyMixin, models.Model):
       дефолтами профиля, существующие не перетирает;
     - ``full_code(parts)`` — отладочная склейка вкладов
       ({'encoding','ext_encoding'}) в артикул; боевая версия — сервис
-      (ea_ext_code), здесь — простейшая для отладки паттерна.
+      ``ea_control.services.cu_code``, здесь — простейшая для отладки
+      паттерна.
 
     Наследник должен:
 
@@ -619,8 +645,8 @@ class AbstractConfigSnapshot(CopyMixin, models.Model):
         """Склейка вкладов опций в артикул (отладочная версия).
 
         ``parts`` — итератор словарей {'encoding', 'ext_encoding'}. Итоговый
-        артикул в проекте собирает сервис (ea_ext_code); здесь — простейшая
-        версия для отладки паттерна.
+        артикул в проекте собирает ``ea_control.services.cu_code``; здесь —
+        простейшая версия для отладки паттерна.
         """
         base, ext = [], []
         for part in parts or []:

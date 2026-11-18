@@ -253,8 +253,6 @@
 
                 <div class="form-row">
                   <label class="form-field"><span>Кодировка</span><input v-model="selOption.encoding" /></label>
-                  <label class="form-field"><span>Ext-код</span><input v-model="selOption.ext_encoding" /></label>
-                  <label class="form-field"><span>Плейсхолдер</span><input v-model="selOption.placeholder" /></label>
                 </div>
                 <div v-if="selSlot.slot_kind !== 'object'" class="form-row">
                   <label class="form-field"><span>Описание</span><textarea v-model="selOption.description" rows="2"></textarea></label>

@@ -72,6 +72,12 @@ def _clean_via_model(instance, model_cls, attrs, extra_fields=()):
                 if val is not None:
                     probe_kwargs[f] = val
     probe = model_cls(**probe_kwargs)
+    # probe с pk редактируемого экземпляра: проверки уникальности с
+    # ``exclude(pk=self.pk)`` не должны считать сам экземпляр дублем
+    # (иначе любое сохранение сущности с непустой кодировкой падало бы
+    # с ложной «должна быть уникальной»).
+    if instance is not None and instance.pk:
+        probe.pk = instance.pk
     try:
         probe.clean()
     except DjValidationError as exc:
@@ -299,10 +305,28 @@ def _slot_serializer():
 
         def validate(self, attrs):
             _clean_via_model(self.instance, CuSlot, attrs,
-                             ('code', 'name', 'slot_kind', 'source'))
+                             ('code', 'name', 'slot_kind', 'source',
+                              'encoding'))
             return attrs
 
     S.__name__ = 'CuSlotSerializer'
+    return S
+
+
+def _section_serializer():
+    """CuSectionNode + model.clean() (код/кодировка без разделителей и т.п.)."""
+    class S(serializers.ModelSerializer):
+        class Meta:
+            model = CuSectionNode
+            fields = '__all__'
+            read_only_fields = ('name_i18n', 'description_i18n', 'key')
+
+        def validate(self, attrs):
+            _clean_via_model(self.instance, CuSectionNode, attrs,
+                             ('code', 'name', 'encoding'))
+            return attrs
+
+    S.__name__ = 'CuSectionNodeSerializer'
     return S
 
 
@@ -360,7 +384,7 @@ _OPT_CLEAN_FIELDS = (
     'protocol', 'heater_supply', 'signal_power', 'control_logic',
     'control_unit', 'control_unit_kind', 'device', 'local_control_type',
     'unit_power_source', 'cable_gland_set', 'location_option',
-    'access_device_option',
+    'access_device_option', 'encoding',
 )
 
 
@@ -410,7 +434,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def copy(self, request, pk=None):
-        """Копия БУ: скаляры + M2M + опция слота control_unit +
+        """Копия БУ: скаляры + M2M + опция слота-селектора типа (subtype) +
         профильные строки матрицы + правила, завязанные на код опции.
         Привязки копируются по подтверждению пользователя
         (body/query ``copy_bindings``)."""
@@ -548,7 +572,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
         return Response(status=204)
 ControlUnitBindingViewSet = _viewset(ControlUnitBinding, _binding_serializer())
 CuSectionNodeViewSet = _guarded_delete_viewset(
-    CuSectionNode, _serializer(CuSectionNode), _node_usage_specs())
+    CuSectionNode, _section_serializer(), _node_usage_specs())
 CuSlotViewSet = _guarded_delete_viewset(
     CuSlot, _slot_serializer(), _slot_usage_specs())
 CuSlotOptionViewSet = _guarded_delete_viewset(

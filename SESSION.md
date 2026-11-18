@@ -1,68 +1,84 @@
-# SESSION — 2026-11-18
+# SESSION — 2026-11-18 (итог)
 
-Конфигуратор БУ (ea_control): обобщение селектора изделия + кодировки.
+Конфигуратор БУ (ea_control): обобщение селектора изделия + системная кодировка
+(коды узлов/слотов как адреса шаблона, кодировки сущностей/опций, декодер).
 
 ## Сделано в этой сессии
 
-- **Селектор изделия → generic `subtype`**: слот-селектор помечается `slot_kind='subtype'`,
-  `get_product_type_slot()` (ровно один, иначе ImproperlyConfigured),
-  `resolve_product_types` (алиас `resolve_control_units`), опция `kind='product_type'`
-  (было `unit`). Роут `series-units/` → `product-types/`. Front: `EaControlConfigurator`
-  использует `pkg.product_type_slot`, `productTypes`.
-- **Координата контекста**: опция несёт `context_coordinate` (`{param, value_id}`),
-  словарь `CONTEXT_COORDINATES` в cu_package; фронт перезапрашивает пакет по ней
-  (generic, вместо `CMD_WIRING`/`signal_power_id`).
-- **Подсказка КВ** вынесена в `frontend/src/pages/admin/eaControlHints.js` (доменный
-  модуль), рендер передаёт выбор + колбэк видимости.
-- **Кодировки** (`ea_control/services/cu_code.py`):
-  - системный код — структурный, единый, по полной активной структуре (без show/hide);
-    шаблон `CuCodeSettings.system_code_template`; плейсхолдеры `{node:}/{slot:}/{opt:}/{slots:}`;
-    фоллбэк «узел.слот.опция» через «/».
-  - артикульный код — на `ControlUnit.article_code_template`/`ext_article_code_template`,
-    значения `encoding`/`ext_encoding` (матрица → опция); `build_article_code_dicts` для ЭП.
-  - `assemble_article` делегирует `build_system_code`.
-- **Модели/миграции**: `CuCodeSettings` (синглтон, pk=1); миграции core 0027-0028,
-  ea_control 0028-0029. Сначала системный шаблон был на EquipmentType + FK
-  `ControlUnit.equipment_type` — отменено (противоречие со статичной схемой), заменено
-  синглтоном.
-- **Данные**: плейсхолдеры узлов (GEN/SNS/SMART/…), слотов и опций (акронимы из `code`,
-  уникальные); `system_code_template` заполнен.
-- **Фронт**: вкладка «Системные кодировки» (`EaControlSystemCodes.vue`) + вкладка
-  «Кодировки» в «Редактор БУ» (`EaControlUnitsEditor.vue`); `units_view` расширен.
+- **Селектор изделия → generic `subtype`**: слот-селектор `slot_kind='subtype'`,
+  `get_product_type_slot()` (ровно один), `resolve_product_types` (алиас
+  `resolve_control_units`), опция `kind='product_type'`. Роут `series-units/` →
+  `product-types/`. Координата контекста `context_coordinate` (`CONTEXT_COORDINATES`);
+  подсказка КВ — в `frontend/src/pages/admin/eaControlHints.js`.
+- **Системная кодировка** (`ea_control/services/cu_code.py`) — итоговая схема:
+  - системный код — структурный «хэш»: `{model_code}` (ControlUnit.code) +
+    коды всех активных узлов/слотов (`{node:X}`/`{slot:X}`/`{slots:X}` — X = `code`,
+    адрес в шаблоне; подставляется `encoding` сущности, пусто — фолбэк на code) +
+    кодировки (`encoding`) выбранных опций: single/xor — одна, multi — все в порядке
+    сортировки; слоты в `{slots:X}` через `.`; слот без выбранного — «голый».
+    `{opt:X}` убран из системного движка. Фолбэк пустого шаблона —
+    `model_code/узел.слот+кодировки`. Слоты выключенных узлов/сироты не входят.
+  - артикульный код — `ControlUnit.article_code_template`/`ext_article_code_template`,
+    `encoding`/`ext_encoding` (матрица → опция); `build_article_code_dicts` для ЭП;
+    `assemble_article` делегирует `build_system_code`.
+  - **декодер** `decode_system_code`: шаблонно-зависимый парсер с backtracking;
+    `{model_code}` — альтернация известных кодов БУ (коды с `-`/`/`),
+    `{node:X}`/`{slot:X}` — захват + сверка токена (mismatch при расхождении),
+    сегменты `{slots:X}` — longest-match `encoding|code` слота + кодировки слота.
+    Best-effort отчёт `{model_code, unit, slots, ambiguous, unknown, mismatch}`;
+    пустые кодировки опций — слот без опций (неизбежная потеря).
+- **Модели/миграции**: `encoding` добавлен узлам/слотам (abstract + `CuSectionNode`/
+  `CuSlot`, миграция `ea_control/0031`); валидации `clean()` (работают и через API —
+  `_clean_via_model` ставит probe.pk, иначе ложная «уникальность» на повторном сейве):
+  кодировка узла/слота/опции — `[A-Za-z0-9]+`, уникальна (узлы/слоты — свои скоупы,
+  опции — внутри слота, кроме subtype); код узла/слота — `[A-Za-z0-9_]+`.
+  Миграции `0030` (help_text), `0032` (help_text обогрева). `makemigrations --check` — чисто.
+- **Данные** (`db.sqlite3`): `encoding` заполнен у всех опций не-subtype слотов
+  (323; говорящие 1–2 символа: 0/1, S/D, A/2, C/I/N, D/L/H, M/E/W, PH/AH…).
+  Пользователь поправит в UI. Шаблон — на кодах узлов, `{model_code}` первым.
+  Слот `HEATER_CONTROL_UNIT` переименован пользователем → `CU_HEATER` (валидация
+  принимает оба кода).
+- **Фронт** `EaControlSystemCodes.vue`: узлы/слоты — кодировка (инпут) + read-only
+  бейдж code; опции — таблица «название / кодировка»; кнопка **«Сохранить»** сохраняет
+  шаблон + все изменённые кодировки разом, «✓» у строки — точечно. В
+  `EaControlStructure.vue` из формы опции убраны «Плейсхолдер» и «Ext-код».
+- **Ревью-фиксы**: `_clean_via_model` — probe.pk (ложные ошибки уникальности и
+  subtype-слота); `encoding` добавлен в `_OPT_CLEAN_FIELDS` (валидации опций доходили
+  до API); `{model_code}` — альтернация кодов (коды с `-` не резались бы).
 
 ## Канон БД (актуально)
 
-- 7 БУ (basic AR01 / POSI AR01 / basic AR21 / posi-4-20 / INT/N / INT/L / INT/O) +
-  TR-AR01 (добавлен ранее пользователем).
-- ~115 слотов (растёт), ~150 правил; слот-селектор `control_unit` = `slot_kind=subtype`.
-- Канон — `db.sqlite3` (коммитится); тесты — на копии `test_db.sqlite3`.
+- 10 БУ: BASIC-AR01 / POTE-AR01 / TR-AR01 / POSI-AR01 / INT-L-NO-TORQUE /
+  INT-L-TORQUE / BASIC-AR21 / INT-O-AR21 / INT-L-AR21 / INT/N (все бренд «Архимед»).
+- ~115 активных слотов (16 активных узлов), ~150 правил; слот-селектор `control_unit` —
+  `slot_kind=subtype`; слот обогрева БУ — `CU_HEATER`.
+- Канон — `db.sqlite3` (коммитится); тесты — на копии `test_db.sqlite3` + `--keepdb`.
 
 ## Проверено
 
-- `python manage.py check` — no issues.
-- `python manage.py test ea_control.tests` — 36 OK (валидация + CuProductTypeTests).
-- `npm run build` — успешно.
-- Смок: `build_system_code`/`build_codes`/`build_article_code_dicts` работают;
-  PATCH `/sections/`, `/slot-options/` — 200.
+- Тесты на копии БД: 9 кодирования/декодирования (tests_description) + 7 валидаций
+  (CuEncodingValidationTests в tests.py, включая API-400) — все OK.
+- Смок: PATCH кодировок узлов/слотов — 200 и переживает перезагрузку; roundtrip
+  build→decode без ambiguous/unknown; multi — порядок сортировки.
+- `npm run build` OK; py_compile OK; `makemigrations --check` — чисто.
 
 ## Не закоммичено
 
-- backend: ea_control (api/urls/models/services/tests), core (equipment_type.py + миграция),
-  db.sqlite3.
-- frontend: EaControlConfigurator.vue, CuEmulationPage.vue, EaControlAdminPage.vue,
-  EaControlUnitsEditor.vue, eaControlHints.js (new), EaControlSystemCodes.vue (new).
-- миграции: core/0027_equipmenttype_system_code_template.py,
-  core/0028_remove_equipmenttype_system_code_template.py,
-  ea_control/0028_controlunit_article_code_template_and_more.py,
-  ea_control/0029_cucodesettings_remove_controlunit_equipment_type.py.
+- backend: ea_control/models/{abstract,cu_config,control_unit}.py, ea_control/api.py,
+  ea_control/services/{cu_code,cu_description,cu_matrix,cu_unit_matrix}.py,
+  ea_control/tests.py, ea_control/tests_description.py, db.sqlite3.
+- миграции: ea_control/0030 (help_text), 0031 (encoding узлов/слотов), 0032 (обогрев).
+- frontend: EaControlSystemCodes.vue, EaControlStructure.vue, EaControlAdminPage.vue,
+  EaControlUnitsEditor.vue, eaControlHints.js (нов.), EaControlConfigurator.vue,
+  CuEmulationPage.vue.
+- docs: slots.md, SESSION.md, .codewhale/handoff.md.
 
 ## Что дальше
 
 1. Закоммитить накопленное.
-2. Ревизия канон-ожиданий `tests_services`/`tests_description`/`tests_bindings`
-   (падают на дрейфе данных: 115 слотов vs 45, `basic AR21` vs `BASIC-AR21`,
-   `POSITION_FEEDBACK` vs `FB_POSITION`, списки привязок) — вернёт полный прогон в зелёный.
+2. Ревизия канон-ожиданий остальных тестов (tests_services/tests/tests_bindings —
+   дрейф: 115 слотов vs 45, переименования слотов/схем) — вернёт полный прогон.
 3. Артикульные кодировки БУ: заполнить `article_code_template`/`ext_article_code_template`
-   на ControlUnit и `encoding`/`ext_encoding` опций из legacy-каталога (пока пусто).
-4. (Опц.) короткие плейсхолдеры — уже сгенерированы акронимами; при желании перегенерить
-   по другому правилу (2–3 буквы на слово).
+   на ControlUnit и `ext_encoding` опций из каталога (пока пусто; `encoding` опций
+   заполнен системными кодами).
+4. Пользователь поправит/проверит сгенерированные кодировки опций в UI.

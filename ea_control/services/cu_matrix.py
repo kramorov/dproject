@@ -16,9 +16,9 @@
 - **conflicts** — парный запрет одновременного выбора (валидация —
   ``validate_selection``).
 
-Слот ``control_unit`` резолвится отдельно (``resolve_control_units``): его
-строки описывают «какой БУ доступен для серии/напряжения», а не опции
-конфигурации выбранного БУ.
+Слот-селектор типа изделия (``control_unit``, slot_kind=subtype) резолвится
+отдельно (``resolve_product_types``): его строки описывают «какой БУ
+доступен для серии/напряжения», а не опции конфигурации выбранного БУ.
 """
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
@@ -141,8 +141,9 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
     """Доступные опции всех слотов конфигурации выбранного БУ.
 
     Возвращает ``{slot_code: [payload, …]}`` — список эффективных строк по
-    слотам (включая none-строки «Нет»). Слот ``control_unit`` не входит:
-    выбор БУ — отдельный шаг (``resolve_control_units``).
+    слотам (включая none-строки «Нет»). Слот-селектор типа изделия
+    (subtype) не входит: выбор типа изделия — отдельный шаг
+    (``resolve_product_types``).
 
     ``signal_power`` — выбранная схема цепей управления (CuSignalPower):
     строки с конкретной схемой перекрывают строки «любой схемы» — так

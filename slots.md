@@ -155,7 +155,7 @@ MOTOR_STARTER — none-опции; PHASE_PROTECTION — value-пара с xor-в
   (`SLOT_SOURCE_PAYLOAD`; сериализатор + `CuSlotOption.clean`).
 - Фронт — две карточки опций слота: value (имя/описание + kind
   «Значение»/«Нет») и object (выбор записи справочника-источника +
-  encoding/ext_encoding, без полей описания; чекбокс «Опция „Нет“»).
+  encoding (без ext_encoding — оно для конкретного БУ), без полей описания; чекбокс «Опция „Нет“»).
   [реализовано — EaControlStructure.vue]
 
 **Матрица: std/opt/na на каждую опцию слота.**
@@ -224,11 +224,13 @@ none-опциями (2: TURN_COUNTER/MOTOR_STARTER). Bare-строки матр�
 Общие поля и логика; связные поля (FK/M2M) объявляет наследник.
 
 - `AbstractConfigNode` — узел: `code`, `key` (стабильный UUID для синхронизации, read-only),
-  `name`, `parent` (self-FK), `description`,
+  `name`, `parent` (self-FK), `description`, `placeholder`, `encoding` (кодировка
+  в системном коде, пусто — фолбэк на code),
   `sorting_order`, `is_active`.
 - `AbstractConfigSlot` — слот: `code`, `key` (стабильный UUID), `name`, `selection_mode`
   (single/multi/xor), `slot_kind` (value/object/subtype), `required`,
-  `description`, `sorting_order`, `is_active`.
+  `description`, `placeholder`, `encoding` (кодировка в системном коде),
+  `sorting_order`, `is_active`.
 - `AbstractSlotOption` — опция: `code`, `key` (стабильный UUID), `kind`, `name`,
   `encoding`/`ext_encoding`,
   `description`, `sorting_order`, `is_active`.
@@ -248,8 +250,10 @@ none-опциями (2: TURN_COUNTER/MOTOR_STARTER). Bare-строки матр�
 
 - `CuSectionNode(AbstractConfigNode)` — узел-секция БУ.
 - `CuSlot(AbstractConfigSlot)` — слот БУ, + `section` (FK → CuSectionNode),
-  `source` (CuSlotSource — источник значений object-слота; value — пусто),
-  `clean()`: object обязан объявить источник, value — не может.
+  `source` (CuSlotSource — источник значений object-слота; value/subtype —
+  пусто), `clean()`: object обязан объявить источник, value/subtype — не
+  могут; код/кодировка — валидации системной кодировки (см. § «Выполнено
+  2026-11-18 (доп.)»).
 - `CuSlotOption(AbstractSlotOption)` — опция БУ, + `slot` (FK → CuSlot) и
   типизированные нагрузки по `kind`:
   - `signal` → ровно одно из `control_signal`/`feedback_signal`/`protocol`;
@@ -1081,11 +1085,13 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
   (не по `CMD_WIRING`/`signal_power_id`).
 - **Подсказка КВ** вынесена из generic-рендера в `frontend/.../eaControlHints.js`
   (доменный модуль; рендер передаёт выбор + колбэк видимости).
-- **Кодировки (cu_code.py)**: два уровня — системный код (структурный, единый,
-  по полной активной структуре без show/hide, шаблон `CuCodeSettings.system_code_template`,
-  плейсхолдеры `{node:}/{slot:}/{opt:}/{slots:}`) и артикульный код (на `ControlUnit`:
-  `article_code_template`/`ext_article_code_template`, значения `encoding`/`ext_encoding`
-  с приоритетом матрица → опция). `build_article_code_dicts` — плоские dict для ЭП.
+- **Кодировки (cu_code.py)**: два уровня — системный код (структурный «хэш»,
+  единый, по полной активной структуре без show/hide, шаблон
+  `CuCodeSettings.system_code_template`, плейсхолдеры
+  `{model_code}`/`{node:}`/`{slot:}`/`{slots:}`) и артикульный код (на
+  `ControlUnit`: `article_code_template`/`ext_article_code_template`,
+  значения `encoding`/`ext_encoding` с приоритетом матрица → опция).
+  `build_article_code_dicts` — плоские dict для ЭП.
   `assemble_article` делегирует `build_system_code`.
 - **Модели/миграции**: `CuCodeSettings` (синглтон, pk=1) в ea_control;
   `ControlUnit.article_code_template`/`ext_article_code_template`. Миграции core 0027-0028,
@@ -1094,9 +1100,76 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
 - **Данные**: плейсхолдеры узлов (GEN/SNS/SMART/…), слотов и опций (акронимы из `code`,
   уникальные, коллизии — числовой суффикс); `system_code_template` заполнен.
 - **Фронт**: вкладка «Системные кодировки» (`EaControlSystemCodes.vue`: шаблон +
-  дерево узлы→слоты→опции, правка placeholder/encoding/ext_encoding) и вкладка
+  дерево узлы→слоты→опции; у узлов/слотов — кодировка (``encoding``) с
+  read-only бейджем ``code`` (адрес в шаблоне), у опций — таблица
+  «название / кодировка»; кнопка «Сохранить» сохраняет шаблон и все
+  изменённые кодировки разом, «✓» у строки — точечно; ext_encoding из
+  редактора убран — это кодировка конкретного БУ) и вкладка
   «Кодировки» в «Редактор БУ» (шаблоны + предпросмотр + справочная таблица).
   `units_view` расширен (description/name_template/article_code_template/ext_article_code_template).
+- **Докстринги приведены к канону БД (2026-11-18)**: `control_unit` — слот-
+  селектор (slot_kind=subtype, опции kind=product_type), а не object;
+  классы БУ — без БУ/базовый/интеллектуальный/регулирующий (без «позиционер»);
+  примеры кодов узлов/слотов — из текущей БД (GENERAL/CMD_WIRING вместо
+  удалённых CONTROL_SIGNALS/POSITION_FEEDBACK); список payload-полей опции
+  дополнен (control_unit_kind/local_control_type/display_types/unit_power_source/
+  access_device_option); уточнены «source — только object», координаты матрицы
+  (+signal_power), делегирование артикула в cu_code, `resolve_product_types`,
+  поведение `ControlUnit.save` (без перегенерации имени). Миграция `ea_control/0030`
+  (AlterField только по help_text) применена; `makemigrations --check` — чисто.
+
+### Выполнено 2026-11-18 (доп.) — системная кодировка: коды узлов/слотов + кодировки опций
+
+Решения пользователя: системный код — «хэш» конфигурации, единый для всех
+производителей; плейсхолдеры узлов/слотов в коде заменены их полем ``code``
+(в терминах TemplateMixin код = плейсхолдер-ключ — никакого рассинхрона);
+опция даёт только ``encoding``; артикульная кодировка (с ext) остаётся у
+производителя и может отсутствовать.
+
+- **Системный код** (`cu_code.build_system_code`): `{model_code}` →
+  `ControlUnit.code`; `{node:X}`/`{slot:X}` — X = ``code`` сущности
+  (адрес-плейсхолдер в шаблоне; подставляется ``encoding`` сущности,
+  пусто — фолбэк на code); `{slots:X}` — **все** активные слоты узла:
+  кодировка слота + кодировки выбранных опций подряд (single/xor — одна;
+  multi — все в порядке сортировки), слоты через ``.``; слот без
+  выбранного — «голый»; полный набор узлов/слотов, включая невыбранные.
+  `{opt:X}` из системного движка убран (в артикульном остался). Пустой
+  шаблон — фолбэк ``model_code/узел.слот+кодировки``. Слоты выключенных
+  узлов и сироты в код не входят.
+- **Декодер** (`cu_code.decode_system_code`): шаблонно-зависимый парсер —
+  литералы шаблона дают границы, `{model_code}` — альтернация известных
+  кодов ControlUnit (коды содержат ``-``/``/``), `{node:X}`/`{slot:X}` —
+  захват, сверка с текущим токеном сущности (интегральная проверка
+  схемы), `{slots:X}` — сегменты через ``.``: longest-match токена слота
+  (encoding или code) + кодировки слота (backtracking для multi и
+  префиксных коллизий). Best-effort отчёт: `{model_code, unit, slots:
+  {slot_code: [option_codes]}, ambiguous, unknown, mismatch}`; пустые
+  кодировки — слот декодируется без опций (выбранное не видно).
+- **Валидации** (`clean()`, действуют и через API — `_clean_via_model` с
+  probe.pk): кодировка узла/слота/опции — только [A-Za-z0-9], уникальна
+  (узлы — среди узлов, слоты — среди слотов, опции — внутри слота, кроме
+  слота-селектора типа); код узла/слота — только [A-Za-z0-9_]. Данные
+  удовлетворяют (дубли кодировок только в subtype-слоте — он вне
+  системного кода). Миграции `ea_control/0031` (encoding узлов/слотов)
+  и `0032` (help_text обогрева) применены.
+- **Данные**: ``encoding`` заполнен у всех опций не-subtype слотов
+  (323 опции; говорящие 1–2 символа: 0=нет, 1=есть, S/D=SPDT/DPDT,
+  A=~220, 2=24В, C/I/N=логика, D/L/H=журналы, M/E/W=датчики, L/E=LCD/LED…;
+  пользователь поправит); системный шаблон переписан на коды узлов с
+  `{model_code}` первым (16 активных узлов в порядке дерева).
+- **UI «Системные кодировки»**: узлы/слоты — кодировка (``encoding``,
+  подставляется в код; пусто — фолбэк на code) редактируется прямо в
+  редакторе, ``code`` — read-only бейдж (адрес в шаблоне, правится в
+  «Конфигураторе опций»); опции — таблица «название / кодировка».
+  В «Конфигураторе опций» из формы опции убраны «Плейсхолдер» и
+  «Ext-код». Слот обогрева БУ переименован HEATER_CONTROL_UNIT →
+  CU_HEATER (правки данных пользователя; валидация принимает оба кода).
+- **Тесты**: артикул-тесты переведены на decode-проверки (9 шт.: коды,
+  снимок, stale-фолбэк, multi-порядок, фолбэк-формат, mismatch,
+  неактивный узел, кодировки узла/слота) и валидации (7 шт.:
+  CuEncodingValidationTests — charset кодов/кодировок, уникальность
+  кодировок узла/слота, API-путь с 400) — зелёные на копии БД;
+  `npm run build` OK.
 
 ## 5. Дальнейшие действия
 
