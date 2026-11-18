@@ -144,7 +144,7 @@ class CuConfigTestCase(TestCase):
                           selection_mode='single'))[0]
         cls.slot_cu = CuSlot.objects.get_or_create(
             code='control_unit',
-            defaults=dict(name='Тип БУ', slot_kind='object',
+            defaults=dict(name='Тип БУ', slot_kind='subtype',
                           selection_mode='single'))[0]
         cls.slot_protocol = CuSlot.objects.get_or_create(
             code='PROTOCOL',
@@ -167,11 +167,11 @@ class CuSlotOptionTests(CuConfigTestCase):
 
     def test_unit_option_only_for_control_unit_slot(self):
         opt = self.make_option(
-            code='U1', slot=self.slot_cmd, kind='unit', control_unit=self.cu)
+            code='U1', slot=self.slot_cmd, kind='product_type', control_unit=self.cu)
         with self.assertRaises(ValidationError):
             opt.full_clean()
         ok = self.make_option(
-            code='U2', slot=self.slot_cu, kind='unit', control_unit=self.cu)
+            code='U2', slot=self.slot_cu, kind='product_type', control_unit=self.cu)
         ok.full_clean()  # не падает
 
     def test_none_option_requires_name(self):
@@ -182,7 +182,7 @@ class CuSlotOptionTests(CuConfigTestCase):
     def test_option_encoding_defaults(self):
         """Справочные коды артикула у опции (переопределяются матрицей)."""
         opt = self.make_option(
-            code='E1', slot=self.slot_cu, kind='unit', control_unit=self.cu,
+            code='E1', slot=self.slot_cu, kind='product_type', control_unit=self.cu,
             encoding='L', ext_encoding='E1')
         opt.full_clean()
         opt.save()
@@ -196,6 +196,43 @@ class CuSlotOptionTests(CuConfigTestCase):
             with transaction.atomic():
                 self.make_option(code='DUP', slot=self.slot_cmd, kind='none',
                                  name='Два')
+
+
+class CuProductTypeTests(CuConfigTestCase):
+    """Generic-слой «тип изделия» (slot_kind=subtype) + координата контекста."""
+
+    def test_get_product_type_slot(self):
+        from ea_control.services.cu_matrix import get_product_type_slot
+        slot = get_product_type_slot()
+        self.assertEqual(slot.code, 'control_unit')
+        self.assertEqual(slot.slot_kind, 'subtype')
+
+    def test_subtype_slot_clean_rejects_duplicate(self):
+        dup = CuSlot(code='SUBTYPE_2', slot_kind='subtype')
+        with self.assertRaises(ValidationError):
+            dup.full_clean()
+
+    def test_option_context_coordinate(self):
+        from ea_control.services.cu_package import _option_context_coordinate
+        power_opt = CuSlotOption(
+            code='CTX_POWER', slot=self.slot_cmd, kind='power',
+            signal_power=self.signal_power)
+        self.assertEqual(
+            _option_context_coordinate(power_opt),
+            {'param': 'signal_power', 'value_id': self.signal_power.id})
+        value_opt = CuSlotOption(
+            code='CTX_VAL', slot=self.slot_cmd, kind='value', name='x')
+        self.assertIsNone(_option_context_coordinate(value_opt))
+
+    def test_build_package_exposes_product_type_and_context(self):
+        from ea_control.services.cu_package import build_package
+        pkg = build_package(self.cu)
+        self.assertEqual(pkg['product_type_slot'], 'control_unit')
+        self.assertEqual(
+            pkg['context_coordinates'],
+            [{'param': 'signal_power', 'field': 'signal_power'}])
+        self.assertFalse(
+            any(s['code'] == 'control_unit' for s in pkg['slots']))
 
 
 class CuMatrixEntryTests(CuConfigTestCase):
@@ -256,7 +293,7 @@ class CuMatrixEntryTests(CuConfigTestCase):
     def test_control_unit_slot_row_via_unit_option(self):
         """Строка слота control_unit: контекст пуст, опция — kind=unit."""
         opt = self.make_option(
-            code='U3', slot=self.slot_cu, kind='unit', control_unit=self.cu)
+            code='U3', slot=self.slot_cu, kind='product_type', control_unit=self.cu)
         row = self._row(slot=self.slot_cu, option=opt,
                         control_unit=None, power_supply=None)
         row.full_clean()

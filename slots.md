@@ -1070,6 +1070,34 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
 
 ---
 
+### Выполнено 2026-11-18 — обобщение селектора изделия и кодировки
+
+- **Селектор изделия → generic `subtype`**: `control_unit` больше не magic-строка.
+  Слот-селектор помечается `slot_kind='subtype'`; `get_product_type_slot()` (ровно один,
+  иначе `ImproperlyConfigured`) + `resolve_product_types` (алиас `resolve_control_units`);
+  опция `kind='unit'` → `kind='product_type'`. Роут `series-units/` → `product-types/`.
+- **Координата контекста → generic**: опция несёт `context_coordinate`
+  (`{param, value_id}`, словарь `CONTEXT_COORDINATES`), фронт перезапрашивает пакет по ней
+  (не по `CMD_WIRING`/`signal_power_id`).
+- **Подсказка КВ** вынесена из generic-рендера в `frontend/.../eaControlHints.js`
+  (доменный модуль; рендер передаёт выбор + колбэк видимости).
+- **Кодировки (cu_code.py)**: два уровня — системный код (структурный, единый,
+  по полной активной структуре без show/hide, шаблон `CuCodeSettings.system_code_template`,
+  плейсхолдеры `{node:}/{slot:}/{opt:}/{slots:}`) и артикульный код (на `ControlUnit`:
+  `article_code_template`/`ext_article_code_template`, значения `encoding`/`ext_encoding`
+  с приоритетом матрица → опция). `build_article_code_dicts` — плоские dict для ЭП.
+  `assemble_article` делегирует `build_system_code`.
+- **Модели/миграции**: `CuCodeSettings` (синглтон, pk=1) в ea_control;
+  `ControlUnit.article_code_template`/`ext_article_code_template`. Миграции core 0027-0028,
+  ea_control 0028-0029 (сначала через EquipmentType — отменено: противоречие со схемой,
+  синглтон вместо классификатора).
+- **Данные**: плейсхолдеры узлов (GEN/SNS/SMART/…), слотов и опций (акронимы из `code`,
+  уникальные, коллизии — числовой суффикс); `system_code_template` заполнен.
+- **Фронт**: вкладка «Системные кодировки» (`EaControlSystemCodes.vue`: шаблон +
+  дерево узлы→слоты→опции, правка placeholder/encoding/ext_encoding) и вкладка
+  «Кодировки» в «Редактор БУ» (шаблоны + предпросмотр + справочная таблица).
+  `units_view` расширен (description/name_template/article_code_template/ext_article_code_template).
+
 ## 5. Дальнейшие действия
 
 1. Перенос абстракций из `ea_control/models/abstract.py` в `core`

@@ -31,7 +31,8 @@
         <h3>{{ pkg.unit.name }} <small>{{ pkg.unit.kind_display }}</small></h3>
       </div>
 
-      <div v-for="section in sectionTree" :key="section.code" class="section">
+      <div v-for="section in sectionTree" :key="section.code" class="section"
+           :style="{ paddingLeft: (section.depth * 16) + 'px' }">
         <h4>{{ section.name }}</h4>
         <template v-for="slot in slotsOf(section)" :key="slot.code">
           <div v-if="slotState(slot.code).visible && availableOptions(slot).length"
@@ -200,8 +201,9 @@ async function onUnitChange() {
       params: { unit: unitId.value, locale: locale.value },
     })
     pkg.value = r.data
-    // значение слота control_unit для правил — код ОПЦИИ (CU_BASIC…)
-    selection['control_unit'] = pkg.value.unit.option_code || pkg.value.unit.code
+    // значение слота-селектора типа для правил — код ОПЦИИ (CU_BASIC…)
+    const ptCode = pkg.value.product_type_slot
+    if (ptCode) selection[ptCode] = pkg.value.unit.option_code || pkg.value.unit.code
     applyDefaults()
   } catch (e) {
     error.value = e.displayMessage || e.message || 'Не удалось загрузить пакет'
@@ -239,11 +241,12 @@ function evaluate(op, expected, current) {
 
 function slotState(slotCode) {
   if (!pkg.value) return { visible: true, blocked: false, required: false }
-  const value = selection['control_unit']
+  const ptCode = pkg.value.product_type_slot
+  const value = ptCode ? selection[ptCode] : null
   const rules = pkg.value.rules.filter(r => r.target_slot === slotCode)
   const state = { visible: true, blocked: false, required: false }
   for (const r of [...rules].sort((a, b) => (a.priority - b.priority) || (a.id - b.id))) {
-    const current = r.when_slot === 'control_unit' ? value : selection[r.when_slot]
+    const current = r.when_slot === ptCode ? value : selection[r.when_slot]
     if (!evaluate(r.operator, r.when_value, current)) continue
     if (r.action === 'show') state.visible = true
     else if (r.action === 'hide') state.visible = false
@@ -265,7 +268,15 @@ const sectionTree = computed(() => {
       roots.push(node)
     }
   }
-  return roots
+  // Depth-first flatten: вложенные секции рендерятся со своими слотами
+  // (тот же обход, что в «Превью БУ» и на сервере cu_report/cu_description).
+  const flat = []
+  const walk = (node, depth) => {
+    flat.push({ ...node, depth })
+    for (const child of node.children) walk(child, depth + 1)
+  }
+  for (const root of roots) walk(root, 0)
+  return flat
 })
 
 function slotsOf(section) {
@@ -333,9 +344,9 @@ async function fetchView(kind) {
     const r = await api.post(url, {
       unit: unitId.value,
       snapshot: snapshotObject(),
-      // выбранная схема цепей (CMD_WIRING) перерезолвивает набор сигналов
-      // CMD_*: строки матрицы с координатой signal_power
-      signal_power: wiringSignalPowerId(),
+      // координаты контекста матрицы из выбранных опций (сейчас — схема
+      // цепей): сервер перерезолвивает набор сигналов CMD_*
+      ...contextCoordinates(),
       locale: viewLocale.value,
     })
     view.value = kind === 'spec'
@@ -346,11 +357,19 @@ async function fetchView(kind) {
   }
 }
 
-function wiringSignalPowerId() {
-  const slot = (pkg.value?.slots || []).find(s => s.code === 'CMD_WIRING')
-  if (!slot) return null
-  const o = (slot.options || []).find(x => x.code === selection['CMD_WIRING'])
-  return o?.signal_power_id || null
+function contextCoordinates() {
+  // {param: value_id} координат контекста из выбранных опций-носителей
+  const out = {}
+  for (const slot of pkg.value?.slots || []) {
+    const v = selection[slot.code]
+    for (const o of slot.options || []) {
+      const chosen = Array.isArray(v) ? v.includes(o.code) : v === o.code
+      if (chosen && o.context_coordinate) {
+        out[o.context_coordinate.param] = o.context_coordinate.value_id
+      }
+    }
+  }
+  return out
 }
 </script>
 

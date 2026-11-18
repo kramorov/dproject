@@ -13,8 +13,31 @@
 from core.utils.localization import pick_i18n
 
 from ea_control.models import CuSlot, CuSlotOption, CuSlotRule
+from ea_control.models.abstract import ConfigSlotKind
 from ea_control.services.cu_description import build_description
-from ea_control.services.cu_matrix import (get_profile_defaults, resolve_slots)
+from ea_control.services.cu_code import build_codes
+from ea_control.services.cu_matrix import (get_product_type_slot,
+                                           get_profile_defaults, resolve_slots)
+
+# Опции могут нести значение координаты контекста матрицы (помимо типа
+# изделия): выбор такой опции перерезолвивает доступность остальных слотов.
+# Пара — (имя параметра запроса, поле полезной нагрузки опции).
+CONTEXT_COORDINATES = (
+    ('signal_power', 'signal_power'),
+)
+
+
+def _option_context_coordinate(option):
+    """Координата контекста, которую несёт опция (или None).
+
+    Возвращает ``{'param': …, 'value_id': …}`` — фронт по ней перезапрашивает
+    пакет с параметром ``param=value_id`` при выборе опции.
+    """
+    for param, field in CONTEXT_COORDINATES:
+        value_id = getattr(option, f'{field}_id', None)
+        if value_id:
+            return {'param': param, 'value_id': value_id}
+    return None
 
 
 def _slot_payload(slot, options_payloads, locale=None):
@@ -44,9 +67,17 @@ def build_package(control_unit, *, model_line=None, body=None,
         model_line_item=model_line_item, power_supply=power_supply,
         signal_power=signal_power, mode=mode, locale=locale)
 
+    product_type_slot = get_product_type_slot()
+    product_type_code = product_type_slot.code if product_type_slot else None
+    unit_option_code = (CuSlotOption.objects.filter(
+        slot__slot_kind=ConfigSlotKind.SUBTYPE,
+        control_unit=control_unit).values_list('code', flat=True).first() or '')
+    defaults = get_profile_defaults(control_unit, power_supply=power_supply,
+                                    mode=mode, signal_power=signal_power)
+
     # опции слотов: каталог + доступность из матрицы
     slots = list(CuSlot.objects.filter(is_active=True)
-                 .exclude(code='control_unit')
+                 .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
                  .select_related('section')
                  .prefetch_related('slot_options')
                  .order_by('sorting_order', 'code'))
@@ -72,9 +103,9 @@ def build_package(control_unit, *, model_line=None, body=None,
                 'ext_encoding': (matrix['ext_encoding'] if matrix
                                  else option.ext_encoding),
                 'row_id': matrix['row_id'] if matrix else None,
-                # для опции схемы цепей (kind=power) — id пары CuSignalPower:
-                # по нему фронт перезапрашивает пакет с выбранной схемой
-                'signal_power_id': option.signal_power_id,
+                # опция несёт координату контекста матрицы (сейчас — схема
+                # цепей CuSignalPower): фронт по ней перезапрашивает пакет
+                'context_coordinate': _option_context_coordinate(option),
             })
         slots_payload.append(_slot_payload(slot, options_payload, locale))
 
@@ -97,7 +128,7 @@ def build_package(control_unit, *, model_line=None, body=None,
     rules_payload = []
     for rule in rules:
         if rule.when_slot.code not in slot_codes \
-                and rule.when_slot.code != 'control_unit':
+                and rule.when_slot.code != product_type_code:
             continue
         if rule.target_slot.code not in slot_codes:
             continue
@@ -116,11 +147,8 @@ def build_package(control_unit, *, model_line=None, body=None,
         'unit': {
             'id': control_unit.id,
             'code': control_unit.code,
-            # код ОПЦИИ слота control_unit (CU_BASIC…) — значение для правил/снимка
-            'option_code': (CuSlotOption.objects.filter(
-                slot__code='control_unit',
-                control_unit=control_unit).values_list('code', flat=True).first()
-                or ''),
+            # код ОПЦИИ слота-селектора типа (CU_BASIC…) — значение для правил/снимка
+            'option_code': unit_option_code,
             'name': control_unit.generate_name(locale=locale) or control_unit.name,
             'kind': control_unit.kind_id,
             'kind_display': (pick_i18n(control_unit.kind.name_i18n, locale,
@@ -134,7 +162,14 @@ def build_package(control_unit, *, model_line=None, body=None,
         },
         'sections': sections,
         'slots': slots_payload,
-        'defaults': get_profile_defaults(control_unit, power_supply=power_supply,
-                                         mode=mode, signal_power=signal_power),
+        'product_type_slot': product_type_code,
+        'context_coordinates': [
+            {'param': param, 'field': field}
+            for param, field in CONTEXT_COORDINATES
+        ],
+        'defaults': defaults,
         'rules': rules_payload,
+        **build_codes(control_unit, power_supply=power_supply, mode=mode,
+                      signal_power=signal_power, model_line=model_line,
+                      body=body, model_line_item=model_line_item),
     }

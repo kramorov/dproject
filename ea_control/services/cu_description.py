@@ -33,7 +33,9 @@ from core.utils.localization import pick_i18n
 
 from ea_control.models import (CuSectionNode, CuSlot, CuSlotOption,
                                CuSlotRule)
-from ea_control.services.cu_matrix import get_profile_defaults, resolve_slots
+from ea_control.models.abstract import ConfigSlotKind
+from ea_control.services.cu_matrix import (get_product_type_slot,
+                                           get_profile_defaults, resolve_slots)
 from ea_control.services.cu_rules import apply_rules
 
 # FK полезных нагрузок CuSlotOption — для select_related в префетче опций
@@ -55,9 +57,10 @@ def _slot_options_prefetch():
                   .prefetch_related('display_types')))
 
 
-def _unit_option(control_unit):
+def _product_type_option(control_unit):
+    """Опция слота-селектора типа изделия для данного типа (ControlUnit)."""
     return CuSlotOption.objects.filter(
-        slot__code='control_unit', control_unit=control_unit).first()
+        slot__slot_kind=ConfigSlotKind.SUBTYPE, control_unit=control_unit).first()
 
 
 def hidden_slot_codes(control_unit, snapshot=None):
@@ -66,10 +69,10 @@ def hidden_slot_codes(control_unit, snapshot=None):
     Профильные правила срабатывают всегда (``control_unit`` в селекции);
     универсальные — когда снимок содержит значение слота-условия.
     """
-    unit_opt = _unit_option(control_unit)
+    unit_opt = _product_type_option(control_unit)
     if unit_opt is None:
         return set()
-    selection = {'control_unit': unit_opt.code}
+    selection = {unit_opt.slot.code: unit_opt.code}
     selection.update(snapshot or {})
     rules = (CuSlotRule.objects.filter(is_active=True)
              .select_related('when_slot', 'target_slot'))
@@ -88,7 +91,7 @@ def visible_slots(control_unit, snapshot=None):
     """
     hidden = hidden_slot_codes(control_unit, snapshot)
     slots = list(CuSlot.objects.filter(is_active=True)
-                 .exclude(code='control_unit')
+                 .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
                  .select_related('section')
                  .prefetch_related(_slot_options_prefetch())
                  .order_by('sorting_order', 'code'))
@@ -166,9 +169,11 @@ def _effective_snapshot(control_unit, snapshot, *, power_supply=None,
     """(снимок+дефолты, дефолты): снимок перекрывает дефолты профиля."""
     defaults = get_profile_defaults(control_unit, power_supply=power_supply,
                                     mode=mode, signal_power=signal_power)
+    product_type_slot = get_product_type_slot()
+    pt_code = product_type_slot.code if product_type_slot else None
     merged = dict(defaults)
     merged.update({k: v for k, v in (snapshot or {}).items()
-                   if k != 'control_unit'})
+                   if k != pt_code})
     return merged, defaults
 
 
@@ -186,13 +191,6 @@ def _slot_chosen_options(slot, options_by_slot, merged, defaults):
         d = defaults.get(slot.code)
         chosen = [d] if d and d in codes else []
     return [o for o in options if o.code in chosen]
-
-
-def _slot_chosen_codes(slot, options_by_slot, merged, defaults):
-    """Коды выбранных опций слота: снимок → профильный std; чужие коды —
-    отброшены."""
-    return [o.code for o in _slot_chosen_options(slot, options_by_slot,
-                                                 merged, defaults)]
 
 
 def _slot_value(slot, options_by_slot, merged, defaults, locale=None):
@@ -250,7 +248,7 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
     for s in visible:
         slots_by_node.setdefault(s.section_id, []).append(s)
 
-    unit_opt = _unit_option(control_unit)
+    unit_opt = _product_type_option(control_unit)
     sections = []
     for node in nodes:
         slot_payloads = []
@@ -331,30 +329,11 @@ def build_description(control_unit, *, snapshot=None, locale=None,
 
 def assemble_article(control_unit, *, snapshot=None, power_supply=None,
                      mode='both', signal_power=None):
-    """Артикул модификации из кодов: узел.слот.опция (вместо кодировок).
+    """Артикул модификации — системный код (cu_code.build_system_code).
 
-    Части: код опции ``control_unit`` + для каждого видимого слота вклад
-    ``{node.code}.{slot.code}.{option.code}`` выбранных (или std) опций;
-    соединитель — ``/``. Устаревшие коды снимка игнорируются (fallback —
-    std профиля). Кодировки ``encoding``/``ext_encoding`` не используются.
+    Фоллбэк без шаблона — прежний вид «код опции типа + узел.слот.опция»
+    через «/». Кодировки ``encoding``/``ext_encoding`` не используются.
     """
-    merged, defaults = _effective_snapshot(
-        control_unit, snapshot, power_supply=power_supply, mode=mode,
-        signal_power=signal_power)
-    _nodes, visible = visible_slots(control_unit, snapshot)
-    options_by_slot = {}
-    for s in visible:
-        options_by_slot[s.id] = sorted(
-            [o for o in s.slot_options.all() if o.is_active],
-            key=lambda o: (o.sorting_order, o.code))
-    parts = []
-    unit_opt = _unit_option(control_unit)
-    parts.append(unit_opt.code if unit_opt else control_unit.code)
-    for s in visible:
-        chosen = _slot_chosen_codes(s, options_by_slot, merged, defaults)
-        # узел может быть выключен, но слот активен и видим — берём код
-        # секции напрямую (артикул не должен падать и не должен молчать)
-        node_code = s.section.code if s.section else ''
-        for c in chosen:
-            parts.append(f'{node_code}.{s.code}.{c}')
-    return '/'.join(parts)
+    from ea_control.services.cu_code import build_system_code
+    return build_system_code(control_unit, snapshot, power_supply=power_supply,
+                             mode=mode, signal_power=signal_power)

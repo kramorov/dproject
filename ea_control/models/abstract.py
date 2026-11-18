@@ -46,7 +46,7 @@ class ConfigSlotKind(models.TextChoices):
     """Род значения слота (slots.md, глоссарий)."""
     VALUE = 'value', _('Значение')
     OBJECT = 'object', _('Объект (типизированный FK на физическую модель)')
-    SUBTYPE = 'subtype', _('Подтип оборудования (EquipmentType)')
+    SUBTYPE = 'subtype', _('Тип изделия (селектор конфигурируемого изделия)')
 
 
 class ConfigAvailability(models.TextChoices):

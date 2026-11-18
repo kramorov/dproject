@@ -21,6 +21,7 @@ from django.db.models import Q
 
 from ea_control.models import (CuMatrixEntry, CuMatrixMode, CuSectionNode,
                                CuSlot, CuSlotOption)
+from ea_control.models.abstract import ConfigSlotKind
 from params.models import PowerSupplies
 
 
@@ -51,7 +52,7 @@ def _option_description(option):
         return option.signal_power.description or option.signal_power.name
     elif kind == 'logic' and option.control_logic_id:
         return option.control_logic.description or option.control_logic.name
-    elif kind == 'unit' and option.control_unit_id:
+    elif kind == 'product_type' and option.control_unit_id:
         return option.control_unit.description or option.control_unit.name
     elif kind == 'local_control' and option.local_control_type_id:
         return option.local_control_type.description or option.local_control_type.name
@@ -85,7 +86,7 @@ def _availability_map(control_unit, power_supply):
                     brand__isnull=True, model_line__isnull=True,
                     body__isnull=True, model_line_item__isnull=True,
                     signal_power__isnull=True, mode=CuMatrixMode.BOTH)
-            .exclude(slot__code='control_unit')
+            .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
             .filter(Q(power_supply=power_supply) | Q(power_supply__isnull=True))
             .select_related('slot', 'option'))
     by_pair = {}
@@ -134,7 +135,7 @@ def build_settings_xlsx(control_unit):
     hidden = hidden_slot_codes(control_unit)
 
     sections = _tree_sections()
-    slots = (CuSlot.objects.exclude(code='control_unit')
+    slots = (CuSlot.objects.exclude(slot_kind=ConfigSlotKind.SUBTYPE)
              .exclude(code__in=hidden)
              .select_related('section')
              .order_by('sorting_order', 'code'))

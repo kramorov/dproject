@@ -16,9 +16,9 @@
         </select>
       </label>
       <label>Блок управления
-        <select v-model="unitId" @change="onUnitChange" :disabled="!seriesUnits.length">
+        <select v-model="unitId" @change="onUnitChange" :disabled="!productTypes.length">
           <option :value="null">— БУ —</option>
-          <option v-for="u in seriesUnits" :key="u.unit_id" :value="u.unit_id">
+          <option v-for="u in productTypes" :key="u.product_type_id" :value="u.product_type_id">
             {{ u.name }} ({{ u.encoding }}){{ u.is_default ? ' · по умолчанию' : '' }}
           </option>
         </select>
@@ -42,7 +42,8 @@
         </table>
       </div>
 
-      <div v-for="section in sectionTree" :key="section.code" class="section">
+      <div v-for="section in sectionTree" :key="section.code" class="section"
+           :style="{ paddingLeft: (section.depth * 16) + 'px' }">
         <h4>{{ section.name }}</h4>
         <template v-for="slot in slotsOf(section)" :key="slot.code">
           <div v-if="slotState(slot.code).visible && availableOptions(slot).length"
@@ -51,7 +52,7 @@
               <strong>{{ slot.name }}</strong>
               <span class="mode">{{ slot.selection_mode }}</span>
               <span v-if="slot.required || slotState(slot.code).required" class="req">обязателен</span>
-              <span v-if="glandsSourceHint(slot)" class="gland-hint">{{ glandsSourceHint(slot) }}</span>
+              <span v-if="slotHintText(slot)" class="gland-hint">{{ slotHintText(slot) }}</span>
             </div>
             <!-- один std и нет opt-опций: выбора нет — read-only -->
             <div v-if="slotReadonly(slot)" class="opts readonly">
@@ -103,6 +104,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import api from '@/shared/api'
 import { useI18n } from '@/shared/i18n'
+import { slotHint } from './eaControlHints'
 
 const { locale } = useI18n()
 
@@ -110,13 +112,16 @@ const meta = reactive({ model_lines: [], power_supplies: [] })
 const modelLine = ref(null)
 const powerSupply = ref(null)
 const unitId = ref(null)
-const seriesUnits = ref([])
+const productTypes = ref([])
 const pkg = ref(null)
 const selection = reactive({})
 const error = ref('')
-// выбранная схема цепей (опция слота CMD_WIRING): по ней сервер
-// перерезолвивает набор сигналов дистанционного управления
-const wiringSignalPowerId = ref(null)
+// код слота-селектора типа изделия (slot_kind=subtype): его значение —
+// выбранный тип изделия, ключ в снимке/правилах
+const productTypeSlot = computed(() => pkg.value?.product_type_slot || null)
+// выбранные координаты контекста матрицы (например, схема цепей): по ним
+// сервер перерезолвивает доступность опций при выборе опции-носителя
+const context = reactive({})
 
 const errors = computed(() => {
   if (!pkg.value) return []
@@ -163,7 +168,7 @@ const snapshot = computed(() => {
 
 const article = computed(() => {
   if (!pkg.value) return ''
-  const unit = seriesUnits.value.find(u => u.unit_id === unitId.value)
+  const unit = productTypes.value.find(u => u.product_type_id === unitId.value)
   const parts = [unit?.encoding || pkg.value.unit.code]
   for (const slot of pkg.value.slots) {
     const v = selection[slot.code]
@@ -187,7 +192,17 @@ const sectionTree = computed(() => {
       roots.push(node)
     }
   }
-  return roots
+  // Depth-first flatten: вложенные секции (узел → слот) рендерятся со своими
+  // слотами, а не только корневые — иначе подузлы («Настройки»,
+  // «Протоколирование» и т.п. внутри «Функций интеллектуального БУ»)
+  // не выводятся в «Превью БУ».
+  const flat = []
+  const walk = (node, depth) => {
+    flat.push({ ...node, depth })
+    for (const child of node.children) walk(child, depth + 1)
+  }
+  for (const root of roots) walk(root, 0)
+  return flat
 })
 
 function slotsOf(section) {
@@ -205,13 +220,19 @@ function slotReadonly(slot) {
   return avail.length === 1 && avail[0].availability === 'std'
 }
 
+// Доменная подсказка слота (см. eaControlHints): считается по живому выбору.
+function slotHintText(slot) {
+  return slotHint(slot, selection, (code) => slotState(code).visible)
+}
+
 function slotState(slotCode) {
   if (!pkg.value) return { visible: true, blocked: false, required: false, default: null }
-  const value = selection['control_unit']
+  const ptCode = productTypeSlot.value
+  const value = ptCode ? selection[ptCode] : null
   const rules = pkg.value.rules.filter(r => r.target_slot === slotCode)
   const state = { visible: true, blocked: false, required: false, default: null }
   for (const r of [...rules].sort((a, b) => (a.priority - b.priority) || (a.id - b.id))) {
-    const current = r.when_slot === 'control_unit' ? value : selection[r.when_slot]
+    const current = r.when_slot === ptCode ? value : selection[r.when_slot]
     if (!evaluate(r.operator, r.when_value, current)) continue
     if (r.action === 'show') state.visible = true
     else if (r.action === 'hide') state.visible = false
@@ -220,23 +241,6 @@ function slotState(slotCode) {
     else if (r.action === 'set_default') state.default = r.action_value
   }
   return state
-}
-
-// производная подпись: чьи отверстия брать для подбора КВ (не слот —
-// следствие выбора PU_SHARED/PU_SEPARATE; висит на слоте питания БУ).
-// «+ БУ» — когда вводы БУ видны и при общем кабеле (исключение для
-// навесного БУ, правило show CU_INT_O)
-function glandsSourceHint(slot) {
-  if (slot.code !== 'CU_POWER_SUPPLY') return ''
-  const pu = selection['CU_POWER_SUPPLY']
-  if (!pu) return ''
-  const cuGlandsVisible = slotState('CU_CABLE_GLANDS').visible
-  if (pu === 'PU_SHARED') {
-    return cuGlandsVisible
-      ? 'отверстия для подбора КВ: корпус привода + БУ'
-      : 'отверстия для подбора КВ: корпус привода'
-  }
-  return 'отверстия для подбора КВ: БУ (отдельный кабель)'
 }
 
 function evaluate(op, expected, current) {
@@ -252,9 +256,9 @@ function evaluate(op, expected, current) {
 
 function selectOption(slot, o) {
   selection[slot.code] = o.code
-  if (slot.code === 'CMD_WIRING' && o.signal_power_id
-      && o.signal_power_id !== wiringSignalPowerId.value) {
-    reloadPackageForWiring(o.signal_power_id).catch(e => { error.value = e.displayMessage })
+  const coord = o.context_coordinate
+  if (coord && coord.value_id && context[coord.param] !== coord.value_id) {
+    reloadPackageForContext(coord).catch(e => { error.value = e.displayMessage })
     return
   }
   applySetDefaults()
@@ -297,24 +301,24 @@ async function loadMeta() {
   meta.power_supplies = data.power_supplies || []
 }
 
-async function loadSeriesUnits() {
-  seriesUnits.value = []
+async function loadProductTypes() {
+  productTypes.value = []
   unitId.value = null
   pkg.value = null
   if (!modelLine.value) return
-  const { data } = await api.get('/ea-control/series-units/', {
+  const { data } = await api.get('/ea-control/product-types/', {
     params: {
       model_line: modelLine.value,
       power_supply: powerSupply.value || undefined,
       locale: locale.value,
     },
   })
-  seriesUnits.value = data || []
+  productTypes.value = data || []
 }
 
 async function loadPackage() {
   pkg.value = null
-  wiringSignalPowerId.value = null
+  for (const k of Object.keys(context)) delete context[k]
   for (const k of Object.keys(selection)) delete selection[k]
   if (!unitId.value) return
   const { data } = await api.get('/ea-control/package/', {
@@ -326,26 +330,29 @@ async function loadPackage() {
     },
   })
   pkg.value = data
-  // значение слота control_unit в снимке/правилах — код ОПЦИИ (CU_BASIC…),
+  // значение слота-селектора типа в снимке/правилах — код ОПЦИИ (CU_BASIC…),
   // а не код типа БУ (basic…) — их разводит резолвер (option_code)
-  selection['control_unit'] = (seriesUnits.value.find(u => u.unit_id === unitId.value)
-                               || {}).option_code || null
+  const ptCode = data.product_type_slot
+  if (ptCode) {
+    selection[ptCode] = (productTypes.value.find(u => u.product_type_id === unitId.value)
+                         || {}).option_code || null
+  }
   applyProfileDefaults()
 }
 
-async function reloadPackageForWiring(signalPowerId) {
-  // схема цепей выбрана → перерезолвить набор сигналов на сервере
+async function reloadPackageForContext(coord) {
+  // опция несёт координату контекста → перерезолвить доступность на сервере
   const keep = { ...selection }
   const { data } = await api.get('/ea-control/package/', {
     params: {
       unit: unitId.value,
       model_line: modelLine.value || undefined,
       power_supply: powerSupply.value || undefined,
-      signal_power: signalPowerId || undefined,
+      [coord.param]: coord.value_id,
       locale: locale.value,
     },
   })
-  wiringSignalPowerId.value = signalPowerId
+  context[coord.param] = coord.value_id
   pkg.value = data
   for (const k of Object.keys(selection)) delete selection[k]
   Object.assign(selection, keep)
@@ -353,7 +360,7 @@ async function reloadPackageForWiring(signalPowerId) {
 }
 
 function onContextChange() {
-  loadSeriesUnits().catch(e => { error.value = e.displayMessage })
+  loadProductTypes().catch(e => { error.value = e.displayMessage })
 }
 
 function onUnitChange() {

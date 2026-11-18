@@ -23,6 +23,10 @@
       <CuEmulationPage />
     </div>
 
+    <div v-else-if="section === 'codes'">
+      <EaControlSystemCodes />
+    </div>
+
     <div v-else-if="section === 'dicts'" class="split-layout">
       <!-- ЛЕВАЯ ЧАСТЬ: список справочников -->
       <div class="left-pane">
@@ -80,6 +84,7 @@ import EaControlStructure from './EaControlStructure.vue'
 import EaControlConfigurator from './EaControlConfigurator.vue'
 import EaControlDescription from './EaControlDescription.vue'
 import CuEmulationPage from './CuEmulationPage.vue'
+import EaControlSystemCodes from './EaControlSystemCodes.vue'
 import EaControlUnitsEditor from './EaControlUnitsEditor.vue'
 import DictEditor from '@/components/admin/DictEditor.vue'
 
@@ -277,6 +282,7 @@ for (const [endpoint, label] of Object.entries(DICT_SOURCES)) {
 
 const SECTIONS = [
   { key: 'configurator', label: 'Конфигуратор опций' },
+  { key: 'codes', label: 'Системные кодировки' },
   { key: 'bu', label: 'Редактор БУ' },
   { key: 'dicts', label: 'Справочники' },
   { key: 'preview', label: 'Превью БУ' },
@@ -297,7 +303,7 @@ function selectSection(key) {
     : section.value === 'bu' ? buEditor.value : null
   if (ed && !ed.confirmUnsaved()) return
   section.value = key
-  if (key === 'configurator' || key === 'preview' || key === 'description' || key === 'emulation') return
+  if (key === 'configurator' || key === 'codes' || key === 'preview' || key === 'description' || key === 'emulation') return
   const first = models.value[0]
   if (!first) return
   current.value = first

@@ -61,6 +61,7 @@
         <div class="sub-tabs">
           <button :class="{ active: tab === 'basic' }" @click="tab = 'basic'">Основное</button>
           <button :class="{ active: tab === 'options' }" @click="openOptionsTab()">Редактор доступных опций</button>
+          <button :class="{ active: tab === 'codes' }" @click="openCodesTab()">Кодировки</button>
           <button :class="{ active: tab === 'bindings' }" @click="openBindingsTab()">Привязки</button>
         </div>
 
@@ -97,11 +98,41 @@
               <textarea v-model="form.description" rows="2"></textarea></label>
             <label class="field wide"><span>Шаблон названия</span>
               <textarea v-model="form.name_template" rows="2"></textarea></label>
-            <label class="field wide"><span>Шаблон описания</span>
-              <textarea v-model="form.description_template" rows="3"></textarea></label>
-            <label class="field wide"><span>Шаблон спецификации (JSON)</span>
-              <textarea v-model="form.spec_template" rows="4"
-                        placeholder="{'Раздел': {'Поле': 'ключ'}}"></textarea></label>
+          </div>
+        </div>
+
+        <!-- КОДИРОВКИ -->
+        <div v-else-if="tab === 'codes'" class="codes-editor">
+          <div class="codes-form" @input="dirty = true" @change="dirty = true">
+            <label class="field wide"><span>Шаблон кодировки БУ (артикул)</span>
+              <textarea v-model="form.article_code_template" rows="2"
+                        placeholder="{slot:CMD_OPEN}{slot:CMD_CLOSE}{opt:HART}..."></textarea></label>
+            <label class="field wide"><span>Шаблон ext-кодировки БУ</span>
+              <textarea v-model="form.ext_article_code_template" rows="2"
+                        placeholder="..."></textarea></label>
+            <div class="hint">Плейсхолдеры: {slot:X} / {opt:X} → encoding/ext_encoding выбранной опции (приоритет: матрица → опция).</div>
+          </div>
+
+          <div v-if="codesPreview" class="codes-preview">
+            <h4>Предпросмотр</h4>
+            <p><b>Системный код:</b> <code>{{ codesPreview.system_code }}</code></p>
+            <p><b>Артикул БУ:</b> <code>{{ codesPreview.article_code }}</code></p>
+            <p><b>Ext БУ:</b> <code>{{ codesPreview.ext_article_code }}</code></p>
+            <table class="codes-table">
+              <thead><tr><th>Слот</th><th>Опция</th><th>encoding</th><th>ext</th><th>дост.</th></tr></thead>
+              <tbody>
+                <template v-for="slot in codesPreview.slots" :key="slot.code">
+                  <tr v-for="o in slot.options" :key="o.code"
+                      v-show="o.availability !== null && (o.encoding || o.ext_encoding)">
+                    <td>{{ slot.name }}</td>
+                    <td>{{ o.name }}</td>
+                    <td><code>{{ o.encoding }}</code></td>
+                    <td><code>{{ o.ext_encoding }}</code></td>
+                    <td>{{ o.availability }}</td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -269,8 +300,10 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/shared/api'
-import { t } from '@/shared/i18n'
+import { t, useI18n } from '@/shared/i18n'
 import EditorActions from '@/components/EditorActions.vue'
+
+const { locale } = useI18n()
 
 // Классы БУ приходят с API (справочник control-unit-kinds вместо хардкода).
 const kinds = ref([])
@@ -296,6 +329,8 @@ const tab = ref('basic')
 const selectedNodeId = ref(null)
 // привязки БУ к моделям ЭП (вкладка «Привязки»)
 const bindingData = ref(null)   // {bindings, series}
+// предпросмотр кодов (вкладка «Кодировки»): пакет /package/
+const codesPreview = ref(null)
 const addSeriesId = ref(null)
 const selectedModels = ref(new Set())
 const bindingsDirty = ref(false)
@@ -501,15 +536,15 @@ function openEdit(u) {
     sorting_order: u.sorting_order || 0,
     is_active: u.is_active, description: u.description || '',
     name_template: u.name_template || '',
-    description_template: u.description_template || '',
-    spec_template: typeof u.spec_template === 'string'
-      ? u.spec_template : JSON.stringify(u.spec_template || {}, null, 2),
+    article_code_template: u.article_code_template || '',
+    ext_article_code_template: u.ext_article_code_template || '',
   }
   dirty.value = false
   matrix.value = null
   matrixDirty.value = false
   bindingData.value = null
   bindingsDirty.value = false
+  codesPreview.value = null
   addSeriesId.value = null
   selectedModels.value = new Set()
   tab.value = 'basic'
@@ -522,13 +557,15 @@ function openCreate() {
   form.value = {
     id: null, code: '', name: '', brand: null, kind: defaultKindId(),
     sorting_order: 0, is_active: true, description: '',
-    name_template: '', description_template: '', spec_template: '',
+    name_template: '',
+    article_code_template: '', ext_article_code_template: '',
   }
   dirty.value = false
   matrix.value = null
   matrixDirty.value = false
   bindingData.value = null
   bindingsDirty.value = false
+  codesPreview.value = null
   addSeriesId.value = null
   selectedModels.value = new Set()
   tab.value = 'basic'
@@ -658,6 +695,28 @@ async function openBindingsTab() {
   if (bindingData.value === null) await loadBindings()
 }
 
+// ── Кодировки ────────────────────────────────────────────────────────────
+async function openCodesTab() {
+  tab.value = 'codes'
+  if (form.value && form.value.id && codesPreview.value === null) {
+    await loadCodesPreview()
+  }
+}
+
+async function loadCodesPreview() {
+  if (!form.value || !form.value.id) { codesPreview.value = null; return }
+  error.value = ''
+  codesPreview.value = null
+  try {
+    const { data } = await api.get('/ea-control/package/', {
+      params: { unit: form.value.id, locale: locale.value },
+    })
+    codesPreview.value = data
+  } catch (e) {
+    error.value = e.displayMessage || 'Ошибка загрузки предпросмотра кодов'
+  }
+}
+
 async function loadBindings() {
   if (!form.value || !form.value.id) { bindingData.value = null; return }
   error.value = ''
@@ -780,22 +839,13 @@ async function save() {
     return
   }
   const f = form.value
-  let spec = null
-  if (typeof f.spec_template === 'string' && f.spec_template.trim()) {
-    try {
-      spec = JSON.parse(f.spec_template)
-    } catch {
-      error.value = 'Шаблон спецификации: невалидный JSON'
-      return
-    }
-  }
   const payload = {
     code: f.code, name: f.name, brand: f.brand, kind: f.kind,
     sorting_order: f.sorting_order || 0,
     is_active: f.is_active, description: f.description || '',
     name_template: f.name_template || '',
-    description_template: f.description_template || '',
-    spec_template: spec,
+    article_code_template: f.article_code_template || '',
+    ext_article_code_template: f.ext_article_code_template || '',
   }
   try {
     if (f.id) {
@@ -997,4 +1047,12 @@ onMounted(async () => {
 .bind-item span { flex: 1; }
 .bind-item .code { color: #888; font-size: 11px; font-style: normal; }
 .bind-item button { cursor: pointer; border: none; background: none; color: #a00; }
+.codes-editor { display: flex; flex-direction: column; gap: 10px; }
+.codes-form { display: flex; flex-direction: column; gap: 8px; }
+.codes-preview { border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; }
+.codes-preview h4 { margin: 0 0 8px; }
+.codes-preview code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
+.codes-table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 8px; }
+.codes-table th, .codes-table td { border: 1px solid #eee; padding: 3px 8px; text-align: left; }
+.codes-table th { background: #fafafa; }
 </style>

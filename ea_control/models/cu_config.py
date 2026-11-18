@@ -127,6 +127,12 @@ class CuSlot(LocalizedDictFieldsMixin, AbstractConfigSlot):
             raise ValidationError(
                 {'source': _('Источник значений задаётся только для '
                              'object-слотов.')})
+        if self.slot_kind == 'subtype':
+            dup = CuSlot.objects.filter(slot_kind='subtype').exclude(pk=self.pk)
+            if dup.exists():
+                raise ValidationError(
+                    {'slot_kind': _('Слот-селектор типа изделия может быть '
+                                    'только один.')})
 
 
 class CuOptionKind(models.TextChoices):
@@ -136,7 +142,7 @@ class CuOptionKind(models.TextChoices):
     HEATER = 'heater', _('Питание обогрева')
     POWER = 'power', _('Схема цепей управления (источник × напряжение)')
     LOGIC = 'logic', _('Логика работы сигнала')
-    UNIT = 'unit', _('Блок управления (слот control_unit)')
+    PRODUCT_TYPE = 'product_type', _('Тип изделия (слот-тип конфигуратора)')
     UNIT_KIND = 'unit_kind', _('Класс БУ')
     LOCAL_CONTROL = 'local_control', _('Орган местного управления')
     DISPLAY = 'display', _('Вид отображения')
@@ -182,8 +188,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         default=CuOptionKind.SIGNAL,
         verbose_name=_("Тип опции"),
         help_text=_("signal — сигнал/протокол; heater — обогрев; power — "
-                    "схема цепей управления; logic — логика работы; unit — "
-                    "БУ (слот control_unit); unit_kind — класс БУ "
+                    "схема цепей управления; logic — логика работы; "
+                    "product_type — тип изделия (слот-тип); unit_kind — класс БУ "
                     "(ControlUnitKind); local_control — орган местного "
                     "управления; display — вид(ы) отображения; unit_power — "
                     "питание БУ; cable_gland — набор отверстий под КВ БУ "
@@ -235,7 +241,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         'ControlUnit', on_delete=models.PROTECT, null=True, blank=True,
         related_name='slot_options',
         verbose_name=_("Блок управления"),
-        help_text=_("Для kind=unit: опция слота control_unit — тип БУ"),
+        help_text=_("Для kind=product_type: опция слота-селектора типа "
+                    "(slot_kind=subtype) — тип изделия"),
     )
     control_unit_kind = models.ForeignKey(
         'ControlUnitKind', on_delete=models.PROTECT, null=True, blank=True,
@@ -302,7 +309,7 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         ordering = ['sorting_order', 'code']
 
     def __str__(self):
-        if self.kind == CuOptionKind.UNIT and self.control_unit_id:
+        if self.kind == CuOptionKind.PRODUCT_TYPE and self.control_unit_id:
             return str(self.control_unit)
         if self.kind == CuOptionKind.UNIT_KIND and self.control_unit_kind_id:
             return str(self.control_unit_kind)
@@ -326,7 +333,7 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
 
     def localized_name(self, locale=None):
         """Имя опции; для типизированных kind — имя сущности нагрузки."""
-        if self.kind == CuOptionKind.UNIT and self.control_unit_id:
+        if self.kind == CuOptionKind.PRODUCT_TYPE and self.control_unit_id:
             return localized_name(self.control_unit, locale)
         if self.kind == CuOptionKind.UNIT_KIND and self.control_unit_kind_id:
             return localized_name(self.control_unit_kind, locale)
@@ -381,13 +388,13 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         elif self.kind == CuOptionKind.LOGIC:
             if not self.control_logic_id:
                 raise ValidationError(_('Для опции логики нужна CuControlLogic.'))
-        elif self.kind == CuOptionKind.UNIT:
+        elif self.kind == CuOptionKind.PRODUCT_TYPE:
             if not self.control_unit_id:
-                raise ValidationError(_('Для опции-БУ нужен ControlUnit.'))
-            if self.slot.code != 'control_unit':
+                raise ValidationError(_('Для опции-типа изделия нужен ControlUnit.'))
+            if self.slot.slot_kind != 'subtype':
                 raise ValidationError(
-                    {'control_unit': _('Опция-БУ допустима только в слоте '
-                                       'control_unit.')})
+                    {'control_unit': _('Опция-тип изделия допустима только в слоте-'
+                                       'селекторе типа (slot_kind=subtype).')})
         elif self.kind == CuOptionKind.UNIT_KIND:
             if not self.control_unit_kind_id:
                 raise ValidationError(
@@ -730,3 +737,38 @@ class CuSlotRule(LocalizedDictFieldsMixin, AbstractSlotRule):
         if op == 'not_in':
             return expected is not None and current_value not in expected
         return current_value == expected
+
+
+class CuCodeSettings(models.Model):
+    """Синглтон настроек кодировок конфигуратора БУ.
+
+    Хранит шаблон системного кода (единый для всей системы, не привязан к
+    классификатору EquipmentType — последний описывает статичную схему ЭП, а
+    конфигуратор БУ живёт на правилах show/hide и матрице).
+    """
+    system_code_template = models.TextField(
+        null=True, blank=True,
+        verbose_name=_("Шаблон системного кода"),
+        help_text=_(
+            "Сборка полного системного кода конфигурации из плейсхолдеров "
+            "узлов/слотов/опций: {node:PLACEHOLDER}, {slot:PLACEHOLDER}, "
+            "{opt:PLACEHOLDER}, {slots:PLACEHOLDER} (разворот слотов узла). "
+            "Пусто — фоллбэк на «узел.слот.опция» через «/»."
+        ),
+    )
+
+    class Meta:
+        verbose_name = _("Настройки кодировок БУ")
+        verbose_name_plural = verbose_name
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return _("Настройки кодировок БУ")

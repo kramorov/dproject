@@ -20,9 +20,26 @@
 строки описывают «какой БУ доступен для серии/напряжения», а не опции
 конфигурации выбранного БУ.
 """
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
 
-from ea_control.models import CuMatrixEntry, CuMatrixMode
+from ea_control.models import CuMatrixEntry, CuMatrixMode, CuSlot
+from ea_control.models.abstract import ConfigSlotKind
+
+
+def get_product_type_slot():
+    """Слот-селектор типа изделия (``slot_kind=subtype``) — ровно один.
+
+    Инвариант: в конфигурации ровно один слот-селектор. Нарушение — ошибка
+    конфигурации (не тихое деградирование): нулевой/второй такой слот ломают
+    резолв доступности и выбор типа изделия.
+    """
+    slots = list(CuSlot.objects.filter(slot_kind=ConfigSlotKind.SUBTYPE))
+    if len(slots) != 1:
+        raise ImproperlyConfigured(
+            f'Ожидается ровно один слот-селектор типа изделия '
+            f'(slot_kind=subtype), найдено: {len(slots)}.')
+    return slots[0]
 
 
 def _scope_level(row):
@@ -137,7 +154,7 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
 
     rows_qs = (CuMatrixEntry.objects
                .filter(control_unit=control_unit)
-               .exclude(slot__code='control_unit')
+               .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
                .select_related('slot', 'option')
                .prefetch_related('conflicts__option'))
     if power_supply is not None:
@@ -181,21 +198,21 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
     return out
 
 
-def resolve_control_units(model_line, *, body=None, model_line_item=None,
+def resolve_product_types(model_line, *, body=None, model_line_item=None,
                           power_supply=None, locale=None):
-    """Доступные типы БУ для серии (слот control_unit, опции kind=unit).
+    """Доступные типы изделия для серии (слот-селектор типа, slot_kind=subtype).
 
-    Наследование: модель → серия → бесскоуповые строки (дефолты выбора БУ).
-    ``na`` на специфичном уровне запрещает БУ для серии/напряжения.
-    Возвращает список ``{unit_id, option_code, code, name, kind, encoding,
-    is_default}`` — ``option_code`` = код опции слота control_unit (значение
-    выбора в снимке и правилах).
+    Наследование: модель → серия → бесскоуповые строки (дефолты выбора типа).
+    ``na`` на специфичном уровне запрещает тип для серии/напряжения.
+    Возвращает список ``{product_type_id, option_code, code, name, kind,
+    encoding, is_default}`` — ``option_code`` = код опции слота-селектора
+    (значение выбора в снимке и правилах).
     """
     from core.utils.localization import localized_name
 
     brand = getattr(model_line, 'brand', None)
     rows_qs = (CuMatrixEntry.objects
-               .filter(slot__code='control_unit')
+               .filter(slot__slot_kind=ConfigSlotKind.SUBTYPE)
                .select_related('option', 'option__control_unit'))
     if power_supply is not None:
         rows_qs = rows_qs.filter(Q(power_supply=power_supply)
@@ -224,7 +241,7 @@ def resolve_control_units(model_line, *, body=None, model_line_item=None,
             continue
         unit = effective.option.control_unit
         out.append({
-            'unit_id': unit.id,
+            'product_type_id': unit.id,
             'option_code': effective.option.code,
             'key': unit.key,
             'code': unit.code,
@@ -235,6 +252,10 @@ def resolve_control_units(model_line, *, body=None, model_line_item=None,
         })
     out.sort(key=lambda x: (not x['is_default'], x['code']))
     return out
+
+
+# Обратная совместимость: прежнее имя резолвера типов изделия.
+resolve_control_units = resolve_product_types
 
 
 def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
@@ -248,7 +269,7 @@ def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
             .filter(control_unit=control_unit, brand__isnull=True,
                     model_line__isnull=True, body__isnull=True,
                     model_line_item__isnull=True)
-            .exclude(slot__code='control_unit')
+            .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
             .order_by('id'))  # детерминизм: при нескольких std побеждает ранняя
     if power_supply is not None:
         rows = rows.filter(Q(power_supply=power_supply)

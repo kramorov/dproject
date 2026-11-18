@@ -160,6 +160,18 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         default=dict, blank=True,
         verbose_name=_("Переводы шаблона названия (ru/en/cn)"),
     )
+    article_code_template = models.TextField(
+        null=True, blank=True,
+        verbose_name=_("Шаблон кодировки БУ (артикул)"),
+        help_text=_("Плейсхолдеры {slot:PLACEHOLDER}/{opt:PLACEHOLDER} → "
+                    "encoding выбранных опций (матрица → опция). Пусто — "
+                    "кодировка не формируется"),
+    )
+    ext_article_code_template = models.TextField(
+        null=True, blank=True,
+        verbose_name=_("Шаблон ext-кодировки БУ (артикул)"),
+        help_text=_("То же, что шаблон кодировки, но значения — ext_encoding"),
+    )
     description = models.TextField(
         blank=True,
         verbose_name=_("Описание"),

@@ -55,8 +55,9 @@ router.register('bindings', api.ControlUnitBindingViewSet, basename='cu-binding'
 
 urlpatterns = [
     path('units/', api.units_view, name='cu_units'),
+    path('code-settings/', api.code_settings_view, name='cu_code_settings'),
     path('meta/', api.meta_view, name='cu_meta'),
-    path('series-units/', api.series_units_view, name='cu_series_units'),
+    path('product-types/', api.product_types_view, name='cu_product_types'),
     path('describe/', api.describe_view, name='cu_describe'),
     path('package/', api.package_view, name='cu_package'),
     path('specification/', api.specification_view, name='cu_specification'),

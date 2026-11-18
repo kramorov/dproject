@@ -27,6 +27,7 @@
 """
 from ea_control.models import (CuMatrixEntry, CuMatrixMode, CuSlot,
                                CuSlotOption, CuSlotRule)
+from ea_control.models.abstract import ConfigSlotKind
 from core.utils.localization import localized_name
 
 
@@ -63,7 +64,7 @@ def _profile_rows(control_unit):
                     body__isnull=True, model_line_item__isnull=True,
                     signal_power__isnull=True,
                     mode=CuMatrixMode.BOTH)
-            .exclude(slot__code='control_unit')
+            .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
             .select_related('slot', 'option'))
 
 
@@ -83,9 +84,9 @@ def _profile_row_qs(control_unit, power_supply):
 
 
 def _control_unit_option_code(control_unit):
-    """Код опции слота control_unit для типа БУ (значение в снимке/правилах)."""
+    """Код опции слота-селектора типа для типа БУ (значение в снимке/правилах)."""
     opt = (CuSlotOption.objects
-           .filter(slot__code='control_unit', control_unit=control_unit)
+           .filter(slot__slot_kind=ConfigSlotKind.SUBTYPE, control_unit=control_unit)
            .first())
     return opt.code if opt else None
 
@@ -100,7 +101,7 @@ def _unit_rules(control_unit):
     if not opt_code:
         return {}
     rules = list(CuSlotRule.objects.filter(
-        when_slot__code='control_unit', is_active=True))
+        when_slot__slot_kind=ConfigSlotKind.SUBTYPE, is_active=True))
     out = {}
     for op in ('exact', 'in', 'not_in'):
         for r in rules:
@@ -137,7 +138,7 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
         by_pair.setdefault((r.slot_id, r.option_id), []).append(r)
 
     slots = list(CuSlot.objects.filter(is_active=True)
-                 .exclude(code='control_unit')
+                 .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
                  .select_related('section')
                  .prefetch_related('slot_options')
                  .order_by('sorting_order', 'code'))
@@ -204,7 +205,7 @@ def build_unit_matrix(control_unit, power_supply=None, locale=None):
     control_unit_options = [
         {'code': o.code, 'name': o.localized_name(locale) or o.name or o.code}
         for o in CuSlotOption.objects.filter(
-            slot__code='control_unit', is_active=True).order_by(
+            slot__slot_kind=ConfigSlotKind.SUBTYPE, is_active=True).order_by(
             'sorting_order', 'code')]
 
     return {
@@ -352,7 +353,8 @@ def apply_unit_rule_changes(control_unit, rule_changes):
     opt_code = _control_unit_option_code(control_unit)
     if not opt_code:
         return 0
-    control_slot = CuSlot.objects.filter(code='control_unit').first()
+    control_slot = CuSlot.objects.filter(
+        slot_kind=ConfigSlotKind.SUBTYPE).first()
     if not control_slot:
         return 0
     current = _unit_rules(control_unit)  # target_slot_id -> правило

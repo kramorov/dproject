@@ -13,8 +13,8 @@ API ea_control: CRUD моделей для фронт-админки + паке�
 - GET units/ — список типов БУ (id/code/name/kind/brand);
 - GET meta/ — справочники для селекторов (серии, напряжения, бренды, БУ,
   режимы выбора, род значения);
-- GET series-units/?model_line=&power_supply= — доступные БУ серии
-  (резолвер слота control_unit);
+- GET product-types/?model_line=&power_supply= — доступные типы изделия
+  для серии (резолвер слота-селектора типа, slot_kind=subtype);
 - GET package/?unit=&model_line=&power_supply=&mode=&locale= — пакет
   конфигуратора (slots.md §5).
 
@@ -41,7 +41,8 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
                                ControlUnitKind, CuSectionNode, CuSlotSource,
                                SLOT_SOURCE_PAYLOAD, ControlUnitBinding)
-from ea_control.services.cu_matrix import resolve_control_units
+from ea_control.models.abstract import ConfigSlotKind
+from ea_control.services.cu_matrix import resolve_product_types
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description
 from ea_control.services.cu_unit_matrix import (MatrixValidationError,
@@ -443,9 +444,9 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
         new.protocols.set(unit.protocols.all())
         new.capabilities.set(unit.capabilities.all())
 
-        # опция слота control_unit для копии (коды опций глобально уникальны)
+        # опция слота-селектора типа для копии (коды опций глобально уникальны)
         old_opt = CuSlotOption.objects.filter(
-            slot__code='control_unit', control_unit=unit).first()
+            slot__slot_kind=ConfigSlotKind.SUBTYPE, control_unit=unit).first()
         new_opt = None
         if old_opt:
             m = 1
@@ -454,7 +455,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
                 m += 1
                 opt_code = f'{old_opt.code}_CP{m}'
             new_opt = CuSlotOption.objects.create(
-                code=opt_code, slot=old_opt.slot, kind='unit',
+                code=opt_code, slot=old_opt.slot, kind='product_type',
                 control_unit=new, encoding=old_opt.encoding,
                 ext_encoding=old_opt.ext_encoding,
                 sorting_order=old_opt.sorting_order, is_active=old_opt.is_active)
@@ -496,7 +497,7 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
 
         if old_opt:
             for rule in CuSlotRule.objects.filter(
-                    when_slot__code='control_unit'):
+                    when_slot__slot_kind=ConfigSlotKind.SUBTYPE):
                 wv, c1 = _remap(rule.when_value)
                 av, c2 = _remap(rule.action_value)
                 if c1 or c2:
@@ -517,19 +518,19 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['delete'], url_path='delete-unit')
     def delete_unit(self, request, pk=None):
-        """Удаление БУ: опция слота control_unit (PROTECT) снимается,
+        """Удаление БУ: опция слота-селектора типа (PROTECT) снимается,
         связанные правила чистятся, профильные строки матрицы — каскадом."""
         unit = get_object_or_404(ControlUnit, pk=pk)
         opts = list(CuSlotOption.objects.filter(
-            slot__code='control_unit', control_unit=unit))
+            slot__slot_kind=ConfigSlotKind.SUBTYPE, control_unit=unit))
         for o in opts:
             # exact-правила
             CuSlotRule.objects.filter(
-                Q(when_slot__code='control_unit', when_value=o.code)
+                Q(when_slot__slot_kind=ConfigSlotKind.SUBTYPE, when_value=o.code)
                 | Q(action_value=o.code)).delete()
             # правила со списками (оператор in/not_in): убрать код из списка
             for rule in CuSlotRule.objects.filter(
-                    when_slot__code='control_unit'):
+                    when_slot__slot_kind=ConfigSlotKind.SUBTYPE):
                 wv, av = rule.when_value, rule.action_value
                 changed = False
                 if isinstance(wv, list) and o.code in wv:
@@ -635,8 +636,27 @@ def units_view(request):
             'kind': u.kind_id,
             'kind_name': u.kind.name if u.kind_id else '',
             'brand_name': u.brand.name if u.brand_id else '',
+            'description': u.description or '',
+            'name_template': u.name_template or '',
+            'article_code_template': u.article_code_template or '',
+            'ext_article_code_template': u.ext_article_code_template or '',
         })
     return Response(units)
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAdminUser])
+def code_settings_view(request):
+    """Настройки кодировок БУ (синглтон): GET — чтение, PUT — сохранение."""
+    from ea_control.models import CuCodeSettings
+    settings = CuCodeSettings.get()
+    if request.method == 'GET':
+        return Response({'system_code_template': settings.system_code_template or ''})
+    template = request.data.get('system_code_template')
+    settings.system_code_template = template or None
+    settings.save()
+    return Response({'ok': True,
+                     'system_code_template': settings.system_code_template or ''})
 
 
 @api_view(['GET'])
@@ -711,8 +731,8 @@ def meta_view(request):
 
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
-def series_units_view(request):
-    """Доступные типы БУ для серии/напряжения (слот control_unit)."""
+def product_types_view(request):
+    """Доступные типы изделия для серии/напряжения (слот-селектор типа)."""
     from electric_actuators.models import ElectricActuatorModelLine
     from params.models import PowerSupplies
 
@@ -729,7 +749,7 @@ def series_units_view(request):
         except PowerSupplies.DoesNotExist:
             return Response({'error': 'power_supply не найден'}, status=400)
     locale = request.query_params.get('locale', 'ru')
-    return Response(resolve_control_units(model_line, power_supply=power_supply,
+    return Response(resolve_product_types(model_line, power_supply=power_supply,
                                           locale=locale))
 
 

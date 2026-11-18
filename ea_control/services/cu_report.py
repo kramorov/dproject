@@ -16,6 +16,7 @@
 from core.utils.localization import pick_i18n
 
 from ea_control.models import CuMatrixEntry, CuSectionNode, CuSlot
+from ea_control.models.abstract import ConfigSlotKind
 from ea_control.services.cu_description import hidden_slot_codes
 
 
@@ -30,7 +31,7 @@ def build_description(control_unit, locale=None):
     hidden = hidden_slot_codes(control_unit)
     rows = (CuMatrixEntry.objects
             .filter(control_unit=control_unit)
-            .exclude(slot__code='control_unit')
+            .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
             .select_related('slot', 'option'))
     by_slot = {}
     for r in rows:
@@ -43,7 +44,7 @@ def build_description(control_unit, locale=None):
             marks.setdefault(r.option_id, 'opt')
 
     slots = (CuSlot.objects.filter(is_active=True)
-             .exclude(code='control_unit')
+             .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
              .exclude(code__in=hidden)
              .select_related('section')
              .prefetch_related('slot_options')

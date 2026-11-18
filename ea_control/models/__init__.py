@@ -68,4 +68,5 @@ from ea_control.models.cu_config import (  # noqa: F401
     CuMatrixMode,
     CuMatrixEntry,
     CuSlotRule,
+    CuCodeSettings,
 )
