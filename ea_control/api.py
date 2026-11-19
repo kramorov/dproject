@@ -48,7 +48,9 @@ from ea_control.services.cu_report import build_description
 from ea_control.services.cu_unit_matrix import (MatrixValidationError,
                                                  apply_unit_matrix_changes,
                                                  apply_unit_rule_changes,
-                                                 build_unit_matrix)
+                                                 apply_unit_code_changes,
+                                                 build_unit_matrix,
+                                                 build_unit_codes)
 
 
 class _LargePagination(PageNumberPagination):
@@ -837,6 +839,35 @@ def unit_matrix_save_view(request):
     except MatrixValidationError as exc:
         return Response({'error': str(exc)}, status=400)
     return Response({'ok': True, 'saved': saved, 'saved_rules': saved_rules})
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def unit_codes_view(request):
+    """Артикульные кодировки опций БУ (вкладка «Кодировки» редактора БУ)."""
+    try:
+        unit = ControlUnit.objects.get(pk=request.query_params['unit'])
+    except (KeyError, ControlUnit.DoesNotExist):
+        return Response({'error': 'unit обязателен'}, status=400)
+    locale = request.query_params.get('locale', 'ru')
+    return Response(build_unit_codes(unit, locale=locale))
+
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def unit_codes_save_view(request):
+    """Перезаписать артикульные кодировки опций БУ (encoding/ext_encoding)."""
+    data = request.data
+    try:
+        unit = ControlUnit.objects.get(pk=data.get('unit'))
+    except (TypeError, ControlUnit.DoesNotExist):
+        return Response({'error': 'unit обязателен'}, status=400)
+    changes = data.get('changes') or []
+    try:
+        saved = apply_unit_code_changes(unit, changes)
+    except MatrixValidationError as exc:
+        return Response({'error': str(exc)}, status=400)
+    return Response({'ok': True, 'saved': saved})
 
 
 @api_view(['GET'])

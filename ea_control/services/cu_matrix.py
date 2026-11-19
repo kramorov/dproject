@@ -106,9 +106,11 @@ def _row_payload(row, locale=None):
         'is_default': row.is_default,
         'bundle': row.bundle,
         'conflicts': conflicts,
-        # приоритет кодировки: строка матрицы → справочный код опции
-        'encoding': row.encoding or (option.encoding if option else ''),
-        'ext_encoding': row.ext_encoding or (option.ext_encoding if option else ''),
+        # Артикульная кодировка — только у строки матрицы (per-БУ). Пустая
+        # строка = «позиция не кодируется»; системный код опции берётся из
+        # ``option.encoding`` напрямую в ``cu_code``, сюда не подмешивается.
+        'encoding': row.encoding or '',
+        'ext_encoding': row.ext_encoding or '',
     }
 
 

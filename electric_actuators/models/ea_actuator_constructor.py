@@ -1037,6 +1037,30 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         except Exception:
             return ""
 
+    def _cu_article_code(self, ext: bool = False) -> str:
+        """Вклад БУ в артикул/ext-артикул привода (новая слотовая схема).
+
+        Старая схема брала encoding из legacy-опции
+        ``selected_control_unit_option`` (AllowedControlUnitOption); теперь
+        артикул БУ собирается из ``ControlUnit.article_code_template`` /
+        ``ext_article_code_template`` и кодировок строк матрицы
+        (приоритет: матрица → опция) — ``ea_control.services.cu_code``.
+        """
+        if not self.selected_control_unit_id:
+            return ''
+        from ea_control.services.cu_code import (
+            build_article_code, build_ext_article_code)
+        ps = (self.selected_power_supply.power_supply
+              if self.selected_power_supply_id else None)
+        fn = build_ext_article_code if ext else build_article_code
+        try:
+            return fn(self.selected_control_unit,
+                      snapshot=self.control_unit_snapshot or None,
+                      power_supply=ps, mode='both')
+        except Exception:  # noqa: BLE001
+            logger.exception('Ошибка сборки артикула БУ')
+            return ''
+
     @property
     def generated_model_item_code(self) -> str:
         """
@@ -1059,9 +1083,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         result = result.replace('{ip_enc}', self._get_option_encoding('selected_ip'))
         result = result.replace('{voltage_enc}', self._get_option_encoding('selected_power_supply'))
         result = result.replace('{exd_enc}', self._get_option_encoding('selected_exd'))
-        result = result.replace('{control_unit_enc}', self._get_option_encoding('selected_control_unit_option'))
-        # {cu_name_enc} — encoding БУ из through-модели AllowedControlUnitOption
-        result = result.replace('{cu_name_enc}', self._get_option_encoding('selected_control_unit_option'))
+        # {control_unit_enc}/{cu_name_enc} — вклад БУ в артикул (новая слотовая схема)
+        result = result.replace('{control_unit_enc}', self._cu_article_code())
+        result = result.replace('{cu_name_enc}', self._cu_article_code())
 
         # Очистка
         result = re.sub(r'\.{2,}', '.', result)
@@ -1098,10 +1122,10 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         result = result.replace('{ip_e_enc}', self._get_option_ext_encoding('selected_ip'))
         result = result.replace('{voltage_e_enc}', self._get_option_ext_encoding('selected_power_supply'))
         result = result.replace('{exd_e_enc}', self._get_option_ext_encoding('selected_exd'))
-        result = result.replace('{control_unit_e_enc}', self._get_option_ext_encoding('selected_control_unit_option'))
+        result = result.replace('{control_unit_e_enc}', self._cu_article_code(ext=True))
         # ext-позиции (схема 14.2): сигнальные позиции пусты, пока конструктор
         # не переведён на матричный выбор (фаза 6)
-        result = result.replace('{cu_e_enc}', self._get_option_ext_encoding('selected_control_unit_option'))
+        result = result.replace('{cu_e_enc}', self._cu_article_code(ext=True))
         result = result.replace('{cu_p_e_enc}', '')
         result = result.replace('{ps_e_enc}', self._ps_ext())
         result = result.replace('{mode_e_enc}', '')
@@ -1185,7 +1209,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             self._get_value_old('selected_model_line_item__code'),
             self._get_option_encoding('selected_power_supply'),
             self._get_option_encoding('selected_temperature'),
-            self._get_option_encoding('selected_control_unit_option'),
+            self._cu_article_code(),
             self._get_option_encoding('selected_ip'),
             self._get_option_encoding('selected_exd'),
         ]

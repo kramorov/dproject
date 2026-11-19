@@ -104,36 +104,47 @@
         <!-- КОДИРОВКИ -->
         <div v-else-if="tab === 'codes'" class="codes-editor">
           <div class="codes-form" @input="dirty = true" @change="dirty = true">
-            <label class="field wide"><span>Шаблон кодировки БУ (артикул)</span>
+            <label class="field wide"><span>Артикул БУ</span>
               <textarea v-model="form.article_code_template" rows="2"
                         placeholder="{slot:CMD_OPEN}{slot:CMD_CLOSE}{opt:HART}..."></textarea></label>
-            <label class="field wide"><span>Шаблон ext-кодировки БУ</span>
+            <label class="field wide"><span>Ext БУ</span>
               <textarea v-model="form.ext_article_code_template" rows="2"
                         placeholder="..."></textarea></label>
             <div class="hint">Плейсхолдеры: {slot:X} / {opt:X} → encoding/ext_encoding выбранной опции (приоритет: матрица → опция).</div>
           </div>
 
-          <div v-if="codesPreview" class="codes-preview">
-            <h4>Предпросмотр</h4>
-            <p><b>Системный код:</b> <code>{{ codesPreview.system_code }}</code></p>
-            <p><b>Артикул БУ:</b> <code>{{ codesPreview.article_code }}</code></p>
-            <p><b>Ext БУ:</b> <code>{{ codesPreview.ext_article_code }}</code></p>
-            <table class="codes-table">
-              <thead><tr><th>Слот</th><th>Опция</th><th>encoding</th><th>ext</th><th>дост.</th></tr></thead>
-              <tbody>
-                <template v-for="slot in codesPreview.slots" :key="slot.code">
-                  <tr v-for="o in slot.options" :key="o.code"
-                      v-show="o.availability !== null && (o.encoding || o.ext_encoding)">
-                    <td>{{ slot.name }}</td>
-                    <td>{{ o.name }}</td>
-                    <td><code>{{ o.encoding }}</code></td>
-                    <td><code>{{ o.ext_encoding }}</code></td>
-                    <td>{{ o.availability }}</td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+          <div v-if="codesData" class="codes-placeholders">
+            <h4>Плейсхолдеры слотов</h4>
+            <div class="ph-list">
+              <code v-for="s in codesData.slots" :key="s.code">{{ '{slot:' + s.code + '}' }}</code>
+            </div>
           </div>
+
+          <div v-if="!form.id" class="hint">Сначала сохраните блок управления, затем настраивайте кодировки.</div>
+          <template v-else-if="codesData">
+            <div v-if="!selectedNode" class="hint">Выберите узел слева.</div>
+            <div v-else class="codes-preview">
+              <div class="node-head">
+                <strong>{{ selectedNode.name }}</strong>
+                <span class="code">{{ selectedNode.code }}</span>
+              </div>
+              <table class="codes-table">
+                <thead><tr><th>Слот</th><th>Опция</th><th>encoding</th><th>ext</th><th>дост.</th></tr></thead>
+                <tbody>
+                  <template v-for="slot in selectedNodeCodeSlots" :key="slot.code">
+                    <tr v-for="o in slot.options" :key="o.code"
+                        v-show="o.availability !== 'na'">
+                      <td>{{ slot.name }}</td>
+                      <td :title="'системная кодировка: ' + (o.system_encoding || '—')">{{ o.name }}</td>
+                      <td><input class="code-inp" v-model="o.encoding" @input="codesDirty = true" /></td>
+                      <td><input class="code-inp" v-model="o.ext_encoding" @input="codesDirty = true" /></td>
+                      <td>{{ o.availability }}</td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </template>
         </div>
 
         <!-- РЕДАКТОР ДОСТУПНЫХ ОПЦИЙ -->
@@ -329,8 +340,10 @@ const tab = ref('basic')
 const selectedNodeId = ref(null)
 // привязки БУ к моделям ЭП (вкладка «Привязки»)
 const bindingData = ref(null)   // {bindings, series}
-// предпросмотр кодов (вкладка «Кодировки»): пакет /package/
-const codesPreview = ref(null)
+// кодировки опций БУ (вкладка «Кодировки»): /unit-codes/
+const codesData = ref(null)
+const codesDirty = ref(false)
+const codesOriginals = new Map() // option id -> {encoding, ext_encoding}
 const addSeriesId = ref(null)
 const selectedModels = ref(new Set())
 const bindingsDirty = ref(false)
@@ -380,6 +393,12 @@ const selectedNode = computed(() => {
 const selectedNodeSlots = computed(() => {
   if (!matrix.value || selectedNodeId.value == null) return []
   return (matrix.value.slots || []).filter(s => s.section_id === selectedNodeId.value)
+})
+
+// Слоты выбранного узла из кодировок (вкладка «Кодировки»).
+const selectedNodeCodeSlots = computed(() => {
+  if (!codesData.value || selectedNodeId.value == null) return []
+  return (codesData.value.slots || []).filter(s => s.section_id === selectedNodeId.value)
 })
 
 const selectedNodeAllNa = computed(() => {
@@ -433,7 +452,7 @@ const toolbarButtons = computed(() => [
 ])
 
 const editButtons = computed(() => [
-  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !(dirty.value || matrixDirty.value || bindingsDirty.value) },
+  { key: 'save', label: t('eaControl.save'), kind: 'primary', disabled: !(dirty.value || matrixDirty.value || bindingsDirty.value || codesDirty.value) },
   { key: 'cancel', label: t('eaControl.cancel') },
 ])
 
@@ -528,7 +547,7 @@ async function loadMeta() {
 }
 
 function openEdit(u) {
-  if (dirty.value || matrixDirty.value || bindingsDirty.value) {
+  if (dirty.value || matrixDirty.value || bindingsDirty.value || codesDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = {
@@ -544,14 +563,15 @@ function openEdit(u) {
   matrixDirty.value = false
   bindingData.value = null
   bindingsDirty.value = false
-  codesPreview.value = null
+  codesData.value = null
+  codesDirty.value = false
   addSeriesId.value = null
   selectedModels.value = new Set()
   tab.value = 'basic'
 }
 
 function openCreate() {
-  if (dirty.value || matrixDirty.value || bindingsDirty.value) {
+  if (dirty.value || matrixDirty.value || bindingsDirty.value || codesDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = {
@@ -565,7 +585,8 @@ function openCreate() {
   matrixDirty.value = false
   bindingData.value = null
   bindingsDirty.value = false
-  codesPreview.value = null
+  codesData.value = null
+  codesDirty.value = false
   addSeriesId.value = null
   selectedModels.value = new Set()
   tab.value = 'basic'
@@ -698,23 +719,61 @@ async function openBindingsTab() {
 // ── Кодировки ────────────────────────────────────────────────────────────
 async function openCodesTab() {
   tab.value = 'codes'
-  if (form.value && form.value.id && codesPreview.value === null) {
-    await loadCodesPreview()
+  // Узел не сбрасывается при переключении вкладок; выбираем первый, только
+  // если выбора нет или выбранный узел больше не существует.
+  if (selectedNodeId.value == null || !nodeTree.value.some(n => n.id === selectedNodeId.value)) {
+    selectedNodeId.value = nodeTree.value.length ? nodeTree.value[0].id : null
+  }
+  if (form.value && form.value.id && codesData.value === null) {
+    await loadCodes()
   }
 }
 
-async function loadCodesPreview() {
-  if (!form.value || !form.value.id) { codesPreview.value = null; return }
+async function loadCodes() {
+  if (!form.value || !form.value.id) { codesData.value = null; return }
   error.value = ''
-  codesPreview.value = null
+  codesData.value = null
   try {
-    const { data } = await api.get('/ea-control/package/', {
+    const { data } = await api.get('/ea-control/unit-codes/', {
       params: { unit: form.value.id, locale: locale.value },
     })
-    codesPreview.value = data
+    codesData.value = data
+    codesOriginals.clear()
+    for (const s of data.slots || []) {
+      for (const o of s.options || []) {
+        codesOriginals.set(o.id, {
+          encoding: o.encoding || '',
+          ext_encoding: o.ext_encoding || '',
+        })
+      }
+    }
+    codesDirty.value = false
   } catch (e) {
-    error.value = e.displayMessage || 'Ошибка загрузки предпросмотра кодов'
+    error.value = e.displayMessage || 'Ошибка загрузки кодировок'
   }
+}
+
+async function saveCodes() {
+  if (!form.value || !form.value.id) return
+  const changes = []
+  for (const s of (codesData.value?.slots || [])) {
+    for (const o of s.options || []) {
+      const orig = codesOriginals.get(o.id)
+      if (!orig) continue
+      if ((o.encoding || '') !== orig.encoding
+          || (o.ext_encoding || '') !== orig.ext_encoding) {
+        changes.push({
+          slot_id: s.id, option_id: o.id,
+          encoding: o.encoding || '', ext_encoding: o.ext_encoding || '',
+        })
+      }
+    }
+  }
+  if (!changes.length) return
+  await api.put('/ea-control/unit-codes/save/', {
+    unit: form.value.id,
+    changes,
+  })
 }
 
 async function loadBindings() {
@@ -858,6 +917,10 @@ async function save() {
       await saveMatrix()
       await loadMatrix()
     }
+    if (codesDirty.value && f.id) {
+      await saveCodes()
+      await loadCodes()
+    }
     if (bindingsDirty.value && f.id) {
       await saveBindings()
       await loadBindings()
@@ -865,6 +928,7 @@ async function save() {
     dirty.value = false
     matrixDirty.value = false
     bindingsDirty.value = false
+    codesDirty.value = false
     await loadUnits()
   } catch (e) {
     error.value = e.displayMessage || 'Ошибка сохранения'
@@ -872,15 +936,17 @@ async function save() {
 }
 
 function cancelEdit() {
-  if (dirty.value || matrixDirty.value || bindingsDirty.value) {
+  if (dirty.value || matrixDirty.value || bindingsDirty.value || codesDirty.value) {
     if (!confirm('Есть несохранённые изменения. Отменить их?')) return
   }
   form.value = null
   matrix.value = null
   bindingData.value = null
+  codesData.value = null
   dirty.value = false
   matrixDirty.value = false
   bindingsDirty.value = false
+  codesDirty.value = false
   addSeriesId.value = null
   selectedModels.value = new Set()
 }
@@ -1049,10 +1115,15 @@ onMounted(async () => {
 .bind-item button { cursor: pointer; border: none; background: none; color: #a00; }
 .codes-editor { display: flex; flex-direction: column; gap: 10px; }
 .codes-form { display: flex; flex-direction: column; gap: 8px; }
+.codes-placeholders { border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; }
+.codes-placeholders h4 { margin: 0 0 8px; }
+.ph-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.ph-list code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
 .codes-preview { border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; }
 .codes-preview h4 { margin: 0 0 8px; }
 .codes-preview code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
 .codes-table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 8px; }
 .codes-table th, .codes-table td { border: 1px solid #eee; padding: 3px 8px; text-align: left; }
 .codes-table th { background: #fafafa; }
+.code-inp { width: 100%; min-width: 70px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; font-family: monospace; }
 </style>

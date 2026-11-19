@@ -64,6 +64,8 @@ urlpatterns = [
     path('description/', api.description_view, name='cu_mod_description'),
     path('unit-matrix/', api.unit_matrix_view, name='cu_unit_matrix'),
     path('unit-matrix/save/', api.unit_matrix_save_view, name='cu_unit_matrix_save'),
+    path('unit-codes/', api.unit_codes_view, name='cu_unit_codes'),
+    path('unit-codes/save/', api.unit_codes_save_view, name='cu_unit_codes_save'),
     path('unit-bindings/', api.unit_bindings_view, name='cu_unit_bindings'),
     path('unit-bindings/save/', api.unit_bindings_save_view,
          name='cu_unit_bindings_save'),

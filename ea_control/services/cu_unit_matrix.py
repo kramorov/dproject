@@ -414,3 +414,120 @@ def apply_unit_rule_changes(control_unit, rule_changes):
             old.save(update_fields=['action', 'action_value', 'is_active'])
         saved += 1
     return saved
+
+
+# ── Артикульные кодировки опций (вкладка «Кодировки» редактора БУ) ────────
+
+def _base_profile_rows(control_unit):
+    """Строки базового профиля БУ (power_supply=None) для кодировок.
+
+    Артикульная кодировка задаётся на базовом профиле (без напряжения):
+    это вклад опции в артикул типа БУ, а не в конкретное напряжение.
+    """
+    return (_profile_rows(control_unit)
+            .filter(power_supply__isnull=True))
+
+
+def build_unit_codes(control_unit, locale=None):
+    """Редактируемые артикульные кодировки опций БУ (вкладка «Кодировки»).
+
+    Для каждой активной опции слота отдаёт доступность (std/opt/na) из
+    базового профиля, кодировку (``encoding``) и ext-кодировку
+    (``ext_encoding``) строки матрицы (пусто — позиция не кодируется),
+    ``system_encoding`` (кодировка опции в системном коде — справочное
+    значение, копируется в ext для опций-«не std») и ``row_id`` (куда
+    писать при сохранении; None — строки нет, опция не кодируется).
+    """
+    by_pair = {}
+    for r in _base_profile_rows(control_unit):
+        if r.option_id:
+            by_pair[(r.slot_id, r.option_id)] = r
+
+    slots = list(CuSlot.objects.filter(is_active=True)
+                 .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
+                 .select_related('section')
+                 .prefetch_related('slot_options')
+                 .order_by('sorting_order', 'code'))
+
+    slots_payload = []
+    for slot in slots:
+        options = []
+        for option in sorted(
+                [o for o in slot.slot_options.all() if o.is_active],
+                key=lambda o: (o.sorting_order, o.code)):
+            row = by_pair.get((slot.id, option.id))
+            options.append({
+                'id': option.id,
+                'code': option.code,
+                'name': _option_name(option, locale),
+                'kind': option.kind,
+                'availability': row.availability if row else 'na',
+                'encoding': (row.encoding or '') if row else '',
+                'ext_encoding': (row.ext_encoding or '') if row else '',
+                'system_encoding': option.encoding or '',
+                'row_id': row.id if row else None,
+            })
+        slots_payload.append({
+            'id': slot.id,
+            'code': slot.code,
+            'name': localized_name(slot, locale),
+            'section_id': slot.section_id,
+            'section_code': slot.section.code if slot.section_id else None,
+            'options': options,
+        })
+
+    return {
+        'unit': {
+            'id': control_unit.id,
+            'code': control_unit.code,
+            'name': localized_name(control_unit, locale) or control_unit.name,
+            'article_code_template': control_unit.article_code_template or '',
+            'ext_article_code_template': (
+                control_unit.ext_article_code_template or ''),
+        },
+        'slots': slots_payload,
+    }
+
+
+def apply_unit_code_changes(control_unit, changes):
+    """Перезаписать артикульные кодировки строк базового профиля БУ.
+
+    ``changes`` — список ``{slot_id, option_id, encoding, ext_encoding}``.
+    Пишет только в существующие строки базового профиля (power_supply=None):
+    у опции без строки (na) кодировки нет. Возвращает число изменённых строк.
+    """
+    by_slot = {}
+    for c in changes:
+        slot_id = c.get('slot_id')
+        option_id = c.get('option_id')
+        if slot_id is None or option_id is None:
+            continue
+        by_slot.setdefault(slot_id, []).append((option_id, c))
+
+    by_pair = {}
+    for r in _base_profile_rows(control_unit).filter(slot_id__in=by_slot.keys()):
+        if r.option_id:
+            by_pair[(r.slot_id, r.option_id)] = r
+
+    def _norm(v):
+        return (v or '').strip()
+
+    saved = 0
+    for slot_id, opts in by_slot.items():
+        for option_id, c in opts:
+            row = by_pair.get((slot_id, option_id))
+            if row is None:
+                continue
+            encoding = _norm(c.get('encoding'))
+            ext_encoding = _norm(c.get('ext_encoding'))
+            changed = False
+            if (row.encoding or '') != encoding:
+                row.encoding = encoding
+                changed = True
+            if (row.ext_encoding or '') != ext_encoding:
+                row.ext_encoding = ext_encoding
+                changed = True
+            if changed:
+                row.save(update_fields=['encoding', 'ext_encoding'])
+                saved += 1
+    return saved

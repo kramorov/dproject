@@ -1171,6 +1171,46 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
   кодировок узла/слота, API-путь с 400) — зелёные на копии БД;
   `npm run build` OK.
 
+### Выполнено 2026-11-19 — кодировки опций БУ (редактор + артикул ЭП)
+
+**Артикульные кодировки опций БУ (вкладка «Кодировки» редактора БУ).**
+
+- **Данные** (`fill_article_codes`, идемпотентная команда): по строкам
+  базового профиля каждого БУ (scope пуст, power_supply=None, mode=both,
+  слот — не subtype) `std` → `encoding=''`/`ext_encoding=''`; `opt` (не std) →
+  `encoding=''`, `ext_encoding` = системная кодировка опции (`option.encoding`);
+  `na` не трогается. Прогнано на рабочей БД (187 opt обновлено).
+- **`cu_matrix._row_payload`**: `encoding`/`ext_encoding` строки матрицы
+  отдаются **сырыми** (без фолбэка на `option.encoding`/`option.ext_encoding`).
+  Пустая строка = «позиция не кодируется»; системный код опции берётся в
+  `cu_code` напрямую. Иначе «std → пусто» не работало бы (фолбэк подмешивал
+  системную кодировку).
+- **Сервис/API**: `cu_unit_matrix.build_unit_codes` + `apply_unit_code_changes`
+  (кодировки на базовом профиле); эндпоинты `GET /api/ea-control/unit-codes/`
+  и `PUT /api/ea-control/unit-codes/save/`.
+- **Фронт «Кодировки»** (`EaControlUnitsEditor.vue`): поля `encoding`/`ext` в
+  таблице опций — редактируемые `<input>`; «Артикул БУ»/«Ext БУ» —
+  редактируемые поля (шаблоны `article_code_template`/`ext_article_code_template`);
+  вместо «Системный код» — блок «Плейсхолдеры слотов» (`{slot:X}` по всем
+  слотам); таблица — по выбранному узлу (левая панель «Узлы»), `na` скрыты.
+
+**Артикул ЭП (`/admin/ea-constructor`) — вклад БУ по новой схеме.**
+
+- В `ElectricActuatorConstructor` артикул/ext-код собирали вклад БУ из
+  legacy-опции `selected_control_unit_option` (через `_get_option_encoding`),
+  которой больше нет в `_OPTION_CONFIG` и которая в новых записях None → БУ
+  в артикул не попадал.
+- Добавлен `_cu_article_code(ext=False)`: вклад БУ из
+  `cu_code.build_article_code`/`build_ext_article_code` (`selected_control_unit`
+  + `control_unit_snapshot` + напряжение питания). `{cu_name_enc}`/
+  `{control_unit_enc}` → `_cu_article_code()`, `{cu_e_enc}`/
+  `{control_unit_e_enc}` → `_cu_article_code(ext=True)`, fallback-код — тоже.
+- Вклад БУ в артикул = `ControlUnit.article_code_template`; в ext-код привода —
+  `ext_article_code_template` (только позиция `{cu_e_enc}`). Остальное в
+  ext-коде привода (`380AC.ST.AD0.FL` и т.п.) — из шаблона серии
+  `model_line.ext_encoding_template` и опций привода (напряжение/температура/
+  доступ/положение безопасности), к БУ не относится.
+
 ## 5. Дальнейшие действия
 
 1. Перенос абстракций из `ea_control/models/abstract.py` в `core`
