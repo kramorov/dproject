@@ -267,6 +267,7 @@ def get_initial_data(locale=None, fields=None) -> Dict[str, Any]:
     """
     from pneumatic_actuators.models import PneumaticActuatorModelLine
     from params.models import DnVariety, PnVariety, MountingPlateTypes, StemSize, ValveTypes
+    from valve_data.models import TorqueThrustCharacteristics
 
     if fields is not None:
         fields = set(fields)
@@ -302,6 +303,12 @@ def get_initial_data(locale=None, fields=None) -> Dict[str, Any]:
         data['stem_sizes'] = StemSize.get_for_select(active_only=True, locale=locale)
     if want('valve_types'):
         data['valve_types'] = ValveTypes.get_for_select(active_only=True, locale=locale)
+    if want('torque_characteristics'):
+        data['torque_characteristics'] = list(
+            TorqueThrustCharacteristics.objects.filter(is_active=True)
+            .order_by('sorting_order', 'id')
+            .values('id', 'code', 'name', 'motion_type_id', 'motion_type__code')
+        )
     if want('labels'):
         data['labels'] = _get_selector_labels(locale)
     return data

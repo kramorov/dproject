@@ -1,0 +1,3095 @@
+{
+  "python": "3.11",
+  "total_unique": 486,
+  "per_file": {
+    "qt_app.pyc": 435,
+    "engine.pyc": 56
+  },
+  "strings": [
+    {
+      "text": "\n区间可调，默认最大值。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": "\n参考来源：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "\n待确认事项：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "\n推荐评分：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "\n数量 / 小计：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "\n最终单价：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "\n温度加价：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "\n温度系数：× ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "\n附加配置加价：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "  选型结果与报价仅供参考，技术条件和有效价格需最终复核。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.__init__"
+      ]
+    },
+    {
+      "text": " mm价格斜率线性外推",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": " mm参考价线性计算",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": " · M系列执行器连接端可匹配：",
+      "locations": [
+        "engine.pyc:rotary_connection_info"
+      ]
+    },
+    {
+      "text": " · 价格 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": " · 各点适配 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": " · 手动机构接口待确认",
+      "locations": [
+        "engine.pyc:rotary_connection_info"
+      ]
+    },
+    {
+      "text": " · 显示 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.refresh_records"
+      ]
+    },
+    {
+      "text": " · 默认 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": " 个候选 · 按型号搜索",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": " 分 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": " 分 · ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose",
+        "qt_app.pyc:QuoteWindow._update_price",
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch"
+      ]
+    },
+    {
+      "text": " 动作系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form.<listcomp>"
+      ]
+    },
+    {
+      "text": " 台",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": " 台 / ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": " 必须为有限数值。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.collect_form.number"
+      ]
+    },
+    {
+      "text": " 条 · ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_import_files.<genexpr>"
+      ]
+    },
+    {
+      "text": " 条 · 本机资料：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.refresh_records"
+      ]
+    },
+    {
+      "text": " 系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": " 系数区间格式错误。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.collect_form"
+      ]
+    },
+    {
+      "text": " 系数须为非负数。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.collect_form.factor"
+      ]
+    },
+    {
+      "text": " 项待询价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._refresh_quotes"
+      ]
+    },
+    {
+      "text": "0 · 不配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[0]"
+      ]
+    },
+    {
+      "text": "0 条资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "00 · 常规",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[0][0]"
+      ]
+    },
+    {
+      "text": "00 · 默认",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[0]"
+      ]
+    },
+    {
+      "text": "01  选型条件",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "01  选择执行器",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[0][0]"
+      ]
+    },
+    {
+      "text": "01 · 关限位可调",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[1][0]"
+      ]
+    },
+    {
+      "text": "01 · 限制气缸模组",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[1]"
+      ]
+    },
+    {
+      "text": "02  气动附件配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[1][0]"
+      ]
+    },
+    {
+      "text": "02  选型与价格",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right"
+      ]
+    },
+    {
+      "text": "02 · 开限位可调",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[2][0]"
+      ]
+    },
+    {
+      "text": "02 · 限制弹簧模组",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[2]"
+      ]
+    },
+    {
+      "text": "03  价格明细",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[2][0]"
+      ]
+    },
+    {
+      "text": "03 · 同时限制",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[3]"
+      ]
+    },
+    {
+      "text": "03 · 开关限位可调",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[3][0]"
+      ]
+    },
+    {
+      "text": "04 · 高频",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[4][0]"
+      ]
+    },
+    {
+      "text": "04 · 高频次",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[4]"
+      ]
+    },
+    {
+      "text": "05 · 高频/开限位",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[5][0]"
+      ]
+    },
+    {
+      "text": "06 · 高频/关限位",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[6][0]"
+      ]
+    },
+    {
+      "text": "07 · 高频/开关限位",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl[7][0]"
+      ]
+    },
+    {
+      "text": "1 · 丝杆",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[1]"
+      ]
+    },
+    {
+      "text": "2 · 伞齿轮",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[2]"
+      ]
+    },
+    {
+      "text": "3 · 离合",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[3]"
+      ]
+    },
+    {
+      "text": "304轴",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices[0]",
+        "qt_app.pyc:QuoteWindow._show_batch.batch_options[0]"
+      ]
+    },
+    {
+      "text": "316L轴",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices[1]",
+        "qt_app.pyc:QuoteWindow._show_batch.batch_options[1]"
+      ]
+    },
+    {
+      "text": "4 · 液压",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts[4]"
+      ]
+    },
+    {
+      "text": "BTL 超低温价格待确认（现有价格表仅覆盖低温 -40℃～80℃）",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "BTL缸径超出订货资料规定的80–1200 mm范围。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "BTL订货行程需为10–2000 mm的整数。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "BTO由弹簧输出，ETC由气压输出",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "BTO由气压输出，ETC由弹簧输出",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "BTS + NRT 混合",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[0]",
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch[0]"
+      ]
+    },
+    {
+      "text": "BTS 大口径拨叉 · NRT 小口径齿轮齿条 · BTL 直行程",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._header"
+      ]
+    },
+    {
+      "text": "BTS 涂层或手动机构价格待询价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "BTS 温度价格待确认",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "BTS 超低温订货代码尚未定义，请修改工作温度。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "CSV 模板一次导出一个资料类别：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template"
+      ]
+    },
+    {
+      "text": "ISO 5211 阀门接口中心距规格：",
+      "locations": [
+        "engine.pyc:rotary_connection_info"
+      ]
+    },
+    {
+      "text": "ISO 5211 阀门接口中心距规格：资料未列",
+      "locations": [
+        "engine.pyc:rotary_connection_info"
+      ]
+    },
+    {
+      "text": "JSON 结构检查通过，将完整替换本机系统资料。\n",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_import_json"
+      ]
+    },
+    {
+      "text": "JSON 缺少系统所需资料类别。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_validate"
+      ]
+    },
+    {
+      "text": "JSON 资料类别结构不正确。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_validate"
+      ]
+    },
+    {
+      "text": "N · 内置拉杆",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "NRT价格表 ",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "NRT价格表未列手动机构价格，待询价",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "NRT价格表未列该型号／弹簧数量，待询价",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "W · 外置拉杆",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "下载模板",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "不升级",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices"
+      ]
+    },
+    {
+      "text": "不参与评分",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "不满足 · 输出不足",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "不配置",
+      "locations": [
+        "engine.pyc:btl_manual_code",
+        "qt_app.pyc:QuoteWindow._setup_price_choices",
+        "qt_app.pyc:QuoteWindow._update_price",
+        "qt_app.pyc:QuoteWindow._confirm_btl",
+        "qt_app.pyc:QuoteWindow._add_quote",
+        "qt_app.pyc:QuoteWindow._show_batch.set_batch_option",
+        "qt_app.pyc:QuoteWindow._show_batch.make_batch_selector",
+        "qt_app.pyc:QuoteWindow._export_batch.option_name"
+      ]
+    },
+    {
+      "text": "丝杆",
+      "locations": [
+        "engine.pyc:btl_manual_code[0]"
+      ]
+    },
+    {
+      "text": "中置",
+      "locations": [
+        "engine.pyc:btl_manual_code"
+      ]
+    },
+    {
+      "text": "产品系列（BTS / NRT）",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[1][1]"
+      ]
+    },
+    {
+      "text": "仅 BTS",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[1]",
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch[1]"
+      ]
+    },
+    {
+      "text": "仅 NRT",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[2]",
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch[2]"
+      ]
+    },
+    {
+      "text": "从 Excel / CSV 解析资料，预览结果后再应用。完整 JSON 可用于系统资料备份和恢复。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "价格与原始记录",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "价格信息",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[2]"
+      ]
+    },
+    {
+      "text": "价格型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[0][1]"
+      ]
+    },
+    {
+      "text": "价格明细",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right"
+      ]
+    },
+    {
+      "text": "价格配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right",
+        "qt_app.pyc:QuoteWindow._show_batch[6]"
+      ]
+    },
+    {
+      "text": "伞齿",
+      "locations": [
+        "engine.pyc:btl_manual_code"
+      ]
+    },
+    {
+      "text": "位号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history[2]",
+        "qt_app.pyc:QuoteWindow._center[0]",
+        "qt_app.pyc:QuoteWindow._export_quotes[2]"
+      ]
+    },
+    {
+      "text": "低温",
+      "locations": [
+        "engine.pyc:bts_order_model[2]",
+        "qt_app.pyc:QuoteWindow._left[2]",
+        "qt_app.pyc:QuoteWindow.search[2]",
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "作用方式",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[7]",
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._export_quotes[16]",
+        "qt_app.pyc:QuoteWindow._show_batch",
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[2][1]",
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[1][1]"
+      ]
+    },
+    {
+      "text": "保存当前记录",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[1]",
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "保存批量模板",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_template_dialog"
+      ]
+    },
+    {
+      "text": "候选",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history[4]"
+      ]
+    },
+    {
+      "text": "候选执行器",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "先在左侧选择一条资料。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance",
+        "qt_app.pyc:QuoteWindow._show_maintenance[0]"
+      ]
+    },
+    {
+      "text": "六点需求 = 基准扭矩 × 厂家动作系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "共 11 类 · 暂无已导入型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "关闭",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history",
+        "qt_app.pyc:QuoteWindow._quote_detail",
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "其他候选",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "减压阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[3]"
+      ]
+    },
+    {
+      "text": "删除当前记录",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[2]",
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "删除资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.delete_current"
+      ]
+    },
+    {
+      "text": "删除选中",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "加入报价时确认拉杆结构、特殊定制和手动机构，并生成最终订货型号。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "加入项目报价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right"
+      ]
+    },
+    {
+      "text": "动作点",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right",
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "动作点 / 方向",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail[0]"
+      ]
+    },
+    {
+      "text": "动作系数JSON",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[14]"
+      ]
+    },
+    {
+      "text": "动作系数及执行器型号资料待补充，当前暂不能选型。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": "单价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[3]",
+        "qt_app.pyc:QuoteWindow._export_quotes[27]"
+      ]
+    },
+    {
+      "text": "单作用",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._add_quote",
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "单作用 FC",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left[1]"
+      ]
+    },
+    {
+      "text": "单作用 FO",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left[2]"
+      ]
+    },
+    {
+      "text": "单作用BTS型号中未识别到弹簧数量。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "单作用BTS需选择FC或FO失效动作。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "单作用需按订货资料选择FO（故障打开）或FC（故障关闭）。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "历史记录",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._header",
+        "qt_app.pyc:QuoteWindow._record_search"
+      ]
+    },
+    {
+      "text": "压力 / 温度",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "压力等级",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "参与推荐",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter.searchable",
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "参考单价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[5]",
+        "qt_app.pyc:QuoteWindow._export_batch[5]"
+      ]
+    },
+    {
+      "text": "参考来源：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "参考点 ",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "参考起价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[2][1]",
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "双作用",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left[0]",
+        "qt_app.pyc:QuoteWindow._add_quote",
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "双作用：BTO、ETC均按气压输出",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "口径查表组合",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "可报价",
+      "locations": [
+        "engine.pyc:linear_manual_choices",
+        "qt_app.pyc:QuoteWindow._setup_price_choices"
+      ]
+    },
+    {
+      "text": "合并更新（同键记录覆盖）",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "合计 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._refresh_quotes"
+      ]
+    },
+    {
+      "text": "合计 ¥0.00",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "同性能型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "名称 / 型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "后续可按品牌导入型号、接口规格、适用条件和价格，再在此页面开展附件选型。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "否",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search",
+        "qt_app.pyc:QuoteWindow._export_quotes"
+      ]
+    },
+    {
+      "text": "品牌与型号资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "品牌资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[0]"
+      ]
+    },
+    {
+      "text": "四点推力",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "四点推力：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_linear_preview"
+      ]
+    },
+    {
+      "text": "型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "型号或行程档位无明确价格",
+      "locations": [
+        "engine.pyc:linear_configured_price.<listcomp>"
+      ]
+    },
+    {
+      "text": "型号无效",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "型号未对应价格表",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "基准扭矩",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[1]"
+      ]
+    },
+    {
+      "text": "基准扭矩 / 选型方式",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "基准扭矩(N·m)",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_template_dialog"
+      ]
+    },
+    {
+      "text": "基准扭矩(N·m)\n",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_import_dialog"
+      ]
+    },
+    {
+      "text": "基准扭矩(N·m)\n1000\n2500",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "基准扭矩N·m",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[9]",
+        "qt_app.pyc:QuoteWindow._export_batch[1]"
+      ]
+    },
+    {
+      "text": "基准扭矩清单",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "基准扭矩选型",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "基准扭矩须为大于零的有限数值。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "基准推力",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "基准推力 / N",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "基准推力 N",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[2]"
+      ]
+    },
+    {
+      "text": "基准推力N",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[10]"
+      ]
+    },
+    {
+      "text": "基础价待询价·待复核",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.refresh_batch_row"
+      ]
+    },
+    {
+      "text": "基础价格（元）",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[2][1]"
+      ]
+    },
+    {
+      "text": "填写资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "备份与恢复",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "备注 / 状态",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[1]"
+      ]
+    },
+    {
+      "text": "失效动作",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[23]",
+        "qt_app.pyc:QuoteWindow._quote_detail",
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "安全系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[10]",
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._quote_detail",
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "安全系数必须大于或等于 1。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch"
+      ]
+    },
+    {
+      "text": "安全阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[10]"
+      ]
+    },
+    {
+      "text": "安装方向",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[5]",
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._export_quotes[3]",
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "完成配置，查看价格明细  ›",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "定位器",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[2]"
+      ]
+    },
+    {
+      "text": "客户名称",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[2]",
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._export_quotes[1]"
+      ]
+    },
+    {
+      "text": "导入 Excel / CSV",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch",
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "导入与导出",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "导入失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_import_dialog",
+        "qt_app.pyc:QuoteWindow._maintenance_import_json"
+      ]
+    },
+    {
+      "text": "导入完整 JSON",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "导入完整系统 JSON",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_import_json"
+      ]
+    },
+    {
+      "text": "导入扭矩清单",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_import_dialog"
+      ]
+    },
+    {
+      "text": "导入文件解析完成",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_import_files"
+      ]
+    },
+    {
+      "text": "导入草稿已放弃；当前本机资料未更改。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_discard_import"
+      ]
+    },
+    {
+      "text": "导出",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes",
+        "qt_app.pyc:QuoteWindow._export_batch"
+      ]
+    },
+    {
+      "text": "导出 CSV",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center",
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "导出 Excel / CSV 模板",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "导出 XLSX",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "导出失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes",
+        "qt_app.pyc:QuoteWindow._export_batch"
+      ]
+    },
+    {
+      "text": "导出完整系统资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_json"
+      ]
+    },
+    {
+      "text": "导出当前 JSON",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "导出批量结果",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_batch"
+      ]
+    },
+    {
+      "text": "导出报价明细",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes"
+      ]
+    },
+    {
+      "text": "导出资料维护模板",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template"
+      ]
+    },
+    {
+      "text": "小计",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[4]",
+        "qt_app.pyc:QuoteWindow._export_quotes[28]"
+      ]
+    },
+    {
+      "text": "工作温度",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[9]",
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "工作行程",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "工作行程 / mm",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "工作行程 mm",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[1]"
+      ]
+    },
+    {
+      "text": "工作行程需为 10–2000 mm 的整数。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "已从备份恢复资料。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._restore_backup"
+      ]
+    },
+    {
+      "text": "常温",
+      "locations": [
+        "engine.pyc:bts_order_model[0]",
+        "qt_app.pyc:QuoteWindow._left[0]",
+        "qt_app.pyc:QuoteWindow.search[0]",
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "序号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[0]",
+        "qt_app.pyc:QuoteWindow._export_batch[0]"
+      ]
+    },
+    {
+      "text": "应用失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_apply"
+      ]
+    },
+    {
+      "text": "应用导入草稿",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "应用并保存",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[3]",
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "应用资料前会自动保存一份本地备份。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "开始批量选型",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "开始搜索",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "弹簧推力 N",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[4][1]"
+      ]
+    },
+    {
+      "text": "弹簧输出点 1",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[7][1]"
+      ]
+    },
+    {
+      "text": "弹簧输出点 2",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[8][1]"
+      ]
+    },
+    {
+      "text": "弹簧输出点 3",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[9][1]"
+      ]
+    },
+    {
+      "text": "当前压力无法转换为订货代码；仅支持精确到0.01 MPa的压力值。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "当前气源压力超出订货代码支持范围。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "当前阀门类型暂无 DN / 压力等级扭矩表，请切回基准扭矩选型。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._lookup_changed",
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "待确认事项",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[30]"
+      ]
+    },
+    {
+      "text": "待确认：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "待评分",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter.searchable",
+        "qt_app.pyc:QuoteWindow._filter",
+        "qt_app.pyc:QuoteWindow._choose",
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "待询价",
+      "locations": [
+        "qt_app.pyc:money",
+        "qt_app.pyc:QuoteWindow._filter",
+        "qt_app.pyc:QuoteWindow._setup_price_choices",
+        "qt_app.pyc:QuoteWindow._add_quote",
+        "qt_app.pyc:QuoteWindow._refresh_quotes",
+        "qt_app.pyc:QuoteWindow._show_batch.refresh_batch_row",
+        "qt_app.pyc:QuoteWindow._show_batch.make_batch_selector",
+        "qt_app.pyc:QuoteWindow._export_batch.<listcomp>"
+      ]
+    },
+    {
+      "text": "快排阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[5]"
+      ]
+    },
+    {
+      "text": "性能型号：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts",
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "恢复备份",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._restore_backup"
+      ]
+    },
+    {
+      "text": "恢复失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._restore_backup"
+      ]
+    },
+    {
+      "text": "恢复完成",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._restore_backup"
+      ]
+    },
+    {
+      "text": "恢复选中备份",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "手动",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.install_batch_price_config[2][0]"
+      ]
+    },
+    {
+      "text": "手动机构",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right",
+        "qt_app.pyc:QuoteWindow._setup_price_choices",
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "手动机构 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices",
+        "qt_app.pyc:QuoteWindow._show_batch.batch_options.<listcomp>"
+      ]
+    },
+    {
+      "text": "手动机构代码",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "手动机构代码需为0–5。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "手动机构价格待确认",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "手动机构价格待询价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "手动机构加价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_batch[8]"
+      ]
+    },
+    {
+      "text": "手动机构加价（元）",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[13][1]"
+      ]
+    },
+    {
+      "text": "手动机构型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[12][1]"
+      ]
+    },
+    {
+      "text": "手动机构配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices"
+      ]
+    },
+    {
+      "text": "手动机构配置：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "执行器 / 订货型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "执行器型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[0][1]",
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[0][1]"
+      ]
+    },
+    {
+      "text": "执行器基础价（元）",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[11][1]"
+      ]
+    },
+    {
+      "text": "执行器基础价：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price",
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "执行器性能型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[18]"
+      ]
+    },
+    {
+      "text": "执行器系列",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "扭矩",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch",
+        "qt_app.pyc:QuoteWindow._batch_import_dialog.<genexpr>",
+        "qt_app.pyc:QuoteWindow._batch_import_dialog.<genexpr>"
+      ]
+    },
+    {
+      "text": "扭矩 / 推力校核",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right"
+      ]
+    },
+    {
+      "text": "扭矩无效",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch"
+      ]
+    },
+    {
+      "text": "扭矩表组",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search",
+        "qt_app.pyc:QuoteWindow._export_quotes[7]"
+      ]
+    },
+    {
+      "text": "批量快速报价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "批量报价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._header",
+        "qt_app.pyc:QuoteWindow._batch_template_dialog"
+      ]
+    },
+    {
+      "text": "批量报价模板.csv",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_template_dialog"
+      ]
+    },
+    {
+      "text": "批量报价结果",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_batch"
+      ]
+    },
+    {
+      "text": "批量选型失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch"
+      ]
+    },
+    {
+      "text": "报价明细 · ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "报价明细.csv",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes"
+      ]
+    },
+    {
+      "text": "报价明细已导出。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes"
+      ]
+    },
+    {
+      "text": "报价清单",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center",
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "报价清单为空。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes"
+      ]
+    },
+    {
+      "text": "报价系统资料.json",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_json"
+      ]
+    },
+    {
+      "text": "拉杆结构",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl",
+        "qt_app.pyc:QuoteWindow._export_quotes[12]"
+      ]
+    },
+    {
+      "text": "拉杆结构 / 特殊定制",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "拨叉价格表 Sheet1 ",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "按端点 ",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "推力性能",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search"
+      ]
+    },
+    {
+      "text": "推荐",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[0][1]",
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "推荐 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose",
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "推荐依据",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[3]"
+      ]
+    },
+    {
+      "text": "推荐只按推力性能排序；拉杆结构、特殊定制和手动机构在加入报价时确认。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "推荐型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[2]",
+        "qt_app.pyc:QuoteWindow._export_batch[2]"
+      ]
+    },
+    {
+      "text": "推荐评分",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[4]",
+        "qt_app.pyc:QuoteWindow._export_batch[4]"
+      ]
+    },
+    {
+      "text": "插杆",
+      "locations": [
+        "engine.pyc:btl_manual_code[2]"
+      ]
+    },
+    {
+      "text": "插销",
+      "locations": [
+        "engine.pyc:btl_manual_code[1]"
+      ]
+    },
+    {
+      "text": "搜索历史记录",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history"
+      ]
+    },
+    {
+      "text": "搜索型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "搜索型号、名称或 JSON 内容",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "搜索成功，但历史保存失败：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search"
+      ]
+    },
+    {
+      "text": "摘要",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "放大器",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[6]"
+      ]
+    },
+    {
+      "text": "放弃导入草稿",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "数量",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[2]",
+        "qt_app.pyc:QuoteWindow._export_quotes[26]"
+      ]
+    },
+    {
+      "text": "数量 / 台",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[4]",
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "数量必须为正整数。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "整体喷塑涂料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices[0]",
+        "qt_app.pyc:QuoteWindow._show_batch.batch_options[0]"
+      ]
+    },
+    {
+      "text": "文件没有数据",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_import_dialog"
+      ]
+    },
+    {
+      "text": "文件识别报告和资料数量会显示在这里",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "新建",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[0]",
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "新资料已保存。本次自动备份位于：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_apply"
+      ]
+    },
+    {
+      "text": "新阀门类型",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.new_record"
+      ]
+    },
+    {
+      "text": "无",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "无法从BTL性能型号识别缸径或活塞数量代码。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "无法从当前BTS型号识别系列、缸径或弹簧数量。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "无满足型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch"
+      ]
+    },
+    {
+      "text": "是",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search",
+        "qt_app.pyc:QuoteWindow._export_quotes"
+      ]
+    },
+    {
+      "text": "显示 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "替换导入类别",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "最小裕量",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[1][1]",
+        "qt_app.pyc:QuoteWindow._filter",
+        "qt_app.pyc:QuoteWindow._show_batch[3]",
+        "qt_app.pyc:QuoteWindow._export_batch[3]"
+      ]
+    },
+    {
+      "text": "最终单价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[8]",
+        "qt_app.pyc:QuoteWindow._export_batch[10]"
+      ]
+    },
+    {
+      "text": "最终型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[1]"
+      ]
+    },
+    {
+      "text": "最终订货型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[17]"
+      ]
+    },
+    {
+      "text": "最终订货型号：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl.update"
+      ]
+    },
+    {
+      "text": "本地运行",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._header"
+      ]
+    },
+    {
+      "text": "机构 / 阀门",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history[3]"
+      ]
+    },
+    {
+      "text": "机构类型",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[0]",
+        "qt_app.pyc:QuoteWindow._show_history",
+        "qt_app.pyc:QuoteWindow._export_quotes[15]"
+      ]
+    },
+    {
+      "text": "机械行程 mm",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[1][1]"
+      ]
+    },
+    {
+      "text": "条件已变更，请重新搜索",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._invalidate_search"
+      ]
+    },
+    {
+      "text": "查看明细",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "查表扭矩：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._lookup_changed"
+      ]
+    },
+    {
+      "text": "查表扭矩：—",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "查表扭矩：该 DN / 压力等级组合无表值。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._lookup_changed"
+      ]
+    },
+    {
+      "text": "标准涂层",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices",
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "标准轴",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices"
+      ]
+    },
+    {
+      "text": "校核点 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "根据口径选型",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "检索时间",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history[0]"
+      ]
+    },
+    {
+      "text": "模板失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._batch_template_dialog"
+      ]
+    },
+    {
+      "text": "模板导出失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template"
+      ]
+    },
+    {
+      "text": "模板已导出",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template"
+      ]
+    },
+    {
+      "text": "欧德隆执行器智能选型系统",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.__init__",
+        "qt_app.pyc:QuoteWindow._header"
+      ]
+    },
+    {
+      "text": "此类型无区间系数。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": "此类型无可调整系数。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": "气动刀闸阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search",
+        "qt_app.pyc:QuoteWindow._mode_changed",
+        "qt_app.pyc:QuoteWindow._refresh_data_controls[1]"
+      ]
+    },
+    {
+      "text": "气动刀闸阀 · 四点系数 1 / 0.45 / 0.5 / 1，按 BTO、ETC 选缸径",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "气动平板闸阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._refresh_data_controls[2]"
+      ]
+    },
+    {
+      "text": "气动截止阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._refresh_data_controls[0]"
+      ]
+    },
+    {
+      "text": "气动推力 N",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[3][1]"
+      ]
+    },
+    {
+      "text": "气动楔式闸阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._refresh_data_controls[3]"
+      ]
+    },
+    {
+      "text": "气动输出点 1",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[4][1]"
+      ]
+    },
+    {
+      "text": "气动输出点 2",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[5][1]"
+      ]
+    },
+    {
+      "text": "气动输出点 3",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[6][1]"
+      ]
+    },
+    {
+      "text": "气嘴接头",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[8]"
+      ]
+    },
+    {
+      "text": "气控阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[4]"
+      ]
+    },
+    {
+      "text": "气源压力 / MPa",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "气源压力 MPa",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[8]",
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[3][1]",
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[2][1]"
+      ]
+    },
+    {
+      "text": "气源压力MPa",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[21]"
+      ]
+    },
+    {
+      "text": "气源管",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[9]"
+      ]
+    },
+    {
+      "text": "水平于管道",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._reset_inputs"
+      ]
+    },
+    {
+      "text": "没有匹配型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "涂层",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right",
+        "qt_app.pyc:QuoteWindow._setup_price_choices",
+        "qt_app.pyc:QuoteWindow._show_batch.install_batch_price_config[0][0]"
+      ]
+    },
+    {
+      "text": "涂层配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_batch[6]"
+      ]
+    },
+    {
+      "text": "涂层配置：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "消声器",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[7]"
+      ]
+    },
+    {
+      "text": "液压",
+      "locations": [
+        "engine.pyc:btl_manual_code"
+      ]
+    },
+    {
+      "text": "清除条件",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "温度加价：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "温度系数：× ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "满足",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history[5]",
+        "qt_app.pyc:QuoteWindow._refresh_quotes"
+      ]
+    },
+    {
+      "text": "满足 · ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "满足·待复核",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.refresh_batch_row",
+        "qt_app.pyc:QuoteWindow._show_batch.search_batch"
+      ]
+    },
+    {
+      "text": "满足·配置待询价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch.refresh_batch_row"
+      ]
+    },
+    {
+      "text": "满足需求",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter.searchable",
+        "qt_app.pyc:QuoteWindow._export_quotes[29]"
+      ]
+    },
+    {
+      "text": "演示客户",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "特殊定制",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts",
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "特殊定制代码",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[13]"
+      ]
+    },
+    {
+      "text": "特殊定制代码无效。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "特殊定制代码需为00–07。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "状态",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center[5]",
+        "qt_app.pyc:QuoteWindow._show_batch[9]",
+        "qt_app.pyc:QuoteWindow._export_batch[11]"
+      ]
+    },
+    {
+      "text": "电磁阀",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[0]"
+      ]
+    },
+    {
+      "text": "直行程",
+      "locations": [
+        "qt_app.pyc:ModeSelector.__init__[1]",
+        "qt_app.pyc:ModeSelector.currentText[1]",
+        "qt_app.pyc:QuoteWindow._add_quote",
+        "qt_app.pyc:QuoteWindow._quote_detail",
+        "qt_app.pyc:QuoteWindow._maintenance_export_template[1][0]"
+      ]
+    },
+    {
+      "text": "直行程价格",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[3][0]",
+        "qt_app.pyc:QuoteWindow._maintenance_export_template[2][0]"
+      ]
+    },
+    {
+      "text": "直行程价格需要填写型号和行程。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_save_record"
+      ]
+    },
+    {
+      "text": "直行程单作用多表中位价",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "直行程参考价缺少覆盖点",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "直行程参考价计算",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "直行程四点推力JSON",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[11]"
+      ]
+    },
+    {
+      "text": "直行程手动机构配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[4][0]"
+      ]
+    },
+    {
+      "text": "直行程手动配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template[4][0]"
+      ]
+    },
+    {
+      "text": "直行程推力",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[2][0]"
+      ]
+    },
+    {
+      "text": "直行程推力需求",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "确定删除当前选中的资料记录？",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.delete_current"
+      ]
+    },
+    {
+      "text": "确认 BTL 最终订货型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "确认 BTS 最终订货型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "确认型号并加入报价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "确认手动机构",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl"
+      ]
+    },
+    {
+      "text": "示例项目",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "离合",
+      "locations": [
+        "engine.pyc:btl_manual_code"
+      ]
+    },
+    {
+      "text": "系数可填小数（0.9）或区间（80%~90%）；区间默认按上限参与选型。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form"
+      ]
+    },
+    {
+      "text": "结构代码只能选择N（内置拉杆）或W（外置拉杆）。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "能力不足 · 不参与推荐评分",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "能力校核",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "自动使用动作系数：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": "船舶及近海级涂料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices[1]",
+        "qt_app.pyc:QuoteWindow._show_batch.batch_options[1]"
+      ]
+    },
+    {
+      "text": "范围 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._valve_changed"
+      ]
+    },
+    {
+      "text": "行程mm",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[22]"
+      ]
+    },
+    {
+      "text": "裕量",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose[2]",
+        "qt_app.pyc:QuoteWindow._quote_detail[3]"
+      ]
+    },
+    {
+      "text": "规格参数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[1]"
+      ]
+    },
+    {
+      "text": "角行程",
+      "locations": [
+        "qt_app.pyc:ModeSelector.__init__[0]",
+        "qt_app.pyc:ModeSelector.currentText[0]",
+        "qt_app.pyc:QuoteWindow._record_search",
+        "qt_app.pyc:QuoteWindow._add_quote",
+        "qt_app.pyc:QuoteWindow._quote_detail",
+        "qt_app.pyc:QuoteWindow._maintenance_export_template[0][0]"
+      ]
+    },
+    {
+      "text": "角行程扭矩与价格",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[1][0]"
+      ]
+    },
+    {
+      "text": "角行程角度",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "角行程角度需在20°至90°之间。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "解析失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_import_files"
+      ]
+    },
+    {
+      "text": "计价型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[20]",
+        "qt_app.pyc:QuoteWindow._quote_detail",
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[10][1]"
+      ]
+    },
+    {
+      "text": "计价型号：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "订货型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "订货型号待确认：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._confirm_btl.update"
+      ]
+    },
+    {
+      "text": "订货资料只定义0.3、0.4、0.5、0.6 MPa压力代码。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "订货资料未定义该温度代码，暂不能生成最终型号。",
+      "locations": [
+        "engine.pyc:btl_order_model"
+      ]
+    },
+    {
+      "text": "记录已更新到内存。点击「应用并保存」后写入本机。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_save_record"
+      ]
+    },
+    {
+      "text": "记录必须为 JSON 对象。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_save_record"
+      ]
+    },
+    {
+      "text": "记录无效",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.save_current"
+      ]
+    },
+    {
+      "text": "该 DN / 压力等级组合在厂家扭矩表中没有数值。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "该型号只有一个行程价格参考点，无法计算行程价差",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "该类别尚无已导入资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "该缸径/作用方式没有可用的行程参考价点",
+      "locations": [
+        "engine.pyc:_linear_price"
+      ]
+    },
+    {
+      "text": "该资料类别请在「高级 JSON」页编辑。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form"
+      ]
+    },
+    {
+      "text": "请先搜索并选择一个候选型号。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "请先运行批量选型。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_batch"
+      ]
+    },
+    {
+      "text": "请先选择一个备份。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._restore_backup"
+      ]
+    },
+    {
+      "text": "请先选择一条记录，或点击「新建」。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.save_current"
+      ]
+    },
+    {
+      "text": "请填写记录键或选择已有记录。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_save_record"
+      ]
+    },
+    {
+      "text": "请填写阀门位号。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "请填写阀门位号和正整数数量。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "请输入大于零的基准推力，单位 N。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "请输入有效的基准推力和安全系数。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_linear_preview"
+      ]
+    },
+    {
+      "text": "请输入有效的气源压力和大于或等于 1 的安全系数。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "请输入正数阀门基准扭矩，单位 N·m。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "请选择 N2 或 N4",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    },
+    {
+      "text": "请选择型号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right"
+      ]
+    },
+    {
+      "text": "资料已应用",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_apply"
+      ]
+    },
+    {
+      "text": "资料待导入",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "资料浏览与编辑",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "资料结构不完整或类型错误。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_apply"
+      ]
+    },
+    {
+      "text": "资料维护",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._header",
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "资料维护模板.xlsx",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template"
+      ]
+    },
+    {
+      "text": "资料维护模板已保存。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template"
+      ]
+    },
+    {
+      "text": "资料解析失败",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_import_files"
+      ]
+    },
+    {
+      "text": "资料记录",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance.save_current",
+        "qt_app.pyc:QuoteWindow._maintenance_save_record"
+      ]
+    },
+    {
+      "text": "起 ¥",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter"
+      ]
+    },
+    {
+      "text": "超低温",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left[3]",
+        "qt_app.pyc:QuoteWindow.search[3]",
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "超低温暂不支持生成BTS最终订货型号。",
+      "locations": [
+        "engine.pyc:bts_order_model"
+      ]
+    },
+    {
+      "text": "软密封蝶阀扭矩表组",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "轴材",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right",
+        "qt_app.pyc:QuoteWindow._show_batch.install_batch_price_config[1][0]"
+      ]
+    },
+    {
+      "text": "轴材配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_batch[7]"
+      ]
+    },
+    {
+      "text": "输入与配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "输入扭矩已包含安全系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch"
+      ]
+    },
+    {
+      "text": "输入有误",
+      "locations": [
+        "qt_app.pyc:QuoteWindow.search"
+      ]
+    },
+    {
+      "text": "输出",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose[1]",
+        "qt_app.pyc:QuoteWindow._quote_detail[2]"
+      ]
+    },
+    {
+      "text": "输出不足",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._filter.searchable",
+        "qt_app.pyc:QuoteWindow._update_price",
+        "qt_app.pyc:QuoteWindow._refresh_quotes"
+      ]
+    },
+    {
+      "text": "返回选择执行器",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "连接信息待确认",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "连接尺寸",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[19]",
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "连接盘尺寸（∅P）：",
+      "locations": [
+        "engine.pyc:rotary_connection_info"
+      ]
+    },
+    {
+      "text": "连接盘尺寸（∅P）：资料未提供映射",
+      "locations": [
+        "engine.pyc:rotary_connection_info"
+      ]
+    },
+    {
+      "text": "选型方式",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[1]",
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._export_quotes[8]"
+      ]
+    },
+    {
+      "text": "选型配置 · 气动附件",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "选定执行器后的配置步骤，完成后继续查看价格明细。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "选择 CSV 类别",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template"
+      ]
+    },
+    {
+      "text": "选择待导入资料",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_import_files"
+      ]
+    },
+    {
+      "text": "配置 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._setup_price_choices"
+      ]
+    },
+    {
+      "text": "配置加价合计",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_batch[7]",
+        "qt_app.pyc:QuoteWindow._export_batch[9]"
+      ]
+    },
+    {
+      "text": "配置气动附件  ›",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right"
+      ]
+    },
+    {
+      "text": "配置表行程与需求行程不一致",
+      "locations": [
+        "engine.pyc:linear_configured_price"
+      ]
+    },
+    {
+      "text": "采用动作系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[2]"
+      ]
+    },
+    {
+      "text": "阀门与机构",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "阀门位号",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[3]",
+        "qt_app.pyc:QuoteWindow._show_history",
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "阀门六点扭矩",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "阀门六点系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance[0][0]"
+      ]
+    },
+    {
+      "text": "阀门压力等级",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[1]",
+        "qt_app.pyc:QuoteWindow._export_quotes[6]"
+      ]
+    },
+    {
+      "text": "阀门口径 DN",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[0]",
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "阀门口径DN",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[5]"
+      ]
+    },
+    {
+      "text": "阀门基准扭矩 / N·m",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "阀门基准扭矩 N·m",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[0]"
+      ]
+    },
+    {
+      "text": "阀门类型",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[6]",
+        "qt_app.pyc:QuoteWindow._record_search[0]",
+        "qt_app.pyc:QuoteWindow._show_history",
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._export_quotes[4]",
+        "qt_app.pyc:QuoteWindow._show_batch",
+        "qt_app.pyc:QuoteWindow._show_maintenance.render_form[1]"
+      ]
+    },
+    {
+      "text": "阀门系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._maintenance_export_template[3][0]"
+      ]
+    },
+    {
+      "text": "附件类别",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories"
+      ]
+    },
+    {
+      "text": "附加配置",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._right",
+        "qt_app.pyc:QuoteWindow._setup_price_choices",
+        "qt_app.pyc:QuoteWindow._export_quotes[24]",
+        "qt_app.pyc:QuoteWindow._quote_detail",
+        "qt_app.pyc:QuoteWindow._show_batch.batch_options.<listcomp>"
+      ]
+    },
+    {
+      "text": "附加配置价格待询价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price",
+        "qt_app.pyc:QuoteWindow._add_quote"
+      ]
+    },
+    {
+      "text": "附加配置加价",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._export_quotes[25]"
+      ]
+    },
+    {
+      "text": "附加配置：",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "限位开关",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._accessories[1]"
+      ]
+    },
+    {
+      "text": "需求",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose[0]",
+        "qt_app.pyc:QuoteWindow._quote_detail[1]"
+      ]
+    },
+    {
+      "text": "需求值已含安全系数",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[11]",
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "需求已含",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "需求未含",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "项目",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_history[1]"
+      ]
+    },
+    {
+      "text": "项目 / 客户",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._quote_detail"
+      ]
+    },
+    {
+      "text": "项目与工况",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._left"
+      ]
+    },
+    {
+      "text": "项目名称",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._record_search[1]",
+        "qt_app.pyc:QuoteWindow._show_history",
+        "qt_app.pyc:QuoteWindow._left",
+        "qt_app.pyc:QuoteWindow._export_quotes[0]"
+      ]
+    },
+    {
+      "text": "项目报价明细",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._center"
+      ]
+    },
+    {
+      "text": "高温",
+      "locations": [
+        "engine.pyc:bts_order_model[1]",
+        "qt_app.pyc:QuoteWindow._left[1]",
+        "qt_app.pyc:QuoteWindow.search[1]",
+        "qt_app.pyc:QuoteWindow._confirm_bts"
+      ]
+    },
+    {
+      "text": "高级 JSON",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "高级 JSON 编辑；修改后点击「保存当前记录」写入草稿。",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._show_maintenance"
+      ]
+    },
+    {
+      "text": "（推力性能）",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._update_price"
+      ]
+    },
+    {
+      "text": "（推力裕量50% · 各点适配50%）\n推力裕量 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "（裕量25% · 价格50% · 各点25%）\n最低裕量 ",
+      "locations": [
+        "qt_app.pyc:QuoteWindow._choose"
+      ]
+    },
+    {
+      "text": "；NRT040D 暂按 NRT-42 计价，型号对应待确认",
+      "locations": [
+        "engine.pyc:_rotary_price"
+      ]
+    }
+  ]
+}

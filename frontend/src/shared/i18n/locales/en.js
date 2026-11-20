@@ -53,6 +53,19 @@ export default {
   'menu.aboutArchitecture': 'System architecture',
   'menu.aboutContacts': 'Contacts',
 
+  'menu.ett': 'ETT',
+  'menu.ettDecode': 'Decode ETT code',
+  'ett.title': 'ETT — code decoding',
+  'ett.lead': 'Enter an ETT code to decode it against the reference tables.',
+  'ett.inputLabel': 'ETT code',
+  'ett.placeholder': 'e.g. ЗКв1000*16-ФЛ1Л-Х-313-12-н/ЭПДА1/Н/С0',
+  'ett.decode': 'Decode',
+  'ett.decoding': 'Decoding…',
+  'ett.emptyError': 'Enter an ETT code.',
+  'ett.noResult': 'Decoding returned no data.',
+  'ett.unknownError': 'Unknown error.',
+  'ett.resultTitle': 'Decoding result',
+
   'breadcrumb.catalog': 'Catalog',
   'common.back': 'Back',
 

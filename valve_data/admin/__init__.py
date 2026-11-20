@@ -10,6 +10,7 @@ from .admin_valve_model_data_table import *
 from .admin_valve_model_kv_data_table import *
 from .admin_drawing import *
 from .admin_dimension import *
+from .admin_torque_characteristics import *
 
 # Альтернативно можно зарегистрировать здесь все модели
 # from valve_data.models import *

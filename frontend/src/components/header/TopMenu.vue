@@ -47,6 +47,9 @@ const allItems = [
     { to:'/configurator/ea-assemblies', label:'menu.eaAssembliesConfigurator' },
     { to:'/configurator/pa-assemblies', label:'menu.paAssembliesConfigurator' },
   ]},
+  { key:'ett', label:'menu.ett', children:[
+    { to:'/ett', label:'menu.ettDecode' },
+  ]},
   { key:'ai', label:'menu.ai', children:[
     { to:'/ai-debug', label:'menu.aiDebug' },
   ]},

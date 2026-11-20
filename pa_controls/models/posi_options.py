@@ -16,15 +16,15 @@ SMART_CAPABILITY_SEED — стартовое наполнение справоч
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin
+from core.models.mixins import CopyMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin
 
 
-class ActingType(LocalizedDictFieldsMixin):
-    """Тип действия позиционера: линейный или ротационный.
+class ActingType(LocalizedDictFieldsMixin, OptionListToSelectMixin):
+    """Тип движения: линейный или ротационный (четвертьоборотный).
 
-    Справочник опций. Использование:
-      - PosiModelLine.acting_type — прямой FK (тип действия серии, 2026-09-01);
-      - PosiModelLineItem.acting_type — выбранное значение для модели.
+    Единый справочник «линейный/ротационный». Используется:
+      - PosiModelLine.acting_type / PosiModelLineItem.acting_type (позиционеры);
+      - TorqueThrustCharacteristics.motion_type (характеристики момента арматуры).
 
     Стартовые записи (data-миграция): LINEAR «Линейный», ROTARY «Ротационный».
     """

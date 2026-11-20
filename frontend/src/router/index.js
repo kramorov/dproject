@@ -147,6 +147,7 @@ const routes = [
   { path: '/ai-assistant', component: () => import('../pages/AiAssistantPage.vue'), meta: { title: 'AI Ассистент' } },
   { path: '/ai-debug', component: () => import('../pages/AiDebugPage.vue'), meta: { title: 'AI Отладка', object: 'ai.debug', action: 'view' } },
   { path: '/demo/question-graph', component: () => import('../pages/QuestionGraphDemo.vue'), meta: { title: 'Граф вопросов-ответов' } },
+  { path: '/ett', name: 'ett', component: () => import('../pages/EttDecodePage.vue'), meta: { title: 'ЕТТ' } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes: expandRoutes(routes) })

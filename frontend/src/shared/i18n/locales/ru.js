@@ -93,6 +93,19 @@ export default {
   'menu.aboutArchitecture': 'Архитектура системы',
   'menu.aboutContacts': 'Контакты',
 
+  'menu.ett': 'ЕТТ',
+  'menu.ettDecode': 'Расшифровка кода ЕТТ',
+  'ett.title': 'ЕТТ — расшифровка кода',
+  'ett.lead': 'Введите код ЕТТ, чтобы получить его расшифровку по справочникам.',
+  'ett.inputLabel': 'Код ЕТТ',
+  'ett.placeholder': 'Например: ЗКв1000*16-ФЛ1Л-Х-313-12-н/ЭПДА1/Н/С0',
+  'ett.decode': 'Расшифровать',
+  'ett.decoding': 'Расшифровка…',
+  'ett.emptyError': 'Введите код ЕТТ.',
+  'ett.noResult': 'Расшифровка не вернула данных.',
+  'ett.unknownError': 'Неизвестная ошибка.',
+  'ett.resultTitle': 'Результат расшифровки',
+
   'breadcrumb.catalog': 'Каталог',
   'common.back': 'Назад',
 

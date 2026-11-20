@@ -53,6 +53,19 @@ export default {
   'menu.aboutArchitecture': '系统架构',
   'menu.aboutContacts': '联系方式',
 
+  'menu.ett': 'ETT',
+  'menu.ettDecode': '解析 ETT 代码',
+  'ett.title': 'ETT — 代码解析',
+  'ett.lead': '输入 ETT 代码以按参考表进行解析。',
+  'ett.inputLabel': 'ETT 代码',
+  'ett.placeholder': '例如：ЗКв1000*16-ФЛ1Л-Х-313-12-н/ЭПДА1/Н/С0',
+  'ett.decode': '解析',
+  'ett.decoding': '解析中…',
+  'ett.emptyError': '请输入 ETT 代码。',
+  'ett.noResult': '解析未返回数据。',
+  'ett.unknownError': '未知错误。',
+  'ett.resultTitle': '解析结果',
+
   'breadcrumb.catalog': '目录',
   'common.back': '返回',
 
