@@ -96,6 +96,20 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         help_text=_('Выбранное исполнение корпуса (материал/покрытие)')
     )
 
+    selected_shaft_material = models.ForeignKey(
+        'PneumaticShaftMaterialOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Материал штока"),
+        help_text=_('Выбранный материал штока')
+    )
+
+    stroke = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name=_("Ход, мм"),
+        help_text=_('Ход штока линейного привода; для ротационных — пусто')
+    )
+
     selected_body_color = models.ForeignKey(
         'PneumaticBodyColorOption',
         on_delete=models.SET_NULL,
@@ -150,6 +164,12 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'label': 'исполнение корпуса',
             'parent_field': 'model_line',
             'model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption'
+        },
+        'selected_shaft_material': {
+            'model_class': 'PneumaticShaftMaterialOption',
+            'label': 'материал штока',
+            'parent_field': 'model_line',
+            'model_path': 'pneumatic_actuators.models.pa_options.PneumaticShaftMaterialOption'
         },
         'selected_body_color': {
             'model_class': 'PneumaticBodyColorOption',
@@ -239,6 +259,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             'selected_ip' ,
             'selected_exd' ,
             'selected_body_coating',
+            'selected_shaft_material',
             'selected_body_color',
             'selected_manual_override'
         ]
@@ -299,13 +320,14 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         # Добавляем опции
         option_configs = [
             ('selected_safety_position' , _('Положение безопасности') , '🔄' , 5) ,
-            ('selected_springs_qty' , _('Количество пружин') , '🔗' , 6) ,
+            ('selected_springs_qty' , _('Пружины/блок') , '🔗' , 6) ,
             ('selected_temperature' , _('Температурная опция') , '🌡️' , 7) ,
             ('selected_ip' , _('Степень защиты IP') , '🛡️' , 8) ,
             ('selected_exd' , _('Взрывозащита') , '⚡' , 9) ,
             ('selected_body_coating' , _('Покрытие корпуса') , '🎨' , 10) ,
-            ('selected_body_color' , _('Цвет корпуса') , '🎨' , 11) ,
-            ('selected_manual_override' , _('Тип установленного ручного дублера') , '🎨' , 12) ,
+            ('selected_shaft_material' , _('Материал штока') , '🔩' , 11) ,
+            ('selected_body_color' , _('Цвет корпуса') , '🎨' , 12) ,
+            ('selected_manual_override' , _('Тип установленного ручного дублера') , '🎨' , 13) ,
         ]
 
         for field_name , label , icon , priority in option_configs :
@@ -559,13 +581,13 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         try :
             data['springs_qty'] = {
                 'category' : 'selected_options' ,
-                'title' : 'Количество пружин' ,
+                'title' : 'Пружины/блок' ,
                 'data' : self.selected_springs_qty.id if self.selected_springs_qty else None ,
-                'display_data' : self.selected_springs_qty.springs_qty.name if self.selected_springs_qty else 'Не указано' ,
-                'text_data' : f"Количество пружин: {self.selected_springs_qty.springs_qty.name}" if self.selected_springs_qty else None
+                'display_data' : str(self.selected_springs_qty) if self.selected_springs_qty else 'Не указано' ,
+                'text_data' : str(self.selected_springs_qty) if self.selected_springs_qty else None
             }
             logger.debug(
-                f"springs_qty added: {self.selected_springs_qty.springs_qty.name if self.selected_springs_qty else None}")
+                f"springs_qty added: {str(self.selected_springs_qty) if self.selected_springs_qty else None}")
         except Exception as e :
             logger.error(f"Error adding springs_qty: {e}")
             traceback.print_exc()
@@ -620,6 +642,31 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             logger.debug(f"body_coating added: {self.selected_body_coating if self.selected_body_coating else None}")
         except Exception as e :
             logger.error(f"Error adding body_coating: {e}")
+            traceback.print_exc()
+
+        try :
+            data['shaft_material'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Материал штока' ,
+                'data' : self.selected_shaft_material.id if self.selected_shaft_material else None ,
+                'display_data' : str(self.selected_shaft_material) if self.selected_shaft_material else 'Не указано' ,
+                'text_data' : f"Материал штока: {self.selected_shaft_material}" if self.selected_shaft_material else None
+            }
+            logger.debug(f"shaft_material added: {self.selected_shaft_material if self.selected_shaft_material else None}")
+        except Exception as e :
+            logger.error(f"Error adding shaft_material: {e}")
+            traceback.print_exc()
+
+        try :
+            data['stroke'] = {
+                'category' : 'selected_options' ,
+                'title' : 'Ход' ,
+                'data' : self.stroke ,
+                'display_data' : f"{self.stroke} мм" if self.stroke else None ,
+                'text_data' : f"Ход: {self.stroke} мм" if self.stroke else None
+            }
+        except Exception as e :
+            logger.error(f"Error adding stroke: {e}")
             traceback.print_exc()
 
         try :
@@ -830,6 +877,13 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         body_coating = data.get('body_coating' , {}).get('display_data' , '')
         short_description += f" Покрытие корпуса: {body_coating};"
 
+        shaft_material = data.get('shaft_material' , {}).get('display_data' , '')
+        short_description += f" Материал штока: {shaft_material};"
+
+        stroke = data.get('stroke' , {}).get('display_data' , '')
+        if stroke :
+            short_description += f" Ход: {stroke};"
+
         hand_wheel = data.get('manual_override' , {}).get('display_data' , '')
         short_description += f" Ручной дублер на корпусе: {hand_wheel};"
 
@@ -957,7 +1011,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
 
         springs = data.get('springs_qty' , {}).get('display_data')
         if springs and springs != 'Не указано' :
-            selected_options.append(f"Количество пружин: {springs}")
+            selected_options.append(springs)
 
         temperature = data.get('temperature' , {}).get('display_data')
         if temperature and temperature != 'Не указано' :
@@ -1106,6 +1160,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                 'ip' : data.get('ip' , {}).get('display_data') ,
                 'exd' : data.get('exd' , {}).get('display_data') ,
                 'body_coating' : data.get('body_coating' , {}).get('display_data') ,
+                'shaft_material' : data.get('shaft_material' , {}).get('display_data') ,
                 'manual_override' : data.get('manual_override' , {}).get('display_data') ,
             } ,
             'technical_specs' : {
@@ -1166,6 +1221,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
         result = result.replace('{safety_position}', self._get_nested_attr('selected_safety_position__encoding'))
         result = result.replace('{manual_override}', self._get_nested_attr('selected_manual_override__encoding'))
         result = result.replace('{coating}', self._get_nested_attr('selected_body_coating__encoding'))
+        result = result.replace('{shaft_material}', self._get_nested_attr('selected_shaft_material__encoding'))
         result = result.replace('{body_color}', self._get_nested_attr('selected_body_color__encoding'))
         result = result.replace('{ip}', self._get_nested_attr('selected_ip__encoding'))
         result = result.replace('{exd}', self._get_nested_attr('selected_exd__encoding'))
@@ -1196,6 +1252,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             ext = ext.replace('{safety_position}', self._get_nested_attr('selected_safety_position__ext_encoding'))
             ext = ext.replace('{manual_override}', self._get_nested_attr('selected_manual_override__ext_encoding'))
             ext = ext.replace('{coating}', self._get_nested_attr('selected_body_coating__ext_encoding'))
+            ext = ext.replace('{shaft_material}', self._get_nested_attr('selected_shaft_material__ext_encoding'))
             ext = ext.replace('{body_color}', self._get_nested_attr('selected_body_color__ext_encoding'))
             ext = ext.replace('{ip}', self._get_nested_attr('selected_ip__ext_encoding'))
             ext = ext.replace('{exd}', self._get_nested_attr('selected_exd__ext_encoding'))
@@ -1235,6 +1292,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
             self._get_nested_attr('selected_safety_position__encoding'),
             self._get_nested_attr('selected_manual_override__encoding'),
             self._get_nested_attr('selected_body_coating__encoding'),
+            self._get_nested_attr('selected_shaft_material__encoding'),
             self._get_nested_attr('selected_body_color__encoding'),
             self._get_nested_attr('selected_ip__encoding'),
             self._get_nested_attr('selected_exd__encoding'),
@@ -1499,6 +1557,11 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
     def body_coating_display(self):
         return str(self.selected_body_coating) if self.selected_body_coating else "-"
 
+    @property
+    def shaft_material_display(self):
+        """Человекочитаемое название материала штока."""
+        return str(self.selected_shaft_material) if self.selected_shaft_material else "-"
+
     # @property
     def is_da_model(self):
         """True если выбранная модель — двойного действия (DA)."""
@@ -1608,7 +1671,7 @@ class PneumaticActuatorSelected(StructuredDataMixin, models.Model):
                     {
                         'id': opt.id,
                         'encoding': opt.encoding,
-                        'name': opt.springs_qty.name,
+                        'name': opt.localized_name(),
                         'description': opt.description,
                         'is_default': opt.is_default
                     } for opt in springs_options

@@ -1,84 +1,82 @@
-# SESSION — 2026-11-18 (итог)
+# SESSION — 2026-11-22 (итог)
 
-Конфигуратор БУ (ea_control): обобщение селектора изделия + системная кодировка
-(коды узлов/слотов как адреса шаблона, кодировки сущностей/опций, декодер).
+Перенос данных AUTORUN (серии **BTS / NRT / BTL**) + шести- и четырёхточечный
+подбор приводов. Основные артефакты: `mig.md` (состояние/план, актуально),
+`pa_quote_ru/arun.md` (§1–11 описание источника, §12 состояние переноса),
+`.codewhale/handoff.md` (детальная история).
 
 ## Сделано в этой сессии
 
-- **Селектор изделия → generic `subtype`**: слот-селектор `slot_kind='subtype'`,
-  `get_product_type_slot()` (ровно один), `resolve_product_types` (алиас
-  `resolve_control_units`), опция `kind='product_type'`. Роут `series-units/` →
-  `product-types/`. Координата контекста `context_coordinate` (`CONTEXT_COORDINATES`);
-  подсказка КВ — в `frontend/src/pages/admin/eaControlHints.js`.
-- **Системная кодировка** (`ea_control/services/cu_code.py`) — итоговая схема:
-  - системный код — структурный «хэш»: `{model_code}` (ControlUnit.code) +
-    коды всех активных узлов/слотов (`{node:X}`/`{slot:X}`/`{slots:X}` — X = `code`,
-    адрес в шаблоне; подставляется `encoding` сущности, пусто — фолбэк на code) +
-    кодировки (`encoding`) выбранных опций: single/xor — одна, multi — все в порядке
-    сортировки; слоты в `{slots:X}` через `.`; слот без выбранного — «голый».
-    `{opt:X}` убран из системного движка. Фолбэк пустого шаблона —
-    `model_code/узел.слот+кодировки`. Слоты выключенных узлов/сироты не входят.
-  - артикульный код — `ControlUnit.article_code_template`/`ext_article_code_template`,
-    `encoding`/`ext_encoding` (матрица → опция); `build_article_code_dicts` для ЭП;
-    `assemble_article` делегирует `build_system_code`.
-  - **декодер** `decode_system_code`: шаблонно-зависимый парсер с backtracking;
-    `{model_code}` — альтернация известных кодов БУ (коды с `-`/`/`),
-    `{node:X}`/`{slot:X}` — захват + сверка токена (mismatch при расхождении),
-    сегменты `{slots:X}` — longest-match `encoding|code` слота + кодировки слота.
-    Best-effort отчёт `{model_code, unit, slots, ambiguous, unknown, mismatch}`;
-    пустые кодировки опций — слот без опций (неизбежная потеря).
-- **Модели/миграции**: `encoding` добавлен узлам/слотам (abstract + `CuSectionNode`/
-  `CuSlot`, миграция `ea_control/0031`); валидации `clean()` (работают и через API —
-  `_clean_via_model` ставит probe.pk, иначе ложная «уникальность» на повторном сейве):
-  кодировка узла/слота/опции — `[A-Za-z0-9]+`, уникальна (узлы/слоты — свои скоупы,
-  опции — внутри слота, кроме subtype); код узла/слота — `[A-Za-z0-9_]+`.
-  Миграции `0030` (help_text), `0032` (help_text обогрева). `makemigrations --check` — чисто.
-- **Данные** (`db.sqlite3`): `encoding` заполнен у всех опций не-subtype слотов
-  (323; говорящие 1–2 символа: 0/1, S/D, A/2, C/I/N, D/L/H, M/E/W, PH/AH…).
-  Пользователь поправит в UI. Шаблон — на кодах узлов, `{model_code}` первым.
-  Слот `HEATER_CONTROL_UNIT` переименован пользователем → `CU_HEATER` (валидация
-  принимает оба кода).
-- **Фронт** `EaControlSystemCodes.vue`: узлы/слоты — кодировка (инпут) + read-only
-  бейдж code; опции — таблица «название / кодировка»; кнопка **«Сохранить»** сохраняет
-  шаблон + все изменённые кодировки разом, «✓» у строки — точечно. В
-  `EaControlStructure.vue` из формы опции убраны «Плейсхолдер» и «Ext-код».
-- **Ревью-фиксы**: `_clean_via_model` — probe.pk (ложные ошибки уникальности и
-  subtype-слота); `encoding` добавлен в `_OPT_CLEAN_FIELDS` (валидации опций доходили
-  до API); `{model_code}` — альтернация кодов (коды с `-` не резались бы).
+- **Справочники**: пружины `PneumaticActuatorSpringsQty` +kind (count/block)
+  +spring_count, коды 13–16, блоки S1–S5, модуль `S` (линейные SR);
+  дублёр `clutch` (HandWheelInstalledOption id=8); variety **LN** (id=3);
+  точки `valve_data.TorquePoint` (bto…etc) и набор rotary-6; long-формат
+  `BodyThrustTorqueTable` (body×pressure×spring_qty×point×value).
+- **Серии/данные** (команды идемпотентны; db.sqlite3):
+  - `import_autorun_series`: NRT (id=14, RP, 18 тел/34 MLI, физика из T.NTR.26.1),
+    BTS (id=15, SY, 42 тела/81 MLI, блоки S1–S4, НЗ/НО).
+  - `import_autorun_torque`: 1739 строк моментов (сверено с каталогами).
+  - `import_autorun_btl`: BTL (id=16, LN/LINEAR, 30 тел/60 MLI, прайс ходов в
+    extra_params MLI). `import_autorun_btl_thrust`: 900 строк усилий.
+  - `import_valve_coefficients`: 8 типов арматуры (rotary-6).
+  - `generate_pa_cards`: **561 карточка BTL** по ходам таблицы Autorun
+    (stroke в config_hash_fields, миграция 0079 пересчитала хэши всех карточек).
+- **Подбор**: движок `pointwise_selector.py` (DA-огибающая, SR НЗ/НО, пропуск
+  отсутствующих средних точек; у линейных точки пружины читаются из строк
+  рабочего давления); `process_pointwise_selection`: mode four/six, ручная
+  кривая (`required_points`), ход (`stroke_mm`×запас) с фильтром `stroke_max`,
+  four→только LN, six→без LN, карточки фильтруются по ходу и safety (SR);
+  ответ `unit` Нм/Н. Фронт `PaEngineerSelector.vue`: 3 режима (обычный/6 точек/
+  4 точки-линейные), форма 4 усилий + ход + запас, i18n ru/en/cn.
+- **Модель хода**: поле `stroke` на Constructor/Selected/CatalogItem (0078),
+  реестр `{stroke}` (code_path `stroke_code`), from_constructor, описания
+  («Ход: … мм» только при наличии). Ход — параметр запроса, не опция.
 
 ## Канон БД (актуально)
 
-- 10 БУ: BASIC-AR01 / POTE-AR01 / TR-AR01 / POSI-AR01 / INT-L-NO-TORQUE /
-  INT-L-TORQUE / BASIC-AR21 / INT-O-AR21 / INT-L-AR21 / INT/N (все бренд «Архимед»).
-- ~115 активных слотов (16 активных узлов), ~150 правил; слот-селектор `control_unit` —
-  `slot_kind=subtype`; слот обогрева БУ — `CU_HEATER`.
-- Канон — `db.sqlite3` (коммитится); тесты — на копии `test_db.sqlite3` + `--keepdb`.
+- Серии ПП: PA(4), AIR(5), AIR-SY(6), AIR-S(11), RT(12), HGP(13), NRT(14),
+  BTS(15), BTL(16). Бренд AUTORUN id=40; оборудование id=3 «Пневмопривод».
+- Давление 6 бар — id=13; пружины: DA id=1, S1–S5, 05–16, модуль S id=27.
+- Карточки: 5999 (ротационные) + 561 BTL = 6560.
+- Канон — `db.sqlite3`; тесты на `test_db.sqlite3` (устарела — 1 skip
+  коэффициентов; по решению пользователя не пересоздавать) + `--keepdb`.
+- Миграции pneumatic_actuators 0065–0079, valve_data 0071–0073.
 
 ## Проверено
 
-- Тесты на копии БД: 9 кодирования/декодирования (tests_description) + 7 валидаций
-  (CuEncodingValidationTests в tests.py, включая API-400) — все OK.
-- Смок: PATCH кодировок узлов/слотов — 200 и переживает перезагрузку; roundtrip
-  build→decode без ambiguous/unknown; multi — порядок сортировки.
-- `npm run build` OK; py_compile OK; `makemigrations --check` — чисто.
+- Тесты pneumatic_actuators 12/12 (skipped=1); manage.py check — чисто;
+  makemigrations --check — чисто; py_compile OK; npm run build OK.
+- Смоуки: pointwise 6 точек (RT/NRT/PA/AIR-S, кривая 130/117/130), 4 точки
+  DA/SR НЗ/НО (BTL125D запас 3770; BTL125SR запас 200; фильтр хода; карточки
+  по ходу), six без BTL, four отклоняет коэффициенты, запас хода ≤0 — ошибка.
+- Сверка данных: DA-моменты NRT 18/18, SR 482 точки — 0 расхождений; хэши
+  карточек после 0079 — 0 несовпадений; BTL 561 карточка без дублей кодов.
+- Идемпотентность всех import-команд и generate_pa_cards — повторный запуск
+  не дублирует.
 
 ## Не закоммичено
 
-- backend: ea_control/models/{abstract,cu_config,control_unit}.py, ea_control/api.py,
-  ea_control/services/{cu_code,cu_description,cu_matrix,cu_unit_matrix}.py,
-  ea_control/tests.py, ea_control/tests_description.py, db.sqlite3.
-- миграции: ea_control/0030 (help_text), 0031 (encoding узлов/слотов), 0032 (обогрев).
-- frontend: EaControlSystemCodes.vue, EaControlStructure.vue, EaControlAdminPage.vue,
-  EaControlUnitsEditor.vue, eaControlHints.js (нов.), EaControlConfigurator.vue,
-  CuEmulationPage.vue.
-- docs: slots.md, SESSION.md, .codewhale/handoff.md.
+- Модели/сервисы: pa_item.py, pa_item_fields.py, pa_options.py, pa_params.py,
+  pa_model_line.py, pa_body.py, pa_torque.py, pa_actuator_selected.py,
+  pa_actuator_constructor.py, pointwise_selector.py,
+  actuator_engineer_handler.py, valve_data/models/torque_characteristics.py.
+- Команды: import_autorun_series.py, import_autorun_torque.py,
+  import_autorun_btl.py, import_autorun_btl_thrust.py, generate_pa_cards.py,
+  valve_data/management/commands/import_valve_coefficients.py.
+- Миграции: pneumatic_actuators 0065–0079, valve_data 0071–0073.
+- Фронт: PaEngineerSelector.vue, locales ru/en/cn.
+- docs: mig.md, pa_quote_ru/arun.md, SESSION.md, .codewhale/handoff.md.
+- db.sqlite3 (данные серий/карточек).
 
 ## Что дальше
 
-1. Закоммитить накопленное.
-2. Ревизия канон-ожиданий остальных тестов (tests_services/tests/tests_bindings —
-   дрейф: 115 слотов vs 45, переименования слотов/схем) — вернёт полный прогон.
-3. Артикульные кодировки БУ: заполнить `article_code_template`/`ext_article_code_template`
-   на ControlUnit и `ext_encoding` опций из каталога (пока пусто; `encoding` опций
-   заполнен системными кодами).
-4. Пользователь поправит/проверит сгенерированные кодировки опций в UI.
+1. **Чистка данных пользователем** в админке: физика BTS/BTL (массы, габариты,
+   расход), spring_count блоков S1–S5, дефолтные пружины серий, штоки NRT032/040.
+2. **Перегенерация описаний** всех серий (батчами) + **полный generate_pa_cards**
+   (бэклог ~11 500: NRT/BTS + новые опции PA/AIR).
+3. **Ценовой механизм ПП** (вариант Б — PneumaticActuatorPrice; решение за
+   пользователем) + импорт цен/наценок/дублёров; цены BTL по ходам.
+4. **valveTorqueLookup** — решение: переносить таблицы момента по DN/PN или нет.
+5. **Сквозная сверка** подборов с desktop-приложением.
+6. Закоммитить накопленное; проверить `configurator/services/filter_engine.py`
+   (bto/rto/eto product-атрибуты) и сквозной UI точечного режима.

@@ -53,7 +53,7 @@ function emptyForm() {
     construction_variety_id: '',
     actuator_variety_id: '', safety_position_id: '',
     air_pressure_id: '', ip_id: '', exd_id: '', exd_id_exact: '',
-    coating_id: '', body_material_id: '', manual_override_id: '',
+    coating_id: '', body_material_id: '', shaft_material_id: '', shaft_material_specified_id: '', manual_override_id: '',
     temp_min: null, temp_max: null,
   }
 }
@@ -113,6 +113,10 @@ function collectOptions(card) {
   // Покрытие — id конкретного исполнения корпуса (аннотируется бэком в результат).
   const bdId = card?._ml?.body_design_option_id
   if (bdId) o.body_coating = bdId
+  // Материал штока — id конкретной строки PneumaticShaftMaterialOption
+  // (аннотируется бэком в результат).
+  const smId = card?._ml?.shaft_material_option_id
+  if (smId) o.shaft_material = smId
   // Температура: диапазон из фильтров — конфигуратор выберет подходящий чипс.
   if (form.temp_min != null) o.temp_min = form.temp_min
   if (form.temp_max != null) o.temp_max = form.temp_max

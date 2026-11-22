@@ -4,9 +4,21 @@ from django.utils.translation import gettext_lazy as _
 from typing import Dict, List, Optional, Any
 from core.models.mixins import StructuredDataMixin, LocalizedDictFieldsMixin
 
+# Типы записей справочника пружин: количество пружин (реечные) или пружинный блок (кулисные).
+SPRINGS_QTY_KIND_COUNT = 'count'
+SPRINGS_QTY_KIND_BLOCK = 'block'
+SPRINGS_QTY_KIND_CHOICES = [
+    (SPRINGS_QTY_KIND_COUNT, _('Количество пружин')),
+    (SPRINGS_QTY_KIND_BLOCK, _('Пружинный блок')),
+]
+
+# i18n-шаблоны подписей для через-модели опций пружин (вставляется encoding опции).
+SPRING_BLOCK_LABELS_I18N = {'ru': 'Пружинный блок', 'en': 'Spring block', 'cn': '弹簧组'}
+SPRING_COUNT_LABELS_I18N = {'ru': 'пружин', 'en': 'springs', 'cn': '根弹簧'}
+
 class PneumaticActuatorSpringsQty(LocalizedDictFieldsMixin) :
     """
-    Количество пружин в пневмоприводе SR
+    Справочник пружин пневмоприводов SR: количество пружин (реечные) или пружинный блок (кулисные).
     """
     name = models.CharField(max_length=10 ,
                             verbose_name=_("Название") ,
@@ -15,6 +27,13 @@ class PneumaticActuatorSpringsQty(LocalizedDictFieldsMixin) :
                             help_text=_("Код кол-ва пружин"))
     description = models.TextField(blank=True , verbose_name=_("Описание") ,
                                    help_text=_('Текстовое описание кол-ва пружин'))
+    kind = models.CharField(max_length=10 , choices=SPRINGS_QTY_KIND_CHOICES ,
+                            default=SPRINGS_QTY_KIND_COUNT ,
+                            verbose_name=_("Тип записи") ,
+                            help_text=_('Количество пружин (реечные приводы) или пружинный блок (кулисные)'))
+    spring_count = models.PositiveIntegerField(null=True , blank=True ,
+                                               verbose_name=_("Число пружин") ,
+                                               help_text=_('Количество пружин (для расчёта веса); для блоков — сколько пружин в блоке'))
     sorting_order = models.IntegerField(default=0 , verbose_name=_("Cортировка") ,
                                         help_text=_('Порядок сортировки в списке'))
     is_active = models.BooleanField(default=True , verbose_name=_("Активно") ,
@@ -24,9 +43,27 @@ class PneumaticActuatorSpringsQty(LocalizedDictFieldsMixin) :
         ordering = ['sorting_order']
         verbose_name = _('Название кол-ва пружин пневмопривода SR')
         verbose_name_plural = _('Названия кол-ва пружин пневмопривода SR')
+        constraints = [
+            models.UniqueConstraint(fields=['code'], name='uq_pa_springsqty_code'),
+        ]
 
     def __str__(self) :
         return self.name
+
+    def display_name(self, locale=None, code_override=None):
+        """Отображаемое имя по типу записи (i18n):
+        count → «11 пружин», block → «Пружинный блок S3», DA → «DA».
+        code_override — подставить другой код (например, encoding через-опции)."""
+        from core.utils.localization import DEFAULT_LOCALE
+        locale = locale or DEFAULT_LOCALE
+        if self.code == 'DA' :
+            return 'DA'
+        code = (code_override or self.code or '').strip()
+        if self.kind == SPRINGS_QTY_KIND_BLOCK :
+            label = SPRING_BLOCK_LABELS_I18N.get(locale) or SPRING_BLOCK_LABELS_I18N['ru']
+            return f"{label} {code}" if code else label
+        label = SPRING_COUNT_LABELS_I18N.get(locale) or SPRING_COUNT_LABELS_I18N['ru']
+        return f"{code} {label}" if code else label
 
 class PneumaticActuatorVariety(LocalizedDictFieldsMixin) :
     """

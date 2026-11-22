@@ -139,6 +139,20 @@ class PneumaticActuatorConstructor(models.Model):
         help_text=_('Выбранное исполнение корпуса (материал/покрытие)')
     )
 
+    selected_shaft_material = models.ForeignKey(
+        'PneumaticShaftMaterialOption',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("Материал штока"),
+        help_text=_('Выбранный материал штока')
+    )
+
+    stroke = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name=_("Ход, мм"),
+        help_text=_('Ход штока линейного привода; для ротационных — пусто')
+    )
+
     selected_body_color = models.ForeignKey(
         'PneumaticBodyColorOption',
         on_delete=models.SET_NULL,
@@ -194,6 +208,12 @@ class PneumaticActuatorConstructor(models.Model):
             'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption',
             'through_attr': None,  # PneumaticBodyDesignOption САМА является опцией
             'label': 'исполнение корпуса',
+            'parent_field': 'model_line',
+        },
+        'selected_shaft_material': {
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticShaftMaterialOption',
+            'through_attr': None,  # PneumaticShaftMaterialOption САМА является опцией
+            'label': 'материал штока',
             'parent_field': 'model_line',
         },
         'selected_body_color': {
@@ -372,14 +392,15 @@ class PneumaticActuatorConstructor(models.Model):
 
         # springs_qty → pneumatic_actuators.PneumaticActuatorSpringsQty (прямой FK)
         sq = self.selected_springs_qty
+        sq_display = sq.display_name() if sq else ''
         data['springs_qty'] = {
             'category': 'selected_options',
-            'title': 'Количество пружин',
+            'title': 'Пружины/блок',
             'data': sq.id if sq else None,
-            'display_data': sq.name if sq else 'Не указано',
-            'text_data': f"Количество пружин: {sq.name}" if sq else None,
+            'display_data': sq_display or 'Не указано',
+            'text_data': sq_display or None,
             'code': sq.code if sq else '',
-            'name': sq.name if sq else '',
+            'name': sq_display,
         }
 
         # temperature → PneumaticTemperatureOption (through-модель = сама опция)
@@ -432,6 +453,30 @@ class PneumaticActuatorConstructor(models.Model):
             'text_data': f"Исполнение корпуса: {bc}" if bc else None,
             'code': bc.encoding if bc else '',
             'name': bc.body_coating if bc else '',
+        }
+
+        # shaft_material → PneumaticShaftMaterialOption
+        sm = self.selected_shaft_material
+        data['shaft_material'] = {
+            'category': 'selected_options',
+            'title': 'Материал штока',
+            'data': sm.id if sm else None,
+            'display_data': str(sm) if sm else 'Не указано',
+            'text_data': f"Материал штока: {sm}" if sm else None,
+            'code': sm.encoding if sm else '',
+            'name': pick_i18n(sm.shaft_material_specified) if sm and sm.shaft_material_specified
+                    else (localized_name(sm.shaft_material) if sm and sm.shaft_material else ''),
+        }
+
+        # stroke → ход линейного привода (для ротационных — None)
+        data['stroke'] = {
+            'category': 'selected_options',
+            'title': 'Ход',
+            'data': self.stroke,
+            'display_data': f"{self.stroke} мм" if self.stroke else None,
+            'text_data': f"Ход: {self.stroke} мм" if self.stroke else None,
+            'code': str(self.stroke) if self.stroke else '',
+            'name': str(self.stroke) if self.stroke else '',
         }
 
         # hand_wheel → params.HandWheelInstalledOption
@@ -577,6 +622,13 @@ class PneumaticActuatorConstructor(models.Model):
 
         coating = data.get('body_coating', {}).get('display_data', '')
         short_description += f" Покрытие корпуса: {coating};"
+
+        shaft_material = data.get('shaft_material', {}).get('display_data', '')
+        short_description += f" Материал штока: {shaft_material};"
+
+        stroke = data.get('stroke', {}).get('display_data', '')
+        if stroke:
+            short_description += f" Ход: {stroke};"
 
         hand_wheel = data.get('manual_override', {}).get('display_data', '')
         short_description += f" Ручной дублер на корпусе:{hand_wheel};"
@@ -950,6 +1002,7 @@ class PneumaticActuatorConstructor(models.Model):
         result = result.replace('{safety_position}', self._get_option_encoding('selected_safety_position'))
         result = result.replace('{manual_override}', self._get_option_encoding('selected_manual_override'))
         result = result.replace('{coating}', self._get_option_encoding('selected_body_coating'))
+        result = result.replace('{shaft_material}', self._get_option_encoding('selected_shaft_material'))
         result = result.replace('{body_color}', self._get_option_encoding('selected_body_color'))
         result = result.replace('{ip}', self._get_option_encoding('selected_ip'))
         result = result.replace('{exd}', self._get_option_encoding('selected_exd'))
@@ -990,6 +1043,7 @@ class PneumaticActuatorConstructor(models.Model):
         result = result.replace('{safety_position}', self._get_option_ext_encoding('selected_safety_position'))
         result = result.replace('{manual_override}', self._get_option_ext_encoding('selected_manual_override'))
         result = result.replace('{coating}', self._get_option_ext_encoding('selected_body_coating'))
+        result = result.replace('{shaft_material}', self._get_option_ext_encoding('selected_shaft_material'))
         result = result.replace('{body_color}', self._get_option_ext_encoding('selected_body_color'))
         result = result.replace('{ip}', self._get_option_ext_encoding('selected_ip'))
         result = result.replace('{exd}', self._get_option_ext_encoding('selected_exd'))
@@ -1085,6 +1139,7 @@ class PneumaticActuatorConstructor(models.Model):
             self._get_option_encoding('selected_safety_position'),
             self._get_option_encoding('selected_manual_override'),
             self._get_option_encoding('selected_body_coating'),
+            self._get_option_encoding('selected_shaft_material'),
             self._get_option_encoding('selected_ip'),
             self._get_option_encoding('selected_exd'),
         ]
@@ -1387,7 +1442,8 @@ class PneumaticActuatorConstructor(models.Model):
         from pneumatic_actuators.models.pa_options import (
             PneumaticSafetyPositionOption, PneumaticSpringsQtyOption,
             PneumaticTemperatureOption, PneumaticIpOption,
-            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticBodyColorOption,
+            PneumaticExdOption, PneumaticBodyDesignOption, PneumaticShaftMaterialOption,
+            PneumaticBodyColorOption,
             PneumaticManualOverrideOption
         )
 
@@ -1510,6 +1566,28 @@ class PneumaticActuatorConstructor(models.Model):
                 for opt in coating_through
             ]
 
+            shaft_through = PneumaticShaftMaterialOption.objects.filter(
+                model_line=ml, is_active=True
+            ).select_related('shaft_material')
+            result['shaft_material_options'] = [
+                {
+                    'id': opt.id,
+                    'option_id': opt.id,
+                    'encoding': opt.encoding,
+                    'material': localized_name(opt.shaft_material, locale) if opt.shaft_material else '',
+                    # В селекторе показываем значение из JSON (shaft_material_description):
+                    # для одного материала у разных серий могут быть разные уточнения.
+                    'specified': pick_i18n(opt.shaft_material_description, locale) or '',
+                    'name': (pick_i18n(opt.shaft_material_description, locale)
+                             or (localized_name(opt.shaft_material, locale) if opt.shaft_material else '')
+                             or localize_service_word('Не указано', locale)),
+                    'code': opt.encoding or '',
+                    'description': opt.description,
+                    'is_default': opt.is_default,
+                }
+                for opt in shaft_through
+            ]
+
             color_through = PneumaticBodyColorOption.objects.filter(
                 model_line=ml, is_active=True
             ).select_related('color_option')
@@ -1586,6 +1664,7 @@ class PneumaticActuatorConstructor(models.Model):
             selected_ip=self.selected_ip,
             selected_exd=self.selected_exd,
             selected_body_coating=self.selected_body_coating,
+            selected_shaft_material=self.selected_shaft_material,
             selected_body_color=self.selected_body_color,
             selected_manual_override=self.selected_manual_override,
             sorting_order=self.sorting_order,

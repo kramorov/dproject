@@ -10,6 +10,7 @@ from pneumatic_actuators.models.pa_options import (
     PneumaticIpOption,
     PneumaticExdOption,
     PneumaticBodyDesignOption,
+    PneumaticShaftMaterialOption,
     PneumaticBodyColorOption,
 )
 
@@ -64,6 +65,16 @@ class PneumaticBodyColorOptionInline(admin.TabularInline) :
     verbose_name_plural = _("Цвета корпуса")
 
 
+class PneumaticShaftMaterialOptionInline(admin.TabularInline) :
+    """Inline для материалов штока"""
+    model = PneumaticShaftMaterialOption
+    extra = 0
+    ordering = ['sorting_order']
+    fields = ['shaft_material' , 'shaft_material_specified' , 'shaft_material_description' , 'encoding' , 'ext_encoding' , 'is_default' , 'is_active' , 'sorting_order']
+    verbose_name = _("Материал штока")
+    verbose_name_plural = _("Материалы штока")
+
+
 @admin.register(PneumaticActuatorModelLine)
 class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplatePlaceholdersAdminMixin, admin.ModelAdmin) :
     """Админка для серий пневмоприводов с through-опциями"""
@@ -116,6 +127,7 @@ class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
         PneumaticIpOptionInline ,
         PneumaticExdOptionInline ,
         PneumaticBodyDesignOptionInline,
+        PneumaticShaftMaterialOptionInline,
         PneumaticBodyColorOptionInline,
     ]
 
@@ -149,6 +161,7 @@ class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
             'ip_options' ,
             'exd_options' ,
             'body_design_options' ,
+            'shaft_material_options' ,
             'body_color_options' ,
         )
 
@@ -188,7 +201,7 @@ class PneumaticActuatorModelLineAdmin(RegenerateSeriesItemsAdminMixin, TemplateP
         """Упрощенное сохранение с проверкой после записи"""
         if formset.model in [PneumaticTemperatureOption , PneumaticIpOption ,
                              PneumaticExdOption , PneumaticBodyDesignOption ,
-                             PneumaticBodyColorOption] :
+                             PneumaticShaftMaterialOption , PneumaticBodyColorOption] :
 
             # 1. Сначала сохраняем все объекты
             instances = formset.save(commit=False)

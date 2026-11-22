@@ -8,7 +8,7 @@ from .models import (
     PneumaticActuatorModelLineItem ,
 )
 from .models.pa_options import PneumaticSafetyPositionOption , PneumaticSpringsQtyOption , PneumaticTemperatureOption , \
-    PneumaticIpOption , PneumaticExdOption , PneumaticBodyDesignOption , PneumaticManualOverrideOption
+    PneumaticIpOption , PneumaticExdOption , PneumaticBodyDesignOption , PneumaticShaftMaterialOption , PneumaticManualOverrideOption
 
 
 def get_used_queryset(model , field_name , filter_field='id' , exclude_null=True) :
@@ -78,6 +78,11 @@ class PneumaticActuatorSelectedFilter(django_filters.FilterSet) :
         widget=forms.Select(attrs={'class' : 'form-control'})
     )
 
+    selected_shaft_material = django_filters.ModelChoiceFilter(
+        queryset=get_used_queryset(PneumaticShaftMaterialOption , 'selected_shaft_material') ,
+        widget=forms.Select(attrs={'class' : 'form-control'})
+    )
+
     selected_manual_override = django_filters.ModelChoiceFilter(
         queryset=get_used_queryset(PneumaticManualOverrideOption , 'selected_manual_override') ,
         widget=forms.Select(attrs={'class' : 'form-control'})
@@ -113,5 +118,6 @@ class PneumaticActuatorSelectedFilter(django_filters.FilterSet) :
             'selected_ip' ,
             'selected_exd' ,
             'selected_body_coating' ,
+            'selected_shaft_material' ,
             'selected_manual_override'
         )

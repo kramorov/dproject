@@ -139,3 +139,41 @@ class EngineerSelectorAPIView(APIView):
                     item['price'] = prices.get(item.get('sku_id'))
             return JsonResponse(result)
         return JsonResponse({'success': False, 'error': result.get('error', 'Unknown error')}, status=400)
+
+
+class PointwiseSelectorAPIView(APIView):
+    """Точечный (4/6-точечный) подбор привода по кривой момента арматуры."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from pneumatic_actuators.actuator_engineer_handler import get_pointwise_initial_data
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        fields_param = request.GET.get('fields')
+        fields = [f.strip() for f in fields_param.split(',') if f.strip()] if fields_param else None
+        return JsonResponse(get_pointwise_initial_data(locale=locale, fields=fields))
+
+    def post(self, request):
+        from pneumatic_actuators.actuator_engineer_handler import process_pointwise_selection
+        from core.utils.localization import locale_from_accept_language
+        from core.utils.catalog_helpers import get_currency_code
+        from price.services.currency_converter import get_bulk_prices
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        result = process_pointwise_selection(request.data, locale=locale)
+        if result.get('success'):
+            # Цены привязываем к карточкам (как в обычном инженерном подборе).
+            currency_code = get_currency_code(request)
+            sku_ids = [
+                card.get('sku_id')
+                for group in result.get('search_results', [])
+                for item in group.get('model_line_items', [])
+                for card in item.get('cards', [])
+                if card.get('sku_id')
+            ]
+            prices = get_bulk_prices(sku_ids, currency_code) if sku_ids else {}
+            for group in result.get('search_results', []):
+                for item in group.get('model_line_items', []):
+                    for card in item.get('cards', []):
+                        card['price'] = prices.get(card.get('sku_id'))
+            return JsonResponse(result)
+        return JsonResponse({'success': False, 'error': result.get('message', 'Unknown error')}, status=400)

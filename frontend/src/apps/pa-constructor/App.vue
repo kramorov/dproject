@@ -88,6 +88,7 @@ const OPTION_MAP = {
   selected_ip:               { label: 'paCtor.lbl.ip',            apiKey: 'ip_options' },
   selected_exd:              { label: 'paCtor.lbl.exd',           apiKey: 'exd_options' },
   selected_body_coating:     { label: 'paCtor.lbl.coating',       apiKey: 'body_coating_options' },
+  selected_shaft_material:   { label: 'paCtor.lbl.shaftMaterial', apiKey: 'shaft_material_options' },
   selected_body_color:       { label: 'paCtor.lbl.color',         apiKey: 'body_color_options' },
   selected_manual_override:       { label: 'paCtor.lbl.manualOverride', apiKey: 'manual_override_options' },
 }
@@ -100,6 +101,7 @@ const SKU_OPTION_KEYS = {
   selected_ip: 'ip',
   selected_exd: 'exd',
   selected_body_coating: 'body_coating',
+  selected_shaft_material: 'shaft_material',
   selected_body_color: 'body_color',
   selected_manual_override: 'manual_override',
 }
@@ -121,6 +123,7 @@ const defaultForm = () => ({
   selected_ip: null,
   selected_exd: null,
   selected_body_coating: null,
+  selected_shaft_material: null,
   selected_body_color: null,
   selected_manual_override: null,
 })

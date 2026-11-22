@@ -102,7 +102,9 @@ class PneumaticActuatorCatalogItem(
         'model_line', 'body', 'pneumatic_actuator_variety',
         'selected_safety_position', 'selected_springs_qty',
         'selected_temperature', 'selected_ip', 'selected_exd',
-        'selected_body_coating', 'selected_body_color', 'selected_manual_override',
+        'selected_body_coating', 'selected_shaft_material',
+        'selected_body_color', 'selected_manual_override',
+        'stroke',
     )
 
     # ── Реестр полей (единый источник правды) — pa_item_fields.py ──
@@ -118,6 +120,7 @@ class PneumaticActuatorCatalogItem(
         'code', 'brand_name', 'equipment_type', 'variety_name', 'variety_description', 'variety_code', 'body_name', 'body_code',
         'weight', 'safety_position', 'safety_position_text_value','springs_qty', 'temperature',
         'ip', 'exd', 'exd_short', 'coating', 'body_material', 'body_coating', 'body_color',
+        'shaft_material', 'stroke',
         'body_color_ral', 'body_color_name', 'manual_override', 'hand_wheel',
         # Технические характеристики (для name/description и справочника плейсхолдеров)
         'construction_name','construction_description','piston_diameter', 'turn_angle', 'turn_tuning_limit',
@@ -131,7 +134,8 @@ class PneumaticActuatorCatalogItem(
 
     CODE_FIELD_KEYS = (
         'code', 'springs_qty', 'temperature', 'safety_position',
-        'manual_override', 'coating', 'body_color', 'ip', 'exd',
+        'manual_override', 'coating', 'shaft_material', 'body_color', 'ip', 'exd',
+        'stroke',
     )
 
     VARS_FIELD_KEYS = (
@@ -139,6 +143,7 @@ class PneumaticActuatorCatalogItem(
         'body_name', 'body_code', 'variety_name', 'variety_code', 'weight',
         'ip', 'exd', 'exd_short',
         'body_material', 'body_coating', 'body_color_ral', 'body_color_name',
+        'shaft_material', 'stroke',
     )
 
     # SPEC_FIELD_KEYS закомментирован: спецификация задаётся spec_template.
@@ -241,6 +246,19 @@ class PneumaticActuatorCatalogItem(
         related_name='pa_items_coating',
         verbose_name=_("Исполнение корпуса"),
     )
+    selected_shaft_material = models.ForeignKey(
+        'PneumaticShaftMaterialOption',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pa_items_shaft_material',
+        verbose_name=_("Материал штока"),
+    )
+
+    stroke = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name=_("Ход, мм"),
+        help_text=_('Ход штока линейного привода; для ротационных — пусто'),
+    )
+
     selected_body_color = models.ForeignKey(
         'PneumaticBodyColorOption',
         on_delete=models.SET_NULL, null=True, blank=True,
@@ -395,10 +413,9 @@ class PneumaticActuatorCatalogItem(
 
     @classmethod
     def _apply_torque_min(cls, queryset, value):
-        """Фильтр «Момент не менее, Нм»: тело подходит, если max(bto/eto/rto) >= value."""
+        """Фильтр «Момент не менее, Нм»: тело подходит, если max(value) >= value."""
         from decimal import Decimal, InvalidOperation
         from django.db.models import Max
-        from django.db.models.functions import Greatest
         from pneumatic_actuators.models.pa_torque import BodyThrustTorqueTable
         try:
             val = Decimal(str(value))
@@ -406,9 +423,8 @@ class PneumaticActuatorCatalogItem(
             return queryset
         body_ids = (
             BodyThrustTorqueTable.objects
-            .annotate(mx=Greatest('bto', 'eto', 'rto'))
             .values('body_id')
-            .annotate(m=Max('mx'))
+            .annotate(m=Max('value'))
             .filter(m__gte=val)
             .values_list('body_id', flat=True)
         )
@@ -446,6 +462,11 @@ class PneumaticActuatorCatalogItem(
         'selected_body_coating': {
             'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticBodyDesignOption',
             'through_attr': None,  # PneumaticBodyDesignOption САМА является опцией
+            'parent_field': 'model_line',
+        },
+        'selected_shaft_material': {
+            'through_model_path': 'pneumatic_actuators.models.pa_options.PneumaticShaftMaterialOption',
+            'through_attr': None,  # PneumaticShaftMaterialOption САМА является опцией
             'parent_field': 'model_line',
         },
         'selected_body_color': {
@@ -495,6 +516,8 @@ class PneumaticActuatorCatalogItem(
             selected_ip=getattr(constructor, 'selected_ip', None),
             selected_exd=getattr(constructor, 'selected_exd', None),
             selected_body_coating=getattr(constructor, 'selected_body_coating', None),
+            selected_shaft_material=getattr(constructor, 'selected_shaft_material', None),
+            stroke=getattr(constructor, 'stroke', None),
             selected_body_color=getattr(constructor, 'selected_body_color', None),
             selected_manual_override=manual_override,
             manual_override_option=manual_override_option,
@@ -527,6 +550,9 @@ class PneumaticActuatorCatalogItem(
         if self.manual_override_option:
             # Базовая опция дублера всегда согласована с выбранной through-опцией.
             self.selected_manual_override = self.manual_override_option.hand_wheel_option
+        # Стандартные значения новых полей: если материал штока не выбран —
+        # подставляем стандартную строку серии (is_default).
+        self._fill_default_shaft_material()
         self.config_hash = self.compute_config_hash()
         self._check_config_hash_unique()
         if self.origin == self.Origin.MANUAL:
@@ -545,6 +571,23 @@ class PneumaticActuatorCatalogItem(
                 _('Укажите тип оборудования или выберите серию с заданным типом оборудования')
             )
         self._check_config_hash_unique()
+
+    def _fill_default_shaft_material(self):
+        """Подставить стандартный материал штока серии, если опция не выбрана.
+
+        Стандартная строка (is_default=True) не кодируется в артикуле, поэтому
+        «без опции» и «стандарт» — один и тот же продукт: карточка всегда
+        материализует стандартную строку, и хэш-дедуп работает. Строки нет
+        (серия без опций материала штока) — поле остаётся пустым.
+        """
+        if self.selected_shaft_material_id is not None or not self.model_line_id:
+            return
+        from pneumatic_actuators.models.pa_options import PneumaticShaftMaterialOption
+        row = PneumaticShaftMaterialOption.objects.filter(
+            model_line_id=self.model_line_id, is_active=True, is_default=True
+        ).order_by('sorting_order').first()
+        if row:
+            self.selected_shaft_material = row
 
     def get_equipment_type_for_sku(self):
         """Тип оборудования для SKU — берётся из model_line."""
@@ -652,6 +695,7 @@ class PneumaticActuatorCatalogItem(
             self.safety_position_encoding,
             self.manual_override_encoding,
             self.coating_encoding,
+            self.shaft_material_encoding,
             self.ip_encoding,
             self.exd_encoding,
         ]
@@ -703,6 +747,19 @@ class PneumaticActuatorCatalogItem(
         return self._get_option_ext_encoding('selected_body_coating')
 
     @property
+    def shaft_material_encoding(self) -> str:
+        return self._get_option_encoding('selected_shaft_material')
+
+    @property
+    def shaft_material_ext_encoding(self) -> str:
+        return self._get_option_ext_encoding('selected_shaft_material')
+
+    @property
+    def stroke_code(self) -> str:
+        """Ход для артикула: число или пустая строка (ротационные)."""
+        return str(self.stroke) if self.stroke else ''
+
+    @property
     def body_color_encoding(self) -> str:
         return self._get_option_encoding('selected_body_color')
 
@@ -718,6 +775,18 @@ class PneumaticActuatorCatalogItem(
         if opt.body_coating:
             return pick_i18n(opt.body_coating, locale) or ''
         return localized_name(opt.body_coating_option, locale) if opt.body_coating_option else ''
+
+    def _res_shaft_material(self, locale=None) -> str:
+        """Материал штока: описание из JSON (shaft_material_description) →
+        спецификация (FK shaft_material_specified) → материал (FK shaft_material)."""
+        opt = self.selected_shaft_material
+        if not opt:
+            return ''
+        if opt.shaft_material_description:
+            return pick_i18n(opt.shaft_material_description, locale) or ''
+        if opt.shaft_material_specified:
+            return localized_name(opt.shaft_material_specified, locale) or ''
+        return localized_name(opt.shaft_material, locale) if opt.shaft_material else ''
 
     def _res_exd_short(self, locale=None) -> str:
         """Короткая строка взрывозащиты из prefetched M2M.
@@ -1107,18 +1176,35 @@ class PneumaticActuatorCatalogItem(
                     spr_rows = list(base.filter(pressure=spring_pressure, spring_qty=fallback))
 
         fmt = BodyThrustTorqueTable.format_torque_value
+        from pneumatic_actuators.models.pa_torque import POINT_TO_DISPLAY_FIELD
+
+        def _cells(rows):
+            vals = {}
+            for r in rows:
+                f = POINT_TO_DISPLAY_FIELD.get(r.point.code)
+                if f and f not in vals:
+                    vals[f] = r.value
+            return vals
+
         parts = []
         for prefix, rows in (('AIR', air_rows), ('SPR', spr_rows)):
             if not rows:
                 continue
-            row = rows[0]
+            vals = _cells(rows)
+            if not vals:
+                continue
             if is_da:
                 # DA: если задан только один из BTO/ETO (второй 0) — второй равен ненулевому.
-                pair = self._da_torque_pair(row.bto, row.eto)
-            values = []
-            for field_name, label in fields:
-                value = pair.get(field_name) if is_da else getattr(row, field_name, None)
-                values.append(f'{label} {fmt(value)}' if value is not None else f'{label} —')
+                pair = self._da_torque_pair(vals.get('bto'), vals.get('eto'))
+                values = []
+                for field_name, label in fields:
+                    value = pair.get(field_name)
+                    values.append(f'{label} {fmt(value)}' if value is not None else f'{label} —')
+            else:
+                values = []
+                for field_name, label in fields:
+                    value = vals.get(field_name)
+                    values.append(f'{label} {fmt(value)}' if value is not None else f'{label} —')
             parts.append(f'{prefix}: ' + ' / '.join(values))
         return '; '.join(parts)
 

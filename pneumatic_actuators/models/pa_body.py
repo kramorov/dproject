@@ -117,7 +117,7 @@ class PneumaticActuatorBody(models.Model) :
                                           verbose_name=_("Расход закр, л'") ,
                                           help_text=_(
                                               'Расход воздуха пневмоприводом за цикл закрытия, л'))
-    piston_diameter = models.DecimalField(max_digits=4 , decimal_places=1 ,
+    piston_diameter = models.DecimalField(max_digits=5 , decimal_places=1 ,
                                           default=0 , blank=True , null=True ,
                                           verbose_name=_("Поршень") ,
                                           help_text=_(
@@ -151,6 +151,9 @@ class PneumaticActuatorBody(models.Model) :
         ordering = ['sorting_order']
         verbose_name = _('Модель корпуса пневмопривода')
         verbose_name_plural = _('Модели корпусов пневмоприводов')
+        constraints = [
+            models.UniqueConstraint(fields=['code'], name='uq_pa_body_code'),
+        ]
 
     def __str__(self) :
         return self.name

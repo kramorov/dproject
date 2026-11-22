@@ -33,6 +33,13 @@ SPRING_PRESSURE_LABELS = {
     'cn': '弹簧',
 }
 
+# Маппинг кода точки → поле отображения (пружина хранится в ориентации закрытия
+# под BTC/RTC/ETC, в отображении разворачивается к старому виду BTO/RTO/ETO).
+POINT_TO_DISPLAY_FIELD = {
+    'bto': 'bto', 'rto': 'rto', 'eto': 'eto',
+    'btc': 'eto', 'rtc': 'rto', 'etc': 'bto',
+}
+
 # Примечание о единицах измерения (локализованное).
 TORQUE_UNIT_NOTES = {
     'ru': 'Примечание: значения в Нм',
@@ -101,16 +108,20 @@ class BodyThrustTorqueTable(models.Model):
                                    related_name='body_thrust_torque_table',
                                    verbose_name=_("Пружин / DA"),
                                    help_text=_("Количество пружин или DA"))
-    bto = models.DecimalField(max_digits=10, decimal_places=1, verbose_name=_("Момент/усилие BTO"),
-                              help_text=_("BTO Момент/усилие страгивания для открытия"))
-    rto = models.DecimalField(max_digits=10, decimal_places=1, verbose_name=_("Момент/усилие RTC(MID)"),
-                              help_text=_("RTC Момент/усилие в среднем положении"))
-    eto = models.DecimalField(max_digits=10, decimal_places=1, verbose_name=_("Момент/усилие BTC"),
-                              help_text=_("ETO Конечный Момент/Усилие открытия"))
+    point = models.ForeignKey('valve_data.TorquePoint', on_delete=models.PROTECT,
+                              related_name='pa_torque_rows',
+                              verbose_name=_("Точка"),
+                              help_text=_('BTO/RTO/ETO (воздух) или BTC/RTC/ETC (пружина)'))
+    value = models.DecimalField(max_digits=10, decimal_places=1, verbose_name=_("Момент/усилие"),
+                                help_text=_("Значение момента/усилия в точке"))
 
     class Meta:
         verbose_name = _("Таблица моментов/усилий пневмоприводов")
         verbose_name_plural = _("Таблица моментов/усилий пневмоприводов")
+        constraints = [
+            models.UniqueConstraint(fields=['body', 'pressure', 'spring_qty', 'point'],
+                                    name='uq_pa_torque_row'),
+        ]
 
     def __str__(self):
         body = self.body
@@ -132,6 +143,17 @@ class BodyThrustTorqueTable(models.Model):
             queryset = queryset.filter(spring_qty__in=spring_qty_list)
 
         return queryset
+
+    @classmethod
+    def _pivot_cells(cls, queryset, body, pressure, spring):
+        """Значения точек для комбинации (body, pressure, spring) в полях
+        отображения bto/rto/eto (пружина разворачивается из BTC/RTC/ETC)."""
+        vals = {}
+        for row in queryset.filter(body=body, pressure=pressure, spring_qty=spring).select_related('point') :
+            f = POINT_TO_DISPLAY_FIELD.get(row.point.code)
+            if f and f not in vals :
+                vals[f] = row.value
+        return vals
 
 
 
@@ -286,8 +308,8 @@ class BodyThrustTorqueTable(models.Model):
         Упрощенная версия для одного корпуса
         """
         try :
-            all_data = queryset.select_related('body' , 'pressure' , 'spring_qty').order_by(
-                'spring_qty__sorting_order' , 'pressure__sorting_order'
+            all_data = queryset.select_related('body' , 'pressure' , 'spring_qty' , 'point').order_by(
+                'spring_qty__sorting_order' , 'pressure__sorting_order', 'point__sorting_order'
             )
 
             if not all_data :
@@ -312,7 +334,7 @@ class BodyThrustTorqueTable(models.Model):
             torque_fields = cls._get_torque_fields_for_construction(
                 construction_variety_code, da_sr_code, ncno)
             for item in all_data :
-                if not item.body or not item.spring_qty or not item.pressure :
+                if not item.body or not item.spring_qty or not item.pressure or not item.point :
                     continue
 
                 spring_code = item.spring_qty.code
@@ -334,22 +356,18 @@ class BodyThrustTorqueTable(models.Model):
                     }
                     available_springs.add(spring_code)
 
+                # Значение точки → поле отображения (пружина разворачивается)
+                field_name = POINT_TO_DISPLAY_FIELD.get(item.point.code)
+                if field_name is None :
+                    continue
 
-
-                # Формируем значения для данного давления
                 pressure_code = item.pressure.code
-                pressure_values = {}
-
-                for field_name , display_name in torque_fields :
-                    value = getattr(item , field_name , None)
-                    if value is not None :
-                        try :
-                            pressure_values[field_name] = float(value)
-                            visible_fields.add(field_name)
-                        except (TypeError , ValueError) :
-                            pressure_values[field_name] = None
-
-                by_spring[spring_code]['pressures'][pressure_code] = pressure_values
+                pressure_values = by_spring[spring_code]['pressures'].setdefault(pressure_code , {})
+                try :
+                    pressure_values[field_name] = float(item.value)
+                    visible_fields.add(field_name)
+                except (TypeError , ValueError) :
+                    pressure_values[field_name] = None
 
                 # Сохраняем информацию о давлении
                 if pressure_code not in pressure_info :
@@ -739,8 +757,9 @@ class BodyThrustTorqueTable(models.Model):
         if pneumatic_actuator_variety.code == SPRINGS_DA_DEFAULT_CODE:
             queryset = queryset.filter(
                 spring_qty__code=SPRINGS_DA_DEFAULT_CODE,
-                bto__gte=thrust_or_torque - tolerance,
-                bto__lte=thrust_or_torque + tolerance
+                point__code='bto',
+                value__gte=thrust_or_torque - tolerance,
+                value__lte=thrust_or_torque + tolerance
             )
 
         # TODO: Добавить логику для других типов приводов
@@ -864,40 +883,13 @@ class BodyThrustTorqueTable(models.Model):
 
                     # Для каждого давления добавляем BTO, RTO, ETO
                     for pressure in pressures:
-                        # Ищем данные для этой комбинации
-                        torque_data = all_torque_data.filter(
-                            body=body,
-                            pressure=pressure,
-                            spring_qty=spring
-                        ).first()
-
-                        if torque_data:
-                            # Если данные есть - заполняем
-                            row_data.extend([
-                                torque_data.bto if torque_data.bto else '',
-                                torque_data.rto if torque_data.rto else '',
-                                torque_data.eto if torque_data.eto else ''
-                            ])
-                        else:
-                            # Если данных нет - пустые ячейки
-                            row_data.extend(['', '', ''])
+                        vals = BodyThrustTorqueTable._pivot_cells(all_torque_data, body, pressure, spring)
+                        row_data.extend([vals.get('bto' , '') , vals.get('rto' , '') , vals.get('eto' , '')])
 
                     # ИСПРАВЛЕНИЕ: добавляем данные для давления 'spring'
                     if spring_pressure:
-                        spring_torque_data = all_torque_data.filter(
-                            body=body,
-                            pressure=spring_pressure,
-                            spring_qty=spring
-                        ).first()
-
-                        if spring_torque_data:
-                            row_data.extend([
-                                spring_torque_data.bto if spring_torque_data.bto else '',
-                                spring_torque_data.rto if spring_torque_data.rto else '',
-                                spring_torque_data.eto if spring_torque_data.eto else ''
-                            ])
-                        else:
-                            row_data.extend(['', '', ''])
+                        vals = BodyThrustTorqueTable._pivot_cells(all_torque_data, body, spring_pressure, spring)
+                        row_data.extend([vals.get('bto' , '') , vals.get('rto' , '') , vals.get('eto' , '')])
                     else:
                         row_data.extend(['', '', ''])
 
@@ -1184,39 +1176,27 @@ class BodyThrustTorqueTable(models.Model):
                         errors.append(error_msg)
                         continue
 
-                    # Ищем существующую запись или создаем новую
-                    torque_data, created = BodyThrustTorqueTable.objects.get_or_create(
-                        body=body,
-                        pressure=pressure,
-                        spring_qty=spring,
-                        defaults={
-                            'bto': 0,
-                            'rto': 0,
-                            'eto': 0
-                        }
-                    )
-
-                    action = "создана" if created else "обновлена"
-                    logger.debug(
-                        f"Запись {action}: body={body.code}, pressure={pressure.code}, spring={spring.code}")
-
-                    # Обновляем соответствующее поле
-                    if parameter_type == 'BTO':
-                        torque_data.bto = numeric_value
-                        logger.debug(f"BTO установлено: {numeric_value}")
-                    elif parameter_type == 'RTO':
-                        torque_data.rto = numeric_value
-                        logger.debug(f"RTO установлено: {numeric_value}")
-                    elif parameter_type == 'ETO':
-                        torque_data.eto = numeric_value
-                        logger.debug(f"ETO установлено: {numeric_value}")
-                    else:
+                    # Ищем/обновляем запись точки
+                    from valve_data.models import TorquePoint
+                    point_code = {'BTO' : 'bto' , 'RTO' : 'rto' , 'ETO' : 'eto'}.get(parameter_type)
+                    if point_code is None :
                         error_msg = f"Строка {row_idx + 1}, столбец {col_idx + 1}: неизвестный тип параметра '{parameter_type}'"
                         logger.error(error_msg)
                         errors.append(error_msg)
                         continue
+                    # пружина в шаблоне — в отображении BTO/RTO/ETO (ориентация
+                    # открытия); храним под close-точками с разворотом
+                    if pressure.code == 'spring' :
+                        point_code = {'BTO' : 'etc' , 'RTO' : 'rtc' , 'ETO' : 'btc'}[parameter_type]
+                    point = TorquePoint.objects.get(code=point_code)
+                    BodyThrustTorqueTable.objects.update_or_create(
+                        body=body,
+                        pressure=pressure,
+                        spring_qty=spring,
+                        point=point,
+                        defaults={'value' : numeric_value}
+                    )
 
-                    torque_data.save()
                     imported_count += 1
                     logger.debug(f"Запись сохранена. Всего импортировано: {imported_count}")
 

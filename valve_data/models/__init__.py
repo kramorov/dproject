@@ -19,7 +19,7 @@ from .dimensions.weight_dimension_parameter_variety import WeightDimensionParame
 from .valve_line import ValveLine
 from .torque_characteristics import (
     TorqueThrustCharacteristics, ValveTorqueCoefficient,
-    SealType, ValveSupportType,
+    SealType, ValveSupportType, TorquePoint,
 )
 
 # from .drawing_models import DimensionTableDrawing
@@ -38,4 +38,5 @@ __all__ = [
     'ValveTorqueCoefficient',
     'SealType',
     'ValveSupportType',
+    'TorquePoint',
 ]

@@ -4,7 +4,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from .models import PneumaticActuatorSelected
 from .models.pa_options import PneumaticSafetyPositionOption , PneumaticSpringsQtyOption , PneumaticTemperatureOption , \
-    PneumaticIpOption , PneumaticExdOption , PneumaticBodyDesignOption , PneumaticManualOverrideOption
+    PneumaticIpOption , PneumaticExdOption , PneumaticBodyDesignOption , PneumaticShaftMaterialOption , PneumaticManualOverrideOption
 
 
 class PneumaticActuatorSelectedForm(forms.ModelForm) :
@@ -21,6 +21,7 @@ class PneumaticActuatorSelectedForm(forms.ModelForm) :
             'selected_ip' ,
             'selected_exd' ,
             'selected_body_coating' ,
+            'selected_shaft_material' ,
             'selected_manual_override' ,
             'sorting_order' , 'is_active'
         ]
@@ -48,6 +49,7 @@ class PneumaticActuatorSelectedForm(forms.ModelForm) :
             'selected_ip' : forms.Select(attrs={'class' : 'form-control'}) ,
             'selected_exd' : forms.Select(attrs={'class' : 'form-control'}) ,
             'selected_body_coating' : forms.Select(attrs={'class' : 'form-control'}) ,
+            'selected_shaft_material' : forms.Select(attrs={'class' : 'form-control'}) ,
             'selected_manual_override' : forms.Select(attrs={'class' : 'form-control'}) ,
             'sorting_order' : forms.NumberInput(attrs={'class' : 'form-control' , 'style' : 'width: 100px'}) ,
             'is_active' : forms.CheckboxInput(attrs={'class' : 'form-check-input'}) ,
@@ -102,6 +104,11 @@ class PneumaticActuatorSelectedForm(forms.ModelForm) :
                         model_line=model_line ,
                         is_active=True
                     )
+                self.fields['selected_shaft_material'].queryset = \
+                    PneumaticShaftMaterialOption.objects.filter(
+                        model_line=model_line ,
+                        is_active=True
+                    )
                 self.fields['selected_manual_override'].queryset = \
                     PneumaticManualOverrideOption.objects.filter(
                         model_line=model_line ,
@@ -119,7 +126,7 @@ class PneumaticActuatorSelectedForm(forms.ModelForm) :
         option_fields = [
             'selected_safety_position' , 'selected_springs_qty' ,
             'selected_temperature' , 'selected_ip' , 'selected_exd' ,
-            'selected_body_coating' , 'selected_manual_override'
+            'selected_body_coating' , 'selected_shaft_material' , 'selected_manual_override'
         ]
 
         for field_name in option_fields :

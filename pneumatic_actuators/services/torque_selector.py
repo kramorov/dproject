@@ -1,12 +1,23 @@
 # pneumatic_actuators/services/torque_selector.py
 from typing import List , Dict , Optional
-from decimal import Decimal
 
 from pneumatic_actuators.models.py_options_constants import SPRINGS_DA_DEFAULT_CODE
 
+# Маппинг кода точки → поле отображения (пружина хранится под BTC/RTC/ETC,
+# в логике подбора используется старый вид BTO/RTO/ETO ориентации открытия).
+POINT_TO_DISPLAY_FIELD = {
+    'bto': 'bto', 'rto': 'rto', 'eto': 'eto',
+    'btc': 'eto', 'rtc': 'rto', 'etc': 'bto',
+}
+
+# Точки, из которых собирается пружинная строка (давление 'spring').
+SPRING_POINT_CODES = ('btc', 'rtc', 'etc')
+# Точки воздушной строки.
+AIR_POINT_CODES = ('bto', 'rto', 'eto')
+
 
 class TorqueSelectorService :
-    """Сервис для подбора приводов по моменту"""
+    """Сервис для подбора приводов по моменту (старый однозначный подбор)."""
 
     @staticmethod
     def get_pressure_by_id(pressure_model , pressure_id: int) -> Optional[Dict] :
@@ -19,8 +30,24 @@ class TorqueSelectorService :
                 'name' : pressure.name ,
                 'value' : float(pressure.code) if pressure.code.replace('.' , '').isdigit() else None
             }
-        except :
+        except Exception :
             return None
+
+    @staticmethod
+    def _pivot_groups(records) -> Dict:
+        """Сгруппировать строки точек по spring_qty → {spring: {bto,eto}, pressure: {bto,eto}}."""
+        out = {}
+        for r in records :
+            field = POINT_TO_DISPLAY_FIELD.get(r.point.code)
+            if field is None :
+                continue
+            code = r.spring_qty.code
+            grp = out.setdefault(code, {'spring': {}, 'pressure': {}})
+            if r.pressure.code == 'spring' :
+                grp['spring'][field] = float(r.value)
+            else :
+                grp['pressure'][field] = float(r.value)
+        return out
 
     @staticmethod
     def get_spring_data_sr(table_model , body_id: int) -> List[Dict] :
@@ -28,22 +55,25 @@ class TorqueSelectorService :
         spring_records = table_model.objects.filter(
             body_id=body_id ,
             pressure__code='spring' ,
-            spring_qty__is_active=True
-        ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty').order_by(
-            'spring_qty__sorting_order')
+            spring_qty__is_active=True,
+            point__code__in=SPRING_POINT_CODES,
+        ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty', 'point')
 
         result = []
-        for record in spring_records :
-            if record.bto and record.eto :
+        for code , grp in TorqueSelectorService._pivot_groups(spring_records).items() :
+            vals = grp['spring']
+            if vals.get('bto') is not None and vals.get('eto') is not None :
+                spring_qty = next(r.spring_qty for r in spring_records if r.spring_qty.code == code)
                 result.append({
-                    'id' : record.id ,
-                    'spring_qty_id' : record.spring_qty.id ,
-                    'spring_qty_code' : record.spring_qty.code ,
-                    'spring_qty_name' : record.spring_qty.name ,
-                    'bto' : float(record.bto) ,
-                    'eto' : float(record.eto) ,
-                    'min_value' : min(float(record.bto) , float(record.eto))
+                    'id' : spring_qty.id ,
+                    'spring_qty_id' : spring_qty.id ,
+                    'spring_qty_code' : code ,
+                    'spring_qty_name' : spring_qty.name ,
+                    'bto' : vals['bto'] ,
+                    'eto' : vals['eto'] ,
+                    'min_value' : min(vals['bto'] , vals['eto'])
                 })
+        result.sort(key=lambda x : x['spring_qty_code'])
         return result
 
     @staticmethod
@@ -52,22 +82,25 @@ class TorqueSelectorService :
         pressure_records = table_model.objects.filter(
             body_id=body_id ,
             pressure_id=work_pressure_id ,
-            spring_qty__is_active=True
-        ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty').order_by(
-            'spring_qty__sorting_order')
+            spring_qty__is_active=True,
+            point__code__in=AIR_POINT_CODES,
+        ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty', 'point')
 
         result = []
-        for record in pressure_records :
-            if record.bto and record.eto :
+        for code , grp in TorqueSelectorService._pivot_groups(pressure_records).items() :
+            vals = grp['pressure']
+            if vals.get('bto') is not None and vals.get('eto') is not None :
+                spring_qty = next(r.spring_qty for r in pressure_records if r.spring_qty.code == code)
                 result.append({
-                    'id' : record.id ,
-                    'spring_qty_id' : record.spring_qty.id ,
-                    'spring_qty_code' : record.spring_qty.code ,
-                    'spring_qty_name' : record.spring_qty.name ,
-                    'bto' : float(record.bto) ,
-                    'eto' : float(record.eto) ,
-                    'min_value' : min(float(record.bto) , float(record.eto))
+                    'id' : spring_qty.id ,
+                    'spring_qty_id' : spring_qty.id ,
+                    'spring_qty_code' : code ,
+                    'spring_qty_name' : spring_qty.name ,
+                    'bto' : vals['bto'] ,
+                    'eto' : vals['eto'] ,
+                    'min_value' : min(vals['bto'] , vals['eto'])
                 })
+        result.sort(key=lambda x : x['spring_qty_code'])
         return result
 
     @staticmethod
@@ -77,21 +110,22 @@ class TorqueSelectorService :
             body_id=body_id ,
             pressure_id=work_pressure_id ,
             spring_qty__code=SPRINGS_DA_DEFAULT_CODE ,
-            spring_qty__is_active=True
+            spring_qty__is_active=True,
+            point__code='bto',
         ).select_related('spring_qty')
 
         result = []
         for record in da_records :
-            if record.bto :
+            if record.value is not None :
                 result.append({
                     'id' : record.id ,
                     'spring_qty_id' : record.spring_qty.id ,
                     'spring_qty_code' : record.spring_qty.code ,
                     'spring_qty_name' : record.spring_qty.name ,
-                    'bto' : float(record.bto) ,
-                    'rto' : float(record.rto) if record.rto else float(record.bto) ,
-                    'eto' : float(record.eto) if record.eto else float(record.bto) ,
-                    'value' : float(record.bto)
+                    'bto' : float(record.value) ,
+                    'rto' : float(record.value) ,
+                    'eto' : float(record.value) ,
+                    'value' : float(record.value)
                 })
         return result
 
@@ -166,66 +200,41 @@ class TorqueSelectorService :
         if not bodies :
             return []
 
-        # Один запрос на все тела вместо запроса на каждое (убирает N+1).
+        # Один запрос на все тела (убирает N+1).
         from collections import defaultdict
         records_by_body = defaultdict(list)
         all_records = table_model.objects.filter(
             body_id__in=[b.id for b in bodies] ,
-            spring_qty__is_active=True
-        ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty' , 'pressure')
+            spring_qty__is_active=True,
+            point__code__in=SPRING_POINT_CODES + AIR_POINT_CODES,
+        ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty' , 'pressure' , 'point')
         for record in all_records :
             records_by_body[record.body_id].append(record)
 
         all_results = []
 
         for body in bodies :
-            all_records = records_by_body.get(body.id , [])
-
-            # Группируем записи по количеству пружин
-            spring_qty_groups = {}
-            for record in all_records :
-                qty_code = record.spring_qty.code
-                if qty_code not in spring_qty_groups :
-                    spring_qty_groups[qty_code] = {
-                        'spring_qty_id' : record.spring_qty.id ,
-                        'spring_qty_code' : qty_code ,
-                        'spring_qty_name' : record.spring_qty.name ,
-                        'spring_record' : None ,
-                        'pressure_record' : None
-                    }
-
-                if record.pressure and record.pressure.code == 'spring' :
-                    spring_qty_groups[qty_code]['spring_record'] = {
-                        'bto' : float(record.bto) if record.bto else None ,
-                        'eto' : float(record.eto) if record.eto else None
-                    }
-                elif record.pressure_id == work_pressure_id :
-                    spring_qty_groups[qty_code]['pressure_record'] = {
-                        'bto' : float(record.bto) if record.bto else None ,
-                        'eto' : float(record.eto) if record.eto else None
-                    }
+            groups = self._pivot_groups(records_by_body.get(body.id , []))
 
             suitable_combinations = []
-            for qty_code , group in spring_qty_groups.items() :
-                spring = group['spring_record']
-                pressure = group['pressure_record']
+            for qty_code , group in groups.items() :
+                spring = group['spring']
+                pressure = group['pressure']
 
-                if spring is None or pressure is None :
-                    continue
-                if not spring.get('bto') or not spring.get('eto') or not pressure.get('bto') or not pressure.get(
-                        'eto') :
+                if not spring.get('bto') or not spring.get('eto') or not pressure.get('bto') or not pressure.get('eto') :
                     continue
 
                 score_data = self.calculate_score_sr(spring , pressure , torque_with_sf) # type: ignore
                 if score_data['is_valid'] :
+                    qty = next((r.spring_qty for r in records_by_body.get(body.id, []) if r.spring_qty.code == qty_code), None)
                     suitable_combinations.append({
-                        'spring_qty_id' : group['spring_qty_id'] ,
+                        'spring_qty_id' : qty.id if qty else None ,
                         'spring_qty_code' : qty_code ,
-                        'spring_qty_name' : group['spring_qty_name'] ,
+                        'spring_qty_name' : qty.name if qty else qty_code ,
                         'spring_bto' : spring['bto'] ,
                         'spring_eto' : spring['eto'] ,
                         'spring_min' : score_data['spring_min'] ,
-                        'spring_margin' : score_data['spring_margin'] ,  # ДОБАВИТЬ ЭТУ СТРОКУ
+                        'spring_margin' : score_data['spring_margin'] ,
                         'pressure_bto' : pressure['bto'] ,
                         'pressure_eto' : pressure['eto'] ,
                         'pressure_min' : score_data['pressure_min'] ,
@@ -241,8 +250,8 @@ class TorqueSelectorService :
                     'body_code' : body.code ,
                     'body_name' : body.name ,
                     'type' : 'SR' ,
-                    'score' : best['score'] ,  # ДОБАВИТЬ
-                    'spring_margin' : best['spring_margin'] ,  # ДОБАВИТЬ
+                    'score' : best['score'] ,
+                    'spring_margin' : best['spring_margin'] ,
                     'combinations' : suitable_combinations ,
                     'best_combination' : best ,
                     'total_combinations' : len(suitable_combinations)
@@ -269,27 +278,27 @@ class TorqueSelectorService :
         if not bodies:
             return []
 
-        # Один запрос на все тела вместо запроса на каждое (убирает N+1).
         from collections import defaultdict
         records = table_model.objects.filter(
             body_id__in=[b.id for b in bodies],
             pressure_id=work_pressure_id,
             spring_qty__code=SPRINGS_DA_DEFAULT_CODE,
             spring_qty__is_active=True,
+            point__code='bto',
         ).select_related('spring_qty')
 
         by_body = defaultdict(list)
         for record in records:
-            if record.bto:
+            if record.value is not None:
                 by_body[record.body_id].append({
                     'id': record.id,
                     'spring_qty_id': record.spring_qty.id,
                     'spring_qty_code': record.spring_qty.code,
                     'spring_qty_name': record.spring_qty.name,
-                    'bto': float(record.bto),
-                    'rto': float(record.rto) if record.rto else float(record.bto),
-                    'eto': float(record.eto) if record.eto else float(record.bto),
-                    'value': float(record.bto),
+                    'bto': float(record.value),
+                    'rto': float(record.value),
+                    'eto': float(record.value),
+                    'value': float(record.value),
                 })
 
         all_results = []
@@ -314,8 +323,8 @@ class TorqueSelectorService :
                     'body_code': body.code,
                     'body_name': body.name,
                     'type': 'DA',
-                    'score': best['score'],  # ДОБАВИТЬ
-                    'spring_margin': best['margin'],  # ДОБАВИТЬ
+                    'score': best['score'],
+                    'spring_margin': best['margin'],
                     'best_combination': best,
                     'total_combinations': len(suitable)
                 })

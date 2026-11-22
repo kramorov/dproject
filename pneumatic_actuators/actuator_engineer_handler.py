@@ -99,6 +99,30 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
         for c in BodyCoatingOption.objects.filter(id__in=coating_ids , is_active=True).order_by('sorting_order')
     ]
 
+    # Материал штока: два селектора — «материал» (FK MaterialGeneral) и
+    # «спецификация материала» (FK MaterialSpecified).
+    from pneumatic_actuators.models.pa_options import PneumaticShaftMaterialOption
+    from materials.models import MaterialSpecified
+    sm_qs = PneumaticShaftMaterialOption.objects.filter(is_active=True)
+    if model_line_id :
+        sm_qs = sm_qs.filter(model_line_id=model_line_id)
+
+    shaft_material_ids = sm_qs.exclude(shaft_material__isnull=True).values_list(
+        'shaft_material_id' , flat=True
+    ).distinct()
+    result['shaft_material_options'] = [
+        {'id' : m.id , 'name' : localized_name(m , locale) , 'code' : m.code or ''}
+        for m in MaterialGeneral.objects.filter(id__in=shaft_material_ids , is_active=True).order_by('name')
+    ]
+
+    specified_ids = sm_qs.exclude(shaft_material_specified__isnull=True).values_list(
+        'shaft_material_specified_id' , flat=True
+    ).distinct()
+    result['shaft_material_specified_options'] = [
+        {'id' : s.id , 'name' : localized_name(s , locale) , 'code' : s.code or ''}
+        for s in MaterialSpecified.objects.filter(id__in=specified_ids , is_active=True).order_by('name')
+    ]
+
     # Температура окружающей среды: уникальные нижние границы work_temp_min,
     # близкие значения объединяем (шаг 10°C, оставляем более холодную).
     from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
@@ -242,6 +266,8 @@ SELECTOR_LABELS_I18N = {
     'exd': {'ru': 'Взрывозащита', 'en': 'Explosion protection', 'cn': '防爆'},
     'coating': {'ru': 'Покрытие корпуса', 'en': 'Body coating', 'cn': '壳体涂层'},
     'body_material': {'ru': 'Материал корпуса', 'en': 'Body material', 'cn': '壳体材料'},
+    'shaft_material': {'ru': 'Материал штока', 'en': 'Shaft material', 'cn': '阀杆材质'},
+    'shaft_material_specified': {'ru': 'Спецификация материала', 'en': 'Material specification', 'cn': '材料规格'},
     'manual_override': {'ru': 'Ручной дублёр', 'en': 'Manual override', 'cn': '手动操作'},
     'temp_min': {'ru': 'Температура мин. (°C)', 'en': 'Temp. min (°C)', 'cn': '最低温度（°C）'},
     'temp_max': {'ru': 'Температура макс. (°C)', 'en': 'Temp. max (°C)', 'cn': '最高温度（°C）'},
@@ -578,6 +604,13 @@ def _card_option_values(card_item, locale):
         if label:
             out['coating'] = {'value': str(coat.id), 'label': label}
 
+    shaft = card_item.selected_shaft_material
+    if shaft is not None:
+        label = pick_i18n(shaft.shaft_material_description, locale) or ''
+        if not label and shaft.shaft_material:
+            label = localized_name(shaft.shaft_material, locale) or ''
+        if label:
+            out['shaft_material'] = {'value': str(shaft.id), 'label': label}
     exd = card_item.selected_exd
     if exd is not None:
         label = card_item._res_exd_short() or exd.encoding or ''
@@ -702,6 +735,20 @@ def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) 
         ).values_list('id' , flat=True).distinct())
         found = [ml for ml in found if ml.get('model_line_id') in allowed]
 
+    # 4b. Материал штока и его спецификация — по серии.
+    shaft_material_id = params.get('shaft_material_id')
+    shaft_material_specified_id = params.get('shaft_material_specified_id')
+    if shaft_material_id :
+        allowed = set(PneumaticActuatorModelLine.objects.filter(
+            shaft_material_options__shaft_material_id=shaft_material_id , is_active=True
+        ).values_list('id' , flat=True).distinct())
+        found = [ml for ml in found if ml.get('model_line_id') in allowed]
+    if shaft_material_specified_id :
+        allowed = set(PneumaticActuatorModelLine.objects.filter(
+            shaft_material_options__shaft_material_specified_id=shaft_material_specified_id , is_active=True
+        ).values_list('id' , flat=True).distinct())
+        found = [ml for ml in found if ml.get('model_line_id') in allowed]
+
     # 5. Температура — по серии (покрывает диапазон; exact — точное совпадение).
     temp_min = params.get('temp_min')
     temp_max = params.get('temp_max')
@@ -762,6 +809,11 @@ def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) 
                 qs = qs.filter(selected_body_coating__body_material_id=body_material_id)
             if coating_id:
                 qs = qs.filter(selected_body_coating__body_coating_option_id=coating_id)
+            # Карточка должна соответствовать выбранному материалу/спецификации штока.
+            if shaft_material_id:
+                qs = qs.filter(selected_shaft_material__shaft_material_id=shaft_material_id)
+            if shaft_material_specified_id:
+                qs = qs.filter(selected_shaft_material__shaft_material_specified_id=shaft_material_specified_id)
             # Карточки должны соответствовать выбранному exd и покрывать температуру.
             if exd_id and ml.get('exd_option_id'):
                 qs = qs.filter(selected_exd_id=ml.get('exd_option_id'))
@@ -777,6 +829,8 @@ def _search_catalog_items(params: Dict[str, Any], locale: Optional[str] = None) 
                     'selected_temperature', 'selected_exd', 'selected_body_coating',
                     'selected_body_coating__body_material',
                     'selected_body_coating__body_coating_option',
+                    'selected_shaft_material', 'selected_shaft_material__shaft_material',
+                    'selected_shaft_material__shaft_material_specified',
                     'selected_ip', 'selected_manual_override', 'selected_safety_position',
                 )
                 .prefetch_related(
@@ -924,3 +978,371 @@ def find_compatible_actuators_by_model_line(
         ) -> List[Dict[str, Any]]:
     ''' Ищет модель по количеству пружин, моментам, модели'''
     return []
+
+
+# ==================== ПОТОЧЕЧНЫЙ (4/6-ТОЧЕЧНЫЙ) ПОДБОР ====================
+
+def get_pointwise_initial_data(locale=None, fields=None) -> Dict[str, Any]:
+    """Начальные данные для точечного подбора: наборы характеристик,
+    типы арматуры, опора/уплотнение, давления, серии, типы DA/SR, подписи."""
+    from valve_data.models import TorqueThrustCharacteristics, SealType, ValveSupportType
+    from params.models import ValveTypes, PneumaticAirSupplyPressure
+    from pneumatic_actuators.models import (
+        PneumaticActuatorModelLine, PneumaticActuatorVariety, BodyThrustTorqueTable,
+    )
+
+    if fields is not None:
+        fields = set(fields)
+    want = (lambda key: fields is None or key in fields)
+
+    data: Dict[str, Any] = {}
+    if want('characteristics'):
+        data['characteristics'] = list(
+            TorqueThrustCharacteristics.objects.filter(is_active=True)
+            .order_by('sorting_order', 'id')
+            .values('id', 'code', 'name', 'motion_type_id', 'motion_type__code'))
+    if want('valve_types'):
+        data['valve_types'] = ValveTypes.get_for_select(active_only=True, locale=locale)
+    if want('supports'):
+        data['supports'] = ValveSupportType.get_for_select(active_only=True, locale=locale)
+    if want('seals'):
+        data['seals'] = SealType.get_for_select(active_only=True, locale=locale)
+    if want('air_pressure'):
+        torque_pressure_ids = set(
+            BodyThrustTorqueTable.objects.filter(pressure__isnull=False)
+            .values_list('pressure_id', flat=True).distinct()
+        )
+        data['air_pressure'] = [
+            p for p in PneumaticAirSupplyPressure.get_for_select(active_only=True, locale=locale)
+            if p.get('code') != 'spring' and p.get('id') in torque_pressure_ids
+        ]
+    if want('model_lines'):
+        data['model_lines'] = PneumaticActuatorModelLine.get_for_select(active_only=True)
+    if want('actuator_varieties'):
+        data['actuator_varieties'] = PneumaticActuatorVariety.get_for_select(active_only=True, locale=locale)
+    if want('safety_positions'):
+        data['safety_positions'] = [
+            {'code': 'nc', 'name': 'НЗ — нормально закрытое'},
+            {'code': 'no', 'name': 'НО — нормально открытое'},
+        ]
+    if want('labels'):
+        data['labels'] = _get_selector_labels(locale)
+    return data
+
+
+def process_pointwise_selection(params: Dict[str, Any], locale=None) -> Dict[str, Any]:
+    """Точечный подбор: кривая требования по коэффициентам → тела с запасом по точкам.
+
+    Ранжирование — по минимальному запасу (критическая точка), сравнение серий
+    корректно (одинаковая метрика для всех тел). Дополнительные фильтры — как в
+    обычном подборе: взрывозащита (с exact), температура (диапазон + exact),
+    конструкция, материал/покрытие корпуса, материал штока; результат —
+    материализованные SKU-карточки с разделением точно/совместимо."""
+    from valve_data.models import ValveTorqueCoefficient
+    from pneumatic_actuators.models import (
+        PneumaticActuatorBody, PneumaticActuatorModelLineItem, PneumaticActuatorModelLine,
+        PneumaticActuatorCatalogItem, BodyThrustTorqueTable,
+    )
+    from pneumatic_actuators.services.pointwise_selector import PointwiseSelector
+
+    characteristics_id = params.get('characteristics_id')
+    valve_type_id = params.get('valve_type_id')
+    support_id = params.get('support_id') or None
+    seal_type_id = params.get('seal_type_id') or None
+    base_torque = params.get('base_torque')
+    safety_factor = params.get('safety_factor') or 1.0
+    work_pressure_id = params.get('air_pressure_id')
+    actuator_variety = params.get('actuator_variety_code') or 'DA'
+    safety_position = params.get('safety_position_code') or 'nc'
+    model_line_id = params.get('model_line_id')
+    mode = params.get('mode') or 'six'  # six — ротационные, four — линейные
+    stroke_mm = params.get('stroke_mm')
+    stroke_safety_factor = params.get('stroke_safety_factor')
+    required_points = params.get('required_points')
+
+    try:
+        base_torque = float(base_torque)
+        safety_factor = float(safety_factor)
+    except (TypeError, ValueError):
+        base_torque = None
+
+    try:
+        stroke_safety_factor = float(stroke_safety_factor) if stroke_safety_factor not in (None, '') else 1.0
+    except (TypeError, ValueError):
+        return {'success': False, 'message': 'Некорректный запас хода.'}
+    if stroke_safety_factor <= 0:
+        return {'success': False, 'message': 'Запас хода должен быть больше нуля.'}
+
+    required_stroke = None
+    if stroke_mm not in (None, ''):
+        try:
+            required_stroke = float(stroke_mm) * stroke_safety_factor
+        except (TypeError, ValueError):
+            return {'success': False, 'message': 'Укажите требуемый ход числом.'}
+
+    if not work_pressure_id:
+        return {'success': False, 'message': 'Укажите давление питания.'}
+
+    FOUR_POINT_CODES = ('bto', 'eto', 'etc', 'btc')
+    if required_points:
+        try:
+            required = {code: float(v) for code, v in dict(required_points).items()
+                        if v not in (None, '')}
+        except (TypeError, ValueError):
+            return {'success': False, 'message': 'Некорректная кривая требований.'}
+        if not required:
+            return {'success': False, 'message': 'Задайте кривую требований.'}
+        if mode == 'four':
+            required = {c: v for c, v in required.items() if c in FOUR_POINT_CODES}
+        if not required:
+            return {'success': False, 'message': 'Задайте кривую требований.'}
+    else:
+        if mode == 'four':
+            # Для линейных коэффициенты не заведены (наборы только rotary-6),
+            # а базовое значение задаётся в Нм — недопустимо смешивать единицы.
+            return {'success': False, 'message': 'Для линейных приводов задайте кривую усилий (4 точки).'}
+        if not (characteristics_id and valve_type_id):
+            return {'success': False, 'message': 'Укажите набор характеристик и тип арматуры.'}
+        if not base_torque:
+            return {'success': False, 'message': 'Укажите базовый момент (число).'}
+
+        factors = ValveTorqueCoefficient.get_curve(
+            characteristics_id, valve_type_id, support_id, seal_type_id)
+        if not factors:
+            return {'success': False, 'message': 'Коэффициенты для выбранной арматуры не найдены.'}
+
+        required = PointwiseSelector.compute_required_curve(base_torque, safety_factor, factors)
+        if mode == 'four':
+            required = {c: v for c, v in required.items() if c in FOUR_POINT_CODES}
+
+    variety_ln_id = None
+    if mode == 'four':
+        from pneumatic_actuators.models import PneumaticActuatorConstructionVariety
+        variety_ln = PneumaticActuatorConstructionVariety.objects.filter(code='LN').first()
+        variety_ln_id = variety_ln.id if variety_ln else None
+
+    # Тела линейных серий (для режима four — только они, для six — их исключаем).
+    ln_body_ids = None
+    if variety_ln_id is not None:
+        ln_body_ids = set(PneumaticActuatorModelLineItem.objects.filter(
+            model_line__pneumatic_actuator_construction_variety_id=variety_ln_id,
+            is_active=True).values_list('body_id', flat=True).distinct())
+
+    body_ids = None
+    if model_line_id:
+        body_ids = list(PneumaticActuatorModelLineItem.objects.filter(
+            model_line_id=model_line_id, is_active=True).values_list('body_id', flat=True).distinct())
+
+    if mode == 'four':
+        if body_ids:
+            body_ids = [b for b in body_ids if ln_body_ids and b in ln_body_ids]
+        else:
+            body_ids = list(ln_body_ids) if ln_body_ids else []
+    elif mode == 'six' and ln_body_ids:
+        if body_ids:
+            body_ids = [b for b in body_ids if b not in ln_body_ids]
+        else:
+            body_ids = list(PneumaticActuatorBody.objects
+                            .exclude(id__in=ln_body_ids).values_list('id', flat=True))
+
+    found = PointwiseSelector.select(
+        table_model=BodyThrustTorqueTable,
+        body_model=PneumaticActuatorBody,
+        required=required,
+        actuator_variety=actuator_variety,
+        safety_position=safety_position,
+        work_pressure_id=work_pressure_id,
+        body_ids=body_ids,
+    )
+
+    # body → model_line (через MLI) для структуры выдачи
+    body_id_list = [r['body_id'] for r in found]
+    mlis = list(PneumaticActuatorModelLineItem.objects.filter(
+        body_id__in=body_id_list, is_active=True,
+    ).select_related('model_line', 'pneumatic_actuator_variety', 'body'))
+
+    series_map = {}
+    for mli in mlis:
+        ml = mli.model_line
+        if ml is None:
+            continue
+        if mli.pneumatic_actuator_variety and \
+                mli.pneumatic_actuator_variety.code != actuator_variety:
+            continue
+        # режимы: four — только линейные (LN); six — только ротационные
+        ml_variety_id = ml.pneumatic_actuator_construction_variety_id
+        if mode == 'four' and ml_variety_id != variety_ln_id:
+            continue
+        if mode == 'six' and variety_ln_id is not None and ml_variety_id == variety_ln_id:
+            continue
+        # ход: у линейных моделей должен быть stroke_max ≥ требуемого
+        stroke_max = (mli.extra_params or {}).get('stroke_max')
+        if required_stroke is not None:
+            if not stroke_max or float(stroke_max) < required_stroke:
+                continue
+        entry = series_map.setdefault(ml.id, {
+            'model_line_id': ml.id, 'model_line_code': ml.code, 'model_line_name': ml.name,
+            'model_line_items': [],
+        })
+        row = next((r for r in found if r['body_id'] == mli.body_id), None)
+        if row is None:
+            continue
+        entry['model_line_items'].append({
+            'model_line_item_id': mli.id,
+            'model_line_item_code': mli.code,
+            'body_id': mli.body_id,
+            'body_code': row['body_code'],
+            'actuator_variety_code': actuator_variety,
+            'spring_qty_code': row['spring_qty_code'],
+            'margin': row['margin'],
+            'critical_position': row['critical_position'],
+            'margins': row['margins'],
+            'stroke_max': stroke_max,
+        })
+
+    search_results = [entry for entry in series_map.values() if entry['model_line_items']]
+
+    # ── Фильтры по серии (как в обычном подборе) ──
+    exd_id = params.get('exd_id')
+    if exd_id:
+        search_results = _match_exd_for_model_lines(
+            search_results, exd_id, exd_exact_id=params.get('exd_id_exact'))
+
+    construction_variety_id = params.get('construction_variety_id')
+    if construction_variety_id:
+        allowed = set(PneumaticActuatorModelLine.objects.filter(
+            pneumatic_actuator_construction_variety_id=construction_variety_id, is_active=True
+        ).values_list('id', flat=True))
+        search_results = [ml for ml in search_results if ml.get('model_line_id') in allowed]
+
+    body_material_id = params.get('body_material_id')
+    if body_material_id:
+        allowed = set(PneumaticActuatorModelLine.objects.filter(
+            body_design_options__body_material_id=body_material_id, is_active=True
+        ).values_list('id', flat=True).distinct())
+        search_results = [ml for ml in search_results if ml.get('model_line_id') in allowed]
+
+    coating_id = params.get('coating_id')
+    if coating_id:
+        allowed = set(PneumaticActuatorModelLine.objects.filter(
+            body_design_options__body_coating_option_id=coating_id, is_active=True
+        ).values_list('id', flat=True).distinct())
+        search_results = [ml for ml in search_results if ml.get('model_line_id') in allowed]
+
+    shaft_material_id = params.get('shaft_material_id')
+    shaft_material_specified_id = params.get('shaft_material_specified_id')
+    if shaft_material_id:
+        allowed = set(PneumaticActuatorModelLine.objects.filter(
+            shaft_material_options__shaft_material_id=shaft_material_id, is_active=True
+        ).values_list('id', flat=True).distinct())
+        search_results = [ml for ml in search_results if ml.get('model_line_id') in allowed]
+    if shaft_material_specified_id:
+        allowed = set(PneumaticActuatorModelLine.objects.filter(
+            shaft_material_options__shaft_material_specified_id=shaft_material_specified_id, is_active=True
+        ).values_list('id', flat=True).distinct())
+        search_results = [ml for ml in search_results if ml.get('model_line_id') in allowed]
+
+    # Температура — по серии (диапазон + exact).
+    temp_min = params.get('temp_min')
+    temp_max = params.get('temp_max')
+    temp_exact_ml_ids = set()
+    if temp_min or temp_max:
+        try:
+            temp_min = float(temp_min) if temp_min not in (None, '') else None
+        except (TypeError, ValueError):
+            temp_min = None
+        try:
+            temp_max = float(temp_max) if temp_max not in (None, '') else None
+        except (TypeError, ValueError):
+            temp_max = None
+        tq = PneumaticActuatorModelLine.objects.filter(is_active=True)
+        if temp_min is not None:
+            tq = tq.filter(temperature_options__work_temp_min__lte=temp_min)
+        if temp_max is not None:
+            tq = tq.filter(temperature_options__work_temp_max__gte=temp_max)
+        allowed = set(tq.values_list('id', flat=True).distinct())
+        search_results = [ml for ml in search_results if ml.get('model_line_id') in allowed]
+        from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
+        eq = PneumaticTemperatureOption.objects.filter(is_active=True)
+        if temp_min is not None:
+            eq = eq.filter(work_temp_min=temp_min)
+        if temp_max is not None:
+            eq = eq.filter(work_temp_max=temp_max)
+        temp_exact_ml_ids = set(eq.values_list('model_line_id', flat=True).distinct())
+
+    # Дедуп одинаковых корпусов между сериями (как в обычном подборе).
+    search_results = _dedup_series_by_body(search_results)
+
+    # exact/compatible — по серии (exd + температура).
+    exd_active = bool(exd_id)
+    temp_active = bool(temp_min or temp_max)
+    for ml in search_results:
+        exd_exact = ml.get('exd_exact', False) if exd_active else True
+        temp_exact = (ml.get('model_line_id') in temp_exact_ml_ids) if temp_active else True
+        ml['is_exact'] = bool(exd_exact and temp_exact)
+
+    # ── Карточки (SKU) найденных тел ──
+    safety_position_id = params.get('safety_position_id')
+    if not safety_position_id and safety_position in ('nc', 'no'):
+        from params.models import SafetyPositionOption
+        sp = SafetyPositionOption.objects.filter(code=safety_position).first()
+        safety_position_id = sp.id if sp else None
+    for ml in search_results:
+        for item in ml.get('model_line_items', []):
+            qs = PneumaticActuatorCatalogItem.objects.filter(
+                is_active=True,
+                body_id=item.get('body_id'),
+                pneumatic_actuator_variety__code=actuator_variety,
+            )
+            if actuator_variety == 'SR' and item.get('spring_qty_code'):
+                qs = qs.filter(selected_springs_qty__code=item.get('spring_qty_code'))
+            if actuator_variety == 'SR' and safety_position_id:
+                qs = qs.filter(selected_safety_position_id=safety_position_id)
+            if required_stroke is not None:
+                qs = qs.filter(stroke__gte=required_stroke)
+            if body_material_id:
+                qs = qs.filter(selected_body_coating__body_material_id=body_material_id)
+            if coating_id:
+                qs = qs.filter(selected_body_coating__body_coating_option_id=coating_id)
+            if shaft_material_id:
+                qs = qs.filter(selected_shaft_material__shaft_material_id=shaft_material_id)
+            if shaft_material_specified_id:
+                qs = qs.filter(selected_shaft_material__shaft_material_specified_id=shaft_material_specified_id)
+            if exd_id and ml.get('exd_option_id'):
+                qs = qs.filter(selected_exd_id=ml.get('exd_option_id'))
+            if temp_active:
+                if temp_min is not None:
+                    qs = qs.filter(selected_temperature__work_temp_min__lte=temp_min)
+                if temp_max is not None:
+                    qs = qs.filter(selected_temperature__work_temp_max__gte=temp_max)
+            qs = qs.select_related(
+                'model_line', 'body', 'sku', 'pneumatic_actuator_variety',
+                'selected_temperature', 'selected_exd', 'selected_body_coating',
+                'selected_shaft_material', 'selected_safety_position',
+            ).distinct()
+            cards = []
+            for card_item in qs[:6]:
+                cards.append({
+                    'id': card_item.id,
+                    'code': card_item.code or '',
+                    'name': card_item.name or '',
+                    'title': card_item.name or '',
+                    'sku_id': card_item.sku_id,
+                    'sku': {'id': card_item.sku_id, 'code': card_item.sku.code,
+                            'name': card_item.sku.name} if card_item.sku_id else None,
+                })
+            item['cards'] = cards
+
+    # ── Сортировка: сначала по минимальному запасу (рейтинг) ──
+    for ml in search_results:
+        ml['model_line_items'].sort(key=lambda i: i.get('margin', 1e18))
+    search_results.sort(key=lambda e: e['model_line_items'][0].get('margin', 1e18))
+
+    return {
+        'success': True,
+        'message': 'Подбор выполнен',
+        'mode': 'pointwise-four' if mode == 'four' else 'pointwise',
+        'unit': 'Н' if mode == 'four' else 'Нм',
+        'required_curve': required,
+        'search_results': search_results,
+    }

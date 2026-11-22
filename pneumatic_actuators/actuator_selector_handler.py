@@ -84,6 +84,32 @@ def get_actuator_options(model_line_id: Optional[int] = None ,
         for c in BodyCoatingOption.objects.filter(id__in=coating_ids , is_active=True).order_by('sorting_order')
     ]
 
+    # Материал штока: два селектора — «материал» (FK MaterialGeneral) и
+    # «спецификация материала» (FK MaterialSpecified). Имена — из справочников,
+    # id — FK-значения для hard-фильтра по серии.
+    from pneumatic_actuators.models.pa_options import PneumaticShaftMaterialOption
+    from materials.models import MaterialSpecified
+
+    sm_qs = PneumaticShaftMaterialOption.objects.filter(is_active=True)
+    if model_line_id :
+        sm_qs = sm_qs.filter(model_line_id=model_line_id)
+
+    shaft_material_ids = sm_qs.exclude(shaft_material__isnull=True).values_list(
+        'shaft_material_id' , flat=True
+    ).distinct()
+    result['shaft_material_options'] = [
+        {'id' : m.id , 'name' : m.name , 'code' : m.code or ''}
+        for m in MaterialGeneral.objects.filter(id__in=shaft_material_ids , is_active=True).order_by('name')
+    ]
+
+    specified_ids = sm_qs.exclude(shaft_material_specified__isnull=True).values_list(
+        'shaft_material_specified_id' , flat=True
+    ).distinct()
+    result['shaft_material_specified_options'] = [
+        {'id' : s.id , 'name' : s.name or s.code or '' , 'code' : s.code or ''}
+        for s in MaterialSpecified.objects.filter(id__in=specified_ids , is_active=True).order_by('name')
+    ]
+
     # Температура окружающей среды: уникальные нижние границы work_temp_min,
     # близкие значения объединяем (шаг 10°C, оставляем более холодную).
     from pneumatic_actuators.models.pa_options import PneumaticTemperatureOption
@@ -626,6 +652,37 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
                 row = row_qs.order_by('-is_default' , 'sorting_order').first()
                 if row :
                     ml['body_design_option_id'] = row.id
+
+        # 6b. Материал штока: hard-фильтр по серии (FK материал и/или
+        # спецификация — условие КОМБИНИРОВАННОЕ по одной строке опции) +
+        # аннотация конкретной строки PneumaticShaftMaterialOption для
+        # предвыбора в конфигураторе (shaft_material = id строки).
+        shaft_material_id = params.get('shaft_material_id')
+        shaft_material_specified_id = params.get('shaft_material_specified_id')
+        if shaft_material_id or shaft_material_specified_id:
+            from pneumatic_actuators.models.pa_options import PneumaticShaftMaterialOption
+            sm_qs = PneumaticShaftMaterialOption.objects.filter(is_active=True)
+            if shaft_material_id :
+                sm_qs = sm_qs.filter(shaft_material_id=shaft_material_id)
+            if shaft_material_specified_id :
+                sm_qs = sm_qs.filter(shaft_material_specified_id=shaft_material_specified_id)
+            allowed_ml_ids = set(sm_qs.values_list('model_line_id' , flat=True).distinct())
+            search_results = [
+                ml for ml in search_results
+                if ml.get('model_line_id') in allowed_ml_ids
+            ]
+            for ml in search_results :
+                row_qs = PneumaticShaftMaterialOption.objects.filter(
+                    model_line_id=ml.get('model_line_id') , is_active=True
+                )
+                if shaft_material_id :
+                    row_qs = row_qs.filter(shaft_material_id=shaft_material_id)
+                if shaft_material_specified_id :
+                    row_qs = row_qs.filter(shaft_material_specified_id=shaft_material_specified_id)
+                row = row_qs.order_by('-is_default' , 'sorting_order').first()
+                if row :
+                    ml['shaft_material_option_id'] = row.id
+            print(f"⚡ После фильтра по материалу/спецификации штока (shaft_material_id={shaft_material_id}, shaft_material_specified_id={shaft_material_specified_id}): {len(search_results)} серий")
 
         # 7. Температура окружающей среды: серия подходит, только если у неё есть
         # ОДНА температурная опция, покрывающая весь заданный диапазон

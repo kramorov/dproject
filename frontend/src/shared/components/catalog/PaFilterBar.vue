@@ -135,6 +135,20 @@
         </select>
       </div>
       <div class="eng-filter-bar__chip">
+        <label class="eng-filter-bar__chip-label">{{ label('shaft_material') }}</label>
+        <select class="eng-filter-bar__chip-select" v-model="form.shaft_material_id">
+          <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
+          <option v-for="v in options.shaft_material_options" :key="v.id" :value="v.id">{{ v.name }}</option>
+        </select>
+      </div>
+      <div class="eng-filter-bar__chip">
+        <label class="eng-filter-bar__chip-label">{{ label('shaft_material_specified') }}</label>
+        <select class="eng-filter-bar__chip-select" v-model="form.shaft_material_specified_id">
+          <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
+          <option v-for="v in options.shaft_material_specified_options" :key="v.id" :value="v.id">{{ v.name }}</option>
+        </select>
+      </div>
+      <div class="eng-filter-bar__chip">
         <label class="eng-filter-bar__chip-label">{{ label('manual_override') }}</label>
         <select class="eng-filter-bar__chip-select" v-model="form.manual_override_id">
           <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
@@ -184,7 +198,8 @@ const refs = ref({
 })
 const options = ref({
   actuator_varieties: [], safety_positions: [],
-  ip_options: [], exd_options: [], coating_options: [], body_material_options: [], manual_override_options: [],
+  ip_options: [], exd_options: [], coating_options: [], body_material_options: [],
+  shaft_material_options: [], shaft_material_specified_options: [], manual_override_options: [],
 })
 
 let initialized = false
@@ -217,6 +232,8 @@ watch(() => form.value.model_line_id, () => {
   form.value.safety_position_id = ''
   form.value.coating_id = ''
   form.value.body_material_id = ''
+  form.value.shaft_material_id = ''
+  form.value.shaft_material_specified_id = ''
   options.value.safety_positions = []
   loadActuatorOptions()
 })

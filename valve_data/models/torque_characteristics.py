@@ -2,7 +2,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.models.mixins import TemplateMixin, LocalizedDictFieldsMixin, OptionListToSelectMixin
+from core.models.mixins import LocalizedDictFieldsMixin, OptionListToSelectMixin
 from core.utils.localization import localized_name
 from params.models import ValveTypes
 from pa_controls.models import ActingType
@@ -10,6 +10,26 @@ from pa_controls.models import ActingType
 # Порядок шести точек (как в справочнике коэффициентов AUTORUN).
 # Для линейных (4 точки) используются первые четыре: BTO, RTO, ETO, BTC.
 TORQUE_POINTS = ('bto', 'rto', 'eto', 'btc', 'rtc', 'etc')
+
+# Направления хода точки момента.
+POINT_DIRECTION_OPEN = 'open'
+POINT_DIRECTION_CLOSE = 'close'
+
+# Позиции вдоль хода (для спаривания open/close при сравнении).
+POINT_POSITION_START = 'start'
+POINT_POSITION_MID = 'mid'
+POINT_POSITION_END = 'end'
+
+# Точки ротационного набора (6) и линейного (4).
+POINT_SEED = [
+    # code, направление, позиция, порядок
+    ('bto', POINT_DIRECTION_OPEN, POINT_POSITION_START, 10),
+    ('rto', POINT_DIRECTION_OPEN, POINT_POSITION_MID, 20),
+    ('eto', POINT_DIRECTION_OPEN, POINT_POSITION_END, 30),
+    ('btc', POINT_DIRECTION_CLOSE, POINT_POSITION_END, 40),   # начало закрытия = 90° (конец хода открытия)
+    ('rtc', POINT_DIRECTION_CLOSE, POINT_POSITION_MID, 50),
+    ('etc', POINT_DIRECTION_CLOSE, POINT_POSITION_START, 60),  # посадка в седло = 0°
+]
 
 
 class SealType(LocalizedDictFieldsMixin, OptionListToSelectMixin):
@@ -56,6 +76,61 @@ class ValveSupportType(LocalizedDictFieldsMixin, OptionListToSelectMixin):
         return self.name
 
 
+class TorquePoint(LocalizedDictFieldsMixin, OptionListToSelectMixin):
+    """Справочник точек момента/усилия (BTO…ETC).
+
+    Единая точка истины для кодов точек как со стороны арматуры
+    (коэффициенты), так и со стороны привода (таблица моментов).
+
+    ``direction`` — направление хода (open/close); ``position`` — позиция
+    вдоль хода (start/mid/end). Спаривание открытие↔закрытие при сравнении
+    выполняется по позиции (start↔start и т.д.), что даёт BTO↔ETC, RTO↔RTC,
+    ETO↔BTC.
+    """
+
+    DIRECTION_CHOICES = [
+        (POINT_DIRECTION_OPEN, _('Открытие')),
+        (POINT_DIRECTION_CLOSE, _('Закрытие')),
+    ]
+    POSITION_CHOICES = [
+        (POINT_POSITION_START, _('Начало хода')),
+        (POINT_POSITION_MID, _('Середина хода')),
+        (POINT_POSITION_END, _('Конец хода')),
+    ]
+
+    code = models.CharField(max_length=10, unique=True, verbose_name=_('Код'))
+    name = models.CharField(max_length=20, verbose_name=_('Название'),
+                            help_text=_('Краткое имя точки, например BTO'))
+    direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES, verbose_name=_('Направление'))
+    position = models.CharField(max_length=10, choices=POSITION_CHOICES, verbose_name=_('Позиция хода'))
+    description = models.TextField(blank=True, verbose_name=_('Описание'))
+    sorting_order = models.IntegerField(default=0, verbose_name=_('Порядок сортировки'))
+    is_active = models.BooleanField(default=True, verbose_name=_('Активно'))
+
+    class Meta:
+        verbose_name = _('Точка момента/усилия')
+        verbose_name_plural = _('Точки момента/усилия')
+        ordering = ['sorting_order', 'id']
+
+    def __str__(self):
+        return self.name or self.code
+
+    def counterpart(self):
+        """Точка противоположного направления на той же позиции хода."""
+        return TorquePoint.objects.filter(
+            position=self.position, is_active=True,
+        ).exclude(id=self.id).exclude(direction=self.direction).first()
+
+    @classmethod
+    def seed(cls):
+        """Создать стандартные 6 точек (ротационные; линейные используют 4 из них)."""
+        for code, direction, position, order in POINT_SEED:
+            cls.objects.update_or_create(
+                code=code,
+                defaults=dict(name=code.upper(), direction=direction, position=position,
+                              sorting_order=order, is_active=True))
+
+
 class TorqueThrustCharacteristics(models.Model):
     """Справочник характеристик момента/усилия арматуры.
 
@@ -64,8 +139,7 @@ class TorqueThrustCharacteristics(models.Model):
 
         требуемое[i] = базовое[i] × коэффициент[i]
 
-    Сейчас выбирается вручную в конфигураторе подбора пневмопривода; в будущем
-    привязывается к серии арматуры для автоматического подбора привода.
+    Точки набора — M2M на TorquePoint (ротационный — 6, линейный — 4).
     """
 
     code = models.CharField(max_length=50, unique=True, verbose_name=_('Код'))
@@ -75,6 +149,10 @@ class TorqueThrustCharacteristics(models.Model):
         related_name='torque_characteristics',
         verbose_name=_('Тип движения'),
         help_text=_('Ротационный (6 точек) или линейный (4 точки); коды LINEAR/ROTARY'))
+    points = models.ManyToManyField(
+        TorquePoint, blank=True, related_name='characteristics_sets',
+        verbose_name=_('Точки набора'),
+        help_text=_('Какие точки входят в набор (ротационный — 6, линейный — 4)'))
     is_active = models.BooleanField(default=True, verbose_name=_('Активно'))
     sorting_order = models.IntegerField(default=0, verbose_name=_('Порядок сортировки'))
 
@@ -86,132 +164,85 @@ class TorqueThrustCharacteristics(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def points_ordered(self):
+        return list(self.points.order_by('sorting_order'))
 
-class ValveTorqueCoefficient(TemplateMixin, models.Model):
-    """Коэффициенты момента для типа арматуры (6 точек BTO…ETC).
+    @property
+    def point_codes(self):
+        return [p.code for p in self.points_ordered]
 
-    Составной ключ — тип арматуры + опора пробки + уплотнение
-    (``valve_type`` + ``support`` + ``seal_type``). Название генерируется по
-    стандарту TemplateMixin.
-    Точки (порядок ``TORQUE_POINTS``):
-      BTO — Break To Open (страгивание на открытие);
-      RTO — Running To Open (промежуточный момент открытия);
-      ETO — End To Open (конечный момент открытия);
-      BTC — Beginning To Close (страгивание на закрытие);
-      RTC — Running To Close (промежуточный момент закрытия);
-      ETC — End To Close (момент посадки в уплотнение при закрытии).
+
+class ValveTorqueCoefficient(models.Model):
+    """Коэффициент момента арматуры в одной точке (длинный формат).
+
+    Строка = (набор характеристик × тип арматуры × опора × уплотнение × точка).
+    ``factor`` — рабочий коэффициент; ``min_factor`` — нижняя граница
+    (для ручной настройки в UI); ``display`` — отображаемое значение
+    (число или диапазон вида «90%~80%»).
     """
 
     characteristics = models.ForeignKey(
         TorqueThrustCharacteristics, on_delete=models.CASCADE,
         related_name='valve_coefficients',
-        verbose_name=_('Характеристики'),
-        help_text=_('Набор характеристик, к которому относится коэффициент'))
+        verbose_name=_('Характеристики'))
 
     valve_type = models.ForeignKey(
         ValveTypes, on_delete=models.CASCADE, related_name='torque_coefficients',
-        verbose_name=_('Тип арматуры'),
-        help_text=_('Тип арматуры, к которому применяются коэффициенты'))
+        verbose_name=_('Тип арматуры'))
 
     support = models.ForeignKey(
         ValveSupportType, on_delete=models.PROTECT, null=True, blank=True,
         related_name='torque_coefficients',
-        verbose_name=_('Тип опоры пробки'),
-        help_text=_('Плавающая пробка / на цапфах (только для шаровых кранов)'))
+        verbose_name=_('Тип опоры пробки'))
 
     seal_type = models.ForeignKey(
         SealType, on_delete=models.PROTECT, null=True, blank=True,
         related_name='torque_coefficients',
-        verbose_name=_('Тип уплотнения'),
-        help_text=_('Мягкое / жёсткое (металл-металл) / PTFE'))
+        verbose_name=_('Тип уплотнения'))
 
-    # Генерируемые TemplateMixin поля.
-    name = models.CharField(max_length=200, blank=True, verbose_name=_('Название'))
-    description = models.TextField(blank=True, verbose_name=_('Описание'))
-    code = models.CharField(max_length=100, blank=True, verbose_name=_('Код'))
+    point = models.ForeignKey(
+        TorquePoint, on_delete=models.PROTECT, related_name='valve_coefficients',
+        verbose_name=_('Точка'))
 
-    # Рабочие коэффициенты (умножаются на базовый момент).
-    bto = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент BTO'),
-                              help_text=_('Break To Open — страгивание на открытие'))
-    rto = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент RTO'),
-                              help_text=_('Running To Open — промежуточный момент открытия'))
-    eto = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент ETO'),
-                              help_text=_('End To Open — конечный момент открытия'))
-    btc = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент BTC'),
-                              help_text=_('Beginning To Close — страгивание на закрытие'))
-    rtc = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент RTC'),
-                              help_text=_('Running To Close — промежуточный момент закрытия'))
-    etc = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент ETC'),
-                              help_text=_('End To Close — момент посадки в уплотнение'))
-
-    # Нижние границы коэффициентов (для ручной настройки в UI).
-    minimum_factors = models.JSONField(
-        default=list, blank=True, verbose_name=_('Минимальные коэффициенты'),
-        help_text=_('JSON-массив из 6 значений в порядке BTO, RTO, ETO, BTC, RTC, ETC'))
-
-    # Отображаемые значения/диапазоны (числа или строки вида '90%~80%').
-    values_display = models.JSONField(
-        default=list, blank=True, verbose_name=_('Отображаемые значения'),
-        help_text=_('JSON-массив из 6 значений; диапазоны — строками вида «90%~80%»'))
-
-    source = models.CharField(max_length=200, blank=True, verbose_name=_('Источник'),
-                              help_text=_('Откуда взяты коэффициенты (например, AUTORUN 报价系统)'))
+    factor = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент'),
+                                 help_text=_('Рабочий коэффициент (умножается на базовый момент)'))
+    min_factor = models.DecimalField(max_digits=6, decimal_places=3, default=0,
+                                     blank=True, null=True,
+                                     verbose_name=_('Минимальный коэффициент'))
+    display = models.CharField(max_length=30, blank=True, verbose_name=_('Отображаемое значение'),
+                               help_text=_('Число или диапазон вида «90%~80%»'))
+    source = models.CharField(max_length=200, blank=True, verbose_name=_('Источник'))
     is_active = models.BooleanField(default=True, verbose_name=_('Активно'))
     sorting_order = models.IntegerField(default=0, verbose_name=_('Порядок сортировки'))
-
-    # ── Реестр полей шаблонов (TemplateMixin) ──
-    TEMPLATE_FIELDS = (
-        {'key': 'code', 'placeholder': '{model_code}', 'path': 'code', 'code_path': 'code'},
-        {'key': 'valve_type', 'placeholder': '{valve_type}',
-         'path': 'valve_type__name', 'code_path': 'valve_type__code'},
-        {'key': 'support', 'placeholder': '{support}',
-         'resolver': '_support_display', 'code_path': 'support__code'},
-        {'key': 'seal_type', 'placeholder': '{seal_type}',
-         'resolver': '_seal_type_display', 'code_path': 'seal_type__code'},
-    )
-    NAME_FIELD_KEYS = ('valve_type', 'support', 'seal_type')
-    CODE_FIELD_KEYS = ('valve_type', 'support', 'seal_type')
 
     class Meta:
         verbose_name = _('Коэффициент момента арматуры')
         verbose_name_plural = _('Коэффициенты момента арматуры')
         ordering = ['characteristics', 'sorting_order', 'id']
-        unique_together = ('characteristics', 'valve_type', 'support', 'seal_type')
+        unique_together = ('characteristics', 'valve_type', 'support', 'seal_type', 'point')
 
     def __str__(self):
-        return self.name or super().__str__()
+        parts = [str(self.valve_type)]
+        if self.support:
+            parts.append(localized_name(self.support))
+        if self.seal_type:
+            parts.append(localized_name(self.seal_type))
+        parts.append(self.point.code.upper())
+        return ' — '.join(parts)
 
-    def _get_name_template_source(self):
-        return '{valve_type}{support}{seal_type}'
+    @classmethod
+    def get_curve(cls, characteristics_id, valve_type_id, support_id=None, seal_type_id=None):
+        """Кривая коэффициентов по точкам набора: {code: factor}.
 
-    def _get_description_template_source(self):
-        return 'Коэффициенты момента: {valve_type}{support}{seal_type}'
-
-    def _support_display(self, locale=None):
-        """Отображаемое значение опоры пробки с ведущим разделителем (или пусто)."""
-        if not self.support:
-            return ''
-        label = localized_name(self.support, locale)
-        return f' — {label}' if label else ''
-
-    def _seal_type_display(self, locale=None):
-        """Отображаемое значение уплотнения с ведущим разделителем (или пусто)."""
-        if not self.seal_type:
-            return ''
-        label = localized_name(self.seal_type, locale)
-        return f' — {label}' if label else ''
-
-    def save(self, *args, **kwargs):
-        if not self.code and self.valve_type_id:
-            parts = [self.valve_type.code]
-            if self.support:
-                parts.append(self.support.code)
-            if self.seal_type:
-                parts.append(self.seal_type.code)
-            self.code = '-'.join(parts)
-        super().save(*args, **kwargs)
-
-    @property
-    def factors(self) -> list:
-        """Рабочие коэффициенты в порядке BTO, RTO, ETO, BTC, RTC, ETC."""
-        return [float(getattr(self, p)) for p in TORQUE_POINTS]
+        Порядок точек — из набора характеристик; точки, у которых нет строки,
+        в кривую не попадают.
+        """
+        rows = cls.objects.filter(
+            characteristics_id=characteristics_id,
+            valve_type_id=valve_type_id,
+            support_id=support_id,
+            seal_type_id=seal_type_id,
+            is_active=True,
+        ).select_related('point')
+        return {r.point.code: float(r.factor) for r in rows}

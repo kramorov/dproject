@@ -10,6 +10,7 @@ from options.models import BaseTemperatureThroughOption, BaseThroughOption, \
 from params.models import IpOption
 from materials.models import MaterialGeneral
 from core.utils.localization import localized_name, pick_i18n
+from pneumatic_actuators.models.pa_params import SPRINGS_QTY_KIND_BLOCK
 
 
 class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
@@ -30,7 +31,7 @@ class PneumaticManualOverrideOption(BaseHandWheelThroughOption):
         verbose_name = _("Тип установленного ручного дублера")
         verbose_name_plural = _("Типы установленного ручного дублера пневмоприводов")
         ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
-        unique_together = ['model_line_item', 'encoding']
+        unique_together = ['model_line_item', 'encoding', 'ext_encoding']
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
@@ -83,7 +84,7 @@ class PneumaticTemperatureOption(BaseTemperatureThroughOption):
         verbose_name = _("Температурная опция пневмопривода")
         verbose_name_plural = _("Температурные опции пневмоприводов")
         ordering = ['is_default', 'sorting_order']  # ← ИСПРАВИТЬ СОРТИРОВКУ
-        unique_together = ['model_line', 'encoding']
+        unique_together = ['model_line', 'encoding', 'ext_encoding']
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
@@ -321,7 +322,7 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         verbose_name = _("Исполнение корпуса пневмопривода")
         verbose_name_plural = _("Исполнения корпуса пневмоприводов")
         ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'encoding']
+        unique_together = ['model_line', 'encoding', 'ext_encoding']
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
@@ -382,6 +383,96 @@ class PneumaticBodyDesignOption(BaseThroughOption):
         return self._strip_option_suffix(self.get_display_name(locale))
 
 
+class PneumaticShaftMaterialOption(BaseThroughOption):
+    """Материал штока пневмопривода (на уровне серии).
+
+    Аналог PneumaticBodyDesignOption, но без справочника покрытия:
+    shaft_material (общий материал) + shaft_material_specified (уточнение, JSON).
+    Стандартный материал — Сталь (код 5).
+    """
+    sync_name_i18n = False
+    model_line = models.ForeignKey(
+        'PneumaticActuatorModelLine',
+        on_delete=models.CASCADE,
+        related_name='shaft_material_options',
+        verbose_name=_("Серия пневмоприводов")
+    )
+    shaft_material = models.ForeignKey(
+        MaterialGeneral,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pa_shaft_materials',
+        verbose_name=_("Материал штока")
+    )
+    shaft_material_specified = models.ForeignKey(
+        'materials.MaterialSpecified',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pa_shaft_material_options',
+        verbose_name=_("Спецификация материала штока")
+    )
+    shaft_material_description = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_("Описание материала штока")
+    )
+
+    class Meta:
+        verbose_name = _("Материал штока пневмопривода")
+        verbose_name_plural = _("Материалы штока пневмоприводов")
+        ordering = ['is_default', 'sorting_order']
+        unique_together = ['model_line', 'encoding', 'ext_encoding']
+
+    @classmethod
+    def _get_parent_field_name(cls) -> Optional[str] :
+        return 'model_line'
+
+    @classmethod
+    def create_default_option(cls , parent_obj) :
+        """Создать стандартную опцию материала штока — Сталь (код 5)."""
+        std_material = (MaterialGeneral.objects.filter(code='steel' , is_active=True).first()
+                        or MaterialGeneral.objects.filter(id=5 , is_active=True).first()
+                        or MaterialGeneral.objects.filter(is_active=True).first())
+
+        parent_field = cls._get_parent_field_name()
+        return cls.objects.create(
+            **{parent_field : parent_obj} ,
+            shaft_material=std_material ,
+            shaft_material_specified=None ,
+            shaft_material_description=(dict(std_material.name_i18n) if std_material and std_material.name_i18n
+                                        else ({'ru' : std_material.name} if std_material else {})) ,
+            encoding='' ,
+            description='Стандартный материал штока (сталь)' ,
+            is_default=True ,
+            sorting_order=0 ,
+            is_active=True
+        )
+
+    def get_display_name(self, locale=None) :
+        """Отображаемое имя: описание из JSON (shaft_material_description) →
+        спецификация (FK shaft_material_specified) → материал (FK shaft_material)."""
+        parts = []
+        if self.shaft_material :
+            parts.append(localized_name(self.shaft_material, locale))
+        specified = pick_i18n(self.shaft_material_description, locale) or ''
+        if specified and specified not in parts :
+            parts.append(specified)
+        if not parts and self.shaft_material_specified :
+            parts.append(localized_name(self.shaft_material_specified, locale))
+        base = ', '.join(parts) if parts else 'Не указано'
+        if self.encoding and self.encoding.strip() :
+            base = f"{self.encoding} ({base})"
+        return f"{base} (Стандарт)" if self.is_default else f"{base} (Опция)"
+
+    def __str__(self):
+        return self.get_display_name()
+
+    def _localized_base_name(self, locale=None):
+        # get_display_name(locale) локализует материал/уточнение через справочники,
+        # но всегда добавляет RU-суффикс — снимаем его, суффикс добавит localized_name().
+        return self._strip_option_suffix(self.get_display_name(locale))
+
+
 class PneumaticBodyColorOption(BaseColorThroughOption):
     """Цвет корпуса для пневмоприводов (отдельная through-опция)"""
     sync_name_i18n = False
@@ -396,7 +487,7 @@ class PneumaticBodyColorOption(BaseColorThroughOption):
         verbose_name = _("Цвет корпуса пневмопривода")
         verbose_name_plural = _("Цвета корпуса пневмоприводов")
         ordering = ['is_default', 'sorting_order']
-        unique_together = ['model_line', 'encoding']
+        unique_together = ['model_line', 'encoding', 'ext_encoding']
 
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str]:
@@ -523,27 +614,41 @@ class PneumaticSafetyPositionOption(BaseSafetyPositionThroughOption):
         return [{'id' : obj.id , 'name' : str(obj) , 'code' : obj.encoding} for obj in queryset]
 
 class PneumaticSpringsQtyOption(BaseSpringsQtyThroughOption):
-    """Опции покрытия корпуса для пневмоприводов"""
+    """Опции пружин (количество/блок) для модели в серии."""
     sync_name_i18n = False
     model_line_item = models.ForeignKey(
         'PneumaticActuatorModelLineItem',
         on_delete=models.CASCADE,
         related_name='springs_qty_option_model_line_item',
-        verbose_name=_("Количество пружин")
+        verbose_name=_("Модель в серии")
     )
 
     class Meta:
-        verbose_name = _("Количество пружин модели пневмопривода")
-        verbose_name_plural = _("Количество пружин моделей пневмоприводов")
+        verbose_name = _("Пружины модели пневмопривода")
+        verbose_name_plural = _("Пружины моделей пневмоприводов")
         ordering = ['sorting_order']
         unique_together = ['model_line_item', 'springs_qty']
 
+    def _display_base(self, locale=None):
+        """Базовое имя без суффикса: encoding опции + тип записи справочника (i18n)."""
+        ref = self.springs_qty
+        if ref is None:
+            return ''
+        return ref.display_name(locale, code_override=self.encoding)
+
     def __str__(self) :
-        return f"{self.springs_qty.name} (Стандарт)" if self.is_default else f"{self.springs_qty.name} (Опция)"
+        return self.localized_name('ru')
+
+    def localized_name(self, locale=None):
+        """Для пружинного блока суффикс «(Стандарт)/(Опция)» не выводится."""
+        ref = self.springs_qty
+        if ref is not None and ref.kind == SPRINGS_QTY_KIND_BLOCK:
+            return self._display_base(locale)
+        return super().localized_name(locale)
 
     def _localized_base_name(self, locale=None):
-        ref = self.springs_qty
-        return self._strip_option_suffix(localized_name(ref, locale)) if ref else ''
+        return self._display_base(locale)
+
     @classmethod
     def _get_parent_field_name(cls) -> Optional[str] :
         return 'model_line_item'

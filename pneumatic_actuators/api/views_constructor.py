@@ -52,6 +52,7 @@ class ConstructorViewSet(viewsets.GenericViewSet):
         'ip': 'selected_ip',
         'exd': 'selected_exd',
         'body_coating': 'selected_body_coating',
+        'shaft_material': 'selected_shaft_material',
         'body_color': 'selected_body_color',
         'manual_override': 'selected_manual_override',
     }
@@ -120,6 +121,7 @@ class ConstructorViewSet(viewsets.GenericViewSet):
             'selected_ip': _fk_dict(item.selected_ip),
             'selected_exd': _fk_dict(item.selected_exd),
             'selected_body_coating': _fk_dict(item.selected_body_coating),
+            'selected_shaft_material': _fk_dict(item.selected_shaft_material),
             'selected_body_color': _fk_dict(item.selected_body_color),
             'selected_manual_override': _fk_dict(item.selected_manual_override),
             'work_temp_min': (
@@ -156,6 +158,7 @@ class ConstructorViewSet(viewsets.GenericViewSet):
             selected_ip_id=request.data.get('selected_ip'),
             selected_exd_id=request.data.get('selected_exd'),
             selected_body_coating_id=request.data.get('selected_body_coating'),
+            selected_shaft_material_id=request.data.get('selected_shaft_material'),
             selected_body_color_id=request.data.get('selected_body_color'),
             selected_manual_override_id=request.data.get('selected_manual_override'),
             sorting_order=request.data.get('sorting_order', 0),

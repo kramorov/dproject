@@ -41,6 +41,7 @@ _FIELD_BY_KEY = {
     'ip': 'selected_ip',
     'exd': 'selected_exd',
     'body_coating': 'selected_body_coating',
+    'shaft_material': 'selected_shaft_material',
     'body_color': 'selected_body_color',
     'manual_override': 'selected_manual_override',
 }
@@ -53,6 +54,7 @@ _MODEL_BY_KEY = {
     'ip': 'params.IpOption',
     'exd': 'pneumatic_actuators.PneumaticExdOption',
     'body_coating': 'pneumatic_actuators.PneumaticBodyDesignOption',
+    'shaft_material': 'pneumatic_actuators.PneumaticShaftMaterialOption',
     'body_color': 'pneumatic_actuators.PneumaticBodyColorOption',
     'manual_override': 'params.HandWheelInstalledOption',
 }
@@ -123,6 +125,9 @@ def materialize_configuration(model_line_item, options: Optional[Dict[str, Any]]
         ).order_by('id').first()
 
     probe = PneumaticActuatorCatalogItem(**kwargs)
+    # Стандартный материал штока — до расчёта хэша, чтобы дедуп искал карточку
+    # с тем же стандартным значением (save() дозаливает его и для других путей).
+    probe._fill_default_shaft_material()
     try:
         probe.weight = probe.compute_weight()
     except Exception:

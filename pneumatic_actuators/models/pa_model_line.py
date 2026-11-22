@@ -458,16 +458,12 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
 
     def ensure_all_default_options_exist(self) :
         """Создать все необходимые опции по умолчанию"""
-        """Создать все необходимые опции по умолчанию с трассировкой"""
-        # import traceback
-        # print(">>> ensure_all_default_options_exist CALLED")
-        # print(f">>> For object: {self} (PK: {self.pk})")
-
         from .pa_options import (
             PneumaticTemperatureOption ,
             PneumaticIpOption ,
             PneumaticExdOption ,
             PneumaticBodyDesignOption,
+            PneumaticShaftMaterialOption,
             PneumaticBodyColorOption,
         )
 
@@ -476,21 +472,15 @@ class PneumaticActuatorModelLine(LocalizedModelLineMixin, ImageGalleryMixin, Tec
             PneumaticIpOption ,
             PneumaticExdOption ,
             PneumaticBodyDesignOption,
+            PneumaticShaftMaterialOption,
             PneumaticBodyColorOption,
         ]
         for option_class in option_classes :
-            print(f">>> Processing {option_class.__name__}")
             try :
-                was_created = option_class.ensure_default_exists(self)
-                print(f">>> {option_class.__name__}: was_created = {was_created}")
+                option_class.ensure_default_exists(self)
             except Exception as e :
-                print(f">>> ERROR in {option_class.__name__}: {e}")
-                import traceback
-                traceback.print_exc()
-
-        # print(">>> ensure_all_default_options_exist COMPLETED")
-        # for option_class in option_classes :
-        #     option_class.ensure_default_exists(self)
+                logger.error('Ошибка дефолтной опции %s для %s: %s',
+                             option_class.__name__, self, e)
 
     def get_default_temperature_option(self) :
         """Получить стандартную температурную опцию"""
@@ -747,6 +737,10 @@ class PneumaticActuatorModelLineItem(CatalogDictMixin, ImageGalleryMixin, TechDo
         ordering = ['sorting_order']
         verbose_name = _('Модель пневмопривода')
         verbose_name_plural = _('Модели пневмоприводов в серии')
+        constraints = [
+            models.UniqueConstraint(fields=['model_line', 'code'],
+                                    name='uq_pa_mli_model_line_code'),
+        ]
 
     def __str__(self) :
         return self.name

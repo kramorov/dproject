@@ -180,6 +180,7 @@ const OPTION_KEY_MAP = {
   temperature_options: 'temperature',
   ip_options: 'ip',
   exd_options: 'exd',
+  shaft_material_options: 'shaft_material',
   manual_override_options: 'manual_override',
 }
 
@@ -189,10 +190,11 @@ const optionLabels = computed(() => ({
   temperature: t('pa.configurator.label.temperature'),
   ip: t('pa.configurator.label.ip'),
   exd: t('pa.configurator.label.exd'),
+  shaft_material: t('pa.configurator.label.shaft_material'),
   manual_override: t('pa.configurator.label.manual_override'),
 }))
 
-const OPTION_KEYS = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'manual_override']
+const OPTION_KEYS = ['springs_qty', 'temperature', 'safety_position', 'ip', 'exd', 'body_coating', 'shaft_material', 'manual_override']
 
 const modelLines = ref([])
 const actuatorVarieties = ref([])
@@ -224,7 +226,7 @@ const form = reactive({
   variety: null,
   model_line_item_id: null,
   springs_qty: null, temperature: null, safety_position: null,
-  ip: null, exd: null, body_coating: null, manual_override: null,
+  ip: null, exd: null, body_coating: null, shaft_material: null, manual_override: null,
   body_material: null, body_coating_label: null,
 })
 
@@ -464,6 +466,14 @@ function applyInitialOptions() {
       changed = true
     }
   }
+  // Материал штока — id конкретной строки PneumaticShaftMaterialOption
+  if (o.shaft_material != null && o.shaft_material !== '') {
+    const f = optionFields.value.find(x => x.key === 'shaft_material')
+    if (f) {
+      const hit = f.items.find(it => String(it.id) === String(o.shaft_material))
+      if (hit) { form.shaft_material = hit.id; changed = true }
+    }
+  }
   // Температура: диапазон из фильтров подбора (/selector/pa). Подходит опция,
   // покрывающая запрошенный диапазон; из подходящих — наименее «холодная»
   // (ближайший work_temp_min), при равенстве — стандартная. Если в фильтрах
@@ -503,6 +513,7 @@ async function fetchPreview() {
       selected_ip: form.ip,
       selected_exd: form.exd,
       selected_body_coating: form.body_coating,
+      selected_shaft_material: form.shaft_material,
       selected_manual_override: form.manual_override,
     })
     preview.value = data
