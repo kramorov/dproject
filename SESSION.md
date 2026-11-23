@@ -80,3 +80,58 @@
 5. **Сквозная сверка** подборов с desktop-приложением.
 6. Закоммитить накопленное; проверить `configurator/services/filter_engine.py`
    (bto/rto/eto product-атрибуты) и сквозной UI точечного режима.
+
+---
+
+# SESSION — 2026-11-23 (локализация каталога + унификация шаблонов)
+
+Правки локализации (ru/en/cn) и перенос шаблонов ЭП/КВ на EquipmentType.
+Канон данных — `db.sqlite3`; тесты на `test_db.sqlite3` (пересоздана копированием).
+
+## Сделано
+
+- **ЭП**: плейсхолдер `{weight}` (`body__weight_body`) в реестре
+  `EA_CATALOG_ITEM_TEMPLATE_FIELDS` + `NAME/VARS_FIELD_KEYS`.
+- **`MountingPlateTypes.__str__`** — фолбэк `name or code or f'…#{pk}'`
+  (пустое `name` → 500 в админке: `__str__` возвращал None, транзакция откатывалась).
+- **`translate_reference_dicts`** + 11 переводов: `MountingPlateTypes(По заказу)`,
+  `ActuatorGearBoxCombinationTypes` (8 фраз), `ValveTypes(Кран пробковый)`,
+  `HandWheelInstalledOption(Дублер клатч)`.
+- **`template_vars` локализуются**: `_get_template_vars(fields, locale)` + `to_dict(locale)`.
+- **`locale` прокинут** в `to_dict/to_values_dict`: catalog_mixin, smart_catalog_mixin,
+  question_graph_views, wizard_views, pa views_constructor.
+- **EA-конструктор**: `get_description_data(locale)` → `localized_name(...)` для опций
+  (площадка, шток, IP, покрытие, цвет, дублер и т.д.); `_fk_dict(fk_obj, locale)`.
+- **ЭП каталог**: `_get_description_template_source`/`_get_template_i18n` → EquipmentType
+  (описание из `description_template`, не `spec_template`); тест `test_catalog_item_template_contract`
+  переведён на `description_template`.
+- **КВ каталог**: полная унификация на EquipmentType:
+  - `_get_name/description/title_template_source` → EquipmentType;
+  - `_get_template_i18n` → EquipmentType (+ фолбэк spec_title/list_title → title);
+  - резолверы `{cable_connection}` (d кабеля / внутр.+внеш. / + d МР) и `{metal_sleeve_note}`;
+  - `CableGland._fill_template` (локальный): схлопывание «;;» и хвостовых «;»;
+  - данные `EquipmentType('cable-gland')` name/description_template + i18n записаны в db.sqlite3.
+
+## Проверено
+
+- `core.tests.test_catalog_i18n` — 27/28 (1 предсуществующий, см. п.5 ниже).
+- EA: Phase7LegacyRemovalSmokeTests + test_catalog_item_template_contract +
+  test_model_line_placeholder_admin_mixin — 13/13.
+- `py_compile` всех изменённых файлов — OK.
+
+## Что дальше (осталось)
+
+1. **КВ `title_template` — регрессия**: универсальный тайтл на EquipmentType даёт
+   висячие «МР»/«/» для серий без металлорукава/внешнего диаметра. Привести тайтл
+   к `{cable_connection}` или сделать отдельный чистый шаблон.
+2. **Воспроизводимость данных EquipmentType**: универсальные шаблоны КВ (и ЭП)
+   записаны скриптом в db.sqlite3 — оформить data-миграцией/management-командой.
+3. **Мёртвые поля**: `CableGlandModelLine.name_template/description_template/title_template`
+   больше не читаются — удалить миграцией.
+4. **Тесты**: резолверы КВ (4 ветки) + унифицированный title + локализация `template_vars`
+   и `_fk_dict` — без покрытия.
+5. **Предсуществующий падающий тест** `test_safety_springs_str_have_suffix`
+   (`PneumaticSpringsQtyOption(name='05')` без `code` → `'пружин (Опция)'` ≠ `'05 (Опция)'`) —
+   не относится к локализации, починить отдельно.
+6. **Закоммитить накопленное** (git status — ~16 изменённых файлов: core/models/*,
+   cable_glands/*, electric_actuators/*, params/models.py, pneumatic_actuators/api/*, db.sqlite3).

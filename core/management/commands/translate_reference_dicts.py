@@ -278,6 +278,31 @@ TRANSLATIONS = {
         'Отверстие под пломбу без фиксатора': ('Seal hole (no latch)', '封签孔（无锁扣）'),
         'Съемный ключ-трещетка': ('Removable ratchet key', '可拆卸棘轮钥匙'),
     },
+    'params.MountingPlateTypes': {
+        'По заказу': ('Custom', '定制'),
+    },
+    'params.ActuatorGearBoxCombinationTypes': {
+        'Четвертьоборотный электропривод': ('Quarter-turn electric actuator', '角行程电动执行器'),
+        'Многооборотный электропривод': ('Multi-turn electric actuator', '多回转电动执行器'),
+        'Многооборотный электропривод с четвертьоборотным редуктором': (
+            'Multi-turn electric actuator with quarter-turn gearbox',
+            '多回转电动执行器带角行程减速器'),
+        'Многооборотный электропривод с многооборотным редуктором': (
+            'Multi-turn electric actuator with multi-turn gearbox',
+            '多回转电动执行器带多回转减速器'),
+        'Линейный электропривод': ('Linear electric actuator', '直行程电动执行器'),
+        'Многооборотный электропривод с линейным модулем': (
+            'Multi-turn electric actuator with linear module',
+            '多回转电动执行器带直行程模块'),
+        'Четвертьоборотный пневмопривод': ('Quarter-turn pneumatic actuator', '角行程气动执行器'),
+        'Линейный пневмопривод': ('Linear pneumatic actuator', '直行程气动执行器'),
+    },
+    'params.ValveTypes': {
+        'Кран пробковый': ('Plug valve', '旋塞阀'),
+    },
+    'params.HandWheelInstalledOption': {
+        'Дублер клатч (кулачковая муфта)': ('Clutch override (jaw clutch)', '离合器手轮（爪形离合器）'),
+    },
 }
 
 

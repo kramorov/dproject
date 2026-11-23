@@ -566,10 +566,11 @@ class CatalogFilterMixin(models.Model):
         queryset = queryset[offset:offset + limit]
 
         # 6. Сериализация
+        locale = params.get('locale') or params.get('lang')
         data = []
         for obj in queryset:
             try:
-                data.append(obj.to_dict())
+                data.append(obj.to_dict(locale=locale))
             except Exception as e:
                 # Логируем ошибку сериализации
                 print(f"Error serializing {obj.__class__.__name__} id={obj.id}: {e}")

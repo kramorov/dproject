@@ -1230,17 +1230,17 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'model',
             'title': 'Модель',
             'data': item.id if item else None,
-            'display_data': str(item) if item else 'Не указано',
+            'display_data': localized_name(item, locale) if item else 'Не указано',
             'code': item.code if item else '',
-            'name': str(item) if item else '',
+            'name': localized_name(item, locale) if item else '',
         }
         data['model_line_name'] = {
             'category': 'model',
             'title': 'Серия',
             'data': item.model_line.id if item and item.model_line else None,
-            'display_data': str(item.model_line) if item and item.model_line else 'Не указано',
+            'display_data': localized_name(item.model_line, locale) if item and item.model_line else 'Не указано',
             'code': item.model_line.code if item and item.model_line else '',
-            'name': str(item.model_line) if item and item.model_line else '',
+            'name': localized_name(item.model_line, locale) if item and item.model_line else '',
         }
 
         # --- CONSTRUCTION FEATURES ---
@@ -1282,9 +1282,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Напряжение питания',
             'data': ps.id if ps else None,
-            'display_data': str(ps) if ps else 'Не указано',
+            'display_data': localized_name(ps, locale) if ps else 'Не указано',
             'code': ps.encoding if (ps and ps.encoding) else '',
-            'name': str(ps) if ps else '',
+            'name': localized_name(ps, locale) if ps else '',
         }
         if ps:
             data['motor_power'] = {
@@ -1312,9 +1312,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Положение безопасности',
             'data': sp.id if sp else None,
-            'display_data': sp.name if sp else 'Не указано',
+            'display_data': localized_name(sp, locale) if sp else 'Не указано',
             'code': sp.code if sp else '',
-            'name': sp.name if sp else '',
+            'name': localized_name(sp, locale) if sp else '',
         }
 
         # control_unit → ea_control.ControlUnit (слотовая модель)
@@ -1323,16 +1323,16 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Блок управления',
             'data': cu.id if cu else None,
-            'display_data': cu.name if cu else 'Не указано',
+            'display_data': localized_name(cu, locale) if cu else 'Не указано',
             'code': cu.code if cu else '',
-            'name': cu.name if cu else '',
+            'name': localized_name(cu, locale) if cu else '',
         }
         data['cu_block'] = {
             'category': 'selected_options',
             'title': 'Блок управления',
             'data': cu.id if cu else None,
             'display_data': self._res_cu_block(locale),
-            'name': cu.name if cu else '',
+            'name': localized_name(cu, locale) if cu else '',
         }
 
         # temperature → ElectricTemperatureOption (through_attr=None)
@@ -1341,9 +1341,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Температурное исполнение',
             'data': st.id if st else None,
-            'display_data': str(st) if st else 'Не указано',
+            'display_data': localized_name(st, locale) if st else 'Не указано',
             'code': st.encoding if (st and st.encoding) else '',
-            'name': str(st) if st else '',
+            'name': localized_name(st, locale) if st else '',
             'work_temp_min': st.work_temp_min if st else None,
             'work_temp_max': st.work_temp_max if st else None,
             'is_default': st.is_default if st else None,
@@ -1355,9 +1355,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'IP защита',
             'data': ip.id if ip else None,
-            'display_data': ip.name if ip else 'Не указано',
+            'display_data': localized_name(ip, locale) if ip else 'Не указано',
             'code': ip.code if ip else '',
-            'name': ip.name if ip else '',
+            'name': localized_name(ip, locale) if ip else '',
         }
 
         # exd → ElectricExdOption (through-строка: кодировка + M2M видов)
@@ -1377,9 +1377,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Покрытие корпуса',
             'data': bc.id if bc else None,
-            'display_data': bc.name if bc else 'Не указано',
+            'display_data': localized_name(bc, locale) if bc else 'Не указано',
             'code': bc.code if bc else '',
-            'name': bc.name if bc else '',
+            'name': localized_name(bc, locale) if bc else '',
         }
 
         # body_color → params.BodyColor
@@ -1388,9 +1388,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Цвет корпуса',
             'data': bco.id if bco else None,
-            'display_data': bco.name if bco else 'Не указано',
+            'display_data': localized_name(bco, locale) if bco else 'Не указано',
             'code': bco.code if bco else '',
-            'name': bco.name if bco else '',
+            'name': localized_name(bco, locale) if bco else '',
         }
 
         # hand_wheel → params.HandWheelInstalledOption
@@ -1399,9 +1399,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Ручной дублер',
             'data': hw.id if hw else None,
-            'display_data': hw.name if hw else 'Не указано',
+            'display_data': localized_name(hw, locale) if hw else 'Не указано',
             'code': hw.code if hw else '',
-            'name': hw.name if hw else '',
+            'name': localized_name(hw, locale) if hw else '',
         }
 
         # turn_angle → ElectricTurnAngleOption (through_attr=None)
@@ -1412,7 +1412,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'data': ta.id if ta else None,
             'display_data': f"{ta.turn_angle}°" if ta and ta.turn_angle else 'Не указано',
             'code': ta.encoding if (ta and ta.encoding) else '',
-            'name': str(ta) if ta else '',
+            'name': localized_name(ta, locale) if ta else '',
             'turn_angle_value': ta.turn_angle if ta else None,
             'turn_angle_deviation_limit': ta.turn_angle_deviation_limit if ta else None,
         }
@@ -1423,7 +1423,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'selected_options',
             'title': 'Кабельные вводы',
             'data': cg.id if cg else None,
-            'display_data': str(cg) if cg else 'Не указано',
+            'display_data': localized_name(cg, locale) if cg else 'Не указано',
         }
 
         # --- MOUNTING ---
@@ -1431,19 +1431,19 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'construction',
             'title': 'Монтажная площадка',
             'data': self.actual_mounting_plate.id if self.actual_mounting_plate else None,
-            'display_data': self.actual_mounting_plate.name if self.actual_mounting_plate else 'Не указано',
+            'display_data': localized_name(self.actual_mounting_plate, locale) if self.actual_mounting_plate else 'Не указано',
         }
         data['stem_shape'] = {
             'category': 'construction',
             'title': 'Тип отверстия под шток',
             'data': self.actual_stem_shape.id if self.actual_stem_shape else None,
-            'display_data': str(self.actual_stem_shape.name) if self.actual_stem_shape else 'Не указано',
+            'display_data': localized_name(self.actual_stem_shape, locale) if self.actual_stem_shape else 'Не указано',
         }
         data['stem_size'] = {
             'category': 'construction',
             'title': 'Размер отверстия под шток',
             'data': self.actual_stem_size.id if self.actual_stem_size else None,
-            'display_data': self.actual_stem_size.name if self.actual_stem_size else 'Не указано',
+            'display_data': localized_name(self.actual_stem_size, locale) if self.actual_stem_size else 'Не указано',
         }
 
         # --- ACTUAL CABLE GLANDS (construction) ---
@@ -1452,7 +1452,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             'category': 'construction',
             'title': 'Отверстия под КВ (факт)',
             'data': acg.id if acg else None,
-            'display_data': str(acg) if acg else 'Не указано',
+            'display_data': localized_name(acg, locale) if acg else 'Не указано',
         }
 
         return data

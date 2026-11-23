@@ -173,11 +173,12 @@ class SmartCatalogMixin(models.Model):
         queryset = queryset[offset:offset + limit]
 
         # Сериализация
+        locale = params.get('locale') or params.get('lang')
         data = []
         compatible_data = []
         for obj in queryset:
             try:
-                item = obj.to_dict()
+                item = obj.to_dict(locale=locale)
                 if split_fk_id is not None and split_fk_field:
                     obj_fk_id = getattr(obj, split_fk_field, None)
                     if obj_fk_id == split_fk_id:
@@ -285,7 +286,7 @@ class SmartCatalogMixin(models.Model):
 
         # ── Serializer ──
         if serializer is None:
-            serializer = (lambda obj: obj.to_values_dict(locale=locale)) if hasattr(cls, 'to_values_dict') else (lambda obj: obj.to_dict())
+            serializer = (lambda obj: obj.to_values_dict(locale=locale)) if hasattr(cls, 'to_values_dict') else (lambda obj: obj.to_dict(locale=locale))
 
         show_compatible = params.get('show_compatible', '').lower() in ('true', '1')
         do_split = (

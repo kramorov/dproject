@@ -835,7 +835,7 @@ class MountingPlateTypes(LocalizedDictFieldsMixin, OptionListToSelectMixin):
         ordering = ['sorting_order']
 
     def __str__(self):
-        return self.name
+        return self.name or self.code or f'Тип монтажной площадки #{self.pk}'
 
 
 class StemShapes(LocalizedDictFieldsMixin, OptionListToSelectMixin):

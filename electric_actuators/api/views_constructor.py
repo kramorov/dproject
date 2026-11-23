@@ -24,6 +24,7 @@ from electric_actuators.models import (
     ElectricActuatorModelLine,
     ElectricActuatorModelLineItem,
 )
+from core.utils.localization import locale_from_accept_language, localized_name
 
 
 class ConstructorViewSet(viewsets.ModelViewSet):
@@ -60,14 +61,16 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         data = []
         for obj in qs:
-            data.append(self._serialize(obj))
+            data.append(self._serialize(obj, locale))
         return Response(data)
 
     def retrieve(self, request, *args, **kwargs):
         obj = self.get_object()
-        return Response(self._serialize_detail(obj))
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        return Response(self._serialize_detail(obj, locale))
 
     def _build_from_request(self, request):
         """Создать инстанс из данных запроса (без сохранения)."""
@@ -98,18 +101,19 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         obj = self._build_from_request(request)
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         # Проверка дубликата: если конфигурация уже существует — возвращаем её
         existing = obj._find_existing()
         if existing:
             # Дубликат: возвращаем найденную конфигурацию
             if 'selected_matrix_rows' in request.data:
                 self._set_matrix_rows(existing, request.data)
-            return Response(self._serialize_detail(existing),
+            return Response(self._serialize_detail(existing, locale),
                             status=status.HTTP_200_OK)
         obj.save()
         if 'selected_matrix_rows' in request.data:
             self._set_matrix_rows(obj, request.data)
-        return Response(self._serialize_detail(obj), status=status.HTTP_201_CREATED)
+        return Response(self._serialize_detail(obj, locale), status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         obj = self.get_object()
@@ -138,7 +142,8 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         if 'selected_matrix_rows' in request.data:
             self._set_matrix_rows(obj, request.data)
         obj.save()
-        return Response(self._serialize_detail(obj))
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        return Response(self._serialize_detail(obj, locale))
 
     @staticmethod
     def _parse_matrix_row_ids(data):
@@ -314,48 +319,48 @@ class ConstructorViewSet(viewsets.ModelViewSet):
 
     # --- serialization helpers ---
 
-    def _serialize(self, obj):
+    def _serialize(self, obj, locale=None):
         return {
             'id': obj.id,
             'name': obj.name,
             'code': obj.code,
             'description': obj.description,
-            'model_line': _fk_dict(obj.selected_model_line),
-            'model_line_item': _fk_dict(obj.selected_model_line_item),
+            'model_line': _fk_dict(obj.selected_model_line, locale),
+            'model_line_item': _fk_dict(obj.selected_model_line_item, locale),
             'is_active': obj.is_active,
             'sorting_order': obj.sorting_order,
         }
 
-    def _serialize_detail(self, obj):
-        data = self._serialize(obj)
+    def _serialize_detail(self, obj, locale=None):
+        data = self._serialize(obj, locale)
         data.update({
-            'selected_power_supply': _fk_dict(obj.selected_power_supply),
-            'selected_safety_position': _fk_dict(obj.selected_safety_position),
-            'selected_control_unit_option': _fk_dict(obj.selected_control_unit_option),
-            'selected_access_device_option': _fk_dict(obj.selected_access_device_option),
-            'selected_control_unit': _fk_dict(obj.selected_control_unit),
+            'selected_power_supply': _fk_dict(obj.selected_power_supply, locale),
+            'selected_safety_position': _fk_dict(obj.selected_safety_position, locale),
+            'selected_control_unit_option': _fk_dict(obj.selected_control_unit_option, locale),
+            'selected_access_device_option': _fk_dict(obj.selected_access_device_option, locale),
+            'selected_control_unit': _fk_dict(obj.selected_control_unit, locale),
             'control_unit_snapshot': obj.control_unit_snapshot or {},
-            'selected_temperature': _fk_dict(obj.selected_temperature),
-            'selected_ip': _fk_dict(obj.selected_ip),
-            'selected_exd': _fk_dict(obj.selected_exd),
-            'selected_body_coating': _fk_dict(obj.selected_body_coating),
-            'selected_body_color_option': _fk_dict(obj.selected_body_color_option),
-            'selected_hand_wheel': _fk_dict(obj.selected_hand_wheel),
-            'selected_turn_angle_option': _fk_dict(obj.selected_turn_angle_option),
-            'selected_cable_glands_holes': _fk_dict(obj.selected_cable_glands_holes),
+            'selected_temperature': _fk_dict(obj.selected_temperature, locale),
+            'selected_ip': _fk_dict(obj.selected_ip, locale),
+            'selected_exd': _fk_dict(obj.selected_exd, locale),
+            'selected_body_coating': _fk_dict(obj.selected_body_coating, locale),
+            'selected_body_color_option': _fk_dict(obj.selected_body_color_option, locale),
+            'selected_hand_wheel': _fk_dict(obj.selected_hand_wheel, locale),
+            'selected_turn_angle_option': _fk_dict(obj.selected_turn_angle_option, locale),
+            'selected_cable_glands_holes': _fk_dict(obj.selected_cable_glands_holes, locale),
             'selected_matrix_rows': list(obj.selected_matrix_rows.values_list(
                 'pk', flat=True)) if obj.pk else [],
-            'actual_mounting_plate': _fk_dict(obj.actual_mounting_plate),
-            'actual_stem_shape': _fk_dict(obj.actual_stem_shape),
-            'actual_stem_size': _fk_dict(obj.actual_stem_size),
-            'actual_cable_glands_holes': _fk_dict(obj.actual_cable_glands_holes),
+            'actual_mounting_plate': _fk_dict(obj.actual_mounting_plate, locale),
+            'actual_stem_shape': _fk_dict(obj.actual_stem_shape, locale),
+            'actual_stem_size': _fk_dict(obj.actual_stem_size, locale),
+            'actual_cable_glands_holes': _fk_dict(obj.actual_cable_glands_holes, locale),
             'work_temp_min': obj.work_temp_min,
             'work_temp_max': obj.work_temp_max,
         })
         return data
 
 
-def _fk_dict(fk_obj):
+def _fk_dict(fk_obj, locale=None):
     if not fk_obj:
         return None
-    return {'id': fk_obj.id, 'name': str(fk_obj), 'code': getattr(fk_obj, 'code', '') or getattr(fk_obj, 'encoding', '')}
+    return {'id': fk_obj.id, 'name': localized_name(fk_obj, locale), 'code': getattr(fk_obj, 'code', '') or getattr(fk_obj, 'encoding', '')}

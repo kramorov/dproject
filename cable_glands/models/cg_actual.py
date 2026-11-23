@@ -82,7 +82,8 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
     NAME_FIELD_KEYS = (
         'code', 'brand_name', 'equipment_type', 'thread', 'body_material',
         'cable_diameter','cable_diameter_outer', 'weight', 'metal_sleeve_body_code',
-        'metal_sleeve_inner', 'metal_sleeve_outer', 'metal_sleeve_range', 'metal_sleeve', 'body_code',
+        'metal_sleeve_inner', 'metal_sleeve_outer', 'metal_sleeve_range', 'metal_sleeve',
+        'cable_connection', 'metal_sleeve_note', 'body_code',
         'ip', 'exd', 'exd_short', 'temp_range', 'cable_types', 'extra_params',
     )
 
@@ -254,20 +255,83 @@ class CableGland(CatalogSerializerMixin, SmartCatalogMixin, TemplateMixin,
     # ── TemplateMixin: шаблоны — из серии (CableGlandModelLine) ──
 
     def _get_name_template_source(self):
-        if not self.model_line:
-            return None
-        return self.model_line.name_template or None
+        # Шаблон названия — из EquipmentType «Кабельный ввод» (унификация, как у ЭП).
+        return self._get_equipment_type_template('name_template') or None
 
     def _get_description_template_source(self):
-        if not self.model_line:
-            return None
-        return self.model_line.description_template or None
+        # Описание — из EquipmentType «Кабельный ввод» (унификация).
+        return self._get_equipment_type_template('description_template') or None
 
     def _get_title_template_source(self):
-        """Шаблон заголовка карточки — из серии (title_template)."""
-        if not self.model_line:
+        """Шаблон заголовка карточки — из EquipmentType «Кабельный ввод» (унификация)."""
+        return self._get_equipment_type_template('title_template') or None
+
+    def _get_template_i18n(self, field_base: str):
+        """Переводы шаблонов — из EquipmentType «Кабельный ввод» (унификация).
+
+        Для spec_title/list_title при пустом RU-шаблоне — фолбэк на title_template
+        (как в базовом TemplateMixin).
+        """
+        et = self._get_equipment_type()
+        if et is None:
             return None
-        return getattr(self.model_line, 'title_template', None) or None
+        if field_base in ('spec_title_template', 'list_title_template') and not getattr(et, field_base, None):
+            return getattr(et, 'title_template_i18n', None)
+        return getattr(et, f'{field_base}_i18n', None)
+
+    def _fill_template(self, template: str, data_dict=None, hide_code: bool = False, locale=None) -> str:
+        """Доп. очистка универсального шаблона EquipmentType: пустые сегменты «;;» и хвостовые «;»."""
+        import re
+        result = super()._fill_template(template, data_dict, hide_code, locale)
+        result = re.sub(r'\s*;\s*;\s*', '; ', result)
+        result = re.sub(r';\s*$', '', result)
+        return result.strip()
+
+    # ── Резолверы для универсального шаблона EquipmentType ──
+    def _res_cable_connection(self, locale=None):
+        """Сегмент присоединения кабеля (локализованный).
+
+        Простой: «d кабеля X мм»; внутр./внеш. (броня): «Внутр. d кабеля X мм;
+        Внешн. d кабеля Y мм»; + металлорукав: «d МР Z мм» (если задан).
+        """
+        from core.utils.localization import DEFAULT_LOCALE
+        locale = locale or DEFAULT_LOCALE
+        labels = {
+            'ru': {'simple': 'd кабеля', 'inner': 'Внутр. d кабеля',
+                   'outer': 'Внешн. d кабеля', 'ms': 'd МР', 'mm': 'мм'},
+            'en': {'simple': 'cable d', 'inner': 'Inner cable d',
+                   'outer': 'Outer cable d', 'ms': 'MS d', 'mm': 'mm'},
+            'cn': {'simple': '电缆直径', 'inner': '电缆内径',
+                   'outer': '电缆外径', 'ms': '软管直径', 'mm': 'mm'},
+        }
+        l = labels.get(locale, labels['ru'])
+        parts = []
+        inner = self.get_cable_diameter_display
+        outer = self.get_outer_cable_diameter_display
+        if outer:
+            if inner:
+                parts.append(f"{l['inner']} {inner} {l['mm']}")
+            parts.append(f"{l['outer']} {outer} {l['mm']}")
+        elif inner:
+            parts.append(f"{l['simple']} {inner} {l['mm']}")
+        ms = self.get_metal_sleeve_range_display
+        if ms:
+            parts.append(f"{l['ms']} {ms} {l['mm']}")
+        return '; '.join(parts)
+
+    def _res_metal_sleeve_note(self, locale=None):
+        """Заметка «Для металлорукава …» (пусто, если крепление МР не задано)."""
+        from core.utils.localization import DEFAULT_LOCALE
+        ms = self.get_metal_sleeve_display
+        if not ms:
+            return ''
+        locale = locale or DEFAULT_LOCALE
+        label = {
+            'ru': 'Для металлорукава',
+            'en': 'For metal sleeve',
+            'cn': '金属软管适用',
+        }.get(locale, 'Для металлорукава')
+        return f'{label} {ms}'
 
     # ── Артикул: рендер model_item_code_template (encodings из реестра) ──
 

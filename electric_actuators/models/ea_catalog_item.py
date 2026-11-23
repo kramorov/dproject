@@ -69,7 +69,7 @@ class ElectricActuatorCatalogItem(
     # Реестр полей (единый источник правды) + составы словарей.
     TEMPLATE_FIELDS = EA_CATALOG_ITEM_TEMPLATE_FIELDS
     NAME_FIELD_KEYS = (
-        'code', 'series_code', 'body_code', 'torque', 'time_to_close',
+        'code', 'series_code', 'body_code', 'weight', 'torque', 'time_to_close',
         'power_supply', 'voltage',
         'motor_current_rated', 'motor_current_starting', 'motor_power',
         'cu_name', 'cu_code', 'cu_description', 'cu_block', 'cu_power_supply', 'cu_mode', 'cu_heater',
@@ -83,7 +83,7 @@ class ElectricActuatorCatalogItem(
     )
     CODE_FIELD_KEYS = ('code', 'temperature', 'ip', 'cu_name', 'voltage', 'exd')
     VARS_FIELD_KEYS = (
-        'code', 'series_code', 'body_code', 'torque', 'time_to_close',
+        'code', 'series_code', 'body_code', 'weight', 'torque', 'time_to_close',
         'power_supply', 'voltage', 'cu_name', 'cu_code', 'cu_description',
         'cu_power_supply', 'cu_mode',
         'ctl_protocol', 'ctl_commands', 'ctl_setpoint',
@@ -213,14 +213,15 @@ class ElectricActuatorCatalogItem(
         return self._get_equipment_type_template('name_template') or None
 
     def _get_description_template_source(self):
-        # Описание: сначала шаблон серии (model_line), затем spec_template EquipmentType.
-        ml = self.model_line
-        if ml and getattr(ml, 'description_template', '').strip():
-            return ml.description_template
-        return self._get_equipment_type_template('spec_template') or None
+        # Описание — из EquipmentType «Электропривод» (унификация, как и name_template).
+        return self._get_equipment_type_template('description_template') or None
 
     def _get_template_i18n(self, field_base: str):
-        """Переводы шаблонов: сначала из серии, затем из EquipmentType."""
+        """Переводы шаблонов — из EquipmentType «Электропривод» (унификация).
+
+        Для spec_title/list_title при пустом RU-шаблоне — фолбэк на title_template
+        (как в базовом TemplateMixin).
+        """
         et = self._get_equipment_type()
         if et is None:
             from core.models.equipment_type import EquipmentType
@@ -228,13 +229,9 @@ class ElectricActuatorCatalogItem(
                 code='electric-actuator').first()
         if et is None:
             return None
-        i18n_field = f'{field_base}_i18n'
-        if field_base == 'description_template':
-            ml = self.model_line
-            if ml and getattr(ml, 'description_template', '').strip():
-                return ml.description_template_i18n or None
-            i18n_field = 'spec_template_i18n'
-        return getattr(et, i18n_field, None)
+        if field_base in ('spec_title_template', 'list_title_template') and not getattr(et, field_base, None):
+            return getattr(et, 'title_template_i18n', None)
+        return getattr(et, f'{field_base}_i18n', None)
 
     # ── Ext-код: машинная сборка из матричных строк (не ext-шаблон серии) ──
     @property

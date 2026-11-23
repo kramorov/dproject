@@ -31,6 +31,7 @@ from core.models.filter_definition import FilterType, DataSourceType
 from core.wizard_filter_registry import get_filter_definitions_for_ct
 from price.services.currency_converter import get_bulk_prices
 from core.utils.catalog_helpers import get_currency_code
+from core.utils.localization import locale_from_accept_language
 
 logger = logging.getLogger(__name__)
 
@@ -287,10 +288,11 @@ class WizardResultsView(WizardModelMixin, APIView):
         offset = (page - 1) * page_size
         items_qs = qs[offset:offset + page_size]
 
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         items = []
         for obj in items_qs:
             try:
-                items.append(obj.to_values_dict() if hasattr(obj, 'to_values_dict') else obj.to_dict())
+                items.append(obj.to_values_dict(locale=locale) if hasattr(obj, 'to_values_dict') else obj.to_dict(locale=locale))
             except Exception:
                 try:
                     items.append({'id': obj.id, 'name': str(obj), 'code': getattr(obj, 'code', '')})

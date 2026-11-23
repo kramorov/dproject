@@ -88,7 +88,8 @@ class ConstructorViewSet(viewsets.GenericViewSet):
             return Response({'error': str(e)}, status=500)
         if item is None:
             return Response({'error': 'Не удалось материализовать карточку'}, status=500)
-        data = self._serialize_item_detail(item, sku=sku)
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        data = self._serialize_item_detail(item, sku=sku, locale=locale)
         data['created'] = bool(created)
         return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
@@ -112,18 +113,18 @@ class ConstructorViewSet(viewsets.GenericViewSet):
             'sorting_order': item.sorting_order,
         }
 
-    def _serialize_item_detail(self, item, sku=None):
+    def _serialize_item_detail(self, item, sku=None, locale=None):
         data = self._serialize_item(item)
         data.update({
-            'selected_safety_position': _fk_dict(item.selected_safety_position),
-            'selected_springs_qty': _fk_dict(item.selected_springs_qty),
-            'selected_temperature': _fk_dict(item.selected_temperature),
-            'selected_ip': _fk_dict(item.selected_ip),
-            'selected_exd': _fk_dict(item.selected_exd),
-            'selected_body_coating': _fk_dict(item.selected_body_coating),
-            'selected_shaft_material': _fk_dict(item.selected_shaft_material),
-            'selected_body_color': _fk_dict(item.selected_body_color),
-            'selected_manual_override': _fk_dict(item.selected_manual_override),
+            'selected_safety_position': _fk_dict(item.selected_safety_position, locale),
+            'selected_springs_qty': _fk_dict(item.selected_springs_qty, locale),
+            'selected_temperature': _fk_dict(item.selected_temperature, locale),
+            'selected_ip': _fk_dict(item.selected_ip, locale),
+            'selected_exd': _fk_dict(item.selected_exd, locale),
+            'selected_body_coating': _fk_dict(item.selected_body_coating, locale),
+            'selected_shaft_material': _fk_dict(item.selected_shaft_material, locale),
+            'selected_body_color': _fk_dict(item.selected_body_color, locale),
+            'selected_manual_override': _fk_dict(item.selected_manual_override, locale),
             'work_temp_min': (
                 item.selected_temperature.work_temp_min if item.selected_temperature else None
             ),
@@ -132,7 +133,7 @@ class ConstructorViewSet(viewsets.GenericViewSet):
             ),
         })
         try:
-            data['item'] = item.to_dict()
+            data['item'] = item.to_dict(locale=locale)
         except Exception:
             data['item'] = None
         sku = sku or getattr(item, 'sku', None)
@@ -284,7 +285,7 @@ class ConstructorViewSet(viewsets.GenericViewSet):
         })
 
 
-def _fk_dict(fk_obj):
+def _fk_dict(fk_obj, locale=None):
     if not fk_obj:
         return None
-    return {'id': fk_obj.id, 'name': str(fk_obj), 'code': getattr(fk_obj, 'code', '') or getattr(fk_obj, 'encoding', '')}
+    return {'id': fk_obj.id, 'name': localized_name(fk_obj, locale), 'code': getattr(fk_obj, 'code', '') or getattr(fk_obj, 'encoding', '')}

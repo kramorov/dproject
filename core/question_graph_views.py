@@ -405,10 +405,11 @@ class QuestionGraphResultsView(APIView):
             items = model_class.objects.filter(pk__in=list(order)).select_related(*select_fields)
             items = sorted(items, key=lambda o: order[o.pk])
 
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         results = []
         for item in items:
             try:
-                results.append(item.to_values_dict() if hasattr(item, 'to_values_dict') else item.to_dict())
+                results.append(item.to_values_dict(locale=locale) if hasattr(item, 'to_values_dict') else item.to_dict(locale=locale))
             except Exception:
                 results.append({'id': item.pk, 'name': str(item)})
 

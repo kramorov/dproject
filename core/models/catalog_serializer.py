@@ -55,11 +55,12 @@ class CatalogSerializerMixin(CatalogDictMixin):
 
     # ── Хуки, которые переопределяет модель ──
 
-    def _get_template_vars(self, fields=None) -> dict:
+    def _get_template_vars(self, fields=None, locale=None) -> dict:
         """Плоский словарь готовых значений (единый источник — TEMPLATE_FIELDS).
 
         ``fields`` — подмножество ключей; иначе — ``VARS_FIELD_KEYS`` (дефолт —
-        все поля с ``path``). Значения резолвятся с мемоизацией.
+        все поля с ``path``). Значения резолвятся с мемоизацией. Для не-RU
+        локали справочники локализуются через ``_resolve_field(locale)``.
         """
         specs = self._get_field_specs()
         if not specs:
@@ -69,7 +70,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
             }
         keys = fields if fields is not None else getattr(self, 'VARS_FIELD_KEYS', None)
         selected = self._lookup_specs(keys) if keys is not None else specs
-        return {f.key: self._resolve_field(f) for f in selected if f.key}
+        return {f.key: self._resolve_field(f, locale=locale) for f in selected if f.key}
 
     def _get_spec_template_from_model_line(self):
         """JSON-шаблон спецификации из серии (model_line)."""
@@ -322,7 +323,7 @@ class CatalogSerializerMixin(CatalogDictMixin):
             description = ''
         description = description or self.description or ''
         title = self.generate_title(locale)
-        tv = self._get_template_vars()
+        tv = self._get_template_vars(locale=locale)
         return {
             'id': self.id,
             'code': self.code or '',

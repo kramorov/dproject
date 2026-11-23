@@ -1047,13 +1047,13 @@ class AllowedCuAndIndicatorTests(TestCase):
                 'en': 'Electric actuator {series_code} {model_code} {cu_name}',
                 'cn': '电动执行器 {series_code} {model_code} {cu_name}'}
             et.save(update_fields=['name_template', 'name_template_i18n'])
-        if not et.spec_template:
-            et.spec_template = 'Серия: {series_code} {article}'
-            et.spec_template_i18n = {
-                'ru': et.spec_template,
-                'en': 'Series: {series_code} {article}',
-                'cn': '系列: {series_code} {article}'}
-            et.save(update_fields=['spec_template', 'spec_template_i18n'])
+        # Описание — из description_template/i18n того же EquipmentType (унификация).
+        et.description_template = 'Серия: {series_code} {article}'
+        et.description_template_i18n = {
+            'ru': et.description_template,
+            'en': 'Series: {series_code} {article}',
+            'cn': '系列: {series_code} {article}'}
+        et.save(update_fields=['description_template', 'description_template_i18n'])
         keys = set(ElectricActuatorCatalogItem()._get_data_dict().keys())
         self.assertIn('{cu_name}', keys)
         self.assertIn('{ctl_commands}', keys)
@@ -1068,7 +1068,7 @@ class AllowedCuAndIndicatorTests(TestCase):
         name_en = item.generate_name(locale='en')
         self.assertIn('Electric actuator', name_en)
         self.assertIn(str(self.m1.code), name_en)
-        # Описание — из spec_template/i18n того же EquipmentType
+        # Описание — из description_template/i18n того же EquipmentType
         desc_en = item.generate_description(locale='en')
         self.assertTrue(desc_en.startswith('Series:') or
                         'Series' in desc_en[:40])
