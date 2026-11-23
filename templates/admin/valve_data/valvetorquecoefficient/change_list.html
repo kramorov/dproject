@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools %}
+<ul class="object-tools">
+  <li>
+    <a href="table/" class="addlink">{% translate "Таблица (редактировать всё)" %}</a>
+  </li>
+</ul>
+{{ block.super }}
+{% endblock %}

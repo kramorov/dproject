@@ -135,3 +135,121 @@
    не относится к локализации, починить отдельно.
 6. **Закоммитить накопленное** (git status — ~16 изменённых файлов: core/models/*,
    cable_glands/*, electric_actuators/*, params/models.py, pneumatic_actuators/api/*, db.sqlite3).
+
+---
+
+# SESSION — 2026-11-23: таблица коэффициентов момента (6 точек) по производителю/серии
+
+Канон данных — `db.sqlite3`; тесты на `test_db.sqlite3` (--keepdb).
+
+## Сделано
+
+- **Модель** `TorqueThrustCharacteristics` (+миграция valve_data 0074, применена):
+  `scope` (common/producer/series, default=common) + `valve_producer` (Producer) +
+  `valve_series` (ValveLine) + `resolve()` (серия → производитель → общая;
+  с фильтром по motion_type__code). Существующий набор rotary-6 → common.
+- **Подбор**: `process_pointwise_selection` — если `characteristics_id` не передан,
+  таблица подтягивается автоматически по `valve_producer_id`/`valve_series_id`
+  (motion_type_code='ROTARY'); явный выбор (общая таблица) работает как раньше.
+- **Начальные данные**: `get_pointwise_initial_data` отдаёт `valve_producers`
+  (Producer) и `valve_series` (ValveLine с valve_producer_id); в `characteristics`
+  добавлены scope/valve_producer_id/valve_series_id.
+- **Админка** `TorqueThrustCharacteristics`: scope/producer/series (display+filter+search).
+- **Фронт** `PaEngineerSelector.vue` (режим 6 точек): селекторы «Производитель арматуры»
+  и «Серия арматуры» (серии фильтруются по производителю), взаимоисключение с явной
+  таблицей; i18n ru/en/cn (valveProducer/valveSeries; characteristics → «Таблица
+  коэффициентов»).
+- **Тесты** `tests_pointwise.py`: +CoefficientScopeTests (5 тестов resolve).
+
+## Проверено
+
+- py_compile OK; makemigrations --check — чисто; migrate valve_data OK.
+- Тесты pneumatic_actuators.tests_pointwise — 12/12 (skipped=1); resolve на каноне —
+  rotary-6 (scope=common). `npm run build` — OK.
+
+## Осталось / заметки
+
+- Индивидуальные таблицы заводятся в админке (Характеристики момента/усилия:
+  scope=producer/series + FK). Общая таблица пока одна (rotary-6).
+- UI не разделяет явный выбор общей/индивидуальной таблицы (селектор показывает
+  все наборы); при желании — фильтровать на common.
+- Незакоммичено: эта сессия + накопленное прошлых сессий (см. .codewhale/handoff.md).
+
+---
+
+# SESSION — 2026-11-23 (доп.): широкий формат таблицы коэффициентов
+
+## Сделано
+
+- **`ValveTorqueCoefficient` переведён из длинного (строка=точка, 48 строк) в
+  широкий формат (строка = тип арматуры × опора × уплотнение, колонки bto…etc)**
+  — миграция valve_data 0075 с data-pivot (48→8 строк, значения сохранены).
+  Поля factor/min_factor/display/point удалены; unique_together без point.
+- **Модель**: 6 колонок bto/rto/eto/btc/rtc/etc (Decimal, nullable) +
+  `factors` (dict {code: float}) + `mirror_close_from_open()` (btc←eto, rtc←rto,
+  etc←bto, только пустые) + `get_curve` читает одну строку.
+- **Админка** `ValveTorqueCoefficient`: одна таблица с колонками BTO…ETC,
+  `list_editable` по 6 колонкам + action «Заполнить закрытие зеркалом открытия».
+- **Импорт** `import_valve_coefficients` — пишет широкий формат (idempotent).
+- **Тесты**: +ValveTorqueCoefficientWideTests (2 теста зеркала).
+- **Админка (доп.)**: у «Коэффициентов момента арматуры» добавлена кастомная страница
+  `/admin/valve_data/valvetorquecoefficient/table/` — вся таблица одной формой
+  (modelformset, 8 строк × 6 колонок, редактируемо), кнопка в шапке списка.
+- **Упрощение набора (0076)**: из `TorqueThrustCharacteristics` убраны `motion_type`
+  и `points` (признак «Ротационный 6 точек» — это артефакт Excel, выводится из
+  valve_type). Добавлены `description` + `name_i18n`/`description_i18n`
+  (LocalizedDictFieldsMixin) — теперь набор по канону справочника. `resolve()`
+  без фильтра по motion_type. Существующий rotary-6 переименован в
+  «Таблица коэффициентов (общая)».
+
+---
+
+# SESSION — 2026-11-23 (финал): одна модель-таблица коэффициентов
+
+## Сделано (по согласованному плану)
+
+- **Удалена `TorqueThrustCharacteristics`**; вместо двух моделей — **одна**
+  `ValveTorqueCoefficient` = таблица = строка коэффициентов (миграция 0077 с data-переносом).
+- `ValveTorqueCoefficient`: `name`, `code` (unique), `description`, `name_i18n`/`description_i18n`,
+  `sorting_order`, `is_active` + `valve_type`/`support`/`seal_type` (описывают таблицу) +
+  `bto…etc` (6 значений) + `source`; методы `factors`, `mirror_close_from_open()`.
+  Уникальность только по `code`; несколько таблиц на один тип — разрешено.
+- **`ValveLine.valve_torque_coefficient`** (FK, null) — серия ссылается на таблицу.
+- **Подбор (6 точек)**: вход — таблица (`characteristics_id`) либо серия
+  (`valve_series_id` → `серия.valve_torque_coefficient`); кривая = `record.factors`.
+  `valve_type`/`support`/`seal_type` больше не поля расчёта (атрибуты таблицы).
+- Админка: `ValveTorqueCoefficient` (name/code/description/i18n + 6 колонок,
+  list_editable + кастомная страница `/...valvetorquecoefficient/table/`);
+  в `ValveLineAdmin` — поле `valve_torque_coefficient`. `TorqueThrustCharacteristicsAdmin` удалён.
+- `import_valve_coefficients`: 8 таблиц по кодам `ball-floating-soft`…`plug` (идемпотентно по code).
+- Фронт: убраны дропдауны тип/опора/уплотнение; селектор таблиц + производитель/серия.
+- Тесты: `ValveTorqueCoefficientTests` (factors/зеркало/FK серии).
+
+## Проверено
+
+- migrate 0077 OK; 8 строк с codes/names/значениями; таблица TorqueThrustCharacteristics удалена.
+- `manage.py check` чисто; makemigrations --check чисто; py_compile OK; тесты 10/10 (skipped=1);
+  `npm run build` OK; админка (changelist/table/valveline-add) рендерится 200.
+- `import --dry-run` НЕ проверен в этот заход: файл-источник `E:\work\...\Данные системы
+  расчёта.json` сейчас недоступен (был доступен ранее в сессии). Логика идемпотентна по code.
+
+## Проверено
+
+- migrate 0075 OK; данные сверены: 8 строк, значения идентичны прежним 48;
+  симметрия bto=etc, rto=rtc, eto=btc сохранена.
+- Тесты pneumatic_actuators.tests_pointwise — 14/14 (skipped=1, предсуществующий
+  «набор rotary-6 не импортирован»). py_compile OK; makemigrations --check чисто;
+  get_curve на каноне — {bto:1.0, rto:0.6, eto:0.9, btc:0.9, rtc:0.6, etc:1.0};
+  import --dry-run — создано=0, обновлено=8 (идемпотентно).
+
+## Ответ на вопрос пользователя
+
+- «6 точек — наследие Excel?» — коэффициенты зеркально симметричны (3 позиции ×
+  2 направления), это стандарт раскладки кривой; хранить 6 — избыточно, но
+  асимметрия реальна (линейные, металло-уплотнённые, нагруженные давлением),
+  поэтому оставили 6 явных колонок с зеркалом как дефолтом, а не схемой хранения.
+- «НО/НЗ» — коэффициенты не про НО/НЗ; НО/НЗ решается на стороне привода
+  (pointwise_selector: воздух/пружина).
+- «Разные давления → несколько таблиц» — да: scope (common/producer/series) +
+  именование позволяют заводить сколько угодно таблиц; явного поля «давление»
+  в таблице нет — различаются по имени/scope.

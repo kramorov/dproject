@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}
+      <p class="errornote">{{ formset.non_form_errors }}</p>
+    {% endif %}
+    <div class="module">
+      <table>
+        <caption>{% translate "Коэффициенты момента (BTO…ETC)" %}</caption>
+        <thead>
+          <tr>
+            <th>{% translate "Название" %}</th>
+            <th>{% translate "Код" %}</th>
+            <th>{% translate "Тип арматуры" %}</th>
+            <th>{% translate "Опора" %}</th>
+            <th>{% translate "Уплотнение" %}</th>
+            <th>BTO</th><th>RTO</th><th>ETO</th><th>BTC</th><th>RTC</th><th>ETC</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for form in formset %}
+          <tr>
+            <td>{{ form.instance.name }}</td>
+            <td>{{ form.instance.code }}</td>
+            <td>{{ form.instance.valve_type }}</td>
+            <td>{{ form.instance.support|default:"—" }}</td>
+            <td>{{ form.instance.seal_type|default:"—" }}</td>
+            <td>{{ form.bto }}{% if form.bto.errors %}<br><span class="errornote">{{ form.bto.errors }}</span>{% endif %}</td>
+            <td>{{ form.rto }}{% if form.rto.errors %}<br><span class="errornote">{{ form.rto.errors }}</span>{% endif %}</td>
+            <td>{{ form.eto }}{% if form.eto.errors %}<br><span class="errornote">{{ form.eto.errors }}</span>{% endif %}</td>
+            <td>{{ form.btc }}{% if form.btc.errors %}<br><span class="errornote">{{ form.btc.errors }}</span>{% endif %}</td>
+            <td>{{ form.rtc }}{% if form.rtc.errors %}<br><span class="errornote">{{ form.rtc.errors }}</span>{% endif %}</td>
+            <td>{{ form.etc }}{% if form.etc.errors %}<br><span class="errornote">{{ form.etc.errors }}</span>{% endif %}</td>
+            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="submit-row">
+      <input type="submit" value="{% translate 'Сохранить' %}" class="default">
+    </div>
+  </form>
+</div>
+{% endblock %}

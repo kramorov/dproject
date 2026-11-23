@@ -5,7 +5,6 @@ from django.utils.translation import gettext_lazy as _
 from core.models.mixins import LocalizedDictFieldsMixin, OptionListToSelectMixin
 from core.utils.localization import localized_name
 from params.models import ValveTypes
-from pa_controls.models import ActingType
 
 # Порядок шести точек (как в справочнике коэффициентов AUTORUN).
 # Для линейных (4 точки) используются первые четыре: BTO, RTO, ETO, BTC.
@@ -79,9 +78,7 @@ class ValveSupportType(LocalizedDictFieldsMixin, OptionListToSelectMixin):
 class TorquePoint(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Справочник точек момента/усилия (BTO…ETC).
 
-    Единая точка истины для кодов точек как со стороны арматуры
-    (коэффициенты), так и со стороны привода (таблица моментов).
-
+    Единая точка истины для кодов точек со стороны привода (таблица моментов).
     ``direction`` — направление хода (open/close); ``position`` — позиция
     вдоль хода (start/mid/end). Спаривание открытие↔закрытие при сравнении
     выполняется по позиции (start↔start и т.д.), что даёт BTO↔ETC, RTO↔RTC,
@@ -131,61 +128,18 @@ class TorquePoint(LocalizedDictFieldsMixin, OptionListToSelectMixin):
                               sorting_order=order, is_active=True))
 
 
-class TorqueThrustCharacteristics(models.Model):
-    """Справочник характеристик момента/усилия арматуры.
+class ValveTorqueCoefficient(LocalizedDictFieldsMixin, OptionListToSelectMixin):
+    """Таблица коэффициентов момента арматуры.
 
-    Набор коэффициентов для расчёта требуемого момента (ротационные — 6 точек)
-    или усилия (линейные — 4 точки) по базовому значению:
-
-        требуемое[i] = базовое[i] × коэффициент[i]
-
-    Точки набора — M2M на TorquePoint (ротационный — 6, линейный — 4).
+    Одна запись = одна таблица для конкретного типа арматуры × опоры ×
+    уплотнения, внутри — шесть значений кривой BTO…ETC. К сериям арматуры
+    привязывается через ``ValveLine.valve_torque_coefficient`` (одна таблица
+    может висеть на нескольких сериях).
     """
 
-    code = models.CharField(max_length=50, unique=True, verbose_name=_('Код'))
     name = models.CharField(max_length=200, verbose_name=_('Название'))
-    motion_type = models.ForeignKey(
-        ActingType, on_delete=models.PROTECT, null=True, blank=True,
-        related_name='torque_characteristics',
-        verbose_name=_('Тип движения'),
-        help_text=_('Ротационный (6 точек) или линейный (4 точки); коды LINEAR/ROTARY'))
-    points = models.ManyToManyField(
-        TorquePoint, blank=True, related_name='characteristics_sets',
-        verbose_name=_('Точки набора'),
-        help_text=_('Какие точки входят в набор (ротационный — 6, линейный — 4)'))
-    is_active = models.BooleanField(default=True, verbose_name=_('Активно'))
-    sorting_order = models.IntegerField(default=0, verbose_name=_('Порядок сортировки'))
-
-    class Meta:
-        verbose_name = _('Характеристики момента/усилия')
-        verbose_name_plural = _('Характеристики момента/усилия')
-        ordering = ['sorting_order', 'id']
-
-    def __str__(self):
-        return self.name
-
-    @property
-    def points_ordered(self):
-        return list(self.points.order_by('sorting_order'))
-
-    @property
-    def point_codes(self):
-        return [p.code for p in self.points_ordered]
-
-
-class ValveTorqueCoefficient(models.Model):
-    """Коэффициент момента арматуры в одной точке (длинный формат).
-
-    Строка = (набор характеристик × тип арматуры × опора × уплотнение × точка).
-    ``factor`` — рабочий коэффициент; ``min_factor`` — нижняя граница
-    (для ручной настройки в UI); ``display`` — отображаемое значение
-    (число или диапазон вида «90%~80%»).
-    """
-
-    characteristics = models.ForeignKey(
-        TorqueThrustCharacteristics, on_delete=models.CASCADE,
-        related_name='valve_coefficients',
-        verbose_name=_('Характеристики'))
+    code = models.CharField(max_length=50, unique=True, verbose_name=_('Код'))
+    description = models.TextField(blank=True, verbose_name=_('Описание'))
 
     valve_type = models.ForeignKey(
         ValveTypes, on_delete=models.CASCADE, related_name='torque_coefficients',
@@ -201,26 +155,32 @@ class ValveTorqueCoefficient(models.Model):
         related_name='torque_coefficients',
         verbose_name=_('Тип уплотнения'))
 
-    point = models.ForeignKey(
-        TorquePoint, on_delete=models.PROTECT, related_name='valve_coefficients',
-        verbose_name=_('Точка'))
-
-    factor = models.DecimalField(max_digits=6, decimal_places=3, verbose_name=_('Коэффициент'),
-                                 help_text=_('Рабочий коэффициент (умножается на базовый момент)'))
-    min_factor = models.DecimalField(max_digits=6, decimal_places=3, default=0,
-                                     blank=True, null=True,
-                                     verbose_name=_('Минимальный коэффициент'))
-    display = models.CharField(max_length=30, blank=True, verbose_name=_('Отображаемое значение'),
-                               help_text=_('Число или диапазон вида «90%~80%»'))
+    bto = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True,
+                              verbose_name=_('BTO'),
+                              help_text=_('Break to open — срыв с седла в начале открытия (0°)'))
+    rto = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True,
+                              verbose_name=_('RTO'),
+                              help_text=_('Run to open — середина хода открытия'))
+    eto = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True,
+                              verbose_name=_('ETO'),
+                              help_text=_('End to open — конец открытия (90°)'))
+    btc = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True,
+                              verbose_name=_('BTC'),
+                              help_text=_('Break to close — начало закрытия (90°)'))
+    rtc = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True,
+                              verbose_name=_('RTC'),
+                              help_text=_('Run to close — середина хода закрытия'))
+    etc = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True,
+                              verbose_name=_('ETC'),
+                              help_text=_('End to close — посадка в седло в конце закрытия (0°)'))
     source = models.CharField(max_length=200, blank=True, verbose_name=_('Источник'))
-    is_active = models.BooleanField(default=True, verbose_name=_('Активно'))
     sorting_order = models.IntegerField(default=0, verbose_name=_('Порядок сортировки'))
+    is_active = models.BooleanField(default=True, verbose_name=_('Активно'))
 
     class Meta:
         verbose_name = _('Коэффициент момента арматуры')
         verbose_name_plural = _('Коэффициенты момента арматуры')
-        ordering = ['characteristics', 'sorting_order', 'id']
-        unique_together = ('characteristics', 'valve_type', 'support', 'seal_type', 'point')
+        ordering = ['valve_type__sorting_order', 'sorting_order', 'id']
 
     def __str__(self):
         parts = [str(self.valve_type)]
@@ -228,21 +188,23 @@ class ValveTorqueCoefficient(models.Model):
             parts.append(localized_name(self.support))
         if self.seal_type:
             parts.append(localized_name(self.seal_type))
-        parts.append(self.point.code.upper())
         return ' — '.join(parts)
 
-    @classmethod
-    def get_curve(cls, characteristics_id, valve_type_id, support_id=None, seal_type_id=None):
-        """Кривая коэффициентов по точкам набора: {code: factor}.
+    @property
+    def factors(self):
+        """Кривая {code: float} — только заполненные точки, в порядке BTO…ETC."""
+        return {code: float(getattr(self, code))
+                for code in TORQUE_POINTS if getattr(self, code) is not None}
 
-        Порядок точек — из набора характеристик; точки, у которых нет строки,
-        в кривую не попадают.
+    def mirror_close_from_open(self):
+        """Заполнить закрытие зеркалом открытия (по позиции хода).
+
+        btc←eto, rtc←rto, etc←bto. Заполняются только пустые точки закрытия.
+        Возвращает True, если что-то изменилось.
         """
-        rows = cls.objects.filter(
-            characteristics_id=characteristics_id,
-            valve_type_id=valve_type_id,
-            support_id=support_id,
-            seal_type_id=seal_type_id,
-            is_active=True,
-        ).select_related('point')
-        return {r.point.code: float(r.factor) for r in rows}
+        changed = False
+        for open_code, close_code in (('eto', 'btc'), ('rto', 'rtc'), ('bto', 'etc')):
+            if getattr(self, close_code) is None and getattr(self, open_code) is not None:
+                setattr(self, close_code, getattr(self, open_code))
+                changed = True
+        return changed

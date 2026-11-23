@@ -79,31 +79,27 @@
       <div class="pw-form">
         <div class="pw-row" v-if="mode === 'pointwise'">
           <label class="pw-field">
+            <span>{{ t('pa.engineerPointwise.valveProducer') }}</span>
+            <select v-model="pwForm.valve_producer_id" @change="onProducerChange">
+              <option value="">{{ '—' }}</option>
+              <option v-for="p in pointwise.valve_producers" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </label>
+          <label class="pw-field">
+            <span>{{ t('pa.engineerPointwise.valveSeries') }}</span>
+            <select v-model="pwForm.valve_series_id" @change="onSeriesChange">
+              <option value="">{{ '—' }}</option>
+              <option v-for="s in pwValveSeries" :key="s.id" :value="s.id">{{ s.name || s.code }}</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="pw-row" v-if="mode === 'pointwise'">
+          <label class="pw-field">
             <span>{{ t('pa.engineerPointwise.characteristics') }}</span>
-            <select v-model="pwForm.characteristics_id">
+            <select v-model="pwForm.characteristics_id" @change="onCharacteristicsChange">
               <option value="">{{ '—' }}</option>
               <option v-for="c in pointwise.characteristics" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-          </label>
-          <label class="pw-field">
-            <span>{{ t('pa.engineerPointwise.valveType') }}</span>
-            <select v-model="pwForm.valve_type_id">
-              <option value="">{{ '—' }}</option>
-              <option v-for="v in pointwise.valve_types" :key="v.id" :value="v.id">{{ v.name }}</option>
-            </select>
-          </label>
-          <label class="pw-field">
-            <span>{{ t('pa.engineerPointwise.support') }}</span>
-            <select v-model="pwForm.support_id">
-              <option value="">{{ '—' }}</option>
-              <option v-for="s in pointwise.supports" :key="s.id" :value="s.id">{{ s.name }}</option>
-            </select>
-          </label>
-          <label class="pw-field">
-            <span>{{ t('pa.engineerPointwise.seal') }}</span>
-            <select v-model="pwForm.seal_type_id">
-              <option value="">{{ '—' }}</option>
-              <option v-for="s in pointwise.seals" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </label>
         </div>
@@ -306,12 +302,14 @@ const searching = ref(false)
 
 const mode = ref('standard')
 const pointwise = reactive({
-  characteristics: [], valve_types: [], supports: [], seals: [],
+  characteristics: [],
+  valve_producers: [], valve_series: [],
   air_pressure: [], actuator_varieties: [], safety_positions: [], model_lines: [],
   exd_options: [], coating_options: [], body_material_options: [], shaft_material_options: [],
 })
 const pwForm = reactive({
-  characteristics_id: '', valve_type_id: '', support_id: '', seal_type_id: '',
+  characteristics_id: '',
+  valve_producer_id: '', valve_series_id: '',
   base_torque: null, safety_factor: 1.5,
   air_pressure_id: '', actuator_variety_code: 'DA', safety_position_code: 'nc',
   model_line_id: '',
@@ -335,6 +333,33 @@ const pwModelLines = computed(() => {
   }
   return pointwise.model_lines
 })
+
+// Серии арматуры: при выбранном производителе — только его серии.
+const pwValveSeries = computed(() => {
+  if (!pwForm.valve_producer_id) return pointwise.valve_series
+  return pointwise.valve_series.filter(s => s.valve_producer_id === pwForm.valve_producer_id)
+})
+
+function onProducerChange() {
+  if (pwForm.valve_producer_id) {
+    const belongs = pointwise.valve_series.some(
+      s => s.id === pwForm.valve_series_id && s.valve_producer_id === pwForm.valve_producer_id,
+    )
+    if (!belongs) pwForm.valve_series_id = ''
+    pwForm.characteristics_id = ''
+  }
+}
+
+function onSeriesChange() {
+  if (pwForm.valve_series_id) pwForm.characteristics_id = ''
+}
+
+function onCharacteristicsChange() {
+  if (pwForm.characteristics_id) {
+    pwForm.valve_producer_id = ''
+    pwForm.valve_series_id = ''
+  }
+}
 
 const title = computed(() => t('pa.engineer.title'))
 const cards = computed(() => results.value)
@@ -406,9 +431,8 @@ onMounted(async () => {
     const { data } = await api.get('/pneumatic_actuators/engineer/pointwise-initial-data/')
     Object.assign(pointwise, {
       characteristics: data.characteristics || [],
-      valve_types: data.valve_types || [],
-      supports: data.supports || [],
-      seals: data.seals || [],
+      valve_producers: data.valve_producers || [],
+      valve_series: data.valve_series || [],
       air_pressure: data.air_pressure || [],
       actuator_varieties: data.actuator_varieties || [],
       safety_positions: data.safety_positions || [],

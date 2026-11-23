@@ -319,17 +319,22 @@ DN/PN (12 значений момента на пару DN/PN: 6 PN-классо
 
 ---
 
-## 12. Состояние переноса в наш проект (актуализировано 2026-11-22)
+## 12. Состояние переноса в наш проект (актуализировано 2026-11-23)
 
 Перенос выполнен; детали текущего состояния и оставшиеся планы — в корне репозитория
 (mig.md). Кратко:
 
 **Реализовано:**
-- **Шеститочечный расчёт** (Задача 1): alve_data.TorquePoint (BTO…ETC),
-  ValveTorqueCoefficient (8 типов клапанов по маппингу из §13.2, набор rotary-6),
-  длинный формат BodyThrustTorqueTable, движок pointwise_selector.py, API
-  engineer/pointwise-*, фронт с режимами «обычный/6 точек». Рейтинг по
-  минимальному запасу, точное/совместимое, паритет фильтров обычного подбора.
+- **Шеститочечный расчёт** (Задача 1): `valve_data.TorquePoint` (BTO…ETC) — единая
+  точка истины для таблицы моментов привода; **`ValveTorqueCoefficient`** — одна
+  модель-таблица коэффициентов (запись = тип арматуры × опора × уплотнение, 6 колонок
+  BTO…ETC), 8 стартовых записей по маппингу §13; `ValveLine.valve_torque_coefficient`
+  (FK) привязывает таблицу к серии арматуры (несколько серий → одна таблица, серия
+  может быть без таблицы). Длинный формат `BodyThrustTorqueTable`, движок
+  `pointwise_selector.py`, API engineer/pointwise-*, фронт с режимами «обычный/6 точек».
+  В 6-точечном подборе таблица берётся из серии (FK) или выбирается напрямую;
+  тип/опора/уплотнение — атрибуты таблицы, а не поля расчёта. Рейтинг по минимальному
+  запасу, точное/совместимое, паритет фильтров обычного подбора.
 - **Ротационные серии**: BTS (42 тела, кулисный) и NRT (18 тел, реечный) заведены
   с моментами (1739 строк, сверено с каталогами) — команды import_autorun_series,
   import_autorun_torque.
@@ -365,9 +370,10 @@ otary[].price, linearPrices, linearManualConfigurations.
 | 旋塞阀 | кран пробковый | — | — |
 | 高性能蝶阀PTFE | дисковый затвор | — | ptfe |
 
-Модели: alve_data.TorqueThrustCharacteristics (наборы, motion_type rotary/linear),
-ValveTorqueCoefficient (valve_type + support + seal_type), справочники
-ValveSupportType (floating/trunnion) и SealType (soft/hard/ptfe).
+Модель: `valve_data.ValveTorqueCoefficient` — одна запись = одна таблица
+(`valve_type` + `support` + `seal_type` + 6 значений `bto…etc`), к серии арматуры
+привязывается через `ValveLine.valve_torque_coefficient`. Справочники
+`ValveSupportType` (floating/trunnion) и `SealType` (soft/hard/ptfe).
 
 Открытый вопрос: линейные 4-точечные коэффициенты (1 / 0.45 / 0.5 / 1 для шиберной
 задвижки) захардкожены в engine.pyc — у нас в линейном режиме пока ручная кривая

@@ -293,7 +293,6 @@ def get_initial_data(locale=None, fields=None) -> Dict[str, Any]:
     """
     from pneumatic_actuators.models import PneumaticActuatorModelLine
     from params.models import DnVariety, PnVariety, MountingPlateTypes, StemSize, ValveTypes
-    from valve_data.models import TorqueThrustCharacteristics
 
     if fields is not None:
         fields = set(fields)
@@ -329,12 +328,6 @@ def get_initial_data(locale=None, fields=None) -> Dict[str, Any]:
         data['stem_sizes'] = StemSize.get_for_select(active_only=True, locale=locale)
     if want('valve_types'):
         data['valve_types'] = ValveTypes.get_for_select(active_only=True, locale=locale)
-    if want('torque_characteristics'):
-        data['torque_characteristics'] = list(
-            TorqueThrustCharacteristics.objects.filter(is_active=True)
-            .order_by('sorting_order', 'id')
-            .values('id', 'code', 'name', 'motion_type_id', 'motion_type__code')
-        )
     if want('labels'):
         data['labels'] = _get_selector_labels(locale)
     return data
@@ -985,8 +978,9 @@ def find_compatible_actuators_by_model_line(
 def get_pointwise_initial_data(locale=None, fields=None) -> Dict[str, Any]:
     """Начальные данные для точечного подбора: наборы характеристик,
     типы арматуры, опора/уплотнение, давления, серии, типы DA/SR, подписи."""
-    from valve_data.models import TorqueThrustCharacteristics, SealType, ValveSupportType
-    from params.models import ValveTypes, PneumaticAirSupplyPressure
+    from valve_data.models import ValveTorqueCoefficient, ValveLine
+    from params.models import PneumaticAirSupplyPressure
+    from producers.models import Producer
     from pneumatic_actuators.models import (
         PneumaticActuatorModelLine, PneumaticActuatorVariety, BodyThrustTorqueTable,
     )
@@ -998,15 +992,21 @@ def get_pointwise_initial_data(locale=None, fields=None) -> Dict[str, Any]:
     data: Dict[str, Any] = {}
     if want('characteristics'):
         data['characteristics'] = list(
-            TorqueThrustCharacteristics.objects.filter(is_active=True)
-            .order_by('sorting_order', 'id')
-            .values('id', 'code', 'name', 'motion_type_id', 'motion_type__code'))
-    if want('valve_types'):
-        data['valve_types'] = ValveTypes.get_for_select(active_only=True, locale=locale)
-    if want('supports'):
-        data['supports'] = ValveSupportType.get_for_select(active_only=True, locale=locale)
-    if want('seals'):
-        data['seals'] = SealType.get_for_select(active_only=True, locale=locale)
+            ValveTorqueCoefficient.objects.filter(is_active=True)
+            .order_by('valve_type__sorting_order', 'sorting_order', 'id')
+            .values('id', 'code', 'name', 'valve_type_id', 'valve_type__name',
+                    'support__name', 'seal_type__name'))
+    if want('valve_producers'):
+        data['valve_producers'] = list(
+            Producer.objects.filter(is_active=True)
+            .order_by('sorting_order', 'name')
+            .values('id', 'name', 'code', 'organization'))
+    if want('valve_series'):
+        data['valve_series'] = list(
+            ValveLine.objects.filter(is_active=True)
+            .order_by('valve_producer__name', 'name')
+            .values('id', 'name', 'code', 'valve_producer_id', 'valve_brand_id',
+                    'valve_torque_coefficient_id'))
     if want('air_pressure'):
         torque_pressure_ids = set(
             BodyThrustTorqueTable.objects.filter(pressure__isnull=False)
@@ -1038,7 +1038,7 @@ def process_pointwise_selection(params: Dict[str, Any], locale=None) -> Dict[str
     обычном подборе: взрывозащита (с exact), температура (диапазон + exact),
     конструкция, материал/покрытие корпуса, материал штока; результат —
     материализованные SKU-карточки с разделением точно/совместимо."""
-    from valve_data.models import ValveTorqueCoefficient
+    from valve_data.models import ValveTorqueCoefficient, ValveLine
     from pneumatic_actuators.models import (
         PneumaticActuatorBody, PneumaticActuatorModelLineItem, PneumaticActuatorModelLine,
         PneumaticActuatorCatalogItem, BodyThrustTorqueTable,
@@ -1046,9 +1046,8 @@ def process_pointwise_selection(params: Dict[str, Any], locale=None) -> Dict[str
     from pneumatic_actuators.services.pointwise_selector import PointwiseSelector
 
     characteristics_id = params.get('characteristics_id')
-    valve_type_id = params.get('valve_type_id')
-    support_id = params.get('support_id') or None
-    seal_type_id = params.get('seal_type_id') or None
+    valve_producer_id = params.get('valve_producer_id') or None
+    valve_series_id = params.get('valve_series_id') or None
     base_torque = params.get('base_torque')
     safety_factor = params.get('safety_factor') or 1.0
     work_pressure_id = params.get('air_pressure_id')
@@ -1101,13 +1100,21 @@ def process_pointwise_selection(params: Dict[str, Any], locale=None) -> Dict[str
             # Для линейных коэффициенты не заведены (наборы только rotary-6),
             # а базовое значение задаётся в Нм — недопустимо смешивать единицы.
             return {'success': False, 'message': 'Для линейных приводов задайте кривую усилий (4 точки).'}
-        if not (characteristics_id and valve_type_id):
-            return {'success': False, 'message': 'Укажите набор характеристик и тип арматуры.'}
+        # Таблица коэффициентов: либо выбрана явно, либо берётся из серии арматуры.
+        if not characteristics_id and valve_series_id:
+            series = ValveLine.objects.filter(
+                id=valve_series_id, is_active=True,
+            ).only('valve_torque_coefficient_id').first()
+            characteristics_id = series.valve_torque_coefficient_id if series else None
+        if not characteristics_id:
+            return {'success': False, 'message': 'Укажите таблицу коэффициентов (или выберите серию арматуры).'}
         if not base_torque:
             return {'success': False, 'message': 'Укажите базовый момент (число).'}
 
-        factors = ValveTorqueCoefficient.get_curve(
-            characteristics_id, valve_type_id, support_id, seal_type_id)
+        row = ValveTorqueCoefficient.objects.filter(
+            id=characteristics_id, is_active=True,
+        ).first()
+        factors = row.factors if row else {}
         if not factors:
             return {'success': False, 'message': 'Коэффициенты для выбранной арматуры не найдены.'}
 

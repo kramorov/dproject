@@ -7,10 +7,54 @@ from pneumatic_actuators.models import (
 )
 from pneumatic_actuators.services.pointwise_selector import PointwiseSelector
 from valve_data.models import (
-    TorquePoint, TorqueThrustCharacteristics, ValveTorqueCoefficient,
-    SealType, ValveSupportType,
+    TorquePoint, ValveTorqueCoefficient,
+    SealType, ValveSupportType, ValveLine,
 )
 from params.models import PneumaticAirSupplyPressure, ValveTypes
+from producers.models import Producer, Brands
+
+
+class ValveTorqueCoefficientTests(TestCase):
+    """Таблица коэффициентов: одна запись = тип арматуры × опора × уплотнение, 6 колонок."""
+
+    def test_factors_and_mirror(self):
+        ball = ValveTypes.objects.get(code='ball-valve')
+        floating = ValveSupportType.objects.get(code='floating')
+        soft = SealType.objects.get(code='soft')
+        row = ValveTorqueCoefficient.objects.create(
+            code='t1', name='Шаровой кран, плавающий, мягкое',
+            valve_type=ball, support=floating, seal_type=soft,
+            bto='1.0', rto='0.6', eto='0.9')
+        self.assertTrue(row.mirror_close_from_open())
+        row.save()
+        self.assertEqual(row.btc, row.eto)
+        self.assertEqual(row.rtc, row.rto)
+        self.assertEqual(row.etc, row.bto)
+        self.assertEqual(set(row.factors), {'bto', 'rto', 'eto', 'btc', 'rtc', 'etc'})
+
+    def test_mirror_keeps_existing_close(self):
+        ball = ValveTypes.objects.get(code='ball-valve')
+        row = ValveTorqueCoefficient.objects.create(
+            code='t2', name='X', valve_type=ball,
+            bto='1.0', rto='0.6', eto='0.9', btc='0.55')
+        changed = row.mirror_close_from_open()
+        self.assertEqual(row.btc, '0.55')  # явно заданное не перезаписываем
+        self.assertEqual(row.rtc, row.rto)
+        self.assertEqual(row.etc, row.bto)
+        self.assertTrue(changed)
+
+    def test_series_points_to_table(self):
+        producer = Producer.objects.create(name='P', code='P')
+        brand = Brands.objects.create(name='B', code='B')
+        series = ValveLine.objects.create(
+            name='S', code='S', valve_producer=producer, valve_brand=brand)
+        ball = ValveTypes.objects.get(code='ball-valve')
+        table = ValveTorqueCoefficient.objects.create(
+            code='t3', name='Table', valve_type=ball,
+            bto='1.0', rto='0.6', eto='0.9', btc='0.9', rtc='0.6', etc='1.0')
+        series.valve_torque_coefficient = table
+        series.save()
+        self.assertEqual(series.valve_torque_coefficient_id, table.id)
 
 
 class TorquePointTests(TestCase):
@@ -79,15 +123,12 @@ class PointwiseSelectorTests(TestCase):
             self.assertNotEqual(r['spring_qty_code'], 'DA')
             self.assertGreaterEqual(r['margin'], 0)
 
-    def test_required_curve_matches_coefficient_rows(self):
-        """Кривая из коэффициентов: база × запас × factor (по данным rotary-6)."""
-        char = TorqueThrustCharacteristics.objects.filter(code='rotary-6').first()
-        if char is None:
-            self.skipTest('набор rotary-6 не импортирован')
-        ball = ValveTypes.objects.get(code='ball-valve')
-        floating = ValveSupportType.objects.get(code='floating')
-        soft = SealType.objects.get(code='soft')
-        curve = ValveTorqueCoefficient.get_curve(char.id, ball.id, floating.id, soft.id)
+    def test_required_curve_from_table_factors(self):
+        """Кривая из таблицы коэффициентов (по импортированной ball-floating-soft)."""
+        row = ValveTorqueCoefficient.objects.filter(code='ball-floating-soft').first()
+        if row is None:
+            self.skipTest('таблица ball-floating-soft не импортирована')
+        curve = row.factors
         self.assertEqual(set(curve), {'bto', 'rto', 'eto', 'btc', 'rtc', 'etc'})
         self.assertEqual(curve['bto'], 1.0)
         self.assertEqual(curve['etc'], 1.0)

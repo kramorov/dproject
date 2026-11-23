@@ -86,6 +86,7 @@ class ValveLineAdmin(admin.ModelAdmin):
                        ('valve_variety' , 'valve_actuation') ,
                        ('original_valve_line' ,  'option_variety', 'construction_variety') ,
                        ('valve_producer', 'valve_brand'),
+                       ('valve_torque_coefficient',),
                        ('valve_function', 'valve_sealing_class'),
                        ('pipe_connection', 'port_qty'),
                        ('is_approved', 'is_active'))

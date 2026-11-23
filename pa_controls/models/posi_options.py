@@ -23,8 +23,7 @@ class ActingType(LocalizedDictFieldsMixin, OptionListToSelectMixin):
     """Тип движения: линейный или ротационный (четвертьоборотный).
 
     Единый справочник «линейный/ротационный». Используется:
-      - PosiModelLine.acting_type / PosiModelLineItem.acting_type (позиционеры);
-      - TorqueThrustCharacteristics.motion_type (характеристики момента арматуры).
+      - PosiModelLine.acting_type / PosiModelLineItem.acting_type (позиционеры).
 
     Стартовые записи (data-миграция): LINEAR «Линейный», ROTARY «Ротационный».
     """
