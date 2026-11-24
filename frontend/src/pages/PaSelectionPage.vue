@@ -117,6 +117,8 @@ function collectOptions(card) {
   // (аннотируется бэком в результат).
   const smId = card?._ml?.shaft_material_option_id
   if (smId) o.shaft_material = smId
+  // Количество пружин — id подобранной пружины (для SR; у DA отсутствует).
+  if (card?._item?.spring_qty_id) o.springs_qty = card._item.spring_qty_id
   // Температура: диапазон из фильтров — конфигуратор выберет подходящий чипс.
   if (form.temp_min != null) o.temp_min = form.temp_min
   if (form.temp_max != null) o.temp_max = form.temp_max

@@ -489,7 +489,269 @@ def _dedup_series_by_body(search_results: List[Dict]) -> List[Dict]:
     return [ml for ml in search_results if ml.get('model_line_items')]
 
 
-def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
+def _first_preview_images(ml_obj):
+    """Первое (дефолтное) изображение серии для карточки списка — без N+1.
+
+    Для списка нужно только ОДНО изображение (полная галерея — только в карточке
+    товара). Поэтому в prefetch грузим элементы галереи с дефолтным первым и только
+    preview-варианты (card/thumb/icon/page) этого изображения.
+    """
+    g = ml_obj.image_gallery if ml_obj is not None else None
+    if not g:
+        return []
+    items = list(getattr(g, '_list_items', None) or [])
+    if not items:
+        return []
+    gallery_item = items[0]  # дефолтный первый (ordering: -is_default, sorting_order)
+    img = gallery_item.image
+    if not img:
+        return []
+    variants = list(getattr(img, '_preview_variants', None) or [])
+
+    def find(role, width=None):
+        for v in variants:
+            if v.role == role and (width is None or v.width == width):
+                return v
+        return None
+
+    from storage_manager.services import file_service
+    card800 = find('card', 800)
+    card400 = find('card', 400)
+    thumb150 = find('thumb', 150)
+    thumb80 = find('thumb', 80)
+    icon50 = find('icon', 50)
+
+    url = ''
+    if card800:
+        url = file_service.get_file_url(card800.file_path)
+    elif card400:
+        url = file_service.get_file_url(card400.file_path)
+
+    preview = ''
+    if card400:
+        preview = file_service.get_file_url(card400.file_path)
+    elif thumb150:
+        preview = file_service.get_file_url(thumb150.file_path)
+    elif icon50:
+        preview = file_service.get_file_url(icon50.file_path)
+    else:
+        candidates = [v for v in variants if v.role in ('card', 'thumb', 'icon', 'page')]
+        if candidates:
+            v = min(candidates, key=lambda x: x.width)
+            preview = file_service.get_file_url(v.file_path)
+        else:
+            preview = img.preview_url or ''
+
+    thumb = ''
+    if thumb150:
+        thumb = file_service.get_file_url(thumb150.file_path)
+    elif thumb80:
+        thumb = file_service.get_file_url(thumb80.file_path)
+    else:
+        thumb = preview or url
+
+    return [{'id': img.id, 'url': url, 'preview_url': preview, 'thumb_url': thumb}]
+
+
+def _enrich_pa_selection_results(search_results: List[Dict], params: Dict[str, Any], locale=None) -> List[Dict]:
+    """Дополняет результаты подбора ПП полями карточки списка (SelectionResultGrid).
+
+    По образцу БКВ: набор и порядок полей берутся из ``EquipmentType.list_params``
+    (подпись → ключ реестра полей), значения резолвятся из данных подбора; плюс
+    ``images`` (первое изображение серии) и ``list_title``.
+    """
+    from pneumatic_actuators.models import PneumaticActuatorModelLine, PneumaticActuatorVariety
+    from core.utils.localization import localized_name, pick_i18n, DEFAULT_LOCALE
+    from django.db.models import Prefetch
+    from media_library.models import ImageGallerySetItem, MediaVariant
+
+    locale = locale or DEFAULT_LOCALE
+    ml_ids = [ml.get('model_line_id') for ml in search_results if ml.get('model_line_id')]
+    ml_map = {
+        ml.id: ml
+        for ml in PneumaticActuatorModelLine.objects.filter(id__in=ml_ids)
+        .select_related('equipment_type', 'brand', 'image_gallery', 'pneumatic_actuator_construction_variety')
+        .prefetch_related(
+            # Для списка достаточно ОДНОГО (дефолтного) изображения серии — не вся
+            # галерея и не все роли вариантов (полная галерея нужна в карточке товара).
+            Prefetch(
+                'image_gallery__items',
+                queryset=ImageGallerySetItem.objects
+                .order_by('-is_default', 'sorting_order')
+                .select_related('image')
+                .prefetch_related(
+                    Prefetch(
+                        'image__variants',
+                        queryset=MediaVariant.objects.filter(role__in=('card', 'thumb', 'icon', 'page')),
+                        to_attr='_preview_variants',
+                    )
+                ),
+                to_attr='_list_items',
+            )
+        )
+    }
+
+    def _list_params_config(ml_obj):
+        et = getattr(ml_obj, 'equipment_type', None)
+        if et is None:
+            return {}
+        cfg = getattr(et, 'list_params', None) or {}
+        if locale != DEFAULT_LOCALE:
+            i18n = getattr(et, 'list_params_i18n', None)
+            if isinstance(i18n, dict) and isinstance(i18n.get(locale), dict):
+                cfg = i18n.get(locale)
+        if isinstance(cfg, str):
+            import json
+            try:
+                cfg = json.loads(cfg)
+            except Exception:
+                return {}
+        return cfg if isinstance(cfg, dict) else {}
+
+    # Локализованный заголовок списка (list_title_template → title_template).
+    def _list_title_template(ml_obj):
+        et = getattr(ml_obj, 'equipment_type', None)
+        if et is None:
+            return ''
+        ru = getattr(et, 'list_title_template', None) or getattr(et, 'title_template', None) or ''
+        if locale == DEFAULT_LOCALE:
+            return ru
+        tpl_i18n = getattr(et, 'list_title_template_i18n', None)
+        if isinstance(tpl_i18n, dict) and tpl_i18n.get(locale):
+            return tpl_i18n.get(locale)
+        title_i18n = getattr(et, 'title_template_i18n', None)
+        if isinstance(title_i18n, dict) and title_i18n.get(locale):
+            return title_i18n.get(locale)
+        return ru
+
+    def _render_list_title(template, placeholders):
+        import re
+        if not template:
+            return ''
+        # Сегменты шаблона разделены «;». Сегмент с плейсхолдерами, все значения
+        # которых пусты (не выбранные на этапе подбора опции), отбрасываем целиком.
+        segments = []
+        for seg in template.split(';'):
+            seg = seg.strip()
+            if not seg:
+                continue
+            phs = re.findall(r'\{([^{}]+)\}', seg)
+            if phs and all(not str(placeholders.get(p, '') or '').strip() for p in phs):
+                continue
+            filled = re.sub(r'\{([^{}]+)\}', lambda m: str(placeholders.get(m.group(1), '') or ''), seg)
+            filled = re.sub(r'\s+', ' ', filled).strip()
+            if filled:
+                segments.append(filled)
+        return '; '.join(segments)
+
+    # Локализованные имя/описание вида привода (DA/SR).
+    variety_info = {}
+    for v in PneumaticActuatorVariety.objects.filter(is_active=True):
+        if not v.code:
+            continue
+        variety_info[v.code] = {
+            'name': localized_name(v, locale),
+            'description': pick_i18n(getattr(v, 'description_i18n', None), locale, fallback=v.description or ''),
+        }
+
+    # Локализованные подписи количества пружин (для SR; у DA пружин нет).
+    from pneumatic_actuators.models.pa_params import PneumaticActuatorSpringsQty
+    springs_display = {
+        s.id: s.display_name(locale)
+        for s in PneumaticActuatorSpringsQty.objects.filter(is_active=True)
+    }
+
+    def _lookup_name(model, opt_id):
+        if not opt_id:
+            return ''
+        try:
+            obj = model.objects.filter(id=opt_id).first()
+        except Exception:
+            return ''
+        return localized_name(obj, locale) if obj else ''
+
+    from params.models import SafetyPositionOption, IpOption, BodyCoatingOption
+    safety_name = _lookup_name(SafetyPositionOption, params.get('safety_position_id'))
+    ip_name = _lookup_name(IpOption, params.get('ip_id'))
+    coating_name = _lookup_name(BodyCoatingOption, params.get('coating_id'))
+
+    for ml in search_results:
+        ml_obj = ml_map.get(ml.get('model_line_id'))
+        images = _first_preview_images(ml_obj)
+        cfg = _list_params_config(ml_obj)
+        title_tpl = _list_title_template(ml_obj)
+        brand_name = (ml_obj.brand.name if ml_obj is not None and ml_obj.brand else '')
+        construction_name = (
+            localized_name(ml_obj.pneumatic_actuator_construction_variety, locale)
+            if ml_obj is not None and ml_obj.pneumatic_actuator_construction_variety else ''
+        )
+        equipment_type_name = (
+            localized_name(ml_obj.equipment_type, locale)
+            if ml_obj is not None and ml_obj.equipment_type else ''
+        )
+
+        for item in ml.get('model_line_items', []):
+            variety_code = item.get('actuator_variety_code') or ''
+            variety = variety_info.get(variety_code, {})
+            variety_name = variety.get('name') or item.get('actuator_variety_name') or ''
+            variety_description = variety.get('description') or ''
+            springs_qty = springs_display.get(item.get('spring_qty_id')) or ''
+
+            values = {
+                'model_line_name': ml.get('model_line_name') or '',
+                'model_line_code': ml.get('model_line_code') or '',
+                'brand_name': brand_name,
+                'variety_name': variety_name,
+                'variety_code': variety_code,
+                'variety_description': variety_description,
+                'body_name': item.get('body_name') or '',
+                'body_code': item.get('body_code') or '',
+                'springs_qty': springs_qty,
+                'safety_position': safety_name,
+                'ip': ip_name,
+                'exd_short': ml.get('exd_short') or '',
+                'coating': coating_name,
+            }
+
+            list_params = []
+            for label, key in cfg.items():
+                if not isinstance(key, str):
+                    continue
+                value = values.get(key)
+                if value in (None, ''):
+                    continue
+                list_params.append({'label': label, 'value': value})
+
+            placeholders = {
+                'model_code': item.get('model_line_item_code') or '',
+                'code': item.get('model_line_item_code') or '',
+                'equipment_type': equipment_type_name,
+                'brand': brand_name,
+                'variety_name': variety_name,
+                'variety_code': variety_code,
+                'variety_description': variety_description,
+                'body_name': item.get('body_name') or '',
+                'body_code': item.get('body_code') or '',
+                'construction_name': construction_name,
+                'springs_qty': springs_qty,
+                'safety_position': safety_name,
+                'ip': ip_name,
+                'exd_short': ml.get('exd_short') or '',
+                'coating': coating_name,
+                # Не выбираются на этапе подбора — остаются пустыми.
+                'temperature': '', 'shaft_material': '', 'hand_wheel': '',
+                'mounting': '', 'stem_shape': '', 'stem_size_dim': '',
+                'thread_in': '', 'thread_out': '', 'pneumatic_conn': '',
+            }
+
+            item['list_params'] = list_params
+            item['list_title'] = _render_list_title(title_tpl, placeholders) or item.get('model_line_item_name') or ''
+            item['images'] = images
+
+    return search_results
+
+
+def process_selection_params(params: Dict[str , Any], locale: Optional[str] = None) -> Dict[str , Any] :
     """
     Обрабатывает параметры подбора привода со страницы PaSelectionPage.
 
@@ -716,6 +978,10 @@ def process_selection_params(params: Dict[str , Any]) -> Dict[str , Any] :
 
         # 8. Дедуп: одинаковые body в разных сериях — оставляем одну серию (без exd приоритет).
         search_results = _dedup_series_by_body(search_results)
+
+        # 8b. Обогащение карточки списка (list_params по EquipmentType + images),
+        #     как у БКВ — чтобы SelectionResultGrid рендерил по настройкам типа.
+        search_results = _enrich_pa_selection_results(search_results, params, locale)
 
         total_items = 0
         for ml in search_results :

@@ -979,7 +979,7 @@ def get_pointwise_initial_data(locale=None, fields=None) -> Dict[str, Any]:
     """Начальные данные для точечного подбора: наборы характеристик,
     типы арматуры, опора/уплотнение, давления, серии, типы DA/SR, подписи."""
     from valve_data.models import ValveTorqueCoefficient, ValveLine
-    from params.models import PneumaticAirSupplyPressure
+    from params.models import PneumaticAirSupplyPressure, ValveTypes
     from producers.models import Producer
     from pneumatic_actuators.models import (
         PneumaticActuatorModelLine, PneumaticActuatorVariety, BodyThrustTorqueTable,
@@ -996,6 +996,9 @@ def get_pointwise_initial_data(locale=None, fields=None) -> Dict[str, Any]:
             .order_by('valve_type__sorting_order', 'sorting_order', 'id')
             .values('id', 'code', 'name', 'valve_type_id', 'valve_type__name',
                     'support__name', 'seal_type__name'))
+    if want('valve_types'):
+        # Тип номенклатуры (арматуры) — фильтр для таблиц коэффициентов.
+        data['valve_types'] = ValveTypes.get_for_select(active_only=True, locale=locale)
     if want('valve_producers'):
         data['valve_producers'] = list(
             Producer.objects.filter(is_active=True)
@@ -1006,7 +1009,7 @@ def get_pointwise_initial_data(locale=None, fields=None) -> Dict[str, Any]:
             ValveLine.objects.filter(is_active=True)
             .order_by('valve_producer__name', 'name')
             .values('id', 'name', 'code', 'valve_producer_id', 'valve_brand_id',
-                    'valve_torque_coefficient_id'))
+                    'valve_torque_coefficient_id', 'valve_type_id'))
     if want('air_pressure'):
         torque_pressure_ids = set(
             BodyThrustTorqueTable.objects.filter(pressure__isnull=False)
@@ -1021,9 +1024,12 @@ def get_pointwise_initial_data(locale=None, fields=None) -> Dict[str, Any]:
     if want('actuator_varieties'):
         data['actuator_varieties'] = PneumaticActuatorVariety.get_for_select(active_only=True, locale=locale)
     if want('safety_positions'):
+        # Положения безопасности с id — чтобы маппить id из общих фильтров в code.
+        from params.models import SafetyPositionOption
+        from core.utils.localization import localized_name
         data['safety_positions'] = [
-            {'code': 'nc', 'name': 'НЗ — нормально закрытое'},
-            {'code': 'no', 'name': 'НО — нормально открытое'},
+            {'id': o.id, 'code': o.code, 'name': localized_name(o, locale)}
+            for o in SafetyPositionOption.objects.filter(is_active=True, code__in=('nc', 'no')).order_by('sorting_order')
         ]
     if want('labels'):
         data['labels'] = _get_selector_labels(locale)

@@ -78,6 +78,12 @@ class ValveLine(LocalizedDescriptionFieldsMixin,
                                       on_delete=models.SET_NULL,
                                       help_text=_('Тип арматуры семейства арматуры производителя'),
                                       verbose_name=_("Тип"))
+    valve_type = models.ForeignKey(
+        'params.ValveTypes', blank=True, null=True,
+        on_delete=models.SET_NULL,
+        related_name='valve_lines',
+        help_text=_('Тип номенклатуры арматуры (единый справочник с селектором и таблицами коэффициентов)'),
+        verbose_name=_('Тип номенклатуры'))
     valve_torque_coefficient = models.ForeignKey(
         'valve_data.ValveTorqueCoefficient', blank=True, null=True,
         on_delete=models.SET_NULL,

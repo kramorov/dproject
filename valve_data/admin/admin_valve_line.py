@@ -71,11 +71,11 @@ class ValveLineAdmin(admin.ModelAdmin):
     change_list_template = 'admin/valve_data/valveline/change_list.html'
     change_form_template = 'admin/valve_data/valveline/change_form.html'
     list_display = (
-       'id', 'name', 'valve_variety', 'valve_producer', 'valve_brand', 'is_approved', 'is_active', 'text_info_button')
-    list_select_related = ('valve_variety', 'valve_producer', 'valve_brand')
+       'id', 'name', 'valve_type', 'valve_producer', 'valve_brand', 'is_approved', 'is_active', 'text_info_button')
+    list_select_related = ('valve_type', 'valve_producer', 'valve_brand')
     list_editable = ['is_approved', 'is_active']
-    search_fields = ('name', 'valve_variety__name', 'valve_variety__text_description')
-    list_filter = ('valve_variety', 'valve_producer', 'valve_brand', 'is_approved', 'is_active')
+    search_fields = ('name', 'valve_type__name', 'valve_type__code')
+    list_filter = ('valve_type', 'valve_producer', 'valve_brand', 'is_approved', 'is_active')
     actions = [duplicate_selected_valve_line, 'export_as_text', 'export_with_sources']  # Добавлено новое действие
     inlines = [ValveLineBodyColorInline]
 
@@ -83,7 +83,7 @@ class ValveLineAdmin(admin.ModelAdmin):
     fieldsets = (
         (_('Основные характеристики'), {
             'fields': (('name', 'code', 'item_code_template'),
-                       ('valve_variety' , 'valve_actuation') ,
+                       ('valve_type' , 'valve_actuation') ,
                        ('original_valve_line' ,  'option_variety', 'construction_variety') ,
                        ('valve_producer', 'valve_brand'),
                        ('valve_torque_coefficient',),
@@ -200,7 +200,7 @@ class ValveLineAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Оптимизируем запрос для админки"""
         return super().get_queryset(request).select_related(
-            'valve_variety', 'valve_producer', 'valve_brand',
+            'valve_type', 'valve_producer', 'valve_brand',
             'valve_function', 'valve_sealing_class', 'valve_model_data_table'
         ).prefetch_related(
             'body_colors'

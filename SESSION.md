@@ -253,3 +253,53 @@
 - «Разные давления → несколько таблиц» — да: scope (common/producer/series) +
   именование позволяют заводить сколько угодно таблиц; явного поля «давление»
   в таблице нет — различаются по имени/scope.
+
+---
+
+# SESSION — 2026-11-24 (подбор ПП: сетка результатов, режимы, селектор арматуры, унификация типа)
+
+Канон данных — `db.sqlite3`; тесты на `test_db.sqlite3` (--keepdb).
+
+## Сделано
+
+- **Давление в SR-подборе** (баг): `torque_selector.find_suitable_sr_actuators` фильтрует
+  строки по `Q(pressure_id=work_pressure_id) | Q(pressure__code='spring')` — раньше кривая
+  «pressure» перезаписывалась последней строкой (максимальное давление).
+- **Сетка результатов `/selector/pa`**: `_enrich_pa_selection_results` обогащает позиции
+  полями карточки списка по `EquipmentType` — `list_params` (набор/порядок из list_params),
+  `list_title` (из локализованного `list_title_template`, пустые сегменты отбрасываются),
+  `images` (первое превью серии, без N+1 через вложенный Prefetch preview-вариантов).
+- **Данные `EquipmentType.list_params` ПП (id=3)**: 8 полей (Серия/Корпус/Тип привода/
+  Количество пружин/IP/Взрывозащита/Покрытие/Положение безопасности) + ru/en/cn i18n.
+- **Пружины в конфигуратор**: клик по позиции селектора передаёт `springs_qty` →
+  `PaActuatorConfigurator.applyInitialOptions` предвыбирает пружины (не дефолт).
+- **Инженерная страница `?mode=engineer`** (`PaEngineerSelector.vue`):
+  - селектор вида подбора (обычный / 6 точек / 4 точки) + кнопка «?» с объяснением;
+  - общий `PaFilterBar` теперь ВСЕГДА виден (фильтры не меняются от режима); точечные
+    поля — отдельным блоком (`pw-extra`); `PaFilterBar` получил prop `hideActions`;
+  - «Тип номенклатуры ↔ Таблица коэффициентов»: фильтр по типу; при выборе серии с
+    привязанной таблицей — таблица блокируется, тип подставляется.
+- **`ValveSelector.vue`** (новый переиспользуемый компонент): производитель (только те,
+  у кого есть серии) → серия (неактивна без производителя, сброс при смене) → тип
+  номенклатуры (подставляется из серии). Всегда виден, v-model `{producer_id, series_id, valve_type_id}`.
+- **Унификация типа арматуры**: `ValveLine.valve_type` (FK → `params.ValveTypes`) — миграция
+  valve_data 0078 + data-маппинг из `valve_variety` (ЗК/ЗШ/ЗД/КШ → wedge/knife/butterfly/ball);
+  34/37 серий получили тип. Админка серий: «Тип» теперь = valve_type. `valve_variety`
+  (ValveVariety) ОСТАВЛЕН для крупного выбора/каталога (решение пользователя).
+- **Бэкенд `get_pointwise_initial_data`**: + `valve_types`, `valve_series.valve_type_id`,
+  `safety_positions` с id (для маппинга id→code).
+- **Локализация**: `variety_description/construction_name/springs_qty/equipment_type` в
+  обогащении; i18n ru/en/cn для подписей/помощи.
+
+## Проверено
+
+- `manage.py test pneumatic_actuators` — 15 OK; py_compile OK; makemigrations --check чисто;
+  npm run build OK.
+- Смоуки: обогащение list_title/list_params/images (ru/en/cn); valve_series с valve_type_id.
+
+## Осталось (осознанно)
+
+- «DN/PN → момент» и «DN/PN/площадка/шток из серии» (идеальный поток) — не реализовано,
+  требует разбора `valve_model_data_table`/`allowed_dn_table` и `valveTorqueLookup` (открытый вопрос).
+- `valve_variety` пока в модели (для каталога/крупного выбора) — чистка отдельно.
+- Незакоммичено: всё перечисленное выше.

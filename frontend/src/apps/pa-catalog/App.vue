@@ -153,7 +153,7 @@ onMounted(async () => {
   }
 })
 
-const OPTION_QUERY_KEYS = ['safety_position', 'exd', 'ip', 'manual_override', 'body_coating', 'body_material', 'shaft_material', 'temp_min', 'temp_max']
+const OPTION_QUERY_KEYS = ['safety_position', 'exd', 'ip', 'manual_override', 'body_coating', 'body_material', 'shaft_material', 'temp_min', 'temp_max', 'springs_qty']
 // Кнопка возврата в конфигураторе: показывается, только если открыли из фильтров
 // подбора /selector/pa (origin=pa-selector). Как отдельная страница — кнопки нет.
 const backToFilter = computed(() =>

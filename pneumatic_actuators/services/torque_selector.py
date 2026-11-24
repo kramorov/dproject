@@ -1,6 +1,8 @@
 # pneumatic_actuators/services/torque_selector.py
 from typing import List , Dict , Optional
 
+from django.db.models import Q
+
 from pneumatic_actuators.models.py_options_constants import SPRINGS_DA_DEFAULT_CODE
 
 # Маппинг кода точки → поле отображения (пружина хранится под BTC/RTC/ETC,
@@ -203,10 +205,16 @@ class TorqueSelectorService :
         # Один запрос на все тела (убирает N+1).
         from collections import defaultdict
         records_by_body = defaultdict(list)
+        # Только строки выбранного рабочего давления + строки пружины ('spring').
+        # Раньше загружались строки всех давлений, и в _pivot_groups() кривая
+        # «pressure» перезаписывалась последней строкой (максимальное давление),
+        # поэтому выбор давления в пневмосистеме игнорировался.
         all_records = table_model.objects.filter(
             body_id__in=[b.id for b in bodies] ,
             spring_qty__is_active=True,
             point__code__in=SPRING_POINT_CODES + AIR_POINT_CODES,
+        ).filter(
+            Q(pressure_id=work_pressure_id) | Q(pressure__code='spring')
         ).exclude(spring_qty__code=SPRINGS_DA_DEFAULT_CODE).select_related('spring_qty' , 'pressure' , 'point')
         for record in all_records :
             records_by_body[record.body_id].append(record)

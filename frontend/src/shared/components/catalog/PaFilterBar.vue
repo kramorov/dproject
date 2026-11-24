@@ -163,7 +163,7 @@
       <ClimateFilter @update:temps="onClimateChange" />
     </div>
 
-    <div class="eng-filter-bar__actions">
+    <div class="eng-filter-bar__actions" v-if="!hideActions">
       <button class="btn-primary" @click="onSearch" :disabled="searching">
         {{ searching ? t('catalog.common.search') : t('pa.engineer.search') }}
       </button>
@@ -182,6 +182,8 @@ const { t } = useI18n()
 
 defineProps({
   searching: { type: Boolean, default: false },
+  // Скрыть кнопку «Подобрать» (когда действие берёт на себя родитель, напр. точечный подбор).
+  hideActions: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['search', 'search-error', 'reset'])

@@ -13,16 +13,26 @@ export function paResultsToCards(searchResults, labels) {
   const cards = []
   for (const ml of searchResults || []) {
     for (const item of ml.model_line_items || []) {
+      // Набор/порядок полей — из EquipmentType.list_params (обогащается бэком,
+      // как у БКВ). Фолбэк — прежние поля подбора, если бэк не отдал list_params.
+      const listParams = Array.isArray(item.list_params) && item.list_params.length
+        ? item.list_params.slice()
+        : [
+            { label: L.series, value: ml.model_line_name || '' },
+            { label: L.body, value: item.body_name || '' },
+            { label: L.type, value: item.actuator_variety_code || '' },
+          ]
+      // Запас по моменту — специфичен для подбора (нет в реестре полей каталога),
+      // поэтому добавляем отдельной строкой в конец.
+      if (item.spring_margin != null && item.spring_margin !== '') {
+        listParams.push({ label: L.margin, value: `${Math.round(item.spring_margin)} ${L.nm}` })
+      }
       cards.push({
         id: item.model_line_item_id,
         code: item.model_line_item_code || '',
-        list_title: item.model_line_item_name || '',
-        list_params: [
-          { label: L.series, value: ml.model_line_name || '' },
-          { label: L.body, value: item.body_name || '' },
-          { label: L.type, value: item.actuator_variety_code || '' },
-          { label: L.margin, value: `${Math.round(item.spring_margin || 0)} ${L.nm}` },
-        ],
+        list_title: item.list_title || item.model_line_item_name || '',
+        list_params: listParams,
+        images: Array.isArray(item.images) ? item.images : [],
         _ml: ml,
         _item: item,
         is_exact: !!ml.is_exact,

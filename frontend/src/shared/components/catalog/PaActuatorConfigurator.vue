@@ -434,8 +434,8 @@ function clearBodyDesign() {
 function applyInitialOptions() {
   const o = props.initialOptions || {}
   let changed = false
-  // Прямые опции (id реальных опций): safety_position, exd, ip, manual_override
-  for (const key of ['safety_position', 'exd', 'ip', 'manual_override']) {
+  // Прямые опции (id реальных опций): safety_position, exd, ip, manual_override, springs_qty
+  for (const key of ['safety_position', 'exd', 'ip', 'manual_override', 'springs_qty']) {
     if (o[key] == null || o[key] === '') continue
     const f = optionFields.value.find(x => x.key === key)
     if (!f) continue

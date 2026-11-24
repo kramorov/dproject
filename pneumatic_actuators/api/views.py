@@ -77,7 +77,9 @@ class SelectorAPIView(APIView):
         """
         params = request.data
         from pneumatic_actuators.actuator_selector_handler import process_selection_params
-        result = process_selection_params(params)
+        from core.utils.localization import locale_from_accept_language
+        locale = locale_from_accept_language(request.headers.get('Accept-Language'))
+        result = process_selection_params(params, locale=locale)
         if result.get('success'):
             return JsonResponse(result)
         return JsonResponse({'success': False, 'error': result.get('error', 'Unknown error')}, status=400)
