@@ -37,7 +37,7 @@ class ControlUnitBindingModelTests(TestCase):
         if len(cls.items) < 2:
             raise unittest.SkipTest('Р’ СЃРµСЂРёРё AR01E РјРµРЅСЊС€Рµ РґРІСѓС… РјРѕРґРµР»РµР№')
         cls.cu = ControlUnit.objects.get(code='BASIC-AR21')
-        cls.other_cu = ControlUnit.objects.get(code='INT/N')
+        cls.other_cu = ControlUnit.objects.get(code='INT-N-TORQUE')
 
     def test_unique_cu_item(self):
         ControlUnitBinding.objects.create(

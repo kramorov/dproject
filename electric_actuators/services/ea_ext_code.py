@@ -16,7 +16,7 @@
     блок климата : {temp}{h_cu}{therm}
     блок опций   : {lc}{cmd}{setp}{cnt}{ind}{bat}
 
-Коды позиций — из записей каталога (AllowedControlUnitOption.encoding,
+Коды позиций — из справочников опций и схем (encoding,
 PowerSupplies, EaCommProtocol, EaSlotOption, ElectricTemperatureOption,
 ElectricBatteryOption, IpOption/ExdOption) с фиксированными отображениями
 каталог-код → ext-код (карты ниже). Коды внутри одной позиции попарно
@@ -27,7 +27,7 @@ from django.utils.translation import gettext_lazy as _
 
 from electric_actuators.models import (
     EaCommProtocol, EaSignalSlot, EaSlotOption, ElectricActuatorModelLine,
-    ElectricTemperatureOption, AllowedControlUnitOption,
+    ElectricTemperatureOption,
 )
 from params.models import PowerSupplies, ControlUnitInstalledOption
 
@@ -124,27 +124,17 @@ NONE_SLOT_EXT = {
 
 
 def _cu_rules(line):
-    """Позиция cu: коды — из AllowedControlUnitOption.ext_encoding серии
-    (fallback — фиксированный справочник CU_EXT)."""
+    """Позиция cu: коды из справочника установленных БУ (CU_EXT)."""
     opts = []
     seen = set()
-    for a in AllowedControlUnitOption.objects.filter(
-            model_line=line, is_active=True).select_related('control_unit'):
-        code = a.ext_encoding or CU_EXT.get(a.control_unit.code, '')
+    for cu in ControlUnitInstalledOption.objects.all().order_by(
+            'sorting_order', 'code'):
+        code = CU_EXT.get(cu.code, '')
         if code in seen:
             continue
         seen.add(code)
-        opts.append({'code': code, 'name': a.control_unit.name,
-                     'is_default': False})
-    if not opts:
-        for cu in ControlUnitInstalledOption.objects.all().order_by(
-                'sorting_order', 'code'):
-            code = CU_EXT.get(cu.code, '')
-            if code in seen:
-                continue
-            seen.add(code)
-            opts.append({'code': code, 'name': cu.name,
-                         'is_default': cu.code == 'basic'})
+        opts.append({'code': code, 'name': cu.name,
+                     'is_default': cu.code == 'basic'})
     return opts
 
 

@@ -266,30 +266,6 @@ class ElectricActuatorCatalogItem(
     def _res_ext_code(self, locale=None) -> str:
         return self.generated_ext_code
 
-    def _res_cu_encoding(self, locale=None) -> str:
-        """encoding БУ из through-модели AllowedControlUnitOption (для артикула)."""
-        from electric_actuators.models import AllowedControlUnitOption
-        if not self.control_unit_id or not self.model_line_id:
-            return ''
-        row = (AllowedControlUnitOption.objects
-               .filter(model_line_id=self.model_line_id,
-                       control_unit_id=self.control_unit_id,
-                       is_active=True)
-               .first())
-        return row.encoding if row and row.encoding else ''
-
-    def _res_cu_ext_encoding(self, locale=None) -> str:
-        """ext_encoding БУ из through-модели AllowedControlUnitOption (для ext-кода)."""
-        from electric_actuators.models import AllowedControlUnitOption
-        if not self.control_unit_id or not self.model_line_id:
-            return ''
-        row = (AllowedControlUnitOption.objects
-               .filter(model_line_id=self.model_line_id,
-                       control_unit_id=self.control_unit_id,
-                       is_active=True)
-               .first())
-        return row.ext_encoding if row and row.ext_encoding else ''
-
     # ── Простые значения (нелокализуемые) ──
     def _res_torque(self, locale=None) -> str:
         mli = self.model_line_item

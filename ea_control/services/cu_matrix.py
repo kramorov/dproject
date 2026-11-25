@@ -20,11 +20,13 @@
 отдельно (``resolve_product_types``): его строки описывают «какой БУ
 доступен для серии/напряжения», а не опции конфигурации выбранного БУ.
 """
+from collections import defaultdict, deque
+
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
 
-from ea_control.models import CuMatrixEntry, CuMatrixMode, CuSlot
-from ea_control.models.abstract import ConfigSlotKind
+from ea_control.models import CuMatrixEntry, CuMatrixMode, CuSlot, CuSlotOption
+from ea_control.models.abstract import ConfigSlotKind, ConfigWhenOperator
 
 
 def get_product_type_slot():
@@ -69,26 +71,10 @@ def _scope_matches(row, brand, model_line, body, model_line_item):
     return True
 
 
-def _context_matches(row, power_supply, mode, signal_power=None, protocol=None):
-    """Совпадение координат (напряжение, режим, схема цепей, протокол).
-
-    Строка с конкретной схемой цепей (``signal_power``) применяется только
-    при выбранной схеме; без выбранной схемы действуют строки «любой схемы».
-    То же для протокола (``protocol``): строка с координатой применяется
-    только при выбранном протоколе.
-    """
+def _context_matches(row, power_supply, mode):
+    """Совпадение координат (напряжение, режим)."""
     if power_supply is not None and row.power_supply_id is not None \
             and row.power_supply_id != power_supply.id:
-        return False
-    if signal_power is None:
-        if row.signal_power_id is not None:
-            return False
-    elif row.signal_power_id is not None and row.signal_power_id != signal_power.id:
-        return False
-    if protocol is None:
-        if row.protocol_id is not None:
-            return False
-    elif row.protocol_id is not None and row.protocol_id != protocol.id:
         return False
     if mode and mode != CuMatrixMode.BOTH \
             and row.mode != CuMatrixMode.BOTH and row.mode != mode:
@@ -138,74 +124,203 @@ def _effective_row(rows, context):
     applicable.sort(key=lambda r: (
         _scope_level(r),
         1 if getattr(r, '_ps_requested', False) else 0,
-        1 if getattr(r, '_sp_requested', False) else 0,
-        1 if getattr(r, '_proto_requested', False) else 0,
         r.id,
     ))
     return applicable[-1]
 
 
+# ── Условные строки (slots.md §6) ──────────────────────────────────────────────
+
+def _conditional_order(rows):
+    """Топологический порядок слотов по условным строкам (алгоритм Кана).
+
+    Рёбра — ``when_slot.code → option.slot.code`` для каждой условной строки.
+    Цикл — ошибка конфигурации (ImproperlyConfigured с перечнем цикла).
+    """
+    edges = []
+    slot_codes = set()
+    for row in rows:
+        if row.when_slot_id and row.option_id:
+            edges.append((row.when_slot.code, row.option.slot.code))
+            slot_codes.add(row.when_slot.code)
+            slot_codes.add(row.option.slot.code)
+    indeg = defaultdict(int)
+    adj = defaultdict(list)
+    for f, t in edges:
+        adj[f].append(t)
+        indeg[t] += 1
+        indeg.setdefault(f, 0)
+    queue = deque(sorted(c for c in slot_codes if indeg[c] == 0))
+    order = []
+    while queue:
+        c = queue.popleft()
+        order.append(c)
+        for nxt in sorted(adj[c]):
+            indeg[nxt] -= 1
+            if indeg[nxt] == 0:
+                queue.append(nxt)
+    if len(order) != len(slot_codes):
+        cycle = ', '.join(sorted(slot_codes - set(order)))
+        raise ImproperlyConfigured(
+            f'Цикл в зависимостях условных строк матрицы: {cycle}')
+    return order
+
+
+def _when_satisfied(row, effective):
+    """Выполнено ли условие условной строки по эффективным значениям слотов.
+
+    ``effective`` — {slot_code: CuSlotOption | None}. Безусловная строка
+    выполняется всегда.
+    """
+    if not row.when_slot_id:
+        return True
+    value = effective.get(row.when_slot.code)
+    op = row.when_operator
+    if op == ConfigWhenOperator.IS_SET:
+        return value is not None
+    opt_ids = {o.id for o in row.when_options.all()}
+    if op == ConfigWhenOperator.IN:
+        return value is not None and value.id in opt_ids
+    if op == ConfigWhenOperator.NOT_IN:
+        return value is None or value.id not in opt_ids
+    return True
+
+
+def _row_precedence(row):
+    """Ключ специфичности: скоуп → напряжение → условная → priority → id."""
+    return (_scope_level(row),
+            1 if getattr(row, '_ps_requested', False) else 0,
+            1 if row.when_slot_id else 0,
+            row.priority,
+            row.id)
+
+
+def _snapshot_options(snapshot):
+    """Развернуть снимок {slot_code: option_code} → {slot_code: CuSlotOption}."""
+    if not snapshot:
+        return {}
+    opts = (CuSlotOption.objects
+            .filter(slot__code__in=list(snapshot.keys()))
+            .select_related('slot'))
+    by_code = {(o.slot.code, o.code): o for o in opts}
+    return {sc: by_code[(sc, oc)] for sc, oc in snapshot.items()
+            if (sc, oc) in by_code}
+
+
+def _resolve_effective(rows, context, power_supply, mode, snapshot_opt):
+    """Эффективные значения слотов по условным строкам (slots.md §6).
+
+    Возвращает (defaults, effective): ``defaults[slot_code]`` — предвыбранная
+    std-опция (или None), ``effective[slot_code]`` — выбор из снимка или
+    std-опция. Идём по топологическому порядку — каскады A→B→C работают.
+    """
+    by_slot = defaultdict(list)
+    for row in rows:
+        if row.option_id:
+            by_slot[row.option.slot.code].append(row)
+
+    order = _conditional_order(rows)
+    defaults = {}
+    effective = {}
+
+    def static_ok(row):
+        return (_scope_matches(row, *context)
+                and _context_matches(row, power_supply, mode))
+
+    def slot_std(slot_code):
+        cands = [r for r in by_slot.get(slot_code, [])
+                 if static_ok(r) and _when_satisfied(r, effective)
+                 and r.is_default]
+        if not cands:
+            return None
+        cands.sort(key=_row_precedence)
+        return cands[-1].option
+
+    for sc in order:
+        defaults[sc] = slot_std(sc)
+        effective[sc] = snapshot_opt.get(sc) or defaults[sc]
+    rest = sorted(set(by_slot.keys()) - set(order))
+    for sc in rest:
+        defaults[sc] = slot_std(sc)
+        effective[sc] = snapshot_opt.get(sc) or defaults[sc]
+    # when_slot без строк в by_slot (нет опций для этого БУ) — только снимок
+    for sc in set(order) - set(by_slot.keys()):
+        effective[sc] = snapshot_opt.get(sc)
+    return defaults, effective
+
+
+def _enforce_single_std(out):
+    """Инвариант «не более одного std на слот» (slots.md §6.3)."""
+    for payloads in out.values():
+        stds = [p for p in payloads if p.get('availability') == 'std']
+        if len(stds) > 1:
+            stds.sort(key=lambda p: p.get('_prec', (0, 0, 0, 0, 0)))
+            for p in stds[:-1]:
+                p['availability'] = 'opt'
+
+
 def resolve_slots(control_unit, *, model_line=None, body=None,
                   model_line_item=None, brand=None, power_supply=None,
-                  signal_power=None, protocol=None, mode='both', locale=None):
-    """Доступные опции всех слотов конфигурации выбранного БУ.
+                  mode='both', snapshot=None, locale=None):
+    """Доступные опции всех слотов конфигурации выбранного БУ (slots.md §6).
 
     Возвращает ``{slot_code: [payload, …]}`` — список эффективных строк по
-    слотам (включая none-строки «Нет»). Слот-селектор типа изделия
-    (subtype) не входит: выбор типа изделия — отдельный шаг
-    (``resolve_product_types``).
+    слотам (включая none-строки «Нет»). Слот-селектор типа изделия (subtype)
+    не входит: выбор типа изделия — отдельный шаг (``resolve_product_types``).
 
-    ``signal_power`` — выбранная схема цепей управления (CuSignalPower):
-    строки с конкретной схемой перекрывают строки «любой схемы» — так
-    «набор сигналов дистанционного управления» зависит от опции CMD_WIRING.
-
-    ``protocol`` — выбранный протокол (CuCommProtocol): строки с конкретным
-    протоколом перекрывают профильные — так опции (например,
-    BUS_CONTROLS_OPTIONS) зависят от опции PROTOCOL.
+    ``snapshot`` — {slot_code: option_code}: условные строки оцениваются по
+    эффективному значению слота (снимок перекрывает std-дефолт).
     """
     if brand is None and model_line is not None:
         brand = getattr(model_line, 'brand', None)
     context = (brand, model_line, body, model_line_item)
 
     rows_qs = (CuMatrixEntry.objects
-               .filter(control_unit=control_unit)
+               .filter(control_unit=control_unit, is_active=True)
                .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
-               .select_related('slot', 'option')
-               .prefetch_related('conflicts__option'))
+               .select_related('slot', 'option', 'option__slot', 'when_slot')
+               .prefetch_related('conflicts__option', 'when_options'))
     if power_supply is not None:
         rows_qs = rows_qs.filter(Q(power_supply=power_supply)
                                  | Q(power_supply__isnull=True))
-    if signal_power is not None:
-        rows_qs = rows_qs.filter(Q(signal_power=signal_power)
-                                 | Q(signal_power__isnull=True))
-    if protocol is not None:
-        rows_qs = rows_qs.filter(Q(protocol=protocol)
-                                 | Q(protocol__isnull=True))
     rows = list(rows_qs)
-
-    result = {}
     for row in rows:
-        row._ps_requested = (
-            power_supply is not None and row.power_supply_id == power_supply.id)
-        row._sp_requested = (
-            signal_power is not None
-            and row.signal_power_id == signal_power.id)
-        row._proto_requested = (
-            protocol is not None and row.protocol_id == protocol.id)
-        if not _context_matches(row, power_supply, mode, signal_power, protocol):
-            continue
-        key = (row.slot.code, row.option.code if row.option_id else row.name)
-        result.setdefault(key, []).append(row)
+        row._ps_requested = (power_supply is not None
+                             and row.power_supply_id == power_supply.id)
 
-    out = {}
-    for (slot_code, _option_key), option_rows in result.items():
-        effective = _effective_row(option_rows, context)
-        if effective is None:
-            continue
-        if effective.availability == 'na':
-            continue
-        payload = _row_payload(effective, locale)
-        out.setdefault(slot_code, []).append(payload)
+    snapshot_opt = _snapshot_options(snapshot)
+    _defaults, effective = _resolve_effective(
+        rows, context, power_supply, mode, snapshot_opt)
+
+    by_slot = defaultdict(list)
+    for row in rows:
+        if row.option_id:
+            by_slot[row.option.slot.code].append(row)
+
+    out = defaultdict(list)
+    for slot_code, slot_rows in by_slot.items():
+        by_opt = defaultdict(list)
+        for row in slot_rows:
+            if not _scope_matches(row, *context):
+                continue
+            if not _context_matches(row, power_supply, mode):
+                continue
+            if not _when_satisfied(row, effective):
+                continue
+            by_opt[row.option.code].append(row)
+        for opt_code, opt_rows in by_opt.items():
+            opt_rows.sort(key=_row_precedence)
+            row = opt_rows[-1]
+            if row.availability == 'na':
+                continue
+            payload = _row_payload(row, locale)
+            payload['_prec'] = _row_precedence(row)
+            out[slot_code].append(payload)
+
+    _enforce_single_std(out)
+    for payloads in out.values():
+        for p in payloads:
+            p.pop('_prec', None)
 
     # Детерминированный порядок для фронта и тестов: стандарт → опция,
     # затем по коду опции (не зависеть от порядка строк в БД).
@@ -215,7 +330,7 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
             _avail_rank.get(p['availability'], 3),
             p['option_code'] or '',
         ))
-    return out
+    return dict(out)
 
 
 def resolve_product_types(model_line, *, body=None, model_line_item=None,
@@ -279,36 +394,31 @@ resolve_control_units = resolve_product_types
 
 
 def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
-                         signal_power=None, protocol=None):
-    """Дефолты слотов типа БУ: {slot_code: option_code} из профильных строк.
+                         snapshot=None):
+    """Дефолты слотов типа БУ: {slot_code: option_code} (slots.md §6).
 
-    Профильные строки — весь скоуп пуст; берутся предвыбранные (std →
-    is_default). Используется снимком (AbstractConfigSnapshot.apply_defaults).
+    Профильные строки (весь скоуп пуст), с учётом условных строк: ``snapshot``
+    перекрывает std-дефолт при оценке ``when``.
     """
     rows = (CuMatrixEntry.objects
             .filter(control_unit=control_unit, brand__isnull=True,
                     model_line__isnull=True, body__isnull=True,
-                    model_line_item__isnull=True)
+                    model_line_item__isnull=True, is_active=True)
             .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
-            .order_by('id'))  # детерминизм: при нескольких std побеждает ранняя
+            .select_related('slot', 'option', 'when_slot')
+            .prefetch_related('when_options'))
     if power_supply is not None:
         rows = rows.filter(Q(power_supply=power_supply)
                            | Q(power_supply__isnull=True))
-    if signal_power is not None:
-        rows = rows.filter(Q(signal_power=signal_power)
-                           | Q(signal_power__isnull=True))
-    if protocol is not None:
-        rows = rows.filter(Q(protocol=protocol)
-                           | Q(protocol__isnull=True))
-    defaults = {}
+    rows = list(rows)
     for row in rows:
-        if not row.option_id:
-            continue
-        if not _context_matches(row, power_supply, mode, signal_power, protocol):
-            continue
-        if row.is_default:
-            defaults[row.slot.code] = row.option.code
-    return defaults
+        row._ps_requested = (power_supply is not None
+                             and row.power_supply_id == power_supply.id)
+    context = (None, None, None, None)
+    snapshot_opt = _snapshot_options(snapshot)
+    defaults, _effective = _resolve_effective(
+        rows, context, power_supply, mode, snapshot_opt)
+    return {sc: opt.code for sc, opt in defaults.items() if opt is not None}
 
 
 def validate_selection(selected_payloads, available_payloads=None):
@@ -350,4 +460,16 @@ def validate_selection(selected_payloads, available_payloads=None):
                 q = by_option[conflict_code][0]
                 errors.append(
                     f'Конфликт: {p["option_name"]} ↔ {q["option_name"]}')
+
+    # rule/conditional-induced na: выбранная опция больше недоступна
+    if available_payloads:
+        avail_by_slot = {}
+        for p in available_payloads:
+            avail_by_slot.setdefault(p['slot_code'], set()).add(p['option_code'])
+        for p in selected.values():
+            if p.get('option_code') not in avail_by_slot.get(p['slot_code'], set()):
+                errors.append(
+                    f'Опция {p.get("option_name") or p.get("option_code")} '
+                    f'слота {p["slot_code"]} стала недоступна при текущем '
+                    f'выборе.')
     return errors

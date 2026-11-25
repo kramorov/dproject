@@ -344,9 +344,6 @@ async function fetchView(kind) {
     const r = await api.post(url, {
       unit: unitId.value,
       snapshot: snapshotObject(),
-      // координаты контекста матрицы из выбранных опций (сейчас — схема
-      // цепей): сервер перерезолвивает набор сигналов CMD_*
-      ...contextCoordinates(),
       locale: viewLocale.value,
     })
     view.value = kind === 'spec'
@@ -357,20 +354,6 @@ async function fetchView(kind) {
   }
 }
 
-function contextCoordinates() {
-  // {param: value_id} координат контекста из выбранных опций-носителей
-  const out = {}
-  for (const slot of pkg.value?.slots || []) {
-    const v = selection[slot.code]
-    for (const o of slot.options || []) {
-      const chosen = Array.isArray(v) ? v.includes(o.code) : v === o.code
-      if (chosen && o.context_coordinate) {
-        out[o.context_coordinate.param] = o.context_coordinate.value_id
-      }
-    }
-  }
-  return out
-}
 </script>
 
 <style scoped>

@@ -119,9 +119,6 @@ const error = ref('')
 // код слота-селектора типа изделия (slot_kind=subtype): его значение —
 // выбранный тип изделия, ключ в снимке/правилах
 const productTypeSlot = computed(() => pkg.value?.product_type_slot || null)
-// выбранные координаты контекста матрицы (например, схема цепей): по ним
-// сервер перерезолвивает доступность опций при выборе опции-носителя
-const context = reactive({})
 
 const errors = computed(() => {
   if (!pkg.value) return []
@@ -156,15 +153,17 @@ const errors = computed(() => {
   return out
 })
 
-const snapshot = computed(() => {
+function snapshotObject() {
   const out = {}
   for (const slot of pkg.value?.slots || []) {
     if (selection[slot.code] !== undefined && selection[slot.code] !== null) {
       out[slot.code] = selection[slot.code]
     }
   }
-  return JSON.stringify(out, null, 2)
-})
+  return out
+}
+
+const snapshot = computed(() => JSON.stringify(snapshotObject(), null, 2))
 
 const article = computed(() => {
   if (!pkg.value) return ''
@@ -256,12 +255,8 @@ function evaluate(op, expected, current) {
 
 function selectOption(slot, o) {
   selection[slot.code] = o.code
-  const coord = o.context_coordinate
-  if (coord && coord.value_id && context[coord.param] !== coord.value_id) {
-    reloadPackageForContext(coord).catch(e => { error.value = e.displayMessage })
-    return
-  }
   applySetDefaults()
+  reloadPackage().catch(e => { error.value = e.displayMessage })
 }
 
 function toggleOption(slot, o) {
@@ -271,6 +266,7 @@ function toggleOption(slot, o) {
   else arr.push(o.code)
   selection[slot.code] = arr
   applySetDefaults()
+  reloadPackage().catch(e => { error.value = e.displayMessage })
 }
 
 function applySetDefaults() {
@@ -318,7 +314,6 @@ async function loadProductTypes() {
 
 async function loadPackage() {
   pkg.value = null
-  for (const k of Object.keys(context)) delete context[k]
   for (const k of Object.keys(selection)) delete selection[k]
   if (!unitId.value) return
   const { data } = await api.get('/ea-control/package/', {
@@ -340,22 +335,18 @@ async function loadPackage() {
   applyProfileDefaults()
 }
 
-async function reloadPackageForContext(coord) {
-  // опция несёт координату контекста → перерезолвить доступность на сервере
-  const keep = { ...selection }
+async function reloadPackage() {
+  if (!unitId.value) return
   const { data } = await api.get('/ea-control/package/', {
     params: {
       unit: unitId.value,
       model_line: modelLine.value || undefined,
       power_supply: powerSupply.value || undefined,
-      [coord.param]: coord.value_id,
+      snapshot: JSON.stringify(snapshotObject()),
       locale: locale.value,
     },
   })
-  context[coord.param] = coord.value_id
   pkg.value = data
-  for (const k of Object.keys(selection)) delete selection[k]
-  Object.assign(selection, keep)
   applyProfileDefaults()
 }
 

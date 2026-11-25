@@ -16,7 +16,6 @@ from electric_actuators.models import (
 )
 import logging
 from electric_actuators.models.ea_allowed_options import (
-    AllowedControlUnitOption ,
     AllowedTurnCounterOption ,
 )
 from django.shortcuts import redirect
@@ -95,7 +94,6 @@ def copy_related_options(original_obj, new_obj):
         ('exd_options', 'encoding'),
         ('body_coating_options', 'encoding'),
         ('hand_wheel_options', 'encoding'),
-        ('allowed_control_units', 'encoding'),
         ('allowed_turn_counters', 'encoding'),
         ('turn_angle_options', 'encoding'),
     ]
@@ -365,30 +363,6 @@ class ElectricBodyCoatingOptionInline(admin.TabularInline) :
         return formset
 
 
-class AllowedControlUnitOptionInline(admin.TabularInline) :
-    """Inline для разрешённых БУ серии"""
-    model = AllowedControlUnitOption
-    fk_name = 'model_line'
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['control_unit' , 'power_supply' , 'cu_power_supply' ,
-              'encoding' , 'ext_encoding','is_active' , 'sorting_order']
-    verbose_name = _("Разрешённый БУ")
-    verbose_name_plural = _("Разрешённые БУ для серии")
-
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-        original_str = formset.model.__str__
-        def safe_str(instance):
-            try:
-                return original_str(instance)
-            except Exception as e:
-                logger.debug(f"Ошибка в __str__ AllowedControlUnitOption: {e}")
-                return "Новая опция"
-        formset.model.__str__ = safe_str
-        return formset
-
-
 class AllowedTurnCounterOptionInline(admin.TabularInline) :
     """Inline для разрешённых счётчиков серии"""
     model = AllowedTurnCounterOption
@@ -458,8 +432,8 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
 
     def _build_export_response(self, queryset,
                                filename='ea_signal_matrix.xlsx'):
-        """xlsx-ответ: широкая матрица + листы device/temp/cu/turn_counters
-        (мультисерийный экспорт объединяет строки по сериям)."""
+        """xlsx-ответ: листы device + temp/turn_counters (широкая матрица
+        и листы сигналов БУ удалены — БУ в новой слотовой модели)."""
         import io
         import openpyxl
         from django.http import HttpResponse
@@ -468,16 +442,11 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
         ws = wb.active
         ws.title = 'ea_signal_matrix'
         extra = {}
-        wide_rows = []
         device_rows = []
-        headers = device_fields = None
+        device_fields = None
         for line in queryset:
             if not line.code:
                 continue
-            h, rows = ea_matrix_io.export_wide_rows(line.code)
-            if headers is None:
-                headers = h
-            wide_rows.extend(rows)
             df_, dr = ea_matrix_io.export_device_rows(line.code)
             device_fields = df_
             device_rows.extend(dr)
@@ -485,56 +454,14 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
                     ea_matrix_io.export_extra_sheets(line.code):
                 extra.setdefault(sheet_name, (fields, []))
                 extra[sheet_name][1].extend(sheet_rows)
-        # Объединённые столбцы ссылок на листы сигналов БУ (union по сериям)
-        base_headers = [x for x in (headers or [])
-                        if not str(x).startswith('cu_ref|')]
-        cu_refs = []
-        _seen = set()
-        for row in wide_rows:
-            for k in row:
-                if str(k).startswith('cu_ref|') and k not in _seen:
-                    _seen.add(k)
-                    cu_refs.append(k)
-        headers = base_headers + cu_refs
-        ws.append(headers)
-        for row in wide_rows:
-            ws.append([
-                ('n/a' if str(f).startswith('cu_ref|') and not row.get(f)
-                 else row.get(f, ''))
-                for f in headers
-            ])
-        ws2 = wb.create_sheet('device')
-        ws2.append(device_fields or [])
+        ws.append(device_fields or [])
         for row in device_rows:
-            ws2.append([row.get(f, '') for f in (device_fields or [])])
+            ws.append([row.get(f, '') for f in (device_fields or [])])
         for sheet_name, (fields, sheet_rows) in extra.items():
-            ws3 = wb.create_sheet(sheet_name)
-            ws3.append(fields)
+            ws2 = wb.create_sheet(sheet_name)
+            ws2.append(fields)
             for row in sheet_rows:
-                ws3.append([row.get(f, '') for f in fields])
-        # Листы сигналов БУ (одинаковый профиль — один лист на тип БУ)
-        cu_sheets = {}
-        for line in queryset:
-            if not line.code:
-                continue
-            for name, fields, sheet_rows in \
-                    ea_matrix_io.export_cu_signal_sheets(line.code):
-                cu_sheets.setdefault(name, (fields, sheet_rows))
-        for sheet_name, (fields, sheet_rows) in cu_sheets.items():
-            ws4 = wb.create_sheet(sheet_name)
-            ws4.append(fields)
-            for row in sheet_rows:
-                ws4.append([row.get(f, '') for f in fields])
-        # Гиперссылки из столбцов cu_ref|... основного листа
-        cu_cols = [i for i, h in enumerate(headers or [])
-                   if str(h).startswith('cu_ref|')]
-        if cu_cols:
-            for row in ws.iter_rows(min_row=2, max_col=len(headers or [])):
-                for ci in cu_cols:
-                    cell = row[ci]
-                    if cell.value and str(cell.value) != 'n/a':
-                        cell.hyperlink = "#'%s'!A1" % cell.value
-                        cell.style = 'Hyperlink'
+                ws2.append([row.get(f, '') for f in fields])
         buf = io.BytesIO()
         wb.save(buf)
         resp = HttpResponse(
@@ -611,7 +538,6 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
         ElectricBodyCoatingOptionInline ,
         ElectricTurnAngleOptionInline ,
         ElectricBodyColorOptionInline ,
-        AllowedControlUnitOptionInline ,
         AllowedTurnCounterOptionInline ,
     ]
     filter_horizontal = ('allowed_operating_mode', 'cert_docs')  # ← добавить
@@ -648,7 +574,6 @@ class ElectricActuatorModelLineAdmin(TemplatePlaceholdersAdminMixin, admin.Model
             'body_coating_options',
             'hand_wheel_options',
             'turn_angle_options',
-            'allowed_control_units',
             'allowed_turn_counters',
         )
 

@@ -167,11 +167,10 @@ def _option_description(option, locale=None):
 
 
 def _effective_snapshot(control_unit, snapshot, *, power_supply=None,
-                        mode='both', signal_power=None, protocol=None):
+                        mode='both'):
     """(снимок+дефолты, дефолты): снимок перекрывает дефолты профиля."""
     defaults = get_profile_defaults(control_unit, power_supply=power_supply,
-                                    mode=mode, signal_power=signal_power,
-                                    protocol=protocol)
+                                    mode=mode, snapshot=snapshot)
     product_type_slot = get_product_type_slot()
     pt_code = product_type_slot.code if product_type_slot else None
     merged = dict(defaults)
@@ -220,8 +219,7 @@ def _slot_value_description(slot, options_by_slot, merged, defaults,
 
 
 def build_specification(control_unit, *, snapshot=None, locale=None,
-                        power_supply=None, mode='both', signal_power=None,
-                        protocol=None):
+                        power_supply=None, mode='both'):
     """Спецификация модификации БУ: видимые узлы → слоты → значения.
 
     Возвращает {unit, sections: [{code, name, description, slots:
@@ -229,11 +227,9 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
     options: [{code, name, availability}]}]}]}.
     """
     merged, defaults = _effective_snapshot(
-        control_unit, snapshot, power_supply=power_supply, mode=mode,
-        signal_power=signal_power, protocol=protocol)
+        control_unit, snapshot, power_supply=power_supply, mode=mode)
     resolved = resolve_slots(control_unit, power_supply=power_supply,
-                             signal_power=signal_power, protocol=protocol,
-                             mode=mode, locale=locale)
+                             mode=mode, snapshot=snapshot, locale=locale)
 
     nodes, visible = visible_slots(control_unit, snapshot)
     options_by_slot = {}
@@ -306,8 +302,7 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
 
 
 def build_description(control_unit, *, snapshot=None, locale=None,
-                      power_supply=None, mode='both', signal_power=None,
-                      protocol=None, include_name=True):
+                      power_supply=None, mode='both', include_name=True):
     """Текстовое описание модификации БУ (локализованное).
 
     Структура: имя БУ (если ``include_name``), затем строки
@@ -316,8 +311,7 @@ def build_description(control_unit, *, snapshot=None, locale=None,
     плейсхолдеры ``{cu_code}``/``{cu_description}``.
     """
     spec = build_specification(control_unit, snapshot=snapshot, locale=locale,
-                               power_supply=power_supply, mode=mode,
-                               signal_power=signal_power, protocol=protocol)
+                               power_supply=power_supply, mode=mode)
     lines = [spec['unit']['name']] if include_name else []
     for section in spec['sections']:
         parts = []
@@ -332,7 +326,7 @@ def build_description(control_unit, *, snapshot=None, locale=None,
 
 
 def assemble_article(control_unit, *, snapshot=None, power_supply=None,
-                     mode='both', signal_power=None):
+                     mode='both'):
     """Артикул модификации — системный код (cu_code.build_system_code).
 
     Фолбэк без шаблона — ``model_code/узел.слот+кодировки`` через «/».
@@ -342,4 +336,4 @@ def assemble_article(control_unit, *, snapshot=None, power_supply=None,
     """
     from ea_control.services.cu_code import build_system_code
     return build_system_code(control_unit, snapshot, power_supply=power_supply,
-                             mode=mode, signal_power=signal_power)
+                             mode=mode)

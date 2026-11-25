@@ -85,7 +85,7 @@ def _availability_map(control_unit, power_supply):
             .filter(control_unit=control_unit,
                     brand__isnull=True, model_line__isnull=True,
                     body__isnull=True, model_line_item__isnull=True,
-                    signal_power__isnull=True, mode=CuMatrixMode.BOTH)
+                    when_slot__isnull=True, mode=CuMatrixMode.BOTH)
             .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
             .filter(Q(power_supply=power_supply) | Q(power_supply__isnull=True))
             .select_related('slot', 'option'))

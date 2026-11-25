@@ -35,15 +35,15 @@ class CuMatrixServiceTests(TestCase):
         cls.ar11e = ElectricActuatorModelLine.objects.get(code='AR11E')
         cls.ps380 = PowerSupplies.objects.get(code='380-AC')
         cls.ps24 = PowerSupplies.objects.get(code='24-DC')
-        cls.basic = ControlUnit.objects.get(code='basic AR21')
-        cls.int_unit = ControlUnit.objects.get(code='INT/N')
-        cls.posi = ControlUnit.objects.get(code='posi-4-20')
+        cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
+        cls.int_unit = ControlUnit.objects.get(code='INT-N-TORQUE')
+        cls.posi = ControlUnit.objects.get(code='POSI-AR01')
 
     def test_resolve_slots_basic(self):
         resolved = resolve_slots(self.basic)
         self.assertIn('LOCAL_CONTROL_DESIGN', resolved)
         # обогрев БУ у базового в каноне БД строк не имеет (удалён пользователем)
-        self.assertNotIn('HEATER_CONTROL_UNIT', resolved)
+        self.assertNotIn('CU_HEATER', resolved)
         # базовому шину не резолвим — строк нет
         self.assertNotIn('PROTOCOL', resolved)
         # схема цепей: внешняя 220 В std; внутренний +24 В у базового
@@ -74,50 +74,34 @@ class CuMatrixServiceTests(TestCase):
         self.assertFalse(any(p['option_code'] == 'STARTER_BUILT_IN'
                              for p in starter))
 
-    def test_signal_power_coordinate_posi(self):
-        """Набор сигналов зависит от схемы цепей (координата signal_power)."""
-        from ea_control.models import CuSignalPower
-        ext_pnp = CuSignalPower.objects.get(name__startswith='Внешний 24 В DC (PNP)')
-        without = resolve_slots(self.posi)
-        self.assertEqual(
-            [p['option_code'] for p in without['CMD_OPEN']],
-            ['CMD_OPEN_NONE'])
-        with_scheme = resolve_slots(self.posi, signal_power=ext_pnp)
-        self.assertEqual(
-            [p['option_code'] for p in with_scheme['CMD_OPEN']],
-            ['CMD_OPEN_NONE', 'CMD_OPEN_CONT'])
-        self.assertEqual(
-            [p['availability'] for p in with_scheme['CMD_OPEN']
-             if p['option_code'] == 'CMD_OPEN_CONT'], ['opt'])
-
     def test_resolve_control_units_ar01e_380(self):
         units = resolve_control_units(self.ar01e, power_supply=self.ps380)
         codes = {u['code'] for u in units}
-        self.assertIn('basic AR21', codes)
-        self.assertIn('INT/N', codes)
-        self.assertNotIn('posi-4-20', codes)  # na-запрет на 380
+        self.assertIn('BASIC-AR21', codes)
+        self.assertIn('INT-N-TORQUE', codes)
+        self.assertNotIn('POSI-AR01', codes)  # na-запрет на 380
         default = [u for u in units if u['is_default']]
-        self.assertEqual([u['code'] for u in default], ['basic AR21'])
+        self.assertEqual([u['code'] for u in default], ['BASIC-AR21'])
         # option_code — код опции слота control_unit (для снимка/правил)
         self.assertEqual(default[0]['option_code'], 'CU_BASIC')
 
     def test_resolve_control_units_ar01e_24(self):
         units = resolve_control_units(self.ar01e, power_supply=self.ps24)
         codes = {u['code'] for u in units}
-        self.assertIn('posi-4-20', codes)
-        self.assertNotIn('basic AR21', codes)  # для 24В базовый не описан
+        self.assertIn('POSI-AR01', codes)
+        self.assertNotIn('BASIC-AR21', codes)  # для 24В базовый не описан
 
     def test_resolve_control_units_ar11e(self):
         units = resolve_control_units(self.ar11e, power_supply=self.ps380)
         codes = {u['code'] for u in units}
         # у AR11E (Q) — INT (SRCU) и вариант LCU (местное управление)
-        self.assertEqual(codes, {'INT/N', 'INT/L'})
+        self.assertEqual(codes, {'INT-N-TORQUE', 'INT/L'})
         self.assertTrue(units[0]['is_default'])
 
     def test_profile_defaults_int(self):
         defaults = get_profile_defaults(self.int_unit)
-        self.assertEqual(defaults.get('HEATER_CONTROL_UNIT'), 'H_NO')
-        self.assertEqual(defaults.get('POSITION_FEEDBACK'), 'POS_4_20_ACTIVE')
+        self.assertEqual(defaults.get('CU_HEATER'), 'H_NO')
+        self.assertEqual(defaults.get('FB_POSITION'), 'POS_4_20_ACTIVE')
 
     def test_bundle_atomicity(self):
         # пакет MWG — строки создаём в тесте (канон БД их не содержит;
@@ -130,7 +114,7 @@ class CuMatrixServiceTests(TestCase):
         for o in bundle_opts:
             CuMatrixEntry.objects.get_or_create(
                 slot=o.slot, option=o, control_unit=self.int_unit,
-                model_line=None, power_supply=None, signal_power=None,
+                model_line=None, power_supply=None,
                 body=None, model_line_item=None, mode='both',
                 defaults=dict(availability='opt', bundle='MWG'))
         resolved = resolve_slots(self.int_unit)
@@ -154,7 +138,7 @@ class CuMatrixServiceTests(TestCase):
         for o in bundle_opts:
             row, _ = CuMatrixEntry.objects.get_or_create(
                 slot=o.slot, option=o, control_unit=self.int_unit,
-                model_line=None, power_supply=None, signal_power=None,
+                model_line=None, power_supply=None,
                 body=None, model_line_item=None, mode='both',
                 defaults=dict(availability='opt', bundle='MWG'))
             mwg_rows.append(row)
@@ -167,7 +151,7 @@ class CuMatrixServiceTests(TestCase):
         resolved = resolve_slots(self.int_unit)
         available = _flatten(resolved)
         mwg = next(p for p in available
-                   if p['slot_code'] == 'POSITION_FEEDBACK'
+                   if p['slot_code'] == 'FB_POSITION'
                    and p['option_code'] == 'POS_MWG')
         torque = next(p for p in available
                       if p['slot_code'] == 'TORQUE_SWITCHES_OPEN'
@@ -194,7 +178,7 @@ class CuRulesServiceTests(TestCase):
 
     def test_hart_set_default(self):
         state = apply_rules(self.rules, {'SETPOINT': 'SETPOINT_HART'})
-        self.assertEqual(state['POSITION_FEEDBACK']['default'], 'POS_HART')
+        self.assertEqual(state['FB_POSITION']['default'], 'POS_HART')
 
     def test_power_supply_controls_cu_cable_glands(self):
         # общий кабель — вводы БУ скрыты; отдельный кабель — показаны
@@ -222,7 +206,7 @@ class CuUnitCopyDeleteTests(TestCase):
         from django.contrib.auth import get_user_model
         cls.user = get_user_model().objects.create_superuser(
             'cu-tester', 't@example.com', 't')
-        cls.basic = ControlUnit.objects.get(code='basic AR21')
+        cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
 
     def setUp(self):
         from rest_framework.test import APIClient
@@ -252,7 +236,7 @@ class CuUnitCopyDeleteTests(TestCase):
             target_slot__code='CU_POWER_SUPPLY').exists())
 
     def test_delete_unit_cleans_option_rules_and_matrix(self):
-        unit = ControlUnit.objects.get(code='INT/O')
+        unit = ControlUnit.objects.get(code='INT-O-AR21')
         opt = CuSlotOption.objects.get(
             slot__code='control_unit', control_unit=unit)
         r = self.client.delete(
@@ -277,9 +261,9 @@ class CuUnitMatrixServiceTests(TestCase):
     def setUpTestData(cls):
         from params.models import PowerSupplies
         cls.ps380 = PowerSupplies.objects.get(code='380-AC')
-        cls.basic = ControlUnit.objects.get(code='basic AR21')
-        cls.int_unit = ControlUnit.objects.get(code='INT/N')
-        cls.int_o = ControlUnit.objects.get(code='INT/O')
+        cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
+        cls.int_unit = ControlUnit.objects.get(code='INT-N-TORQUE')
+        cls.int_o = ControlUnit.objects.get(code='INT-O-AR21')
 
     def test_build_matrix_basic(self):
         m = build_unit_matrix(self.basic)
@@ -423,7 +407,7 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertEqual(saved, 1)
         row = CuMatrixEntry.objects.get(
             slot=slot, option=target, control_unit=self.basic,
-            power_supply__isnull=True, signal_power__isnull=True)
+            power_supply__isnull=True, when_slot__isnull=True)
         self.assertEqual(row.availability, 'std')
         self.assertTrue(row.is_default)
 
@@ -527,7 +511,7 @@ class CuUnitMatrixServiceTests(TestCase):
         self.assertEqual(saved, 1)
         self.assertTrue(CuMatrixEntry.objects.filter(
             slot=slot, option=target, control_unit=self.basic,
-            power_supply__isnull=True, signal_power__isnull=True,
+            power_supply__isnull=True, when_slot__isnull=True,
             availability='opt').exists())
         # при этом два реальных std по-прежнему запрещены
         spdt = CuSlotOption.objects.get(code='TORQUE_OPEN_SPDT')
@@ -541,7 +525,7 @@ class CuUnitMatrixServiceTests(TestCase):
             availability='std').count(), 1)
 
     def test_apply_rule_changes(self):
-        slot = CuSlot.objects.get(code='POSITION_FEEDBACK')
+        slot = CuSlot.objects.get(code='FB_POSITION')
         saved = apply_unit_rule_changes(
             self.basic, [{'slot_id': slot.id, 'action': 'hide',
                           'action_value': None}])
@@ -591,10 +575,10 @@ class CuPackageServiceTests(TestCase):
         cls.ps380 = PowerSupplies.objects.get(code='380-AC')
 
     def test_build_package(self):
-        unit = ControlUnit.objects.get(code='INT/N')
+        unit = ControlUnit.objects.get(code='INT-N-TORQUE')
         pkg = build_package(unit, model_line=self.ar01e, power_supply=self.ps380,
                             locale='ru')
-        self.assertEqual(pkg['unit']['code'], 'INT/N')
+        self.assertEqual(pkg['unit']['code'], 'INT-N-TORQUE')
         self.assertTrue(pkg['unit']['name'])
         self.assertTrue(pkg['sections'])
         self.assertTrue(pkg['slots'])
@@ -605,11 +589,11 @@ class CuPackageServiceTests(TestCase):
         for code in ('HART', 'MB_RTU', 'PB_DP', 'PN'):
             self.assertEqual(av.get(code), 'opt', code)
         # опции POSITION_FEEDBACK: POS_4_20_ACTIVE доступна как std
-        pos_fb = next(s for s in pkg['slots'] if s['code'] == 'POSITION_FEEDBACK')
+        pos_fb = next(s for s in pkg['slots'] if s['code'] == 'FB_POSITION')
         active = next(o for o in pos_fb['options']
                       if o['code'] == 'POS_4_20_ACTIVE')
         self.assertEqual(active['availability'], 'std')
-        self.assertEqual(pkg['defaults'].get('POSITION_FEEDBACK'),
+        self.assertEqual(pkg['defaults'].get('FB_POSITION'),
                          'POS_4_20_ACTIVE')
         self.assertTrue(pkg['rules'])
 
@@ -620,13 +604,13 @@ class CuReviewFixTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.basic = ControlUnit.objects.get(code='basic AR21')
+        cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
 
     def test_describe_keeps_child_of_deactivated_section(self):
         """M1: выключенный родитель не скрывает активных детей в отчёте."""
         from ea_control.models import ControlUnit, CuSectionNode
         from ea_control.services.cu_report import build_description
-        unit = ControlUnit.objects.get(code='INT/N')
+        unit = ControlUnit.objects.get(code='INT-N-TORQUE')
         parent = CuSectionNode.objects.get(code='GENERAL')
         prev = parent.is_active
         parent.is_active = False
@@ -773,7 +757,7 @@ class CuDbCanonTests(TestCase):
             CuSlot.objects.filter(slot_kind='object', source='').count(), 0)
         self.assertEqual(CuSlot.objects.filter(slot_kind='value').count(), 4)
         self.assertEqual(
-            CuSlot.objects.get(code='POSITION_FEEDBACK').source,
+            CuSlot.objects.get(code='FB_POSITION').source,
             'feedback_signal')
         self.assertEqual(
             CuSlot.objects.get(code='LOCAL_CONTROL_DESIGN').source,
@@ -819,7 +803,7 @@ class CuDbCanonTests(TestCase):
         self.assertEqual(ControlUnit.objects.count(), 5)
         self.assertEqual(
             set(ControlUnit.objects.values_list('code', flat=True)),
-            {'basic AR21', 'INT/N', 'INT/L', 'INT/O', 'posi-4-20'})
+            {'BASIC-AR21', 'INT-N-TORQUE', 'INT/L', 'INT-O-AR21', 'POSI-AR01'})
         self.assertFalse(ControlUnit.objects.filter(
             code__in=('basic', 'int-n', 'int-n-mb', 'int-n-hr', 'int-n-pb',
                       'int-l', 'int-o')).exists())

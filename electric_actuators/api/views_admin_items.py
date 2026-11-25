@@ -7,7 +7,7 @@ GET  /ea/admin/items/<id>/                → один элемент + все �
 PUT  /ea/admin/items/<id>/                → сохранить базовые поля + power_supply_options
 
 Опции БУ (ElectricControlUnitOption) и справочник схем ControlUnitWiring
-удалены в фазе 7 — БУ×напряжение теперь в AllowedControlUnitOption, схемы —
+удалены в фазе 7 — БУ×напряжение теперь в новой слотовой модели, схемы —
 в EaWiringDiagramBinding.
 """
 from rest_framework.views import APIView

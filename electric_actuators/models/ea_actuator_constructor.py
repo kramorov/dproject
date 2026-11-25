@@ -1041,7 +1041,7 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         """Вклад БУ в артикул/ext-артикул привода (новая слотовая схема).
 
         Старая схема брала encoding из legacy-опции
-        ``selected_control_unit_option`` (AllowedControlUnitOption); теперь
+        ``selected_control_unit_option`` (legacy); теперь
         артикул БУ собирается из ``ControlUnit.article_code_template`` /
         ``ext_article_code_template`` и кодировок строк матрицы
         (приоритет: матрица → опция) — ``ea_control.services.cu_code``.

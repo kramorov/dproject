@@ -102,28 +102,22 @@ class ElectricActuatorSelectedAdmin(admin.ModelAdmin) :
 
         try :
             from electric_actuators.models import ElectricPowerSupplyOption
-            from electric_actuators.models.ea_allowed_options import resolve_cu_pair
-            from params.models import ControlUnitInstalledOption
+            from ea_control.models import resolve_bound_units
 
             pso = ElectricPowerSupplyOption.objects.select_related(
                 'power_supply', 'model_line_item__model_line').get(
                 id=power_supply_id)
-            line = pso.model_line_item.model_line
-            # БУ для (модель × напряжение) — резолвер пар с перекрытием модели
+            # БУ для модели — из привязок ControlUnitBinding (новая система)
             options_list = []
-            for cu in ControlUnitInstalledOption.objects.filter(
-                    is_active=True).order_by('sorting_order', 'id'):
-                row = resolve_cu_pair(line, pso.model_line_item, cu,
-                                      pso.power_supply)
-                if row is None:
-                    continue
+            for b in resolve_bound_units(pso.model_line_item):
+                cu = b.control_unit
                 options_list.append({
-                    'id' : row.id ,
-                    'control_unit_id' : row.control_unit.id ,
-                    'control_unit_name' : str(row.control_unit) ,
-                    'encoding' : row.encoding or '' ,
-                    'is_default' : False ,
-                    'description' : '' ,
+                    'id': cu.id,
+                    'control_unit_id': cu.id,
+                    'control_unit_name': str(cu),
+                    'encoding': cu.article_code_template or '',
+                    'is_default': False,
+                    'description': '',
                 })
 
             print(f"Found {len(options_list)} control unit options")

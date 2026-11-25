@@ -150,7 +150,7 @@ class CuConfigTestCase(TestCase):
             code='PROTOCOL',
             defaults=dict(name='Шина', section=cls.section))[0]
         cls.slot_heater = CuSlot.objects.get_or_create(
-            code='HEATER_CONTROL_UNIT',
+            code='CU_HEATER',
             defaults=dict(name='Обогрев БУ'))[0]
 
     def make_option(self, **kwargs):
@@ -212,25 +212,11 @@ class CuProductTypeTests(CuConfigTestCase):
         with self.assertRaises(ValidationError):
             dup.full_clean()
 
-    def test_option_context_coordinate(self):
-        from ea_control.services.cu_package import _option_context_coordinate
-        power_opt = CuSlotOption(
-            code='CTX_POWER', slot=self.slot_cmd, kind='power',
-            signal_power=self.signal_power)
-        self.assertEqual(
-            _option_context_coordinate(power_opt),
-            {'param': 'signal_power', 'value_id': self.signal_power.id})
-        value_opt = CuSlotOption(
-            code='CTX_VAL', slot=self.slot_cmd, kind='value', name='x')
-        self.assertIsNone(_option_context_coordinate(value_opt))
-
-    def test_build_package_exposes_product_type_and_context(self):
+    def test_build_package_exposes_product_type(self):
         from ea_control.services.cu_package import build_package
         pkg = build_package(self.cu)
         self.assertEqual(pkg['product_type_slot'], 'control_unit')
-        self.assertEqual(
-            pkg['context_coordinates'],
-            [{'param': 'signal_power', 'field': 'signal_power'}])
+        self.assertNotIn('context_coordinates', pkg)
         self.assertFalse(
             any(s['code'] == 'control_unit' for s in pkg['slots']))
 
@@ -276,11 +262,6 @@ class CuMatrixEntryTests(CuConfigTestCase):
         self.assertIn('(Опция)', row.localized_name())
         row.availability = ConfigAvailability.STD
         self.assertIn('(Стандарт)', row.localized_name())
-
-    def test_protocol_only_in_protocol_slot(self):
-        row = self._row(slot=self.slot_cmd, protocol=self.protocol)
-        with self.assertRaises(ValidationError):
-            row.full_clean()
 
     def test_device_must_emit_feedback_signal(self):
         other = CuFeedbackSignal.objects.create(

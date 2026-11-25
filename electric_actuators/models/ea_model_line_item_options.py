@@ -10,7 +10,7 @@ Through-модели опций уровня model_line_item.
     ElectricSafetyPositionOption  — положение безопасности
 
 Сигнальные опции БУ×напряжение (ElectricControlUnitOption) удалены в фазе 7 —
-заменены матрицей EaSignalMatrixEntry + AllowedControlUnitOption
+заменены матрицей EaSignalMatrixEntry
 (power_supply, ext_encoding).
 """
 from django.db import models

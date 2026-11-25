@@ -64,7 +64,6 @@ __all__ = [
     'ElectricActuatorBodyTable',
     'ElectricBodyColorOption',
     'ElectricActuatorConstructor',
-    'AllowedControlUnitOption',
     'AllowedTurnCounterOption',
     'EaSignalForm',
     'EaSignalFormCategory',

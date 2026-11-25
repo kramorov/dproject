@@ -94,7 +94,7 @@ def _structural_slots(nodes):
 
 
 def _resolved(control_unit, snapshot, power_supply=None, mode='both',
-              signal_power=None, model_line=None, body=None,
+              model_line=None, body=None,
               model_line_item=None, structural=False):
     """Узлы/слоты/выбранные опции + эффективные строки матрицы.
 
@@ -107,8 +107,7 @@ def _resolved(control_unit, snapshot, power_supply=None, mode='both',
     else:
         nodes, slots = visible_slots(control_unit, snapshot)
     merged, defaults = _effective_snapshot(
-        control_unit, snapshot, power_supply=power_supply, mode=mode,
-        signal_power=signal_power)
+        control_unit, snapshot, power_supply=power_supply, mode=mode)
     options_by_slot = {}
     for s in slots:
         options_by_slot[s.id] = sorted(
@@ -121,7 +120,7 @@ def _resolved(control_unit, snapshot, power_supply=None, mode='both',
     resolved = resolve_slots(
         control_unit, model_line=model_line, body=body,
         model_line_item=model_line_item, power_supply=power_supply,
-        signal_power=signal_power, mode=mode)
+        mode=mode, snapshot=snapshot)
     rows_by_option = {}
     for payloads in resolved.values():
         for p in payloads:
@@ -147,7 +146,7 @@ def _chosen_encodings(slot, chosen):
 
 
 def build_system_code(control_unit, snapshot=None, *, power_supply=None,
-                      mode='both', signal_power=None, model_line=None,
+                      mode='both', model_line=None,
                       body=None, model_line_item=None):
     """Полный системный код конфигурации (структурный, без show/hide).
 
@@ -156,7 +155,7 @@ def build_system_code(control_unit, snapshot=None, *, power_supply=None,
     ``.``). Пустой шаблон — фолбэк ``model_code/узел.слот+кодировки``.
     """
     nodes, slots, chosen, options_by_slot, _ = _resolved(
-        control_unit, snapshot, power_supply, mode, signal_power,
+        control_unit, snapshot, power_supply, mode,
         model_line, body, model_line_item, structural=True)
     return _system_code_string(control_unit, nodes, slots, chosen)
 
@@ -419,7 +418,7 @@ def _decode_fallback(code, base):
 # ── Артикульный код (производитель) ─────────────────────────────────────────
 
 def _article_code(control_unit, snapshot, *, power_supply=None, mode='both',
-                  signal_power=None, model_line=None, body=None,
+                  model_line=None, body=None,
                   model_line_item=None, ext=False):
     """Строка артикульного кода БУ (encoding или ext_encoding)."""
     template = (control_unit.ext_article_code_template if ext
@@ -427,34 +426,34 @@ def _article_code(control_unit, snapshot, *, power_supply=None, mode='both',
     if not template:
         return ''
     _nodes, visible, chosen, options_by_slot, rows_by_option = _resolved(
-        control_unit, snapshot, power_supply, mode, signal_power,
+        control_unit, snapshot, power_supply, mode,
         model_line, body, model_line_item)
     return _article_code_string(control_unit, visible, chosen, options_by_slot,
                                 rows_by_option, ext)
 
 
 def build_article_code(control_unit, snapshot=None, *, power_supply=None,
-                       mode='both', signal_power=None, model_line=None,
+                       mode='both', model_line=None,
                        body=None, model_line_item=None):
     """Артикульный код БУ (encoding выбранных опций)."""
     return _article_code(control_unit, snapshot, power_supply=power_supply,
-                         mode=mode, signal_power=signal_power,
+                         mode=mode,
                          model_line=model_line, body=body,
                          model_line_item=model_line_item, ext=False)
 
 
 def build_ext_article_code(control_unit, snapshot=None, *, power_supply=None,
-                           mode='both', signal_power=None, model_line=None,
+                           mode='both', model_line=None,
                            body=None, model_line_item=None):
     """Ext-часть артикульного кода БУ (ext_encoding выбранных опций)."""
     return _article_code(control_unit, snapshot, power_supply=power_supply,
-                         mode=mode, signal_power=signal_power,
+                         mode=mode,
                          model_line=model_line, body=body,
                          model_line_item=model_line_item, ext=True)
 
 
 def build_codes(control_unit, snapshot=None, *, power_supply=None, mode='both',
-                signal_power=None, model_line=None, body=None,
+                model_line=None, body=None,
                 model_line_item=None):
     """Все коды конфигурации за один вызов.
 
@@ -463,10 +462,10 @@ def build_codes(control_unit, snapshot=None, *, power_supply=None, mode='both',
     видимым слотам.
     """
     s_nodes, s_slots, s_chosen, _s_options, _ = _resolved(
-        control_unit, snapshot, power_supply, mode, signal_power,
+        control_unit, snapshot, power_supply, mode,
         model_line, body, model_line_item, structural=True)
     v_nodes, v_slots, v_chosen, v_options, rows = _resolved(
-        control_unit, snapshot, power_supply, mode, signal_power,
+        control_unit, snapshot, power_supply, mode,
         model_line, body, model_line_item)
 
     system_code = _system_code_string(control_unit, s_nodes, s_slots, s_chosen)
@@ -519,7 +518,7 @@ def _article_code_string(control_unit, visible, chosen, options_by_slot,
 
 
 def build_article_code_dicts(control_unit, snapshot=None, *, power_supply=None,
-                             mode='both', signal_power=None, model_line=None,
+                             mode='both', model_line=None,
                              body=None, model_line_item=None):
     """Плоские словари для ЭП-артикула: {placeholder: encoding} и {ext}.
 
@@ -529,7 +528,7 @@ def build_article_code_dicts(control_unit, snapshot=None, *, power_supply=None,
     ``_get_code_data_dict()`` / ``_get_ext_code_data_dict()`` TemplateMixin.
     """
     _nodes, visible, chosen, options_by_slot, rows_by_option = _resolved(
-        control_unit, snapshot, power_supply, mode, signal_power,
+        control_unit, snapshot, power_supply, mode,
         model_line, body, model_line_item)
     enc, ext = {}, {}
     for s in visible:

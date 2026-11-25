@@ -29,7 +29,7 @@ class Command(BaseCommand):
                    .filter(control_unit__isnull=False,
                            brand__isnull=True, model_line__isnull=True,
                            body__isnull=True, model_line_item__isnull=True,
-                           power_supply__isnull=True, signal_power__isnull=True,
+                           power_supply__isnull=True, when_slot__isnull=True,
                            mode='both')
                    .exclude(slot__slot_kind='subtype')
                    .select_related('option'))

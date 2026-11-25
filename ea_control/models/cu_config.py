@@ -24,7 +24,8 @@ from core.utils.localization import localized_name, pick_i18n
 
 from ea_control.models.abstract import (AbstractConfigNode, AbstractConfigSlot,
                                         AbstractSlotMatrixEntry,
-                                        AbstractSlotOption, AbstractSlotRule)
+                                        AbstractSlotOption, AbstractSlotRule,
+                                        ConfigWhenOperator)
 
 
 class CuSectionNode(LocalizedDictFieldsMixin, AbstractConfigNode):
@@ -545,16 +546,15 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
       все пустые (CheckConstraint «один скоуп»);
     - координаты: ``control_unit`` (ControlUnit, null — для строк слота-
       селектора типа (subtype) и профильных строк), ``power_supply``
-      (params.PowerSupplies,
-      null — любое напряжение), ``signal_power`` (CuSignalPower — схема цепей
-      управления; null — любая схема; «набор сигналов — опции схемы»),
-      ``mode`` (CuMatrixMode);
+      (params.PowerSupplies, null — любое напряжение), ``mode`` (CuMatrixMode);
+    - условие: ``when_slot``/``when_options``/``when_operator`` (slots.md §6) —
+      условная строка матрицы;
     - полезные нагрузки строки: ``control_signal``/``feedback_signal``/
-      ``protocol``/``device``/``heater_supply`` — типизированные FK
+      ``device``/``heater_supply`` — типизированные FK
       (CheckConstraint «одна нагрузка»);
-    - ``clean()`` — протокол только для слота PROTOCOL, обогрев только для
-      слота обогрева (CU_HEATER, ранее HEATER_CONTROL_UNIT), устройство
-      только с сигналом ОС (device.emits содержит его);
+    - ``clean()`` — обогрев только для слота обогрева (CU_HEATER, ранее
+      HEATER_CONTROL_UNIT), устройство только с сигналом ОС (device.emits
+      содержит его);
     - ``_base_name()`` — имя из полезной нагрузки (сигнал/устройство/БУ).
     """
     slot = models.ForeignKey(
@@ -609,19 +609,24 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
         verbose_name=_("Напряжение питания"),
         help_text=_("Напряжение питания мотора; null — любое"),
     )
-    signal_power = models.ForeignKey(
-        'CuSignalPower', on_delete=models.PROTECT, null=True, blank=True,
-        related_name='cu_matrix_rows',
-        verbose_name=_("Схема цепей управления"),
-        help_text=_("Схема цепей (источник × напряжение × полярность), при "
-                    "которой действует строка; null — любая схема. Набор "
-                    "сигналов дистанционного управления зависит от выбранной "
-                    "схемы"),
-    )
     mode = models.CharField(
         max_length=20, choices=CuMatrixMode.choices, default=CuMatrixMode.BOTH,
         verbose_name=_("Режим"),
         help_text=_("Режим работы, для которого актуальна строка"),
+    )
+    when_slot = models.ForeignKey(
+        CuSlot, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='matrix_rows_when',
+        verbose_name=_("Слот-условие"),
+        help_text=_("Условная строка (slots.md §6): доступность применяется, "
+                    "когда значение этого слота удовлетворяет when_operator/"
+                    "when_options; пусто — безусловная строка"),
+    )
+    when_options = models.ManyToManyField(
+        CuSlotOption, blank=True,
+        related_name='matrix_rows_when_options',
+        verbose_name=_("Значения условия"),
+        help_text=_("Для in/not_in — набор опций слота-условия; is_set — пусто"),
     )
     control_signal = models.ForeignKey(
         'CuControlSignal', on_delete=models.PROTECT, null=True, blank=True,
@@ -634,12 +639,6 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
         related_name='matrix_rows',
         verbose_name=_("Сигнал ОС"),
         help_text=_("Строка описывает выходной сигнал обратной связи"),
-    )
-    protocol = models.ForeignKey(
-        'CuCommProtocol', on_delete=models.PROTECT, null=True, blank=True,
-        related_name='matrix_rows',
-        verbose_name=_("Протокол"),
-        help_text=_("Строка описывает шину (только для слота PROTOCOL)"),
     )
     device = models.ForeignKey(
         'CuFeedbackDevice', on_delete=models.PROTECT, null=True, blank=True,
@@ -683,14 +682,12 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
                 name='cu_matrix_scope_single'),
             models.CheckConstraint(
                 check=(
-                    models.Q(control_signal__isnull=False, feedback_signal__isnull=True,
-                             protocol__isnull=True)
-                    | models.Q(control_signal__isnull=True, feedback_signal__isnull=False,
-                               protocol__isnull=True)
-                    | models.Q(control_signal__isnull=True, feedback_signal__isnull=True,
-                               protocol__isnull=False)
-                    | models.Q(control_signal__isnull=True, feedback_signal__isnull=True,
-                               protocol__isnull=True)
+                    models.Q(control_signal__isnull=False,
+                             feedback_signal__isnull=True)
+                    | models.Q(control_signal__isnull=True,
+                               feedback_signal__isnull=False)
+                    | models.Q(control_signal__isnull=True,
+                               feedback_signal__isnull=True)
                 ),
                 name='cu_matrix_signal_single'),
         ]
@@ -705,8 +702,6 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
             return localized_name(self.feedback_signal, locale)
         if self.control_signal_id:
             return localized_name(self.control_signal, locale)
-        if self.protocol_id:
-            return localized_name(self.protocol, locale)
         if self.heater_supply_id:
             return localized_name(self.heater_supply, locale)
         if self.control_unit_id:
@@ -718,11 +713,6 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
         if self.option_id and self.option.slot_id != self.slot_id:
             raise ValidationError(
                 {'option': _('Опция принадлежит другому слоту.')})
-        # ``protocol`` двойного назначения: у строк слота PROTOCOL — полезная
-        # нагрузка (какой протокол описывает строка), у строк других слотов —
-        # координата контекста (строка применяется при выбранном протоколе,
-        # например BUS_CONTROLS_OPTIONS при ModBus/ProfiBus). Ограничение
-        # «только слот PROTOCOL» поэтому снято.
         if self.heater_supply_id and self.slot.code not in (
                 'HEATER_CONTROL_UNIT', 'CU_HEATER'):
             raise ValidationError(
@@ -737,6 +727,44 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
                 and not self.device.emits.filter(pk=self.feedback_signal_id).exists()):
             raise ValidationError(
                 {'device': _('Устройство не выдаёт указанный сигнал ОС.')})
+        # Условная строка (slots.md §6): слот-условие и оператор — вместе.
+        if bool(self.when_slot_id) != bool(self.when_operator):
+            raise ValidationError(
+                {'when_operator': _('Слот-условие и оператор задаются вместе.')})
+        if self.when_slot_id:
+            if self.when_slot.slot_kind == 'subtype':
+                raise ValidationError(
+                    {'when_slot': _('Слот-условие не может быть слотом-'
+                                    'селектором типа изделия.')})
+            if self.when_slot_id == self.slot_id:
+                raise ValidationError(
+                    {'when_slot': _('Слот-условие не может совпадать со слотом '
+                                    'опции этой строки (самозависимый цикл).')})
+
+    def clean_when_options(self):
+        """Проверка when_options (M2M — после сохранения).
+
+        Вызывается из API-пути после записи M2M (как display_types в
+        CuSlotOption.clean для уже сохранённых объектов).
+        """
+        if not self.when_slot_id:
+            if self.when_options.exists():
+                raise ValidationError(
+                    {'when_options': _('Безусловная строка не должна иметь '
+                                       'опций условия.')})
+            return
+        if self.when_options.exclude(slot_id=self.when_slot_id).exists():
+            raise ValidationError(
+                {'when_options': _('Опции условия должны принадлежать '
+                                   'слоту-условию.')})
+        count = self.when_options.count()
+        if self.when_operator in (ConfigWhenOperator.IN,
+                                  ConfigWhenOperator.NOT_IN) and count == 0:
+            raise ValidationError(
+                {'when_options': _('in/not_in требуют хотя бы одну опцию.')})
+        if self.when_operator == ConfigWhenOperator.IS_SET and count:
+            raise ValidationError(
+                {'when_options': _('is_set не использует набор опций.')})
 
 
 class CuSlotRule(LocalizedDictFieldsMixin, AbstractSlotRule):

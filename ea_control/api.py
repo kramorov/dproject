@@ -225,7 +225,6 @@ def _delete_signal_power_rows(pairs_qs):
         if opt_ids:
             CuMatrixEntry.objects.filter(option_id__in=opt_ids).delete()
         CuSlotOption.objects.filter(signal_power_id__in=ids).delete()
-        CuMatrixEntry.objects.filter(signal_power_id__in=ids).delete()
     pairs_qs.delete()
 
 
@@ -389,6 +388,66 @@ _OPT_CLEAN_FIELDS = (
     'access_device_option', 'encoding',
 )
 
+_MATRIX_CLEAN_FIELDS = (
+    'slot', 'option', 'brand', 'model_line', 'body', 'model_line_item',
+    'control_unit', 'power_supply', 'mode', 'when_slot', 'when_operator',
+    'control_signal', 'feedback_signal', 'device', 'heater_supply',
+    'availability', 'is_default', 'bundle', 'encoding', 'ext_encoding',
+    'name', 'description', 'sorting_order', 'is_active',
+)
+
+
+def _matrix_entry_serializer():
+    """CuMatrixEntry + model.clean() + валидация when_options (M2M).
+
+    ``when_options`` — M2M, model.clean() его не видит — проверяем здесь,
+    чтобы API-путь не мог сохранить битое условие условной строки.
+    """
+    class S(serializers.ModelSerializer):
+        class Meta:
+            model = CuMatrixEntry
+            fields = '__all__'
+            read_only_fields = ('name_i18n', 'description_i18n', 'key')
+
+        def validate(self, attrs):
+            _clean_via_model(self.instance, CuMatrixEntry, attrs,
+                             _MATRIX_CLEAN_FIELDS)
+            when_slot = attrs.get('when_slot',
+                                  getattr(self.instance, 'when_slot', None))
+            when_op = attrs.get('when_operator',
+                                getattr(self.instance, 'when_operator', '') or '')
+            when_options = attrs.get('when_options')
+            if when_options is None and self.instance and self.instance.pk:
+                when_options = list(self.instance.when_options.all())
+            when_options = list(when_options or [])
+            ws_id = when_slot.pk if hasattr(when_slot, 'pk') else when_slot
+            if not when_slot:
+                if when_options:
+                    raise serializers.ValidationError(
+                        {'when_options': _('Безусловная строка не должна иметь '
+                                           'опций условия.')})
+            else:
+                if when_options:
+                    opt_ids = {o.pk if hasattr(o, 'pk') else o
+                               for o in when_options}
+                    wrong = (CuSlotOption.objects.filter(pk__in=opt_ids)
+                             .exclude(slot_id=ws_id))
+                    if wrong.exists():
+                        raise serializers.ValidationError(
+                            {'when_options': _('Опции условия должны '
+                                               'принадлежать слоту-условию.')})
+                if when_op in ('in', 'not_in') and not when_options:
+                    raise serializers.ValidationError(
+                        {'when_options': _('in/not_in требуют хотя бы одну '
+                                           'опцию.')})
+                if when_op == 'is_set' and when_options:
+                    raise serializers.ValidationError(
+                        {'when_options': _('is_set не использует набор опций.')})
+            return attrs
+
+    S.__name__ = 'CuMatrixEntrySerializer'
+    return S
+
 
 def _control_unit_serializer():
     """ControlUnit: ``key`` — неизменяемый стабильный ключ (read-only).
@@ -494,10 +553,10 @@ class ControlUnitViewSet(viewsets.ModelViewSet):
                 slot=r.slot, option=r.option, brand=r.brand,
                 model_line=r.model_line, body=r.body,
                 model_line_item=r.model_line_item, control_unit=new,
-                power_supply=r.power_supply, signal_power=r.signal_power,
+                power_supply=r.power_supply,
                 mode=r.mode,
                 control_signal=r.control_signal, feedback_signal=r.feedback_signal,
-                protocol=r.protocol, device=r.device,
+                device=r.device,
                 heater_supply=r.heater_supply, availability=r.availability,
                 is_default=r.is_default, bundle=r.bundle,
                 encoding=r.encoding, ext_encoding=r.ext_encoding,
@@ -579,7 +638,7 @@ CuSlotViewSet = _guarded_delete_viewset(
     CuSlot, _slot_serializer(), _slot_usage_specs())
 CuSlotOptionViewSet = _guarded_delete_viewset(
     CuSlotOption, _slot_option_serializer(), _option_usage_specs())
-CuMatrixEntryViewSet = _viewset(CuMatrixEntry, _serializer(CuMatrixEntry))
+CuMatrixEntryViewSet = _viewset(CuMatrixEntry, _matrix_entry_serializer())
 CuSlotRuleViewSet = _viewset(CuSlotRule, _serializer(CuSlotRule))
 CuControlSignalFormViewSet = _guarded_delete_viewset(
     CuControlSignalForm, _serializer(CuControlSignalForm),
@@ -595,7 +654,7 @@ CuFeedbackSignalViewSet = _guarded_delete_viewset(
     _ref_usage_specs('feedback_signal', 'feedback_signal'))
 CuCommProtocolViewSet = _guarded_delete_viewset(
     CuCommProtocol, _serializer(CuCommProtocol),
-    _ref_usage_specs('protocol', 'protocol'))
+    _ref_usage_specs('protocol'))
 CuFeedbackDeviceViewSet = _guarded_delete_viewset(
     CuFeedbackDevice, _serializer(CuFeedbackDevice),
     _ref_usage_specs('device', 'device'))
@@ -612,7 +671,7 @@ CuSignalPowerSourceViewSet = _guarded_delete_viewset(
     _sp_source_usage_specs())
 CuSignalPowerViewSet = _guarded_delete_viewset(
     CuSignalPower, _serializer(CuSignalPower),
-    _ref_usage_specs('signal_power', 'signal_power'))
+    _ref_usage_specs('signal_power'))
 CuControlLogicViewSet = _viewset(CuControlLogic, _serializer(CuControlLogic))
 
 # Общие справочники ЭП, используемые и БУ (kind/technology устройств ОС).
@@ -895,37 +954,29 @@ def package_view(request):
                 pk=request.query_params['power_supply'])
         except PowerSupplies.DoesNotExist:
             return Response({'error': 'power_supply не найден'}, status=400)
-    signal_power = None
-    if request.query_params.get('signal_power'):
-        from ea_control.models import CuSignalPower
+    snapshot = None
+    raw_snapshot = request.query_params.get('snapshot')
+    if raw_snapshot:
+        import json as _json
         try:
-            signal_power = CuSignalPower.objects.get(
-                pk=request.query_params['signal_power'])
-        except CuSignalPower.DoesNotExist:
-            return Response({'error': 'signal_power не найден'}, status=400)
-    protocol = None
-    if request.query_params.get('protocol'):
-        from ea_control.models import CuCommProtocol
-        try:
-            protocol = CuCommProtocol.objects.get(
-                pk=request.query_params['protocol'])
-        except CuCommProtocol.DoesNotExist:
-            return Response({'error': 'protocol не найден'}, status=400)
+            snapshot = _json.loads(raw_snapshot)
+        except ValueError:
+            return Response({'error': 'snapshot должен быть JSON-объектом'},
+                            status=400)
+        if not isinstance(snapshot, dict):
+            return Response({'error': 'snapshot должен быть объектом'},
+                            status=400)
     mode = request.query_params.get('mode', 'both')
     locale = request.query_params.get('locale', 'ru')
     return Response(build_package(unit, model_line=model_line,
                                   power_supply=power_supply,
-                                  signal_power=signal_power, protocol=protocol,
-                                  mode=mode, locale=locale))
+                                  mode=mode, snapshot=snapshot, locale=locale))
 
 
 def _unit_from_body(request):
-    """ControlUnit из тела запроса {unit: id} + snapshot/signal_power/locale.
+    """ControlUnit из тела запроса {unit: id} + snapshot + locale.
 
-    ``signal_power`` — id схемы цепей (CuSignalPower): строки матрицы с
-    координатой перекрывают профильные (набор сигналов CMD_* зависит от
-    выбранной схемы CMD_WIRING). Возвращает (unit, kwargs) или
-    (None, error_response).
+    Возвращает (unit, kwargs) или (None, error_response).
     """
     data = request.data
     try:
@@ -936,25 +987,7 @@ def _unit_from_body(request):
     if snapshot is not None and not isinstance(snapshot, dict):
         return None, Response({'error': 'snapshot должен быть объектом'},
                               status=400)
-    signal_power = None
-    if data.get('signal_power'):
-        from ea_control.models import CuSignalPower
-        try:
-            signal_power = CuSignalPower.objects.get(pk=data['signal_power'])
-        except (ValueError, CuSignalPower.DoesNotExist):
-            return None, Response({'error': 'signal_power не найден'},
-                                  status=400)
-    protocol = None
-    if data.get('protocol'):
-        from ea_control.models import CuCommProtocol
-        try:
-            protocol = CuCommProtocol.objects.get(pk=data['protocol'])
-        except (ValueError, CuCommProtocol.DoesNotExist):
-            return None, Response({'error': 'protocol не найден'},
-                                  status=400)
     return unit, {'snapshot': snapshot,
-                  'signal_power': signal_power,
-                  'protocol': protocol,
                   'locale': data.get('locale', 'ru')}
 
 
@@ -962,8 +995,7 @@ def _unit_from_body(request):
 @permission_classes([IsAdminUser])
 def specification_view(request):
     """Спецификация модификации БУ: видимые узлы/слоты, значения из снимка
-    (или std-дефолты профиля). Тело: {unit, snapshot?, signal_power?,
-    locale?}."""
+    (или std-дефолты профиля). Тело: {unit, snapshot?, locale?}."""
     from ea_control.services.cu_description import build_specification
     unit, err_or_kw = _unit_from_body(request)
     if unit is None:
@@ -975,7 +1007,7 @@ def specification_view(request):
 @permission_classes([IsAdminUser])
 def description_view(request):
     """Текстовое описание модификации БУ (локализованное).
-    Тело: {unit, snapshot?, signal_power?, locale?}."""
+    Тело: {unit, snapshot?, locale?}."""
     from ea_control.services.cu_description import (
         build_description as build_mod_description)
     unit, err_or_kw = _unit_from_body(request)

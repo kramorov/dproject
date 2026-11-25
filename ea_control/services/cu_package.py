@@ -19,28 +19,6 @@ from ea_control.services.cu_code import build_codes
 from ea_control.services.cu_matrix import (get_product_type_slot,
                                            get_profile_defaults, resolve_slots)
 
-# Опции могут нести значение координаты контекста матрицы (помимо типа
-# изделия): выбор такой опции перерезолвивает доступность остальных слотов.
-# Пара — (имя параметра запроса, поле полезной нагрузки опции).
-CONTEXT_COORDINATES = (
-    ('signal_power', 'signal_power'),
-    ('protocol', 'protocol'),
-)
-
-
-def _option_context_coordinate(option):
-    """Координата контекста, которую несёт опция (или None).
-
-    Возвращает ``{'param': …, 'value_id': …}`` — фронт по ней перезапрашивает
-    пакет с параметром ``param=value_id`` при выборе опции.
-    """
-    for param, field in CONTEXT_COORDINATES:
-        value_id = getattr(option, f'{field}_id', None)
-        if value_id:
-            return {'param': param, 'value_id': value_id}
-    return None
-
-
 def _slot_payload(slot, options_payloads, locale=None):
     """Слот + его опции с доступностью (или None — недоступно)."""
     return {
@@ -55,22 +33,18 @@ def _slot_payload(slot, options_payloads, locale=None):
 
 
 def build_package(control_unit, *, model_line=None, body=None,
-                  model_line_item=None, power_supply=None, signal_power=None,
-                  protocol=None, mode='both', locale=None):
+                  model_line_item=None, power_supply=None, mode='both',
+                  snapshot=None, locale=None):
     """Собрать пакет конфигуратора для выбранного типа БУ.
 
-    ``signal_power`` — выбранная схема цепей управления (опция слота
-    CMD_WIRING): с ней перерезолвивается набор сигналов дистанционного
-    управления (строки матрицы с координатой ``signal_power``).
-
-    ``protocol`` — выбранный протокол (опция слота PROTOCOL): с ним
-    перерезолвиваются опции, привязанные к протоколу (строки матрицы с
-    координатой ``protocol``).
+    ``snapshot`` — {slot_code: option_code}: условные строки (slots.md §6)
+    оцениваются по эффективному значению слота (снимок перекрывает
+    std-дефолт).
     """
     resolved = resolve_slots(
         control_unit, model_line=model_line, body=body,
         model_line_item=model_line_item, power_supply=power_supply,
-        signal_power=signal_power, protocol=protocol, mode=mode, locale=locale)
+        mode=mode, snapshot=snapshot, locale=locale)
 
     product_type_slot = get_product_type_slot()
     product_type_code = product_type_slot.code if product_type_slot else None
@@ -78,8 +52,7 @@ def build_package(control_unit, *, model_line=None, body=None,
         slot__slot_kind=ConfigSlotKind.SUBTYPE,
         control_unit=control_unit).values_list('code', flat=True).first() or '')
     defaults = get_profile_defaults(control_unit, power_supply=power_supply,
-                                    mode=mode, signal_power=signal_power,
-                                    protocol=protocol)
+                                    mode=mode, snapshot=snapshot)
 
     # опции слотов: каталог + доступность из матрицы
     slots = list(CuSlot.objects.filter(is_active=True)
@@ -109,9 +82,6 @@ def build_package(control_unit, *, model_line=None, body=None,
                 'ext_encoding': (matrix['ext_encoding'] if matrix
                                  else option.ext_encoding),
                 'row_id': matrix['row_id'] if matrix else None,
-                # опция несёт координату контекста матрицы (сейчас — схема
-                # цепей CuSignalPower): фронт по ней перезапрашивает пакет
-                'context_coordinate': _option_context_coordinate(option),
             })
         slots_payload.append(_slot_payload(slot, options_payload, locale))
 
@@ -163,19 +133,17 @@ def build_package(control_unit, *, model_line=None, body=None,
             # описание модификации — генератор по структуре+правилам
             # (std-дефолты профиля; после выбора опций фронт может запросить
             # /api/ea-control/description/ со снимком)
-            'description': build_description(control_unit, locale=locale),
+            'description': build_description(control_unit, snapshot=snapshot,
+                                             locale=locale),
             'brand_name': str(control_unit.brand) if control_unit.brand_id else '',
         },
         'sections': sections,
         'slots': slots_payload,
         'product_type_slot': product_type_code,
-        'context_coordinates': [
-            {'param': param, 'field': field}
-            for param, field in CONTEXT_COORDINATES
-        ],
         'defaults': defaults,
         'rules': rules_payload,
-        **build_codes(control_unit, power_supply=power_supply, mode=mode,
-                      signal_power=signal_power, model_line=model_line,
+        **build_codes(control_unit, snapshot=snapshot,
+                      power_supply=power_supply, mode=mode,
+                      model_line=model_line,
                       body=body, model_line_item=model_line_item),
     }

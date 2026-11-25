@@ -4,7 +4,7 @@
 
 Экспорт — **полный каркас рабочей таблицы**: все модели серии × все пары
 (БУ × напряжение × режим), встречающиеся в матрице серии/бренда или в
-разрешённых БУ×напряжение серии (`AllowedControlUnitOption`), × все опции
+разрешённых БУ×напряжение серии, × все опции
 каждого активного слота (каталог `EaSlotOption`). Ячейки без строки —
 пустая `availability` (импорт их пропускает): таблицу можно дозаполнять в Excel
 и заливать обратно (upsert на уровне корпуса).
@@ -31,11 +31,7 @@ FIELDS = ['series_code', 'item_code', 'body_code', 'control_unit',
 # Дополнительные листы (не-матричные опции, влияющие на сигналы/оснащение)
 TEMP_FIELDS = ['series_code', 'temp_code', 'heater_supply', 'is_default',
                'work_temp_min', 'work_temp_max', 'encoding', 'ext_encoding']
-CU_FIELDS = ['series_code', 'item_code', 'control_unit', 'power_supply',
-             'cu_power_supply', 'encoding', 'ext_encoding', 'is_active']
 COUNTER_FIELDS = ['series_code', 'turn_counter', 'encoding', 'is_active']
-
-
 def _scope_body_code(body):
     if not body:
         return ''
@@ -109,25 +105,9 @@ def _series_matrix_qs(line):
 
 
 def _item_pairs(line, item):
-    """Пары (cu_code, ps_code, mode) для конкретной модели: активные
-    серийные AllowedControlUnitOption + перекрытия модели (is_active=False —
-    запрет) + пары строк матрицы бренда/серии/корпуса/модели."""
-    from electric_actuators.models import AllowedControlUnitOption
+    """Пары (cu_code, ps_code, mode) для модели — из строк матрицы
+    бренда/серии/корпуса/модели (AllowedControlUnitOption удалён)."""
     pairs = set()
-    for a in AllowedControlUnitOption.objects.filter(
-            model_line=line, model_line_item__isnull=True, is_active=True,
-            power_supply__isnull=False).select_related(
-            'control_unit', 'power_supply'):
-        pairs.add((a.control_unit.code, a.power_supply.code, 'both'))
-    for a in AllowedControlUnitOption.objects.filter(
-            model_line=line, model_line_item=item,
-            power_supply__isnull=False).select_related(
-            'control_unit', 'power_supply'):
-        pair = (a.control_unit.code, a.power_supply.code, 'both')
-        if a.is_active:
-            pairs.add(pair)
-        else:
-            pairs.discard(pair)
     qs = _series_matrix_qs(line).filter(
         Q(body__isnull=True, model_line_item__isnull=True)
         | Q(body=item.body) | Q(model_line_item=item))
@@ -275,10 +255,9 @@ def export_series_rows(model_line_code):
 
 def export_extra_sheets(model_line_code):
     """Доп. листы выгрузки: температурные опции (обогрев привода),
-    пары БУ×напряжение с питанием БУ, разрешённые счётчики серии.
+    разрешённые счётчики серии.
     Возвращает list[(sheet_name, fields, rows)]."""
     from electric_actuators.models import (ElectricTemperatureOption,
-                                           AllowedControlUnitOption,
                                            AllowedTurnCounterOption)
     line = ElectricActuatorModelLine.objects.get(code=model_line_code)
 
@@ -295,22 +274,6 @@ def export_extra_sheets(model_line_code):
             'heater_supply').order_by('sorting_order', 'id')
     ]
 
-    cu_rows = [
-        {'series_code': line.code,
-         'item_code': (a.model_line_item.code or a.model_line_item.name)
-         if a.model_line_item_id else '',
-         'control_unit': a.control_unit.code,
-         'power_supply': a.power_supply.code if a.power_supply_id else '',
-         'cu_power_supply': a.cu_power_supply.code if a.cu_power_supply_id else '',
-         'encoding': a.encoding or '', 'ext_encoding': a.ext_encoding or '',
-         'is_active': bool(a.is_active)}
-        for a in AllowedControlUnitOption.objects.filter(
-            model_line=line).select_related(
-            'control_unit', 'power_supply', 'cu_power_supply',
-            'model_line_item').order_by(
-            'model_line_item_id', 'control_unit__code', 'power_supply__code')
-    ]
-
     counter_rows = [
         {'series_code': line.code, 'turn_counter': c.turn_counter.code,
          'encoding': c.encoding or '', 'is_active': bool(c.is_active)}
@@ -321,7 +284,6 @@ def export_extra_sheets(model_line_code):
 
     return [
         ('temp_options', TEMP_FIELDS, temp_rows),
-        ('cu_options', CU_FIELDS, cu_rows),
         ('turn_counters', COUNTER_FIELDS, counter_rows),
     ]
 
@@ -505,154 +467,6 @@ OPTION_SLOT_GROUPS = [
 OPTION_SLOT_CODES = {slot for _, slot in OPTION_SLOT_GROUPS}
 
 
-def _cu_has_heater(cu):
-    """Обогреватель БУ возможен только у БУ с контроллером: BASIC/NONE —
-    нет БУ (обогрев привода — в temp-листе), позиционер — по матрице."""
-    return cu is not None and cu.kind not in ('NONE', 'BASIC')
-
-
-def _matrix_availability_map(item, cu, ps):
-    """Сводка доступности по сигналам/обогреву для (модель, БУ, напряжение):
-    объединение режимов on_off/modulating (std сильнее opt)."""
-    from electric_actuators.models import EaSignalMatrixEntry
-    avail = {}
-    for mode in ('on_off', 'modulating'):
-        res = resolve_matrix(item, cu, ps, mode)
-        for slot in res['slots']:
-            for srow in slot['rows']:
-                entry = EaSignalMatrixEntry.objects.get(pk=srow['id'])
-                if entry.option_id and entry.slot_id and \
-                        entry.slot.code in OPTION_SLOT_CODES:
-                    key = 'opt:' + entry.option.code
-                elif entry.heater_supply_id:
-                    key = 'heater:' + entry.heater_supply.code
-                elif entry.feedback_signal_id:
-                    key = entry.feedback_signal.code
-                elif entry.control_signal_id:
-                    key = entry.control_signal.code
-                elif entry.protocol_id:
-                    key = entry.protocol.code
-                else:
-                    continue
-                a = srow['availability']
-                if a in ('std', 'opt') and avail.get(key) != 'std':
-                    avail[key] = a
-    return avail
-
-
-def export_wide_rows(model_line_code):
-    """Широкая матрица серии: (headers, rows) — модель × напряжение ×
-    (БУ × сигналы). Значения std/opt/no/''."""
-    from electric_actuators.models.ea_allowed_options import (
-        resolve_cu_pair, AllowedControlUnitOption)
-    line = ElectricActuatorModelLine.objects.get(code=model_line_code)
-    items = list(ElectricActuatorModelLineItem.objects.filter(
-        model_line=line).select_related('body').order_by('code'))
-    cus = {c.code: c for c in ControlUnitInstalledOption.objects.all()}
-    pss = list(PowerSupplies.objects.filter(
-        is_active=True).order_by('sorting_order'))
-
-    headers = ['series_code', 'item_code', 'body_code', 'power_supply']
-    # Типы БУ серии (из разрешённых пар) — столбцы ссылок на листы сигналов
-    cu_series = list(AllowedControlUnitOption.objects.filter(
-        model_line=line, is_active=True).order_by().values_list(
-        'control_unit__code', flat=True).distinct())
-    cu_series.sort(key=lambda c: CU_GROUPS.index(c)
-                   if c in CU_GROUPS else len(CU_GROUPS))
-    headers += [f'cu_ref|{c}' for c in cu_series]
-    # Каталоги none-опций слотов (все опции в моделях — колонки не хардкодятся)
-    opt_codes = {}
-    for prefix, slot_code in OPTION_SLOT_GROUPS:
-        opt_codes[prefix] = [o.code for o in EaSlotOption.objects.filter(
-            slot__code=slot_code, is_active=True).order_by('sorting_order')]
-    for cu_code in CU_GROUPS:
-        headers += [f'{cu_code}|{c}' for c in CMD_CODES]
-        headers += [f'{cu_code}|{f}' for f in FB_CODES]
-        headers += [f'{cu_code}|heater|{h}' for h in HEATER_CODES]
-        for prefix, _ in OPTION_SLOT_GROUPS:
-            headers += [f'{cu_code}|{prefix}|{c}' for c in opt_codes[prefix]]
-
-    rows = []
-    for item in items:
-        for ps in pss:
-            row = {'series_code': line.code,
-                   'item_code': item.code or item.name,
-                   'body_code': _scope_body_code(item.body),
-                   'power_supply': ps.code}
-            for cu_code in CU_GROUPS:
-                cu = cus.get(cu_code)
-                pair = resolve_cu_pair(line, item, cu, ps) if cu else None
-                if cu is None or pair is None:
-                    for c in CMD_CODES + FB_CODES:
-                        row[f'{cu_code}|{c}'] = 'no'
-                    for h in HEATER_CODES:
-                        row[f'{cu_code}|heater|{h}'] = 'no'
-                    for prefix, _ in OPTION_SLOT_GROUPS:
-                        for c in opt_codes[prefix]:
-                            row[f'{cu_code}|{prefix}|{c}'] = 'no'
-                    continue
-                avail = _matrix_availability_map(item, cu, ps)
-                for c in CMD_CODES:
-                    row[f'{cu_code}|{c}'] = avail.get(c, '')
-                for f in FB_CODES:
-                    row[f'{cu_code}|{f}'] = avail.get(f, '')
-                for prefix, _ in OPTION_SLOT_GROUPS:
-                    for c in opt_codes[prefix]:
-                        row[f'{cu_code}|{prefix}|{c}'] = avail.get(
-                            'opt:' + c, '')
-                if not _cu_has_heater(cu):
-                    for h in HEATER_CODES:
-                        row[f'{cu_code}|heater|{h}'] = 'no'
-                else:
-                    for h in HEATER_CODES:
-                        row[f'{cu_code}|heater|{h}'] = avail.get(
-                            'heater:' + h, '')
-            # Столбцы ссылок на листы сигналов БУ
-            for cu_code in cu_series:
-                cu_r = cus.get(cu_code)
-                pair = resolve_cu_pair(line, item, cu_r, ps) if cu_r else None
-                row[f'cu_ref|{cu_code}'] = ('signals|' + cu_code
-                                            if pair is not None else 'n/a')
-            rows.append(row)
-    return headers, rows
-
-
-def export_cu_signal_sheets(model_line_code):
-    """Листы сигналов БУ: для каждого типа БУ серии — таблица профильных
-    строк (сигнальный профиль БУ). Возвращает list[(sheet_name, fields, rows)]."""
-    from electric_actuators.models.ea_allowed_options import \
-        AllowedControlUnitOption
-    line = ElectricActuatorModelLine.objects.get(code=model_line_code)
-    cu_codes = list(AllowedControlUnitOption.objects.filter(
-        model_line=line, is_active=True).order_by().values_list(
-        'control_unit__code', flat=True).distinct())
-    cu_codes.sort(key=lambda c: CU_GROUPS.index(c)
-                  if c in CU_GROUPS else len(CU_GROUPS))
-    fields = ['control_unit', 'power_supply', 'mode', 'slot', 'option',
-              'name', 'availability', 'is_default', 'ext_encoding']
-    sheets = []
-    for cu_code in cu_codes:
-        rows_qs = EaSignalMatrixEntry.objects.filter(
-            control_unit__code=cu_code,
-            brand__isnull=True, model_line__isnull=True,
-            body__isnull=True, model_line_item__isnull=True
-        ).select_related('control_unit', 'power_supply', 'slot', 'option')
-        rows = [{
-            'control_unit': cu_code,
-            'power_supply': r.power_supply.code if r.power_supply_id else '',
-            'mode': r.mode,
-            'slot': r.slot.code if r.slot_id else '',
-            'option': r.option.code if r.option_id else '',
-            'name': r.name or (r.option.name if r.option_id else ''),
-            'availability': r.availability,
-            'is_default': bool(r.is_default),
-            'ext_encoding': (r.option.ext_encoding if r.option_id else '')
-                            or r.ext_encoding or '',
-        } for r in rows_qs]
-        sheets.append(('signals|' + cu_code, fields, rows))
-    return sheets
-
-
 def export_device_rows(model_line_code):
     """Лист device: датчик перегрева (THERMAL_RELAY/PTC_THERMISTOR) на
     (модель × напряжение); значения std/opt/''."""
@@ -695,39 +509,3 @@ def export_device_rows(model_line_code):
     return fields, rows
 
 
-def write_wide_xlsx(path, wide_headers, wide_rows, device_fields,
-                    device_rows, extra_sheets=None, cu_sheets=None):
-    import openpyxl
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'ea_signal_matrix'
-    ws.append(wide_headers)
-    for row in wide_rows:
-        ws.append([row.get(f, '') for f in wide_headers])
-    # Листы сигналов БУ + гиперссылки из столбцов cu_ref|...
-    cu_cols = [i for i, h in enumerate(wide_headers)
-               if str(h).startswith('cu_ref|')]
-    if cu_sheets:
-        for sheet_name, fields, sheet_rows in cu_sheets:
-            wcu = wb.create_sheet(sheet_name)
-            wcu.append(fields)
-            for row in sheet_rows:
-                wcu.append([row.get(f, '') for f in fields])
-        if cu_cols:
-            for row in ws.iter_rows(min_row=2, max_col=len(wide_headers)):
-                for ci in cu_cols:
-                    cell = row[ci]
-                    if cell.value and str(cell.value) != 'n/a':
-                        cell.hyperlink = "#'%s'!A1" % cell.value
-                        cell.style = 'Hyperlink'
-    ws2 = wb.create_sheet('device')
-    ws2.append(device_fields)
-    for row in device_rows:
-        ws2.append([row.get(f, '') for f in device_fields])
-    for sheet_name, fields, sheet_rows in (extra_sheets or []):
-        ws3 = wb.create_sheet(sheet_name)
-        ws3.append(fields)
-        for row in sheet_rows:
-            ws3.append([row.get(f, '') for f in fields])
-    wb.save(path)
-    return len(wide_rows)

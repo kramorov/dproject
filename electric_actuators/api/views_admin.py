@@ -435,7 +435,7 @@ class EACopyControlUnitsView(APIView):
         }
         ps_ids_with_rec = [r.id for r in ps_records.values()]
 
-        # Один запрос: все SP (CU-опции удалены — фаза 7, БУ×напряжение в AllowedControlUnitOption)
+        # Один запрос: все SP (CU-опции удалены — фаза 7, БУ×напряжение в новой слотовой модели
         all_sp_records = list(ElectricSafetyPositionOption.objects.filter(
             power_supply_option_id__in=ps_ids_with_rec, is_active=True
         ).select_related('safety_position'))

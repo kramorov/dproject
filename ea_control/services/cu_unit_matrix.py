@@ -63,7 +63,7 @@ def _profile_rows(control_unit):
             .filter(control_unit=control_unit,
                     brand__isnull=True, model_line__isnull=True,
                     body__isnull=True, model_line_item__isnull=True,
-                    signal_power__isnull=True,
+                    when_slot__isnull=True,
                     mode=CuMatrixMode.BOTH)
             .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
             .select_related('slot', 'option'))
@@ -72,15 +72,15 @@ def _profile_rows(control_unit):
 def _profile_row_qs(control_unit, power_supply):
     """Базовый queryset профильных строк на выбранном напряжении.
 
-    Строки с координатой ``signal_power`` сюда не входят: это
-    переопределения конкретной схемы цепей (задаются сидом/отдельным
-    инструментом), а не общий профиль типа БУ.
+    Условные строки (``when_slot`` задан, slots.md §6) сюда не входят: это
+    переопределения по условию, редактируются в отдельной вкладке
+    «Зависимости», а не в профиле типа БУ.
     """
     return CuMatrixEntry.objects.filter(
         control_unit=control_unit,
         brand__isnull=True, model_line__isnull=True,
         body__isnull=True, model_line_item__isnull=True,
-        signal_power__isnull=True,
+        when_slot__isnull=True,
         power_supply=power_supply, mode=CuMatrixMode.BOTH)
 
 

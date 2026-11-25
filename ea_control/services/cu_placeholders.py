@@ -41,7 +41,7 @@ def _join(value):
 
 
 def render_placeholders(template, control_unit, *, snapshot=None, locale=None,
-                        power_supply=None, mode='both', signal_power=None):
+                        power_supply=None, mode='both'):
     """Подставить ``{node:}/{slot:}/{opt:}`` в шаблон описания БУ.
 
     ``control_unit`` — тип БУ (ea_control.ControlUnit); ``snapshot`` —
@@ -51,8 +51,7 @@ def render_placeholders(template, control_unit, *, snapshot=None, locale=None,
         return ''
 
     merged, defaults = _effective_snapshot(
-        control_unit, snapshot, power_supply=power_supply, mode=mode,
-        signal_power=signal_power)
+        control_unit, snapshot, power_supply=power_supply, mode=mode)
     nodes, visible = visible_slots(control_unit, snapshot)
 
     options_by_slot = {}

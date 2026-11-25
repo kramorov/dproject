@@ -82,6 +82,17 @@ class ConfigRuleOperator(models.TextChoices):
     IS_SET = 'is_set', _('Значение задано')
 
 
+class ConfigWhenOperator(models.TextChoices):
+    """Оператор условия условной строки матрицы (slots.md §6).
+
+    Узкий словарь: значение условия — опции слота-условия (не произвольные
+    значения/числа), поэтому сравнение сведено к вхождению.
+    """
+    IN = 'in', _('В наборе')
+    NOT_IN = 'not_in', _('Не в наборе')
+    IS_SET = 'is_set', _('Значение задано')
+
+
 # ── Узел ─────────────────────────────────────────────────────────────────────
 
 class StableKeyMixin:
@@ -410,7 +421,11 @@ class AbstractSlotMatrixEntry(CopyMixin, models.Model):
     - ``encoding``/``ext_encoding`` — вклад в основной/ext артикул;
     - ``name``/``description`` — для none-строк («Без переключателей») и
       особых случаев; иначе имя выводится из полезной нагрузки;
-    - ``sorting_order`` — порядок строк в слоте.
+    - ``sorting_order`` — порядок строк в слоте;
+    - ``when_operator``/``priority``/``is_active`` — условие условной строки
+      (slots.md §6): in/not_in/is_set, приоритет среди условных строк одной
+      опции, включение/выключение без удаления; связные ``when_slot``/
+      ``when_options`` объявляет наследник.
 
     Методы:
 
@@ -471,6 +486,21 @@ class AbstractSlotMatrixEntry(CopyMixin, models.Model):
                     "полезной нагрузки"),
     )
     description = models.TextField(blank=True, verbose_name=_("Описание"))
+    when_operator = models.CharField(
+        max_length=10, choices=ConfigWhenOperator.choices,
+        default='', blank=True,
+        verbose_name=_("Оператор условия"),
+        help_text=_("Для условной строки (when_slot задан): in/not_in/is_set; "
+                    "пусто — безусловная строка"),
+    )
+    priority = models.IntegerField(
+        default=0, verbose_name=_("Приоритет"),
+        help_text=_("Среди условных строк одной опции; больше — сильнее"),
+    )
+    is_active = models.BooleanField(
+        default=True, verbose_name=_("Активно"),
+        help_text=_("Выключенная строка не участвует в резолве"),
+    )
 
     class Meta:
         abstract = True

@@ -66,11 +66,7 @@ EA_CATALOG_ITEM_TEMPLATE_FIELDS = (
     # ── Блок управления (cu_*) ──
     TemplateFieldSpec(key='cu_name', placeholder='{cu_name}',
                       path='control_unit__name',
-                      name_path='control_unit',
-                      code_path='_res_cu_encoding',
-                      enc_placeholder='{cu_name_enc}',
-                      ext_code_path='_res_cu_ext_encoding',
-                      ext_enc_placeholder='{cu_name_e_enc}'),
+                      name_path='control_unit'),
     TemplateFieldSpec(key='cu_code', placeholder='{cu_code}',
                       path='control_unit__code'),
     TemplateFieldSpec(key='cu_description', placeholder='{cu_description}',

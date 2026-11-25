@@ -16,13 +16,22 @@ class Command(BaseCommand):
         parser.add_argument('--output', default=None)
 
     def handle(self, *args, **options):
-        headers, rows = ea_matrix_io.export_wide_rows(options['series'])
+        import openpyxl
         d_fields, d_rows = ea_matrix_io.export_device_rows(options['series'])
         extra = ea_matrix_io.export_extra_sheets(options['series'])
-        cu_sheets = ea_matrix_io.export_cu_signal_sheets(options['series'])
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'ea_signal_matrix'
+        ws.append(d_fields or [])
+        for row in d_rows:
+            ws.append([row.get(f, '') for f in (d_fields or [])])
+        for sheet_name, fields, sheet_rows in extra:
+            ws2 = wb.create_sheet(sheet_name)
+            ws2.append(fields)
+            for row in sheet_rows:
+                ws2.append([row.get(f, '') for f in fields])
         path = options['output'] or f'ea_matrix_{options["series"]}.xlsx'
-        ea_matrix_io.write_wide_xlsx(path, headers, rows, d_fields, d_rows,
-                                     extra_sheets=extra, cu_sheets=cu_sheets)
+        wb.save(path)
         self.stdout.write(self.style.SUCCESS(
-            f'{path}: {len(rows)} строк x {len(headers)} колонок + листы '
-            f'{[s[0] for s in extra + cu_sheets]}'))
+            f'{path}: device {len(d_rows)} строк + листы '
+            f'{[s[0] for s in extra]}'))

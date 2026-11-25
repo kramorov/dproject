@@ -11,7 +11,6 @@ from django.core.management.base import BaseCommand
 from params.models import ControlUnitInstalledOption, PowerSupplies
 from electric_actuators.models import (
     EaSignalMatrixEntry, EaSignalSlot, EaSlotOption,
-    AllowedControlUnitOption,
 )
 
 # Профили: cu_code -> {ps_code или '*': [(slot, opt_suffix, availability)]}
@@ -295,25 +294,6 @@ class Command(BaseCommand):
                 body__isnull=True, model_line_item__isnull=True)
             b.signals.set(rows)
             stats['bindings'] += 1
-
-        # 4. Allowed: R-серия → -nq; Q005-010 → -q
-        for a in AllowedControlUnitOption.objects.filter(
-                model_line__code='AR01E'):
-            swap = {'int-l': 'int-l-nq'}.get(
-                a.control_unit.code)
-            if swap and swap in cu:
-                a.control_unit = cu[swap]
-                a.save(update_fields=['control_unit'])
-        for a in AllowedControlUnitOption.objects.filter(
-                model_line__code='AR11E',
-                model_line_item__code__in=['005', '008', '010']):
-            swap = {'int-l': 'int-l-q', 'int-n': 'int-n-q',
-                    'int-n-hr': 'int-n-hr-q', 'int-n-mb': 'int-n-mb-q',
-                    'int-n-pb': 'int-n-pb-q', 'int-o': 'int-o-q'}.get(
-                a.control_unit.code)
-            if swap and swap in cu:
-                a.control_unit = cu[swap]
-                a.save(update_fields=['control_unit'])
 
         self.stdout.write(self.style.SUCCESS(
             'Профили БУ: удалено %d старых строк, создано %d профильных '

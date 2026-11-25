@@ -29,7 +29,7 @@ class CuDescriptionGeneratorTests(TestCase):
     def setUpTestData(cls):
         from ea_control.models import ControlUnit
         cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
-        cls.int_unit = ControlUnit.objects.get(code='INT/N')
+        cls.int_unit = ControlUnit.objects.get(code='INT-N-TORQUE')
         cls.int_o = ControlUnit.objects.get(code='INT-O-AR21')
         cls.posi = ControlUnit.objects.get(code='POSI-AR01')
 
@@ -40,7 +40,7 @@ class CuDescriptionGeneratorTests(TestCase):
         # exact-hide для базового
         for code in ('LOCAL_CONTROL_DESIGN', 'IND_LOCAL_REMOTE',
                      'IND_ALARM', 'MOTOR_STARTER', 'CMD_ESD',
-                     'POSITION_FEEDBACK', 'REMOTE_CONTROL',
+                     'FB_POSITION', 'REMOTE_CONTROL',
                      'PHASE_PROTECTION'):
             self.assertIn(code, hidden)
         # exact-hide для встроенных БУ (питание/вводы/протокол)
@@ -49,7 +49,7 @@ class CuDescriptionGeneratorTests(TestCase):
         self.assertIn('PROTOCOL', hidden)
         # видимые остаются
         for code in ('CU_LOCATION', 'CMD_WIRING', 'ACTUATOR_HEATER',
-                     'HEATER_CONTROL_UNIT', 'IND_OPEN', 'IND_STOP',
+                     'CU_HEATER', 'IND_OPEN', 'IND_STOP',
                      'IND_POSITION_MECH'):
             self.assertNotIn(code, hidden)
 
@@ -201,20 +201,12 @@ class CuDescriptionGeneratorTests(TestCase):
             node.is_active = prev
             node.save(update_fields=['is_active'])
 
-    def test_spec_accepts_signal_power_parameter(self):
-        """Параметр signal_power прокидывается в резолвер (координата схемы
-        цепей) и не ломает спецификацию. Сам пересчёт набора сигналов по
-        координате покрыт тестом резолвера
-        (tests_services.test_signal_power_coordinate_posi); в спецификации
-        слоты CMD_* у позиционера скрыты правилом hide, поэтому здесь —
-        только smoke-проверка."""
-        from ea_control.models import CuSignalPower
-        ext_pnp = CuSignalPower.objects.get(
-            name__startswith='Внешний 24 В DC (PNP)')
-        spec = build_specification(self.posi, signal_power=ext_pnp)
+    def test_spec_accepts_snapshot(self):
+        """Снимок прокидывается в резолвер и не ломает спецификацию."""
+        spec = build_specification(self.posi, snapshot={})
         slots = {s['code'] for sec in spec['sections']
                  for s in sec['slots']}
-        self.assertIn('POSITION_FEEDBACK', slots)
+        self.assertIn('FB_POSITION', slots)
         self.assertIn('SETPOINT', slots)
         self.assertNotIn('CMD_OPEN', slots)  # hide-правило позиционера
 
