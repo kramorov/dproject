@@ -167,10 +167,11 @@ def _option_description(option, locale=None):
 
 
 def _effective_snapshot(control_unit, snapshot, *, power_supply=None,
-                        mode='both', signal_power=None):
+                        mode='both', signal_power=None, protocol=None):
     """(снимок+дефолты, дефолты): снимок перекрывает дефолты профиля."""
     defaults = get_profile_defaults(control_unit, power_supply=power_supply,
-                                    mode=mode, signal_power=signal_power)
+                                    mode=mode, signal_power=signal_power,
+                                    protocol=protocol)
     product_type_slot = get_product_type_slot()
     pt_code = product_type_slot.code if product_type_slot else None
     merged = dict(defaults)
@@ -219,7 +220,8 @@ def _slot_value_description(slot, options_by_slot, merged, defaults,
 
 
 def build_specification(control_unit, *, snapshot=None, locale=None,
-                        power_supply=None, mode='both', signal_power=None):
+                        power_supply=None, mode='both', signal_power=None,
+                        protocol=None):
     """Спецификация модификации БУ: видимые узлы → слоты → значения.
 
     Возвращает {unit, sections: [{code, name, description, slots:
@@ -228,10 +230,10 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
     """
     merged, defaults = _effective_snapshot(
         control_unit, snapshot, power_supply=power_supply, mode=mode,
-        signal_power=signal_power)
+        signal_power=signal_power, protocol=protocol)
     resolved = resolve_slots(control_unit, power_supply=power_supply,
-                             signal_power=signal_power, mode=mode,
-                             locale=locale)
+                             signal_power=signal_power, protocol=protocol,
+                             mode=mode, locale=locale)
 
     nodes, visible = visible_slots(control_unit, snapshot)
     options_by_slot = {}
@@ -305,7 +307,7 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
 
 def build_description(control_unit, *, snapshot=None, locale=None,
                       power_supply=None, mode='both', signal_power=None,
-                      include_name=True):
+                      protocol=None, include_name=True):
     """Текстовое описание модификации БУ (локализованное).
 
     Структура: имя БУ (если ``include_name``), затем строки
@@ -315,7 +317,7 @@ def build_description(control_unit, *, snapshot=None, locale=None,
     """
     spec = build_specification(control_unit, snapshot=snapshot, locale=locale,
                                power_supply=power_supply, mode=mode,
-                               signal_power=signal_power)
+                               signal_power=signal_power, protocol=protocol)
     lines = [spec['unit']['name']] if include_name else []
     for section in spec['sections']:
         parts = []

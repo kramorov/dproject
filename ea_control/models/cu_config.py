@@ -718,10 +718,11 @@ class CuMatrixEntry(LocalizedDictFieldsMixin, AbstractSlotMatrixEntry):
         if self.option_id and self.option.slot_id != self.slot_id:
             raise ValidationError(
                 {'option': _('Опция принадлежит другому слоту.')})
-        if self.protocol_id and self.slot.code != 'PROTOCOL':
-            raise ValidationError(
-                {'protocol': _('Протокол заполняется только для строк слота '
-                               'PROTOCOL.')})
+        # ``protocol`` двойного назначения: у строк слота PROTOCOL — полезная
+        # нагрузка (какой протокол описывает строка), у строк других слотов —
+        # координата контекста (строка применяется при выбранном протоколе,
+        # например BUS_CONTROLS_OPTIONS при ModBus/ProfiBus). Ограничение
+        # «только слот PROTOCOL» поэтому снято.
         if self.heater_supply_id and self.slot.code not in (
                 'HEATER_CONTROL_UNIT', 'CU_HEATER'):
             raise ValidationError(

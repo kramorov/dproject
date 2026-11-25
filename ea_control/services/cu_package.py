@@ -24,6 +24,7 @@ from ea_control.services.cu_matrix import (get_product_type_slot,
 # Пара — (имя параметра запроса, поле полезной нагрузки опции).
 CONTEXT_COORDINATES = (
     ('signal_power', 'signal_power'),
+    ('protocol', 'protocol'),
 )
 
 
@@ -55,17 +56,21 @@ def _slot_payload(slot, options_payloads, locale=None):
 
 def build_package(control_unit, *, model_line=None, body=None,
                   model_line_item=None, power_supply=None, signal_power=None,
-                  mode='both', locale=None):
+                  protocol=None, mode='both', locale=None):
     """Собрать пакет конфигуратора для выбранного типа БУ.
 
     ``signal_power`` — выбранная схема цепей управления (опция слота
     CMD_WIRING): с ней перерезолвивается набор сигналов дистанционного
     управления (строки матрицы с координатой ``signal_power``).
+
+    ``protocol`` — выбранный протокол (опция слота PROTOCOL): с ним
+    перерезолвиваются опции, привязанные к протоколу (строки матрицы с
+    координатой ``protocol``).
     """
     resolved = resolve_slots(
         control_unit, model_line=model_line, body=body,
         model_line_item=model_line_item, power_supply=power_supply,
-        signal_power=signal_power, mode=mode, locale=locale)
+        signal_power=signal_power, protocol=protocol, mode=mode, locale=locale)
 
     product_type_slot = get_product_type_slot()
     product_type_code = product_type_slot.code if product_type_slot else None
@@ -73,7 +78,8 @@ def build_package(control_unit, *, model_line=None, body=None,
         slot__slot_kind=ConfigSlotKind.SUBTYPE,
         control_unit=control_unit).values_list('code', flat=True).first() or '')
     defaults = get_profile_defaults(control_unit, power_supply=power_supply,
-                                    mode=mode, signal_power=signal_power)
+                                    mode=mode, signal_power=signal_power,
+                                    protocol=protocol)
 
     # опции слотов: каталог + доступность из матрицы
     slots = list(CuSlot.objects.filter(is_active=True)

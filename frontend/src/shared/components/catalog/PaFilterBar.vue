@@ -10,9 +10,42 @@
       <button class="eng-filter-bar__reset" @click="onReset">{{ t('catalog.engineer.reset') }}</button>
     </div>
 
+    <!-- Модель арматуры: каскад Тип → Производитель → Серия + таблица коэффициентов.
+         Показывается в инженерном подборе (showValveModel). -->
+    <div v-if="showValveModel" class="eng-filter-bar__chips">
+      <div class="eng-filter-bar__chip">
+        <label class="eng-filter-bar__chip-label">{{ label('valve_type') }}</label>
+        <select class="eng-filter-bar__chip-select" v-model="form.valve_type_id" @change="onValveTypeChange">
+          <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
+          <option v-for="v in refs.valve_types" :key="v.id" :value="v.id">{{ v.name }}</option>
+        </select>
+      </div>
+      <div class="eng-filter-bar__chip">
+        <label class="eng-filter-bar__chip-label">{{ t('pa.engineerPointwise.valveProducer') }}</label>
+        <select class="eng-filter-bar__chip-select" v-model="form.valve_producer_id" @change="onValveProducerChange">
+          <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
+          <option v-for="p in visibleProducers" :key="p.id" :value="p.id">{{ p.name }}</option>
+        </select>
+      </div>
+      <div class="eng-filter-bar__chip">
+        <label class="eng-filter-bar__chip-label">{{ t('pa.engineerPointwise.valveSeries') }}</label>
+        <select class="eng-filter-bar__chip-select" v-model="form.valve_series_id" :disabled="!form.valve_producer_id" @change="onValveSeriesChange">
+          <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
+          <option v-for="s in visibleSeries" :key="s.id" :value="s.id">{{ s.name || s.code }}</option>
+        </select>
+      </div>
+      <div class="eng-filter-bar__chip">
+        <label class="eng-filter-bar__chip-label">{{ t('pa.engineerPointwise.characteristics') }}</label>
+        <select class="eng-filter-bar__chip-select" v-model="form.characteristics_id" :disabled="characteristicsLocked" @change="onCharacteristicsChange">
+          <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
+          <option v-for="c in visibleCharacteristics" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Параметры арматуры (необязательны) -->
     <div class="eng-filter-bar__chips">
-      <div class="eng-filter-bar__chip">
+      <div v-if="!showValveModel" class="eng-filter-bar__chip">
         <label class="eng-filter-bar__chip-label">{{ label('valve_type') }}</label>
         <select class="eng-filter-bar__chip-select" v-model="form.valve_type_id">
           <option value="">{{ t('catalog.engineer.notSpecified') }}</option>
@@ -180,10 +213,16 @@ import { useI18n } from '@/shared/i18n'
 
 const { t } = useI18n()
 
-defineProps({
+const props = defineProps({
   searching: { type: Boolean, default: false },
   // Скрыть кнопку «Подобрать» (когда действие берёт на себя родитель, напр. точечный подбор).
   hideActions: { type: Boolean, default: false },
+  // Строка «модель арматуры» (Тип → Производитель → Серия + таблица коэффициентов).
+  // Включается только в инженерном подборе; на /selector/pa остаётся прежний вид.
+  showValveModel: { type: Boolean, default: false },
+  valveProducers: { type: Array, default: () => [] },
+  valveSeries: { type: Array, default: () => [] },
+  characteristics: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['search', 'search-error', 'reset'])
@@ -223,6 +262,77 @@ const filteredModelLines = computed(() => {
 })
 const actuatorVarieties = computed(() => options.value.actuator_varieties || [])
 const safetyPositions = computed(() => options.value.safety_positions || [])
+
+// ── Модель арматуры: каскад Тип → Производитель → Серия + таблица коэффициентов ──
+const characteristicsLocked = ref(false)
+
+const visibleProducers = computed(() => {
+  const tid = form.value.valve_type_id
+  const ids = new Set()
+  for (const s of (props.valveSeries || [])) {
+    if (s.valve_producer_id == null) continue
+    if (tid && s.valve_type_id !== tid) continue
+    ids.add(s.valve_producer_id)
+  }
+  return (props.valveProducers || []).filter(p => ids.has(p.id))
+})
+
+const visibleSeries = computed(() => {
+  const pid = form.value.valve_producer_id
+  const tid = form.value.valve_type_id
+  if (!pid) return []
+  return (props.valveSeries || []).filter(s =>
+    s.valve_producer_id === pid && (!tid || s.valve_type_id === tid))
+})
+
+const visibleCharacteristics = computed(() => {
+  const tid = form.value.valve_type_id
+  if (!tid) return props.characteristics || []
+  return (props.characteristics || []).filter(c => c.valve_type_id === tid)
+})
+
+function onValveTypeChange() {
+  characteristicsLocked.value = false
+  const tid = form.value.valve_type_id
+  form.value.valve_series_id = ''
+  form.value.characteristics_id = ''
+  // Производитель остаётся, только если у него есть серия выбранного типа.
+  if (form.value.valve_producer_id) {
+    const ok = (props.valveSeries || []).some(s =>
+      s.valve_producer_id === form.value.valve_producer_id && (!tid || s.valve_type_id === tid))
+    if (!ok) form.value.valve_producer_id = ''
+  }
+}
+
+function onValveProducerChange() {
+  characteristicsLocked.value = false
+  form.value.valve_series_id = ''
+  form.value.characteristics_id = ''
+}
+
+function onValveSeriesChange() {
+  characteristicsLocked.value = false
+  const sid = form.value.valve_series_id
+  const s = (props.valveSeries || []).find(x => x.id === sid)
+  if (!s) {
+    form.value.characteristics_id = ''
+    return
+  }
+  if (s.valve_type_id) form.value.valve_type_id = s.valve_type_id
+  if (s.valve_torque_coefficient_id) {
+    form.value.characteristics_id = s.valve_torque_coefficient_id
+    characteristicsLocked.value = true
+  } else {
+    form.value.characteristics_id = ''
+  }
+}
+
+function onCharacteristicsChange() {
+  if (form.value.characteristics_id && !form.value.valve_type_id) {
+    const c = (props.characteristics || []).find(x => x.id === form.value.characteristics_id)
+    if (c && c.valve_type_id) form.value.valve_type_id = c.valve_type_id
+  }
+}
 
 watch(() => form.value.construction_variety_id, () => {
   if (restoring) return

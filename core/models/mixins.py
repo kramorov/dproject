@@ -21,6 +21,53 @@ logger = logging.getLogger(__name__)
 import copy
 import inspect
 import re
+from html.parser import HTMLParser
+
+
+class _TableGridParser(HTMLParser):
+    """Разбирает HTML-таблицу в сетку строк (учёт colspan; rowspan — упрощённо)."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.header_rows = []
+        self.body_rows = []
+        self._rows = None
+        self._in_tr = False
+        self._in_cell = False
+        self._is_th = False
+        self._row_is_header = False
+        self._buf = []
+        self._colspan = 1
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag == 'tr':
+            self._rows = []
+            self._in_tr = True
+            self._row_is_header = False
+        elif tag in ('th', 'td') and self._in_tr:
+            self._in_cell = True
+            self._is_th = (tag == 'th')
+            self._buf = []
+            self._colspan = max(1, int(a.get('colspan', 1) or 1))
+
+    def handle_endtag(self, tag):
+        if tag in ('th', 'td') and self._in_cell:
+            self._in_cell = False
+            text = ' '.join(''.join(self._buf).split())
+            if self._is_th:
+                self._row_is_header = True
+            for _ in range(self._colspan):
+                self._rows.append(text)
+        elif tag == 'tr' and self._in_tr:
+            self._in_tr = False
+            target = self.header_rows if self._row_is_header else self.body_rows
+            target.append(list(self._rows))
+            self._rows = None
+
+    def handle_data(self, data):
+        if self._in_cell:
+            self._buf.append(data)
+
 
 class TemplateMixin:
     """
@@ -794,6 +841,7 @@ class TemplateMixin:
             item['title'] = item['name']
 
         spec_groups = []
+        spec_tables = []
         get_specs = getattr(self, '_get_spec_sections', None)
         if callable(get_specs):
             try:
@@ -806,6 +854,14 @@ class TemplateMixin:
                     continue
                 rows = []
                 for label, value in fields.items():
+                    table = self._spec_value_to_table(value)
+                    if table is not None:
+                        spec_tables.append({
+                            'title': group_title,
+                            'headers': table['headers'],
+                            'rows': table['rows'],
+                        })
+                        continue
                     text = self._spec_value_to_text(value)
                     if text in (None, ''):
                         continue
@@ -824,10 +880,66 @@ class TemplateMixin:
         return {
             'item': item,
             'spec_groups': spec_groups,
+            'spec_tables': spec_tables,
             'image': image,
             'tech_docs': tech_docs,
             'certs': certs,
         }
+
+    @staticmethod
+    def _spec_value_to_table(value):
+        """HTML-значение поля → {'headers': [...], 'rows': [[...]]} (или None)."""
+        if isinstance(value, dict):
+            return TemplateMixin._html_to_table(value.get('__html'))
+        return None
+
+    @staticmethod
+    def _html_to_table(html):
+        """HTML-блок → {'headers': [...], 'rows': [[...]]} (или None, если не таблица).
+
+        Двухуровневую шапку (группа давлений + подписи полей) склеивает в
+        «группа поле» (например, «6 бар BTO»).
+        """
+        if not html or '<table' not in str(html).lower():
+            return None
+        parser = _TableGridParser()
+        try:
+            parser.feed(str(html))
+        except Exception:
+            return None
+        header_rows = parser.header_rows
+        body_rows = parser.body_rows
+        if not header_rows or not body_rows:
+            return None
+
+        if len(header_rows) == 1:
+            headers = list(header_rows[0])
+        else:
+            top = header_rows[0]
+            sub = header_rows[-1]
+            offset = 1 if len(top) > len(sub) else 0
+            headers = []
+            for i, t in enumerate(top):
+                if i < offset:
+                    headers.append(t)
+                    continue
+                j = i - offset
+                if j < len(sub):
+                    headers.append(f'{t} {sub[j]}'.strip() if t else (sub[j] or ''))
+                else:
+                    headers.append(t)
+            for k in range(len(top) - offset, len(sub)):
+                headers.append(sub[k])
+
+        width = len(headers)
+        rows = []
+        for r in body_rows:
+            row = list(r)
+            while len(row) < width:
+                row.append('')
+            rows.append(row[:width])
+
+        return {'headers': headers, 'rows': rows}
 
     @staticmethod
     def _spec_value_to_text(value):

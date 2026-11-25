@@ -903,12 +903,20 @@ def package_view(request):
                 pk=request.query_params['signal_power'])
         except CuSignalPower.DoesNotExist:
             return Response({'error': 'signal_power не найден'}, status=400)
+    protocol = None
+    if request.query_params.get('protocol'):
+        from ea_control.models import CuCommProtocol
+        try:
+            protocol = CuCommProtocol.objects.get(
+                pk=request.query_params['protocol'])
+        except CuCommProtocol.DoesNotExist:
+            return Response({'error': 'protocol не найден'}, status=400)
     mode = request.query_params.get('mode', 'both')
     locale = request.query_params.get('locale', 'ru')
     return Response(build_package(unit, model_line=model_line,
                                   power_supply=power_supply,
-                                  signal_power=signal_power, mode=mode,
-                                  locale=locale))
+                                  signal_power=signal_power, protocol=protocol,
+                                  mode=mode, locale=locale))
 
 
 def _unit_from_body(request):
@@ -936,8 +944,17 @@ def _unit_from_body(request):
         except (ValueError, CuSignalPower.DoesNotExist):
             return None, Response({'error': 'signal_power не найден'},
                                   status=400)
+    protocol = None
+    if data.get('protocol'):
+        from ea_control.models import CuCommProtocol
+        try:
+            protocol = CuCommProtocol.objects.get(pk=data['protocol'])
+        except (ValueError, CuCommProtocol.DoesNotExist):
+            return None, Response({'error': 'protocol не найден'},
+                                  status=400)
     return unit, {'snapshot': snapshot,
                   'signal_power': signal_power,
+                  'protocol': protocol,
                   'locale': data.get('locale', 'ru')}
 
 

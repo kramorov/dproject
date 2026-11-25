@@ -18,20 +18,18 @@
       <button type="button" class="mode-help" :aria-label="t('pa.engineerPointwise.help')" @click="helpOpen = true">?</button>
     </div>
 
-    <!-- Селектор модели арматуры — всегда виден, независимо от режима подбора -->
-    <ValveSelector
-      v-model="valveModel"
-      :producers="pointwise.valve_producers"
-      :series="pointwise.valve_series"
-      :valve-types="pointwise.valve_types"
-    />
-
-    <!-- Общие фильтры — всегда, независимо от режима подбора -->
+    <!-- Общие фильтры — всегда, независимо от режима подбора.
+         Строка «модель арматуры» (Тип → Производитель → Серия + таблица коэффициентов)
+         теперь внутри PaFilterBar (showValveModel). -->
     <PaFilterBar
       ref="filterBar"
       v-model="form"
       :searching="searching"
       :hide-actions="mode !== 'standard'"
+      :show-valve-model="true"
+      :valve-producers="pointwise.valve_producers"
+      :valve-series="pointwise.valve_series"
+      :characteristics="pointwise.characteristics"
       @search="onSearch"
       @search-error="onSearchError"
       @reset="onReset"
@@ -78,17 +76,8 @@
     <!-- Доп. поля точечного подбора (6 точек — таблица коэффициентов; 4 точки — ручная кривая) -->
     <template v-else>
       <div class="pw-extra">
-        <div v-if="mode === 'pointwise'" class="pw-row">
-          <label class="pw-field">
-            <span>{{ t('pa.engineerPointwise.characteristics') }}</span>
-            <select v-model="pwForm.characteristics_id" :disabled="characteristicsLocked" @change="onCharacteristicsChange">
-              <option value="">{{ '—' }}</option>
-              <option v-for="c in pwCharacteristics" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-          </label>
-        </div>
-
-        <div v-else class="pw-row">
+        <!-- Таблица коэффициентов вынесена в PaFilterBar (первая строка фильтров). -->
+        <div v-if="mode === 'pointwise4'" class="pw-row">
           <label class="pw-field"><span>{{ t('pa.engineerPointwise.openStart') }}</span><input type="number" min="0" v-model.number="pwPoints.bto" /></label>
           <label class="pw-field"><span>{{ t('pa.engineerPointwise.openEnd') }}</span><input type="number" min="0" v-model.number="pwPoints.eto" /></label>
           <label class="pw-field"><span>{{ t('pa.engineerPointwise.closeStart') }}</span><input type="number" min="0" v-model.number="pwPoints.etc" /></label>
@@ -172,7 +161,6 @@ import api from '@/shared/api'
 import PageTitle from '@/shared/components/PageTitle.vue'
 import PaFilterBar from '@/shared/components/catalog/PaFilterBar.vue'
 import PaEngineerGroupCard from '@/shared/components/catalog/PaEngineerGroupCard.vue'
-import ValveSelector from '@/shared/components/catalog/ValveSelector.vue'
 import { useI18n, localizedPath } from '@/shared/i18n'
 
 const { t, locale } = useI18n()
@@ -182,7 +170,8 @@ const filterBar = ref(null)
 
 function emptyForm() {
   return {
-    valve_type_id: '', dn_id: '', pn_id: '',
+    valve_type_id: '', valve_producer_id: '', valve_series_id: '', characteristics_id: '',
+    dn_id: '', pn_id: '',
     mounting_plate_id: '', stem_shape_id: '', stem_id: '',
     torque_without_safety: null, safety_factor: 1.5,
     model_line_id: '', model_line_item_id: null,
@@ -207,9 +196,6 @@ const pointwise = reactive({
   exd_options: [], coating_options: [], body_material_options: [], shaft_material_options: [],
 })
 const pwForm = reactive({
-  characteristics_id: '',
-  valve_type_id: '',
-  valve_producer_id: '', valve_series_id: '',
   base_torque: null, safety_factor: 1.5,
   air_pressure_id: '', actuator_variety_code: 'DA', safety_position_code: 'nc',
   model_line_id: '',
@@ -223,8 +209,6 @@ const pwResult = reactive({ required_curve: null, search_results: null })
 const pwError = ref('')
 const pwSearching = ref(false)
 const helpOpen = ref(false)
-const characteristicsLocked = ref(false)
-const valveModel = ref({ producer_id: '', series_id: '', valve_type_id: '' })
 
 // В линейном режиме — только серии LN, в шеститочечном — только ротационные.
 const pwModelLines = computed(() => {
@@ -237,53 +221,11 @@ const pwModelLines = computed(() => {
   return pointwise.model_lines
 })
 
-// Таблицы коэффициентов: при выбранном типе номенклатуры — только по нему.
-const pwCharacteristics = computed(() => {
-  if (!valveModel.value.valve_type_id) return pointwise.characteristics
-  return pointwise.characteristics.filter(c => c.valve_type_id === valveModel.value.valve_type_id)
-})
-
 // Пояснение к выбранному режиму подбора (для кнопки «?»).
 const helpContent = computed(() => ({
   title: t(`pa.engineerPointwise.helpTitle.${mode.value}`),
   body: t(`pa.engineerPointwise.helpBody.${mode.value}`),
 }))
-
-// При смене производителя — сброс таблицы коэффициентов и блокировки.
-watch(() => valveModel.value.producer_id, () => {
-  characteristicsLocked.value = false
-  pwForm.characteristics_id = ''
-})
-
-// При выборе серии — привязка таблицы коэффициентов (если привязана).
-watch(() => valveModel.value.series_id, (sid) => {
-  if (!sid) return
-  characteristicsLocked.value = false
-  pwForm.characteristics_id = ''
-  const s = pointwise.valve_series.find(x => x.id === sid)
-  if (s && s.valve_torque_coefficient_id) {
-    // К серии привязана таблица — выбор только её, селектор неактивен.
-    pwForm.characteristics_id = s.valve_torque_coefficient_id
-    characteristicsLocked.value = true
-  }
-})
-
-// При смене типа — сбрасываем таблицу, если она не соответствует новому типу.
-watch(() => valveModel.value.valve_type_id, (tid) => {
-  if (characteristicsLocked.value) return
-  const c = pointwise.characteristics.find(x => x.id === pwForm.characteristics_id)
-  if (c && tid && c.valve_type_id !== tid) pwForm.characteristics_id = ''
-})
-
-function onCharacteristicsChange() {
-  if (pwForm.characteristics_id) {
-    // Ручной выбор характеристики: серию/производителя не трогаем, тип подставляем.
-    if (!valveModel.value.valve_type_id) {
-      const c = pointwise.characteristics.find(x => x.id === pwForm.characteristics_id)
-      if (c) valveModel.value.valve_type_id = c.valve_type_id
-    }
-  }
-}
 
 const title = computed(() => t('pa.engineer.title'))
 const cards = computed(() => results.value)
@@ -358,14 +300,16 @@ async function onPointwiseSearch() {
       safety_position_code: safetyCode,
       base_torque: form.torque_without_safety,
       safety_factor: form.safety_factor,
-      characteristics_id: pwForm.characteristics_id,
-      valve_type_id: valveModel.value.valve_type_id,
-      valve_producer_id: valveModel.value.producer_id,
-      valve_series_id: valveModel.value.series_id,
+      characteristics_id: form.characteristics_id,
+      valve_type_id: form.valve_type_id,
+      valve_producer_id: form.valve_producer_id,
+      valve_series_id: form.valve_series_id,
       stroke_mm: pwForm.stroke_mm,
       stroke_safety_factor: pwForm.stroke_safety_factor,
       mode: mode.value === 'pointwise4' ? 'four' : 'six',
-      required_points: { ...pwPoints },
+      // Кривая требований передаётся только в 4-точечном (линейном) режиме;
+      // в 6-точечном кривую считает бэкенд по таблице коэффициентов.
+      required_points: mode.value === 'pointwise4' ? { ...pwPoints } : null,
     }
     const { data } = await api.post('/pneumatic_actuators/engineer/pointwise-search/', payload)
     pwResult.required_curve = data.required_curve || null

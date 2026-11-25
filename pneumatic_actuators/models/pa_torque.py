@@ -278,9 +278,10 @@ class BodyThrustTorqueTable(models.Model):
         Возвращает список кортежей (field_name, display_name)
         """
 
-        # Для DA приводов - только BTO
+        # Для DA приводов — одно значение (момент), без разбивки BTO/ETO/RTO.
+        # Подпись нейтральная «BTO» (та же для всех локалей — аббревиатура).
         if spring_code == SPRINGS_DA_DEFAULT_CODE:
-            return [('bto', 'BTO' if ncno == SAFETY_POSITION_NC_DEFAULT_CODE else 'BTC')]
+            return [('bto', 'BTO')]
 
         # Для SR приводов (пружинных)
         if construction_variety_code == ACTUATOR_VARIETY_RP_DEFAULT_CODE:  # шестерня-рейка
@@ -391,9 +392,12 @@ class BodyThrustTorqueTable(models.Model):
                 key=lambda x : pressure_info[x].get('sorting_order' , 0)
             )
 
-            # Стандартный порядок полей
-            field_order = ['bto' , 'eto' , 'rto' , 'to']
-            sorted_fields = [f for f in field_order if f in visible_fields]
+            # Допустимые поля определяются конструкцией (torque_fields):
+            # шестерня-рейка — BTO/ETO (без RTO), кулисный — BTO/RTO/ETO,
+            # DA — только BTO (одно значение). Из данных берём только разрешённые.
+            allowed_fields = {field for field, _ in torque_fields}
+            field_order = ['bto' , 'rto' , 'eto' , 'to']
+            sorted_fields = [f for f in field_order if f in visible_fields and f in allowed_fields]
 
             # Сортируем by_spring
             sorted_by_spring = {}
@@ -706,31 +710,31 @@ class BodyThrustTorqueTable(models.Model):
         parts = ['<table border="1" style="border-collapse: collapse; width: 100%; font-size: 12px;">']
         parts.append('<thead><tr>')
         if not is_da :
-            parts.append(f'<th rowspan="2">{spring_label}</th>')
+            parts.append(f'<th rowspan="2" style="text-align:center;">{spring_label}</th>')
         for pressure_code in pressure_order :
             pressure_label = cls._pressure_header_label(
                 pressure_code, table_config.get('pressure_info', {}), locale)
-            parts.append(f'<th colspan="{len(visible_fields)}">{pressure_label}</th>')
+            parts.append(f'<th colspan="{len(visible_fields)}" style="text-align:center;">{pressure_label}</th>')
         parts.append('</tr><tr>')
         for _ in pressure_order :
             for field in visible_fields :
-                parts.append(f'<th>{field_display_names.get(field, field.upper())}</th>')
+                parts.append(f'<th style="text-align:center;">{field_display_names.get(field, field.upper())}</th>')
         parts.append('</tr></thead><tbody>')
         for spring_code in spring_order :
             if spring_code not in data_by_spring :
                 continue
             parts.append('<tr>')
             if not is_da :
-                parts.append(f'<td>{spring_code}</td>')
+                parts.append(f'<td style="text-align:center;">{spring_code}</td>')
             pressures = data_by_spring[spring_code].get('pressures' , {})
             for pressure_code in pressure_order :
                 pressure_values = pressures.get(pressure_code , {})
                 for field in visible_fields :
                     value = pressure_values.get(field)
                     if value is None :
-                        parts.append('<td>—</td>')
+                        parts.append('<td style="text-align:center;">—</td>')
                     else :
-                        parts.append(f'<td>{cls.format_torque_value(value)}</td>')
+                        parts.append(f'<td style="text-align:center;">{cls.format_torque_value(value)}</td>')
             parts.append('</tr>')
         parts.append('</tbody></table>')
         parts.append(f'<div style="margin-top: 4px; color: #888;">'

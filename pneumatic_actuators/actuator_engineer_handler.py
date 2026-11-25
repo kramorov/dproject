@@ -486,30 +486,51 @@ def _match_exd_for_model_lines(search_results: List[Dict], exd_value, exd_exact_
     result = []
     for ml in search_results:
         ml_id = ml.get('model_line_id')
+        common_row = None  # «общепром»: M2M пуст либо только виды без code
+        ex_row = None      # первый Ex-вариант (fallback для «общепром → совместимый»)
         best = None
-        common_row = None
+        best_is_common = False
         for row in rows_by_line.get(ml_id, []):
-            variety_ids = {o.id for o in row.exd_options.all()}
-            if not variety_ids:
-                # Пустой M2M = «общепром» (fallback только под запрос «общепром»).
+            row_ex_ids = {o.id for o in row.exd_options.all() if o.code}
+            if not row_ex_ids:
+                # «общепром»-строка (без конкретных видов Ex).
                 if common_row is None:
                     common_row = row
                 continue
-            if variety_ids & compat_ids:
+            if ex_row is None:
+                ex_row = row
+            if not is_common and (row_ex_ids & compat_ids):
                 best = row
                 break
-        if best is None and is_common:
-            best = common_row
-        if best is None:
+
+        if is_common:
+            # «общепром»: точное совпадение — серия с общепром-строкой;
+            # серии только с Ex — совместимые (первый Ex-вариант).
+            if common_row is not None:
+                best = common_row
+                best_is_common = True
+            else:
+                best = ex_row
+                best_is_common = False
+        elif best is None:
             continue  # серия не поддерживает запрошенную взрывозащиту
+
+        if best is None:
+            continue
+
         variety_ids = [o.id for o in best.exd_options.all()]
+        ex_variety_ids = [o.id for o in best.exd_options.all() if o.code]
         ml['exd_option_id'] = best.id
         ml['exd_encoding'] = best.encoding or ''
         ml['exd_short'] = best.get_exd_short_list or ''
         ml['exd_variety_ids'] = variety_ids
         ml['exd_matched'] = True
-        # exact: точный вид есть в выбранной строке; для «общепром» — отсутствие Ex.
-        ml['exd_exact'] = is_common or (exact_int is not None and exact_int in set(variety_ids))
+        # exact: для «общепром» — только серии с общепром-строкой (без Ex);
+        # иначе — точный вид есть в выбранной Ex-строке.
+        if is_common:
+            ml['exd_exact'] = best_is_common
+        else:
+            ml['exd_exact'] = exact_int is not None and exact_int in set(ex_variety_ids)
         result.append(ml)
     return result
 

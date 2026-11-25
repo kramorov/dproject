@@ -20,6 +20,9 @@ from html import escape as _html_escape
 
 from django.conf import settings
 from docx.shared import Mm
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 from core.utils.localization import DEFAULT_LOCALE
 
@@ -214,6 +217,11 @@ def build_spec_template(path: str):
     doc.add_paragraph('{%p endfor %}')
     doc.add_paragraph('{%p endif %}')
 
+    # ── Таблицы (например, таблица моментов) ──
+    doc.add_paragraph('{%p if spec_tables %}')
+    doc.add_paragraph('{{p tables_xml }}')
+    doc.add_paragraph('{%p endif %}')
+
     # ── Техническая документация ──
     doc.add_paragraph('{%p if tech_docs %}')
     doc.add_heading('{{ chrome.tech_docs }}', level=2)
@@ -235,6 +243,92 @@ def build_spec_template(path: str):
         os.makedirs(d, exist_ok=True)
     doc.save(path)
     return path
+
+
+def _center_cell(cell):
+    """Центрирование ячейки Word-таблицы (заголовки и значения)."""
+    for p in cell.paragraphs:
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+
+def _set_table_borders(table):
+    """Границы у всех ячеек таблицы без привязки к стилю (наследует шрифт документа)."""
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    # Убираем ссылку на стиль — он тянет свой шрифт/границы.
+    for el in tblPr.findall(qn('w:tblStyle')):
+        tblPr.remove(el)
+    borders = tblPr.find(qn('w:tblBorders'))
+    if borders is None:
+        borders = OxmlElement('w:tblBorders')
+        tblPr.append(borders)
+    else:
+        for child in list(borders):
+            borders.remove(child)
+    for edge in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+        el = OxmlElement('w:' + edge)
+        el.set(qn('w:val'), 'single')
+        el.set(qn('w:sz'), '4')
+        el.set(qn('w:space'), '0')
+        el.set(qn('w:color'), 'auto')
+        borders.append(el)
+
+
+def _set_run_font(run):
+    """Шрифт run — как у основного текста шаблона (majorHAnsi → Calibri в этом шаблоне)."""
+    rPr = run._r.get_or_add_rPr()
+    rFonts = rPr.find(qn('w:rFonts'))
+    if rFonts is None:
+        rFonts = OxmlElement('w:rFonts')
+        rPr.insert(0, rFonts)
+    rFonts.set(qn('w:asciiTheme'), 'majorHAnsi')
+    rFonts.set(qn('w:hAnsiTheme'), 'majorHAnsi')
+    rFonts.set(qn('w:cstheme'), 'majorHAnsi')
+
+
+def _fill_cell(cell, text):
+    """Заполнить ячейку текстом, отцентрировать и применить шрифт документа."""
+    cell.text = str(text)
+    _center_cell(cell)
+    for p in cell.paragraphs:
+        for run in p.runs:
+            _set_run_font(run)
+
+
+def _build_tables_xml(spec_tables):
+    """Сырой OOXML (абзац-заголовок + Word-таблица) для плейсхолдера {{p tables_xml }}.
+
+    Без docxcompose/Subdoc: собираем таблицы в отдельном python-docx Document
+    и отдаём их body-XML как строку (docxtpl вставит её как есть).
+    """
+    if not spec_tables:
+        return ''
+    from docx import Document
+    doc = Document()
+    for t in spec_tables:
+        title = (t.get('title') or '').strip()
+        if title:
+            run = doc.add_paragraph().add_run(title)
+            run.bold = True
+            _set_run_font(run)
+        headers = t.get('headers') or []
+        rows = t.get('rows') or []
+        ncols = len(headers)
+        if ncols <= 0:
+            continue
+        table = doc.add_table(rows=1 + len(rows), cols=ncols)
+        _set_table_borders(table)
+        for ci, h in enumerate(headers):
+            _fill_cell(table.rows[0].cells[ci], h)
+        for ri, row in enumerate(rows, start=1):
+            for ci in range(ncols):
+                _fill_cell(table.rows[ri].cells[ci], row[ci] if ci < len(row) else '')
+    parts = []
+    for child in doc.element.body:
+        if child.tag.endswith('}sectPr'):
+            continue
+        parts.append(child.xml)
+    return ''.join(parts)
 
 
 def render_spec_docx_bytes(item, template_path: str = None, base_url: str = None,
@@ -276,6 +370,9 @@ def render_spec_docx_bytes(item, template_path: str = None, base_url: str = None
     # ── Ссылки на скачивание ──
     ctx['tech_docs'] = _build_rich_links(ctx.get('tech_docs', []), tpl, locale)
     ctx['certs'] = _build_rich_links(ctx.get('certs', []), tpl, locale)
+
+    # ── Таблицы (например, таблица моментов) — сырой OOXML ──
+    ctx['tables_xml'] = _build_tables_xml(ctx.get('spec_tables', []))
 
     tpl.render(ctx)
     buf = io.BytesIO()

@@ -69,11 +69,13 @@ def _scope_matches(row, brand, model_line, body, model_line_item):
     return True
 
 
-def _context_matches(row, power_supply, mode, signal_power=None):
-    """Совпадение координат (напряжение, режим, схема цепей).
+def _context_matches(row, power_supply, mode, signal_power=None, protocol=None):
+    """Совпадение координат (напряжение, режим, схема цепей, протокол).
 
     Строка с конкретной схемой цепей (``signal_power``) применяется только
     при выбранной схеме; без выбранной схемы действуют строки «любой схемы».
+    То же для протокола (``protocol``): строка с координатой применяется
+    только при выбранном протоколе.
     """
     if power_supply is not None and row.power_supply_id is not None \
             and row.power_supply_id != power_supply.id:
@@ -82,6 +84,11 @@ def _context_matches(row, power_supply, mode, signal_power=None):
         if row.signal_power_id is not None:
             return False
     elif row.signal_power_id is not None and row.signal_power_id != signal_power.id:
+        return False
+    if protocol is None:
+        if row.protocol_id is not None:
+            return False
+    elif row.protocol_id is not None and row.protocol_id != protocol.id:
         return False
     if mode and mode != CuMatrixMode.BOTH \
             and row.mode != CuMatrixMode.BOTH and row.mode != mode:
@@ -127,11 +134,12 @@ def _effective_row(rows, context):
     if not applicable:
         return None
     power_supply_id = None
-    # скоуповая сортировка: (уровень, есть ли конкретное напряжение, схема)
+    # скоуповая сортировка: (уровень, конкретное напряжение, схема, протокол)
     applicable.sort(key=lambda r: (
         _scope_level(r),
         1 if getattr(r, '_ps_requested', False) else 0,
         1 if getattr(r, '_sp_requested', False) else 0,
+        1 if getattr(r, '_proto_requested', False) else 0,
         r.id,
     ))
     return applicable[-1]
@@ -139,7 +147,7 @@ def _effective_row(rows, context):
 
 def resolve_slots(control_unit, *, model_line=None, body=None,
                   model_line_item=None, brand=None, power_supply=None,
-                  signal_power=None, mode='both', locale=None):
+                  signal_power=None, protocol=None, mode='both', locale=None):
     """Доступные опции всех слотов конфигурации выбранного БУ.
 
     Возвращает ``{slot_code: [payload, …]}`` — список эффективных строк по
@@ -150,6 +158,10 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
     ``signal_power`` — выбранная схема цепей управления (CuSignalPower):
     строки с конкретной схемой перекрывают строки «любой схемы» — так
     «набор сигналов дистанционного управления» зависит от опции CMD_WIRING.
+
+    ``protocol`` — выбранный протокол (CuCommProtocol): строки с конкретным
+    протоколом перекрывают профильные — так опции (например,
+    BUS_CONTROLS_OPTIONS) зависят от опции PROTOCOL.
     """
     if brand is None and model_line is not None:
         brand = getattr(model_line, 'brand', None)
@@ -166,6 +178,9 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
     if signal_power is not None:
         rows_qs = rows_qs.filter(Q(signal_power=signal_power)
                                  | Q(signal_power__isnull=True))
+    if protocol is not None:
+        rows_qs = rows_qs.filter(Q(protocol=protocol)
+                                 | Q(protocol__isnull=True))
     rows = list(rows_qs)
 
     result = {}
@@ -175,7 +190,9 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
         row._sp_requested = (
             signal_power is not None
             and row.signal_power_id == signal_power.id)
-        if not _context_matches(row, power_supply, mode, signal_power):
+        row._proto_requested = (
+            protocol is not None and row.protocol_id == protocol.id)
+        if not _context_matches(row, power_supply, mode, signal_power, protocol):
             continue
         key = (row.slot.code, row.option.code if row.option_id else row.name)
         result.setdefault(key, []).append(row)
@@ -262,7 +279,7 @@ resolve_control_units = resolve_product_types
 
 
 def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
-                         signal_power=None):
+                         signal_power=None, protocol=None):
     """Дефолты слотов типа БУ: {slot_code: option_code} из профильных строк.
 
     Профильные строки — весь скоуп пуст; берутся предвыбранные (std →
@@ -280,11 +297,14 @@ def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
     if signal_power is not None:
         rows = rows.filter(Q(signal_power=signal_power)
                            | Q(signal_power__isnull=True))
+    if protocol is not None:
+        rows = rows.filter(Q(protocol=protocol)
+                           | Q(protocol__isnull=True))
     defaults = {}
     for row in rows:
         if not row.option_id:
             continue
-        if not _context_matches(row, power_supply, mode, signal_power):
+        if not _context_matches(row, power_supply, mode, signal_power, protocol):
             continue
         if row.is_default:
             defaults[row.slot.code] = row.option.code
