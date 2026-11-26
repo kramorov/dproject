@@ -39,7 +39,8 @@ class ElectricActuatorConstructorAdmin(admin.ModelAdmin):
         ('Напряжение и управление', {
             'fields': (
                 'selected_power_supply',
-                ('selected_safety_position', 'selected_control_unit_option'),
+                ('selected_safety_position', 'selected_control_unit'),
+                'control_unit_snapshot',
             ),
         }),
         ('Климат и защита', {
@@ -127,7 +128,7 @@ class ElectricActuatorConstructorAdmin(admin.ModelAdmin):
             'selected_model_line_item',
             'selected_power_supply',
             'selected_safety_position',
-            'selected_control_unit_option',
+            'selected_control_unit',
             'selected_temperature',
             'selected_ip',
             'selected_exd',

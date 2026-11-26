@@ -12,6 +12,5 @@ class ElectricActuatorCatalogItemAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name')
     autocomplete_fields = ('model_line', 'model_line_item', 'control_unit',
                            'power_supply')
-    filter_horizontal = ('matrix_rows',)
     readonly_fields = ('config_hash',)
     ordering = ('model_line', 'code')

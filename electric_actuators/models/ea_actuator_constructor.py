@@ -136,14 +136,6 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         help_text=_('Выбранное положение безопасности привода')
     )
 
-    selected_control_unit_option = models.ForeignKey(
-        'params.ControlUnitInstalledOption',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name=_("Блок управления"),
-        help_text=_("Выбранный блок управления")
-    )
-
     # Новый БУ (слотовая модель): ControlUnit + снимок выбранных опций слотов.
     selected_control_unit = models.ForeignKey(
         'ea_control.ControlUnit',
@@ -244,15 +236,6 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
         related_name='constructor_cg_option',
         verbose_name=_("Кабельные вводы"),
         help_text=_('Отверстия под кабельные вводы')
-    )
-
-    # Выбранные сигнальные опции БУ (профильные строки EaSignalMatrixEntry)
-    selected_matrix_rows = models.ManyToManyField(
-        'electric_actuators.EaSignalMatrixEntry',
-        blank=True,
-        related_name='constructor_selections',
-        verbose_name=_("Выбранные сигнальные опции БУ"),
-        help_text=_('Строки сигнального профиля выбранного типа БУ')
     )
 
     is_unique = models.BooleanField(default=True, verbose_name='Это уникальная конфигурация')
@@ -1038,11 +1021,9 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             return ""
 
     def _cu_article_code(self, ext: bool = False) -> str:
-        """Вклад БУ в артикул/ext-артикул привода (новая слотовая схема).
+        """Вклад БУ в артикул/ext-артикул привода (слотовая схема).
 
-        Старая схема брала encoding из legacy-опции
-        ``selected_control_unit_option`` (legacy); теперь
-        артикул БУ собирается из ``ControlUnit.article_code_template`` /
+        Артикул БУ собирается из ``ControlUnit.article_code_template`` /
         ``ext_article_code_template`` и кодировок строк матрицы
         (приоритет: матрица → опция) — ``ea_control.services.cu_code``.
         """
@@ -1736,7 +1717,8 @@ class ElectricActuatorConstructor(TemplateMixin, models.Model):
             selected_model_line_item=self.selected_model_line_item,
             selected_power_supply=self.selected_power_supply,
             selected_safety_position=self.selected_safety_position,
-            selected_control_unit_option=self.selected_control_unit_option,
+            selected_control_unit=self.selected_control_unit,
+            control_unit_snapshot=self.control_unit_snapshot,
             selected_temperature=self.selected_temperature,
             selected_ip=self.selected_ip,
             selected_exd=self.selected_exd,

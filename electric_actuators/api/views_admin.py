@@ -465,15 +465,8 @@ class EACopyControlUnitsView(APIView):
                 'cu': {}, 'sp': sp_set,
             })
 
-        # Добавляем все возможные опции из справочников (даже те, которых нет ни у одной модели)
-        from params.models import ControlUnitInstalledOption, SafetyPositionOption
-        existing_cu_ids = set(all_cu.keys())
-        for opt in ControlUnitInstalledOption.objects.filter(is_active=True):
-            if opt.id not in existing_cu_ids:
-                all_cu[opt.id] = {
-                    'id': opt.id, 'name': opt.name,
-                    'encoding': opt.code or opt.symbolic_code or str(opt.id),
-                }
+        # Добавляем все возможные опции из справочников (CU-опции удалены — фаза 4.6)
+        from params.models import SafetyPositionOption
         existing_sp_ids = set(all_sp.keys())
         for opt in SafetyPositionOption.objects.filter(is_active=True):
             if opt.id not in existing_sp_ids:

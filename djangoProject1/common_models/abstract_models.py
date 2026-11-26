@@ -10,7 +10,7 @@ from electric_actuators.models import CableGlandHolesSet
 from producers.models import Brands, Producer
 from params.models import PowerSupplies , BodyCoatingOption , BlinkerOption , SwitchesParameters , \
     EnvTempParameters , IpOption , MeasureUnits , \
-    DigitalProtocolsSupportOption , ControlUnitInstalledOption , ActuatorGearboxOutputType , HandWheelInstalledOption , \
+    DigitalProtocolsSupportOption , ActuatorGearboxOutputType , HandWheelInstalledOption , \
     OperatingModeOption , StemShapes , StemSize , MountingPlateTypes , ThreadSize , CertVariety , CertData , \
     MechanicalIndicatorInstalledOption , ControlUnitLocationOption , ControlUnitTypeOption , SafetyPositionOption , \
     ValveTypes , ClimaticConditions
@@ -162,9 +162,6 @@ class AbstractElectricActuator(AbstractActuatorMixin):
     control_unit_type = models.ForeignKey(ControlUnitTypeOption,
                                           related_name='%(class)s', blank=True,
                                           null=True, on_delete=models.SET_NULL, help_text='Тип блока управления')
-    control_unit_installed = models.ForeignKey(ControlUnitInstalledOption,
-                                               related_name='%(class)s', blank=True,
-                                               null=True, on_delete=models.SET_NULL, help_text='Блок управления')
     control_unit_location = models.ForeignKey(ControlUnitLocationOption,
                                               related_name='%(class)s',
                                               blank=True,

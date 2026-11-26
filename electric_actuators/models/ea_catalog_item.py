@@ -9,19 +9,19 @@ PneumaticActuatorCatalogItem):
   spec_template + *_template_i18n; цепочка TemplateMixin: _get_name_template_source
   → EquipmentType → fallback);
 - словарь подстановок — реестр ``ea_catalog_item_fields.py`` (TEMPLATE_FIELDS +
-  NAME/CODE/VARS_FIELD_KEYS); сложные значения (сигналы матрицы) — resolver-методы
-  ``_res_*`` с локализацией через ``localized_name`` (locale из TemplateMixin);
-- артикул — ``model_line.model_item_code_template`` + ext-код
-  (property ``generated_ext_code`` переопределён: services.ea_ext_code /
-  ea_configurator_data.selection_ext_code из выбранных матричных строк и
-  контекста карточки);
-- config_hash — ConfigHashMixin (каноническая конфигурация: все опции +
-  M2M выбранных матричных строк), коллизия → ValidationError;
+  NAME/CODE/VARS_FIELD_KEYS); БУ — ``_res_cu_block``/``_res_cu_description``
+  из ``ea_control`` с локализацией через ``localized_name``;
+- артикул — ``model_line.model_item_code_template`` + ext-код по
+  ``model_line.ext_encoding_template`` (``generated_ext_code`` собирает вклад
+  БУ через ``cu_code``);
+- config_hash — ConfigHashMixin (каноническая конфигурация: все опции),
+  коллизия → ValidationError;
 - SKU — sync_sku() (SKUMixin);
 - каталог = карточки с is_catalog=True (стандартные конфигурации);
   нестандартные (конструктор → корзина) — is_catalog=False.
 """
 import logging
+import re
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -37,10 +37,6 @@ from electric_actuators.models.ea_catalog_item_fields import (
     EA_CATALOG_ITEM_TEMPLATE_FIELDS)
 
 logger = logging.getLogger(__name__)
-
-# Роли управляющего сигнала уставки (0-10 В / 4-20 мА) — выводятся отдельным
-# плейсхолдером {ctl_setpoint}, а не в {ctl_commands}.
-_SETPOINT_ROLES = ('CMD_4_20MA', 'CMD_0_10V')
 
 # Локализованные подписи режима (ru — базовый; en/cn — переводы).
 _MODE_LABELS = {
@@ -72,11 +68,7 @@ class ElectricActuatorCatalogItem(
         'code', 'series_code', 'body_code', 'weight', 'torque', 'time_to_close',
         'power_supply', 'voltage',
         'motor_current_rated', 'motor_current_starting', 'motor_power',
-        'cu_name', 'cu_code', 'cu_description', 'cu_block', 'cu_power_supply', 'cu_mode', 'cu_heater',
-        'ctl_protocol', 'ctl_commands', 'ctl_setpoint', 'ctl_local_controls',
-        'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
-        'fb_position_feedback', 'fb_hart', 'fb_thermal_sensor',
-        'fb_indicator', 'fb_turn_counter',
+        'cu_name', 'cu_code', 'cu_description', 'cu_block', 'cu_power_supply', 'cu_mode',
         'temperature', 'ip', 'exd', 'exd_short', 'coating', 'color',
         'hand_wheel', 'turn_angle', 'cable_glands', 'access_device',
         'safety_position', 'article', 'ext_code',
@@ -86,9 +78,6 @@ class ElectricActuatorCatalogItem(
         'code', 'series_code', 'body_code', 'weight', 'torque', 'time_to_close',
         'power_supply', 'voltage', 'cu_name', 'cu_code', 'cu_description',
         'cu_power_supply', 'cu_mode',
-        'ctl_protocol', 'ctl_commands', 'ctl_setpoint',
-        'fb_end_switches', 'fb_way_switches', 'fb_torque_switches',
-        'fb_position_feedback', 'fb_hart',
         'temperature', 'ip', 'exd', 'exd_short', 'coating', 'color', 'hand_wheel',
         'turn_angle', 'cable_glands', 'access_device', 'safety_position',
     )
@@ -100,9 +89,10 @@ class ElectricActuatorCatalogItem(
     # Каноническая конфигурация (порядок важен для хэша)
     config_hash_fields = (
         'model_line', 'body', 'model_line_item', 'power_supply',
-        'control_unit', 'mode', 'cu_power_supply', 'temperature', 'ip', 'exd',
+        'control_unit', 'control_unit_snapshot', 'mode', 'cu_power_supply',
+        'temperature', 'ip', 'exd',
         'coating', 'color', 'hand_wheel', 'turn_angle', 'cable_glands',
-        'safety_position', 'access_device', 'matrix_rows',
+        'safety_position', 'access_device',
     )
 
     model_line = models.ForeignKey(
@@ -121,9 +111,15 @@ class ElectricActuatorCatalogItem(
         null=True, blank=True, related_name='catalog_items',
         verbose_name=_("Напряжение питания"))
     control_unit = models.ForeignKey(
-        'params.ControlUnitInstalledOption', on_delete=models.PROTECT,
+        'ea_control.ControlUnit', on_delete=models.PROTECT,
         null=True, blank=True, related_name='ea_catalog_items',
-        verbose_name=_("Блок управления"))
+        verbose_name=_("Блок управления"),
+        help_text=_("Выбранный тип БУ из ea_control; внутренняя конфигурация "
+                    "слотов — control_unit_snapshot"))
+    control_unit_snapshot = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("Снимок конфигурации БУ"),
+        help_text=_("Выбранные опции слотов БУ: {slot_code: option_code}"))
     mode = models.CharField(
         max_length=20, default='on_off',
         choices=(('on_off', _('Двухпозиционный')),
@@ -174,10 +170,6 @@ class ElectricActuatorCatalogItem(
         'EaAccessDeviceOption', on_delete=models.PROTECT,
         null=True, blank=True, related_name='catalog_items',
         verbose_name=_("Устройство ограничения доступа"))
-    matrix_rows = models.ManyToManyField(
-        'EaSignalMatrixEntry', blank=True, related_name='catalog_items',
-        verbose_name=_("Выбранные сигнальные опции (матрица)"))
-
     name = models.CharField(max_length=500, blank=True, verbose_name=_("Название"))
     code = models.CharField(max_length=300, blank=True, verbose_name=_("Артикул"))
     description = models.TextField(blank=True, verbose_name=_("Описание"))
@@ -233,31 +225,105 @@ class ElectricActuatorCatalogItem(
             return getattr(et, 'title_template_i18n', None)
         return getattr(et, f'{field_base}_i18n', None)
 
-    # ── Ext-код: машинная сборка из матричных строк (не ext-шаблон серии) ──
+    # ── Ext-код: машинная сборка по model_line.ext_encoding_template ──
     @property
     def generated_ext_code(self) -> str:
-        """Ext-код из выбранных матричных строк + контекста карточки."""
-        from electric_actuators.services.ea_configurator_data import (
-            selection_ext_code)
-        from electric_actuators.services.ea_ext_code import (
-            CU_EXT, PS_EXT, MODE_EXT)
-        if not self.model_line_item_id:
+        """Ext-часть артикула по шаблону ``model_line.ext_encoding_template``.
+
+        Аналог ``ElectricActuatorConstructor.generated_ext_code``: сигнальные
+        позиции (end/way/torq/pos/hart/lc/cmd/setp/cnt/ind) пусты — сигналы
+        БУ теперь в ``cu_block``/``cu_code``.
+        """
+        if not self.model_line_id:
             return ''
-        context = {}
-        if self.control_unit_id:
-            context['cu'] = CU_EXT.get(self.control_unit.code, '')
+        template = self.model_line.ext_encoding_template
+        if not template:
+            return ''
+        result = template
+        result = result.replace('{temperature_e_enc}',
+                                self.temperature.ext_encoding or '' if self.temperature_id else '')
+        result = result.replace('{ip_e_enc}',
+                                self.ip.ext_encoding or '' if self.ip_id else '')
+        result = result.replace('{voltage_e_enc}',
+                                self.power_supply.ext_encoding or '' if self.power_supply_id else '')
+        result = result.replace('{exd_e_enc}',
+                                self.exd.ext_encoding or '' if self.exd_id else '')
+        result = result.replace('{control_unit_e_enc}', self._cu_ext_code())
+        result = result.replace('{cu_e_enc}', self._cu_ext_code())
+        result = result.replace('{cu_p_e_enc}', '')
+        result = result.replace('{ps_e_enc}', self._ps_ext())
+        result = result.replace('{mode_e_enc}', '')
+        result = result.replace('{proto_e_enc}', '')
+        result = result.replace('{end_e_enc}', '')
+        result = result.replace('{way_e_enc}', '')
+        result = result.replace('{torq_e_enc}', '')
+        result = result.replace('{pos_e_enc}', '')
+        result = result.replace('{hart_e_enc}', '')
+        result = result.replace('{temp_e_enc}', self._temp_ext())
+        result = result.replace('{sp_e_enc}', self._sp_ext())
+        result = result.replace('{ad_e_enc}', self._ad_ext())
+        result = result.replace('{access_device_e_enc}', self._ad_ext())
+        result = result.replace('{h_cu_e_enc}', '')
+        result = result.replace('{therm_e_enc}', '')
+        result = result.replace('{lc_e_enc}', '')
+        result = result.replace('{cmd_e_enc}', '')
+        result = result.replace('{setp_e_enc}', '')
+        result = result.replace('{cnt_e_enc}', '')
+        result = result.replace('{ind_e_enc}', '')
+        result = re.sub(r'\.{2,}', '.', result)
+        result = re.sub(r'\.\s+', ' ', result)
+        result = re.sub(r'\(\s*\)', '', result)
+        result = re.sub(r'-\.', '.', result)
+        result = re.sub(r'\.-', '.', result)
+        result = re.sub(r'\s{2,}', ' ', result)
+        result = re.sub(r'[.-]+$', '', result)
+        result = re.sub(r'^[.\-\s]+', '', result)
+        return result.strip()
+
+    def _ps_ext(self) -> str:
+        """ext-код напряжения мотора (''/220AC/380AC/24DC)."""
+        from electric_actuators.services.ea_ext_code import PS_EXT
         if self.power_supply_id and self.power_supply.power_supply_id:
-            context['ps'] = PS_EXT.get(self.power_supply.power_supply.code, '')
-        context['mode'] = MODE_EXT.get(self.mode, '')
-        try:
-            row_ids = (list(self.matrix_rows.values_list('pk', flat=True))
-                       if self.pk else [])
-            return selection_ext_code(
-                self.model_line_item, row_ids,
-                temp_option=self.temperature, context=context)
-        except Exception as e:  # noqa: BLE001
-            logger.warning('ext-код карточки не собран: %s', e)
+            return PS_EXT.get(self.power_supply.power_supply.code, '')
+        return ''
+
+    def _temp_ext(self) -> str:
+        """ext-код температуры/обогрева привода (''/L/LM/V/VM)."""
+        from electric_actuators.services.ea_ext_code import TEMP_BASE
+        t = self.temperature
+        if not t:
             return ''
+        base = TEMP_BASE.get(t.code or '', '')
+        if base and t.heater_supply_id and t.heater_supply.code == 'MOTOR_CIRCUIT':
+            base = base + 'M'
+        return base
+
+    def _sp_ext(self) -> str:
+        """ext-код положения безопасности: FL/NC/NO/BAT."""
+        from electric_actuators.services.ea_ext_code import SP_EXT
+        sp = self.safety_position
+        if not sp or not sp.safety_position_id:
+            return 'FL'
+        return SP_EXT.get(sp.safety_position.code, 'FL')
+
+    def _ad_ext(self) -> str:
+        """ext-код устройства ограничения доступа: AD0 — нет, AD1 — есть."""
+        from electric_actuators.services.ea_ext_code import AD_EXT
+        if not self.access_device_id:
+            return 'AD0'
+        return AD_EXT.get(self.access_device.code, 'AD0')
+
+    def _cu_ext_code(self) -> str:
+        """Вклад БУ в ext-код (новая слотовая схема, ea_control.cu_code)."""
+        from ea_control.services.cu_code import build_ext_article_code
+        ps = (self.power_supply.power_supply
+              if self.power_supply_id and self.power_supply else None)
+        return build_ext_article_code(
+            self.control_unit,
+            snapshot=self.control_unit_snapshot or None,
+            power_supply=ps, mode=self.mode,
+            model_line=self.model_line, body=self.body,
+            model_line_item=self.model_line_item) or ''
 
     def _res_article(self, locale=None) -> str:
         """Полный артикул (шаблон серии + ext-код)."""
@@ -288,135 +354,34 @@ class ElectricActuatorCatalogItem(
         return labels.get(locale) or labels['ru']
 
     def _res_cu_block(self, locale=None) -> str:
-        """Блок описания БУ (legacy-схема) — для общего шаблона {cu_block}.
+        """Блок описания БУ (слотовая модель) — генератор ea_control.
 
-        Каталожная карточка остаётся на legacy-матрице, но описание клеит
-        БУ одним блоком, как конструктор (унификация шаблона equipment_type).
+        Каталожная карточка берёт описание БУ из ``cu_description``
+        (видимость по правилам, значения из снимка/дефолтов) — не дублирует
+        его в legacy-матрице.
         """
         if not self.control_unit_id:
             return ''
-        lines = [localized_name(self.control_unit, locale)]
-        entries = [
-            ('Питание БУ', localized_name(self.cu_power_supply, locale)
-             if self.cu_power_supply_id else ''),
-            ('Режим', self._res_mode(locale)),
-            ('Шина', self._res_protocol(locale)),
-            ('Команды', self._res_commands(locale)),
-            ('Уставка', self._res_setpoint(locale)),
-            ('Органы местного управления', self._res_local_controls(locale)),
-            ('Концевые выключатели', self._res_end_switches(locale)),
-            ('Промежуточные', self._res_way_switches(locale)),
-            ('Моментные', self._res_torque_switches(locale)),
-            ('Позиционная ОС', self._res_position_feedback(locale)),
-            ('HART', self._res_hart(locale)),
-            ('Обогрев БУ', self._res_cu_heater(locale)),
-            ('Теплозащита', self._res_thermal_sensor(locale)),
-            ('Индикация', self._res_indicator(locale)),
-            ('Счётчик', self._res_turn_counter(locale)),
-        ]
-        for label, value in entries:
-            if value:
-                lines.append(f'{label}: {value}')
-        return '\n'.join(lines)
+        from ea_control.services.cu_description import build_description
+        ps = (self.power_supply.power_supply
+              if self.power_supply_id and self.power_supply else None)
+        try:
+            return build_description(
+                self.control_unit,
+                snapshot=self.control_unit_snapshot or None,
+                power_supply=ps, mode='both', locale=locale,
+                include_name=False)
+        except Exception:  # noqa: BLE001
+            logger.exception('Ошибка генерации блока описания БУ')
+            return ''
 
     def _res_cu_description(self, locale=None) -> str:
-        """Описание БУ (legacy-схема) — локализованное."""
+        """Описание типа БУ (локализованное) — из ControlUnit."""
         if not self.control_unit_id:
             return ''
         cu = self.control_unit
         return pick_i18n(cu.description_i18n, locale,
                          fallback=cu.description or '')
-
-    # ── Значения из матричных строк (локализованные) ──
-    def _matrix_rows(self):
-        """Выбранные строки матрицы (пусто для несохранённой карточки)."""
-        if not self.pk:
-            return []
-        return list(self.matrix_rows.select_related(
-            'slot', 'option', 'control_signal', 'feedback_signal',
-            'protocol', 'device', 'heater_supply').all())
-
-    @staticmethod
-    def _join_unique(values):
-        return ', '.join(dict.fromkeys(v for v in values if v))
-
-    def _res_protocol(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.protocol, locale) for r in self._matrix_rows()
-            if r.protocol_id and r.protocol.name)
-
-    def _res_commands(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.control_signal, locale) for r in self._matrix_rows()
-            if r.control_signal_id and r.control_signal.name
-            and r.control_signal.role not in _SETPOINT_ROLES)
-
-    def _res_setpoint(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.control_signal, locale) for r in self._matrix_rows()
-            if r.control_signal_id and r.control_signal.name
-            and r.control_signal.role in _SETPOINT_ROLES)
-
-    def _res_local_controls(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.option, locale) if r.option_id else r.name
-            for r in self._matrix_rows()
-            if r.slot_id and r.slot.code == 'LOCAL_CONTROL')
-
-    def _res_end_switches(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role.startswith('END'))
-
-    def _res_way_switches(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role.startswith('WAY'))
-
-    def _res_torque_switches(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role.startswith('TORQUE'))
-
-    def _res_position_feedback(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.feedback_signal, locale)
-            for r in self._matrix_rows()
-            if r.feedback_signal_id and r.feedback_signal.name
-            and r.feedback_signal.role == 'POSITION')
-
-    def _res_hart(self, locale=None) -> str:
-        return 'HART' if any(
-            r.feedback_signal_id and getattr(r.feedback_signal, 'hart', False)
-            for r in self._matrix_rows()) else ''
-
-    def _res_thermal_sensor(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.device, locale) for r in self._matrix_rows()
-            if r.device_id and r.device.name)
-
-    def _res_cu_heater(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.heater_supply, locale) for r in self._matrix_rows()
-            if r.heater_supply_id and r.heater_supply.name)
-
-    def _res_indicator(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.option, locale) if r.option_id else r.name
-            for r in self._matrix_rows()
-            if r.slot_id and r.slot.code == 'INDICATOR')
-
-    def _res_turn_counter(self, locale=None) -> str:
-        return self._join_unique(
-            localized_name(r.option, locale) if r.option_id else r.name
-            for r in self._matrix_rows()
-            if r.slot_id and r.slot.code == 'TURN_COUNTER')
 
     # ── Сохранение (стандартный цикл каталога) ──
     def save(self, *args, **kwargs):

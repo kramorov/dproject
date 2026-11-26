@@ -29,9 +29,7 @@
   принимает, какие сигналы ОС выдаёт, какие шины поддерживает (M2M на копии
   справочников CuControlSignal/CuFeedbackSignal/CuCommProtocol);
 - ``capabilities`` — набор дополнительных возможностей, не покрытых слотами
-  (PST, datalogger, ESD…; справочник CuCapability, M2M);
-- ``legacy_cu`` — 1:1-маппинг на params.ControlUnitInstalledOption до
-  миграции (перенос данных — командами фазы 3).
+  (PST, datalogger, ESD…; справочник CuCapability, M2M).
 
 Поля ``location``/``control_voltage``/``signal_power`` (размещение, напряжение
 и схема цепей) из модели убраны: БУ описывает сигналы и датчики, и это
@@ -141,14 +139,6 @@ class ControlUnit(TemplateMixin, CopyMixin, LocalizedDictFieldsMixin):
         verbose_name=_("Функции БУ"),
         help_text=_("Набор дополнительных возможностей, не покрытых слотами "
                     "(PST, datalogger, ESD, PID…)"),
-    )
-    legacy_cu = models.OneToOneField(
-        'params.ControlUnitInstalledOption', on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='new_control_unit',
-        verbose_name=_("Legacy-справочник"),
-        help_text=_("1:1-маппинг на params.ControlUnitInstalledOption до "
-                    "миграции данных"),
     )
     name_template = models.TextField(
         null=True, blank=True,

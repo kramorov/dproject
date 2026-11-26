@@ -18,8 +18,6 @@
     ea_signals.py               — EaControlSignal / EaFeedbackSignal
     ea_comm_protocol.py         — EaCommProtocol (шины)
     ea_feedback_device.py       — EaFeedbackDevice (устройства ОС)
-    ea_signal_slot.py           — EaSignalSlot (слоты матрицы)
-    ea_signal_matrix.py         — EaSignalMatrixEntry, EaWiringDiagramBinding
 """
 from .ea_model_line import *
 # from .ea_data import *  # LEGACY: ElectricActuatorData отключена (2026-10-19)
@@ -38,9 +36,6 @@ from .ea_signal_form import *
 from .ea_signals import *
 from .ea_comm_protocol import *
 from .ea_feedback_device import *
-from .ea_slot_option import *
-from .ea_signal_slot import *
-from .ea_signal_matrix import *
 
 __all__ = [
     # все модели, которые должны быть доступны извне
@@ -77,9 +72,5 @@ __all__ = [
     'EaFeedbackDevice',
     'EaFeedbackDeviceKind',
     'EaFeedbackTechnology',
-    'EaSignalSlot',
-    'EaSignalMatrixEntry',
-    'EaWiringDiagramBinding',
-    'EaSlotOption',
 
 ]

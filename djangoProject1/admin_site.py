@@ -147,10 +147,6 @@ ADMIN_MODEL_BLOCK = {
     ('electric_actuators', 'EaFeedbackSignalRole'): 'ea_control',
     ('electric_actuators', 'EaContactNormal'): 'ea_control',
     ('electric_actuators', 'EaProtocolTransport'): 'ea_control',
-    ('electric_actuators', 'EaSignalSlot'): 'ea_control',
-    ('electric_actuators', 'EaSlotOption'): 'ea_control',
-    ('electric_actuators', 'EaSignalMatrixEntry'): 'ea_control',
-    ('electric_actuators', 'EaWiringDiagramBinding'): 'ea_control',
     # --- ea_control: блоки управления ЭП (новые модели, 2026-10-22) ---
     ('ea_control', 'ControlUnit'): 'ea_control',
     ('ea_control', 'ControlUnitKind'): 'ea_control',
@@ -309,7 +305,6 @@ ADMIN_MODEL_BLOCK = {
     # --- Управление и индикация ---
     ('params', 'ControlUnitTypeOption'): 'control',
     ('params', 'ControlUnitLocationOption'): 'control',
-    ('params', 'ControlUnitInstalledOption'): 'control',
     ('params', 'SwitchesParameters'): 'control',
     ('params', 'DigitalProtocolsSupportOption'): 'control',
     ('params', 'SafetyPositionOption'): 'control',

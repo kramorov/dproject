@@ -2,7 +2,7 @@ from django.db.models import Model
 from collections import namedtuple
 
 from electric_actuators.models import ElectricActuatorModelLine  # ElectricActuatorData (LEGACY) отключена
-from params.models import IpOption, PowerSupplies, DigitalProtocolsSupportOption, ControlUnitInstalledOption, \
+from params.models import IpOption, PowerSupplies, DigitalProtocolsSupportOption, \
     EnvTempParameters
 from params.exd_models import ExdOption
 from typing import Type
@@ -70,7 +70,6 @@ def process_model_name(model_string):
     else:
         model_line = model_line_result.description
     dp_list = list(DigitalProtocolsSupportOption.objects.values_list('name', flat=True))
-    cu_list = list(ControlUnitInstalledOption.objects.values_list('encoding', flat=True))
     for i in range(1, len(lines)):
         cur_str = lines[i]
         # print(lines[i])
@@ -97,10 +96,6 @@ def process_model_name(model_string):
                 ip = 'Запись с параметром =' + cur_str + ' не найдена.'
             else:
                 ip = ip_result.description
-        if cur_str in cu_list:
-            cu_result = find_record_by_fields(ControlUnitInstalledOption, {'encoding': cur_str}, 'description')
-            cu = cu_result.description
-            continue
         if cur_str in dp_list:
             dp_result = find_record_by_fields(DigitalProtocolsSupportOption, {'name': cur_str},
                                               'description')

@@ -1256,40 +1256,51 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
     миграции. После — прогнать полный `migrate` на scratch-БД до конца и
     фиксить следующие сломанные звенья (тест `electric_actuators` на свежей
     БД — контрольная точка).
-11. **Убрать legacy `params.ControlUnitInstalledOption`** (справочник БУ, 20 записей).
-    После удаления `AllowedControlUnitOption` (миграция `0083`) legacy-справочник БУ
-    ещё читают: `ea_matrix_io` (экспорт/импорт матрицы привода),
-    `EaSignalMatrixEntry.control_unit`, `ElectricActuatorConstructor.selected_control_unit_option`,
-    `ControlUnit.legacy_cu` (1:1), `ea_ext_code._cu_rules` (ext-код привода),
-    `views_admin.get_available_control_options_view`, сид-команды
-    (`seed_ea_cu_profiles`, `load_ea_aox_matrix`), `data_processor.processor`.
+11. **Убрать legacy `params.ControlUnitInstalledOption`** (справочник БУ, 20 записей) —
+    **решено 2026-11-26: вариант (i), полный переход на `ea_control.ControlUnit`,
+    без переноса legacy-данных.** Структура legacy и новой модели расходятся
+    радикально, поэтому маппинг «20→11» не строим: legacy-записи не переносим,
+    а вычищаем.
 
-    **Блокер полного удаления**: `common_models/abstract_models.py.control_unit_installed`
-    (FK на этот справочник) — базовое поле всех типов приводов (ЭП/ПА/КВ…), а не только
-    `ea_control`/`electric_actuators`. Полное удаление справочника — многофазная
-    миграция через весь проект.
+    Решения по ходу:
+    - отдельного `ext_position_code` на `ControlUnit` **не вводим**: вклад БУ в
+      артикул — `article_code_template` (+ `encoding` опций), в ext —
+      `ext_article_code_template` (+ `ext_encoding` опций). `CU_EXT`/`_cu_rules`
+      (`ea_ext_code.py`, позиция `cu`) — legacy и удаляются вместе с ним;
+    - `ControlUnit.legacy_cu` (1:1-мост) **удаляется** — мост не нужен;
+    - сконфигурированный привод (карточка каталога) хранит **FK на выбранные
+      опции + FK на `ControlUnit` + `control_unit_snapshot` (JSON
+      `{slot_code: option_code}`)** для ещё не промоутнутых в FK слотов БУ;
+      системный код / артикул / описание — производные, не хранятся
+      (при необходимости — кэш с инвалидацией, не канон).
 
-    Фазы:
-    - (а) перевести потребителей `ea_control`-стороны на `ControlUnit` + привязки:
-      `ControlUnit.legacy_cu`, `ElectricActuatorConstructor.selected_control_unit_option`,
-      `EaSignalMatrixEntry.control_unit`, `ea_matrix_io`, `ea_ext_code._cu_rules`,
-      `views_admin.get_available_control_options_view`, сид-команды;
-    - (б) решить судьбу `common_models.control_unit_installed`;
-    - (в) удалить справочник и поле `legacy_cu`.
+    Стадии (порядок):
+    1. `ElectricActuatorCatalogItem.control_unit` → `FK ea_control.ControlUnit` +
+       `control_unit_snapshot`; обновить `config_hash_fields` и БУ-резолверы
+       (`_res_cu_*`, `generated_ext_code` — на `cu_code`/`cu_description`).
+    2. Удалить `ControlUnit.legacy_cu`.
+    3. Убрать `ElectricActuatorConstructor.selected_control_unit_option` (legacy;
+       новые `selected_control_unit` + `control_unit_snapshot` уже есть).
+    4. Перевести остальных потребителей: `ControlUnitAccessDeviceOption.control_unit`,
+       `EaSignalMatrixEntry.control_unit`, `ea_matrix_io`,
+       `views_admin.get_available_control_options_view`, сид-команды
+       (`seed_ea_cu_profiles`, `load_ea_aox_matrix`), `data_processor.processor`,
+       `options.BaseControlUnitInstalledThroughOption`.
+    5. Заменить `common_models.control_unit_installed` (базовое поле всех приводов)
+       → `FK ea_control.ControlUnit` и удалить `params.ControlUnitInstalledOption`.
 
-    **Открытые вопросы (обсудить 2026-11-26):**
-    1. `common_models.control_unit_installed`:
-       (i) заменить FK на `ea_control.ControlUnit` глобально (все приводы) — самый
-       «чистый», но большой и затрагивает весь проект;
-       (ii) оставить поле как «установленный БУ привода» (мост на legacy), убрав только
-       `ea_control`-сторону — быстрее, но справочник остаётся;
-       (iii) сейчас только фаза (а), а (б)/(в) — отдельным заходом.
-    2. ext-код «cu» привода: где на новом `ControlUnit` хранить код позиции
-       (`LCU`/`BA`/`PR`…)? Сейчас это `CU_EXT`-маппинг по legacy-`code`. Нужно ли новое
-       поле (напр. `ext_position_code`) + data-миграция, или иной механизм.
-    3. Маппинг сворачивания legacy 20 БУ → new 11 БУ: дубликаты опций
-       (`CU_BASIC_CP1_CP1…`) и пустые subtype-строки AR01E@24 / AR11E@380 — какой
-       канон и как сворачивать.
+    Стадии 1–2 и фазы 4.1–4.2 выполнены (2026-11-26): карточка каталога и
+    конструктор полностью переведены на `ControlUnit` + `control_unit_snapshot`,
+    из них удалены legacy `matrix_rows`/`selected_matrix_rows` и все legacy-
+    ридеры сигналов; `ControlUnit.legacy_cu` удалён. Осталось (фазы 4.3–4.6):
+    - 4.3 — ext-код карточки перевести с legacy `selection_ext_code`/
+      `ea_configurator_data` на `model_line.ext_encoding_template` (аналог
+      конструктора; сейчас карточка ещё держит legacy-оверрайд `generated_ext_code`);
+    - 4.4 — удалить `ea_signal_resolver`/`ea_matrix_io`/`views_admin.get_available_control_options_view`/
+      сид-команды/админку legacy-матрицы;
+    - 4.5 — удалить `EaSignalMatrixEntry`/`EaSignalSlot`/`EaSlotOption`/`EaWiringDiagramBinding`;
+    - 4.6 — `ControlUnitAccessDeviceOption`/`options`/`common_models` → FK `ControlUnit`;
+      удалить `params.ControlUnitInstalledOption`.
 
 ---
 

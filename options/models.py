@@ -633,64 +633,6 @@ class BaseBlinkerThroughOption(BaseThroughOption) :
         return self.get_display_name()
 
 
-class BaseControlUnitInstalledThroughOption(BaseThroughOption) :
-    """Базовая модель для сквозных опций для блока управления"""
-    control_unit_option = models.ForeignKey(
-        'params.ControlUnitInstalledOption' ,
-        on_delete=models.CASCADE ,
-        verbose_name=_("Блок управления") ,
-        help_text=_("Тип блока управления")
-    )
-
-    class Meta :
-        abstract = True
-        ordering = ['sorting_order']
-
-    def get_description_data(self) -> Dict[str , Any] :
-        """Получить структурированные данные для блока управления"""
-        data = {
-            'control_unit_option' : {'display_name' : 'Тип установленного блока управления' , 'value' : self.control_unit_option.name if self.control_unit_option else None} ,
-            'is_default' : {'display_name' : 'Стандарт' , 'value' : self.is_default} ,
-        }
-        return data
-
-    @classmethod
-    def create_default_option(cls , parent_obj) :
-        """Создать стандартную опцию блока управления"""
-        from django.apps import apps
-
-        ControlUnitInstalledOption = apps.get_model('params' , 'ControlUnitInstalledOption')
-
-        try :
-            no_control_unit_option = ControlUnitInstalledOption.objects.get(code='none')
-        except ControlUnitInstalledOption.DoesNotExist :
-            no_control_unit_option = ControlUnitInstalledOption.objects.filter(is_active=True).first()
-
-        if no_control_unit_option :
-            parent_field = cls._get_parent_field_name()
-            return cls.objects.create(
-                **{parent_field : parent_obj} ,
-                control_unit_option=no_control_unit_option ,
-                encoding='' ,
-                description=no_control_unit_option.description ,
-                is_default=True ,
-                sorting_order=0 ,
-                is_active=True
-            )
-        return None
-
-    def get_display_name(self) :
-        """Отображаемое имя для блока управления"""
-        if self.control_unit_option :
-            if self.encoding and self.encoding.strip() :
-                return f"{self.encoding} ({self.control_unit_option.name})"
-            return self.control_unit_option.name
-        return "Не указано"
-
-    def __str__(self) :
-        return self.get_display_name()
-
-
 class BaseWaySwitchesThroughOption(BaseThroughOption) :
     """Базовая модель для сквозных опций путевых выключателей"""
     way_switches_option = models.ForeignKey(

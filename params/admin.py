@@ -6,11 +6,8 @@ import json
 
 from core.models.mixins import AdminCopyMixin
 
-from electric_actuators.models import (ControlUnitAccessDeviceOption,
-                                          EaSignalMatrixEntry)
-
 from .models import PowerSupplies, IpOption, BodyCoatingOption, BlinkerOption, SwitchesParameters, \
-    EnvTempParameters, DigitalProtocolsSupportOption, ControlUnitInstalledOption, ActuatorGearboxOutputType, \
+    EnvTempParameters, DigitalProtocolsSupportOption, ActuatorGearboxOutputType, \
     ValveTypes, HandWheelInstalledOption, OperatingModeOption, ActuatorGearBoxCombinationTypes, MountingPlateTypes, \
     StemShapes, StemSize, ThreadTypes, MeasureUnits, ThreadSize, CertVariety, CertData, \
     MechanicalIndicatorInstalledOption, SafetyPositionOption, ControlUnitTypeOption, ControlUnitLocationOption, \
@@ -247,204 +244,6 @@ class EnvTempParametersAdmin(admin.ModelAdmin):
 class DigitalProtocolsSupportOptionAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'code', 'sorting_order', 'is_active']
     list_editable = ['name', 'code', 'sorting_order', 'is_active']
-
-
-class ControlUnitInstalledOptionForm(forms.ModelForm):
-    """Форма для редактирования JSON поля"""
-
-    feature_list_display = forms.CharField(
-        required=False,
-        widget=forms.Textarea(attrs={
-            'rows': 10,
-            'class': 'vLargeTextField json-editor',
-            'style': 'font-family: monospace;'
-        }),
-        label="Параметры блока управления",
-        help_text="Редактируйте JSON напрямую или используйте таблицу ниже"
-    )
-
-    capabilities_display = forms.CharField(
-        required=False,
-        widget=forms.Textarea(attrs={
-            'rows': 6,
-            'class': 'vLargeTextField json-editor',
-            'style': 'font-family: monospace;'
-        }),
-        label="Функции БУ (capabilities)",
-        help_text="JSON-флаги: local_controls, display, pst, datalogger, "
-                  "bluetooth, esd, pid, interrupter_timer"
-    )
-
-    class Meta:
-        model = ControlUnitInstalledOption
-        fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Преобразуем JSON в отформатированную строку для отображения
-        if self.instance and self.instance.feature_list:
-            try:
-                self.fields['feature_list_display'].initial = json.dumps(
-                    self.instance.feature_list,
-                    ensure_ascii=False,
-                    indent=2
-                )
-            except:
-                self.fields['feature_list_display'].initial = json.dumps(
-                    [],
-                    ensure_ascii=False,
-                    indent=2
-                )
-        else:
-            self.fields['feature_list_display'].initial = json.dumps(
-                [],
-                ensure_ascii=False,
-                indent=2
-            )
-        if self.instance and self.instance.capabilities:
-            try:
-                self.fields['capabilities_display'].initial = json.dumps(
-                    self.instance.capabilities, ensure_ascii=False, indent=2)
-            except Exception:
-                self.fields['capabilities_display'].initial = '{}'
-        else:
-            self.fields['capabilities_display'].initial = '{}'
-
-    def clean(self):
-        cleaned_data = super().clean()
-
-        # Парсим JSON из текстового поля
-        json_str = cleaned_data.get('feature_list_display', '[]')
-        if json_str:
-            try:
-                parsed_json = json.loads(json_str)
-                # Валидация структуры
-                if not isinstance(parsed_json, list):
-                    raise forms.ValidationError("Должен быть массив (список)")
-
-                for item in parsed_json:
-                    if not isinstance(item, dict):
-                        raise forms.ValidationError("Каждый элемент должен быть объектом")
-                    if 'value' not in item:
-                        raise forms.ValidationError("У каждого элемента должно быть поле 'value'")
-
-                cleaned_data['feature_list'] = parsed_json
-            except json.JSONDecodeError as e:
-                raise forms.ValidationError(f"Ошибка в JSON: {e}")
-        else:
-            cleaned_data['feature_list'] = []
-
-        # Парсим capabilities
-        caps_str = cleaned_data.get('capabilities_display', '{}')
-        if caps_str:
-            try:
-                parsed_caps = json.loads(caps_str)
-                if not isinstance(parsed_caps, dict):
-                    raise forms.ValidationError("Capabilities должен быть объектом (dict)")
-                cleaned_data['capabilities'] = parsed_caps
-            except json.JSONDecodeError as e:
-                raise forms.ValidationError(f"Ошибка в JSON capabilities: {e}")
-        else:
-            cleaned_data['capabilities'] = {}
-
-        return cleaned_data
-
-    def save(self, commit=True):
-        """Сохраняем форму, включая JSON поле"""
-        instance = super().save(commit=False)
-
-        # Убеждаемся, что feature_list установлен из cleaned_data
-        if 'feature_list' in self.cleaned_data:
-            instance.feature_list = self.cleaned_data['feature_list']
-
-        if commit:
-            instance.save()
-            self.save_m2m()  # для ManyToMany полей если есть
-
-        return instance
-
-
-class EaCuSignalProfileInline(admin.TabularInline):
-    """Профильные строки сигналов БУ (фаза 9): EaSignalMatrixEntry без
-    скоупов — варианты опций этого типа блока управления."""
-    model = EaSignalMatrixEntry
-    fk_name = 'control_unit'
-    extra = 0
-    fields = ['power_supply', 'mode', 'slot', 'option', 'availability',
-              'is_default', 'sorting_order']
-    raw_id_fields = ['option']
-    verbose_name = _("Опция сигнального профиля")
-    verbose_name_plural = _("Сигнальный профиль БУ")
-
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.filter(brand__isnull=True, model_line__isnull=True,
-                         body__isnull=True, model_line_item__isnull=True)
-
-
-class ControlUnitAccessDeviceOptionInline(admin.TabularInline):
-    """Через-строки «блок управления × устройство ограничения доступа»
-    (electric_actuators.ControlUnitAccessDeviceOption)."""
-    model = ControlUnitAccessDeviceOption
-    fk_name = 'control_unit'
-    extra = 0
-    ordering = ['sorting_order']
-    fields = ['access_device', 'encoding', 'ext_encoding', 'is_default',
-              'is_active', 'sorting_order']
-    verbose_name = _("Устройство ограничения доступа")
-    verbose_name_plural = _("Устройства ограничения доступа для БУ")
-
-
-@admin.register(ControlUnitInstalledOption)
-class ControlUnitInstalledOptionAdmin(admin.ModelAdmin):
-    form = ControlUnitInstalledOptionForm
-    autocomplete_fields = ['accepts', 'emits', 'protocols', 'control_voltage']
-
-    inlines = [EaCuSignalProfileInline, ControlUnitAccessDeviceOptionInline]
-
-    list_display = ['name', 'code', 'kind', 'encoding', 'sorting_order', 'is_active']
-    list_editable = ['code', 'encoding', 'sorting_order', 'is_active']
-    list_filter = ['is_active', 'encoding', 'kind']
-    search_fields = ['name', 'code', 'encoding']
-    ordering = ['sorting_order']
-
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('name', 'code', 'kind', 'encoding', 'description')
-        }),
-        ('Сигналы и функции (фаза 3)', {
-            'fields': ('accepts', 'emits', 'protocols', 'control_voltage',
-                       'capabilities_display'),
-            'description': 'Команды/ОС/шины БУ и напряжение цепи управления; '
-                           'capabilities — флаги функций (local_controls, display, '
-                           'pst, datalogger, bluetooth, esd, pid, interrupter_timer).'
-        }),
-        ('Параметры блока управления', {
-            'fields': ('feature_list_display',),
-            'description': '''
-                <div style="background: #f8f9fa; padding: 10px; margin: 10px 0;">
-                    <strong>Формат JSON:</strong>
-                    <pre style="background: #fff; padding: 10px; border: 1px solid #ddd;">
-[
-  {"display_name": "Питание от питания привода", "value": "нет"},
-  {"display_name": "Питание отдельное", "value": "да"},
-  {"display_name": "Селектор Местное/Удаленное", "value": "нет"}
-]
-                    </pre>
-                </div>
-            ''',
-        }),
-        ('Настройки', {
-            'fields': ('sorting_order', 'is_active')
-        }),
-    )
-
-    class Media:
-        css = {
-            'all': ('admin/css/json-editor.css',)
-        }
-        js = ('admin/js/json-editor.js',)
 
 
 class ActuatorGearboxOutputTypeAdmin(admin.ModelAdmin):
@@ -689,7 +488,7 @@ admin.site.register(BlinkerOption, BlinkerOptionAdmin)
 admin.site.register(SwitchesParameters, SwitchesParametersAdmin)
 admin.site.register(EnvTempParameters, EnvTempParametersAdmin)
 admin.site.register(DigitalProtocolsSupportOption, DigitalProtocolsSupportOptionAdmin)
-# admin.site.register(ControlUnitInstalledOption, ControlUnitInstalledOptionAdmin)
+# admin.site.register(ControlUnitInstalledOptionAdmin)
 admin.site.register(ActuatorGearboxOutputType, ActuatorGearboxOutputTypeAdmin)
 admin.site.register(ValveTypes, ValveTypesAdmin)
 admin.site.register(HandWheelInstalledOption, HandWheelInstalledOptionAdmin)

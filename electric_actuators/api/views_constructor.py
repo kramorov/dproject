@@ -48,7 +48,6 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_model_line_item',
             'selected_power_supply',
             'selected_safety_position',
-            'selected_control_unit_option',
             'selected_temperature',
             'selected_ip',
             'selected_exd',
@@ -79,7 +78,6 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             selected_model_line_item_id=request.data.get('selected_model_line_item'),
             selected_power_supply_id=request.data.get('selected_power_supply'),
             selected_safety_position_id=request.data.get('selected_safety_position'),
-            selected_control_unit_option_id=request.data.get('selected_control_unit_option'),
             selected_access_device_option_id=request.data.get('selected_access_device_option'),
             selected_control_unit_id=request.data.get('selected_control_unit'),
             control_unit_snapshot=request.data.get('control_unit_snapshot') or {},
@@ -105,14 +103,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         # Проверка дубликата: если конфигурация уже существует — возвращаем её
         existing = obj._find_existing()
         if existing:
-            # Дубликат: возвращаем найденную конфигурацию
-            if 'selected_matrix_rows' in request.data:
-                self._set_matrix_rows(existing, request.data)
             return Response(self._serialize_detail(existing, locale),
                             status=status.HTTP_200_OK)
         obj.save()
-        if 'selected_matrix_rows' in request.data:
-            self._set_matrix_rows(obj, request.data)
         return Response(self._serialize_detail(obj, locale), status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
@@ -120,7 +113,7 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         for field in [
             'selected_model_line', 'selected_model_line_item',
             'selected_power_supply', 'selected_safety_position',
-            'selected_control_unit_option', 'selected_access_device_option',
+            'selected_access_device_option',
             'selected_control_unit',
             'selected_temperature',
             'selected_ip', 'selected_exd', 'selected_body_coating',
@@ -139,44 +132,9 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             obj.sorting_order = request.data['sorting_order']
         if 'is_active' in request.data:
             obj.is_active = request.data['is_active']
-        if 'selected_matrix_rows' in request.data:
-            self._set_matrix_rows(obj, request.data)
         obj.save()
         locale = locale_from_accept_language(request.headers.get('Accept-Language'))
         return Response(self._serialize_detail(obj, locale))
-
-    @staticmethod
-    def _parse_matrix_row_ids(data):
-        """Список id строк матрицы из запроса (валидные числа)."""
-        return [int(x) for x in data if str(x).isdigit()]
-
-    def _valid_matrix_row_ids(self, obj):
-        """Валидные id строк сигнального профиля для конфигурации.
-        None — проверить нельзя (не хватает модели/БУ/напряжения)."""
-        if not (obj.selected_model_line_item_id
-                and obj.selected_control_unit_option_id
-                and obj.selected_power_supply_id):
-            return None
-        try:
-            from electric_actuators.services.ea_configurator_data import (
-                configurator_signal_data)
-            sig = configurator_signal_data(
-                obj.selected_model_line_item,
-                obj.selected_control_unit_option,
-                obj.selected_power_supply.power_supply,
-                'on_off')
-            return {row['id'] for slot in sig['slots'] for row in slot['rows']}
-        except Exception:  # noqa: BLE001
-            return None
-
-    def _set_matrix_rows(self, obj, data):
-        from electric_actuators.models import EaSignalMatrixEntry
-        ids = self._parse_matrix_row_ids(data.get('selected_matrix_rows') or [])
-        valid = self._valid_matrix_row_ids(obj)
-        if valid is not None:
-            ids = [i for i in ids if i in valid]
-        obj.selected_matrix_rows.set(
-            EaSignalMatrixEntry.objects.filter(pk__in=ids))
 
     def destroy(self, request, *args, **kwargs):
         obj = self.get_object()
@@ -336,7 +294,6 @@ class ConstructorViewSet(viewsets.ModelViewSet):
         data.update({
             'selected_power_supply': _fk_dict(obj.selected_power_supply, locale),
             'selected_safety_position': _fk_dict(obj.selected_safety_position, locale),
-            'selected_control_unit_option': _fk_dict(obj.selected_control_unit_option, locale),
             'selected_access_device_option': _fk_dict(obj.selected_access_device_option, locale),
             'selected_control_unit': _fk_dict(obj.selected_control_unit, locale),
             'control_unit_snapshot': obj.control_unit_snapshot or {},
@@ -348,8 +305,6 @@ class ConstructorViewSet(viewsets.ModelViewSet):
             'selected_hand_wheel': _fk_dict(obj.selected_hand_wheel, locale),
             'selected_turn_angle_option': _fk_dict(obj.selected_turn_angle_option, locale),
             'selected_cable_glands_holes': _fk_dict(obj.selected_cable_glands_holes, locale),
-            'selected_matrix_rows': list(obj.selected_matrix_rows.values_list(
-                'pk', flat=True)) if obj.pk else [],
             'actual_mounting_plate': _fk_dict(obj.actual_mounting_plate, locale),
             'actual_stem_shape': _fk_dict(obj.actual_stem_shape, locale),
             'actual_stem_size': _fk_dict(obj.actual_stem_size, locale),
