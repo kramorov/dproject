@@ -1289,18 +1289,23 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
     5. Заменить `common_models.control_unit_installed` (базовое поле всех приводов)
        → `FK ea_control.ControlUnit` и удалить `params.ControlUnitInstalledOption`.
 
-    Стадии 1–2 и фазы 4.1–4.2 выполнены (2026-11-26): карточка каталога и
-    конструктор полностью переведены на `ControlUnit` + `control_unit_snapshot`,
-    из них удалены legacy `matrix_rows`/`selected_matrix_rows` и все legacy-
-    ридеры сигналов; `ControlUnit.legacy_cu` удалён. Осталось (фазы 4.3–4.6):
-    - 4.3 — ext-код карточки перевести с legacy `selection_ext_code`/
-      `ea_configurator_data` на `model_line.ext_encoding_template` (аналог
-      конструктора; сейчас карточка ещё держит legacy-оверрайд `generated_ext_code`);
-    - 4.4 — удалить `ea_signal_resolver`/`ea_matrix_io`/`views_admin.get_available_control_options_view`/
-      сид-команды/админку legacy-матрицы;
-    - 4.5 — удалить `EaSignalMatrixEntry`/`EaSignalSlot`/`EaSlotOption`/`EaWiringDiagramBinding`;
-    - 4.6 — `ControlUnitAccessDeviceOption`/`options`/`common_models` → FK `ControlUnit`;
-      удалить `params.ControlUnitInstalledOption`.
+    Выполнено полностью (2026-11-26, коммиты ea4bd336 + 44d25244):
+    - карточка каталога и конструктор — на `ControlUnit` + `control_unit_snapshot`
+      (legacy `matrix_rows`/`selected_matrix_rows` и все legacy-ридеры удалены);
+    - `ControlUnit.legacy_cu` удалён;
+    - ext-код карточки — на `model_line.ext_encoding_template` (legacy
+      `selection_ext_code`/`ea_configurator_data`/позиционная часть `ea_ext_code`
+      удалены);
+    - удалены legacy-сервисы (`ea_signal_resolver`/`ea_matrix_io`), сид-команды,
+      админка legacy-матрицы;
+    - удалены legacy-модели `EaSignalMatrixEntry`/`EaSignalSlot`/`EaSlotOption`/
+      `EaWiringDiagramBinding`, `ControlUnitAccessDeviceOption`;
+    - удалены `options.BaseControlUnitInstalledThroughOption`,
+      `common_models.control_unit_installed` и `params.ControlUnitInstalledOption`.
+
+    Проверено: `makemigrations --check` — «No changes»; миграции применены
+    (`ea_control/0035`, `electric_actuators/0084–0088`, `params/0077`);
+    `manage.py check` — чисто; тесты `electric_actuators` на копии БД — 21/21 OK.
 
 ---
 
