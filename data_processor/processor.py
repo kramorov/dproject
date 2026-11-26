@@ -123,12 +123,6 @@ def process_model_name(model_string):
         return result_table
     else:
         model = model_result.description
-    if len(dp) > 0 and cu_result.record.encoding != 'INT/N':
-        result_table.extend([
-            {"parameter_name": "Ошибка", "parameter_value": 'Поддержка цифровых протоколов возможна только с блоком '
-                                                            'INT/N!' + dp + '=>' + cu_result.record.encoding}
-        ])
-        return result_table
     # Заполняем данными реальную модель привода
     # actual_actuator = ActualActuator.objects.create(actual_model=model_result.record)
     # actual_actuator.init()
