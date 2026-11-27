@@ -12,8 +12,10 @@ from ea_control.models import (ControlUnit, CuControlSignal,
                                CuControlSignalForm, CuMatrixEntry,
                                CuSlot, CuSlotOption, CuSlotRule)
 from ea_control.services.cu_matrix import (get_profile_defaults,
-                                           resolve_control_units, resolve_slots,
-                                           validate_selection)
+                                            resolve_product_types, resolve_slots,
+                                            validate_selection)
+from ea_control.services.cu_description import (build_description,
+                                                build_specification)
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_rules import apply_rules
 from ea_control.services.cu_unit_matrix import (MatrixValidationError,
@@ -74,45 +76,21 @@ class CuMatrixServiceTests(TestCase):
         self.assertFalse(any(p['option_code'] == 'STARTER_BUILT_IN'
                              for p in starter))
 
-    def test_resolve_control_units_ar01e_380(self):
-        units = resolve_control_units(self.ar01e, power_supply=self.ps380)
-        codes = {u['code'] for u in units}
-        self.assertIn('BASIC-AR21', codes)
-        self.assertIn('INT-N-TORQUE', codes)
-        self.assertNotIn('POSI-AR01', codes)  # na-запрет на 380
-        default = [u for u in units if u['is_default']]
-        self.assertEqual([u['code'] for u in default], ['BASIC-AR21'])
-        # option_code — код опции слота control_unit (для снимка/правил)
-        self.assertEqual(default[0]['option_code'], 'CU_BASIC')
-
-    def test_resolve_control_units_ar01e_24(self):
-        units = resolve_control_units(self.ar01e, power_supply=self.ps24)
-        codes = {u['code'] for u in units}
-        self.assertIn('POSI-AR01', codes)
-        self.assertNotIn('BASIC-AR21', codes)  # для 24В базовый не описан
-
-    def test_resolve_control_units_ar11e(self):
-        units = resolve_control_units(self.ar11e, power_supply=self.ps380)
-        codes = {u['code'] for u in units}
-        # у AR11E (Q) — INT (SRCU) и вариант LCU (местное управление)
-        self.assertEqual(codes, {'INT-N-TORQUE', 'INT/L'})
-        self.assertTrue(units[0]['is_default'])
-
     def test_profile_defaults_int(self):
         defaults = get_profile_defaults(self.int_unit)
         self.assertEqual(defaults.get('CU_HEATER'), 'H_NO')
-        self.assertEqual(defaults.get('FB_POSITION'), 'POS_4_20_ACTIVE')
+        self.assertEqual(defaults.get('FB_POSITION'), 'FB_POS_4_20MA_PASSIVE')
 
     def test_bundle_atomicity(self):
         # пакет MWG — строки создаём в тесте (канон БД их не содержит;
         # вариант C: механика проверяется на локальных фикстурах)
         from ea_control.models import CuSlotOption
         opt = lambda code: CuSlotOption.objects.get(code=code)
-        bundle_opts = [opt('POS_MWG'), opt('LIMIT_OPEN_NONE'),
+        bundle_opts = [opt('FB_POS_4_20MA_ACTIVE'), opt('LIMIT_OPEN_NONE'),
                        opt('LIMIT_CLOSE_NONE'), opt('TORQUE_OPEN_NONE'),
                        opt('TORQUE_CLOSE_NONE')]
         for o in bundle_opts:
-            CuMatrixEntry.objects.get_or_create(
+            CuMatrixEntry.objects.update_or_create(
                 slot=o.slot, option=o, control_unit=self.int_unit,
                 model_line=None, power_supply=None,
                 body=None, model_line_item=None, mode='both',
@@ -131,12 +109,12 @@ class CuMatrixServiceTests(TestCase):
         # конфликт MWG × моментные SPDT — строки создаём в тесте (см. выше)
         from ea_control.models import CuSlotOption
         opt = lambda code: CuSlotOption.objects.get(code=code)
-        bundle_opts = [opt('POS_MWG'), opt('LIMIT_OPEN_NONE'),
+        bundle_opts = [opt('FB_POS_4_20MA_ACTIVE'), opt('LIMIT_OPEN_NONE'),
                        opt('LIMIT_CLOSE_NONE'), opt('TORQUE_OPEN_NONE'),
                        opt('TORQUE_CLOSE_NONE')]
         mwg_rows = []
         for o in bundle_opts:
-            row, _ = CuMatrixEntry.objects.get_or_create(
+            row, _ = CuMatrixEntry.objects.update_or_create(
                 slot=o.slot, option=o, control_unit=self.int_unit,
                 model_line=None, power_supply=None,
                 body=None, model_line_item=None, mode='both',
@@ -152,12 +130,59 @@ class CuMatrixServiceTests(TestCase):
         available = _flatten(resolved)
         mwg = next(p for p in available
                    if p['slot_code'] == 'FB_POSITION'
-                   and p['option_code'] == 'POS_MWG')
+                   and p['option_code'] == 'FB_POS_4_20MA_ACTIVE')
         torque = next(p for p in available
                       if p['slot_code'] == 'TORQUE_SWITCHES_OPEN'
                       and p['option_code'] == 'TORQUE_OPEN_SPDT')
         errors = validate_selection([mwg, torque], available)
         self.assertTrue(any('Конфликт' in e for e in errors))
+
+
+class CuProductTypeResolutionTests(TestCase):
+    """Резолвер типов изделия (subtype-матрица) на локальных фикстурах.
+
+    Канон БД больше не покрывает богатую семантику резолвера (наследование,
+    na-запрет, напряжение), поэтому строки создаём в тесте и откатываем.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from electric_actuators.models import ElectricActuatorModelLine
+        from params.models import PowerSupplies
+        cls.ar01e = ElectricActuatorModelLine.objects.get(code='AR01E')
+        cls.ps24 = PowerSupplies.objects.get(code='24-DC')
+        cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
+        cls.posi = ControlUnit.objects.get(code='POSI-AR01')
+        cls.type_slot = CuSlot.objects.get(slot_kind='subtype')
+
+    def _opt(self, unit):
+        return CuSlotOption.objects.get(slot=self.type_slot,
+                                        control_unit=unit)
+
+    def test_profile_std_and_series_na(self):
+        basic_opt = self._opt(self.basic)
+        posi_opt = self._opt(self.posi)
+        CuMatrixEntry.objects.create(
+            slot=self.type_slot, option=basic_opt, availability='std')
+        CuMatrixEntry.objects.create(
+            slot=self.type_slot, option=posi_opt, model_line=self.ar01e,
+            availability='na')
+        units = resolve_product_types(self.ar01e)
+        codes = {u['code'] for u in units}
+        self.assertEqual(codes, {'BASIC-AR21'})
+        basic = next(u for u in units if u['code'] == 'BASIC-AR21')
+        self.assertTrue(basic['is_default'])
+        self.assertEqual(basic['option_code'], basic_opt.code)
+
+    def test_voltage_na_overrides_profile_std(self):
+        basic_opt = self._opt(self.basic)
+        CuMatrixEntry.objects.create(
+            slot=self.type_slot, option=basic_opt, availability='std')
+        CuMatrixEntry.objects.create(
+            slot=self.type_slot, option=basic_opt, power_supply=self.ps24,
+            availability='na')
+        units = resolve_product_types(self.ar01e, power_supply=self.ps24)
+        self.assertEqual([u['code'] for u in units], [])
 
 
 class CuRulesServiceTests(TestCase):
@@ -176,9 +201,21 @@ class CuRulesServiceTests(TestCase):
         state = apply_rules(self.rules, {'control_unit': 'CU_INT'})
         self.assertTrue(state.get('PROTOCOL', {}).get('visible', True))
 
-    def test_hart_set_default(self):
-        state = apply_rules(self.rules, {'SETPOINT': 'SETPOINT_HART'})
-        self.assertEqual(state['FB_POSITION']['default'], 'POS_HART')
+    def test_set_default_action(self):
+        """set_default — механика: условный дефолт по выбору слота-условия."""
+        target = CuSlot.objects.get(code='FB_POSITION')
+        when = CuSlot.objects.get(code='SETPOINT')
+        rule = CuSlotRule.objects.create(
+            when_slot=when, target_slot=target, action='set_default',
+            when_operator='exact', when_value='SETPOINT_4_20',
+            action_value='FB_POS_4_20MA_PASSIVE', description='test')
+        try:
+            state = apply_rules(CuSlotRule.objects.all(),
+                                {'SETPOINT': 'SETPOINT_4_20'})
+            self.assertEqual(state['FB_POSITION']['default'],
+                             'FB_POS_4_20MA_PASSIVE')
+        finally:
+            rule.delete()
 
     def test_power_supply_controls_cu_cable_glands(self):
         # общий кабель — вводы БУ скрыты; отдельный кабель — показаны
@@ -296,7 +333,7 @@ class CuUnitMatrixServiceTests(TestCase):
                        if s['code'] == 'MOTOR_STARTER')
         sopts = {o['code']: o for o in starter['options']}
         self.assertEqual(sopts['STARTER_BUILT_IN']['availability'], 'na')
-        self.assertEqual(sopts['STARTER_NONE']['availability'], 'opt')
+        self.assertEqual(sopts['STARTER_NONE']['availability'], 'std')
 
         m_380 = build_unit_matrix(self.int_unit, power_supply=self.ps380)
         starter = next(s for s in m_380['slots']
@@ -304,7 +341,7 @@ class CuUnitMatrixServiceTests(TestCase):
         sopts = {o['code']: o for o in starter['options']}
         self.assertEqual(sopts['STARTER_BUILT_IN']['availability'], 'std')
         self.assertFalse(sopts['STARTER_BUILT_IN']['inherited'])
-        self.assertEqual(sopts['STARTER_NONE']['availability'], 'opt')
+        self.assertEqual(sopts['STARTER_NONE']['availability'], 'std')
         self.assertTrue(sopts['STARTER_NONE']['inherited'])
 
     def test_build_matrix_inherits_na_when_no_base_row(self):
@@ -331,7 +368,7 @@ class CuUnitMatrixServiceTests(TestCase):
         from params.models import PowerSupplies
         ps24 = PowerSupplies.objects.get(code='24-DC')
         slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
-        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        opt = CuSlotOption.objects.get(code='OPEN_DPDT')
         # базовая std, на 24В ставим na → отличие
         apply_unit_matrix_changes(
             self.basic, ps24,
@@ -339,11 +376,11 @@ class CuUnitMatrixServiceTests(TestCase):
               'availability': 'na'}])
         m = build_unit_matrix(self.basic)
         s = next(x for x in m['slots'] if x['code'] == 'LIMIT_SWITCHES_OPENED')
-        o = next(x for x in s['options'] if x['code'] == 'OPEN_SPDT')
+        o = next(x for x in s['options'] if x['code'] == 'OPEN_DPDT')
         self.assertEqual(o['availability'], 'std')
         self.assertTrue(o['has_voltage_diff'])
         # опция без отличий по напряжениям не помечается
-        o2 = next(x for x in s['options'] if x['code'] == 'OPEN_DPDT')
+        o2 = next(x for x in s['options'] if x['code'] == 'OPEN_SPDT')
         self.assertFalse(o2['has_voltage_diff'])
 
     def test_build_matrix_collapses_redundant_override(self):
@@ -352,14 +389,14 @@ class CuUnitMatrixServiceTests(TestCase):
         from params.models import PowerSupplies
         ps24 = PowerSupplies.objects.get(code='24-DC')
         slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
-        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        opt = CuSlotOption.objects.get(code='OPEN_DPDT')
         # перенаслоение: на 24В та же std, что и в базе
         CuMatrixEntry.objects.create(
             slot=slot, option=opt, control_unit=self.basic,
             power_supply=ps24, availability='std')
         m = build_unit_matrix(self.basic, power_supply=ps24)
         s = next(x for x in m['slots'] if x['code'] == 'LIMIT_SWITCHES_OPENED')
-        o = next(x for x in s['options'] if x['code'] == 'OPEN_SPDT')
+        o = next(x for x in s['options'] if x['code'] == 'OPEN_DPDT')
         self.assertEqual(o['availability'], 'std')
         self.assertTrue(o['inherited'])
         self.assertIsNone(o['row_id'])
@@ -370,7 +407,7 @@ class CuUnitMatrixServiceTests(TestCase):
         from params.models import PowerSupplies
         ps24 = PowerSupplies.objects.get(code='24-DC')
         slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
-        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        opt = CuSlotOption.objects.get(code='OPEN_DPDT')
         self.assertTrue(CuMatrixEntry.objects.filter(
             slot=slot, option=opt, control_unit=self.basic,
             power_supply__isnull=True, availability='std').exists())
@@ -417,7 +454,7 @@ class CuUnitMatrixServiceTests(TestCase):
         from params.models import PowerSupplies
         ps24 = PowerSupplies.objects.get(code='24-DC')
         slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
-        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        opt = CuSlotOption.objects.get(code='OPEN_DPDT')
         self.assertTrue(CuMatrixEntry.objects.filter(
             slot=slot, option=opt, control_unit=self.basic,
             power_supply__isnull=True, availability='std').exists())
@@ -454,7 +491,7 @@ class CuUnitMatrixServiceTests(TestCase):
         from params.models import PowerSupplies
         ps24 = PowerSupplies.objects.get(code='24-DC')
         slot = CuSlot.objects.get(code='LIMIT_SWITCHES_OPENED')
-        opt = CuSlotOption.objects.get(code='OPEN_SPDT')
+        opt = CuSlotOption.objects.get(code='OPEN_DPDT')
         self.assertTrue(CuMatrixEntry.objects.filter(
             slot=slot, option=opt, control_unit=self.basic,
             power_supply__isnull=True, availability='std').exists())
@@ -464,7 +501,7 @@ class CuUnitMatrixServiceTests(TestCase):
               'availability': 'na'}])
         m = build_unit_matrix(self.basic, power_supply=ps24)
         s = next(x for x in m['slots'] if x['code'] == 'LIMIT_SWITCHES_OPENED')
-        o = next(x for x in s['options'] if x['code'] == 'OPEN_SPDT')
+        o = next(x for x in s['options'] if x['code'] == 'OPEN_DPDT')
         self.assertEqual(o['availability'], 'na')
         self.assertFalse(o['inherited'])
 
@@ -582,19 +619,19 @@ class CuPackageServiceTests(TestCase):
         self.assertTrue(pkg['unit']['name'])
         self.assertTrue(pkg['sections'])
         self.assertTrue(pkg['slots'])
-        # протоколы INT/N: без протокола — std, HART/ModBus/ProfiBus/ProfiNet — opt
+        # протоколы INT/N: без протокола — std, HART/ModBus/ProfiBus/TCP — opt
         protocol = next(s for s in pkg['slots'] if s['code'] == 'PROTOCOL')
         av = {o['code']: o['availability'] for o in protocol['options']}
         self.assertEqual(av.get('DP_NONE'), 'std')
-        for code in ('HART', 'MB_RTU', 'PB_DP', 'PN'):
+        for code in ('HART', 'MB_RTU', 'PB_DP', 'MODBUS_TCP'):
             self.assertEqual(av.get(code), 'opt', code)
-        # опции POSITION_FEEDBACK: POS_4_20_ACTIVE доступна как std
+        # позиционная ОС: FB_POS_4_20MA_PASSIVE доступна как std
         pos_fb = next(s for s in pkg['slots'] if s['code'] == 'FB_POSITION')
-        active = next(o for o in pos_fb['options']
-                      if o['code'] == 'POS_4_20_ACTIVE')
-        self.assertEqual(active['availability'], 'std')
+        passive = next(o for o in pos_fb['options']
+                       if o['code'] == 'FB_POS_4_20MA_PASSIVE')
+        self.assertEqual(passive['availability'], 'std')
         self.assertEqual(pkg['defaults'].get('FB_POSITION'),
-                         'POS_4_20_ACTIVE')
+                         'FB_POS_4_20MA_PASSIVE')
         self.assertTrue(pkg['rules'])
 
 
@@ -623,7 +660,7 @@ class CuReviewFixTests(TestCase):
             self.assertIn('PHASE_3_OPTIONS', codes)
             child = next(s for s in d['sections']
                          if s['code'] == 'PHASE_3_OPTIONS')
-            self.assertIn('PHASE_PROTECTION',
+            self.assertIn('MOTOR_STARTER',
                           [sl['code'] for sl in child['slots']])
             # выключенная секция помечена в отчёте (если у неё есть
             # видимые слоты)
@@ -639,7 +676,7 @@ class CuReviewFixTests(TestCase):
         pkg = build_package(self.basic, locale='ru')
         wiring = next(s for s in pkg['slots'] if s['code'] == 'CMD_WIRING')
         names = {o['code']: o['name'] for o in wiring['options']}
-        self.assertEqual(names['W_EXT_220'], 'Внешний 220 В AC (потенциал)')
+        self.assertEqual(names['W_EXT_220'], 'Внешний ~220 В AC (потенциал)')
         self.assertEqual(names['W_INT_24'], 'Внутренний +24 В (сухой контакт)')
 
     def test_null_input_form_pair_unique(self):
@@ -738,6 +775,32 @@ class CuDictionaryCrudTests(TestCase):
             format='json')
         self.assertEqual(r.status_code, 200, r.content)
 
+class CuQueryCountTests(TestCase):
+    """Регрессия N+1 (slots.md §6.6 п.5): эталонное число запросов."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from electric_actuators.models import ElectricActuatorModelLine
+        from params.models import PowerSupplies
+        cls.basic = ControlUnit.objects.get(code='BASIC-AR21')
+        cls.int_unit = ControlUnit.objects.get(code='INT-N-TORQUE')
+        cls.ar01e = ElectricActuatorModelLine.objects.get(code='AR01E')
+        cls.ps380 = PowerSupplies.objects.get(code='380-AC')
+
+    def test_package_query_count(self):
+        with self.assertNumQueries(36):
+            build_package(self.int_unit, model_line=self.ar01e,
+                          power_supply=self.ps380, locale='ru')
+
+    def test_spec_query_count(self):
+        with self.assertNumQueries(15):
+            build_specification(self.basic)
+
+    def test_description_query_count(self):
+        with self.assertNumQueries(15):
+            build_description(self.basic)
+
+
 class CuDbCanonTests(TestCase):
     """Канон БД (вариант C: единственный источник правды — БД).
 
@@ -745,17 +808,17 @@ class CuDbCanonTests(TestCase):
     """
 
     def test_db_canonical_state(self):
-        self.assertEqual(CuSlot.objects.count(), 45)
-        # единственный не-single — PHASE_PROTECTION (xor, слот пользователя)
+        self.assertEqual(CuSlot.objects.count(), 116)
+        # не-single: 2 xor (защита фаз / потери фаз) + 7 multi (журналы/шины)
         self.assertEqual(
-            CuSlot.objects.exclude(selection_mode='single').count(), 1)
+            CuSlot.objects.exclude(selection_mode='single').count(), 9)
         self.assertEqual(
             CuSlot.objects.get(code='PHASE_PROTECTION').selection_mode, 'xor')
-        # 41 object-слот с источником, 4 value-слота
-        self.assertEqual(CuSlot.objects.filter(slot_kind='object').count(), 41)
+        # 46 object-слотов с источником, 69 value-слотов
+        self.assertEqual(CuSlot.objects.filter(slot_kind='object').count(), 46)
         self.assertEqual(
             CuSlot.objects.filter(slot_kind='object', source='').count(), 0)
-        self.assertEqual(CuSlot.objects.filter(slot_kind='value').count(), 4)
+        self.assertEqual(CuSlot.objects.filter(slot_kind='value').count(), 69)
         self.assertEqual(
             CuSlot.objects.get(code='FB_POSITION').source,
             'feedback_signal')
@@ -780,8 +843,8 @@ class CuDbCanonTests(TestCase):
         self.assertEqual(
             CuSlot.objects.get(code='THERMAL_PROTECTION_COAT').slot_kind,
             'value')
-        # питание БУ — слот выключен (канон БД)
-        self.assertFalse(
+        # питание БУ — слот активен (канон БД 2026-11-25)
+        self.assertTrue(
             CuSlot.objects.get(code='CU_POWER_SUPPLY').is_active)
         self.assertEqual(
             CuSlot.objects.get(code='ACTUATOR_HEATER').source,
@@ -800,10 +863,12 @@ class CuDbCanonTests(TestCase):
             self.assertEqual(slot.source, 'device')
             self.assertEqual(slot.section.code, 'SENSOR')
         self.assertEqual(CuSlot.objects.get(code='TURN_COUNTER').source, '')
-        self.assertEqual(ControlUnit.objects.count(), 5)
+        self.assertEqual(ControlUnit.objects.count(), 11)
         self.assertEqual(
             set(ControlUnit.objects.values_list('code', flat=True)),
-            {'BASIC-AR21', 'INT-N-TORQUE', 'INT/L', 'INT-O-AR21', 'POSI-AR01'})
+            {'BASIC-AR01', 'BASIC-AR19', 'BASIC-AR21', 'INT-L-NO-TORQUE',
+             'INT-L-TORQUE-C', 'INT-L-TORQUE-MECH', 'INT-N-TORQUE',
+             'INT-O-AR21', 'POSI-AR01', 'POTE-AR01', 'TR-AR01'})
         self.assertFalse(ControlUnit.objects.filter(
             code__in=('basic', 'int-n', 'int-n-mb', 'int-n-hr', 'int-n-pb',
                       'int-l', 'int-o')).exists())

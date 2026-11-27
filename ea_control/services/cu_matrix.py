@@ -25,7 +25,8 @@ from collections import defaultdict, deque
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
 
-from ea_control.models import CuMatrixEntry, CuMatrixMode, CuSlot, CuSlotOption
+from ea_control.models import (CU_SLOT_OPTION_PAYLOAD_FKS, CuMatrixEntry,
+                               CuMatrixMode, CuSlot, CuSlotOption)
 from ea_control.models.abstract import ConfigSlotKind, ConfigWhenOperator
 
 
@@ -196,14 +197,22 @@ def _row_precedence(row):
 
 
 def _snapshot_options(snapshot):
-    """Развернуть снимок {slot_code: option_code} → {slot_code: CuSlotOption}."""
+    """Развернуть снимок {slot_code: option_code} → {slot_code: CuSlotOption}.
+
+    Мультислоты (значение — список кодов) в ``when``-резолве не участвуют
+    (slots.md §6.3): их значения пропускаются, чтобы не ломать эффективное
+    значение слота-условия.
+    """
     if not snapshot:
         return {}
+    scalar = {sc: oc for sc, oc in snapshot.items() if isinstance(oc, str)}
+    if not scalar:
+        return {}
     opts = (CuSlotOption.objects
-            .filter(slot__code__in=list(snapshot.keys()))
+            .filter(slot__code__in=list(scalar.keys()))
             .select_related('slot'))
     by_code = {(o.slot.code, o.code): o for o in opts}
-    return {sc: by_code[(sc, oc)] for sc, oc in snapshot.items()
+    return {sc: by_code[(sc, oc)] for sc, oc in scalar.items()
             if (sc, oc) in by_code}
 
 
@@ -278,8 +287,11 @@ def resolve_slots(control_unit, *, model_line=None, body=None,
     rows_qs = (CuMatrixEntry.objects
                .filter(control_unit=control_unit, is_active=True)
                .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
-               .select_related('slot', 'option', 'option__slot', 'when_slot')
-               .prefetch_related('conflicts__option', 'when_options'))
+               .select_related('slot', 'option', 'option__slot', 'when_slot',
+                               *[f'option__{f}'
+                                 for f in CU_SLOT_OPTION_PAYLOAD_FKS])
+               .prefetch_related('conflicts__option', 'when_options',
+                                 'option__display_types'))
     if power_supply is not None:
         rows_qs = rows_qs.filter(Q(power_supply=power_supply)
                                  | Q(power_supply__isnull=True))
@@ -405,7 +417,7 @@ def get_profile_defaults(control_unit, *, power_supply=None, mode='both',
                     model_line__isnull=True, body__isnull=True,
                     model_line_item__isnull=True, is_active=True)
             .exclude(slot__slot_kind=ConfigSlotKind.SUBTYPE)
-            .select_related('slot', 'option', 'when_slot')
+            .select_related('slot', 'option', 'option__slot', 'when_slot')
             .prefetch_related('when_options'))
     if power_supply is not None:
         rows = rows.filter(Q(power_supply=power_supply)

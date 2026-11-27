@@ -105,9 +105,10 @@
 механика осталась на строках матрицы: `bundle` — это не режим выбора, а
 «именованный фрагмент конфигурации» (см. «Решение: два рода слота…»).
 
-Как используются сейчас: в демо-данных БУ 42 слота; единственный
-не-`single` — `PHASE_PROTECTION` (`xor`, осознанно, слот пользователя
-2026-11-02). `multi` не используется. Фронт: `multi` → чекбоксы,
+Как используются сейчас: в каноне БУ 116 слотов; `multi` — 7 слотов (журналы/шины:
+OPEN_LOG, CLOSE_LOG, START_COUNT_LOG, AUTO_START_COUNT_LOG, MAX_START_COUNT_LOG,
+POWER_ON_HOURS_COUNT_LOG, BUS_CONTROLS_OPTIONS), `xor` — 2 слота
+(PHASE_PROTECTION, PHASE_LOSS_PROTECTION). Фронт: `multi` → чекбоксы,
 остальные — radio; режим показывается бейджем в шапке слота (Превью БУ).
 
 #### «Род значения» (`slot_kind`, ConfigSlotKind, default value)
@@ -1307,6 +1308,39 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
     (`ea_control/0035`, `electric_actuators/0084–0088`, `params/0077`);
     `manage.py check` — чисто; тесты `electric_actuators` на копии БД — 21/21 OK.
 
+### Выполнено 2026-11-27 — §6.6 решения + п.2/п.5 + ревизия канон-тестов
+
+- **п.1 — А (кэш не делаем сейчас)**: внутренний админ-конфигуратор, нагрузка
+  мала; вернуться к кэшу при Postgres/WAL.
+- **п.2 — сделано**: `resolved`/`defaults` прокинуты опционально в
+  `build_specification`/`build_description`/`build_codes`; `build_package`
+  резолвит слоты/дефолты/коды/описание одной точкой (описание теперь учитывает
+  выбранное напряжение). `resolve_slots`/`get_profile_defaults` на запрос
+  `package/` — по одному разу.
+- **п.3 — без отдельного действия** (подтянется с кэшем из п.1).
+- **п.4 (N+1) — доведено**: payload-FK опций вынесены в общий
+  `CU_SLOT_OPTION_PAYLOAD_FKS` (models/cu_config.py); убраны N+1 по
+  `option.slot`/`node.parent`/`option.display_types` (select_related + sorted
+  без `.order_by`, сбрасывающего prefetch). `build_package` — 683→36 запросов.
+- **п.5 — сделано**: `CuQueryCountTests` фиксирует эталон запросов
+  package/spec/description (36/15/15); контракт `resolved`+locale уточнён в
+  docstring. Числа — временный эталон: при изменении канона (слоты/опции)
+  меняются и переписываются в тесте.
+- **Резолвер типов изделия**: убран тест по устаревшей subtype-матрице
+  (BASIC-AR21/пусто), добавлен синтетический `CuProductTypeResolutionTests`
+  (profile-std + series-na; voltage-na overrides std) — покрытие не зависит от
+  канона. Привязки БУ к сериям — `ControlUnitBinding` (AR01E: BASIC-AR01/
+  POSI-AR01/POTE-AR01/INT-L-NO-TORQUE/TR-AR01; AR11E: TR-AR01/
+  INT-L-TORQUE-MECH/INT-L-NO-TORQUE) покрываются в `tests_bindings`.
+- **Ревизия канон-тестов `ea_control` — зелёный**: канон-счётчики и ожидания
+  приведены к текущей БД (116 слотов: 46 object / 69 value / 1 subtype;
+  2 xor + 7 multi; 11 БУ; 339 опций; 1157 строк; 920 правил). Попутно:
+  `_snapshot_options` (multi-слот не ломает `when`-резолв), `build_specification`
+  (пустые секции не выводятся), docstring `AbstractSlotRule.priority` (§6.8.6,
+  миграция `ea_control/0036`).
+- **Тесты**: `ea_control` — зелёный (в т.ч. `tests_when` 13/13);
+  `manage.py check`/`makemigrations --check` — чисто.
+
 ---
 
 ## 6. Правило связи слотов и опций — финальный план (2026-11-25)
@@ -1500,7 +1534,8 @@ PROTOCOL) выражается условными строками `when_slot=CM
    многописательный конфигуратор — Postgres (паттерн переносится без
    изменений).
 
-**Открытые вопросы (обсудить 2026-11-26):**
+**Решено 2026-11-27** (см. «Выполнено 2026-11-27» выше): п.1 — А (без кэша),
+п.2 — сделано, п.3 — без отдельного действия, п.5 — сделано (`CuQueryCountTests`).
 
 - **п.1 (кэш статического слоя).** Нужен ли сейчас кэш с инвалидацией сигналами?
   Плюс — снять повторное чтение матрицы/правил/опций на каждый запрос. Минус —

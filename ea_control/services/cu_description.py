@@ -33,36 +33,33 @@ from django.db.models import Prefetch
 
 from core.utils.localization import pick_i18n
 
-from ea_control.models import (CuSectionNode, CuSlot, CuSlotOption,
-                               CuSlotRule)
+from ea_control.models import (CU_SLOT_OPTION_PAYLOAD_FKS, CuSectionNode,
+                               CuSlot, CuSlotOption, CuSlotRule)
 from ea_control.models.abstract import ConfigSlotKind
 from ea_control.services.cu_matrix import (get_product_type_slot,
                                            get_profile_defaults, resolve_slots)
 from ea_control.services.cu_rules import apply_rules
 
-# FK полезных нагрузок CuSlotOption — для select_related в префетче опций
-# (иначе value/value_description/артикул тянут справочную запись на каждую
-# выбранную опцию отдельным запросом).
-_PAYLOAD_FKS = ('control_signal', 'feedback_signal', 'protocol',
-                'heater_supply', 'signal_power', 'control_logic',
-                'control_unit', 'control_unit_kind', 'device',
-                'local_control_type', 'unit_power_source',
-                'cable_gland_set', 'location_option',
-                'access_device_option')
+# FK полезных нагрузок CuSlotOption — единый список в models/cu_config.py
+# (CU_SLOT_OPTION_PAYLOAD_FKS).
 
 
 def _slot_options_prefetch():
     """Префетч опций с полезными нагрузками (FK + display M2M)."""
     return Prefetch(
         'slot_options',
-        queryset=(CuSlotOption.objects.select_related(*_PAYLOAD_FKS)
+        queryset=(CuSlotOption.objects.select_related(
+            *CU_SLOT_OPTION_PAYLOAD_FKS)
                   .prefetch_related('display_types')))
 
 
 def _product_type_option(control_unit):
     """Опция слота-селектора типа изделия для данного типа (ControlUnit)."""
-    return CuSlotOption.objects.filter(
-        slot__slot_kind=ConfigSlotKind.SUBTYPE, control_unit=control_unit).first()
+    return (CuSlotOption.objects
+            .filter(slot__slot_kind=ConfigSlotKind.SUBTYPE,
+                    control_unit=control_unit)
+            .select_related('slot')
+            .first())
 
 
 def hidden_slot_codes(control_unit, snapshot=None):
@@ -151,14 +148,10 @@ def _option_description(option, locale=None):
                          fallback=option.description or '')
     if option.kind == 'display':
         descs = [_payload_description(d, locale)
-                 for d in option.display_types.all().order_by('sorting_order')]
+                 for d in sorted(option.display_types.all(),
+                                 key=lambda d: d.sorting_order)]
         return ' + '.join(x for x in descs if x)
-    for fk in ('control_signal', 'feedback_signal', 'protocol',
-               'heater_supply', 'signal_power', 'control_logic',
-               'control_unit', 'control_unit_kind', 'device',
-               'local_control_type', 'unit_power_source',
-               'cable_gland_set', 'location_option',
-               'access_device_option'):
+    for fk in CU_SLOT_OPTION_PAYLOAD_FKS:
         obj = getattr(option, fk, None)
         if obj is not None:
             return _payload_description(obj, locale)
@@ -167,10 +160,15 @@ def _option_description(option, locale=None):
 
 
 def _effective_snapshot(control_unit, snapshot, *, power_supply=None,
-                        mode='both'):
-    """(снимок+дефолты, дефолты): снимок перекрывает дефолты профиля."""
-    defaults = get_profile_defaults(control_unit, power_supply=power_supply,
-                                    mode=mode, snapshot=snapshot)
+                        mode='both', defaults=None):
+    """(снимок+дефолты, дефолты): снимок перекрывает дефолты профиля.
+
+    ``defaults`` — предвычисленные дефолты профиля (get_profile_defaults);
+    если переданы, повторный резолв пропускается (slots.md §6.6 п.2).
+    """
+    if defaults is None:
+        defaults = get_profile_defaults(control_unit, power_supply=power_supply,
+                                        mode=mode, snapshot=snapshot)
     product_type_slot = get_product_type_slot()
     pt_code = product_type_slot.code if product_type_slot else None
     merged = dict(defaults)
@@ -219,17 +217,26 @@ def _slot_value_description(slot, options_by_slot, merged, defaults,
 
 
 def build_specification(control_unit, *, snapshot=None, locale=None,
-                        power_supply=None, mode='both'):
+                        power_supply=None, mode='both', resolved=None,
+                        defaults=None):
     """Спецификация модификации БУ: видимые узлы → слоты → значения.
+
+    ``resolved``/``defaults`` — предвычисленные результаты resolve_slots/
+    get_profile_defaults для той же точки (power_supply/mode/snapshot);
+    ``resolved`` должен быть собран с тем же ``locale`` (он несёт
+    локализованные имена опций). Если переданы, повторный резолв
+    пропускается (slots.md §6.6 п.2).
 
     Возвращает {unit, sections: [{code, name, description, slots:
     [{code, name, description, selection_mode, value, value_description,
     options: [{code, name, availability}]}]}]}.
     """
     merged, defaults = _effective_snapshot(
-        control_unit, snapshot, power_supply=power_supply, mode=mode)
-    resolved = resolve_slots(control_unit, power_supply=power_supply,
-                             mode=mode, snapshot=snapshot, locale=locale)
+        control_unit, snapshot, power_supply=power_supply, mode=mode,
+        defaults=defaults)
+    if resolved is None:
+        resolved = resolve_slots(control_unit, power_supply=power_supply,
+                                 mode=mode, snapshot=snapshot, locale=locale)
 
     nodes, visible = visible_slots(control_unit, snapshot)
     options_by_slot = {}
@@ -247,6 +254,9 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
     slots_by_node = {}
     for s in visible:
         slots_by_node.setdefault(s.section_id, []).append(s)
+    # Узел выводится, только если в нём остался хотя бы один слот со значением
+    # (пустые секции не выводим — как в текстовом описании и в cu_report).
+    nodes = [n for n in nodes if slots_by_node.get(n.id)]
 
     unit_opt = _product_type_option(control_unit)
     sections = []
@@ -302,7 +312,8 @@ def build_specification(control_unit, *, snapshot=None, locale=None,
 
 
 def build_description(control_unit, *, snapshot=None, locale=None,
-                      power_supply=None, mode='both', include_name=True):
+                      power_supply=None, mode='both', include_name=True,
+                      resolved=None, defaults=None):
     """Текстовое описание модификации БУ (локализованное).
 
     Структура: имя БУ (если ``include_name``), затем строки
@@ -311,7 +322,8 @@ def build_description(control_unit, *, snapshot=None, locale=None,
     плейсхолдеры ``{cu_code}``/``{cu_description}``.
     """
     spec = build_specification(control_unit, snapshot=snapshot, locale=locale,
-                               power_supply=power_supply, mode=mode)
+                               power_supply=power_supply, mode=mode,
+                               resolved=resolved, defaults=defaults)
     lines = [spec['unit']['name']] if include_name else []
     for section in spec['sections']:
         parts = []

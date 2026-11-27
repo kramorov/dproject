@@ -49,8 +49,7 @@ class CuDescriptionGeneratorTests(TestCase):
         self.assertIn('PROTOCOL', hidden)
         # видимые остаются
         for code in ('CU_LOCATION', 'CMD_WIRING', 'ACTUATOR_HEATER',
-                     'CU_HEATER', 'IND_OPEN', 'IND_STOP',
-                     'IND_POSITION_MECH'):
+                     'IND_OPEN', 'IND_POSITION_MECH'):
             self.assertNotIn(code, hidden)
 
     def test_spec_contains_only_visible_slots(self):
@@ -74,8 +73,8 @@ class CuDescriptionGeneratorTests(TestCase):
         ind_signals = next(sec for sec in spec['sections']
                            if sec['code'] == 'IND_SIGNALS')
         self.assertEqual({s['code'] for s in ind_signals['slots']},
-                         {'IND_OPEN', 'IND_CLOSED', 'IND_STOP', 'IND_RUN',
-                          'IND_POSITION_MECH', 'IND_POSITION_LCD'})
+                         {'IND_OPEN', 'IND_CLOSED', 'IND_POSITION_MECH',
+                          'IND_RUN'})
         # узел LOCAL_INDICATION — только ACCESS_DEVICE
         loc_ind = next(sec for sec in spec['sections']
                        if sec['code'] == 'LOCAL_INDICATION')
@@ -88,7 +87,7 @@ class CuDescriptionGeneratorTests(TestCase):
         spec = build_specification(self.basic)
         values = {s['code']: s['value']
                   for sec in spec['sections'] for s in sec['slots']}
-        self.assertEqual(values['CMD_WIRING'], 'Внешний 220 В AC (потенциал)')
+        self.assertEqual(values['CMD_WIRING'], 'Внешний ~220 В AC (потенциал)')
         self.assertEqual(values['ACTUATOR_HEATER'], 'Отдельная линия')
 
     def test_snapshot_overrides_std(self):
@@ -138,7 +137,7 @@ class CuDescriptionGeneratorTests(TestCase):
 
     def test_none_option_description_explicit(self):
         """_option_description none-опции — имя («Нет»), а не пусто/код."""
-        opt = CuSlotOption.objects.get(code='POS_NONE')
+        opt = CuSlotOption.objects.get(code='CMD_STOP_NONE')
         self.assertEqual(opt.kind, 'none')
         self.assertEqual(_option_description(opt), 'Нет')
 
@@ -150,19 +149,17 @@ class CuDescriptionGeneratorTests(TestCase):
         spec = build_specification(self.basic, snapshot=snapshot)
         values = {s['code']: s['value']
                   for sec in spec['sections'] for s in sec['slots']}
-        self.assertEqual(values['CMD_WIRING'], 'Внешний 220 В AC (потенциал)')
+        self.assertEqual(values['CMD_WIRING'], 'Внешний ~220 В AC (потенциал)')
 
     def test_option_set_change_reflected(self):
-        """Убрали строки матрицы у слота — спецификация видит это сразу."""
+        """Убрали строки матрицы у слота — слот без значения исчезает
+        из спецификации (правило видимости 2026-11-13)."""
         slot = CuSlot.objects.get(code='CMD_STOP')
         CuMatrixEntry.objects.filter(slot=slot,
                                      control_unit=self.basic).delete()
         spec = build_specification(self.basic)
-        stop = next(s for sec in spec['sections'] for s in sec['slots']
-                    if s['code'] == 'CMD_STOP')
-        self.assertIsNone(stop['value'])
-        self.assertTrue(all(o['availability'] == 'na'
-                            for o in stop['options']))
+        all_slots = {s['code'] for sec in spec['sections'] for s in sec['slots']}
+        self.assertNotIn('CMD_STOP', all_slots)
 
     def test_hide_rule_change_reflected(self):
         """Добавили hide-правило — слот исчез из спецификации."""
@@ -208,7 +205,7 @@ class CuDescriptionGeneratorTests(TestCase):
                  for s in sec['slots']}
         self.assertIn('FB_POSITION', slots)
         self.assertIn('SETPOINT', slots)
-        self.assertNotIn('CMD_OPEN', slots)  # hide-правило позиционера
+        self.assertIn('CMD_OPEN', slots)  # позиционер: команды дистанционного управления
 
     # ── артикул = системный код ────────────────────────────────────────
 

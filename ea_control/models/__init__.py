@@ -59,6 +59,7 @@ from ea_control.models.control_unit_binding import (  # noqa: F401
     resolve_bound_unit_ids_for_series,
 )
 from ea_control.models.cu_config import (  # noqa: F401
+    CU_SLOT_OPTION_PAYLOAD_FKS,
     CuSectionNode,
     CuSlot,
     CuOptionKind,

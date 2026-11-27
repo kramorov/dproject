@@ -595,7 +595,7 @@ class AbstractSlotRule(CopyMixin, models.Model):
     priority = models.IntegerField(
         default=0,
         verbose_name=_("Приоритет"),
-        help_text=_("Больше — раньше; при конфликте правил побеждает больший"),
+        help_text=_("Больше — позже; при конфликте правил побеждает больший"),
     )
     is_active = models.BooleanField(default=True, verbose_name=_("Активно"))
     description = models.TextField(blank=True, verbose_name=_("Описание"))

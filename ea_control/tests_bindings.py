@@ -145,9 +145,12 @@ class ControlUnitBindingApiTests(APITestCase):
             {'copy_bindings': True}, format='json')
         self.assertEqual(r.status_code, 201, r.content)
         new = ControlUnit.objects.get(pk=r.data['id'])
+        source_ids = set(self.cu.bindings.values_list('model_line_item_id',
+                                                       flat=True))
+        source_ids.add(self.items[0].id)
         self.assertEqual(
-            list(new.bindings.values_list('model_line_item_id', flat=True)),
-            [self.items[0].id])
+            set(new.bindings.values_list('model_line_item_id', flat=True)),
+            source_ids)
 
     def test_copy_without_bindings(self):
         ControlUnitBinding.objects.create(

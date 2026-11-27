@@ -14,7 +14,8 @@ from core.utils.localization import pick_i18n
 
 from ea_control.models import CuSlot, CuSlotOption, CuSlotRule
 from ea_control.models.abstract import ConfigSlotKind
-from ea_control.services.cu_description import build_description
+from ea_control.services.cu_description import (build_description,
+                                                 _slot_options_prefetch)
 from ea_control.services.cu_code import build_codes
 from ea_control.services.cu_matrix import (get_product_type_slot,
                                            get_profile_defaults, resolve_slots)
@@ -58,7 +59,7 @@ def build_package(control_unit, *, model_line=None, body=None,
     slots = list(CuSlot.objects.filter(is_active=True)
                  .exclude(slot_kind=ConfigSlotKind.SUBTYPE)
                  .select_related('section')
-                 .prefetch_related('slot_options')
+                 .prefetch_related(_slot_options_prefetch())
                  .order_by('sorting_order', 'code'))
     slots_payload = []
     for slot in slots:
@@ -89,6 +90,7 @@ def build_package(control_unit, *, model_line=None, body=None,
     from ea_control.models import CuSectionNode
     sections = []
     nodes = list(CuSectionNode.objects.filter(is_active=True)
+                 .select_related('parent')
                  .order_by('sorting_order', 'code'))
     for node in nodes:
         sections.append({
@@ -130,11 +132,12 @@ def build_package(control_unit, *, model_line=None, body=None,
             'kind_display': (pick_i18n(control_unit.kind.name_i18n, locale,
                                        fallback=control_unit.kind.name)
                              if control_unit.kind_id else ''),
-            # описание модификации — генератор по структуре+правилам
-            # (std-дефолты профиля; после выбора опций фронт может запросить
-            # /api/ea-control/description/ со снимком)
-            'description': build_description(control_unit, snapshot=snapshot,
-                                             locale=locale),
+            # описание модификации — на той же точке резолва (напряжение/снимок),
+            # что слоты/дефолты/коды (slots.md §6.6 п.2/п.5)
+            'description': build_description(
+                control_unit, snapshot=snapshot, locale=locale,
+                power_supply=power_supply, mode=mode,
+                resolved=resolved, defaults=defaults),
             'brand_name': str(control_unit.brand) if control_unit.brand_id else '',
         },
         'sections': sections,
@@ -145,5 +148,6 @@ def build_package(control_unit, *, model_line=None, body=None,
         **build_codes(control_unit, snapshot=snapshot,
                       power_supply=power_supply, mode=mode,
                       model_line=model_line,
-                      body=body, model_line_item=model_line_item),
+                      body=body, model_line_item=model_line_item,
+                      resolved=resolved, defaults=defaults),
     }

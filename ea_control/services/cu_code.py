@@ -36,7 +36,7 @@ from ea_control.models import (CuCodeSettings, CuSectionNode, CuSlot,
 from ea_control.models.abstract import ConfigSlotKind
 from ea_control.services.cu_description import (
     _effective_snapshot, _slot_chosen_options, visible_slots)
-from ea_control.services.cu_matrix import resolve_slots
+from ea_control.services.cu_matrix import get_profile_defaults, resolve_slots
 
 _PH_RE = re.compile(r'\{(model_code|node|slot|opt|slots)(?::([^{}]+))?\}')
 
@@ -95,11 +95,14 @@ def _structural_slots(nodes):
 
 def _resolved(control_unit, snapshot, power_supply=None, mode='both',
               model_line=None, body=None,
-              model_line_item=None, structural=False):
+              model_line_item=None, structural=False,
+              resolved=None, defaults=None):
     """Узлы/слоты/выбранные опции + эффективные строки матрицы.
 
     ``structural=True`` — полная активная структура (без show/hide) для
     системного кода; иначе — видимые слоты (show/hide) для артикула.
+    ``resolved``/``defaults`` — предвычисленные resolve_slots/
+    get_profile_defaults (slots.md §6.6 п.2).
     """
     if structural:
         nodes = _all_nodes_tree()
@@ -107,7 +110,8 @@ def _resolved(control_unit, snapshot, power_supply=None, mode='both',
     else:
         nodes, slots = visible_slots(control_unit, snapshot)
     merged, defaults = _effective_snapshot(
-        control_unit, snapshot, power_supply=power_supply, mode=mode)
+        control_unit, snapshot, power_supply=power_supply, mode=mode,
+        defaults=defaults)
     options_by_slot = {}
     for s in slots:
         options_by_slot[s.id] = sorted(
@@ -117,10 +121,11 @@ def _resolved(control_unit, snapshot, power_supply=None, mode='both',
     for s in slots:
         chosen[s.id] = _slot_chosen_options(
             s, options_by_slot, merged, defaults)
-    resolved = resolve_slots(
-        control_unit, model_line=model_line, body=body,
-        model_line_item=model_line_item, power_supply=power_supply,
-        mode=mode, snapshot=snapshot)
+    if resolved is None:
+        resolved = resolve_slots(
+            control_unit, model_line=model_line, body=body,
+            model_line_item=model_line_item, power_supply=power_supply,
+            mode=mode, snapshot=snapshot)
     rows_by_option = {}
     for payloads in resolved.values():
         for p in payloads:
@@ -454,19 +459,31 @@ def build_ext_article_code(control_unit, snapshot=None, *, power_supply=None,
 
 def build_codes(control_unit, snapshot=None, *, power_supply=None, mode='both',
                 model_line=None, body=None,
-                model_line_item=None):
+                model_line_item=None, resolved=None, defaults=None):
     """Все коды конфигурации за один вызов.
 
     Возвращает ``{system_code, article_code, ext_article_code}``. Системный
     код считается по полной структуре (без show/hide), артикульный — по
-    видимым слотам.
+    видимым слотам. ``resolved``/``defaults`` — предвычисленные
+    resolve_slots/get_profile_defaults для этой же точки (slots.md §6.6 п.2).
     """
+    if resolved is None:
+        resolved = resolve_slots(
+            control_unit, model_line=model_line, body=body,
+            model_line_item=model_line_item, power_supply=power_supply,
+            mode=mode, snapshot=snapshot)
+    if defaults is None:
+        defaults = get_profile_defaults(
+            control_unit, power_supply=power_supply, mode=mode,
+            snapshot=snapshot)
     s_nodes, s_slots, s_chosen, _s_options, _ = _resolved(
         control_unit, snapshot, power_supply, mode,
-        model_line, body, model_line_item, structural=True)
+        model_line, body, model_line_item, structural=True,
+        resolved=resolved, defaults=defaults)
     v_nodes, v_slots, v_chosen, v_options, rows = _resolved(
         control_unit, snapshot, power_supply, mode,
-        model_line, body, model_line_item)
+        model_line, body, model_line_item,
+        resolved=resolved, defaults=defaults)
 
     system_code = _system_code_string(control_unit, s_nodes, s_slots, s_chosen)
     article_code = _article_code_string(

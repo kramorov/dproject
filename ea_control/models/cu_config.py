@@ -28,6 +28,17 @@ from ea_control.models.abstract import (AbstractConfigNode, AbstractConfigSlot,
                                         ConfigWhenOperator)
 
 
+# FK полезных нагрузок CuSlotOption — единый список для select_related/prefetch
+# (используют cu_description._slot_options_prefetch/_option_description и
+# cu_matrix.resolve_slots).
+CU_SLOT_OPTION_PAYLOAD_FKS = (
+    'control_signal', 'feedback_signal', 'protocol', 'heater_supply',
+    'signal_power', 'control_logic', 'control_unit', 'control_unit_kind',
+    'device', 'local_control_type', 'unit_power_source',
+    'cable_gland_set', 'location_option', 'access_device_option',
+)
+
+
 class CuSectionNode(LocalizedDictFieldsMixin, AbstractConfigNode):
     """Узел-секция конфигурации БУ (роль ``Node``).
 
@@ -373,7 +384,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
         if self.kind == CuOptionKind.DEVICE and self.device_id:
             return str(self.device)
         if self.kind == CuOptionKind.DISPLAY:
-            names = [str(d) for d in self.display_types.all().order_by('sorting_order')]
+            names = [str(d) for d in sorted(self.display_types.all(),
+                                              key=lambda d: d.sorting_order)]
             if names:
                 return ' + '.join(names)
         return self.name or self.code
@@ -409,7 +421,8 @@ class CuSlotOption(LocalizedDictFieldsMixin, AbstractSlotOption):
                     return localized_name(obj, locale)
         if self.kind == CuOptionKind.DISPLAY:
             names = [localized_name(d, locale)
-                     for d in self.display_types.all().order_by('sorting_order')]
+                     for d in sorted(self.display_types.all(),
+                                     key=lambda d: d.sorting_order)]
             if names:
                 return ' + '.join(names)
         return pick_i18n(self.name_i18n, locale, fallback=self.name or self.code)
