@@ -35,7 +35,7 @@ from core.utils.localization import pick_i18n
 
 from ea_control.models import (CU_SLOT_OPTION_PAYLOAD_FKS, CuSectionNode,
                                CuSlot, CuSlotOption, CuSlotRule)
-from ea_control.models.abstract import ConfigSlotKind
+from core.models import ConfigSlotKind
 from ea_control.services.cu_matrix import (get_product_type_slot,
                                            get_profile_defaults, resolve_slots)
 from ea_control.services.cu_rules import apply_rules

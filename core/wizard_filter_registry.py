@@ -10,13 +10,19 @@
 НЕ модифицирует существующие модели — только читает их catalog/filter_defs.
 """
 from django.contrib.contenttypes.models import ContentType
+from django.db import OperationalError, ProgrammingError
 
 
 def _get_ct_id(app_label, model_name):
-    """Получить content_type_id по app_label и model_name."""
+    """Получить content_type_id по app_label и model_name.
+
+    На свежей БД во время ``migrate`` таблица ``django_content_type`` ещё не
+    создана — не падаем, а пропускаем регистрацию (реестр заполнится в
+    обычном процессе, где таблица уже есть).
+    """
     try:
         return ContentType.objects.get(app_label=app_label, model=model_name).id
-    except ContentType.DoesNotExist:
+    except (ContentType.DoesNotExist, OperationalError, ProgrammingError):
         return None
 
 

@@ -24,6 +24,21 @@ from .mixins import (
     SoftDeleteMixin ,
 )
 from .tech_doc_mixin import TechDocMixin
+from .config_pattern import (
+    ConfigSelectionMode,
+    ConfigSlotKind,
+    ConfigAvailability,
+    ConfigRuleAction,
+    ConfigRuleOperator,
+    ConfigWhenOperator,
+    AbstractConfigNode,
+    AbstractConfigSlot,
+    AbstractSlotOption,
+    AbstractSlotMatrixEntry,
+    AbstractSlotRule,
+    AbstractConfigSnapshot,
+    StableKeyMixin,
+)
 
 # Экспортируем всё что нужно наружу
 __all__ = [
@@ -48,7 +63,14 @@ __all__ = [
     'get_all_base_models' ,
     'register_model_signal' ,
 
-    'ImageGalleryMixin', 'TechDocMixin'
+    'ImageGalleryMixin', 'TechDocMixin',
+
+    # Паттерн «узлы/слоты/матрицы/правила» (slots.md §5.1)
+    'ConfigSelectionMode', 'ConfigSlotKind', 'ConfigAvailability',
+    'ConfigRuleAction', 'ConfigRuleOperator', 'ConfigWhenOperator',
+    'AbstractConfigNode', 'AbstractConfigSlot', 'AbstractSlotOption',
+    'AbstractSlotMatrixEntry', 'AbstractSlotRule', 'AbstractConfigSnapshot',
+    'StableKeyMixin',
 ]
 
 # Регистрируем модели для Django

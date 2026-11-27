@@ -13,7 +13,7 @@
 from core.utils.localization import pick_i18n
 
 from ea_control.models import CuSlot, CuSlotOption, CuSlotRule
-from ea_control.models.abstract import ConfigSlotKind
+from core.models import ConfigSlotKind
 from ea_control.services.cu_description import (build_description,
                                                  _slot_options_prefetch)
 from ea_control.services.cu_code import build_codes

@@ -32,7 +32,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuSignalPowerSource, CuSlot, CuSlotOption,
                                CuSlotRule, ControlUnit, ControlUnitKind,
                                CuSectionNode, AbstractConfigSnapshot)
-from ea_control.models.abstract import ConfigAvailability
+from core.models import ConfigAvailability
 
 
 class CuConfigTestCase(TestCase):

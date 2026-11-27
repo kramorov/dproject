@@ -28,7 +28,7 @@
 """
 from ea_control.models import (CuMatrixEntry, CuMatrixMode, CuSlot,
                                CuSlotOption, CuSlotRule)
-from ea_control.models.abstract import ConfigSlotKind
+from core.models import ConfigSlotKind
 from core.utils.localization import localized_name
 
 

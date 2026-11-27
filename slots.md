@@ -1221,8 +1221,14 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
 
 ## 5. Дальнейшие действия
 
-1. Перенос абстракций из `ea_control/models/abstract.py` в `core`
-   (`ConfigSlot`/`SlotOption`/`SlotMatrixEntry`/`SlotRule`/`ConfigSnapshot`).
+1. **Выполнено 2026-11-27.** Перенос абстракций из `ea_control/models/abstract.py`
+   в `core/models/config_pattern.py` (имена сохранены с префиксом `Abstract`:
+   `AbstractConfigNode`/`AbstractConfigSlot`/`AbstractSlotOption`/
+   `AbstractSlotMatrixEntry`/`AbstractSlotRule`/`AbstractConfigSnapshot` +
+   словари выбора/рода/доступности/действий/операторов). Реэкспорт из
+   `core.models`; `ea_control/models/abstract.py` удалён; импортеры переведены
+   на `from core.models import ...`. Миграции не тронуты (`makemigrations --check`
+   чисто — abstract-базы в миграциях не фиксируются).
 2. Migrate-команды из legacy: `migrate_cu_from_params`,
    `migrate_cu_series_links`, `migrate_cu_profiles` (маппинг по кодам).
 3. Интеграция в ЭП (фаза 4): переключение `/admin/ea-constructor` на
@@ -1338,6 +1344,14 @@ POSI AR01), 69 слотов (23 value / 46 object). Счётчики в §2 «Д
   `_snapshot_options` (multi-слот не ломает `when`-резолв), `build_specification`
   (пустые секции не выводятся), docstring `AbstractSlotRule.priority` (§6.8.6,
   миграция `ea_control/0036`).
+- **§5.1 — перенос абстракций в core**: выполнено (см. п.1 «Дальнейших
+  действий») — `core/models/config_pattern.py`, реэкспорт из `core.models`,
+  `ea_control/models/abstract.py` удалён; `makemigrations --check` — чисто,
+  `ea_control` 144/144 + `electric_actuators` 21/21 OK.
+- **Микрооптимизации (ревью) — оценены и отложены**: `get_product_type_slot`/
+  `_product_type_option` резолвятся по 4 раза на запрос, `ControlUnit.kind` —
+  1 раз; всё ограничено (не N+1). Полный дедуп требует прокидывания через
+  сигнатуры или 11 call-site'ов — не окупается и противоречит п.1=А (без кэша).
 - **Тесты**: `ea_control` — зелёный (в т.ч. `tests_when` 13/13);
   `manage.py check`/`makemigrations --check` — чисто.
 

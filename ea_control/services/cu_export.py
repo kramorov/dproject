@@ -21,7 +21,7 @@ from django.db.models import Q
 
 from ea_control.models import (CuMatrixEntry, CuMatrixMode, CuSectionNode,
                                CuSlot, CuSlotOption)
-from ea_control.models.abstract import ConfigSlotKind
+from core.models import ConfigSlotKind
 from params.models import PowerSupplies
 
 

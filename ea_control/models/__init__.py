@@ -4,8 +4,8 @@
 
 Структура:
 
-- ``abstract.py`` — абстракции паттерна «узлы/слоты/матрицы/правила»
-  (после отладки переезжают в core);
+- абстракции паттерна «узлы/слоты/матрицы/правила» — перенесены в
+  ``core.models.config_pattern`` (slots.md §5.1);
 - ``dictionaries.py`` — копии справочников ЭП (сигналы/формы/протоколы/
   устройства/обогрев/размещение) + новый справочник CuCapability;
 - ``cu_power.py`` — справочники схемотехники цепей управления (из черновика);
@@ -16,7 +16,7 @@
 Черновик с набросками справочников БУ сохранён в ``_draft_legacy_models.py``
 (не импортируется Django).
 """
-from ea_control.models.abstract import (  # noqa: F401
+from core.models import (  # noqa: F401
     AbstractConfigNode,
     AbstractConfigSlot,
     AbstractSlotOption,

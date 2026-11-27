@@ -41,7 +41,7 @@ from ea_control.models import (CuCapability, CuCommProtocol, CuControlLogic,
                                CuSlotRule, CuUnitPowerSource, ControlUnit,
                                ControlUnitKind, CuSectionNode, CuSlotSource,
                                SLOT_SOURCE_PAYLOAD, ControlUnitBinding)
-from ea_control.models.abstract import ConfigSlotKind
+from core.models import ConfigSlotKind
 from ea_control.services.cu_matrix import resolve_product_types
 from ea_control.services.cu_package import build_package
 from ea_control.services.cu_report import build_description

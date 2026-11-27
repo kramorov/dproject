@@ -33,7 +33,7 @@ from collections import defaultdict
 
 from ea_control.models import (CuCodeSettings, CuSectionNode, CuSlot,
                                CuSlotOption, ControlUnit)
-from ea_control.models.abstract import ConfigSlotKind
+from core.models import ConfigSlotKind
 from ea_control.services.cu_description import (
     _effective_snapshot, _slot_chosen_options, visible_slots)
 from ea_control.services.cu_matrix import get_profile_defaults, resolve_slots

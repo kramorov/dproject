@@ -22,10 +22,10 @@ import re
 from core.models.mixins import LocalizedDictFieldsMixin
 from core.utils.localization import localized_name, pick_i18n
 
-from ea_control.models.abstract import (AbstractConfigNode, AbstractConfigSlot,
-                                        AbstractSlotMatrixEntry,
-                                        AbstractSlotOption, AbstractSlotRule,
-                                        ConfigWhenOperator)
+from core.models import (AbstractConfigNode, AbstractConfigSlot,
+                        AbstractSlotMatrixEntry,
+                        AbstractSlotOption, AbstractSlotRule,
+                        ConfigWhenOperator)
 
 
 # FK полезных нагрузок CuSlotOption — единый список для select_related/prefetch

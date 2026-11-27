@@ -27,7 +27,7 @@ from django.db.models import Q
 
 from ea_control.models import (CU_SLOT_OPTION_PAYLOAD_FKS, CuMatrixEntry,
                                CuMatrixMode, CuSlot, CuSlotOption)
-from ea_control.models.abstract import ConfigSlotKind, ConfigWhenOperator
+from core.models import ConfigSlotKind, ConfigWhenOperator
 
 
 def get_product_type_slot():

@@ -16,7 +16,7 @@
 from core.utils.localization import pick_i18n
 
 from ea_control.models import CuMatrixEntry, CuSectionNode, CuSlot
-from ea_control.models.abstract import ConfigSlotKind
+from core.models import ConfigSlotKind
 from ea_control.services.cu_description import hidden_slot_codes
 
 

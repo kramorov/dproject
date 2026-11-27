@@ -159,6 +159,28 @@ def fill_posi_feedback_seed(apps, schema_editor):
 
     brand = Brands.objects.filter(name='Tissin').first()
 
+    # Словари на свежей БД могут отсутствовать (наполняются отдельными сидами/
+    # командами) — создаём при необходимости, чтобы SensorComponent не получал
+    # NULL в NOT NULL-поля (slots.md §5.10).
+    variety_by_code = {}
+    for code, name in (('TRANS', 'Трансмиттер'), ('MECH', 'Механический')):
+        variety_by_code[code], _ = LimitSwitchSensorVariety.objects.get_or_create(
+            code=code, defaults={'name': name, 'is_active': True})
+    signal_type_by_code = {}
+    for code, name in (('ANALOG', 'Аналоговый'), ('DRY', 'Сухой контакт')):
+        signal_type_by_code[code], _ = SignalType.objects.get_or_create(
+            code=code, defaults={'name': name, 'is_active': True})
+    contact_form_by_code = {}
+    for code, name, wires in (('NONE', 'Нет', 0),
+                              ('SPDT', 'Однополюсный перекидной', 3)):
+        contact_form_by_code[code], _ = ContactForm.objects.get_or_create(
+            code=code, defaults={'name': name, 'wires_required': wires,
+                                 'is_active': True})
+    contact_state_by_code = {}
+    for code, name in (('NONE', 'Нет'), ('CO', 'Перекидной')):
+        contact_state_by_code[code], _ = ContactState.objects.get_or_create(
+            code=code, defaults={'name': name, 'is_active': True})
+
     sensor_by_code = {}
     for item in SENSORS:
         sensor, _ = SensorComponent.objects.get_or_create(
@@ -166,14 +188,10 @@ def fill_posi_feedback_seed(apps, schema_editor):
             defaults={
                 'name': item['name'],
                 'brand': brand,
-                'variety': LimitSwitchSensorVariety.objects.filter(
-                    code=item['variety']).first(),
-                'signal_type': SignalType.objects.filter(
-                    code=item['signal_type']).first(),
-                'contact_form': ContactForm.objects.filter(
-                    code=item['contact_form']).first(),
-                'contact_state': ContactState.objects.filter(
-                    code=item['contact_state']).first(),
+                'variety': variety_by_code.get(item['variety']),
+                'signal_type': signal_type_by_code.get(item['signal_type']),
+                'contact_form': contact_form_by_code.get(item['contact_form']),
+                'contact_state': contact_state_by_code.get(item['contact_state']),
                 'electrical_specs': item['electrical_specs'],
                 'wires_count': item['wires_count'],
                 'is_active': True,
