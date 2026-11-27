@@ -5,7 +5,11 @@
 # хэша в 0067 делает старые хэши неактуальными — иначе дедуп материализации
 # промахивается мимо существующих карточек).
 
+import hashlib
+import json
+
 import django.db.models.deletion
+from django.core.exceptions import FieldDoesNotExist
 from django.db import migrations, models
 
 
@@ -16,17 +20,49 @@ def recompute_config_hash(apps, schema_editor):
     не совпадают с новыми, и поиск карточки по хэшу (materialize_configuration,
     generate_pa_cards) стал бы создавать дубликаты вместо переиспользования.
     Обновляем только поле config_hash (без save() — sync_sku не трогаем).
+
+    Используем historical-модель и фиксированный список полей на момент 0068:
+    live ``config_hash_fields`` уже содержит ``stroke`` (добавлен в 0079), а
+    колонки stroke на этом шаге ещё нет (slots.md §5.10).
     """
-    from pneumatic_actuators.models.pa_item import PneumaticActuatorCatalogItem
-    for item in PneumaticActuatorCatalogItem.objects.all().iterator():
+    PneumaticActuatorCatalogItem = apps.get_model(
+        'pneumatic_actuators', 'PneumaticActuatorCatalogItem')
+    fields = (
+        'model_line', 'body', 'pneumatic_actuator_variety',
+        'selected_safety_position', 'selected_springs_qty',
+        'selected_temperature', 'selected_ip', 'selected_exd',
+        'selected_body_coating', 'selected_shaft_material',
+        'selected_body_color', 'selected_manual_override',
+    )
+
+    def hash_part(item, field_name):
         try:
-            new_hash = item.compute_config_hash()
-        except Exception:
-            continue
-        if new_hash and new_hash != item.config_hash:
+            field = item._meta.get_field(field_name)
+        except FieldDoesNotExist:
+            field = None
+        if field is not None and field.many_to_many:
+            try:
+                ids = sorted(getattr(item, field_name).values_list('pk', flat=True))
+            except Exception:
+                ids = []
+            return json.dumps(ids, default=str, sort_keys=True)
+        if field is not None and field.is_relation:
+            val = getattr(item, field_name + '_id', None)
+            return str(val if val is not None else 0)
+        val = getattr(item, field_name, None)
+        if val is None:
+            return ''
+        if isinstance(val, (list, dict, tuple)):
+            return json.dumps(val, default=str, sort_keys=True)
+        return str(val)
+
+    for item in PneumaticActuatorCatalogItem.objects.all().iterator():
+        parts = [hash_part(item, f) for f in fields]
+        canonical = f"{item._meta.label_lower}|{'|'.join(parts)}"
+        new_hash = hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+        if new_hash != item.config_hash:
             PneumaticActuatorCatalogItem.objects.filter(pk=item.pk).update(
-                config_hash=new_hash
-            )
+                config_hash=new_hash)
 
 
 class Migration(migrations.Migration):
